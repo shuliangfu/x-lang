@@ -15,6 +15,7 @@
  *
  * G-02e-7：原 parser_asm_link_alias.c 并入本 TU。
  */
+#include <shux_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -189,7 +190,7 @@ int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *sourc
 /**
  * seed ./shux 链无 parser_parse_bootstrap.o 时提供弱裸名桩；experimental 链入真 bootstrap .o 后覆盖。
  */
-__attribute__((weak)) struct parser_ParseIntoResult parse_into_buf(void *arena, void *module, uint8_t *data,
+SHUX_WEAK struct parser_ParseIntoResult parse_into_buf(void *arena, void *module, uint8_t *data,
                                                                    int32_t len) {
   (void)arena;
   (void)module;
@@ -201,7 +202,7 @@ __attribute__((weak)) struct parser_ParseIntoResult parse_into_buf(void *arena, 
   return r;
 }
 
-__attribute__((weak)) struct parser_ParseIntoResult parse_into(void *arena, void *module,
+SHUX_WEAK struct parser_ParseIntoResult parse_into(void *arena, void *module,
                                                                 struct shux_slice_uint8_t *source) {
   (void)arena;
   (void)module;
@@ -212,7 +213,7 @@ __attribute__((weak)) struct parser_ParseIntoResult parse_into(void *arena, void
   return r;
 }
 
-__attribute__((weak)) void parse_into_set_main_index(void *module, int32_t main_idx) {
+SHUX_WEAK void parse_into_set_main_index(void *module, int32_t main_idx) {
   (void)module;
   (void)main_idx;
 }
@@ -238,18 +239,18 @@ int32_t parser_parse_one_function_ok_for_pipeline(void *arena, struct shux_slice
 #endif
 
 /** runtime 期望 parser_parse_into_buf；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
-__attribute__((weak)) struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data,
+SHUX_WEAK struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data,
                                                                           int32_t len) {
   return parse_into_buf(arena, module, data, len);
 }
 
 /** runtime 期望 parser_parse_into；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
-__attribute__((weak)) struct parser_ParseIntoResult parser_parse_into(void *arena, void *module,
+SHUX_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *module,
                                                                        struct shux_slice_uint8_t *source) {
   return parse_into(arena, module, source);
 }
 
 /** runtime 期望 parser_parse_into_set_main_index；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
-__attribute__((weak)) void parser_parse_into_set_main_index(void *module, int32_t main_idx) {
+SHUX_WEAK void parser_parse_into_set_main_index(void *module, int32_t main_idx) {
   parse_into_set_main_index(module, main_idx);
 }

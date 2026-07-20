@@ -23,7 +23,11 @@ echo "g05_ensure_relink_prereqs: load env (shell, no make)"
 # shellcheck disable=SC2046
 eval "$(bash scripts/g05_relink_env.sh)"
 
-CC="${G05_CC:-cc}"
+# Why: Windows MSYS2/MinGW ships gcc only (no cc alias). Honor caller-provided
+#      $CC (e.g. CC=gcc exported by Windows build env), then G05_CC override,
+#      then fall back to cc for POSIX. Without this, g05 hot-rebuild emits
+#      "cc: command not found" on Windows.
+CC="${G05_CC:-${CC:-cc}}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 # 与 Makefile RUNTIME_DRIVER_NO_C_CFLAGS 一致（runtime.c → runtime_driver_no_c.o）
 # Cap residual 数据在 RT_SEED_SLICE_OBJS（g05_relink_env）；runtime 开 SHUX_RT_*_FROM_X。
@@ -2897,6 +2901,36 @@ case " $G05_OBJS " in
     fi
     ;;
 esac
+
+# --- asm_full_link_stubs.o freshness check (PLATFORM: WINDOWS | MSYS | MINGW) ---
+# Why: PE/MinGW has no weak function symbols (SHUX_WEAK expands empty; stubs are
+#      strong). If user_asm_seed_bridge.o is rebuilt (e.g. .x changed) and
+#      introduces a new U symbol matching gen_asm_full_link_stubs.pl regex
+#      (platform_coff_*, arch_*, peephole_*, enc_*, ...), the existing
+#      asm_full_link_stubs.o may be stale — missing the new stub — causing
+#      the final g05 link to fail with "undefined reference" on PE. On ELF
+#      (Linux/macOS) weak stubs mask this because real impls override, so the
+#      race is Windows-only. The Makefile rule regenerates stubs only when its
+#      .o prerequisites are newer, but within a single g05 run that rebuilds
+#      user_asm_seed_bridge.o the stubs rule may not fire in the right order.
+#      Fix at the root: regenerate stubs here (idempotent — gen_asm_full_link_stubs.pl
+#      now writes a temp file and replaces only on content change; no-op when
+#      symbol set is unchanged, so mtime stays stable and no spurious rebuilds).
+#      Mirror of Makefile L1503-1509 stubs recipe. G.7: single authority is
+#      gen_asm_full_link_stubs.pl; this is the shell-path equivalent of the
+#      Makefile rule, not a second generator.
+mkdir -p build_asm/seed_host
+if [ -f build_asm/seed_host/asm_backend_partial.o ] && [ -x scripts/gen_asm_full_link_stubs.pl ]; then
+  _stubs_scan="pipeline_x.o build_asm/pipeline_glue_standalone.o src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
+  [ -f build_asm/seed_host/asm_full.o ] && _stubs_scan="build_asm/seed_host/asm_full.o $_stubs_scan"
+  _stubs_scan="build_asm/seed_host/asm_backend_partial.o $_stubs_scan"
+  if perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $_stubs_scan 2>&1; then
+    if [ build_asm/seed_host/asm_full_link_stubs.c -nt build_asm/seed_host/asm_full_link_stubs.o ] 2>/dev/null; then
+      echo "g05_ensure: cc -c build_asm/seed_host/asm_full_link_stubs.o (stubs.c updated)" >&2
+      $CC $BASE_CFLAGS -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c
+    fi
+  fi
+fi
 
 # --- 齐备检查 ---
 mkdir -p build_asm/seed_host

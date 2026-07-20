@@ -134,7 +134,13 @@ export function win32_write(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   let std_id: i32 = win32_std_handle_id_for_fd(fd);
-  if (std_id < 0) {
+  /* Why: Windows std handle constants (STD_INPUT_HANDLE=-10, STD_OUTPUT_HANDLE=-11,
+   *      STD_ERROR_HANDLE=-12) are all negative. Checking `std_id < 0` misclassifies
+   *      every valid handle as an error. win32_std_handle_id_for_fd returns -1 to
+   *      signal an unsupported fd; -1 is not a valid Windows std handle constant,
+   *      so equality check is the correct error test.
+   * Invariant: std_id == -1 iff fd is not 1 or 2 (unsupported on Windows). */
+  if (std_id == -1) {
     return -1;
   }
   let h: *u8 = win32_get_std_handle(std_id);

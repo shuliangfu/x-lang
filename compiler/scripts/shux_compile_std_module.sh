@@ -53,7 +53,11 @@ SHUX_BIN="${SHUX:-./shux}"
 # 使 freestanding -nostdlib 链接不因 transitive libc 符号失败。
 # PLATFORM: LINUX — -D_GNU_SOURCE so formal std.fs.posix (posix_fadvise, etc.) compile
 # under gcc -Werror=implicit-function-declaration; macOS clang accepts without it.
-CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -ffunction-sections -fdata-sections -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers"
+# PLATFORM: SHARED — -Wno-implicit-function-declaration: -x -E emits extern calls to
+# cross-module APIs (e.g. std/net/mod.x calls std_io_read_fixed_fd) but codegen does
+# not always emit forward extern decls. Tolerate like shux_compile_std_fs_formal.sh
+# (posix_fadvise etc.). Same for -Wno-builtin-declaration-mismatch (libc name clashes).
+CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -ffunction-sections -fdata-sections -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch"
 case "$(uname -s 2>/dev/null)" in
   Linux) CFLAGS="-D_GNU_SOURCE $CFLAGS" ;;
 esac
@@ -62,7 +66,7 @@ if cc -v 2>&1 | grep -q clang; then
 fi
 
 tmp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t shuxmod)
-trap 'rm -rf "$tmp_dir" 2>/dev/null || true' EXIT INT TERM
+trap 'if [ -n "${SHUX_DEBUG_KEEP_TMP:-}" ]; then echo "DEBUG kept tmp_dir=$tmp_dir" >&2; else rm -rf "$tmp_dir" 2>/dev/null || true; fi' EXIT INT TERM
 
 # 【Why 根源】旧 seed（bootstrap_shuxc）不支持 -lib-name flag（ treats it as a file path,
 # outputs "io error: cannot read file '-lib-name'" and exits 0）。但其无前缀逻辑也产出裸符号
@@ -368,6 +372,138 @@ for x_path in "$@"; do
             }' "$gen_c" >"$merged" && mv "$merged" "$gen_c"
         else
           cat "$fwd_tmp" "$gen_c" >"$merged" && mv "$merged" "$gen_c"
+        fi
+      fi
+    fi
+  fi
+
+  # 【Why 根源】codegen bug workaround (2026-07-19): when a struct field type is
+  # another user struct (e.g. std/net/mod.x SocketAddrV4 { addr: Ipv4Addr, port: u32 }),
+  # codegen -x -E emits only forward `struct Foo;` declaration but not the complete
+  # definition. cc then fails with "incomplete result type 'struct Foo' in function
+  # definition". Workaround: extract all `export struct Foo { ... }` from mod.x
+  # source, convert SHUX types to C types, inject the missing complete definitions
+  # right after the last #include (only for structs whose complete body is absent).
+  # PLATFORM: SHARED — runs only on mod.x entry file; impl .x (--bare-impl) skipped.
+  if [ "$base_name" = "mod.x" ] && command -v perl >/dev/null 2>&1; then
+    mod_x_src="$x_path"
+    case "$mod_x_src" in
+      std/*) mod_x_src="../$mod_x_src" ;;
+    esac
+    if [ -f "$mod_x_src" ]; then
+      mod_leaf_x=$(basename "$(dirname "$mod_x_src")")
+      mod_root_x=$(printf '%s' "$mod_x_src" | sed -e 's|^\.\./||' -e 's|/.*||')
+      case "$mod_root_x" in
+        core) mod_pref_x="core_${mod_leaf_x}_" ;;
+        std)  mod_pref_x="std_${mod_leaf_x}_" ;;
+        *)    mod_pref_x="std_${mod_leaf_x}_" ;;
+      esac
+      inject_tmp="$tmp_dir/inject_structs_${idx}.h"
+      perl -e '
+        use strict;
+        my ($prefix, $src) = @ARGV;
+        open(my $fh, "<", $src) or exit 0;
+        my %type_map = (
+          u8 => "uint8_t", u16 => "uint16_t", u32 => "uint32_t", u64 => "uint64_t",
+          i8 => "int8_t",  i16 => "int16_t",  i32 => "int32_t",  i64 => "int64_t",
+          f32 => "float", f64 => "double", usize => "size_t", isize => "ssize_t",
+          bool => "_Bool",
+        );
+        sub to_c_type {
+          my $t = shift; $t =~ s/^\s+|\s+$//g; $t =~ s/;$//;
+          if ($t =~ /^\*(.*)$/) { return to_c_type($1) . " *"; }
+          if ($t =~ /^(.+)\[(\d+)\]$/) { return to_c_type($1) . "[" . $2 . "]"; }
+          if (exists $type_map{$t}) { return $type_map{$t}; }
+          return "struct ${prefix}${t}";
+        }
+        my $in_struct = 0; my $name; my @fields;
+        while (my $line = <$fh>) {
+          if (!$in_struct && $line =~ /^export struct ([A-Za-z_][A-Za-z0-9_]*) \{/) {
+            $name = $1; @fields = (); $in_struct = 1; next;
+          }
+          if ($in_struct) {
+            if ($line =~ /^\}/) {
+              print "struct ${prefix}${name} {\n";
+              for my $f (@fields) { print "  $f;\n"; }
+              print "};\n"; $in_struct = 0;
+            } elsif ($line =~ /^\s*(\w+)\s*:\s*(.+)$/) {
+              my $fname = $1; my $ftype = $2; $ftype =~ s/\s+$//; $ftype =~ s/;$//;
+              push @fields, to_c_type($ftype) . " " . $fname;
+            }
+          }
+        }
+      ' "$mod_pref_x" "$mod_x_src" >"$inject_tmp" 2>/dev/null || true
+      # Filter inject_tmp: keep only structs whose complete body is MISSING from gen_c.
+      # Detection covers three cases:
+      #   1. forward `struct Foo;` exists but `struct Foo {` does not
+      #   2. only used in function signatures (e.g. `struct Foo std_net_local_addr(...)`)
+      #      with no forward decl and no complete def (codegen bug — emit just sig)
+      #   3. struct already has complete body in gen_c → skip (no duplicate)
+      # Also synthesizes shux_slice_<pref>_<Struct> slice types when codegen omits them
+      # (codegen emits shux_slice_uint8_t etc. but skips user-struct slices).
+      # Also patches codegen bug: `struct Foo _rc = 0;` → `struct Foo _rc = {0};`
+      # (struct local var initialized with int literal instead of compound literal).
+      if [ -f "$gen_c" ] && command -v perl >/dev/null 2>&1; then
+        # Patch struct-local-var init from `= 0` to `= {0}` (only when LHS is `struct ...`)
+        # Allow leading whitespace (function body indentation).
+        perl -i -pe 's/^(\s*struct\s+[A-Za-z_][A-Za-z0-9_]*\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*)0\s*;/${1}\{0\};/g' "$gen_c" 2>/dev/null || true
+      fi
+      if [ -s "$inject_tmp" ] && [ -f "$gen_c" ]; then
+        filtered="$tmp_dir/inject_filtered_${idx}.h"
+        perl -e '
+          use strict;
+          my ($gen_c, $inject, $pref) = @ARGV;
+          open(my $gf, "<", $gen_c) or exit 0;
+          my (%has_full, %slice_seen);
+          while (my $l = <$gf>) {
+            if ($l =~ /^struct (\Q$pref\E[A-Za-z_][A-Za-z0-9_]*) \{/) { $has_full{$1} = 1; }
+            if ($l =~ /^struct (shux_slice_\Q$pref\E[A-Za-z_][A-Za-z0-9_]*) \{/) { $has_full{$1} = 1; }
+            while ($l =~ /shux_slice_(\Q$pref\E[A-Za-z_][A-Za-z0-9_]*)/g) {
+              $slice_seen{$1} = 1;
+            }
+          }
+          close($gf);
+          # First: emit shux_slice_<name> syntheses for missing slice types.
+          for my $sname (sort keys %slice_seen) {
+            next if exists $has_full{"shux_slice_" . $sname};
+            # sname = std_net_TcpStream → element type = struct std_net_TcpStream
+            print "struct shux_slice_${sname} { struct ${sname} *data; size_t length; };\n";
+          }
+          # Second: emit missing export struct bodies from mod.x.
+          open(my $in, "<", $inject) or exit 0;
+          my $in_body = 0; my $name; my $buf = "";
+          while (my $l = <$in>) {
+            if (!$in_body && $l =~ /^struct (\Q$pref\E[A-Za-z_][A-Za-z0-9_]*) \{/) {
+              $name = $1; $buf = $l; $in_body = 1; next;
+            }
+            if ($in_body) {
+              $buf .= $l;
+              if ($l =~ /^\};/) {
+                if (!exists $has_full{$name}) { print $buf; }
+                $in_body = 0;
+              }
+            }
+          }
+          close($in);
+        ' "$gen_c" "$inject_tmp" "$mod_pref_x" >"$filtered" 2>/dev/null || true
+        if [ -s "$filtered" ]; then
+          merged="$tmp_dir/gen_inj_${idx}.c"
+          if grep -q '^#include' "$gen_c"; then
+            awk -v inj="$filtered" '
+              /^#include/ { last=NR }
+              { lines[NR]=$0 }
+              END {
+                for (i=1;i<=NR;i++) {
+                  print lines[i]
+                  if (i==last) {
+                    while ((getline l < inj) > 0) print l
+                    close(inj)
+                  }
+                }
+              }' "$gen_c" >"$merged" && mv "$merged" "$gen_c"
+          else
+            cat "$filtered" "$gen_c" >"$merged" && mv "$merged" "$gen_c"
+          fi
         fi
       fi
     fi

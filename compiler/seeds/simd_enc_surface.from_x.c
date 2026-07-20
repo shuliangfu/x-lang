@@ -12,11 +12,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#endif
 extern int32_t simd_enc_x_doc_anchor(void);
 extern uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane);
 extern int32_t simd_arm64_rbp_lea_off_128half(int32_t slot, int32_t half, int32_t esz);

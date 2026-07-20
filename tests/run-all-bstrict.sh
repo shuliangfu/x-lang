@@ -5,14 +5,42 @@
 # 本脚本覆盖全 std + asm 微测；gcc 回退 / import_alias 允许，非 D+E+F 闭合的必要条件。
 #
 # 用法：./tests/run-all-bstrict.sh
+# 真冷测试：SHUX_L4_COLD=1 ./tests/run-all-bstrict.sh
 # 不跑全量 run-all（其余用例仍走 shux-c）；验收 shux_asm 替代 seed 后白名单不回归。
 
 set -e
 cd "$(dirname "$0")/.."
 
-if [ ! -f compiler/shux_asm ] || [ ! -x compiler/shux_asm ]; then
-  echo "run-all-bstrict: build shux_asm first: make -C compiler bootstrap-driver-bstrict" >&2
-  exit 127
+# L4 true cold test (opt-in): purge ALL .o + core binaries, then rebuild from scratch.
+# PLATFORM: SHARED — works on macOS/Linux/Windows (MSYS).
+# Usage: SHUX_L4_COLD=1 ./tests/run-all-bstrict.sh
+# Per AGENTS.md L4 definition:
+#   - Delete ALL .o under compiler/std/core (no selective deletion)
+#   - Delete+rebuild shux/shux-c/shux_asm/shux_asm2/bootstrap_shuxc
+#   - bootstrap-driver-bstrict rebuilds from zero (.o + g05 relink)
+#   - Then run full bstrict whitelist
+# Why opt-in: default CI uses incremental cache; L4 only for bootstrap/cut-over gates.
+# Invariant: SHUX_L4_COLD=1 forces rebuild regardless of SHUX_BSTRICT_SKIP_BUILD.
+if [ -n "${SHUX_L4_COLD:-}" ]; then
+  echo "run-all-bstrict: SHUX_L4_COLD=1, purging ALL .o + core binaries (L4 true cold test) ..."
+  # 1. Delete every .o under compiler/ (covers src/, build_asm/, build_seed_asm_host/, etc.)
+  find compiler -name '*.o' -type f -delete 2>/dev/null || true
+  # 2. Delete every .o under std/ and core/
+  find std -name '*.o' -type f -delete 2>/dev/null || true
+  find core -name '*.o' -type f -delete 2>/dev/null || true
+  # 3. Delete core binaries (force full rebuild via bootstrap-driver-bstrict)
+  rm -f compiler/shux compiler/shux-c compiler/shux_asm compiler/shux_asm2 compiler/bootstrap_shuxc
+  # 4. Force rebuild path (ignore SHUX_BSTRICT_SKIP_BUILD for this run)
+  unset SHUX_BSTRICT_SKIP_BUILD
+  _l4_purged_o=$(find compiler std core -name '*.o' -type f 2>/dev/null | wc -l | tr -d ' ')
+  echo "run-all-bstrict: L4 purge done (residual .o = ${_l4_purged_o}); rebuilding via bootstrap-driver-bstrict"
+fi
+
+if [ -z "${SHUX_L4_COLD:-}" ]; then
+  if [ ! -f compiler/shux_asm ] || [ ! -x compiler/shux_asm ]; then
+    echo "run-all-bstrict: build shux_asm first: make -C compiler bootstrap-driver-bstrict" >&2
+    exit 127
+  fi
 fi
 
 # run-bootstrap-bstrict-ci.sh 已构建 shux_asm 时跳过重复全量编译。
@@ -269,10 +297,16 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   chmod +x "tests/$script"
   echo "run-all-bstrict: $script ..."
   # Darwin：连续 shux_asm check 易 OOM(Killed:9)；run-check 已跑 types gate 后须冷却再跑 run-types-gate。
+  # Heavy -o linkers (run-ub/run-io/run-crypto/run-vector/run-thread/run-net) peak ~75MB RSS
+  # per shux_asm invocation; transient macOS memory pressure triggers OOM killer (Killed:9).
+  # 19 号 wave 2 钉盘 OK; 20 号 intermittent OOM under memory pressure. 8s cooldown lets
+  # macOS reclaim inactive pages before next -o. Tunable via env.
   case "$(uname -s)" in
     Darwin)
       case "$script" in
         run-types-gate.sh) sleep "${SHUX_BSTRICT_DARWIN_TYPES_COOLDOWN:-5}" ;;
+        run-ub.sh|run-io.sh|run-crypto.sh|run-vector.sh|run-thread.sh|run-net.sh)
+          sleep "${SHUX_BSTRICT_DARWIN_HEAVY_COOLDOWN:-8}" ;;
         *) sleep "${SHUX_BSTRICT_DARWIN_COOLDOWN:-1}" ;;
       esac
       ;;
@@ -401,6 +435,11 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       exit 1
     fi
     echo "run-all-bstrict: retry $script (attempt $((attempt + 1))) ..."
+    # Darwin retry sleep: transient OOM (Killed:9) often clears after a few seconds of
+    # inactive-page reclaim; without sleep, 3 retries can all hit the same pressure window.
+    case "$(uname -s)" in
+      Darwin) sleep "${SHUX_BSTRICT_DARWIN_RETRY_SLEEP:-5}" ;;
+    esac
     attempt=$((attempt + 1))
   done
 done

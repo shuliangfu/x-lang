@@ -33,7 +33,7 @@ for m in $mods; do
   rm -f "$gen" "$obj" 2>/dev/null || true
 
   # shux-c -E-extern 生成 C
-  if ! "$SHUX" -E-extern -L .. "$m" >"$gen" 2>/tmp/shux_f_closure_$$.shuxc.log; then
+  if ! "$SHUX" build -E-extern -L .. "$m" >"$gen" 2>/tmp/shux_f_closure_$$.shuxc.log; then
     FAIL_SHUXC=$((FAIL_SHUXC+1))
     SHUXC_LIST="$SHUXC_LIST $mod_name"
     rm -f "$gen" 2>/dev/null || true

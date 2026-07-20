@@ -7,6 +7,7 @@
  * （产品 rest 业务 T=0）。冷启动/无 PREFER 时仍编译完整 C 体。
  * Cap residual 行访问 API 在 runtime_driver_abi（平台层，供 .x 取表）。
  */
+#include <shux_weak.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -26,9 +27,9 @@ const char *const driver_preamble_io_net_lines[] = {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
         "#include <stdint.h>\n",
-        "#include <unistd.h>\n",
-        "#include <sys/uio.h>\n",
-        "#include <poll.h>\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <unistd.h>\n#else\n#include <io.h>\n#include <sys/types.h>\n#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <sys/uio.h>\n#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <poll.h>\n#endif\n",
         /*
          * PLATFORM: POSIX — product -o co-emit of std.fs.posix uses bare O_*, S_IF*,
          * PROT_*, MAP_*, FS_IOV_BUF_MAX, DIRENT_D_NAME_OFF and bare fs_libc_open, plus
@@ -63,40 +64,56 @@ const char *const driver_preamble_io_net_lines[] = {
         "#if defined(__APPLE__)\n#define DIRENT_D_NAME_OFF ((size_t)21)\n"
         "#else\n#define DIRENT_D_NAME_OFF ((size_t)19)\n#endif\n"
         "#endif\n"
+        /* PLATFORM: POSIX — MinGW io.h already declares `int open(const char*, int, ...)`
+         * which conflicts with our `extern int32_t open(uint8_t*, int32_t, int32_t)`. MinGW
+         * also lacks fcntl/madvise/__error/__errno_location. Gate the whole POSIX extern
+         * block (plus fs_libc_open wrapper + fs_note_last_error_posix alias macro) behind
+         * _WIN32. Windows std.fs layer uses native Win32 APIs (CreateFile/ReadFile). */
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "#if defined(__APPLE__)\nextern int *__error(void);\n"
         "#else\nextern int *__errno_location(void);\n#endif\n"
-        /* Match Shux extern "C" fcntl/madvise ABI (int32_t), not libc fcntl(int,...)/madvise.
-         * libc prototypes conflict with co-emit std.net.udp etc. (mac L4 run-net red). */
         "extern int32_t fcntl(int32_t fd, int32_t cmd, int32_t arg);\n"
         "extern int32_t madvise(uint8_t *addr, size_t len, int32_t advice);\n"
-        /* Co-emit currently omits fs_libc_open body while same-module calls use bare name. */
         "extern int32_t open(uint8_t *path, int32_t flags, int32_t mode);\n"
         "static inline int32_t fs_libc_open(uint8_t *path, int32_t flags, int32_t mode) {\n"
         "  return open(path, flags, mode);\n"
         "}\n"
-        /* Same-module calls may emit bare fs_note_last_error_posix; body is mangled. */
-        "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n",
+        "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n"
+        "#endif\n",
         "static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return read((int)fd, (void *)buf, count);\n"
         "}\n",
         "static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return write((int)fd, (const void *)buf, count);\n"
         "}\n",
+        /* PLATFORM: POSIX — MinGW lacks readv/writev/poll/pread/pwrite and the types
+         * struct iovec, struct pollfd, nfds_t. Gate each inline behind _WIN32. Windows
+         * std.io.sync / std.net use shux_sys_read/write (provided by MinGW io.h). */
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t shux_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
         "  return pread((int)fd, (void *)buf, count, (off_t)offset);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t shux_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
         "  return pwrite((int)fd, (const void *)buf, count, (off_t)offset);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
         "static inline int32_t shux_fs_unlink(uint8_t *path) {\n"
         "  return (int32_t)unlink((const char *)path);\n"
         "}\n",

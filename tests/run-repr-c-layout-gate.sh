@@ -31,7 +31,7 @@ function main(): i32 {
 }
 EOF
 
-if "$SHUX" -o /dev/null "$BAD" 2>/tmp/shux_repr_c_layout_neg.log; then
+if "$SHUX" build -o /dev/null "$BAD" 2>/tmp/shux_repr_c_layout_neg.log; then
   echo "repr-c-layout-gate FAIL: expected typeck error for struct without #[repr(C)]" >&2
   rm -f "$BAD" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
@@ -40,7 +40,7 @@ fi
 
 rm -f "$OUT" "$BAD" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$GOOD" 2>/tmp/shux_repr_c_layout.log; then
+if ! "$SHUX" build -o "$OUT" "$GOOD" 2>/tmp/shux_repr_c_layout.log; then
   echo "repr-c-layout-gate FAIL: compile $GOOD" >&2
   tail -n 8 /tmp/shux_repr_c_layout.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true

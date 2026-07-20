@@ -15,7 +15,7 @@ fi
 
 OUT="$(mktemp -u /tmp/shux_peephole_XXXXXX).o"
 trap 'rm -f "$OUT"' EXIT
-eval "$SHUX -backend asm -o \"$OUT\" $LIBROOT \"src/asm/peephole.x\""
+eval "$SHUX build -backend asm -o \"$OUT\" $LIBROOT \"src/asm/peephole.x\""
 hex=$(objdump -h "$OUT" 2>/dev/null | awk '$2 == "__text" { print $3; exit }')
 if [ -z "$hex" ]; then
   echo "smoke_asm_peephole_metric: ERROR no __text in $OUT" >&2

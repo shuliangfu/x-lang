@@ -14,6 +14,7 @@
  * 经 ld -r 与 scheduler.x 合并为 scheduler.o；末尾 #include async_net_fs.from_x.c。
  * 【链接】-pthread（MPSC 烟测）；按需链入；环境变量见原 scheduler.c 注释。
  */
+#include <shux_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -26,31 +27,31 @@
 /**
  * 可选绑核：未链 std/thread 时用 weak 桩；链 thread.o 时强符号覆盖。
  */
-__attribute__((weak)) int32_t thread_set_affinity_self_c(int32_t cpu_index) {
+SHUX_WEAK int32_t thread_set_affinity_self_c(int32_t cpu_index) {
     (void)cpu_index;
     return -1;
 }
 /** IO-A5 v3：未链 io.o 时 poll 桩（run_i32 回退 wake_all）。 */
-__attribute__((weak)) unsigned shux_io_poll_async_completions(unsigned timeout_ms) {
+SHUX_WEAK unsigned shux_io_poll_async_completions(unsigned timeout_ms) {
     (void)timeout_ms;
     return 0;
 }
 /** STD-090：未链 context.o 时取消检测桩（始终未取消）。 */
-__attribute__((weak)) int32_t ctx_is_cancelled_c(int64_t handle) {
+SHUX_WEAK int32_t ctx_is_cancelled_c(int64_t handle) {
     (void)handle;
     return 0;
 }
-__attribute__((weak)) int64_t ctx_background_c(void) {
+SHUX_WEAK int64_t ctx_background_c(void) {
     return 0;
 }
-__attribute__((weak)) int64_t ctx_with_cancel_c(int64_t parent) {
+SHUX_WEAK int64_t ctx_with_cancel_c(int64_t parent) {
     (void)parent;
     return 0;
 }
-__attribute__((weak)) void ctx_cancel_c(int64_t handle) {
+SHUX_WEAK void ctx_cancel_c(int64_t handle) {
     (void)handle;
 }
-__attribute__((weak)) void ctx_free_c(int64_t handle) {
+SHUX_WEAK void ctx_free_c(int64_t handle) {
     (void)handle;
 }
 #endif

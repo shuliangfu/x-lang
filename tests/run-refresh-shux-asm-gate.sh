@@ -22,7 +22,7 @@ SHUX_FORCE_REFRESH_ASM_GATE="${SHUX_FORCE_REFRESH_ASM_GATE:-0}" ./tests/run-migr
 SHUX_BSTRICT_NO_REPLACE=1 make -C compiler refresh-shux-asm-gate
 
 echo "refresh shux asm gate: verify shux import std.async + 0x const ..."
-out_import=$(./compiler/shux -L . -E tests/parser/import_std_async.x 2>&1) || {
+out_import=$(./compiler/shux build -L . -E tests/parser/import_std_async.x 2>&1) || {
   echo "refresh shux asm gate FAIL: shux -E import_std_async.x" >&2
   exit 1
 }

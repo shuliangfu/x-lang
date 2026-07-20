@@ -11,19 +11,11 @@
  * 本 .inc 仅供 `lsp_diag_pipeline_sizes.o`（shux-c / 无 ctx 链）继续使用。
  * 瘦 sizeof 常量须与 .x 一致：arena=16 / module=40 / dep_ctx=1368。
  */
+#include <shux_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
- * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 
 enum ast_TypeKind { ast_TypeKind_TYPE_I32 };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT };

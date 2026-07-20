@@ -161,7 +161,11 @@ export function std_fs_fs_write(fd: i32, buf: *u8, count: usize): isize {
  * @return i32
  */
 #[no_mangle]
-export function fs_posix_close_c(fd: i32): i32 {
+export extern "C" function fs_posix_close_c(fd: i32): i32 {
+  // ABI: declared `extern "C"` in main.x:31, pipeline.x:82, driver/emit.x:73 — definition
+  // must match to avoid P1 X-ABI parameter-register mismatch when typeck activates the
+  // extern "C" calling-convention contract. Body delegates to std_fs_fs_close (SHUX
+  // X-ABI bridge) which itself wraps the libc `close` call in unsafe { } (see L98-105).
   return std_fs_fs_close(fd);
 }
 
@@ -173,7 +177,11 @@ export function fs_posix_close_c(fd: i32): i32 {
  * @return isize
  */
 #[no_mangle]
-export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
+export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
+  // ABI: declared `extern "C"` in pipeline.x:81, driver/emit.x:71 — definition must
+  // match to avoid P1 X-ABI parameter-register mismatch when typeck activates the
+  // extern "C" calling-convention contract. Body delegates to std_fs_fs_read (SHUX
+  // X-ABI bridge) which itself wraps the libc `read` call in unsafe { } (see L124-135).
   return std_fs_fs_read(fd, buf, count);
 }
 
@@ -185,7 +193,11 @@ export function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
  * @return isize
  */
 #[no_mangle]
-export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
+export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
+  // ABI: declared `extern "C"` in main.x:30, driver/emit.x:72 — definition must match
+  // to avoid P1 X-ABI parameter-register mismatch when typeck activates the extern "C"
+  // calling-convention contract. Body delegates to std_fs_fs_write (SHUX X-ABI bridge)
+  // which itself wraps the libc `write` call in unsafe { } (see L145-156).
   return std_fs_fs_write(fd, buf, count);
 }
 

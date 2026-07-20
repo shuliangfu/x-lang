@@ -25,6 +25,7 @@
  *
  * 为何大量逻辑仍保留为 C：直接调用 parser/lexer/typeck/ast 的 C API 与可变参 typeck 回调；迁 .x 见 docs/完全去掉C与H-前置清单.md §2。
  */
+#include <shux_weak.h>
 
 #include "lsp/lsp_diag.h"
 #include "parser/parser.h"
@@ -1748,7 +1749,7 @@ extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32
 /**
  * 在 (line_0, col_0)（LSP 0-based）处查找"定义"；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
  */
-__attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
+SHUX_WEAK int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
     if (!source || !out_line || !out_col || source_len < 0) return 0;
     s_def_target_func = NULL;
     ASTModule *mod = lsp_ensure_module(source, source_len, line_0 + 1);
@@ -1763,7 +1764,7 @@ __attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_le
 /**
  * 在 (line_0, col_0) 处确定目标函数并收集引用位置；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
  */
-__attribute__((weak)) int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
+SHUX_WEAK int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
                       int *out_lines, int *out_cols, int max_refs) {
     if (!source || !out_lines || !out_cols || source_len < 0 || max_refs <= 0) return 0;
     ASTModule *mod = lsp_ensure_module(source, source_len, -1);
@@ -1790,7 +1791,7 @@ __attribute__((weak)) int lsp_references_at(const uint8_t *source, int source_le
 /**
  * 在 (line_0, col_0) 处找表达式类型；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
  */
-__attribute__((weak)) int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
+SHUX_WEAK int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
     if (!source || !out_buf || out_cap <= 0 || source_len < 0) return 0;
     ASTModule *mod = lsp_ensure_module(source, source_len, line_0 + 1);
     if (!mod) return 0;
@@ -3047,6 +3048,20 @@ int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out
             }
         }
         if (c == '-' && lsp_fmt_is_atom_tail(prev) && !lsp_fmt_unary_lhs(prev)) {
+            int is_return = 0;
+            if (j >= 7) {
+                if (doc[start + j - 7] == 'r' && doc[start + j - 6] == 'e' &&
+                    doc[start + j - 5] == 't' && doc[start + j - 4] == 'u' &&
+                    doc[start + j - 3] == 'r' && doc[start + j - 2] == 'n' &&
+                    doc[start + j - 1] == ' ') {
+                    is_return = 1;
+                }
+            }
+            if (is_return) {
+                out_buf[out_len++] = c;
+                j++;
+                continue;
+            }
             int next_i = j + 1;
             uint8_t next = 0;
             while (next_i < len) {

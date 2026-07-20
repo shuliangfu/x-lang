@@ -20,7 +20,7 @@ function fs_mod_close(fd: i32): i32 {
 
 /**  path（NUL ）； -1。 */
 function open(path: *u8): i32 {
-  return fs_open_read_c(path);
+  unsafe { return fs_open_read_c(path); }
 }
 
 /**  fd； 0， -1。 */
@@ -30,12 +30,12 @@ function close(fd: i32): i32 {
 
 /**  fd  count  buf。 */
 function read(fd: i32, buf: *u8, count: usize): isize {
-  return fs_posix_read_c(fd, buf, count);
+  unsafe { return fs_posix_read_c(fd, buf, count); }
 }
 
 /**  buf[0..count-1]  fd。 */
 function write(fd: i32, buf: *u8, count: usize): isize {
-  return fs_posix_write_c(fd, buf, count);
+  unsafe { return fs_posix_write_c(fd, buf, count); }
 }
 
 /** ： import。 */

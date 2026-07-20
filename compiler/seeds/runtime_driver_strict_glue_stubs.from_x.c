@@ -6,6 +6,7 @@
  *         merge thin forwards/metrics peek; weak polish; heap_user/slot arrays C.
  * .x covers: asm_driver_*, i32_ptr_*, metrics init/read, call_resolve peek.
  */
+#include <shux_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,15 +17,6 @@
 #include <string.h>
 #include "seeds/runtime_heap_user.from_x.c"
 
-/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
- * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 
 struct ASTModule;
 struct ASTFunc;
@@ -709,19 +701,19 @@ extern void driver_diagnostic_pipe_marker(int32_t id);
 extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
 extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
 
-__attribute__((weak)) struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li) {
+SHUX_WEAK struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li) {
   (void)a;
   (void)br;
   (void)li;
   return NULL;
 }
 
-__attribute__((weak)) void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes,
+SHUX_WEAK void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes,
                                                             int32_t len) {
   ast_pipeline_dep_ctx_set_import_path(ctx, idx, bytes, len);
 }
 
-__attribute__((weak)) int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]) {
+SHUX_WEAK int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]) {
   int32_t k;
   (void)module;
   (void)i;
@@ -746,7 +738,7 @@ static int32_t g_typeck_call_resolve_func_idx_slot;
 /* PLATFORM: SHARED — weak fallback; strong def in ast_pool.c on product link. */
 static int32_t g_typeck_overload_expected_ret_slot;
 
-__attribute__((weak)) uint8_t *typeck_scratch64_slot(int32_t slot) {
+SHUX_WEAK uint8_t *typeck_scratch64_slot(int32_t slot) {
   if (slot < 0)
     slot = 0;
   if (slot >= 16)
@@ -754,15 +746,15 @@ __attribute__((weak)) uint8_t *typeck_scratch64_slot(int32_t slot) {
   return &g_typeck_scratch64[slot][0];
 }
 
-__attribute__((weak)) int32_t *typeck_layout_metrics_sz_slot(void) {
+SHUX_WEAK int32_t *typeck_layout_metrics_sz_slot(void) {
   return &g_typeck_layout_metrics_sz_slot;
 }
 
-__attribute__((weak)) int32_t *typeck_layout_metrics_al_slot(void) {
+SHUX_WEAK int32_t *typeck_layout_metrics_al_slot(void) {
   return &g_typeck_layout_metrics_al_slot;
 }
 
-__attribute__((weak)) int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth) {
+SHUX_WEAK int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth) {
   if (depth < 0)
     depth = 0;
   if (depth >= 64)
@@ -770,7 +762,7 @@ __attribute__((weak)) int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth
   return &g_typeck_layout_metrics_sz_depth[depth];
 }
 
-__attribute__((weak)) int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
+SHUX_WEAK int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
   if (depth < 0)
     depth = 0;
   if (depth >= 64)
@@ -779,7 +771,7 @@ __attribute__((weak)) int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth
 }
 
 #ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
-__attribute__((weak)) void typeck_layout_metrics_init_depth(int32_t depth) {
+SHUX_WEAK void typeck_layout_metrics_init_depth(int32_t depth) {
   int32_t *sz = typeck_layout_metrics_sz_slot_depth(depth);
   int32_t *al = typeck_layout_metrics_al_slot_depth(depth);
   if (sz)
@@ -788,60 +780,60 @@ __attribute__((weak)) void typeck_layout_metrics_init_depth(int32_t depth) {
     *al = 1;
 }
 
-__attribute__((weak)) int32_t typeck_layout_metrics_al_read_depth(int32_t depth) {
+SHUX_WEAK int32_t typeck_layout_metrics_al_read_depth(int32_t depth) {
   return *typeck_layout_metrics_al_slot_depth(depth);
 }
 
-__attribute__((weak)) int32_t typeck_layout_metrics_sz_read_depth(int32_t depth) {
+SHUX_WEAK int32_t typeck_layout_metrics_sz_read_depth(int32_t depth) {
   return *typeck_layout_metrics_sz_slot_depth(depth);
 }
 
-__attribute__((weak)) void typeck_layout_metrics_init_slot(void) {
+SHUX_WEAK void typeck_layout_metrics_init_slot(void) {
   *typeck_layout_metrics_sz_slot() = 0;
   *typeck_layout_metrics_al_slot() = 1;
 }
 
-__attribute__((weak)) void typeck_i32_ptr_store(int32_t *p, int32_t v) {
+SHUX_WEAK void typeck_i32_ptr_store(int32_t *p, int32_t v) {
   if (p)
     *p = v;
 }
 
-__attribute__((weak)) int32_t typeck_i32_ptr_read(int32_t *p) {
+SHUX_WEAK int32_t typeck_i32_ptr_read(int32_t *p) {
   return p ? *p : 0;
 }
 
-__attribute__((weak)) void typeck_driver_diagnostic_pipe_marker(int32_t id) {
+SHUX_WEAK void typeck_driver_diagnostic_pipe_marker(int32_t id) {
   driver_diagnostic_pipe_marker(id);
 }
 #endif
 
-__attribute__((weak)) int32_t *typeck_call_resolve_dep_idx_slot(void) {
+SHUX_WEAK int32_t *typeck_call_resolve_dep_idx_slot(void) {
   return &g_typeck_call_resolve_dep_idx_slot;
 }
 
-__attribute__((weak)) int32_t *typeck_call_resolve_func_idx_slot(void) {
+SHUX_WEAK int32_t *typeck_call_resolve_func_idx_slot(void) {
   return &g_typeck_call_resolve_func_idx_slot;
 }
 
-__attribute__((weak)) int32_t *typeck_overload_expected_ret_slot(void) {
+SHUX_WEAK int32_t *typeck_overload_expected_ret_slot(void) {
   return &g_typeck_overload_expected_ret_slot;
 }
 
 #ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
-__attribute__((weak)) int32_t typeck_call_resolve_dep_idx_peek(void) {
+SHUX_WEAK int32_t typeck_call_resolve_dep_idx_peek(void) {
   return *typeck_call_resolve_dep_idx_slot();
 }
 
-__attribute__((weak)) int32_t typeck_call_resolve_func_idx_peek(void) {
+SHUX_WEAK int32_t typeck_call_resolve_func_idx_peek(void) {
   return *typeck_call_resolve_func_idx_slot();
 }
 
-__attribute__((weak)) int32_t typeck_overload_expected_ret_peek(void) {
+SHUX_WEAK int32_t typeck_overload_expected_ret_peek(void) {
   return *typeck_overload_expected_ret_slot();
 }
 #endif
 
-__attribute__((weak)) int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module,
+SHUX_WEAK int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module,
                                                                      struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
   uint8_t path_buf[64];
   int32_t path_len;

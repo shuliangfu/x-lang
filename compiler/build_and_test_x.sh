@@ -20,15 +20,15 @@ cc $CFLAGS -c src/runtime.c -o src/runtime.o
 cc $CFLAGS -o shux src/main.o src/runtime.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/lsp/lsp_diag.o
 
 echo "=== 2. Generate all _gen.c ==="
-./shux -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c
-./shux -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c
-./shux -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c
-./shux -E -E-extern src/ast/ast.x > ast_gen.c
-./shux -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c
-./shux -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c
-./shux -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c
-./shux -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c
-./shux -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.x -E -E-extern > driver_gen.c
+./shux build -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c
+./shux build -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c
+./shux build -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c
+./shux build -E -E-extern src/ast/ast.x > ast_gen.c
+./shux build -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c
+./shux build -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c
+./shux build -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c
+./shux build -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c
+./shux build -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.x -E -E-extern > driver_gen.c
 
 echo "=== 3. Fix generated C ==="
 sed -i '' '52d' parser_gen.c 2>/dev/null || true

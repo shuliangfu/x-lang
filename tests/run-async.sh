@@ -38,11 +38,11 @@ async_host_compile_o() {
   local out="$2"
   shift 2
   if async_is_linux_x64_asm; then
-    "$SHUX" -L . "$@" "$src" -o "$out"
+    "$SHUX" build -L . "$@" "$src" -o "$out"
   elif [ -x ./compiler/shux-c ]; then
     ./compiler/shux-c -L . "$@" "$src" -o "$out"
   elif [ -x ./compiler/shux ]; then
-    ./compiler/shux -L . "$@" "$src" -backend c -o "$out"
+    ./compiler/shux build -L . "$@" "$src" -backend c -o "$out"
   else
     "$COMPILE_SHUX" -L . "$@" "$src" -o "$out"
   fi
@@ -120,7 +120,7 @@ echo "async_switch OK"
 # scheduler jmp 烟测仅 Linux x86_64 seed asm 支持；seed 未 bootstrap 时 N/A（Tier P 早于 bootstrap-driver-seed）。
 if async_is_linux_x64_asm; then
   sched_log=/tmp/async_switch_sched_compile.log
-  if "$SHUX" -L . tests/bench/async_switch_sched.x -backend asm -o /tmp/shux_async_sched >"$sched_log" 2>&1; then
+  if "$SHUX" build -L . tests/bench/async_switch_sched.x -backend asm -o /tmp/shux_async_sched >"$sched_log" 2>&1; then
     rc=$(/tmp/shux_async_sched; echo $?)
     [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
     echo "async_switch_sched OK"

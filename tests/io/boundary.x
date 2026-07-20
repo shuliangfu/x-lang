@@ -3,6 +3,7 @@
 // See implementation.
 // See implementation.
 const io = import("std.io");
+const fmt = import("std.fmt");
 
 /** Internal function `main`.
  * Program/test entry point.
@@ -28,7 +29,7 @@ function main(): i32 {
   // See implementation.
   if (io.write_stderr(&empty[0], 0) != 0) { return 7; }
   // See implementation.
-  if (io.print(&empty[0], 0) != 0) { return 8; }
+  if (fmt.print(&empty[0], 0) != 0) { return 8; }
   // See implementation.
   let zr: i32 = io.read(io.stdin(), &empty[0], 0, 0);
   if (zr < 0) { return 9; }

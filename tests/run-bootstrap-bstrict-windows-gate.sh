@@ -33,11 +33,46 @@ PIPELINE_GEN_PAT='(^|[[:space:]])cc -c (\.\./)?pipeline_gen\.c([[:space:]]|$)'
 
 if [ "$WIN_BSTRICT" = "1" ]; then
   echo "bootstrap-bstrict-windows-gate: E-06 v5 make bootstrap-driver-bstrict (Windows B-strict) ..."
+  # Why: `make | tee` masks make's exit code with tee's (always 0). Without
+  #      capturing PIPESTATUS a real make failure (e.g. relink-shux Error 2
+  #      from g05_relink_env unsupported host) is silently swallowed and the
+  #      gate reports OK based only on log markers — a false green. This was
+  #      the 2026-07-20 Windows gate state: make returned Error 2 but the gate
+  #      exited 0. B-hybrid branch below already captures SEED_RC; B-strict
+  #      must do the same for its single make call.
+  set -o pipefail
   make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/boot_win_bstrict.log
+  BOOT_RC=${PIPESTATUS[0]}
+  set +o pipefail
+  if [ "$BOOT_RC" -ne 0 ]; then
+    echo "bootstrap-bstrict-windows-gate FAIL: make bootstrap-driver-bstrict rc=$BOOT_RC" >&2
+    exit 1
+  fi
   BOOT_LOG=/tmp/boot_win_bstrict.log
   EXPECT_MARKER='bootstrap-driver-bstrict OK|asm_only_strict|asm_only_experimental|B-strict OK'
 else
-  echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-hybrid (B-hybrid default) ..."
+  # Why: bootstrap-driver-hybrid depends on $(TARGET)=shux, whose link rule
+  #      (makefile L611-612) uses only $(OBJS_CORE)=14 .o in SHUX_LEGACY_C_FRONTEND=1
+  #      mode — missing parse/typeck_module/preprocess/pipeline_*/codegen_* symbols.
+  #      shux must be built by bootstrap-driver-seed (full symbol set: 30+ .o
+  #      including pipeline_x.o/parser_x.o/typeck_x.o/codegen_x.o/preprocess_x.o).
+  #      On macOS/Linux shux-x/shux-c are seed copies; shux itself is never
+  #      built standalone. Without this prerequisite the hybrid link fails
+  #      with 30+ undefined references. bootstrap-driver-bstrict already
+  #      depends on bootstrap-driver-seed (L2580); B-hybrid does not.
+  # Invariant: bootstrap-driver-seed is PHONY — always relinks shux with the
+  #            full DRIVER_SEED_PREREQS symbol set, then cp to shux-x/shux-c.
+  #            Subsequent bootstrap-driver-hybrid sees shux up-to-date and
+  #            skips the 14-.o link rule, running only build_shux_asm.sh.
+  # PLATFORM: WINDOWS | MSYS | MINGW (script only runs on MSYS2 hosts; see
+  #           ci_is_windows_msys guard above).
+  echo "bootstrap-bstrict-windows-gate: make bootstrap-driver-seed (full symbol set) then bootstrap-driver-hybrid (B-hybrid default) ..."
+  make -C compiler bootstrap-driver-seed 2>&1 | tee /tmp/boot_win_seed.log
+  SEED_RC=${PIPESTATUS[0]}
+  if [ "$SEED_RC" -ne 0 ]; then
+    echo "bootstrap-bstrict-windows-gate FAIL: bootstrap-driver-seed rc=$SEED_RC" >&2
+    exit 1
+  fi
   make -C compiler bootstrap-driver-hybrid 2>&1 | tee /tmp/boot_win_hybrid.log
   BOOT_LOG=/tmp/boot_win_hybrid.log
   EXPECT_MARKER='Target-B-hybrid|B-hybrid|bootstrap-driver-hybrid OK'
@@ -54,7 +89,11 @@ if ! grep -qE "$EXPECT_MARKER" "$BOOT_LOG"; then
 fi
 
 echo "bootstrap-bstrict-windows-gate: smoke return-value via shux_asm ..."
-RV_OUT="/tmp/shux_win_rv_$$"
+# Why: bash direct exec of .exe under /tmp/ hits Windows Device Guard / Smart
+#      App Control intermittently (Permission denied, exit 126). $TEMP (set to
+#      C:/shux_tmp short path in Windows build env) is reliable. POSIX falls
+#      back to /tmp where Device Guard does not apply.
+RV_OUT="${TEMP:-/tmp}/shux_win_rv_$$"
 RV_BACKEND_ARGS="-backend c"
 rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe" "${RV_OUT}.out"
 compile_rv() {
@@ -89,6 +128,14 @@ fi
 if [ ! -x "$RV_BIN" ] && [ -f "$RV_OUT" ]; then
   cc -std=gnu11 -o "${RV_BIN}.exe" "$RV_OUT" 2>/dev/null && RV_BIN="${RV_BIN}.exe" || true
 fi
+# PLATFORM: WINDOWS | MSYS | MINGW — sign the compiled return-value .exe so
+# Smart App Control (SAC) does not block it (Permission denied). No-op on POSIX.
+if command -v powershell.exe >/dev/null 2>&1; then
+  _rv_cert="${SHUX_CODESIGN_THUMBPRINT:-697D4125CC086F4BF683053A2BD6025B939D96FC}"
+  _rv_win="$(cygpath -m "$RV_BIN" 2>/dev/null || echo "$RV_BIN")"
+  powershell.exe -NoProfile -Command \
+    "Set-AuthenticodeSignature -FilePath '$_rv_win' -Certificate (Get-Item \"Cert:\\LocalMachine\\My\\$_rv_cert\")" >/dev/null 2>&1 || true
+fi
 EX=0
 "$RV_BIN" >/dev/null 2>&1 || EX=$?
 rm -f "$RV_OUT" "${RV_OUT}.c" "${RV_OUT}.exe" "$RV_BIN"
@@ -108,7 +155,7 @@ chmod +x tests/run-win32-write-gate.sh tests/run-win32-read-file-gate.sh
 SHUX_WIN32_WRITE_FAIL=1 ./tests/run-win32-write-gate.sh
 SHUX_WIN32_READ_FILE_FAIL=1 ./tests/run-win32-read-file-gate.sh
 
-PIPELINE_GEN_CC=$(grep -cE "$PIPELINE_GEN_PAT" "$BOOT_LOG" 2>/dev/null || echo 0)
+PIPELINE_GEN_CC=$(grep -E "$PIPELINE_GEN_PAT" "$BOOT_LOG" 2>/dev/null | grep -vE 'info:.*no cc -c pipeline_gen' | wc -l | tr -d '[:space:]')
 if [ "$WIN_BSTRICT" = "1" ]; then
   echo "bootstrap-bstrict-windows-gate: C-03/E-06 v5 cc -c pipeline_gen.c count=${PIPELINE_GEN_CC} (must be 0)"
   if [ "${PIPELINE_GEN_CC:-0}" -gt 0 ] 2>/dev/null; then

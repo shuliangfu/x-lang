@@ -49,7 +49,7 @@ bench_one() {
   local ring="$3"
   local out="/tmp/bench_io_ring_ab_${label}"
   export SHUX_IO_URING_RING_ENTRIES="$ring"
-  ./compiler/shux -L . "$x" -o "$out" 2>&1
+  ./compiler/shux build -L . "$x" -o "$out" 2>&1
   if [ ! -x "$out" ]; then
     echo "nan"
     return

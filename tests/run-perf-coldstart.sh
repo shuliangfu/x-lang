@@ -41,7 +41,7 @@ coldstart_compile_std() {
       if [ -x ./compiler/shux-c ]; then
         ./compiler/shux-c -L . "$src" -o "$out"
       elif [ -x ./compiler/shux ]; then
-        ./compiler/shux -L . "$src" -backend c -o "$out"
+        ./compiler/shux build -L . "$src" -backend c -o "$out"
       else
         "$SHUX_BIN" -L . "$src" -o "$out"
       fi

@@ -22,6 +22,17 @@ case "$INC" in
   *) INC_ABS="$(pwd)/$INC" ;;
 esac
 
+# Why: On Windows MSYS/MinGW, `pwd` returns Unix-style /c/Users/... paths
+#      which Windows gcc cannot resolve inside `#include "/c/Users/..."`.
+#      cygpath -m converts to mixed-mode C:/Users/... that Windows gcc
+#      accepts (forward slashes + drive letter).
+# Invariant: cygpath exists ONLY under MSYS/Cygwin; on Linux/macOS the
+#            if-branch is skipped and INC_ABS stays POSIX-style (no-op).
+# PLATFORM: SHARED (Windows branch only).
+if command -v cygpath >/dev/null 2>&1; then
+  INC_ABS="$(cygpath -m "$INC_ABS")"
+fi
+
 if [ ! -f "$INC_ABS" ]; then
   echo "cc_inc_tu: missing $INC_ABS" >&2
   exit 1

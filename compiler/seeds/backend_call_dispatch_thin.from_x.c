@@ -11,11 +11,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#endif
 extern int32_t glue_asm_call_reg_max(int32_t ta);
 extern int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
 extern int32_t glue_asm_append_export_c_suffix(uint8_t * sym, int32_t sym_len, int32_t cap);

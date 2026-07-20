@@ -9,6 +9,7 @@
  * asm 用户程序 main() 无参时：constructor 从 CRT 读取 argc/argv（macOS _NSGetArgc、Linux /proc/self/cmdline）。
  * std/process/process.x 经 process_shux_argc_get / process_shux_argv_get 读取。
  */
+#include <shux_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -18,13 +19,6 @@
 #include <crt_externs.h>
 #endif
 
-/* SHUX_WEAK：macOS/Linux 下生成 weak 符号；Windows/MinGW PE 不支持函数 weak，宏为空
- *（PE 侧靠 --allow-multiple-definition 兜底）。 */
-#if defined(__GNUC__) || defined(__clang__)
-#define SHUX_WEAK __attribute__((weak))
-#else
-#define SHUX_WEAK
-#endif
 
 /** 由 codegen 或 shux_process_argv_bind_from_crt 写入；供 process.x 经 getter 读取。 */
 int shux_process_argc = 0;

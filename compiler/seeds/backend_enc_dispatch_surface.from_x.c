@@ -13,11 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#endif
 extern int32_t backend_enc_dispatch_x_doc_anchor(void);
 extern int32_t backend_enc_x86_jcc_rel32_c(uint8_t * elf_ctx, uint8_t opcode2, uint8_t * label, int32_t label_len);
 extern int32_t backend_enc_append_u32_le_c(uint8_t * elf_ctx, uint32_t word);

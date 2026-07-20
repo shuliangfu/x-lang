@@ -15,9 +15,38 @@ CFLAGS ?= -Wall -Wextra -I. -Iinclude -Isrc
 # Windows/MinGW: __attribute__((weak)) 函数符号不被 PE 格式支持，
 # 所有 weak 函数在 stub 文件中变为正常定义；用 --allow-multiple-definition 解决重复定义冲突。
 ifeq ($(OS),Windows_NT)
+# PLATFORM: WINDOWS — PE link flags for non-bootstrap targets (see MAIN_LINK_FLAGS
+#            for bootstrap-driver-seed stack reserve).
+#   --allow-multiple-definition: SHUX_WEAK expands to empty on PE, so weak stub
+#     .o files become strong defs; FIRST in link order wins. Required to resolve
+#     duplicate symbol conflicts between stubs and real implementations.
 WIN_LDFLAGS = -Wl,--allow-multiple-definition
+# Why: On MSYS Git Bash, make auto-detects SHELL = "C:/Program Files/Git/usr/bin/sh.exe"
+#      (path with embedded space) but fails to quote it, so the sh invocation
+#      becomes "C:/Program" + args and every recipe aborts with
+#      "bash: C:\Program: No such file or directory". Forcing SHELL := sh
+#      makes make PATH-search sh, resolving to MSYS /usr/bin/sh (no spaces).
+# Invariant: SHELL := sh relies on MSYS Git Bash having sh in PATH (default
+#            install). Safe: only triggered on Windows_NT; macOS/Linux use
+#            system /bin/sh via PATH lookup.
+# PLATFORM: WINDOWS | MSYS | MINGW (SHELL override); no-op elsewhere.
+SHELL := sh
+# Why: MSYS Git Bash ships /usr/local/bin/python3 as a 2-line shim
+#      (#!/usr/bin/env bash; exec python "$@"). env's PATH-search for bash
+#      resolves to "C:/Program Files/Git/usr/bin/bash.exe" (path with space),
+#      and env invokes it unquoted — bash sees "C:\Program" as the command
+#      name and aborts with "bash: C:\Program: No such file or directory".
+#      Direct `python` resolves via PATH to "/c/Program Files/Python312/python"
+#      (also has a space), but bash's PATH lookup handles spaces correctly
+#      (unlike env's execve via the shim). On macOS/Linux `python3` is the
+#      canonical name and is used unchanged.
+# Invariant: PYTHON := python only on Windows_NT; verified that
+#            `python --version` returns Python 3.12.x on Windows MSYS.
+# PLATFORM: WINDOWS | MSYS | MINGW (PYTHON override); no-op elsewhere.
+PYTHON := python
 else
 WIN_LDFLAGS =
+PYTHON := python3
 endif
 # 仅编译 pipeline_gen.c / driver_gen.c 等生成代码时加：静默已知警告，使 bootstrap-driver 整次 0 警告
 # GCC 不识别 -Wno-logical-op-parentheses / -Wno-bitwise-op-parentheses / -Wno-incompatible-pointer-types-discards-qualifiers，会出 cc1 note；仅 Clang 追加
@@ -94,7 +123,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # shux_compile_std_module --bare-impl process.x（mod.x 仍勿编入 .o，避免双定义）。
 ../std/process/process.o: ../std/process/mod.x ../std/process/process.x seeds/runtime_process_args_thin.from_x.c runtime_process_argv.o runtime_process_os_glue.o
 	@$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_args_thin.from_x.c -o $@.args && \
-	ld -r -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
+	ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $@.args runtime_process_argv.o runtime_process_os_glue.o && \
 	rm -f $@.args
 
 # std.string：F 闭合 — 产品 -o 完整 emit（-x -E 会截断函数体）。
@@ -107,7 +136,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
 ../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c scripts/cc_inc_tu.sh
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_path_fast.from_x.c -o ../std/path/path_core.o && \
-	ld -r -o ../std/path/path.o ../std/path/path_core.o && \
+	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/path/path.o ../std/path/path_core.o && \
 	rm -f ../std/path/path_core.o
 
 # std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
@@ -173,11 +202,16 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
 ../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_std_runtime_fast.from_x.c -o ../std/runtime/runtime_core.o && \
-	ld -r -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
+	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
 	rm -f ../std/runtime/runtime_core.o
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
-../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/cc_inc_tu.sh
+# PLATFORM: SHARED — mod.x MUST be compiled into net.o; otherwise std_net_listen /
+# std_net_close_listener / std_net_accept etc. exported symbols are missing from
+# net.o, and any user program calling net.* API hits Undefined symbol BLD001.
+# Root cause fix (2026-07-19): add mod.x via shux_compile_std_module.sh (matches
+# string/heap/sys/fs pattern). Sub-module .x keep shux_compile_std_x.sh bare path.
+../std/net/net.o: ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/cc_inc_tu.sh | scripts/shux_compile_std_module.sh
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
@@ -191,13 +225,15 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	  sh scripts/shux_compile_std_x.sh $$shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
 	  objs="$$objs ../std/net/$$x.o"; \
 	  done; \
+	  sh scripts/shux_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || exit 1; \
+	  objs="$$objs ../std/net/mod.o"; \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_dns_fast.from_x.c -o ../std/net/net_dns_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_addr_fast.from_x.c -o ../std/net/net_addr_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_ipv6_fast.from_x.c -o ../std/net/net_ipv6_fast.o && \
 	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_sock_fast.from_x.c -o ../std/net/net_sock_fast.o && \
 	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
-	  rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
+	  rm -f ../std/net/mod.o ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
 	else \
 	  echo "net.o: need shux-c to merge net_*.x"; exit 0; \
 	fi
@@ -211,7 +247,7 @@ net-o-openssl:
 	  ./shux_asm -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux ]; then \
-	  ./shux -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
+	  ./shux build -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
 	  ./shux-c -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
@@ -224,17 +260,17 @@ net-o-mbedtls:
 	@if [ -x ./shux_asm ]; then \
 	  ./shux_asm -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux ]; then \
-	  ./shux -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
+	  ./shux build -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
 	  ./shux-c -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
-	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	else \
 	  echo "net-o-mbedtls: need shux_asm, shux, or shux-c"; exit 1; \
@@ -511,9 +547,9 @@ sqlite-o-stub:
 	else shux=; fi; \
 	if [ -n "$$shux" ]; then \
 	  sh scripts/shux_compile_std_x.sh auto ../std/db/sqlite/sqlite.x ../std/db/sqlite/sqlite_main.o || exit 1; \
-	  ld -r -o ../std/db/sqlite/sqlite.o ../std/db/sqlite/sqlite_main.o runtime_sqlite_glue_stub.o; \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/db/sqlite/sqlite.o ../std/db/sqlite/sqlite_main.o runtime_sqlite_glue_stub.o; \
 	else \
-	  ld -r -o ../std/db/sqlite/sqlite.o runtime_sqlite_glue_stub.o; \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/db/sqlite/sqlite.o runtime_sqlite_glue_stub.o; \
 	  echo "sqlite.o-stub: need shux-c to merge sqlite.x"; \
 	fi
 
@@ -668,7 +704,7 @@ src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/run
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_io_abi.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_io_abi_x.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RIO_THIN_FROM_X -DSHUX_RUNTIME_IO_ABI_FROM_X -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi_rest.o && \
-		ld -r src/runtime_io_abi_x.o src/runtime_io_abi_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_io_abi_x.o src/runtime_io_abi_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_io_abi_x.o src/runtime_io_abi_rest.o && \
 		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -696,7 +732,7 @@ src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_a
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_abi_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_abi_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X -c seeds/runtime_driver_abi.from_x.c -o src/runtime_driver_abi_rest.o && \
-		ld -r src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -734,7 +770,7 @@ src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/ru
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_diagnostic_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_diagnostic_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X -c seeds/runtime_driver_diagnostic.from_x.c -o src/runtime_driver_diagnostic_rest.o && \
-		ld -r src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -752,7 +788,19 @@ src/runtime.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
 # Makefile 为 prerequisite：编译宏（如 SHUX_USE_X_PREPROCESS）变更时须重编，否则 runtime_driver.o 缺 preprocess() 导致链接 Undefined _preprocess。
 # SHUX_ASM_USE_COMPILER_IMPL_C：driver_run_compiler_full 走 impl_c（parse_argv+post_parse），避免 compile.x X emit 路径 silent fail（与 B-strict shux_asm 同）。
 # E-03 v2：SHUX_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
-RUNTIME_DRIVER_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_ASM_USE_COMPILER_IMPL_C
+# PLATFORM: SHARED — RUNTIME_DRIVER_CFLAGS compiles src/runtime_driver.o (LEGACY mode link unit).
+#   G-02a: C frontend (typeck.c/parser.c/preprocess.c/codegen.c) physically deleted; only
+#   SHUX_WEAK stubs in runtime_driver_strict_glue_stubs.from_x.c remain (parse/typeck_module
+#   return -1). LEGACY mode MUST define SHUX_NO_C_FRONTEND to match RUNTIME_DRIVER_NO_C_CFLAGS,
+#   otherwise #if !defined(SHUX_NO_C_FRONTEND) blocks (e.g. driver_run_asm_backend L4320 C typeck
+#   precheck) get compiled in and call stub parse() → return -1 → exit=1 on Windows.
+#   Why LEGACY still exists: Windows MSYS has no pinned seed; needs runtime_driver.o (not
+#   runtime_driver_no_c.o) for the shux-c standalone build recipe (L2486-2490). But the .o
+#   content is now identical to no_c — only the link target name differs.
+#   Invariant: RUNTIME_DRIVER_CFLAGS and RUNTIME_DRIVER_NO_C_CFLAGS keep the same SHUX_NO_C_FRONTEND
+#              gate; only SHUX_USE_X_TYPECK/SHUX_USE_X_CODEGEN differ (LEGACY omits them because
+#              DRIVER_SEED_LINK_FLAGS already defines them at link time for all .o units).
+RUNTIME_DRIVER_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C
 RUNTIME_DRIVER_NO_C_CFLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_NO_C_FRONTEND -DSHUX_ASM_USE_COMPILER_IMPL_C
 # Cap residual 数据/符号在 rt_* 切片（g05 同构）：driver_abi 始终 extern 引用；
 # 冷启动 bootstrap-driver-seed 必须链 RT_SEED_SLICE_OBJS，runtime 侧开 FROM_X 避免 static 副本漂移。
@@ -826,7 +874,7 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_rest.o && \
-		ld -r src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o -o $@ && \
 		rm -f "$$_tmp" "$$_tmp.raw" src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -861,7 +909,7 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 		} > "$$_tmp" && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_driver_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver_rest.o && \
-		ld -r src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o -o $@ && \
 		rm -f "$$_tmp" "$$_tmp.raw" src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O, driver)"; \
 	}; then :; \
@@ -1169,6 +1217,16 @@ src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s
 else
 $(error typeck_f64_bits: unsupported Darwin arch $(UNAME_M); add .s)
 endif
+else ifeq ($(SHUX_IS_WIN_HOST),1)
+# Windows MSYS/MinGW x86_64: PE/COFF doesn't support ELF-style .type directive;
+# use _mingw variant (x64 PE COFF doesn't add underscore prefix, so symbol names
+# match the SysV variant — see typeck_f64_bits_x86_64_mingw.s docblock).
+ifeq ($(UNAME_M),x86_64)
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64_mingw.s
+	$(CC) -c -o $@ $<
+else
+$(error typeck_f64_bits: unsupported Windows arch $(UNAME_M); add .s)
+endif
 else
 $(error typeck_f64_bits: unsupported OS $(UNAME_S); add .s)
 endif
@@ -1467,7 +1525,7 @@ src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/back
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_enc_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_enc_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_ENC_DISPATCH_THIN_FROM_X -c seeds/backend_enc_dispatch.from_x.c -o src/asm/backend_enc_dispatch_rest.o && \
-		ld -r src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1488,7 +1546,7 @@ src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c 
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_arch_emit_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_arch_emit_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_ARCH_EMIT_THIN_FROM_X -c seeds/backend_arch_emit_dispatch.from_x.c -o src/asm/backend_arch_emit_dispatch_rest.o && \
-		ld -r src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1505,7 +1563,7 @@ src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_try_inline_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_try_inline_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_TRY_INLINE_THIN_FROM_X -c seeds/backend_try_inline_dispatch.from_x.c -o src/asm/backend_try_inline_dispatch_rest.o && \
-		ld -r src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1522,7 +1580,7 @@ src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/ba
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_call_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_call_dispatch_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_CALL_DISPATCH_THIN_FROM_X -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch_rest.o && \
-		ld -r src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -1671,7 +1729,7 @@ typeck_gen.c: src/typeck/typeck.x
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
 typeck_x.o: typeck_gen.c
-	@python3 scripts/patch_typeck_gen_lang007.py
+	@$(PYTHON) scripts/patch_typeck_gen_lang007.py
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
 	@test $$(stat -f%z typeck_x.o 2>/dev/null || stat -c%s typeck_x.o) -gt 10000 || (echo "typeck_x.o too small (corrupt gen? rm typeck_gen.c && make typeck_gen.c typeck_x.o)" >&2; exit 1)
 
@@ -1742,7 +1800,7 @@ src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_enc_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_enc_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_ENC_THIN_FROM_X -c seeds/simd_enc.from_x.c -o src/asm/simd_enc_rest.o && \
-		ld -r src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o && \
 		nm -gU $@ 2>/dev/null | awk '/ simd_rbp_disp32$$| _simd_rbp_disp32$$/ { found=1 } END { exit !found }' && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
@@ -1762,7 +1820,7 @@ src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/s
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_loop_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_loop_thin.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_LOOP_THIN_FROM_X -c seeds/simd_loop.from_x.c -o src/asm/simd_loop_rest.o && \
-		ld -r src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o && \
 		nm -gU $@ 2>/dev/null | awk '/ glue_simd_loop_pick_lanes_c$$| _glue_simd_loop_pick_lanes_c$$/ { found=1 } END { exit !found }' && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
@@ -1791,6 +1849,34 @@ DRIVER_SEED_C_FRONTEND_LEGACY =
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
 DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
+# Why: runtime_driver_strict_glue_stubs.o provides C API weak/strong stubs
+#      (typeck_module, typeck_one_function, parse, preprocess_*, codegen_*,
+#      lsp_*, shu_c_resolve_and_load_imports, etc.) that satisfy U refs from
+#      runtime_driver.o / rt_preamble.o / lsp_diag.o / parser_x.o / pipeline_x.o /
+#      preprocess_x.o / backend_try_inline_dispatch.o. Without this .o the
+#      link fails on Windows MSYS/MinGW with 40+ "undefined reference" errors.
+#      The default (no_c) branch already includes it; LEGACY mode was missing it.
+#      On MinGW (PE), SHUX_WEAK expands to EMPTY (strong defs) and
+#      -Wl,--allow-multiple-definition resolves conflicts with real impls
+#      from codegen_x.o / parser_x.o / typeck_x.o (first seen wins).
+# PLATFORM: SHARED — same .o needed on all platforms in LEGACY mode.
+# Why: src/runtime_driver_strict_glue_stubs.o MOVED from DRIVER_SEED_SUPPORT_EXTRA
+#      to DRIVER_SEED_GLUE_SUFFIX (link end) on 2026-07-19.
+#      Reason: stubs .o contains BOTH (a) symbols with NO real impl (parse,
+#      lexer_new, typeck_module for the deleted C frontend) AND (b) symbols
+#      WITH real impls in pipeline_x.o / parser_x.o (driver_get_module_num_funcs,
+#      parser_parse_into_init, pipeline_run_x_pipeline, etc.). When the stubs .o
+#      linked BEFORE pipeline_x.o, Windows PE `--allow-multiple-definition` made
+#      FIRST win → stub `driver_get_module_num_funcs` returning 0 shadowed the
+#      real impl, causing `shux -c file.x` to report `num_funcs=0` and silently
+#      exit. On ELF/Darwin SHUX_WEAK expands to weak attr so real (strong) impl
+#      wins regardless of order — bug was Windows-only.
+#      Moving stubs to link END guarantees: real impls win when present; stubs
+#      only fill in for symbols with no real impl (C frontend API for lsp_diag).
+# Invariant: DRIVER_SEED_SUPPORT_EXTRA retains the non-stub satellites
+#            (async_liveness, async_cps_codegen, cfg_eval_*, typeck_f64_bits).
+# PLATFORM: SHARED — fix is Windows-critical; no-op on ELF/Darwin (weak already
+#           correct); verified both modes.
 DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
@@ -1798,22 +1884,39 @@ else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 # E-04 v1：无 C ast/lexer/runtime_driver（勿用于已提交 G-06 种子的 relink）。
 # runtime_driver_strict_glue_stubs.o：提供 lexer_new/parse/preprocess 等 C API weak 桩，供 lsp_diag.o 等
 # 非 SHUX_NO_C_FRONTEND 编译单元引用（lsp_diag.c 未走 no_c 守卫，仍需符号满足链接）。
+# Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
+DRIVER_SEED_SUPPORT_EXTRA = src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 else
 # G-02a：默认 no_c 模式（X pipeline 自洽；C 前端 API weak stubs 满足链接但不调用）。
 # 2026-07-08：从 seed-compat 切换到 no_c；macOS arm64 check ✅、compile 走 -E+cc fallback ✅；Linux x86_64 全绿。
+# Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
+DRIVER_SEED_SUPPORT_EXTRA = src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
 # pipeline_glue_standalone 与 pipeline_x.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
+# Why: SHUX_WEAK (see include/shux_weak.h) expands to `__attribute__((weak))` on ELF
+#      (Linux/macOS) but to EMPTY on PE/MinGW (Windows). Seed .from_x.c files contain
+#      SHUX_WEAK stub fallbacks (e.g. process_args_count_c, parse, typeck_module) that
+#      have a matching strong real implementation in another .o (e.g.
+#      runtime_process_args_thin.from_x.c → process_args_count_c real impl). On ELF,
+#      `ld -r` permits weak+strong merge silently. On PE/MinGW, SHUX_WEAK becomes
+#      strong so both defs are strong → `ld -r` errors with "multiple definition".
+#      `LD_R_MULTIDEF_FLAGS` resolves this uniformly: first-seen wins, and seed .o
+#      ordering puts real impls before stubs in every `ld -r` rule.
+# Invariant: Applied to every `ld -r` rule that merges 2+ .o inputs. Single-input
+#            `ld -r` (rename-only, e.g. path.o/runtime.o) also gets the flag for
+#            consistency (no-op when no duplicates). `ld -r $(LD_FILTER_EXPORT)`
+#            (L1632 backend_x86_64_enc_c.o) is excluded — single .o + version script.
+# PLATFORM: SHARED — Darwin uses -multiply_defined suppress; ELF/PE uses
+#           --allow-multiple-definition. Both are no-ops when no duplicate exists.
 ifeq ($(UNAME_S),Darwin)
 LD_R_MULTIDEF_FLAGS = -multiply_defined suppress
 ASM_GLUE_DUP_LDFLAGS = -Wl,-multiply_defined,suppress
@@ -1823,7 +1926,14 @@ ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
 endif
 RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 DRIVER_SEED_GLUE_PREFIX =
-DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
+# Why: src/runtime_driver_strict_glue_stubs.o placed at link END (after glue) so
+#      real impls in pipeline_x.o / parser_x.o / typeck_x.o / codegen_x.o link
+#      FIRST and win on Windows PE (--allow-multiple-definition: FIRST wins).
+#      Stubs only fill in symbols with no real impl (parse, lexer_new,
+#      typeck_module for the deleted C frontend, referenced by lsp_diag.o).
+#      On ELF/Darwin SHUX_WEAK=weak so order is a no-op there.
+# PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin.
+DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
 # LSP_DIAG_LINK_O：fmt 命令依赖 shu_format_x_document 的真实实现，必须链入 lsp_diag.o
 # 而非 lsp_diag_stubs_no_c.o（no-op stub 会让 fmt 静默无操作）。
 # 历史：E-02 v1 误注 "lsp_diag.c 已删" 但文件实存；链接 stub 导致 fmt 不生效。
@@ -1878,7 +1988,15 @@ endif
 else ifeq ($(SHUX_IS_WIN_HOST),1)
 MAIN_LINK_O = src/asm/crt0_mingw.o
 MAIN_LINK_REBUILD = src/asm/crt0_mingw.o
-MAIN_LINK_FLAGS =
+# PLATFORM: WINDOWS — PE stack reserve 256MiB (matches pthread path stack_sz).
+# winpthreads crash with 256MiB posix_memalign'd custom stack during
+# pthread_join cleanup; bootstrap_nostdlib_pthread_is_stub()=1 on Windows
+# bypasses pthread, running X pipeline on main thread. But MSYS default
+# main thread stack is ~2MiB (ulimit -s = 2032), causing intermittent
+# stack overflow (exit=1) during deep parse_into/typeck_x_ast/codegen_x_ast
+# recursion. driver_bump_stack_limit is a no-op on Windows (#ifndef _WIN32).
+# PE --stack sets virtual address space reserve; OS pager commits on demand.
+MAIN_LINK_FLAGS = -Wl,--stack,268435456
 else
 MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
@@ -2349,7 +2467,7 @@ src/lsp/lsp_diag_stubs_no_c.o: seeds/lsp_diag_stubs_no_c.from_x.c src/lsp/lsp_di
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/lsp/lsp_diag_stubs_no_c.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/lsp/lsp_diag_stubs_no_c_x.o && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_LSP_DIAG_STUBS_NO_C_FROM_X -c seeds/lsp_diag_stubs_no_c.from_x.c -o src/lsp/lsp_diag_stubs_no_c_rest.o && \
-		ld -r src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o -o $@ && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o -o $@ && \
 		rm -f "$$_tmp" src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o && \
 		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
 	}; then :; \
@@ -2375,15 +2493,15 @@ DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o cod
 # legacy shux-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
 LEGACY_SHUX_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
 LEGACY_SHUX_C_USER_ASM_LINK := $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-LEGACY_SHUX_C_PREREQS := $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o ast_gen2.o
+LEGACY_SHUX_C_PREREQS := $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o ast_gen2.o
 
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
-$(SHUX_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
+$(SHUX_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 $(SHUX_C): $(LEGACY_SHUX_C_PREREQS)
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX) ast_gen2.o
 endif
 
-bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
+bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
 	@# PLATFORM: SHARED — P0-4: refuse stale int32_t Expr.int_val before any pipeline_x / glue link.
 	@$(MAKE) check-pipeline-gen-expr-i64-abi
@@ -2398,7 +2516,7 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_min
 	@chmod +x scripts/build_seed_asm_host.sh scripts/gen_g06_phase1_backend_stub.sh 2>/dev/null || true
 	@os=$$(uname -s | tr '[:upper:]' '[:lower:]'); arch=$$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]'); \
 	  case "$$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=arm64 ;; esac; \
-	  case "$$os" in darwin) os=darwin ;; linux) os=linux ;; esac; \
+	  case "$$os" in darwin) os=darwin ;; linux) os=linux ;; msys_nt*|mingw*_nt*|mingw*|cygwin*) os=windows ;; esac; \
 	  seed_partial="seeds/asm_backend_partial.$${os}.$${arch}.o"; \
 	  if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$$seed_partial" ] && [ -s "$$seed_partial" ]; then \
 	  if nm "$$seed_partial" 2>/dev/null | awk '/ T / { s=$$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then \
@@ -2644,9 +2762,9 @@ first-time: build-tool
 # - main 调用 entry（build_runner.x），非 build_entry
 build-tool:
 	@if [ "$${SHUX_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./shux ]; then \
-	  echo "build-tool: regen build_gen + build_runtime_x_gen via ./shux -x -E"; \
-	  ./shux -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
-	  ./shux -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
+	  echo "build-tool: regen build_gen + build_runtime_x_gen via ./shux build -x -E"; \
+	  ./shux build -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
+	  ./shux build -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
 	else \
 	  cp -f seeds/build_gen.c build_gen.c; \
 	  cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \

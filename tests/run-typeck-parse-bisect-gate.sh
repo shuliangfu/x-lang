@@ -50,7 +50,7 @@ parse_defined_count() {
     cd compiler
     env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
       SHUX_DEBUG_PIPE=1 SHUX_DEBUG_PARSE=1 \
-      "../$SHUX" -backend asm -o "$out" $LIBROOT "$x"
+      "../$SHUX" build -backend asm -o "$out" $LIBROOT "$x"
   ) >"$log" 2>&1 || true
   local ndef nf
   ndef=$(sed -n 's/.*num_defined=\([0-9][0-9]*\).*/\1/p' "$log" | tail -1)

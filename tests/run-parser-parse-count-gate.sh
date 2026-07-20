@@ -36,7 +36,7 @@ rm -f "$OUT" "$LOG" 2>/dev/null || true
 if ! (
   cd compiler
   env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_DEBUG_PIPE=1 \
-    "../$SHUX" -backend asm -o "$OUT" $LIBROOT src/parser/parser.x
+    "../$SHUX" build -backend asm -o "$OUT" $LIBROOT src/parser/parser.x
 ) >"$LOG" 2>&1; then
   echo "parser-parse-count-gate FAIL: compile command failed" >&2
   tail -n 8 "$LOG" 2>/dev/null || true

@@ -1,5 +1,14 @@
-*.sh text eol=lf
-*.c text eol=lf
-*.h text eol=lf
-# 在 .gitattributes 中添加
-*.x linguist-language=Shu
+# 1. 把 .x 文件强制识别为 Shux（会显示在语言栏里）
+*.x linguist-language=Shux
+
+# 2. 如果你还想让它参与统计（推荐加上）
+*.x linguist-detectable=true
+
+# 3. 解决 C++ 被误判的问题（把常见的容易误判的文件改回来）
+*.h linguist-language=C
+*.hpp linguist-language=C
+*.c linguist-language=C
+
+# 如果你们有生成的文件或第三方代码，也可以排除
+# generated/** linguist-generated
+# vendor/** linguist-vendored

@@ -37,6 +37,7 @@ su
 !compiler/src/typeck/typeck_f64_bits_x86_64.s
 !compiler/src/typeck/typeck_f64_bits_arm64.s
 !compiler/src/typeck/typeck_f64_bits_aarch64_elf.s
+!compiler/src/typeck/typeck_f64_bits_x86_64_mingw.s
 
 
 # 构建时生成的 C 源文件（由 -E 等生成，不提交）

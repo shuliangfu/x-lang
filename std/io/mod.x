@@ -432,16 +432,6 @@ export function writev(fd: i32, buffers: *Buffer, n: i32): i32 {
   return driver.submit_write_batch_buf(h, buffers, n, 0 as u32);
 }
 // See implementation.
-/** Exported function `print`.
- * Implements `print`.
- * @param ptr *u8
- * @param len usize
- * @return i32
- */
-export function print(ptr: *u8, len: usize): i32 {
-  return write_stdout(ptr, len);
-}
-// See implementation.
 // register_buffers: see function docblock below.
 /** Exported function `register_buffers`.
  * Registration helper `register_buffers`.
@@ -685,30 +675,6 @@ function print_i64_nl(v: i64): i32 {
   pos = pos + 1;
   let _w: i32 = write_stdout(&buf[0], pos as usize);
   return 0;
-}
-/** Exported function `print`.
- * Implements `print`.
- * @param x i32
- * @return i32
- */
-export function print(x: i32): i32 {
-  return print_i64_nl(x as i64);
-}
-/** Exported function `print`.
- * Implements `print`.
- * @param x u32
- * @return i32
- */
-export function print(x: u32): i32 {
-  return print_i64_nl(x as i64);
-}
-/** Exported function `print`.
- * Implements `print`.
- * @param x i64
- * @return i32
- */
-export function print(x: i64): i32 {
-  return print_i64_nl(x);
 }
 /** Exported function `io_module_anchor`.
  * Implements `io_module_anchor`.

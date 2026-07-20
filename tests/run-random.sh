@@ -15,7 +15,7 @@ run_one() {
   local name="$1"
   local src="$2"
   local exe="/tmp/shux_random_$$_${name}"
-  if ! $SHUX -L . "$src" -o "$exe" 2>&1; then
+  if ! $SHUX build -L . "$src" -o "$exe" 2>&1; then
     echo "random test $name: compile failed"
     return 1
   fi

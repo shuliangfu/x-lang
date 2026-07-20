@@ -12,11 +12,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#endif
 extern int32_t rt_eq2(uint8_t * c, int32_t n, int32_t p, uint8_t a0, uint8_t a1);
 extern int32_t rt_eq3(uint8_t * c, int32_t n, int32_t p, uint8_t a0, uint8_t a1, uint8_t a2);
 extern int32_t rt_eq4(uint8_t * c, int32_t n, int32_t p, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3);

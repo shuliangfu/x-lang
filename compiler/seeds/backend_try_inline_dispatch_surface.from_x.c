@@ -12,11 +12,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#endif
 extern int32_t backend_try_inline_dispatch_x_doc_anchor(void);
 extern int32_t glue_module_func_index_by_name(uint8_t * mod, uint8_t * name, int32_t nlen);
 extern int32_t glue_const_scalar_binop_eval_i32(int32_t ko, int32_t a, int32_t b, int32_t * out);

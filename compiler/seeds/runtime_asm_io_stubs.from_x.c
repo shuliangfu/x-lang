@@ -11,13 +11,17 @@
 #if defined(__linux__)
 #define _GNU_SOURCE
 #endif
+#include <shux_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #if defined(__unix__) || defined(__APPLE__)
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #endif
 
 /**
@@ -232,21 +236,22 @@ int32_t std_io_print_i64(int64_t x) {
   return 0;
 }
 
-__attribute__((weak)) int32_t std_io_write_stdout(uint8_t *ptr, size_t len) {
+SHUX_WEAK int32_t std_io_write_stdout(uint8_t *ptr, size_t len) {
   return seed_io_write_fd1(ptr, len, 0);
 }
 
-__attribute__((weak)) int32_t std_io_write_with_timeout(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
+SHUX_WEAK int32_t std_io_write_with_timeout(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
   return seed_io_write_fd1(ptr, len, timeout_ms);
 }
 
 /** std.io.print(ptr,len) C ABI：mangled std_io_print_u8_ptr_usize。 */
-__attribute__((weak)) int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {
-  return std_io_write_stdout(ptr, len);
+SHUX_WEAK int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {
+  int32_t r = std_io_write_stdout(ptr, len);
+  return (r >= 0) ? 0 : -1;
 }
 
 /** 兼容旧链接名 std_io_print_str。 */
-__attribute__((weak)) int32_t std_io_print_str(uint8_t *ptr, size_t len) {
+SHUX_WEAK int32_t std_io_print_str(uint8_t *ptr, size_t len) {
   return std_io_print_u8_ptr_usize(ptr, len);
 }
 
@@ -254,7 +259,8 @@ __attribute__((weak)) int32_t std_io_print_str(uint8_t *ptr, size_t len) {
  * PLATFORM: SHARED — println without trailing newline; string-lit special path uses bare.
  * Authority: this TU only (G.7); LABI_STD_OP_IO_STUBS / ensure runtime_asm_io_stubs.o. */
 int32_t std_fmt_print(uint8_t *ptr, size_t len) {
-  return std_io_print_str(ptr, len);
+  int32_t r = std_io_print_str(ptr, len);
+  return (r >= 0) ? 0 : -1;
 }
 
 /** Overload mid for print(*u8, i32) — import-binding mangle when fmt has many print overloads.
@@ -269,10 +275,12 @@ int32_t std_fmt_print_u8_ptr_i32(uint8_t *ptr, int32_t len) {
 /** std.fmt.println(ptr,len): print + single \\n; asm CALL surface (no fmt co-emit).
  * PLATFORM: SHARED — pairs with std_fmt_print; do not invent a second stub path. */
 int32_t std_fmt_println(uint8_t *ptr, size_t len) {
-  int32_t r = std_io_print_str(ptr, len);
+  int32_t r = std_io_write_stdout(ptr, len);
+  if (r < 0)
+    return -1;
   uint8_t nl = 10;
-  (void)std_io_print_str(&nl, 1);
-  return r;
+  int32_t rn = std_io_write_stdout(&nl, 1);
+  return (rn >= 0) ? 0 : -1;
 }
 
 /** Overload mid for println(*u8, i32) — same mangle contract as std_fmt_print_u8_ptr_i32. */
@@ -387,7 +395,7 @@ ptrdiff_t io_read_batch_buf(int32_t fd, const ShuxIoBatchBuf *bufs, int32_t n, u
 /**
  * io_read_batch_provided 弱桩：io_batch.x 链 net.o 时解析；seed 路径返回 -1（无 io_uring provided）。
  */
-__attribute__((weak)) int32_t io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t *out_bids,
+SHUX_WEAK int32_t io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t *out_bids,
                                                      uint32_t *out_lens) {
   (void)fd;
   (void)n;
@@ -401,20 +409,20 @@ __attribute__((weak)) int32_t io_read_batch_provided(int32_t fd, int32_t n, uint
  * tcp.x Linux cfg 引用 io_uring_*；std.io 尚无独立 io.o 时由弱桩满足 net.o 合并后的 U 符号。
  * 真 io_uring 实现链入后覆盖弱符号。
  */
-__attribute__((weak)) int32_t io_uring_connect(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout_ms) {
+SHUX_WEAK int32_t io_uring_connect(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout_ms) {
   (void)addr_u32;
   (void)port_u32;
   (void)timeout_ms;
   return -1;
 }
 
-__attribute__((weak)) int32_t io_uring_accept(int32_t listener_fd, uint32_t timeout_ms) {
+SHUX_WEAK int32_t io_uring_accept(int32_t listener_fd, uint32_t timeout_ms) {
   (void)listener_fd;
   (void)timeout_ms;
   return -1;
 }
 
-__attribute__((weak)) int32_t io_uring_accept_many(int32_t listener_fd, int32_t *out_fds, int32_t n, uint32_t timeout_ms) {
+SHUX_WEAK int32_t io_uring_accept_many(int32_t listener_fd, int32_t *out_fds, int32_t n, uint32_t timeout_ms) {
   (void)listener_fd;
   (void)out_fds;
   (void)n;
@@ -422,7 +430,7 @@ __attribute__((weak)) int32_t io_uring_accept_many(int32_t listener_fd, int32_t 
   return -1;
 }
 
-__attribute__((weak)) int32_t io_uring_connect_many(uint32_t addr_u32, uint32_t port_u32, int32_t *out_fds, int32_t n,
+SHUX_WEAK int32_t io_uring_connect_many(uint32_t addr_u32, uint32_t port_u32, int32_t *out_fds, int32_t n,
                                                     uint32_t timeout_ms) {
   (void)addr_u32;
   (void)port_u32;
@@ -432,7 +440,7 @@ __attribute__((weak)) int32_t io_uring_connect_many(uint32_t addr_u32, uint32_t 
   return -1;
 }
 
-__attribute__((weak)) int32_t io_uring_prefetch_fd(int32_t fd) {
+SHUX_WEAK int32_t io_uring_prefetch_fd(int32_t fd) {
   (void)fd;
   return 0;
 }
@@ -460,84 +468,84 @@ ptrdiff_t io_write_batch_buf(int32_t fd, const ShuxIoBatchBuf *bufs, int32_t n, 
  * 【Why 根源】codegen_should_skip_emit_std_io_core_io_dup 假定 io.o 提供
  * shux_io_read_fixed 等，但 Makefile 注释已标明「无 io.o」，导致 U 符号。
  */
-__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }
-__attribute__((weak)) int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset,
+SHUX_WEAK int32_t shux_io_read_ptr_backend(void) { return 0; }
+SHUX_WEAK int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset,
                                                  size_t len, uint32_t timeout_ms) {
   (void)handle; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
   return -1;
 }
-__attribute__((weak)) int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset,
+SHUX_WEAK int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset,
                                                   size_t len, uint32_t timeout_ms) {
   (void)handle; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
   return -1;
 }
-__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
+SHUX_WEAK int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {
   (void)ptr; (void)len; (void)handle;
   return -1;
 }
-__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,
+SHUX_WEAK int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,
                                                 uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,
                                                 unsigned nr) {
   (void)p0; (void)l0; (void)p1; (void)l1; (void)p2; (void)l2; (void)p3; (void)l3; (void)nr;
   return -1;
 }
-__attribute__((weak)) void io_unregister_buffers(void) {}
-__attribute__((weak)) int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
+SHUX_WEAK void io_unregister_buffers(void) {}
+SHUX_WEAK int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms) {
   (void)fds; (void)n; (void)timeout_ms;
   return 0;
 }
 /* driver 层 batch/submit：co-emit 可能仅声明；弱桩避免 hello 无条件链全量 std 时 U */
-__attribute__((weak)) int32_t std_io_driver_submit_read_batch(void *buffers, int32_t n,
+SHUX_WEAK int32_t std_io_driver_submit_read_batch(void *buffers, int32_t n,
                                                               uint32_t timeout_ms) {
   (void)buffers; (void)n; (void)timeout_ms;
   return -1;
 }
-__attribute__((weak)) int32_t std_io_driver_submit_write_batch(void *buffers, int32_t n,
+SHUX_WEAK int32_t std_io_driver_submit_write_batch(void *buffers, int32_t n,
                                                                uint32_t timeout_ms) {
   (void)buffers; (void)n; (void)timeout_ms;
   return -1;
 }
-__attribute__((weak)) int32_t std_io_driver_submit_read_batch_buf(size_t handle, void *bufs,
+SHUX_WEAK int32_t std_io_driver_submit_read_batch_buf(size_t handle, void *bufs,
                                                                  int32_t n, uint32_t timeout_ms) {
   (void)handle; (void)bufs; (void)n; (void)timeout_ms;
   return -1;
 }
-__attribute__((weak)) int32_t std_io_driver_submit_write_batch_buf(size_t handle, void *bufs,
+SHUX_WEAK int32_t std_io_driver_submit_write_batch_buf(size_t handle, void *bufs,
                                                                   int32_t n, uint32_t timeout_ms) {
   (void)handle; (void)bufs; (void)n; (void)timeout_ms;
   return -1;
 }
-__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
-__attribute__((weak)) int32_t std_io_driver_driver_read_ptr_backend(void) { return 0; }
+SHUX_WEAK uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }
+SHUX_WEAK int32_t std_io_driver_driver_read_ptr_backend(void) { return 0; }
 /* sync 层：backend co-emit 转发到 std_io_sync_*；无定义时弱回退 */
-__attribute__((weak)) ptrdiff_t std_io_sync_io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset,
+SHUX_WEAK ptrdiff_t std_io_sync_io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset,
                                                           size_t len, uint32_t timeout_ms) {
   (void)fd; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
   return (ptrdiff_t)-1;
 }
-__attribute__((weak)) ptrdiff_t std_io_sync_io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset,
+SHUX_WEAK ptrdiff_t std_io_sync_io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset,
                                                            size_t len, uint32_t timeout_ms) {
   (void)fd; (void)buf_index; (void)offset; (void)len; (void)timeout_ms;
   return (ptrdiff_t)-1;
 }
-__attribute__((weak)) int32_t std_io_backend_io_read_ptr_backend(void) { return 0; }
+SHUX_WEAK int32_t std_io_backend_io_read_ptr_backend(void) { return 0; }
 
 /* page_mmap / freestanding heap 引用 shux_sys_mmap；std/sys 未绿时 weak 回退到 libc mmap */
 #if defined(__unix__) || defined(__APPLE__)
 #ifndef _WIN32
 #include <sys/mman.h>
-__attribute__((weak)) void *shux_sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
+SHUX_WEAK void *shux_sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
                                           int64_t offset) {
   return mmap(addr, length, prot, flags, fd, (off_t)offset);
 }
-__attribute__((weak)) int shux_sys_munmap(void *addr, size_t length) {
+SHUX_WEAK int shux_sys_munmap(void *addr, size_t length) {
   return munmap(addr, length);
 }
 #endif
 #endif
 
 #if defined(__linux__) && defined(__GLIBC__)
-#define SHUX_NET_UDP_GLUE_WEAK __attribute__((weak))
+#define SHUX_NET_UDP_GLUE_WEAK SHUX_WEAK
 /* G-02f-259：.c 已 seed 化为 runtime_net_udp_batch.from_x.c（同目录 #include） */
 #include "runtime_net_udp_batch.from_x.c"
 #undef SHUX_NET_UDP_GLUE_WEAK

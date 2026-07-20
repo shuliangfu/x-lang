@@ -3452,6 +3452,36 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         init_handled = 1;
       }
     }
+    /* LBRACE let-init handler (C3=C4 root fix, 2026-07-19).
+     * Before this, bare `{ a: 0 }` struct-lit as a body-let init matched NO init handler
+     * (the chain covered LBRACKET/IDENT/STRING/TRUE/FALSE/FLOAT/INT/MINUS/AMP/IF/MATCH/AWAIT
+     * but NOT LBRACE), so the let was silently dropped. A following unsafe/while/for then
+     * hit the abandoned `{...}` lexer state and failed the whole function (P001).
+     * Root cause: parse_body_lets_into had no LBRACE branch; bare `{` never reached
+     * parse_expr_into, whose primary layer already disambiguates struct-lit vs block-expr
+     * (parser_asm_primary_lbrace_looks_like_block_c in parser_asm_primary_slice.inc).
+     * Fix: handle LBRACE exactly like the IDENT path — parse_expr_into from the `{` start,
+     * finish lexer state the same way (copy + next + rewind). PLATFORM: SHARED. */
+    if (init_handled == 0) {
+      if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+        let lbrace_start: usize = r.token_start;
+        if (lbrace_start == 0) {
+          lbrace_start = lex.pos;
+        }
+        lex_from_result_ptr_into(&lex, &r);
+        let lbrace_lex: Lexer = Lexer { pos: lbrace_start, line: r.tok.line, col: r.tok.col };
+        parse_expr_result_reset(&expr_tmp, lbrace_lex);
+        parse_expr_into(arena, lbrace_lex, source, &expr_tmp);
+        if (!expr_tmp.ok) {
+          lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
+        }
+        let_init_ref = expr_tmp.expr_ref;
+        lexer_copy_from_parse_expr_result_into(&lex, &expr_tmp);
+        lexer.lexer_next_into(&r, lex, source);
+        parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
+        init_handled = 1;
+      }
+    }
     if (init_handled == 0) {
       if (r.tok.kind == token.TokenKind.TOKEN_STRING) {
         /**

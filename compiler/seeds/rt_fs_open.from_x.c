@@ -22,7 +22,7 @@ int driver_fs_open_read_path(const uint8_t *path, int path_len) {
   char buf[512];
   memcpy(buf, path, (size_t)path_len);
   buf[path_len] = '\0';
-  return open(buf, O_RDONLY);
+  return open(buf, O_RDONLY, 0);
 }
 
 /** path[0..path_len-1] 打开写（CREAT|TRUNC 0644）；失败 -1。 */

@@ -1,15 +1,17 @@
 # SHUX IR 核心设计
 
-> **文档状态**：架构设计文档 v4.0 — **Architecture Freeze（架构冻结）** | **日期**：2026-07-13
-> **定位**：**Semantic IR（语义驱动 IR）**——把 SHUX 语言语义（Linear / Region / X ABI）直接编码进 IR，并通过 Contract 在 lowering 和优化过程中持续验证。不模仿 LLVM IR / GCC RTL / Cranelift，目标是把性能压榨到极致。
-> **核心约束**：无历史包袱、Domain-Specific + Performance-First、与 SHUX 语言特性（`Linear(T)` move 语义、Arena、X ABI）深度耦合。
-> **版本演进**：v1 基础框架 → v2 吸收 Grok 建议（契约模型 + 四层 + e-graph）→ v3 落地具体化（指令契约定义 + e-graph 规则系统 + 寄存器分配 + Superoptimizer 集成方案）→ v3.1 吸收 Grok 最终建议（指令集扩充 + e-graph 规则冲突与内存管理 + 开发 Checklist + 风险与权衡）→ v4.0 吸收 ChatGPT 建议（Semantic IR 定位 + Contract 池化 + Effect 独立子系统 + 五层架构 VMIR + SLIR immutable + Cost Model 多维度插件化 + SHIR 高层性原则）→ **Architecture Freeze**。
+> **文档状态**：架构设计文档 **v4.0 Architecture Freeze** + **v4.1 Engineering Addendum（工程增强）**  
+> **日期**：架构冻结 2026-07-13 · 工程附录 2026-07-19  
+> **定位**：**Semantic IR（语义驱动 IR）**——把 SHUX 语言语义（Linear / Region / X ABI）直接编码进 IR，并通过 Contract 在 lowering 和优化过程中持续验证。不模仿 LLVM IR / GCC RTL / Cranelift，目标是把性能压榨到极致。  
+> **核心约束**：无历史包袱、Domain-Specific + Performance-First、与 SHUX 语言特性（`Linear(T)` move 语义、Arena、X ABI）深度耦合。  
+> **版本演进**：v1 基础框架 → v2 吸收 Grok 建议（契约模型 + 四层 + e-graph）→ v3 落地具体化 → v3.1 风险与 Checklist → v4.0 Semantic IR + Contract 池化 + Effect + 五层 + SLIR immutable + Cost 插件化 → **Architecture Freeze** → **v4.1** 工程回退 / 验证 / 预算 / 诊断 / Superopt·Cost 收紧（**不改**冻结内核，见 **§14**）。
 >
-> **冻结条件**：自本日起，IR 总架构不再修改。仅以下两种情况允许调整：
+> **冻结条件**（v4.0，仍有效）：IR **总架构**不再修改。仅以下两种情况允许**架构级**调整：
 > 1. **实现时发现不可行**——某个设计写不出来，回溯调整；
 > 2. **Benchmark 证明性能退化**——某个设计导致性能下降，回溯修改。
 >
-> 其余情况（Contract → Contract2 → Contract3 式无限重构）禁止。剩余工作从"设计"切换为"实现"。
+> 其余情况（Contract → Contract2 → Contract3 式无限重构）禁止。  
+> **v4.1 允许**：在冻结内核之上增加 **实现规格**（开关、超时、诊断 schema、校验器、CI 门、默认更保守的阈值）——目标是 **尽量增强可落地性与可回退性**，不是重开架构。
 
 ---
 
@@ -97,7 +99,7 @@ SHIR lowering → SMIR
       供后续指令的前置条件检查消费
 ```
 
-**验证失败处理**：lowering 时契约不一致 = 编译器 bug（前端 typeck 与 IR 契约矛盾），直接 panic 并报告不一致点。不生成错误代码。
+**验证失败处理**：lowering 时契约不一致 = 编译器 bug（前端 typeck 与 IR 契约矛盾），**不得**只 `panic("contract")`。必须输出 **结构化诊断**（前后契约 diff + `debug_loc` + 指令 opcode），格式与最低字段见 **§14.3**。不生成错误代码。
 
 ### 1.4 优化器工作模型
 
@@ -697,8 +699,9 @@ rewrite priority {
 ```
 
 **饱和控制**：
-- 每个分块 e-graph 设等价类节点上限（默认 10k）；
-- 超过上限 → 停止重写，提取当前最优 → 报告 "e-graph capped" 警告；
+- 每个分块 e-graph 设等价类节点上限（默认 10k；**可按函数大小/热度动态调整**，见 **§14.2**）；
+- 超过上限 → 停止重写，提取当前最优 → 报告 `e-graph capped` 警告（**禁止静默**）；
+- **墙钟超时** → 同样提取当前最优并降级（§14.2）；P0 默认目标 **≤100ms/函数**（可调）；
 - P0 规则先饱和到 fixpoint → 应用 P1 → 应用 P2，逐级深化。
 
 ### 4.7 规则冲突解决机制
@@ -851,37 +854,40 @@ trait SLIRPass {
 
 > 对热点函数使用搜索技术生成**最优指令序列**，超越传统 tree pattern matching。
 
-**触发条件**：
-- PGO 标记的热点函数（执行次数 > 阈值）；
-- 函数体 < N 条指令（控制搜索空间，N ≈ 30）。
+**触发条件**（v4.1 **收紧**，默认更保守；完整门控见 **§14.5**）：
+
+- 仅当优化档位 **`--opt≥2`**（或显式 `--superopt`），且未设 `--no-superopt`；
+- PGO 标记的热点函数（执行次数 / 样本权重 ≥ 阈值）；
+- 函数体 **&lt; N 条 SLIR 指令**（默认 **N = 20**；旧稿 30 仅作上限硬顶 `max_insts_hard=30`）；
+- 预估收益 **&gt; 10%** cost（相对 e-graph 提取结果）；否则 **skip**，日志 `superopt-skipped: low-gain`；
+- 差分验证 **fail-closed**：任一候选未通过 → **保留原序列**，不得静默采用。
 
 **搜索空间控制**：
 
 ```shux
-// Superoptimizer 工作流
+// Superoptimizer 工作流（v4.1）
 fn superoptimize(hot_fn: IRFn, target: TargetMIR) -> IRFn {
-    // 1. 从 e-graph 获取等价空间（已饱和）
-    let equiv_space = egraph_extract_all(hot_fn);
+    if !superopt_gates(hot_fn) { return hot_fn; }  // §14.5
 
-    // 2. 约束搜索：限制指令数 + 限定可用指令集
+    let equiv_space = egraph_extract_all(hot_fn);
     let constraints = SearchConstraints {
-        max_insts: 30,
-        allowed_opcodes: target.fast_opcodes(),  // 排除昂贵指令
+        max_insts: 20,                 // soft default; hard cap 30
+        allowed_opcodes: target.fast_opcodes(),
         max_cycles: profile.estimated_cycles(hot_fn),
+        min_gain_ratio: 0.10,          // must beat extract by >10%
     };
 
-    // 3. Beam search：广度优先 + cost 剪枝
-    let candidates = beam_search(equiv_space, constraints, beam_width=100);
-
-    // 4. 验证等价性（差分测试：候选 vs 原函数）
-    let verified = candidates.filter(|c| differential_test(c, hot_fn));
-
-    // 5. 选择 cost 最小的验证通过候选
+    let candidates = beam_search(equiv_space, constraints, beam_width=64);
+    let verified = candidates.filter(|c| differential_test(c, hot_fn, n_inputs=1000));
+    if verified.is_empty() {
+        log("superopt-fail-closed: keep extract");
+        return egraph_extract_best(hot_fn);
+    }
     return verified.min_by_key(|c| target.estimate_cost(c));
 }
 ```
 
-**与 e-graph 协同**：e-graph 提供等价空间，Superoptimizer 在其中搜索最优。e-graph 做了大部分工作，Superoptimizer 只在热点函数上做"最后一英里"的极致搜索。
+**与 e-graph 协同**：e-graph 提供等价空间，Superoptimizer 只在热点上做"最后一英里"。e-graph 做大部分工作；Superopt **可关**（§14.1），默认不阻塞日常编译。
 
 ### 5.2 SoA/AoS 布局转换 Pass
 
@@ -1022,7 +1028,7 @@ pipeline {
         egraph_rewrite{rules: ["algebra_simplify", "strength_reduction",
                                 "linear_optim", "alias_optim"]},
         egraph_extract{cost: inst_cost},
-        superoptimize{hot_fns_only: true, max_insts: 30},
+        superoptimize{hot_fns_only: true, max_insts: 20, min_gain: 0.10},  // v4.1 §14.5
         soa_transform{threshold: 0.5},
     ],
 
@@ -1246,7 +1252,8 @@ IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shu/shux/a
 - 内置默认 Cost Model（fallback），完全无配置时按通用 x86_64/ARM64 估算；
 - `--target-cost=apple_m5.cost.json` 编译选项指定 Cost Model 文件；
 - 与 §4.3 的 `inst_cost` 函数对接——e-graph 提取时消费维度 1；
-- 寄存器分配消费维度 2，向量化 pass 消费维度 5，指令调度消费维度 6——**各 Pass 按需读取维度，不耦合全量配置**。
+- 寄存器分配消费维度 2，向量化 pass 消费维度 5，指令调度消费维度 6——**各 Pass 按需读取维度，不耦合全量配置**；
+- **v4.1 强制**：加载期 **Cost Model 验证器**（§14.4）；非法文件 **不得静默**；早期实现可只启用 **维度 1**（`--no-multi-cost`）。
 
 ---
 
@@ -1337,16 +1344,20 @@ IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shu/shux/a
 
 **IR 设计不阻塞自举。** 自举是当前唯一关键路径，IR 是自举后的性能进化路径。自举前维持现有 C 后端 + asm 后端双轨，不引入新 IR 层。
 
-**Architecture Freeze（v4.0 起生效）。** IR 总架构已冻结，不再做设计层重构。剩余 4 项"实现级"问题靠 Benchmark 和实现验证，不改架构：
+**Architecture Freeze（v4.0 起生效）。** IR 总架构已冻结，不再做设计层重构。  
+**v4.1 Engineering Addendum（§14）** 在冻结内核上补齐开关 / 超时 / 诊断 / 校验 / 门控——**不**算架构解冻。
+
+剩余实现级问题靠 Benchmark 和实现验证，不改架构：
 
 | 实现级问题 | 性质 | 解决方式 |
 |------------|------|----------|
 | Contract 进一步压缩（热路径 Cache / Lazy Decode / Arena Allocation） | 性能优化 | 实现时 Benchmark 驱动，不改 Contract Pool 架构 |
-| e-graph 默认预算（5k / 10k / 20k） | 参数调优 | Benchmark 决定，不改分层饱和策略 |
-| Cost Model 新 CPU 配置（M7 / Zen6 / Zen7 / ARMv9 / RISC-V） | 数据维护 | 新增 `.cost.json`，不改 IR |
+| e-graph 默认预算 / 超时（§14.2） | 参数调优 | Benchmark 决定，不改分层饱和策略 |
+| Cost Model 新 CPU 配置（M7 / Zen6 / Zen7 / ARMv9 / RISC-V） | 数据维护 | 新增 `.cost.json` + §14.4 校验，不改 IR |
 | Pass Pipeline 顺序（GVN / LICM / LoopRotate 谁先谁后） | 调度调优 | Benchmark 决定，不改声明式 pipeline 框架 |
+| Superopt 阈值（20 指令 / 10% gain） | 参数调优 | §14.5；Benchmark 可调，不改「仅热点搜索」架构 |
 
-> **冻结后允许修改的两种情况**：① 实现时发现某个设计根本写不出来；② Benchmark 证明某个设计性能反而下降。除此之外不再继续 Contract → Contract2 → Contract3 式无限重构。
+> **冻结后允许架构级修改的两种情况**：① 实现时发现某个设计根本写不出来；② Benchmark 证明某个设计性能反而下降。除此之外不再继续 Contract → Contract2 → Contract3 式无限重构。
 
 ### 11.3 IR 开发 Checklist
 
@@ -1357,16 +1368,17 @@ IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shu/shux/a
 | **Phase 0** Contract-Annotated C-Emitter | 修改现有 `.x → .c` 生成器，输出 `/* @contract: pre=[...] post=[...] */` 注释 | 写 Contract 提取验证器：解析 .x AST + 检查 Contract 完备性（覆盖 Linear/Region/ABI） | 编译一段含 `Linear(T)` + Arena 的 .x 程序，C 输出含完整 Contract 注释，验证器 0 报错 |
 | **Phase 1** SHIR 基础 | 定义 `Contract` struct + `ContractPool`（§1.2）+ `EffectPool`（§1.7）+ `IRInst` 池化引用（§2.4） | 实现 .x → SHIR lowering，覆盖 §3.1 核心 12 条契约指令 | SHIR 解释器能跑通 fibonacci + arena_alloc/arena_reset 示例，契约一致性 100% 通过 |
 | **Phase 2** SMIR + 所有权验证 | SSA 构建（φ 节点 + def-use 链） + 所有权图 | 契约一致性三步检查（§1.3）+ X ABI 跨模块内联 | move-after-use 编译期报错；跨模块 X ABI 调用被内联；C ABI 禁止内联 |
-| **Phase 3** SLIR + e-graph | e-graph 数据结构（§4.8：Arena-native + union-find）+ 分层饱和（§4.6 函数分块） | P0 规则集（algebra_simplify + strength_reduction）+ cost function + 提取器 + 规则冲突解决（§4.7） | algebra_simplify 通过差分测试；性能 ≥ 原 C 后端 1.0×（不回归即可） |
-| **Phase 4** Superoptimizer + 布局优化 + SLIR immutable | Superoptimizer beam search（§5.1：热点函数 ≤ 30 指令） | SoA/AoS 转换 pass（§5.2）+ P1 规则集（linear_optim / alias_optim）+ SLIR immutable 化（§4.9） | 热点函数 cost 下降 ≥ 5%；SoA 转换在 x-neuron 1k 结点池跑通差分测试；SLIR pass 函数式接口通过 |
-| **Phase 5** VMIR 指令选择 | SLIR → VMIR lowering 框架 + `MachineInst` 数据结构（§2.4） | 模式匹配 isel 规则集（x86_64 + ARM64）+ DAG 依赖图 + 早期调度 | 算术表达式 isel 正确率 100%（差分测试）；fibonacci 经 VMIR 生成可执行 .s |
-| **Phase 6** Target MIR + 微架构 | region-aware Coloring 寄存器分配（§5.3）+ 热度感知 spilling | 多维度 Cost Model（§10.3：六维度 `.cost.json` 加载器）+ Apple M5 / Zen5 / Lunar Lake 三套配置 | 寄存器 spill 率 ≤ Clang -O2；六维度 Cost Model 文件通过单元测试 |
-| **Phase 7** 极致压榨 | 自动向量化 pass（e-graph `loop{load,op,store}` → `vectorized_loop` 规则） | External Pass Provider 动态注入 pipeline（§6.2）+ 微架构感知指令调度 | 向量化覆盖率 ≥ 60%；External Pass Provider 注入的 Pass 通过 Performance Oracle 门控 |
+| **Phase 3** SLIR + e-graph | e-graph 数据结构（§4.8）+ 分层饱和（§4.6）+ **§14.2 预算/超时** + **`--no-egraph`** | P0 规则集 + cost + 提取 + 冲突解决（§4.7）+ **`--dump-egraph` DOT** | algebra_simplify 差分绿；cap/timeout 有日志；性能 ≥ C 后端 1.0× |
+| **Phase 4** Superoptimizer + 布局 + immutable | Superopt（§5.1/**§14.5**：≤20 指令、增益&gt;10%、fail-closed）+ **`--no-superopt`** | SoA + P1 规则；**mutable SLIR 可先**，immutable 本 Phase 末可选 | 热点 cost 降 ≥5% 或 skip 有日志；SoA 差分绿；immutable 非硬门 |
+| **Phase 5** VMIR 指令选择 | SLIR → VMIR + `MachineInst`（§2.4）+ **层验证器 §14.6** | isel x86_64+ARM64 + DAG + 早期调度 | 算术 isel 差分 100%；fibonacci 可执行 .s |
+| **Phase 6** Target MIR + 微架构 | region Coloring + spilling | Cost 加载器 + **§14.4 校验器**；先 **dim1** 再多维；三套 `.cost.json` | spill ≤ Clang -O2；非法 cost.json 被拒绝或显式 fallback |
+| **Phase 7** 极致压榨 | 自动向量化 | External Pass + 调度；JIT **仅可选**（§14.8） | 向量化 ≥60%；注入 Pass 过 Oracle；JIT 默认关 |
 
 **Checklist 使用规则**：
 - 每个 Phase 的"最小交付物"必须有**自动化验证脚本**（差分测试 / Performance Oracle / 单元测试），不允许人工目测通过；
 - Phase N 的最小交付物未达标 → 禁止启动 Phase N+1，避免上层 pass 建立在错误的下层 IR 之上；
-- 交付物归档到 `analysis/ir-verify/phase<N>/` 目录，含测试输入、输出、性能数据。
+- 交付物归档到 `analysis/ir-verify/phase<N>/` 目录，含测试输入、输出、性能数据；
+- **v4.1**：每 Phase 交付物必须含 **kill-switch 冒烟**（`--no-<feature>` 后编译仍成功）与 **结构化契约失败样例**（若该 Phase 触及 lowering）。
 
 ---
 
@@ -1403,11 +1415,13 @@ IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shu/shux/a
 | 规则互逆振荡 | `x→x+0` 与 `x+0→x` 反复触发 | 饱和不收敛 |
 
 **权衡与缓解**：
-- ✅ **分块饱和**（§4.6）：按 Region/Function 边界分块，不一次性全程序饱和；
-- ✅ **节点上限**（默认 10k/块）：超限触发 "capped" 提前终止，提取当前最优；
-- ✅ **优先级分层**（P0→P1→P2）：每层独立饱和到 fixpoint，避免规则交叉触发；
+- ✅ **分块饱和**（§4.6）：按 Function 边界分块，不一次性全程序饱和；
+- ✅ **节点上限**（默认 10k/块，§14.2 可动态）：超限 `capped` 提前终止，提取当前最优；
+- ✅ **墙钟超时**（§14.2）：P0 默认 ≤100ms/函数，超时降级；
+- ✅ **优先级分层**（P0→P1→P2）：每层独立饱和到 fixpoint 或超时；
 - ✅ **饱和检测**：等价类不再增长即停，杜绝振荡；
-- ⚠️ **接受度**：capped 警告意味着可能错过理论最优——但比 OOM 翻车可接受，编译器日志会提示用户调整 `--egraph-budget`。
+- ✅ **一键关闭**（§14.1 `--no-egraph`）；
+- ⚠️ **接受度**：capped/timeout 可能错过理论最优——比 OOM 可接受；日志必须提示，可用 `--egraph-budget` / `--egraph-timeout-ms` 调整。
 
 ### 13.2 编译时间 vs 性能的权衡
 
@@ -1454,5 +1468,321 @@ IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shu/shux/a
 
 1. **绝不静默退化**：任何 capped / 降级 / fallback 都必须输出到编译日志，不允许"假装最优"；
 2. **门控优先于优化**：Performance Oracle 不通过的 Pass 不进主线，无论理论多漂亮；
-3. **可回退设计**：每个激进优化（Superoptimizer / 全程序 e-graph / JIT）都有 `--no-<pass>` 开关，出问题可一键关闭；
+3. **可回退设计**：每个激进优化（Superoptimizer / 全程序 e-graph / JIT）都有 `--no-<pass>` 开关，出问题可一键关闭（**权威开关表 §14.1**）；
 4. **诚实标注已知缺陷**：§12.2 "初期可能落后的领域"必须随版本演进更新，不掩盖短板。
+
+---
+
+## 14. 工程回退与验证规格（v4.1 Engineering Addendum）
+
+> **目的**：在 **Architecture Freeze（§ 文首 / §11.2）不改内核** 的前提下，**尽量增强** IR 的可落地性、可调试性、可回退性。  
+> **性质**：实现规格 + 默认更保守的工程契约；Benchmark 可调参，**不得**借附录重开五层 / 池化 / Effect 哲学。  
+> **与自举关系**：IR 仍 **不阻塞** 产品自举（§11.2）；§14 约束的是 **IR 实现阶段** 与日后切换 IR 后端时的质量门。  
+> **吸收来源**：外部架构评审（回退开关、分层验证、e-graph 预算/超时、Cost 校验、Superopt 收紧、可视化、JIT 远期）。
+
+### 14.0 增强原则（落地优先级）
+
+| 优先级 | 原则 | 含义 |
+|--------|------|------|
+| **P0** | **永远可关、永远可编译** | 任一激进特性 OOM / 假阳 / 超时 → 一键关闭后编译器仍可用 |
+| **P0** | **验证先于炫技** | Phase N 无自动化门 → 禁止开 Phase N+1 |
+| **P0** | **失败可归因** | 契约 / cost / e-graph 问题必须有结构化日志，禁止泛 panic |
+| **P1** | **默认保守** | 日常 `-O1` 不开 Superopt / 全程序 e-graph / 多维 Cost 全开 |
+| **P1** | **预算 + 超时双闸** | 节点 cap 与墙钟超时任一触发即提取并降级 |
+| **P2** | **渐进复杂度** | mutable SLIR → immutable；Cost dim1 → 六维；JIT 最后 |
+
+**禁止**：
+
+- 为「理论最优」去掉 `--no-*` 或让 opt=0 仍跑 Superopt；  
+- 用 soft-skip / 改测试期望 掩盖契约验证失败；  
+- 把 IR 未完成层的失败写成「产品 L4 / 可自举」红（混轨假绿/假红）。
+
+---
+
+### 14.1 权威 kill-switch 与 `--opt` 映射
+
+> 实现时 flag 名可微调，但 **语义必须可一对一映射到本表**。每个开关变更须打日志。
+
+#### 14.1.1 特性开关
+
+| 开关（建议名） | 关闭后行为 | 默认（opt=1） | 最早 Phase |
+|----------------|------------|---------------|------------|
+| `--no-egraph` | SLIR 跳过 e-graph；走传统 CSE/代数 pass 子集或直降 VMIR | 关（即 **允许** e-graph） | Phase 3 |
+| `--egraph-budget=N` | 每函数节点上限覆盖默认 | 见 §14.2 | Phase 3 |
+| `--egraph-timeout-ms=T` | 每函数墙钟上限 | 见 §14.2 | Phase 3 |
+| `--no-superopt` | 禁用 Superoptimizer | **开（禁用）** 于 opt≤1 | Phase 4 |
+| `--superopt` | 显式开启（仍受 §14.5 门控） | 仅 opt≥2 隐含 | Phase 4 |
+| `--no-multi-cost` | Cost 仅 **维度 1**（inst_costs） | **开** 于 Phase&lt;6 成熟前 | Phase 6 |
+| `--target-cost=FILE` | 加载插件 Cost Model | 内置 fallback | Phase 6 |
+| `--slir-mutable` | SLIR pass 可变图（调试友好） | Phase 3–4 初 **默认开** | Phase 3 |
+| `--slir-immutable` | 强制 immutable 图 API | 稳定后默认 | Phase 4 末+ |
+| `--no-fullprog-egraph` | 禁止 PGO 全程序 e-graph | **开（禁止）** 默认 | Phase 3+ |
+| `--no-jit` | 禁用 JIT | **开（禁用）** | Phase 7 |
+| `--verify-contract` | 只验证契约/lowering，不跑激进优化 | 调试用 | Phase 1+ |
+| `--dump-ir=shir\|smir\|slir\|vmir\|mir` | 文本 dump | 关 | Phase 1+ |
+| `--dump-egraph[=path]` | DOT / Graphviz | 关 | Phase 3 |
+| `--dump-pass-trace` | 每 pass 输入输出快照 | 关 | Phase 2+ |
+
+#### 14.1.2 优化档位映射（默认更保守）
+
+| 档位 | 含义 | e-graph | Superopt | 全程序 e-graph | Cost | JIT |
+|------|------|---------|----------|----------------|------|-----|
+| `--opt=0` | 最快：lowering + 基础 RA | ❌ | ❌ | ❌ | fallback 最小 | ❌ |
+| `--opt=1`（**默认**） | 日常 release | ✅ P0 规则 + cap/timeout | ❌ | ❌ | dim1（或 fallback） | ❌ |
+| `--opt=2` | 性能关键 | ✅ P0+P1 | ✅ 若过 §14.5 | ❌ 默认 | dim1+已校验多维 | ❌ |
+| `--opt=3` | 发布/基准 | ✅ 更深 | ✅ | ✅ 仅 PGO 热点路径且未 `--no-fullprog-egraph` | 全维（已校验） | 可选且默认关 |
+
+**组合冲突**：显式 `--no-egraph` **覆盖** opt 档位中的 e-graph 开启。任何 cap/timeout/skip **必须** 日志一行（§13.5.1）。
+
+---
+
+### 14.2 e-graph 内存与时间控制（增强）
+
+在 §4.6 / §4.8 / §13.1 之上，**实现必须**满足：
+
+#### 14.2.1 动态节点预算
+
+```text
+// 伪代码：每函数独立 EGraph
+base = 4096
+budget = min(hard_cap, base + k_inst * inst_count + k_hot * hotness_score)
+hard_cap 默认 = 10000
+k_inst 默认 = 8          // 每条 SLIR 指令额外额度
+k_hot  默认 = 0..2048    // PGO 热度归一化后加成；无 PGO 则 0
+```
+
+- 冷函数 / 小函数：预算显著低于 10k，控编译时间；  
+- 热点函数：可升高，但 **永不超过** `hard_cap`（可用 `--egraph-budget` 覆盖 hard_cap）；  
+- 超限 → `e-graph capped` + 提取当前最优 + **不** abort 整个编译（除非 `--egraph-strict` 调试模式）。
+
+#### 14.2.2 墙钟超时与规则级降级
+
+| 阶段 | 默认超时（每函数，可配置） | 超时行为 |
+|------|---------------------------|----------|
+| P0 规则饱和 | **100ms** | 停 P0，提取；日志 `egraph-timeout:p0` |
+| P1 规则 | **200ms** | 跳过剩余 P1 |
+| P2 / superopt 搜索入口 | **500ms**（不含 superopt 本体） | 跳过 P2 |
+| 全函数 wall | **opt=1: 300ms；opt=2: 2s；opt=3: 10s** | 提取并继续 pipeline |
+
+超时与节点 cap **任一触发即停**。P0「100ms」为 **目标默认值**，Benchmark 可调；**禁止**无超时的无限饱和。
+
+#### 14.2.3 规则优先级（与 §4.6 一致，实现约束）
+
+1. 先 P0 到 fixpoint 或超时；  
+2. 再 P1；  
+3. P2 / Superopt **仅** opt≥2 且热点；  
+4. 规则集 **版本化**（git pin / 配置文件 hash），保证 dump 可复现。
+
+---
+
+### 14.3 Contract 结构化诊断（禁止泛 panic）
+
+§1.3 的失败路径必须产出 **机器可读 + 人类可读** 诊断。最低字段：
+
+```text
+// 建议 stderr / 诊断 JSON（二选一或并存）
+contract_error {
+  code: "IR_CONTRACT_PRE" | "IR_CONTRACT_POST" | "IR_CONTRACT_EFFECT"
+       | "IR_CONTRACT_OWNERSHIP" | "IR_CONTRACT_EQUIV",
+  phase: "shir_lower" | "smir" | "slir_rewrite" | "vmir" | ...,
+  inst_id: ...,
+  opcode: "...",
+  debug_loc: { file, line, col },
+  contract_id_before: ...,
+  contract_id_after: ...,   // 若有
+  effect_id_before: ...,
+  effect_id_after: ...,
+  pre_failed: [ "region_alive(r0)", ... ],
+  post_weakened: [ ... ],
+  effect_changed: [ ... ],
+  note: "frontend typeck vs IR extract mismatch" | "pass X broke equiv",
+  ir_snippet: "optional 3-8 lines around inst",
+}
+```
+
+| 要求 | 说明 |
+|------|------|
+| **禁止** | 仅 `panic("contract")` / `assert(false)` 无 loc |
+| **必须** | 至少一个 **不一致点**（pre/post/effect 列表非空或 equiv 规则名） |
+| **Debug** | 可附 `--dump-ir` 自动路径建议 |
+| **分级** | lowering 不一致 = **编译器 bug**（exit ≠0）；用户 `assume` 违反 = 见 §1.5 |
+
+---
+
+### 14.4 Cost Model 安全加载（增强 §10.3 / §13.4）
+
+#### 14.4.1 加载流程
+
+```text
+load cost.json
+  → JSON schema 校验（version / target / 已知键）
+  → 数值合理性（§14.4.2）
+  → 通过：启用对应维度
+  → 失败：
+       · 默认：报错 + 使用内置 fallback + 日志 cost-fallback
+       · --cost-strict：直接编译失败
+```
+
+**禁止**：坏文件静默当 0 cost / 静默当最优。
+
+#### 14.4.2 合理性规则（可扩展，实现为表驱动）
+
+| 检查 | 示例规则 |
+|------|----------|
+| 算术相对代价 | `div ≥ mul ≥ add`；`mod ≥ div`（同精度） |
+| 访存 | `store ≥ load ≥ 1`（默认模型） |
+| 分支 | `mispredict_penalty ≥ 1` |
+| 寄存器 | `gp_regs ≥ 8`；`spill_cost ≥ reload_cost ≥ 1` |
+| 区间 | 任一 cost ∈ `(0, 1e6]`；禁止 NaN / 负 |
+| 版本 | `version` 主版本与编译器支持矩阵匹配 |
+
+#### 14.4.3 维度落地顺序（增强可执行性）
+
+| 顺序 | 维度 | 说明 |
+|------|------|------|
+| 1 | Instruction Cost | **最先**；e-graph 提取刚需 |
+| 2 | Register Pressure | 与 RA 同期 |
+| 3 | Pipeline Model | 调度 |
+| 4–6 | Cache / Branch / SIMD | 有 Pass 再读；未实现 Pass 则忽略键 |
+
+`--no-multi-cost`：只读维度 1，其余内置保守默认。
+
+---
+
+### 14.5 Superoptimizer 门控（增强 §5.1）
+
+全部满足才运行，否则 **skip**（非失败）：
+
+| 门 | 默认 |
+|----|------|
+| 未 `--no-superopt` 且（opt≥2 或 `--superopt`） | 是 |
+| PGO 热点（或实现规定的 profile 代理） | 是 |
+| `inst_count < 20`（soft）；`hard_max = 30` | 是 |
+| 预估 gain &gt; **10%** vs e-graph extract | 是 |
+| `differential_test` 通过 **N≥1000** 随机/固定向量（§13.3） | 是 |
+| 验证失败 | **fail-closed** 保留 extract |
+
+**CI**：Superopt 相关测试必须覆盖「skip 路径」与「fail-closed 路径」，防止只测 happy path。
+
+---
+
+### 14.6 分层验证与解释器（增强 §9）
+
+| 层 | 最小验证物 | Phase 门 |
+|----|------------|----------|
+| **SHIR** | 解释器 + 契约一致性 | Phase 1 gate |
+| **SMIR** | SSA/所有权检查器 + 解释器或等价 oracle | Phase 2 gate |
+| **SLIR** | 重写前后契约等价检查 + 差分（相对 SMIR oracle） | Phase 3 gate |
+| **VMIR** | isel 差分 +（可选）轻量解释/对照 asm 模拟 | Phase 5 gate |
+| **Target MIR** | 端到端执行 vs oracle | Phase 6 gate |
+
+**Oracle 三方**（§9.2）：在 IR 后端存在期间，**(A) 既有 C/asm 产品路径**、**(B) IR 解释器**、**(C) IR codegen** 对同一 corpus 必须一致（允许实现定义的 NaN 等例外表）。
+
+#### 14.6.1 自动化与频次
+
+| 任务 | 频次 | 宿主建议 |
+|------|------|----------|
+| Phase 当前层 unit + 契约样例 | 每 commit / PR | 开发机 + Ubuntu 金标 |
+| Differential fuzz（增量 corpus） | **每日**（IR Phase 启动后） | Ubuntu |
+| Performance Oracle 热点集 | 每日或每 Phase 合入 | Ubuntu |
+| 全量回归 | Phase 升级 / 发布前 | Ubuntu L4 纪律对齐产品轨时可共用机时，**但结果分轨记账** |
+
+交付目录：`analysis/ir-verify/phase<N>/`（输入、输出、日志、perf 数据）。
+
+---
+
+### 14.7 调试与可视化（增强 §13.3）
+
+| 工具 | 最低交付 Phase | 说明 |
+|------|----------------|------|
+| `--dump-ir=...` | Phase 1 | 文本；稳定格式便于 golden |
+| `--dump-egraph` → DOT | Phase 3 | Graphviz；大图可截断并注明 |
+| `--dump-pass-trace` | Phase 2 | 体积可控（可只 dump 函数过滤器） |
+| `--verify-contract` | Phase 1 | 不做激进优化 |
+
+**目标**：多层 + e-graph 的调试成本仍高于 LLVM 单层，但 **不得** 只能靠 gdb 猜——必须有 dump 复现路径。
+
+---
+
+### 14.8 JIT 远期规格（增强 §5.9，低优先级）
+
+> 不阻塞 Phase 0–6。实现前必须单独设计评审。
+
+| 项 | 要求 |
+|----|------|
+| 内存 | **W^X**：写时不可执行，执行时不可写 |
+| 热替换 | 旧页可回滚；替换失败保留旧代码 |
+| 安全 | 默认关；无 profile 不生成；注入面审计 |
+| 与 pipeline | 仅 opt=3 显式；始终可 `--no-jit` |
+
+---
+
+### 14.9 形式化（保持 §9.5）
+
+- **核心路径拒绝** Lean4/Coq 依赖。  
+- 允许 **仓库外** 可选工具验证子集规则；**不得** 作为 Phase gate 硬依赖。
+
+---
+
+### 14.10 实现顺序（最小可验证路径 — 强化执行）
+
+```text
+产品自举（当前主线，IR 不挡） 
+    │
+    ▼
+Phase 0  Contract 注释进现有 C emit + 提取校验
+    │
+    ▼
+Phase 1  SHIR + Pool + EffectId + 解释器 + §14.3 诊断
+    │
+    ▼
+Phase 2  SMIR 所有权 + 契约三步 + dump-pass-trace
+    │
+    ▼
+Phase 3  e-graph P0 only + §14.1/14.2 开关预算超时 + DOT
+    │     （先 mutable SLIR）
+    ▼
+Phase 4  Superopt 严门控 §14.5 + SoA；immutable 可选收尾
+    │
+    ▼
+Phase 5–6  VMIR → Target + Cost 校验 dim1→多维
+    │
+    ▼
+Phase 7  向量化 / External Pass；JIT 默认关
+```
+
+**每步硬规则**：自动化绿 + kill-switch 冒烟绿 → 才允许宣传该 Phase「可用」。
+
+---
+
+### 14.11 v4.1 相对 v4.0 变更摘要（非架构）
+
+| 项 | v4.0 | v4.1 |
+|----|------|------|
+| 冻结内核 | 五层 / 池化 / Effect / e-graph 哲学 | **不变** |
+| Superopt 触发 | &lt;30 指令 | **&lt;20** + gain&gt;10% + fail-closed + opt≥2 |
+| e-graph | 节点 cap + 分层 | **+动态预算 + 墙钟超时 + 权威开关** |
+| Contract 失败 | panic + 不一致点 | **结构化诊断 schema** |
+| Cost | fallback + 单测 | **+加载校验规则 + dim 落地序** |
+| 验证 | 分层原则 | **+层门 + 日跑 + 目录约定** |
+| immutable | Phase 3–4 渐进 | **明确默认 mutable 优先** |
+| JIT | W^X 一句 | **+回滚/默认关（§14.8）** |
+
+---
+
+### 14.12 工程增强 Checklist（合入自检）
+
+实现或合入 IR 相关变更时：
+
+- [ ] 未修改冻结内核（五层职责 / Contract·Effect 池化语义）除非触发文首两条冻结例外  
+- [ ] 新激进 pass 有 **`--no-*` 或 opt 门** 且默认不拖垮 opt=0/1  
+- [ ] cap / timeout / fallback / skip **均有日志**  
+- [ ] 契约失败走 **§14.3** 字段，而非泛 panic  
+- [ ] Cost 文件经 **§14.4** 或仅用 fallback  
+- [ ] Superopt 满足 **§14.5** 或未启用  
+- [ ] 对应 Phase 的 `analysis/ir-verify/phaseN/` 或等价 CI 更新  
+- [ ] 与产品轨（bstrict / L4）**分轨叙述**，不混「可自举」话术  
+
+---
+
+*v4.1 结束。架构仍冻结于 v4.0；增强点以本附录与 §5.1 / §4.6 / §10.3 / §11.3 交叉引用为准。后续仅 Benchmark 驱动调参或冻结例外下的最小回溯。*

@@ -1,40 +1,61 @@
 # Shux
 
-> **Write high-performance, memory-safe code in a modern language** — C-like type and execution model; simple, readable syntax; safety and speed via *explicit contracts + fewer undefined behaviors + safe by default*, not heavy type theory.
+> **Systems code that is simple, safe, and fast — finally in one language.**  
+> C-like model you already know · Rust-grade memory safety without the type-theory tax · codegen that aims to **beat** careful C · learning curve measured in **days**, not months.
 
 | Item | Description |
 |------|-------------|
-| **Language** | Shux |
+| **Language** | Shux（舒克斯） |
 | **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
 | **Build config** | `build.x` — project build strategy in Shux (steps, targets, products); entry via `shux build` / `build_tool` / `shux-build.sh` |
-| **Status (2026-07-18)** | **Product L4 pin** still **`c51759eb`** (true cold + bstrict **123/123** *at pin time*). **Product bstrict suite is now 125** (`run-void-main-gate` + `run-comment-prefix`). Tip verify: mac true-cold L4 **125/125** @ **`d8aa86e2`**; Ubuntu 125 after i64 ABI fix (`SKIP_BUILD`). **Self-host not finished** (seed / hybrid C still required for cold start; tip L4 not re-pinned) |
+| **Status (2026-07-20)** | **Product L4 pin `deaf773b`** (dual-host true cold + bstrict **125/125** + Windows hybrid gate). Tip **`0c9458ed`**: CLI help beautify (Deno-style), dual L2 green (**≠** tip L4 re-pin). **Self-host not finished** (seed / hybrid C still required for cold start) |
 | **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
 
-## 1. Positioning
+## 1. Why Shux — **Three Highs, One Low**
 
-Shux is a **systems language**: no GC, zero-cost abstractions, explicit memory model. Generated code aims to match or beat careful C. Versus C: cleaner syntax, diagnostics with locations, integrated toolchain. Versus Rust: a deliberately smaller type system that stays **explicit enough** at the hard edges (nullability, bounds, ownership/borrow, aliasing) so the compiler can prove safety and optimize.
+Shux is a **systems language** for kernels, drivers, runtimes, and high-performance tools: no GC, zero-cost abstractions, explicit memory model, freestanding-ready.
 
-### Goals
+Most languages force a trade-off. Shux refuses that trade-off:
+
+| Pillar | Target | What it means in practice |
+|--------|--------|---------------------------|
+| **High performance** | **Beat careful C by default** | No GC; default ASM backend + optional C backend; aggressive alias / `noalias`, BCE, monomorphized generics, arena/region paths with zero hot-path malloc. Performance comes from the **compiler**, not from heroics in every call site |
+| **High safety** | **Near Rust in the safe subset** | Compile-time region / borrow / linear checks; `Option` / `Result` over silent null; bounds-aware slices; graded `unsafe` only for hardware & syscall edges — **auditable**, not ambient |
+| **High readability** | **Simpler than C at scale** | `T[]` carries length; no header hell (directory = module); `defer` / `with_arena` / scoped allocators; field access is only `.`; diagnostics with real locations |
+| **Low learning cost** | **C programmers productive in days** | C-like control flow and mental model; no lifetime annotation maze; progressive features (write “almost C” first, then adopt modern safety); integrated `shux build` / fmt / LSP |
+
+**One-line review rule for every language feature:**
+
+> *Would this make a C programmer’s life harder?*  
+> If yes → cut it, hide it in the compiler, or quarantine it in `unsafe`. **Simpler than C is the highest design priority**; safety and speed are delivered by compiler intelligence, not by burdening the author.
+
+### How we differ (honest positioning)
+
+| vs | Shux choice |
+|----|-------------|
+| **C** | Same “close to the metal” control — cleaner syntax, fewer footguns, one toolchain, safety proofs where C has UB |
+| **Rust** | Same ambition on memory safety — **without** a heavy borrow-checker lifestyle; regions + inference + linear types do the heavy lifting |
+| **Zig** | Shared love of simplicity and explicitness — plus a first-class safe subset and stronger static safety story as default |
+
+### Supporting goals
 
 | Goal | Meaning |
 |------|---------|
-| **Performance** | No GC; ASM backend (default) + optional C backend; alias / `noalias` feed autovec and DCE |
-| **Memory safety** | Safe subset: no leaks, dangling refs, OOB, or data races by default; auditable `unsafe` |
-| **Lightweight** | Few deps; small binaries; freestanding/embedded; std linked on demand |
-| **Standard library** | Full `core/` + `std/`; one API surface across platforms (impl details under `std.sys`) |
-| **Learnability** | Much simpler than C-at-scale; gentle curve, integrated tools |
-| **Self-hosting** | End state: compiler + std 100% `.x`; host C / seed only for cold start (in progress, not claimed complete) |
+| **Lightweight** | Few deps; small binaries; freestanding / embedded; std linked on demand |
+| **Standard library** | Full `core/` + `std/`; one API across platforms (details under `std.sys`) |
+| **Self-hosting** | End state: compiler + std 100% `.x`; host C / seed only for cold start (**in progress — not claimed complete**) |
 
 ### Design stance
 
-- **Aim**: extreme performance where it matters.
+- **Aim**: extreme performance where it matters — **default codegen better than typical C**, not “as good if you are careful”.
 - **Discipline**: maintainable code, simple development, **memory safety** (no silent UB in the safe subset).
+- **Method**: region-based memory + borrow gates + linear types; alias analysis feeds autovec / DCE; unsafe stays thin and reviewable.
 
-Design notes: [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md), [`analysis/需求分析.md`](analysis/需求分析.md).
+Design notes: [`analysis/语法与类型设计-高性能与内存安全.md`](analysis/语法与类型设计-高性能与内存安全.md), [`analysis/需求分析.md`](analysis/需求分析.md), [`analysis/安全与性能.md`](analysis/安全与性能.md).
 
 ---
 
@@ -128,7 +149,7 @@ function main(): void {
 
 ```bash
 export SHUX=./compiler/shux_asm
-$SHUX examples/hello.x
+$SHUX run examples/hello.x
 $SHUX build examples/hello.x -o hello && ./hello
 $SHUX check examples/hello.x
 ```
@@ -147,7 +168,7 @@ SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~12
 ```
 
 For **self-host / product release claims**, the project requires **L4 true cold** (wipe all `.o` under `compiler`/`std`/`core`, rebuild binaries) **plus** dual-platform `run-all-bstrict` green. Details: skill / [`analysis/自举方法.md`](analysis/自举方法.md) · [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md).  
-**Note:** daily L2 green on tip ≠ tip L4 pin. **Release pin stays `c51759eb`** until the next dual true cold re-pin. Tip may already show dual L2 bstrict green after product-path fixes (see §8).
+**Note:** daily L2 green on tip ≠ tip L4 pin. **Release pin is `deaf773b`** (125/125 dual true cold + Windows hybrid gate). Tip daily work (e.g. CLI help beautify) may be dual-L2 green without re-pinning L4 (see §8).
 
 ---
 
@@ -155,20 +176,84 @@ For **self-host / product release claims**, the project requires **L4 true cold*
 
 Default backend: **ASM** (`-backend asm`).
 
-| Command | Description |
-|---------|-------------|
-| `shux file.x` | Compile and run (`shux run`) |
-| `shux build` | Read `build.x`, run build runner |
-| `shux build file.x -o exe` | Compile to executable |
-| `shux check file.x` | Parse + typeck only |
-| `shux fmt file.x` | Format |
-| `shux test [script]` | Run tests (default `tests/run-all.sh`) |
-| `shux --lsp` | Language server (stdio JSON-RPC) |
-| `shux -E file.x` | Emit C (debug) |
-| `shux -backend c file.x` | Force C backend |
-| `shux -O2 file.x -o app` | Optimize (default **-O2**) |
-| `shux -freestanding …` | Linux x86_64 nostdlib static |
-| `shux -h` | Help |
+```bash
+shux [COMMAND] [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description | Usage |
+|---------|-------------|-------|
+| `build` | Compile .x to binary/object (default a.out) | `shux build [options] file.x [-o exe]` |
+| `run` | Compile and run .x | `shux run [options] file.x` |
+| `check` | Parse + typeck only (no codegen) | `shux check [paths...]` |
+| `fmt` | Format .x sources | `shux fmt [--check] [paths...]` |
+| `explain` | Explain a diagnostic code | `shux explain <CODE>` |
+| `test` | Run test script | `shux test [script.sh]` |
+
+### Build options (build / run)
+
+| Option | Description |
+|--------|-------------|
+| `-backend asm\|c` | Backend (default asm) |
+| `-O <0\|1\|2\|3\|s>` | Optimization level (default 2) |
+| `-o <path>` | Output binary or .o |
+| `-L <dir>` | Library search path |
+| `-target <triple>` | Target triple (e.g. `aarch64-linux-gnu`) |
+| `-target-cpu <cpu>` | `native\|generic\|avx2\|...` |
+| `-freestanding` | Nostdlib static link (Linux x86_64 ELF) |
+| `-legacy-f32-abi` | Legacy SysV f32 CALL (f64 widen; default xmm ABI) |
+| `-E` | Emit C (debug) |
+| `-flto` | Link-time optimization (C backend) |
+
+### Global options
+
+| Option | Description |
+|--------|-------------|
+| `--print-target-cpu` | Print host CPU features and exit |
+| `--explain <CODE>` | Print diagnostic code explanation and exit |
+| `--help, -h` | Show this help |
+
+### Environment variables
+
+| Variable | Effect |
+|----------|--------|
+| `SHUX_ABI_F32_XMM=0` | Same as `-legacy-f32-abi` (x86_64 SysV) |
+| `SHUX_OPT` | Default -O level if omitted |
+| `NO_COLOR` | Disable color output |
+| `CLICOLOR_FORCE=1` | Force color output even when piped |
+| `SHUX_FORCE_COLOR=1` | Same as CLICOLOR_FORCE |
+
+### Examples
+
+```bash
+# Compile and run
+shux run examples/hello.x
+
+# Compile to executable
+shux build examples/hello.x -o hello && ./hello
+
+# Parse + typeck only
+shux check examples/hello.x
+
+# Format sources
+shux fmt src/
+
+# Explain diagnostic code
+shux explain XP003
+
+# Run test script
+shux test tests/run-all-bstrict.sh
+
+# Language server (stdio JSON-RPC)
+shux --lsp
+
+# Force C backend
+shux build -backend c file.x
+
+# Freestanding (Linux x86_64 nostdlib)
+shux build -freestanding file.x
+```
 
 Root [`build.x`](build.x) describes what to build. Daily entry: `./shux-build.sh` / `build_tool`.
 
@@ -263,7 +348,7 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 ---
 
-## 8. Self-host status (snapshot · 2026-07-18 · evening)
+## 8. Self-host status (snapshot · 2026-07-20)
 
 > **Authoritative live numbers**: [`analysis/自举进度.md`](analysis/自举进度.md) · daily [`analysis/当前进度.md`](analysis/当前进度.md).  
 > README only summarizes; **do not** treat Stage2 / prove / WPO / daily L2 green as a tip L4 re-pin or as “self-host done”.
@@ -272,29 +357,33 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 | Item | Status |
 |------|--------|
-| **L4 release pin** | **`c51759eb`** — dual-host **true cold** + `run-all-bstrict` **123/123** *at pin time* (Ubuntu + macOS). Suite later grew to **125**. Previous pin lineage includes `f16f7d48` / older `5c8204ae`-era waves — **do not** re-cite those as the live pin |
+| **L4 release pin** | **`deaf773b`** — dual-host **true cold** + `run-all-bstrict` **125/125** (Ubuntu + macOS) + Windows hybrid gate. Prior pins today: `305cfbe1` → `deaf773b`; earlier lineage includes `5cc73d54` / `a74e25a1` / `c51759eb` — **do not** re-cite those as the live pin |
 | Product bstrict suite size | **125** scripts (`tests/run-all-bstrict.sh`; must log `OK (125 scripts…)`) |
-| Ubuntu L4 + full bstrict (pin) | ✅ **123/123** @ pin (`/tmp/ubuntu_true_cold_c51759eb.log`, `/tmp/ubuntu_true_bstrict_c51759eb.log`) |
-| macOS L4 + full bstrict (pin) | ✅ **123/123** @ pin (`/tmp/mac_true_cold_c51759eb.log`, `/tmp/mac_true_bstrict_c51759eb.log`) |
+| Ubuntu L4 + full bstrict (pin) | ✅ **125/125** @ **`deaf773b`** |
+| macOS L4 + full bstrict (pin) | ✅ **125/125** @ **`deaf773b`** |
+| Windows hybrid gate (pin) | ✅ warm green @ **`deaf773b`** |
 | Gold host | **Ubuntu x86_64** |
 | Product binary under test | This-wave `compiler/shux_asm` (g05 / relink) — **never** leftover Stage2 `shux_asm2` or old `stage1` |
-| Branch tip (not tip L4) | **`d8aa86e2`** wave on `self-hosting` (+ local Makefile ABI guard). **Tip L4 is re-pinned only after dual true cold + bstrict 125**, not after every L2 green |
-| Latest tip bstrict 125 | ✅ mac true-cold **125/125** @ `d8aa86e2` (`/tmp/mac_true_cold_d8aa86e2.log`); Ubuntu **125/125** after i64 ABI fix (`/tmp/ubuntu_bstrict_after_i64fix.log`, `SKIP_BUILD`). **≠** tip L4 re-pin |
+| Branch tip (not tip L4) | **`0c9458ed`** on `self-hosting` — CLI help beautify (Deno-style), dual L2 green. **Tip L4 re-pin only after dual true cold + bstrict 125**, not after every L2 green |
+| Latest tip daily L2 | ✅ mac + Ubuntu L2 matrices + bstrict **125/125** @ `0c9458ed` (**≠** tip L4 re-pin; CLI help beautify is not ABI/link) |
 
-### Product surface recently closed (daily L2 · pin still `c51759eb`)
+### Product surface closed on 2026-07-20
 
 On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **does not** auto-raise the L4 pin:
 
 | Area | Status |
 |------|--------|
-| **i64 CTFE** (`run-i64-ctfe-gate`) | ✅ fold only when value fits `i32` (`glue_ctfe_fits_i32`); `INT64_MIN` no longer truncates to 0 → wrong exit |
-| **Block comments / docblocks** | ✅ `/* … */` recovery in parse seed; keep docblocks — do not “fix” by stripping comments |
-| **Borrow / lifetime baselines** | ✅ `type-borrow-conflict` + `lang-lifetime-diag` gates green with updated baselines |
-| **g05 link discipline** | ✅ do not merge hybrid RT slices over permanent cold slices (avoids CG002 / wrong-binary after relink) |
-| **Gate docs restored** | ✅ e.g. `analysis/安全与性能.md` required by product gates (not archive-only) |
-| Freestanding S4 / `std.vec` / soft XT001 | ✅ earlier L2 closes still hold (`run-freestanding-hello`, SysV MEMORY param home, …) |
-| NL-07 no-libc | ✅ L1–L10 + v5 on product pin (crt0 / soft libm / pure static matrix) |
-| Hosted asm matrix | ✅ return-value / hello / option / stdlib-import (+ related L2 probes) on Ubuntu gold |
+| **C2 · `std.net` PRIMARY UNDEF** | ✅ `net.o` includes `mod.x`; `use_line` real-call detection; cookbook `net_listen_bind.x -o` green — in pin lineage |
+| **C3=C4 · bare `{…}` struct lit** | ✅ parser `LBRACE` let-init handler; bare struct-lit + `unsafe`/`while` no longer drops lets → P001 |
+| **C8 · vec/set/map/queue duplicate** | ✅ guard `mem.o`+`heap.o` push with `c_provides` (fk0 GAP) — in pin lineage |
+| **Backtrace C-backend heap chain** | ✅ push `page_mmap.o` + asm IO stubs — in pin lineage |
+| **C5 · `EXPR_MATCH` CTFE** | ✅ const subject + const arms fold to imm32 (`lang-const` 13/13); tip `229708f1`, dual L2, **not** L4 re-pin |
+| **C6 · X ABI P0b** | ✅ wave 1 unsafe wrapping (9 sites) + wave 2 ABI consistency (3 sites) — **raised L4 pin to `deaf773b`** |
+| **Driver · `shux run` / bare `shux file.x`** | ✅ in-memory compile-and-run |
+| **Windows hybrid gate** | ✅ MSYS2/MinGW bootstrap-driver-bstrict + return-value 42 + win32-write-gate + win32-read-file-gate + C-03 — **raised L4 pin to `deaf773b`** |
+| **CLI help beautify** | ✅ Deno-style green color scheme + per-subcommand sections + `shux [COMMAND] [OPTIONS]` order |
+| **std.print architecture** | ✅ unified under `std.fmt` (stdout) + `std.debug` (stderr); `std.io` retains low-level write primitives only |
+| Freestanding S4 / NL-07 no-libc / hosted asm matrix | ✅ still hold on product pin |
 
 ### Engineering track (subset)
 
@@ -312,16 +401,17 @@ On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **doe
 - **Not** “compiler is 100% `.x` with zero seed”
 - **Not** “Stage2 `shux_asm2` is the product compiler”
 - **Not** “engineering WPO green = tip product L4”
-- **Not** “dual L2 bstrict on tip = tip L4” — pin stays **`c51759eb`** until dual **true cold** re-pin
+- **Not** “dual L2 bstrict on tip = tip L4” — pin is **`deaf773b`** until the next dual **true cold** re-pin
+- **Not** “Windows hybrid green = product L4 / self-host done” — Windows hybrid is probe-only
 - Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
 
 Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`.
 
 ### Near-term front row (high level)
 
-1. Land tip product-path work (i64 CTFE / block-comment / g05 ensure / baselines) in reviewable commits  
-2. Optional next product map only after green dual L2; **re-pin tip L4** only with dual true cold + bstrict  
-3. Side residuals when they block a product surface: ABI polish, cfg-extern / labi edges — **no** soft-skip typeck, **no** dual authority
+1. Next product Cap map only with explicit candidates (C5 guard / struct-lit / enum-variant fold; C6 X ABI P0b; C7 plan thin) — **no** unmapped tip L4  
+2. **Re-pin tip L4** only with dual true cold + bstrict 125 when ABI/link/seed surfaces move  
+3. Residuals that block a product surface only: **no** soft-skip typeck, **no** dual authority
 
 ---
 
@@ -335,7 +425,7 @@ Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, -O2/-Os, size/perf baseline | ✅ partial |
 | M5 | Bootstrap (compiler can rebuild itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start** |
-| **Now** | Product L4 dual pin @ **`c51759eb`** (pin-time 123); suite **125**; tip mac L4+125 @ **`d8aa86e2`** + Ubuntu 125 after i64 ABI fix — **not** tip L4 re-pin | See dashboard |
+| **Now** | Product L4 dual pin @ **`deaf773b`** (125/125 + Windows hybrid gate); tip **`0c9458ed`** (CLI help beautify) — **not** tip L4 re-pin | See dashboard |
 
 ---
 
@@ -438,4 +528,4 @@ For **AGPL exemption on the compiler/toolchain** (proprietary embedding, closed 
 
 ---
 
-*Shux — performance-oriented, simple, readable, maintainable, memory-safe.*
+*Shux — Three Highs, One Low: faster than C · safer near Rust · simpler than C · learnable in days.*

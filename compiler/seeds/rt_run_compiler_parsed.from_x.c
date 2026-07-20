@@ -375,7 +375,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         }
                     }
                     fclose(cf_lib);
-                    char tmp_lib_c[32];
+                    char tmp_lib_c[256];
                     snprintf(tmp_lib_c, sizeof(tmp_lib_c), "%s.c", tmp_lib);
                     if (rename(tmp_lib, tmp_lib_c) != 0) {
                         runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp_lib, tmp_lib_c);
@@ -534,7 +534,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 }
             }
             fclose(cf);
-            char tmp_c[32];
+            char tmp_c[256];
             snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
             if (rename(tmp, tmp_c) != 0) {
                 runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
@@ -716,7 +716,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     typeck_ndep = 0;
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
     char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
-    char tmp_c[32];
+    char tmp_c[256];
     int fd = -1;
     FILE *cf;
     if (emit_to_stdout) {
@@ -729,20 +729,21 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(arena); free(module); free(src);
             return 1;
         }
-        cf = fdopen(fd, "w");
-        if (!cf) {
-            runtime_diag_errno_path(input_path, "build error", "fdopen", tmp);
-            close(fd);
+        /* PLATFORM: WINDOWS | POSIX — close fd BEFORE rename; Windows forbids
+         * renaming a file held open (POSIX allows it). Reopen after rename. */
+        close(fd);
+        snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
+        if (rename(tmp, tmp_c) != 0) {
+            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
             unlink(tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
         }
-        snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
-        if (rename(tmp, tmp_c) != 0) {
-            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
-            unlink(tmp);
-            fclose(cf);
+        cf = fopen(tmp_c, "w");
+        if (!cf) {
+            runtime_diag_errno_path(input_path, "build error", "fopen", tmp_c);
+            unlink(tmp_c);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;

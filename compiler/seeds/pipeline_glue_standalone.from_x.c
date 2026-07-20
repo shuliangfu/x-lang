@@ -8,6 +8,7 @@
  * 类型头由 scripts/extract_pipeline_glue_types.pl 从 pipeline_gen.c 抽取至 build_asm/pipeline_glue_types.inc；
  * 与 build_asm/pipeline.o 并列链接，补齐 pool 读写 glue 符号，避免重复 pipeline_run_x_pipeline_impl 等 .x 定义。
  */
+#include <shux_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -34,7 +35,7 @@ struct ast_PipelineDepCtx;
 extern int32_t driver_run_compiler_full(int32_t argc, char **argv);
 
 /** 无 bridge 时的入口桩；B-strict 链由 asm_experimental_symbol_bridge.c 强符号 main_entry 覆盖。 */
-__attribute__((weak)) int32_t main_entry(int32_t argc, char **argv) {
+SHUX_WEAK int32_t main_entry(int32_t argc, char **argv) {
   return driver_run_compiler_full(argc, argv);
 }
 
@@ -63,7 +64,7 @@ int32_t pipeline_should_skip_x_typeck(struct ast_PipelineDepCtx *ctx) {
  * weak：strict 链无 pipeline.o / pipeline_x.o 时 LSP 路径可链接；
  * 强符号由 pipeline_x.o 或 build_asm/pipeline.o 覆盖。
  */
-__attribute__((weak)) int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *module,
+SHUX_WEAK int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena,
                                                                         struct ast_PipelineDepCtx *ctx) {
   (void)module;
@@ -73,7 +74,7 @@ __attribute__((weak)) int32_t pipeline_load_and_sync_direct_import_deps(struct a
 }
 
 /** weak：orchestration partial 在无 build_asm/pipeline.o 时仍可链接。 */
-__attribute__((weak)) int32_t run_x_pipeline_codegen_deps(struct ast_Module *module, struct ast_ASTArena *arena,
+SHUX_WEAK int32_t run_x_pipeline_codegen_deps(struct ast_Module *module, struct ast_ASTArena *arena,
                                                            struct codegen_CodegenOutBuf *out_buf,
                                                            struct ast_PipelineDepCtx *ctx, int32_t skip_asm_dep_codegen) {
   (void)module;
@@ -84,7 +85,7 @@ __attribute__((weak)) int32_t run_x_pipeline_codegen_deps(struct ast_Module *mod
   return 0;
 }
 
-__attribute__((weak)) int32_t run_x_pipeline_codegen_entry(struct ast_Module *module, struct ast_ASTArena *arena,
+SHUX_WEAK int32_t run_x_pipeline_codegen_entry(struct ast_Module *module, struct ast_ASTArena *arena,
                                                             struct codegen_CodegenOutBuf *out_buf,
                                                             struct ast_PipelineDepCtx *ctx) {
   (void)module;

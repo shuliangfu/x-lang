@@ -284,9 +284,12 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
 /* --- G-02f-6：OS detect（原 target_cpu.inc 语言限制 #if / sysctl /proc）--- */
 #include "target_cpu.h"
 #if defined(__linux__)
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #endif
 #if defined(__APPLE__)
 #include <sys/sysctl.h>

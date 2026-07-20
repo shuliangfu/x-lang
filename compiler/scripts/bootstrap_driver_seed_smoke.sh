@@ -21,15 +21,49 @@ TARGET="${1:-./shux}"
 # 【Why】路径中不可含「.数字.」：codegen 用源文件 stem 作 C 符号前缀，
 # `/tmp/foo.$$.x` → stem `foo.12345` → `extern int32_t foo.12345_main` 非法 C。
 # Ubuntu 上 fresh smoke 亦曾失败靠 pinned 回退；Darwin pinned 常不可用，须路径自绿。
-SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke_$$.x"
-SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out_$$"
-PINNED_TMP="/tmp/shux_bootstrap_seed_pinned_$$"
+# PLATFORM: WINDOWS — SHUX file-open uses Win32 CreateFileA which does not
+# recognize MSYS2 /tmp/ or /c/... mapping; absolute POSIX-style paths fail
+# with IO001. cygpath -m forces mixed-mode Windows path (C:/shux_tmp/...)
+# regardless of MSYS_NO_PATHCONV. POSIX falls back to /tmp.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*)
+    _SMOKE_TMP="$(cygpath -m "${TEMP:-/tmp}" 2>/dev/null || echo "${TEMP:-/tmp}")"
+    ;;
+  *)
+    _SMOKE_TMP="/tmp"
+    ;;
+esac
+SMOKE_SRC="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_$$.x"
+SMOKE_OUT="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_out_$$"
+# PLATFORM: WINDOWS — MinGW gcc auto-appends .exe to -o targets. Without the
+# suffix, `[ -x "$SMOKE_OUT" ]` fails (file is SMOKE_OUT.exe, not SMOKE_OUT)
+# and bash direct exec yields Permission denied / not found. POSIX unchanged.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) SMOKE_OUT="${SMOKE_OUT}.exe" ;;
+esac
+PINNED_TMP="${_SMOKE_TMP}/shux_bootstrap_seed_pinned_$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
 maybe_codesign() {
-  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && command -v codesign >/dev/null 2>&1; then
-    codesign -s - --force "$1" >/dev/null 2>&1 || true
-  fi
+  case "$(uname -s 2>/dev/null)" in
+    Darwin)
+      command -v codesign >/dev/null 2>&1 && codesign -s - --force "$1" >/dev/null 2>&1 || true
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      # PLATFORM: WINDOWS — Smart App Control (SAC) intermittently blocks
+      # unsigned .exe compiled to $TEMP (Permission denied, exit 126). Sign
+      # with the ShuxDevCert self-signed cert (one-time setup per
+      # analysis/Windows平台限制与测试指南.md §3.4). No-op if cert missing
+      # or powershell unavailable.
+      if command -v powershell.exe >/dev/null 2>&1; then
+        local _cert _win_path
+        _cert="${SHUX_CODESIGN_THUMBPRINT:-697D4125CC086F4BF683053A2BD6025B939D96FC}"
+        _win_path="$(cygpath -m "$1" 2>/dev/null || echo "$1")"
+        powershell.exe -NoProfile -Command \
+          "Set-AuthenticodeSignature -FilePath '$_win_path' -Certificate (Get-Item \"Cert:\\LocalMachine\\My\\$_cert\")" >/dev/null 2>&1 || true
+      fi
+      ;;
+  esac
 }
 
 cleanup() {
@@ -51,8 +85,13 @@ printf '%s\n' 'function main(): i32 { return 42; }' >"$SMOKE_SRC"
 # 参数：bin — 待测 shux 路径；成功返回 0。
 run_smoke() {
   local bin="$1"
-  local _log="/tmp/shux_bootstrap_seed_smoke_$$.log"
+  local _log="${_SMOKE_TMP}/shux_bootstrap_seed_smoke_$$.log"
   local _rc=0
+  # PLATFORM: WINDOWS | MSYS | MINGW — make just relinked $bin (./shux) fresh and
+  # unsigned; Smart App Control blocks unsigned .exe (Permission denied). Sign
+  # it before any invocation so the -c / -backend c -o smoke can run. No-op on
+  # POSIX (maybe_codesign only acts on Darwin/macOS + MINGW).
+  maybe_codesign "$bin"
   echo "[$(date '+%H:%M:%S')] seed smoke: -c check ..."
   # shux-c (C frontend) 不支持 -c，用 -E 替代（同样做 parse+typeck）
   if "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log"; then
@@ -73,19 +112,23 @@ run_smoke() {
   if [ "$_rc" -ne 0 ]; then
     # 回退：shux-c C 前端不支持 -backend c -o，用 -E + cc 替代
     echo "[$(date '+%H:%M:%S')] seed smoke: -backend c -o failed, trying -E + cc fallback ..."
-    "$bin" -E "$SMOKE_SRC" > "${SMOKE_OUT}.c" 2>"$_log"
+    # SMOKE_OUT may carry .exe on Windows; strip it for the .c companion path.
+    "$bin" -E "$SMOKE_SRC" > "${SMOKE_OUT%.exe}.c" 2>"$_log"
     _rc=$?
     if [ "$_rc" -ne 0 ]; then
       return 1
     fi
-    ${CC:-cc} -O2 -o "$SMOKE_OUT" "${SMOKE_OUT}.c" 2>>"$_log"
+    ${CC:-cc} -O2 -o "$SMOKE_OUT" "${SMOKE_OUT%.exe}.c" 2>>"$_log"
     _rc=$?
-    rm -f "${SMOKE_OUT}.c"
+    rm -f "${SMOKE_OUT%.exe}.c"
     if [ "$_rc" -ne 0 ]; then
       return 1
     fi
   fi
   [ -x "$SMOKE_OUT" ] || return 1
+  # PLATFORM: WINDOWS — sign the compiled smoke .exe so SAC does not block it
+  # (matches run-win32-read-file-gate.sh fix per §2.3).
+  maybe_codesign "$SMOKE_OUT"
   local ec=0
   "$SMOKE_OUT" 2>&1 | tee "$_log" || ec=$?
   [ "$ec" -eq 42 ]

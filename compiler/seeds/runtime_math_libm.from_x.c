@@ -8,13 +8,14 @@
  *
  * floor/sin/sqrt/erf 等 libm 转发与 fenv；常量/signum/special_smoke 在 math.x；与 math.o 一并链入（须 -lm）。
  */
+#include <shux_weak.h>
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
 #include "diag.h"
 
 #ifndef diag_reportf
-__attribute__((weak)) void diag_reportf(const char *file, int line, int col, const char *tag, const char *code, const char *fmt, ...) {
+SHUX_WEAK void diag_reportf(const char *file, int line, int col, const char *tag, const char *code, const char *fmt, ...) {
   (void)file; (void)line; (void)col; (void)tag; (void)code; (void)fmt;
 }
 #endif
