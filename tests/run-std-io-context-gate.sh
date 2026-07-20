@@ -49,6 +49,8 @@ echo "io-context manifest OK"
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
+# shellcheck source=lib/bootstrap-link-shux.sh
+. "$(dirname "$0")/lib/bootstrap-link-shux.sh" 
 ensure_std_c_o ../std/context/context.o
 ensure_std_c_o ../std/time/time.o
 ensure_std_c_o ../std/atomic/atomic.o
@@ -70,7 +72,7 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
   exe="/tmp/shux_std091_io_ctx_$$"
-  if ! "$SHUX_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
+  if ! "${RUN_SHUX:-$SHUX_BIN}" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
     echo "io-context gate FAIL: compile $SMOKE" >&2
     exit 1
   fi
