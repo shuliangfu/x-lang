@@ -14,36 +14,60 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// See implementation.
-//
-// See implementation.
-// cbrt、pow、exp、log、abs、signum；min/max；erf/erfc/log1p/expm1（STD-115）；
-// See implementation.
-// See implementation.
+/**
+ * libm C ABI wrappers.
+ *
+ * All `math_*_c` functions below are thin wrappers over the C standard
+ * math library (libm / <math.h>) intrinsics. They are implemented in
+ * C (see seeds) and exposed to SHUX via `extern "C"` declarations.
+ *
+ * ABI: C (System V / AAPCS). Calling convention matches the C runtime
+ * and libm's published C ABI (floor / ceil / trunc / round / sin /
+ * cos / tan / asin / acos / atan / atan2 / sqrt / cbrt / pow / exp /
+ * log / fabs / fmin / fmax / erf / erfc / log1p / expm1 + <fenv.h>
+ * exception flags).
+ * PLATFORM: SHARED — libm is available on all targets (macOS arm64 /
+ * Ubuntu x86_64 / Windows MSYS2); on Linux the link line includes
+ * -lm via runtime_math_libm.o (see tests/lib/build-std-c-o.sh).
+ *
+ * Constant intrinsics: math_pi_c / math_e_c / math_tau_c return the
+ * corresponding double-precision mathematical constants.
+ *
+ * Special functions (STD-115): erf / erfc / log1p / expm1 exposed via
+ * math_*_c wrappers for numerical and statistical use cases.
+ *
+ * FENV exception flags: FENV_INVALID=1, FENV_DIVBYZERO=2,
+ * FENV_OVERFLOW=4, FENV_UNDERFLOW=8, FENV_INEXACT=16, FENV_ALL=31;
+ * FENV_NOT_IMPL=-9 indicates the platform lacks <fenv.h> support.
+ *
+ * Unsafe contract: callers must wrap `math_*_c` calls in `unsafe { }`
+ * blocks. P0a semantic downgrade currently allows unwrapped calls; P1
+ * typeck enforcement (post-bootstrap) will reject unwrapped calls.
+ */
 
-extern function math_pi_c(): f64;
-extern function math_e_c(): f64;
-extern function math_tau_c(): f64;
-extern function math_floor_c(x: f64): f64;
-extern function math_ceil_c(x: f64): f64;
-extern function math_trunc_c(x: f64): f64;
-extern function math_round_c(x: f64): f64;
-extern function math_sin_c(x: f64): f64;
-extern function math_cos_c(x: f64): f64;
-extern function math_tan_c(x: f64): f64;
-extern function math_asin_c(x: f64): f64;
-extern function math_acos_c(x: f64): f64;
-extern function math_atan_c(x: f64): f64;
-extern function math_atan2_c(y: f64, x: f64): f64;
-extern function math_sqrt_c(x: f64): f64;
-extern function math_cbrt_c(x: f64): f64;
-extern function math_pow_c(base: f64, exp: f64): f64;
-extern function math_exp_c(x: f64): f64;
-extern function math_log_c(x: f64): f64;
-extern function math_fabs_c(x: f64): f64;
-extern function math_signum_c(x: f64): f64;
-extern function math_fmin_c(a: f64, b: f64): f64;
-extern function math_fmax_c(a: f64, b: f64): f64;
+extern "C" function math_pi_c(): f64;
+extern "C" function math_e_c(): f64;
+extern "C" function math_tau_c(): f64;
+extern "C" function math_floor_c(x: f64): f64;
+extern "C" function math_ceil_c(x: f64): f64;
+extern "C" function math_trunc_c(x: f64): f64;
+extern "C" function math_round_c(x: f64): f64;
+extern "C" function math_sin_c(x: f64): f64;
+extern "C" function math_cos_c(x: f64): f64;
+extern "C" function math_tan_c(x: f64): f64;
+extern "C" function math_asin_c(x: f64): f64;
+extern "C" function math_acos_c(x: f64): f64;
+extern "C" function math_atan_c(x: f64): f64;
+extern "C" function math_atan2_c(y: f64, x: f64): f64;
+extern "C" function math_sqrt_c(x: f64): f64;
+extern "C" function math_cbrt_c(x: f64): f64;
+extern "C" function math_pow_c(base: f64, exp: f64): f64;
+extern "C" function math_exp_c(x: f64): f64;
+extern "C" function math_log_c(x: f64): f64;
+extern "C" function math_fabs_c(x: f64): f64;
+extern "C" function math_signum_c(x: f64): f64;
+extern "C" function math_fmin_c(a: f64, b: f64): f64;
+extern "C" function math_fmax_c(a: f64, b: f64): f64;
 
 /** Exported function `pi`.
  * Implements `pi`.
@@ -297,11 +321,11 @@ export function max(a: f64, b: f64): f64 {
 }
 
 // See implementation.
-extern function math_erf_c(x: f64): f64;
-extern function math_erfc_c(x: f64): f64;
-extern function math_log1p_c(x: f64): f64;
-extern function math_expm1_c(x: f64): f64;
-extern function math_special_smoke_c(): i32;
+extern "C" function math_erf_c(x: f64): f64;
+extern "C" function math_erfc_c(x: f64): f64;
+extern "C" function math_log1p_c(x: f64): f64;
+extern "C" function math_expm1_c(x: f64): f64;
+extern "C" function math_special_smoke_c(): i32;
 
 /** Exported function `erf`.
  * Implements `erf`.
@@ -366,10 +390,10 @@ export const FENV_INEXACT: i32 = 16;
 export const FENV_ALL: i32 = 31;
 export const FENV_NOT_IMPL: i32 = -9;
 
-extern function math_fenv_available_c(): i32;
-extern function math_fenv_test_c(mask: i32): i32;
-extern function math_fenv_clear_c(mask: i32): i32;
-extern function math_fenv_raise_c(mask: i32): i32;
+extern "C" function math_fenv_available_c(): i32;
+extern "C" function math_fenv_test_c(mask: i32): i32;
+extern "C" function math_fenv_clear_c(mask: i32): i32;
+extern "C" function math_fenv_raise_c(mask: i32): i32;
 
 /** Exported function `fenv_available`.
  * Implements `fenv_available`.
