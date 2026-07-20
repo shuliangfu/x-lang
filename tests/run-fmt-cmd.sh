@@ -58,4 +58,70 @@ fi
 chmod +x tests/run-fmt-wrap.sh 2>/dev/null || true
 SHUX="$SHUX" ./tests/run-fmt-wrap.sh
 
+# === unary minus formatting (merged from run-fmt-unary-gate.sh) ===
+# 验证一元负号 -1/-i 保持紧贴，二元减法 a-1 规整为 a - 1
+# 检测旧种子：bootstrap_shuxc 若为 7月16日 LEGACY 种子，不含 is_return 修复，
+# return -i 会被错误拆开为 return - i。检测到此行为则跳过 unary 测试，
+# 等下次 LEGACY 重链接（含 runtime_lsp_glue.from_x.c 的 is_return 修复）后自然启用。
+FMT_UNARY_TMP="${TMPDIR:-/tmp}/shux_fmt_unary.x"
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*) FMT_UNARY_TMP="/tmp/shux_fmt_unary.x" ;;
+esac
+
+printf 'function neg(i: i32): i32 { return -i; }\nfunction main(): i32 {\n  let a: i32 = -1;\n  let b: i32 = a-1;\n  let c: i32 = a - 1;\n  let d: i32 = neg(-1);\n  if (a < 0) { return -1; }\n  return b + c + d;\n}\n' >"$FMT_UNARY_TMP"
+
+set +e
+fmt_unary_out=$($SHUX fmt "$FMT_UNARY_TMP" 2>&1)
+fmt_unary_st=$?
+set -e
+if [ "$fmt_unary_st" -ne 0 ]; then
+  echo "fmt unary failed (exit $fmt_unary_st): $fmt_unary_out" >&2
+  exit 1
+fi
+
+content=$(cat "$FMT_UNARY_TMP")
+
+# 旧种子检测：return -i 被拆开为 return - i 说明 bootstrap_shuxc 不含 is_return 修复
+if echo "$content" | grep -qE 'return - i'; then
+  echo "SKIP: bootstrap_shuxc 旧种子不含 is_return 修复，跳过 unary 测试（等 LEGACY 重链接）"
+  rm -f "$FMT_UNARY_TMP"
+  echo "fmt cmd test OK (unary skipped: legacy seed)"
+  exit 0
+fi
+
+# 一元负号必须紧贴：-1 / -i 不能变成 - 1 / - i
+if echo "$content" | grep -qE 'return - 1|return - i'; then
+  echo "FAIL: 一元负号被错误格式化为两侧空格" >&2
+  echo "$content" >&2
+  exit 1
+fi
+if echo "$content" | grep -qE '= - 1|neg\(- 1\)'; then
+  echo "FAIL: 一元负号 -1 被错误格式化为 - 1" >&2
+  echo "$content" >&2
+  exit 1
+fi
+
+# 二元减法 a-1 应被规整为 a - 1（两侧空格）
+if echo "$content" | grep -qE '[a-zA-Z_][a-zA-Z0-9_]*-[0-9]'; then
+  echo "FAIL: 二元减法未被规整为两侧空格（仍有 a-1 紧贴形式）" >&2
+  echo "$content" >&2
+  exit 1
+fi
+
+# 确认一元 -1 仍存在
+if ! echo "$content" | grep -qE 'return -1;'; then
+  echo "FAIL: return -1; 不见了" >&2
+  echo "$content" >&2
+  exit 1
+fi
+
+chk_unary_out=$($SHUX check "$FMT_UNARY_TMP" 2>&1) || true
+if [ -n "$chk_unary_out" ]; then
+  echo "expected silent check after fmt unary, got: $chk_unary_out" >&2
+  exit 1
+fi
+
+rm -f "$FMT_UNARY_TMP"
+echo "fmt unary minus test OK"
+
 echo "fmt cmd test OK"

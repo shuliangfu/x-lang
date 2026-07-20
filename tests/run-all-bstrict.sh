@@ -273,6 +273,11 @@ BSTRICT_SCRIPTS=(
   # Source hygiene: // comment prefixes + fmt damage (product .x tree).
   # PLATFORM: SHARED — python gate only; no host binary dependency.
   run-comment-prefix.sh
+  # C7: expanded whitelist (gate/perf scripts migrated from path A)
+  run-perf-simd-shuxffle-select.sh
+  run-std-simd-shuxffle-select-gate.sh
+  run-std-io-context-gate.sh
+  run-std-net-context-gate.sh
 )
 
 for script in "${BSTRICT_SCRIPTS[@]}"; do
