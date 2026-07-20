@@ -1566,41 +1566,127 @@ char **driver_entry_fmt_argv_slot(void) {
  * 始终提供（不随 RDABI thin 宏剥离）。
  */
 void driver_print_usage_write(void) {
-    static const char usage[] =
+    /* §13 Color policy (see analysis/SHUX 命令行.md §13):
+     *   NO_COLOR (any value, even empty)         -> no color  (https://no-color.org)
+     *   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy -> force color even when piped
+     *   otherwise                                -> isatty(STDOUT_FILENO)
+     * Forward-declare isatty to avoid pulling <unistd.h> into this TU
+     * (prior note: hand-written extern write + #include <unistd.h> trips Darwin asm). */
+    extern int isatty(int fd);
+    const char *no_color = getenv("NO_COLOR");
+    const char *force = getenv("CLICOLOR_FORCE");
+    const char *shux_force = getenv("SHUX_FORCE_COLOR");
+    int use_color;
+    if (no_color != (const char *)0) {
+        use_color = 0;
+    } else if ((force != (const char *)0 && force[0] != 0 && force[0] != '0') ||
+               (shux_force != (const char *)0 && shux_force[0] != 0 && shux_force[0] != '0')) {
+        use_color = 1;
+    } else {
+        use_color = isatty(1);
+    }
+    /* §11 Information architecture: Subcommands / Global actions / Compile options /
+     * Build-only options / Environment. §12 flag order: --help, -h (long first). */
+    static const char usage_plain[] =
         "Shux (shux) compiler\n"
         "\n"
         "Usage:\n"
-        "  shux [options] file.x          compile and run\n"
-        "  shux build [file.x] [-o exe]   compile (default a.out)\n"
-        "  shux run file.x                compile and run\n"
-        "  shux check [paths...]           parse + typeck only\n"
-        "  shux fmt [--check] [paths...]   format .x sources\n"
-        "  shux explain <CODE>             explain a diagnostic code\n"
-        "  shux test [script.sh]           run test script\n"
+        "  shux <subcommand> [options] [args]\n"
+        "  shux [options] file.x              compile and run (implicit run)\n"
         "\n"
-        "Common options:\n"
-        "  -backend asm|c    backend (default asm)\n"
-        "  -O <0|1|2|3|s>    optimization (default 2)\n"
-        "  -o <path>         output binary or .o\n"
-        "  -L <dir>          library search path\n"
-        "  -target <triple>  target (e.g. aarch64-linux-gnu)\n"
-        "  -target-cpu <cpu> native|generic|avx2|...\n"
-        "  --print-target-cpu  print host CPU features and exit\n"
-        "  --explain <CODE>   print diagnostic code explanation and exit\n"
-        "  -freestanding     nostdlib static link (Linux x86_64 ELF)\n"
-        "  -legacy-f32-abi   legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
-        "  -E                emit C (debug)\n"
-        "  -flto              link-time optimization (C backend)\n"
-        "  -h, --help         show this help\n"
+        "Subcommands:\n"
+        "  shux build [options] file.x [-o exe]   Compile .x to binary/object (default a.out)\n"
+        "  shux run   [options] file.x            Compile and run .x\n"
+        "  shux check [paths...]                  Parse + typeck only (no codegen)\n"
+        "  shux fmt [--check] [paths...]          Format .x sources\n"
+        "  shux explain <CODE>                    Explain a diagnostic code\n"
+        "  shux test  [script.sh]                 Run test script\n"
+        "\n"
+        "Global actions (no subcommand):\n"
+        "  shux --print-target-cpu                Print host CPU features and exit\n"
+        "  shux --explain <CODE>                  Print diagnostic code explanation and exit\n"
+        "  shux --help, -h                        Show this help\n"
+        "\n"
+        "Compile options (build, run):\n"
+        "  -backend asm|c        Backend (default asm)\n"
+        "  -O <0|1|2|3|s>        Optimization level (default 2)\n"
+        "  -o <path>             Output binary or .o\n"
+        "  -L <dir>              Library search path\n"
+        "  -target <triple>      Target triple (e.g. aarch64-linux-gnu)\n"
+        "  -target-cpu <cpu>     native|generic|avx2|...\n"
+        "  -legacy-f32-abi       Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+        "\n"
+        "Build-only options:\n"
+        "  -freestanding         Nostdlib static link (Linux x86_64 ELF)\n"
+        "  -E                    Emit C (debug)\n"
+        "  -flto                 Link-time optimization (C backend)\n"
         "\n"
         "Environment:\n"
-        "  SHUX_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
-        "  SHUX_OPT          default -O level if omitted\n"
+        "  SHUX_ABI_F32_XMM=0    Same as -legacy-f32-abi (x86_64 SysV)\n"
+        "  SHUX_OPT              Default -O level if omitted\n"
+        "  NO_COLOR              Disable color output\n"
+        "  CLICOLOR_FORCE=1      Force color output even when piped\n"
+        "  SHUX_FORCE_COLOR=1    Same as CLICOLOR_FORCE\n"
         "\n"
         "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
         "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
+    /* §13 ANSI color codes:
+     *   \033[1;4m  bold + underline  -> section titles
+     *   \033[1;36m bold cyan         -> subcommand names (build/run/check/...)
+     *   \033[33m   yellow            -> flags (--help, -O, -backend, ...)
+     *   \033[1;33m bold yellow        -> argument placeholders (<path>, <CODE>, ...)
+     *   \033[90m   bright black/grey -> default-value hints
+     *   \033[4;34m underline blue     -> file paths
+     *   \033[0m    reset */
+    static const char usage_color[] =
+        "\033[1;4mShux (shux) compiler\033[0m\n"
+        "\n"
+        "\033[1;4mUsage:\033[0m\n"
+        "  shux <subcommand> [options] [args]\n"
+        "  shux [options] file.x              compile and run (implicit run)\n"
+        "\n"
+        "\033[1;4mSubcommands:\033[0m\n"
+        "  shux \033[1;36mbuild\033[0m [options] file.x [-o exe]   Compile .x to binary/object (default a.out)\n"
+        "  shux \033[1;36mrun\033[0m   [options] file.x            Compile and run .x\n"
+        "  shux \033[1;36mcheck\033[0m [paths...]                  Parse + typeck only (no codegen)\n"
+        "  shux \033[1;36mfmt\033[0m [--check] [paths...]          Format .x sources\n"
+        "  shux \033[1;36mexplain\033[0m \033[1;33m<CODE>\033[0m                    Explain a diagnostic code\n"
+        "  shux \033[1;36mtest\033[0m  [script.sh]                 Run test script\n"
+        "\n"
+        "\033[1;4mGlobal actions (no subcommand):\033[0m\n"
+        "  shux \033[33m--print-target-cpu\033[0m                Print host CPU features and exit\n"
+        "  shux \033[33m--explain\033[0m \033[1;33m<CODE>\033[0m                  Print diagnostic code explanation and exit\n"
+        "  shux \033[33m--help, -h\033[0m                        Show this help\n"
+        "\n"
+        "\033[1;4mCompile options (build, run):\033[0m\n"
+        "  \033[33m-backend\033[0m \033[1;33masm|c\033[0m        Backend \033[90m(default asm)\033[0m\n"
+        "  \033[33m-O\033[0m \033[1;33m<0|1|2|3|s>\033[0m        Optimization level \033[90m(default 2)\033[0m\n"
+        "  \033[33m-o\033[0m \033[1;33m<path>\033[0m             Output binary or .o\n"
+        "  \033[33m-L\033[0m \033[1;33m<dir>\033[0m              Library search path\n"
+        "  \033[33m-target\033[0m \033[1;33m<triple>\033[0m      Target triple (e.g. aarch64-linux-gnu)\n"
+        "  \033[33m-target-cpu\033[0m \033[1;33m<cpu>\033[0m     native|generic|avx2|...\n"
+        "  \033[33m-legacy-f32-abi\033[0m       Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+        "\n"
+        "\033[1;4mBuild-only options:\033[0m\n"
+        "  \033[33m-freestanding\033[0m         Nostdlib static link (Linux x86_64 ELF)\n"
+        "  \033[33m-E\033[0m                    Emit C (debug)\n"
+        "  \033[33m-flto\033[0m                 Link-time optimization (C backend)\n"
+        "\n"
+        "\033[1;4mEnvironment:\033[0m\n"
+        "  SHUX_ABI_F32_XMM=0    Same as -legacy-f32-abi (x86_64 SysV)\n"
+        "  SHUX_OPT              Default -O level if omitted\n"
+        "  NO_COLOR              Disable color output\n"
+        "  CLICOLOR_FORCE=1      Force color output even when piped\n"
+        "  SHUX_FORCE_COLOR=1    Same as CLICOLOR_FORCE\n"
+        "\n"
+        "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+        "See \033[4;34mcompiler/docs/F32_XMM_ABI.md\033[0m for f32 ABI and deprecation timeline.\n";
     /* fwrite+fflush：避免本 TU 内先手写 extern write 再 #include <unistd.h> 触发 Darwin asm 冲突。 */
-    (void)fwrite(usage, 1, sizeof(usage) - 1u, stdout);
+    if (use_color) {
+        (void)fwrite(usage_color, 1, sizeof(usage_color) - 1u, stdout);
+    } else {
+        (void)fwrite(usage_plain, 1, sizeof(usage_plain) - 1u, stdout);
+    }
     (void)fflush(stdout);
 }
 
