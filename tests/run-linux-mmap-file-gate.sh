@@ -33,7 +33,7 @@ fi
 : >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$X" 2>/tmp/shux_linux_mmap_file.log; then
+if ! "$SHUX" build -o "$OUT" "$X" 2>/tmp/shux_linux_mmap_file.log; then
   echo "linux-mmap-file-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_linux_mmap_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
