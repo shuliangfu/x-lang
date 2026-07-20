@@ -316,6 +316,36 @@ for x_path in "$@"; do
           "$gen_c" >"$gen_c.strip" && mv "$gen_c.strip" "$gen_c"
     fi
   fi
+  # PLATFORM: SHARED — generic weak-stub dedup after --bare-impl prefix strip.
+  # After stripping the path prefix (e.g. std_context_context_), a weak preamble stub
+  # can collide with a strong def that was previously differently-named
+  # (context.x: weak ctx_background_c + stripped std_context_context_ctx_background_c
+  # -> ctx_background_c both weak and strong -> cc redefinition). Two-pass: grep strong
+  # def names, then drop matching weak stub lines.
+  if [ -f "$gen_c" ] && [ -s "$gen_c" ]; then
+    strong_names=$(grep -E '^[A-Za-z_][A-Za-z0-9_ *]* [A-Za-z_][A-Za-z0-9_]*[(][^)]*[)] *[{{]?[[:space:]]*$' "$gen_c" \
+      | grep -v 'weak' \
+      | sed -n 's/.*[[:space:]]\([A-Za-z_][A-Za-z0-9_]*\)(.*/\1/p' \
+      | sort -u)
+
+    if [ -n "$strong_names" ]; then
+      : > "$gen_c.dedup_script"
+      # For each strong def name, remove weak stub lines that define the same name.
+      # Pattern: __attribute__((weak))... <name>( — one sed -e per name.
+      echo "$strong_names" > "$gen_c.strong_names"
+      awk 'NR==FNR { strong[$0]=1; next }
+        /^__attribute__..weak../ {
+          if (match($0, /[ ][A-Za-z_][A-Za-z0-9_]*[(]/)) {
+            nm = substr($0, RSTART+1, RLENGTH-2)
+            if (nm in strong) { skip=1; if (/[}]/) skip=0; next }
+          }
+        }
+        skip { if (/[}]/) skip=0; next }
+        { print }
+      ' "$gen_c.strong_names" "$gen_c" > "$gen_c.dedup" 2>/dev/null && mv "$gen_c.dedup" "$gen_c"
+      rm -f "$gen_c.strong_names"
+    fi
+  fi
   # 【Why 根源】-E 对跨模块 struct（如 heap_libc_Arena64）常只在「形参列表内」
   # 写出 `struct Foo`，未给文件级 forward。C 规定形参内的 struct 标签作用域仅限该
   # 声明 → 原型与定义各得一个不同 incomplete 类型 → conflicting types for 'fn'。
