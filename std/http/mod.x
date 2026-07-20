@@ -14,10 +14,105 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// See implementation.
-//
-// See implementation.
-// See implementation.
+/**
+ * HTTP C ABI wrappers.
+ *
+ * All `http_*` / `http2_*` functions below are thin wrappers over the SHUX
+ * HTTP/1.x + HTTP/2 C implementation (see seeds). They are exposed to SHUX
+ * via `extern "C"` declarations.
+ *
+ * ABI: C (System V / AAPCS). Calling convention matches the C runtime
+ * (HTTP/1.1 request/response + keep-alive + chunked transfer + WebSocket
+ * upgrade + HTTP/2 framing per RFC 7540 + HPACK header compression per
+ * RFC 7541 + h2c upgrade + TLS ALPN h2 negotiation + connection pooling
+ * + multistream clients + server push).
+ * PLATFORM: SHARED — pure C with POSIX sockets + optional TLS; available
+ * on all targets (macOS arm64 / Ubuntu x86_64 / Windows MSYS2/MinGW
+ * with winsock2). POSIX vs winsock dispatch handled in C implementation.
+ *
+ * Categories (note: glob patterns use `*` but never followed by `/`):
+ *   - http_{method}[_timeout]_c     : HTTP/1.x verb helpers (GET, POST,
+ *                                     HEAD, PUT, DELETE, PATCH, OPTIONS)
+ *                                     with optional timeout
+ *   - http_request_{ex,method,...}  : generic request entry points
+ *   - http_respond_*, http_listen,  : HTTP/1.x server side (respond OK,
+ *     http_serve_one                  listen, serve_one)
+ *   - http_client_pool_{create,...} : HTTP/1.x keep-alive client pool
+ *   - http_parse_*, http_has_*,     : HTTP/1.x response parsing (status
+ *     http_decode_*                   line, headers, body offset, chunked
+ *                                     encoding, keep-alive, body decoder)
+ *   - http_build_get_keep_alive     : HTTP/1.x keep-alive GET builder
+ *   - http_is_upgrade_websocket     : WebSocket upgrade handshake detect
+ *   - http_build_ws_upgrade_101     : WebSocket 101 Switching Protocols
+ *   - http_is_https_available,      : HTTPS / TLS availability probes
+ *     http_https_smoke
+ *   - http_response_{parse,...}     : HTTP response parsers + body
+ *                                     accessors (parse, body_ptr, body_copy)
+ *   - http_url_{exceeds,copy,...}   : URL string-cap helpers
+ *   - http_request_owned_smoke      : request struct ownership smoke
+ *   - http2_preface_*, http2_parse  : HTTP/2 connection preface + frame
+ *     _frame_header                   header parsing (RFC 7540 section 3)
+ *   - http2_build_settings_{ack,...}: HTTP/2 SETTINGS frame builders
+ *   - http2_wire_is_available,      : HTTP/2 wire / client availability
+ *     http2_client_is_available
+ *   - http2_alpn_h2_{len,write}     : ALPN h2 negotiation helpers
+ *   - http2_hpack_{encode,decode,...}: HPACK encoder / decoder (RFC 7541)
+ *   - http2_h2c_{is_available,...}  : h2c (HTTP/1.1 upgrade) variants
+ *   - http_h2c_{get,request,...}    : HTTP/2 h2c client request helpers
+ *   - http2_stream_registry_{...}   : HTTP/2 stream registry (init, open,
+ *                                     close, is_open + smoke)
+ *   - http2_peer_settings_{...}     : peer SETTINGS table (init, parse,
+ *                                     apply, consume + per-setting
+ *                                     accessors)
+ *   - http2_setting_{enable_push,...}: local SETTINGS constants accessors
+ *   - http2_multistream_client_{...}: multistream client (init, open_stream,
+ *                                     build_get, build_parallel_get + smoke)
+ *   - http2_conn_{init,handshake,...}: HTTP/2 connection (init, attach,
+ *                                     handshake, request, close, ping,
+ *                                     goaway + reuse + smoke variants)
+ *   - http2_conn_pool_{create,...}  : HTTP/2 connection pool (create h2c,
+ *                                     h2, destroy, request + smoke)
+ *   - http_h2c_pool_get,            : pool request helpers per protocol
+ *     http_h2_pool_get
+ *   - http2_global_pool_{create,...}: global pool singleton (create,
+ *                                     destroy, get, request + smoke)
+ *   - http2_serve_h2c_{one,...}     : h2c server one-shot handlers (one,
+ *                                     with_goaway, ping_echo, with_push)
+ *   - http2_server_serve_h2c_{...}  : h2c server loop variants (base,
+ *                                     with_goaway, with_push, multi)
+ *   - http2_server_serve_h2_{...}   : h2 (TLS) server loop variants
+ *   - http2_serve_h2_{one,...}      : h2 server one-shot handlers (one,
+ *                                     multi_one, multi_one_with_push)
+ *   - http2_server_push_{...}_smoke : server push smoke tests (base, tls,
+ *                                     settings, is_available)
+ *   - http2_server_multistream_{...}: multistream server (push_smoke,
+ *                                     smoke, is_available)
+ *   - http2_server_smoke,           : server aggregate smoke + availability
+ *     http2_server_is_available
+ *   - http2_tls_server_ctx_{...}    : TLS server context lifecycle (create,
+ *                                     destroy)
+ *
+ * Handle model:
+ *   - fd (i32)            : socket file descriptor (POSIX int / winsock
+ *                           SOCKET cast)
+ *   - pool_h (i64)        : opaque HTTP/1.x or HTTP/2 connection pool
+ *                           handle (see http_client_pool_create_c,
+ *                           http2_conn_pool_create_h2c_c,
+ *                           http2_global_pool_create_c)
+ *   - tls_ctx (i64)       : opaque TLS context handle (see
+ *                           http2_tls_server_ctx_create_c)
+ *
+ * Error codes: returns i32; 0 = OK, negative = error
+ *   (e.g. -1 invalid argument, -2 connection closed, -3 timeout,
+ *    -4 TLS handshake failed, -5 frame parse failed,
+ *    -6 stream closed, -7 settings rejected, -8 pool exhausted,
+ *    -9 not implemented, -1221 TLS not implemented).
+ *
+ * Unsafe contract: callers must wrap `http_*` / `http2_*` calls in
+ * `unsafe { }` blocks. P0a semantic downgrade currently allows unwrapped
+ * calls; P1 typeck enforcement (post-bootstrap) will reject unwrapped
+ * calls.
+ */
 const context = import("std.context");
 const err = import("std.error");
 const heap = import("std.heap");
@@ -66,39 +161,39 @@ export function method(tag: u8): Method {
   return Method.GET;
 }
 
-extern function http_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_post_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_head_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_put_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_delete_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_patch_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_options_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_head_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_put_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_delete_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_patch_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_options_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_request_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_request_method_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_request_method_timeout_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_respond_get_ok_c(fd: i32, body: *u8, body_len: i32): i32;
-extern function http_listen_c(addr_u32: u32, port_u32: u32, backlog: i32): i32;
-extern function http_serve_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
-extern function http_client_pool_create_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
-extern function http_client_pool_destroy_c(pool_h: i64): void;
-extern function http_client_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
-extern function http_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32;
-extern function http_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32;
-extern function http_has_chunked_encoding_c(buf: *u8, len: i32): i32;
-extern function http_has_keep_alive_c(buf: *u8, len: i32): i32;
-extern function http_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32;
-extern function http_build_get_keep_alive_c(host: *u8, path: *u8, out: *u8, out_cap: i32): i32;
-extern function http_is_upgrade_websocket_c(buf: *u8, len: i32): i32;
-extern function http_build_ws_upgrade_101_c(accept: *u8, out: *u8, out_cap: i32): i32;
-extern function http_is_https_available_c(): i32;
-extern function http_https_smoke_c(): i32;
+extern "C" function http_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_post_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_head_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_put_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_delete_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_patch_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_options_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_head_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_put_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_delete_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_patch_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_options_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_request_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_request_method_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_request_method_timeout_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_respond_get_ok_c(fd: i32, body: *u8, body_len: i32): i32;
+extern "C" function http_listen_c(addr_u32: u32, port_u32: u32, backlog: i32): i32;
+extern "C" function http_serve_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
+extern "C" function http_client_pool_create_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
+extern "C" function http_client_pool_destroy_c(pool_h: i64): void;
+extern "C" function http_client_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function http_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32;
+extern "C" function http_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32;
+extern "C" function http_has_chunked_encoding_c(buf: *u8, len: i32): i32;
+extern "C" function http_has_keep_alive_c(buf: *u8, len: i32): i32;
+extern "C" function http_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32;
+extern "C" function http_build_get_keep_alive_c(host: *u8, path: *u8, out: *u8, out_cap: i32): i32;
+extern "C" function http_is_upgrade_websocket_c(buf: *u8, len: i32): i32;
+extern "C" function http_build_ws_upgrade_101_c(accept: *u8, out: *u8, out_cap: i32): i32;
+extern "C" function http_is_https_available_c(): i32;
+extern "C" function http_https_smoke_c(): i32;
 
 /** Exported function `err_tls_not_impl`.
  * Implements `err_tls_not_impl`.
@@ -212,15 +307,15 @@ allow(padding) struct HttpResponse {
   chunked: i32;
 }
 
-extern function http_response_parse_c(buf: *u8, len: i32, out_status: *i32, out_hdr_end: *i32, out_body_len: *i32, out_chunked: *i32): i32;
-extern function http_response_parse_smoke_c(): i32;
-extern function http_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8;
-extern function http_response_body_copy_c(buf: *u8, hdr_end: i32, body_len: i32, out: *u8, out_cap: i32): i32;
-extern function http_response_body_owned_smoke_c(): i32;
-extern function http_url_exceeds_string_cap_c(url_len: i32): i32;
-extern function http_url_copy_c(src: *u8, len: i32, out: *u8, out_cap: i32): i32;
-extern function http_url_owned_smoke_c(): i32;
-extern function http_request_owned_smoke_c(): i32;
+extern "C" function http_response_parse_c(buf: *u8, len: i32, out_status: *i32, out_hdr_end: *i32, out_body_len: *i32, out_chunked: *i32): i32;
+extern "C" function http_response_parse_smoke_c(): i32;
+extern "C" function http_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8;
+extern "C" function http_response_body_copy_c(buf: *u8, hdr_end: i32, body_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http_response_body_owned_smoke_c(): i32;
+extern "C" function http_url_exceeds_string_cap_c(url_len: i32): i32;
+extern "C" function http_url_copy_c(src: *u8, len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http_url_owned_smoke_c(): i32;
+extern "C" function http_request_owned_smoke_c(): i32;
 
 /* See implementation. */
 allow(padding) struct HttpUrlOwned {
@@ -1020,98 +1115,98 @@ allow(padding) struct Http2FlowRecvState {
   stream_left: i32;
 }
 
-extern function http2_preface_len_c(): i32;
-extern function http2_is_connection_preface_c(buf: *u8, len: i32): i32;
-extern function http2_parse_frame_header_c(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32;
-extern function http2_build_settings_ack_c(out: *u8, out_cap: i32): i32;
-extern function http2_build_settings_one_c(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32;
-extern function http2_wire_is_available_c(): i32;
-extern function http2_client_is_available_c(): i32;
-extern function http2_alpn_h2_len_c(): i32;
-extern function http2_write_alpn_h2_c(out: *u8, out_cap: i32): i32;
-extern function http2_smoke_c(): i32;
-extern function http2_hpack_encode_indexed_c(index: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_literal_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_get_request_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_decode_status_c(block: *u8, block_len: i32, out_status: *i32): i32;
-extern function http2_hpack_smoke_c(): i32;
-extern function http2_hpack_dyn_reset_c(): void;
-extern function http2_hpack_dyn_count_c(): i32;
-extern function http2_hpack_encode_literal_incremental_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_indexed_any_c(index: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_encode_request_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_dyn_smoke_c(): i32;
-extern function http2_hpack_server_dyn_create_c(peer: *Http2PeerSettings): i64;
-extern function http2_hpack_server_dyn_destroy_c(handle: i64): void;
-extern function http2_hpack_server_dyn_set_table_size_h_c(handle: i64, size: i32): void;
-extern function http2_hpack_server_dyn_max_size_h_c(handle: i64): i32;
-extern function http2_hpack_server_dyn_count_h_c(handle: i64): i32;
-extern function http2_hpack_server_encode_status_h_c(handle: i64, status: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_server_dyn_smoke_c(): i32;
-extern function http2_frame_payload_limit_c(max_frame_size: i32): i32;
-extern function http2_frame_check_payload_c(payload_len: i32, max_frame_size: i32): i32;
-extern function http2_frame_count_data_chunks_c(data_len: i32, max_frame_size: i32): i32;
-extern function http2_frame_capped_smoke_c(): i32;
-extern function http2_frame_goaway_c(): i32;
-extern function http2_goaway_error_no_error_c(): i32;
-extern function http2_err_goaway_c(): i32;
-extern function http2_build_goaway_c(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
-extern function http2_parse_goaway_c(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32;
-extern function http2_goaway_smoke_c(): i32;
-extern function http2_frame_ping_c(): i32;
-extern function http2_err_ping_c(): i32;
-extern function http2_build_ping_c(opaque: *u8, out: *u8, out_cap: i32): i32;
-extern function http2_build_ping_ack_c(opaque: *u8, out: *u8, out_cap: i32): i32;
-extern function http2_parse_ping_c(payload: *u8, plen: i32, out_opaque: *u8): i32;
-extern function http2_ping_opaque_match_c(a: *u8, b: *u8): i32;
-extern function http2_ping_smoke_c(): i32;
-extern function http2_frame_rst_stream_c(): i32;
-extern function http2_rst_error_cancel_c(): i32;
-extern function http2_err_rst_stream_c(): i32;
-extern function http2_build_rst_stream_c(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
-extern function http2_parse_rst_stream_c(payload: *u8, plen: i32, out_code: *i32): i32;
-extern function http2_rst_stream_smoke_c(): i32;
-extern function http2_conn_reset_stream_c(conn: *Http2Conn, stream_id: i32, code: i32): i32;
-extern function http2_http2_complete_smoke_c(): i32;
-extern function http2_build_headers_frame_c(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_data_frame_c(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_get_headers_frame_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_request_headers_frame_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32;
-extern function http2_client_smoke_c(): i32;
-extern function http2_network_is_available_c(): i32;
-extern function http2_network_smoke_c(): i32;
-extern function http_h2_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_request_method_h2_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_hpack_huffman_decode_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_hpack_huffman_is_available_c(): i32;
-extern function http2_hpack_huffman_smoke_c(): i32;
-extern function http2_build_window_update_c(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32;
-extern function http2_default_initial_window_c(): i32;
-extern function http2_flow_control_smoke_c(): i32;
-extern function http2_flow_state_init_c(st: *Http2FlowState): void;
-extern function http2_flow_state_reset_stream_c(st: *Http2FlowState, initial_window: i32): void;
-extern function http2_flow_state_apply_initial_window_c(st: *Http2FlowState, initial_window: i32): void;
-extern function http2_flow_state_apply_window_update_c(st: *Http2FlowState, stream_id: i32, increment: i32): i32;
-extern function http2_flow_state_max_send_c(st: *Http2FlowState, want: i32): i32;
-extern function http2_flow_state_can_send_c(st: *Http2FlowState, want: i32): i32;
-extern function http2_flow_state_consume_send_c(st: *Http2FlowState, nbytes: i32): i32;
-extern function http2_parse_window_update_payload_c(payload: *u8, plen: i32, out_increment: *i32): i32;
-extern function http2_flow_state_smoke_c(): i32;
-extern function http2_flow_recv_init_c(st: *Http2FlowRecvState): void;
-extern function http2_flow_recv_reset_stream_c(st: *Http2FlowRecvState, initial_window: i32): void;
-extern function http2_flow_recv_on_data_c(st: *Http2FlowRecvState, nbytes: i32): i32;
-extern function http2_flow_recv_release_c(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32;
-extern function http2_flow_recv_smoke_c(): i32;
-extern function http2_frame_push_promise_c(): i32;
-extern function http2_is_push_promise_frame_c(ftype: i32): i32;
-extern function http2_parse_push_promise_stream_c(payload: *u8, plen: i32, out_promised_id: *i32): i32;
-extern function http2_is_h2c_upgrade_response_c(buf: *u8, len: i32): i32;
-extern function http2_h2c_is_available_c(): i32;
-extern function http2_push_h2c_smoke_c(): i32;
-extern function http2_h2c_wire_is_available_c(): i32;
-extern function http2_h2c_session_begin_c(out: *u8, out_cap: i32): i32;
-extern function http2_push_collect_data_c(promised_id: i32, stream_id: i32, data: *u8, dlen: i32, inout_promised_id: *i32, acc: *u8, acc_cap: i32, acc_len: *i32): i32;
+extern "C" function http2_preface_len_c(): i32;
+extern "C" function http2_is_connection_preface_c(buf: *u8, len: i32): i32;
+extern "C" function http2_parse_frame_header_c(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32;
+extern "C" function http2_build_settings_ack_c(out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_settings_one_c(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_wire_is_available_c(): i32;
+extern "C" function http2_client_is_available_c(): i32;
+extern "C" function http2_alpn_h2_len_c(): i32;
+extern "C" function http2_write_alpn_h2_c(out: *u8, out_cap: i32): i32;
+extern "C" function http2_smoke_c(): i32;
+extern "C" function http2_hpack_encode_indexed_c(index: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_encode_literal_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_encode_get_request_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_decode_status_c(block: *u8, block_len: i32, out_status: *i32): i32;
+extern "C" function http2_hpack_smoke_c(): i32;
+extern "C" function http2_hpack_dyn_reset_c(): void;
+extern "C" function http2_hpack_dyn_count_c(): i32;
+extern "C" function http2_hpack_encode_literal_incremental_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_encode_indexed_any_c(index: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_encode_request_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_dyn_smoke_c(): i32;
+extern "C" function http2_hpack_server_dyn_create_c(peer: *Http2PeerSettings): i64;
+extern "C" function http2_hpack_server_dyn_destroy_c(handle: i64): void;
+extern "C" function http2_hpack_server_dyn_set_table_size_h_c(handle: i64, size: i32): void;
+extern "C" function http2_hpack_server_dyn_max_size_h_c(handle: i64): i32;
+extern "C" function http2_hpack_server_dyn_count_h_c(handle: i64): i32;
+extern "C" function http2_hpack_server_encode_status_h_c(handle: i64, status: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_server_dyn_smoke_c(): i32;
+extern "C" function http2_frame_payload_limit_c(max_frame_size: i32): i32;
+extern "C" function http2_frame_check_payload_c(payload_len: i32, max_frame_size: i32): i32;
+extern "C" function http2_frame_count_data_chunks_c(data_len: i32, max_frame_size: i32): i32;
+extern "C" function http2_frame_capped_smoke_c(): i32;
+extern "C" function http2_frame_goaway_c(): i32;
+extern "C" function http2_goaway_error_no_error_c(): i32;
+extern "C" function http2_err_goaway_c(): i32;
+extern "C" function http2_build_goaway_c(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_parse_goaway_c(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32;
+extern "C" function http2_goaway_smoke_c(): i32;
+extern "C" function http2_frame_ping_c(): i32;
+extern "C" function http2_err_ping_c(): i32;
+extern "C" function http2_build_ping_c(opaque: *u8, out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_ping_ack_c(opaque: *u8, out: *u8, out_cap: i32): i32;
+extern "C" function http2_parse_ping_c(payload: *u8, plen: i32, out_opaque: *u8): i32;
+extern "C" function http2_ping_opaque_match_c(a: *u8, b: *u8): i32;
+extern "C" function http2_ping_smoke_c(): i32;
+extern "C" function http2_frame_rst_stream_c(): i32;
+extern "C" function http2_rst_error_cancel_c(): i32;
+extern "C" function http2_err_rst_stream_c(): i32;
+extern "C" function http2_build_rst_stream_c(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_parse_rst_stream_c(payload: *u8, plen: i32, out_code: *i32): i32;
+extern "C" function http2_rst_stream_smoke_c(): i32;
+extern "C" function http2_conn_reset_stream_c(conn: *Http2Conn, stream_id: i32, code: i32): i32;
+extern "C" function http2_http2_complete_smoke_c(): i32;
+extern "C" function http2_build_headers_frame_c(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_data_frame_c(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_get_headers_frame_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_request_headers_frame_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_client_smoke_c(): i32;
+extern "C" function http2_network_is_available_c(): i32;
+extern "C" function http2_network_smoke_c(): i32;
+extern "C" function http_h2_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_h2_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_request_method_h2_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http2_hpack_huffman_decode_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_hpack_huffman_is_available_c(): i32;
+extern "C" function http2_hpack_huffman_smoke_c(): i32;
+extern "C" function http2_build_window_update_c(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_default_initial_window_c(): i32;
+extern "C" function http2_flow_control_smoke_c(): i32;
+extern "C" function http2_flow_state_init_c(st: *Http2FlowState): void;
+extern "C" function http2_flow_state_reset_stream_c(st: *Http2FlowState, initial_window: i32): void;
+extern "C" function http2_flow_state_apply_initial_window_c(st: *Http2FlowState, initial_window: i32): void;
+extern "C" function http2_flow_state_apply_window_update_c(st: *Http2FlowState, stream_id: i32, increment: i32): i32;
+extern "C" function http2_flow_state_max_send_c(st: *Http2FlowState, want: i32): i32;
+extern "C" function http2_flow_state_can_send_c(st: *Http2FlowState, want: i32): i32;
+extern "C" function http2_flow_state_consume_send_c(st: *Http2FlowState, nbytes: i32): i32;
+extern "C" function http2_parse_window_update_payload_c(payload: *u8, plen: i32, out_increment: *i32): i32;
+extern "C" function http2_flow_state_smoke_c(): i32;
+extern "C" function http2_flow_recv_init_c(st: *Http2FlowRecvState): void;
+extern "C" function http2_flow_recv_reset_stream_c(st: *Http2FlowRecvState, initial_window: i32): void;
+extern "C" function http2_flow_recv_on_data_c(st: *Http2FlowRecvState, nbytes: i32): i32;
+extern "C" function http2_flow_recv_release_c(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_flow_recv_smoke_c(): i32;
+extern "C" function http2_frame_push_promise_c(): i32;
+extern "C" function http2_is_push_promise_frame_c(ftype: i32): i32;
+extern "C" function http2_parse_push_promise_stream_c(payload: *u8, plen: i32, out_promised_id: *i32): i32;
+extern "C" function http2_is_h2c_upgrade_response_c(buf: *u8, len: i32): i32;
+extern "C" function http2_h2c_is_available_c(): i32;
+extern "C" function http2_push_h2c_smoke_c(): i32;
+extern "C" function http2_h2c_wire_is_available_c(): i32;
+extern "C" function http2_h2c_session_begin_c(out: *u8, out_cap: i32): i32;
+extern "C" function http2_push_collect_data_c(promised_id: i32, stream_id: i32, data: *u8, dlen: i32, inout_promised_id: *i32, acc: *u8, acc_cap: i32, acc_len: *i32): i32;
 
 /* See implementation. */
 allow(padding) struct Http2PushLast {
@@ -1125,16 +1220,16 @@ allow(padding) struct Http2PushResource {
   body_len: i32;
 }
 
-extern function http2_push_fetch_smoke_c(): i32;
-extern function http2_push_last_reset_c(): void;
-extern function http2_push_last_copy_c(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32;
-extern function http2_push_network_smoke_c(): i32;
-extern function http2_session_request_h2c_c(fd: i32, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_h2c_network_smoke_c(): i32;
-extern function http_h2c_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2c_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_request_method_h2c_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2c_client_smoke_c(): i32;
+extern "C" function http2_push_fetch_smoke_c(): i32;
+extern "C" function http2_push_last_reset_c(): void;
+extern "C" function http2_push_last_copy_c(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32;
+extern "C" function http2_push_network_smoke_c(): i32;
+extern "C" function http2_session_request_h2c_c(fd: i32, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_h2c_network_smoke_c(): i32;
+extern "C" function http_h2c_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_h2c_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_request_method_h2c_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_h2c_client_smoke_c(): i32;
 
 /* See implementation. */
 allow(padding) struct Http2StreamSlot {
@@ -1149,11 +1244,11 @@ allow(padding) struct Http2StreamRegistry {
   next_id: i32;
 }
 
-extern function http2_stream_registry_init_c(reg: *Http2StreamRegistry): void;
-extern function http2_stream_registry_open_c(reg: *Http2StreamRegistry): i32;
-extern function http2_stream_registry_close_c(reg: *Http2StreamRegistry, stream_id: i32): void;
-extern function http2_stream_registry_is_open_c(reg: *Http2StreamRegistry, stream_id: i32): i32;
-extern function http2_stream_registry_smoke_c(): i32;
+extern "C" function http2_stream_registry_init_c(reg: *Http2StreamRegistry): void;
+extern "C" function http2_stream_registry_open_c(reg: *Http2StreamRegistry): i32;
+extern "C" function http2_stream_registry_close_c(reg: *Http2StreamRegistry, stream_id: i32): void;
+extern "C" function http2_stream_registry_is_open_c(reg: *Http2StreamRegistry, stream_id: i32): i32;
+extern "C" function http2_stream_registry_smoke_c(): i32;
 
 /* See implementation. */
 allow(padding) struct Http2PeerSettings {
@@ -1174,33 +1269,33 @@ allow(padding) struct Http2MultistreamClient {
   open_count: i32;
 }
 
-extern function http2_peer_settings_init_c(ps: *Http2PeerSettings): void;
-extern function http2_settings_entry_count_c(plen: i32): i32;
-extern function http2_parse_settings_entry_c(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32;
-extern function http2_peer_settings_apply_entry_c(ps: *Http2PeerSettings, setting_id: i32, value: i32): void;
-extern function http2_peer_settings_consume_payload_c(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32;
-extern function http2_build_client_settings_c(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_client_settings_ex_c(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_client_settings_with_max_frame_c(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32;
-extern function http2_build_server_settings_c(out: *u8, out_cap: i32): i32;
-extern function http2_setting_enable_push_c(): i32;
-extern function http2_setting_header_table_size_c(): i32;
-extern function http2_setting_max_frame_size_c(): i32;
-extern function http2_setting_max_header_list_size_c(): i32;
-extern function http2_peer_settings_enable_push_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_header_table_size_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_max_frame_size_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_max_header_list_size_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_max_streams_c(ps: *Http2PeerSettings): i32;
-extern function http2_peer_settings_initial_window_c(ps: *Http2PeerSettings): i32;
-extern function http2_settings_smoke_c(): i32;
-extern function http2_multistream_client_init_c(cli: *Http2MultistreamClient): void;
-extern function http2_multistream_client_on_settings_c(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32;
-extern function http2_multistream_client_open_stream_c(cli: *Http2MultistreamClient): i32;
-extern function http2_multistream_client_close_stream_c(cli: *Http2MultistreamClient, stream_id: i32): void;
-extern function http2_multistream_client_build_get_c(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_multistream_client_build_parallel_get_c(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32;
-extern function http2_multistream_client_smoke_c(): i32;
+extern "C" function http2_peer_settings_init_c(ps: *Http2PeerSettings): void;
+extern "C" function http2_settings_entry_count_c(plen: i32): i32;
+extern "C" function http2_parse_settings_entry_c(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32;
+extern "C" function http2_peer_settings_apply_entry_c(ps: *Http2PeerSettings, setting_id: i32, value: i32): void;
+extern "C" function http2_peer_settings_consume_payload_c(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32;
+extern "C" function http2_build_client_settings_c(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_client_settings_ex_c(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_client_settings_with_max_frame_c(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_build_server_settings_c(out: *u8, out_cap: i32): i32;
+extern "C" function http2_setting_enable_push_c(): i32;
+extern "C" function http2_setting_header_table_size_c(): i32;
+extern "C" function http2_setting_max_frame_size_c(): i32;
+extern "C" function http2_setting_max_header_list_size_c(): i32;
+extern "C" function http2_peer_settings_enable_push_c(ps: *Http2PeerSettings): i32;
+extern "C" function http2_peer_settings_header_table_size_c(ps: *Http2PeerSettings): i32;
+extern "C" function http2_peer_settings_max_frame_size_c(ps: *Http2PeerSettings): i32;
+extern "C" function http2_peer_settings_max_header_list_size_c(ps: *Http2PeerSettings): i32;
+extern "C" function http2_peer_settings_max_streams_c(ps: *Http2PeerSettings): i32;
+extern "C" function http2_peer_settings_initial_window_c(ps: *Http2PeerSettings): i32;
+extern "C" function http2_settings_smoke_c(): i32;
+extern "C" function http2_multistream_client_init_c(cli: *Http2MultistreamClient): void;
+extern "C" function http2_multistream_client_on_settings_c(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32;
+extern "C" function http2_multistream_client_open_stream_c(cli: *Http2MultistreamClient): i32;
+extern "C" function http2_multistream_client_close_stream_c(cli: *Http2MultistreamClient, stream_id: i32): void;
+extern "C" function http2_multistream_client_build_get_c(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_multistream_client_build_parallel_get_c(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_multistream_client_smoke_c(): i32;
 
 /* See implementation. */
 allow(padding) struct Http2Conn {
@@ -1212,79 +1307,79 @@ allow(padding) struct Http2Conn {
   ms: Http2MultistreamClient;
 }
 
-extern function http2_conn_init_c(conn: *Http2Conn): void;
-extern function http2_conn_attach_h2c_c(fd: i32, conn: *Http2Conn): i32;
-extern function http2_conn_attach_tls_c(tls_ctx: i64, conn: *Http2Conn): i32;
-extern function http2_conn_is_ready_c(conn: *Http2Conn): i32;
-extern function http2_conn_handshake_c(conn: *Http2Conn): i32;
-extern function http2_conn_handshake_with_enable_push_c(conn: *Http2Conn, client_enable_push: i32): i32;
-extern function http2_conn_handshake_with_max_frame_c(conn: *Http2Conn, client_max_frame_size: i32): i32;
-extern function http2_conn_request_c(conn: *Http2Conn, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
-extern function http2_conn_close_c(conn: *Http2Conn): void;
-extern function http2_conn_shutdown_graceful_c(conn: *Http2Conn, last_stream_id: i32, code: i32): void;
-extern function http2_conn_read_goaway_c(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32;
-extern function http2_conn_ping_c(conn: *Http2Conn, opaque: *u8): i32;
-extern function http2_conn_goaway_seen_c(conn: *Http2Conn): i32;
-extern function http2_conn_is_pool_reusable_c(conn: *Http2Conn): i32;
-extern function http2_conn_goaway_smoke_c(): i32;
-extern function http2_conn_ping_smoke_c(): i32;
-extern function http2_conn_reuse_smoke_c(): i32;
-extern function http2_conn_reuse_is_available_c(): i32;
-extern function http2_conn_pool_create_h2c_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
-extern function http2_conn_pool_create_h2_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
-extern function http2_conn_pool_destroy_c(pool_h: i64): void;
-extern function http2_conn_pool_request_c(pool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2c_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http_h2_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_conn_pool_smoke_c(): i32;
-extern function http2_conn_pool_goaway_smoke_c(): i32;
-extern function http2_conn_pool_connect_count_c(pool_h: i64): i32;
-extern function http2_conn_pool_is_available_c(): i32;
-extern function http2_global_pool_create_c(max_entries: i32, max_conns_per_host: i32): i64;
-extern function http2_global_pool_destroy_c(gpool_h: i64): void;
-extern function http2_global_pool_get_c(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_global_pool_request_c(gpool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
-extern function http2_global_pool_entry_count_c(gpool_h: i64): i32;
-extern function http2_global_pool_connect_count_c(gpool_h: i64): i32;
-extern function http2_global_pool_smoke_c(): i32;
-extern function http2_global_pool_is_available_c(): i32;
-extern function http2_serve_h2c_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
-extern function http2_serve_h2c_one_with_goaway_c(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_c(client_fd: i32, body: *u8, body_len: i32): i32;
-extern function http2_server_serve_h2c_with_goaway_c(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32;
-extern function http2_serve_h2c_one_ping_echo_c(listener_fd: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_ping_echo_c(client_fd: i32): i32;
-extern function http2_serve_h2c_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_with_push_c(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_server_serve_h2_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_serve_h2_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_push_smoke_c(): i32;
-extern function http2_server_push_tls_smoke_c(): i32;
-extern function http2_server_push_settings_smoke_c(): i32;
-extern function http2_server_settings_full_smoke_c(): i32;
-extern function http2_server_hpack_dyn_smoke_c(): i32;
-extern function http2_server_max_frame_smoke_c(): i32;
-extern function http2_server_push_is_available_c(): i32;
-extern function http2_serve_h2c_multi_one_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_multi_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32;
-extern function http2_serve_h2c_multi_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2c_multi_with_push_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_serve_h2_multi_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2_multi_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32;
-extern function http2_serve_h2_multi_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2_multi_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
-extern function http2_server_multistream_push_smoke_c(): i32;
-extern function http2_server_multistream_push_is_available_c(): i32;
-extern function http2_server_multistream_smoke_c(): i32;
-extern function http2_server_multistream_is_available_c(): i32;
-extern function http2_server_smoke_c(): i32;
-extern function http2_server_is_available_c(): i32;
-extern function http2_serve_h2_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32;
-extern function http2_server_serve_h2_c(tls_ctx: i64, body: *u8, body_len: i32): i32;
-extern function http2_tls_server_ctx_create_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64;
-extern function http2_tls_server_ctx_destroy_c(srv_ctx_h: i64): void;
-extern function http2_hpack_decode_get_request_c(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32;
-extern function http2_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_conn_init_c(conn: *Http2Conn): void;
+extern "C" function http2_conn_attach_h2c_c(fd: i32, conn: *Http2Conn): i32;
+extern "C" function http2_conn_attach_tls_c(tls_ctx: i64, conn: *Http2Conn): i32;
+extern "C" function http2_conn_is_ready_c(conn: *Http2Conn): i32;
+extern "C" function http2_conn_handshake_c(conn: *Http2Conn): i32;
+extern "C" function http2_conn_handshake_with_enable_push_c(conn: *Http2Conn, client_enable_push: i32): i32;
+extern "C" function http2_conn_handshake_with_max_frame_c(conn: *Http2Conn, client_max_frame_size: i32): i32;
+extern "C" function http2_conn_request_c(conn: *Http2Conn, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function http2_conn_close_c(conn: *Http2Conn): void;
+extern "C" function http2_conn_shutdown_graceful_c(conn: *Http2Conn, last_stream_id: i32, code: i32): void;
+extern "C" function http2_conn_read_goaway_c(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32;
+extern "C" function http2_conn_ping_c(conn: *Http2Conn, opaque: *u8): i32;
+extern "C" function http2_conn_goaway_seen_c(conn: *Http2Conn): i32;
+extern "C" function http2_conn_is_pool_reusable_c(conn: *Http2Conn): i32;
+extern "C" function http2_conn_goaway_smoke_c(): i32;
+extern "C" function http2_conn_ping_smoke_c(): i32;
+extern "C" function http2_conn_reuse_smoke_c(): i32;
+extern "C" function http2_conn_reuse_is_available_c(): i32;
+extern "C" function http2_conn_pool_create_h2c_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
+extern "C" function http2_conn_pool_create_h2_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64;
+extern "C" function http2_conn_pool_destroy_c(pool_h: i64): void;
+extern "C" function http2_conn_pool_request_c(pool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_h2c_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http_h2_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http2_conn_pool_smoke_c(): i32;
+extern "C" function http2_conn_pool_goaway_smoke_c(): i32;
+extern "C" function http2_conn_pool_connect_count_c(pool_h: i64): i32;
+extern "C" function http2_conn_pool_is_available_c(): i32;
+extern "C" function http2_global_pool_create_c(max_entries: i32, max_conns_per_host: i32): i64;
+extern "C" function http2_global_pool_destroy_c(gpool_h: i64): void;
+extern "C" function http2_global_pool_get_c(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http2_global_pool_request_c(gpool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32;
+extern "C" function http2_global_pool_entry_count_c(gpool_h: i64): i32;
+extern "C" function http2_global_pool_connect_count_c(gpool_h: i64): i32;
+extern "C" function http2_global_pool_smoke_c(): i32;
+extern "C" function http2_global_pool_is_available_c(): i32;
+extern "C" function http2_serve_h2c_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32;
+extern "C" function http2_serve_h2c_one_with_goaway_c(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2c_c(client_fd: i32, body: *u8, body_len: i32): i32;
+extern "C" function http2_server_serve_h2c_with_goaway_c(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32;
+extern "C" function http2_serve_h2c_one_ping_echo_c(listener_fd: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2c_ping_echo_c(client_fd: i32): i32;
+extern "C" function http2_serve_h2c_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2c_with_push_c(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+extern "C" function http2_server_serve_h2_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+extern "C" function http2_serve_h2_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_push_smoke_c(): i32;
+extern "C" function http2_server_push_tls_smoke_c(): i32;
+extern "C" function http2_server_push_settings_smoke_c(): i32;
+extern "C" function http2_server_settings_full_smoke_c(): i32;
+extern "C" function http2_server_hpack_dyn_smoke_c(): i32;
+extern "C" function http2_server_max_frame_smoke_c(): i32;
+extern "C" function http2_server_push_is_available_c(): i32;
+extern "C" function http2_serve_h2c_multi_one_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2c_multi_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32;
+extern "C" function http2_serve_h2c_multi_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2c_multi_with_push_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+extern "C" function http2_serve_h2_multi_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2_multi_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32;
+extern "C" function http2_serve_h2_multi_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2_multi_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32;
+extern "C" function http2_server_multistream_push_smoke_c(): i32;
+extern "C" function http2_server_multistream_push_is_available_c(): i32;
+extern "C" function http2_server_multistream_smoke_c(): i32;
+extern "C" function http2_server_multistream_is_available_c(): i32;
+extern "C" function http2_server_smoke_c(): i32;
+extern "C" function http2_server_is_available_c(): i32;
+extern "C" function http2_serve_h2_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32;
+extern "C" function http2_server_serve_h2_c(tls_ctx: i64, body: *u8, body_len: i32): i32;
+extern "C" function http2_tls_server_ctx_create_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64;
+extern "C" function http2_tls_server_ctx_destroy_c(srv_ctx_h: i64): void;
+extern "C" function http2_hpack_decode_get_request_c(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32;
+extern "C" function http2_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32): i32;
 
 // See implementation.
 
