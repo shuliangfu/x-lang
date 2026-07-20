@@ -10,7 +10,7 @@ run_case() {
   local x="$2"
   local expect="$3"
   local exe="/tmp/shux_boundary_$$"
-  if ! $SHUX -L . -L std/base64 -L std/json -L std/csv "$x" -o "$exe" 2>&1; then
+  if ! $SHUX build -L . -L std/base64 -L std/json -L std/csv "$x" -o "$exe" 2>&1; then
     echo "boundary $name: compile failed"
     rm -f "$exe"
     exit 1

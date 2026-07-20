@@ -35,7 +35,7 @@ set +e
   cd compiler
   env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
     SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-    ./shux -backend asm -o "$OUT" $LIBROOT src/parser/parser.x
+    ./shux build -backend asm -o "$OUT" $LIBROOT src/parser/parser.x
 ) > "$LOG" 2>&1
 EC=$?
 set -e
@@ -87,7 +87,7 @@ set +e
   env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
     SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1 \
     SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-    ./shux -backend asm -o "$MIN_OUT" $LIBROOT src/parser/parser.x
+    ./shux build -backend asm -o "$MIN_OUT" $LIBROOT src/parser/parser.x
 ) > "$MIN_LOG" 2>&1
 MIN_EC=$?
 set -e

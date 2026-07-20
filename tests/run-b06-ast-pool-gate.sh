@@ -17,7 +17,7 @@ chmod +x tests/run-pool-limits.sh
 SHUX="${SHUX:-./compiler/shux-c}"
 [ -x "$SHUX" ] || SHUX=./compiler/shux
 if [ -x "$SHUX" ] && "$SHUX" --version >/dev/null 2>&1; then
-  SHUX="$SHUX" tests/run-pool-limits.sh
+  SHUX="$SHUX" build tests/run-pool-limits.sh
 else
   echo "b06 gate SKIP pool-limits (no runnable shux on this host)"
 fi

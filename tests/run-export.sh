@@ -41,7 +41,7 @@ echo "$out" | grep -q 'type check failed' && fail "default must allow export API
 pass "default allows export API"
 
 # 6) 运行 export 用户程序
-$SHUX -backend c -o /tmp/shux_export_user tests/export/user_export.x >/dev/null 2>&1 || fail "build user_export"
+$SHUX build -backend c -o /tmp/shux_export_user tests/export/user_export.x >/dev/null 2>&1 || fail "build user_export"
 rc=0
 /tmp/shux_export_user || rc=$?
 [[ "$rc" -eq 9 ]] || fail "user_export exit want 9 got $rc"
@@ -76,7 +76,7 @@ echo "$out" | grep -q "unused private function" && fail "SHUX_UNUSED_PRIVATE=0 s
 pass "L7 off via SHUX_UNUSED_PRIVATE=0"
 
 # 8) 编译/运行路径：unused private 不阻止产出与执行
-$SHUX -backend c -o /tmp/shux_export_dead_priv tests/export/lint_unused_private.x >/dev/null 2>&1 \
+$SHUX build -backend c -o /tmp/shux_export_dead_priv tests/export/lint_unused_private.x >/dev/null 2>&1 \
   || fail "build must succeed despite unused private"
 rc=0
 /tmp/shux_export_dead_priv || rc=$?

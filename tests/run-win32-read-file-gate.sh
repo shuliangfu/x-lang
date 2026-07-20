@@ -34,7 +34,7 @@ fi
 printf 'WIN' >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 # F-02 v2：kernel32 由链接器解析；无 win32.inc.c / win32.o。
-if ! "$SHUX" -L . -o "$OUT" "$X" 2>/tmp/shux_win32_read_file.log; then
+if ! "$SHUX" build -L . -o "$OUT" "$X" 2>/tmp/shux_win32_read_file.log; then
   echo "win32-read-file-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_win32_read_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true

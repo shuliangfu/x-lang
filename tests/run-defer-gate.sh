@@ -18,7 +18,7 @@ run_case() {
   local src="$1"
   local expect="$2"
   local out="/tmp/shux_defer_gate_$$"
-  if ! "$SHUX" -backend c "$src" -o "$out" 2>/tmp/shux_defer_gate_build.log; then
+  if ! "$SHUX" build -backend c "$src" -o "$out" 2>/tmp/shux_defer_gate_build.log; then
     echo "defer-gate FAIL: compile $src" >&2
     tail -20 /tmp/shux_defer_gate_build.log 2>/dev/null || true
     exit 1

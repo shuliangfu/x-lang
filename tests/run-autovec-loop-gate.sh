@@ -8,7 +8,7 @@ SRC="tests/vec/autovec_dot_loop.x"
 OUT="/tmp/shux_autovec_dot_loop"
 C_OUT="/tmp/shux_autovec_dot_loop.c"
 rm -f "$OUT" "$C_OUT"
-if ! "$SHUX" -E "$SRC" >"$C_OUT" 2>/tmp/shux_autovec_emit.log; then
+if ! "$SHUX" build -E "$SRC" >"$C_OUT" 2>/tmp/shux_autovec_emit.log; then
   echo "autovec-loop-gate FAIL: emit failed" >&2
   tail -8 /tmp/shux_autovec_emit.log 2>/dev/null || true
   exit 1
@@ -21,7 +21,7 @@ if grep -qE 'for \(.*ap\)\[i\].*\*.*\(bp\)\[i\]' "$C_OUT"; then
   echo "autovec-loop-gate FAIL: scalar dot loop still present" >&2
   exit 1
 fi
-if SHUX_NO_AUTovec=1 "$SHUX" -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
+if SHUX_NO_AUTovec=1 "$SHUX" build -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
   if ! grep -qE 'for \(.*ap\)\[i\]|ap\)\[i\].*\*.*bp\)\[i\]' "${C_OUT}.scalar"; then
     echo "autovec-loop-gate WARN: SHUX_NO_AUTovec=1 did not preserve scalar loop" >&2
   fi

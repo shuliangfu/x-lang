@@ -8,12 +8,12 @@ fi
 SHUX=${SHUX:-./compiler/shux-c}
 
 # return a > 10 ? 10 : a; a=15 -> 10
-$SHUX tests/ternary/main.x -o /tmp/shux_ternary_main 2>&1
+$SHUX build tests/ternary/main.x -o /tmp/shux_ternary_main 2>&1
 exitcode=0; /tmp/shux_ternary_main >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 10 ] && { echo "expected 10 (main), got $exitcode"; exit 1; }
 
 # clamp -3 -> 0
-$SHUX tests/ternary/clamp.x -o /tmp/shux_ternary_clamp 2>&1
+$SHUX build tests/ternary/clamp.x -o /tmp/shux_ternary_clamp 2>&1
 exitcode=0; /tmp/shux_ternary_clamp >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (clamp), got $exitcode"; exit 1; }
 

@@ -18,9 +18,9 @@ run_one() {
   local out="/tmp/shux_void_main_${tag}_$$"
   rm -f "$out"
   # Prefer C backend link path for stable process exit code.
-  if "$SHUX" -backend c -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
+  if "$SHUX" build -backend c -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
     :
-  elif "$SHUX" -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
+  elif "$SHUX" build -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
     :
   else
     echo "void-main gate FAIL: build $tag ($src)" >&2

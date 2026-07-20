@@ -13,7 +13,7 @@ OUT="/tmp/shux_with_arena_smoke_$$"
 check_emit() {
   local gen
   gen="$(mktemp /tmp/shux_scope_alloc_gate_XXXXXX.c)"
-  if ! "$SHUX" -E "$SRC" >"$gen" 2>/tmp/shux_scope_alloc_gate_build.log; then
+  if ! "$SHUX" build -E "$SRC" >"$gen" 2>/tmp/shux_scope_alloc_gate_build.log; then
     echo "scope-allocator-gate FAIL: compile -E $SRC" >&2
     tail -8 /tmp/shux_scope_alloc_gate_build.log 2>/dev/null || true
     rm -f "$gen"

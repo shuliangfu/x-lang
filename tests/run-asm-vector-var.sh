@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-$SHUX tests/vector/vec_add_check.x -o /tmp/shux_asm_vector_var 2>&1
+$SHUX build tests/vector/vec_add_check.x -o /tmp/shux_asm_vector_var 2>&1
 exitcode=0
 /tmp/shux_asm_vector_var >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-asm-vector-var FAIL: expected exit 0, got $exitcode"; exit 1; }

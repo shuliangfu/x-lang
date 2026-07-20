@@ -8,7 +8,7 @@ SRC="tests/mem/sroa_struct_call.x"
 OUT="/tmp/shux_sroa_struct_call"
 C_OUT="/tmp/shux_sroa_struct_call.c"
 rm -f "$OUT" "$C_OUT"
-if ! "$SHUX" -E "$SRC" >"$C_OUT" 2>/tmp/shux_sroa_emit.log; then
+if ! "$SHUX" build -E "$SRC" >"$C_OUT" 2>/tmp/shux_sroa_emit.log; then
   echo "sroa-gate FAIL: emit failed" >&2
   tail -8 /tmp/shux_sroa_emit.log 2>/dev/null || true
   exit 1
@@ -32,7 +32,7 @@ if ! echo "$MAIN_BODY" | grep -qE '\.a.*\+.*\.b'; then
     exit 1
   fi
 fi
-if SHUX_NO_SROA=1 "$SHUX" -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
+if SHUX_NO_SROA=1 "$SHUX" build -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
   if ! grep -q 'make_pair(' "${C_OUT}.scalar"; then
     echo "sroa-gate WARN: SHUX_NO_SROA=1 did not preserve make_pair call" >&2
   fi
@@ -55,7 +55,7 @@ CROSS_SRC="tests/mem/sroa_struct_cross.x"
 CROSS_OUT="/tmp/shux_sroa_struct_cross"
 CROSS_C="/tmp/shux_sroa_struct_cross.c"
 rm -f "$CROSS_OUT" "$CROSS_C"
-if ! "$SHUX" -E "$CROSS_SRC" >"$CROSS_C" 2>/tmp/shux_sroa_cross_emit.log; then
+if ! "$SHUX" build -E "$CROSS_SRC" >"$CROSS_C" 2>/tmp/shux_sroa_cross_emit.log; then
   echo "sroa-cross-gate FAIL: emit failed" >&2
   exit 1
 fi

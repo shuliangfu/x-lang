@@ -10,7 +10,7 @@ make -C compiler -q 2>/dev/null || make -C compiler shux-c
 SHUX=${SHUX:-./compiler/shux-c}
 
 # === core.debug (alias) + assert 变体 ===
-$SHUX -L . tests/debug/main.x -o /tmp/shux_debug 2>&1
+$SHUX build -L . tests/debug/main.x -o /tmp/shux_debug 2>&1
 exitcode=0
 /tmp/shux_debug >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (assert(true)), got $exitcode"; exit 1; }
@@ -18,7 +18,7 @@ echo "core.debug test OK"
 
 # === core.assert (merged from run-core-assert.sh) ===
 # tests/core-assert/main.x: import core.assert; assert(true) + assert_eq_i32(1,1) → exit 0
-$SHUX -L . tests/core-assert/main.x -o /tmp/shux_core_assert 2>&1
+$SHUX build -L . tests/core-assert/main.x -o /tmp/shux_core_assert 2>&1
 ec=0
 /tmp/shux_core_assert >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 0 ] && { echo "core-assert: expected exit 0, got $ec"; exit 1; }

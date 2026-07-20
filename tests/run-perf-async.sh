@@ -34,13 +34,13 @@ perf_async_compile_bench() {
   local out="$2"
   rm -f "$out"
   if perf_async_is_linux_x64_asm; then
-    "$SHUX" -L . "$x" -o "$out"
+    "$SHUX" build -L . "$x" -o "$out"
   elif [ -x ./compiler/shux-c ]; then
     ./compiler/shux-c -L . "$x" -o "$out"
   elif [ -x ./compiler/shux ]; then
-    ./compiler/shux -L . "$x" -backend c -o "$out"
+    ./compiler/shux build -L . "$x" -backend c -o "$out"
   else
-    "$SHUX" -L . "$x" -o "$out"
+    "$SHUX" build -L . "$x" -o "$out"
   fi
 }
 
@@ -94,7 +94,7 @@ link_with_scheduler() {
   local x="$1"
   local out="$2"
   rm -f "$out"
-  if ! "$SHUX" -L . "$x" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
+  if ! "$SHUX" build -L . "$x" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
     cat /tmp/async_compile.log >&2
     return 1
   fi

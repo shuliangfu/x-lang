@@ -26,7 +26,7 @@ _compile_ec=$?
 set -e
 set +e
 if [ "$_compile_ec" -ne 0 ] && [ "$LINK_SHUX" != "./compiler/shux" ]; then
-  ./compiler/shux -backend c tests/compound-assign/main.x -o /tmp/shux_compound_assign 2>&1
+  ./compiler/shux build -backend c tests/compound-assign/main.x -o /tmp/shux_compound_assign 2>&1
   _compile_ec=$?
 fi
 # shux-c -E + cc 回退（无 asm/c backend 时）

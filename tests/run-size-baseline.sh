@@ -10,7 +10,7 @@ if [ -f /tmp/shux_baseline_hello ]; then
   ls -l /tmp/shux_baseline_hello | awk '{print "hello.x -> " $5 " bytes"}'
 fi
 
-./compiler/shux -L . tests/option/main.x -o /tmp/shux_baseline_option 2>&1
+./compiler/shux build -L . tests/option/main.x -o /tmp/shux_baseline_option 2>&1
 if [ -f /tmp/shux_baseline_option ]; then
   ls -l /tmp/shux_baseline_option | awk '{print "option/main.x -> " $5 " bytes"}'
 fi

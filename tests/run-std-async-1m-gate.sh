@@ -93,7 +93,7 @@ async_compile_bench() {
   elif [ -x ./compiler/shux-c ]; then
     ./compiler/shux-c -L . "$x" -o "$out"
   elif [ -x ./compiler/shux ]; then
-    ./compiler/shux -L . "$x" -backend c -o "$out"
+    ./compiler/shux build -L . "$x" -backend c -o "$out"
   else
     "$SHUX_BIN" -L . "$x" -o "$out"
   fi

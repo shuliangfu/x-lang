@@ -14,7 +14,7 @@ check_emit_c() {
   local expect_restrict="$3" # yes | no
   local gen
   gen="$(mktemp /tmp/shux_noalias_gate_XXXXXX.c)"
-  if ! "$SHUX" -E "$src" >"$gen" 2>/tmp/shux_noalias_gate_build.log; then
+  if ! "$SHUX" build -E "$src" >"$gen" 2>/tmp/shux_noalias_gate_build.log; then
     echo "noalias-gate FAIL: compile -E $src" >&2
     tail -8 /tmp/shux_noalias_gate_build.log 2>/dev/null || true
     rm -f "$gen"

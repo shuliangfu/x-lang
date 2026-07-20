@@ -31,7 +31,7 @@ if ! echo 'int main(void){return 0;}' | "$CC" -x c - $SHUX_COMPRESS_LIB_DIRS -lz
 fi
 SHUX="${SHUX:-./compiler/shux}"
 exe="/tmp/shux_compress_$$"
-if ! $SHUX -L . tests/compress/main.x -o "$exe" 2>&1; then echo "compress test: compile failed"; rm -f "$exe"; exit 1; fi
+if ! $SHUX build -L . tests/compress/main.x -o "$exe" 2>&1; then echo "compress test: compile failed"; rm -f "$exe"; exit 1; fi
 $exe 2>/dev/null; exitcode=$?
 rm -f "$exe"
 if [ "$exitcode" -ne 0 ]; then echo "compress test: expected exit 0, got $exitcode"; exit 1; fi

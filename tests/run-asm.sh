@@ -37,7 +37,7 @@ done
 MAIN_ASM="tests/asm/main.x"
 OUT_S=$(mktemp)
 EC=0
-"$SHUX" -backend asm "$MAIN_ASM" > "$OUT_S" 2>&1 || EC=$?
+"$SHUX" build -backend asm "$MAIN_ASM" > "$OUT_S" 2>&1 || EC=$?
 
 if [ "$EC" -ne 0 ]; then
   # 任意 -backend asm 失败均视为「当前编译器不支持 asm」并 SKIP（如 run-all-c 用的 shux-c、或未 bootstrap-driver）
@@ -86,7 +86,7 @@ echo "run-asm: asm output OK (.text, main, ret)"
 # 7.4 直接出 ELF/Mach-O .o：-o out.o 须为可重定位对象文件；若命令成功但魔数/类型不符则失败（禁止把汇编文本当 .o）。
 DIRECT_O=/tmp/shux_asm_direct.o
 DIRECT_BIN=/tmp/shux_asm_direct_bin
-if "$SHUX" -backend asm -o "$DIRECT_O" "$MAIN_ASM" 2>/dev/null; then
+if "$SHUX" build -backend asm -o "$DIRECT_O" "$MAIN_ASM" 2>/dev/null; then
   if ! file "$DIRECT_O" | grep -qiE 'ELF[[:space:]]*.*relocatable|Mach-O[[:space:]]*64-bit.*object'; then
     echo "run-asm: -o out.o succeeded but file(1) is not a relocatable object: $(file -b "$DIRECT_O" 2>/dev/null)"
     rm -f "$DIRECT_O" "$DIRECT_BIN"
@@ -117,7 +117,7 @@ fi
 # -o <exe>（无 .o/.s 后缀）：driver 应自动调 ld 生成可执行文件，一条命令出可执行文件
 ASM_EXE=/tmp/shux_asm_exe
 rm -f "$ASM_EXE"
-if "$SHUX" -backend asm -o "$ASM_EXE" "$MAIN_ASM" 2>/dev/null; then
+if "$SHUX" build -backend asm -o "$ASM_EXE" "$MAIN_ASM" 2>/dev/null; then
   if [ -x "$ASM_EXE" ]; then
     GOT=0; "$ASM_EXE" 2>/dev/null || GOT=$?
     if [ "$GOT" -eq 42 ]; then
@@ -130,7 +130,7 @@ fi
 # 多用例：expr.x、local.x 仅校验能成功出汇编且含 .text/main/ret
 for ASM_FILE in tests/asm/expr.x tests/asm/local.x tests/asm/tiny_ptr.x; do
   OUT_T=$(mktemp)
-  if "$SHUX" -backend asm "$ASM_FILE" > "$OUT_T" 2>/dev/null; then
+  if "$SHUX" build -backend asm "$ASM_FILE" > "$OUT_T" 2>/dev/null; then
     if grep -q '\.text' "$OUT_T" && grep -q 'main' "$OUT_T" && grep -q 'ret' "$OUT_T"; then
       echo "run-asm: $(basename "$ASM_FILE") OK"
     fi
@@ -158,7 +158,7 @@ if as -o "$OUT_O" "$OUT_S" 2>/dev/null; then
   for PAIR in "tests/asm/expr.x:6" "tests/asm/local.x:3" "tests/asm/tiny_ptr.x:42"; do
     F="${PAIR%%:*}"; EXPECT="${PAIR##*:}"
     TMP_S=$(mktemp); TMP_O=/tmp/shux_asm_expr.o; TMP_BIN=/tmp/shux_asm_expr_bin
-    if "$SHUX" -backend asm "$F" > "$TMP_S" 2>/dev/null && as -o "$TMP_O" "$TMP_S" 2>/dev/null && ld -o "$TMP_BIN" "$TMP_O" 2>/dev/null; then
+    if "$SHUX" build -backend asm "$F" > "$TMP_S" 2>/dev/null && as -o "$TMP_O" "$TMP_S" 2>/dev/null && ld -o "$TMP_BIN" "$TMP_O" 2>/dev/null; then
       GOT=0; "$TMP_BIN" 2>/dev/null || GOT=$?
       if [ "$GOT" -eq "$EXPECT" ]; then
         echo "run-asm: as+ld $(basename "$F") OK (exit $EXPECT)"
@@ -173,7 +173,7 @@ fi
 # 可选：arm64 输出校验（对 main/expr/local 各跑一次，仅检查 .text/main/ret）
 for ASM_FILE in $ASM_TESTS; do
   OUT_ARM=$(mktemp)
-  if "$SHUX" -backend asm -target aarch64-linux-gnu "$ASM_FILE" > "$OUT_ARM" 2>/dev/null; then
+  if "$SHUX" build -backend asm -target aarch64-linux-gnu "$ASM_FILE" > "$OUT_ARM" 2>/dev/null; then
     if grep -q '\.text' "$OUT_ARM" && grep -q 'main' "$OUT_ARM" && grep -q 'ret' "$OUT_ARM"; then
       echo "run-asm: arm64 $(basename "$ASM_FILE") OK"
     fi
@@ -184,7 +184,7 @@ done
 # riscv64 出 .s：对 main/expr/local 各跑 -target riscv64，检查 .text/main/ret（RISC-V 也用 ret）
 for ASM_FILE in $ASM_TESTS; do
   OUT_RV=$(mktemp)
-  if "$SHUX" -backend asm -target riscv64 "$ASM_FILE" > "$OUT_RV" 2>/dev/null; then
+  if "$SHUX" build -backend asm -target riscv64 "$ASM_FILE" > "$OUT_RV" 2>/dev/null; then
     if grep -q '\.text' "$OUT_RV" && grep -q 'main' "$OUT_RV" && grep -q 'ret' "$OUT_RV"; then
       echo "run-asm: riscv64 $(basename "$ASM_FILE") .s OK"
     fi
@@ -195,7 +195,7 @@ done
 # riscv64 直接出 .o：-target riscv64 -o out.o 应生成 ELF；若有 riscv64 ld 则链接并运行
 RISCV_O=/tmp/shux_asm_riscv64.o
 RISCV_BIN=/tmp/shux_asm_riscv64_bin
-if "$SHUX" -backend asm -target riscv64 -o "$RISCV_O" "$MAIN_ASM" 2>/dev/null; then
+if "$SHUX" build -backend asm -target riscv64 -o "$RISCV_O" "$MAIN_ASM" 2>/dev/null; then
   # Linux CI / 宿主上应出 ELF relocatable；macOS 等宿主常为 Mach-O 或混用封装，不因格式误杀整条 run-asm。
   HOSTOS=$(uname -s 2>/dev/null || echo Unknown)
   if ! file "$RISCV_O" | grep -qiE 'ELF[[:space:]]*.*relocatable'; then
@@ -227,7 +227,7 @@ fi
 
 # Windows COFF .obj：-target *-windows-* -o out.obj 应生成 PE/COFF（仅 x86_64）；非 Windows 仅校验能产出非空文件
 COFF_OBJ=/tmp/shux_asm_coff.obj
-if "$SHUX" -backend asm -target x86_64-pc-windows-msvc -o "$COFF_OBJ" "$MAIN_ASM" 2>/dev/null; then
+if "$SHUX" build -backend asm -target x86_64-pc-windows-msvc -o "$COFF_OBJ" "$MAIN_ASM" 2>/dev/null; then
   if [ -f "$COFF_OBJ" ] && [ -s "$COFF_OBJ" ]; then
     if file "$COFF_OBJ" 2>/dev/null | grep -qiE 'PE32|COFF|MSVC|executable|object'; then
       echo "run-asm: Windows COFF -o out.obj OK (x86_64)"

@@ -19,7 +19,7 @@ parser_expect_reject() {
   local x="$1"
   local pattern="$2"
   local out
-  out=$($SHUX -L . "$x" 2>&1) || true
+  out=$($SHUX build -L . "$x" 2>&1) || true
   if echo "$out" | grep -qE "$pattern"; then
     return 0
   fi
@@ -28,7 +28,7 @@ parser_expect_reject() {
 }
 
 # 正例：return 0; 带分号应能编译
-$SHUX -L . tests/parser/semicolon_required.x -o /tmp/shux_parser_ok 2>&1 || { echo "parser: semicolon_required.x (with semicolon) should compile"; exit 1; }
+$SHUX build -L . tests/parser/semicolon_required.x -o /tmp/shux_parser_ok 2>&1 || { echo "parser: semicolon_required.x (with semicolon) should compile"; exit 1; }
 /tmp/shux_parser_ok || { echo "parser: semicolon_required binary should exit 0"; exit 1; }
 
 # 负例：连续 return 间无分号应拒绝（impl 路径报 parse；buf 回退路径常落 typeck error）
@@ -111,7 +111,7 @@ else
 fi
 
 # return (1+2) 无分号（`}` 前可略分号）：须正确建 AST 并得到退出码 3；与 compiler/shux、compiler/shux-c 共用 parser.c 时行为一致
-$SHUX -L . tests/parser/return_paren_expr.x -o /tmp/shux_parser_return_paren 2>&1 || {
+$SHUX build -L . tests/parser/return_paren_expr.x -o /tmp/shux_parser_return_paren 2>&1 || {
   echo "parser: return_paren_expr.x should compile with $SHUX"
   exit 1
 }
