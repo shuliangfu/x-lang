@@ -87,6 +87,15 @@ extern int runtime_report_precise_parse_failure_if_known(const char *input_path,
 extern int driver_run_x_emit_c_extern_via_cparser(const char *input_path);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 extern int typeck_set_allow_legacy_extern_calls(int allow);
+/**
+ * Release GrowVec data buffers backing the arena/module sidecar pools.
+ * Declared with `void *` params to avoid pulling struct definitions here;
+ * ast_pool.c defines them with `struct ast_ASTArena *` / `struct ast_Module *`
+ * which are pointer-compatible. Safe no-op if no sidecar slot matches.
+ * PLATFORM: SHARED — see ast_pool.c `arena_sidecar_free` / `module_sidecar_free`.
+ */
+extern void ast_pool_arena_release(void *arena);
+extern void ast_pool_module_release(void *module);
 
 /** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
 int driver_run_x_emit_c(void) {
@@ -145,7 +154,7 @@ int driver_run_x_emit_c(void) {
         if (!arena || !module) {
             diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x pipeline allocation failed", NULL);
-            free(arena);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
             free(module);
             free(src);
             return 1;
@@ -156,7 +165,7 @@ int driver_run_x_emit_c(void) {
             diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP007, NULL,
                                    ".x -E source too large for parser (>%d bytes): '%s'",
                                    INT32_MAX, input_path ? input_path : "?");
-            free(arena);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
             free(module);
             free(src);
             return 1;
@@ -166,7 +175,7 @@ int driver_run_x_emit_c(void) {
             parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
         if (pr.ok != 0) {
             if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
-                free(arena);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                 free(module);
                 free(src);
                 return 1;
@@ -174,7 +183,7 @@ int driver_run_x_emit_c(void) {
             diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
                          ".x -E parse_into failed for '%s'",
                          input_path ? input_path : "?");
-            free(arena);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
             free(module);
             free(src);
             return 1;
@@ -187,7 +196,7 @@ int driver_run_x_emit_c(void) {
                 diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
                                        "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
                                        "'break', 'continue', 'return', 'panic', 'match', or '('");
-                free(arena);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                 free(module);
                 free(src);
                 return 1;
@@ -221,7 +230,7 @@ int driver_run_x_emit_c(void) {
             if (asm_direct_import_only) {
                 if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
                         dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
-                    free(arena);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                     free(module);
                     free(src);
                     return 1;
@@ -233,7 +242,7 @@ int driver_run_x_emit_c(void) {
                     cpaths[i] = NULL;
                 if (shux_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
                         NULL, 0, cpaths, &n_closure) != 0) {
-                    free(arena);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                     free(module);
                     free(src);
                     return 1;
@@ -243,7 +252,7 @@ int driver_run_x_emit_c(void) {
                         n_closure--;
                         free(cpaths[n_closure]);
                     }
-                    free(arena);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
                     free(module);
                     free(src);
                     return 1;
@@ -259,9 +268,9 @@ int driver_run_x_emit_c(void) {
             if (!dep_arenas[i] || !dep_modules[i]) {
                 diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
                                       ".x pipeline dependency allocation failed", NULL);
-                while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
+                while (i > 0) { i--; ast_pool_arena_release(dep_arenas[i]); ast_pool_module_release(dep_modules[i]); free(dep_arenas[i]); free(dep_modules[i]); }
                 while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-                free(arena); free(module); free(src);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                 return 1;
             }
             memset(dep_arenas[i], 0, arena_sz);
@@ -272,9 +281,9 @@ int driver_run_x_emit_c(void) {
         if (!out_buf || !pctx_e) {
             diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
                                   ".x -E output/context allocation failed", NULL);
-            for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+            for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
-            free(arena); free(module); free(src);
+            ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
             if (out_buf) free(out_buf);
             if (pctx_e) pipeline_dep_ctx_heap_destroy(pctx_e);
             return 1;
@@ -297,11 +306,11 @@ int driver_run_x_emit_c(void) {
                                       ".x -E dependency context/output allocation failed", NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
-                for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                 while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx_e);
-                free(arena); free(module); free(src);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                 return 1;
             }
             shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
@@ -318,7 +327,7 @@ int driver_run_x_emit_c(void) {
                     pipeline_diag_import_open_fail_once(dep_paths[j], resolved);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
-                    for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                    for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                     while (n_deps > 0) {
                         n_deps--;
                         if (dep_sources[n_deps]) free(dep_sources[n_deps]);
@@ -326,7 +335,7 @@ int driver_run_x_emit_c(void) {
                     }
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx_e);
-                    free(arena); free(module); free(src);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                     return 1;
                 }
                 dep_src = shux_preprocess(raw_view.data, raw_view.length, NULL, 0, &dep_len);
@@ -336,7 +345,7 @@ int driver_run_x_emit_c(void) {
                                  "preprocess failed for import '%s'", dep_paths[j]);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
-                    for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                    for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                     while (n_deps > 0) {
                         n_deps--;
                         if (dep_sources[n_deps]) free(dep_sources[n_deps]);
@@ -344,7 +353,7 @@ int driver_run_x_emit_c(void) {
                     }
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx_e);
-                    free(arena); free(module); free(src);
+                    ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                     return 1;
                 }
             }
@@ -378,7 +387,7 @@ int driver_run_x_emit_c(void) {
                 diag_reportf_with_code(dep_diag_file, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                        "pipeline failed for import '%s' (dep prerun rc=%d)",
                                        dep_paths[j] ? dep_paths[j] : "?", ec_dep);
-                for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
+                for (int di = 0; di < n_deps; di++) { ast_pool_arena_release(dep_arenas[di]); ast_pool_module_release(dep_modules[di]); free(dep_arenas[di]); free(dep_modules[di]); }
                 while (n_deps > 0) {
                     n_deps--;
                     if (dep_sources[n_deps]) free(dep_sources[n_deps]);
@@ -386,7 +395,7 @@ int driver_run_x_emit_c(void) {
                 }
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx_e);
-                free(arena); free(module); free(src);
+                ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena); free(module); free(src);
                 return 1;
             }
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
@@ -414,14 +423,14 @@ int driver_run_x_emit_c(void) {
         if (ec == 0 && out_buf->len > 0) {
             fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
             fflush(stdout);
-            for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
+            for (int j = n_deps - 1; j >= 0; j--) { ast_pool_arena_release(dep_arenas[j]); ast_pool_module_release(dep_modules[j]); free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
                 n_deps--;
                 if (dep_sources[n_deps]) free(dep_sources[n_deps]);
                 free(dep_paths[n_deps]);
             }
         } else {
-            for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
+            for (int j = n_deps - 1; j >= 0; j--) { ast_pool_arena_release(dep_arenas[j]); ast_pool_module_release(dep_modules[j]); free(dep_arenas[j]); free(dep_modules[j]); }
             while (n_deps > 0) {
                 n_deps--;
                 if (dep_sources[n_deps]) free(dep_sources[n_deps]);
@@ -452,7 +461,7 @@ x_emit_c_done:
             emit_ret = 1;
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx_e);
-        free(arena);
+        ast_pool_arena_release(arena); ast_pool_module_release(module); free(arena);
         free(module);
         free(src);
         typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);

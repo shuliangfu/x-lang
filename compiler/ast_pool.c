@@ -647,6 +647,86 @@ static void onefunc_sidecar_free(OneFuncSidecar *sc) {
   memset(sc, 0, sizeof(*sc));
 }
 
+/**
+ * Free all GrowVec data buffers owned by an ArenaSidecar and mark the slot
+ * as unused, so the static `g_arena_sc[]` slot can be reused by a future
+ * arena allocation.
+ *
+ * Why: Without this, every `malloc(arena_sz)` + `parser_parse_into_init`
+ * in the dep loop of `driver_run_x_emit_c` allocates a fresh ArenaSidecar
+ * slot (20 GrowVecs, each with its own calloc'd data buffer) that is never
+ * released — only `free(arena)` (16 bytes) is called, leaking all GrowVec
+ * data. For 50 deps this leaks ~215 MB of init cap alone (pre-INIT_CAP fix)
+ * or ~14 MB (post-INIT_CAP=256); with actual AST nodes it can reach GBs.
+ *
+ * Invariant: caller MUST guarantee the arena is no longer accessed by
+ * typeck/codegen/pipeline. In `driver_run_x_emit_c`, this holds because
+ * the release calls happen after `shux_pipeline_run_x_pipeline_large_stack`
+ * returns (typeck+codegen+emit all done).
+ *
+ * Asm/Perf: O(20) grow_vec_free calls (each is a free()+memset). Negligible
+ * vs. the malloc/parse cost. The slot's `used` flag is cleared so the next
+ * `arena_sidecar_get(create=1)` can reuse it instead of advancing to the
+ * next free slot (preventing MAX_ARENA_SIDECARS=512 exhaustion).
+ *
+ * PLATFORM: SHARED — affects mac arm64 + Ubuntu x86_64 (any pipeline_x.o
+ * rebuild; ast_pool.c is #included by pipeline_glue.c).
+ */
+static void arena_sidecar_free(ArenaSidecar *sc) {
+  if (!sc)
+    return;
+  grow_vec_free(&sc->types);
+  grow_vec_free(&sc->exprs);
+  grow_vec_free(&sc->blocks);
+  grow_vec_free(&sc->funcs);
+  grow_vec_free(&sc->consts);
+  grow_vec_free(&sc->lets);
+  grow_vec_free(&sc->ifs);
+  grow_vec_free(&sc->regions);
+  grow_vec_free(&sc->loops);
+  grow_vec_free(&sc->for_loops);
+  grow_vec_free(&sc->defer_block_refs);
+  grow_vec_free(&sc->labeled_stmts);
+  grow_vec_free(&sc->expr_stmt_refs);
+  grow_vec_free(&sc->stmt_order);
+  grow_vec_free(&sc->expr_call_arg_refs);
+  grow_vec_free(&sc->expr_method_call_arg_refs);
+  grow_vec_free(&sc->expr_match_arms);
+  grow_vec_free(&sc->expr_struct_lit_fields);
+  grow_vec_free(&sc->expr_array_lit_elem_refs);
+  grow_vec_free(&sc->func_params);
+  memset(sc, 0, sizeof(*sc));
+}
+
+/**
+ * Free all GrowVec data buffers owned by a ModuleSidecar and mark the slot
+ * as unused, so the static `g_module_sc[]` slot can be reused.
+ *
+ * Why: Same leak pattern as ArenaSidecar — `free(module)` (sizeof Module)
+ * does not release the 11 GrowVec data buffers in the ModuleSidecar slot.
+ *
+ * Invariant: caller MUST guarantee the module is no longer accessed by
+ * typeck/codegen/pipeline. See `arena_sidecar_free` above.
+ *
+ * PLATFORM: SHARED — same as `arena_sidecar_free`.
+ */
+static void module_sidecar_free(ModuleSidecar *sc) {
+  if (!sc)
+    return;
+  grow_vec_free(&sc->funcs);
+  grow_vec_free(&sc->func_refs);
+  grow_vec_free(&sc->imports);
+  grow_vec_free(&sc->struct_layouts);
+  grow_vec_free(&sc->top_level_lets);
+  grow_vec_free(&sc->type_aliases);
+  grow_vec_free(&sc->module_enums);
+  grow_vec_free(&sc->import_select_name_rows);
+  grow_vec_free(&sc->import_select_name_lens);
+  grow_vec_free(&sc->func_params);
+  grow_vec_free(&sc->struct_layout_fields);
+  memset(sc, 0, sizeof(*sc));
+}
+
 static struct ast_Block *block_at(struct ast_ASTArena *a, int32_t br) {
   ArenaSidecar *sc;
   if (!a || br <= 0 || br > a->num_blocks)
@@ -1110,6 +1190,57 @@ void ast_pool_arena_reset(struct ast_ASTArena *a) {
   sc->expr_struct_lit_fields.len = 0;
   sc->expr_array_lit_elem_refs.len = 0;
   sc->func_params.len = 0;
+}
+
+/**
+ * Release (free) all GrowVec data buffers associated with the given arena
+ * and mark its ArenaSidecar slot as unused so it can be reused.
+ *
+ * Why: `free(arena)` only releases the 16-byte `struct ast_ASTArena`;
+ * the 20 GrowVec data buffers (types/exprs/blocks/funcs/...) in the
+ * ArenaSidecar slot are leaked. This API releases them.
+ *
+ * Invariant: caller MUST guarantee `a` is no longer accessed by
+ * typeck/codegen/pipeline. Safe to call with NULL or untracked arena
+ * (no-op if no ArenaSidecar slot matches).
+ *
+ * PLATFORM: SHARED — see `arena_sidecar_free`.
+ */
+void ast_pool_arena_release(struct ast_ASTArena *a) {
+  int i;
+  if (!a)
+    return;
+  for (i = 0; i < MAX_ARENA_SIDECARS; i++) {
+    if (g_arena_sc[i].used && g_arena_sc[i].arena == a) {
+      arena_sidecar_free(&g_arena_sc[i]);
+      return;
+    }
+  }
+}
+
+/**
+ * Release (free) all GrowVec data buffers associated with the given module
+ * and mark its ModuleSidecar slot as unused so it can be reused.
+ *
+ * Why: `free(module)` only releases `sizeof(struct ast_Module)`; the 11
+ * GrowVec data buffers (funcs/imports/struct_layouts/...) in the
+ * ModuleSidecar slot are leaked. This API releases them.
+ *
+ * Invariant: caller MUST guarantee `m` is no longer accessed by
+ * typeck/codegen/pipeline. Safe to call with NULL or untracked module.
+ *
+ * PLATFORM: SHARED — see `module_sidecar_free`.
+ */
+void ast_pool_module_release(struct ast_Module *m) {
+  int i;
+  if (!m)
+    return;
+  for (i = 0; i < MAX_MODULE_SIDECARS; i++) {
+    if (g_module_sc[i].used && g_module_sc[i].module == m) {
+      module_sidecar_free(&g_module_sc[i]);
+      return;
+    }
+  }
 }
 
 void ast_pool_onefunc_reset(uint8_t *out) {
