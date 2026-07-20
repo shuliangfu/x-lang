@@ -15,17 +15,17 @@ elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux_asm ]; th
 fi
 
 # 正例：基础 f32/f64、0.0、整字面量 0
-$SHUX tests/float/f32_f64.x -o /tmp/shux_float 2>&1
+$SHUX build tests/float/f32_f64.x -o /tmp/shux_float 2>&1
 exitcode=0; /tmp/shux_float >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (f32_f64), got $exitcode"; exit 1; }
 
 # 正例：科学计数法、.5
-$SHUX tests/float/scientific_and_dot.x -o /tmp/shux_float2 2>&1
+$SHUX build tests/float/scientific_and_dot.x -o /tmp/shux_float2 2>&1
 exitcode=0; /tmp/shux_float2 >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (scientific_and_dot), got $exitcode"; exit 1; }
 
 # 正例：边界 0.0、const 1e2、.25
-$SHUX tests/float/boundary.x -o /tmp/shux_float_boundary 2>&1
+$SHUX build tests/float/boundary.x -o /tmp/shux_float_boundary 2>&1
 exitcode=0; /tmp/shux_float_boundary >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected 0 (boundary), got $exitcode"; exit 1; }
 

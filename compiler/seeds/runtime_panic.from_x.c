@@ -5,6 +5,7 @@
 /* runtime_panic.c — 提供 shux_panic_，链 libc 时调用 abort；供 -backend asm 链接用（Linux 可用 .s 不链 libc）。
  * Freestanding / 弱化 libc 路线见 compiler/docs/SELFHOST.md §6 与 src/asm/runtime_panic_x86_64.s（若存在）。
  * SAFE-007：弱符号证据收集，强符号由 runtime_backtrace_platform.o 提供。 */
+#include <shux_weak.h>
 #include <stdlib.h>
 #include <stdio.h>
 #ifdef _WIN32
@@ -61,12 +62,12 @@ void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
   shux_crash_evidence_minimal_impl(has_msg, msg_val);
 }
 #else
-__attribute__((weak)) void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
+SHUX_WEAK void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
   shux_crash_evidence_minimal_impl(has_msg, msg_val);
 }
 #endif
 
-__attribute__((weak)) int io_register_buffers_buf_c(const void *bufs, int nr) {
+SHUX_WEAK int io_register_buffers_buf_c(const void *bufs, int nr) {
   (void)bufs;
   (void)nr;
   return -1;

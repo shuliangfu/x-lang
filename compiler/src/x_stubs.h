@@ -36,6 +36,16 @@ extern ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count);
 extern ptrdiff_t fs_posix_write_c(int32_t fd, uint8_t *buf, size_t count);
 extern int32_t fs_posix_close_c(int32_t fd);
 
+/* ---- Windows POSIX env shim ----
+ * Why: driver_gen.c (force-included via -include x_stubs.h) calls setenv
+ *      at L559 but doesn't include <unistd.h>. MinGW <stdlib.h> declares
+ *      _putenv_s but not setenv. This block provides setenv/unsetenv as
+ *      static inline wrappers calling _putenv_s. Guarded so that if the
+ *      same .c file also includes <unistd.h> (which includes the same
+ *      header), there's no duplicate static inline definition.
+ * PLATFORM: WINDOWS | MSYS | MINGW (no-op on POSIX via _WIN32 guard). */
+#include <shux_posix_env.h>
+
 #ifdef __cplusplus
 }
 #endif

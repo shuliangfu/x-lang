@@ -8,7 +8,7 @@ SRC="tests/mem/bce_array.x"
 OUT="/tmp/shux_bce_array"
 C_OUT="/tmp/shux_bce_array.c"
 rm -f "$OUT" "$C_OUT"
-if ! "$SHUX" -E "$SRC" >"$C_OUT" 2>/tmp/shux_bce_emit.log; then
+if ! "$SHUX" build -E "$SRC" >"$C_OUT" 2>/tmp/shux_bce_emit.log; then
   echo "bce-gate FAIL: emit failed" >&2
   tail -8 /tmp/shux_bce_emit.log 2>/dev/null || true
   exit 1

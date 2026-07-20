@@ -41,18 +41,10 @@
  * 与 main.c 关系：main.c 仅保留极简 main() 调 main_entry；本文件承载全部 C 侧驱动与 I/O，与 main.x 一一对应构建 shux。
  * 阶段 10 方向：逐步收成薄壳（入口、ABI、`-E` 桥接）；业务逻辑已迁 .x（pipeline/driver/LSP）；日常构建入口见仓库根目录 build.x + compiler/build_tool。
  */
+#include <shux_weak.h>
 
 #include "win32_compat.h"
 
-/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
- * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #define SHUX_TMP_PREFIX "/tmp/shux_"
@@ -311,19 +303,19 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#ifndef _WIN32
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
-#include <sys/wait.h>
-#endif
 #include <fcntl.h>
-#ifndef _WIN32
-#include <sys/resource.h>
-#endif
 #include <sys/stat.h>
-#ifndef _WIN32
 #include <sys/time.h>
-#endif
+
+#ifndef _WIN32
+#include <sys/wait.h>
+#include <sys/resource.h>
 #endif
 #include <sys/stat.h>
 #include <pthread.h>
@@ -507,9 +499,9 @@ int write_io_net_abi_inline(FILE *cf) {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
         "#include <stdint.h>\n",
-        "#include <unistd.h>\n",
-        "#include <sys/uio.h>\n",
-        "#include <poll.h>\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <unistd.h>\n#else\n#include <io.h>\n#include <sys/types.h>\n#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <sys/uio.h>\n#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <poll.h>\n#endif\n",
         /*
          * PLATFORM: POSIX — product -o co-emit of std.fs.posix uses bare O_*, S_IF*,
          * PROT_*, MAP_*, FS_IOV_BUF_MAX, DIRENT_D_NAME_OFF and bare fs_libc_open, plus
@@ -543,18 +535,22 @@ int write_io_net_abi_inline(FILE *cf) {
         "#if defined(__APPLE__)\n#define DIRENT_D_NAME_OFF ((size_t)21)\n"
         "#else\n#define DIRENT_D_NAME_OFF ((size_t)19)\n#endif\n"
         "#endif\n"
+        /* PLATFORM: POSIX — MinGW io.h already declares `int open(const char*, int, ...)`
+         * which conflicts with our `extern int32_t open(uint8_t*, int32_t, int32_t)`. MinGW
+         * also lacks fcntl/madvise/__error/__errno_location. Gate the whole POSIX extern
+         * block (plus fs_libc_open wrapper + fs_note_last_error_posix alias macro) behind
+         * _WIN32. Windows std.fs layer uses native Win32 APIs (CreateFile/ReadFile). */
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "#if defined(__APPLE__)\nextern int *__error(void);\n"
         "#else\nextern int *__errno_location(void);\n#endif\n"
-        /* Match Shux extern "C" fcntl/madvise ABI (int32_t), not libc fcntl(int,...)/madvise.
-         * libc prototypes conflict with co-emit std.net.udp etc. (mac L4 run-net red). */
         "extern int32_t fcntl(int32_t fd, int32_t cmd, int32_t arg);\n"
         "extern int32_t madvise(uint8_t *addr, size_t len, int32_t advice);\n"
         "extern int32_t open(uint8_t *path, int32_t flags, int32_t mode);\n"
         "static inline int32_t fs_libc_open(uint8_t *path, int32_t flags, int32_t mode) {\n"
         "  return open(path, flags, mode);\n"
         "}\n"
-        /* Same-module calls may emit bare fs_note_last_error_posix; body is mangled. */
-        "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n",
+        "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n"
+        "#endif\n",
         /* std.io.sync 调用 shux_sys_*：与 unistd 解耦，内部 cast 到系统 iovec/pollfd。 */
         "static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return read((int)fd, (void *)buf, count);\n"
@@ -562,15 +558,24 @@ int write_io_net_abi_inline(FILE *cf) {
         "static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return write((int)fd, (const void *)buf, count);\n"
         "}\n",
+        /* PLATFORM: POSIX — MinGW lacks readv/writev/poll and the types struct iovec,
+         * struct pollfd, nfds_t. Gate each inline behind _WIN32. Windows std.io.sync /
+         * std.net use shux_sys_read/write (provided by MinGW io.h). */
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
+        "#if !defined(_WIN32) && !defined(_WIN64)\n"
         "static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
-        "}\n",
+        "}\n"
+        "#endif\n",
         "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
@@ -1171,12 +1176,16 @@ int run_compiler_c(int argc, char **argv);
 
 #endif /* SHUX_USE_X_PIPELINE */
 
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            include/poll.h and include/sys/uio.h shims also available.
+ *            macOS/Linux delegate to system headers via #include_next.
+ *            Historical #ifndef _WIN32 guard removed for safe includes. */
 #include <unistd.h>
-#include <sys/wait.h>
+
 #ifndef _WIN32
+#include <sys/wait.h>
 #include <sys/utsname.h>
-#endif
 #endif
 
 #define MAX_ALL_DEPS 128
@@ -2491,7 +2500,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     }
                 }
                 fclose(cf_lib);
-                char tmp_lib_c[32];
+                char tmp_lib_c[256];
                 snprintf(tmp_lib_c, sizeof(tmp_lib_c), "%s.c", tmp_lib);
                 if (rename(tmp_lib, tmp_lib_c) != 0) {
                     runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp_lib, tmp_lib_c);
@@ -2671,7 +2680,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             /* codegen 跳过 std.io.print(ptr,len)；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_u8_ptr_usize。 */
             fprintf(cf, "__attribute__((weak)) int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {\n");
             fprintf(cf, "  if (!ptr || len == 0) return 0;\n");
-            fprintf(cf, "  return (fwrite(ptr, 1, len, stdout) == len) ? (int32_t)len : -1;\n");
+            fprintf(cf, "  return (fwrite(ptr, 1, len, stdout) == len) ? 0 : -1;\n");
             fprintf(cf, "}\n");
             /* 纯 .x io 烟测：无 io.o 时 weak read/write 走 stdio，handle 0/1/2 与 stdin/stdout/stderr 一致。 */
             fprintf(cf, "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
@@ -3019,7 +3028,7 @@ int run_compiler_x_path(int argc, char **argv) {
     typeck_ndep = 0;
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
     char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
-    char tmp_c[32];
+    char tmp_c[256];
     int fd = -1;
     FILE *cf;
     if (emit_to_stdout) {
@@ -3032,20 +3041,21 @@ int run_compiler_x_path(int argc, char **argv) {
             free(arena); free(module); free(src);
             return 1;
         }
-        cf = fdopen(fd, "w");
-        if (!cf) {
-            runtime_diag_errno_path(input_path, "build error", "fdopen", tmp);
-            close(fd);
+        /* PLATFORM: WINDOWS | POSIX — close fd BEFORE rename; Windows forbids
+         * renaming a file held open (POSIX allows it). Reopen after rename. */
+        close(fd);
+        snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
+        if (rename(tmp, tmp_c) != 0) {
+            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
             unlink(tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
         }
-        snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
-        if (rename(tmp, tmp_c) != 0) {
-            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
-            unlink(tmp);
-            fclose(cf);
+        cf = fopen(tmp_c, "w");
+        if (!cf) {
+            runtime_diag_errno_path(input_path, "build error", "fopen", tmp_c);
+            unlink(tmp_c);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
@@ -3560,7 +3570,7 @@ int driver_fs_open_read_path(const uint8_t *path, int path_len) {
     char buf[512];
     memcpy(buf, path, (size_t)path_len);
     buf[path_len] = '\0';
-    return open(buf, O_RDONLY);
+    return open(buf, O_RDONLY, 0);
 }
 
 
@@ -3825,7 +3835,27 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (!src)
         return 1;
     diag_set_file(input_path, src, src_len);
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(SHUX_NO_C_FRONTEND) && !defined(SHUX_USE_X_PIPELINE)
+    /*
+     * Why: Both C-frontend fallback paths (smoke + check) require the deleted
+     *      C frontend (parse / typeck_module / driver_c_typeck_entry). With
+     *      SHUX_USE_X_PIPELINE defined (default on all current modes:
+     *      macOS no_c, Linux no_c, Windows LEGACY), these paths are dead and
+     *      must NOT be compiled: on Windows PE/MinGW SHUX_WEAK expands to
+     *      empty, so the weak stubs in runtime_driver_strict_glue_stubs.o
+     *      (parse, typeck_module, driver_c_frontend_smoke_impl) become STRONG
+     *      defs. With --allow-multiple-definition the stub `parse()` returns
+     *      -1 → driver_c_frontend_smoke returns 1 → silent exit=1 on every
+     *      `shux -c file.x` invocation. Guarding with !SHUX_USE_X_PIPELINE
+     *      (matching the existing inner guard on driver_c_typeck_entry) makes
+     *      `-c file.x` route through the X pipeline exactly as on macOS no_c.
+     * Invariant: When SHUX_USE_X_PIPELINE is defined, the X pipeline path
+     *            (parser_parse_into_init + parser_parse_into_buf) handles
+     *            `-c file.x` smoke and `shux check` alike; this entire
+     *            block is skipped.
+     * PLATFORM: SHARED — guard applies on all platforms; verified macOS arm64
+     *           (no_c + LEGACY) and Windows MSYS x86_64.
+     */
     /* 无 -o 烟测走 C 前端（含 import 时 X asm parse 易 0 func）；shux check 不走烟测。 */
     if (out_path == NULL && !driver_check_only_get()) {
         int smoke_rc = driver_c_frontend_smoke(input_path, src, lib_roots_arr, n_lib_roots);
@@ -3836,13 +3866,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      * shux check + asm 后端：优先走下方 X pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
      * 无 X pipeline 时回退 C typeck。
      */
-#if !defined(SHUX_USE_X_PIPELINE)
     if (driver_check_only_get()) {
         int ck = driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
         free(src);
         return ck;
     }
-#endif
 #endif
     size_t arena_sz = pipeline_sizeof_arena();
     size_t module_sz = pipeline_sizeof_module();
@@ -5173,7 +5201,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         }
                     }
                     fclose(cf_lib);
-                    char tmp_lib_c[32];
+                    char tmp_lib_c[256];
                     snprintf(tmp_lib_c, sizeof(tmp_lib_c), "%s.c", tmp_lib);
                     if (rename(tmp_lib, tmp_lib_c) != 0) {
                         runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp_lib, tmp_lib_c);
@@ -5187,11 +5215,25 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         return 1;
                     }
                     {
-                        #ifdef _WIN32
-        runtime_diag("build error", "fork not supported on Windows", input_path); return -1;
-#else
-        pid_t cpid = fork();
                         int cc_ok = 0;
+#ifdef _WIN32
+                        /* Why: Windows has no fork(); use _spawnvp (POSIX spawn
+                         *      equivalent). Aligns with the same pattern at line
+                         *      ~2504 (driver_run_compiler_parsed) — single
+                         *      authoritative path for "cc -c library module".
+                         * Invariant: _spawnvp(_P_WAIT, ...) blocks until child
+                         *            exits and returns the child's exit code.
+                         * PLATFORM: WINDOWS | MSYS | MINGW. */
+                        const char *cc_args[] = {"gcc", "-std=gnu11", "-Wall", "-Wextra", "-c", "-o",
+                                                 (char *)out_path, tmp_lib_c, NULL};
+                        intptr_t spawn_rc = _spawnvp(_P_WAIT, "gcc", cc_args);
+                        if (spawn_rc != 0) {
+                            diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                                        "cc -c failed for library module", NULL);
+                            cc_ok = -1;
+                        }
+#else
+                        pid_t cpid = fork();
                         if (cpid < 0) {
                             runtime_diag_errno_path(input_path, "build error", "fork (cc -c)", out_path);
                             cc_ok = -1;
@@ -5202,14 +5244,14 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                             _exit(127);
                         } else {
                             int status = 0;
-                            #endif
-                        if (shu_waitpid_retry(cpid, &status) != 0 ||
+                            if (shu_waitpid_retry(cpid, &status) != 0 ||
                                 !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                                 diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
                                             "cc -c failed for library module", NULL);
                                 cc_ok = -1;
                             }
                         }
+#endif
                         if (cc_ok != 0)
                             diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                                          "cc failed, keeping generated C: %s", tmp_lib_c);
@@ -5332,7 +5374,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 }
             }
             fclose(cf);
-            char tmp_c[32];
+            char tmp_c[256];
             snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
             if (rename(tmp, tmp_c) != 0) {
                 runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
@@ -5514,7 +5556,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     typeck_ndep = 0;
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
     char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
-    char tmp_c[32];
+    char tmp_c[256];
     int fd = -1;
     FILE *cf;
     if (emit_to_stdout) {
@@ -5527,20 +5569,21 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(arena); free(module); free(src);
             return 1;
         }
-        cf = fdopen(fd, "w");
-        if (!cf) {
-            runtime_diag_errno_path(input_path, "build error", "fdopen", tmp);
-            close(fd);
+        /* PLATFORM: WINDOWS | POSIX — close fd BEFORE rename; Windows forbids
+         * renaming a file held open (POSIX allows it). Reopen after rename. */
+        close(fd);
+        snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
+        if (rename(tmp, tmp_c) != 0) {
+            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
             unlink(tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
         }
-        snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
-        if (rename(tmp, tmp_c) != 0) {
-            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
-            unlink(tmp);
-            fclose(cf);
+        cf = fopen(tmp_c, "w");
+        if (!cf) {
+            runtime_diag_errno_path(input_path, "build error", "fopen", tmp_c);
+            unlink(tmp_c);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
@@ -6971,40 +7014,157 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
  */
 #ifndef SHUX_RT_RUN_EXEC_FROM_X
 void driver_print_usage_c(void) {
-    static const char usage[] =
-        "Shux (shux) compiler\n"
-        "\n"
-        "Usage:\n"
-        "  shux [options] file.x          compile and run\n"
-        "  shux build [file.x] [-o exe]   compile (default a.out)\n"
-        "  shux run file.x                compile and run\n"
-        "  shux check [paths...]           parse + typeck only\n"
-        "  shux fmt [--check] [paths...]   format .x sources\n"
-        "  shux explain <CODE>             explain a diagnostic code\n"
-        "  shux test [script.sh]           run test script\n"
-        "\n"
-        "Common options:\n"
-        "  -backend asm|c    backend (default asm)\n"
-        "  -O <0|1|2|3|s>    optimization (default 2)\n"
-        "  -o <path>         output binary or .o\n"
-        "  -L <dir>          library search path\n"
-        "  -target <triple>  target (e.g. aarch64-linux-gnu)\n"
-        "  -target-cpu <cpu> native|generic|avx2|...\n"
-        "  --print-target-cpu  print host CPU features and exit\n"
-        "  --explain <CODE>   print diagnostic code explanation and exit\n"
-        "  -freestanding     nostdlib static link (Linux x86_64 ELF)\n"
-        "  -legacy-f32-abi   legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
-        "  -E                emit C (debug)\n"
-        "  -flto              link-time optimization (C backend)\n"
-        "  -h, --help         show this help\n"
-        "\n"
-        "Environment:\n"
-        "  SHUX_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
-        "  SHUX_OPT          default -O level if omitted\n"
-        "\n"
-        "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
-        "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
-    (void)write(STDOUT_FILENO, usage, sizeof(usage) - 1u);
+    /* §13 Color policy (see analysis/SHUX 命令行.md §13):
+     *   NO_COLOR (any value, even empty)         -> no color  (https://no-color.org)
+     *   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy -> force color even when piped
+     *   otherwise                                -> isatty(STDOUT_FILENO)
+     * Forward-declare isatty so the body stays identical to driver_print_usage_write
+     * in runtime_driver_abi.from_x.c (AGENTS.md §4 — no dual authority drift). */
+    extern int isatty(int fd);
+    const char *no_color = getenv("NO_COLOR");
+    const char *force = getenv("CLICOLOR_FORCE");
+    const char *shux_force = getenv("SHUX_FORCE_COLOR");
+    int use_color;
+    if (no_color != (const char *)0) {
+        use_color = 0;
+    } else if ((force != (const char *)0 && force[0] != 0 && force[0] != '0') ||
+               (shux_force != (const char *)0 && shux_force[0] != 0 && shux_force[0] != '0')) {
+        use_color = 1;
+    } else {
+        use_color = isatty(STDOUT_FILENO);
+    }
+    /* Deno-style help layout: yellow section headers, blue subcommand names,
+     * yellow flags, two-column alignment with description column.
+     * Kept identical to driver_print_usage_write in runtime_driver_abi.from_x.c
+     * per AGENTS.md §4 (no dual authority drift). */
+static const char usage_plain[] =
+    "Shux compiler\n"
+    "\n"
+    "Usage: shux [COMMAND] [OPTIONS]\n"
+    "\n"
+    "Subcommands:\n"
+    "\n"
+    "  build\n"
+    "    Compile .x to binary/object (default a.out)\n"
+    "    Usage: shux build [options] file.x [-o exe]\n"
+    "    Options:\n"
+    "      -backend asm|c                    Backend (default asm)\n"
+    "      -O <0|1|2|3|s>                    Optimization level (default 2)\n"
+    "      -o <path>                         Output binary or .o\n"
+    "      -L <dir>                          Library search path\n"
+    "      -target <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      -target-cpu <cpu>                 native|generic|avx2|...\n"
+    "      -freestanding                     Nostdlib static link (Linux x86_64 ELF)\n"
+    "      -legacy-f32-abi                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "      -E                                Emit C (debug)\n"
+    "      -flto                             Link-time optimization (C backend)\n"
+    "\n"
+    "  run\n"
+    "    Compile and run .x\n"
+    "    Usage: shux run [options] file.x\n"
+    "    Options:\n"
+    "      -backend asm|c                    Backend (default asm)\n"
+    "      -O <0|1|2|3|s>                    Optimization level (default 2)\n"
+    "      -o <path>                         Output binary or .o\n"
+    "      -L <dir>                          Library search path\n"
+    "      -target <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      -target-cpu <cpu>                 native|generic|avx2|...\n"
+    "      -legacy-f32-abi                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "\n"
+    "  check\n"
+    "    Parse + typeck only (no codegen)\n"
+    "    Usage: shux check [paths...]\n"
+    "\n"
+    "  fmt\n"
+    "    Format .x sources\n"
+    "    Usage: shux fmt [--check] [paths...]\n"
+    "\n"
+    "  explain\n"
+    "    Explain a diagnostic code\n"
+    "    Usage: shux explain <CODE>\n"
+    "\n"
+    "  test\n"
+    "    Run test script\n"
+    "    Usage: shux test [script.sh]\n"
+    "\n"
+    "Global options:\n"
+    "  --print-target-cpu                    Print host CPU features and exit\n"
+    "  --explain <CODE>                      Print diagnostic code explanation and exit\n"
+    "  --help, -h                            Show this help\n"
+    "\n"
+    "Environment:\n"
+    "  SHUX_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
+    "  SHUX_OPT                              Default -O level if omitted\n"
+    "  NO_COLOR                              Disable color output\n"
+    "  CLICOLOR_FORCE=1                      Force color output even when piped\n"
+    "  SHUX_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
+    "\n"
+    "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+    "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
+static const char usage_color[] =
+    "\033[32mShux compiler\033[0m\n"
+    "\n"
+    "\033[32mUsage:\033[0m shux [OPTIONS] [COMMAND]\n"
+    "\n"
+    "  \033[34mbuild\033[0m   Compile .x to binary/object\n"
+    "      \033[32m-backend\033[0m asm|c                    Backend \033[90m(default asm)\033[0m\n"
+    "      \033[32m-O\033[0m <0|1|2|3|s>                    Optimization level \033[90m(default 2)\033[0m\n"
+    "      \033[32m-o\033[0m <path>                         Output binary or .o\n"
+    "      \033[32m-L\033[0m <dir>                          Library search path\n"
+    "      \033[32m-target\033[0m <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      \033[32m-target-cpu\033[0m <cpu>                 native|generic|avx2|...\n"
+    "      \033[32m-freestanding\033[0m                     Nostdlib static link (Linux x86_64 ELF)\n"
+    "      \033[32m-legacy-f32-abi\033[0m                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "      \033[32m-E\033[0m                                Emit C (debug)\n"
+    "      \033[32m-flto\033[0m                             Link-time optimization (C backend)\n"
+    "\n"
+    "  \033[34mrun\033[0m\n"
+    "    Compile and run .x\n"
+    "    Usage: shux run [options] file.x\n"
+    "    Options:\n"
+    "      \033[32m-backend\033[0m asm|c                    Backend \033[90m(default asm)\033[0m\n"
+    "      \033[32m-O\033[0m <0|1|2|3|s>                    Optimization level \033[90m(default 2)\033[0m\n"
+    "      \033[32m-o\033[0m <path>                         Output binary or .o\n"
+    "      \033[32m-L\033[0m <dir>                          Library search path\n"
+    "      \033[32m-target\033[0m <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      \033[32m-target-cpu\033[0m <cpu>                 native|generic|avx2|...\n"
+    "      \033[32m-legacy-f32-abi\033[0m                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "\n"
+    "  \033[34mcheck\033[0m\n"
+    "    Parse + typeck only (no codegen)\n"
+    "    Usage: shux check [paths...]\n"
+    "\n"
+    "  \033[34mfmt\033[0m\n"
+    "    Format .x sources\n"
+    "    Usage: shux fmt [--check] [paths...]\n"
+    "\n"
+    "  \033[34mexplain\033[0m\n"
+    "    Explain a diagnostic code\n"
+    "    Usage: shux explain <CODE>\n"
+    "\n"
+    "  \033[34mtest\033[0m\n"
+    "    Run test script\n"
+    "    Usage: shux test [script.sh]\n"
+    "\n"
+    "\033[32mGlobal options:\033[0m\n"
+    "  \033[32m--print-target-cpu\033[0m                    Print host CPU features and exit\n"
+    "  \033[32m--explain\033[0m <CODE>                      Print diagnostic code explanation and exit\n"
+    "  \033[32m--help, -h\033[0m                            Show this help\n"
+    "\n"
+    "\033[32mEnvironment:\033[0m\n"
+    "  SHUX_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
+    "  SHUX_OPT                              Default -O level if omitted\n"
+    "  NO_COLOR                              Disable color output\n"
+    "  CLICOLOR_FORCE=1                      Force color output even when piped\n"
+    "  SHUX_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
+    "\n"
+    "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+    "See \033[4;34mcompiler/docs/F32_XMM_ABI.md\033[0m for f32 ABI and deprecation timeline.\n";
+    if (use_color) {
+        (void)write(STDOUT_FILENO, usage_color, sizeof(usage_color) - 1u);
+    } else {
+        (void)write(STDOUT_FILENO, usage_plain, sizeof(usage_plain) - 1u);
+    }
 }
 #else
 void driver_print_usage_c(void);

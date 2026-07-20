@@ -8,7 +8,7 @@ SRC="tests/vec/autovec_sum_while.x"
 OUT="/tmp/shux_autovec_sum_while"
 C_OUT="/tmp/shux_autovec_sum_while.c"
 rm -f "$OUT" "$C_OUT"
-if ! "$SHUX" -E "$SRC" >"$C_OUT" 2>/tmp/shux_autovec_v2_emit.log; then
+if ! "$SHUX" build -E "$SRC" >"$C_OUT" 2>/tmp/shux_autovec_v2_emit.log; then
   echo "autovec-v2-gate FAIL: emit failed" >&2
   tail -8 /tmp/shux_autovec_v2_emit.log 2>/dev/null || true
   exit 1
@@ -21,7 +21,7 @@ if grep -qE 'while \(.*<.*\) \{[^}]*s = s \+ .*ap\)\[i\]' "$C_OUT"; then
   echo "autovec-v2-gate FAIL: scalar while sum loop still present" >&2
   exit 1
 fi
-if SHUX_NO_AUTovec=1 "$SHUX" -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
+if SHUX_NO_AUTovec=1 "$SHUX" build -E "$SRC" >"${C_OUT}.scalar" 2>/dev/null; then
   if ! grep -qE 'while \(.*<.*\)' "${C_OUT}.scalar"; then
     echo "autovec-v2-gate WARN: SHUX_NO_AUTovec=1 did not preserve scalar while loop" >&2
   fi

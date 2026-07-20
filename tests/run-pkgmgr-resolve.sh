@@ -27,7 +27,7 @@ native_shu() {
 if [ -n "$SHUX" ] && native_shu "$SHUX"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   EXE="/tmp/shux_pkgmgr_demo_$$"
-  if ! "$SHUX" -L . "$MAIN" -o "$EXE" 2>&1; then
+  if ! "$SHUX" build -L . "$MAIN" -o "$EXE" 2>&1; then
     echo "run-pkgmgr-resolve FAIL: compile $MAIN" >&2
     rm -f "$EXE"
     exit 1

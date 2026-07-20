@@ -2,6 +2,7 @@
  * G-02f-104 helper gates.
  * Product: ../std/net/net_sock_fast.o; logic still C until full .x port.
  */
+#include <shux_weak.h>
 #include <stdint.h>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -37,12 +38,12 @@ static int32_t *shux_net_errno_ptr(void) { return (int32_t *)__error(); }
 #include <errno.h>
 static int32_t *shux_net_errno_ptr(void) { return (int32_t *)__errno_location(); }
 #endif
-__attribute__((weak)) int32_t *net_tcp_errno_ptr(void) { return shux_net_errno_ptr(); }
-__attribute__((weak)) int32_t *net_tcp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
-__attribute__((weak)) int32_t *net_udp_errno_ptr(void) { return shux_net_errno_ptr(); }
-__attribute__((weak)) int32_t *net_udp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
-__attribute__((weak)) int32_t *net_ipv6_errno_ptr(void) { return shux_net_errno_ptr(); }
-__attribute__((weak)) int32_t *net_ipv6_errno_ptr_c(void) { return shux_net_errno_ptr(); }
+SHUX_WEAK int32_t *net_tcp_errno_ptr(void) { return shux_net_errno_ptr(); }
+SHUX_WEAK int32_t *net_tcp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
+SHUX_WEAK int32_t *net_udp_errno_ptr(void) { return shux_net_errno_ptr(); }
+SHUX_WEAK int32_t *net_udp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
+SHUX_WEAK int32_t *net_ipv6_errno_ptr(void) { return shux_net_errno_ptr(); }
+SHUX_WEAK int32_t *net_ipv6_errno_ptr_c(void) { return shux_net_errno_ptr(); }
 #endif
 
 /*

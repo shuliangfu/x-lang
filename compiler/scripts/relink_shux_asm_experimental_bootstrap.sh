@@ -272,7 +272,7 @@ ensure_parser_parse_bootstrap_asm_obj() {
   if [ -x ./shux_asm2_refreshed ] && file ./shux_asm2_refreshed 2>/dev/null | grep -q "ELF.*x86-64"; then
   _min="/tmp/shux_seed_parse_probe.$$.x"
   printf 'function main(): i32 { return 0; }\n' > "$_min"
-  if ! env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 ./shux -backend asm -o /tmp/shux_seed_probe.$$.o \
+  if ! env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 ./shux build -backend asm -o /tmp/shux_seed_probe.$$.o \
   $PBOOT_LIBROOT "$_min" 2>/dev/null || [ ! -s /tmp/shux_seed_probe.$$.o ]; then
   SHUX_SEED="./shux_asm2_refreshed"
   experimental_bootstrap_warn "./shux parse probe failed - bootstrap seed=$SHUX_SEED"

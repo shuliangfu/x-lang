@@ -1608,6 +1608,12 @@ export function bootstrap_init_environ(argc: i32, argv: *u8): void {
 
 /** Exported function `bootstrap_nostdlib_pthread_is_stub`.
  * Read path helper `bootstrap_nostdlib_pthread_is_stub`.
+ * Returns 1 when pthread large-stack path is unavailable (stub or crashes),
+ * forcing driver_run_thread_on_large_stack to use current-thread path.
+ * PLATFORM: SHARED — POSIX returns 0 (real pthread supports 256MiB custom
+ * stack); WINDOWS returns 1 (winpthreads crash with posix_memalign'd
+ * 256MiB stack during pthread_join cleanup). See seed
+ * seeds/runtime_link_abi.from_x.c for #ifdef _WIN32 branch.
  * @return i32
  */
 #[no_mangle]

@@ -154,10 +154,15 @@ export extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8,
  * See implementation.
  */
 export extern function driver_argv_drop_subcommand(argc: i32, argv: *u8): *u8;
+/* See implementation (seed runtime_link_abi.from_x.c). For `shux run` / bare
+   `shux file.x`: append `-o <temp>` when no -o given so the product is built
+   in /tmp and exec'd, with no a.out and no generated C to stdout. */
+export extern function driver_argv_ensure_run_o(argc: i32, argv: *u8, out_argc: *i32): *u8;
 /* See implementation. */
 export extern function driver_build_build_x(): i32;
 /* See implementation. */
 export extern function driver_exec_compiled(argc: i32, argv: *u8): i32;
+export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
 /* See implementation. */
 export extern function driver_fs_open_read_path(path: *u8, path_len: i32): i32;
 /* See implementation. */
@@ -663,26 +668,26 @@ export function driver_run_x_emit_x(state: *DriverXEmitState): i32 {
       return 1;
     }
     if (len > 262144) {
-      let written: isize = fs_posix_write_c(fd, out.data, 262144);
-      fs_posix_close_c(fd);
+      let written: isize = unsafe { fs_posix_write_c(fd, out.data, 262144) };
+      unsafe { fs_posix_close_c(fd); }
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs_posix_write_c(fd, out.data, len as usize);
-      fs_posix_close_c(fd);
+      let written: isize = unsafe { fs_posix_write_c(fd, out.data, len as usize) };
+      unsafe { fs_posix_close_c(fd); }
       if (written < 0 || (written as i32) != len) {
         return 1;
       }
     }
   } else {
     if (len > 262144) {
-      let written: isize = fs_posix_write_c(1, out.data, 262144);
+      let written: isize = unsafe { fs_posix_write_c(1, out.data, 262144) };
       if (written < 0 || (written as i32) != 262144) {
         return 1;
       }
     } else {
-      let written: isize = fs_posix_write_c(1, out.data, len as usize);
+      let written: isize = unsafe { fs_posix_write_c(1, out.data, len as usize) };
       if (written < 0 || (written as i32) != len) {
         return 1;
       }
@@ -730,17 +735,61 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * See implementation.
+ * `shux run file.x` (and bare `shux file.x` via entry): compile in memory and
+ * run the product directly. No a.out in the cwd and no generated C to stdout.
+ * When no -o is given, driver_argv_ensure_run_o injects a temp /tmp path as
+ * -o so the C/asm backend links a real executable (instead of the no-`-o`
+ * stdout/smoke fallback); driver_exec_compiled then execs that temp. An
+ * explicit -o is honored as compile-only (write to the requested path, do
+ * not exec) so callers like tests/run-*.sh can inspect the binary's exit
+ * code themselves. PLATFORM: SHARED.
  */
 export function main_cmd_run(argc: i32, argv: *u8): i32 {
   if (argc < 2) {
     return 1;
   }
-  let rc: i32 = main_run_compiler_x_path_impl(argc, argv);
+  /* Detect an explicit user-supplied -o before driver_argv_ensure_run_o runs.
+   * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
+   * present, so run_argv alone cannot tell whether the user asked for
+   * compile-only. When -o is explicit, skip the exec path so the compiled
+   * program's exit code does not leak through shux's own exit status. */
+  let has_explicit_o: i32 = main_argv_has_o_flag(argc, argv);
+  let run_argc: i32 = argc;
+  let run_argv: *u8 = driver_argv_ensure_run_o(argc, argv, &run_argc);
+  if (has_explicit_o != 0) {
+    /* Compile-only: do not set SHUX_RUN_QUIET (let cc warnings surface, since
+     * the user explicitly requested an output path) and do not exec. */
+    return main_run_compiler_x_path_impl(run_argc, run_argv);
+  }
+  /* mute generated-C warning noise so only program output is printed; cc
+     errors still surface (SHUX_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
+  /* "SHUX_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
+  let _q: u8[15] = [83, 72, 85, 88, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
+  let _one: u8[2] = [49, 0];
+  unsafe { setenv(&_q[0], &_one[0], 1); }
+  let rc: i32 = main_run_compiler_x_path_impl(run_argc, run_argv);
   if (rc == 0) {
-    return driver_exec_compiled(argc, argv);
+    return driver_exec_compiled(run_argc, run_argv);
   }
   return rc;
+}
+
+/* Returns 1 if any argv[i] (i in [1, argc)) equals "-o" (the canonical short
+ * form for output path), 0 otherwise. Used by main_cmd_run to distinguish
+ * compile-only invocations from in-memory compile-and-run. PLATFORM: SHARED.
+ * Contract: argc >= 1; argv may be null only when argc < 1 (returns 0). */
+function main_argv_has_o_flag(argc: i32, argv: *u8): i32 {
+  let i: i32 = 1;
+  let buf: u8[8] = [];
+  while (i < argc) {
+    let len: i32 = driver_get_argv_i(argc, argv, i, &buf[0], 8);
+    /* "-o" == bytes [45 ('-'), 111 ('o')] */
+    if (len == 2 && buf[0] == 45 && buf[1] == 111) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
 }
 
 /* See implementation. */
@@ -786,6 +835,8 @@ export function entry(argc: i32, argv: *u8): i32 {
       if (str_eq(&arg_buf[0], alen, &w_test[0], 4) != 0) {
         return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
       }
+      driver_print_usage_write();
+      return 1;
     }
   }
   let state: DriverXEmitState = driver_emit_state_default();

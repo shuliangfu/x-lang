@@ -44,6 +44,7 @@
  *         merge flags/env/phase/peek/smoke/stack/defines; C uname + pthread create bulk.
  * .x covers: + argv_collect pure + large_stack orch + entry_len/scan/stack want/path.
  */
+#include <shux_weak.h>
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
@@ -100,15 +101,6 @@ void driver_compile_phase_timing_clear(void);
 #include <stdlib.h>
 #include <string.h>
 
-/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
- * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 #ifndef _WIN32
 #include <sys/time.h>
 #include <sys/utsname.h>
@@ -361,7 +353,7 @@ int32_t driver_fmt_check_only_get(void) {
 }
 #endif
 
-/* 【Why 根源】MinGW PE 格式不真正支持 __attribute__((weak))：weak 函数被当作普通强符号，
+/* 【Why 根源】MinGW PE 格式不真正支持 SHUX_WEAK：weak 函数被当作普通强符号，
  * 与 fmt_check_cmd.c 的强符号并存；--allow-multiple-definition 选第一个遇到的定义，
  * 链接器不保证按 OBJS_CORE 顺序选 fmt_check_cmd.o 的版本。当 weak 版本被选中且返回 0，
  * check 成功后会逐文件打印 "check OK"，与 deno check 静默成功语义矛盾。
@@ -1574,41 +1566,160 @@ char **driver_entry_fmt_argv_slot(void) {
  * 始终提供（不随 RDABI thin 宏剥离）。
  */
 void driver_print_usage_write(void) {
-    static const char usage[] =
-        "Shux (shux) compiler\n"
-        "\n"
-        "Usage:\n"
-        "  shux [options] file.x          compile and run\n"
-        "  shux build [file.x] [-o exe]   compile (default a.out)\n"
-        "  shux run file.x                compile and run\n"
-        "  shux check [paths...]           parse + typeck only\n"
-        "  shux fmt [--check] [paths...]   format .x sources\n"
-        "  shux explain <CODE>             explain a diagnostic code\n"
-        "  shux test [script.sh]           run test script\n"
-        "\n"
-        "Common options:\n"
-        "  -backend asm|c    backend (default asm)\n"
-        "  -O <0|1|2|3|s>    optimization (default 2)\n"
-        "  -o <path>         output binary or .o\n"
-        "  -L <dir>          library search path\n"
-        "  -target <triple>  target (e.g. aarch64-linux-gnu)\n"
-        "  -target-cpu <cpu> native|generic|avx2|...\n"
-        "  --print-target-cpu  print host CPU features and exit\n"
-        "  --explain <CODE>   print diagnostic code explanation and exit\n"
-        "  -freestanding     nostdlib static link (Linux x86_64 ELF)\n"
-        "  -legacy-f32-abi   legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
-        "  -E                emit C (debug)\n"
-        "  -flto              link-time optimization (C backend)\n"
-        "  -h, --help         show this help\n"
-        "\n"
-        "Environment:\n"
-        "  SHUX_ABI_F32_XMM=0  same as -legacy-f32-abi (x86_64 SysV)\n"
-        "  SHUX_OPT          default -O level if omitted\n"
-        "\n"
-        "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
-        "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
-    /* fwrite+fflush：避免本 TU 内先手写 extern write 再 #include <unistd.h> 触发 Darwin asm 冲突。 */
-    (void)fwrite(usage, 1, sizeof(usage) - 1u, stdout);
+    /* §13 Color policy (see analysis/SHUX 命令行.md §13):
+     *   NO_COLOR (any value, even empty)         -> no color  (https://no-color.org)
+     *   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy -> force color even when piped
+     *   otherwise                                -> isatty(STDOUT_FILENO)
+     * Forward-declare isatty to avoid pulling <unistd.h> into this TU
+     * (prior note: hand-written extern write + #include <unistd.h> trips Darwin asm). */
+    extern int isatty(int fd);
+    const char *no_color = getenv("NO_COLOR");
+    const char *force = getenv("CLICOLOR_FORCE");
+    const char *shux_force = getenv("SHUX_FORCE_COLOR");
+    int use_color;
+    if (no_color != (const char *)0) {
+        use_color = 0;
+    } else if ((force != (const char *)0 && force[0] != 0 && force[0] != '0') ||
+               (shux_force != (const char *)0 && shux_force[0] != 0 && shux_force[0] != '0')) {
+        use_color = 1;
+    } else {
+        use_color = isatty(1);
+    }
+    /* Deno-style help layout: yellow section headers, blue subcommand names,
+     * yellow flags, two-column alignment with description column. */
+static const char usage_plain[] =
+    "Shux compiler\n"
+    "\n"
+    "Usage: shux [COMMAND] [OPTIONS]\n"
+    "\n"
+    "Subcommands:\n"
+    "\n"
+    "  build\n"
+    "    Compile .x to binary/object (default a.out)\n"
+    "    Usage: shux build [options] file.x [-o exe]\n"
+    "    Options:\n"
+    "      -backend asm|c                    Backend (default asm)\n"
+    "      -O <0|1|2|3|s>                    Optimization level (default 2)\n"
+    "      -o <path>                         Output binary or .o\n"
+    "      -L <dir>                          Library search path\n"
+    "      -target <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      -target-cpu <cpu>                 native|generic|avx2|...\n"
+    "      -freestanding                     Nostdlib static link (Linux x86_64 ELF)\n"
+    "      -legacy-f32-abi                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "      -E                                Emit C (debug)\n"
+    "      -flto                             Link-time optimization (C backend)\n"
+    "\n"
+    "  run\n"
+    "    Compile and run .x\n"
+    "    Usage: shux run [options] file.x\n"
+    "    Options:\n"
+    "      -backend asm|c                    Backend (default asm)\n"
+    "      -O <0|1|2|3|s>                    Optimization level (default 2)\n"
+    "      -o <path>                         Output binary or .o\n"
+    "      -L <dir>                          Library search path\n"
+    "      -target <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      -target-cpu <cpu>                 native|generic|avx2|...\n"
+    "      -legacy-f32-abi                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "\n"
+    "  check\n"
+    "    Parse + typeck only (no codegen)\n"
+    "    Usage: shux check [paths...]\n"
+    "\n"
+    "  fmt\n"
+    "    Format .x sources\n"
+    "    Usage: shux fmt [--check] [paths...]\n"
+    "\n"
+    "  explain\n"
+    "    Explain a diagnostic code\n"
+    "    Usage: shux explain <CODE>\n"
+    "\n"
+    "  test\n"
+    "    Run test script\n"
+    "    Usage: shux test [script.sh]\n"
+    "\n"
+    "Global options:\n"
+    "  --print-target-cpu                    Print host CPU features and exit\n"
+    "  --explain <CODE>                      Print diagnostic code explanation and exit\n"
+    "  --help, -h                            Show this help\n"
+    "\n"
+    "Environment:\n"
+    "  SHUX_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
+    "  SHUX_OPT                              Default -O level if omitted\n"
+    "  NO_COLOR                              Disable color output\n"
+    "  CLICOLOR_FORCE=1                      Force color output even when piped\n"
+    "  SHUX_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
+    "\n"
+    "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+    "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
+static const char usage_color[] =
+    "\033[32mShux compiler\033[0m\n"
+    "\n"
+    "\033[32mUsage:\033[0m shux [COMMAND] [OPTIONS]\n"
+    "\n"
+    "\033[32mSubcommands:\033[0m\n"
+    "\n"
+    "  \033[34mbuild\033[0m\n"
+    "    Compile .x to binary/object (default a.out)\n"
+    "    Usage: shux build [options] file.x [-o exe]\n"
+    "    Options:\n"
+    "      \033[32m-backend\033[0m asm|c                    Backend \033[90m(default asm)\033[0m\n"
+    "      \033[32m-O\033[0m <0|1|2|3|s>                    Optimization level \033[90m(default 2)\033[0m\n"
+    "      \033[32m-o\033[0m <path>                         Output binary or .o\n"
+    "      \033[32m-L\033[0m <dir>                          Library search path\n"
+    "      \033[32m-target\033[0m <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      \033[32m-target-cpu\033[0m <cpu>                 native|generic|avx2|...\n"
+    "      \033[32m-freestanding\033[0m                     Nostdlib static link (Linux x86_64 ELF)\n"
+    "      \033[32m-legacy-f32-abi\033[0m                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "      \033[32m-E\033[0m                                Emit C (debug)\n"
+    "      \033[32m-flto\033[0m                             Link-time optimization (C backend)\n"
+    "\n"
+    "  \033[34mrun\033[0m\n"
+    "    Compile and run .x\n"
+    "    Usage: shux run [options] file.x\n"
+    "    Options:\n"
+    "      \033[32m-backend\033[0m asm|c                    Backend \033[90m(default asm)\033[0m\n"
+    "      \033[32m-O\033[0m <0|1|2|3|s>                    Optimization level \033[90m(default 2)\033[0m\n"
+    "      \033[32m-o\033[0m <path>                         Output binary or .o\n"
+    "      \033[32m-L\033[0m <dir>                          Library search path\n"
+    "      \033[32m-target\033[0m <triple>                  Target triple (e.g. aarch64-linux-gnu)\n"
+    "      \033[32m-target-cpu\033[0m <cpu>                 native|generic|avx2|...\n"
+    "      \033[32m-legacy-f32-abi\033[0m                   Legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
+    "\n"
+    "  \033[34mcheck\033[0m\n"
+    "    Parse + typeck only (no codegen)\n"
+    "    Usage: shux check [paths...]\n"
+    "\n"
+    "  \033[34mfmt\033[0m\n"
+    "    Format .x sources\n"
+    "    Usage: shux fmt [--check] [paths...]\n"
+    "\n"
+    "  \033[34mexplain\033[0m\n"
+    "    Explain a diagnostic code\n"
+    "    Usage: shux explain <CODE>\n"
+    "\n"
+    "  \033[34mtest\033[0m\n"
+    "    Run test script\n"
+    "    Usage: shux test [script.sh]\n"
+    "\n"
+    "\033[32mGlobal options:\033[0m\n"
+    "  \033[32m--print-target-cpu\033[0m                    Print host CPU features and exit\n"
+    "  \033[32m--explain\033[0m <CODE>                      Print diagnostic code explanation and exit\n"
+    "  \033[32m--help, -h\033[0m                            Show this help\n"
+    "\n"
+    "\033[32mEnvironment:\033[0m\n"
+    "  SHUX_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
+    "  SHUX_OPT                              Default -O level if omitted\n"
+    "  NO_COLOR                              Disable color output\n"
+    "  CLICOLOR_FORCE=1                      Force color output even when piped\n"
+    "  SHUX_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
+    "\n"
+    "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+    "See \033[4;34mcompiler/docs/F32_XMM_ABI.md\033[0m for f32 ABI and deprecation timeline.\n";
+    if (use_color) {
+        (void)fwrite(usage_color, 1, sizeof(usage_color) - 1u, stdout);
+    } else {
+        (void)fwrite(usage_plain, 1, sizeof(usage_plain) - 1u, stdout);
+    }
     (void)fflush(stdout);
 }
 
@@ -2756,7 +2867,9 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v) {
     ((struct ast_PipelineDepCtx *)ctx)->skip_codegen_dep_0 = (int)v;
 }
 
-static char g_driver_parsed_tmp_c[64];
+/* PLATFORM: SHARED — 256 bytes matches .x rt_cp_step_open_out malloc(256)
+ * and accommodates Windows long TEMP paths (C:\shux_tmp\shux_shux_x.YZXDC4.c). */
+static char g_driver_parsed_tmp_c[256];
 
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
     char tmp[128];
@@ -2778,25 +2891,28 @@ uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, in
         runtime_diag_errno_path((const char *)(void *)out_path, "build error", "mkstemp", tmp);
         return NULL;
     }
-    cf = fdopen(fd, "w");
-    if (!cf) {
-        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "fdopen", tmp);
-        close(fd);
-        unlink(tmp);
-        return NULL;
-    }
+    /* PLATFORM: WINDOWS | POSIX — Windows forbids renaming a file held open by
+     * fdopen/fopen (POSIX allows it). Close the mkstemp fd BEFORE rename, then
+     * reopen the renamed .c path. Without this, rename fails with
+     * STATUS_SHARING_VIOLATION / "Permission denied" (BLD001). */
+    close(fd);
     snprintf(g_driver_parsed_tmp_c, sizeof(g_driver_parsed_tmp_c), "%s.c", tmp);
     if (rename(tmp, g_driver_parsed_tmp_c) != 0) {
         runtime_diag_errno_path_pair((const char *)(void *)out_path, "build error", "rename", tmp,
                                      g_driver_parsed_tmp_c);
         unlink(tmp);
-        fclose(cf);
+        return NULL;
+    }
+    cf = fopen(g_driver_parsed_tmp_c, "w");
+    if (!cf) {
+        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "fopen", g_driver_parsed_tmp_c);
+        unlink(g_driver_parsed_tmp_c);
         return NULL;
     }
     if (tmp_c_out64) {
         size_t n = strlen(g_driver_parsed_tmp_c);
-        if (n > 63)
-            n = 63;
+        if (n > 255)
+            n = 255;
         memcpy(tmp_c_out64, g_driver_parsed_tmp_c, n);
         tmp_c_out64[n] = 0;
     }

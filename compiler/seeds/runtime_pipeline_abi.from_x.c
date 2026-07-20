@@ -25,6 +25,7 @@
  * G-02f-241: thread_fn bounds + collect process_one + emit prepare bounds.
  * G-02f-242: typeck_module_for_ctx pure; P1-5 soft near-close.
  */
+#include <shux_weak.h>
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_driver_abi.h"
@@ -37,10 +38,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
-
 /** preprocess.x 生成；pipeline/import 与 runtime preprocess() 共用。 */
 extern int32_t preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
 extern void preprocess_define_reset(void);
@@ -1601,7 +1604,7 @@ int driver_asm_fp_is_stdout(FILE *fp) {
 }
 
 /* 产品链与 runtime_driver_abi 同链；driver_abi 为权威定义。弱化避免 Darwin ld 双 T。 */
-__attribute__((weak)) void driver_asm_fflush_stdout(void) {
+SHUX_WEAK void driver_asm_fflush_stdout(void) {
     fflush(stdout);
 }
 
@@ -3452,83 +3455,48 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
 #endif
 }
 
-#ifdef _WIN32
-struct platform_elf_ElfCodegenCtx; /* 前向声明 */
-/* Windows stub: parser_parse_into_init / parser_parse_into / parser_get_module_num_imports / parser_get_module_import_path */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void parser_parse_into_init(uint8_t * module, uint8_t * arena) {
-  (void)(0);
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source) {
-    struct parser_ParseIntoResult r; r.ok = -1; r.main_idx = -1; (void)arena; (void)module; (void)source; return r;
-}
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t parser_get_module_num_imports(uint8_t * module) {
-  return 0;
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void parser_get_module_import_path(uint8_t * module, int32_t idx, uint8_t * path_buf) {
-  if ((path_buf ==((void *)(0)))) {
-    return;
-  }
-  (void)(({   {
-    (void)(((path_buf)[0] = 0));
-  }
- }));
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-/* asm stubs */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void asm_skip_heavy_set_pipeline_ctx(uint8_t * ctx) {
-  (void)(0);
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void pipeline_fill_array_lit_types_for_skipped_typeck(uint8_t * m, uint8_t * a) {
-  (void)(0);
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void pipeline_fill_soa_field_access_for_asm_emit(uint8_t * m, uint8_t * a) {
-  (void)(0);
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void pipeline_module_fixup_with_arena_stmt_orders(uint8_t * m, uint8_t * a) {
-  (void)(0);
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t asm_asm_codegen_elf_o(uint8_t * m, uint8_t * a, uint8_t * c, uint8_t * e, uint8_t * o) {
-  return (0 - 1);
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-/* 更多 pipeline stub */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t pipeline_parse_set_main_from_buf_c(uint8_t * m, uint8_t * a, uint8_t * d, int32_t len) {
-  /* Root: delegate to real parser (parser_x.o), not no-op stub. Without this,
-   * shux_pipeline_run_x_pipeline_large_stack (used by -E/-x -E and asm paths)
-   * never parses, so num_funcs=0 → P001 "no functions". */
-  extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
-  extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
-  struct parser_ParseIntoResult pr;
-  pr.ok = -1; pr.main_idx = -1;
-  pr = parser_parse_into_buf((void *)a, (void *)m, d, len);
-  if (pr.ok != 0)
-    return -1;
-  parser_parse_into_set_main_index((void *)m, pr.main_idx);
-  return 0;
-}
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-
-#endif
+/* Why: The previous `#ifdef _WIN32` block here provided empty/failure stubs
+ *      for parser_parse_into_init / parser_parse_into / parser_get_module_* /
+ *      asm_skip_heavy_set_pipeline_ctx / pipeline_fill_* / asm_asm_codegen_elf_o /
+ *      pipeline_parse_set_main_from_buf_c. It was originally added (commit
+ *      dc33395a4, 2026-07-03) because the Windows bootstrap link path did NOT
+ *      include parser_x.o / typeck_x.o / codegen_x.o, so the symbols had to
+ *      be stubbed out to satisfy the linker.
+ *
+ *      After the LD_R_MULTIDEF_FLAGS fix (commit 001309dc) the Windows
+ *      bootstrap-driver-seed link now includes the same X-pipeline .o files
+ *      as macOS/Linux (parser_x.o, typeck_x.o, codegen_x.o, …), so all these
+ *      symbols are provided by their authoritative implementations. The stubs
+ *      became a duplicate authority that silently broke the parser:
+ *      SHUX_WEAK is empty on PE/MinGW, so the stubs compiled as STRONG defs;
+ *      runtime_pipeline_abi.o is ordered BEFORE parser_x.o in DRIVER_SEED_OBJS,
+ *      so with --allow-multiple-definition the empty `parser_parse_into_init`
+ *      (a no-op that skips ast_ast_arena_init / ast_pool_module_reset /
+ *      parser_onefunc_result_layout_prime) won over parser_x.o's real impl,
+ *      leaving the module uninitialised → driver_first_parse num_funcs=0
+ *      → silent parser failure on every `shux -c/-E/build/run` invocation.
+ *
+ *      Removing the block restores single-authority resolution: the extern
+ *      declarations earlier in this file (L1814 etc.) reference the real
+ *      implementations in parser_x.o / typeck_x.o / codegen_x.o, exactly as
+ *      on macOS/Linux. The "9 conflicting-types errors" the block existed
+ *      to silence were an artefact of the stubs themselves (uint8_t* params
+ *      vs void* extern decls in the same TU); with the stubs gone, only the
+ *      extern declarations remain, and cross-TU type differences are not
+ *      visible to the C compiler.
+ *
+ * Invariant: Every previously-stubbed symbol (parser_parse_into_init,
+ *            parser_parse_into, parser_get_module_num_imports,
+ *            parser_get_module_import_path, asm_skip_heavy_set_pipeline_ctx,
+ *            pipeline_fill_array_lit_types_for_skipped_typeck,
+ *            pipeline_fill_soa_field_access_for_asm_emit,
+ *            pipeline_module_fixup_with_arena_stmt_orders,
+ *            asm_asm_codegen_elf_o, pipeline_parse_set_main_from_buf_c) MUST
+ *            be provided as a strong definition by some .o in
+ *            DRIVER_SEED_OBJS / BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS. Verified
+ *            on macOS via `nm shux` (all 10 symbols present as T).
+ * PLATFORM: SHARED — block removal is a no-op on macOS/Linux (block was
+ *           already skipped via `#ifdef _WIN32`); on Windows it eliminates
+ *           the duplicate authority so the real impls from parser_x.o etc.
+ *           are linked, matching macOS behaviour.
+ */

@@ -25,7 +25,7 @@ fi
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$X" 2>/tmp/shux_macos_mmap.log; then
+if ! "$SHUX" build -o "$OUT" "$X" 2>/tmp/shux_macos_mmap.log; then
   echo "macos-mmap-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_macos_mmap.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true

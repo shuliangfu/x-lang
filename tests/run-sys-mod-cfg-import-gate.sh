@@ -29,7 +29,7 @@ esac
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$X" 2>/tmp/shux_sys_mod_cfg_import.log; then
+if ! "$SHUX" build -o "$OUT" "$X" 2>/tmp/shux_sys_mod_cfg_import.log; then
   echo "sys-mod-cfg-import-gate FAIL: compile $X on $OS" >&2
   tail -n 10 /tmp/shux_sys_mod_cfg_import.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true

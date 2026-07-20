@@ -52,7 +52,7 @@ compile_shux_x() {
   local out="$4"
   rm -f "$out"
   sed -e "s/${port_marker}/${port}/g" "$src_template" >"/tmp/bench_net_src_${port}.x"
-  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+  if ! ./compiler/shux build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -68,7 +68,7 @@ compile_shu_accept() {
   sed -e "s/${NET_BENCH_PORT_DEFAULT}/${port}/g" \
       -e "s/net_bench_conns: i32 = 4096/net_bench_conns: i32 = ${NET_BENCH_CONNS}/" \
       "$src_template" >"/tmp/bench_net_src_${port}.x"
-  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+  if ! ./compiler/shux build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -85,7 +85,7 @@ compile_shu_udp() {
       -e "s/udp_pkts: i32 = 4096/udp_pkts: i32 = ${NET_UDP_PKTS}/" \
       -e "s/batch, 5000/batch, 200/" \
       "$src_template" >"/tmp/bench_net_src_${port}.x"
-  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+  if ! ./compiler/shux build -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -140,7 +140,7 @@ median_accept_pair() {
   shu_exe="/tmp/bench_net_shu_${tag}"
   sed -e "s/net_bench_conns: i32 = 4096/net_bench_conns: i32 = ${NET_BENCH_CONNS}/" \
       "$su_template" >"/tmp/bench_net_accept.x"
-  if ! ./compiler/shux -L . "/tmp/bench_net_accept.x" -o "$shu_exe" >/tmp/bench_net_compile.log 2>&1; then
+  if ! ./compiler/shux build -L . "/tmp/bench_net_accept.x" -o "$shu_exe" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     echo "nan"
     return 1
@@ -327,7 +327,7 @@ median_echo_pair() {
   cc -O2 "$c_server" -o "$srv" 2>/dev/null || return 1
   if [ "$use_shu" -eq 1 ]; then
     exe="/tmp/bench_net_shu_${tag}"
-    if ! ./compiler/shux -L . "$su_template" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
+    if ! ./compiler/shux build -L . "$su_template" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
       cat /tmp/bench_net_compile.log >&2
       return 1
     fi
@@ -488,7 +488,7 @@ bench_net_mixed_case() {
 
   echo "=== tests/bench/${name} (256×16×512B connect+echo @ 127.0.0.1:<dynamic>, default ${NET_MIXED_PORT_DEFAULT}) ==="
 
-  if ! ./compiler/shux -L . "$su_client" -o "/tmp/bench_net_shu_${tag}" >/tmp/bench_net_compile.log 2>&1; then
+  if ! ./compiler/shux build -L . "$su_client" -o "/tmp/bench_net_shu_${tag}" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
   elif [ -x "/tmp/bench_net_shu_${tag}" ]; then
     SHUX_PAIR=$(median_mixed_client "/tmp/bench_net_shu_${tag}" "$c_server" "${tag}s_")
@@ -582,7 +582,7 @@ bench_net_echo_provided_case() {
         prov_cycles="$perf_nz_cycles"
         nz_cpm_prov=$(perf_nz_cycles_per_mib "$prov_cycles" 33554432)
         batch_exe="/tmp/bench_net_shu_nz_batch_$$"
-        if ./compiler/shux -L . tests/bench/net_echo_throughput.x -o "$batch_exe" 2>/dev/null \
+        if ./compiler/shux build -L . tests/bench/net_echo_throughput.x -o "$batch_exe" 2>/dev/null \
           && [ -x "$batch_exe" ]; then
           port=$(pick_free_port)
           if perf_nz_run_echo_cycles "$batch_exe" "$c_server" "$port"; then
@@ -640,7 +640,7 @@ median_udp_pair() {
     sed -e "s/udp_pkts: i32 = 4096/udp_pkts: i32 = ${NET_UDP_PKTS}/" \
         -e "s/batch, 5000/batch, 200/" \
         "$su_template" >"/tmp/bench_udp.x"
-    if ! ./compiler/shux -L . "/tmp/bench_udp.x" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
+    if ! ./compiler/shux build -L . "/tmp/bench_udp.x" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
       cat /tmp/bench_net_compile.log >&2
       echo "nan"
       return 1

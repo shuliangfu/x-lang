@@ -34,7 +34,7 @@ esac
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$X" 2>/tmp/shux_cfg_attr_skip.log; then
+if ! "$SHUX" build -o "$OUT" "$X" 2>/tmp/shux_cfg_attr_skip.log; then
   echo "cfg-attribute-skip-gate FAIL: compile $X" >&2
   tail -n 8 /tmp/shux_cfg_attr_skip.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true

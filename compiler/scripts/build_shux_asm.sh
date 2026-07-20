@@ -96,6 +96,9 @@ mkdir -p "$BUILD_DIR"
 
 # ./shux 在 make all 后为 C 种子（无 -backend asm）；bootstrap-driver-seed 后 shux-x 与 shux 均含 asm。
 if [ "$SHUX" = "./shux" ] && [ -x ./shux-x ]; then
+  # Phase 2 TODO: shux -backend asm (no file) is a backend capability probe,
+  # not a compile call. Migrate to `shux --print-target-cpu` or similar when
+  # implicit fallback is removed in Phase 2.
   if ./shux -backend asm 2>&1 | grep -q "not available"; then
   SHUX=./shux-x
   fi
@@ -242,7 +245,7 @@ compile_x() {
   skip_typeck=1
   fi
   if [ "$skip_typeck" -eq 1 ]; then
-  if env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 "$SHUX" -backend asm -o "$out" $LIBROOT "$src" ${SHUX_ASM_QUIET:+2>/dev/null}; then
+  if env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 "$SHUX" build -backend asm -o "$out" $LIBROOT "$src" ${SHUX_ASM_QUIET:+2>/dev/null}; then
   _txt=$(asm_o_text_bytes "$out")
   if [ "$_txt" = "0" ]; then
   echo "WARN-empty-__text"
@@ -251,14 +254,14 @@ compile_x() {
   echo OK; return 0
   fi
   else
-  if env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 "$SHUX" -backend asm -o "$out" $LIBROOT "$src" ${SHUX_ASM_QUIET:+2>/dev/null}; then
+  if env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 "$SHUX" build -backend asm -o "$out" $LIBROOT "$src" ${SHUX_ASM_QUIET:+2>/dev/null}; then
   _txt=$(asm_o_text_bytes "$out")
   if [ "$_txt" = "0" ]; then
   echo "WARN-empty-__text"
   build_shux_asm_warn "$out __text=0 (SHUX_ASM_ENTRY_ONLY_DEBUG=1 ... -> funcs=N)"
   fi
   echo OK; return 0
-  elif env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 "$SHUX" -backend asm -o "$out" $LIBROOT "$src" ${SHUX_ASM_QUIET:+2>/dev/null}; then
+  elif env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 "$SHUX" build -backend asm -o "$out" $LIBROOT "$src" ${SHUX_ASM_QUIET:+2>/dev/null}; then
   _txt=$(asm_o_text_bytes "$out")
   if [ "$_txt" = "0" ]; then
   echo "WARN-empty-__text"
@@ -4052,7 +4055,7 @@ ensure_asm_strict_link_extra_objs() {
   if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \
   && { [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
   || [ src/asm/pipeline_fill_dep_strict_alias.x -nt src/asm/pipeline_fill_dep_strict_alias.o ]; }; then
-  if [ -x "$SHUX" ] && "$SHUX" -backend asm -o src/asm/pipeline_fill_dep_strict_alias.o $LIBROOT \
+  if [ -x "$SHUX" ] && "$SHUX" build -backend asm -o src/asm/pipeline_fill_dep_strict_alias.o $LIBROOT \
   src/asm/pipeline_fill_dep_strict_alias.x 2>/dev/null \
   && [ -s src/asm/pipeline_fill_dep_strict_alias.o ]; then
   echo " $SHUX -backend asm -> src/asm/pipeline_fill_dep_strict_alias.o (G-02-B1 .x)"
@@ -4371,12 +4374,24 @@ ensure_asm_lsp_codegen_extern_obj() {
 ensure_runtime_cc_stubs() {
   echo " cc -c src/asm/runtime_asm_build.o <- seeds/runtime_asm_build.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o src/asm/runtime_asm_build.o
-  echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
-  local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS"
-  if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
-  rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
+  # PLATFORM: SHARED — Do NOT clobber src/runtime_driver.o if it already exists.
+  # make bootstrap-driver-seed / g05_ensure build src/runtime_driver.o with the
+  # full RUNTIME_DRIVER_CFLAGS (-DSHUX_NO_C_FRONTEND -DSHUX_RT_*_FROM_X
+  # -DSHUX_ASM_USE_COMPILER_IMPL_C). This fallback only has a subset of flags
+  # (-DSHUX_USE_X_PREPROCESS); rebuilding with the subset produces a .o with
+  # different symbol definitions that breaks the g05/make product link (the
+  # X pipeline silently returns -1). Only build the fallback when the
+  # authoritative .o is ABSENT (cold start with no prior make/g05).
+  if [ -f src/runtime_driver.o ] && [ -s src/runtime_driver.o ]; then
+    echo " ensure: src/runtime_driver.o exists (make/g05 authority); skip fallback rebuild"
+  else
+    echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
+    local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS"
+    if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
+      rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
+    fi
+    $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o src/runtime_driver.o
   fi
-  $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o src/runtime_driver.o
 }
 
 # B-strict shux_asm：driver_run_compiler_full 走 impl_c（完整 parse_argv），勿与 seed 共用 runtime_driver.o 宏。
@@ -4489,10 +4504,10 @@ ensure_asm_bootstrap_support_extra_objs() {
   o="src/lexer/cfg_eval.o"
   if [ -f src/lexer/cfg_eval.x ] \
   && { [ ! -f "$o" ] || [ src/lexer/cfg_eval.x -nt "$o" ]; }; then
-  if [ -x "$SHUX" ] && "$SHUX" -backend asm -o "$o" $LIBROOT src/lexer/cfg_eval.x 2>/dev/null \
+  if [ -x "$SHUX" ] && "$SHUX" build -backend asm -o "$o" $LIBROOT src/lexer/cfg_eval.x 2>/dev/null \
   && [ -s "$o" ]; then
   echo " $SHUX -backend asm -> $o (G-02-B1 cfg_eval.x)"
-  elif [ -x "$SHUX" ] && "$SHUX" -E -E-extern $LIBROOT src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
+  elif [ -x "$SHUX" ] && "$SHUX" build -E -E-extern $LIBROOT src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
   && [ -s src/lexer/cfg_eval_gen.c ]; then
   echo " $SHUX -E-extern -> cfg_eval_gen.c + link alias -> $o (G-02-B1 cfg_eval.x)"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c

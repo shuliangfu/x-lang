@@ -8,6 +8,14 @@
 #include <stdint.h>
 #include <string.h>
 #include <io.h>
+/* Why: MinGW <io.h> provides _open/_read/_write but does NOT define O_RDONLY,
+ *      O_WRONLY, O_CREAT, O_TRUNC. Those come from <fcntl.h>. Without it,
+ *      runtime.from_x.c driver_fs_open_read_path/write (open(buf, O_RDONLY))
+ *      fails to compile on Windows MSYS/MinGW.
+ * Invariant: <fcntl.h> on MinGW defines O_RDONLY/O_WRONLY/O_CREAT/O_TRUNC/_O_*.
+ *            Also enables the #ifdef O_WRONLY/O_CREAT/O_TRUNC guards in
+ *            driver_fs_open_write (runtime.from_x.c ~L3575). */
+#include <fcntl.h>
 #ifndef SEEK_SET
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -80,13 +88,19 @@ static inline char *realpath(const char *path, char *resolved) {
 #define access _access
 #endif
 
-/* setenv — MinGW 无此函数 */
-static inline int setenv(const char *name, const char *value, int overwrite) {
-    (void)overwrite; return _putenv_s(name, value) == 0 ? 0 : -1;
-}
-static inline int unsetenv(const char *name) {
-    return _putenv_s(name, "") == 0 ? 0 : -1;
-}
+/* setenv / unsetenv — MinGW lacks these POSIX functions.
+ * Why: Historically defined inline here; now provided by shared header
+ *      shux_posix_env.h (also pulled in via include/unistd.h). The shared
+ *      header uses SHUX_POSIX_ENV_SHIM_DEFINED guard so any include order
+ *      (win32_compat.h before or after unistd.h) yields a single definition.
+ *      The previous local definitions caused "redefinition of 'setenv'" /
+ *      "redefinition of 'unsetenv'" errors when both win32_compat.h and
+ *      unistd.h were included by the same TU (e.g. runtime_io_abi.from_x.c).
+ * Invariant: POSIX semantics — setenv(name, value, 0) must NOT overwrite an
+ *            existing env var. The shared shim honors this; the old local
+ *            copy ignored `overwrite` (always overwrote) — POSIX violation.
+ * PLATFORM: WINDOWS | MSYS | MINGW (pulls in shim); no-op on POSIX. */
+#include <shux_posix_env.h>
 
 /* strtok_r — MinGW 有 strtok_s */
 #ifndef strtok_r

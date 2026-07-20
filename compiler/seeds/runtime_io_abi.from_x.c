@@ -19,10 +19,12 @@
 #include <sys/mman.h>
 #endif
 #include <sys/stat.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
-
 /* 【Why 根源】MinGW open() 默认文本模式，read/write 做 CRLF↔LF 转换，
  * 导致 fstat 报告的 st_size（物理字节数）与 read 实际返回字节数不一致。
  * 例：fmt 写入 37 字节 LF，文本模式 write 磁盘为 40 字节 CRLF；
@@ -148,7 +150,7 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     if (!path || !out)
         return -1;
     memset(out, 0, sizeof(*out));
-    fd = open(path, O_RDONLY | SHUX_O_BINARY);
+    fd = open(path, O_RDONLY | SHUX_O_BINARY, 0);
     if (fd < 0)
         return -1;
     if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
@@ -165,7 +167,7 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     mapped = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     if (mapped == MAP_FAILED) {
-        fd_fallback = open(path, O_RDONLY | SHUX_O_BINARY);
+        fd_fallback = open(path, O_RDONLY | SHUX_O_BINARY, 0);
         if (fd_fallback < 0)
             return -1;
 #ifdef SHUX_L2_RIO_THIN_FROM_X
@@ -281,7 +283,7 @@ int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
 
     if (cap > (size_t)INT32_MAX)
         return -1;
-    fd = open(path, O_RDONLY | SHUX_O_BINARY);
+    fd = open(path, O_RDONLY | SHUX_O_BINARY, 0);
     if (fd < 0)
         return -1;
 #ifdef SHUX_L2_RIO_THIN_FROM_X

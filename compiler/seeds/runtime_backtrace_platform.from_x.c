@@ -22,9 +22,12 @@
 #include <stdlib.h>
 #include "diag.h"
 #if defined(__unix__) || defined(__APPLE__)
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #endif
 
 #define BACKTRACE_SYM_NAME_LEN 128

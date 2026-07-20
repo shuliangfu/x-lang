@@ -6,6 +6,7 @@
  * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
  * G-02f-89/91/92/94: path/diag/needs + cc_ex/nm/nostdlib helpers gated over _impl.
  */
+#include <shux_weak.h>
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
 #include "runtime_proc_abi.h"
@@ -53,6 +54,7 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0);
 int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
+const char *labi_od_rel_page_mmap(void);
 int shux_ensure_runtime_atomic_glue_o(const char *argv0);
 int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
 int shux_ensure_runtime_channel_glue_o(const char *argv0);
@@ -95,9 +97,12 @@ const char *shux_empty_cstr(void) {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _WIN32
+/* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
+ *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
+ *            macOS/Linux delegate to system <unistd.h> via #include_next.
+ *            Historical #ifndef _WIN32 guard removed — shim is a no-op
+ *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
-#endif
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
@@ -108,13 +113,6 @@ const char *shux_empty_cstr(void) {
 #include <sys/mman.h>
 #endif
 
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
@@ -3033,11 +3031,25 @@ int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char
             is_comment = 1;
         if (k + 2 <= line_end && view.data[k] == '/' && view.data[k + 1] == '*')
             is_comment = 1;
-        /* preamble 类型声明：struct/typedef std_string_* / std_net_* 不是真实引用 */
-        if (k + 6 <= line_end && memcmp(view.data + k, "struct", 6) == 0)
-            is_extern = 1; /* 复用 skip 标志 */
-        if (k + 7 <= line_end && memcmp(view.data + k, "typedef", 7) == 0)
-            is_extern = 1;
+        /*
+         * PLATFORM: SHARED — preamble type decls (struct/typedef std_net_*) are NOT real refs.
+         * But variable decls like "struct Foo x = std_net_listen(...)" ARE real refs: the needle
+         * is the function call (std_net_listen), not the struct name (Foo). The legacy check
+         * "line-startswith struct/typedef" falsely skipped such lines → need_net=0 → net.o not
+         * pushed → BLD001 undefined _std_net_listen.
+         * Root cause fix (2026-07-19): distinguish struct/typedef DEFINITION (needle is the
+         * type name, preceded by "struct "/"typedef ") from variable decl (needle is the
+         * function call, preceded by "= "/"("/"," etc.). Only skip the former.
+         */
+        {
+            size_t p = off;
+            while (p > line_start && (view.data[p - 1] == ' ' || view.data[p - 1] == '\t'))
+                p--;
+            if (p >= line_start + 7 && memcmp(view.data + p - 7, "struct ", 7) == 0)
+                is_extern = 1; /* needle is the struct name in a definition or variable decl */
+            if (p >= line_start + 8 && memcmp(view.data + p - 8, "typedef ", 8) == 0)
+                is_extern = 1; /* needle is the typedef name */
+        }
         /* weak placeholder 体：仅当本行含 placeholder（如 std_string_placeholder）才跳过 */
         {
             size_t li;
@@ -3799,6 +3811,14 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         argv[i++] = (char *)"cc";
         /* preamble 中 std_io_* / std_net_* 使用 C11 _Generic，须传 -std=gnu11（不能 -x c，否则 .o 会被当 C 源码编译） */
         argv[i++] = (char *)"-std=gnu11";
+        /* `shux run` / bare `shux file.x`: compile in memory for direct exec, so
+         * suppress the generated-C diagnostic noise (the preamble/codegen emit
+         * trips -Wparentheses-equality etc.). Errors still surface; only warnings
+         * (cc -w and linker -Wl,-w) are muted. PLATFORM: SHARED. */
+        if (i + 2 < argv_cap && getenv("SHUX_RUN_QUIET")) {
+            argv[i++] = (char *)"-w";
+            argv[i++] = (char *)"-Wl,-w";
+        }
 #if defined(__linux__)
         if (i < argv_cap - 1)
             argv[i++] = (char *)"-B/usr/bin";
@@ -4577,16 +4597,24 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     }
                 }
                 if (!have_vec_body) {
+                    int c_prov_cm_v = 0;
+                    int c_prov_sh_v = 0;
+                    for (jscan = 0; jscan < n; jscan++) {
+                        const char *cp = c_paths[jscan];
+                        if (!cp) continue;
+                        if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_v = 1;
+                        if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_v = 1;
+                    }
                     if (include_root && include_root[0]) {
                         (void)shux_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
-                        (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                        (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                        if (!c_prov_sh_v) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                        if (!c_prov_cm_v) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
                     }
                     if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        if (!c_prov_sh_v) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                             shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        if (!c_prov_cm_v) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                             shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
                     }
                 }
@@ -4617,40 +4645,60 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * L4 wipe: formal set/heap/mem via Makefile ensure before push.
              */
             if (need_set) {
+                int c_prov_cm_s = 0, c_prov_sh_s = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp) continue;
+                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_s = 1;
+                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_s = 1;
+                }
                 if (include_root && include_root[0]) {
                     (void)shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                    if (!c_prov_sh_s) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                    if (!c_prov_cm_s) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
                 }
                 if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_sh_s) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_cm_s) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-                    /* set.o → U _std_hash_bytes；need_hash 推送已在上方，此处显式补链 */
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
                 }
             }
             if (need_map) {
+                int c_prov_cm_m = 0, c_prov_sh_m = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp) continue;
+                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_m = 1;
+                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_m = 1;
+                }
                 if (include_root && include_root[0]) {
                     (void)shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                    (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+                    if (!c_prov_sh_m) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+                    if (!c_prov_cm_m) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
                 }
                 if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_sh_m) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                    if (!c_prov_cm_m) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                         shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
                 }
             }
             if (need_queue && invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                int c_prov_cm_q = 0, c_prov_sh_q = 0;
+                for (jscan = 0; jscan < n; jscan++) {
+                    const char *cp = c_paths[jscan];
+                    if (!cp) continue;
+                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_q = 1;
+                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_q = 1;
+                }
+                if (!c_prov_sh_q) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                if (!c_prov_cm_q) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
                     shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
             }
             if (need_regex)
@@ -4882,6 +4930,30 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o_ondemand);
                 }
+                /*
+                 * PLATFORM: SHARED / LINUX gold — heap.o (mod.x) imports page_mmap and
+                 * references std_heap_page_mmap_page_mmap_heap_{init,alloc,deinit,available,
+                 * free} unconditionally (freestanding bump-heap path). On Ubuntu L4 cold the
+                 * C backend pushes heap.o but NOT page_mmap.o, so the link fails with
+                 * 'undefined reference to std_heap_page_mmap_page_mmap_heap_*'. Symmetric with
+                 * the asm on-demand path (link_abi_user_o_needs_std_heap_page_mmap push of
+                 * labi_od_rel_page_mmap). Also ensure + push runtime_asm_io_stubs.o which
+                 * provides the weak shux_sys_mmap / shux_sys_munmap that page_mmap.o calls
+                 * (same authority as the need_net block below for #if defined(__linux__)).
+                 * Root fix 2026-07-19: backtrace L4 cold was red on Ubuntu only because the
+                 * C backend heap chain missed page_mmap + asm_io_stubs companions.
+                 */
+                {
+                    const char *pm_o = shux_rel_o_path_from_argv0(include_root, labi_od_rel_page_mmap());
+                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap, pm_o)) {
+                        (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+                        {
+                            const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+                            if (ris && ris[0])
+                                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
+                        }
+                    }
+                }
             }
         }
 #if defined(__linux__) || defined(__APPLE__)
@@ -4894,7 +4966,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             argv[i++] = (char *)"-lc";
 #endif
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-        /* 【Why 根源】PE/COFF 格式不支持 weak 符号：__attribute__((weak)) 函数被 MinGW 当
+        /* 【Why 根源】PE/COFF 格式不支持 weak 符号：SHUX_WEAK 函数被 MinGW 当
            普通强符号定义。shux codegen 对 std/*.o 中函数生成 weak 别名（如 log_write_c、
            core_crypto_mem_eq_c），多份 .o 链入时产生 multiple definition error。
            --allow-multiple-definition 让 ld 选第一个定义，与 ELF weak 语义对齐。
@@ -5299,7 +5371,7 @@ static int shux_elf64_obj_scan_undef(const char *o_path, const char *want_sym) {
     int found = 0;
     if (!o_path || !o_path[0])
         return 0;
-    fd = open(o_path, O_RDONLY);
+    fd = open(o_path, O_RDONLY, 0);
     if (fd < 0)
         return 0;
     if (fstat(fd, &st) != 0 || st.st_size < (off_t)sizeof(Elf64_Ehdr)) {
@@ -8772,6 +8844,72 @@ uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque) {
     return (uint8_t *)adj;
 }
 
+/* Build the argv used by `shux run` / bare `shux file.x`: if the user already
+ * passed -o, return argv unchanged (and *out_argc = argc) so the explicit
+ * product path is compiled and exec'd. Otherwise append `-o <temp>` where
+ * <temp> is a unique /tmp path, so the C/asm backend links a real executable
+ * (no a.out in cwd, no generated C to stdout) and driver_exec_compiled execs
+ * that temp. The temp is a unique name obtained via mkstemp+unlink; the
+ * compiler (cc -o / ld -o) creates the actual executable file.
+ * PLATFORM: SHARED — /tmp on POSIX, current dir fallback on Windows. */
+#ifndef SHUX_RUN_TMP_PREFIX
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#define SHUX_RUN_TMP_PREFIX "shux_run_"
+#else
+#define SHUX_RUN_TMP_PREFIX "/tmp/shux_run_"
+#endif
+#endif
+uint8_t *driver_argv_ensure_run_o(int argc, uint8_t *argv_opaque, int *out_argc) {
+    static char *adj[512];
+    static char temp_path[96];
+    char **argv;
+    int has_o = 0;
+    int i;
+    if (out_argc)
+        *out_argc = argc;
+    if (!argv_opaque || argc < 1)
+        return argv_opaque;
+    argv = (char **)argv_opaque;
+    /* Respect an explicit -o: scan like driver_exec_scan_out_path. */
+    for (i = 1; i < argc - 1; i++) {
+        if (argv[i] && strcmp(argv[i], "-o") == 0) {
+            has_o = 1;
+            break;
+        }
+    }
+    if (has_o)
+        return argv_opaque;
+    if (argc + 2 > 512)
+        return argv_opaque;
+    snprintf(temp_path, sizeof temp_path, "%sXXXXXX", SHUX_RUN_TMP_PREFIX);
+    {
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(__CYGWIN__)
+        /* POSIX: mkstemp yields an atomically unique name; free it so cc -o
+         * creates the executable itself (mkstemp leaves an empty regular file). */
+        int fd = mkstemp(temp_path);
+        if (fd >= 0) {
+            close(fd);
+            unlink(temp_path);
+        } else {
+            snprintf(temp_path, sizeof temp_path, "%s%ld", SHUX_RUN_TMP_PREFIX, (long)getpid());
+        }
+#else
+        /* Windows: no mkstemp here; use a per-process counter for uniqueness. */
+        static long run_counter = 0;
+        run_counter = run_counter + 1;
+        snprintf(temp_path, sizeof temp_path, "%s%ld", SHUX_RUN_TMP_PREFIX, run_counter);
+#endif
+    }
+    for (i = 0; i < argc; i++)
+        adj[i] = argv[i];
+    adj[argc] = (char *)"-o";
+    adj[argc + 1] = temp_path;
+    adj[argc + 2] = (char *)0;
+    if (out_argc)
+        *out_argc = argc + 2;
+    return (uint8_t *)adj;
+}
+
 int32_t driver_resolve_target_arch(int parsed_target, int saw_target_flag) {
   if ((saw_target_flag !=0)) {
     return parsed_target;
@@ -8805,7 +8943,25 @@ SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
   (void)(0);
 }
 
+/* PLATFORM: SHARED — pthread large-stack availability gate.
+ *   POSIX (Linux/macOS): winpthreads absent; real pthreads support 256MiB
+ *     posix_memalign'd custom stack via pthread_attr_setstack. Return 0
+ *     so driver_run_thread_on_large_stack takes the pthread path for
+ *     deep recursion beyond main thread's 8MiB RLIMIT_STACK.
+ *   WINDOWS (MSYS/MinGW): winpthreads exist but pthread_attr_setstack
+ *     with 256MiB posix_memalign'd stack crashes during pthread_join
+ *     cleanup (exit=127 after thread fn returns). Return 1 to force
+ *     driver_run_fn_on_current_large_stack path (driver_bump_stack_limit
+ *     raises soft limit; pipeline runs on main thread). See AGENTS.md
+ *     "平台边界必须标注" + project memory "Windows/MinGW weak" constraints.
+ *   Authority: this SHUX_WEAK def is the sole linked definition on all
+ *     platforms; the strong def in bootstrap_nostdlib_stubs.from_x.c
+ *     (returns 1) is an orphan target never linked. G.4 single authority. */
 SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
+#if defined(_WIN32) || defined(_WIN64)
+  return 1;
+#else
   return 0;
+#endif
 }
 

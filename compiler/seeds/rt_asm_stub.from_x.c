@@ -10,17 +10,11 @@
  * Scope: weak minimal GAS codegen stub + want_exe gate.
  * Full elf/macho asm backend remains mega/backend.
  */
+#include <shux_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#ifndef SHUX_WEAK
-#if defined(_WIN32) || defined(_WIN64)
-#define SHUX_WEAK
-#else
-#define SHUX_WEAK __attribute__((weak))
-#endif
-#endif
 
 /* 与 runtime.from_x.c / pipeline 生成物布局一致（仅作指针形参类型）。 */
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)

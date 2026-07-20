@@ -90,6 +90,7 @@ extern int32_t main_cmd_run(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_fmt(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_check(int32_t argc, uint8_t *argv);
 extern int32_t driver_cmd_test(int32_t argc, uint8_t *argv);
+extern void driver_print_usage_write(void);
 #define main_eq_minus_E eq_minus_E
 #define main_eq_minus_E_extern eq_minus_E_extern
 #define main_eq_asm eq_asm
@@ -113,6 +114,9 @@ extern int32_t driver_emit_lib_root_len(uint8_t * state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t * state, int32_t i, uint8_t * dst, int32_t cap);
 extern int32_t driver_get_argv_i(int32_t argc, uint8_t * argv, int32_t i, uint8_t * buf, int32_t max);
 extern uint8_t * driver_argv_drop_subcommand(int32_t argc, uint8_t * argv);
+/* shux run / bare shux file.x: append `-o <temp>` when no -o so the product
+   is built in /tmp and exec'd (no a.out, no generated C to stdout). */
+extern uint8_t * driver_argv_ensure_run_o(int32_t argc, uint8_t * argv, int32_t * out_argc);
 extern int32_t driver_build_build_x();
 extern int32_t driver_exec_compiled(int32_t argc, uint8_t * argv);
 extern int32_t driver_fs_open_read_path(uint8_t * path, int32_t path_len);
@@ -518,11 +522,44 @@ SHUX_LIB_WEAK int32_t main_cmd_build(int32_t argc, uint8_t * argv) {
  }
   return main_run_compiler_x_path_impl(argc, argv);
 }
+/* Returns 1 if any argv[i] (i in [1, argc)) equals "-o" (the canonical short
+ * form for output path), 0 otherwise. Used by main_cmd_run to distinguish
+ * compile-only invocations from in-memory compile-and-run. PLATFORM: SHARED.
+ * Contract: argc >= 1; argv may be null only when argc < 1 (returns 0). */
+SHUX_LIB_WEAK int32_t main_argv_has_o_flag(int32_t argc, uint8_t * argv) {
+  int32_t i = 1;
+  uint8_t buf[8] = { 0 };
+  while (i < argc) {
+    int32_t len = driver_get_argv_i(argc, argv, i, (&((buf)[0])), 8);
+    /* "-o" == bytes [45 ('-'), 111 ('o')] */
+    if (len == 2 && (buf)[0] == 45 && (buf)[1] == 111) {   return 1;
+ }
+    ++i;
+  }
+  return 0;
+}
 SHUX_LIB_WEAK int32_t main_cmd_run(int32_t argc, uint8_t * argv) {
   if (argc < 2) {   return 1;
  }
-  int32_t rc = main_run_compiler_x_path_impl(argc, argv);
-  if (rc == 0) {   return driver_exec_compiled(argc, argv);
+  /* Detect an explicit user-supplied -o before driver_argv_ensure_run_o runs.
+   * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
+   * present, so run_argv alone cannot tell whether the user asked for
+   * compile-only. When -o is explicit, skip the exec path so the compiled
+   * program's exit code does not leak through shux's own exit status. */
+  int32_t has_explicit_o = main_argv_has_o_flag(argc, argv);
+  int32_t run_argc = argc;
+  uint8_t * run_argv = driver_argv_ensure_run_o(argc, argv, &run_argc);
+  if (has_explicit_o != 0) {
+    /* Compile-only: do not set SHUX_RUN_QUIET (let cc warnings surface, since
+     * the user explicitly requested an output path) and do not exec. */
+    return main_run_compiler_x_path_impl(run_argc, run_argv);
+  }
+  /* mute generated-C warning noise so `shux run`/bare `shux file.x` prints
+     only the program output; cc errors still surface (SHUX_RUN_QUIET only
+     adds -w / -Wl,-w in shux_invoke_cc_impl). */
+  (void)setenv("SHUX_RUN_QUIET", "1", 1);
+  int32_t rc = main_run_compiler_x_path_impl(run_argc, run_argv);
+  if (rc == 0) {   return driver_exec_compiled(run_argc, run_argv);
  }
   return rc;
 }
@@ -551,6 +588,8 @@ SHUX_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
  }
   if (main_str_eq((&((arg_buf)[0])), alen, (&((w_test)[0])), 4) != 0) {   return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
  }
+  driver_print_usage_write();
+  return 1;
  }
  }
   struct main_DriverXEmitState state = main_driver_emit_state_default();

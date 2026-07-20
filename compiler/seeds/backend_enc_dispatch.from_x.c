@@ -25,6 +25,7 @@
  * M8 自举：backend.x 中 enc_*_arch 改为单行委托本 TU，避免 X if(ta) 真 emit 产生未绑定 .LfN_ 跳转。
  * 依赖 asm_backend_partial.o 导出的 arch_*_enc_enc_* 符号。
  */
+#include <shux_weak.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -542,11 +543,6 @@ extern int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_El
 extern int32_t arch_x86_64_enc_enc_load_rbp_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_mov_rdx_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k);
 
-#if defined(__GNUC__) || defined(__clang__)
-#define SHUX_WEAK __attribute__((weak))
-#else
-#define SHUX_WEAK
-#endif
 
 /*
  * B-strict glue links this dispatch TU on x86_64 without always linking the

@@ -17,7 +17,7 @@ src_count=$(grep -c '^function ' "$TCK" || true)
 echo "check_parse_func_count: source functions in typeck.x: $src_count (min gate $MIN_FUNCS)"
 
 rm -f "$OUT" /tmp/shux_parse_count.log
-if ! SHUX_DEBUG_PIPE=1 "$SHUX" -backend asm -o "$OUT" "$TCK" 2>&1 | tee /tmp/shux_parse_count.log; then
+if ! SHUX_DEBUG_PIPE=1 "$SHUX" build -backend asm -o "$OUT" "$TCK" 2>&1 | tee /tmp/shux_parse_count.log; then
   echo "check_parse_func_count: compile failed (see log); try SHUX_DEBUG_PARSE=1 SHUX_PARSE_STRICT=1" >&2
   exit 1
 fi

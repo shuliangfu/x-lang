@@ -7,6 +7,7 @@
  * .x 暂无法导出 void* (*)(void*) 线程入口；循环 accept_many+close 保留于此。
  * 编排（thread_create/join）见 workers.x；与 net.o 一并链入 exe。
  */
+#include <shux_weak.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -26,7 +27,7 @@ extern int32_t net_close_socket_c(int32_t fd);
 
 /* 可选绑核：弱 stub；链接 std/thread/thread.o 时由强符号覆盖。 */
 #if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak)) int32_t thread_set_affinity_self_c(int32_t cpu_index) {
+SHUX_WEAK int32_t thread_set_affinity_self_c(int32_t cpu_index) {
     (void)cpu_index;
     return 0;
 }

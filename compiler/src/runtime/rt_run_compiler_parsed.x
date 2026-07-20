@@ -890,15 +890,18 @@ export function rt_cp_step_open_out(): i32 {
   let tmp: *u8 = 0 as *u8;
   let cf: *u8 = 0 as *u8;
   let emit_stdout: i32 = 0;
+  /* PLATFORM: SHARED — 256 bytes accommodates Windows long TEMP paths
+   * (e.g. C:\shux_tmp\shux_shux_x.YZXDC4.c = 32 chars) with safety margin.
+   * Must match g_driver_parsed_tmp_c[256] in runtime_driver_abi.from_x.c. */
   unsafe {
     outp = driver_parsed_work_p_get(pp_out_path());
-    tmp = malloc(64 as usize);
+    tmp = malloc(256 as usize);
   }
   if (tmp == 0 as *u8) {
     return 1;
   }
   unsafe {
-    memset(tmp, 0, 64 as usize);
+    memset(tmp, 0, 256 as usize);
     cf = driver_parsed_open_out_file(outp, tmp, &emit_stdout);
   }
   if (cf == 0 as *u8) {
