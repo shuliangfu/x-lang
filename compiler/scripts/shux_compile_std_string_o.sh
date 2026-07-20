@@ -17,7 +17,7 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 # 1) mod.x → C：优先 -x -E（库模块 asm_entry_module_only：仅入口体，dep 为 extern，
 #    避免 string.o 内嵌 core_mem_*）。-o KEEP_C 曾 co-emit 整树并引用未声明 heap 全局。
 # PLATFORM: SHARED — do not rm global /tmp/shux_shux_x.*.c (races with concurrent -o).
-if ! "$SHUX" -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
+if ! "$SHUX" build -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
   echo "shux_compile_std_string_o: -x -E mod.x failed" >&2
   cat "$tmp/mod.log" >&2
   exit 1
@@ -117,9 +117,9 @@ cc $CFLAGS -c "$tmp/mod.c" -o "$tmp/mod.o"
 if [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
   cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
 else
-  SHUX_KEEP_C=1 "$SHUX" -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
+  SHUX_KEEP_C=1 "$SHUX" build -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
   if [ ! -f "$tmp/sx.o" ]; then
-    if "$SHUX" -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
+    if "$SHUX" build -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
       cc $CFLAGS -c "$tmp/sx.c" -o "$tmp/sx.o"
     else
       echo "shux_compile_std_string_o: string.x bare failed (no seed, -lib-name unsupported)" >&2

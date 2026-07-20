@@ -33,7 +33,7 @@ compile_one() {
   fi
   echo "  $SHUX -backend asm -> $out ($src)"
   if env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-    "$SHUX" -backend asm -o "$out" $LIBROOT "$src"; then
+    "$SHUX" build -backend asm -o "$out" $LIBROOT "$src"; then
     return 0
   fi
   echo "build_user_asm_backend: 编译 $src 失败" >&2
