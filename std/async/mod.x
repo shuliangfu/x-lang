@@ -14,15 +14,44 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// See implementation.
-//
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-//
-// See implementation.
+/**
+ * Async runtime C ABI wrappers.
+ *
+ * All `shux_async_*` / `shux_io_poll_async_*` functions below are thin
+ * wrappers over the SHUX async runtime C implementation (see seeds).
+ * They are exposed to SHUX via `extern "C"` declarations.
+ *
+ * ABI: C (System V / AAPCS). Calling convention matches the C runtime
+ * (cooperative scheduler + CPS suspend/resume + work-stealing worker
+ * pool + io_wait/wake + context binding + seed-based argument passing).
+ * PLATFORM: SHARED — pure C with pthreads/atomic intrinsics; available
+ * on all targets (macOS arm64 / Ubuntu x86_64 / Windows MSYS2/MinGW).
+ *
+ * Categories:
+ *   - shux_async_coop_*       : cooperative ping-pong benchmarks
+ *                               (jmp-based + direct)
+ *   - shux_async_cps_*        : CPS suspend/resume with phase tracking
+ *   - shux_async_run_*        : task runner + seed stack (push/set/
+ *                               take i32/u32/i64/usize + drain_until_
+ *                               idle + seed_reset)
+ *   - shux_async_task_*       : task submission (default + targeted
+ *                               worker + context-bound)
+ *   - shux_async_scheduler_*  : scheduler drain + pending count
+ *   - shux_async_worker_*     : per-worker drain/count/pending
+ *   - shux_async_queue_*      : queue reset
+ *   - shux_async_io_*         : io waiters wake/pending
+ *   - shux_io_poll_async_*    : io completion polling with timeout
+ *   - shux_async_*_context_*  : context bind/unbind/current
+ *   - shux_async_spawn_*      : spawn i32 task + ctx smoke test
+ *
+ * Error codes: i32 returns; 0 = OK, negative = error
+ *   (SHUX_ASYNC_ERR_CTX_ABORT = -3 for context abort).
+ *
+ * Unsafe contract: callers must wrap `shux_async_*_c` / `shux_io_poll_*
+ * ` calls in `unsafe { }` blocks. P0a semantic downgrade currently
+ * allows unwrapped calls; P1 typeck enforcement (post-bootstrap) will
+ * reject unwrapped calls.
+ */
 const io = import("std.io");
 const context = import("std.context");
 const err = import("std.error");
@@ -51,55 +80,55 @@ export function submit_write_sync(handle: usize, ptr: *u8, len: usize, timeout_m
 }
 
 // See implementation.
-extern function shux_async_coop_pingpong(rounds: i64): i64;
-extern function shux_async_coop_pingpong_jmp(rounds: i64): i64;
+extern "C" function shux_async_coop_pingpong(rounds: i64): i64;
+extern "C" function shux_async_coop_pingpong_jmp(rounds: i64): i64;
 
 // See implementation.
-extern function shux_async_cps_suspend(phase: *i32, next_phase: i32): i32;
+extern "C" function shux_async_cps_suspend(phase: *i32, next_phase: i32): i32;
 /* See implementation. */
-extern function shux_async_cps_suspend_io(phase: *i32, next_phase: i32): i32;
-extern function shux_async_run_i32(fn: *u8): i32;
+extern "C" function shux_async_cps_suspend_io(phase: *i32, next_phase: i32): i32;
+extern "C" function shux_async_run_i32(fn: *u8): i32;
 /* See implementation. */
-extern function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
+extern "C" function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
 /* See implementation. */
-extern function shux_async_run_drain_until_idle(): i32;
+extern "C" function shux_async_run_drain_until_idle(): i32;
 /* See implementation. */
-extern function shux_async_run_seed_reset(): void;
-extern function shux_async_run_seed_push_i32(v: i32): void;
-extern function shux_async_run_seed_push_u32(v: u32): void;
-extern function shux_async_run_seed_push_i64(v: i64): void;
-extern function shux_async_run_seed_push_usize(v: usize): void;
+extern "C" function shux_async_run_seed_reset(): void;
+extern "C" function shux_async_run_seed_push_i32(v: i32): void;
+extern "C" function shux_async_run_seed_push_u32(v: u32): void;
+extern "C" function shux_async_run_seed_push_i64(v: i64): void;
+extern "C" function shux_async_run_seed_push_usize(v: usize): void;
 /* See implementation. */
-extern function shux_async_run_seed_set_i32(v: i32): void;
-extern function shux_async_run_seed_valid(): i32;
-extern function shux_async_run_seed_take_i32(): i32;
-extern function shux_async_run_seed_take_u32(): u32;
-extern function shux_async_run_seed_take_i64(): i64;
-extern function shux_async_run_seed_take_usize(): usize;
+extern "C" function shux_async_run_seed_set_i32(v: i32): void;
+extern "C" function shux_async_run_seed_valid(): i32;
+extern "C" function shux_async_run_seed_take_i32(): i32;
+extern "C" function shux_async_run_seed_take_u32(): u32;
+extern "C" function shux_async_run_seed_take_i64(): i64;
+extern "C" function shux_async_run_seed_take_usize(): usize;
 
 // See implementation.
 // See implementation.
-extern function shux_async_task_submit(fn: *u8): i32;
+extern "C" function shux_async_task_submit(fn: *u8): i32;
 /* See implementation. */
-extern function shux_async_task_submit_to(worker_id: u32, fn: *u8): i32;
-extern function shux_async_scheduler_drain(): i32;
+extern "C" function shux_async_task_submit_to(worker_id: u32, fn: *u8): i32;
+extern "C" function shux_async_scheduler_drain(): i32;
 /* See implementation. */
-extern function shux_async_worker_drain(worker_id: u32): i32;
-extern function shux_async_worker_count(): u32;
-extern function shux_async_worker_pending(worker_id: u32): u32;
-extern function shux_async_queue_reset(): void;
-extern function shux_async_scheduler_pending(): u32;
-extern function shux_async_io_wake_all(): void;
-extern function shux_async_io_waiters_pending(): u32;
+extern "C" function shux_async_worker_drain(worker_id: u32): i32;
+extern "C" function shux_async_worker_count(): u32;
+extern "C" function shux_async_worker_pending(worker_id: u32): u32;
+extern "C" function shux_async_queue_reset(): void;
+extern "C" function shux_async_scheduler_pending(): u32;
+extern "C" function shux_async_io_wake_all(): void;
+extern "C" function shux_async_io_waiters_pending(): u32;
 /* See implementation. */
-extern function shux_io_poll_async_completions(timeout_ms: u32): u32;
+extern "C" function shux_io_poll_async_completions(timeout_ms: u32): u32;
 
 // See implementation.
-extern function shux_async_bind_context_c(ctx_handle: i64): void;
-extern function shux_async_unbind_context_c(): void;
-extern function shux_async_current_context_c(): i64;
-extern function shux_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32;
-extern function shux_async_spawn_ctx_smoke_c(): i32;
+extern "C" function shux_async_bind_context_c(ctx_handle: i64): void;
+extern "C" function shux_async_unbind_context_c(): void;
+extern "C" function shux_async_current_context_c(): i64;
+extern "C" function shux_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32;
+extern "C" function shux_async_spawn_ctx_smoke_c(): i32;
 
 /* See implementation. */
 export const SHUX_ASYNC_ERR_CTX_ABORT: i32 = -3;
@@ -506,7 +535,7 @@ export function fs_write_async(rt: *AsyncRuntime, fd: i32, ptr: *u8, len: usize,
   return await_write_fd(rt, fd, ptr, len, max_rounds);
 }
 
-extern function shux_async_net_fs_smoke_c(): i32;
+extern "C" function shux_async_net_fs_smoke_c(): i32;
 
 /** Exported function `net_fs_async_smoke`.
  * Implements `net_fs_async_smoke`.
@@ -541,13 +570,13 @@ allow(padding) struct Future {
   handle: i64;
 }
 
-extern function shux_async_future_create_c(): i64;
-extern function shux_async_future_poll_c(handle: i64): i32;
-extern function shux_async_future_complete_c(handle: i64, value: i32): void;
-extern function shux_async_future_take_c(handle: i64, out: *i32): i32;
-extern function shux_async_future_reset_c(): void;
-extern function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32;
-extern function shux_async_future_smoke_c(): i32;
+extern "C" function shux_async_future_create_c(): i64;
+extern "C" function shux_async_future_poll_c(handle: i64): i32;
+extern "C" function shux_async_future_complete_c(handle: i64, value: i32): void;
+extern "C" function shux_async_future_take_c(handle: i64, out: *i32): i32;
+extern "C" function shux_async_future_reset_c(): void;
+extern "C" function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32;
+extern "C" function shux_async_future_smoke_c(): i32;
 
 /** Exported function `future_new`.
  * Implements `future_new`.
