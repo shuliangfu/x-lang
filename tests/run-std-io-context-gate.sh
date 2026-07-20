@@ -72,7 +72,7 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
   exe="/tmp/shux_std091_io_ctx_$$"
-  if ! "${RUN_SHUX:-$SHUX_BIN}" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" -L . "$SMOKE" -o "$exe" compiler/runtime_atomic_glue.o compiler/runtime_time_os.o >/dev/null 2>&1; then
     echo "io-context gate FAIL: compile $SMOKE" >&2
     exit 1
   fi
