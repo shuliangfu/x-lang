@@ -1924,7 +1924,7 @@ else
 LD_R_MULTIDEF_FLAGS = --allow-multiple-definition
 ASM_GLUE_DUP_LDFLAGS = -Wl,--allow-multiple-definition
 endif
-RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
+RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o src/runtime_driver_strict_glue_stubs.o
 DRIVER_SEED_GLUE_PREFIX =
 # Why: src/runtime_driver_strict_glue_stubs.o placed at link END (after glue) so
 #      real impls in pipeline_x.o / parser_x.o / typeck_x.o / codegen_x.o link
@@ -1932,6 +1932,14 @@ DRIVER_SEED_GLUE_PREFIX =
 #      Stubs only fill in symbols with no real impl (parse, lexer_new,
 #      typeck_module for the deleted C frontend, referenced by lsp_diag.o).
 #      On ELF/Darwin SHUX_WEAK=weak so order is a no-op there.
+#      2026-07-20: RELINK_SHUX_GLUE_SUFFIX was missing stubs .o (only had
+#      pipeline_glue_strict_minimal.o) → `make shux-x` failed with undefined
+#      _parse / _lexer_new / _typeck_module / _pipeline_block_labeled_set_names
+#      on macOS arm64. Fixed by adding src/runtime_driver_strict_glue_stubs.o
+#      to RELINK_SHUX_GLUE_SUFFIX (mirrors DRIVER_SEED_GLUE_SUFFIX).
+#      Safe: stubs weak defs (parse/lexer_new/typeck_module) are overridden by
+#      real impls; strong stub-only defs (pipeline_block_labeled_set_names)
+#      have no real impl so no duplicate. PLATFORM: SHARED.
 # PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin.
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
 # LSP_DIAG_LINK_O：fmt 命令依赖 shu_format_x_document 的真实实现，必须链入 lsp_diag.o
