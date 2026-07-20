@@ -247,7 +247,7 @@ net-o-openssl:
 	  ./shux_asm -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux ]; then \
-	  ./shux -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
+	  ./shux build -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
 	  ./shux-c -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
@@ -263,7 +263,7 @@ net-o-mbedtls:
 	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux ]; then \
-	  ./shux -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
+	  ./shux build -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
 	  ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
@@ -2762,9 +2762,9 @@ first-time: build-tool
 # - main 调用 entry（build_runner.x），非 build_entry
 build-tool:
 	@if [ "$${SHUX_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./shux ]; then \
-	  echo "build-tool: regen build_gen + build_runtime_x_gen via ./shux -x -E"; \
-	  ./shux -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
-	  ./shux -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
+	  echo "build-tool: regen build_gen + build_runtime_x_gen via ./shux build -x -E"; \
+	  ./shux build -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
+	  ./shux build -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
 	else \
 	  cp -f seeds/build_gen.c build_gen.c; \
 	  cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
