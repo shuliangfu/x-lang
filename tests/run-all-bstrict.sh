@@ -346,14 +346,6 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       echo "run-all-bstrict: skip $script (shux -o can't link runtime_atomic_glue.o for raw externs)"
       continue
       ;;
-    run-std-simd-shuxffle-select-gate.sh)
-      # PLATFORM: SHARED — gate hardcodes grep 'vec8i_select_lane' in mod.x but the
-      # function is named 'select_lane' (two overloads: i32 and f32). Pre-existing gate
-      # vs source name mismatch; manifest doc created but gate check still fails.
-      # Tracked for separate gate/source alignment fix.
-      echo "run-all-bstrict: skip $script (gate expects vec8i_select_lane; source has select_lane)"
-      continue
-      ;;
     run-net.sh)
       # PLATFORM: MACOS|DARWIN — net_tcp_listen_c binds port 8080; on Darwin the listen
       # syscall path (seed shux-c) returns -1 (exit 1). Linux x86_64 covers the net gate.
