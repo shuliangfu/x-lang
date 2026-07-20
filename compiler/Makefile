@@ -1298,13 +1298,18 @@ parser_gen.c: src/parser/parser.x
 	  tmp="$@.tmp"; \
 	  if [ -f $(SHUX_X) ]; then \
 	  echo "parser_gen.c: ./$(SHUX_X) -x -E -E-extern ... [forced regen]" >&2; \
-	  if ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
-	  && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
+	  if command -v timeout >/dev/null 2>&1; then \
+	  timeout "${SHUX_PARSER_GEN_TIMEOUT:-120}" ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; \
+	  else ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; fi; \
+	  if [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
 	  mv -f "$$tmp" $@; \
 	  else \
 	  rm -f "$$tmp"; \
 	  $(MAKE) $(SHUX_C) && \
-	  ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
+	  if command -v timeout >/dev/null 2>&1; then \
+	  timeout "${SHUX_PARSER_GEN_TIMEOUT:-120}" ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" || true; \
+	  else ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" || true; fi; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; else rm -f "$$tmp"; fi; \
 	  fi; \
 	  else \
 	  $(MAKE) $(SHUX_C) && \
@@ -1319,14 +1324,16 @@ parser_gen.c: src/parser/parser.x
 	  tmp="$@.tmp"; \
 	  if [ -f $(SHUX_X) ]; then \
 	  echo "parser_gen.c: ./$(SHUX_X) -x -E -E-extern ..." >&2; \
-	  if ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
-	  && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
+	  if command -v timeout >/dev/null 2>&1; then \
+	  timeout "${SHUX_PARSER_GEN_TIMEOUT:-120}" ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; \
+	  else ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; fi; \
+	  if [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
 	  mv -f "$$tmp" $@; \
 	  else \
 	  echo "parser_gen.c: shux-x failed or thin output; fallback shux-c" >&2; \
 	  rm -f "$$tmp" 2>/dev/null || true; \
 	  if $(MAKE) $(SHUX_C) >/dev/null \
-	  && ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
+	  && { if command -v timeout >/dev/null 2>&1; then timeout "${SHUX_PARSER_GEN_TIMEOUT:-120}" ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; else ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null || true; fi; } \
 	  && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
 	  mv -f "$$tmp" $@; \
 	  elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then \
@@ -2418,7 +2425,11 @@ driver_gen.c: $(MAIN_X_DEPS)
 	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c (empty or no $(SHUX_X); L4-safe)"; \
 	elif [ -f $(SHUX_X) ]; then \
 	  echo "driver_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
+	  if command -v timeout >/dev/null 2>&1; then \
+	  timeout "${SHUX_DRIVER_GEN_TIMEOUT:-120}" ./$(SHUX_X) -x -E $(MAIN_X_E_DIRS) -E-extern src/main.x > $@.tmp 2>/dev/null || true; \
+	  else \
 	  ./$(SHUX_X) -x -E $(MAIN_X_E_DIRS) -E-extern src/main.x > $@.tmp 2>/dev/null || true; \
+	  fi; \
 	  if [ -s $@.tmp ] && grep -q 'argc < 3' $@.tmp && grep -q 'main_eq_minus_E(arg_buf, len) != 0' $@.tmp; then \
 	  mv $@.tmp $@; \
 	  else \
@@ -2426,9 +2437,14 @@ driver_gen.c: $(MAIN_X_DEPS)
 	  echo "driver_gen.c: shux-x failed or old bare -E block, fallback to shux-c -E -E-extern" >&2; \
 	  tmp="$@.tmp"; \
 	  $(MAKE) $(SHUX_C) && \
-	  ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
-	  { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && touch $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
-	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
+	  if command -v timeout >/dev/null 2>&1; then \
+	  timeout "${SHUX_DRIVER_GEN_TIMEOUT:-120}" ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || true; \
+	  else \
+	  ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || true; \
+	  fi; \
+	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; \
+	  elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && touch $@ && echo "driver_gen.c: fallback seed (shux-c -E failed/empty)" >&2; \
+	  else rm -f "$$tmp"; exit 1; fi; \
 	  fi; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then \
 	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
