@@ -37,31 +37,31 @@ echo ""
 echo "── Step 1: 生成所有 X 模块 _gen.c ──"
 
 echo "  token..."
-./shux -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c && echo "    $(wc -l < token_gen.c) lines"
+./shux build -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c && echo "    $(wc -l < token_gen.c) lines"
 
 echo "  ast..."
-./shux -E -E-extern src/ast/ast.x > ast_gen.c && echo "    $(wc -l < ast_gen.c) lines"
+./shux build -E -E-extern src/ast/ast.x > ast_gen.c && echo "    $(wc -l < ast_gen.c) lines"
 
 echo "  lexer..."
-./shux -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c && echo "    $(wc -l < lexer_gen.c) lines"
+./shux build -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c && echo "    $(wc -l < lexer_gen.c) lines"
 
 echo "  parser..."
-./shux -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c && echo "    $(wc -l < parser_gen.c) lines"
+./shux build -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c && echo "    $(wc -l < parser_gen.c) lines"
 
 echo "  typeck..."
-./shux -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c && echo "    $(wc -l < typeck_gen.c) lines"
+./shux build -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c && echo "    $(wc -l < typeck_gen.c) lines"
 
 echo "  codegen..."
-./shux -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c && echo "    $(wc -l < codegen_gen.c) lines"
+./shux build -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c && echo "    $(wc -l < codegen_gen.c) lines"
 
 echo "  preprocess..."
-./shux -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c && echo "    $(wc -l < preprocess_gen.c) lines"
+./shux build -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c && echo "    $(wc -l < preprocess_gen.c) lines"
 
 echo "  pipeline..."
-./shux -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c && echo "    $(wc -l < pipeline_gen.c) lines"
+./shux build -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c && echo "    $(wc -l < pipeline_gen.c) lines"
 
 echo "  driver (main.x)..."
-./shux -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.x > driver_gen.c && echo "    $(wc -l < driver_gen.c) lines"
+./shux build -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.x > driver_gen.c && echo "    $(wc -l < driver_gen.c) lines"
 
 # ── Step 2: Fix generated C files ───────────
 echo ""
@@ -167,7 +167,7 @@ function main(): i32 { return 42; }
 EOF
 
 echo "Test: C 编译器编译 hello.x"
-./shux /tmp/hello.x -o /tmp/hello_c
+./shux build /tmp/hello.x -o /tmp/hello_c
 chmod +x /tmp/hello_c 2>/dev/null || true
 set +e
 /tmp/hello_c >/dev/null 2>&1
@@ -183,7 +183,7 @@ cat > /tmp/test_bad.x << 'EOF'
 function main(): i32 { let x: i32 = true; return 0; }
 EOF
 
-./shux /tmp/test_bad.x -o /tmp/test_bad_c 2>/tmp/test_bad_stderr; rc=$?
+./shux build /tmp/test_bad.x -o /tmp/test_bad_c 2>/tmp/test_bad_stderr; rc=$?
 if [ $rc -ne 0 ] && (grep -q "typeck error" /tmp/test_bad_stderr 2>/dev/null || [ $rc -ne 0 ]); then
   echo "  ✓ C compiler: type error caught (rc=$rc)"
 else
