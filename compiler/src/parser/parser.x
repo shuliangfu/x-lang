@@ -130,6 +130,7 @@ export extern function pipeline_module_func_set_return_type(module: *Module, fi:
 export extern function pipeline_module_func_set_body_ref(module: *Module, fi: i32, body_ref: i32): void;
 export extern function pipeline_module_func_set_body_expr_ref(module: *Module, fi: i32, body_expr_ref: i32): void;
 export extern function pipeline_module_func_set_is_extern(module: *Module, fi: i32, is_extern: i32): void;
+export extern function pipeline_module_func_is_extern_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_set_is_async(module: *Module, fi: i32, is_async: i32): void;
 export extern function pipeline_module_func_set_is_export(module: *Module, fi: i32, is_export: i32): void;
 export extern function pipeline_module_func_set_is_used(module: *Module, fi: i32, is_used: i32): void;
@@ -6592,6 +6593,9 @@ allow(padding) struct ExternParseResult {
   abi_kind: i32;
   /* See implementation. */
   is_variadic: i32;
+  /* 1 when extern "C" function ... { body } is detected (body-bearing extern);
+   * 0 for pure declaration. Drives is_extern=0 + body parse in caller. */
+  has_body: i32;
 }
 
 /** Internal function `extern_parse_pool_ptr`.
@@ -6650,6 +6654,9 @@ function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   out.name_len = -1;
   out.return_ty_ref = 0;
   out.num_params = 0;
+  out.abi_kind = 0;
+  out.is_variadic = 0;
+  out.has_body = 0;
   let ni: i32 = 0;
   while (ni < 64) {
     out.name[ni] = empty64[ni];
@@ -7657,7 +7664,29 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
+      let num_funcs_before_extern: i32 = module.num_funcs;
       parse_one_extern_and_add_into(arena, module, iter_start, source, &lex);
+      /* Body-bearing extern (`extern "C" function ... { body }`): C seed set is_extern=0
+       * and left lex BEFORE '{'. Parse body via parse_block_into and set body_ref so
+       * codegen emits the body. Pure decl (is_extern=1) skips this branch. */
+      if (module.num_funcs > num_funcs_before_extern) {
+        let fi_ext: i32 = num_funcs_before_extern;
+        if (pipeline_module_func_is_extern_at(module, fi_ext) == 0) {
+          let r_brace: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+          lexer.lexer_next_into(&r_brace, lex, source);
+          if (r_brace.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+            let type_ref_extern: i32 = pipeline_module_func_return_type_at(module, fi_ext);
+            let block_res_extern: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: r_brace.next_lex };
+            parse_block_into(arena, r_brace.next_lex, source, type_ref_extern, &block_res_extern);
+            if (block_res_extern.ok) {
+              pipeline_module_func_set_body_ref(module, fi_ext, block_res_extern.block_ref);
+              lex = block_res_extern.next_lex;
+            } else {
+              skip_balanced_braces_into(&lex, lex, source);
+            }
+          }
+        }
+      }
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         skip_one_extern_into(&lex, lex, source);
       }
@@ -9741,7 +9770,30 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
+      let num_funcs_before_extern_buf: i32 = module.num_funcs;
       parse_one_extern_and_add_into_buf(arena, module, iter_start_buf, data, len, &lex);
+      /* Body-bearing extern (`extern "C" function ... { body }`): C seed set is_extern=0
+       * and left lex BEFORE '{'. Parse body via parse_block_into and set body_ref so
+       * codegen emits the body. Pure decl (is_extern=1) skips this branch. */
+      if (module.num_funcs > num_funcs_before_extern_buf) {
+        let fi_ext_buf: i32 = num_funcs_before_extern_buf;
+        if (pipeline_module_func_is_extern_at(module, fi_ext_buf) == 0) {
+          let slice_ext_buf: u8[] = parser_slice_from_buf(data, len);
+          let r_brace_buf: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+          lexer.lexer_next_into(&r_brace_buf, lex, slice_ext_buf);
+          if (r_brace_buf.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+            let type_ref_extern_buf: i32 = pipeline_module_func_return_type_at(module, fi_ext_buf);
+            let block_res_extern_buf: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: r_brace_buf.next_lex };
+            parse_block_into(arena, r_brace_buf.next_lex, slice_ext_buf, type_ref_extern_buf, &block_res_extern_buf);
+            if (block_res_extern_buf.ok) {
+              pipeline_module_func_set_body_ref(module, fi_ext_buf, block_res_extern_buf.block_ref);
+              lex = block_res_extern_buf.next_lex;
+            } else {
+              skip_balanced_braces_into(&lex, lex, slice_ext_buf);
+            }
+          }
+        }
+      }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         skip_one_extern_into_buf(&lex, iter_start_buf, data, len);
       }
