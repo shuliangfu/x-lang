@@ -1510,11 +1510,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12 / wave45–54：runtime_pipeline_abi 产品 PREFER hybrid
+  # G-02f-12 / wave45–56：runtime_pipeline_abi 产品 PREFER hybrid
   #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  #   wave56: pure pipeline_run_x large-stack _impl orch (PipelineRunSuArgs pack;
+  #     Cap-fn-ptr pipeline_run_x_thread_fn_ptr + G.7 driver_run_thread_on_large_stack);
+  #     asm elf_o large-stack _impl remains seed (same-TU stub emit).
   #   wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]
-  #     + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags);
-  #     thread large-stack impl bodies remain seed.
+  #     + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
   #   wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL).
   #   wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + resolve_read
   #     + G.7 pure tmp_parse + free prep).

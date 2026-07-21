@@ -1,11 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave55).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave56).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual: thread C large-stack impl bodies remain seed rest
-//   (resolve_read pure wave55; strdup pure wave54; paths_tmp pure wave53; tmp_parse pure wave52).
+// Cap residual always-seed: pipeline_run_x_thread_fn_ptr
+//   (fn address for driver_run_thread_on_large_stack; same pattern as driver_abi wave37).
+// Cap residual still-seed: asm large-stack _impl (same-TU asm_asm_codegen_elf_o is stub -1;
+//   pure must not call that stub; real emit stays seed/bridge).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -25,6 +27,9 @@
 // wave54: pure collect strdup thin shell (malloc + scan len + byte copy + NUL; no libc strdup name).
 // wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]
 //   + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
+// wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
+//   Cap-fn-ptr + G.7 driver_run_thread_on_large_stack; SHUX_DEBUG_PIPE notes cold-only).
+//   asm elf_o large-stack _impl remains seed (do not call same-TU stub asm_asm_codegen_elf_o).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -71,8 +76,15 @@ export extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m
 export extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void;
 export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
-export extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
+// wave56: pipeline_run_x_thread_fn_impl is pure export function below.
+// Cap residual still-seed: shux_asm_codegen_elf_o_thread_fn_impl (asm emit path).
 export extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
+// Cap-fn-ptr residual: always-seed address of thin pipeline_run_x_thread_fn.
+export extern "C" function pipeline_run_x_thread_fn_ptr(): *u8;
+// wave56 pure pipeline large-stack orch: set entry source_len + run pipeline.
+export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
+export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
+export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
 
 /* See implementation. */
 export extern "C" function shux_fputs_stdout(s: *u8): void;
@@ -117,7 +129,7 @@ export extern "C" function pipeline_read_file_commit_prep(): i32;
 export extern "C" function pipeline_loaded_import_data(): *u8;
 export extern "C" function pipeline_loaded_import_len_get(): i64;
 export extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32;
-export extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
+// wave56: shux_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
 export extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 export extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
 export extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
@@ -133,6 +145,7 @@ export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8
 /* See implementation. */
 export extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
 export extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
+// Cap residual still-seed: asm large-stack _impl (wave56 leaves seed; pure would hit stub).
 export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 /* See implementation. */
 /* wave46: shux_module_num_imports / import_path_cstr / ptr+size slots / i32_store
@@ -1588,15 +1601,17 @@ export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 
 /* See implementation. */
 
 // shux_pipeline_run_x_pipeline_large_stack: see function docblock below.
-/** Exported function `shux_pipeline_run_x_pipeline_large_stack`.
- * Implements `shux_pipeline_run_x_pipeline_large_stack`.
- * @param module *u8
- * @param arena *u8
- * @param source_data *u8
- * @param source_len i64
- * @param out_buf *u8
- * @param ctx *u8
- * @return i32
+/**
+ * Thin gate for large-stack pipeline_run_x_pipeline (null / empty source rejected).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param source_data *u8 — source bytes; null → -1
+ * @param source_len i64 — byte length; <=0 → -1
+ * @param out_buf *u8 — codegen out buffer; may be null (pipeline accepts)
+ * @param ctx *u8 — PipelineDepCtx; may be null
+ * @return i32 — pipeline ec; -1 on thin reject
+ * wave56: body in pure shux_pipeline_run_x_pipeline_large_stack_impl.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
@@ -2321,13 +2336,15 @@ export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, 
 
 // shux_asm_codegen_elf_o_large_stack: see function docblock below.
 /** Exported function `shux_asm_codegen_elf_o_large_stack`.
- * Implements `shux_asm_codegen_elf_o_large_stack`.
+ * Thin gate → Cap residual seed shux_asm_codegen_elf_o_large_stack_impl.
  * @param module *u8
  * @param arena *u8
  * @param ctx *u8
  * @param elf_ctx *u8
  * @param out_buf *u8
  * @return i32
+ * wave56: asm _impl remains seed (same-TU asm_asm_codegen_elf_o stub is not product emit).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
@@ -4456,13 +4473,49 @@ export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods:
 
 
 
-/* ---- G-02f-95 / G-02f-241：pipeline large-stack thread fns ---- */
+/* ---- G-02f-95 / G-02f-241 / wave56: pipeline large-stack thread fns pure ---- */
 
-// pipeline_run_x_thread_fn: see function docblock below.
-/** Exported function `pipeline_run_x_thread_fn`.
- * Read path helper `pipeline_run_x_thread_fn`.
- * @param arg *u8
- * @return *u8
+/**
+ * pthread entry body: run pipeline_run_x_pipeline and store ec into args.result.
+ * @param arg *u8 — PipelineRunSuArgs LP64 pack (56B):
+ *   module@0 arena@8 source_data@16 source_len@24 out_buf@32 ctx@40 result@48;
+ *   null → return null
+ * @return *u8 — always null (pthread start_routine contract)
+ * wave56 pure Cap residual:
+ *   load pack fields via pipe/size slots; driver_set_pipeline_entry_source_len;
+ *   pipeline_run_x_pipeline; store result as LE i64 cell at slot 6 (i32@48 + pad).
+ * SHUX_DEBUG_PIPE start/done notes stay cold-twin only (pure skips; same as tmp_parse).
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+#[no_mangle]
+export function pipeline_run_x_thread_fn_impl(arg: *u8): *u8 {
+  if (arg == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let module: *u8 = pipe_load_ptr_slot(arg, 0);
+  let arena: *u8 = pipe_load_ptr_slot(arg, 1);
+  let source_data: *u8 = pipe_load_ptr_slot(arg, 2);
+  let source_len: i64 = shux_size_slot_get(arg, 3);
+  let out_buf: *u8 = pipe_load_ptr_slot(arg, 4);
+  let ctx: *u8 = pipe_load_ptr_slot(arg, 5);
+  unsafe {
+    driver_set_pipeline_entry_source_len(source_len);
+  }
+  let ec: i32 = 0;
+  unsafe {
+    ec = pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
+  }
+  // result i32 lives at byte 48 = slot index 6; write full LE cell (pad ok).
+  shux_size_slot_set(arg, 6, ec as i64);
+  return 0 as *u8;
+}
+
+/**
+ * Thin pthread entry for large-stack pipeline_run_x_pipeline (null reject).
+ * @param arg *u8 — PipelineRunSuArgs pack; null → null
+ * @return *u8 — always null
+ * wave56: forwards to pure pipeline_run_x_thread_fn_impl.
+ * PLATFORM: SHARED — address taken by always-seed pipeline_run_x_thread_fn_ptr.
  */
 #[no_mangle]
 export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
@@ -4475,11 +4528,65 @@ export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
   return 0 as *u8;
 }
 
+/**
+ * Large-stack orch: pack PipelineRunSuArgs, run thread_fn via Cap-fn-ptr, fallback current thread.
+ * @param module *u8 — AST module (caller thin already null-checked)
+ * @param arena *u8 — AST arena
+ * @param source_data *u8 — source bytes
+ * @param source_len i64 — byte length
+ * @param out_buf *u8 — codegen out buffer
+ * @param ctx *u8 — PipelineDepCtx
+ * @return i32 — pipeline ec; fallback path if result still sentinel -99
+ * wave56 pure Cap residual:
+ *   stack args[56] zeroed; set entry source_len; fill pack; result sentinel -99;
+ *   Cap-fn-ptr pipeline_run_x_thread_fn_ptr + G.7 driver_run_thread_on_large_stack;
+ *   if result still -99 → direct pipeline_run_x_pipeline (pthread create failed / skipped).
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+  let args: u8[56] = [];
+  let zi: i32 = 0;
+  while (zi < 56) {
+    args[zi] = 0;
+    zi = zi + 1;
+  }
+  unsafe {
+    driver_set_pipeline_entry_source_len(source_len);
+  }
+  pipe_store_ptr_slot(&args[0], 0, module);
+  pipe_store_ptr_slot(&args[0], 1, arena);
+  pipe_store_ptr_slot(&args[0], 2, source_data);
+  shux_size_slot_set(&args[0], 3, source_len);
+  pipe_store_ptr_slot(&args[0], 4, out_buf);
+  pipe_store_ptr_slot(&args[0], 5, ctx);
+  // Sentinel -99: thread_fn overwrites on success; unchanged → current-thread fallback.
+  shux_size_slot_set(&args[0], 6, 0 - 99);
+  let fn: *u8 = 0 as *u8;
+  unsafe {
+    fn = pipeline_run_x_thread_fn_ptr();
+  }
+  if (fn != 0 as *u8) {
+    unsafe {
+      driver_run_thread_on_large_stack(fn, &args[0]);
+    }
+  }
+  let result: i64 = shux_size_slot_get(&args[0], 6);
+  if (result == (0 - 99) as i64) {
+    unsafe {
+      return pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
+    }
+  }
+  return result as i32;
+}
+
 // shux_asm_codegen_elf_o_thread_fn: see function docblock below.
-/** Exported function `shux_asm_codegen_elf_o_thread_fn`.
- * Read path helper `shux_asm_codegen_elf_o_thread_fn`.
- * @param arg *u8
- * @return *u8
+/**
+ * Thin pthread entry for large-stack asm emit (null reject).
+ * @param arg *u8 — AsmElfLargeArgs pack; null → null
+ * @return *u8 — always null
+ * Cap residual seed: shux_asm_codegen_elf_o_thread_fn_impl (wave56 not pure — real emit).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {

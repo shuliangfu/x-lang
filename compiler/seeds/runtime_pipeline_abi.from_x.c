@@ -18,7 +18,11 @@
  *   + G.7 pure tmp_parse + free prep).
  * wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL).
  * wave55: pure resolve_read_preprocess orch (stack resolved + FileView + pure resolve
- *   + runtime_read_file_view + pure preprocess + release + diags); thread impl remain seed.
+ *   + runtime_read_file_view + pure preprocess + release + diags).
+ * wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
+ *   Cap-fn-ptr pipeline_run_x_thread_fn_ptr always-seed; G.7 driver_run_thread_on_large_stack;
+ *   SHUX_DEBUG_PIPE notes cold-only). asm elf_o large-stack _impl remains seed
+ *   (same-TU pure stub asm_asm_codegen_elf_o returns -1; do not pure-call it).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -137,7 +141,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46–55: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46–56: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -154,6 +158,10 @@ char *shux_collect_strdup(const char *s);
 int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char *import_key, const char **defines, int ndefines, char **out_prep,
     size_t *out_prep_len);
+/* wave56 pure pipeline large-stack _impl — thin pure wrappers call under hybrid. */
+void *pipeline_run_x_thread_fn_impl(void *arg);
+int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data,
+    size_t source_len, void *out_buf, void *ctx);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2368,8 +2376,17 @@ typedef struct {
     int result;
 } PipelineRunSuArgs;
 
+/** Always-seed Cap-fn-ptr residual: opaque address of pipeline_run_x_thread_fn.
+ * wave56 pure large-stack orch binds this then driver_run_thread_on_large_stack.
+ * PLATFORM: SHARED — function address not expressible safely in .x. */
+uint8_t *pipeline_run_x_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)pipeline_run_x_thread_fn;
+}
+
 /** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
-/* G-02f-241：逻辑源 .x（null 边界 pure）；seed 保留同语义 C 供产品 cc */
+/* G-02f-241 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
+ * SHUX_DEBUG_PIPE notes only in cold twin (pure skips). */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void *pipeline_run_x_thread_fn_impl(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     if (!a)
@@ -2385,7 +2402,6 @@ void *pipeline_run_x_thread_fn_impl(void *arg) {
     return NULL;
 }
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void *pipeline_run_x_thread_fn(void *arg) {
     if (!arg)
         return NULL;
@@ -2397,7 +2413,8 @@ void *pipeline_run_x_thread_fn(void *arg) {
 
 
 /** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
-/* G-02f-239：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
+/* G-02f-239 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     PipelineRunSuArgs args;
@@ -2415,8 +2432,6 @@ int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, con
     return args.result;
 }
 
-/* G-02f-239：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     if (!module || !arena || !source_data || source_len == 0)
@@ -3404,7 +3419,8 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
     void *out_buf);
 
 /** pthread 入口：调用 asm_asm_codegen_elf_o 并将 ec 写入 args->result。 */
-/* G-02f-241：逻辑源 .x（null 边界 pure）；seed 保留同语义 C 供产品 cc */
+/* G-02f-241：逻辑源 .x（null 边界 pure）；seed 保留 _impl 供产品（wave56 未 pure：
+ * same-TU pure stub asm_asm_codegen_elf_o 恒 -1，不能当 emit 权威）。 */
 void *shux_asm_codegen_elf_o_thread_fn_impl(void *arg) {
     ShuxAsmCodegenElfLargeArgs *a = (ShuxAsmCodegenElfLargeArgs *)arg;
     if (!a)
@@ -3425,7 +3441,7 @@ void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
 
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
-/* G-02f-240：pthread body 🔒 */
+/* G-02f-240：pthread body 🔒 Cap residual seed（wave56 未 pure，理由同 thread_fn_impl）。 */
 int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     ShuxAsmCodegenElfLargeArgs args;
