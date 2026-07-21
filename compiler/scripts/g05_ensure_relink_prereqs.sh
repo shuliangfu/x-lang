@@ -1510,8 +1510,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12 / wave45–57：runtime_pipeline_abi 产品 PREFER hybrid
+  # G-02f-12 / wave45–58：runtime_pipeline_abi 产品 PREFER hybrid
   #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  #   wave58: pure dep_prerun_parse_skip_typeck_impl orch (check_only + skip typeck/codegen
+  #     + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
   #   wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs pack;
   #     Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + product_emit Cap residual;
   #     G.7 driver_run_thread_on_large_stack; pure never calls same-TU weak stub emit).

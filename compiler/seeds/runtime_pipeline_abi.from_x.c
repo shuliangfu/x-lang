@@ -27,6 +27,9 @@
  *   Cap residual shux_asm_codegen_elf_o_product_emit always-seed — true emit via external
  *   reloc to strong user_asm_seed_bridge; pure must not call same-TU weak stub
  *   asm_asm_codegen_elf_o which returns -1).
+ * wave58: pure dep_prerun_parse_skip_typeck_impl orch (driver check_only + skip typeck/codegen
+ *   + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack; cold twin
+ *   under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -170,6 +173,9 @@ int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, con
 void *shux_asm_codegen_elf_o_thread_fn_impl(void *arg);
 int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
+/* wave58 pure dep_prerun_parse_skip_typeck_impl — thin pure gate calls under hybrid. */
+int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src,
+    size_t len, void *dep_out, void *one_ctx);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2451,7 +2457,10 @@ int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const ui
 
 
 /** dep 预跑：完整 parse，跳过 typeck/codegen。 */
-/* G-02f-239：flags + large_stack 🔒 body */
+/* G-02f-239 / wave58：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
+ * Pure orch uses G.7 driver_pipeline_dep_ctx_* asm_entry accessors (no C field).
+ * PLATFORM: SHARED — same flag order as pure orch. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     int saved = driver_check_only_get();
@@ -2475,7 +2484,6 @@ int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_are
 }
 
 /* G-02f-239：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     if (!dep_mod || !dep_arena || !src || len == 0)
