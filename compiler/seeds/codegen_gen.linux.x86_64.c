@@ -10439,6 +10439,22 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
   if ((((((((((((((((name_len ==14) && ((name)[0] ==112)) && ((name)[1] ==111)) && ((name)[2] ==115)) && ((name)[3] ==105)) && ((name)[4] ==120)) && ((name)[5] ==95)) && ((name)[6] ==109)) && ((name)[7] ==101)) && ((name)[8] ==109)) && ((name)[9] ==97)) && ((name)[10] ==108)) && ((name)[11] ==105)) && ((name)[12] ==103)) && ((name)[13] ==110))) {
     return 1;
   }
+  /* strtoul 7 — *u8 vs char* / u32 vs unsigned long (std/test) */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==117)) && ((name)[6] ==108))) {
+    return 1;
+  }
+  /* strtol 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==108))) {
+    return 1;
+  }
+  /* strtoull 8 */
+  if ((((((((((name_len ==8) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==117)) && ((name)[6] ==108)) && ((name)[7] ==108))) {
+    return 1;
+  }
+  /* strtoll 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==116)) && ((name)[4] ==111)) && ((name)[5] ==108)) && ((name)[6] ==108))) {
+    return 1;
+  }
   /* memcpy 6 */
   if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==112)) && ((name)[5] ==121))) {
     return 1;
