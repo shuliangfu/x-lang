@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // async_cps_codegen.x — pure surface for async CPS switch emit (A3).
-// R2 pure surface: callee name gates (io / future_wait) + thin public wrappers
-//   for walk/hoist that still call Cap residual _impl in seed C.
-// Cap residual (seed C always): FILE* emit begin/end/after_await/sched, walk _impl,
-//   module/sched resolve helpers that need snprintf or full module walk.
+// R2 pure surface + Cap residual pure wave1:
+//   - name gates (io / future_wait / sched wrapper)
+//   - thin public wrappers for walk/hoist (call Cap residual _impl in seed C)
+//   - await expr classifiers (expr_is_io_await / await_read|write|fd / future_wait)
+// Cap residual (seed C always): FILE* emit begin/end/after_await/sched,
+//   walk _impl, module/sched resolve (snprintf / full module walk).
+// ASTExpr host layout (PLATFORM: SHARED with async_liveness): kind@0; value@24;
+//   unary.operand@24; CALL callee@24 args@32 num@40 resolved_fn@72;
+//   METHOD base@24 name@32 args@40 num@48 impl@56; FIELD name@32; VAR name@24.
+//   AST_EXPR_AWAIT=54 CALL=48 METHOD=49 FIELD=44 VAR=3.
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 // Cold product path: cc seeds/async_cps_codegen.from_x.c (no FROM_X).
 // Hybrid/PREFER (future): g05_try_x_to_o + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
@@ -252,6 +258,312 @@ export function async_cps_is_sched_wrapper_name(name: *u8): i32 {
       && name[10] == 95 && name[11] == 115 && name[12] == 99 && name[13] == 104 && name[14] == 101
       && name[15] == 100 && name[16] == 95) {
     return 1;
+  }
+  return 0;
+}
+
+// ---- Cap residual pure wave1: LE load helpers + await expr classifiers ----
+
+/** Load little-endian i32 at base+off (null-safe).
+ * PLATFORM: SHARED — host AST layout loads only. */
+#[no_mangle]
+export function async_cps_load_i32(p: *u8, off: i32): i32 {
+  if (p == 0) {
+    return 0;
+  }
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * m * m;
+  a = a + (p[off + 3] as i32) * m * m * m;
+  return a;
+}
+
+/** Load little-endian pointer at base+off (null-safe).
+ * PLATFORM: SHARED — host AST layout loads only. */
+#[no_mangle]
+export function async_cps_load_ptr(p: *u8, off: i32): *u8 {
+  if (p == 0) {
+    return 0 as *u8;
+  }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m2;
+  a = a + (p[off + 3] as usize) * (m2 * m);
+  a = a + (p[off + 4] as usize) * m4;
+  a = a + (p[off + 5] as usize) * (m4 * m);
+  a = a + (p[off + 6] as usize) * (m4 * m2);
+  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
+
+/** True when name is exact ASCII "read" (NUL-terminated).
+ * PLATFORM: SHARED — pure string gate. */
+#[no_mangle]
+export function async_cps_name_is_read(name: *u8): i32 {
+  if (name == 0) {
+    return 0;
+  }
+  if (name[0] == 114 && name[1] == 101 && name[2] == 97 && name[3] == 100 && name[4] == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/** True when name is exact ASCII "write" (NUL-terminated).
+ * PLATFORM: SHARED — pure string gate. */
+#[no_mangle]
+export function async_cps_name_is_write(name: *u8): i32 {
+  if (name == 0) {
+    return 0;
+  }
+  if (name[0] == 119 && name[1] == 114 && name[2] == 105 && name[3] == 116 && name[4] == 101
+      && name[5] == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/** True when name is exact ASCII "read_fd" (NUL-terminated).
+ * PLATFORM: SHARED — pure string gate. */
+#[no_mangle]
+export function async_cps_name_is_read_fd(name: *u8): i32 {
+  if (name == 0) {
+    return 0;
+  }
+  if (name[0] == 114 && name[1] == 101 && name[2] == 97 && name[3] == 100 && name[4] == 95
+      && name[5] == 102 && name[6] == 100 && name[7] == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/** True when name is exact ASCII "write_fd" (NUL-terminated).
+ * PLATFORM: SHARED — pure string gate. */
+#[no_mangle]
+export function async_cps_name_is_write_fd(name: *u8): i32 {
+  if (name == 0) {
+    return 0;
+  }
+  if (name[0] == 119 && name[1] == 114 && name[2] == 105 && name[3] == 116 && name[4] == 101
+      && name[5] == 95 && name[6] == 102 && name[7] == 100 && name[8] == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/** True when await_expr is `await <io-call>` (IO-A5 target via resolved callee).
+ * Requires kind==AST_EXPR_AWAIT (54), unary.operand CALL (48) with resolved_fn@72.
+ * @param await_expr ASTExpr* as *u8
+ * @return 1 if IO await, else 0
+ * PLATFORM: SHARED — Cap residual pure wave1; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_expr_is_io_await(await_expr: *u8): i32 {
+  if (await_expr == 0) {
+    return 0;
+  }
+  // AST_EXPR_AWAIT = 54
+  if (async_cps_load_i32(await_expr, 0) != 54) {
+    return 0;
+  }
+  let op: *u8 = async_cps_load_ptr(await_expr, 24);
+  if (op == 0) {
+    return 0;
+  }
+  // AST_EXPR_CALL = 48
+  if (async_cps_load_i32(op, 0) != 48) {
+    return 0;
+  }
+  let resolved: *u8 = async_cps_load_ptr(op, 72);
+  if (resolved == 0) {
+    return 0;
+  }
+  return async_cps_callee_is_io(resolved);
+}
+
+/** True when await is `await read(handle, ptr, len, ...)` (num_args >= 3).
+ * PLATFORM: SHARED — Cap residual pure wave1; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_expr_is_await_read(await_expr: *u8): i32 {
+  if (async_cps_expr_is_io_await(await_expr) == 0) {
+    return 0;
+  }
+  let op: *u8 = async_cps_load_ptr(await_expr, 24);
+  if (op == 0) {
+    return 0;
+  }
+  if (async_cps_load_i32(op, 0) != 48) {
+    return 0;
+  }
+  let resolved: *u8 = async_cps_load_ptr(op, 72);
+  if (resolved == 0) {
+    return 0;
+  }
+  let name: *u8 = async_cps_load_func_name(resolved);
+  if (async_cps_name_is_read(name) == 0) {
+    return 0;
+  }
+  // call.num_args @40
+  if (async_cps_load_i32(op, 40) < 3) {
+    return 0;
+  }
+  return 1;
+}
+
+/** True when await is `await read_fd(fd, ptr, len)` (num_args >= 3).
+ * PLATFORM: SHARED — Cap residual pure wave1; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_expr_is_await_read_fd(await_expr: *u8): i32 {
+  if (async_cps_expr_is_io_await(await_expr) == 0) {
+    return 0;
+  }
+  let op: *u8 = async_cps_load_ptr(await_expr, 24);
+  if (op == 0) {
+    return 0;
+  }
+  if (async_cps_load_i32(op, 0) != 48) {
+    return 0;
+  }
+  let resolved: *u8 = async_cps_load_ptr(op, 72);
+  if (resolved == 0) {
+    return 0;
+  }
+  let name: *u8 = async_cps_load_func_name(resolved);
+  if (async_cps_name_is_read_fd(name) == 0) {
+    return 0;
+  }
+  if (async_cps_load_i32(op, 40) < 3) {
+    return 0;
+  }
+  return 1;
+}
+
+/** True when await is `await write_fd(fd, ptr, len)` (num_args >= 3).
+ * PLATFORM: SHARED — Cap residual pure wave1; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_expr_is_await_write_fd(await_expr: *u8): i32 {
+  if (async_cps_expr_is_io_await(await_expr) == 0) {
+    return 0;
+  }
+  let op: *u8 = async_cps_load_ptr(await_expr, 24);
+  if (op == 0) {
+    return 0;
+  }
+  if (async_cps_load_i32(op, 0) != 48) {
+    return 0;
+  }
+  let resolved: *u8 = async_cps_load_ptr(op, 72);
+  if (resolved == 0) {
+    return 0;
+  }
+  let name: *u8 = async_cps_load_func_name(resolved);
+  if (async_cps_name_is_write_fd(name) == 0) {
+    return 0;
+  }
+  if (async_cps_load_i32(op, 40) < 3) {
+    return 0;
+  }
+  return 1;
+}
+
+/** True when await is `await write(handle, ptr, len, ...)` (num_args >= 3).
+ * PLATFORM: SHARED — Cap residual pure wave1; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_expr_is_await_write(await_expr: *u8): i32 {
+  if (async_cps_expr_is_io_await(await_expr) == 0) {
+    return 0;
+  }
+  let op: *u8 = async_cps_load_ptr(await_expr, 24);
+  if (op == 0) {
+    return 0;
+  }
+  if (async_cps_load_i32(op, 0) != 48) {
+    return 0;
+  }
+  let resolved: *u8 = async_cps_load_ptr(op, 72);
+  if (resolved == 0) {
+    return 0;
+  }
+  let name: *u8 = async_cps_load_func_name(resolved);
+  if (async_cps_name_is_write(name) == 0) {
+    return 0;
+  }
+  if (async_cps_load_i32(op, 40) < 3) {
+    return 0;
+  }
+  return 1;
+}
+
+/** True when await is future_wait (method / call resolved / field / var name).
+ * METHOD: method_name@32 or resolved_impl@56 via future_wait name gate.
+ * CALL: resolved_fn@72, or callee FIELD field_name@32, or callee VAR name@24.
+ * PLATFORM: SHARED — Cap residual pure wave1; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_expr_is_await_future_wait(await_expr: *u8): i32 {
+  if (await_expr == 0) {
+    return 0;
+  }
+  // AST_EXPR_AWAIT = 54
+  if (async_cps_load_i32(await_expr, 0) != 54) {
+    return 0;
+  }
+  let op: *u8 = async_cps_load_ptr(await_expr, 24);
+  if (op == 0) {
+    return 0;
+  }
+  let ok: i32 = async_cps_load_i32(op, 0);
+  // AST_EXPR_METHOD_CALL = 49
+  if (ok == 49) {
+    let method_name: *u8 = async_cps_load_ptr(op, 32);
+    if (method_name != 0) {
+      if (async_cps_callee_is_future_wait_by_name(method_name) != 0) {
+        return 1;
+      }
+    }
+    let implf: *u8 = async_cps_load_ptr(op, 56);
+    if (implf != 0) {
+      if (async_cps_callee_is_future_wait(implf) != 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  // AST_EXPR_CALL = 48
+  if (ok != 48) {
+    return 0;
+  }
+  let resolved: *u8 = async_cps_load_ptr(op, 72);
+  if (resolved != 0) {
+    if (async_cps_callee_is_future_wait(resolved) != 0) {
+      return 1;
+    }
+  }
+  let call_callee: *u8 = async_cps_load_ptr(op, 24);
+  if (call_callee == 0) {
+    return 0;
+  }
+  let ck: i32 = async_cps_load_i32(call_callee, 0);
+  // AST_EXPR_FIELD_ACCESS = 44
+  if (ck == 44) {
+    let field_name: *u8 = async_cps_load_ptr(call_callee, 32);
+    if (field_name != 0) {
+      if (async_cps_callee_is_future_wait_by_name(field_name) != 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  // AST_EXPR_VAR = 3
+  if (ck == 3) {
+    let vname: *u8 = async_cps_load_ptr(call_callee, 24);
+    if (vname != 0) {
+      if (async_cps_callee_is_future_wait_by_name(vname) != 0) {
+        return 1;
+      }
+    }
   }
   return 0;
 }

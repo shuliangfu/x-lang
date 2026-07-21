@@ -256,7 +256,8 @@ MODULES=(
   # 冷/无 PREFER 仍可走 seeds/async_liveness.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
   # Stack：analyze_block_linear malloc(4096) 非 u8[4096]（Ubuntu -E 稳）
   "async_liveness|src/async/async_liveness.x|seeds/async_liveness_surface.from_x.c||"
-  # async_cps_codegen R2 pure surface：.x 吃满 io/future_wait/sched name gates + thin walk/hoist wrappers；
+  # async_cps_codegen R2 pure + Cap residual pure wave1：
+  #   .x 吃满 name gates + thin walk/hoist + expr_is_* await classifiers；
   # FROM_X 省略 pure C 体（slice_marker）；walk _impl 始终 seed；Cap residual：FILE* emit + module/sched resolve
   # 冷/无 PREFER 仍可走 seeds/async_cps_codegen.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
   # Thin ABI：(e,target)/(b,target) 与 C 公共面一致

@@ -4,13 +4,14 @@
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  *
- * R2 pure surface（2026-07-21）：io/future_wait/sched name gates + thin public
- *   wrappers (walk/hoist) by src/async/async_cps_codegen.x；FROM_X 下 pure
- *   helper C 体省略；walk _impl 仍始终 seed（thin 转调）。
+ * R2 pure surface + Cap residual pure wave1（2026-07-21）：
+ *   io/future_wait/sched name gates + thin walk/hoist wrappers +
+ *   expr_is_* await classifiers by src/async/async_cps_codegen.x；
+ *   FROM_X 下 pure helper C 体省略；walk _impl 仍始终 seed（thin 转调）。
  * Cap residual（始终 seed C）：emit_hoisted_lets_impl / begin/end/after_await /
  *   emit_phase_reset / emit_sched_wrapper / emit_param_statics（FILE* fprintf）；
- *   module_references_run_async / func_uses_void_entry / expr_is_* await
- *   classifiers / resolve_sched_target / module_has_sched_extern。
+ *   module_references_run_async / func_uses_void_entry /
+ *   resolve_sched_target / module_has_sched_extern。
  * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认 -c 本文件（无宏）。
  * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
@@ -296,6 +297,8 @@ int async_cps_callee_is_io(const struct ASTFunc *callee) {
 #endif
 
 
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave1：.x 真迁；冷路径仍 seed C */
 int async_cps_expr_is_io_await(const struct ASTExpr *await_expr) {
     const struct ASTExpr *op;
     if (!await_expr || await_expr->kind != AST_EXPR_AWAIT)
@@ -367,6 +370,7 @@ int async_cps_expr_is_await_write(const struct ASTExpr *await_expr) {
         return 0;
     return op->value.call.num_args >= 3;
 }
+#endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 /** callee 是否为 Future 等待（future_wait / runtime_wait_future / C 符号）。 */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -409,6 +413,8 @@ int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
 
 
 /** await future_wait(...)：Pending 时走 suspend_io 循环（STD-041 Future 绑定）。 */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave1：.x 真迁；冷路径仍 seed C */
 int async_cps_expr_is_await_future_wait(const struct ASTExpr *await_expr) {
     const struct ASTExpr *op;
     const struct ASTFunc *callee;
@@ -446,6 +452,7 @@ int async_cps_expr_is_await_future_wait(const struct ASTExpr *await_expr) {
     }
     return 0;
 }
+#endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 /** await 边界公共 emit：保存 live、推进 phase、开下一 case 并恢复 live。 */
 static int async_cps_codegen_after_await_impl(AsyncCpsCodegenCtx *ctx, FILE *out,
@@ -542,7 +549,8 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
 }
 
 #ifdef SHUX_ASYNC_CPS_CODEGEN_FROM_X
-/* R2 pure surface from .x; Cap residual + walk _impl above stay in this TU. */
+/* R2 pure surface + Cap residual pure wave1 from .x;
+ * FILE* emit + walk _impl + module/sched resolve stay in this TU. */
 int async_cps_codegen_slice_marker(void) {
     return 0;
 }
