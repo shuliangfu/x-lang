@@ -44,6 +44,8 @@
 //   ok/allow -2 + import map via find_loaded; G.7 pctx_update / module import path).
 // wave63: pure typeck_module_entry_only / with_sidecar / pipeline_typeck_module_for_ctx_impl
 //   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base BSS base).
+// wave64: pure pipeline_parse_into_bytes orch (G.7 pure parser_parse_into_init +
+//   G.7 pure driver_parse_into_buf_rc; non-zero ok → -1; cold twin under FROM_X).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -151,7 +153,7 @@ export extern "C" function pipeline_read_file_commit_prep(): i32;
 /* See implementation. */
 export extern "C" function pipeline_loaded_import_data(): *u8;
 export extern "C" function pipeline_loaded_import_len_get(): i64;
-export extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32;
+// wave64: pipeline_parse_into_bytes is pure export function below (not Cap residual).
 // wave56: shux_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
 // wave58: shux_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
 // wave59: shux_pipeline_dep_prerun_parse_only_impl is pure export function below.
@@ -1758,12 +1760,62 @@ export function pipeline_read_file(): i32 {
   return 0;
 }
 
-// pipeline_parse_into_loaded_import: see function docblock below.
-/** Exported function `pipeline_parse_into_loaded_import`.
- * Implements `pipeline_parse_into_loaded_import`.
- * @param arena *u8
- * @param module *u8
- * @return i32
+/**
+ * Parse source bytes into module via Cap residual parser_parse_into (ok unpack).
+ * @param arena *u8 — AST arena; null → -1
+ * @param module *u8 — AST module; null → -1
+ * @param data *u8 — source bytes; null → -1
+ * @param len i64 — byte length; negative or > INT32_MAX → -1; zero length allowed
+ * @return i32 — 0 if parser ok==0; -1 on null/oversized/any non-zero ok
+ * wave64 pure Cap residual orch:
+ *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
+ *   G.7 pure driver_parse_into_buf_rc (unpacks Cap-struct-return ParseIntoResult.ok).
+ * Contract: this API collapses every non-zero ok to -1 (including historical ok==-2).
+ *   Contrast one_ctx map_impl (wave62), which accepts ok==-2 for import-table scan.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32 {
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (data == 0 as *u8) {
+    return 0 - 1;
+  }
+  // INT32_MAX — driver_parse_into_buf_rc residual takes int32_t len.
+  let imax: i64 = 2147483647;
+  if (len < 0) {
+    return 0 - 1;
+  }
+  if (len > imax) {
+    return 0 - 1;
+  }
+  let len_i32: i32 = len as i32;
+  unsafe {
+    // Same order as historical seed: init then parse_into.
+    parser_parse_into_init(module, arena);
+    // Cap-struct-return residual unpacks ParseIntoResult.ok; null out_main_idx.
+    let pr_ok: i32 = driver_parse_into_buf_rc(arena, module, data, len_i32, 0 as *i32);
+    // Historical: only ok==0 is success; any other code (incl. -2) → -1.
+    if (pr_ok == 0) {
+      return 0;
+    }
+    return 0 - 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Parse the pipeline loaded-import buffer into module (after resolve/read/preprocess stages).
+ * @param arena *u8 — AST arena; null → -1
+ * @param module *u8 — AST module; null → -1
+ * @return i32 — 0 success, -1 null arena/module, empty loaded buffer, or parse fail
+ * wave64: body uses pure pipeline_parse_into_bytes after Cap residual loaded buffer accessors.
+ * Cap residual always-seed: pipeline_loaded_import_data / pipeline_loaded_import_len_get (BSS).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {

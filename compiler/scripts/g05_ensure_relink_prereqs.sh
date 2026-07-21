@@ -1513,6 +1513,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # G-02f-12 / wave45–63：runtime_pipeline_abi 产品 PREFER hybrid
   #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
   #   wave63: pure typeck_module_entry_only / with_sidecar / for_ctx_impl orch
+  #   wave64: pure pipeline_parse_into_bytes orch (G.7 driver_parse_into_buf_rc)
   #     (Cap residual typeck_module + typeck_dep_module_ptrs_base BSS).
   #   wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc + parse ok/allow -2
   #     + import map; G.7 pctx_update / find_loaded / driver_parse_into_buf_rc).

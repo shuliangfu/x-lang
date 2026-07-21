@@ -45,6 +45,9 @@
  * wave63: pure typeck_module_entry_only / with_sidecar / pipeline_typeck_module_for_ctx_impl
  *   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base always-seed;
  *   cold twins under #ifndef FROM_X).
+ * wave64: pure pipeline_parse_into_bytes orch (G.7 parser_parse_into_init +
+ *   driver_parse_into_buf_rc; non-zero ok → -1; cold twin + loaded_import_impl under
+ *   #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -206,6 +209,8 @@ void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ct
 int32_t typeck_module_entry_only(void *module);
 int32_t typeck_module_with_sidecar(void *module);
 int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void);
+/* wave64 pure pipeline_parse_into_bytes — pure loaded_import + tmp_parse call under hybrid. */
+int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2386,7 +2391,11 @@ size_t pipeline_loaded_import_len_get(void) {
     return pipeline_loaded_import_len;
 }
 
-/* G-02f-239：parse bytes 🔒 */
+/* G-02f-239 / wave64：hybrid pure owns pipeline_parse_into_bytes; cold twin under #ifndef FROM_X.
+ * Pure orch: parser_parse_into_init + driver_parse_into_buf_rc; non-zero ok → -1.
+ * Cap residual always-seed: pipeline_loaded_import_data / len_get (BSS) for loaded_import public.
+ * PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len) {
     struct shux_slice_uint8_t slice;
     struct parser_ParseIntoResult pr;
@@ -2399,7 +2408,7 @@ int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size
     return pr.ok == 0 ? 0 : -1;
 }
 
-/* G-02f-239：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* Cold-only _impl: pure loaded_import public inlines Cap residual data/len + pure parse_into_bytes. */
 int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module) {
     uint8_t *data = pipeline_loaded_import_data();
     if (!data)
@@ -2408,7 +2417,6 @@ int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module) {
 }
 
 /* G-02f-239：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
   if (arena == NULL) {
     return -1;
