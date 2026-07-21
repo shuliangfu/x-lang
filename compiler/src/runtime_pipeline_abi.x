@@ -91,6 +91,9 @@
 // wave80: pure shux_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o only —
 //   remove same-TU weak -1 stub so call keeps external reloc → final strong bridge;
 //   seed cold twin under #ifndef FROM_X). Closes product_emit Cap residual leaf.
+// wave81: pure shux_preprocess / shux_preprocess_quiet / shux_preprocess_with_path thin public
+//   surface (G.7 pure shux_preprocess_raw_to_malloc_impl; product always X-pipeline path;
+//   seed cold twin keeps LEGACY preprocess_c_fallback under #ifndef FROM_X).
 // Cap residual still: fn-ptr / typeck_module C frontend
 //   (+ pipeline_sizeof_* / preprocess engine residual).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
@@ -1636,6 +1639,119 @@ export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *
     return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
   }
   return 0 - 1;
+}
+
+/**
+ * Public preprocess surface with path diags (owned malloc prep or null).
+ * @param source *u8 — source bytes; null → null (out_length cleared when non-null)
+ * @param source_len usize — byte count; 0 → pipe_cstr_len(source) (≡ seed strlen)
+ * @param path_diag *u8 — path for PP/XP diags; may be null
+ * @param defines *u8 — const char** define names base; used only when ndefines > 0
+ * @param ndefines i32 — define count
+ * @param out_length *u8 — size_t* out length as bytes; may be null
+ * @return *u8 — owned NUL-terminated prep (caller free); null on fail
+ * wave81 pure Cap residual thin:
+ *   G.7 pure shux_preprocess_raw_to_malloc_impl with emit_diag=1 (product X-pipeline path);
+ *   LP64 stack out cells for char** / size_t* (same pattern as stage_prep);
+ *   seed cold twin keeps LEGACY preprocess_c_fallback under #ifndef FROM_X.
+ * PLATFORM: SHARED — matches seed SHUX_USE_X_PIPELINE && !LEGACY control flow.
+ */
+#[no_mangle]
+export function shux_preprocess_with_path(source: *u8, source_len: usize, path_diag: *u8, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+  if (out_length != 0 as *u8) {
+    shux_size_slot_set(out_length, 0, 0);
+  }
+  if (source == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let slen: i64 = source_len as i64;
+  if (slen == 0) {
+    slen = pipe_cstr_len(source) as i64;
+  }
+  // LP64 out cells for impl (char** / size_t*).
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  shux_size_slot_set(&out_len[0], 0, 0);
+  let def_arg: *u8 = 0 as *u8;
+  if (ndefines > 0) {
+    def_arg = defines;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = shux_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], path_diag, def_arg, ndefines, 1);
+  }
+  if (rc != 0) {
+    return 0 as *u8;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let olen: i64 = shux_size_slot_get(&out_len[0], 0);
+  if (out_length != 0 as *u8) {
+    shux_size_slot_set(out_length, 0, olen);
+  }
+  return prep;
+}
+
+/**
+ * Public preprocess surface quiet (no path diags; emit_diag=0).
+ * @param source *u8 — source bytes; null → null
+ * @param source_len usize — byte count; 0 → pipe_cstr_len(source)
+ * @param defines *u8 — const char** define names base; used only when ndefines > 0
+ * @param ndefines i32 — define count
+ * @param out_length *u8 — size_t* out length as bytes; may be null
+ * @return *u8 — owned prep or null
+ * wave81 pure Cap residual thin: G.7 pure raw_to_malloc_impl emit_diag=0 path_diag null.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_preprocess_quiet(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+  if (out_length != 0 as *u8) {
+    shux_size_slot_set(out_length, 0, 0);
+  }
+  if (source == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let slen: i64 = source_len as i64;
+  if (slen == 0) {
+    slen = pipe_cstr_len(source) as i64;
+  }
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  shux_size_slot_set(&out_len[0], 0, 0);
+  let def_arg: *u8 = 0 as *u8;
+  if (ndefines > 0) {
+    def_arg = defines;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = shux_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], 0 as *u8, def_arg, ndefines, 0);
+  }
+  if (rc != 0) {
+    return 0 as *u8;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let olen: i64 = shux_size_slot_get(&out_len[0], 0);
+  if (out_length != 0 as *u8) {
+    shux_size_slot_set(out_length, 0, olen);
+  }
+  return prep;
+}
+
+/**
+ * Public preprocess surface (default quiet).
+ * @param source *u8 — source bytes
+ * @param source_len usize — byte count; 0 → cstr len
+ * @param defines *u8 — const char** define table
+ * @param ndefines i32 — define count
+ * @param out_length *u8 — size_t* out length
+ * @return *u8 — owned prep or null
+ * wave81 pure Cap residual thin: G.7 pure shux_preprocess_quiet.
+ * PLATFORM: SHARED — matches seed alias.
+ */
+#[no_mangle]
+export function shux_preprocess(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+  return shux_preprocess_quiet(source, source_len, defines, ndefines, out_length);
 }
 
 // driver_dep_seed_slots: see function docblock below.

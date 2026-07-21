@@ -82,6 +82,8 @@
  *   pipe_cstr_copy; fail leave path; cold twin under #ifndef FROM_X).
  * wave80: pure shux_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o
  *   only — no same-TU weak -1; external reloc → bridge strong; cold twin under #ifndef FROM_X).
+ * wave81: pure shux_preprocess / quiet / with_path thin public surface (G.7 pure
+ *   raw_to_malloc_impl; product X-pipeline; cold twin keeps LEGACY fallback under #ifndef FROM_X).
  * Cap residual still: fn-ptr / typeck_module C frontend
  *   (+ pipeline_sizeof_* / preprocess engine residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
@@ -3809,10 +3811,12 @@ void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_de
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
- * 对 .x 源码做条件编译预处理；默认 bootstrap 走 preprocess.x，LEGACY 或 shux-c 冷路径走 C fallback。
- * 参数：与 preprocess.h preprocess() 一致。
- * 返回值：malloc 字符串（调用方 free）；失败 NULL。
+ * Public preprocess surface (wave81: hybrid pure owns; cold twin under #ifndef FROM_X).
+ * Product pure thin → G.7 shux_preprocess_raw_to_malloc_impl; cold keeps LEGACY
+ * preprocess_c_fallback when !SHUX_USE_X_PIPELINE || SHUX_LEGACY_PREPROCESS_C.
+ * PLATFORM: SHARED.
  */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 char *shux_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
     return shux_preprocess_quiet(source, source_len, defines, ndefines, out_length);
 }
@@ -3867,6 +3871,7 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
     return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
 #endif
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* Why: The previous `#ifdef _WIN32` block here provided empty/failure stubs
  *      for parser_parse_into_init / parser_parse_into / parser_get_module_* /

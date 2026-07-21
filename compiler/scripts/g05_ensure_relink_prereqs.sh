@@ -1549,6 +1549,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   #     pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only).
   #   wave58: pure dep_prerun_parse_skip_typeck_impl orch (check_only + skip typeck/codegen
   #     + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
+  #   wave81: pure shux_preprocess / quiet / with_path thin public surface
+  #     (G.7 pure raw_to_malloc_impl; product X-pipeline; cold LEGACY under #ifndef FROM_X).
   #   wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs pack;
   #     Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + product_emit → wave80 pure thin;
   #     G.7 driver_run_thread_on_large_stack; export-extern asm_asm_codegen_elf_o → bridge).
