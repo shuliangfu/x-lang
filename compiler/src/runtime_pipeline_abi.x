@@ -36,6 +36,8 @@
 //   flags + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
 // wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
 //   pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only).
+// wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
+//   typeck_dep_prerun_module; SHUX_DEBUG_PIPE notes cold-only).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -141,8 +143,11 @@ export extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, da
 // wave56: shux_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
 // wave58: shux_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
 // wave59: shux_pipeline_dep_prerun_parse_only_impl is pure export function below.
-// Cap residual always-seed: typeck_only still calls C glue (_impl).
-export extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
+// wave60: shux_pipeline_dep_prerun_typeck_only_impl is pure export function below.
+// Cap residual glue still called from pure typeck_only orch (strong defs in glue/ast_pool):
+// PLATFORM: SHARED — same C ABI as seed _impl; weak pure parse_set_main_from_buf surface in this TU.
+export extern "C" function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern "C" function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx: *u8): i32;
 // wave58 pure skip_typeck orch: G.7 driver flags + asm_entry field accessors (runtime_driver_abi).
 // PLATFORM: SHARED — same symbols as rt_run_asm_backend pure path.
 export extern "C" function driver_check_only_get(): i32;
@@ -1810,8 +1815,79 @@ export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8
   return 0 - 1;
 }
 
-/* ---- G-02f-59 / G-02f-239：dep prerun typeck ---- */
+/* ---- G-02f-59 / G-02f-239 / wave60：dep prerun typeck ---- */
 
+/**
+ * Dep prerun typeck-only body: parse + load/sync direct imports + typeck (no codegen).
+ * Does not walk run_x_pipeline (large modules drop ctx); uses C glue authorities.
+ * @param dep_mod *u8 — dep AST module; caller thin already null-checked
+ * @param dep_arena *u8 — dep AST arena
+ * @param src *u8 — source bytes
+ * @param len i64 — byte length; > INT32_MAX → -1
+ * @param dep_out *u8 — unused (historical signature; seed voids it)
+ * @param one_ctx *u8 — PipelineDepCtx; required for load + typeck
+ * @return i32 — 0 ok; -1 null/oversized; -2 parse fail; else load_rc / typeck_rc
+ * wave60 pure Cap residual:
+ *   G.7 pure pipeline_parse_set_main_from_buf_c surface (weak empty here; strong glue wins);
+ *   G.7 pipeline_load_and_sync_direct_import_deps_c (ast_pool authority);
+ *   G.7 pipeline_typeck_dep_prerun_module_c (pipeline_glue authority);
+ *   SHUX_DEBUG_PIPE notes cold-only (seed twin keeps getenv diags).
+ * PLATFORM: SHARED — same return mapping as historical seed _impl.
+ */
+#[no_mangle]
+export function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  // dep_out is public ABI only; historical seed voids it (no consumer on this path).
+  if (dep_mod == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (src == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  if (one_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  // INT32_MAX — pipeline glue takes int32_t len.
+  let imax: i64 = 2147483647;
+  if (len > imax) {
+    return 0 - 1;
+  }
+  unsafe {
+    let len_i32: i32 = len as i32;
+    // Authority parse path (same as seed; not bare parser_parse_into).
+    let parse_rc: i32 = pipeline_parse_set_main_from_buf_c(dep_mod, dep_arena, src, len_i32);
+    // Seed maps any non-zero parse to -2 (not -1).
+    if (parse_rc != 0) {
+      return 0 - 2;
+    }
+    let load_rc: i32 = pipeline_load_and_sync_direct_import_deps_c(dep_mod, dep_arena, one_ctx);
+    if (load_rc != 0) {
+      return load_rc;
+    }
+    // Typeck dep prerun module (skip codegen); return code is authority surface.
+    let tc_rc: i32 = pipeline_typeck_dep_prerun_module_c(dep_mod, dep_arena, one_ctx);
+    return tc_rc;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Thin gate for dep prerun typeck-only (null / empty source / missing ctx rejected).
+ * @param dep_mod *u8 — dep AST module; null → -1
+ * @param dep_arena *u8 — dep AST arena; null → -1
+ * @param src *u8 — source bytes; null → -1
+ * @param len i64 — byte length; <=0 → -1
+ * @param dep_out *u8 — optional unused out (forwarded)
+ * @param one_ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — typeck path rc; -1 on thin reject
+ * wave60: body in pure shux_pipeline_dep_prerun_typeck_only_impl.
+ * PLATFORM: SHARED.
+ */
 #[no_mangle]
 export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {

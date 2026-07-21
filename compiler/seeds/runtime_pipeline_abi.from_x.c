@@ -33,6 +33,9 @@
  * wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
  *   pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only; cold twin
  *   under #ifndef FROM_X).
+ * wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
+ *   typeck_dep_prerun_module; SHUX_DEBUG_PIPE notes cold-only; cold twin under
+ *   #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -181,6 +184,9 @@ int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_are
     size_t len, void *dep_out, void *one_ctx);
 /* wave59 pure dep_prerun_parse_only_impl — thin pure gate calls under hybrid. */
 int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
+/* wave60 pure dep_prerun_typeck_only_impl — thin pure gate calls under hybrid. */
+int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2500,6 +2506,10 @@ int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, c
 
 
 /** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 X run_x_pipeline_impl（大模块 ctx 易丢）。 */
+/* G-02f-typeck_only / wave60：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
+ * Pure orch calls pipeline_parse_set_main_from_buf_c + load_and_sync + typeck_dep_prerun;
+ * SHUX_DEBUG_PIPE notes live on cold twin only. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
     int32_t len_i32;
@@ -2548,7 +2558,6 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     return tc_rc;
 }
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
   if (dep_mod == NULL) {
