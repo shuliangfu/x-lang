@@ -2159,7 +2159,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
             /* -o <exe>（无 .o/.s 后缀）时：已写临时 .o，调 ld 生成可执行文件后删临时文件；链 runtime_panic 与常用 std 各 .o */
             if (asm_want_exe && asm_tmp_o_path[0]) {
                 driver_bump_stack_limit();
+                /* G.7: CLI user .o into asm ld (same globals as invoke_cc). PLATFORM: SHARED. */
+                if (argv && argc > 0)
+                    shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
                 int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, out_path, target, pctx->use_macho_o, pctx->use_coff_o, argv[0], lib_roots_arr, n_lib_roots);
+                shux_invoke_cc_clear_user_o_files();
                 unlink(asm_tmp_o_path);
                 if (ld_ok != 0) {
                     driver_unlink_failed_output(out_path);
@@ -4541,8 +4545,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             const char *asm_exe_out = out_path ? out_path : "a.out";
             /** elf emit 后主栈已深；nostdlib invoke_ld 前再抬高 soft limit（C6 -o exe）。 */
             driver_bump_stack_limit();
+            /* G.7: CLI user .o into asm ld (same globals as invoke_cc). PLATFORM: SHARED. */
+            if (argv && argc > 0)
+                shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
             int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, asm_exe_out, target, pctx->use_macho_o, pctx->use_coff_o, argv ? argv[0] : NULL,
                 lib_roots_arr, n_lib_roots);
+            shux_invoke_cc_clear_user_o_files();
             unlink(asm_tmp_o_path);
             if (ld_ok != 0) {
                 driver_unlink_failed_output(asm_exe_out);

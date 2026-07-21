@@ -80,6 +80,10 @@ export extern "C" function shux_asm_codegen_elf_o_large_stack(
 export extern "C" function shux_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho: i32, use_coff: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib: i32): i32;
+/** G.7 single authority: CLI user .o table shared with invoke_cc (historical name).
+ * PLATFORM: SHARED — set before invoke_ld; clear after (stale argv pointers). */
+export extern "C" function shux_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
+export extern "C" function shux_invoke_cc_clear_user_o_files(): void;
 export extern "C" function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void;
 export extern "C" function runtime_diag_errno_path(
   file: *u8, kind: *u8, op: *u8, path: *u8): void;
@@ -1693,7 +1697,14 @@ export function rt_ab_step_finish(): i32 {
           macho = driver_pipeline_dep_ctx_get_use_macho_o(pctx);
           coff = driver_pipeline_dep_ctx_get_use_coff_o(pctx);
           argv0 = driver_asm_argv0(argv);
+          // G.7: plumb CLI extra .o into asm ld (same globals as C invoke_cc).
+          if (argc > 0) {
+            if (argv != 0 as *u8) {
+              shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
+            }
+          }
           ld_ok = shux_invoke_ld_for_exe(tmp, exe_out, target, macho, coff, argv0, lib, nlib);
+          shux_invoke_cc_clear_user_o_files();
           unlink(tmp);
         }
         if (ld_ok != 0) {

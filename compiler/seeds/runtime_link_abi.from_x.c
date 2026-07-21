@@ -3769,25 +3769,46 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
 int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 
 /* ============================================================================
- * User-specified .o files from command line (single authority, G.3/G.4).
+ * User-specified .o files from command line (single authority, G.3/G.4 / G.7).
  *
- * Why: `shux -o exe file.x extra.o` drops extra.o because shux_invoke_cc takes
- *   a fixed variadic list of std/core .o paths. The driver never extracts .o
- *   args from argv before calling shux_invoke_cc, so user-provided glue .o
- *   files (e.g. runtime_atomic_glue.o, runtime_time_os.o) never reach the cc
- *   link line → undefined symbols at link time.
+ * Why: `shux -o exe file.x extra.o` drops extra.o because:
+ *   - C path: shux_invoke_cc takes a fixed variadic list of std/core .o paths
+ *   - ASM path: shux_invoke_ld_for_exe only receives the temp user object, not
+ *     CLI extra .o (e.g. runtime_atomic_glue.o, runtime_time_os.o)
  * Authority: this global + setter/clearer is the SINGLE path for user .o files
- *   to reach the cc link line. Callers wrap shux_invoke_cc with set/clear:
+ *   to reach BOTH link lines (cc and asm ld). Historical name says "cc" but
+ *   G.7 forbids a second parallel table — asm ld consumes the same globals.
+ * Callers wrap invoke_cc OR invoke_ld with set/clear:
  *     shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
- *     shux_invoke_cc(...);
+ *     shux_invoke_cc(...)  OR  shux_invoke_ld_for_exe(...);
  *     shux_invoke_cc_clear_user_o_files();
- * Invariant: g_shux_n_user_extra_o_files == 0 means no user .o (safe default;
- *   all existing shux_invoke_cc callers that don't wrap keep prior behavior).
- * PLATFORM: SHARED — works on macOS/Linux/Windows; argv is plain char**.
+ * Invariant: g_shux_n_user_extra_o_files == 0 means no user .o (safe default).
+ * PLATFORM: SHARED — argv is plain char**; macOS/Linux/Windows.
  * ========================================================================== */
 #define SHUX_USER_EXTRA_O_FILES_MAX 32
 static const char *g_shux_user_extra_o_files[SHUX_USER_EXTRA_O_FILES_MAX];
 static int g_shux_n_user_extra_o_files = 0;
+
+/**
+ * Append CLI user .o paths (g_shux_user_extra_o_files) onto an asm ld argv.
+ * PLATFORM: SHARED — same authority as invoke_cc push loop; skip unreadable paths.
+ * Call immediately before terminating argv with NULL on every asm ld branch.
+ */
+static void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
+    int ui;
+    if (!argv || !la)
+        return;
+    for (ui = 0; ui < g_shux_n_user_extra_o_files; ui++) {
+        const char *p = g_shux_user_extra_o_files[ui];
+        if (!p || !p[0])
+            continue;
+        if (*la >= max_la - 1)
+            break;
+        if (access(p, R_OK) != 0)
+            continue;
+        argv[(*la)++] = p;
+    }
+}
 
 /* Extract .o file args from argv. Skips options (-o/-L/-I/-target/-backend/-O
  * and their value), -D<def>, --<flag>, and any arg not ending in ".o".
@@ -6632,6 +6653,8 @@ int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const c
         (int)(sizeof argv / sizeof argv[0]));
     if (la < (int)(sizeof argv / sizeof argv[0]) - 1)
         argv[la++] = "-lc";
+    /* G.7: CLI user .o on self-contained minimal asm link too. */
+    shux_asm_ld_append_user_extra_o_files(argv, &la, (int)(sizeof argv / sizeof argv[0]));
     argv[la] = NULL;
     if (getenv("SHUX_DEBUG_LD"))
         link_diag_ld_debug_argv("minimal gcc argv", argv);
@@ -8355,6 +8378,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 0);
+            /* G.7: CLI user .o after std/on_demand (same globals as invoke_cc). */
+            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
             argv[la] = NULL;
             {
                 int rc = shux_spawn_sync(labi_ld_driver_clang(), (const char *const *)argv);
@@ -8373,6 +8398,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 1);
+            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
             argv[la] = NULL;
             {
                 int rc = shux_spawn_sync(labi_ld_driver_ld(), (const char *const *)argv);
@@ -8397,6 +8423,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = o_path;
             shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
             argv[la++] = "ws2_32.lib";
             argv[la] = NULL;
             {
@@ -8501,6 +8528,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = o_path;
+            /* G.7: CLI user .o (atomic_glue/time_os/…) after primary user.o. */
+            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
             argv[la] = NULL;
             {
                 /*
@@ -8546,6 +8575,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
              */
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lc";
+            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
             argv[la] = NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
             {
@@ -8618,6 +8648,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             ldflags.have_libc_heap = 1;
         need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
         shux_asm_ld_append_unix_gcc_tail_libs(compress_o, o_path, &ldflags, need_pt, (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+        /* G.7: CLI user .o after std/on_demand/tail libs (mirrors invoke_cc order). */
+        shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
         argv[la] = NULL;
         if (getenv("SHUX_DEBUG_LD"))
             link_diag_ld_debug_argv("gcc argv", argv);

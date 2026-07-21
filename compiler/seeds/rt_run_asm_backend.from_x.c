@@ -856,8 +856,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             const char *asm_exe_out = out_path ? out_path : "a.out";
             /** elf emit 后主栈已深；nostdlib invoke_ld 前再抬高 soft limit（C6 -o exe）。 */
             driver_bump_stack_limit();
+            /* G.7 single authority: same CLI user .o table as invoke_cc (atomic_glue/time_os/…).
+             * PLATFORM: SHARED — pure asm ld on Ubuntu; Darwin -o exe often degrades to C. */
+            if (argv && argc > 0)
+                shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
             int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, asm_exe_out, target, pctx->use_macho_o, pctx->use_coff_o, argv ? argv[0] : NULL,
                 lib_roots_arr, n_lib_roots);
+            shux_invoke_cc_clear_user_o_files();
             unlink(asm_tmp_o_path);
             if (ld_ok != 0) {
                 driver_unlink_failed_output(asm_exe_out);

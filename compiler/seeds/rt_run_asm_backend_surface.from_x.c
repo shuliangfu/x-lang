@@ -133,6 +133,9 @@ extern int32_t shux_asm_out_buf_is_object(uint8_t * data, size_t len);
 extern void shux_driver_asm_prepare_entry_elf_emit(uint8_t * module, uint8_t * arena, uint8_t * pctx);
 extern int32_t shux_asm_codegen_elf_o_large_stack(uint8_t * module, uint8_t * arena, uint8_t * pctx, uint8_t * elf_ctx, uint8_t * out_buf);
 extern int32_t shux_invoke_ld_for_exe(uint8_t * o_path, uint8_t * exe_path, uint8_t * target, int32_t use_macho, int32_t use_coff, uint8_t * link_argv0, uint8_t * lib_roots, int32_t n_lib);
+/* G.7: CLI user .o table shared with invoke_cc; set/clear around invoke_ld. */
+extern void shux_invoke_cc_set_user_o_files_from_argv(int32_t argc, uint8_t * argv);
+extern void shux_invoke_cc_clear_user_o_files(void);
 extern void runtime_pipeline_elf_ctx_diag_note(uint8_t * ctx_bytes);
 extern void runtime_diag_errno_path(uint8_t * file, uint8_t * kind, uint8_t * op, uint8_t * path);
 extern void driver_unlink_failed_output(uint8_t * out_path);
@@ -1874,7 +1877,12 @@ int32_t rt_ab_step_finish(void) {
           (void)((macho = driver_pipeline_dep_ctx_get_use_macho_o(pctx)));
           (void)((coff = driver_pipeline_dep_ctx_get_use_coff_o(pctx)));
           (void)((argv0 = driver_asm_argv0(argv)));
+          /* G.7: plumb CLI extra .o into asm ld (same globals as C invoke_cc). */
+          if ((argc > 0) && (argv != ((uint8_t *)(0)))) {
+            (void)(shux_invoke_cc_set_user_o_files_from_argv(argc, argv));
+          }
           (void)((ld_ok = shux_invoke_ld_for_exe(tmp, exe_out, target, macho, coff, argv0, lib, nlib)));
+          (void)(shux_invoke_cc_clear_user_o_files());
           (void)(unlink(tmp));
         }
         if ((ld_ok !=0)) {

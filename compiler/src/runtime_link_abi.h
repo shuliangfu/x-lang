@@ -576,6 +576,8 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
  * Contract: caller must wrap shux_invoke_cc with set/clear to avoid stale state.
  * PLATFORM: SHARED — argv is plain char**.
  */
+/* G.7 single authority for CLI user .o on BOTH invoke_cc and invoke_ld (asm).
+ * Historical name keeps "cc"; asm path reuses the same setters (no second table). */
 void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
 void shux_invoke_cc_clear_user_o_files(void);
 
