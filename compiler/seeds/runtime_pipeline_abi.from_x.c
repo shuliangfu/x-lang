@@ -15,8 +15,9 @@
  *   G.7 paths_tmp residual reuses Cap residual (no dual resolve/read/preprocess bodies).
  * wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
  * wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + Cap residual
- *   resolve_read_preprocess + G.7 pure tmp_parse + free prep);
- *   Cap residual strdup / resolve_read_preprocess / thread remain seed.
+ *   resolve_read_preprocess + G.7 pure tmp_parse + free prep).
+ * wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL);
+ *   Cap residual resolve_read_preprocess / thread remain seed.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -135,7 +136,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46–53: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46–54: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -146,6 +147,8 @@ void shux_i32_store(int32_t *p, int32_t v);
 size_t shux_size_slot_get(size_t *arr, int32_t i);
 void shux_size_slot_set(size_t *arr, int32_t i, size_t v);
 int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
+/* wave54 pure strdup thin shell — pure orch / cold twins call this under hybrid. */
+char *shux_collect_strdup(const char *s);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2988,13 +2991,15 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
  * 传递加载 dep：从 main 的 import 出发递归解析子 import，填满 dep_sources/dep_lens/dep_paths。
  * 返回 0 成功，1 失败（调用方负责释放已分配）。
  */
-/* wave47 Cap residual: owned C-string copy (always-seed; pure calls this, not libc strdup).
- * PLATFORM: SHARED — wraps strdup; null s → null. */
+/* wave54 pure in .x; cold twin for non-PREFER product (wraps libc strdup).
+ * PLATFORM: SHARED — null s → null; free() still releases ownership. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 char *shux_collect_strdup(const char *s) {
     if (!s)
         return NULL;
     return strdup(s);
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave47 pure in .x; cold twin for non-PREFER product. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X

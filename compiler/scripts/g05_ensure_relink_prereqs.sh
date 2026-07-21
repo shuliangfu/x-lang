@@ -1510,11 +1510,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12 / wave45–53：runtime_pipeline_abi 产品 PREFER hybrid
+  # G-02f-12 / wave45–54：runtime_pipeline_abi 产品 PREFER hybrid
   #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  #   wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL);
+  #     Cap residual resolve_read_preprocess / thread remain seed.
   #   wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + Cap residual
-  #     resolve_read_preprocess + G.7 pure tmp_parse + free prep);
-  #     Cap residual strdup / resolve_read_preprocess / thread remain seed.
+  #     resolve_read_preprocess + G.7 pure tmp_parse + free prep).
   #   wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
   #   wave51: pure load_one_direct_import_at + fail_cleanup orch; Cap residual
   #     shux_load_one_direct_resolve_read_preprocess; G.7 paths_tmp reuses Cap residual.

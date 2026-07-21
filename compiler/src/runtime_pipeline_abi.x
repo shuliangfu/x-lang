@@ -1,16 +1,16 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave53).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave54).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
 // Cap residual: heavy FILE view / PATH_MAX resolve+read+preprocess /
-//   thread C remains seed rest (paths_tmp pure orch wave53; tmp_parse pure wave52).
+//   thread C remains seed rest (strdup pure wave54; paths_tmp pure wave53; tmp_parse pure wave52).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
 //   collect_to_load_has, preprocess directive diag codes) — seed cold twins under FROM_X.
-// wave47: pure collect seed_to_load + enqueue_module_imports (strdup Cap residual).
+// wave47: pure collect seed_to_load + enqueue_module_imports (strdup Cap residual then pure).
 // wave48: pure collect deps_process_one orch; Cap residual tmp_parse_and_enqueue;
 //   G.7 reuses load_one_direct_import_at for resolve/read/preprocess store.
 // wave49: pure collect paths_process_one orch; Cap residual paths_tmp_resolve_parse_enqueue
@@ -21,8 +21,9 @@
 //   G.7 paths_tmp residual reuses same Cap residual (no dual resolve/read/preprocess).
 // wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
 // wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + Cap residual
-//   resolve_read_preprocess + G.7 pure tmp_parse + free prep);
-//   Cap residual strdup / resolve_read_preprocess / thread remain seed.
+//   resolve_read_preprocess + G.7 pure tmp_parse + free prep).
+// wave54: pure collect strdup thin shell (malloc + scan len + byte copy + NUL; no libc strdup name).
+//   Cap residual resolve_read_preprocess / thread remain seed.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -52,10 +53,8 @@ export extern "C" function free(p: *u8): void;
 // PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
-// wave47 Cap residual: owned C-string copy for collect queue (seed wraps libc strdup).
+// wave54: shux_collect_strdup is pure export function below (not Cap residual).
 // Do not export-extern libc strdup by name — conflicts with string.h after -E preamble.
-// PLATFORM: SHARED — pure orch owns queue logic; free() still releases ownership.
-export extern "C" function shux_collect_strdup(s: *u8): *u8;
 // wave52: shux_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
 // wave53: shux_collect_paths_tmp_resolve_parse_enqueue is pure export function below.
 // wave51 Cap residual: resolve import + read file view + preprocess → owned prep (no dep slots).
@@ -2395,7 +2394,7 @@ export function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, 
  * wave51 pure Cap residual orch:
  *   Cap residual shux_load_one_direct_resolve_read_preprocess → owned prep;
  *   store prep + prep_len at mi;
- *   Cap residual shux_collect_strdup(import_key) → dep_paths[mi];
+ *   wave54 pure shux_collect_strdup(import_key) → dep_paths[mi];
  *   OOM on key: free prep, clear source slot, return 1.
  * G.7 process_one / load_direct_imports layout call this. PLATFORM: SHARED.
  */
@@ -3408,13 +3407,52 @@ export function shux_collect_to_load_has(to_load: *u8, to_load_n: i32, path: *u8
 }
 
 /**
+ * Owned C-string copy for collect queue / dep_paths keys (malloc + byte copy + trailing NUL).
+ * @param s *u8 — source NUL-terminated C string; null → null
+ * @return *u8 — newly owned copy (release with free()); null if s is null or OOM
+ * wave54 pure Cap residual thin shell:
+ *   null s → null; scan length until NUL; malloc(n+1); copy n bytes + trailing NUL.
+ * Do not name this libc strdup — string.h after -E preamble would conflict on the short name.
+ * G.7 seed_to_load / enqueue / load_one / paths_process_one call this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_strdup(s: *u8): *u8 {
+  if (s == 0 as *u8) {
+    return 0 as *u8;
+  }
+  // Count bytes before trailing NUL (same unbounded scan as libc strdup).
+  let n: i32 = 0;
+  unsafe {
+    while (s[n] != 0) {
+      n = n + 1;
+    }
+  }
+  let out: *u8 = 0 as *u8;
+  unsafe {
+    out = malloc((n + 1) as usize);
+  }
+  if (out == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let i: i32 = 0;
+  unsafe {
+    while (i < n) {
+      out[i] = s[i];
+      i = i + 1;
+    }
+    out[n] = 0;
+  }
+  return out;
+}
+
+/**
  * Seed the collect to_load queue from module direct imports (owned strdup keys).
  * @param module *u8 — opaque AST module; null → empty queue + 0
  * @param to_load *u8 — char** queue base as bytes; null → fail 1
  * @param to_load_n *i32 — out live count; null → fail 1; reset to 0 first
  * @return i32 — 0 success; 1 OOM (queue freed and count cleared)
  * wave47 pure Cap residual: G.7 reuses shux_module_num_imports / import_path_cstr /
- *   pipe_store_ptr_slot; Cap residual shux_collect_strdup for ownership (free on fail).
+ *   pipe_store_ptr_slot; wave54 pure shux_collect_strdup for ownership (free on fail).
  * Slot max = SHUX_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -3729,7 +3767,7 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
  * @return i32 — 0 continue; 1 fail (caller cleans queue + partial paths)
  * wave49 pure Cap residual orch:
  *   already-loaded → free path_c + 0;
- *   Cap residual shux_collect_strdup stores owned key at mi=*n; *n = mi+1;
+ *   wave54 pure shux_collect_strdup stores owned key at mi=*n; *n = mi+1;
  *   wave53 pure shux_collect_paths_tmp_resolve_parse_enqueue
  *     (ensure tmp; Cap residual resolve/read/preprocess; G.7 pure tmp_parse; free prep);
  *   free path_c. If tmp malloc fails residual no-ops success (path still registered).
@@ -4070,7 +4108,7 @@ export function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i6
  * @return void
  * wave47 pure Cap residual: G.7 reuses module_num_imports / import_path_cstr /
  *   shux_find_loaded_import_index / shux_collect_to_load_has / pipe slots;
- *   Cap residual shux_collect_strdup.
+ *   wave54 pure shux_collect_strdup.
  * OOM on one strdup: skip that import (same as cold twin continue). PLATFORM: SHARED.
  */
 #[no_mangle]
