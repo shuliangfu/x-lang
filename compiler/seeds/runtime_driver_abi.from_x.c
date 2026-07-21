@@ -55,7 +55,10 @@
  *     FROM_X 无 pure-dup fputs；
  *   + wave23 Cap residual pure：calloc 族 + driver_asm_pctx_apply_host_defaults 在 thin.x
  *     （libc calloc/malloc/memset + pipeline_sizeof_*；host #ifdef → 永久 OS residual helper）；
- *     FROM_X 无 pure-dup calloc/host_defaults；仍 seed：table free/get/set、tmp 槽、巨型表；
+ *     FROM_X 无 pure-dup calloc/host_defaults；
+ *   + wave24 Cap residual pure：outbuf free/len/data + ptr/size table free/get/set
+ *     + diag_snapshot_free 在 thin.x（配对 wave23 calloc；G.7 shux_ptr_slot_* + LE usize）；
+ *     FROM_X 无 pure-dup free/get/set；仍 seed：tmp 槽、巨型 rt_preamble 表、open_out 等；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -2024,6 +2027,8 @@ void *driver_codegen_outbuf_calloc(void) {
 }
 #endif
 
+/* wave24 pure：hybrid thin owns free/len/data; cold seed keeps twins. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_codegen_outbuf_free(void *p) {
     free(p);
 }
@@ -2039,6 +2044,7 @@ uint8_t *driver_codegen_outbuf_data(void *p) {
         return NULL;
     return ((struct driver_codegen_outbuf_abi *)p)->data;
 }
+#endif
 
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_pipeline_dep_ctx_calloc(void) {
@@ -2052,6 +2058,8 @@ void *driver_ptr_table_calloc(int32_t n) {
 }
 #endif
 
+/* wave24 pure：hybrid thin owns free/get/set; cold seed keeps twins. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_ptr_table_free(void *t) {
     free(t);
 }
@@ -2067,6 +2075,7 @@ void driver_ptr_table_set(void *t, int32_t i, void *p) {
         return;
     ((void **)t)[i] = p;
 }
+#endif
 
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_size_table_calloc(int32_t n) {
@@ -2074,7 +2083,6 @@ void *driver_size_table_calloc(int32_t n) {
         return NULL;
     return calloc((size_t)n, sizeof(size_t));
 }
-#endif
 
 void driver_size_table_free(void *t) {
     free(t);
@@ -2091,6 +2099,7 @@ void driver_size_table_set(void *t, int32_t i, size_t v) {
         return;
     ((size_t *)t)[i] = v;
 }
+#endif
 
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx) {
@@ -2112,9 +2121,12 @@ void *driver_diag_snapshot_alloc(void) {
 }
 #endif
 
+/* wave24 pure：hybrid thin owns free; cold seed keeps twin. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_diag_snapshot_free(void *s) {
     free(s);
 }
+#endif
 
 void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len) {
     if (snap == NULL)

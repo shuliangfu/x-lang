@@ -170,6 +170,7 @@ void driver_x_emit_stdout_set_unbuffered(void);
 int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len);
 /** wave23 pure under PREFER hybrid: calloc(1, 9MiB+4); cold seed sizeof twin. */
 void *driver_codegen_outbuf_calloc(void);
+/** wave24 pure: free / len(LE@CAP) / data base; cold seed twins. */
 void driver_codegen_outbuf_free(void *p);
 int32_t driver_codegen_outbuf_len(void *p);
 uint8_t *driver_codegen_outbuf_data(void *p);
@@ -177,11 +178,13 @@ uint8_t *driver_codegen_outbuf_data(void *p);
 void *driver_pipeline_dep_ctx_calloc(void);
 /** wave23 pure: calloc(n, 8) LP64; cold seed sizeof(void*) twin. */
 void *driver_ptr_table_calloc(int32_t n);
+/** wave24 pure: free + get/set via G.7 shux_ptr_slot_*; cold seed twins. */
 void driver_ptr_table_free(void *t);
 void *driver_ptr_table_get(void *t, int32_t i);
 void driver_ptr_table_set(void *t, int32_t i, void *p);
 /** wave23 pure: calloc(n, 8) LP64; cold seed sizeof(size_t) twin. */
 void *driver_size_table_calloc(int32_t n);
+/** wave24 pure: free + get/set LE usize@i*8; cold seed twins. */
 void driver_size_table_free(void *t);
 size_t driver_size_table_get(void *t, int32_t i);
 void driver_size_table_set(void *t, int32_t i, size_t v);
@@ -189,6 +192,7 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
                                  int32_t *out_main_idx);
 /** wave23 pure: calloc(1, 32) LP64; cold seed sizeof(DiagContextSnapshot) twin. */
 void *driver_diag_snapshot_alloc(void);
+/** wave24 pure: free snapshot; cold seed twin. */
 void driver_diag_snapshot_free(void *s);
 void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len);
 void driver_diag_restore(void *snap);

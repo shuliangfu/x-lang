@@ -59,6 +59,8 @@
 //     (null guard + g05 prologue shux_driver_fputs_opaque FILE* cast; no FILE* in .x).
 //   + wave23 Cap residual pure：calloc family + driver_asm_pctx_apply_host_defaults
 //     (libc calloc/malloc/memset + pipeline_sizeof_*; host #ifdef → OS residual helpers).
+//   + wave24 Cap residual pure：outbuf free/len/data + ptr/size table free/get/set
+//     + diag_snapshot_free (pairs wave23 calloc; G.7 shux_ptr_slot_* + LE usize; free).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -2934,3 +2936,242 @@ export function driver_asm_pctx_apply_host_defaults(ctx: *u8, target: *u8, emit_
   driver_pipeline_dep_ctx_set_use_macho_o(ctx, macho);
   driver_pipeline_dep_ctx_set_use_coff_o(ctx, coff);
 }
+
+// ---- Wave24 Cap residual pure: table free/get/set + outbuf free/len/data (PLATFORM: SHARED) ----
+// Pairs wave23 calloc family. Cold seed keeps C twins under #ifndef SHUX_L2_RDABI_THIN_FROM_X.
+// Layout: CodegenOutBuf = data[9MiB] then i32 len at offset CAP (wave14 LE helpers).
+// ptr table: void*[n] → G.7 shux_ptr_slot_get/set. size table: size_t[n] → LE usize at i*8.
+
+/**
+ * Load little-endian usize at base+off (null / off < 0 → 0).
+ * Module-local host layout helper for size_t tables (LP64 8-byte cells).
+ * @param p *u8 — base address of the table or buffer; null-safe
+ * @param off i32 — byte offset from p; negative → 0
+ * @return usize — LE-decoded value, or 0 on invalid base/offset
+ * PLATFORM: SHARED LP64.
+ */
+function driver_abi_load_usize_le(p: *u8, off: i32): usize {
+  if (p == 0 as *u8) {
+    return 0 as usize;
+  }
+  if (off < 0) {
+    return 0 as usize;
+  }
+  unsafe {
+    let m: usize = 256 as usize;
+    let m2: usize = m * m;
+    let m4: usize = m2 * m2;
+    let a0: usize = p[off] as usize;
+    let a1: usize = a0 + (p[off + 1] as usize) * m;
+    let a2: usize = a1 + (p[off + 2] as usize) * m2;
+    let a3: usize = a2 + (p[off + 3] as usize) * (m2 * m);
+    let a4: usize = a3 + (p[off + 4] as usize) * m4;
+    let a5: usize = a4 + (p[off + 5] as usize) * (m4 * m);
+    let a6: usize = a5 + (p[off + 6] as usize) * (m4 * m2);
+    let a7: usize = a6 + (p[off + 7] as usize) * (m4 * m2 * m);
+    return a7;
+  }
+  return 0 as usize;
+}
+
+/**
+ * Store little-endian usize at base+off (null / off < 0 no-op).
+ * Module-local host layout helper for size_t tables (LP64 8-byte cells).
+ * @param p *u8 — base address of the table or buffer; null-safe
+ * @param off i32 — byte offset from p; negative → no-op
+ * @param v usize — value to store little-endian
+ * @return void
+ * PLATFORM: SHARED LP64.
+ */
+function driver_abi_store_usize_le(p: *u8, off: i32, v: usize): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  unsafe {
+    // Same successive /256 + low-byte extract pattern as wave14 i32 LE store (no % op).
+    let m: usize = 256 as usize;
+    let b255: usize = 255 as usize;
+    let u0: usize = v;
+    p[off] = (u0 & b255) as u8;
+    let u1: usize = u0 / m;
+    p[off + 1] = (u1 & b255) as u8;
+    let u2: usize = u1 / m;
+    p[off + 2] = (u2 & b255) as u8;
+    let u3: usize = u2 / m;
+    p[off + 3] = (u3 & b255) as u8;
+    let u4: usize = u3 / m;
+    p[off + 4] = (u4 & b255) as u8;
+    let u5: usize = u4 / m;
+    p[off + 5] = (u5 & b255) as u8;
+    let u6: usize = u5 / m;
+    p[off + 6] = (u6 & b255) as u8;
+    let u7: usize = u6 / m;
+    p[off + 7] = (u7 & b255) as u8;
+  }
+}
+
+/**
+ * Free a CodegenOutBuf previously allocated by driver_codegen_outbuf_calloc.
+ * @param p *u8 — heap pointer from outbuf_calloc; null is safe (free no-op)
+ * @return void
+ * Wave24 pure. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_codegen_outbuf_free(p: *u8): void {
+  unsafe {
+    free(p);
+  }
+}
+
+/**
+ * Read the live byte length of a CodegenOutBuf (i32 len after the 9MiB data[]).
+ * @param p *u8 — outbuf pointer; null → 0
+ * @return i32 — current len field (LE at offset CAP), or 0 if p is null
+ * Wave24 pure: wave14 LE load. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_codegen_outbuf_len(p: *u8): i32 {
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  return driver_abi_load_i32_le(p, driver_abi_codegen_outbuf_cap());
+}
+
+/**
+ * Return pointer to the data[] base of a CodegenOutBuf (first byte of the buffer).
+ * @param p *u8 — outbuf pointer; null → null
+ * @return *u8 — &data[0], same address as p on product layout (data is first field)
+ * Wave24 pure. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_codegen_outbuf_data(p: *u8): *u8 {
+  if (p == 0 as *u8) {
+    return 0 as *u8;
+  }
+  // Host layout: unsigned char data[CAP] is the first field; p is already data base.
+  return p;
+}
+
+/**
+ * Free a void* table from driver_ptr_table_calloc.
+ * @param t *u8 — heap table; null is safe
+ * @return void
+ * Wave24 pure. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_ptr_table_free(t: *u8): void {
+  unsafe {
+    free(t);
+  }
+}
+
+/**
+ * Load pointer table slot i (LP64 void* element).
+ * @param t *u8 — table from ptr_table_calloc; null → null
+ * @param i i32 — index; i < 0 → null (no upper bound check; caller owns n)
+ * @return *u8 — stored pointer at slot i, or null
+ * Wave24 pure: G.7 shux_ptr_slot_get. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_ptr_table_get(t: *u8, i: i32): *u8 {
+  if (t == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  // FFI: G.7 authority lives in pipeline C; Cap-T001 unsafe at call site.
+  unsafe {
+    return shux_ptr_slot_get(t, i);
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Store pointer table slot i (LP64 void* element).
+ * @param t *u8 — table from ptr_table_calloc; null → no-op
+ * @param i i32 — index; i < 0 → no-op
+ * @param p *u8 — value to store (may be null)
+ * @return void
+ * Wave24 pure: G.7 shux_ptr_slot_set. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_ptr_table_set(t: *u8, i: i32, p: *u8): void {
+  if (t == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  unsafe {
+    shux_ptr_slot_set(t, i, p);
+  }
+}
+
+/**
+ * Free a size_t table from driver_size_table_calloc.
+ * @param t *u8 — heap table; null is safe
+ * @return void
+ * Wave24 pure. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_size_table_free(t: *u8): void {
+  unsafe {
+    free(t);
+  }
+}
+
+/**
+ * Load size_t table slot i (LP64 8-byte LE cell at offset i*8).
+ * @param t *u8 — table from size_table_calloc; null → 0
+ * @param i i32 — index; i < 0 → 0
+ * @return usize — stored size at slot i, or 0
+ * Wave24 pure. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_size_table_get(t: *u8, i: i32): usize {
+  if (t == 0 as *u8) {
+    return 0 as usize;
+  }
+  if (i < 0) {
+    return 0 as usize;
+  }
+  // Element size 8: byte offset = i * 8.
+  return driver_abi_load_usize_le(t, i * 8);
+}
+
+/**
+ * Store size_t table slot i (LP64 8-byte LE cell at offset i*8).
+ * @param t *u8 — table from size_table_calloc; null → no-op
+ * @param i i32 — index; i < 0 → no-op
+ * @param v usize — value to store
+ * @return void
+ * Wave24 pure. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_size_table_set(t: *u8, i: i32, v: usize): void {
+  if (t == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  driver_abi_store_usize_le(t, i * 8, v);
+}
+
+/**
+ * Free a DiagContextSnapshot from driver_diag_snapshot_alloc.
+ * @param s *u8 — heap snapshot; null is safe
+ * @return void
+ * Wave24 pure. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_diag_snapshot_free(s: *u8): void {
+  unsafe {
+    free(s);
+  }
+}
+
