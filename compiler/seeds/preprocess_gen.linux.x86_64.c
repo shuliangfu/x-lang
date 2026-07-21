@@ -238,6 +238,50 @@ int32_t preprocess_x(struct shux_slice_uint8_t * source, struct shux_slice_uint8
   ++pos;
  } ; __tmp; }));
   }
+  /* PLATFORM: SHARED — flush last line when source omits trailing LF (mirror preprocess.x).
+   * Without this, final `}` is dropped → parse num_funcs=0 / XP003. */
+  if (line_len > 0) {
+    uint8_t cond_eof[256] = { 0 };
+    struct preprocess_ParseDirectiveResult res_eof = (struct preprocess_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+    (void)(preprocess_parse_directive_into((&(res_eof)), line_buf, line_len, cond_eof));
+    int32_t kind_eof = (res_eof).kind;
+    if (kind_eof != 0) {
+      int32_t cond_val_eof = 0;
+      if (kind_eof == 1 || kind_eof == 4) {
+        cond_val_eof = (preprocess_eval_condition_c((&((cond_eof)[0])), (res_eof).sym_len));
+      }
+      {
+        int32_t ar_eof = preprocess_apply_directive_kind(kind_eof, cond_val_eof);
+        if (ar_eof != 0) {
+          return ar_eof;
+        }
+      }
+      if (out_len >= (out_buf)->length) {
+        return (-1);
+      }
+      ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (shux_panic_(1, 0), 0) : ((out_buf)->data[out_len] = 10, 0)));
+      ++out_len;
+    } else {
+      int keeping_eof = preprocess_line_keeping();
+      if (keeping_eof) {
+        int32_t i_eof = 0;
+        while (i_eof < line_len) {
+          if (out_len >= (out_buf)->length) {
+            return (-1);
+          }
+          ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (shux_panic_(1, 0), 0) : ((out_buf)->data[out_len] = (i_eof < 0 || (i_eof) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[i_eof]), 0)));
+          ++out_len;
+          ++i_eof;
+        }
+      }
+      if (out_len >= (out_buf)->length) {
+        return (-1);
+      }
+      ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (shux_panic_(1, 0), 0) : ((out_buf)->data[out_len] = 10, 0)));
+      ++out_len;
+    }
+    line_len = 0;
+  }
   (void)(({ int32_t __tmp = 0; if (preprocess_if_stack_len() != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   return out_len;
@@ -288,6 +332,49 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
  } else (__tmp = 0) ; __tmp; }));
   ++pos;
  } ; __tmp; }));
+  }
+  /* PLATFORM: SHARED — flush last line when buffer omits trailing LF (mirror preprocess.x). */
+  if (line_len > 0) {
+    uint8_t cond_eof_b[256] = { 0 };
+    struct preprocess_ParseDirectiveResult res_eof_b = (struct preprocess_ParseDirectiveResult){ .kind = 0, .sym_len = 0 };
+    (void)(preprocess_parse_directive_into((&(res_eof_b)), line_buf, line_len, cond_eof_b));
+    int32_t kind_eof_b = (res_eof_b).kind;
+    if (kind_eof_b != 0) {
+      int32_t cond_val_eof_b = 0;
+      if (kind_eof_b == 1 || kind_eof_b == 4) {
+        cond_val_eof_b = (preprocess_eval_condition_c((&((cond_eof_b)[0])), (res_eof_b).sym_len));
+      }
+      {
+        int32_t ar_eof_b = preprocess_apply_directive_kind(kind_eof_b, cond_val_eof_b);
+        if (ar_eof_b != 0) {
+          return ar_eof_b;
+        }
+      }
+      if (out_len >= out_cap) {
+        return (-1);
+      }
+      ((out_len < 0 || (out_len) >= 4194304 ? (shux_panic_(1, 0), 0) : ((out_buf)[out_len] = 10, 0)));
+      ++out_len;
+    } else {
+      int keeping_eof_b = preprocess_line_keeping();
+      if (keeping_eof_b) {
+        int32_t i_eof_b = 0;
+        while (i_eof_b < line_len) {
+          if (out_len >= out_cap) {
+            return (-1);
+          }
+          ((out_len < 0 || (out_len) >= 4194304 ? (shux_panic_(1, 0), 0) : ((out_buf)[out_len] = (i_eof_b < 0 || (i_eof_b) >= 512 ? (shux_panic_(1, 0), (line_buf)[0]) : (line_buf)[i_eof_b]), 0)));
+          ++out_len;
+          ++i_eof_b;
+        }
+      }
+      if (out_len >= out_cap) {
+        return (-1);
+      }
+      ((out_len < 0 || (out_len) >= 4194304 ? (shux_panic_(1, 0), 0) : ((out_buf)[out_len] = 10, 0)));
+      ++out_len;
+    }
+    line_len = 0;
   }
   (void)(({ int32_t __tmp = 0; if (preprocess_if_stack_len() != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));

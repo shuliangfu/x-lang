@@ -524,11 +524,18 @@ export function parse_directive_into(line_buf: u8[512], line_len: i32, cond: u8[
   }
 }
 
-/** Exported function `preprocess_x`.
- * Implements `preprocess_x`.
- * @param source u8[]
- * @param out_buf u8[]
- * @return i32
+/**
+ * Run preprocess over a full source slice into out_buf.
+ * Returns output length, or -1 on buffer overflow / unclosed #if.
+ *
+ * PLATFORM: SHARED — line-oriented #if/#else/#endif. After the scan loop,
+ * any partial last line (source not ending in LF) is flushed so a trailing
+ * `}` or last statement is not dropped. Missing that flush historically
+ * yielded parse num_funcs=0 / XP003 when files omitted a final newline.
+ *
+ * @param source Input source bytes (length = source.length)
+ * @param out_buf Destination buffer; must have length > 0
+ * @return Written byte count, or negative error
  */
 export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
   if (out_buf.length <= 0) {
@@ -586,19 +593,61 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
       pos = pos + 1;
     }
   }
+  /* PLATFORM: SHARED — flush last line when source omits trailing LF (POSIX text files may).
+   * Same emit path as LF branch so #if directives and kept text stay consistent. */
+  if (line_len > 0) {
+    parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+    let kind_eof: i32 = g_pp_kind;
+    if (kind_eof != 0) {
+      let cond_val_eof: i32 = 0;
+      if (pp_kind_needs_cond(kind_eof)) {
+        cond_val_eof = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+      }
+      let ar_eof: i32 = preprocess_apply_directive_kind(kind_eof, cond_val_eof);
+      if (ar_eof != 0) {
+        return ar_eof;
+      }
+      if (out_len >= out_buf.length) {
+        return -1;
+      }
+      out_buf[out_len] = 10;
+      out_len = out_len + 1;
+    } else {
+      let keeping_eof: bool = preprocess_line_keeping();
+      if (keeping_eof) {
+        let i_eof: i32 = 0;
+        while (i_eof < line_len) {
+          if (out_len >= out_buf.length) {
+            return -1;
+          }
+          out_buf[out_len] = g_pp_line_buf[i_eof];
+          out_len = out_len + 1;
+          i_eof = i_eof + 1;
+        }
+      }
+      if (out_len >= out_buf.length) {
+        return -1;
+      }
+      out_buf[out_len] = 10;
+      out_len = out_len + 1;
+    }
+    line_len = 0;
+  }
   if (pp_if_stack_len() != 0) {
     return -1;
   }
   return out_len;
 }
 
-/** Exported function `preprocess_x_buf`.
- * Implements `preprocess_x_buf`.
- * @param source_buf u8[4194304]
- * @param source_len isize
- * @param out_buf u8[4194304]
- * @param out_cap i32
- * @return i32
+/**
+ * Buf+len entry for preprocess (same semantics as preprocess_x).
+ * PLATFORM: SHARED — flushes partial last line when source_len has no trailing LF.
+ *
+ * @param source_buf Fixed-cap input array (read only [0..source_len))
+ * @param source_len Logical input length
+ * @param out_buf Fixed-cap output array
+ * @param out_cap Capacity of out_buf
+ * @return Written byte count, or negative error
  */
 export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out_buf: u8[4194304], out_cap: i32): i32 {
   if (out_cap <= 0) {
@@ -658,6 +707,45 @@ export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out
       }
       pos = pos + 1;
     }
+  }
+  /* PLATFORM: SHARED — flush last line when buffer omits trailing LF (mirror preprocess_x). */
+  if (line_len > 0) {
+    parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+    let kind_eof_b: i32 = g_pp_kind;
+    if (kind_eof_b != 0) {
+      let cond_val_eof_b: i32 = 0;
+      if (pp_kind_needs_cond(kind_eof_b)) {
+        cond_val_eof_b = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+      }
+      let ar_eof_b: i32 = preprocess_apply_directive_kind(kind_eof_b, cond_val_eof_b);
+      if (ar_eof_b != 0) {
+        return ar_eof_b;
+      }
+      if (out_len >= out_cap) {
+        return -1;
+      }
+      out_buf[out_len] = 10;
+      out_len = out_len + 1;
+    } else {
+      let keeping_eof_b: bool = preprocess_line_keeping();
+      if (keeping_eof_b) {
+        let i_eof_b: i32 = 0;
+        while (i_eof_b < line_len) {
+          if (out_len >= out_cap) {
+            return -1;
+          }
+          out_buf[out_len] = g_pp_line_buf[i_eof_b];
+          out_len = out_len + 1;
+          i_eof_b = i_eof_b + 1;
+        }
+      }
+      if (out_len >= out_cap) {
+        return -1;
+      }
+      out_buf[out_len] = 10;
+      out_len = out_len + 1;
+    }
+    line_len = 0;
   }
   if (pp_if_stack_len() != 0) {
     return -1;
