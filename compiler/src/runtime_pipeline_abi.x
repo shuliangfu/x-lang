@@ -1,16 +1,18 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave47).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave48).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual: heavy FILE star / access / collect process_one / thread C remains seed rest.
+// Cap residual: heavy FILE star / access / tmp_parse_and_enqueue / paths_process_one /
+//   transitive_impl / thread C remains seed rest.
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
 //   collect_to_load_has, preprocess directive diag codes) — seed cold twins under FROM_X.
-// wave47: pure collect seed_to_load + enqueue_module_imports (strdup Cap residual);
-//   process_one / transitive_impl stay always-seed (read_file + preprocess).
+// wave47: pure collect seed_to_load + enqueue_module_imports (strdup Cap residual).
+// wave48: pure collect deps_process_one orch; Cap residual tmp_parse_and_enqueue;
+//   G.7 reuses load_one_direct_import_at for resolve/read/preprocess store.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -40,6 +42,9 @@ export extern "C" function free(p: *u8): void;
 // Do not export-extern libc strdup by name — conflicts with string.h after -E preamble.
 // PLATFORM: SHARED — pure orch owns queue logic; free() still releases ownership.
 export extern "C" function shux_collect_strdup(s: *u8): *u8;
+// wave48 Cap residual: malloc/memset tmp arena+module, parse prep, enqueue sub-imports.
+// PLATFORM: SHARED — parser slice / ParseIntoResult stay seed; pure process_one orch calls this.
+export extern "C" function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, prep: *u8, prep_len: i64, debug_path: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void;
 export extern "C" function ast_module_free(mod: *u8): void;
 export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
 /* See implementation. */
@@ -3346,6 +3351,90 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
       to_load_n[0] = n + 1;
     }
     j = j + 1;
+  }
+  return 0;
+}
+
+/**
+ * Process one owned to_load path into dep_sources/lens/paths and enqueue its sub-imports.
+ * @param path_c *u8 — owned C-string import key; consumed (freed) on all return paths
+ * @param lib_roots *u8 — char star-star lib roots for resolve; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources; written at slot *n
+ * @param dep_lens *u8 — size_t array base as bytes; written at slot *n
+ * @param dep_paths *u8 — char star-star owned keys; written at slot *n
+ * @param n *i32 — live loaded count (in/out); null → fail 1
+ * @param to_load *u8 — char star-star queue base; null → fail 1
+ * @param to_load_n *i32 — live queue count (in/out for enqueue); null → fail 1
+ * @param tmp_arena *u8 — void star-star tmp arena slot; null → fail 1
+ * @param tmp_module *u8 — void star-star tmp module slot; null → fail 1
+ * @param arena_sz i64 — malloc size for tmp arena when first needed
+ * @param module_sz i64 — malloc size for tmp module when first needed
+ * @return i32 — 0 continue; 1 fail (caller cleans queue + partial deps)
+ * wave48 pure Cap residual orch:
+ *   already-loaded → free path_c + 0;
+ *   G.7 load_one_direct_import_at stores prep/path at mi=*n (resolve/read/preprocess Cap);
+ *   free path_c; *n = mi+1;
+ *   Cap residual shux_collect_tmp_parse_and_enqueue for parse + enqueue.
+ * paths_process_one / transitive_impl stay seed. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
+  if (path_c == 0 as *u8) {
+    return 1;
+  }
+  if (n == 0 as *i32) {
+    return 1;
+  }
+  if (to_load == 0 as *u8) {
+    return 1;
+  }
+  if (to_load_n == 0 as *i32) {
+    return 1;
+  }
+  if (tmp_arena == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_module == 0 as *u8) {
+    return 1;
+  }
+  let mi: i32 = 0;
+  unsafe {
+    mi = n[0];
+  }
+  // Already loaded: drop owned path and continue (same as cold twin).
+  if (shux_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
+    unsafe {
+      free(path_c);
+    }
+    return 0;
+  }
+  // Cap residual: resolve + read file view + preprocess → dep_sources/lens/paths[mi].
+  let rc: i32 = 0;
+  unsafe {
+    rc = shux_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
+  }
+  unsafe {
+    free(path_c);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  let key: *u8 = pipe_load_ptr_slot(dep_paths, mi);
+  if (key == 0 as *u8) {
+    return 1;
+  }
+  unsafe {
+    n[0] = mi + 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(dep_sources, mi);
+  let prep_len: i64 = shux_size_slot_get(dep_lens, mi);
+  let n_loaded: i32 = mi + 1;
+  unsafe {
+    shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, key, to_load, to_load_n, dep_paths, n_loaded);
   }
   return 0;
 }

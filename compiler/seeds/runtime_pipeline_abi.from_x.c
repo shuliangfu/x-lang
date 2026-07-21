@@ -4,8 +4,10 @@
  *   this seed as rest under -DSHUX_RUNTIME_PIPELINE_ABI_FROM_X (no pure-dup public bodies).
  * wave46: pure residual helpers (ptr/size slots, i32_store, module import cstr,
  *   collect_to_load_has, preprocess directive diag) — cold twins under FROM_X.
- * wave47: pure collect seed_to_load + enqueue_module_imports; process_one / transitive_impl
- *   remain always-seed (FILE star / read_file / preprocess). FROM_X rest needs extern prototypes.
+ * wave47: pure collect seed_to_load + enqueue_module_imports.
+ * wave48: pure collect deps_process_one orch; Cap residual tmp_parse_and_enqueue always-seed;
+ *   G.7 reuses load_one_direct_import_at for resolve/read/preprocess; paths_process_one /
+ *   transitive_impl remain always-seed. FROM_X rest needs extern prototypes.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -124,7 +126,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46/47: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46–48: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -139,6 +141,11 @@ int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
     char *dep_paths[], int n_loaded);
+/* wave48 pure process_one orch — transitive_impl residual still calls it. */
+int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
+    size_t arena_sz, size_t module_sz);
 /* pipeline_diag_preprocess_directive_code already declared above */
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -3011,47 +3018,14 @@ void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int 
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-241：处理 to_load 一项（owned path_c）；0 继续，1 失败。*n 递增；可更新 tmp_* / to_load */
-int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
-    const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
-    char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
-    size_t arena_sz, size_t module_sz) {
-    char resolved[PATH_MAX];
-    ShuxRuntimeFileView raw_view;
-    size_t prep_len = 0;
-    char *prep = NULL;
-
-    if (!path_c || !n || !to_load || !to_load_n || !tmp_arena || !tmp_module)
-        return 1;
-    if (shux_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
-        free(path_c);
-        return 0;
-    }
-    shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, resolved, sizeof(resolved));
-    if (runtime_read_file_view(resolved, &raw_view) != 0) {
-        pipeline_diag_import_open_fail_once(path_c, resolved);
-        free(path_c);
-        return 1;
-    }
-    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
-            resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
-        runtime_release_file_view(&raw_view);
-        free(path_c);
-        return 1;
-    }
-    runtime_release_file_view(&raw_view);
-    if (!prep) {
-        pipeline_diag_import_preprocess_fail(path_c, resolved);
-        free(path_c);
-        return 1;
-    }
-    dep_sources[*n] = prep;
-    dep_lens[*n] = prep_len;
-    dep_paths[*n] = strdup(path_c);
-    free(path_c);
-    if (!dep_paths[*n])
-        return 1;
-    (*n)++;
+/* wave48 Cap residual always-seed: ensure tmp arena/module, parse prep bytes, enqueue sub-imports.
+ * Pure deps_process_one orch calls this after G.7 load_one_direct_import_at stores the slot.
+ * PLATFORM: SHARED — parser slice / ParseIntoResult / large memset stay C. */
+void shux_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
+    char *prep, size_t prep_len, const char *debug_path, char *to_load[], int *to_load_n, char *dep_paths[],
+    int n_loaded) {
+    if (!tmp_arena || !tmp_module || !prep)
+        return;
     if (!*tmp_arena) {
         *tmp_arena = malloc(arena_sz);
         *tmp_module = malloc(module_sz);
@@ -3060,23 +3034,53 @@ int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int 
         memset(*tmp_arena, 0, arena_sz);
         memset(*tmp_module, 0, module_sz);
         {
-            struct shux_slice_uint8_t dep_slice = { (uint8_t *)dep_sources[*n - 1], dep_lens[*n - 1] };
-            struct parser_ParseIntoResult pr_dep;
             int n_imp;
-            parser_parse_into_init(*tmp_module, *tmp_arena);
-            pr_dep = parser_parse_into(*tmp_arena, *tmp_module, &dep_slice);
+            int pr_rc;
+            pr_rc = pipeline_parse_into_bytes(*tmp_arena, *tmp_module, (uint8_t *)prep, prep_len);
             n_imp = parser_get_module_num_imports(*tmp_module);
             if (getenv("SHUX_DEBUG_PIPE")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
-                             dep_paths[*n - 1] ? dep_paths[*n - 1] : "?", (int)pr_dep.ok, n_imp);
+                             debug_path ? debug_path : "?", pr_rc == 0 ? 1 : 0, n_imp);
             }
             (void)n_imp;
-            shux_collect_enqueue_module_imports(*tmp_module, to_load, to_load_n, dep_paths, *n);
+            shux_collect_enqueue_module_imports(*tmp_module, to_load, to_load_n, dep_paths, n_loaded);
         }
     }
+}
+
+/* wave48 pure in .x; cold twin for non-PREFER product.
+ * G-02f-241：处理 to_load 一项（owned path_c）；0 继续，1 失败。*n 递增；可更新 tmp_* / to_load
+ * Cold body uses Cap residual load_one + tmp_parse_and_enqueue (same as pure orch). */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
+    size_t arena_sz, size_t module_sz) {
+    int mi;
+
+    if (!path_c || !n || !to_load || !to_load_n || !tmp_arena || !tmp_module)
+        return 1;
+    if (shux_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
+        free(path_c);
+        return 0;
+    }
+    mi = *n;
+    /* G.7: resolve+read+preprocess+store slot is Cap residual load_one_direct_import_at. */
+    if (shux_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, defines, ndefines,
+            dep_sources, dep_lens, dep_paths, mi) != 0) {
+        free(path_c);
+        return 1;
+    }
+    free(path_c);
+    if (!dep_paths[mi])
+        return 1;
+    (*n) = mi + 1;
+    shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, dep_sources[mi], dep_lens[mi],
+        dep_paths[mi], to_load, to_load_n, dep_paths, *n);
     return 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
