@@ -61,6 +61,8 @@
 //     (libc calloc/malloc/memset + pipeline_sizeof_*; host #ifdef → OS residual helpers).
 //   + wave24 Cap residual pure：outbuf free/len/data + ptr/size table free/get/set
 //     + diag_snapshot_free (pairs wave23 calloc; G.7 shux_ptr_slot_* + LE usize; free).
+//   + wave25 Cap residual pure：tmp path BSS slots (asm 64B + parsed 64B/256B)
+//     (open_out seed always uses accessors; no dual BSS under hybrid).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -91,18 +93,9 @@ export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
 /** Destroy heap PipelineDepCtx (ast_pool authority). Used by work cleanup pure.
  * PLATFORM: SHARED — rest/cold free path; null-safe in C body. */
 export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
-/** Seed rest: 64-byte BSS tmp path for mkstemp; reset clears byte 0.
- * PLATFORM: SHARED — still seed buffer; pure reset writes first NUL via this accessor. */
-export extern "C" function driver_asm_tmp_path_slot(): *u8;
 /** Seed rest: fclose asm FILE* (stdout → fflush only). Used by asm_work cleanup pure.
  * PLATFORM: SHARED — wraps driver_asm_fclose_asm_out; null-safe in C body. */
 export extern "C" function driver_asm_fclose(fp: *u8): void;
-/** Seed rest: 64-byte parsed tmp_c slot; reset clears byte 0 (parity with cold memset path).
- * PLATFORM: SHARED — still seed buffer; pure reset writes first NUL via this accessor. */
-export extern "C" function driver_parsed_tmp_c_slot(): *u8;
-/** Seed rest: 256-byte path from driver_parsed_open_out_file; reset clears byte 0.
- * Cleanup may unlink this when work p[20] is empty. PLATFORM: SHARED. */
-export extern "C" function driver_parsed_tmp_c_buf(): *u8;
 /** Seed rest: fclose parsed C FILE* (stdout → no-op). Used by parsed_work cleanup pure.
  * PLATFORM: SHARED — null-safe; skips stdout. */
 export extern "C" function driver_parsed_fclose(fp: *u8): void;
@@ -2015,6 +2008,48 @@ export function driver_x_emit_work_cleanup(): void {
   driver_x_emit_work_reset();
 }
 
+// ---- Wave25 Cap residual pure: tmp path BSS slots (PLATFORM: SHARED) ----
+// open_out (always seed) writes only via accessors; hybrid pure owns BSS (no dual static).
+// Caps: asm 64 bytes (mkstemp path); parsed slot 64; parsed buf 256 (Windows long TEMP).
+// Cold seed keeps C static + accessor twins under #ifndef SHUX_L2_RDABI_THIN_FROM_X.
+// Defined before work_reset so pure reset can call same-TU accessors.
+
+let g_driver_asm_tmp_path_slot: u8[64] = [];
+let g_driver_parsed_tmp_c_slot: u8[64] = [];
+let g_driver_parsed_tmp_c_buf: u8[256] = [];
+
+/**
+ * Return the 64-byte BSS slot used as mkstemp path for asm want-exe temp object.
+ * @return *u8 — base of g_driver_asm_tmp_path_slot (never null); capacity 64 including NUL
+ * Caller (rt_ab_step_open_out / driver_asm_mkstemp_fdopen) fills the template and path.
+ * Wave25 pure. Work reset clears byte 0. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_asm_tmp_path_slot(): *u8 {
+  return &g_driver_asm_tmp_path_slot[0];
+}
+
+/**
+ * Return the 64-byte parsed tmp slot (parity with cold memset path; work reset clears [0]).
+ * @return *u8 — base of g_driver_parsed_tmp_c_slot (never null); capacity 64
+ * Wave25 pure. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_parsed_tmp_c_slot(): *u8 {
+  return &g_driver_parsed_tmp_c_slot[0];
+}
+
+/**
+ * Return the 256-byte path buffer filled by driver_parsed_open_out_file (seed rest).
+ * @return *u8 — base of g_driver_parsed_tmp_c_buf (never null); capacity 256 including NUL
+ * open_out writes only through this accessor (wave25); cleanup may unlink when p[20] empty.
+ * Wave25 pure. PLATFORM: SHARED — size matches Windows long TEMP paths.
+ */
+#[no_mangle]
+export function driver_parsed_tmp_c_buf(): *u8 {
+  return &g_driver_parsed_tmp_c_buf[0];
+}
+
 // ---- Wave17 Cap residual pure: driver_asm_work BSS + cleanup (PLATFORM: SHARED) ----
 // Slot map (must match seed comment + rt_run_asm_backend.x consumers):
 //   p[25]: 0 path 1 src 2 out_path 3 arena 4 module 5 entry 6 dsrc 7 dpath 8 dlens
@@ -2024,7 +2059,7 @@ export function driver_x_emit_work_cleanup(): void {
 //          9 ec 10 j 11 entry_only 12 skip_dep_load 13 rc 14 n_closure 15 num_funcs
 //   z[4]:  0 src_len 1 asz 2 msz 3 dep_len
 // Pointer table: 25× LP64 slots in raw u8[200] via G.7 shux_ptr_slot_get/set.
-// reset also clears seed driver_asm_tmp_path_slot()[0] (same as cold memset path).
+// reset also clears driver_asm_tmp_path_slot()[0] (wave25 pure owns 64-byte BSS).
 // cleanup: ndeps=i[1]; free dep rows; free table bases; free out_buf; destroy pctx;
 //   fclose asm_out (p[19]); free elf/arena/module/src/kind/code/msg; then reset.
 // Cold seed keeps C static arrays + memset twin; FROM_X drops pure-dup (no dual BSS).
@@ -2054,7 +2089,7 @@ export function driver_asm_work_reset(): void {
       g_asm_work_z[j] = 0 as usize;
       j = j + 1;
     }
-    // Match cold: g_driver_asm_tmp_path_slot[0] = 0 (seed owns the 64-byte BSS).
+    // Match cold: clear first byte of asm tmp-path BSS (wave25 pure slot).
     let tmp: *u8 = driver_asm_tmp_path_slot();
     if (tmp != 0 as *u8) {
       tmp[0] = 0;
@@ -2210,9 +2245,9 @@ export function driver_asm_work_cleanup(): void {
 //          8 argc 9 ec 10 j 11 check 12 n_funcs 13 (pad)
 //   z[4]:  0 src_len 1 asz 2 msz 3 (pad)
 // Pointer table: 24× LP64 slots in raw u8[192] via G.7 shux_ptr_slot_get/set.
-// reset also clears seed driver_parsed_tmp_c_slot()[0] + driver_parsed_tmp_c_buf()[0].
+// reset also clears driver_parsed_tmp_c_slot()[0] + driver_parsed_tmp_c_buf()[0] (wave25 pure).
 // cleanup: ndeps=i[1]; free dep rows; free table bases; free out_buf; destroy pctx;
-//   if !emit_stdout (i[5]): fclose cf (p[19]), unlink tmp_c (p[20] or seed buf);
+//   if !emit_stdout (i[5]): fclose cf (p[19]), unlink tmp_c (p[20] or pure/seed buf);
 //   free arena/module/src/kind/code/msg/tmp_c heap; then reset.
 // Cold seed keeps C static arrays + memset twin; FROM_X drops pure-dup (no dual BSS).
 // G.7: single hybrid authority for driver_parsed_work_* under PREFER.
@@ -2221,7 +2256,7 @@ let g_parsed_work_p_raw: u8[192] = [];
 let g_parsed_work_i: i32[14] = [];
 let g_parsed_work_z: usize[4] = [];
 
-/** Zero all parsed work pointer / i32 / size_t slots and clear seed tmp path first bytes.
+/** Zero all parsed work pointer / i32 / size_t slots and clear tmp path first bytes.
  * Wave18 pure. PLATFORM: SHARED — hybrid pure authority. */
 #[no_mangle]
 export function driver_parsed_work_reset(): void {
@@ -2241,7 +2276,7 @@ export function driver_parsed_work_reset(): void {
       g_parsed_work_z[j] = 0 as usize;
       j = j + 1;
     }
-    // Match cold: g_parsed_tmp_c_slot[0] = 0; g_driver_parsed_tmp_c[0] = 0.
+    // Match cold: clear first bytes of parsed tmp slots (wave25 pure BSS).
     let slot: *u8 = driver_parsed_tmp_c_slot();
     if (slot != 0 as *u8) {
       slot[0] = 0;

@@ -58,7 +58,10 @@
  *     FROM_X 无 pure-dup calloc/host_defaults；
  *   + wave24 Cap residual pure：outbuf free/len/data + ptr/size table free/get/set
  *     + diag_snapshot_free 在 thin.x（配对 wave23 calloc；G.7 shux_ptr_slot_* + LE usize）；
- *     FROM_X 无 pure-dup free/get/set；仍 seed：tmp 槽、巨型 rt_preamble 表、open_out 等；
+ *     FROM_X 无 pure-dup free/get/set；
+ *   + wave25 Cap residual pure：tmp path BSS 槽（asm 64B + parsed 64B/256B）在 thin.x；
+ *     open_out 始终 seed 且只经 accessor 写 buf；FROM_X 无 pure-dup tmp 槽；
+ *     仍 seed：巨型 rt_preamble 表、open_out/fclose/write_out/invoke_cc 等；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -2670,11 +2673,16 @@ void driver_asm_elf_ctx_free(uint8_t *p) {
     free(p);
 }
 
+/* wave25 pure: hybrid thin owns asm tmp path BSS; cold seed twin; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static char g_driver_asm_tmp_path_slot[64];
 
 uint8_t *driver_asm_tmp_path_slot(void) {
     return (uint8_t *)g_driver_asm_tmp_path_slot;
 }
+#else
+extern uint8_t *driver_asm_tmp_path_slot(void);
+#endif
 
 #ifndef MAX_DEFINES
 #define MAX_DEFINES 64
@@ -2771,7 +2779,7 @@ int32_t driver_asm_use_compiler_impl_c(void) {
  * i: 0 nlib 1 ndeps 2 nimp 3 main 4 emit_elf 5 want_exe 6 smoke 7 ndef 8 argc
  *    9 ec 10 j 11 entry_only 12 skip_dep_load 13 rc 14 n_closure 15 num_funcs
  * z: 0 src_len 1 asz 2 msz 3 dep_len
- * reset also clears g_driver_asm_tmp_path_slot[0] (tmp_path BSS still always-seed).
+ * reset also clears g_driver_asm_tmp_path_slot[0] (tmp_path BSS cold twin; hybrid = wave25 pure).
  */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 #define DRIVER_ASM_WORK_NP 25
@@ -3009,11 +3017,13 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v) {
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
-/* PLATFORM: SHARED — 256 bytes matches .x rt_cp_step_open_out malloc(256)
+/* wave25 pure: hybrid thin owns parsed tmp BSS; cold seed twin; FROM_X no pure-dup.
+ * PLATFORM: SHARED — 256 bytes matches .x rt_cp_step_open_out malloc(256)
  * and accommodates Windows long TEMP paths (C:\shux_tmp\shux_shux_x.YZXDC4.c).
- * Always-seed (open_out + hybrid pure reset/cleanup accessors). */
+ * open_out (always seed) writes only via driver_parsed_tmp_c_buf() accessor. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static char g_driver_parsed_tmp_c[256];
-/* Always-seed 64-byte slot cleared by parsed work reset (parity; cold twin). */
+/* Cold twin: 64-byte slot cleared by parsed work reset (parity). */
 static char g_parsed_tmp_c_slot[64];
 
 uint8_t *driver_parsed_tmp_c_buf(void) {
@@ -3023,14 +3033,21 @@ uint8_t *driver_parsed_tmp_c_buf(void) {
 uint8_t *driver_parsed_tmp_c_slot(void) {
     return (uint8_t *)g_parsed_tmp_c_slot;
 }
+#else
+extern uint8_t *driver_parsed_tmp_c_buf(void);
+extern uint8_t *driver_parsed_tmp_c_slot(void);
+#endif
 
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
     char tmp[128];
     int fd;
     FILE *cf;
+    /* wave25: never touch BSS static by name — hybrid pure owns the buffer. */
+    char *tbuf = (char *)(void *)driver_parsed_tmp_c_buf();
     if (emit_stdout)
         *emit_stdout = 0;
-    g_driver_parsed_tmp_c[0] = 0;
+    if (tbuf)
+        tbuf[0] = 0;
     if (tmp_c_out64)
         tmp_c_out64[0] = 0;
     if (!out_path) {
@@ -3038,6 +3055,8 @@ uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, in
             *emit_stdout = 1;
         return (uint8_t *)(void *)stdout;
     }
+    if (!tbuf)
+        return NULL;
     snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
     fd = mkstemp(tmp);
     if (fd < 0) {
@@ -3049,24 +3068,24 @@ uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, in
      * reopen the renamed .c path. Without this, rename fails with
      * STATUS_SHARING_VIOLATION / "Permission denied" (BLD001). */
     close(fd);
-    snprintf(g_driver_parsed_tmp_c, sizeof(g_driver_parsed_tmp_c), "%s.c", tmp);
-    if (rename(tmp, g_driver_parsed_tmp_c) != 0) {
-        runtime_diag_errno_path_pair((const char *)(void *)out_path, "build error", "rename", tmp,
-                                     g_driver_parsed_tmp_c);
+    /* Cap 256 matches pure/cold BSS; snprintf enforces NUL. */
+    snprintf(tbuf, 256, "%s.c", tmp);
+    if (rename(tmp, tbuf) != 0) {
+        runtime_diag_errno_path_pair((const char *)(void *)out_path, "build error", "rename", tmp, tbuf);
         unlink(tmp);
         return NULL;
     }
-    cf = fopen(g_driver_parsed_tmp_c, "w");
+    cf = fopen(tbuf, "w");
     if (!cf) {
-        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "fopen", g_driver_parsed_tmp_c);
-        unlink(g_driver_parsed_tmp_c);
+        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "fopen", tbuf);
+        unlink(tbuf);
         return NULL;
     }
     if (tmp_c_out64) {
-        size_t n = strlen(g_driver_parsed_tmp_c);
+        size_t n = strlen(tbuf);
         if (n > 255)
             n = 255;
-        memcpy(tmp_c_out64, g_driver_parsed_tmp_c, n);
+        memcpy(tmp_c_out64, tbuf, n);
         tmp_c_out64[n] = 0;
     }
     return (uint8_t *)(void *)cf;
@@ -3250,7 +3269,7 @@ void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps) {
  * Wave18: parsed work BSS pure package under PREFER thin.
  * hybrid thin owns BSS + get/set/reset/cleanup；cold keeps C static + memset twin；
  * FROM_X no pure-dup (avoid dual BSS under hybrid).
- * tmp slots (g_parsed_tmp_c_slot / g_driver_parsed_tmp_c) remain always-seed accessors.
+ * wave25: tmp slots pure under hybrid; cold twin still clears statics here.
  * parsed work 槽：
  * p: 0 path 1 src 2 out_path 3 arena 4 module 5 entry 6 dsrc 7 dpath 8 dlens
  *    9 dar 10 dmod 11 out_buf 12 pctx 13 kind 14 code 15 msg 16 lib 17 opt
