@@ -306,16 +306,19 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
   chmod +x "tests/$script"
   echo "run-all-bstrict: $script ..."
   # Darwin：连续 shux_asm check 易 OOM(Killed:9)；run-check 已跑 types gate 后须冷却再跑 run-types-gate。
-  # Heavy -o linkers (run-ub/run-io/run-crypto/run-vector/run-thread/run-net) peak ~75MB RSS
-  # per shux_asm invocation; transient macOS memory pressure triggers OOM killer (Killed:9).
-  # 19 号 wave 2 钉盘 OK; 20 号 intermittent OOM under memory pressure. 8s cooldown lets
-  # macOS reclaim inactive pages before next -o. Tunable via env.
+  # Heavy -o linkers (run-ub/run-io/run-crypto/run-vector/run-thread/run-net/run-json)
+  # peak ~75MB RSS per shux_asm invocation; transient macOS memory pressure triggers
+  # OOM killer (Killed:9). Default 15s cooldown (tunable SHUX_BSTRICT_DARWIN_HEAVY_COOLDOWN).
   case "$(uname -s)" in
     Darwin)
+      # PLATFORM: MACOS|DARWIN — continuous shux_asm -o peaks ~75MB RSS; under memory
+      # pressure the OOM killer returns Killed:9. Heavy scripts need longer reclaim
+      # windows. run-json was missing from the list (2026-07-21 L4: 3x Killed:9 →
+      # product-chain exit 1, ~30 scripts unrun). Default heavy cooldown 15s (was 8).
       case "$script" in
         run-types-gate.sh) sleep "${SHUX_BSTRICT_DARWIN_TYPES_COOLDOWN:-5}" ;;
-        run-ub.sh|run-io.sh|run-crypto.sh|run-vector.sh|run-thread.sh|run-net.sh)
-          sleep "${SHUX_BSTRICT_DARWIN_HEAVY_COOLDOWN:-8}" ;;
+        run-ub.sh|run-io.sh|run-crypto.sh|run-vector.sh|run-thread.sh|run-net.sh|run-json.sh)
+          sleep "${SHUX_BSTRICT_DARWIN_HEAVY_COOLDOWN:-15}" ;;
         *) sleep "${SHUX_BSTRICT_DARWIN_COOLDOWN:-1}" ;;
       esac
       ;;

@@ -166,12 +166,13 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      # struct 回归：typeck check 需 X pipeline 输出 "implicit padding"（shux-c 只输出 CHK001），
-      # 故 run-struct.sh 须用 ./compiler/shux；其他 hook 默认用 SHUX_BIN（shux-c seed）。
+      # PLATFORM: SHARED — hooks inherit SHUX_BIN (product path prefers shux_asm when
+      # bstrict sets SHUX=./compiler/shux_asm). Historical note: older shux-c (LEGACY
+      # C frontend) only printed CHK001 for padding; product X-pipeline shux/shux_asm
+      # emit T001 "implicit padding". Do NOT force ./compiler/shux: same-bytes binary
+      # under that path has been observed SIGKILL(137) on Darwin while shux_asm works
+      # (stale inode / memory pressure); forcing bare shux also fights caller's SHUX.
       hook_env=(SHUX="$SHUX_BIN")
-      if [ "$script" = "run-struct.sh" ] && [ -x ./compiler/shux ]; then
-        hook_env=(SHUX=./compiler/shux)
-      fi
       if run_timeout_case env "${hook_env[@]}" "$hook"; then
         echo "lang-unsafe OK $case_id ($script)"
       else
