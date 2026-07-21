@@ -252,8 +252,9 @@ MODULES=(
   # 产品 pipeline_glue 仍 #include 冷 seed（无宏）直至 glue unbundle；prove 锁 full surface IDENTICAL
   "async_asm_pool|src/asm/async_asm_pool.x|seeds/async_asm_pool_surface.from_x.c||"
   # async_liveness R2 pure surface + Cap residual pure：.x 吃满 await walk / live frame / mangle/tag
-  #   + lookup/type/size/layout/has_await/needs_cps/analyze/module_struct；
-  # FROM_X 省略 pure C 体（slice_marker）；Cap residual：emit_* FILE* 仍 seed C always
+  #   + lookup/type/size/layout/has_await/needs_cps/analyze/module_struct
+  #   + FILE* emit_* typedef/local/codegen_comment（opaque async_liveness_fputs）；
+  # FROM_X 省略 pure C 体（slice_marker）；Cap residual：async_liveness_fputs 桥 always seed
   # 冷/无 PREFER 仍可走 seeds/async_liveness.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
   # Stack：analyze_block_linear malloc(4096)；layout temps malloc(4196)（Ubuntu -E 稳）
   "async_liveness|src/async/async_liveness.x|seeds/async_liveness_surface.from_x.c||"
