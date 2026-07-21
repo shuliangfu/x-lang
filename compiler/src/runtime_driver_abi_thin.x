@@ -39,6 +39,8 @@
 //     （SHUX_DEBUG_PIPE truthy → append_* + diag_report；no va_list reportf）；
 // See implementation.
 // Cap residual pure leaf closed for driver_abi debug_pipe note（OS rest _impl already 0）。
+//   + wave14 Cap residual pure：rt_asm_stub GAS line table + out_append_cstr
+//     (host OutBuf layout: data[9MiB] then i32 len; LE load/store local to this TU).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -1558,4 +1560,159 @@ export function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64 {
 #[no_mangle]
 export function driver_pipeline_entry_source_len(): i64 {
   return driver_pipeline_entry_source_len_load_and_maybe_debug();
+}
+
+// ---- Wave14 Cap residual pure: rt_asm_stub GAS table + OutBuf append (PLATFORM: SHARED) ----
+// Host layout (seeds/runtime_driver_abi.from_x.c driver_codegen_outbuf_abi):
+//   unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];  // CAP = 9 * 1024 * 1024
+//   int32_t len;                                   // little-endian i32 at offset CAP
+// Cold seed keeps C table/append under #ifndef SHUX_L2_RDABI_THIN_FROM_X.
+// G.7: single product authority for gas_line_* / out_append under PREFER hybrid thin.
+
+/** Codegen OutBuf capacity in bytes (matches X_CODEGEN_OUTBUF_CAP_ABI in seed).
+ * PLATFORM: SHARED — must stay identical to cold C define. */
+function driver_abi_codegen_outbuf_cap(): i32 {
+  return 9 * 1024 * 1024;
+}
+
+/** Load little-endian i32 at base+off (null-safe; off < 0 → 0).
+ * Module-local host layout helper for wave14 OutBuf len cell.
+ * PLATFORM: SHARED. */
+function driver_abi_load_i32_le(p: *u8, off: i32): i32 {
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  if (off < 0) {
+    return 0;
+  }
+  unsafe {
+    let m: i32 = 256;
+    let a: i32 = p[off] as i32;
+    a = a + (p[off + 1] as i32) * m;
+    a = a + (p[off + 2] as i32) * m * m;
+    a = a + (p[off + 3] as i32) * m * m * m;
+    return a;
+  }
+  return 0;
+}
+
+/** Store little-endian i32 at base+off (null / off < 0 no-op).
+ * Module-local host layout helper for wave14 OutBuf len cell.
+ * PLATFORM: SHARED. */
+function driver_abi_store_i32_le(p: *u8, off: i32, v: i32): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  unsafe {
+    let u: u32 = v as u32;
+    p[off] = (u & 255) as u8;
+    p[off + 1] = ((u / 256) & 255) as u8;
+    p[off + 2] = ((u / 65536) & 255) as u8;
+    p[off + 3] = ((u / 16777216) & 255) as u8;
+  }
+}
+
+/** C-string length in bytes (no trailing NUL counted); null → 0.
+ * PLATFORM: SHARED — pure helper for gas append. */
+function driver_abi_cstr_len(s: *u8): i32 {
+  if (s == 0 as *u8) {
+    return 0;
+  }
+  let n: i32 = 0;
+  unsafe {
+    while (s[n] != 0) {
+      n = n + 1;
+      if (n > 100000000) {
+        return n;
+      }
+    }
+  }
+  return n;
+}
+
+/** Return the i-th fixed GAS stub line for asm_codegen_ast (rv=42 skeleton).
+ * Wave14 pure: string-lit table in thin (same text as cold seed g_asm_stub_gas_lines).
+ * Out-of-range or negative i → null.
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C table; FROM_X no pure-dup. */
+#[no_mangle]
+export function driver_asm_stub_gas_line_at(i: i32): *u8 {
+  if (i == 0) {
+    return ".text";
+  }
+  if (i == 1) {
+    return ".globl main";
+  }
+  if (i == 2) {
+    return "main:";
+  }
+  if (i == 3) {
+    return "pushq %rbp";
+  }
+  if (i == 4) {
+    return "movq %rsp, %rbp";
+  }
+  if (i == 5) {
+    return "subq $0, %rsp";
+  }
+  if (i == 6) {
+    return "movl $42, %eax";
+  }
+  if (i == 7) {
+    return "movq %rsp, %rbp";
+  }
+  if (i == 8) {
+    return "popq %rbp";
+  }
+  if (i == 9) {
+    return "ret";
+  }
+  return 0 as *u8;
+}
+
+/** Number of fixed GAS stub lines (matches cold seed g_asm_stub_gas_lines_n = 10).
+ * PLATFORM: SHARED — wave14 pure. */
+#[no_mangle]
+export function driver_asm_stub_gas_line_count(): i32 {
+  return 10;
+}
+
+/** Append C-string s plus a trailing newline into driver codegen OutBuf at out.
+ * Host layout: data[CAP] then i32 len (LE) at offset CAP. Bounds-check before write.
+ * Returns 0 on success; -1 on null args, oversize len cell, or capacity overflow.
+ * Wave14 pure: LE load/store of len + byte copy (no memcpy/strlen libc).
+ * PLATFORM: SHARED — pure authority in thin; cold seed keeps C append; FROM_X no pure-dup. */
+#[no_mangle]
+export function driver_asm_stub_out_append_cstr(out: *u8, s: *u8): i32 {
+  if (out == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (s == 0 as *u8) {
+    return 0 - 1;
+  }
+  let cap: i32 = driver_abi_codegen_outbuf_cap();
+  let cur: i32 = driver_abi_load_i32_le(out, cap);
+  if (cur < 0) {
+    return 0 - 1;
+  }
+  if (cur > cap) {
+    return 0 - 1;
+  }
+  let slen: i32 = driver_abi_cstr_len(s);
+  // need room for slen bytes + one newline
+  if (cur > cap - slen - 1) {
+    return 0 - 1;
+  }
+  unsafe {
+    let j: i32 = 0;
+    while (j < slen) {
+      out[cur + j] = s[j];
+      j = j + 1;
+    }
+    out[cur + slen] = 10; // '\n'
+  }
+  driver_abi_store_i32_le(out, cap, cur + slen + 1);
+  return 0;
 }

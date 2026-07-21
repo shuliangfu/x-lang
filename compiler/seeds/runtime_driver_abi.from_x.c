@@ -31,6 +31,8 @@
  *   + wave13 Cap residual pure：entry_source_len load debug note 在 thin.x
  *     （SHUX_DEBUG_PIPE truthy → append_* + diag_report；no va_list reportf）；
  *     FROM_X rest 无 pure-dup load_and_maybe_debug _impl；cold keeps integer-note twin；
+ *   + wave14 Cap residual pure：rt_asm_stub GAS 行表 + out_append_cstr 在 thin.x
+ *     （data[9MiB]+i32 len 宿主布局 LE；无 memcpy/strlen）；FROM_X 无 pure-dup gas/append；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -3263,6 +3265,9 @@ int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_pa
 }
 
 /* ---------- Cap residual：rt_asm_stub R2（GAS 行表 + OutBuf append） ---------- */
+/* wave14 pure：hybrid thin owns gas_line_at/count + out_append_cstr (LE OutBuf layout);
+ * cold seed keeps C table/append; FROM_X no pure-dup (H↓). */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static const char *const g_asm_stub_gas_lines[] = {
     ".text",         ".globl main", "main:",       "pushq %rbp", "movq %rsp, %rbp",
     "subq $0, %rsp", "movl $42, %eax", "movq %rsp, %rbp", "popq %rbp", "ret",
@@ -3300,6 +3305,7 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
     ob->len = (int32_t)n;
     return 0;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* ---------- Cap residual：rt_dispatch_thin R2（sibling path/access/fork） ---------- */
 extern int driver_argv0_basename_is(const char *argv0, const char *base);
