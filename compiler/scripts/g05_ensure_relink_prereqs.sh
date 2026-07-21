@@ -190,6 +190,12 @@ g05_try_x_to_o() {
     echo '  n = fwrite((const void *)(void *)data, 1, (size_t)len, (FILE *)(void *)stream);'
     echo '  return n == (size_t)len ? 0 : 1;'
     echo '}'
+    # PLATFORM: SHARED — wave27 Cap residual: fopen(path,"w") as opaque *u8 for pure
+    # driver_parsed_open_out_file (runtime_driver_abi_thin.x). .x cannot name FILE*.
+    echo 'static inline uint8_t *shux_driver_fopen_write_opaque(uint8_t *path) {'
+    echo '  if (!path) return (uint8_t *)0;'
+    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "w");'
+    echo '}'
     # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
     sed -e '/^#include /d' \
         -e '/^extern ssize_t read(/d' \
@@ -245,6 +251,11 @@ g05_try_x_to_o() {
         -e '/^extern uint8_t \* shux_driver_stdout_ptr(/d' \
         -e '/^extern int32_t shux_driver_fclose_opaque(/d' \
         -e '/^extern int32_t shux_driver_fwrite_opaque(/d' \
+        -e '/^extern uint8_t \* shux_driver_fopen_write_opaque(/d' \
+        -e '/^extern int32_t mkstemp(/d' \
+        -e '/^extern int mkstemp(/d' \
+        -e '/^extern int32_t rename(/d' \
+        -e '/^extern int rename(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086

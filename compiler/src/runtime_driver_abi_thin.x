@@ -65,6 +65,8 @@
 //     (open_out seed always uses accessors; no dual BSS under hybrid).
 //   + wave26 Cap residual pure：driver_parsed_fclose / fclose_rc / write_out
 //     (g05 stdout_ptr + fclose/fwrite opaque; min preamble via fputs; io_net/fs_path seed).
+//   + wave27 Cap residual pure：driver_parsed_open_out_file
+//     (stdout gate pure; mkstemp/rename/close + g05 fopen_write; seed tmp_prefix residual).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -2009,7 +2011,7 @@ export function driver_x_emit_work_cleanup(): void {
 }
 
 // ---- Wave25 Cap residual pure: tmp path BSS slots (PLATFORM: SHARED) ----
-// open_out (always seed) writes only via accessors; hybrid pure owns BSS (no dual static).
+// open_out (wave27 pure) writes only via accessors; hybrid pure owns BSS (no dual static).
 // Caps: asm 64 bytes (mkstemp path); parsed slot 64; parsed buf 256 (Windows long TEMP).
 // Cold seed keeps C static + accessor twins under #ifndef SHUX_L2_RDABI_THIN_FROM_X.
 // Defined before work_reset so pure reset can call same-TU accessors.
@@ -2040,7 +2042,7 @@ export function driver_parsed_tmp_c_slot(): *u8 {
 }
 
 /**
- * Return the 256-byte path buffer filled by driver_parsed_open_out_file (seed rest).
+ * Return the 256-byte path buffer filled by driver_parsed_open_out_file (wave27 pure).
  * @return *u8 — base of g_driver_parsed_tmp_c_buf (never null); capacity 256 including NUL
  * open_out writes only through this accessor (wave25); cleanup may unlink when p[20] empty.
  * Wave25 pure. PLATFORM: SHARED — size matches Windows long TEMP paths.
@@ -3217,7 +3219,7 @@ export function driver_diag_snapshot_free(s: *u8): void {
 // (same harness pattern as wave22 shux_driver_fputs_opaque).
 // write_out still calls always-seed write_io_net_abi_inline + write_fs_path_map_error_abi_inline
 // (rt_preamble Cap-giant-string tables + skip mask). min preamble via driver_preamble_fputs
-// short lits (avoid long -E string cap). Still seed: open_out body, invoke_cc, giant tables.
+// short lits (avoid long -E string cap). wave27 owns open_out; still seed: invoke_cc, giant tables.
 
 /** g05 prologue: opaque identity of host stdout as *u8.
  * PLATFORM: SHARED — harness residual; product pure compares pointers only. */
@@ -3392,5 +3394,184 @@ export function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32 {
     }
   }
   return 0;
+}
+
+// ---- Wave27 Cap residual pure: driver_parsed_open_out_file (PLATFORM: SHARED) ----
+// G.7 authority under PREFER hybrid thin; cold seed keeps C twin (FILE* + snprintf).
+// Cap residual split:
+//   - seed always: shux_driver_tmp_prefix (SHUX_TMP_PREFIX #ifdef; no platform ifdef in .x)
+//   - g05 prologue: shux_driver_fopen_write_opaque (FILE* cast; same pattern as wave22/26)
+//   - libc via g05 unistd/stdio: mkstemp, close, rename, unlink
+//   - pure orch: stdout gate, template build, close-before-rename (BLD001), path copy
+// Still seed: invoke_cc, rt_preamble giant tables.
+
+/** Permanent OS residual: host temp path prefix for mkstemp templates.
+ * @return *u8 — NUL-terminated C string; POSIX "/tmp/shux_"; WINDOWS "shux_"
+ * PLATFORM: SHARED surface; body is #ifdef in seed rest (not pure-dup). */
+export extern "C" function shux_driver_tmp_prefix(): *u8;
+/** POSIX mkstemp: mutate template ending in XXXXXX; return fd or -1.
+ * PLATFORM: POSIX product path (win32_compat may provide on WINDOWS probes). */
+export extern "C" function mkstemp(path: *u8): i32;
+/** POSIX close(fd). PLATFORM: POSIX / win32_compat. */
+export extern "C" function close(fd: i32): i32;
+/** POSIX rename(old, new). PLATFORM: SHARED rename surface. */
+export extern "C" function rename(old_path: *u8, new_path: *u8): i32;
+/** g05 prologue: fopen(path, "w") as opaque *u8; null path → null.
+ * PLATFORM: SHARED — harness FILE* cast residual. */
+export extern "C" function shux_driver_fopen_write_opaque(path: *u8): *u8;
+/** Diag with single path + errno (runtime authority). */
+export extern "C" function runtime_diag_errno_path(
+  file: *u8, kind: *u8, op: *u8, path: *u8): void;
+/** Diag with from/to path pair + errno (runtime authority). */
+export extern "C" function runtime_diag_errno_path_pair(
+  file: *u8, kind: *u8, op: *u8, from_path: *u8, to_path: *u8): void;
+
+/**
+ * Copy NUL-terminated src into dst with capacity cap (writes trailing NUL).
+ * @param dst *u8 — destination; null → no-op
+ * @param cap i32 — capacity including NUL; cap <= 0 → no-op
+ * @param src *u8 — source C string; null treated as empty
+ * @return void
+ * Wave27 pure helper. PLATFORM: SHARED.
+ */
+function driver_open_out_cstr_copy(dst: *u8, cap: i32, src: *u8): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  if (cap == 1) {
+    dst[0] = 0;
+    return;
+  }
+  let i: i32 = 0;
+  let max: i32 = cap - 1;
+  if (src == 0 as *u8) {
+    dst[0] = 0;
+    return;
+  }
+  while (i < max) {
+    let b: u8 = src[i];
+    if (b == 0) {
+      break;
+    }
+    dst[i] = b;
+    i = i + 1;
+  }
+  dst[i] = 0;
+}
+
+/**
+ * Append NUL-terminated src onto dst (dst must already be NUL-terminated).
+ * @param dst *u8 — destination buffer; null → no-op
+ * @param cap i32 — total capacity including NUL
+ * @param src *u8 — suffix to append; null → no-op
+ * @return void
+ * Wave27 pure helper. PLATFORM: SHARED.
+ */
+function driver_open_out_cstr_cat(dst: *u8, cap: i32, src: *u8): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  if (src == 0 as *u8) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < cap) {
+    if (dst[i] == 0) {
+      break;
+    }
+    i = i + 1;
+  }
+  // i is current length; append until cap-1.
+  let j: i32 = 0;
+  while (i < (cap - 1)) {
+    let b: u8 = src[j];
+    if (b == 0) {
+      break;
+    }
+    dst[i] = b;
+    i = i + 1;
+    j = j + 1;
+  }
+  if (i < cap) {
+    dst[i] = 0;
+  } else {
+    dst[cap - 1] = 0;
+  }
+}
+
+/**
+ * Open pipeline C output: null out_path → stdout (emit_stdout=1); else mkstemp + rename .c + fopen "w".
+ * @param out_path *u8 — product output path (diag file field); null means emit-to-stdout (-E style)
+ * @param tmp_c_out64 *u8 — optional buffer for resulting .c path (cap >= 256 recommended); may be null
+ * @param emit_stdout *i32 — out flag: 1 when returning stdout, else 0; may be null
+ * @return *u8 — opaque FILE* (or stdout) on success; null on failure (diag already emitted)
+ * Wave27 pure: stdout identity via g05 stdout_ptr; path BSS via wave25 accessor;
+ * template = shux_driver_tmp_prefix() + "shux_x.XXXXXX"; close(fd) before rename (BLD001);
+ * fopen via g05 opaque. PLATFORM: SHARED orch; WINDOWS|POSIX close-before-rename contract.
+ */
+#[no_mangle]
+export function driver_parsed_open_out_file(
+  out_path: *u8, tmp_c_out64: *u8, emit_stdout: *i32): *u8 {
+  unsafe {
+    if (emit_stdout != 0 as *i32) {
+      emit_stdout[0] = 0;
+    }
+    let tbuf: *u8 = driver_parsed_tmp_c_buf();
+    if (tbuf != 0 as *u8) {
+      tbuf[0] = 0;
+    }
+    if (tmp_c_out64 != 0 as *u8) {
+      tmp_c_out64[0] = 0;
+    }
+    // Emit-to-stdout path: no temp file; caller must not fclose stdout.
+    if (out_path == 0 as *u8) {
+      if (emit_stdout != 0 as *i32) {
+        emit_stdout[0] = 1;
+      }
+      return shux_driver_stdout_ptr();
+    }
+    if (tbuf == 0 as *u8) {
+      return 0 as *u8;
+    }
+    // Stack template for mkstemp (mutates XXXXXX in place). Cap 128 matches cold twin.
+    let tmp: u8[128] = [];
+    let prefix: *u8 = shux_driver_tmp_prefix();
+    driver_open_out_cstr_copy(&tmp[0], 128, prefix);
+    // Suffix is short; keep under -E string cap (~63).
+    driver_open_out_cstr_cat(&tmp[0], 128, "shux_x.XXXXXX");
+    let fd: i32 = mkstemp(&tmp[0]);
+    if (fd < 0) {
+      runtime_diag_errno_path(out_path, "build error", "mkstemp", &tmp[0]);
+      return 0 as *u8;
+    }
+    // PLATFORM: WINDOWS | POSIX — must close before rename (Windows sharing violation).
+    close(fd);
+    // tbuf = tmp + ".c" (cap 256 pure BSS).
+    driver_open_out_cstr_copy(tbuf, 256, &tmp[0]);
+    driver_open_out_cstr_cat(tbuf, 256, ".c");
+    if (rename(&tmp[0], tbuf) != 0) {
+      runtime_diag_errno_path_pair(out_path, "build error", "rename", &tmp[0], tbuf);
+      unlink(&tmp[0]);
+      return 0 as *u8;
+    }
+    let cf: *u8 = shux_driver_fopen_write_opaque(tbuf);
+    if (cf == 0 as *u8) {
+      runtime_diag_errno_path(out_path, "build error", "fopen", tbuf);
+      unlink(tbuf);
+      return 0 as *u8;
+    }
+    // Optional copy of final .c path for work slots / invoke_cc.
+    if (tmp_c_out64 != 0 as *u8) {
+      driver_open_out_cstr_copy(tmp_c_out64, 256, tbuf);
+    }
+    return cf;
+  }
+  return 0 as *u8;
 }
 

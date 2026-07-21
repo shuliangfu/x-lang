@@ -392,8 +392,12 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v);
 /**
  * 打开输出：out_path==NULL → stdout（emit_stdout=1）；否则 mkstemp+rename .c。
  * 成功返回 FILE* 作 *u8；tmp_c_out64 写 .c 路径；失败 NULL。
+ * wave27 pure: hybrid thin owns; cold twin; tmp_prefix residual + g05 fopen_write_opaque.
+ * PLATFORM: SHARED orch; WINDOWS|POSIX close-before-rename (BLD001).
  */
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout);
+/** Permanent OS residual: SHUX_TMP_PREFIX as C string (POSIX /tmp/shux_ · WINDOWS shux_). */
+const char *shux_driver_tmp_prefix(void);
 /** wave26 pure: hybrid thin owns; cold twin; stdout skip via g05 stdout_ptr. */
 void driver_parsed_fclose(uint8_t *fp);
 /** wave26 pure: hybrid thin owns; cold twin; 0 success / 1 fail. */

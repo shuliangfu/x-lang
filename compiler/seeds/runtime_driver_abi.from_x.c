@@ -64,7 +64,11 @@
  *   + wave26 Cap residual pure：driver_parsed_fclose / fclose_rc / write_out 在 thin.x
  *     （g05 stdout_ptr + fclose/fwrite opaque；write_io_net/fs_path 仍 rt_preamble）；
  *     FROM_X 无 pure-dup fclose/write_out；
- *     仍 seed：巨型 rt_preamble 表、open_out 体、invoke_cc 等；
+ *   + wave27 Cap residual pure：driver_parsed_open_out_file 在 thin.x
+ *     （stdout 门控 pure；mkstemp/rename/close/unlink + g05 fopen_write_opaque；
+ *      永久 OS residual shux_driver_tmp_prefix 藏 SHUX_TMP_PREFIX #ifdef）；
+ *     FROM_X 无 pure-dup open_out；
+ *     仍 seed：巨型 rt_preamble 表、invoke_cc 等；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -3041,8 +3045,17 @@ extern uint8_t *driver_parsed_tmp_c_buf(void);
 extern uint8_t *driver_parsed_tmp_c_slot(void);
 #endif
 
-/* Always seed: open_out body (mkstemp/rename/fopen + WINDOWS close-before-rename).
- * wave25: writes tmp path only via pure/cold driver_parsed_tmp_c_buf(). */
+/* Permanent OS residual: host temp path prefix for mkstemp templates.
+ * PLATFORM: POSIX → "/tmp/shux_"; WINDOWS → "shux_" (cwd-relative; TEMP via env elsewhere).
+ * Pure open_out concatenates this with "shux_x.XXXXXX" without #ifdef in .x. */
+const char *shux_driver_tmp_prefix(void) {
+    return SHUX_TMP_PREFIX;
+}
+
+/* wave27 pure: hybrid thin owns open_out; cold twin; FROM_X no pure-dup.
+ * wave25: writes tmp path only via pure/cold driver_parsed_tmp_c_buf().
+ * PLATFORM: WINDOWS | POSIX — close mkstemp fd BEFORE rename (BLD001). */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
     char tmp[128];
     int fd;
@@ -3095,6 +3108,7 @@ uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, in
     }
     return (uint8_t *)(void *)cf;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* wave26 pure: hybrid thin owns fclose / fclose_rc / write_out; cold twins; FROM_X no pure-dup. */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
