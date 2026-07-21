@@ -60,6 +60,9 @@
 //   cold twins under FROM_X).
 // wave69: pure pipeline_resolved_path_buf_slot (module BSS buf 512; G.7 single authority
 //   for pure into_static + read_file_stage_prep path base; cold twin under FROM_X).
+// wave70: pure pipeline_dep_arena/module_slot_set/at (module BSS 32×LP64 ptr cells each;
+//   G.7 shux_ptr_slot_* on raw u8[256]; single authority for pure set_dep_slots / get_dep_*;
+//   cold twins under FROM_X).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -150,10 +153,8 @@ export extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8,
 export extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
 export extern "C" function shux_cstr_typeck_lit(): *u8;
 export extern "C" function shux_entry_lib_keyword_lit(k: i32): *u8;
-export extern "C" function pipeline_dep_arena_slot_set(i: i32, p: *u8): void;
-export extern "C" function pipeline_dep_module_slot_set(i: i32, p: *u8): void;
-export extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
-export extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
+// wave70: pipeline_dep_arena/module_slot_set/at are pure export functions below (pure BSS 32×LP64).
+// PLATFORM: SHARED — G.7 single authority for pure set_dep_slots / get_dep_*; seed cold twins only.
 /* See implementation. */
 export extern "C" function pipeline_asm_debug_enabled_impl(): i32;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
@@ -2796,6 +2797,11 @@ let g_pipe_entry_dir_is_dot: i32 = 1;
 // PLATFORM: SHARED — same ABI as seed cold static char pipeline_resolved_path_buf[512].
 let g_pipe_resolved_path_buf: u8[512] = [];
 
+// wave70 pure dep arena/module slot BSS (G.7 single authority for set_dep_slots / get_dep_*).
+// PLATFORM: SHARED LP64 — 32 void* cells × 8B = 256B raw; same capacity as seed void*[32].
+let g_pipe_dep_arena_slots: u8[256] = [];
+let g_pipe_dep_module_slots: u8[256] = [];
+
 /**
  * Return base of the pipeline resolved-path static buffer (cap 512 incl trailing NUL room).
  * @return *u8 — always non-null; points at g_pipe_resolved_path_buf[0]
@@ -2807,6 +2813,81 @@ let g_pipe_resolved_path_buf: u8[512] = [];
 #[no_mangle]
 export function pipeline_resolved_path_buf_slot(): *u8 {
   return &g_pipe_resolved_path_buf[0];
+}
+
+/**
+ * Store pointer p into pipeline dep-arena slot i (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → no-op
+ * @param p *u8 — arena pointer (may be null)
+ * @return void
+ * wave70 pure: G.7 shux_ptr_slot_set on g_pipe_dep_arena_slots (32×LP64 LE cells).
+ * Matches seed bounds policy on set (reject OOB; do not trap).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns the table.
+ */
+#[no_mangle]
+export function pipeline_dep_arena_slot_set(i: i32, p: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  shux_ptr_slot_set(&g_pipe_dep_arena_slots[0], i, p);
+}
+
+/**
+ * Store pointer p into pipeline dep-module slot i (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → no-op
+ * @param p *u8 — module pointer (may be null)
+ * @return void
+ * wave70 pure: G.7 shux_ptr_slot_set on g_pipe_dep_module_slots (pair of arena table).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_dep_module_slot_set(i: i32, p: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  shux_ptr_slot_set(&g_pipe_dep_module_slots[0], i, p);
+}
+
+/**
+ * Load pipeline dep-arena slot i (capacity 32; historical seed had no OOB guard).
+ * @param i i32 — slot index; pure rejects i < 0 or i >= 32 → null (safer than seed raw index)
+ * @return *u8 — stored arena pointer (may be null)
+ * wave70 pure: G.7 shux_ptr_slot_get on g_pipe_dep_arena_slots.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; pure get_dep_* bounds first.
+ */
+#[no_mangle]
+export function pipeline_dep_arena_slot_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return shux_ptr_slot_get(&g_pipe_dep_arena_slots[0], i);
+}
+
+/**
+ * Load pipeline dep-module slot i (capacity 32).
+ * @param i i32 — slot index; pure rejects OOB → null
+ * @return *u8 — stored module pointer (may be null)
+ * wave70 pure: G.7 shux_ptr_slot_get on g_pipe_dep_module_slots.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_dep_module_slot_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return shux_ptr_slot_get(&g_pipe_dep_module_slots[0], i);
 }
 
 /**
@@ -2892,12 +2973,14 @@ export function pipeline_set_entry_dir(path: *u8): void {
   }
 }
 
-// pipeline_set_dep_slots: see function docblock below.
-/** Exported function `pipeline_set_dep_slots`.
- * Implements `pipeline_set_dep_slots`.
- * @param arenas *u8
- * @param modules *u8
+/**
+ * Bulk-write all 32 dep arena/module slots from two void-star tables (or clear if null).
+ * @param arenas *u8 — void** base as bytes (32 cells); null → write null arenas
+ * @param modules *u8 — void** base as bytes (32 cells); null → write null modules
  * @return void
+ * Pure orch: load each cell via pipe_load_ptr_slot then G.7 pure pipeline_dep_*_slot_set
+ * (wave70 BSS; single authority — no direct second write into g_pipe_dep_*).
+ * PLATFORM: SHARED LP64.
  */
 #[no_mangle]
 export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
@@ -2912,6 +2995,7 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
       if (modules != 0 as *u8) {
         m = pipe_load_ptr_slot(modules, i);
       }
+      // G.7 pure wave70 slot writers — same cells pure get_dep_* / slot_at read.
       pipeline_dep_arena_slot_set(i, a);
       pipeline_dep_module_slot_set(i, m);
     }

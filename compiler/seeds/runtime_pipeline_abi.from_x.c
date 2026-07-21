@@ -60,6 +60,8 @@
  * wave68: pure pipeline_entry_dir_copy / set_dot / get orch (pure BSS buf 512 + "." lit +
  *   is_dot; cold twins under #ifndef FROM_X).
  * wave69: pure pipeline_resolved_path_buf_slot (pure BSS buf 512; cold twin under #ifndef FROM_X).
+ * wave70: pure pipeline_dep_arena/module_slot_set/at (pure BSS 32×LP64 via G.7 ptr slots;
+ *   cold twins + seed static tables under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -2179,13 +2181,14 @@ int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
 /** pipeline.x 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
 /* wave68: hybrid pure owns entry_dir BSS; cold-only statics under #ifndef FROM_X. */
 /* wave69: hybrid pure owns resolved_path BSS; cold-only static under #ifndef FROM_X. */
+/* wave70: hybrid pure owns dep arena/module slot tables; cold-only statics under #ifndef FROM_X. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
 static char pipeline_resolved_path_buf[512];
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 static void *pipeline_dep_arena_slots[32];
 static void *pipeline_dep_module_slots[32];
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 static char *pipeline_loaded_import_buf;
 static size_t pipeline_loaded_import_len;
 static size_t pipeline_loaded_import_cap;
@@ -2235,7 +2238,9 @@ void pipeline_set_entry_dir(const char *path) {
 
 
 
-/* G-02f-226：dep 槽写（供 .x set_dep_slots 真迁） */
+/* G-02f-226 / wave70：hybrid pure owns dep_arena/module_slot_set/at (pure BSS 32×LP64);
+ * cold twins under #ifndef FROM_X share seed static tables. PLATFORM: SHARED LP64. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_dep_arena_slot_set(int32_t i, void *p) {
     if (i < 0 || i >= 32)
         return;
@@ -2250,7 +2255,6 @@ void pipeline_dep_module_slot_set(int32_t i, void *p) {
 
 /** 写入 dep arena/module 槽（collect_deps 预分配缓冲）。 */
 /* G-02f-226：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
     for (int i = 0; i < 32; i++) {
         pipeline_dep_arena_slots[i] = arenas ? arenas[i] : NULL;
@@ -2429,11 +2433,14 @@ int32_t pipeline_read_file(void) {
 
 
 /** 取 dep arena 槽指针。 */
+/* G-02f-226 / wave70：hybrid pure owns slot_at; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void *pipeline_dep_arena_slot_at(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
     return pipeline_dep_arena_slots[i];
 }
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void *pipeline_get_dep_arena_slot(int32_t i) {
   if (i < 0) {
     return NULL;
@@ -2446,14 +2453,14 @@ void *pipeline_get_dep_arena_slot(int32_t i) {
   }
   return NULL;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 取 dep module 槽指针。 */
 void *pipeline_dep_module_slot_at(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
     return pipeline_dep_module_slots[i];
 }
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void *pipeline_get_dep_module_slot(int32_t i) {
   if (i < 0) {
     return NULL;
