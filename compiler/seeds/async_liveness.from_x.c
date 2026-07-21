@@ -1,10 +1,13 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
  * G-02f-169～171 refs/analyze true .x; G-02f-166～168 await AST true .x; G-02f-132 true .x pure helpers.
- * G-02f-127 true .x pure helpers.
- * G-02f-119 true .x pure helpers.
- * G-02f-110 helper gates.
- * G-02f-108 helper gates.
- * Product: src/async/async_liveness.o; logic still C until full .x port.
+ *
+ * R2 pure surface（2026-07-21）：await walk / live frame / mangle / frame_build_tag 由
+ *   src/async/async_liveness.x 提供；FROM_X 下 pure helper C 体省略（仅 slice_marker）。
+ * Cap residual（始终 seed C）：lookup_var_type / type_to_c_buf / type_size /
+ *   layout_func* / analyze_func / module_struct_in_frame / emit_*（FILE* fprintf）。
+ * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认仍 -c 本文件（无宏）。
+ * Prove：seeds/async_liveness_surface.from_x.c nm IDENTICAL（pure surface）。
+ * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */
 /**
  * async_liveness.c — async 跨 await liveness 分析与协程帧 struct emit（A3）
@@ -567,18 +570,21 @@ void frame_mangle_ident(const char *fn, char *out, size_t n) {
     }
     out[j] = '\0';
 }
-#endif /* SHUX_ASYNC_LIVENESS_FROM_X */
-
 
 /** 构造协程帧 C 类型名 __shux_async_frame_<mangled>。
- * frame_build_tag 为 rest 函数：.x 编译器静默跳过使用字符串字面量的函数
- *（frame_build_tag 使用 "fn" 和 "__shux_async_frame_"），故始终由 seed 提供。 */
+ * R2：.x 已真迁 frame_build_tag（字面量路径可用）；FROM_X 时由 .x 提供。 */
 /* G-02f-161：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
     char m[64];
     frame_mangle_ident(f && f->name ? f->name : "fn", m, sizeof(m));
     (void)snprintf(buf, n, "__shux_async_frame_%s", m);
 }
+#else /* SHUX_ASYNC_LIVENESS_FROM_X — pure helpers from .x; Cap residual below */
+/* R2 pure surface marker：业务 pure helper 不在此 TU 定义。 */
+int async_liveness_slice_marker(void) {
+    return 1;
+}
+#endif /* SHUX_ASYNC_LIVENESS_FROM_X */
 
 
 /** 在函数体/形参中查找变量类型。 */

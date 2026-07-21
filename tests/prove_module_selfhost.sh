@@ -251,6 +251,11 @@ MODULES=(
   # FROM_X rest 业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/async_asm_pool.from_x.c 全 C 体
   # 产品 pipeline_glue 仍 #include 冷 seed（无宏）直至 glue unbundle；prove 锁 full surface IDENTICAL
   "async_asm_pool|src/asm/async_asm_pool.x|seeds/async_asm_pool_surface.from_x.c||"
+  # async_liveness R2 pure surface：.x 吃满 await walk / live frame / mangle / frame_build_tag；
+  # FROM_X 省略 pure helper C 体（slice_marker）；Cap residual：layout/type/emit FILE* 仍 seed C always
+  # 冷/无 PREFER 仍可走 seeds/async_liveness.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
+  # Stack：analyze_block_linear malloc(4096) 非 u8[4096]（Ubuntu -E 稳）
+  "async_liveness|src/async/async_liveness.x|seeds/async_liveness_surface.from_x.c||"
 )
 
 # 找 shux 二进制：优先 $SHUX（文档/进度验收），再 shux_asm / shux / shux-c

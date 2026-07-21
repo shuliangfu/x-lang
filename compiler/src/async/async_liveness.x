@@ -1,14 +1,14 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// async_liveness.x — pure helpers for async cross-await liveness (A3).
+// R2 pure surface: await walk / live frame / mangle/tag; Cap residual layout+emit in seed C.
+// PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
+//
+// Heap for def-name table (analyze_block_linear): avoid u8[4096] stack on shux -E.
+export extern "C" function malloc(n: usize): *u8;
+export extern "C" function free(p: *u8): void;
+
 // async_liveness_x_doc_anchor: see function docblock below.
 
 /** Exported function `async_liveness_x_doc_anchor`.
@@ -1213,19 +1213,24 @@ export function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i
   }
 }
 
-/** Exported function `analyze_block_linear`.
- * Implements `analyze_block_linear`.
- * @param b *u8
- * @param prefix *u8
- * @param n_prefix i32
- * @param frame *u8
- * @return void
+/** Linear liveness scan over stmt_order: at each await, add defs still referenced after.
+ * prefix is a char** view (64-byte name rows via async_live_load_def_name).
+ * Stack discipline: heap-allocate the 64×64 def-name table (malloc 4096) — a
+ * `u8[4096]` local flaked Ubuntu `shux -E` (SIGSEGV), same class as async_asm_pool.
+ * PLATFORM: SHARED — pure liveness walk; Cap residual layout/emit stay in seed C.
+ * @param b AST block (opaque)
+ * @param prefix param-name table (opaque rows)
+ * @param n_prefix number of prefix names
+ * @param frame AsyncFrameLive out (opaque)
  */
 #[no_mangle]
 export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: *u8): void {
   if (b == 0) { return; }
   if (frame == 0) { return; }
-  let def_names: u8[4096] = [];
+  // 64 names × 64 bytes; heap avoids large stack frame on shux -E (Ubuntu gold).
+  let def_names: *u8 = 0 as *u8;
+  unsafe { def_names = malloc(4096 as usize); }
+  if (def_names == 0) { return; }
   let n_def: i32 = 0;
   let pi: i32 = 0;
   while (pi < n_prefix) {
@@ -1233,7 +1238,7 @@ export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: 
     let pn: *u8 = async_live_load_def_name(prefix, pi);
     if (pn != 0) {
       if (pn[0] != 0) {
-        async_live_cstr_copy64(async_live_def_row(&def_names[0], n_def), pn);
+        async_live_cstr_copy64(async_live_def_row(def_names, n_def), pn);
         n_def = n_def + 1;
       }
     }
@@ -1258,14 +1263,14 @@ export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: 
               let init: *u8 = async_live_load_ptr(ld, 16);
               if (init != 0) {
                 if (expr_has_await(init) != 0) {
-                  async_live_analyze_at_await(b, si, &def_names[0], n_def, frame);
+                  async_live_analyze_at_await(b, si, def_names, n_def, frame);
                 }
               }
               if (n_def < 64) {
                 let lname: *u8 = async_live_load_ptr(ld, 0);
                 if (lname != 0) {
                   if (lname[0] != 0) {
-                    async_live_cstr_copy64(async_live_def_row(&def_names[0], n_def), lname);
+                    async_live_cstr_copy64(async_live_def_row(def_names, n_def), lname);
                     n_def = n_def + 1;
                   }
                 }
@@ -1281,7 +1286,7 @@ export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: 
                 let ex: *u8 = async_live_ptr_at(stmts, idx);
                 if (ex != 0) {
                   if (expr_has_await(ex) != 0) {
-                    async_live_analyze_at_await(b, si, &def_names[0], n_def, frame);
+                    async_live_analyze_at_await(b, si, def_names, n_def, frame);
                   }
                 }
               }
@@ -1294,17 +1299,19 @@ export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: 
     let fin: *u8 = async_live_load_ptr(b, 112);
     if (fin != 0) {
       if (expr_has_await(fin) != 0) {
-        async_live_analyze_at_await(b, norder - 1, &def_names[0], n_def, frame);
+        async_live_analyze_at_await(b, norder - 1, def_names, n_def, frame);
       }
     }
+    unsafe { free(def_names); }
     return;
   }
   let fin2: *u8 = async_live_load_ptr(b, 112);
   if (fin2 != 0) {
     if (expr_has_await(fin2) != 0) {
-      async_live_analyze_at_await(b, 0 - 1, &def_names[0], n_def, frame);
+      async_live_analyze_at_await(b, 0 - 1, def_names, n_def, frame);
     }
   }
+  unsafe { free(def_names); }
 }
 
 
