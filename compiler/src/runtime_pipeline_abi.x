@@ -1,10 +1,10 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave48).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave49).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual: heavy FILE star / access / tmp_parse_and_enqueue / paths_process_one /
+// Cap residual: heavy FILE star / access / tmp_parse / paths resolve+read+preprocess /
 //   transitive_impl / thread C remains seed rest.
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
@@ -13,6 +13,8 @@
 // wave47: pure collect seed_to_load + enqueue_module_imports (strdup Cap residual).
 // wave48: pure collect deps_process_one orch; Cap residual tmp_parse_and_enqueue;
 //   G.7 reuses load_one_direct_import_at for resolve/read/preprocess store.
+// wave49: pure collect paths_process_one orch; Cap residual paths_tmp_resolve_parse_enqueue
+//   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue + free prep); transitive still seed.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -45,6 +47,9 @@ export extern "C" function shux_collect_strdup(s: *u8): *u8;
 // wave48 Cap residual: malloc/memset tmp arena+module, parse prep, enqueue sub-imports.
 // PLATFORM: SHARED — parser slice / ParseIntoResult stay seed; pure process_one orch calls this.
 export extern "C" function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, prep: *u8, prep_len: i64, debug_path: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void;
+// wave49 Cap residual: ensure tmp; resolve/read/preprocess path_c; parse+enqueue; free prep.
+// PLATFORM: SHARED — FILE view / PATH_MAX / preprocess stay seed; pure paths_process_one orch.
+export extern "C" function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32;
 export extern "C" function ast_module_free(mod: *u8): void;
 export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
 /* See implementation. */
@@ -3379,7 +3384,7 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
  *   G.7 load_one_direct_import_at stores prep/path at mi=*n (resolve/read/preprocess Cap);
  *   free path_c; *n = mi+1;
  *   Cap residual shux_collect_tmp_parse_and_enqueue for parse + enqueue.
- * paths_process_one / transitive_impl stay seed. PLATFORM: SHARED.
+ * wave49: paths_process_one pure; transitive_impl stays seed. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
@@ -3437,6 +3442,89 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
     shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, key, to_load, to_load_n, dep_paths, n_loaded);
   }
   return 0;
+}
+
+/**
+ * Paths-only process one owned to_load path into dep_paths and enqueue sub-imports.
+ * Unlike deps_process_one, does not keep prep sources/lens — only owned path keys.
+ * @param path_c *u8 — owned C-string import key; consumed (freed) on all return paths
+ * @param lib_roots *u8 — char star-star lib roots for resolve; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_paths *u8 — char star-star owned keys; written at slot *n
+ * @param n *i32 — live loaded count (in/out); null → fail 1
+ * @param to_load *u8 — char star-star queue base; null → fail 1
+ * @param to_load_n *i32 — live queue count (in/out for enqueue); null → fail 1
+ * @param tmp_arena *u8 — void star-star tmp arena slot; null → fail 1
+ * @param tmp_module *u8 — void star-star tmp module slot; null → fail 1
+ * @param arena_sz i64 — malloc size for tmp arena when first needed
+ * @param module_sz i64 — malloc size for tmp module when first needed
+ * @return i32 — 0 continue; 1 fail (caller cleans queue + partial paths)
+ * wave49 pure Cap residual orch:
+ *   already-loaded → free path_c + 0;
+ *   Cap residual shux_collect_strdup stores owned key at mi=*n; *n = mi+1;
+ *   Cap residual shux_collect_paths_tmp_resolve_parse_enqueue
+ *     (ensure tmp; resolve/read/preprocess; G.7 tmp_parse_and_enqueue; free prep);
+ *   free path_c. If tmp malloc fails residual no-ops success (path still registered).
+ * transitive_impl stays seed. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
+  if (path_c == 0 as *u8) {
+    return 1;
+  }
+  if (n == 0 as *i32) {
+    return 1;
+  }
+  if (to_load == 0 as *u8) {
+    return 1;
+  }
+  if (to_load_n == 0 as *i32) {
+    return 1;
+  }
+  if (tmp_arena == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_module == 0 as *u8) {
+    return 1;
+  }
+  let mi: i32 = 0;
+  unsafe {
+    mi = n[0];
+  }
+  // Already loaded: drop owned path and continue (same as cold twin).
+  if (shux_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
+    unsafe {
+      free(path_c);
+    }
+    return 0;
+  }
+  // Register owned path key before resolve (fail paths leave key for caller cleanup).
+  let key: *u8 = 0 as *u8;
+  unsafe {
+    key = shux_collect_strdup(path_c);
+  }
+  if (key == 0 as *u8) {
+    unsafe {
+      free(path_c);
+    }
+    return 1;
+  }
+  pipe_store_ptr_slot(dep_paths, mi, key);
+  unsafe {
+    n[0] = mi + 1;
+  }
+  let n_loaded: i32 = mi + 1;
+  let rc: i32 = 0;
+  unsafe {
+    rc = shux_collect_paths_tmp_resolve_parse_enqueue(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, tmp_arena, tmp_module, arena_sz, module_sz, to_load, to_load_n, dep_paths, n_loaded);
+  }
+  unsafe {
+    free(path_c);
+  }
+  return rc;
 }
 
 /**
