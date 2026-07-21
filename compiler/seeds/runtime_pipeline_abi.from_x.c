@@ -53,6 +53,10 @@
  * wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
  *   (G.7 pure preprocess + Cap residual stage BSS / loaded_import_commit_from_owned;
  *   cold twins under #ifndef FROM_X).
+ * wave67: pure pipeline_dep_ctx_path_bufs_reset + pipeline_dep_ctx_copy_entry_dir orch
+ *   (LP64 offsetof + LE store/byte copy; same layout as driver_abi wave19);
+ *   pure pipeline_dep_ctx_set_use_asm_backend thin → G.7 driver_pipeline_dep_ctx_set_use_asm;
+ *   cold twins under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -218,6 +222,10 @@ int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx
 int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len);
 /* wave65 pure pipeline_resolve_path_into_static — pure resolve_path calls under hybrid. */
 void pipeline_resolve_path_into_static(const char *path_c);
+/* wave67 pure path buf helpers + use_asm thin — pure fill_ctx / one_ctx call under hybrid. */
+void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx);
+void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char *entry_dir);
+void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_t v);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -1814,7 +1822,9 @@ extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
  * 填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .x 内 resolve_path_x 使用。
  * 参数：ctx 非 NULL；entry_dir 入口目录；lib_roots/n_lib_roots 与 -L 一致。
  */
-/* G-02f-230：字段写 helper（.x fill_ctx 编排调用） */
+/* G-02f-230 / wave67：hybrid pure owns path_bufs_reset; cold twin under #ifndef FROM_X.
+ * Pure orch: LP64 offsetof + LE store (loaded_len i64 + three i32 cells). PLATFORM: SHARED LP64. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx) {
     if (!ctx)
         return;
@@ -1824,7 +1834,8 @@ void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx) {
     ctx->num_lib_roots = 0;
 }
 
-/* G-02f-230：拷贝 entry_dir 到 ctx->entry_dir_buf（上限 511） */
+/* G-02f-230 / wave67：hybrid pure owns copy_entry_dir; cold twin under #ifndef FROM_X.
+ * Pure orch: byte copy into entry_dir_buf + LE store entry_dir_len. PLATFORM: SHARED LP64. */
 void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char *entry_dir) {
     size_t el;
     if (!ctx || !entry_dir)
@@ -1836,6 +1847,7 @@ void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char 
     ctx->entry_dir_buf[el] = '\0';
     ctx->entry_dir_len = (int32_t)el;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
@@ -1973,11 +1985,15 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * 勿写入 entry 全量 dep 表：coff→[elf,codegen,ast] 时 codegen 仅 import ast，ndep=3 会使 sync/typeck 错位 ec=-5。
  */
 /* G-02f-233：字段写 helper（.x 早退编排调用） */
+/* G-02f-233 / wave67：hybrid pure owns set_use_asm_backend thin → G.7
+ * driver_pipeline_dep_ctx_set_use_asm; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_t v) {
     if (!ctx)
         return;
     ctx->use_asm_backend = v;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-233 / wave62：hybrid pure owns map_impl; cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — same control flow as pure orch (ok 0|-2 accept; else full slots). */

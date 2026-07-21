@@ -51,6 +51,10 @@
 // wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
 //   (G.7 pure preprocess + Cap residual stage BSS / loaded_import_commit_from_owned;
 //   cold twins under FROM_X).
+// wave67: pure pipeline_dep_ctx_path_bufs_reset + pipeline_dep_ctx_copy_entry_dir orch
+//   (LP64 offsetof + LE store/byte copy; same layout as driver_abi wave19);
+//   pure pipeline_dep_ctx_set_use_asm_backend thin → G.7 driver_pipeline_dep_ctx_set_use_asm;
+//   cold twins under FROM_X.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -126,8 +130,9 @@ export extern "C" function driver_asm_fflush_stdout(): void;
 export extern "C" function driver_asm_fclose_file(fp: *u8): void;
 /* See implementation. */
 export extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
-export extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
-export extern "C" function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void;
+// wave67: pipeline_dep_ctx_path_bufs_reset / copy_entry_dir are pure export functions below.
+// wave67: pipeline_dep_ctx_set_use_asm_backend is pure thin over G.7 driver authority.
+export extern "C" function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
 export extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
 /* wave61: shux_preprocess_raw_to_malloc_impl is pure export function below.
  * Cap residual preprocess engine still C (ast_pool / preprocess.x authority): */
@@ -194,7 +199,7 @@ export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8
 /* See implementation. */
 /* See implementation. */
 /* See implementation. */
-export extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
+// wave67: pipeline_dep_ctx_set_use_asm_backend is pure export function below (G.7 driver thin).
 // wave62: shux_pipeline_one_ctx_for_dep_prerun_map_impl is pure export function below.
 // Cap residual sizes (glue) + Cap-struct-return parse ok unpack (driver residual):
 // PLATFORM: SHARED — same symbols as collect tmp_parse / driver_parse_into_buf_rc pure path.
@@ -2622,11 +2627,169 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
 
 /* See implementation. */
 
-// pipeline_set_entry_dir: see function docblock below.
-/** Exported function `pipeline_set_entry_dir`.
- * Implements `pipeline_set_entry_dir`.
- * @param path *u8
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, entry_dir_buf) — layout authority runtime_pipeline_abi.h.
+ * PLATFORM: SHARED LP64 (Ubuntu x86_64 + Darwin arm64/x86_64).
+ */
+function pipe_pctx_off_entry_dir_buf(): i32 {
+  return 4;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, entry_dir_len).
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_entry_dir_len(): i32 {
+  return 516;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, num_lib_roots).
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_num_lib_roots(): i32 {
+  return 520;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, loaded_len) — ptrdiff_t / i64 cell.
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_loaded_len(): i32 {
+  return 4195344;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, preprocess_len).
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_preprocess_len(): i32 {
+  return 8389656;
+}
+
+/**
+ * Store host LE i32 at base[off..off+3]. Null base or off negative → no-op.
+ * @param base *u8 — object base
+ * @param off i32 — byte offset
+ * @param v i32 — value
  * @return void
+ * G.7 same pattern as driver_abi_store_i32_le (wave19); local copy — not exported.
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+function pipe_store_i32_le(base: *u8, off: i32, v: i32): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  unsafe {
+    let u: u32 = v as u32;
+    base[off] = (u & 255) as u8;
+    base[off + 1] = ((u / 256) & 255) as u8;
+    base[off + 2] = ((u / 65536) & 255) as u8;
+    base[off + 3] = ((u / 16777216) & 255) as u8;
+  }
+}
+
+/**
+ * Store eight zero bytes at base[off..off+7] (clear ptrdiff_t / i64 cell).
+ * Null base or off negative → no-op. wave67 only needs clear (loaded_len=0).
+ * @param base *u8 — object base
+ * @param off i32 — byte offset
+ * @return void
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_store_i64_zero(base: *u8, off: i32): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  pipe_store_i32_le(base, off, 0);
+  pipe_store_i32_le(base, off + 4, 0);
+}
+
+/**
+ * Clear PipelineDepCtx path/source length cells used by fill_ctx orch.
+ * @param ctx *u8 — opaque ast_PipelineDepCtx; null → no-op
+ * @return void
+ * wave67 pure: zeros loaded_len (i64), preprocess_len, entry_dir_len, num_lib_roots
+ *   via LP64 offsetof + LE store (no C struct in .x). Does not clear buffer bytes.
+ * PLATFORM: SHARED LP64 — cold twin under non-FROM_X keeps C field writes.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipe_store_i64_zero(ctx, pipe_pctx_off_loaded_len());
+  pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), 0);
+  pipe_store_i32_le(ctx, pipe_pctx_off_entry_dir_len(), 0);
+  pipe_store_i32_le(ctx, pipe_pctx_off_num_lib_roots(), 0);
+}
+
+/**
+ * Copy entry_dir C string into pctx.entry_dir_buf (cap 512 incl NUL) and set entry_dir_len.
+ * @param ctx *u8 — opaque ast_PipelineDepCtx; null → no-op
+ * @param entry_dir *u8 — NUL-terminated path; null → no-op
+ * @return void
+ * wave67 pure: byte copy into ctx[entry_dir_buf_off..] then LE store entry_dir_len.
+ * Truncates at 511 payload bytes. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  if (entry_dir == 0 as *u8) {
+    return;
+  }
+  let el: i32 = 0;
+  unsafe {
+    while (el < 511) {
+      let c: u8 = entry_dir[el];
+      if (c == 0) {
+        break;
+      }
+      el = el + 1;
+    }
+  }
+  let base_off: i32 = pipe_pctx_off_entry_dir_buf();
+  let k: i32 = 0;
+  unsafe {
+    while (k < el) {
+      ctx[base_off + k] = entry_dir[k];
+      k = k + 1;
+    }
+    ctx[base_off + el] = 0;
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_entry_dir_len(), el);
+}
+
+/**
+ * Store pctx.use_asm_backend = v (null ctx no-op).
+ * @param ctx *u8 — opaque ast_PipelineDepCtx
+ * @param v i32 — flag value
+ * @return void
+ * wave67 pure thin: G.7 single authority driver_pipeline_dep_ctx_set_use_asm
+ *   (driver_abi wave19 LE store). PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void {
+  unsafe {
+    driver_pipeline_dep_ctx_set_use_asm(ctx, v);
+  }
+}
+
+// pipeline_set_entry_dir: see function docblock below.
+/**
+ * Set pipeline resolve/read entry directory from path (null/empty → ".").
+ * @param path *u8 — NUL-terminated directory; null or empty → Cap residual set_dot
+ * @return void
+ * Pure orch over Cap residual entry_dir_copy / set_dot BSS writers.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_set_entry_dir(path: *u8): void {
