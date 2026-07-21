@@ -122,6 +122,20 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
+/* wave46: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+ * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
+#ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+int32_t shux_module_num_imports(void *module);
+void shux_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap);
+void shux_ptr_slot_set(void **arr, int32_t i, void *p);
+void *shux_ptr_slot_get(void **arr, int32_t i);
+void shux_i32_store(int32_t *p, int32_t v);
+size_t shux_size_slot_get(size_t *arr, int32_t i);
+void shux_size_slot_set(size_t *arr, int32_t i, size_t v);
+int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
+/* pipeline_diag_preprocess_directive_code already declared above */
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+
 static int pipeline_diag_emitted_flag;
 
 /* G-02f-33: storage slot for .x pipeline_diag_emitted_* */
