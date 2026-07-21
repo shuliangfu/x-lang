@@ -1550,8 +1550,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   #   wave58: pure dep_prerun_parse_skip_typeck_impl orch (check_only + skip typeck/codegen
   #     + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
   #   wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs pack;
-  #     Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + product_emit Cap residual;
-  #     G.7 driver_run_thread_on_large_stack; pure never calls same-TU weak stub emit).
+  #     Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + product_emit → wave80 pure thin;
+  #     G.7 driver_run_thread_on_large_stack; export-extern asm_asm_codegen_elf_o → bridge).
   #   wave56: pure pipeline_run_x large-stack _impl orch (PipelineRunSuArgs pack;
   #     Cap-fn-ptr pipeline_run_x_thread_fn_ptr + G.7 driver_run_thread_on_large_stack).
   #   wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]

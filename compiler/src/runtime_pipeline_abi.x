@@ -6,9 +6,8 @@
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
 // Cap residual always-seed: pipeline_run_x_thread_fn_ptr
 //   (fn address for driver_run_thread_on_large_stack; same pattern as driver_abi wave37).
-// Cap residual always-seed (wave57): shux_asm_codegen_elf_o_thread_fn_ptr
-//   + shux_asm_codegen_elf_o_product_emit (true emit; same-TU weak stub asm_asm_codegen_elf_o
-//   returns -1 — pure must not call that stub; product_emit keeps external reloc → bridge).
+// Cap residual always-seed (wave57): shux_asm_codegen_elf_o_thread_fn_ptr only.
+// wave80: pure product_emit thin via export-extern asm_asm_codegen_elf_o (no same-TU -1 body).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -89,7 +88,10 @@
 // wave79: pure shux_path_try_realpath_inplace (G.7 g05 shux_driver_realpath_opaque + stack
 //   resolved[1024] + pipe_cstr_copy; fail → leave path unchanged; matches seed POSIX/APPLE
 //   realpath+snprintf and non-POSIX no-op via harness null); cold twin under FROM_X.
-// Cap residual still: fn-ptr / product_emit / typeck_module C frontend
+// wave80: pure shux_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o only —
+//   remove same-TU weak -1 stub so call keeps external reloc → final strong bridge;
+//   seed cold twin under #ifndef FROM_X). Closes product_emit Cap residual leaf.
+// Cap residual still: fn-ptr / typeck_module C frontend
 //   (+ pipeline_sizeof_* / preprocess engine residual).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
@@ -101,6 +103,7 @@
 // wave78: shu_lsp_ptr_slot_clear / shux_fputs_stdout / driver_asm_fp_is_stdout /
 //   driver_asm_fclose_file are pure export functions below.
 // wave79: shux_path_try_realpath_inplace is pure export function below.
+// wave80: shux_asm_codegen_elf_o_product_emit is pure export function below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -133,9 +136,10 @@ export extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i
 export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
 // wave56: pipeline_run_x_thread_fn_impl is pure export function below.
 // wave57: shux_asm_codegen_elf_o_thread_fn_impl is pure export function below.
-// Cap residual always-seed: product emit + Cap-fn-ptr for asm large-stack (wave57).
-// Do not call same-TU weak stub asm_asm_codegen_elf_o from pure (returns -1).
-export extern "C" function shux_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
+// wave80: product_emit is pure thin below (G.7 export-extern asm_asm_codegen_elf_o → bridge).
+// Cap residual always-seed: Cap-fn-ptr for asm large-stack only (wave57/wave80).
+// PLATFORM: SHARED — must not define same-TU body for asm_asm_codegen_elf_o (weak -1 was Cap trap).
+export extern "C" function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 export extern "C" function shux_asm_codegen_elf_o_thread_fn_ptr(): *u8;
 // Cap-fn-ptr residual: always-seed address of thin pipeline_run_x_thread_fn.
 export extern "C" function pipeline_run_x_thread_fn_ptr(): *u8;
@@ -314,17 +318,28 @@ export function pipeline_fill_soa_field_access_for_asm_emit(m: *u8, a: *u8): voi
 export function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): void {
 }
 
-/** Exported function `asm_asm_codegen_elf_o`.
- * Implements `asm_asm_codegen_elf_o`.
- * @param m *u8
- * @param a *u8
- * @param c *u8
- * @param e *u8
- * @param o *u8
- * @return i32
+/* wave80: asm_asm_codegen_elf_o is export-extern only (see top of file).
+ * Historical pure weak body returned -1 and poisoned same-TU product emit;
+ * G.7 product_emit thin below keeps external reloc → user_asm_seed_bridge strong. */
+
+/**
+ * Product asm elf_o emit trampoline: true bridge emit for pure large-stack orch.
+ * @param module *u8 — AST module
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — PipelineDepCtx
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param out_buf *u8 — emit out buffer
+ * @return i32 — emit status from strong asm_asm_codegen_elf_o (bridge)
+ * wave80 pure Cap residual:
+ *   thin forward to export-extern asm_asm_codegen_elf_o (no same-TU body);
+ *   closes always-seed product_emit leaf; cold twin under seed #ifndef FROM_X.
+ * PLATFORM: SHARED — final link must provide strong user_asm_seed_bridge (or equiv).
  */
 #[no_mangle]
-export function asm_asm_codegen_elf_o(m: *u8, a: *u8, c: *u8, e: *u8, o: *u8): i32 {
+export function shux_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+  unsafe {
+    return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
+  }
   return 0 - 1;
 }
 
@@ -6645,9 +6660,8 @@ export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
  *   module@0 arena@8 ctx@16 elf_ctx@24 out_buf@32 result@40;
  *   null → return null
  * @return *u8 — always null (pthread start_routine contract)
- * wave57 pure Cap residual:
- *   load pack via pipe/size slots; Cap residual shux_asm_codegen_elf_o_product_emit
- *   (true bridge emit; never call same-TU weak stub asm_asm_codegen_elf_o);
+ * wave57 pure Cap residual orch; wave80 product_emit is pure G.7 thin (bridge reloc).
+ *   load pack via pipe/size slots; G.7 pure shux_asm_codegen_elf_o_product_emit;
  *   store result as LE i64 cell at slot 5 (i32@40 + pad).
  * PLATFORM: SHARED LP64 little-endian.
  */
@@ -6678,10 +6692,10 @@ export function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
  * @param elf_ctx *u8 — ElfCodegenCtx
  * @param out_buf *u8 — emit out buffer
  * @return i32 — emit ec; fallback path if result still sentinel -99
- * wave57 pure Cap residual:
+ * wave57 pure Cap residual orch; wave80 product_emit pure thin:
  *   stack args[48] zeroed; fill pack; result sentinel -99;
  *   Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + G.7 driver_run_thread_on_large_stack;
- *   if result still -99 → Cap residual product_emit (pthread create failed / skipped).
+ *   if result still -99 → G.7 pure product_emit (pthread create failed / skipped).
  * PLATFORM: SHARED LP64.
  */
 #[no_mangle]

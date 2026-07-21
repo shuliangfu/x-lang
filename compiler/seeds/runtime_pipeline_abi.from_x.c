@@ -24,9 +24,7 @@
  *   SHUX_DEBUG_PIPE notes cold-only).
  * wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs stack pack;
  *   Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr always-seed;
- *   Cap residual shux_asm_codegen_elf_o_product_emit always-seed — true emit via external
- *   reloc to strong user_asm_seed_bridge; pure must not call same-TU weak stub
- *   asm_asm_codegen_elf_o which returns -1).
+ *   product_emit → wave80 pure thin + cold twin under #ifndef FROM_X).
  * wave58: pure dep_prerun_parse_skip_typeck_impl orch (driver check_only + skip typeck/codegen
  *   + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack; cold twin
  *   under #ifndef FROM_X).
@@ -82,7 +80,9 @@
  *   (G.7 g05 stdout compare + fclose_opaque); cold twins under #ifndef FROM_X.
  * wave79: pure shux_path_try_realpath_inplace (G.7 g05 realpath_opaque + stack 1024 +
  *   pipe_cstr_copy; fail leave path; cold twin under #ifndef FROM_X).
- * Cap residual still: fn-ptr / product_emit / typeck_module C frontend
+ * wave80: pure shux_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o
+ *   only — no same-TU weak -1; external reloc → bridge strong; cold twin under #ifndef FROM_X).
+ * Cap residual still: fn-ptr / typeck_module C frontend
  *   (+ pipeline_sizeof_* / preprocess engine residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
@@ -3647,16 +3647,16 @@ typedef struct {
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx,
     void *out_buf);
 
-/** Always-seed Cap residual: product asm elf_o emit for pure large-stack orch.
- * Pure must not call same-TU weak stub asm_asm_codegen_elf_o (returns -1).
- * This rest-TU call keeps an external reloc → final strong user_asm_seed_bridge.
- * G.7 single trampoline authority for pure→bridge emit; cold twins may still call
- * asm_asm_codegen_elf_o directly (no pure weak stub in cold full-C TU).
+/** Product asm elf_o emit trampoline (wave80: hybrid pure owns thin; cold twin below).
+ * Forwards to strong asm_asm_codegen_elf_o (user_asm_seed_bridge at final link).
+ * Cold full-C TU has no pure weak -1 stub — direct call is safe.
  * PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_asm_codegen_elf_o_product_emit(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** Always-seed Cap-fn-ptr residual: opaque address of shux_asm_codegen_elf_o_thread_fn.
  * wave57 pure large-stack orch binds this then driver_run_thread_on_large_stack.
