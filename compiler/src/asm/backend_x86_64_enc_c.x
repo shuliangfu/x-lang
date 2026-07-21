@@ -21,6 +21,11 @@ export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: 
 export extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
 export extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
+export extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
+export extern "C" function pipeline_elf_ctx_add_label(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern "C" function pipeline_elf_ctx_pad_code_to_4(ctx: *u8): i32;
+export extern "C" function pipeline_elf_ctx_add_sym(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern "C" function pipeline_elf_ctx_macho_leading_underscore(ctx: *u8): i32;
 
 /** Exported function `x86_enc_u8`.
  * Implements `x86_enc_u8`.
@@ -1037,3 +1042,501 @@ export function arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32 {
   return x86_enc_bytes(elf_ctx, ins1, 3);
 }
 
+// ---- Cap residual pure R2 wave2: label/imm/jcc/rbp/arg/call (product C ABI) ----
+// G.7: same authority as wave1 — this TU + seed FROM_X rest.
+
+/** Define a code label; pad+export sym when is_func!=0 (Mach-O leading underscore).
+ * Cap residual pure R2 wave2. PLATFORM: SHARED — ELF/Mach-O product asm encode.
+ * @param elf_ctx opaque ElfCodegenCtx*
+ * @param name label/symbol bytes (not necessarily NUL-terminated; use name_len)
+ * @param name_len byte length of name
+ * @param is_func non-zero: pad code to 4 and add exported symbol
+ * @return 0 on success, -1 on failure
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (name == 0) { return 0 - 1; }
+  if (name_len < 0) { return 0 - 1; }
+  unsafe {
+    if (is_func != 0) {
+      if (pipeline_elf_ctx_pad_code_to_4(elf_ctx) != 0) { return 0 - 1; }
+    }
+    let code_len: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) { return 0 - 1; }
+    if (is_func == 0) { return 0; }
+    // Mach-O: export with leading underscore when host requests it.
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+      let mn: u8[64] = [0];
+      mn[0] = 95;
+      let k: i32 = 0;
+      while (k < name_len && k < 63) {
+        mn[k + 1] = name[k];
+        k = k + 1;
+      }
+      let code_len2: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      return pipeline_elf_ctx_add_sym(elf_ctx, &mn[0], name_len + 1, code_len2);
+    }
+    let code_len3: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    return pipeline_elf_ctx_add_sym(elf_ctx, name, name_len, code_len3);
+  }
+  return 0 - 1;
+}
+
+/** cmp + setcc + movzbl %al,%eax for condition code cc (0..5).
+ * Cap residual pure R2 wave2. PLATFORM: SHARED — x86_64 SysV encode.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let op: u8 = 148;
+  if (cc == 1) { op = 149; }
+  else if (cc == 2) { op = 156; }
+  else if (cc == 3) { op = 158; }
+  else if (cc == 4) { op = 159; }
+  else if (cc == 5) { op = 157; }
+  let s: u8[3] = [15, 0, 192];
+  s[1] = op;
+  if (x86_enc_bytes(elf_ctx, s, 3) != 0) { return 0 - 1; }
+  let m: u8[3] = [15, 182, 192];
+  return x86_enc_bytes(elf_ctx, m, 3);
+}
+
+/** mov imm32 to ebx (B8+reg form). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 187) != 0) { return 0 - 1; }
+  return x86_enc_u32_le(elf_ctx, imm32);
+}
+
+/** mov imm32 to eax then return path (ret_imm32 surface). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 184) != 0) { return 0 - 1; }
+  return x86_enc_u32_le(elf_ctx, imm32);
+}
+
+/** movabs imm64 (lo,hi) to rax. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 184) != 0) { return 0 - 1; }
+  if (x86_enc_u32_le(elf_ctx, lo) != 0) { return 0 - 1; }
+  return x86_enc_u32_le(elf_ctx, hi);
+}
+
+/** cmp eax, imm32. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 61) != 0) { return 0 - 1; }
+  return x86_enc_u32_le(elf_ctx, imm32);
+}
+
+/** add imm32 to rax (REX.W add rax,imm32). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (imm == 0) { return 0; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 5) != 0) { return 0 - 1; }
+  return x86_enc_u32_le(elf_ctx, imm);
+}
+
+/** add imm32 to rbx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (imm == 0) { return 0; }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 129) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 195) != 0) { return 0 - 1; }
+  return x86_enc_u32_le(elf_ctx, imm);
+}
+
+/** movq %rax, -offset(%rbp). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_store_rax_to_rbp_neg(elf_ctx, offset);
+}
+
+/** movq -offset(%rbp), %rax. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_movq_from_rbp_neg(elf_ctx, offset, 69, 133);
+}
+
+/** movq -offset(%rbp), %rbx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_movq_from_rbp_neg(elf_ctx, offset, 93, 157);
+}
+
+/** leaq -offset(%rbp), %rax. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_lea_from_rbp_neg(elf_ctx, offset, 69, 133);
+}
+
+/** leaq -offset(%rbp), %rbx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_lea_from_rbp_neg(elf_ctx, offset, 93, 157);
+}
+
+/** movq +off_pos(%rbp), %rax (positive frame offset). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx: *u8, off_pos: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let disp: i32 = off_pos;
+  if (disp < 0) { disp = 0; }
+  if (disp <= 127) {
+    let buf: u8[4] = [72, 139, 69, 0];
+    buf[3] = disp as u8;
+    return x86_enc_bytes(elf_ctx, buf, 4);
+  }
+  let buf2: u8[7] = [72, 139, 133, 0, 0, 0, 0];
+  let w: u32 = disp as u32;
+  buf2[3] = (w & 255) as u8;
+  buf2[4] = ((w / 256) & 255) as u8;
+  buf2[5] = ((w / 65536) & 255) as u8;
+  buf2[6] = ((w / 16777216) & 255) as u8;
+  return x86_enc_bytes(elf_ctx, buf2, 7);
+}
+
+/** movl -offset(%rbp), %eax. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_movl_from_rbp_neg32(elf_ctx, offset, 69, 133);
+}
+
+/** movl -offset(%rbp), %ebx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_movl_from_rbp_neg32(elf_ctx, offset, 93, 157);
+}
+
+/** movl -offset(%rbp), %ecx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_movl_from_rbp_neg32(elf_ctx, offset, 77, 141);
+}
+
+/** movl -offset(%rbp), %edx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_movl_from_rbp_neg32(elf_ctx, offset, 85, 149);
+}
+
+/** add imm to ecx (alu_imm32 template). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_alu_imm32_to_reg(elf_ctx, imm, 129, 193);
+}
+
+/** sub imm from ecx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_alu_imm32_to_reg(elf_ctx, imm, 129, 233);
+}
+
+/** add imm to ebx (index path). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_alu_imm32_to_reg(elf_ctx, imm, 129, 195);
+}
+
+/** sub imm from ebx (index path). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_alu_imm32_to_reg(elf_ctx, imm, 129, 235);
+}
+
+/** imul ecx,ecx,imm (skip if imm<=1). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (imm <= 1) { return 0; }
+  if (imm >= 0 - 128 && imm <= 127) {
+    let buf: u8[3] = [107, 201, 0];
+    buf[2] = imm as u8;
+    return x86_enc_bytes(elf_ctx, buf, 3);
+  }
+  let buf2: u8[6] = [105, 201, 0, 0, 0, 0];
+  let w: u32 = imm as u32;
+  buf2[2] = (w & 255) as u8;
+  buf2[3] = ((w / 256) & 255) as u8;
+  buf2[4] = ((w / 65536) & 255) as u8;
+  buf2[5] = ((w / 16777216) & 255) as u8;
+  return x86_enc_bytes(elf_ctx, buf2, 6);
+}
+
+/** imul ebx,ebx,imm (skip if imm<=1). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (imm <= 1) { return 0; }
+  if (imm >= 0 - 128 && imm <= 127) {
+    let buf: u8[3] = [107, 219, 0];
+    buf[2] = imm as u8;
+    return x86_enc_bytes(elf_ctx, buf, 3);
+  }
+  let buf2: u8[6] = [105, 219, 0, 0, 0, 0];
+  let w: u32 = imm as u32;
+  buf2[2] = (w & 255) as u8;
+  buf2[3] = ((w / 256) & 255) as u8;
+  buf2[4] = ((w / 65536) & 255) as u8;
+  buf2[5] = ((w / 16777216) & 255) as u8;
+  return x86_enc_bytes(elf_ctx, buf2, 6);
+}
+
+/** mov SysV arg_reg[k] -> rax (k clamped 0..5). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 5) { idx = 5; }
+  if (idx == 0) {
+    let b0: u8[3] = [72, 137, 248];
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  }
+  if (idx == 1) {
+    let b1: u8[3] = [72, 137, 240];
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  }
+  if (idx == 2) {
+    let b2: u8[3] = [72, 137, 208];
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  }
+  if (idx == 3) {
+    let b3: u8[3] = [72, 137, 200];
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  }
+  if (idx == 4) {
+    let b4: u8[3] = [76, 137, 192];
+    return x86_enc_bytes(elf_ctx, b4, 3);
+  }
+  let b5: u8[3] = [76, 137, 200];
+  return x86_enc_bytes(elf_ctx, b5, 3);
+}
+
+/** mov rax -> SysV arg_reg[k] (k clamped 0..5). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 5) { idx = 5; }
+  if (idx == 0) {
+    let b0: u8[3] = [72, 137, 199];
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  }
+  if (idx == 1) {
+    let b1: u8[3] = [72, 137, 198];
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  }
+  if (idx == 2) {
+    let b2: u8[3] = [72, 137, 194];
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  }
+  if (idx == 3) {
+    let b3: u8[3] = [72, 137, 193];
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  }
+  if (idx == 4) {
+    let b4: u8[3] = [73, 137, 192];
+    return x86_enc_bytes(elf_ctx, b4, 3);
+  }
+  let b5: u8[3] = [73, 137, 193];
+  return x86_enc_bytes(elf_ctx, b5, 3);
+}
+
+/** jz rel32 label (0F 84). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len);
+}
+
+/** jeq alias of jz. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len);
+}
+
+/** jge rel32 label (0F 8D). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_jcc_rel32(elf_ctx, 141, label, label_len);
+}
+
+/** jnz rel32 label (0F 85). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_jcc_rel32(elf_ctx, 133, label, label_len);
+}
+
+/** jmp rel32 + patch. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (label == 0) { return 0 - 1; }
+  if (label_len <= 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 233) != 0) { return 0 - 1; }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) { return 0 - 1; }
+  unsafe {
+    let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) { return 0 - 1; }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
+  }
+  return 0 - 1;
+}
+
+/** call rel32 + reloc (Mach-O leading underscore when required).
+ * Cap residual pure R2 wave2. PLATFORM: SHARED — ELF/Mach-O product asm.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (name == 0) { return 0 - 1; }
+  if (name_len <= 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 232) != 0) { return 0 - 1; }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) { return 0 - 1; }
+  unsafe {
+    let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 63 && name[0] != 95) {
+      let rn: u8[64] = [0];
+      rn[0] = 95;
+      let k: i32 = 0;
+      while (k < name_len && k < 63) {
+        rn[k + 1] = name[k];
+        k = k + 1;
+      }
+      return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &rn[0], name_len + 1);
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+  }
+  return 0 - 1;
+}
+
+/** add rsp, nbytes (imm8 or imm32). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_rsp_imm(elf_ctx: *u8, nbytes: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (nbytes <= 0) { return 0; }
+  if (nbytes <= 127) {
+    if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+    if (x86_enc_u8(elf_ctx, 131) != 0) { return 0 - 1; }
+    if (x86_enc_u8(elf_ctx, 196) != 0) { return 0 - 1; }
+    return x86_enc_u8(elf_ctx, nbytes as u8);
+  }
+  if (x86_enc_u8(elf_ctx, 72) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 129) != 0) { return 0 - 1; }
+  if (x86_enc_u8(elf_ctx, 196) != 0) { return 0 - 1; }
+  return x86_enc_u32_le(elf_ctx, nbytes);
+}
+
+/** store rax through (%rbx) by elem size 1/4/8. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (elem_sz == 1) {
+    let b1: u8[2] = [136, 3];
+    return x86_enc_bytes(elf_ctx, b1, 2);
+  }
+  if (elem_sz == 4) {
+    let b4: u8[2] = [137, 3];
+    return x86_enc_bytes(elf_ctx, b4, 2);
+  }
+  let b8: u8[3] = [72, 137, 3];
+  return x86_enc_bytes(elf_ctx, b8, 3);
+}
+
+/** store rax to offset(%rbx) size 1/4/8. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let w: u32 = offset as u32;
+  let b0: u8 = (w & 255) as u8;
+  let b1: u8 = ((w / 256) & 255) as u8;
+  let b2: u8 = ((w / 65536) & 255) as u8;
+  let b3: u8 = ((w / 16777216) & 255) as u8;
+  if (store_size == 1) {
+    let buf: u8[6] = [136, 131, 0, 0, 0, 0];
+    buf[2] = b0; buf[3] = b1; buf[4] = b2; buf[5] = b3;
+    return x86_enc_bytes(elf_ctx, buf, 6);
+  }
+  if (store_size == 4) {
+    let buf: u8[6] = [137, 131, 0, 0, 0, 0];
+    buf[2] = b0; buf[3] = b1; buf[4] = b2; buf[5] = b3;
+    return x86_enc_bytes(elf_ctx, buf, 6);
+  }
+  let buf8: u8[7] = [72, 137, 131, 0, 0, 0, 0];
+  buf8[3] = b0; buf8[4] = b1; buf8[5] = b2; buf8[6] = b3;
+  return x86_enc_bytes(elf_ctx, buf8, 7);
+}
+
+/** movq %rdx, -offset(%rbp) (16B struct high half). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_store_rdx_to_rbp_neg(elf_ctx, offset);
+}
+
+/** movq -offset(%rbp), %rdx. Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  return x86_enc_movq_from_rbp_neg(elf_ctx, offset, 85, 149);
+}
+
+/** movq %rdx, arg_reg[k] (SysV 16B struct second GPR). Cap residual pure R2 wave2. PLATFORM: SHARED */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 5) { idx = 5; }
+  if (idx == 0) {
+    let b0: u8[3] = [72, 137, 215];
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  }
+  if (idx == 1) {
+    let b1: u8[3] = [72, 137, 214];
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  }
+  if (idx == 2) {
+    let b2: u8[3] = [72, 137, 210];
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  }
+  if (idx == 3) {
+    let b3: u8[3] = [72, 137, 209];
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  }
+  if (idx == 4) {
+    let b4: u8[3] = [73, 137, 208];
+    return x86_enc_bytes(elf_ctx, b4, 3);
+  }
+  let b5: u8[3] = [73, 137, 209];
+  return x86_enc_bytes(elf_ctx, b5, 3);
+}
