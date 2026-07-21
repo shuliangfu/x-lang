@@ -64,7 +64,9 @@
  *   cold twins + seed static tables under #ifndef FROM_X).
  * wave71: pure pipeline_rf_stage_prep_clear/set/take (pure BSS ptr+size cells via G.7
  *   ptr/size slots; cold twins + seed stage statics under #ifndef FROM_X).
- *   Cap residual still: loaded_import BSS + commit_from_owned / data / len_get.
+ * wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (pure BSS
+ *   buf+len+cap; ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP; cold twins under #ifndef FROM_X).
+ *   Cap residual still: fn-ptr / product_emit / typeck_module C frontend.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -234,6 +236,10 @@ void pipeline_resolve_path_into_static(const char *path_c);
 void pipeline_rf_stage_prep_clear(void);
 void pipeline_rf_stage_prep_set(char *prep, size_t prep_len);
 int32_t pipeline_rf_stage_prep_take(char **out_prep, size_t *out_len);
+/* wave72 pure loaded_import BSS — pure commit_prep / parse_into_loaded_import under hybrid. */
+int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len);
+uint8_t *pipeline_loaded_import_data(void);
+size_t pipeline_loaded_import_len_get(void);
 /* wave67 pure path buf helpers + use_asm thin — pure fill_ctx / one_ctx call under hybrid. */
 void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx);
 void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char *entry_dir);
@@ -2189,16 +2195,17 @@ int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
 /* wave68: hybrid pure owns entry_dir BSS; cold-only statics under #ifndef FROM_X. */
 /* wave69: hybrid pure owns resolved_path BSS; cold-only static under #ifndef FROM_X. */
 /* wave70: hybrid pure owns dep arena/module slot tables; cold-only statics under #ifndef FROM_X. */
+/* wave72: hybrid pure owns loaded_import BSS; cold-only statics under #ifndef FROM_X. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
 static char pipeline_resolved_path_buf[512];
 static void *pipeline_dep_arena_slots[32];
 static void *pipeline_dep_module_slots[32];
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 static char *pipeline_loaded_import_buf;
 static size_t pipeline_loaded_import_len;
 static size_t pipeline_loaded_import_cap;
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_run_x_pipeline 由 pipeline_x.o / pipeline_gen.c 提供。 */
 extern int pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len,
@@ -2368,9 +2375,10 @@ int32_t pipeline_rf_stage_prep_take(char **out_prep, size_t *out_len) {
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* wave66 Cap residual always-seed: ensure loaded_import BSS, copy prep, set len, free prep.
+/* wave66 / wave72: ensure loaded_import BSS, copy prep, set len, free prep.
  * Same ensure policy as historical commit_prep (cap floor SHUX_PIPELINE_IMPORT_BUF_CAP).
- * Returns 0 success; -1 null prep or OOM (prep freed on OOM). PLATFORM: SHARED. */
+ * hybrid pure owns commit under FROM_X; cold twin under #ifndef. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len) {
     if (!prep)
         return -1;
@@ -2389,6 +2397,7 @@ int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len) {
     free(prep);
     return 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-238 / wave66：hybrid pure owns stage_prep; cold twin under #ifndef FROM_X.
  * Pure orch: pure clear/set (wave71) + pure resolved_path_buf_slot (wave69) + runtime_read_file_view
@@ -2420,7 +2429,7 @@ int32_t pipeline_read_file_stage_prep(void) {
 }
 
 /* G-02f-238 / wave66：hybrid pure owns commit_prep; cold twin under #ifndef FROM_X.
- * Pure orch: pure take (wave71) + Cap residual loaded_import_commit_from_owned. PLATFORM: SHARED. */
+ * Pure orch: pure take (wave71) + pure loaded_import_commit_from_owned (wave72). PLATFORM: SHARED. */
 int32_t pipeline_read_file_commit_prep(void) {
     char *prep = NULL;
     size_t prep_len = 0;
@@ -2486,7 +2495,8 @@ void *pipeline_get_dep_module_slot(int32_t i) {
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 将 loaded import 缓冲 parse 进 module。 */
-/* G-02f-239：loaded 缓冲访问（.x parse pure） */
+/* G-02f-239 / wave72：loaded 缓冲访问 — hybrid pure owns data/len_get; cold twins under #ifndef. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *pipeline_loaded_import_data(void) {
     return pipeline_loaded_import_buf ? (uint8_t *)pipeline_loaded_import_buf : NULL;
 }
@@ -2494,10 +2504,11 @@ uint8_t *pipeline_loaded_import_data(void) {
 size_t pipeline_loaded_import_len_get(void) {
     return pipeline_loaded_import_len;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-239 / wave64：hybrid pure owns pipeline_parse_into_bytes; cold twin under #ifndef FROM_X.
  * Pure orch: parser_parse_into_init + driver_parse_into_buf_rc; non-zero ok → -1.
- * Cap residual always-seed: pipeline_loaded_import_data / len_get (BSS) for loaded_import public.
+ * wave72 pure: pipeline_loaded_import_data / len_get (BSS) for loaded_import public.
  * PLATFORM: SHARED. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len) {

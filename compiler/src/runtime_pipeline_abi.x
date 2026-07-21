@@ -65,8 +65,10 @@
 //   cold twins under FROM_X).
 // wave71: pure pipeline_rf_stage_prep_clear/set/take (module BSS ptr cell + size cell;
 //   G.7 shux_ptr_slot_* / shux_size_slot_*; single authority for pure stage_prep / commit_prep;
-//   cold twins under FROM_X). Cap residual still: loaded_import BSS + commit_from_owned /
-//   data/len_get / fn-ptr / product_emit / typeck_module C frontend.
+//   cold twins under FROM_X).
+// wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (module BSS
+//   buf+len+cap cells; G.7 ptr/size slots + malloc ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP;
+//   cold twins under FROM_X). Cap residual still: fn-ptr / product_emit / typeck_module C frontend.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -171,12 +173,10 @@ export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8
 // PLATFORM: SHARED — pure entry_dir + pure resolved_path for into_static orch.
 // wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
 // wave71: pipeline_rf_stage_prep_clear/set/take are pure export functions below (pure BSS).
-// Cap residual always-seed loaded_import commit (malloc ensure/memcpy) + data/len_get:
-// PLATFORM: SHARED — pure owns stage BSS; loaded_import ensure policy still seed residual.
-export extern "C" function pipeline_loaded_import_commit_from_owned(prep: *u8, prep_len: i64): i32;
-/* See implementation. */
-export extern "C" function pipeline_loaded_import_data(): *u8;
-export extern "C" function pipeline_loaded_import_len_get(): i64;
+// wave72: pipeline_loaded_import_commit_from_owned / data / len_get are pure export functions below.
+// PLATFORM: SHARED — pure owns stage BSS + loaded_import ensure policy (single G.7 authority).
+// wave72 pure commit: libc memcpy for ensure-buffer fill (same ABI as seed cold twin).
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 // wave64: pipeline_parse_into_bytes is pure export function below (not Cap residual).
 // wave65: pipeline_resolve_path_into_static is pure export function below.
 // wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
@@ -1872,10 +1872,10 @@ export function pipeline_read_file_stage_prep(): i32 {
 /**
  * Move stage prep into loaded_import BSS (ensure buffer + copy + free prep).
  * @return i32 — 0 success; -1 empty stage or OOM on loaded buffer ensure
- * wave66 pure orch (wave71 pure take):
+ * wave66 pure orch (wave71 pure take + wave72 pure commit):
  *   pure pipeline_rf_stage_prep_take (wave71 BSS) → owned prep on stack slots;
- *   Cap residual pipeline_loaded_import_commit_from_owned (ensure/memcpy/free).
- * PLATFORM: SHARED — loaded_import ensure policy stays Cap residual (G.7 single ensure body).
+ *   pure pipeline_loaded_import_commit_from_owned (wave72 ensure/memcpy/free).
+ * PLATFORM: SHARED — G.7 single ensure body in pure commit (no Cap residual twin under hybrid).
  */
 #[no_mangle]
 export function pipeline_read_file_commit_prep(): i32 {
@@ -1886,7 +1886,7 @@ export function pipeline_read_file_commit_prep(): i32 {
   shux_size_slot_set(&out_len[0], 0, 0);
   let take_rc: i32 = 0;
   unsafe {
-    // Cap residual take expects char** / size_t* (slots as raw bytes).
+    // pure take expects char** / size_t* (slots as raw bytes).
     take_rc = pipeline_rf_stage_prep_take(&out_prep[0], &out_len[0]);
   }
   if (take_rc != 0) {
@@ -1975,8 +1975,8 @@ export function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, le
  * @param arena *u8 — AST arena; null → -1
  * @param module *u8 — AST module; null → -1
  * @return i32 — 0 success, -1 null arena/module, empty loaded buffer, or parse fail
- * wave64: body uses pure pipeline_parse_into_bytes after Cap residual loaded buffer accessors.
- * Cap residual always-seed: pipeline_loaded_import_data / pipeline_loaded_import_len_get (BSS).
+ * wave64: body uses pure pipeline_parse_into_bytes after pure loaded buffer accessors.
+ * wave72: pure pipeline_loaded_import_data / pipeline_loaded_import_len_get (pure BSS).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -2810,6 +2810,14 @@ let g_pipe_dep_module_slots: u8[256] = [];
 let g_pipe_rf_stage_prep: u8[8] = [];
 let g_pipe_rf_stage_prep_len: u8[8] = [];
 
+// wave72 pure loaded-import BSS (committed source after stage prep commit).
+// PLATFORM: SHARED LP64 — buf ptr + len + cap size cells; same ABI as seed statics.
+// G.7 single authority for pure commit_from_owned / data / len_get / commit_prep path.
+// Cap floor SHUX_PIPELINE_IMPORT_BUF_CAP = 4194304 (runtime_pipeline_abi.h).
+let g_pipe_loaded_import_buf: u8[8] = [];
+let g_pipe_loaded_import_len: u8[8] = [];
+let g_pipe_loaded_import_cap: u8[8] = [];
+
 /**
  * Free any owned stage-prep buffer and clear stage BSS cells to null/0.
  * @return void
@@ -2878,6 +2886,84 @@ export function pipeline_rf_stage_prep_take(out_prep: *u8, out_len: *u8): i32 {
     return 0 - 1;
   }
   return 0;
+}
+
+/**
+ * Ensure loaded-import BSS, copy owned prep into it, free prep.
+ * @param prep *u8 — owned heap source buffer; null → -1 (does not free)
+ * @param prep_len i64 — byte length to copy; may be 0 if prep non-null
+ * @return i32 — 0 success; -1 null prep or OOM (prep freed on OOM only)
+ * wave72 pure: G.7 shux_ptr_slot_* / shux_size_slot_* on g_pipe_loaded_import_*.
+ * Ensure policy (matches historical seed / SHUX_PIPELINE_IMPORT_BUF_CAP):
+ *   if prep_len > cap or buf null → free old buf; new_cap =
+ *     (prep_len < 4194304) ? 4194304 : (prep_len + 65536); malloc; OOM → free(prep) -1.
+ *   else reuse existing buf; memcpy prep_len bytes; set len; free(prep).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns cells.
+ */
+#[no_mangle]
+export function pipeline_loaded_import_commit_from_owned(prep: *u8, prep_len: i64): i32 {
+  if (prep == 0 as *u8) {
+    return 0 - 1;
+  }
+  let buf: *u8 = shux_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
+  let cap: i64 = shux_size_slot_get(&g_pipe_loaded_import_cap[0], 0);
+  // Reallocate when buffer missing or too small for prep_len (same order as seed).
+  if (prep_len > cap || buf == 0 as *u8) {
+    // free(NULL) is fine; seed always free then assign new cap before malloc.
+    unsafe {
+      free(buf);
+    }
+    // Cap floor 4194304 = SHUX_PIPELINE_IMPORT_BUF_CAP; else prep_len + 65536.
+    // Seed: prep_len < floor ? floor : prep_len + 65536  (i.e. >= floor → grow).
+    let floor_cap: i64 = 4194304;
+    let new_cap: i64 = floor_cap;
+    if (prep_len >= floor_cap) {
+      new_cap = prep_len + 65536;
+    }
+    // Seed sets cap before malloc; OOM leaves cap=new_cap and buf=null (len unchanged).
+    shux_size_slot_set(&g_pipe_loaded_import_cap[0], 0, new_cap);
+    let fresh: *u8 = 0 as *u8;
+    unsafe {
+      fresh = malloc(new_cap as usize);
+    }
+    if (fresh == 0 as *u8) {
+      shux_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, 0 as *u8);
+      unsafe {
+        free(prep);
+      }
+      return 0 - 1;
+    }
+    shux_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, fresh);
+    buf = fresh;
+  }
+  unsafe {
+    // Copy prep into committed buffer; then transfer ownership of prep away (free).
+    memcpy(buf, prep, prep_len as usize);
+    free(prep);
+  }
+  shux_size_slot_set(&g_pipe_loaded_import_len[0], 0, prep_len);
+  return 0;
+}
+
+/**
+ * Return pointer to committed loaded-import source bytes (or null if empty).
+ * @return *u8 — pipeline_loaded_import_buf; null when never committed / OOM cleared
+ * wave72 pure: G.7 shux_ptr_slot_get on pure BSS. Matches seed null when buf null.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_loaded_import_data(): *u8 {
+  return shux_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
+}
+
+/**
+ * Return byte length of committed loaded-import buffer.
+ * @return i64 — size_t length cell (0 when empty / never committed)
+ * wave72 pure: G.7 shux_size_slot_get on pure BSS. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_loaded_import_len_get(): i64 {
+  return shux_size_slot_get(&g_pipe_loaded_import_len[0], 0);
 }
 
 /**
