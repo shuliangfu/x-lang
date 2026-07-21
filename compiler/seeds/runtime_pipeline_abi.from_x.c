@@ -67,7 +67,10 @@
  * wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (pure BSS
  *   buf+len+cap; ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP; cold twins under #ifndef FROM_X).
  * wave73: pure pipeline_diag_emitted_flag_slot (pure BSS sticky i32; cold twin under
- *   #ifndef FROM_X). Cap residual still: fn-ptr / product_emit / typeck_module C frontend
+ *   #ifndef FROM_X).
+ * wave74: pure driver_dep_* table BSS orch (arena/module/path_registry/seeded 32 slots;
+ *   G.7 ptr slots + seeded_slot; cold twins + seed static tables under #ifndef FROM_X).
+ * Cap residual still: fn-ptr / product_emit / typeck_module C frontend
  *   (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
@@ -1179,6 +1182,9 @@ void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* G-02f-34 / wave74: hybrid pure owns driver_dep table BSS + slot/set/at/buf;
+ * cold twins under #ifndef FROM_X. PLATFORM: SHARED LP64 — SHUX_DRIVER_DEP_SLOT_MAX=32. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /** pipeline dep 全局槽：arena/module 指针、import 路径注册表、seeded 标记。 */
 static void *driver_dep_arena_ptrs[SHUX_DRIVER_DEP_SLOT_MAX];
 static void *driver_dep_module_ptrs[SHUX_DRIVER_DEP_SLOT_MAX];
@@ -1200,6 +1206,7 @@ const char *driver_dep_path_registry_at(int32_t i) {
         return NULL;
     return driver_dep_path_registry[i];
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
@@ -1211,8 +1218,8 @@ extern size_t pipeline_sizeof_module(void);
  */
 
 /* G-02f-42: driver dep pointer/path slots for .x publish_slot */
-/* wave45 Cap residual always-seed: BSS write for pure driver_dep_*_ptr_set orch.
- * Pure owns bounds; residual writes driver_dep_*_ptrs. PLATFORM: SHARED. */
+/* wave74: pure owns BSS write under hybrid; cold twin under #ifndef FROM_X. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_arena_ptr_set_impl(int32_t i, void *arena) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
@@ -1223,6 +1230,7 @@ void driver_dep_module_ptr_set_impl(int32_t i, void *module) {
         return;
     driver_dep_module_ptrs[i] = module;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_arena_ptr_set(int32_t i, void *arena) {
@@ -1243,7 +1251,8 @@ void driver_dep_module_ptr_set(int32_t i, void *module) {
 
 
 
-/* G-02f-224：逻辑源 .x（真迁边界）；seed 保留同语义 C 供产品 cc */
+/* G-02f-224 / wave74：pure path_registry_set under hybrid; cold twin stores non-null only. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_path_registry_set(int32_t i, const char *path) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
@@ -1251,6 +1260,7 @@ void driver_dep_path_registry_set(int32_t i, const char *path) {
         return;
     driver_dep_path_registry[i] = path;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t driver_dep_seeded_get(int32_t i) {
@@ -1366,7 +1376,8 @@ int32_t driver_dep_slot_for_path(const char *path) {
 /**
  * entry pipeline 返回后清除 seeded 与槽指针；并同步清 runtime.c typeck dep 侧车。
  */
-/* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-230 / wave74：pure clear_slots under hybrid; cold twin direct-writes static tables. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_seeded_clear_slots_impl(void) {
     int i;
     for (i = 0; i < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
@@ -1378,7 +1389,6 @@ void driver_dep_seeded_clear_slots_impl(void) {
 }
 
 /* G-02f-230：逻辑源 .x（真迁）；产品门闩可走 impl 或与 .x 同语义循环 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_seeded_clear_slots(void) {
     driver_dep_seeded_clear_slots_impl();
 }
@@ -1397,7 +1407,9 @@ void driver_dep_seeded_clear_all(void) {
 /**
  * 获取 dep i 的 arena 缓冲；首访 malloc+清零，seeded 槽复用预填指针。
  * 返回值：arena 字节区或 NULL（i 越界 / OOM）。
+ * wave74: pure owns under hybrid; cold twin below.
  */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *driver_dep_arena_buf(int32_t i) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return NULL;
@@ -1427,6 +1439,7 @@ uint8_t *driver_dep_module_buf(int32_t i) {
     }
     return (uint8_t *)driver_dep_module_ptrs[i];
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** typeck.x 导出名：转发 driver_dep_module_buf。 */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X

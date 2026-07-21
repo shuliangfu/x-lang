@@ -70,24 +70,21 @@
 //   buf+len+cap cells; G.7 ptr/size slots + malloc ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP;
 //   cold twins under FROM_X).
 // wave73: pure pipeline_diag_emitted_flag_slot (module BSS i32 flag; G.7 single authority for
-//   pure reset/note/get; cold twin under FROM_X). Cap residual still: fn-ptr / product_emit /
+//   pure reset/note/get; cold twin under FROM_X).
+// wave74: pure driver_dep_* table BSS orch (arena/module/path_registry/seeded 32 slots;
+//   G.7 shux_ptr_slot_* + pure seeded_slot; no cross-TU naked global — only accessors;
+//   cold twins under FROM_X). Cap residual still: fn-ptr / product_emit /
 //   typeck_module C frontend (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
+// wave74: driver_dep_seeded_slot / *_ptr_set_impl / path_registry_* / *_buf are pure below.
 export extern "C" function typeck_ndep_slot(): *i32;
 export extern "C" function typeck_ndep_store_impl(n: i32): void;
-export extern "C" function driver_dep_seeded_slot(i: i32): *i32;
 export extern "C" function typeck_dep_module_get(i: i32): *u8;
 export extern "C" function typeck_dep_arena_get(i: i32): *u8;
 export extern "C" function typeck_dep_module_set_impl(i: i32, mod: *u8): void;
 export extern "C" function typeck_dep_arena_set_impl(i: i32, arena: *u8): void;
-export extern "C" function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void;
-export extern "C" function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void;
-export extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
-export extern "C" function driver_dep_path_registry_at(i: i32): *u8;
-export extern "C" function driver_dep_module_buf(i: i32): *u8;
-export extern "C" function driver_dep_arena_buf(i: i32): *u8;
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -158,7 +155,7 @@ export extern "C" function preprocess_define_add(name: *u8): void;
 export extern "C" function preprocess_x_buf(src: *u8, src_len: i64, out_buf: *u8, out_cap: i32): i32;
 export extern "C" function preprocess_if_stack_len(): i32;
 // PLATFORM: SHARED — same C ABI as seed cold twin; pure orch owns malloc/copy/diag gates.
-export extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
+// wave74: driver_dep_seed_slots pure orch owns tables (no seed_slots_impl body required under hybrid).
 export extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
 export extern "C" function shux_cstr_typeck_lit(): *u8;
 export extern "C" function shux_entry_lib_keyword_lit(k: i32): *u8;
@@ -2835,6 +2832,15 @@ let g_pipe_loaded_import_cap: u8[8] = [];
 // no cross-TU raw global writes — safe pure BSS authority under hybrid PREFER.
 let g_pipe_diag_emitted_flag: i32 = 0;
 
+// wave74 pure driver_dep table BSS (G.7 single authority for seeded/publish/slot_for_path/buf).
+// PLATFORM: SHARED LP64 — 32 slots each; same capacity as seed SHUX_DRIVER_DEP_SLOT_MAX.
+// arena/module/path_registry = 32×void* (256B raw); seeded = 32×i32 (128B raw as i32[32]).
+// No cross-TU naked global — ast_pool/glue call driver_dep_*_buf / path_registry_at accessors only.
+let g_pipe_driver_dep_arena: u8[256] = [];
+let g_pipe_driver_dep_module: u8[256] = [];
+let g_pipe_driver_dep_path_registry: u8[256] = [];
+let g_pipe_driver_dep_seeded: i32[32] = [];
+
 /**
  * Return address of the pipeline diag-emitted sticky flag (i32 cell).
  * @return *i32 — always non-null; points at g_pipe_diag_emitted_flag
@@ -2845,6 +2851,167 @@ let g_pipe_diag_emitted_flag: i32 = 0;
 #[no_mangle]
 export function pipeline_diag_emitted_flag_slot(): *i32 {
   return &g_pipe_diag_emitted_flag;
+}
+
+/**
+ * Return address of driver_dep seeded flag cell for slot i (i32).
+ * @param i i32 — slot index; OOB clamped to 0..31 (matches historical seed clamp)
+ * @return *i32 — always non-null; points at g_pipe_driver_dep_seeded[idx]
+ * wave74 pure: pure seeded_get/set write/read this cell; G.7 single authority.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; hybrid pure owns the table.
+ */
+#[no_mangle]
+export function driver_dep_seeded_slot(i: i32): *i32 {
+  let idx: i32 = i;
+  if (idx < 0) {
+    idx = 0;
+  }
+  if (idx >= 32) {
+    idx = 31;
+  }
+  return &g_pipe_driver_dep_seeded[idx];
+}
+
+/**
+ * Store arena pointer into driver_dep arena slot i (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → no-op
+ * @param arena *u8 — arena pointer (may be null to clear)
+ * @return void
+ * wave74 pure: G.7 shux_ptr_slot_set on g_pipe_driver_dep_arena.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  shux_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, arena);
+}
+
+/**
+ * Store module pointer into driver_dep module slot i (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param module *u8 — module pointer (may be null to clear)
+ * @return void
+ * wave74 pure: G.7 shux_ptr_slot_set on g_pipe_driver_dep_module.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  shux_ptr_slot_set(&g_pipe_driver_dep_module[0], i, module);
+}
+
+/**
+ * Store import-path pointer into driver_dep path registry slot i (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param path *u8 — logical import path pointer (lifetime until clear); null clears the slot
+ * @return void
+ * wave74 pure: G.7 shux_ptr_slot_set on g_pipe_driver_dep_path_registry.
+ * Null path stores null so pure clear_slots can wipe registry (seed cold set rejected null
+ * and relied on clear_slots_impl direct assignment; pure set is the single clear path).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_path_registry_set(i: i32, path: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  shux_ptr_slot_set(&g_pipe_driver_dep_path_registry[0], i, path);
+}
+
+/**
+ * Load path registry pointer at slot i.
+ * @param i i32 — slot index; OOB → null
+ * @return *u8 — stored path pointer (may be null)
+ * wave74 pure: G.7 shux_ptr_slot_get on g_pipe_driver_dep_path_registry.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; used by pure slot_for_path_scan.
+ */
+#[no_mangle]
+export function driver_dep_path_registry_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return shux_ptr_slot_get(&g_pipe_driver_dep_path_registry[0], i);
+}
+
+/**
+ * Return (and lazily allocate) driver_dep arena buffer for slot i.
+ * @param i i32 — slot index; OOB → null
+ * @return *u8 — arena byte region (zeroed on first malloc); null on OOB/OOM
+ * wave74 pure: load slot; if null, malloc(pipeline_sizeof_arena)+memset0 then store.
+ * Matches historical seed driver_dep_arena_buf (reuse pre-seeded pointers; no free on clear).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; Cap residual pipeline_sizeof_arena glue.
+ */
+#[no_mangle]
+export function driver_dep_arena_buf(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  let p: *u8 = shux_ptr_slot_get(&g_pipe_driver_dep_arena[0], i);
+  if (p != 0 as *u8) {
+    return p;
+  }
+  let sz: usize = 0 as usize;
+  unsafe {
+    sz = pipeline_sizeof_arena();
+    p = malloc(sz);
+    if (p == 0 as *u8) {
+      return 0 as *u8;
+    }
+    memset(p, 0, sz);
+  }
+  shux_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, p);
+  return p;
+}
+
+/**
+ * Return (and lazily allocate) driver_dep module buffer for slot i.
+ * @param i i32 — slot index; OOB → null
+ * @return *u8 — module byte region (zeroed on first malloc); null on OOB/OOM
+ * wave74 pure: same pattern as driver_dep_arena_buf with pipeline_sizeof_module.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_module_buf(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  let p: *u8 = shux_ptr_slot_get(&g_pipe_driver_dep_module[0], i);
+  if (p != 0 as *u8) {
+    return p;
+  }
+  let sz: usize = 0 as usize;
+  unsafe {
+    sz = pipeline_sizeof_module();
+    p = malloc(sz);
+    if (p == 0 as *u8) {
+      return 0 as *u8;
+    }
+    memset(p, 0, sz);
+  }
+  shux_ptr_slot_set(&g_pipe_driver_dep_module[0], i, p);
+  return p;
 }
 
 /**
