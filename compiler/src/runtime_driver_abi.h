@@ -294,9 +294,11 @@ int driver_source_has_top_level_import_path(const char *path);
  *   - FILE open/write/close + mkstemp 临时 .o
  *   - PipelineDepCtx 字段 set/get（wave19 pure under PREFER: LP64 offsetof; cold C twin）
  *   - host 默认 macho/coff/arch（wave23 pure orch + OS residual #ifdef helpers）
- *   - defines 与 lib_roots/argv 绑定（.x 禁 **u8）
- *   - C frontend smoke / typeck 预检（产品 NO_C 固定跳过）
+ *   - defines 与 lib_roots/argv 绑定（wave34 pure under PREFER；cold C twin）
+ *   - C frontend smoke / typeck 预检（wave34 pure：产品 NO_C 固定 -2/-1；cold twin）
  *   - elf_ctx 分配（wave23 pure）、metric 写盘、asm work 槽
+ * Permanent OS residual (always seed): fopen_wb / mkstemp_fdopen / fwrite / fflush /
+ *   write_metric_o (FILE* opaque).
  */
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
 void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);
@@ -333,30 +335,38 @@ uint8_t *driver_asm_tmp_path_slot(void);
 /**
  * 收集 -D 到内部表；argv 为 char** 以 *u8 传入（.x 禁 **u8）。
  * 返回 ndefines；driver_asm_defines_as_u8 取表指针。
+ * wave34 pure: hybrid thin owns BSS table + pure argv_collect; cold twin under #ifndef FROM_X.
  */
 int32_t driver_asm_collect_defines(int32_t argc, uint8_t *argv);
+/** wave34 pure: hybrid thin owns; cold twin. */
 uint8_t *driver_asm_defines_as_u8(void);
+/** wave34 pure: hybrid thin owns; cold twin. */
 int32_t driver_asm_ndefines_get(void);
 
 /**
  * 绑定调用方 lib_roots（*u8 实为 const char**）；n<=0 时回退 ["."]。
  * 返回 effective 表指针（*u8）。
+ * wave34 pure: hybrid thin owns one_root BSS + G.7; cold twin under #ifndef FROM_X.
  */
 uint8_t *driver_asm_bind_lib_roots(uint8_t *lib_roots, int32_t n, int32_t *n_out);
+/** wave34 pure: hybrid thin owns (argv_at/G.7); cold twin. */
 uint8_t *driver_asm_argv0(uint8_t *argv);
 
 /**
  * 无 -o 且非 check：C frontend smoke（有 C 时）；check 且无 X pipeline：C typeck。
  * 返回 -2 表示继续 .x pipeline；>=0 为应直接返回的 rc。
+ * wave34 pure: product NO_C fixed -2 under PREFER; cold twin under #ifndef FROM_X.
  */
 int32_t driver_asm_try_c_frontend_early(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
                                         int32_t n_lib, uint8_t *out_path);
 /**
  * 用户 asm 编译前 C typeck 预检。0 成功；1 失败；-1 跳过（NO_C / skip env / SKIP_TYPECK）。
+ * wave34 pure: product NO_C fixed -1 under PREFER; cold twin under #ifndef FROM_X.
  */
 int32_t driver_asm_try_c_typeck_precheck(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
                                         int32_t n_lib);
-/** SHUX_ASM_USE_COMPILER_IMPL_C 是否启用（dep 仅 parse）。 */
+/** SHUX_ASM_USE_COMPILER_IMPL_C 是否启用（dep 仅 parse）。
+ * wave34 pure: product fixed 0 under PREFER; cold twin uses #ifdef. */
 int32_t driver_asm_use_compiler_impl_c(void);
 
 /**

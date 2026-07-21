@@ -78,6 +78,13 @@
 //     (LP64 fixed offsetof on DriverCompileParsedAbi + LE i32 / G.7 ptr load;
 //      lib_roots = base+16 embedded array; opt default BSS lit "2";
 //      try_c_after_pp product NO_C stub returns -2).
+//   + wave33 Cap residual pure：driver_x_emit clear/bind/take/get/lib_root_at/
+//     effective_lib_roots + try_extern_via_cparser
+//     (G.7 shux_ptr_slot_* on always-seed c_path_cell / lib_roots_raw / path+lib slots).
+//   + wave34 Cap residual pure：driver_asm try_c stubs + use_compiler_impl_c +
+//     bind_lib_roots + argv0 + collect_defines/defines_as_u8/ndefines_get
+//     (product NO_C fixed -2/-1/0; one_root BSS + G.7; defines table BSS 64×LP64 +
+//      pure driver_argv_collect_defines; no FILE*/fopen residual).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -4356,5 +4363,190 @@ export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
     );
   }
   return 1;
+}
+
+// ---- Wave34 Cap residual pure: asm try_c stubs + bind_lib_roots + defines BSS ----
+// Product SHUX_NO_C_FRONTEND / no SHUX_ASM_USE_COMPILER_IMPL_C:
+//   try_c_frontend_early → -2 (continue .x pipeline)
+//   try_c_typeck_precheck → -1 (skip C typeck precheck)
+//   use_compiler_impl_c → 0
+// bind_lib_roots: n<=0 or null → ["."] one_root BSS via G.7; else return caller table.
+// argv0: G.7 / driver_argv_at index 0.
+// collect_defines: zero 64×LP64 BSS table + pure driver_argv_collect_defines (wave10).
+// Permanent OS residual (still seed): asm_fopen_wb / mkstemp_fdopen / fwrite / fflush /
+//   write_metric_o / sibling_try_spawn / print_usage / exec_compiled_body.
+// G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
+// PLATFORM: SHARED LP64.
+
+/** MAX_DEFINES for driver_asm_collect_defines (matches seed MAX_DEFINES). */
+function driver_abi_asm_max_defines(): i32 {
+  return 64;
+}
+
+/** LP64 pointer width for defines raw table sizing. */
+function driver_abi_asm_defines_raw_bytes(): i32 {
+  // 64 slots × 8 bytes.
+  return 512;
+}
+
+/** ASCII ".\0" fallback lib root when n_lib<=0. */
+let g_driver_asm_dot: u8[2] = [46, 0];
+/** One-slot raw table for ["."] fallback (G.7 writes slot 0). */
+let g_driver_asm_one_root_raw: u8[8] = [];
+/** Defines pointer table BSS: 64 × LP64 void* as raw bytes. */
+let g_driver_asm_defines_raw: u8[512] = [];
+/** Live define count after last collect_defines. */
+let g_driver_asm_ndefines: i32 = 0;
+
+/**
+ * Product NO_C early C-frontend smoke: always continue .x pipeline.
+ * @param input_path *u8 — unused (ABI parity with cold seed)
+ * @param src *u8 — unused
+ * @param lib_roots *u8 — unused
+ * @param n_lib i32 — unused
+ * @param out_path *u8 — unused
+ * @return i32 — always -2 (continue .x)
+ * Wave34 pure: product SHUX_NO_C_FRONTEND contract; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_try_c_frontend_early(
+  input_path: *u8,
+  src: *u8,
+  lib_roots: *u8,
+  n_lib: i32,
+  out_path: *u8
+): i32 {
+  return -2;
+}
+
+/**
+ * Product NO_C C-typeck precheck: always skip.
+ * @param input_path *u8 — unused (ABI parity)
+ * @param src *u8 — unused
+ * @param lib_roots *u8 — unused
+ * @param n_lib i32 — unused
+ * @return i32 — always -1 (skip)
+ * Wave34 pure: product SHUX_NO_C_FRONTEND contract; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_try_c_typeck_precheck(
+  input_path: *u8,
+  src: *u8,
+  lib_roots: *u8,
+  n_lib: i32
+): i32 {
+  return -1;
+}
+
+/**
+ * Whether SHUX_ASM_USE_COMPILER_IMPL_C is compiled in (dep-only parse path).
+ * @return i32 — always 0 on product hybrid (flag never set in product builds)
+ * Wave34 pure: product path fixed 0; cold twin uses #ifdef SHUX_ASM_USE_COMPILER_IMPL_C.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_use_compiler_impl_c(): i32 {
+  return 0;
+}
+
+/**
+ * Bind caller lib_roots for asm/parsed pipeline; n<=0 or null → fallback ["."].
+ * @param lib_roots *u8 — opaque const char** from caller; may be null
+ * @param n i32 — root count; n<=0 triggers fallback
+ * @param n_out *i32 — optional out count; null skips write
+ * @return *u8 — effective table (one_root BSS or caller lib_roots)
+ * Wave34 pure: one_root via G.7 ptr_slot_set + BSS "."; no **u8 lit.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_bind_lib_roots(lib_roots: *u8, n: i32, n_out: *i32): *u8 {
+  if (n <= 0 || lib_roots == 0 as *u8) {
+    unsafe {
+      shux_ptr_slot_set(&g_driver_asm_one_root_raw[0], 0, &g_driver_asm_dot[0]);
+      if (n_out != 0 as *i32) {
+        n_out[0] = 1;
+      }
+      return &g_driver_asm_one_root_raw[0];
+    }
+  }
+  unsafe {
+    if (n_out != 0 as *i32) {
+      n_out[0] = n;
+    }
+  }
+  return lib_roots;
+}
+
+/**
+ * Return argv[0] as opaque *u8 (C string), or null.
+ * @param argv *u8 — opaque char** table base; null → null
+ * @return *u8 — argv[0] or null
+ * Wave34 pure: driver_argv_at (G.7-style slot get); cold twin casts char**.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_argv0(argv: *u8): *u8 {
+  if (argv == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return driver_argv_at(argv, 0);
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Collect -D / -target / uname defines into internal BSS table.
+ * @param argc i32 — argv length
+ * @param argv *u8 — opaque char**
+ * @return i32 — number of defines written (0 if empty/null)
+ * Wave34 pure: zero defines raw BSS + pure driver_argv_collect_defines (wave10).
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_collect_defines(argc: i32, argv: *u8): i32 {
+  unsafe {
+    memset(&g_driver_asm_defines_raw[0], 0, driver_abi_asm_defines_raw_bytes() as usize);
+  }
+  g_driver_asm_ndefines = 0;
+  if (argv == 0 as *u8 || argc <= 0) {
+    return 0;
+  }
+  unsafe {
+    g_driver_asm_ndefines = driver_argv_collect_defines(
+      argc,
+      argv,
+      &g_driver_asm_defines_raw[0],
+      driver_abi_asm_max_defines()
+    );
+  }
+  return g_driver_asm_ndefines;
+}
+
+/**
+ * Base of last collect_defines table as opaque *u8 (const char**).
+ * @return *u8 — table base when ndefines>0; else null
+ * Wave34 pure: returns BSS raw base; cold twin same semantics.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_defines_as_u8(): *u8 {
+  if (g_driver_asm_ndefines <= 0) {
+    return 0 as *u8;
+  }
+  return &g_driver_asm_defines_raw[0];
+}
+
+/**
+ * Count of defines from last driver_asm_collect_defines.
+ * @return i32 — ndefines (>=0)
+ * Wave34 pure: BSS load; cold twin same semantics.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_asm_ndefines_get(): i32 {
+  return g_driver_asm_ndefines;
 }
 

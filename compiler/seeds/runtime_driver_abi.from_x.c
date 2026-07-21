@@ -83,6 +83,10 @@
  *     （G.7 shux_ptr_slot_* on always-seed c_path_cell / lib_roots_raw / path+lib slots；
  *       Cap-global-bss data 仍 rt_emit_state；path/scan/n/want slots always-seed）；
  *     FROM_X 无 pure-dup clear/bind/take/get/effective/try_extern；
+ *   + wave34 Cap residual pure：driver_asm try_c stubs + use_compiler_impl_c +
+ *     bind_lib_roots + argv0 + collect_defines/defines_as_u8/ndefines_get 在 thin.x
+ *     （产品 NO_C 固定 -2/-1/0；one_root BSS + G.7；defines 表 BSS 64×LP64 +
+ *       pure argv_collect_defines）；FROM_X 无 pure-dup；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -2734,6 +2738,9 @@ uint8_t *driver_asm_tmp_path_slot(void) {
 extern uint8_t *driver_asm_tmp_path_slot(void);
 #endif
 
+/* wave34 pure: hybrid thin owns collect/defines/ndefines/bind/argv0/try_c/use_impl_c;
+ * cold seed keeps C BSS + bodies; FROM_X no pure-dup (avoid dual defines BSS). */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 #ifndef MAX_DEFINES
 #define MAX_DEFINES 64
 #endif
@@ -2817,6 +2824,7 @@ int32_t driver_asm_use_compiler_impl_c(void) {
     return 0;
 #endif
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /*
  * Wave17: asm work BSS pure package under PREFER thin.
