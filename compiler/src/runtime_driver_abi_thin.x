@@ -70,9 +70,22 @@
 //   + wave28 Cap residual pure：driver_parsed_invoke_cc
 //     (std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup;
 //      no va_list reportf; c_paths[1] via G.7 shux_ptr_slot_set).
+//   + wave31 Cap residual pure：driver_parsed_deps_has_std_io_{core,driver}
+//     + apply_preamble_skip + maybe_dump_prep
+//     (G.7 shux_ptr_slot_get on dep_paths; strcmp lit; codegen skip mask bits;
+//      dump via shux_write_path_bytes + fixed-arity diag, no va_list reportf).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
+/** libc string compare for fixed dep import-path lits (std.io.core / std.io.driver).
+ * PLATFORM: SHARED — string.h prototype; product -E skips conflicting redecl. */
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
+/** Codegen preamble skip mask authority (codegen.x / seed). Wave31 pure applies bits. */
+export extern "C" function codegen_reset_preamble_skip_mask(): void;
+/** OR bits into preamble skip mask. Bits: 1=CORE_MACROS, 2=DRIVER_HANDLE, 4=UNDEF_REDEFINE, 8=WEAK_IO_BATCH. */
+export extern "C" function codegen_or_preamble_skip_mask(mask: i32): void;
+/** Permanent IO residual: write bytes to path (runtime_io_abi). 0 = success. */
+export extern "C" function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32;
 /** Permanent OS wall-clock surface (seed rest). Returns seconds as f64.
  * PLATFORM: POSIX gettimeofday / WINDOWS time — hides timeval layout from .x. */
 export extern "C" function shux_driver_wall_clock_sec(): f64;
@@ -3757,5 +3770,123 @@ export function driver_parsed_invoke_cc(
     return 0;
   }
   return 1;
+}
+
+/**
+ * Scan dep import-path table for exact "std.io.core".
+ * @param dep_paths *u8 — opaque char** base (LP64 pointer table); null → 0
+ * @param n_deps i32 — entry count; n_deps <= 0 → 0
+ * @return i32 — 1 if any non-null slot equals "std.io.core", else 0
+ * Wave31 pure: G.7 shux_ptr_slot_get + strcmp lit (no C char**).
+ * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
+ */
+#[no_mangle]
+export function driver_parsed_deps_has_std_io_core(dep_paths: *u8, n_deps: i32): i32 {
+  if (dep_paths == 0 as *u8) {
+    return 0;
+  }
+  if (n_deps <= 0) {
+    return 0;
+  }
+  unsafe {
+    let j: i32 = 0;
+    while (j < n_deps) {
+      let p: *u8 = shux_ptr_slot_get(dep_paths, j);
+      if (p != 0 as *u8) {
+        if (strcmp(p, "std.io.core") == 0) {
+          return 1;
+        }
+      }
+      j = j + 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Scan dep import-path table for exact "std.io.driver".
+ * @param dep_paths *u8 — opaque char** base (LP64 pointer table); null → 0
+ * @param n_deps i32 — entry count; n_deps <= 0 → 0
+ * @return i32 — 1 if any non-null slot equals "std.io.driver", else 0
+ * Co-emit of driver defines strong submit_*_batch_buf; weak stubs must skip.
+ * Wave31 pure: same table walk as core; G.7 ptr_slot + strcmp.
+ * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
+ */
+#[no_mangle]
+export function driver_parsed_deps_has_std_io_driver(dep_paths: *u8, n_deps: i32): i32 {
+  if (dep_paths == 0 as *u8) {
+    return 0;
+  }
+  if (n_deps <= 0) {
+    return 0;
+  }
+  unsafe {
+    let j: i32 = 0;
+    while (j < n_deps) {
+      let p: *u8 = shux_ptr_slot_get(dep_paths, j);
+      if (p != 0 as *u8) {
+        if (strcmp(p, "std.io.driver") == 0) {
+          return 1;
+        }
+      }
+      j = j + 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Reset then OR codegen preamble skip bits from dep closure.
+ * @param dep_paths *u8 — opaque char** dep import paths; may be null
+ * @param n_deps i32 — entry count
+ * No std.io.core → OR (CORE_MACROS|UNDEF_REDEFINE)=5 so preamble does not emit
+ * overlapping macros/redefines. Has std.io.driver → OR WEAK_IO_BATCH=8 so weak
+ * batch stubs do not redef strong co-emitted symbols (C same-TU redefinition).
+ * Wave31 pure: numeric mask bits match codegen.h; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — pure authority in thin; seed rest uses same bits.
+ */
+#[no_mangle]
+export function driver_parsed_apply_preamble_skip(dep_paths: *u8, n_deps: i32): void {
+  unsafe {
+    codegen_reset_preamble_skip_mask();
+    // CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS|UNDEF_REDEFINE = 1|4 = 5
+    if (driver_parsed_deps_has_std_io_core(dep_paths, n_deps) == 0) {
+      codegen_or_preamble_skip_mask(5);
+    }
+    // CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH = 8
+    if (driver_parsed_deps_has_std_io_driver(dep_paths, n_deps) != 0) {
+      codegen_or_preamble_skip_mask(8);
+    }
+  }
+}
+
+/**
+ * Optional debug dump of prep entry bytes when SHUX_DUMP_PREP is set.
+ * @param input_path *u8 — source path for diag note (may be null)
+ * @param src *u8 — prep buffer bytes; null → no-op
+ * @param src_len usize — byte count passed to shux_write_path_bytes
+ * Writes /tmp/shux_prep_entry.bin on success then emits a fixed-arity note
+ * (no va_list diag_reportf). Silent if env unset, src null, or write fails.
+ * Wave31 pure: getenv + shux_write_path_bytes + append/diag_report.
+ * PLATFORM: SHARED path text; dump path is fixed /tmp (dev only).
+ */
+#[no_mangle]
+export function driver_parsed_maybe_dump_prep(input_path: *u8, src: *u8, src_len: usize): void {
+  unsafe {
+    if (getenv("SHUX_DUMP_PREP") == 0 as *u8) {
+      return;
+    }
+    if (src == 0 as *u8) {
+      return;
+    }
+    // runtime_io_abi: 0 = success (matches cold seed twin).
+    if (shux_write_path_bytes("/tmp/shux_prep_entry.bin", src, src_len as i64) == 0) {
+      let msg: u8[192] = [];
+      let at: i32 = driver_diag_append_cstr(&msg[0], 192, 0, "dumped prep entry (");
+      at = driver_abi_append_i64(&msg[0], 192, at, src_len as i64);
+      at = driver_diag_append_cstr(&msg[0], 192, at, " bytes) to /tmp/shux_prep_entry.bin");
+      diag_report(input_path, 0, 0, "note", &msg[0], 0 as *u8);
+    }
+  }
 }
 

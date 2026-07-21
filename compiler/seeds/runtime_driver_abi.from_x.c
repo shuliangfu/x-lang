@@ -69,6 +69,9 @@
  *      永久 OS residual shux_driver_tmp_prefix 藏 SHUX_TMP_PREFIX #ifdef）；
  *     FROM_X 无 pure-dup open_out；
  *   + wave28 Cap residual pure：driver_parsed_invoke_cc 在 thin.x
+ *   + wave31 Cap residual pure：deps_has_std_io_{core,driver} + apply_preamble_skip
+ *     + maybe_dump_prep 在 thin.x（G.7 ptr_slot + strcmp；mask bits=codegen.h；
+ *       dump 无 va_list）；FROM_X 无 pure-dup；
  *     （std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup；
  *      c_paths[1] via G.7 shux_ptr_slot_set；无 va_list reportf）；
  *     FROM_X 无 pure-dup invoke_cc；
@@ -3246,6 +3249,10 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
+/* wave31 pure: hybrid thin owns dump_prep + deps_has_* + apply_preamble_skip;
+ * cold twins below; FROM_X no pure-dup.
+ * PLATFORM: SHARED — mask bits match codegen.h; dump path /tmp dev-only. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len) {
     if (!getenv("SHUX_DUMP_PREP") || !src)
         return;
@@ -3294,6 +3301,7 @@ void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps) {
         codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH);
     }
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /*
  * Wave18: parsed work BSS pure package under PREFER thin.

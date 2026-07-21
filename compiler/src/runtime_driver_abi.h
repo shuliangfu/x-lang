@@ -421,10 +421,13 @@ int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len);
  */
 int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level,
                                 int32_t use_lto, uint8_t *argv0, int32_t argc, uint8_t *argv);
+/** wave31 pure: hybrid thin owns; cold twin under #ifndef FROM_X; no va_list. */
 void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len);
-/** dep_paths 中是否含 "std.io.core"（strcmp）。 */
+/** wave31 pure: dep_paths 中是否含 "std.io.core"（G.7 ptr_slot + strcmp）。 */
 int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps);
-/** preamble skip：无 std.io.core 时 or 上 CORE_MACROS|UNDEF_REDEFINE。 */
+/** wave31 pure: dep_paths 中是否含 "std.io.driver"（co-emit 强符号 → WEAK_IO skip）。 */
+int32_t driver_parsed_deps_has_std_io_driver(uint8_t *dep_paths, int32_t n_deps);
+/** wave31 pure: preamble skip — 无 core → CORE_MACROS|UNDEF_REDEFINE；有 driver → WEAK_IO_BATCH。 */
 void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps);
 
 void driver_parsed_work_reset(void);
