@@ -111,9 +111,16 @@ void driver_print_usage_write(void);
 
 /**
  * Cap residual：rt_run_exec R2 driver_exec_compiled 体。
- * .x 禁 *u8→**u8 cast / let **u8（-E 整函数丢体）；scan+non_exe+spawn 留平台层。
+ * wave42 pure under PREFER: null/argc + G.7 path_is_non_exe + residual scan/spawn；
+ * cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
+ * Always-seed residual: shux_driver_exec_scan_out_path_opaque + shux_driver_exec_spawn_wait。
+ * .x 禁 *u8→**u8 cast / let **u8（-E 整函数丢体）→ cast 留 residual。
  */
 int driver_exec_compiled_body(int argc, uint8_t *argv_opaque);
+/** Permanent Cap residual: *u8 argv → cast + driver_exec_scan_out_path. */
+uint8_t *shux_driver_exec_scan_out_path_opaque(int32_t argc, uint8_t *argv_opaque);
+/** Permanent OS residual: spawn/fork product exe and wait. PLATFORM: WIN vs POSIX. */
+int32_t shux_driver_exec_spawn_wait(uint8_t *exe);
 
 /**
  * Cap-global-bss residual：rt_emit_state R2 经槽写共享 emit 状态。
@@ -324,7 +331,8 @@ int driver_source_has_top_level_import_path(const char *path);
  *   - elf_ctx 分配（wave23 pure）、metric 写盘、asm work 槽
  * wave40 pure under PREFER: fopen_wb / fflush_stdout / write_metric_o；
  * wave41 pure under PREFER: mkstemp_fdopen（template pure + g05 fdopen_wb_opaque）；
- * Permanent OS residual (always seed): sibling_try_spawn / print_usage / exec body。
+ * Permanent OS residual (always seed): sibling_try_spawn / print_usage_write；
+ * wave42 pure under PREFER: exec_compiled_body（scan opaque + spawn residual）。
  */
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
 void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);

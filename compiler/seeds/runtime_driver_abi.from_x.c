@@ -115,7 +115,10 @@
  *     （null + WINDOWS gate residual shux_driver_asm_mkstemp_fdopen_enabled；
  *       template pure tmp_prefix+"shux_asm_XXXXXX"；mkstemp/close/unlink；
  *       g05 shux_driver_fdopen_wb_opaque）；FROM_X 无 pure-dup；
- *     still always-seed：sibling / usage / exec；
+ *   + wave42 Cap residual pure：driver_exec_compiled_body 在 thin.x
+ *     （null/argc + G.7 path_is_non_exe pure；Cap residual
+ *       shux_driver_exec_scan_out_path_opaque + shux_driver_exec_spawn_wait）；
+ *     still always-seed：sibling_try_spawn / print_usage_write；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -1832,8 +1835,12 @@ static const char usage_color[] =
 
 /**
  * Cap residual：rt_run_exec R2 driver_exec_compiled 体。
- * .x 禁 *u8→**u8 cast / let **u8（-E 整函数丢体）；scan+non_exe+spawn 在此。
- * 始终提供（不随 RDABI thin 宏剥离）。
+ * wave42 pure：hybrid thin owns driver_exec_compiled_body orch
+ *   （null/argc + G.7 driver_exec_path_is_non_exe + residual scan/spawn）；
+ * cold twin under #ifndef FROM_X；FROM_X 无 pure-dup。
+ * always-seed：shux_driver_exec_scan_out_path_opaque（*u8→char** cast + scan）
+ *   + shux_driver_exec_spawn_wait（fork/exec 或 spawnvp）。
+ * PLATFORM: SHARED orch；WINDOWS spawn vs POSIX fork in residual.
  */
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>
@@ -1847,6 +1854,65 @@ extern int driver_exec_path_is_non_exe(const char *exe);
 extern int shu_waitpid_retry(pid_t pid, int *status_out);
 #endif
 
+/* Permanent Cap residual: *u8 argv_opaque → char** + G.7 scan_out_path.
+ * Pure wave42 cannot cast *u8→**u8 (-E drops body). Always linked under FROM_X.
+ * PLATFORM: SHARED — cast glue only; scan authority remains rt_run_exec. */
+uint8_t *shux_driver_exec_scan_out_path_opaque(int32_t argc, uint8_t *argv_opaque) {
+    if (argv_opaque == NULL)
+        return NULL;
+    return (uint8_t *)(void *)driver_exec_scan_out_path(argc, (char **)(void *)argv_opaque);
+}
+
+/* Permanent OS residual: wait for product exe (spawn/fork/exec).
+ * Pure wave42 owns null/non_exe orch; this is process boundary only.
+ * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+shu_waitpid_retry. */
+int32_t shux_driver_exec_spawn_wait(uint8_t *exe) {
+    const char *path;
+    if (exe == NULL)
+        return 1;
+    path = (const char *)(void *)exe;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    {
+        char *av[2];
+        intptr_t rc;
+        av[0] = (char *)path;
+        av[1] = NULL;
+        rc = _spawnvp(_P_WAIT, path, (const char *const *)av);
+        if (rc == -1) {
+            runtime_diag_errno_path(NULL, "process error", "spawnvp (driver_exec_compiled)", path);
+            return 1;
+        }
+        return (int32_t)rc;
+    }
+#else
+    {
+        pid_t pid = fork();
+        if (pid < 0) {
+            runtime_diag_errno_path(NULL, "process error", "fork (driver_exec_compiled)", path);
+            return 1;
+        }
+        if (pid == 0) {
+            char *av[2];
+            av[0] = (char *)path;
+            av[1] = NULL;
+            execv(path, av);
+            runtime_diag_errno_path(NULL, "process error", "execv (driver_exec_compiled)", path);
+            _exit(127);
+        }
+        {
+            int st = 0;
+            if (shu_waitpid_retry(pid, &st) != 0)
+                return 1;
+            if (WIFEXITED(st))
+                return (int32_t)WEXITSTATUS(st);
+            return 1;
+        }
+    }
+#endif
+}
+
+/* wave42 pure: hybrid thin owns exec_compiled_body orch; cold twin under #ifndef FROM_X. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_exec_compiled_body(int argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
     const char *exe;
@@ -1855,45 +1921,9 @@ int driver_exec_compiled_body(int argc, uint8_t *argv_opaque) {
     exe = driver_exec_scan_out_path(argc, argv);
     if (driver_exec_path_is_non_exe(exe))
         return 0;
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    {
-        char *av[2];
-        intptr_t rc;
-        av[0] = (char *)exe;
-        av[1] = NULL;
-        rc = _spawnvp(_P_WAIT, exe, (const char *const *)av);
-        if (rc == -1) {
-            runtime_diag_errno_path(NULL, "process error", "spawnvp (driver_exec_compiled)", exe);
-            return 1;
-        }
-        return (int)rc;
-    }
-#else
-    {
-        pid_t pid = fork();
-        if (pid < 0) {
-            runtime_diag_errno_path(NULL, "process error", "fork (driver_exec_compiled)", exe);
-            return 1;
-        }
-        if (pid == 0) {
-            char *av[2];
-            av[0] = (char *)exe;
-            av[1] = NULL;
-            execv(exe, av);
-            runtime_diag_errno_path(NULL, "process error", "execv (driver_exec_compiled)", exe);
-            _exit(127);
-        }
-        {
-            int st = 0;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return 1;
-            if (WIFEXITED(st))
-                return WEXITSTATUS(st);
-            return 1;
-        }
-    }
-#endif
+    return (int)shux_driver_exec_spawn_wait((uint8_t *)(void *)exe);
 }
+#endif
 
 /**
  * Cap-global-bss residual：rt_emit_state R2 full .x 写共享 emit 槽。

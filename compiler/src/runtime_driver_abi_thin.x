@@ -111,7 +111,10 @@
 //      fopen_wb + fwrite one 0 byte + fclose_opaque).
 //   + wave41 Cap residual pure：driver_asm_mkstemp_fdopen
 //     (null + WINDOWS gate residual; template pure via tmp_prefix + "shux_asm_XXXXXX";
-//      mkstemp/close/unlink libc; g05 fdopen_wb_opaque; still seed: sibling/usage/exec).
+//      mkstemp/close/unlink libc; g05 fdopen_wb_opaque).
+//   + wave42 Cap residual pure：driver_exec_compiled_body
+//     (null/argc + G.7 path_is_non_exe pure; Cap residual scan opaque cast + spawn_wait;
+//      still seed: sibling_try_spawn / print_usage_write).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -4451,7 +4454,8 @@ export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
 // bind_lib_roots: n<=0 or null → ["."] one_root BSS via G.7; else return caller table.
 // argv0: G.7 / driver_argv_at index 0.
 // collect_defines: zero 64×LP64 BSS table + pure driver_argv_collect_defines (wave10).
-// Permanent OS residual (still seed): sibling_try_spawn / print_usage / exec_compiled_body.
+// Permanent OS residual (still seed): sibling_try_spawn / print_usage_write.
+// Wave42 pure: exec_compiled_body (scan opaque + spawn residual).
 // Wave39–41 pure: fwrite/stdio/fflush/fopen_wb/write_metric/mkstemp_fdopen.
 // G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
 // PLATFORM: SHARED LP64.
@@ -5296,7 +5300,8 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
 //   - g05 prologue: shux_driver_fdopen_wb_opaque(fd) hides FILE* fdopen("wb")
 //   - pure orch: null guard, enable gate, template fill into path_out64, mkstemp,
 //     fdopen; fail → close+unlink+clear path[0]
-// Still seed OS residual: sibling_try_spawn / print_usage_write / exec_compiled_body.
+// Wave42 owns exec_compiled_body (see below). Still seed OS residual:
+// sibling_try_spawn / print_usage_write.
 // PLATFORM: SHARED orch; WINDOWS disabled via residual (matches cold twin).
 
 /**
@@ -5360,5 +5365,69 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
     return 0 as *u8;
   }
   return fp;
+}
+
+// ---- Wave42 Cap residual pure: driver_exec_compiled_body ----
+// G.7: reuse pure driver_exec_path_is_non_exe (rt_run_exec.x).
+// Cap residual split:
+//   - seed always: shux_driver_exec_scan_out_path_opaque (*u8 argv → cast + scan)
+//   - seed always: shux_driver_exec_spawn_wait (fork/exec or spawnvp + wait)
+//   - pure orch: null/argc guard, resolve exe, non-exe early 0, spawn residual
+// Still seed OS residual: sibling_try_spawn / print_usage_write (giant usage lit).
+// PLATFORM: SHARED orch; WINDOWS spawn vs POSIX fork in residual.
+
+/**
+ * Cap residual: cast opaque argv (*u8) to char** and call driver_exec_scan_out_path.
+ * @param argc i32 — argv length; pure already rejects argc < 1
+ * @param argv_opaque *u8 — opaque char** from cmd_run; null → null
+ * @return *u8 — product path (may be "a.out" heap) or null
+ * PLATFORM: SHARED — *u8→**u8 cast residual (.x -E drops cast body). Always-seed.
+ */
+export extern "C" function shux_driver_exec_scan_out_path_opaque(argc: i32, argv_opaque: *u8): *u8;
+/**
+ * Cap residual: run product exe and wait for exit status (spawn/fork/exec).
+ * @param exe *u8 — NUL-terminated path; null → 1
+ * @return i32 — process exit code, or 1 on spawn/wait failure
+ * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+shu_waitpid_retry. Always-seed.
+ */
+export extern "C" function shux_driver_exec_spawn_wait(exe: *u8): i32;
+/**
+ * G.7: pure non-exe gate already in rt_run_exec.x (suffix .o/.obj/.s).
+ * @param exe *u8 — product path; null treated as non-exe
+ * @return i32 — 1 if non-executable product suffix (skip spawn); 0 if should exec
+ * PLATFORM: SHARED — link-name contract with rt_run_exec.
+ */
+export extern "C" function driver_exec_path_is_non_exe(exe: *u8): i32;
+
+/**
+ * After successful compile, resolve -o path and exec the product binary.
+ * @param argc i32 — argv length; argc < 1 → 1
+ * @param argv_opaque *u8 — opaque char** (cmd_run ABI); null → 1
+ * @return i32 — 0 if path is non-exe (.o/.s); else child exit or 1 on failure
+ * Wave42 pure: null/argc guards pure; resolve via scan opaque residual; non-exe via
+ * G.7 driver_exec_path_is_non_exe; OS process residual shux_driver_exec_spawn_wait.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch; spawn residual OS-split.
+ */
+#[no_mangle]
+export function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32 {
+  let exe: *u8 = 0 as *u8;
+  if (argv_opaque == 0 as *u8) {
+    return 1;
+  }
+  if (argc < 1) {
+    return 1;
+  }
+  // Cap residual: *u8→char** cast + scan; G.7 non-exe gate; OS spawn residual.
+  // All three are C/extern surfaces → require unsafe (T001).
+  unsafe {
+    exe = shux_driver_exec_scan_out_path_opaque(argc, argv_opaque);
+    // G.7: single authority for non-exe suffix gate (rt_run_exec pure).
+    if (driver_exec_path_is_non_exe(exe) != 0) {
+      return 0;
+    }
+    // Cap residual: fork/exec or Windows spawnvp + wait (process OS boundary).
+    return shux_driver_exec_spawn_wait(exe);
+  }
+  return 1;
 }
 
