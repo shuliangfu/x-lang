@@ -57,32 +57,49 @@ AT_O="/tmp/shux_simd_s4_at.o"
 DOT_O="/tmp/shux_simd_s4_dot.o"
 rm -f "$VEC4F_O" "$VEC8I_O" "$VEC8I_SEL_O" "$VEC4F_SEL_O" "$AT_O" "$DOT_O"
 
-if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$VEC4F_SRC" -o "$VEC4F_O"; then
+ARCH="$(uname -m 2>/dev/null || echo unknown)"
+
+# Compile one smoke to $2. PLATFORM: SHARED harness.
+# - x86_64: default backend (asm) so later objdump can see pshufd/pcmpgtd.
+# - other (e.g. Darwin arm64): -backend c — pure asm -o *.o can CG002 on Vec4f mul
+#   benches while HW insn checks are already skipped off-x86.
+# Bare `shux file.x -o out` is product CLI (main_entry); keep that form on x86.
+simd_s4_compile() {
+  local src="$1"
+  local out="$2"
+  if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
+    SHUX="$SHUX_ABS" "$SHUX_ABS" "$src" -o "$out"
+  else
+    SHUX="$SHUX_ABS" "$SHUX_ABS" build -backend c "$src" -o "$out"
+  fi
+}
+
+if ! simd_s4_compile "$VEC4F_SRC" "$VEC4F_O"; then
   echo "simd-s4 FAIL: compile $VEC4F_SRC" >&2
   exit 1
 fi
 
-if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$VEC8I_SRC" -o "$VEC8I_O"; then
+if ! simd_s4_compile "$VEC8I_SRC" "$VEC8I_O"; then
   echo "simd-s4 FAIL: compile $VEC8I_SRC" >&2
   exit 1
 fi
 
-if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$VEC8I_SEL_SRC" -o "$VEC8I_SEL_O"; then
+if ! simd_s4_compile "$VEC8I_SEL_SRC" "$VEC8I_SEL_O"; then
   echo "simd-s4 FAIL: compile $VEC8I_SEL_SRC" >&2
   exit 1
 fi
 
-if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$VEC4F_SEL_SRC" -o "$VEC4F_SEL_O"; then
+if ! simd_s4_compile "$VEC4F_SEL_SRC" "$VEC4F_SEL_O"; then
   echo "simd-s4 FAIL: compile $VEC4F_SEL_SRC" >&2
   exit 1
 fi
 
-if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$AT_SRC" -o "$AT_O"; then
+if ! simd_s4_compile "$AT_SRC" "$AT_O"; then
   echo "simd-s4 FAIL: compile $AT_SRC" >&2
   exit 1
 fi
 
-if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$DOT_SRC" -o "$DOT_O"; then
+if ! simd_s4_compile "$DOT_SRC" "$DOT_O"; then
   echo "simd-s4 FAIL: compile $DOT_SRC" >&2
   exit 1
 fi
@@ -92,7 +109,6 @@ if [ ! -f "$VEC4F_O" ] || [ ! -f "$VEC8I_O" ] || [ ! -f "$VEC8I_SEL_O" ] || [ ! 
   exit 1
 fi
 
-ARCH="$(uname -m 2>/dev/null || echo unknown)"
 if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
   if command -v objdump >/dev/null 2>&1; then
     V4_DISAS="$(objdump -d "$VEC4F_O" 2>/dev/null || true)"

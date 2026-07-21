@@ -792,14 +792,44 @@ function main_argv_has_o_flag(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
+/**
+ * Return 1 if argv[1] looks like a source path rather than a named subcommand.
+ * Heuristic (PLATFORM: SHARED): ends with ".x", or contains '/' or '\\'.
+ * Used by entry() so bare `shux file.x [-o out]` is not rejected as an unknown
+ * command (historical product UX; many gates still invoke this form).
+ * Contract: path may be truncated to path_cap-1 bytes by the caller; scan only
+ * the provided len bytes. Null path or len <= 0 → 0.
+ */
+function main_arg_looks_like_source_path(path: *u8, len: i32): i32 {
+  if (path == 0 as *u8 || len <= 0) {
+    return 0;
+  }
+  /* Ends with ".x" (46 = '.', 120 = 'x'). */
+  if (len >= 2 && path[len - 2] == 46 && path[len - 1] == 120) {
+    return 1;
+  }
+  let i: i32 = 0;
+  while (i < len) {
+    /* '/' = 47, '\\' = 92 */
+    if (path[i] == 47 || path[i] == 92) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
 /* See implementation. */
 export extern function typeck_lsp_main(): i32;
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
- * See implementation.
+ * Product CLI entry (linked as main_entry via driver_gen).
+ * Named subcommands: build | run | fmt | check | test.
+ * Bare source path (ends with .x or contains a path separator): treat as
+ * `run` semantics without requiring the word "run" — with explicit -o this is
+ * compile-only (main_cmd_run); without -o compile-and-exec.
+ * Unknown non-flag argv[1] that is not a path → usage and exit 1.
+ * PLATFORM: SHARED — mac + Ubuntu product binary must accept the same bare form.
  */
 export function entry(argc: i32, argv: *u8): i32 {
   let arg_buf: u8[64] = [];
@@ -811,7 +841,7 @@ export function entry(argc: i32, argv: *u8): i32 {
     }
     i = i + 1;
   }
-  /* See implementation. */
+  /* Dispatch named subcommands; bare .x path falls through to main_cmd_run. */
   if (argc >= 2) {
     let alen: i32 = driver_get_argv_i(argc, argv, 1, arg_buf, 64);
     if (alen > 0 && arg_buf[0] != 45) {
@@ -834,6 +864,10 @@ export function entry(argc: i32, argv: *u8): i32 {
       }
       if (str_eq(&arg_buf[0], alen, &w_test[0], 4) != 0) {
         return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
+      }
+      /* Bare path: do not drop argv[1]; it is the input file. */
+      if (main_arg_looks_like_source_path(&arg_buf[0], alen) != 0) {
+        return main_cmd_run(argc, argv);
       }
       driver_print_usage_write();
       return 1;

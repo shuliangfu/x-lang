@@ -588,6 +588,26 @@ SHUX_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
  }
   if (main_str_eq((&((arg_buf)[0])), alen, (&((w_test)[0])), 4) != 0) {   return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
  }
+  /* Bare path (ends with .x or contains / or \\): run semantics; with -o compile-only.
+   * PLATFORM: SHARED — matches main.x entry(); do not print usage for historical `shux file.x -o`. */
+  {
+    int32_t looks = 0;
+    if (alen >= 2 && (arg_buf)[alen - 2] == 46 && (arg_buf)[alen - 1] == 120) {
+      looks = 1;
+    } else {
+      int32_t pi = 0;
+      while (pi < alen) {
+        if ((arg_buf)[pi] == 47 || (arg_buf)[pi] == 92) {
+          looks = 1;
+          break;
+        }
+        ++pi;
+      }
+    }
+    if (looks != 0) {
+      return main_cmd_run(argc, argv);
+    }
+  }
   driver_print_usage_write();
   return 1;
  }
