@@ -32,11 +32,16 @@ export extern "C" function pipeline_module_struct_layout_name_byte_at(m: *u8, k:
 export extern "C" function typeck_x_type_size_from_layout_glue(m: *u8, a: *u8, k: i32, depth: i32): i32;
 export extern "C" function pipeline_module_func_is_async_at(m: *u8, fi: i32): i32;
 export extern "C" function pipeline_module_func_body_ref_at(m: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_name_len_at(m: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
+export extern "C" function pipeline_block_let_type_ref(a: *u8, br: i32, li: i32): i32;
+export extern "C" function pipeline_block_let_name_len(a: *u8, br: i32, li: i32): i32;
+export extern "C" function pipeline_block_let_name_copy64(a: *u8, br: i32, li: i32, dst: *u8): void;
 
-/** Exported function `async_asm_pool_x_doc_anchor`.
- * Implements `async_asm_pool_x_doc_anchor`.
- * @return i32
- */
+/** Module doc anchor (prove surface symbol; no product callers).
+ * @return always 0
+ * PLATFORM: SHARED */
+#[no_mangle]
 export function async_asm_pool_x_doc_anchor(): i32 {
   return 0;
 }
@@ -320,13 +325,12 @@ export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
   return 8;
 }
 
-// asm_pool_load_i32_le: see function docblock below.
-/** Exported function `asm_pool_load_i32_le`.
- * Implements `asm_pool_load_i32_le`.
- * @param p *u8
- * @param off i32
- * @return i32
- */
+/** Load little-endian i32 from byte buffer at off.
+ * @param p buffer (null → 0)
+ * @param off byte offset
+ * @return i32 value
+ * PLATFORM: SHARED — host endian for layout bytes. */
+#[no_mangle]
 export function asm_pool_load_i32_le(p: *u8, off: i32): i32 {
   if (p == 0) { return 0; }
   let m: i32 = 256;
@@ -337,13 +341,12 @@ export function asm_pool_load_i32_le(p: *u8, off: i32): i32 {
   return a;
 }
 
-/** Exported function `asm_pool_store_i32_le`.
- * Implements `asm_pool_store_i32_le`.
- * @param p *u8
- * @param off i32
- * @param v i32
- * @return void
- */
+/** Store little-endian i32 into byte buffer at off.
+ * @param p buffer (null → no-op)
+ * @param off byte offset
+ * @param v value
+ * PLATFORM: SHARED */
+#[no_mangle]
 export function asm_pool_store_i32_le(p: *u8, off: i32, v: i32): void {
   if (p == 0) { return; }
   let u: u32 = v as u32;
@@ -466,4 +469,150 @@ export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: 
     }
   }
   return 0;
+}
+
+/** Build AsyncAsmPoolLayout for one async function (R2 full true-migrate).
+ * Walks stmt_order, finds let-inits with await, and records live vars that the
+ * continuation still references (including the await let itself).
+ *
+ * AsyncAsmPoolLayout byte layout (PLATFORM: SHARED, little-endian host):
+ *   fn_id@0 u32, num_awaits@4 i32, num_live@8 i32,
+ *   live[64]@12 stride 76 (name[64], name_len@+64, size_bytes@+68, frame_data_off@+72),
+ *   await_stmt_idx@4876 i32; total 4880 bytes.
+ *
+ * @param arena AST arena (opaque)
+ * @param mod module (opaque)
+ * @param func_index function index in module
+ * @param out layout buffer (must be at least 4880 bytes)
+ * @return 0 success with awaits, 1 no CPS needed, -1 bad args
+ * PLATFORM: SHARED — pure pool API; product cold seed retains C body until glue unbundle. */
+#[no_mangle]
+export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i32, out: *u8): i32 {
+  if (arena == 0) { return 0 - 1; }
+  if (mod == 0) { return 0 - 1; }
+  if (out == 0) { return 0 - 1; }
+  if (func_index < 0) { return 0 - 1; }
+  // Zero entire layout (sizeof AsyncAsmPoolLayout == 4880).
+  let zi: i32 = 0;
+  while (zi < 4880) {
+    out[zi] = 0;
+    zi = zi + 1;
+  }
+  if (async_asm_pool_func_needs_cps(arena, mod, func_index) == 0) {
+    return 1;
+  }
+  unsafe {
+    let fname: u8[64] = [];
+    let fnlen: i32 = pipeline_module_func_name_len_at(mod, func_index);
+    pipeline_module_func_name_copy64(mod, func_index, fname);
+    let fid: u32 = async_asm_pool_fn_id_from_name(fname, fnlen);
+    asm_pool_store_i32_le(out, 0, fid as i32);
+    // await_stmt_idx = -1 until first await let is seen
+    asm_pool_store_i32_le(out, 4876, 0 - 1);
+    let br: i32 = pipeline_module_func_body_ref_at(mod, func_index);
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, br);
+    // defined_names[64][64] flattened; defined_lens[64]
+    let defined_names: u8[4096] = [];
+    let defined_lens: i32[64] = [];
+    let n_def: i32 = 0;
+    let si: i32 = 0;
+    while (si < nso) {
+      let kind: u8 = ast_ast_block_stmt_order_kind(arena, br, si);
+      let idx: i32 = ast_ast_block_stmt_order_idx(arena, br, si);
+      let nlets: i32 = ast_ast_block_num_lets(arena, br);
+      if (kind == 1) {
+        if (idx >= 0) {
+          if (idx < nlets) {
+            let init: i32 = pipeline_block_let_init_ref(arena, br, idx);
+            if (init > 0) {
+              if (asm_pool_expr_has_await(arena, init) != 0) {
+                let na: i32 = asm_pool_load_i32_le(out, 4);
+                asm_pool_store_i32_le(out, 4, na + 1);
+                let cur_await: i32 = asm_pool_load_i32_le(out, 4876);
+                if (cur_await < 0) {
+                  asm_pool_store_i32_le(out, 4876, si);
+                }
+                // Live-add each previously defined name still referenced after this await.
+                let li: i32 = 0;
+                while (li < n_def) {
+                  let dlen: i32 = defined_lens[li];
+                  let dbase: i32 = li * 64;
+                  let dname: u8[64] = [];
+                  let di: i32 = 0;
+                  while (di < dlen) {
+                    dname[di] = defined_names[dbase + di];
+                    di = di + 1;
+                  }
+                  if (asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) != 0) {
+                    let tref: i32 = 0;
+                    let j: i32 = 0;
+                    while (j < nlets) {
+                      if (pipeline_block_let_name_len(arena, br, j) == dlen) {
+                        let nb: u8[64] = [];
+                        pipeline_block_let_name_copy64(arena, br, j, nb);
+                        let eq: i32 = 1;
+                        let bi: i32 = 0;
+                        while (bi < dlen) {
+                          if (nb[bi] != dname[bi]) {
+                            eq = 0;
+                            break;
+                          }
+                          bi = bi + 1;
+                        }
+                        if (eq != 0) {
+                          tref = pipeline_block_let_type_ref(arena, br, j);
+                          break;
+                        }
+                      }
+                      j = j + 1;
+                    }
+                    let sz: i32 = asm_pool_type_size_bytes(arena, mod, tref);
+                    asm_pool_live_add(out, dname, dlen, sz);
+                  }
+                  li = li + 1;
+                }
+                // Await let itself if referenced after suspend (same as C static hoist).
+                let cur_nb: u8[64] = [];
+                let cur_len: i32 = pipeline_block_let_name_len(arena, br, idx);
+                if (cur_len > 0) {
+                  if (cur_len <= 63) {
+                    pipeline_block_let_name_copy64(arena, br, idx, cur_nb);
+                    if (asm_pool_block_rest_refs_name(arena, br, si, cur_nb, cur_len) != 0) {
+                      let tref2: i32 = pipeline_block_let_type_ref(arena, br, idx);
+                      let sz2: i32 = asm_pool_type_size_bytes(arena, mod, tref2);
+                      asm_pool_live_add(out, cur_nb, cur_len, sz2);
+                    }
+                  }
+                }
+              }
+            }
+            // Record this let as defined for later await live-sets.
+            let llen: i32 = pipeline_block_let_name_len(arena, br, idx);
+            if (llen > 0) {
+              if (llen <= 63) {
+                if (n_def < 64) {
+                  let lnb: u8[64] = [];
+                  pipeline_block_let_name_copy64(arena, br, idx, lnb);
+                  let dbase2: i32 = n_def * 64;
+                  let k: i32 = 0;
+                  while (k < llen) {
+                    defined_names[dbase2 + k] = lnb[k];
+                    k = k + 1;
+                  }
+                  defined_lens[n_def] = llen;
+                  n_def = n_def + 1;
+                }
+              }
+            }
+          }
+        }
+      }
+      si = si + 1;
+    }
+    let num_awaits: i32 = asm_pool_load_i32_le(out, 4);
+    if (num_awaits > 0) {
+      return 0;
+    }
+  }
+  return 1;
 }

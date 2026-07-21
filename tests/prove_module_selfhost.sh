@@ -247,6 +247,10 @@ MODULES=(
   #   OS detect (sysctl/proc/#if) 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/target_cpu_pure.from_x.c 全 C 体
   "target_cpu_pure|src/driver/target_cpu_pure.x|seeds/target_cpu_pure_surface.from_x.c||"
+  # async_asm_pool R2 full：.x 吃满 helpers + build_layout；
+  # FROM_X rest 业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/async_asm_pool.from_x.c 全 C 体
+  # 产品 pipeline_glue 仍 #include 冷 seed（无宏）直至 glue unbundle；prove 锁 full surface IDENTICAL
+  "async_asm_pool|src/asm/async_asm_pool.x|seeds/async_asm_pool_surface.from_x.c||"
 )
 
 # 找 shux 二进制：优先 $SHUX（文档/进度验收），再 shux_asm / shux / shux-c
