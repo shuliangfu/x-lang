@@ -78,6 +78,11 @@
  *     （std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup；
  *      c_paths[1] via G.7 shux_ptr_slot_set；无 va_list reportf）；
  *     FROM_X 无 pure-dup invoke_cc；
+ *   + wave33 Cap residual pure：driver_x_emit clear/bind/take/get/lib_root_at/
+ *     effective_lib_roots + try_extern_via_cparser 在 thin.x
+ *     （G.7 shux_ptr_slot_* on always-seed c_path_cell / lib_roots_raw / path+lib slots；
+ *       Cap-global-bss data 仍 rt_emit_state；path/scan/n/want slots always-seed）；
+ *     FROM_X 无 pure-dup clear/bind/take/get/effective/try_extern；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -1846,7 +1851,12 @@ int driver_exec_compiled_body(int argc, uint8_t *argv_opaque) {
 /**
  * Cap-global-bss residual：rt_emit_state R2 full .x 写共享 emit 槽。
  * 数据定义在 seeds/rt_emit_state.from_x.c（跨 TU 非 static）；本层暴露槽/绑定。
- * 始终提供（不随 RDABI thin 宏剥离）。避免 .x 侧 **u8 赋值（-E 会丢函数）。
+ * Always-seed Cap-global-bss data residual（path/lib/scan slots + c_path_cell +
+ * lib_roots_raw + n/want slots）：不随 RDABI thin 宏剥离。
+ * wave33 pure：clear/bind/take/get/lib_root_at/effective/try_extern 在 thin.x
+ *   （G.7 shux_ptr_slot_* on c_path_cell/lib_roots_raw；无 **u8 写）；
+ *   cold keeps C twins under #ifndef FROM_X；FROM_X 无 pure-dup。
+ * PLATFORM: SHARED — BSS authority remains rt_emit_state.from_x.c.
  */
 #define X_EMIT_MAX_LIB_ROOTS_ABI 16
 extern const char *driver_x_emit_c_path;
@@ -1859,6 +1869,7 @@ extern int driver_x_emit_c_want_extern;
 extern char driver_x_emit_scan_ab[512];
 extern char driver_x_emit_scan_nx[512];
 
+/* Always-seed: Cap-global-bss buffer bases (data in rt_emit_state.from_x.c). */
 uint8_t *driver_x_emit_path_buf_slot(void) {
     return (uint8_t *)driver_x_emit_path_buf;
 }
@@ -1877,6 +1888,26 @@ uint8_t *driver_x_emit_scan_nx_slot(void) {
     return (uint8_t *)driver_x_emit_scan_nx;
 }
 
+/* Always-seed: address of driver_x_emit_c_path pointer cell (1-slot G.7 table). */
+uint8_t *driver_x_emit_c_path_cell(void) {
+    return (uint8_t *)(void *)&driver_x_emit_c_path;
+}
+
+/* Always-seed: base of driver_x_emit_lib_roots[16] pointer table. */
+uint8_t *driver_x_emit_lib_roots_raw(void) {
+    return (uint8_t *)(void *)driver_x_emit_lib_roots;
+}
+
+int32_t *driver_x_emit_n_lib_roots_slot(void) {
+    return (int32_t *)&driver_x_emit_n_lib_roots;
+}
+
+int32_t *driver_x_emit_want_extern_slot(void) {
+    return (int32_t *)&driver_x_emit_c_want_extern;
+}
+
+/* wave33 pure: hybrid thin owns clear/bind; cold seed keeps C twins. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_x_emit_clear_c_path(void) {
     driver_x_emit_c_path = NULL;
 }
@@ -1890,14 +1921,7 @@ void driver_x_emit_bind_lib_root(int i) {
         return;
     driver_x_emit_lib_roots[i] = driver_x_emit_lib_bufs[i];
 }
-
-int32_t *driver_x_emit_n_lib_roots_slot(void) {
-    return (int32_t *)&driver_x_emit_n_lib_roots;
-}
-
-int32_t *driver_x_emit_want_extern_slot(void) {
-    return (int32_t *)&driver_x_emit_c_want_extern;
-}
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /**
  * Cap-global-bss residual：rt_arena_buf R2 full .x 访问 128MiB/2MiB 静态缓冲。
@@ -2005,6 +2029,8 @@ struct parser_ParseIntoResult {
 extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data,
                                                           int32_t len);
 
+/* wave33 pure: hybrid thin owns take/get/lib_root_at; cold seed keeps C twins. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_x_emit_take_c_path(void) {
     const char *p = driver_x_emit_c_path;
     driver_x_emit_c_path = NULL;
@@ -2026,7 +2052,9 @@ uint8_t *driver_x_emit_lib_root_at(int32_t i) {
         return NULL;
     return (uint8_t *)(void *)driver_x_emit_lib_roots[i];
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
+/* Permanent OS residual: stdout FILE* setvbuf/fwrite/fflush (always seed). */
 void driver_x_emit_stdout_set_unbuffered(void) {
     (void)setvbuf(stdout, NULL, _IONBF, 0);
 }
@@ -2186,6 +2214,8 @@ uint8_t *driver_entry_dir_slot(void) {
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
+/* wave33 pure: hybrid thin owns effective_lib_roots; cold seed keeps C twin. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static const char *g_driver_x_emit_dot = ".";
 static const char *g_driver_x_emit_one_root[1];
 
@@ -2200,6 +2230,7 @@ uint8_t *driver_x_emit_effective_lib_roots(int32_t *n_out) {
         *n_out = (int32_t)driver_x_emit_n_lib_roots;
     return (uint8_t *)(void *)driver_x_emit_lib_roots;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source);
 
@@ -2332,12 +2363,13 @@ void driver_x_emit_work_cleanup(void) {
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
+/* wave33 pure: hybrid thin owns try_extern NO_C diag stub; cold seed keeps C twin. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path) {
     /*
      * 产品 runtime_driver_no_c 为 SHUX_NO_C_FRONTEND；driver_abi 本层不带该宏编译，
      * 故固定走 no-C 诊断（与产品 NO_C 语义一致）。
      * 冷启动全 C 体（seeds/rt_run_x_emit.from_x.c 无 FROM_X）仍可走 cparser 分支。
-     * Always seed (no-C diag surface); not part of work BSS pure package.
      */
     (void)input_path;
     diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
@@ -2345,6 +2377,7 @@ int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path) {
                           NULL);
     return 1;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。

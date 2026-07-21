@@ -4124,3 +4124,237 @@ export function driver_parsed_try_c_after_pp(
   return -2;
 }
 
+// ---- Wave33 Cap residual pure: driver_x_emit bind/take/get/effective/try_extern ----
+// Cap-global-bss data stays in seeds/rt_emit_state.from_x.c (cross-TU non-static).
+// Always-seed residual (this hybrid links them from runtime_driver_abi rest):
+//   path_buf_slot / lib_buf_slot / scan_* / c_path_cell / lib_roots_raw /
+//   n_lib_roots_slot / want_extern_slot
+// Pure authority under PREFER: clear/bind/take/get/lib_root_at/effective/try_extern
+// via G.7 shux_ptr_slot_* (no **u8 write in .x; no dual BSS).
+// Permanent OS residual (still seed): stdout_set_unbuffered / fwrite_stdout.
+// G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
+// PLATFORM: SHARED LP64.
+
+/** Always-seed Cap-global-bss: base of path_buf[512] in rt_emit_state. */
+export extern "C" function driver_x_emit_path_buf_slot(): *u8;
+/** Always-seed Cap-global-bss: base of lib_bufs[i][256]; null if i OOR. */
+export extern "C" function driver_x_emit_lib_buf_slot(i: i32): *u8;
+/** Always-seed: &driver_x_emit_c_path as one G.7 pointer-slot cell. */
+export extern "C" function driver_x_emit_c_path_cell(): *u8;
+/** Always-seed: base of driver_x_emit_lib_roots[16] pointer table. */
+export extern "C" function driver_x_emit_lib_roots_raw(): *u8;
+/** Always-seed: &driver_x_emit_n_lib_roots as *i32. */
+export extern "C" function driver_x_emit_n_lib_roots_slot(): *i32;
+/** Always-seed: &driver_x_emit_c_want_extern as *i32. */
+export extern "C" function driver_x_emit_want_extern_slot(): *i32;
+
+/** Max -L roots (must match X_EMIT_MAX_LIB_ROOTS_ABI / rt_emit_max_lib_roots). */
+function driver_x_emit_max_lib_roots(): i32 {
+  return 16;
+}
+
+/** ASCII ".\0" fallback lib root when n_lib_roots <= 0. */
+let g_driver_x_emit_dot: u8[2] = [46, 0];
+/** One LP64 pointer slot for effective_lib_roots fallback table. */
+let g_driver_x_emit_one_root_raw: u8[8] = [];
+
+/**
+ * Clear the shared emit c_path pointer cell (set to null).
+ * @return void
+ * Wave33 pure: G.7 shux_ptr_slot_set on always-seed c_path_cell.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_clear_c_path(): void {
+  unsafe {
+    let cell: *u8 = driver_x_emit_c_path_cell();
+    if (cell == 0 as *u8) {
+      return;
+    }
+    shux_ptr_slot_set(cell, 0, 0 as *u8);
+  }
+}
+
+/**
+ * Bind c_path cell to the path_buf slot base (after path bytes were copied).
+ * @return void
+ * Wave33 pure: G.7 set c_path_cell[0] = path_buf_slot().
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_bind_c_path_to_buf(): void {
+  unsafe {
+    let cell: *u8 = driver_x_emit_c_path_cell();
+    let buf: *u8 = driver_x_emit_path_buf_slot();
+    if (cell == 0 as *u8) {
+      return;
+    }
+    shux_ptr_slot_set(cell, 0, buf);
+  }
+}
+
+/**
+ * Bind lib_roots[i] to lib_bufs[i] after bytes were copied into the buffer.
+ * @param i i32 — root index; out of range [0,16) is a no-op
+ * @return void
+ * Wave33 pure: G.7 shux_ptr_slot_set on lib_roots_raw + lib_buf_slot.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_bind_lib_root(i: i32): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= driver_x_emit_max_lib_roots()) {
+    return;
+  }
+  unsafe {
+    let raw: *u8 = driver_x_emit_lib_roots_raw();
+    let buf: *u8 = driver_x_emit_lib_buf_slot(i);
+    if (raw == 0 as *u8) {
+      return;
+    }
+    if (buf == 0 as *u8) {
+      return;
+    }
+    shux_ptr_slot_set(raw, i, buf);
+  }
+}
+
+/**
+ * Take (read + clear) the shared emit c_path pointer.
+ * @return *u8 — previous c_path (may be null); cell set to null
+ * Wave33 pure: G.7 get then set-null on c_path_cell.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_take_c_path(): *u8 {
+  unsafe {
+    let cell: *u8 = driver_x_emit_c_path_cell();
+    if (cell == 0 as *u8) {
+      return 0 as *u8;
+    }
+    let p: *u8 = shux_ptr_slot_get(cell, 0);
+    shux_ptr_slot_set(cell, 0, 0 as *u8);
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Take (read + clear) want_extern flag.
+ * @return i32 — previous want_extern; slot set to 0
+ * Wave33 pure: always-seed want_extern_slot *i32 cell.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_take_want_extern(): i32 {
+  unsafe {
+    let s: *i32 = driver_x_emit_want_extern_slot();
+    if (s == 0 as *i32) {
+      return 0;
+    }
+    let w: i32 = s[0];
+    s[0] = 0;
+    return w;
+  }
+  return 0;
+}
+
+/**
+ * Read current n_lib_roots counter.
+ * @return i32 — root count (0..16); 0 if slot null
+ * Wave33 pure: always-seed n_lib_roots_slot.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_n_lib_roots_get(): i32 {
+  unsafe {
+    let s: *i32 = driver_x_emit_n_lib_roots_slot();
+    if (s == 0 as *i32) {
+      return 0;
+    }
+    return s[0];
+  }
+  return 0;
+}
+
+/**
+ * Return lib_roots[i] pointer (opaque *u8 C string).
+ * @param i i32 — index; OOR or i >= n_lib_roots → null
+ * @return *u8 — bound root path or null
+ * Wave33 pure: G.7 get on lib_roots_raw after n_lib_roots_get bounds.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_lib_root_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  let n: i32 = driver_x_emit_n_lib_roots_get();
+  if (i >= n) {
+    return 0 as *u8;
+  }
+  unsafe {
+    let raw: *u8 = driver_x_emit_lib_roots_raw();
+    if (raw == 0 as *u8) {
+      return 0 as *u8;
+    }
+    return shux_ptr_slot_get(raw, i);
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Effective lib roots table for pipeline: if n_lib_roots <= 0, return ["."];
+ * else return the live lib_roots pointer table base.
+ * @param n_out *i32 — optional out count; null skips write
+ * @return *u8 — opaque const char** (one_root BSS or lib_roots_raw)
+ * Wave33 pure: one_root via G.7 ptr_slot_set + BSS "."; no **u8 lit.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_x_emit_effective_lib_roots(n_out: *i32): *u8 {
+  let n: i32 = driver_x_emit_n_lib_roots_get();
+  if (n <= 0) {
+    unsafe {
+      shux_ptr_slot_set(&g_driver_x_emit_one_root_raw[0], 0, &g_driver_x_emit_dot[0]);
+      if (n_out != 0 as *i32) {
+        n_out[0] = 1;
+      }
+      return &g_driver_x_emit_one_root_raw[0];
+    }
+  }
+  unsafe {
+    if (n_out != 0 as *i32) {
+      n_out[0] = n;
+    }
+    return driver_x_emit_lib_roots_raw();
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Product NO_C path for -x -E -E-extern: emit BLD001 and return 1.
+ * @param input_path *u8 — unused on product NO_C (ABI parity)
+ * @return i32 — always 1 (terminal failure) on product hybrid
+ * Wave33 pure: diag_report_with_code with fixed message; no C frontend body.
+ * PLATFORM: SHARED — product NO_C contract; cold seed keeps same stub twin.
+ */
+#[no_mangle]
+export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
+  // Product SHUX_NO_C_FRONTEND: fixed diagnostic (input_path unused).
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      0,
+      0,
+      "build error",
+      "BLD001",
+      "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
+      0 as *u8
+    );
+  }
+  return 1;
+}
+
