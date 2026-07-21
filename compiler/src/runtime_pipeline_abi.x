@@ -49,8 +49,8 @@
 // wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve +
 //   entry_dir_get (wave68 pure) / resolved_path_buf_slot (wave69 pure BSS); cold twin under FROM_X).
 // wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
-//   (G.7 pure preprocess + Cap residual stage BSS / loaded_import_commit_from_owned;
-//   cold twins under FROM_X).
+//   (G.7 pure preprocess + stage clear/set/take (wave71 pure BSS) + Cap residual
+//   loaded_import_commit_from_owned; cold twins under FROM_X).
 // wave67: pure pipeline_dep_ctx_path_bufs_reset + pipeline_dep_ctx_copy_entry_dir orch
 //   (LP64 offsetof + LE store/byte copy; same layout as driver_abi wave19);
 //   pure pipeline_dep_ctx_set_use_asm_backend thin → G.7 driver_pipeline_dep_ctx_set_use_asm;
@@ -63,6 +63,10 @@
 // wave70: pure pipeline_dep_arena/module_slot_set/at (module BSS 32×LP64 ptr cells each;
 //   G.7 shux_ptr_slot_* on raw u8[256]; single authority for pure set_dep_slots / get_dep_*;
 //   cold twins under FROM_X).
+// wave71: pure pipeline_rf_stage_prep_clear/set/take (module BSS ptr cell + size cell;
+//   G.7 shux_ptr_slot_* / shux_size_slot_*; single authority for pure stage_prep / commit_prep;
+//   cold twins under FROM_X). Cap residual still: loaded_import BSS + commit_from_owned /
+//   data/len_get / fn-ptr / product_emit / typeck_module C frontend.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -166,11 +170,9 @@ export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8
 // wave69: pipeline_resolved_path_buf_slot is pure export function below (pure BSS 512).
 // PLATFORM: SHARED — pure entry_dir + pure resolved_path for into_static orch.
 // wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
-// Cap residual always-seed stage BSS + loaded_import commit (malloc ensure/memcpy):
-// PLATFORM: SHARED — pure cannot own seed statics or express memcpy ensure policy alone.
-export extern "C" function pipeline_rf_stage_prep_clear(): void;
-export extern "C" function pipeline_rf_stage_prep_set(prep: *u8, prep_len: i64): void;
-export extern "C" function pipeline_rf_stage_prep_take(out_prep: *u8, out_len: *u8): i32;
+// wave71: pipeline_rf_stage_prep_clear/set/take are pure export functions below (pure BSS).
+// Cap residual always-seed loaded_import commit (malloc ensure/memcpy) + data/len_get:
+// PLATFORM: SHARED — pure owns stage BSS; loaded_import ensure policy still seed residual.
 export extern "C" function pipeline_loaded_import_commit_from_owned(prep: *u8, prep_len: i64): i32;
 /* See implementation. */
 export extern "C" function pipeline_loaded_import_data(): *u8;
@@ -1801,8 +1803,8 @@ export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
 /**
  * Read resolved_path BSS file, preprocess into owned prep, store in stage BSS.
  * @return i32 — 0 success; -1 open fail / preprocess fail / null prep
- * wave66 pure Cap residual orch (wave69: resolved slot pure):
- *   Cap residual pipeline_rf_stage_prep_clear / pipeline_rf_stage_prep_set (stage BSS);
+ * wave66 pure orch (wave69 resolved slot; wave71 pure stage clear/set):
+ *   pure pipeline_rf_stage_prep_clear / pipeline_rf_stage_prep_set (wave71 pure BSS);
  *   pure pipeline_resolved_path_buf_slot (wave69 BSS; path written by resolve_path_into_static);
  *   runtime_read_file_view into 32B stack ShuxRuntimeFileView (G.7 same as wave55 load_one);
  *   open fail → pure pipeline_diag_import_open_fail_once(null, path);
@@ -1870,10 +1872,10 @@ export function pipeline_read_file_stage_prep(): i32 {
 /**
  * Move stage prep into loaded_import BSS (ensure buffer + copy + free prep).
  * @return i32 — 0 success; -1 empty stage or OOM on loaded buffer ensure
- * wave66 pure Cap residual orch:
- *   Cap residual pipeline_rf_stage_prep_take → owned prep on stack slots;
+ * wave66 pure orch (wave71 pure take):
+ *   pure pipeline_rf_stage_prep_take (wave71 BSS) → owned prep on stack slots;
  *   Cap residual pipeline_loaded_import_commit_from_owned (ensure/memcpy/free).
- * PLATFORM: SHARED — BSS ensure policy stays Cap residual (G.7 single ensure body).
+ * PLATFORM: SHARED — loaded_import ensure policy stays Cap residual (G.7 single ensure body).
  */
 #[no_mangle]
 export function pipeline_read_file_commit_prep(): i32 {
@@ -2801,6 +2803,82 @@ let g_pipe_resolved_path_buf: u8[512] = [];
 // PLATFORM: SHARED LP64 — 32 void* cells × 8B = 256B raw; same capacity as seed void*[32].
 let g_pipe_dep_arena_slots: u8[256] = [];
 let g_pipe_dep_module_slots: u8[256] = [];
+
+// wave71 pure stage-prep BSS (owned preprocess buffer pending commit into loaded_import).
+// PLATFORM: SHARED LP64 — one ptr cell + one size cell; same ABI as seed static char* + size_t.
+// G.7 single authority for pure stage_prep / commit_prep; free on clear releases ownership.
+let g_pipe_rf_stage_prep: u8[8] = [];
+let g_pipe_rf_stage_prep_len: u8[8] = [];
+
+/**
+ * Free any owned stage-prep buffer and clear stage BSS cells to null/0.
+ * @return void
+ * wave71 pure: free(g_pipe_rf_stage_prep) then G.7 shux_ptr_slot_set / shux_size_slot_set zero.
+ * Matches historical seed pipeline_rf_stage_prep_clear (always free then null).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns these cells.
+ */
+#[no_mangle]
+export function pipeline_rf_stage_prep_clear(): void {
+  let p: *u8 = shux_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
+  if (p != 0 as *u8) {
+    unsafe {
+      free(p);
+    }
+  }
+  shux_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
+  shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+}
+
+/**
+ * Store owned prep into stage BSS (does not free prior; caller must clear first).
+ * @param prep *u8 — owned heap buffer (or null for empty stage)
+ * @param prep_len i64 — byte length; if prep is null, stored len is forced to 0
+ * @return void
+ * wave71 pure: G.7 shux_ptr_slot_set / shux_size_slot_set on pure stage cells.
+ * Matches seed: prep may be null → stores empty (len 0).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_rf_stage_prep_set(prep: *u8, prep_len: i64): void {
+  shux_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, prep);
+  if (prep == 0 as *u8) {
+    shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+    return;
+  }
+  shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, prep_len);
+}
+
+/**
+ * Move stage prep out without free (caller owns); clear stage BSS.
+ * @param out_prep *u8 — char** as raw bytes (LP64 8B slot); may be null (still clears)
+ * @param out_len *u8 — size_t* as raw bytes; may be null
+ * @return i32 — 0 if prep non-null; -1 if stage empty (null prep)
+ * wave71 pure: load cells → zero cells → write outs via G.7 ptr/size slot set.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; pure commit_prep uses this.
+ */
+#[no_mangle]
+export function pipeline_rf_stage_prep_take(out_prep: *u8, out_len: *u8): i32 {
+  let prep: *u8 = shux_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
+  let prep_len: i64 = shux_size_slot_get(&g_pipe_rf_stage_prep_len[0], 0);
+  // Clear stage before writing outs (same order as historical seed).
+  shux_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
+  shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+  if (out_prep != 0 as *u8) {
+    shux_ptr_slot_set(out_prep, 0, prep);
+  }
+  if (out_len != 0 as *u8) {
+    // Historical: out_len = prep ? prep_len : 0 after clear path already read prep_len.
+    if (prep == 0 as *u8) {
+      shux_size_slot_set(out_len, 0, 0);
+    } else {
+      shux_size_slot_set(out_len, 0, prep_len);
+    }
+  }
+  if (prep == 0 as *u8) {
+    return 0 - 1;
+  }
+  return 0;
+}
 
 /**
  * Return base of the pipeline resolved-path static buffer (cap 512 incl trailing NUL room).

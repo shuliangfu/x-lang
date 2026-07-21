@@ -62,6 +62,9 @@
  * wave69: pure pipeline_resolved_path_buf_slot (pure BSS buf 512; cold twin under #ifndef FROM_X).
  * wave70: pure pipeline_dep_arena/module_slot_set/at (pure BSS 32×LP64 via G.7 ptr slots;
  *   cold twins + seed static tables under #ifndef FROM_X).
+ * wave71: pure pipeline_rf_stage_prep_clear/set/take (pure BSS ptr+size cells via G.7
+ *   ptr/size slots; cold twins + seed stage statics under #ifndef FROM_X).
+ *   Cap residual still: loaded_import BSS + commit_from_owned / data / len_get.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -227,6 +230,10 @@ int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx
 int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len);
 /* wave65 pure pipeline_resolve_path_into_static — pure resolve_path calls under hybrid. */
 void pipeline_resolve_path_into_static(const char *path_c);
+/* wave71 pure stage prep BSS — pure stage_prep / commit_prep call under hybrid. */
+void pipeline_rf_stage_prep_clear(void);
+void pipeline_rf_stage_prep_set(char *prep, size_t prep_len);
+int32_t pipeline_rf_stage_prep_take(char **out_prep, size_t *out_len);
 /* wave67 pure path buf helpers + use_asm thin — pure fill_ctx / one_ctx call under hybrid. */
 void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx);
 void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char *entry_dir);
@@ -2323,26 +2330,28 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
-/* G-02f-238 / wave66：stage 暂存 prep BSS（pure stage_prep / commit_prep Cap residual). */
+/* G-02f-238 / wave66：stage 暂存 prep BSS（pure stage_prep / commit_prep). */
+/* wave71: hybrid pure owns stage prep BSS + clear/set/take; cold-only statics under #ifndef FROM_X. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 static char *pipeline_rf_stage_prep;
 static size_t pipeline_rf_stage_prep_len;
 
-/* wave66 Cap residual always-seed: free prior stage prep and clear BSS cells.
- * Pure stage_prep calls this before read/preprocess. PLATFORM: SHARED. */
+/* wave66 / wave71 cold twin: free prior stage prep and clear BSS cells.
+ * Pure stage_prep calls pure clear under hybrid. PLATFORM: SHARED. */
 void pipeline_rf_stage_prep_clear(void) {
     free(pipeline_rf_stage_prep);
     pipeline_rf_stage_prep = NULL;
     pipeline_rf_stage_prep_len = 0;
 }
 
-/* wave66 Cap residual always-seed: store owned prep into stage BSS (does not free prior;
+/* wave66 / wave71 cold twin: store owned prep into stage BSS (does not free prior;
  * caller must clear first). prep may be null (stores empty). PLATFORM: SHARED. */
 void pipeline_rf_stage_prep_set(char *prep, size_t prep_len) {
     pipeline_rf_stage_prep = prep;
     pipeline_rf_stage_prep_len = prep ? prep_len : 0;
 }
 
-/* wave66 Cap residual always-seed: move stage prep out without free (caller owns);
+/* wave66 / wave71 cold twin: move stage prep out without free (caller owns);
  * clear stage BSS. Returns 0 if prep non-null; -1 if empty. PLATFORM: SHARED. */
 int32_t pipeline_rf_stage_prep_take(char **out_prep, size_t *out_len) {
     char *prep = pipeline_rf_stage_prep;
@@ -2357,6 +2366,7 @@ int32_t pipeline_rf_stage_prep_take(char **out_prep, size_t *out_len) {
         return -1;
     return 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave66 Cap residual always-seed: ensure loaded_import BSS, copy prep, set len, free prep.
  * Same ensure policy as historical commit_prep (cap floor SHUX_PIPELINE_IMPORT_BUF_CAP).
@@ -2381,7 +2391,7 @@ int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len) {
 }
 
 /* G-02f-238 / wave66：hybrid pure owns stage_prep; cold twin under #ifndef FROM_X.
- * Pure orch: Cap residual clear/set + pure resolved_path_buf_slot (wave69) + runtime_read_file_view
+ * Pure orch: pure clear/set (wave71) + pure resolved_path_buf_slot (wave69) + runtime_read_file_view
  *   + G.7 pure shux_preprocess_raw_to_malloc + pure diags. PLATFORM: SHARED. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_read_file_stage_prep(void) {
@@ -2410,7 +2420,7 @@ int32_t pipeline_read_file_stage_prep(void) {
 }
 
 /* G-02f-238 / wave66：hybrid pure owns commit_prep; cold twin under #ifndef FROM_X.
- * Pure orch: Cap residual take + loaded_import_commit_from_owned. PLATFORM: SHARED. */
+ * Pure orch: pure take (wave71) + Cap residual loaded_import_commit_from_owned. PLATFORM: SHARED. */
 int32_t pipeline_read_file_commit_prep(void) {
     char *prep = NULL;
     size_t prep_len = 0;
