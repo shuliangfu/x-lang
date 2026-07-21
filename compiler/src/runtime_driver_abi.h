@@ -81,7 +81,8 @@ uint8_t *driver_stack_esc_gate_thread_fn_ptr(void);
 
 /**
  * Cap residual：opaque FILE* 给 .x（rt_entry R2 等 diag_print_*）。
- * .x 无 FILE 类型；stdout/stderr 仅平台层可取。
+ * .x 无 FILE 类型。wave39 pure：driver_stdio_stdout via g05 stdout_ptr；
+ * stderr 仍 always-seed。
  */
 void *driver_stdio_stdout(void);
 void *driver_stdio_stderr(void);
@@ -186,8 +187,14 @@ int32_t driver_x_emit_n_lib_roots_get(void);
 uint8_t *driver_x_emit_lib_root_at(int32_t i);
 /** Permanent OS residual: setvbuf(stdout) — always seed. */
 void driver_x_emit_stdout_set_unbuffered(void);
-/** Permanent OS residual: fwrite+fflush stdout — always seed. */
+/**
+ * wave39 pure: hybrid thin owns null/len guards; Cap OS residual
+ * shux_driver_fwrite_stdout_n returns written count after fwrite+fflush.
+ * cold twin under #ifndef FROM_X.
+ */
 int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len);
+/** Cap OS residual for pure fwrite_stdout (always linked under FROM_X). */
+int32_t shux_driver_fwrite_stdout_n(uint8_t *data, int32_t len);
 /** wave23 pure under PREFER hybrid: calloc(1, 9MiB+4); cold seed sizeof twin. */
 void *driver_codegen_outbuf_calloc(void);
 /** wave24 pure: free / len(LE@CAP) / data base; cold seed twins. */
@@ -338,7 +345,10 @@ uint8_t *driver_asm_fopen_wb(uint8_t *path);
 /** 写 path_out64（≥64B）为临时路径并 fdopen("wb")；失败 NULL。 */
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64);
 void driver_asm_fclose(uint8_t *fp);
-/** fp==NULL 时写 stdout；返回 0 成功。 */
+/**
+ * wave39 pure: hybrid thin owns (null/len guards + g05 stdout_ptr/fwrite_opaque);
+ * fp==NULL 时写 stdout；返回 0 成功 1 短写。cold twin under #ifndef FROM_X.
+ */
 int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len);
 void driver_asm_fflush_stdout(void);
 /** 写单字节 0 的 metric .o；0 成功 1 失败。 */

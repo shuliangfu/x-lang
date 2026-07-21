@@ -101,6 +101,10 @@
 //   + wave38 Cap residual pure：driver_asm_elf_ctx_free + driver_parse_into_buf_rc
 //     (free pairs wave23 elf_ctx_calloc; Cap-struct-return residual
 //      shux_parser_parse_into_buf_rc hides parser_ParseIntoResult from .x).
+//   + wave39 Cap residual pure：driver_stdio_stdout + driver_asm_fwrite +
+//     driver_x_emit_fwrite_stdout
+//     (g05 stdout_ptr + fwrite_opaque; Cap OS residual shux_driver_fwrite_stdout_n
+//      for count+fflush ABI; FILE* cast stays harness / seed).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -4440,8 +4444,9 @@ export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
 // bind_lib_roots: n<=0 or null → ["."] one_root BSS via G.7; else return caller table.
 // argv0: G.7 / driver_argv_at index 0.
 // collect_defines: zero 64×LP64 BSS table + pure driver_argv_collect_defines (wave10).
-// Permanent OS residual (still seed): asm_fopen_wb / mkstemp_fdopen / fwrite / fflush /
+// Permanent OS residual (still seed): asm_fopen_wb / mkstemp_fdopen / fflush /
 //   write_metric_o / sibling_try_spawn / print_usage / exec_compiled_body.
+// Wave39 pure: driver_asm_fwrite + driver_stdio_stdout + driver_x_emit_fwrite_stdout.
 // G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
 // PLATFORM: SHARED LP64.
 
@@ -5098,5 +5103,87 @@ export function driver_parse_into_buf_rc(
     return shux_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
   }
   return -1;
+}
+
+// ---- Wave39 Cap residual pure: stdio stdout + asm fwrite + x_emit fwrite_stdout ----
+// G.7: reuse wave26 g05 harness (shux_driver_stdout_ptr / shux_driver_fwrite_opaque).
+// driver_x_emit_fwrite_stdout returns written byte count (not 0/1); residual
+//   shux_driver_fwrite_stdout_n hides fwrite+fflush and the count ABI.
+// Still seed OS residual: asm_fopen_wb / mkstemp / fflush_stdout / write_metric_o /
+//   sibling_try_spawn / print_usage / exec_compiled_body / stderr.
+// PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+
+/**
+ * Cap OS residual: fwrite to stdout and fflush; return bytes written.
+ * @param data *u8 — bytes to write; caller pure rejects null / non-positive len
+ * @param len i32 — byte count (must be > 0 when called from pure)
+ * @return i32 — fwrite byte count (may be short on partial write)
+ * PLATFORM: SHARED — FILE* stdout cast stays seed rest (no FILE* in .x).
+ */
+export extern "C" function shux_driver_fwrite_stdout_n(data: *u8, len: i32): i32;
+
+/**
+ * Opaque stdout FILE* as *u8 for rt_entry / rt_run_exec diag print paths.
+ * @return *u8 — never null on hosted product (stdout stream handle)
+ * Wave39 pure: G.7 shux_driver_stdout_ptr (wave26 g05 harness); cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_stdio_stdout(): *u8 {
+  unsafe {
+    return shux_driver_stdout_ptr();
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Write len bytes to opaque FILE* (or stdout when fp is null).
+ * @param fp *u8 — opaque FILE*; null → stdout via g05 stdout_ptr
+ * @param data *u8 — bytes; null or len <= 0 → return 0 (success no-op)
+ * @param len i32 — byte count; len <= 0 → return 0
+ * @return i32 — 0 full write success; 1 short write / stream error
+ * Wave39 pure: null/len guards pure; stream select + g05 shux_driver_fwrite_opaque.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_asm_fwrite(fp: *u8, data: *u8, len: i32): i32 {
+  let stream: *u8 = fp;
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  if (len <= 0) {
+    return 0;
+  }
+  if (stream == 0 as *u8) {
+    unsafe {
+      stream = shux_driver_stdout_ptr();
+    }
+  }
+  unsafe {
+    return shux_driver_fwrite_opaque(data, len, stream);
+  }
+  return 1;
+}
+
+/**
+ * Write len bytes to stdout and fflush; return written count (not 0/1).
+ * @param data *u8 — bytes; null or len <= 0 → return 0
+ * @param len i32 — byte count; len <= 0 → return 0
+ * @return i32 — fwrite byte count after residual fflush
+ * Wave39 pure: null/len guards pure; Cap OS residual shux_driver_fwrite_stdout_n.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_x_emit_fwrite_stdout(data: *u8, len: i32): i32 {
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  if (len <= 0) {
+    return 0;
+  }
+  unsafe {
+    return shux_driver_fwrite_stdout_n(data, len);
+  }
+  return 0;
 }
 

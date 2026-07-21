@@ -103,6 +103,10 @@
  *   + wave38 Cap residual pure：driver_asm_elf_ctx_free + driver_parse_into_buf_rc 在 thin.x
  *     （free 配对 wave23 elf_ctx_calloc；Cap-struct-return residual
  *       shux_parser_parse_into_buf_rc 藏 parser_ParseIntoResult）；FROM_X 无 pure-dup；
+ *   + wave39 Cap residual pure：driver_stdio_stdout + driver_asm_fwrite +
+ *     driver_x_emit_fwrite_stdout 在 thin.x
+ *     （g05 stdout_ptr + fwrite_opaque；Cap OS residual shux_driver_fwrite_stdout_n
+ *       藏 fwrite+fflush 与字节数返回 ABI）；FROM_X 无 pure-dup；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -1592,11 +1596,16 @@ void driver_run_stack_esc_gate_on_large_stack(void *arg) {
 
 /**
  * Cap residual：opaque FILE* 供 rt_entry R2 full .x 的 diag_print_*。
- * 始终提供（不随 RDABI thin 宏剥离）。
+ * wave39 pure：hybrid thin owns driver_stdio_stdout via g05 shux_driver_stdout_ptr；
+ * cold twin under #ifndef FROM_X；FROM_X 无 pure-dup。
+ * stderr 仍 always-seed（无 g05 stderr_ptr 产品面）。
+ * PLATFORM: SHARED — FILE* cast stays C.
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_stdio_stdout(void) {
     return (void *)stdout;
 }
+#endif
 
 void *driver_stdio_stderr(void) {
     return (void *)stderr;
@@ -2096,12 +2105,18 @@ uint8_t *driver_x_emit_lib_root_at(int32_t i) {
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
-/* Permanent OS residual: stdout FILE* setvbuf/fwrite/fflush (always seed). */
+/* Permanent OS residual: stdout FILE* setvbuf (always seed). */
 void driver_x_emit_stdout_set_unbuffered(void) {
     (void)setvbuf(stdout, NULL, _IONBF, 0);
 }
 
-int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len) {
+/**
+ * Cap OS residual for wave39 pure driver_x_emit_fwrite_stdout.
+ * Pure owns null/len guards; this returns fwrite byte count after fflush.
+ * Always linked under FROM_X (no pure-dup of public symbol).
+ * PLATFORM: SHARED — FILE* stdout cast stays seed rest.
+ */
+int32_t shux_driver_fwrite_stdout_n(uint8_t *data, int32_t len) {
     size_t n;
     if (data == NULL || len <= 0)
         return 0;
@@ -2109,6 +2124,13 @@ int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len) {
     (void)fflush(stdout);
     return (int32_t)n;
 }
+
+/* wave39 pure: hybrid thin owns fwrite_stdout; cold twin; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len) {
+    return shux_driver_fwrite_stdout_n(data, len);
+}
+#endif
 
 /* wave23 pure：hybrid thin owns calloc family; cold seed keeps sizeof twins. */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -2737,6 +2759,9 @@ void driver_asm_fclose(uint8_t *fp) {
     driver_asm_fclose_asm_out((FILE *)(void *)fp);
 }
 
+/* wave39 pure: hybrid thin owns asm_fwrite via g05 fwrite_opaque + stdout_ptr;
+ * cold twin under #ifndef FROM_X；FROM_X 无 pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len) {
     FILE *out;
     size_t n;
@@ -2746,6 +2771,7 @@ int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len) {
     n = fwrite(data, 1, (size_t)len, out);
     return (n == (size_t)len) ? 0 : 1;
 }
+#endif
 
 void driver_asm_fflush_stdout(void) {
     (void)fflush(stdout);
