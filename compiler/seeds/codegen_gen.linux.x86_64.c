@@ -10544,6 +10544,14 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
   if ((((((((name_len ==6) && ((name)[0] ==97)) && ((name)[1] ==99)) && ((name)[2] ==99)) && ((name)[3] ==101)) && ((name)[4] ==115)) && ((name)[5] ==115))) {
     return 1;
   }
+  /* mkstemp 7 — wave30: root skip (was g05-sed-only); sync codegen.x */
+  if (((((((((name_len ==7) && ((name)[0] ==109)) && ((name)[1] ==107)) && ((name)[2] ==115)) && ((name)[3] ==116)) && ((name)[4] ==101)) && ((name)[5] ==109)) && ((name)[6] ==112))) {
+    return 1;
+  }
+  /* rename 6 — wave30: root skip (was g05-sed-only); sync codegen.x */
+  if ((((((((name_len ==6) && ((name)[0] ==114)) && ((name)[1] ==101)) && ((name)[2] ==110)) && ((name)[3] ==97)) && ((name)[4] ==109)) && ((name)[5] ==101))) {
+    return 1;
+  }
   return 0;
 }
 int32_t codegen_find_mono_type_for_generic_func(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi) {

@@ -196,7 +196,12 @@ g05_try_x_to_o() {
     echo '  if (!path) return (uint8_t *)0;'
     echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "w");'
     echo '}'
-    # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
+    # Strip -E #include + libc redecls that clash with prologue headers.
+    # PLATFORM: SHARED harness — G.7 product authority for libc skip is
+    # codegen_is_libc_conflicting_extern_name (codegen.x + seed). After wave30,
+    # mkstemp/rename are in that predicate; sed lines below stay as defense for
+    # cold/old shux -E, opendir opaque (intentionally NOT in product skip), and
+    # shux_fmt_*/shux_driver_* harness helpers defined as static inline above.
     sed -e '/^#include /d' \
         -e '/^extern ssize_t read(/d' \
         -e '/^extern ssize_t write(/d' \

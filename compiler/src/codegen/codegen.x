@@ -10002,8 +10002,10 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
  * sed-deleted the bad redecls). Authority for "skip emit" is this single
  * predicate; seed must stay in sync.
  *
- * Covered (historical g05 sed + read/write): libc I/O, alloc (incl. realloc /
- * posix_memalign), string, env, dir.
+ * Covered (historical g05 sed + read/write + wave30 mkstemp/rename): libc I/O,
+ * alloc (incl. realloc / posix_memalign), string, env, path (unlink/mkstemp/
+ * rename/access). g05 sed remains a defense layer for harness helpers and
+ * #include strip; libc name authority is this predicate only (G.7).
  * PLATFORM: SHARED — product C prologue MUST include stdlib.h + string.h
  * (rt_preamble io_net lines). Skipping without those headers → implicit int.
  */
@@ -10157,6 +10159,15 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
    * PLATFORM: POSIX opaque DIR. */
   /* access 6 */
   if (name_len == 6 && name[0] == 97 && name[1] == 99 && name[2] == 99 && name[3] == 101 && name[4] == 115 && name[5] == 115) {
+    return 1;
+  }
+  /* mkstemp 7 — i32 vs int; *u8 path vs char* (runtime_driver_abi_thin.x).
+   * wave30: was g05-sed-only dual-auth; product -E must skip redecl at source. */
+  if (name_len == 7 && name[0] == 109 && name[1] == 107 && name[2] == 115 && name[3] == 116 && name[4] == 101 && name[5] == 109 && name[6] == 112) {
+    return 1;
+  }
+  /* rename 6 — i32 vs int; *u8 paths vs char* (open_out close-before-rename). */
+  if (name_len == 6 && name[0] == 114 && name[1] == 101 && name[2] == 110 && name[3] == 97 && name[4] == 109 && name[5] == 101) {
     return 1;
   }
   return 0;
