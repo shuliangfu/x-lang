@@ -10467,6 +10467,34 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
   if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==115)) && ((name)[4] ==101)) && ((name)[5] ==116))) {
     return 1;
   }
+  /* memchr 6 — glibc string.h may macro to _Generic; *u8 clash */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==104)) && ((name)[5] ==114))) {
+    return 1;
+  }
+  /* memrchr 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==114)) && ((name)[4] ==99)) && ((name)[5] ==104)) && ((name)[6] ==114))) {
+    return 1;
+  }
+  /* memmem 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==109)) && ((name)[4] ==101)) && ((name)[5] ==109))) {
+    return 1;
+  }
+  /* strchr 6 — string.h macro / char* clash (std/path) */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==99)) && ((name)[4] ==104)) && ((name)[5] ==114))) {
+    return 1;
+  }
+  /* strrchr 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==114)) && ((name)[4] ==99)) && ((name)[5] ==104)) && ((name)[6] ==114))) {
+    return 1;
+  }
+  /* strcpy 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==99)) && ((name)[4] ==112)) && ((name)[5] ==121))) {
+    return 1;
+  }
+  /* strncpy 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==110)) && ((name)[4] ==99)) && ((name)[5] ==112)) && ((name)[6] ==121))) {
+    return 1;
+  }
   /* getenv 6 */
   if ((((((((name_len ==6) && ((name)[0] ==103)) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==101)) && ((name)[4] ==110)) && ((name)[5] ==118))) {
     return 1;
