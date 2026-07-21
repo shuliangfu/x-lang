@@ -1589,6 +1589,23 @@ int fstat(int fd, struct stat *st) {
 #endif
 }
 
+/**
+ * lseek：Linux x86_64 syscall 8 (SYS_lseek).
+ * Needed by runtime_io_abi pure Cap residual (file-view size without fstat layout in .x).
+ * PLATFORM: LINUX x86_64 nostdlib product link; macOS uses host libc lseek.
+ * G.7: single face next to open/read/close/fstat in this stub TU.
+ */
+off_t lseek(int fd, off_t offset, int whence) {
+#if defined(__linux__) && defined(__x86_64__)
+    return (off_t)bootstrap_syscall3(8L, (long)fd, (long)offset, (long)whence);
+#else
+    (void)fd;
+    (void)offset;
+    (void)whence;
+    return (off_t)-1;
+#endif
+}
+
 /** stat：Linux syscall 4。 */
 int stat(const char *path, struct stat *st) {
 #if defined(__linux__) && defined(__x86_64__)
