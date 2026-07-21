@@ -10431,6 +10431,14 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
   if ((((((((name_len ==6) && ((name)[0] ==99)) && ((name)[1] ==97)) && ((name)[2] ==108)) && ((name)[3] ==108)) && ((name)[4] ==111)) && ((name)[5] ==99))) {
     return 1;
   }
+  /* realloc 7 — void* vs uint8_t* clash with stdlib.h (sync with codegen.x) */
+  if (((((((((name_len ==7) && ((name)[0] ==114)) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==108)) && ((name)[4] ==108)) && ((name)[5] ==111)) && ((name)[6] ==99))) {
+    return 1;
+  }
+  /* posix_memalign 14 — stdlib/POSIX prototype; skip SHUX redecl */
+  if ((((((((((((((((name_len ==14) && ((name)[0] ==112)) && ((name)[1] ==111)) && ((name)[2] ==115)) && ((name)[3] ==105)) && ((name)[4] ==120)) && ((name)[5] ==95)) && ((name)[6] ==109)) && ((name)[7] ==101)) && ((name)[8] ==109)) && ((name)[9] ==97)) && ((name)[10] ==108)) && ((name)[11] ==105)) && ((name)[12] ==103)) && ((name)[13] ==110))) {
+    return 1;
+  }
   /* memcpy 6 */
   if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==112)) && ((name)[5] ==121))) {
     return 1;

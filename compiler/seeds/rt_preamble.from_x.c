@@ -27,6 +27,14 @@ const char *const driver_preamble_io_net_lines[] = {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
         "#include <stdint.h>\n",
+        /* PLATFORM: SHARED — host libc prototypes for skip-list symbols
+         * (codegen_is_libc_conflicting_extern_name: malloc/free/calloc/realloc/
+         * getenv/memcpy/...). SHUX *u8 emits as uint8_t * and clashes with
+         * char * / void * in system headers; we skip redecl and rely on these
+         * includes. Without them, skipped names become implicit int (heap
+         * return malloc -> int-to-pointer; run-set host-cc red). */
+        "#include <stdlib.h>\n",
+        "#include <string.h>\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <unistd.h>\n#else\n#include <io.h>\n#include <sys/types.h>\n#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <sys/uio.h>\n#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <poll.h>\n#endif\n",

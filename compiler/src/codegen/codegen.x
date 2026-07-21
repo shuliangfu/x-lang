@@ -9997,12 +9997,15 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
  * `emit_func_extern_declaration`.
  *
  * Why: SHUX maps `*u8` → `uint8_t *` (and integers → `int32_t`), while system
- * headers use `char *` / `int` / `size_t`. Re-emitting those externs conflicts
- * with `#include <stdlib.h>` / unistd / string (g05 historically sed-deleted them).
- * Authority for "skip emit" is this single predicate; seed must stay in sync.
+ * headers use `char *` / `void *` / `int` / `size_t`. Re-emitting those externs
+ * conflicts with `#include <stdlib.h>` / `<string.h>` / unistd (g05 historically
+ * sed-deleted the bad redecls). Authority for "skip emit" is this single
+ * predicate; seed must stay in sync.
  *
- * Covered (historical g05 sed + read/write): libc I/O, alloc, string, env, dir.
- * PLATFORM: SHARED — host libc headers; mac + Ubuntu both include them in C prologue.
+ * Covered (historical g05 sed + read/write): libc I/O, alloc (incl. realloc /
+ * posix_memalign), string, env, dir.
+ * PLATFORM: SHARED — product C prologue MUST include stdlib.h + string.h
+ * (rt_preamble io_net lines). Skipping without those headers → implicit int.
  */
 export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
@@ -10038,6 +10041,14 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   }
   /* calloc 6 */
   if (name_len == 6 && name[0] == 99 && name[1] == 97 && name[2] == 108 && name[3] == 108 && name[4] == 111 && name[5] == 99) {
+    return 1;
+  }
+  /* realloc 7 — void* vs uint8_t* clash with stdlib.h */
+  if (name_len == 7 && name[0] == 114 && name[1] == 101 && name[2] == 97 && name[3] == 108 && name[4] == 108 && name[5] == 111 && name[6] == 99) {
+    return 1;
+  }
+  /* posix_memalign 14 — stdlib/POSIX prototype; skip SHUX redecl */
+  if (name_len == 14 && name[0] == 112 && name[1] == 111 && name[2] == 115 && name[3] == 105 && name[4] == 120 && name[5] == 95 && name[6] == 109 && name[7] == 101 && name[8] == 109 && name[9] == 97 && name[10] == 108 && name[11] == 105 && name[12] == 103 && name[13] == 110) {
     return 1;
   }
   /* memcpy 6 */

@@ -558,17 +558,24 @@ if [ "$idx" -eq 1 ]; then
   mv "$obj_files" "$out_o"
 else
   # 【Why 根源】ld -r 合并多 .o 为一个可重定位 .o。
-  # Linux GNU ld 用 --allow-multiple-definition 兼容 weak 符号重复定义；
-  # macOS Mach-O ld 不支持此选项，用 -r 即可（符号不重复时正常合并）。
+  # Linux GNU ld 用 --allow-multiple-definition 兼容 weak / co-emitted 重复定义；
+  # macOS Mach-O ld 无此选项，且对 KEEP_C 共发射的 import 强符号（如 core_mem_*
+  # 在 heap mod+libc+ops 三 TU）硬失败。PLATFORM: LINUX 走 allow-multiple；
+  # PLATFORM: MACOS 在 ld -r 失败后回退 libtool -static（产出 ar，产品链仍接受）。
   LD_R_FLAGS="-r"
   if ld --help 2>&1 | grep -q 'allow-multiple-definition'; then
     LD_R_FLAGS="-r --allow-multiple-definition"
   fi
-  ld $LD_R_FLAGS -o "$out_o" $obj_files 2>"$tmp_dir/ld.log" || {
-    echo "shux_compile_std_module.sh: ld -r failed" >&2
-    cat "$tmp_dir/ld.log" >&2
-    exit 1
-  }
+  if ! ld $LD_R_FLAGS -o "$out_o" $obj_files 2>"$tmp_dir/ld.log"; then
+    if command -v libtool >/dev/null 2>&1 \
+      && libtool -static -o "$out_o" $obj_files 2>>"$tmp_dir/ld.log"; then
+      :
+    else
+      echo "shux_compile_std_module.sh: ld -r failed" >&2
+      cat "$tmp_dir/ld.log" >&2
+      exit 1
+    fi
+  fi
 fi
 
 # 【Why 根源】-x -E 对 std/*/mod.x 当前常产出裸符号 free/open/close 等，链入用户
