@@ -47,7 +47,7 @@
 // wave64: pure pipeline_parse_into_bytes orch (G.7 pure parser_parse_into_init +
 //   G.7 pure driver_parse_into_buf_rc; non-zero ok → -1; cold twin under FROM_X).
 // wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve +
-//   entry_dir_get (wave68 pure) / Cap residual resolved_path_buf_slot BSS; cold twin under FROM_X).
+//   entry_dir_get (wave68 pure) / resolved_path_buf_slot (wave69 pure BSS); cold twin under FROM_X).
 // wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
 //   (G.7 pure preprocess + Cap residual stage BSS / loaded_import_commit_from_owned;
 //   cold twins under FROM_X).
@@ -57,7 +57,9 @@
 //   cold twins under FROM_X.
 // wave68: pure pipeline_entry_dir_copy / set_dot / get orch (module BSS buf 512 +
 //   "." lit + is_dot flag; G.7 single authority for resolve_path / set_entry_dir;
-//   cold twins under FROM_X). Cap residual still: pipeline_resolved_path_buf_slot.
+//   cold twins under FROM_X).
+// wave69: pure pipeline_resolved_path_buf_slot (module BSS buf 512; G.7 single authority
+//   for pure into_static + read_file_stage_prep path base; cold twin under FROM_X).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -160,9 +162,8 @@ export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8
 
 // wave65: pipeline_resolve_path_into_static is pure export function below (not Cap residual).
 // wave68: pipeline_entry_dir_get / copy / set_dot are pure export functions below (pure BSS).
-// Cap residual always-seed: pipeline_resolved_path_buf_slot (resolved path static buffer 512).
-// PLATFORM: SHARED — pure entry_dir + Cap residual resolved_path for into_static orch.
-export extern "C" function pipeline_resolved_path_buf_slot(): *u8;
+// wave69: pipeline_resolved_path_buf_slot is pure export function below (pure BSS 512).
+// PLATFORM: SHARED — pure entry_dir + pure resolved_path for into_static orch.
 // wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
 // Cap residual always-seed stage BSS + loaded_import commit (malloc ensure/memcpy):
 // PLATFORM: SHARED — pure cannot own seed statics or express memcpy ensure policy alone.
@@ -1733,11 +1734,11 @@ export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_p
  * Uses a single lib root "." and the current pipeline entry_dir (set via pipeline_set_entry_dir).
  * @param path_c *u8 — NUL-terminated import path; null → no-op
  * @return void
- * wave65 pure Cap residual orch:
+ * wave65 pure Cap residual orch (wave69: resolved slot pure):
  *   G.7 pure shux_resolve_import_file_path_multi (file-path / -L / entry_dir fallbacks);
- *   pure pipeline_entry_dir_get (wave68 BSS) + Cap residual pipeline_resolved_path_buf_slot.
+ *   pure pipeline_entry_dir_get (wave68 BSS) + pure pipeline_resolved_path_buf_slot (wave69 BSS).
  * Stack packs one LP64 ptr slot for lib_roots[1] = {"."} (same as historical seed).
- * PLATFORM: SHARED — resolved buffer cap 512 matches seed pipeline_resolved_path_buf.
+ * PLATFORM: SHARED — resolved buffer cap 512 matches historical seed pipeline_resolved_path_buf.
  */
 #[no_mangle]
 export function pipeline_resolve_path_into_static(path_c: *u8): void {
@@ -1754,7 +1755,7 @@ export function pipeline_resolve_path_into_static(path_c: *u8): void {
     shux_ptr_slot_set(&roots[0], 0, &dot[0]);
     let entry: *u8 = pipeline_entry_dir_get();
     let rbuf: *u8 = pipeline_resolved_path_buf_slot();
-    // Cap 512 — seed static char pipeline_resolved_path_buf[512].
+    // Cap 512 — pure g_pipe_resolved_path_buf (wave69; cold seed char[512]).
     shux_resolve_import_file_path_multi(&roots[0], 1, entry, path_c, rbuf, 512 as i64);
   }
 }
@@ -1790,7 +1791,7 @@ export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
       k = k + 1;
     }
     path_c[k] = 0;
-    // G.7 pure into_static (wave65) — Cap residual only BSS accessors inside.
+    // G.7 pure into_static (wave65) — pure entry_dir + pure resolved BSS (wave68/69).
     pipeline_resolve_path_into_static(&path_c[0]);
   }
   return 0;
@@ -1799,9 +1800,9 @@ export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
 /**
  * Read resolved_path BSS file, preprocess into owned prep, store in stage BSS.
  * @return i32 — 0 success; -1 open fail / preprocess fail / null prep
- * wave66 pure Cap residual orch:
+ * wave66 pure Cap residual orch (wave69: resolved slot pure):
  *   Cap residual pipeline_rf_stage_prep_clear / pipeline_rf_stage_prep_set (stage BSS);
- *   Cap residual pipeline_resolved_path_buf_slot (path written by resolve_path_into_static);
+ *   pure pipeline_resolved_path_buf_slot (wave69 BSS; path written by resolve_path_into_static);
  *   runtime_read_file_view into 32B stack ShuxRuntimeFileView (G.7 same as wave55 load_one);
  *   open fail → pure pipeline_diag_import_open_fail_once(null, path);
  *   G.7 pure shux_preprocess_raw_to_malloc (defines null, ndefines 0);
@@ -2787,10 +2788,26 @@ export function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void {
 
 // wave68 pure entry_dir BSS (G.7 single authority for resolve_path / set_entry_dir).
 // PLATFORM: SHARED LP64 — same ABI as seed cold twins; hybrid pure owns these cells.
-// Cap residual still: pipeline_resolved_path_buf_slot (separate static 512 for resolve output).
 let g_pipe_entry_dir_buf: u8[512] = [];
 let g_pipe_entry_dir_dot: u8[2] = [];
 let g_pipe_entry_dir_is_dot: i32 = 1;
+
+// wave69 pure resolved_path BSS (G.7 single authority for into_static + stage_prep path base).
+// PLATFORM: SHARED — same ABI as seed cold static char pipeline_resolved_path_buf[512].
+let g_pipe_resolved_path_buf: u8[512] = [];
+
+/**
+ * Return base of the pipeline resolved-path static buffer (cap 512 incl trailing NUL room).
+ * @return *u8 — always non-null; points at g_pipe_resolved_path_buf[0]
+ * wave69 pure: pure resolve_path_into_static writes here via multi resolve;
+ * pure read_file_stage_prep reads the path for open/preprocess diags.
+ * Cap 512 matches historical seed `static char pipeline_resolved_path_buf[512]`.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; hybrid pure owns this cell only.
+ */
+#[no_mangle]
+export function pipeline_resolved_path_buf_slot(): *u8 {
+  return &g_pipe_resolved_path_buf[0];
+}
 
 /**
  * Copy NUL-terminated path into the pipeline entry_dir BSS buffer and select it.

@@ -58,7 +58,8 @@
  *   pure pipeline_dep_ctx_set_use_asm_backend thin → G.7 driver_pipeline_dep_ctx_set_use_asm;
  *   cold twins under #ifndef FROM_X).
  * wave68: pure pipeline_entry_dir_copy / set_dot / get orch (pure BSS buf 512 + "." lit +
- *   is_dot; cold twins under #ifndef FROM_X). Cap residual still: resolved_path_buf_slot.
+ *   is_dot; cold twins under #ifndef FROM_X).
+ * wave69: pure pipeline_resolved_path_buf_slot (pure BSS buf 512; cold twin under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -2177,11 +2178,12 @@ int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
 
 /** pipeline.x 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
 /* wave68: hybrid pure owns entry_dir BSS; cold-only statics under #ifndef FROM_X. */
+/* wave69: hybrid pure owns resolved_path BSS; cold-only static under #ifndef FROM_X. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 static char pipeline_resolved_path_buf[512];
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 static void *pipeline_dep_arena_slots[32];
 static void *pipeline_dep_module_slots[32];
 static char *pipeline_loaded_import_buf;
@@ -2268,15 +2270,17 @@ const char *pipeline_entry_dir_get(void) {
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* Cap residual always-seed: base of resolved_path BSS (512) for pure into_static +
- * Cap residual read_file_stage_prep (same TU). PLATFORM: SHARED. */
+/* G-02f-237 / wave69：hybrid pure owns resolved_path_buf_slot (pure BSS 512);
+ * cold twin under #ifndef FROM_X. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 char *pipeline_resolved_path_buf_slot(void) {
     return pipeline_resolved_path_buf;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
 /* G-02f-237 / wave65：hybrid pure owns into_static; cold twin under #ifndef FROM_X.
- * Pure orch: G.7 pure multi + Cap residual entry_dir_get / resolved_path_buf_slot.
+ * Pure orch: G.7 pure multi + pure entry_dir_get (wave68) / pure resolved_path_buf_slot (wave69).
  * PLATFORM: SHARED. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_resolve_path_into_static(const char *path_c) {
@@ -2373,7 +2377,7 @@ int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len) {
 }
 
 /* G-02f-238 / wave66：hybrid pure owns stage_prep; cold twin under #ifndef FROM_X.
- * Pure orch: Cap residual clear/set + resolved_path_buf_slot + runtime_read_file_view
+ * Pure orch: Cap residual clear/set + pure resolved_path_buf_slot (wave69) + runtime_read_file_view
  *   + G.7 pure shux_preprocess_raw_to_malloc + pure diags. PLATFORM: SHARED. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_read_file_stage_prep(void) {
