@@ -35,6 +35,8 @@
  *     （data[9MiB]+i32 len 宿主布局 LE；无 memcpy/strlen）；FROM_X 无 pure-dup gas/append；
  *   + wave15 Cap residual pure：rt_entry 缓冲槽 + path_max/entry_dir 在 thin.x
  *     （u8[N] BSS；fmt_argv 仍 seed — .x pointer-array lit 触 XT001）；FROM_X 无 pure-dup entry/path buf slots；
+ *   + wave16 Cap residual pure：driver_x_emit work BSS + get/set/reset/cleanup 在 thin.x
+ *     （p raw u8[208]+shux_ptr_slot_* · i32[17] · usize[5]；free+dep_ctx destroy）；FROM_X 无 pure-dup work；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -2139,7 +2141,9 @@ void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v) {
 }
 
 /*
- * Cap residual：rt_run_x_emit 工作槽。
+ * Cap residual → wave16 pure under PREFER：rt_run_x_emit 工作槽。
+ * hybrid thin owns BSS + get/set/reset/cleanup；cold keeps C static + memset twin；
+ * FROM_X no pure-dup (avoid dual BSS under hybrid).
  * 指针槽 i: 0 path 1 src 2 raw 3 arena 4 module 5 entry_dir 6 dep_sources
  *   7 dep_paths 8 dep_lens 9 dep_arenas 10 dep_modules 11 out_buf 12 pctx
  *   13 one_ctx 14 dep_out 15 dep_src 16 resolved 17 snap 18 dep_diag_file
@@ -2149,6 +2153,7 @@ void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v) {
  *   14 n_closure 15 rc 16 free_src_flag
  * size_t 槽 i: 0 src_len 1 raw_len 2 arena_sz 3 module_sz 4 dep_len
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 #define DRIVER_X_EMIT_WORK_NP 26
 #define DRIVER_X_EMIT_WORK_NI 17
 #define DRIVER_X_EMIT_WORK_NZ 5
@@ -2198,21 +2203,6 @@ void driver_x_emit_work_z_set(int32_t i, size_t v) {
     g_xe_work_z[i] = v;
 }
 
-extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
-
-int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path) {
-    /*
-     * 产品 runtime_driver_no_c 为 SHUX_NO_C_FRONTEND；driver_abi 本层不带该宏编译，
-     * 故固定走 no-C 诊断（与产品 NO_C 语义一致）。
-     * 冷启动全 C 体（seeds/rt_run_x_emit.from_x.c 无 FROM_X）仍可走 cparser 分支。
-     */
-    (void)input_path;
-    diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
-                          "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
-                          NULL);
-    return 1;
-}
-
 void driver_x_emit_work_cleanup(void) {
     int32_t n = g_xe_work_i[2]; /* ndeps */
     int32_t i;
@@ -2255,6 +2245,24 @@ void driver_x_emit_work_cleanup(void) {
     free(g_xe_work_p[20]); /* code */
     free(g_xe_work_p[21]); /* msg */
     driver_x_emit_work_reset();
+}
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
+
+/* Always-seed decl: asm_work / parsed_work / cold x_emit cleanup; thin pure also links this. */
+extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
+
+int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path) {
+    /*
+     * 产品 runtime_driver_no_c 为 SHUX_NO_C_FRONTEND；driver_abi 本层不带该宏编译，
+     * 故固定走 no-C 诊断（与产品 NO_C 语义一致）。
+     * 冷启动全 C 体（seeds/rt_run_x_emit.from_x.c 无 FROM_X）仍可走 cparser 分支。
+     * Always seed (no-C diag surface); not part of work BSS pure package.
+     */
+    (void)input_path;
+    diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                          "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
+                          NULL);
+    return 1;
 }
 
 /**

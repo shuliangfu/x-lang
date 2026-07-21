@@ -43,6 +43,8 @@
 //     (host OutBuf layout: data[9MiB] then i32 len; LE load/store local to this TU).
 //   + wave15 Cap residual pure：rt_entry buffer slots + path_max/entry_dir slots
 //     (BSS u8[N]; fmt_argv *char[2] stays seed — .x **u8 / *u8[2] lit init typeck XT001).
+//   + wave16 Cap residual pure：driver_x_emit work BSS + get/set/reset/cleanup
+//     (p: G.7 shux_ptr_slot_* on LP64 raw u8[208]; i32[17]/usize[5]; free+dep_ctx destroy).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -67,8 +69,12 @@ export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32;
 export extern "C" function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32;
-// Wave4: G.7 reuse pipeline pointer-slot authority for defines[i] = s (arr is **u8 as *u8).
+// Wave4/16: G.7 reuse pipeline pointer-slot authority (defines / work_p raw / void** tables).
 export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
+export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
+/** Destroy heap PipelineDepCtx (ast_pool authority). Used by work cleanup pure.
+ * PLATFORM: SHARED — rest/cold free path; null-safe in C body. */
+export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
 
 // ---- Wave1 Cap residual pure: driver flag-slot BSS (PLATFORM: SHARED) ----
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
@@ -1791,4 +1797,180 @@ export function driver_path_max_slot(): *u8 {
 #[no_mangle]
 export function driver_entry_dir_slot(): *u8 {
   return &g_driver_entry_dir_slot_buf[0];
+}
+
+// ---- Wave16 Cap residual pure: driver_x_emit work BSS + cleanup (PLATFORM: SHARED) ----
+// Slot map (must match seed comment + rt_run_x_emit.x consumers):
+//   p[26]: 0 path 1 src 2 raw 3 arena 4 module 5 entry_dir 6 dep_sources 7 dep_paths
+//          8 dep_lens 9 dep_arenas 10 dep_modules 11 out_buf 12 pctx 13 one_ctx
+//          14 dep_out 15 dep_src 16 resolved 17 snap 18 dep_diag_file 19 kind
+//          20 code 21 msg 22 cpaths 23 out_data 24 lib_roots 25 tmp_p
+//   i[17]: 0 want_extern 1 n_lib 2 n_deps 3 asm_direct 4 n_imports 5 main_idx
+//          6 pr_ok 7 ec 8 ec_dep 9 emit_ret 10 out_len 11 j 12 i 13 fail_tok
+//          14 n_closure 15 rc 16 free_src_flag
+//   z[5]:  0 src_len 1 raw_len 2 arena_sz 3 module_sz 4 dep_len
+// Pointer table: .x has no *u8[N] product array type for BSS (fmt_argv XT001 history);
+//   store 26× LP64 pointer slots in raw u8[208] via G.7 shux_ptr_slot_get/set.
+// Cold seed keeps C static arrays + memset reset; FROM_X drops pure-dup (no dual BSS).
+// G.7: single hybrid authority for driver_x_emit_work_* under PREFER.
+
+let g_xe_work_p_raw: u8[208] = [];
+let g_xe_work_i: i32[17] = [];
+let g_xe_work_z: usize[5] = [];
+
+/** Zero all x_emit work pointer / i32 / size_t slots (same effect as cold memset).
+ * Wave16 pure. PLATFORM: SHARED — hybrid pure authority. */
+#[no_mangle]
+export function driver_x_emit_work_reset(): void {
+  unsafe {
+    let j: i32 = 0;
+    while (j < 26) {
+      shux_ptr_slot_set(&g_xe_work_p_raw[0], j, 0 as *u8);
+      j = j + 1;
+    }
+    j = 0;
+    while (j < 17) {
+      g_xe_work_i[j] = 0;
+      j = j + 1;
+    }
+    j = 0;
+    while (j < 5) {
+      g_xe_work_z[j] = 0 as usize;
+      j = j + 1;
+    }
+  }
+}
+
+/** Load work pointer slot i (0..25); out of range → null.
+ * Wave16 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_x_emit_work_p_get(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 26) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return shux_ptr_slot_get(&g_xe_work_p_raw[0], i);
+  }
+  return 0 as *u8;
+}
+
+/** Store work pointer slot i (0..25); out of range is a no-op.
+ * Wave16 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_x_emit_work_p_set(i: i32, v: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 26) {
+    return;
+  }
+  unsafe {
+    shux_ptr_slot_set(&g_xe_work_p_raw[0], i, v);
+  }
+}
+
+/** Load work i32 slot i (0..16); out of range → 0.
+ * Wave16 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_x_emit_work_i_get(i: i32): i32 {
+  if (i < 0) {
+    return 0;
+  }
+  if (i >= 17) {
+    return 0;
+  }
+  return g_xe_work_i[i];
+}
+
+/** Store work i32 slot i (0..16); out of range is a no-op.
+ * Wave16 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_x_emit_work_i_set(i: i32, v: i32): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 17) {
+    return;
+  }
+  g_xe_work_i[i] = v;
+}
+
+/** Load work size_t slot i (0..4); out of range → 0.
+ * Wave16 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_x_emit_work_z_get(i: i32): usize {
+  if (i < 0) {
+    return 0 as usize;
+  }
+  if (i >= 5) {
+    return 0 as usize;
+  }
+  return g_xe_work_z[i];
+}
+
+/** Store work size_t slot i (0..4); out of range is a no-op.
+ * Wave16 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_x_emit_work_z_set(i: i32, v: usize): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 5) {
+    return;
+  }
+  g_xe_work_z[i] = v;
+}
+
+/** Free x_emit pipeline temporaries held in work slots, then reset all slots.
+ * Frees per-dep arena/module/src/path rows (n_deps = i[2]), the five dep table
+ * bases (p[6..10]), out_buf (p[11]), pctx via pipeline_dep_ctx_heap_destroy (p[12]),
+ * arena/module/src (p[3]/p[4]/p[1]), and kind/code/msg (p[19..21]).
+ * free(null) is safe. Wave16 pure; matches cold seed order.
+ * PLATFORM: SHARED — hybrid pure authority under PREFER. */
+#[no_mangle]
+export function driver_x_emit_work_cleanup(): void {
+  unsafe {
+    let n: i32 = g_xe_work_i[2];
+    let ds: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 6);
+    let dp: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 7);
+    let dl: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 8);
+    let da: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 9);
+    let dm: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 10);
+    let i: i32 = 0;
+    while (i < n) {
+      if (da != 0 as *u8) {
+        free(shux_ptr_slot_get(da, i));
+      }
+      if (dm != 0 as *u8) {
+        free(shux_ptr_slot_get(dm, i));
+      }
+      if (ds != 0 as *u8) {
+        free(shux_ptr_slot_get(ds, i));
+      }
+      if (dp != 0 as *u8) {
+        free(shux_ptr_slot_get(dp, i));
+      }
+      i = i + 1;
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 11));
+    let pctx: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 12);
+    if (pctx != 0 as *u8) {
+      pipeline_dep_ctx_heap_destroy(pctx);
+    }
+    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 3));
+    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 4));
+    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 1));
+    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 19));
+    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 20));
+    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 21));
+  }
+  driver_x_emit_work_reset();
 }
