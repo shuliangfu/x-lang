@@ -759,7 +759,12 @@ src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_livene
 	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
 		_raw=$$(mktemp "$${TMPDIR:-/tmp}/aliv.XXXXXX") && \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/alivp.XXXXXX") && \
-		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_liveness.x > "$$_raw" 2>/dev/null && \
+		_ok=0; for _try in 1 2 3 4 5; do \
+		  ./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_liveness.x > "$$_raw" 2>/dev/null \
+		    && [ -s "$$_raw" ] && _ok=1 && break; \
+		  : > "$$_raw"; \
+		done; \
+		[ "$$_ok" = "1" ] && \
 		{ printf '%s\n' '/* PREFER prologue (match g05_try_x_to_o) */' \
 			'#include <stddef.h>' '#include <stdint.h>' '#include <stdlib.h>' \
 			'#include <string.h>' '#include <stdio.h>'; cat "$$_raw"; } > "$$_tmp" && \
@@ -783,7 +788,12 @@ src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_
 	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
 		_raw=$$(mktemp "$${TMPDIR:-/tmp}/acps.XXXXXX") && \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/acpsp.XXXXXX") && \
-		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_cps_codegen.x > "$$_raw" 2>/dev/null && \
+		_ok=0; for _try in 1 2 3 4 5; do \
+		  ./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_cps_codegen.x > "$$_raw" 2>/dev/null \
+		    && [ -s "$$_raw" ] && _ok=1 && break; \
+		  : > "$$_raw"; \
+		done; \
+		[ "$$_ok" = "1" ] && \
 		{ printf '%s\n' '/* PREFER prologue (match g05_try_x_to_o) */' \
 			'#include <stddef.h>' '#include <stdint.h>' '#include <stdlib.h>' \
 			'#include <string.h>' '#include <stdio.h>'; cat "$$_raw"; } > "$$_tmp" && \

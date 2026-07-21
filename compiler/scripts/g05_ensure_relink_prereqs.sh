@@ -90,14 +90,26 @@ g05_try_x_to_o() {
   mkdir -p "$(dirname "$_xout")"
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/g05_x.XXXXXX") || return 1
-  # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E
+  # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E。
+  # Ubuntu 主机偶发 -E SIGSEGV：最多 5 次重试（对齐 prove harness b12bf000）。
+  # PLATFORM: SHARED harness
   # shellcheck disable=SC2086
-  if ! "$_xshux" -E "$_xsrc" >"$_xtmp" 2>/dev/null || [ ! -s "$_xtmp" ]; then
-    : >"$_xtmp"
-    if ! "$_xshux" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null || [ ! -s "$_xtmp" ]; then
-      rm -f "$_xtmp"
-      return 1
+  _e_ok=0
+  for _e_try in 1 2 3 4 5; do
+    if "$_xshux" -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+      _e_ok=1
+      break
     fi
+    : >"$_xtmp"
+    if "$_xshux" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null && [ -s "$_xtmp" ]; then
+      _e_ok=1
+      break
+    fi
+    : >"$_xtmp"
+  done
+  if [ "$_e_ok" != "1" ]; then
+    rm -f "$_xtmp"
+    return 1
   fi
   if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
