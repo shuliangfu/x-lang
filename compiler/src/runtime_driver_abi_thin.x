@@ -74,6 +74,10 @@
 //     + apply_preamble_skip + maybe_dump_prep
 //     (G.7 shux_ptr_slot_get on dep_paths; strcmp lit; codegen skip mask bits;
 //      dump via shux_write_path_bytes + fixed-arity diag, no va_list reportf).
+//   + wave32 Cap residual pure：driver_parsed field accessors + try_c_after_pp
+//     (LP64 fixed offsetof on DriverCompileParsedAbi + LE i32 / G.7 ptr load;
+//      lib_roots = base+16 embedded array; opt default BSS lit "2";
+//      try_c_after_pp product NO_C stub returns -2).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -3888,5 +3892,235 @@ export function driver_parsed_maybe_dump_prep(input_path: *u8, src: *u8, src_len
       diag_report(input_path, 0, 0, "note", &msg[0], 0 as *u8);
     }
   }
+}
+
+// ---- Wave32 Cap residual pure: parsed ABI field accessors + try_c_after_pp ----
+// Host layout (seeds/runtime_driver_abi.from_x.c DriverCompileParsedAbi, LP64):
+//   input_path *char @0
+//   out_path *char @8
+//   lib_roots_arr[16] *char @16  (embedded; getter returns &arr[0] = p+16)
+//   n_lib_roots i32 @144
+//   want_asm_backend i32 @148
+//   target *char @152
+//   opt_level *char @160
+//   use_lto i32 @168
+//   sizeof = 176
+// Pure path: no C struct in .x; fixed offsetof + LE i32 load + G.7 ptr load at (p+off).
+// opt_level null/missing → BSS lit "2" (same as cold g_driver_parsed_opt_default).
+// try_c_after_pp: product SHUX_NO_C_FRONTEND always continues .x pipeline (return -2).
+// G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
+// PLATFORM: SHARED LP64 (Ubuntu x86_64 + Darwin arm64/x86_64). Not MS64 packing.
+
+/** ASCII "2\0" default opt_level when parsed abi is null or field is null. */
+let g_driver_parsed_opt_default: u8[2] = [50, 0];
+
+/** offsetof(DriverCompileParsedAbi, input_path) on LP64. */
+function driver_abi_parsed_off_input_path(): i32 {
+  return 0;
+}
+
+/** offsetof(DriverCompileParsedAbi, out_path) on LP64. */
+function driver_abi_parsed_off_out_path(): i32 {
+  return 8;
+}
+
+/** offsetof(DriverCompileParsedAbi, lib_roots_arr) on LP64 (embedded array base). */
+function driver_abi_parsed_off_lib_roots(): i32 {
+  return 16;
+}
+
+/** offsetof(DriverCompileParsedAbi, n_lib_roots) on LP64. */
+function driver_abi_parsed_off_n_lib_roots(): i32 {
+  return 144;
+}
+
+/** offsetof(DriverCompileParsedAbi, want_asm_backend) on LP64. */
+function driver_abi_parsed_off_want_asm(): i32 {
+  return 148;
+}
+
+/** offsetof(DriverCompileParsedAbi, target) on LP64. */
+function driver_abi_parsed_off_target(): i32 {
+  return 152;
+}
+
+/** offsetof(DriverCompileParsedAbi, opt_level) on LP64. */
+function driver_abi_parsed_off_opt_level(): i32 {
+  return 160;
+}
+
+/** offsetof(DriverCompileParsedAbi, use_lto) on LP64. */
+function driver_abi_parsed_off_use_lto(): i32 {
+  return 168;
+}
+
+/**
+ * Load an LP64 pointer field at byte offset off from opaque struct base p.
+ * @param p *u8 — struct base; null → null
+ * @param off i32 — byte offset of pointer field; off < 0 → null
+ * @return *u8 — loaded pointer (may be null)
+ * Uses G.7 shux_ptr_slot_get on (p+off) as a 1-slot table (no second load helper).
+ * PLATFORM: SHARED LP64 little-endian pointer cells.
+ */
+function driver_abi_load_ptr_at(p: *u8, off: i32): *u8 {
+  if (p == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (off < 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return shux_ptr_slot_get(p + off, 0);
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Read DriverCompileParsedAbi.input_path from opaque *p.
+ * @param p *u8 — DriverCompileParsedAbi* as opaque; null → null
+ * @return *u8 — input path C string pointer (may be null)
+ * Wave32 pure: LP64 offsetof 0 + G.7 ptr load. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_input_path(p: *u8): *u8 {
+  return driver_abi_load_ptr_at(p, driver_abi_parsed_off_input_path());
+}
+
+/**
+ * Read DriverCompileParsedAbi.out_path from opaque *p.
+ * @param p *u8 — DriverCompileParsedAbi* as opaque; null → null
+ * @return *u8 — output path C string pointer (may be null = stdout path)
+ * Wave32 pure: LP64 offsetof 8 + G.7 ptr load. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_out_path(p: *u8): *u8 {
+  return driver_abi_load_ptr_at(p, driver_abi_parsed_off_out_path());
+}
+
+/**
+ * Return address of embedded lib_roots_arr[16] (ABI as const char** / *u8).
+ * @param p *u8 — DriverCompileParsedAbi* as opaque; null → null
+ * @return *u8 — &p->lib_roots_arr[0] (not a loaded pointer; the array base)
+ * Wave32 pure: p + offsetof(lib_roots_arr)=16. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_lib_roots(p: *u8): *u8 {
+  if (p == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return p + driver_abi_parsed_off_lib_roots();
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Read DriverCompileParsedAbi.n_lib_roots.
+ * @param p *u8 — opaque abi; null → 0
+ * @return i32 — number of lib roots (0..16)
+ * Wave32 pure: LP64 offsetof 144 + LE i32 load. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_n_lib_roots(p: *u8): i32 {
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  return driver_abi_load_i32_le(p, driver_abi_parsed_off_n_lib_roots());
+}
+
+/**
+ * Read DriverCompileParsedAbi.want_asm_backend.
+ * @param p *u8 — opaque abi; null → 0
+ * @return i32 — non-zero when asm backend requested
+ * Wave32 pure: LP64 offsetof 148 + LE i32 load. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_want_asm(p: *u8): i32 {
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  return driver_abi_load_i32_le(p, driver_abi_parsed_off_want_asm());
+}
+
+/**
+ * Read DriverCompileParsedAbi.target triple string pointer.
+ * @param p *u8 — opaque abi; null → null
+ * @return *u8 — target C string (may be null)
+ * Wave32 pure: LP64 offsetof 152 + G.7 ptr load. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_target(p: *u8): *u8 {
+  return driver_abi_load_ptr_at(p, driver_abi_parsed_off_target());
+}
+
+/**
+ * Read DriverCompileParsedAbi.opt_level; default "2" when null field or null p.
+ * @param p *u8 — opaque abi; null → BSS lit "2"
+ * @return *u8 — opt level C string (never null; default g_driver_parsed_opt_default)
+ * Wave32 pure: LP64 offsetof 160 + G.7 ptr load; default matches cold seed.
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_opt_level(p: *u8): *u8 {
+  if (p == 0 as *u8) {
+    return &g_driver_parsed_opt_default[0];
+  }
+  let o: *u8 = driver_abi_load_ptr_at(p, driver_abi_parsed_off_opt_level());
+  if (o == 0 as *u8) {
+    return &g_driver_parsed_opt_default[0];
+  }
+  return o;
+}
+
+/**
+ * Read DriverCompileParsedAbi.use_lto.
+ * @param p *u8 — opaque abi; null → 0
+ * @return i32 — non-zero when LTO requested
+ * Wave32 pure: LP64 offsetof 168 + LE i32 load. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parsed_use_lto(p: *u8): i32 {
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  return driver_abi_load_i32_le(p, driver_abi_parsed_off_use_lto());
+}
+
+/**
+ * Optional C frontend after preprocess (check/smoke/generic C inline).
+ * @param input_path *u8 — entry path (unused on product NO_C path)
+ * @param src *u8 — prep source bytes (unused)
+ * @param src_len usize — prep length (unused)
+ * @param lib_roots *u8 — opaque char** (unused)
+ * @param n_lib i32 — lib root count (unused)
+ * @param out_path *u8 — output path (unused)
+ * @param argc i32 — argv count (unused)
+ * @param argv *u8 — opaque argv (unused)
+ * @param opt_level *u8 — opt string (unused)
+ * @param use_lto i32 — LTO flag (unused)
+ * @param ndefines i32 — define count (unused)
+ * @param defines *u8 — opaque defines table (unused)
+ * @return i32 — -2 continue .x pipeline; >=0 would be terminal rc
+ * Product SHUX_NO_C_FRONTEND always returns -2 (no C frontend body in pure).
+ * Cold full-C seeds may still host a real branch; product hybrid keeps stub.
+ * Wave32 pure. PLATFORM: SHARED — product path; permanent NO_C contract.
+ */
+#[no_mangle]
+export function driver_parsed_try_c_after_pp(
+  input_path: *u8,
+  src: *u8,
+  src_len: usize,
+  lib_roots: *u8,
+  n_lib: i32,
+  out_path: *u8,
+  argc: i32,
+  argv: *u8,
+  opt_level: *u8,
+  use_lto: i32,
+  ndefines: i32,
+  defines: *u8
+): i32 {
+  // Product path: fixed -2 (continue .x). Args retained for ABI parity with cold seed.
+  return -2;
 }
 

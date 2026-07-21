@@ -360,27 +360,34 @@ void driver_asm_work_cleanup(void);
 
 /*
  * Cap residual：rt_run_compiler_parsed（R2 full）
- *   - DriverCompileParsed 字段 get（.x 无布局）
- *   - C 前端块（产品 NO_C 固定 -2 继续）
+ *   - DriverCompileParsed 字段 get（wave32 pure: LP64 offsetof + LE/G.7；cold twin）
+ *   - C 前端块（wave32 pure: 产品 NO_C 固定 -2 继续；cold twin）
  *   - FILE open/write/close + mkstemp .c + invoke_cc 整表（.x 禁 **u8 / 巨型字面量）
  *   - pctx skip_codegen_dep_0
  *   - parsed work 槽（与 asm/x_emit 独立）
  */
+/** wave32 pure: hybrid thin owns; cold twin under #ifndef FROM_X; LP64 @0. */
 uint8_t *driver_parsed_input_path(void *p);
+/** wave32 pure: hybrid thin owns; cold twin; LP64 @8. */
 uint8_t *driver_parsed_out_path(void *p);
-/** *u8 实为 const char**（内嵌 lib_roots_arr 首址）。 */
+/** wave32 pure: returns &lib_roots_arr[0] (embedded); *u8 实为 const char**. LP64 @16. */
 uint8_t *driver_parsed_lib_roots(void *p);
+/** wave32 pure: hybrid thin owns; cold twin; LP64 @144 LE i32. */
 int32_t driver_parsed_n_lib_roots(void *p);
+/** wave32 pure: hybrid thin owns; cold twin; LP64 @148 LE i32. */
 int32_t driver_parsed_want_asm(void *p);
+/** wave32 pure: hybrid thin owns; cold twin; LP64 @152. */
 uint8_t *driver_parsed_target(void *p);
-/** 缺省 "2"。 */
+/** wave32 pure: 缺省 "2"（BSS lit）；cold twin. LP64 @160. */
 uint8_t *driver_parsed_opt_level(void *p);
+/** wave32 pure: hybrid thin owns; cold twin; LP64 @168 LE i32. */
 int32_t driver_parsed_use_lto(void *p);
 
 /**
  * 预处理后 C 前端（check/smoke/generic C 内联）。
  * 返回 -2 继续 .x pipeline；>=0 为应直接返回的 rc。
  * 产品 SHUX_NO_C_FRONTEND 固定 -2。
+ * wave32 pure: hybrid thin owns stub; cold twin under #ifndef FROM_X.
  */
 int32_t driver_parsed_try_c_after_pp(uint8_t *input_path, uint8_t *src, size_t src_len,
                                      uint8_t *lib_roots, int32_t n_lib, uint8_t *out_path,

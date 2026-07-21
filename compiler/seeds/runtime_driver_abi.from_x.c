@@ -72,6 +72,9 @@
  *   + wave31 Cap residual pure：deps_has_std_io_{core,driver} + apply_preamble_skip
  *     + maybe_dump_prep 在 thin.x（G.7 ptr_slot + strcmp；mask bits=codegen.h；
  *       dump 无 va_list）；FROM_X 无 pure-dup；
+ *   + wave32 Cap residual pure：driver_parsed field accessors + try_c_after_pp 在 thin.x
+ *     （LP64 offsetof DriverCompileParsedAbi + LE i32 / G.7 ptr；lib_roots=p+16；
+ *       opt default BSS "2"；try_c_after_pp 产品 NO_C 固定 -2）；FROM_X 无 pure-dup；
  *     （std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup；
  *      c_paths[1] via G.7 shux_ptr_slot_set；无 va_list reportf）；
  *     FROM_X 无 pure-dup invoke_cc；
@@ -2963,6 +2966,10 @@ extern void codegen_or_preamble_skip_mask(unsigned mask);
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE 4u
 #endif
 
+/* wave32 pure: hybrid thin owns parsed field accessors + try_c_after_pp;
+ * cold twins below; FROM_X no pure-dup.
+ * PLATFORM: SHARED LP64 — offsetof layout must match thin.x constants. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_parsed_input_path(void *p) {
     if (!p) return NULL;
     return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->input_path;
@@ -3022,6 +3029,7 @@ int32_t driver_parsed_try_c_after_pp(uint8_t *input_path, uint8_t *src, size_t s
     (void)defines;
     return -2;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* wave19 pure under PREFER：skip_codegen_dep_0; cold C twin; FROM_X no pure-dup. */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
