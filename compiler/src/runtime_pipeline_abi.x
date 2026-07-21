@@ -73,12 +73,17 @@
 //   pure reset/note/get; cold twin under FROM_X).
 // wave74: pure driver_dep_* table BSS orch (arena/module/path_registry/seeded 32 slots;
 //   G.7 shux_ptr_slot_* + pure seeded_slot; no cross-TU naked global — only accessors;
+//   cold twins under FROM_X).
+// wave75: pure entry_lib authority (shux_cstr_typeck_lit / shux_entry_lib_keyword_lit /
+//   shux_entry_lib_name_from_path_impl + thin gate); module BSS stem_buf[128] + keyword lits;
+//   G.7 single path matches C seed order (keywords before std/stem — closes pure std/-first drift);
 //   cold twins under FROM_X). Cap residual still: fn-ptr / product_emit /
 //   typeck_module C frontend (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
 // wave74: driver_dep_seeded_slot / *_ptr_set_impl / path_registry_* / *_buf are pure below.
+// wave75: shux_cstr_typeck_lit / shux_entry_lib_keyword_lit / name_from_path_impl pure below.
 export extern "C" function typeck_ndep_slot(): *i32;
 export extern "C" function typeck_ndep_store_impl(n: i32): void;
 export extern "C" function typeck_dep_module_get(i: i32): *u8;
@@ -131,7 +136,7 @@ export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): 
 
 /* See implementation. */
 export extern "C" function shux_fputs_stdout(s: *u8): void;
-export extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
+// wave75: shux_import_dep_dir_from_path_impl removed — pure import_dep_dir is full body.
 /* wave45: do not export-extern pipeline_debug_trace_named_func_bodies here —
  * pure export function below is the single authority (#[no_mangle]).
  * A prior export extern + export function dual caused call sites to emit the
@@ -156,13 +161,12 @@ export extern "C" function preprocess_x_buf(src: *u8, src_len: i64, out_buf: *u8
 export extern "C" function preprocess_if_stack_len(): i32;
 // PLATFORM: SHARED — same C ABI as seed cold twin; pure orch owns malloc/copy/diag gates.
 // wave74: driver_dep_seed_slots pure orch owns tables (no seed_slots_impl body required under hybrid).
-export extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
-export extern "C" function shux_cstr_typeck_lit(): *u8;
-export extern "C" function shux_entry_lib_keyword_lit(k: i32): *u8;
+// wave75: shux_entry_lib_name_from_path_impl / shux_cstr_typeck_lit /
+//   shux_entry_lib_keyword_lit are pure export functions below (not Cap residual).
 // wave70: pipeline_dep_arena/module_slot_set/at are pure export functions below (pure BSS 32×LP64).
 // PLATFORM: SHARED — G.7 single authority for pure set_dep_slots / get_dep_*; seed cold twins only.
 /* See implementation. */
-export extern "C" function pipeline_asm_debug_enabled_impl(): i32;
+// wave75: pipeline_asm_debug_enabled_impl removed — pure pipeline_asm_debug_enabled uses getenv.
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 /* See implementation. */
@@ -201,7 +205,7 @@ export extern "C" function access(path: *u8, mode: i32): i32;
 export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
 /* See implementation. */
 // wave68: pipeline_entry_dir_copy / set_dot are pure export functions below (not Cap residual).
-export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
+// wave75: pipeline_set_dep_slots_impl removed — pure pipeline_set_dep_slots uses wave70 slots.
 /* See implementation. */
 /* See implementation. */
 /* See implementation. */
@@ -1570,60 +1574,20 @@ export function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
   return 0;
 }
 
-// shux_entry_lib_name_from_path: see function docblock below.
-/** Exported function `shux_entry_lib_name_from_path`.
- * Implements `shux_entry_lib_name_from_path`.
- * @param input_path *u8
- * @return *u8
+/**
+ * Thin gate: -E lib_prefix from entry path (null → "typeck"; else pure impl).
+ * @param input_path *u8 — entry .x path; null → static "typeck"
+ * @return *u8 — never null; keyword lit or stem BSS or "typeck"
+ * wave75: G.7 pure shux_entry_lib_name_from_path_impl owns full keyword/std/core/basename
+ * order (matches seed cold twin; no pure std/-first dual path).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
   if (input_path == 0 as *u8) {
-    unsafe {
-      return shux_cstr_typeck_lit();
-    }
-    return 0 as *u8;
+    return shux_cstr_typeck_lit();
   }
-  unsafe {
-    // See implementation.
-    let stdn: u8[8] = [];
-    stdn[0]=115;stdn[1]=116;stdn[2]=100;stdn[3]=47;stdn[4]=0; // "std/"
-    if (pipe_cstr_contains(input_path, &stdn[0]) != 0) {
-      return shux_entry_lib_name_from_path_impl(input_path);
-    }
-    let k0: u8[8] = []; // main
-    k0[0]=109;k0[1]=97;k0[2]=105;k0[3]=110;k0[4]=0;
-    if (pipe_cstr_contains(input_path, &k0[0]) != 0) { return shux_entry_lib_keyword_lit(0); }
-    let k1: u8[8] = []; // build
-    k1[0]=98;k1[1]=117;k1[2]=105;k1[3]=108;k1[4]=100;k1[5]=0;
-    if (pipe_cstr_contains(input_path, &k1[0]) != 0) { return shux_entry_lib_keyword_lit(1); }
-    let k2: u8[16] = []; // pipeline
-    k2[0]=112;k2[1]=105;k2[2]=112;k2[3]=101;k2[4]=108;k2[5]=105;k2[6]=110;k2[7]=101;k2[8]=0;
-    if (pipe_cstr_contains(input_path, &k2[0]) != 0) { return shux_entry_lib_keyword_lit(2); }
-    let k3: u8[8] = []; // driver
-    k3[0]=100;k3[1]=114;k3[2]=105;k3[3]=118;k3[4]=101;k3[5]=114;k3[6]=0;
-    if (pipe_cstr_contains(input_path, &k3[0]) != 0) { return shux_entry_lib_keyword_lit(3); }
-    let k4: u8[16] = []; // codegen
-    k4[0]=99;k4[1]=111;k4[2]=100;k4[3]=101;k4[4]=103;k4[5]=101;k4[6]=110;k4[7]=0;
-    if (pipe_cstr_contains(input_path, &k4[0]) != 0) { return shux_entry_lib_keyword_lit(4); }
-    let k5: u8[8] = []; // typeck
-    k5[0]=116;k5[1]=121;k5[2]=112;k5[3]=101;k5[4]=99;k5[5]=107;k5[6]=0;
-    if (pipe_cstr_contains(input_path, &k5[0]) != 0) { return shux_entry_lib_keyword_lit(5); }
-    let k6: u8[8] = []; // parser
-    k6[0]=112;k6[1]=97;k6[2]=114;k6[3]=115;k6[4]=101;k6[5]=114;k6[6]=0;
-    if (pipe_cstr_contains(input_path, &k6[0]) != 0) { return shux_entry_lib_keyword_lit(6); }
-    let k7: u8[8] = []; // token
-    k7[0]=116;k7[1]=111;k7[2]=107;k7[3]=101;k7[4]=110;k7[5]=0;
-    if (pipe_cstr_contains(input_path, &k7[0]) != 0) { return shux_entry_lib_keyword_lit(7); }
-    let k8: u8[8] = []; // lexer
-    k8[0]=108;k8[1]=101;k8[2]=120;k8[3]=101;k8[4]=114;k8[5]=0;
-    if (pipe_cstr_contains(input_path, &k8[0]) != 0) { return shux_entry_lib_keyword_lit(8); }
-    let k9: u8[8] = []; // ast
-    k9[0]=97;k9[1]=115;k9[2]=116;k9[3]=0;
-    if (pipe_cstr_contains(input_path, &k9[0]) != 0) { return shux_entry_lib_keyword_lit(9); }
-    return shux_entry_lib_name_from_path_impl(input_path);
-  }
-  return 0 as *u8;
+  return shux_entry_lib_name_from_path_impl(input_path);
 }
 
 /* See implementation. */
@@ -2840,6 +2804,357 @@ let g_pipe_driver_dep_arena: u8[256] = [];
 let g_pipe_driver_dep_module: u8[256] = [];
 let g_pipe_driver_dep_path_registry: u8[256] = [];
 let g_pipe_driver_dep_seeded: i32[32] = [];
+
+// wave75 pure entry_lib lit + stem BSS (G.7 single authority for -E lib_prefix).
+// PLATFORM: SHARED — same string values as seed static lits / stem_buf[128].
+// Keyword order matches seed shux_entry_lib_keyword_lit / strstr checks in name_from_path_impl.
+let g_pipe_cstr_typeck_lit: u8[7] = [116, 121, 112, 101, 99, 107, 0];
+let g_pipe_entry_lib_kw0: u8[5] = [109, 97, 105, 110, 0];
+let g_pipe_entry_lib_kw1: u8[6] = [98, 117, 105, 108, 100, 0];
+let g_pipe_entry_lib_kw2: u8[9] = [112, 105, 112, 101, 108, 105, 110, 101, 0];
+let g_pipe_entry_lib_kw3: u8[7] = [100, 114, 105, 118, 101, 114, 0];
+let g_pipe_entry_lib_kw4: u8[8] = [99, 111, 100, 101, 103, 101, 110, 0];
+let g_pipe_entry_lib_kw5: u8[7] = [116, 121, 112, 101, 99, 107, 0];
+let g_pipe_entry_lib_kw6: u8[7] = [112, 97, 114, 115, 101, 114, 0];
+let g_pipe_entry_lib_kw7: u8[6] = [116, 111, 107, 101, 110, 0];
+let g_pipe_entry_lib_kw8: u8[6] = [108, 101, 120, 101, 114, 0];
+let g_pipe_entry_lib_kw9: u8[4] = [97, 115, 116, 0];
+let g_pipe_entry_lib_stem_buf: u8[128] = [];
+
+/**
+ * Return static "typeck" C string (default -E lib prefix).
+ * @return *u8 — always non-null; points at g_pipe_cstr_typeck_lit
+ * wave75 pure: module BSS lit; matches seed shux_cstr_typeck_lit return "typeck".
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function shux_cstr_typeck_lit(): *u8 {
+  return &g_pipe_cstr_typeck_lit[0];
+}
+
+/**
+ * Return static keyword C string for entry_lib keyword index.
+ * @param k i32 — 0=main .. 9=ast; other → "typeck"
+ * @return *u8 — always non-null; pointer into module BSS keyword lits
+ * wave75 pure: G.7 single authority for keyword lits used by pure name_from_path_impl.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function shux_entry_lib_keyword_lit(k: i32): *u8 {
+  if (k == 0) {
+    return &g_pipe_entry_lib_kw0[0];
+  }
+  if (k == 1) {
+    return &g_pipe_entry_lib_kw1[0];
+  }
+  if (k == 2) {
+    return &g_pipe_entry_lib_kw2[0];
+  }
+  if (k == 3) {
+    return &g_pipe_entry_lib_kw3[0];
+  }
+  if (k == 4) {
+    return &g_pipe_entry_lib_kw4[0];
+  }
+  if (k == 5) {
+    return &g_pipe_entry_lib_kw5[0];
+  }
+  if (k == 6) {
+    return &g_pipe_entry_lib_kw6[0];
+  }
+  if (k == 7) {
+    return &g_pipe_entry_lib_kw7[0];
+  }
+  if (k == 8) {
+    return &g_pipe_entry_lib_kw8[0];
+  }
+  if (k == 9) {
+    return &g_pipe_entry_lib_kw9[0];
+  }
+  return &g_pipe_cstr_typeck_lit[0];
+}
+
+/**
+ * Derive -E C lib_prefix from entry .x path (keywords / std_ / core_ / basename stem).
+ * @param input_path *u8 — entry path; null → "typeck" (caller may short-circuit)
+ * @return *u8 — static keyword lit or g_pipe_entry_lib_stem_buf; never null
+ * wave75 pure Cap residual orch (full body):
+ *   1) strstr-style keywords (main..ast) via pipe_cstr_contains + pure keyword_lit;
+ *   2) path-boundary "std/" → "std_" + segments (skip trailing mod; strip .x/.su);
+ *   3) path-boundary "core/" → "core_" + same segment rules;
+ *   4) basename stem without .x/.su;
+ *   5) default "typeck".
+ * G.7 single authority — matches seed order (keywords BEFORE std/ stem). Historical pure
+ * gate checked std/ first and could return std_* for paths that also contain "main".
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; stem reuses one 128B BSS cell.
+ */
+#[no_mangle]
+export function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8 {
+  if (input_path == 0 as *u8) {
+    return shux_cstr_typeck_lit();
+  }
+  // Keyword substring checks — same order as seed strstr chain.
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw0[0]) != 0) {
+    return shux_entry_lib_keyword_lit(0);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw1[0]) != 0) {
+    return shux_entry_lib_keyword_lit(1);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw2[0]) != 0) {
+    return shux_entry_lib_keyword_lit(2);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw3[0]) != 0) {
+    return shux_entry_lib_keyword_lit(3);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw4[0]) != 0) {
+    return shux_entry_lib_keyword_lit(4);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw5[0]) != 0) {
+    return shux_entry_lib_keyword_lit(5);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw6[0]) != 0) {
+    return shux_entry_lib_keyword_lit(6);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw7[0]) != 0) {
+    return shux_entry_lib_keyword_lit(7);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw8[0]) != 0) {
+    return shux_entry_lib_keyword_lit(8);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw9[0]) != 0) {
+    return shux_entry_lib_keyword_lit(9);
+  }
+
+  // std/ at path boundary → std_ + segments (skip mod; strip .x/.su).
+  let std_after: i32 = 0 - 1;
+  let si: i32 = 0;
+  unsafe {
+    while (si < 4096) {
+      if (input_path[si] == 0) {
+        break;
+      }
+      let at_bound: i32 = 0;
+      if (si == 0) {
+        at_bound = 1;
+      } else {
+        if (input_path[si - 1] == 47) {
+          at_bound = 1;
+        }
+        if (input_path[si - 1] == 92) {
+          at_bound = 1;
+        }
+      }
+      if (at_bound != 0) {
+        // "std/"
+        if (input_path[si] == 115 && input_path[si + 1] == 116 && input_path[si + 2] == 100 && input_path[si + 3] == 47) {
+          std_after = si + 4;
+          break;
+        }
+      }
+      si = si + 1;
+    }
+  }
+  if (std_after >= 0) {
+    // "std_" prefix into stem_buf
+    g_pipe_entry_lib_stem_buf[0] = 115;
+    g_pipe_entry_lib_stem_buf[1] = 116;
+    g_pipe_entry_lib_stem_buf[2] = 100;
+    g_pipe_entry_lib_stem_buf[3] = 95;
+    let off: i32 = 4;
+    let p: i32 = std_after;
+    unsafe {
+      while (input_path[p] != 0 && off + 2 < 128) {
+        let seg_start: i32 = p;
+        while (input_path[p] != 0 && input_path[p] != 47 && input_path[p] != 92) {
+          p = p + 1;
+        }
+        let seg_len: i32 = p - seg_start;
+        // strip .su / .x
+        if (seg_len >= 3) {
+          if (input_path[seg_start + seg_len - 3] == 46 && input_path[seg_start + seg_len - 2] == 115 && input_path[seg_start + seg_len - 1] == 117) {
+            seg_len = seg_len - 3;
+          }
+        }
+        if (seg_len >= 2) {
+          if (input_path[seg_start + seg_len - 2] == 46 && input_path[seg_start + seg_len - 1] == 120) {
+            seg_len = seg_len - 2;
+          }
+        }
+        // skip "mod"
+        let is_mod: i32 = 0;
+        if (seg_len == 3) {
+          if (input_path[seg_start] == 109 && input_path[seg_start + 1] == 111 && input_path[seg_start + 2] == 100) {
+            is_mod = 1;
+          }
+        }
+        if (is_mod == 0 && seg_len > 0) {
+          if (off > 4 && off + seg_len + 1 < 128) {
+            g_pipe_entry_lib_stem_buf[off] = 95;
+            off = off + 1;
+          }
+          if (off + seg_len < 128) {
+            let k: i32 = 0;
+            while (k < seg_len) {
+              g_pipe_entry_lib_stem_buf[off + k] = input_path[seg_start + k];
+              k = k + 1;
+            }
+            off = off + seg_len;
+          }
+        }
+        if (input_path[p] != 0) {
+          p = p + 1;
+        }
+      }
+    }
+    if (off > 4) {
+      g_pipe_entry_lib_stem_buf[off] = 0;
+      return &g_pipe_entry_lib_stem_buf[0];
+    }
+  }
+
+  // core/ at path boundary → core_ + segments.
+  let core_after: i32 = 0 - 1;
+  let ci: i32 = 0;
+  unsafe {
+    while (ci < 4096) {
+      if (input_path[ci] == 0) {
+        break;
+      }
+      let at_bound2: i32 = 0;
+      if (ci == 0) {
+        at_bound2 = 1;
+      } else {
+        if (input_path[ci - 1] == 47) {
+          at_bound2 = 1;
+        }
+        if (input_path[ci - 1] == 92) {
+          at_bound2 = 1;
+        }
+      }
+      if (at_bound2 != 0) {
+        // "core/"
+        if (input_path[ci] == 99 && input_path[ci + 1] == 111 && input_path[ci + 2] == 114 && input_path[ci + 3] == 101 && input_path[ci + 4] == 47) {
+          core_after = ci + 5;
+          break;
+        }
+      }
+      ci = ci + 1;
+    }
+  }
+  if (core_after >= 0) {
+    g_pipe_entry_lib_stem_buf[0] = 99;
+    g_pipe_entry_lib_stem_buf[1] = 111;
+    g_pipe_entry_lib_stem_buf[2] = 114;
+    g_pipe_entry_lib_stem_buf[3] = 101;
+    g_pipe_entry_lib_stem_buf[4] = 95;
+    let off2: i32 = 5;
+    let p2: i32 = core_after;
+    unsafe {
+      while (input_path[p2] != 0 && off2 + 2 < 128) {
+        let seg_start2: i32 = p2;
+        while (input_path[p2] != 0 && input_path[p2] != 47 && input_path[p2] != 92) {
+          p2 = p2 + 1;
+        }
+        let seg_len2: i32 = p2 - seg_start2;
+        if (seg_len2 >= 3) {
+          if (input_path[seg_start2 + seg_len2 - 3] == 46 && input_path[seg_start2 + seg_len2 - 2] == 115 && input_path[seg_start2 + seg_len2 - 1] == 117) {
+            seg_len2 = seg_len2 - 3;
+          }
+        }
+        if (seg_len2 >= 2) {
+          if (input_path[seg_start2 + seg_len2 - 2] == 46 && input_path[seg_start2 + seg_len2 - 1] == 120) {
+            seg_len2 = seg_len2 - 2;
+          }
+        }
+        let is_mod2: i32 = 0;
+        if (seg_len2 == 3) {
+          if (input_path[seg_start2] == 109 && input_path[seg_start2 + 1] == 111 && input_path[seg_start2 + 2] == 100) {
+            is_mod2 = 1;
+          }
+        }
+        if (is_mod2 == 0 && seg_len2 > 0) {
+          if (off2 > 5 && off2 + seg_len2 + 1 < 128) {
+            g_pipe_entry_lib_stem_buf[off2] = 95;
+            off2 = off2 + 1;
+          }
+          if (off2 + seg_len2 < 128) {
+            let k2: i32 = 0;
+            while (k2 < seg_len2) {
+              g_pipe_entry_lib_stem_buf[off2 + k2] = input_path[seg_start2 + k2];
+              k2 = k2 + 1;
+            }
+            off2 = off2 + seg_len2;
+          }
+        }
+        if (input_path[p2] != 0) {
+          p2 = p2 + 1;
+        }
+      }
+    }
+    if (off2 > 5) {
+      g_pipe_entry_lib_stem_buf[off2] = 0;
+      return &g_pipe_entry_lib_stem_buf[0];
+    }
+  }
+
+  // basename stem without .x/.su
+  let last_slash: i32 = 0 - 1;
+  let bi: i32 = 0;
+  unsafe {
+    while (bi < 4096) {
+      if (input_path[bi] == 0) {
+        break;
+      }
+      if (input_path[bi] == 47 || input_path[bi] == 92) {
+        last_slash = bi;
+      }
+      bi = bi + 1;
+    }
+  }
+  let base: i32 = 0;
+  if (last_slash >= 0) {
+    base = last_slash + 1;
+  }
+  let last_dot: i32 = 0 - 1;
+  let di: i32 = base;
+  unsafe {
+    while (di < 4096) {
+      if (input_path[di] == 0) {
+        break;
+      }
+      if (input_path[di] == 46) {
+        last_dot = di;
+      }
+      di = di + 1;
+    }
+  }
+  if (last_dot > base) {
+    let is_x: i32 = 0;
+    unsafe {
+      if (input_path[last_dot] == 46 && input_path[last_dot + 1] == 120 && input_path[last_dot + 2] == 0) {
+        is_x = 1;
+      }
+      if (input_path[last_dot] == 46 && input_path[last_dot + 1] == 115 && input_path[last_dot + 2] == 117 && input_path[last_dot + 3] == 0) {
+        is_x = 1;
+      }
+    }
+    if (is_x != 0) {
+      let stem_len: i32 = last_dot - base;
+      if (stem_len > 0 && stem_len < 128) {
+        let k3: i32 = 0;
+        unsafe {
+          while (k3 < stem_len) {
+            g_pipe_entry_lib_stem_buf[k3] = input_path[base + k3];
+            k3 = k3 + 1;
+          }
+        }
+        g_pipe_entry_lib_stem_buf[stem_len] = 0;
+        return &g_pipe_entry_lib_stem_buf[0];
+      }
+    }
+  }
+  return shux_cstr_typeck_lit();
+}
 
 /**
  * Return address of the pipeline diag-emitted sticky flag (i32 cell).

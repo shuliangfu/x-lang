@@ -70,8 +70,11 @@
  *   #ifndef FROM_X).
  * wave74: pure driver_dep_* table BSS orch (arena/module/path_registry/seeded 32 slots;
  *   G.7 ptr slots + seeded_slot; cold twins + seed static tables under #ifndef FROM_X).
+ * wave75: pure entry_lib authority (typeck_lit / keyword_lit / name_from_path_impl + thin gate;
+ *   pure BSS stem_buf + keyword lits; G.7 single path matches C keyword-before-std order;
+ *   cold twins under #ifndef FROM_X).
  * Cap residual still: fn-ptr / product_emit / typeck_module C frontend
- *   (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
+ *   (+ typeck_dep_* / typeck_ndep cross-TU global BSS; cstr_offset pointer arith residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -1606,10 +1609,11 @@ const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **l
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
- * 从入口文件路径推导 -E 时库模块的 C 前缀。
- * 参数：input_path 入口 .x 路径。
- * 返回值：静态字符串字面量前缀名。
+ * From entry .x path derive -E C lib_prefix (keywords / std_ / core_ / basename).
+ * wave75: hybrid pure owns full body + typeck_lit + keyword_lit; cold twins under #ifndef.
+ * PLATFORM: SHARED — same order as pure (keywords before std/stem).
  */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
     static char stem_buf[128];
     const char *base;
@@ -1638,14 +1642,10 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
         return "lexer";
     if (strstr(input_path, "ast") != NULL)
         return "ast";
-    /* std/xxx/mod.x → lib_prefix std_xxx；std/xxx/yyy.x → std_xxx_yyy。
-     * 【Why 根源】codegen 用 import path 生成符号前缀：import("std.heap.libc") →
-     * std_heap_libc_（codegen_import_path_to_c_prefix_into）。-E-extern 编译 libc.x 时
-     * lib_prefix 须与之一致，否则 mod.x 引用 std_heap_libc_heap_alloc_c 而 libc.o 提供
-     * std_heap_heap_alloc_c，符号不匹配。规则：提取 std/ 后所有路径段用 _ 连接，跳过末尾
-     * mod（mod.x 的 import path 不含 mod）。此修复使 .o 直接提供正确符号，C 桩可删，F 闭合。
-     * 【Invariant】仅影响路径含 "std/" 段的输入；compiler/ 等其他路径不受影响。
-     * 【Asm/Perf】编译期决议，无运行期开销。 */
+    /* std/xxx/mod.x → lib_prefix std_xxx；std/xxx/yyy.x → std_xxx_yyy.
+     * Why: codegen mangles import("std.heap.libc") → std_heap_libc_; -E lib_prefix
+     * must match. Segments after std/ joined by _; skip trailing mod; strip .x/.su.
+     * PLATFORM: SHARED — compile-time path only. */
     {
         const char *std_seg = NULL;
         for (const char *s = input_path; *s; s++) {
@@ -1656,22 +1656,19 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
             }
         }
         if (std_seg) {
-            /* 收集所有路径段，用 _ 连接，跳过末尾 mod（去 .x/.su 后缀） */
-            size_t off = 4;  /* "std_" 前缀 */
+            size_t off = 4;  /* "std_" prefix */
             memcpy(stem_buf, "std_", 4);
             const char *p = std_seg;
             while (*p && off + 2 < sizeof(stem_buf)) {
                 const char *seg_start = p;
                 while (*p && *p != '/' && *p != '\\') p++;
                 size_t seg_len = (size_t)(p - seg_start);
-                /* 去 .x/.su 后缀 */
                 if (seg_len >= 3 && memcmp(seg_start + seg_len - 3, ".su", 3) == 0)
                     seg_len -= 3;
                 else if (seg_len >= 2 && memcmp(seg_start + seg_len - 2, ".x", 2) == 0)
                     seg_len -= 2;
-                /* 跳过 "mod" 段（mod.x 的 import path 不含 mod） */
                 if (seg_len == 3 && memcmp(seg_start, "mod", 3) == 0) {
-                    /* mod 段跳过；但需记录以处理后续段 */
+                    /* skip mod segment */
                 } else if (seg_len > 0) {
                     if (off > 4 && off + seg_len + 1 < sizeof(stem_buf)) {
                         stem_buf[off++] = '_';
@@ -1681,7 +1678,7 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
                         off += seg_len;
                     }
                 }
-                if (*p) p++;  /* 跳过 / */
+                if (*p) p++;
             }
             if (off > 4) {
                 stem_buf[off] = '\0';
@@ -1689,15 +1686,7 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
             }
         }
     }
-    /* core/xxx/mod.x → lib_prefix core_xxx；core/xxx/yyy.x → core_xxx_yyy。
-     * 【Why 根源】与 std/ 对称：codegen 用 import path 生成符号前缀
-     * （import("core.mem") → core_mem_）。-E-extern 编译 core/mem/mod.x 时
-     * lib_prefix 须为 core_mem，否则函数被 emit 为裸符号（placeholder），
-     * 而调用端期望 core_mem_placeholder，链接报 undefined reference。
-     * 此修复使 core/*.o 提供正确前缀符号，on-demand linking
-     * （link_abi_user_o_needs_core_mem）才能匹配。
-     * 【Invariant】仅影响路径含 "core/" 段的输入；其他路径不受影响。
-     * 【Asm/Perf】编译期决议，无运行期开销。 */
+    /* core/xxx — symmetric with std/ for core_* prefix mangle. PLATFORM: SHARED. */
     {
         const char *core_seg = NULL;
         for (const char *s = input_path; *s; s++) {
@@ -1708,7 +1697,7 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
             }
         }
         if (core_seg) {
-            size_t off = 5;  /* "core_" 前缀 */
+            size_t off = 5;  /* "core_" prefix */
             memcpy(stem_buf, "core_", 5);
             const char *p = core_seg;
             while (*p && off + 2 < sizeof(stem_buf)) {
@@ -1720,7 +1709,7 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
                 else if (seg_len >= 2 && memcmp(seg_start + seg_len - 2, ".x", 2) == 0)
                     seg_len -= 2;
                 if (seg_len == 3 && memcmp(seg_start, "mod", 3) == 0) {
-                    /* mod 段跳过 */
+                    /* skip mod */
                 } else if (seg_len > 0) {
                     if (off > 5 && off + seg_len + 1 < sizeof(stem_buf)) {
                         stem_buf[off++] = '_';
@@ -1738,7 +1727,7 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
             }
         }
     }
-    /* std/json/json.x 等：basename 去 .x/.su 作为库前缀（json_ → json_*_c 符号）。 */
+    /* basename without .x/.su as lib prefix. */
     base = strrchr(input_path, '/');
     if (!base)
         base = strrchr(input_path, '\\');
@@ -1759,7 +1748,7 @@ const char *shux_cstr_typeck_lit(void) {
     return "typeck";
 }
 
-/* G-02f-226：entry_lib 关键字字面量（0=main..9=ast；其它 typeck） */
+/* G-02f-226 / wave75 cold twin: entry_lib keyword lits (0=main..9=ast; else typeck). */
 const char *shux_entry_lib_keyword_lit(int32_t k) {
     if (k == 0) return "main";
     if (k == 1) return "build";
@@ -1774,8 +1763,7 @@ const char *shux_entry_lib_keyword_lit(int32_t k) {
     return "typeck";
 }
 
-/* G-02f-226：逻辑源 .x（真迁关键词路径；std/ 仍走 impl） */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+/* G-02f-226 / wave75 cold twin: thin gate → pure-matched impl. */
 const char *shux_entry_lib_name_from_path(const char *input_path) {
   if (input_path == NULL) {
     return shux_cstr_typeck_lit();
