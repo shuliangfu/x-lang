@@ -3277,16 +3277,20 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
     /* discard binding `let _`: lexer emits TOKEN_UNDERSCORE (ident_len=0) as name "_".
-     * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static. */
+     * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static.
+     * `let self`: TOKEN_SELF (keyword, ident_len=0) is a valid binding name "self" (phase 7.2
+     * receiver spelling re-used as ordinary local); same silent-drop class as param list. */
     if (r.tok.kind == token.TokenKind.TOKEN_UNDERSCORE) {
       is_discard_name = 1;
-    } else if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
+    } else if (r.tok.kind != token.TokenKind.TOKEN_IDENT && r.tok.kind != token.TokenKind.TOKEN_SELF) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     /* Assign after name token: hoist must not use LET/CONST token's ident_len/start. */
     name_len = r.tok.ident_len;
     if (is_discard_name != 0) {
       name_len = 1;
+    } else if (r.tok.kind == token.TokenKind.TOKEN_SELF) {
+      name_len = 4;
     }
     if (name_len <= 0 || name_len > 63) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
@@ -4813,16 +4817,24 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
     lex_from_next_into(&lex, r);
   } else {
-    /* Param list: IDENT check → copy name → append (order must survive Cap let-hoist). */
+    /* Param list: IDENT or TOKEN_SELF (method/receiver keyword used as binding name).
+     * Root fix: lexer keywords `self` as TOKEN_SELF (ident_len=0); requiring IDENT only
+     * silently set_onefunc_fail → whole function dropped from AST (wave43).
+     * PLATFORM: SHARED — bind name "self" via token_start copy (len 4). */
     while (1 == 1) {
-      if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
+      if (r.tok.kind != token.TokenKind.TOKEN_IDENT && r.tok.kind != token.TokenKind.TOKEN_SELF) {
         set_onefunc_fail(out_ref, lex); return;
       }
-      plen_param = r.tok.ident_len;
+      // TOKEN_SELF has ident_len=0 in lexer; spelling is always 4 bytes "self".
+      if (r.tok.kind == token.TokenKind.TOKEN_SELF) {
+        plen_param = 4;
+      } else {
+        plen_param = r.tok.ident_len;
+      }
       if (plen_param <= 0 || plen_param > 31) {
         set_onefunc_fail(out_ref, lex); return;
       }
-      /* Clear row then copy IDENT bytes from token_start before append into sidecar pool. */
+      /* Clear row then copy binding-name bytes from token_start before append into sidecar pool. */
       zi_param = 0;
       while (zi_param < 32) {
         pname_row[zi_param] = 0;

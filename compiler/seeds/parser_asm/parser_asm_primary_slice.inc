@@ -1728,8 +1728,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     parser_asm_primary_parse_panic_c(arena, source, &lex, &r, out);
     return;
   }
-  if (r.tok.kind == (int32_t)TOKEN_IDENT) {
-    if (parser_asm_primary_ident_is_unsafe_c(source, r.token_start, r.tok.ident_len)) {
+  /* TOKEN_IDENT or TOKEN_SELF: keyword self is a valid EXPR_VAR name "self"
+   * (pairs with param/let binding accept TOKEN_SELF; lexer ident_len=0 for SELF). */
+  if (r.tok.kind == (int32_t)TOKEN_IDENT || r.tok.kind == (int32_t)TOKEN_SELF) {
+    int32_t vlen = r.tok.ident_len;
+    int name_was_self = (r.tok.kind == (int32_t)TOKEN_SELF);
+    if (name_was_self)
+      vlen = 4;
+    if (!name_was_self
+        && parser_asm_primary_ident_is_unsafe_c(source, r.token_start, r.tok.ident_len)) {
       parser_asm_primary_parse_unsafe_expr_c(arena, r.next_lex, source, out);
       return;
     }
@@ -1740,7 +1747,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     }
     e = parser_asm_arena_expr_get_c(arena, ref);
     e.kind = PARSER_ASM_EXPR_VAR;
-    parser_asm_primary_copy_ident_to_var_c(&e, source, r.token_start, r.tok.ident_len);
+    parser_asm_primary_copy_ident_to_var_c(&e, source, r.token_start, vlen);
     e.line = r.tok.line;
     e.col = r.tok.col;
     parser_asm_expr_set_common_zeros_c(&e);
@@ -1749,7 +1756,8 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     out->expr_ref = ref;
     lex = r.next_lex;
     lexer_next_into(&r, lex, source);
-    if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
+    /* Struct lit Type { ... } only for IDENT type names, not keyword self. */
+    if (r.tok.kind == (int32_t)TOKEN_LBRACE && !name_was_self) {
       parser_finish_struct_lit_from_type_ident_into_glue(arena, ref, r.next_lex, source, out);
       return;
     }

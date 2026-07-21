@@ -3049,7 +3049,8 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       if ((((r.tok).kind) ==52)) {
         (void)((is_discard_name = 1));
       } else {
-        if ((((r.tok).kind) !=59)) {
+        /* 59=IDENT, 51=SELF: let self is a valid binding (TOKEN_SELF keyword spelling). */
+        if (((((r.tok).kind) !=59) && (((r.tok).kind) !=51))) {
           (void)(((lex_out->pos) = (lex.pos)));
           (void)(((lex_out->line) = (lex.line)));
           (void)(((lex_out->col) = (lex.col)));
@@ -3059,6 +3060,10 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
       (void)((name_len = ((r.tok).ident_len)));
       if ((is_discard_name !=0)) {
         (void)((name_len = 1));
+      } else {
+        if ((((r.tok).kind) ==51)) {
+          (void)((name_len = 4));
+        }
       }
       if (((name_len <=0) || (name_len > 63))) {
         (void)(((lex_out->pos) = (lex.pos)));
@@ -4025,11 +4030,18 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * out, struct as
       (void)(parser_lex_from_next_into(&(lex), r));
     } else {
       while ((1 ==1)) {
-        if ((((r.tok).kind) !=59)) {
+        /* 59=TOKEN_IDENT, 51=TOKEN_SELF: accept self as param binding name.
+         * Lexer keywords self as TOKEN_SELF with ident_len=0; IDENT-only check
+         * silent set_onefunc_fail → function dropped from multi-fn AST (wave43). */
+        if (((((r.tok).kind) !=59) && (((r.tok).kind) !=51))) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
         }
-        (void)((plen_param = ((r.tok).ident_len)));
+        if ((((r.tok).kind) ==51)) {
+          (void)((plen_param = 4));
+        } else {
+          (void)((plen_param = ((r.tok).ident_len)));
+        }
         if (((plen_param <=0) || (plen_param > 31))) {
           (void)(parser_set_onefunc_fail(out_ref, lex));
           return;
