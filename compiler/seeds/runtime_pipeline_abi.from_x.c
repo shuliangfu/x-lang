@@ -21,8 +21,12 @@
  *   + runtime_read_file_view + pure preprocess + release + diags).
  * wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
  *   Cap-fn-ptr pipeline_run_x_thread_fn_ptr always-seed; G.7 driver_run_thread_on_large_stack;
- *   SHUX_DEBUG_PIPE notes cold-only). asm elf_o large-stack _impl remains seed
- *   (same-TU pure stub asm_asm_codegen_elf_o returns -1; do not pure-call it).
+ *   SHUX_DEBUG_PIPE notes cold-only).
+ * wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs stack pack;
+ *   Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr always-seed;
+ *   Cap residual shux_asm_codegen_elf_o_product_emit always-seed — true emit via external
+ *   reloc to strong user_asm_seed_bridge; pure must not call same-TU weak stub
+ *   asm_asm_codegen_elf_o which returns -1).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -141,7 +145,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46–56: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46–57: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -162,6 +166,10 @@ int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int
 void *pipeline_run_x_thread_fn_impl(void *arg);
 int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data,
     size_t source_len, void *out_buf, void *ctx);
+/* wave57 pure asm elf_o large-stack _impl — thin pure wrappers call under hybrid. */
+void *shux_asm_codegen_elf_o_thread_fn_impl(void *arg);
+int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -3418,9 +3426,27 @@ typedef struct {
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx,
     void *out_buf);
 
-/** pthread 入口：调用 asm_asm_codegen_elf_o 并将 ec 写入 args->result。 */
-/* G-02f-241：逻辑源 .x（null 边界 pure）；seed 保留 _impl 供产品（wave56 未 pure：
- * same-TU pure stub asm_asm_codegen_elf_o 恒 -1，不能当 emit 权威）。 */
+/** Always-seed Cap residual: product asm elf_o emit for pure large-stack orch.
+ * Pure must not call same-TU weak stub asm_asm_codegen_elf_o (returns -1).
+ * This rest-TU call keeps an external reloc → final strong user_asm_seed_bridge.
+ * G.7 single trampoline authority for pure→bridge emit; cold twins may still call
+ * asm_asm_codegen_elf_o directly (no pure weak stub in cold full-C TU).
+ * PLATFORM: SHARED. */
+int32_t shux_asm_codegen_elf_o_product_emit(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
+    return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
+}
+
+/** Always-seed Cap-fn-ptr residual: opaque address of shux_asm_codegen_elf_o_thread_fn.
+ * wave57 pure large-stack orch binds this then driver_run_thread_on_large_stack.
+ * PLATFORM: SHARED — function address not expressible safely in .x. */
+uint8_t *shux_asm_codegen_elf_o_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)shux_asm_codegen_elf_o_thread_fn;
+}
+
+/** pthread 入口：调用 product emit 并将 ec 写入 args->result。 */
+/* G-02f-241 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void *shux_asm_codegen_elf_o_thread_fn_impl(void *arg) {
     ShuxAsmCodegenElfLargeArgs *a = (ShuxAsmCodegenElfLargeArgs *)arg;
     if (!a)
@@ -3429,7 +3455,6 @@ void *shux_asm_codegen_elf_o_thread_fn_impl(void *arg) {
     return NULL;
 }
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
     if (!arg)
         return NULL;
@@ -3441,7 +3466,8 @@ void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
 
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
-/* G-02f-240：pthread body 🔒 Cap residual seed（wave56 未 pure，理由同 thread_fn_impl）。 */
+/* G-02f-240 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     ShuxAsmCodegenElfLargeArgs args;
@@ -3459,7 +3485,6 @@ int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void 
 }
 
 /* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     if (!module || !arena || !out_buf)

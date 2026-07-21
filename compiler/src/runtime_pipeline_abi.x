@@ -1,13 +1,14 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave56).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave57).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
 // Cap residual always-seed: pipeline_run_x_thread_fn_ptr
 //   (fn address for driver_run_thread_on_large_stack; same pattern as driver_abi wave37).
-// Cap residual still-seed: asm large-stack _impl (same-TU asm_asm_codegen_elf_o is stub -1;
-//   pure must not call that stub; real emit stays seed/bridge).
+// Cap residual always-seed (wave57): shux_asm_codegen_elf_o_thread_fn_ptr
+//   + shux_asm_codegen_elf_o_product_emit (true emit; same-TU weak stub asm_asm_codegen_elf_o
+//   returns -1 — pure must not call that stub; product_emit keeps external reloc → bridge).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -29,7 +30,8 @@
 //   + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
 // wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
 //   Cap-fn-ptr + G.7 driver_run_thread_on_large_stack; SHUX_DEBUG_PIPE notes cold-only).
-//   asm elf_o large-stack _impl remains seed (do not call same-TU stub asm_asm_codegen_elf_o).
+// wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs stack pack u8[48];
+//   Cap-fn-ptr + product_emit Cap residual; G.7 driver_run_thread_on_large_stack).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -77,8 +79,11 @@ export extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a:
 export extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void;
 export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
 // wave56: pipeline_run_x_thread_fn_impl is pure export function below.
-// Cap residual still-seed: shux_asm_codegen_elf_o_thread_fn_impl (asm emit path).
-export extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
+// wave57: shux_asm_codegen_elf_o_thread_fn_impl is pure export function below.
+// Cap residual always-seed: product emit + Cap-fn-ptr for asm large-stack (wave57).
+// Do not call same-TU weak stub asm_asm_codegen_elf_o from pure (returns -1).
+export extern "C" function shux_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
+export extern "C" function shux_asm_codegen_elf_o_thread_fn_ptr(): *u8;
 // Cap-fn-ptr residual: always-seed address of thin pipeline_run_x_thread_fn.
 export extern "C" function pipeline_run_x_thread_fn_ptr(): *u8;
 // wave56 pure pipeline large-stack orch: set entry source_len + run pipeline.
@@ -145,8 +150,7 @@ export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8
 /* See implementation. */
 export extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
 export extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
-// Cap residual still-seed: asm large-stack _impl (wave56 leaves seed; pure would hit stub).
-export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
+// wave57: shux_asm_codegen_elf_o_large_stack_impl is pure export function below.
 /* See implementation. */
 /* wave46: shux_module_num_imports / import_path_cstr / ptr+size slots / i32_store
  * are pure export function below (not export-extern Cap residual). */
@@ -2335,15 +2339,15 @@ export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, 
 }
 
 // shux_asm_codegen_elf_o_large_stack: see function docblock below.
-/** Exported function `shux_asm_codegen_elf_o_large_stack`.
- * Thin gate → Cap residual seed shux_asm_codegen_elf_o_large_stack_impl.
- * @param module *u8
- * @param arena *u8
- * @param ctx *u8
- * @param elf_ctx *u8
- * @param out_buf *u8
- * @return i32
- * wave56: asm _impl remains seed (same-TU asm_asm_codegen_elf_o stub is not product emit).
+/**
+ * Thin gate → pure shux_asm_codegen_elf_o_large_stack_impl (wave57).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param ctx *u8 — PipelineDepCtx (may be null)
+ * @param elf_ctx *u8 — ElfCodegenCtx (may be null)
+ * @param out_buf *u8 — emit out buffer; null → -1
+ * @return i32 — emit ec from large-stack orch
+ * wave57: body in pure _impl; product emit via Cap residual (not same-TU weak stub).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -4585,8 +4589,8 @@ export function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena
  * Thin pthread entry for large-stack asm emit (null reject).
  * @param arg *u8 — AsmElfLargeArgs pack; null → null
  * @return *u8 — always null
- * Cap residual seed: shux_asm_codegen_elf_o_thread_fn_impl (wave56 not pure — real emit).
- * PLATFORM: SHARED.
+ * wave57: forwards to pure shux_asm_codegen_elf_o_thread_fn_impl.
+ * PLATFORM: SHARED — address taken by always-seed shux_asm_codegen_elf_o_thread_fn_ptr.
  */
 #[no_mangle]
 export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
@@ -4597,6 +4601,84 @@ export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
     return shux_asm_codegen_elf_o_thread_fn_impl(arg);
   }
   return 0 as *u8;
+}
+
+/**
+ * Pthread body: unpack AsmElfLargeArgs, Cap residual product emit, store result.
+ * @param arg *u8 — AsmElfLargeArgs LP64 pack (48B):
+ *   module@0 arena@8 ctx@16 elf_ctx@24 out_buf@32 result@40;
+ *   null → return null
+ * @return *u8 — always null (pthread start_routine contract)
+ * wave57 pure Cap residual:
+ *   load pack via pipe/size slots; Cap residual shux_asm_codegen_elf_o_product_emit
+ *   (true bridge emit; never call same-TU weak stub asm_asm_codegen_elf_o);
+ *   store result as LE i64 cell at slot 5 (i32@40 + pad).
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+#[no_mangle]
+export function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
+  if (arg == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let module: *u8 = pipe_load_ptr_slot(arg, 0);
+  let arena: *u8 = pipe_load_ptr_slot(arg, 1);
+  let ctx: *u8 = pipe_load_ptr_slot(arg, 2);
+  let elf_ctx: *u8 = pipe_load_ptr_slot(arg, 3);
+  let out_buf: *u8 = pipe_load_ptr_slot(arg, 4);
+  let ec: i32 = 0;
+  unsafe {
+    ec = shux_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
+  }
+  // result i32 lives at byte 40 = slot index 5; write full LE cell (pad ok).
+  shux_size_slot_set(arg, 5, ec as i64);
+  return 0 as *u8;
+}
+
+/**
+ * Large-stack orch: pack AsmElfLargeArgs, run thread_fn via Cap-fn-ptr, fallback emit.
+ * @param module *u8 — AST module (caller thin already null-checked)
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — PipelineDepCtx
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param out_buf *u8 — emit out buffer
+ * @return i32 — emit ec; fallback path if result still sentinel -99
+ * wave57 pure Cap residual:
+ *   stack args[48] zeroed; fill pack; result sentinel -99;
+ *   Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + G.7 driver_run_thread_on_large_stack;
+ *   if result still -99 → Cap residual product_emit (pthread create failed / skipped).
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+  let args: u8[48] = [];
+  let zi: i32 = 0;
+  while (zi < 48) {
+    args[zi] = 0;
+    zi = zi + 1;
+  }
+  pipe_store_ptr_slot(&args[0], 0, module);
+  pipe_store_ptr_slot(&args[0], 1, arena);
+  pipe_store_ptr_slot(&args[0], 2, ctx);
+  pipe_store_ptr_slot(&args[0], 3, elf_ctx);
+  pipe_store_ptr_slot(&args[0], 4, out_buf);
+  // Sentinel -99: thread_fn overwrites on success; unchanged → current-thread fallback.
+  shux_size_slot_set(&args[0], 5, 0 - 99);
+  let fn: *u8 = 0 as *u8;
+  unsafe {
+    fn = shux_asm_codegen_elf_o_thread_fn_ptr();
+  }
+  if (fn != 0 as *u8) {
+    unsafe {
+      driver_run_thread_on_large_stack(fn, &args[0]);
+    }
+  }
+  let result: i64 = shux_size_slot_get(&args[0], 5);
+  if (result == (0 - 99) as i64) {
+    unsafe {
+      return shux_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
+    }
+  }
+  return result as i32;
 }
 
 // See implementation.
