@@ -371,6 +371,10 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v);
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout);
 void driver_parsed_fclose(uint8_t *fp);
 int32_t driver_parsed_fclose_rc(uint8_t *fp);
+/** Always-seed: 256-byte open_out tmp path; pure reset clears [0]; cleanup may unlink. */
+uint8_t *driver_parsed_tmp_c_buf(void);
+/** Always-seed: 64-byte parsed tmp slot; pure reset clears [0]. */
+uint8_t *driver_parsed_tmp_c_slot(void);
 /** 写 pipeline 产物：可选 min preamble + first_line + io_net + fs_path + rest。0 成功。 */
 int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len);
 /**

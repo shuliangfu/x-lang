@@ -39,6 +39,8 @@
  *     （p raw u8[208]+shux_ptr_slot_* · i32[17] · usize[5]；free+dep_ctx destroy）；FROM_X 无 pure-dup work；
  *   + wave17 Cap residual pure：driver_asm_work BSS + get/set/reset/cleanup 在 thin.x
  *     （p raw u8[200] 25×ptr · i32[16] · usize[4]；free+dep_ctx+fclose；tmp_path[0] clear）；FROM_X 无 pure-dup asm work；
+ *   + wave18 Cap residual pure：driver_parsed_work BSS + get/set/reset/cleanup 在 thin.x
+ *     （p raw u8[192] 24×ptr · i32[14] · usize[4]；free+dep_ctx+fclose cf；unlink tmp_c；tmp slots clear）；FROM_X 无 pure-dup parsed work；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -2908,8 +2910,19 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v) {
 }
 
 /* PLATFORM: SHARED — 256 bytes matches .x rt_cp_step_open_out malloc(256)
- * and accommodates Windows long TEMP paths (C:\shux_tmp\shux_shux_x.YZXDC4.c). */
+ * and accommodates Windows long TEMP paths (C:\shux_tmp\shux_shux_x.YZXDC4.c).
+ * Always-seed (open_out + hybrid pure reset/cleanup accessors). */
 static char g_driver_parsed_tmp_c[256];
+/* Always-seed 64-byte slot cleared by parsed work reset (parity; cold twin). */
+static char g_parsed_tmp_c_slot[64];
+
+uint8_t *driver_parsed_tmp_c_buf(void) {
+    return (uint8_t *)g_driver_parsed_tmp_c;
+}
+
+uint8_t *driver_parsed_tmp_c_slot(void) {
+    return (uint8_t *)g_parsed_tmp_c_slot;
+}
 
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
     char tmp[128];
@@ -3134,6 +3147,10 @@ void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps) {
 }
 
 /*
+ * Wave18: parsed work BSS pure package under PREFER thin.
+ * hybrid thin owns BSS + get/set/reset/cleanup；cold keeps C static + memset twin；
+ * FROM_X no pure-dup (avoid dual BSS under hybrid).
+ * tmp slots (g_parsed_tmp_c_slot / g_driver_parsed_tmp_c) remain always-seed accessors.
  * parsed work 槽：
  * p: 0 path 1 src 2 out_path 3 arena 4 module 5 entry 6 dsrc 7 dpath 8 dlens
  *    9 dar 10 dmod 11 out_buf 12 pctx 13 kind 14 code 15 msg 16 lib 17 opt
@@ -3142,13 +3159,13 @@ void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps) {
  *    8 argc 9 ec 10 j 11 check 12 n_funcs
  * z: 0 src_len 1 asz 2 msz
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 #define DRIVER_PARSED_WORK_NP 24
 #define DRIVER_PARSED_WORK_NI 14
 #define DRIVER_PARSED_WORK_NZ 4
 static uint8_t *g_parsed_work_p[DRIVER_PARSED_WORK_NP];
 static int32_t g_parsed_work_i[DRIVER_PARSED_WORK_NI];
 static size_t g_parsed_work_z[DRIVER_PARSED_WORK_NZ];
-static char g_parsed_tmp_c_slot[64];
 
 void driver_parsed_work_reset(void) {
     memset(g_parsed_work_p, 0, sizeof g_parsed_work_p);
@@ -3241,6 +3258,7 @@ void driver_parsed_work_cleanup(void) {
     free(g_parsed_work_p[20]); /* tmp_c heap copy if any */
     driver_parsed_work_reset();
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* ========== Cap residual: rt_dispatch_impl R2 full ========== */
 

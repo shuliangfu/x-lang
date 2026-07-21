@@ -47,6 +47,8 @@
 //     (p: G.7 shux_ptr_slot_* on LP64 raw u8[208]; i32[17]/usize[5]; free+dep_ctx destroy).
 //   + wave17 Cap residual pure：driver_asm_work BSS + get/set/reset/cleanup
 //     (p: raw u8[200] 25×ptr; i32[16]/usize[4]; free+dep_ctx+fclose asm_out; clear tmp_path[0]).
+//   + wave18 Cap residual pure：driver_parsed_work BSS + get/set/reset/cleanup
+//     (p: raw u8[192] 24×ptr; i32[14]/usize[4]; free+dep_ctx+fclose cf; unlink tmp_c; clear tmp slots).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -83,6 +85,18 @@ export extern "C" function driver_asm_tmp_path_slot(): *u8;
 /** Seed rest: fclose asm FILE* (stdout → fflush only). Used by asm_work cleanup pure.
  * PLATFORM: SHARED — wraps driver_asm_fclose_asm_out; null-safe in C body. */
 export extern "C" function driver_asm_fclose(fp: *u8): void;
+/** Seed rest: 64-byte parsed tmp_c slot; reset clears byte 0 (parity with cold memset path).
+ * PLATFORM: SHARED — still seed buffer; pure reset writes first NUL via this accessor. */
+export extern "C" function driver_parsed_tmp_c_slot(): *u8;
+/** Seed rest: 256-byte path from driver_parsed_open_out_file; reset clears byte 0.
+ * Cleanup may unlink this when work p[20] is empty. PLATFORM: SHARED. */
+export extern "C" function driver_parsed_tmp_c_buf(): *u8;
+/** Seed rest: fclose parsed C FILE* (stdout → no-op). Used by parsed_work cleanup pure.
+ * PLATFORM: SHARED — null-safe; skips stdout. */
+export extern "C" function driver_parsed_fclose(fp: *u8): void;
+/** POSIX unlink for tmp .c paths held in parsed work slots.
+ * PLATFORM: POSIX (Linux/macOS product path); Windows uses same surface via seed pin. */
+export extern "C" function unlink(path: *u8): i32;
 
 // ---- Wave1 Cap residual pure: driver flag-slot BSS (PLATFORM: SHARED) ----
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
@@ -2167,4 +2181,221 @@ export function driver_asm_work_cleanup(): void {
     free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 15));
   }
   driver_asm_work_reset();
+}
+
+// ---- Wave18 Cap residual pure: driver_parsed_work BSS + cleanup (PLATFORM: SHARED) ----
+// Slot map (must match seed comment + rt_run_compiler_parsed.x consumers):
+//   p[24]: 0 path 1 src 2 out_path 3 arena 4 module 5 entry 6 dsrc 7 dpath 8 dlens
+//          9 dar 10 dmod 11 out_buf 12 pctx 13 kind 14 code 15 msg 16 lib 17 opt
+//          18 argv 19 cf 20 tmp_c 21 target 22 defs 23 (reserved / NP pad)
+//   i[14]: 0 nlib 1 ndeps 2 nimp 3 main 4 want_asm 5 emit_stdout 6 ndef 7 use_lto
+//          8 argc 9 ec 10 j 11 check 12 n_funcs 13 (pad)
+//   z[4]:  0 src_len 1 asz 2 msz 3 (pad)
+// Pointer table: 24× LP64 slots in raw u8[192] via G.7 shux_ptr_slot_get/set.
+// reset also clears seed driver_parsed_tmp_c_slot()[0] + driver_parsed_tmp_c_buf()[0].
+// cleanup: ndeps=i[1]; free dep rows; free table bases; free out_buf; destroy pctx;
+//   if !emit_stdout (i[5]): fclose cf (p[19]), unlink tmp_c (p[20] or seed buf);
+//   free arena/module/src/kind/code/msg/tmp_c heap; then reset.
+// Cold seed keeps C static arrays + memset twin; FROM_X drops pure-dup (no dual BSS).
+// G.7: single hybrid authority for driver_parsed_work_* under PREFER.
+
+let g_parsed_work_p_raw: u8[192] = [];
+let g_parsed_work_i: i32[14] = [];
+let g_parsed_work_z: usize[4] = [];
+
+/** Zero all parsed work pointer / i32 / size_t slots and clear seed tmp path first bytes.
+ * Wave18 pure. PLATFORM: SHARED — hybrid pure authority. */
+#[no_mangle]
+export function driver_parsed_work_reset(): void {
+  unsafe {
+    let j: i32 = 0;
+    while (j < 24) {
+      shux_ptr_slot_set(&g_parsed_work_p_raw[0], j, 0 as *u8);
+      j = j + 1;
+    }
+    j = 0;
+    while (j < 14) {
+      g_parsed_work_i[j] = 0;
+      j = j + 1;
+    }
+    j = 0;
+    while (j < 4) {
+      g_parsed_work_z[j] = 0 as usize;
+      j = j + 1;
+    }
+    // Match cold: g_parsed_tmp_c_slot[0] = 0; g_driver_parsed_tmp_c[0] = 0.
+    let slot: *u8 = driver_parsed_tmp_c_slot();
+    if (slot != 0 as *u8) {
+      slot[0] = 0;
+    }
+    let buf: *u8 = driver_parsed_tmp_c_buf();
+    if (buf != 0 as *u8) {
+      buf[0] = 0;
+    }
+  }
+}
+
+/** Load parsed work pointer slot i (0..23); out of range → null.
+ * Wave18 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_parsed_work_p_get(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 24) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return shux_ptr_slot_get(&g_parsed_work_p_raw[0], i);
+  }
+  return 0 as *u8;
+}
+
+/** Store parsed work pointer slot i (0..23); out of range is a no-op.
+ * Wave18 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_parsed_work_p_set(i: i32, v: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 24) {
+    return;
+  }
+  unsafe {
+    shux_ptr_slot_set(&g_parsed_work_p_raw[0], i, v);
+  }
+}
+
+/** Load parsed work i32 slot i (0..13); out of range → 0.
+ * Wave18 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_parsed_work_i_get(i: i32): i32 {
+  if (i < 0) {
+    return 0;
+  }
+  if (i >= 14) {
+    return 0;
+  }
+  return g_parsed_work_i[i];
+}
+
+/** Store parsed work i32 slot i (0..13); out of range is a no-op.
+ * Wave18 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_parsed_work_i_set(i: i32, v: i32): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 14) {
+    return;
+  }
+  g_parsed_work_i[i] = v;
+}
+
+/** Load parsed work size_t slot i (0..3); out of range → 0.
+ * Wave18 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_parsed_work_z_get(i: i32): usize {
+  if (i < 0) {
+    return 0 as usize;
+  }
+  if (i >= 4) {
+    return 0 as usize;
+  }
+  return g_parsed_work_z[i];
+}
+
+/** Store parsed work size_t slot i (0..3); out of range is a no-op.
+ * Wave18 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_parsed_work_z_set(i: i32, v: usize): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 4) {
+    return;
+  }
+  g_parsed_work_z[i] = v;
+}
+
+/** Free parsed pipeline temporaries held in work slots, then reset all slots.
+ * Frees per-dep arena/module/src/path rows (n_deps = i[1]), the five dep table
+ * bases (p[6..10]), out_buf (p[11]), pctx via pipeline_dep_ctx_heap_destroy (p[12]),
+ * then if emit_stdout (i[5]) is 0: driver_parsed_fclose(cf p[19]) and unlink tmp_c
+ * (p[20] if non-empty, else seed driver_parsed_tmp_c_buf). Finally free arena/module/src
+ * (p[3]/p[4]/p[1]), kind/code/msg (p[13..15]), and tmp_c heap (p[20]).
+ * free(null)/fclose(null) are safe. Wave18 pure; matches cold seed order.
+ * PLATFORM: SHARED — hybrid pure under PREFER. */
+#[no_mangle]
+export function driver_parsed_work_cleanup(): void {
+  unsafe {
+    let n: i32 = g_parsed_work_i[1];
+    let emit_stdout: i32 = g_parsed_work_i[5];
+    let ds: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 6);
+    let dp: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 7);
+    let dl: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 8);
+    let da: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 9);
+    let dm: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 10);
+    let i: i32 = 0;
+    while (i < n) {
+      if (da != 0 as *u8) {
+        free(shux_ptr_slot_get(da, i));
+      }
+      if (dm != 0 as *u8) {
+        free(shux_ptr_slot_get(dm, i));
+      }
+      if (ds != 0 as *u8) {
+        free(shux_ptr_slot_get(ds, i));
+      }
+      if (dp != 0 as *u8) {
+        free(shux_ptr_slot_get(dp, i));
+      }
+      i = i + 1;
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 11));
+    let pctx: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 12);
+    if (pctx != 0 as *u8) {
+      pipeline_dep_ctx_heap_destroy(pctx);
+    }
+    // Match cold: only fclose+unlink when not writing to stdout.
+    if (emit_stdout == 0) {
+      let cf: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 19);
+      if (cf != 0 as *u8) {
+        driver_parsed_fclose(cf);
+        let tmpc: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 20);
+        if (tmpc != 0 as *u8) {
+          if (tmpc[0] != 0) {
+            unlink(tmpc);
+          } else {
+            let seed_tmp: *u8 = driver_parsed_tmp_c_buf();
+            if (seed_tmp != 0 as *u8) {
+              if (seed_tmp[0] != 0) {
+                unlink(seed_tmp);
+              }
+            }
+          }
+        } else {
+          let seed_tmp2: *u8 = driver_parsed_tmp_c_buf();
+          if (seed_tmp2 != 0 as *u8) {
+            if (seed_tmp2[0] != 0) {
+              unlink(seed_tmp2);
+            }
+          }
+        }
+      }
+    }
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 3));
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 4));
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 1));
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 13));
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 14));
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 15));
+    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 20));
+  }
+  driver_parsed_work_reset();
 }
