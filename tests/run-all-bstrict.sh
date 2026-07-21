@@ -11,6 +11,24 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Wall-clock total for this suite (minutes + seconds at exit).
+# PLATFORM: SHARED — date +%s is portable on macOS / Linux / Git Bash.
+# Covers L4 purge + bootstrap-driver-bstrict + whitelist scripts (full script wall).
+_RUN_BSTRICT_WALL_START=$(date +%s)
+echo "run-all-bstrict: started at $(date '+%Y-%m-%d %H:%M:%S')"
+_run_bstrict_print_elapsed() {
+  local _end _elapsed _min _sec
+  _end=$(date +%s)
+  _elapsed=$((_end - _RUN_BSTRICT_WALL_START))
+  if [ "$_elapsed" -lt 0 ]; then
+    _elapsed=0
+  fi
+  _min=$((_elapsed / 60))
+  _sec=$((_elapsed % 60))
+  echo "run-all-bstrict: 本次测试共耗时 ${_min} 分 ${_sec} 秒（合计 ${_elapsed} 秒）"
+}
+trap '_run_bstrict_print_elapsed' EXIT
+
 # L4 true cold test (opt-in): purge ALL .o + core binaries, then rebuild from scratch.
 # PLATFORM: SHARED — works on macOS/Linux/Windows (MSYS).
 # Usage: SHUX_L4_COLD=1 ./tests/run-all-bstrict.sh

@@ -6,6 +6,31 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Wall-clock total for this suite (minutes + seconds at exit).
+# PLATFORM: SHARED — date +%s is portable on macOS / Linux / Git Bash.
+_RUN_ALL_WALL_START=$(date +%s)
+echo "run-all: started at $(date '+%Y-%m-%d %H:%M:%S')"
+_run_all_print_elapsed() {
+  local _end _elapsed _min _sec
+  _end=$(date +%s)
+  _elapsed=$((_end - _RUN_ALL_WALL_START))
+  if [ "$_elapsed" -lt 0 ]; then
+    _elapsed=0
+  fi
+  _min=$((_elapsed / 60))
+  _sec=$((_elapsed % 60))
+  echo "run-all: 本次测试共耗时 ${_min} 分 ${_sec} 秒（合计 ${_elapsed} 秒）"
+}
+# Restore shux.bak (if any) then always print wall time — single EXIT trap so later
+# paths do not overwrite duration reporting.
+_run_all_on_exit() {
+  if [ -f compiler/shux.bak ]; then
+    mv compiler/shux.bak compiler/shux 2>/dev/null || true
+  fi
+  _run_all_print_elapsed
+}
+trap '_run_all_on_exit' EXIT
+
 # 【Why 根源治理 Windows TEMP 截断】MinGW make 子进程继承的 TEMP 可能被截断为
 # "C:\Users\...\AppData\Loc"，导致 shux-c.exe 内部 gcc 调用失败 → std .o 构建失败 → 82/90 测试回归。
 # 修复：Windows 下统一 export 短路径 TEMP/TMP，确保所有 make 子进程继承。
@@ -114,10 +139,10 @@ if [ -n "$SHUX" ]; then
     elif [ -f compiler/shux ]; then
         mv compiler/shux compiler/shux.bak
         cp "$SHUX" compiler/shux
-        trap '[ -f compiler/shux.bak ] && mv compiler/shux.bak compiler/shux 2>/dev/null || true' EXIT
+        # bak restore is handled by top-level EXIT trap (_run_all_on_exit).
     else
         cp "$SHUX" compiler/shux
-        trap '[ -f compiler/shux.bak ] && mv compiler/shux.bak compiler/shux 2>/dev/null || true' EXIT
+        # bak restore is handled by top-level EXIT trap (_run_all_on_exit).
     fi
 else
     # 无 SHU 时默认使用 C 流水线：仅构建 all（C 版 shux），子脚本不构建 bootstrap-driver-seed
