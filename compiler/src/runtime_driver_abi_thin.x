@@ -42,7 +42,7 @@
 //   + wave14 Cap residual pure：rt_asm_stub GAS line table + out_append_cstr
 //     (host OutBuf layout: data[9MiB] then i32 len; LE load/store local to this TU).
 //   + wave15 Cap residual pure：rt_entry buffer slots + path_max/entry_dir slots
-//     (BSS u8[N]; fmt_argv *char[2] stays seed — .x **u8 / *u8[2] lit init typeck XT001).
+//     (BSS u8[N]; fmt_argv closed in wave21).
 //   + wave16 Cap residual pure：driver_x_emit work BSS + get/set/reset/cleanup
 //     (p: G.7 shux_ptr_slot_* on LP64 raw u8[208]; i32[17]/usize[5]; free+dep_ctx destroy).
 //   + wave17 Cap residual pure：driver_asm_work BSS + get/set/reset/cleanup
@@ -53,6 +53,8 @@
 //     + wave14 LE load/store; no C struct in .x). host_defaults/calloc stay seed.
 //   + wave20 Cap residual pure：driver_preamble_{io_net,fs_path}_line_at/count
 //     (G.7 shux_ptr_slot_get on Cap-giant-string table raw base; tables stay in rt_preamble).
+//   + wave21 Cap residual pure：driver_entry_fmt_argv_slot
+//     (u8 lit BSS "shux"/"fmt" + 2× LP64 ptr slots via G.7 shux_ptr_slot_set; no *u8[2] lit).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -1762,9 +1764,8 @@ export function driver_asm_stub_out_append_cstr(out: *u8, s: *u8): i32 {
 // Cold seed: static char buffers + slot getters (always present for surface R2).
 // PREFER hybrid: authority in this thin TU; FROM_X rest drops pure-dup BSS/slots (H↓).
 // G.7: single product authority for entry_*_slot (buf) / path_max / entry_dir under hybrid.
-// Cap residual left in seed: driver_entry_fmt_argv_slot (char*[2] + string-lit init;
-//   .x **u8 return / *u8[2] lit array trips typeck XT001 — dig when pointer-array init pure).
 // Note: local u8[N] is banned in product .x (-E init_globals); module BSS is OK (diagnostic thin pattern).
+// Wave21 closed fmt_argv (see section below): byte-lit BSS + G.7 ptr slots, no *u8[2] lit.
 
 let g_driver_entry_ab: u8[256] = [];
 let g_driver_entry_code: u8[256] = [];
@@ -2653,4 +2654,41 @@ export function driver_preamble_fs_path_line_at(i: i32): *u8 {
 #[no_mangle]
 export function driver_preamble_fs_path_line_count(): i32 {
   return driver_abi_preamble_fs_path_n();
+}
+
+// ---- Wave21 Cap residual pure: driver_entry_fmt_argv_slot (PLATFORM: SHARED) ----
+// Cold seed: static char *[2] = {"shux","fmt"} + slot getter.
+// Product .x cannot host *u8[2] / char*[2] lit-array init (typeck XT001 history).
+// Pure path (same as fmt_check_cmd_thin check_argv / wave16 work_p):
+//   - C strings as module BSS byte arrays (ASCII, trailing NUL)
+//   - argv table as 2× LP64 pointer slots in raw u8[16]
+//   - first call: G.7 shux_ptr_slot_set slots 0/1 → lit bases
+//   - return base of raw table (ABI = char ** / **u8 for driver_run_fmt)
+// G.7: single hybrid authority under PREFER; FROM_X rest drops pure-dup.
+// Return type *u8 is the opaque base of the pointer table (same ABI width as char **).
+
+// ASCII "shux\0"
+let g_driver_entry_fmt_argv_lit0: u8[5] = [115, 104, 117, 120, 0];
+// ASCII "fmt\0"
+let g_driver_entry_fmt_argv_lit1: u8[4] = [102, 109, 116, 0];
+// 2 × 8-byte LP64 pointer slots (char *[2] layout)
+let g_driver_entry_fmt_argv_raw: u8[16] = [];
+// 0 = not yet filled; 1 = slots 0/1 point at lit0/lit1
+let g_driver_entry_fmt_argv_ready: i32 = 0;
+
+/** Return fixed argv table for driver_run_fmt when no user paths (argc=2).
+ * Layout: [0]="shux", [1]="fmt" as *u8 C strings (NUL-terminated BSS lits).
+ * Wave21 pure: no char*[2] lit init; lazy G.7 shux_ptr_slot_set into raw u8[16].
+ * Returns base of the 2-slot pointer table (ABI-compatible with char ** / **u8).
+ * PLATFORM: SHARED — pure authority under PREFER hybrid; cold seed keeps C static. */
+#[no_mangle]
+export function driver_entry_fmt_argv_slot(): *u8 {
+  if (g_driver_entry_fmt_argv_ready == 0) {
+    unsafe {
+      shux_ptr_slot_set(&g_driver_entry_fmt_argv_raw[0], 0, &g_driver_entry_fmt_argv_lit0[0]);
+      shux_ptr_slot_set(&g_driver_entry_fmt_argv_raw[0], 1, &g_driver_entry_fmt_argv_lit1[0]);
+    }
+    g_driver_entry_fmt_argv_ready = 1;
+  }
+  return &g_driver_entry_fmt_argv_raw[0];
 }

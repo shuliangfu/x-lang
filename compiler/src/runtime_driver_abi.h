@@ -85,6 +85,10 @@ void *driver_stdio_stderr(void);
 /**
  * Cap residual：rt_entry R2 扫描/消息缓冲与 fmt argv。
  * .x 勿用局部 u8[N]（-E 会抬 init_globals / 丢函数）。
+ * wave15 pure：entry_* / path slots（BSS u8[N]）。
+ * wave21 pure：fmt_argv_slot — hybrid thin owns fixed {"shux","fmt"} via
+ *   byte-lit BSS + 2× LP64 ptr slots (G.7 shux_ptr_slot_set); cold seed keeps C static.
+ * ABI: returns base of char*[2] (same as opaque *u8 base under thin return type).
  */
 uint8_t *driver_entry_ab_slot(void);
 uint8_t *driver_entry_code_slot(void);
