@@ -166,6 +166,13 @@ g05_try_x_to_o() {
     echo '  return ent ? (uint8_t *)ent->d_name : (uint8_t *)0;'
     echo '}'
     echo '#endif'
+    # PLATFORM: SHARED — wave22 Cap residual: opaque *u8 → FILE* fputs cast.
+    # .x cannot name FILE*; direct fputs(*u8,*u8) trips -Werror=incompatible-pointer-types.
+    # Pure driver_preamble_fputs (runtime_driver_abi_thin.x) calls this harness helper.
+    # Outside _WIN32 guard: stdio fputs is available on Windows host-cc too.
+    echo 'static inline int32_t shux_driver_fputs_opaque(uint8_t *s, uint8_t *stream) {'
+    echo '  return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);'
+    echo '}'
     # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
     sed -e '/^#include /d' \
         -e '/^extern ssize_t read(/d' \
@@ -217,6 +224,7 @@ g05_try_x_to_o() {
         -e '/^extern int32_t shux_fmt_closedir(/d' \
         -e '/^extern int32_t shux_fmt_access(/d' \
         -e '/^extern uint8_t \* shux_fmt_readdir_name(/d' \
+        -e '/^extern int32_t shux_driver_fputs_opaque(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086

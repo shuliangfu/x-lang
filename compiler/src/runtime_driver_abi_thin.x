@@ -55,6 +55,8 @@
 //     (G.7 shux_ptr_slot_get on Cap-giant-string table raw base; tables stay in rt_preamble).
 //   + wave21 Cap residual pure：driver_entry_fmt_argv_slot
 //     (u8 lit BSS "shux"/"fmt" + 2× LP64 ptr slots via G.7 shux_ptr_slot_set; no *u8[2] lit).
+//   + wave22 Cap residual pure：driver_preamble_fputs
+//     (null guard + g05 prologue shux_driver_fputs_opaque FILE* cast; no FILE* in .x).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -2583,7 +2585,7 @@ export function driver_pipeline_dep_ctx_set_skip_codegen_dep_0(ctx: *u8, v: i32)
 // Counts are fixed to match sizeof(...)/sizeof(*...) in rt_preamble.from_x.c (verified 219 / 21).
 // When adding/removing a table row, update N here in the same commit as the C table.
 // Cold seed keeps C line_at/count twins; FROM_X rest drops pure-dup (H↓).
-// Still seed: driver_preamble_fputs (opaque FILE*); giant string text tables.
+// Wave22 pure: driver_preamble_fputs (g05 FILE* cast helper). Still seed: giant string text tables.
 
 /** Fixed io_net preamble line count (must match driver_preamble_io_net_lines_n).
  * PLATFORM: SHARED — wave20 pure; keep in sync with seeds/rt_preamble.from_x.c. */
@@ -2691,4 +2693,34 @@ export function driver_entry_fmt_argv_slot(): *u8 {
     g_driver_entry_fmt_argv_ready = 1;
   }
   return &g_driver_entry_fmt_argv_raw[0];
+}
+
+// ---- Wave22 Cap residual pure: driver_preamble_fputs (PLATFORM: SHARED) ----
+// G.7 authority for opaque *u8 stream → libc fputs (rt_preamble + async emit pure).
+// .x cannot name FILE*; direct fputs(*u8,*u8) fails host-cc under
+// -Werror=incompatible-pointer-types. Cast residual lives in g05_try_x_to_o prologue
+// as static inline shux_driver_fputs_opaque (same pattern as shux_fmt_opendir/DIR*).
+// Cold seed keeps C twin with (FILE*)(void*) cast; FROM_X rest drops pure-dup (H↓).
+
+/** g05 prologue: cast opaque *u8 args to const char* / FILE* then fputs.
+ * PLATFORM: SHARED — harness residual only; not a second product authority. */
+export extern "C" function shux_driver_fputs_opaque(s: *u8, stream: *u8): i32;
+
+/** Write C string s to opaque FILE* stream via fputs.
+ * Null s or stream → -1. Otherwise returns libc fputs result (EOF → negative).
+ * Wave22 pure: null guard in .x; FILE* cast via g05 shux_driver_fputs_opaque.
+ * G.7 single authority for Cap residual fputs (async/rt_preamble call this symbol).
+ * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin. */
+#[no_mangle]
+export function driver_preamble_fputs(s: *u8, stream: *u8): i32 {
+  if (s == 0 as *u8) {
+    return -1;
+  }
+  if (stream == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    return shux_driver_fputs_opaque(s, stream);
+  }
+  return -1;
 }

@@ -50,6 +50,9 @@
  *   + wave21 Cap residual pure：driver_entry_fmt_argv_slot 在 thin.x
  *     （u8 lit BSS "shux"/"fmt" + 2× LP64 ptr slots via G.7 shux_ptr_slot_set；无 *u8[2] lit）；
  *     FROM_X 无 pure-dup fmt_argv；
+ *   + wave22 Cap residual pure：driver_preamble_fputs 在 thin.x
+ *     （null 守卫 + g05 prologue shux_driver_fputs_opaque FILE* cast；.x 无 FILE*）；
+ *     FROM_X 无 pure-dup fputs；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -1940,14 +1943,17 @@ int32_t driver_preamble_fs_path_line_count(void) {
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
-/** Cap residual G.7 authority：opaque *u8 stream → FILE* fputs（EOF/null → 负值）。
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+/** Cap residual G.7 authority cold twin：opaque *u8 stream → FILE* fputs（EOF/null → 负值）。
  * Shared by rt_preamble + async_liveness/async_cps emit pure (.x). No module-local clones.
- * PLATFORM: SHARED — single FILE* fputs bridge for product + hybrid PREFER. */
+ * Wave22 pure owns this under PREFER hybrid (thin.x + g05 shux_driver_fputs_opaque).
+ * PLATFORM: SHARED — single FILE* fputs bridge for product cold seed. */
 int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
     if (s == NULL || stream == NULL)
         return -1;
     return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* ---------- Cap residual：rt_run_x_emit R2（平台/巨型布局） ---------- */
 #ifndef X_CODEGEN_OUTBUF_CAP_ABI
