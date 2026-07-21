@@ -37,6 +37,8 @@
  *     （u8[N] BSS；fmt_argv 仍 seed — .x pointer-array lit 触 XT001）；FROM_X 无 pure-dup entry/path buf slots；
  *   + wave16 Cap residual pure：driver_x_emit work BSS + get/set/reset/cleanup 在 thin.x
  *     （p raw u8[208]+shux_ptr_slot_* · i32[17] · usize[5]；free+dep_ctx destroy）；FROM_X 无 pure-dup work；
+ *   + wave17 Cap residual pure：driver_asm_work BSS + get/set/reset/cleanup 在 thin.x
+ *     （p raw u8[200] 25×ptr · i32[16] · usize[4]；free+dep_ctx+fclose；tmp_path[0] clear）；FROM_X 无 pure-dup asm work；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -2660,6 +2662,9 @@ int32_t driver_asm_use_compiler_impl_c(void) {
 }
 
 /*
+ * Wave17: asm work BSS pure package under PREFER thin.
+ * hybrid thin owns BSS + get/set/reset/cleanup；cold keeps C static + memset twin；
+ * FROM_X no pure-dup (avoid dual BSS under hybrid).
  * asm work 槽：
  * p: 0 path 1 src 2 out_path 3 arena 4 module 5 entry 6 dsrc 7 dpath 8 dlens
  *    9 dar 10 dmod 11 out_buf 12 pctx 13 kind 14 code 15 msg 16 lib 17 target
@@ -2667,7 +2672,9 @@ int32_t driver_asm_use_compiler_impl_c(void) {
  * i: 0 nlib 1 ndeps 2 nimp 3 main 4 emit_elf 5 want_exe 6 smoke 7 ndef 8 argc
  *    9 ec 10 j 11 entry_only 12 skip_dep_load 13 rc 14 n_closure 15 num_funcs
  * z: 0 src_len 1 asz 2 msz 3 dep_len
+ * reset also clears g_driver_asm_tmp_path_slot[0] (tmp_path BSS still always-seed).
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 #define DRIVER_ASM_WORK_NP 25
 #define DRIVER_ASM_WORK_NI 16
 #define DRIVER_ASM_WORK_NZ 4
@@ -2764,6 +2771,7 @@ void driver_asm_work_cleanup(void) {
     free(g_asm_work_p[15]); /* msg */
     driver_asm_work_reset();
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* ========== Cap residual: rt_run_compiler_parsed R2 full ========== */
 
