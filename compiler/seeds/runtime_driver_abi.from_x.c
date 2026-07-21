@@ -118,7 +118,10 @@
  *   + wave42 Cap residual pure：driver_exec_compiled_body 在 thin.x
  *     （null/argc + G.7 path_is_non_exe pure；Cap residual
  *       shux_driver_exec_scan_out_path_opaque + shux_driver_exec_spawn_wait）；
- *     still always-seed：sibling_try_spawn / print_usage_write；
+ *   + wave43 Cap residual pure：driver_dispatch_sibling_try_spawn 在 thin.x
+ *     （null/argc + G.7 driver_argv0_basename_is pure；path pure BSS 512；
+ *       Cap residual shux_driver_sibling_argv0_get + access_spawn）；
+ *     still always-seed：print_usage_write（巨型 usage lit + color 表）；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -3711,40 +3714,39 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* ---------- Cap residual：rt_dispatch_thin R2（sibling path/access/fork） ---------- */
+/* wave43 pure：hybrid thin owns driver_dispatch_sibling_try_spawn orch
+ *   （null/argc + G.7 driver_argv0_basename_is + path pure BSS 512 + residual）；
+ * cold twin under #ifndef FROM_X；FROM_X 无 pure-dup。
+ * always-seed：shux_driver_sibling_argv0_get（*u8→char** cast + av[0]）
+ *   + shux_driver_sibling_access_spawn（access X_OK + fork/exec 或 spawnvp）。
+ * PLATFORM: SHARED orch；WINDOWS spawn vs POSIX fork in residual.
+ */
 extern int driver_argv0_basename_is(const char *argv0, const char *base);
 
-/**
- * 与冷启动 seeds/rt_dispatch_thin.from_x.c driver_try_compile_via_shu_c_sibling 同语义。
- * argv 为 char**（*u8）；成功返回子进程 exit；-1 未委托。
- */
-int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
-    char shu_c[512];
-    char **av = (char **)(void *)argv;
-    const char *self;
-    const char *slash;
-    if (argc < 2 || !av || !av[0])
+/* Permanent Cap residual: *u8 argv_opaque → cast + av[0].
+ * Pure wave43 cannot cast *u8→**u8 (-E drops body). Always linked under FROM_X.
+ * PLATFORM: SHARED — cast glue only. */
+uint8_t *shux_driver_sibling_argv0_get(uint8_t *argv_opaque) {
+    char **av;
+    if (argv_opaque == NULL)
+        return NULL;
+    av = (char **)(void *)argv_opaque;
+    if (av[0] == NULL)
+        return NULL;
+    return (uint8_t *)(void *)av[0];
+}
+
+/* Permanent OS residual: access(path, X_OK) then spawn/fork with av[0]=path.
+ * Pure wave43 owns path build + basename gate; this is process boundary only.
+ * PLATFORM: WINDOWS _spawnvp; POSIX fork+execvp+waitpid. */
+int32_t shux_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *argv_opaque) {
+    char **av;
+    char *shu_c;
+    (void)argc;
+    if (path == NULL || argv_opaque == NULL)
         return -1;
-    if (driver_argv0_basename_is(av[0], "shux-c"))
-        return -1;
-    self = av[0];
-    slash = strrchr(self, '/');
-#if defined(_WIN32)
-    {
-        const char *bs = strrchr(self, '\\');
-        if (bs && (!slash || bs > slash))
-            slash = bs;
-    }
-#endif
-    if (slash) {
-        size_t dir_len = (size_t)(slash - self);
-        if (dir_len >= sizeof(shu_c) - 8)
-            return -1;
-        memcpy(shu_c, self, dir_len);
-        shu_c[dir_len] = '\0';
-        strcat(shu_c, "/shux-c");
-    } else {
-        strcpy(shu_c, "shux-c");
-    }
+    shu_c = (char *)(void *)path;
+    av = (char **)(void *)argv_opaque;
     if (access(shu_c, X_OK) != 0)
         return -1;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
@@ -3777,6 +3779,45 @@ int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
     }
 #endif
 }
+
+/* wave43 pure: hybrid thin owns sibling_try_spawn orch; cold twin under #ifndef FROM_X. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+/**
+ * 与冷启动 seeds/rt_dispatch_thin.from_x.c driver_try_compile_via_shu_c_sibling 同语义。
+ * argv 为 char**（*u8）；成功返回子进程 exit；-1 未委托。
+ * Cold twin：自洽 path build + G.7 basename + residual access_spawn（无 pure BSS）。
+ */
+int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
+    char shu_c[512];
+    char **av = (char **)(void *)argv;
+    const char *self;
+    const char *slash;
+    if (argc < 2 || !av || !av[0])
+        return -1;
+    if (driver_argv0_basename_is(av[0], "shux-c"))
+        return -1;
+    self = av[0];
+    slash = strrchr(self, '/');
+#if defined(_WIN32)
+    {
+        const char *bs = strrchr(self, '\\');
+        if (bs && (!slash || bs > slash))
+            slash = bs;
+    }
+#endif
+    if (slash) {
+        size_t dir_len = (size_t)(slash - self);
+        if (dir_len >= sizeof(shu_c) - 8)
+            return -1;
+        memcpy(shu_c, self, dir_len);
+        shu_c[dir_len] = '\0';
+        strcat(shu_c, "/shux-c");
+    } else {
+        strcpy(shu_c, "shux-c");
+    }
+    return shux_driver_sibling_access_spawn((uint8_t *)(void *)shu_c, argc, argv);
+}
+#endif
 
 int runtime_driver_abi_slice_marker(void) {
     return 1;

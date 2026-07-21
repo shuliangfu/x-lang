@@ -113,8 +113,11 @@
 //     (null + WINDOWS gate residual; template pure via tmp_prefix + "shux_asm_XXXXXX";
 //      mkstemp/close/unlink libc; g05 fdopen_wb_opaque).
 //   + wave42 Cap residual pure：driver_exec_compiled_body
-//     (null/argc + G.7 path_is_non_exe pure; Cap residual scan opaque cast + spawn_wait;
-//      still seed: sibling_try_spawn / print_usage_write).
+//     (null/argc + G.7 path_is_non_exe pure; Cap residual scan opaque cast + spawn_wait).
+//   + wave43 Cap residual pure：driver_dispatch_sibling_try_spawn
+//     (null/argc + G.7 driver_argv0_basename_is pure; path pure BSS 512;
+//      Cap residual argv0 get + access/spawn OS residual;
+//      still seed: print_usage_write giant lit).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -5373,7 +5376,8 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
 //   - seed always: shux_driver_exec_scan_out_path_opaque (*u8 argv → cast + scan)
 //   - seed always: shux_driver_exec_spawn_wait (fork/exec or spawnvp + wait)
 //   - pure orch: null/argc guard, resolve exe, non-exe early 0, spawn residual
-// Still seed OS residual: sibling_try_spawn / print_usage_write (giant usage lit).
+// Wave43 owns sibling_try_spawn (see below). Still seed OS residual:
+// print_usage_write (giant usage lit + color tables).
 // PLATFORM: SHARED orch; WINDOWS spawn vs POSIX fork in residual.
 
 /**
@@ -5429,5 +5433,147 @@ export function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32 {
     return shux_driver_exec_spawn_wait(exe);
   }
   return 1;
+}
+
+// ---- Wave43 Cap residual pure: driver_dispatch_sibling_try_spawn ----
+// G.7: reuse pure driver_argv0_basename_is (rt_util.x) — no second basename path.
+// Cap residual split:
+//   - seed always: shux_driver_sibling_argv0_get (*u8 argv → cast + av[0])
+//   - seed always: shux_driver_sibling_access_spawn (access X_OK + fork/exec or spawnvp)
+//   - pure orch: null/argc guard, basename "shux-c" early -1, path BSS 512 pure, residual
+// Still seed OS residual: print_usage_write (giant multi-line usage lit + color tables).
+// PLATFORM: SHARED orch; WINDOWS \\ sep + spawnvp vs POSIX / + fork in residual.
+
+/** Module BSS for sibling path "dir/shux-c"; capacity matches cold char shu_c[512]. */
+let g_driver_sibling_path_buf: u8[512] = [];
+
+/**
+ * Cap residual: cast opaque argv (*u8) to char** and return av[0].
+ * @param argv_opaque *u8 — opaque char**; null or av[0] null → null
+ * @return *u8 — argv[0] path or null
+ * PLATFORM: SHARED — *u8→**u8 cast residual (.x -E drops cast body). Always-seed.
+ */
+export extern "C" function shux_driver_sibling_argv0_get(argv_opaque: *u8): *u8;
+/**
+ * Cap residual: access(path, X_OK) then replace av[0] and spawn/fork wait.
+ * @param path *u8 — NUL-terminated sibling shux-c path; null → -1
+ * @param argc i32 — argv length (unused except spawn inherits av)
+ * @param argv_opaque *u8 — opaque char**; null → -1
+ * @return i32 — child exit status, or -1 if not executable / spawn failure
+ * PLATFORM: WINDOWS _spawnvp; POSIX fork+execvp+waitpid. Always-seed.
+ */
+export extern "C" function shux_driver_sibling_access_spawn(
+  path: *u8, argc: i32, argv_opaque: *u8
+): i32;
+/**
+ * G.7: pure basename compare already in rt_util.x (supports / and \\).
+ * @param argv0 *u8 — full path or bare name; null matches only empty base
+ * @param base *u8 — expected basename; null → 0
+ * @return i32 — 1 if basename equals base; 0 otherwise
+ * PLATFORM: SHARED — link-name contract with rt_util.
+ */
+export extern "C" function driver_argv0_basename_is(argv0: *u8, base: *u8): i32;
+
+/**
+ * Build sibling path into out[cap]: dirname(self)+"/shux-c" or bare "shux-c".
+ * @param self *u8 — argv0 path; null → -1
+ * @param out *u8 — destination buffer; null → -1
+ * @param cap i32 — capacity including NUL; must be > 8 (room for "/shux-c")
+ * @return i32 — 0 success; -1 null/oversized dirname
+ * Scans last '/' (47) or '\\' (92); matches cold strrchr + Windows \\ preference.
+ * PLATFORM: SHARED path bytes; always emits '/' before "shux-c" (cold strcat same).
+ */
+#[no_mangle]
+export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i32 {
+  let i: i32 = 0;
+  let last: i32 = 0 - 1;
+  let j: i32 = 0;
+  let c: u8 = 0;
+  if (self == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (cap <= 8) {
+    return 0 - 1;
+  }
+  // Find last path separator (POSIX / or Windows \\), cap scan 4096.
+  while (i < 4096) {
+    c = self[i];
+    if (c == 0) {
+      break;
+    }
+    if (c == 47) {
+      last = i;
+    }
+    if (c == 92) {
+      last = i;
+    }
+    i = i + 1;
+  }
+  if (last < 0) {
+    // Bare name: cold strcpy(shu_c, "shux-c").
+    driver_open_out_cstr_copy(out, cap, "shux-c");
+    return 0;
+  }
+  // Cold: dir_len = slash - self; reject if dir_len >= sizeof - 8.
+  if (last >= cap - 8) {
+    return 0 - 1;
+  }
+  // Copy dirname excluding trailing separator, then append "/shux-c".
+  j = 0;
+  while (j < last) {
+    out[j] = self[j];
+    j = j + 1;
+  }
+  out[j] = 0;
+  driver_open_out_cstr_cat(out, cap, "/shux-c");
+  return 0;
+}
+
+/**
+ * Try spawn same-dir shux-c sibling with the caller's argv (dispatch via shu-c).
+ * @param argc i32 — argv length; argc < 2 → -1 (need argv0 + at least one more)
+ * @param argv_opaque *u8 — opaque char** from entry; null → -1
+ * @return i32 — child exit status if delegated; -1 if not delegated
+ *   (self is already shux-c, path not X_OK, spawn fail, or guard fail)
+ * Wave43 pure: null/argc pure; argv0 via Cap residual; G.7 basename_is pure;
+ * path pure into BSS 512; OS residual access+spawn. Cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED orch; residual holds WIN vs POSIX process boundary.
+ */
+#[no_mangle]
+export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): i32 {
+  let self: *u8 = 0 as *u8;
+  let path: *u8 = 0 as *u8;
+  let pr: i32 = 0;
+  if (argv_opaque == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (argc < 2) {
+    return 0 - 1;
+  }
+  // Cap residual: *u8→char** cast + av[0]; G.7 basename; OS access+spawn.
+  // Extern surfaces require unsafe (T001).
+  unsafe {
+    self = shux_driver_sibling_argv0_get(argv_opaque);
+    if (self == 0 as *u8) {
+      return 0 - 1;
+    }
+    // G.7: single authority for argv0 basename (rt_util pure).
+    if (driver_argv0_basename_is(self, "shux-c") != 0) {
+      return 0 - 1;
+    }
+  }
+  path = &g_driver_sibling_path_buf[0];
+  pr = driver_sibling_path_from_self(self, path, 512);
+  if (pr != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    // Cap residual: access X_OK + fork/exec or Windows spawnvp + wait.
+    return shux_driver_sibling_access_spawn(path, argc, argv_opaque);
+  }
+  return 0 - 1;
 }
 

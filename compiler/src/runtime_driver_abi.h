@@ -331,8 +331,9 @@ int driver_source_has_top_level_import_path(const char *path);
  *   - elf_ctx 分配（wave23 pure）、metric 写盘、asm work 槽
  * wave40 pure under PREFER: fopen_wb / fflush_stdout / write_metric_o；
  * wave41 pure under PREFER: mkstemp_fdopen（template pure + g05 fdopen_wb_opaque）；
- * Permanent OS residual (always seed): sibling_try_spawn / print_usage_write；
- * wave42 pure under PREFER: exec_compiled_body（scan opaque + spawn residual）。
+ * Permanent OS residual (always seed): print_usage_write（巨型 usage lit）；
+ * wave42 pure under PREFER: exec_compiled_body（scan opaque + spawn residual）；
+ * wave43 pure under PREFER: sibling_try_spawn（path pure + argv0/access residual）。
  */
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
 void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);
@@ -567,11 +568,17 @@ int32_t driver_asm_stub_gas_line_count(void);
 int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s);
 
 /*
- * Cap residual：rt_dispatch_thin（R2 full）
- *   - sibling：从 argv0 拼同目录 shux-c、access X_OK、fork/exec/wait（或 win spawn）
+ * Cap residual：rt_dispatch_thin（R2 full）sibling
+ * wave43 pure under PREFER: null/argc + G.7 driver_argv0_basename_is + path pure BSS 512；
+ * cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
+ * Always-seed residual: shux_driver_sibling_argv0_get + shux_driver_sibling_access_spawn。
  *   业务薄门闩 / full 入口在 rt_dispatch_thin.x，不在 rest。
  *   返回 ≥0 子进程 exit；-1 未委托（含 basename 已是 shux-c / 不可执行等）。
  */
 int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv);
+/** Permanent Cap residual: *u8 argv → cast + av[0]. */
+uint8_t *shux_driver_sibling_argv0_get(uint8_t *argv_opaque);
+/** Permanent OS residual: access X_OK + spawn/fork wait. PLATFORM: WIN vs POSIX. */
+int32_t shux_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *argv_opaque);
 
 #endif /* SHUX_RUNTIME_DRIVER_ABI_H */
