@@ -13,8 +13,10 @@
  * wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
  *   Cap residual shux_load_one_direct_resolve_read_preprocess always-seed (FILE/PATH_MAX);
  *   G.7 paths_tmp residual reuses Cap residual (no dual resolve/read/preprocess bodies).
- * wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue);
- *   Cap residual strdup / resolve_read_preprocess / paths_tmp shell / thread remain seed.
+ * wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
+ * wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + Cap residual
+ *   resolve_read_preprocess + G.7 pure tmp_parse + free prep);
+ *   Cap residual strdup / resolve_read_preprocess / thread remain seed.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -133,7 +135,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46–52: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46–53: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -148,10 +150,14 @@ int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
     char *dep_paths[], int n_loaded);
-/* wave52 pure tmp_parse orch — paths_tmp Cap residual + pure process_one call it. */
+/* wave52 pure tmp_parse orch — pure paths_tmp + pure process_one call it. */
 void shux_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
     char *prep, size_t prep_len, const char *debug_path, char *to_load[], int *to_load_n, char *dep_paths[],
     int n_loaded);
+/* wave53 pure paths_tmp orch — pure paths_process_one calls it. */
+int shux_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir_buf, const char **defines, int ndefines, void **tmp_arena, void **tmp_module,
+    size_t arena_sz, size_t module_sz, char *to_load[], int *to_load_n, char *dep_paths[], int n_loaded);
 /* wave48 pure process_one orch — pure transitive_impl + Cap residual may call. */
 int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
@@ -3217,12 +3223,14 @@ int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
-/* wave49 Cap residual always-seed: ensure tmp; resolve/read/preprocess path_c; parse+enqueue; free prep.
+/* wave53 pure in .x; cold twin for non-PREFER product.
+ * ensure tmp; Cap residual resolve/read/preprocess path_c; G.7 pure tmp_parse; free prep.
  * Pure paths_process_one orch calls this after registering owned dep_paths key.
  * If tmp malloc fails: no-op success (path already registered; same as historical body).
  * wave51: G.7 reuses shux_load_one_direct_resolve_read_preprocess (no dual FILE/PATH_MAX body).
  * wave52: G.7 pure tmp_parse_and_enqueue (FROM_X weak pure; cold twin under #ifndef).
  * PLATFORM: SHARED — Cap residual resolve/read/preprocess + G.7 tmp_parse_and_enqueue. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, void **tmp_arena, void **tmp_module,
     size_t arena_sz, size_t module_sz, char *to_load[], int *to_load_n, char *dep_paths[], int n_loaded) {
@@ -3246,6 +3254,7 @@ int shux_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_
     free(prep);
     return 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave49 pure in .x; cold twin for non-PREFER product.
  * G-02f-241：paths-only process one（owned path_c）；0 继续，1 失败

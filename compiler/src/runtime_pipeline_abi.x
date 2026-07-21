@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave52).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave53).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
 // Cap residual: heavy FILE view / PATH_MAX resolve+read+preprocess /
-//   thread C remains seed rest (tmp_parse pure orch wave52; load_one pure wave51).
+//   thread C remains seed rest (paths_tmp pure orch wave53; tmp_parse pure wave52).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -19,8 +19,10 @@
 // wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
 //   Cap residual shux_load_one_direct_resolve_read_preprocess (FILE/PATH_MAX/preprocess);
 //   G.7 paths_tmp residual reuses same Cap residual (no dual resolve/read/preprocess).
-// wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue);
-//   Cap residual strdup / resolve_read_preprocess / paths_tmp shell / thread remain seed.
+// wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
+// wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + Cap residual
+//   resolve_read_preprocess + G.7 pure tmp_parse + free prep);
+//   Cap residual strdup / resolve_read_preprocess / thread remain seed.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -55,12 +57,9 @@ export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 // PLATFORM: SHARED — pure orch owns queue logic; free() still releases ownership.
 export extern "C" function shux_collect_strdup(s: *u8): *u8;
 // wave52: shux_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
-// wave49 Cap residual: ensure tmp; resolve/read/preprocess path_c; parse+enqueue; free prep.
-// PLATFORM: SHARED — FILE view / PATH_MAX / preprocess stay seed; pure paths_process_one orch.
-//   G.7 reuses pure tmp_parse_and_enqueue after Cap residual resolve_read_preprocess.
-export extern "C" function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32;
+// wave53: shux_collect_paths_tmp_resolve_parse_enqueue is pure export function below.
 // wave51 Cap residual: resolve import + read file view + preprocess → owned prep (no dep slots).
-// PLATFORM: SHARED — PATH_MAX stack + FILE view stay seed; pure load_one orch stores slots.
+// PLATFORM: SHARED — PATH_MAX stack + FILE view stay seed; pure load_one / paths_tmp orch call it.
 export extern "C" function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, out_prep: *u8, out_prep_len: *u8): i32;
 export extern "C" function ast_module_free(mod: *u8): void;
 export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
@@ -3546,6 +3545,87 @@ export function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *
 }
 
 /**
+ * Paths-only shell: ensure tmp, resolve+read+preprocess path_c, parse+enqueue, free prep.
+ * Called after paths_process_one has registered the owned dep_paths key.
+ * @param path_c *u8 — import key C string (not owned; not freed here); null → fail 1
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param tmp_arena *u8 — void star-star tmp arena slot; null → fail 1
+ * @param tmp_module *u8 — void star-star tmp module slot; null → fail 1
+ * @param arena_sz i64 — malloc size when first ensuring tmp arena
+ * @param module_sz i64 — malloc size when first ensuring tmp module
+ * @param to_load *u8 — char star-star queue base for sub-import keys
+ * @param to_load_n *i32 — live queue count (in/out)
+ * @param dep_paths *u8 — already-loaded keys as char star-star
+ * @param n_loaded i32 — count of committed dep_paths
+ * @return i32 — 0 continue (incl. tmp OOM skip parse); 1 resolve/preprocess fail
+ * wave53 pure Cap residual orch:
+ *   if *tmp_arena null → malloc arena_sz + module_sz into both slots;
+ *   if either buffer missing → return 0 (path already registered upstream; historical);
+ *   Cap residual shux_load_one_direct_resolve_read_preprocess → owned prep;
+ *   G.7 pure shux_collect_tmp_parse_and_enqueue; free prep.
+ * G.7 paths_process_one calls this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32 {
+  if (path_c == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_arena == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_module == 0 as *u8) {
+    return 1;
+  }
+  // Historical early ensure (before resolve): if *tmp_arena null, allocate both.
+  let ta: *u8 = pipe_load_ptr_slot(tmp_arena, 0);
+  if (ta == 0 as *u8) {
+    let tm_new: *u8 = 0 as *u8;
+    unsafe {
+      ta = malloc(arena_sz as usize);
+      tm_new = malloc(module_sz as usize);
+    }
+    pipe_store_ptr_slot(tmp_arena, 0, ta);
+    pipe_store_ptr_slot(tmp_module, 0, tm_new);
+  }
+  ta = pipe_load_ptr_slot(tmp_arena, 0);
+  let tm: *u8 = pipe_load_ptr_slot(tmp_module, 0);
+  // Historical: if tmp unavailable, path stays registered and we skip parse (return 0).
+  if (ta == 0 as *u8) {
+    return 0;
+  }
+  if (tm == 0 as *u8) {
+    return 0;
+  }
+  // Cap residual: PATH_MAX + FILE view + preprocess → owned prep (not stored in dep slots).
+  let prep_cell: u8[8] = [];
+  let prep_len_cell: u8[8] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shux_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
+  let prep_len: i64 = shux_size_slot_get(&prep_len_cell[0], 0);
+  // G.7 pure: memset + parse_into_bytes + enqueue (tmp already live from ensure above).
+  unsafe {
+    shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load, to_load_n, dep_paths, n_loaded);
+  }
+  // prep is owned only by this shell (paths-only does not keep sources); always free.
+  if (prep != 0 as *u8) {
+    unsafe {
+      free(prep);
+    }
+  }
+  return 0;
+}
+
+/**
  * Process one owned to_load path into dep_sources/lens/paths and enqueue its sub-imports.
  * @param path_c *u8 — owned C-string import key; consumed (freed) on all return paths
  * @param lib_roots *u8 — char star-star lib roots for resolve; may be null if n_lib_roots==0
@@ -3650,8 +3730,8 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
  * wave49 pure Cap residual orch:
  *   already-loaded → free path_c + 0;
  *   Cap residual shux_collect_strdup stores owned key at mi=*n; *n = mi+1;
- *   Cap residual shux_collect_paths_tmp_resolve_parse_enqueue
- *     (ensure tmp; resolve/read/preprocess; G.7 tmp_parse_and_enqueue; free prep);
+ *   wave53 pure shux_collect_paths_tmp_resolve_parse_enqueue
+ *     (ensure tmp; Cap residual resolve/read/preprocess; G.7 pure tmp_parse; free prep);
  *   free path_c. If tmp malloc fails residual no-ops success (path still registered).
  * wave50: called from pure paths transitive_impl orch. PLATFORM: SHARED.
  */
