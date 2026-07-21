@@ -36,6 +36,9 @@
  * wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
  *   typeck_dep_prerun_module; SHUX_DEBUG_PIPE notes cold-only; cold twin under
  *   #ifndef FROM_X).
+ * wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
+ *   + owned dup; Cap residual preprocess_* engine; pure diag helpers; oversized reportf
+ *   cold-only / pure fail; cold twin under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -187,6 +190,9 @@ int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, con
 /* wave60 pure dep_prerun_typeck_only_impl — thin pure gate calls under hybrid. */
 int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx);
+/* wave61 pure preprocess_raw_to_malloc_impl — thin pure gate + load_one paths call under hybrid. */
+int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+    size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -513,6 +519,11 @@ void pipeline_debug_trace_body_x_mega_pre_emit(void *module, void *arena) {
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* G-02f-240 / wave61：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
+ * Pure orch: scratch + define table + preprocess_x_buf + owned dup; Cap residual
+ * preprocess_* engine; pure pipeline_diag_preprocess_* (oversized reportf cold-only).
+ * PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag) {
     int di;
@@ -578,7 +589,6 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
 }
 
 /* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
     const char *path_diag, const char **defines, int ndefines) {
   if (raw == NULL && raw_len > 0)

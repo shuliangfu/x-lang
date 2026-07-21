@@ -38,6 +38,8 @@
 //   pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only).
 // wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
 //   typeck_dep_prerun_module; SHUX_DEBUG_PIPE notes cold-only).
+// wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
+//   + owned dup; Cap residual preprocess_* / pure diag helpers; oversized → pure fail).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -115,8 +117,13 @@ export extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: 
 export extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
 export extern "C" function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void;
 export extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
-/* See implementation. */
-export extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
+/* wave61: shux_preprocess_raw_to_malloc_impl is pure export function below.
+ * Cap residual preprocess engine still C (ast_pool / preprocess.x authority): */
+export extern "C" function preprocess_define_reset(): void;
+export extern "C" function preprocess_define_add(name: *u8): void;
+export extern "C" function preprocess_x_buf(src: *u8, src_len: i64, out_buf: *u8, out_cap: i32): i32;
+export extern "C" function preprocess_if_stack_len(): i32;
+// PLATFORM: SHARED — same C ABI as seed cold twin; pure orch owns malloc/copy/diag gates.
 export extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
 export extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
 export extern "C" function shux_cstr_typeck_lit(): *u8;
@@ -1276,17 +1283,164 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
 
 /* See implementation. */
 
-// shux_preprocess_raw_to_malloc: see function docblock below.
-/** Exported function `shux_preprocess_raw_to_malloc`.
- * Memory management helper `shux_preprocess_raw_to_malloc`.
- * @param raw *u8
- * @param raw_len i64
- * @param out_src *u8
- * @param out_src_len *u8
- * @param path_diag *u8
- * @param defines *u8
- * @param ndefines i32
- * @return i32
+/**
+ * Preprocess raw source into an owned NUL-terminated malloc buffer.
+ * @param raw *u8 — source bytes; null only allowed when raw_len == 0
+ * @param raw_len i64 — byte count; must fit SHUX_PIPELINE_CTX_BUF_SIZE (4MiB)
+ * @param out_src *u8 — char** base as bytes; slot 0 set to owned prep (or null on fail)
+ * @param out_src_len *u8 — size_t* base as bytes; slot 0 set to output length (0 on fail)
+ * @param path_diag *u8 — path for preprocess diags; may be null
+ * @param defines *u8 — const char** define names base; may be null when ndefines == 0
+ * @param ndefines i32 — define count; < 0 rejected by thin gate
+ * @param emit_diag i32 — non-zero → emit PP/XP diags on failure
+ * @return i32 — 0 success; -1 fail (OOM / oversized / preprocess error / unclosed #if)
+ * wave61 pure Cap residual orch:
+ *   G.7 preprocess_define_reset / preprocess_define_add / preprocess_x_buf /
+ *   preprocess_if_stack_len (preprocess engine Cap residual in C);
+ *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
+ *   G.7 shux_ptr_slot_set / shux_size_slot_set for out slots (char** / size_t*);
+ *   oversized raw → pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
+ * PLATFORM: SHARED — same control flow as historical seed _impl.
+ */
+#[no_mangle]
+export function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32 {
+  // Clear outs first (same as seed).
+  if (out_src != 0 as *u8) {
+    shux_ptr_slot_set(out_src, 0, 0 as *u8);
+  }
+  if (out_src_len != 0 as *u8) {
+    shux_size_slot_set(out_src_len, 0, 0);
+  }
+  // SHUX_PIPELINE_CTX_BUF_SIZE — fixed 4MiB pipeline ctx buffer (runtime_pipeline_abi.h).
+  let buf_cap: i32 = 4194304;
+  let buf_cap_i64: i64 = buf_cap as i64;
+  if (raw_len > buf_cap_i64) {
+    if (emit_diag != 0) {
+      // Cold twin uses reportf with sizes; pure keeps fixed PP002 fail (no va_list).
+      pipeline_diag_preprocess_fail(path_diag);
+    }
+    return 0 - 1;
+  }
+  let scratch: *u8 = 0 as *u8;
+  unsafe {
+    scratch = malloc(buf_cap as usize);
+  }
+  if (scratch == 0 as *u8) {
+    if (emit_diag != 0) {
+      // "scratch buffer"
+      let what: u8[16] = [];
+      what[0] = 115; what[1] = 99; what[2] = 114; what[3] = 97; what[4] = 116;
+      what[5] = 99; what[6] = 104; what[7] = 32; what[8] = 98; what[9] = 117;
+      what[10] = 102; what[11] = 102; what[12] = 101; what[13] = 114; what[14] = 0;
+      pipeline_diag_preprocess_alloc_fail(path_diag, &what[0]);
+    }
+    return 0 - 1;
+  }
+  // Reset define table then add caller defines (char** via ptr slots).
+  unsafe {
+    preprocess_define_reset();
+  }
+  let di: i32 = 0;
+  while (di < ndefines) {
+    if (defines != 0 as *u8) {
+      let dname: *u8 = shux_ptr_slot_get(defines, di);
+      if (dname != 0 as *u8) {
+        unsafe {
+          preprocess_define_add(dname);
+        }
+      }
+    }
+    di = di + 1;
+  }
+  let n: i32 = 0;
+  unsafe {
+    // Authority preprocess engine; raw may be null only when raw_len == 0 (thin gate).
+    n = preprocess_x_buf(raw, raw_len, scratch, buf_cap);
+  }
+  if (n < 0) {
+    unsafe {
+      free(scratch);
+    }
+    if (emit_diag != 0) {
+      // Directive-level negative codes (-2..-7) prefer over unclosed-if (stack may be non-empty).
+      if (n <= (0 - 2)) {
+        pipeline_diag_preprocess_directive_code(path_diag, n);
+      } else {
+        let stack_n: i32 = 0;
+        unsafe {
+          stack_n = preprocess_if_stack_len();
+        }
+        if (stack_n != 0) {
+          pipeline_diag_preprocess_unclosed_if(path_diag);
+        } else {
+          pipeline_diag_preprocess_fail(path_diag);
+        }
+      }
+    }
+    return 0 - 1;
+  }
+  let stack_after: i32 = 0;
+  unsafe {
+    stack_after = preprocess_if_stack_len();
+  }
+  if (stack_after != 0) {
+    unsafe {
+      free(scratch);
+    }
+    if (emit_diag != 0) {
+      pipeline_diag_preprocess_unclosed_if(path_diag);
+    }
+    return 0 - 1;
+  }
+  // Owned output: n bytes + trailing NUL (byte copy; no memcpy short name).
+  let dup: *u8 = 0 as *u8;
+  unsafe {
+    dup = malloc((n + 1) as usize);
+  }
+  if (dup == 0 as *u8) {
+    unsafe {
+      free(scratch);
+    }
+    if (emit_diag != 0) {
+      // "output buffer"
+      let what2: u8[16] = [];
+      what2[0] = 111; what2[1] = 117; what2[2] = 116; what2[3] = 112; what2[4] = 117;
+      what2[5] = 116; what2[6] = 32; what2[7] = 98; what2[8] = 117; what2[9] = 102;
+      what2[10] = 102; what2[11] = 101; what2[12] = 114; what2[13] = 0;
+      pipeline_diag_preprocess_alloc_fail(path_diag, &what2[0]);
+    }
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  unsafe {
+    while (i < n) {
+      dup[i] = scratch[i];
+      i = i + 1;
+    }
+    dup[n] = 0;
+    free(scratch);
+  }
+  if (out_src != 0 as *u8) {
+    shux_ptr_slot_set(out_src, 0, dup);
+  }
+  if (out_src_len != 0 as *u8) {
+    shux_size_slot_set(out_src_len, 0, n as i64);
+  }
+  return 0;
+}
+
+/**
+ * Thin gate for preprocess raw→malloc (null/oversized rejects; emit_diag fixed 1).
+ * @param raw *u8 — source bytes; null with raw_len > 0 → -1
+ * @param raw_len i64 — byte count; < 0 → -1
+ * @param out_src *u8 — char** out base as bytes
+ * @param out_src_len *u8 — size_t* out base as bytes
+ * @param path_diag *u8 — path for diags
+ * @param defines *u8 — const char** define table
+ * @param ndefines i32 — define count; < 0 → -1
+ * @return i32 — 0 success; -1 fail
+ * wave61: body in pure shux_preprocess_raw_to_malloc_impl.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
