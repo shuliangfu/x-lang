@@ -11,7 +11,7 @@ Shux uses **layered licensing** (see root [`LICENSE`](LICENSE) and [`NOTICE`](NO
 | `compiler/`, `tools/`, root build scripts | **AGPL-3.0-or-later** |
 | `core/`, `std/` | **Apache-2.0** |
 | `examples/`, `tests/` (outside `compiler/`) | **Apache-2.0** |
-| `editors/vscode/` | **MIT** |
+| `editors/vscode/` | **Apache-2.0** |
 | `editors/tree-sitter-shux/`, `editors/vim/` | **Apache-2.0** |
 
 By submitting a contribution (pull request, patch, or other submission), you

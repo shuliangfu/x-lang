@@ -24,7 +24,7 @@ Full texts: LICENSE.AGPL-3.0 · LICENSE.Apache-2.0
   std/                         Apache-2.0           LICENSE.Apache-2.0
   examples/                    Apache-2.0           LICENSE.Apache-2.0
   tests/                       Apache-2.0           (not under compiler/)
-  editors/vscode/              MIT                  editors/vscode/LICENSE
+  editors/vscode/              Apache-2.0           editors/vscode/LICENSE
   editors/tree-sitter-shux/    Apache-2.0           package metadata + LICENSE
   editors/vim/                 Apache-2.0           default
   Unlisted paths               AGPL-3.0-or-later    default Layer A
@@ -131,8 +131,7 @@ Helper: tools/add_x_license_header.sh (respects core|std vs compiler/src).
 ================================================================================
 
   AGPL-3.0-or-later   Compiler / toolchain (Layer A)
-  Apache-2.0          core, std, examples, tests, tree-sitter, vim (Layer B/C)
-  MIT                 editors/vscode
+  Apache-2.0          core, std, examples, tests, tree-sitter, vim, vscode (Layer B/C)
   Zlib                orlp ed25519 under compiler/seeds/crypto/ed25519/
 
 ================================================================================

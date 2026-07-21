@@ -72,7 +72,7 @@ to build your program does not, by itself, place your program under AGPL.
 3. Layer C — Editor integrations (permissive)
 ================================================================================
 
-  - editors/vscode/            MIT   (see editors/vscode/LICENSE)
+  - editors/vscode/            Apache-2.0  (see editors/vscode/LICENSE)
   - editors/tree-sitter-shux/  Apache-2.0  (see that directory)
   - editors/vim/               Apache-2.0  (same default as language surface
                                            unless a file says otherwise)
@@ -112,15 +112,14 @@ Apache license texts themselves.
       → Layer A (AGPL-3.0-or-later), or contact us for commercial terms.
 
   - VS Code / Cursor extension
-      → MIT (editors/vscode).
+      → Apache-2.0 (editors/vscode).
 
 ================================================================================
 7. SPDX summary
 ================================================================================
 
   AGPL-3.0-or-later    Layer A (compiler / toolchain / default for unlisted)
-  Apache-2.0           Layer B (core, std), examples, tests, tree-sitter, vim
-  MIT                  editors/vscode
+  Apache-2.0           Layer B (core, std), examples, tests, tree-sitter, vim, vscode
   Zlib                 vendored orlp ed25519 (see NOTICE)
 
 ================================================================================

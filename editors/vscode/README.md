@@ -2,7 +2,7 @@
 
 A complete development experience extension for `.x` (Shux) language in VS Code, Cursor, and Trae IDE.
 
-**Version**: `0.3.0` · **Engine**: VS Code / Cursor / Trae `^1.75.0` · **License**: MIT
+**Version**: `0.1.0` · **Engine**: VS Code / Cursor / Trae `^1.75.0` · **License**: Apache-2.0
 
 > The extension UI itself supports 14 languages via `shux.locale` (auto / en / zh-cn / zh-tw / ja / ko / de / fr / es / ru / pt-br / it / tr / pl). This README is provided in English only to avoid dual-authority drift.
 
@@ -413,5 +413,5 @@ editors/vscode/
 ## Links
 
 - **Repository**: <https://github.com/shuliangfu/shux>
-- **License**: MIT
+- **License**: Apache-2.0
 - **Roadmap**: See [完善功能.md](./完善功能.md) for feature completion status and LSP enhancement plans (post-bootstrap)

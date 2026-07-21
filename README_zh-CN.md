@@ -511,7 +511,7 @@ Shux 采用 **分层授权**（语言库宽松；编译器 copyleft）。详见 
 | A — 工具链 | `compiler/`、`tools/`、根目录 `build*.x` | **AGPL-3.0-or-later**（[`LICENSE.AGPL-3.0`](LICENSE.AGPL-3.0)） |
 | B — 语言库 | `core/`、`std/` | **Apache-2.0**（[`LICENSE.Apache-2.0`](LICENSE.Apache-2.0)） |
 | 样例 | `examples/`、`tests/` | **Apache-2.0** |
-| 编辑器 | `editors/vscode` | **MIT** |
+| 编辑器 | `editors/vscode` | **Apache-2.0** |
 | 编辑器 | `editors/tree-sitter-shux`、`editors/vim` | **Apache-2.0** |
 | 第三方 | `compiler/seeds/crypto/ed25519/`（orlp） | **zlib** |
 

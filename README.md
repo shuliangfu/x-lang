@@ -512,7 +512,7 @@ Shux uses **layered licensing** (language libraries permissive; compiler copylef
 | A — Toolchain | `compiler/`, `tools/`, root `build*.x` | **AGPL-3.0-or-later** ([`LICENSE.AGPL-3.0`](LICENSE.AGPL-3.0)) |
 | B — Language libs | `core/`, `std/` | **Apache-2.0** ([`LICENSE.Apache-2.0`](LICENSE.Apache-2.0)) |
 | Samples | `examples/`, `tests/` | **Apache-2.0** |
-| Editors | `editors/vscode` | **MIT** |
+| Editors | `editors/vscode` | **Apache-2.0** |
 | Editors | `editors/tree-sitter-shux`, `editors/vim` | **Apache-2.0** |
 | Third-party | `compiler/seeds/crypto/ed25519/` (orlp) | **zlib** |
 
