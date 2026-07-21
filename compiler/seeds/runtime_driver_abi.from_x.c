@@ -121,7 +121,9 @@
  *   + wave43 Cap residual pure：driver_dispatch_sibling_try_spawn 在 thin.x
  *     （null/argc + G.7 driver_argv0_basename_is pure；path pure BSS 512；
  *       Cap residual shux_driver_sibling_argv0_get + access_spawn）；
- *     still always-seed：print_usage_write（巨型 usage lit + color 表）；
+ *   + wave44 Cap residual pure：driver_print_usage_write 在 thin.x
+ *     （color policy pure：NO_COLOR / FORCE / isatty；Cap residual
+ *       shux_driver_usage_write_stdout 持巨型 plain/color lit + fwrite+fflush）；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -1674,30 +1676,18 @@ char **driver_entry_fmt_argv_slot(void) {
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /**
- * Cap residual：rt_run_exec R2 full .x 的 usage 写 fd1。
- * 巨型多行字面量留平台层（.x -E 对 \\n 长串易丢体/误编码）。
- * 始终提供（不随 RDABI thin 宏剥离）。
+ * Cap residual：rt_run_exec R2 usage 写 stdout。
+ * wave44 pure：hybrid thin owns driver_print_usage_write orch
+ *   （NO_COLOR nonnull / CLICOLOR_FORCE|SHUX_FORCE_COLOR truthy / isatty）；
+ * cold twin under #ifndef FROM_X；FROM_X 无 pure-dup。
+ * always-seed：shux_driver_usage_write_stdout（巨型 plain/color lit + fwrite+fflush）。
+ * PLATFORM: SHARED orch；lit 表权威唯一在 residual（G.7，禁 .x 长 \\n 串）。
  */
-void driver_print_usage_write(void) {
-    /* §13 Color policy (see analysis/SHUX 命令行.md §13):
-     *   NO_COLOR (any value, even empty)         -> no color  (https://no-color.org)
-     *   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy -> force color even when piped
-     *   otherwise                                -> isatty(STDOUT_FILENO)
-     * Forward-declare isatty to avoid pulling <unistd.h> into this TU
-     * (prior note: hand-written extern write + #include <unistd.h> trips Darwin asm). */
-    extern int isatty(int fd);
-    const char *no_color = getenv("NO_COLOR");
-    const char *force = getenv("CLICOLOR_FORCE");
-    const char *shux_force = getenv("SHUX_FORCE_COLOR");
-    int use_color;
-    if (no_color != (const char *)0) {
-        use_color = 0;
-    } else if ((force != (const char *)0 && force[0] != 0 && force[0] != '0') ||
-               (shux_force != (const char *)0 && shux_force[0] != 0 && shux_force[0] != '0')) {
-        use_color = 1;
-    } else {
-        use_color = isatty(1);
-    }
+
+/* Permanent Cap residual: giant usage tables + fwrite(stdout) + fflush.
+ * Pure wave44 owns color policy only; .x -E cannot host multi-line \\n lits.
+ * Always linked under FROM_X. PLATFORM: SHARED — stdout FILE* write. */
+void shux_driver_usage_write_stdout(int32_t use_color) {
     /* Deno-style help layout: yellow section headers, blue subcommand names,
      * yellow flags, two-column alignment with description column. */
 static const char usage_plain[] =
@@ -1835,6 +1825,32 @@ static const char usage_color[] =
     }
     (void)fflush(stdout);
 }
+
+/* wave44 pure: hybrid thin owns print_usage color orch; cold twin under #ifndef FROM_X. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_print_usage_write(void) {
+    /* §13 Color policy (see analysis/SHUX 命令行.md §13):
+     *   NO_COLOR (any value, even empty)         -> no color  (https://no-color.org)
+     *   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy -> force color even when piped
+     *   otherwise                                -> isatty(STDOUT_FILENO)
+     * Forward-declare isatty to avoid pulling <unistd.h> into this TU
+     * (prior note: hand-written extern write + #include <unistd.h> trips Darwin asm). */
+    extern int isatty(int fd);
+    const char *no_color = getenv("NO_COLOR");
+    const char *force = getenv("CLICOLOR_FORCE");
+    const char *shux_force = getenv("SHUX_FORCE_COLOR");
+    int use_color;
+    if (no_color != (const char *)0) {
+        use_color = 0;
+    } else if ((force != (const char *)0 && force[0] != 0 && force[0] != '0') ||
+               (shux_force != (const char *)0 && shux_force[0] != 0 && shux_force[0] != '0')) {
+        use_color = 1;
+    } else {
+        use_color = isatty(1);
+    }
+    shux_driver_usage_write_stdout(use_color);
+}
+#endif
 
 /**
  * Cap residual：rt_run_exec R2 driver_exec_compiled 体。

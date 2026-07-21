@@ -104,10 +104,15 @@ uint8_t *driver_entry_tmp2_slot(void);
 char **driver_entry_fmt_argv_slot(void);
 
 /**
- * Cap residual：rt_run_exec R2 巨型 usage 字面量写 fd1。
- * .x 禁含 \\n 的长字串字面量（-E 编码/丢体）；平台层持静态表。
+ * Cap residual：rt_run_exec R2 usage 写 stdout。
+ * wave44 pure under PREFER: color policy orch（NO_COLOR / CLICOLOR_FORCE /
+ *   SHUX_FORCE_COLOR / isatty）；cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
+ * Always-seed residual: shux_driver_usage_write_stdout（巨型 plain/color lit +
+ *   fwrite+fflush）。.x 禁含 \\n 长字串字面量（-E 编码/丢体）→ 表留 residual。
  */
 void driver_print_usage_write(void);
+/** Permanent Cap residual: giant usage tables + fwrite(stdout) + fflush. Always-seed. */
+void shux_driver_usage_write_stdout(int32_t use_color);
 
 /**
  * Cap residual：rt_run_exec R2 driver_exec_compiled 体。
@@ -331,9 +336,9 @@ int driver_source_has_top_level_import_path(const char *path);
  *   - elf_ctx 分配（wave23 pure）、metric 写盘、asm work 槽
  * wave40 pure under PREFER: fopen_wb / fflush_stdout / write_metric_o；
  * wave41 pure under PREFER: mkstemp_fdopen（template pure + g05 fdopen_wb_opaque）；
- * Permanent OS residual (always seed): print_usage_write（巨型 usage lit）；
  * wave42 pure under PREFER: exec_compiled_body（scan opaque + spawn residual）；
- * wave43 pure under PREFER: sibling_try_spawn（path pure + argv0/access residual）。
+ * wave43 pure under PREFER: sibling_try_spawn（path pure + argv0/access residual）；
+ * wave44 pure under PREFER: print_usage_write（color orch + usage lit residual）。
  */
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
 void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);

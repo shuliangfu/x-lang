@@ -5,7 +5,7 @@
 // .x owns 8 public symbols: want_asm / print_usage / test_status_to_rc /
 //   print_target_cpu / exec_scan_out / path_is_non_exe / exec_compiled / run_test.
 // Product PREFER_X_O: full .x + FROM_X rest is marker only (business H=0).
-// Cap residual (driver_abi): driver_print_usage_write (giant usage literal;
+// Cap residual (driver_abi): driver_print_usage_write (wave44 pure color orch + lit residual;
 //   .x forbids "\n" strings) and driver_exec_compiled_body.
 // Discipline: no argv == 0 as **u8 (null-check via *u8); no local u8[N]
 //   (use malloc); diag via diag_report_with_code (no va); POSIX wait bit

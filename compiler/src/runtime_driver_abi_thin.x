@@ -116,11 +116,17 @@
 //     (null/argc + G.7 path_is_non_exe pure; Cap residual scan opaque cast + spawn_wait).
 //   + wave43 Cap residual pure：driver_dispatch_sibling_try_spawn
 //     (null/argc + G.7 driver_argv0_basename_is pure; path pure BSS 512;
-//      Cap residual argv0 get + access/spawn OS residual;
-//      still seed: print_usage_write giant lit).
+//      Cap residual argv0 get + access/spawn OS residual).
+//   + wave44 Cap residual pure：driver_print_usage_write
+//     (color policy pure: NO_COLOR nonnull / FORCE truthy / isatty;
+//      Cap residual shux_driver_usage_write_stdout holds giant plain/color lit +
+//      fwrite+fflush; .x cannot host multi-line \\n usage tables).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
+/** POSIX isatty(fd): non-zero if fd is a terminal. Color policy default path.
+ * PLATFORM: SHARED prototype (POSIX isatty / CRT _isatty on Windows via libc). */
+export extern "C" function isatty(fd: i32): i32;
 /** libc string compare for fixed dep import-path lits (std.io.core / std.io.driver).
  * PLATFORM: SHARED — string.h prototype; product -E skips conflicting redecl. */
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
@@ -4457,7 +4463,7 @@ export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
 // bind_lib_roots: n<=0 or null → ["."] one_root BSS via G.7; else return caller table.
 // argv0: G.7 / driver_argv_at index 0.
 // collect_defines: zero 64×LP64 BSS table + pure driver_argv_collect_defines (wave10).
-// Permanent OS residual (still seed): sibling_try_spawn / print_usage_write.
+// wave43/44 pure: sibling_try_spawn / print_usage_write (see wave blocks).
 // Wave42 pure: exec_compiled_body (scan opaque + spawn residual).
 // Wave39–41 pure: fwrite/stdio/fflush/fopen_wb/write_metric/mkstemp_fdopen.
 // G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
@@ -5303,8 +5309,7 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
 //   - g05 prologue: shux_driver_fdopen_wb_opaque(fd) hides FILE* fdopen("wb")
 //   - pure orch: null guard, enable gate, template fill into path_out64, mkstemp,
 //     fdopen; fail → close+unlink+clear path[0]
-// Wave42 owns exec_compiled_body (see below). Still seed OS residual:
-// sibling_try_spawn / print_usage_write.
+// Wave42 owns exec_compiled_body (see below).
 // PLATFORM: SHARED orch; WINDOWS disabled via residual (matches cold twin).
 
 /**
@@ -5376,8 +5381,7 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
 //   - seed always: shux_driver_exec_scan_out_path_opaque (*u8 argv → cast + scan)
 //   - seed always: shux_driver_exec_spawn_wait (fork/exec or spawnvp + wait)
 //   - pure orch: null/argc guard, resolve exe, non-exe early 0, spawn residual
-// Wave43 owns sibling_try_spawn (see below). Still seed OS residual:
-// print_usage_write (giant usage lit + color tables).
+// Wave43 owns sibling_try_spawn; wave44 owns print_usage_write (see below).
 // PLATFORM: SHARED orch; WINDOWS spawn vs POSIX fork in residual.
 
 /**
@@ -5441,8 +5445,8 @@ export function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32 {
 //   - seed always: shux_driver_sibling_argv0_get (*u8 argv → cast + av[0])
 //   - seed always: shux_driver_sibling_access_spawn (access X_OK + fork/exec or spawnvp)
 //   - pure orch: null/argc guard, basename "shux-c" early -1, path BSS 512 pure, residual
-// Still seed OS residual: print_usage_write (giant multi-line usage lit + color tables).
-// PLATFORM: SHARED orch; WINDOWS \\ sep + spawnvp vs POSIX / + fork in residual.
+// Wave44 owns print_usage_write (see below). PLATFORM: SHARED orch;
+// WINDOWS \\ sep + spawnvp vs POSIX / + fork in residual.
 
 /** Module BSS for sibling path "dir/shux-c"; capacity matches cold char shu_c[512]. */
 let g_driver_sibling_path_buf: u8[512] = [];
@@ -5575,5 +5579,52 @@ export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): 
     return shux_driver_sibling_access_spawn(path, argc, argv_opaque);
   }
   return 0 - 1;
+}
+
+// ---- Wave44 Cap residual pure: driver_print_usage_write ----
+// Color policy pure (analysis/SHUX 命令行.md §13 / no-color.org):
+//   NO_COLOR set (any value, even empty) → no color
+//   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy → force color even when piped
+//   otherwise → isatty(1)
+// Cap residual always-seed: shux_driver_usage_write_stdout(use_color)
+//   holds giant plain + ANSI color multi-line tables + fwrite + fflush.
+// Root cause for residual: .x -E drops / mis-encodes long \\n string lits — not a
+// single-line workaround; table authority stays one seed residual (G.7).
+// PLATFORM: SHARED orch; isatty / fwrite OS surfaces.
+
+/**
+ * Cap residual: write usage plain or color table to stdout and fflush.
+ * @param use_color i32 — non-zero selects ANSI color table; zero selects plain
+ * PLATFORM: SHARED — giant lit tables + fwrite/fflush. Always-seed (no pure-dup).
+ */
+export extern "C" function shux_driver_usage_write_stdout(use_color: i32): void;
+
+/**
+ * Print shux CLI usage summary to stdout (fd1 / stdout FILE*).
+ * Wave44 pure: color policy orch reuses G.7 driver_env_nonnull / driver_env_flag_truthy
+ * (same truthiness as cold getenv checks); isatty(1) for TTY default; Cap residual
+ * holds multi-line usage tables + write. Cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED orch; residual owns giant lit + fwrite.
+ */
+#[no_mangle]
+export function driver_print_usage_write(): void {
+  let use_color: i32 = 0;
+  // NO_COLOR any presence (including empty) disables color — https://no-color.org
+  if (driver_env_nonnull("NO_COLOR") != 0) {
+    use_color = 0;
+  } else if (driver_env_flag_truthy("CLICOLOR_FORCE") != 0) {
+    use_color = 1;
+  } else if (driver_env_flag_truthy("SHUX_FORCE_COLOR") != 0) {
+    use_color = 1;
+  } else {
+    // Default: color only when stdout is a TTY.
+    unsafe {
+      use_color = isatty(1);
+    }
+  }
+  // Cap residual: plain/color tables + fwrite(stdout) + fflush (giant lit authority).
+  unsafe {
+    shux_driver_usage_write_stdout(use_color);
+  }
 }
 
