@@ -77,13 +77,17 @@
 // wave75: pure entry_lib authority (shux_cstr_typeck_lit / shux_entry_lib_keyword_lit /
 //   shux_entry_lib_name_from_path_impl + thin gate); module BSS stem_buf[128] + keyword lits;
 //   G.7 single path matches C seed order (keywords before std/stem — closes pure std/-first drift);
-//   cold twins under FROM_X). Cap residual still: fn-ptr / product_emit /
-//   typeck_module C frontend (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
+//   cold twins under FROM_X).
+// wave76: pure shux_cstr_offset (G.7 &s[off] → C &s[off] / s+off; closes Cap residual pointer
+//   arith leaf for pipe_dir_tail / pipe_strip_prefix_seg / driver -D parse); cold twin under FROM_X.
+// Cap residual still: fn-ptr / product_emit / typeck_module C frontend
+//   (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
 // wave74: driver_dep_seeded_slot / *_ptr_set_impl / path_registry_* / *_buf are pure below.
 // wave75: shux_cstr_typeck_lit / shux_entry_lib_keyword_lit / name_from_path_impl pure below.
+// wave76: shux_cstr_offset is pure export function below (not Cap residual).
 export extern "C" function typeck_ndep_slot(): *i32;
 export extern "C" function typeck_ndep_store_impl(n: i32): void;
 export extern "C" function typeck_dep_module_get(i: i32): *u8;
@@ -202,7 +206,7 @@ export extern "C" function driver_pipeline_dep_ctx_get_asm_entry_module_only(ctx
 export extern "C" function driver_pipeline_dep_ctx_set_asm_entry_module_only(ctx: *u8, v: i32): void;
 /* See implementation. */
 export extern "C" function access(path: *u8, mode: i32): i32;
-export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
+// wave76: shux_cstr_offset is pure export function below (not Cap residual).
 /* See implementation. */
 // wave68: pipeline_entry_dir_copy / set_dot are pure export functions below (not Cap residual).
 // wave75: pipeline_set_dep_slots_impl removed — pure pipeline_set_dep_slots uses wave70 slots.
@@ -2431,11 +2435,38 @@ export function pipe_append_suffix(dst: *u8, cap: i32, off: i32, suf: *u8): void
   }
 }
 
+/**
+ * Byte-offset a C string pointer (null-safe; negative off → base).
+ * @param s *u8 — base C string or byte buffer; null → null
+ * @param off i32 — byte offset from s; off < 0 → return s unchanged
+ * @return *u8 — s+off (as &s[off]); null when s is null
+ * wave76 pure: G.7 single authority for pipe_dir_tail / pipe_strip_prefix_seg / driver -D
+ * parse (driver_abi imports this symbol). Codegen emits C `&((s)[off])` ≡ s+off on LP64.
+ * Historical Cap residual claimed ".x has no reliable pointer arithmetic"; pure index
+ * address-of closes that leaf without a C helper.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function shux_cstr_offset(s: *u8, off: i32): *u8 {
+  if (s == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (off < 0) {
+    return s;
+  }
+  unsafe {
+    return &s[off];
+  }
+  return s;
+}
+
 // pipe_dir_tail: see function docblock below.
-/** Exported function `pipe_dir_tail`.
- * Implements `pipe_dir_tail`.
- * @param entry_dir *u8
- * @return *u8
+/**
+ * Basename segment of a directory path (bytes after last '/'; whole path if none).
+ * @param entry_dir *u8 — directory path; null → null
+ * @return *u8 — pointer into entry_dir at last slash+1 (or entry_dir); lifetime = entry_dir
+ * wave76: G.7 pure shux_cstr_offset for tail pointer (no Cap residual).
+ * PLATFORM: SHARED.
  */
 export function pipe_dir_tail(entry_dir: *u8): *u8 {
   if (entry_dir == 0 as *u8) { return 0 as *u8; }

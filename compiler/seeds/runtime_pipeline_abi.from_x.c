@@ -73,8 +73,10 @@
  * wave75: pure entry_lib authority (typeck_lit / keyword_lit / name_from_path_impl + thin gate;
  *   pure BSS stem_buf + keyword lits; G.7 single path matches C keyword-before-std order;
  *   cold twins under #ifndef FROM_X).
+ * wave76: pure shux_cstr_offset (G.7 &s[off] ≡ s+off; closes Cap residual pointer arith leaf;
+ *   cold twin under #ifndef FROM_X).
  * Cap residual still: fn-ptr / product_emit / typeck_module C frontend
- *   (+ typeck_dep_* / typeck_ndep cross-TU global BSS; cstr_offset pointer arith residual).
+ *   (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -1081,7 +1083,9 @@ void shux_resolve_file_import_path(const char *entry_dir, const char *import_pat
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* G-02f-232：s + off（.x 无可靠指针算术时用） */
+/* wave76: hybrid pure owns shux_cstr_offset (&s[off]); cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — same null / negative-off / s+off semantics as pure. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 const char *shux_cstr_offset(const char *s, int32_t off) {
     if (!s)
         return NULL;
@@ -1089,6 +1093,7 @@ const char *shux_cstr_offset(const char *s, int32_t off) {
         return s;
     return s + off;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 在 lib_roots 与 entry_dir 下解析 import 到可读 .x 路径。
