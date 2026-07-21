@@ -9993,12 +9993,16 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
 }
 
 /**
- * See implementation.
- * See implementation.
- */
-/**
- * See implementation.
- * See implementation.
+ * Return 1 if `name` is a libc symbol that must NOT be re-declared by
+ * `emit_func_extern_declaration`.
+ *
+ * Why: SHUX maps `*u8` → `uint8_t *` (and integers → `int32_t`), while system
+ * headers use `char *` / `int` / `size_t`. Re-emitting those externs conflicts
+ * with `#include <stdlib.h>` / unistd / string (g05 historically sed-deleted them).
+ * Authority for "skip emit" is this single predicate; seed must stay in sync.
+ *
+ * Covered (historical g05 sed + read/write): libc I/O, alloc, string, env, dir.
+ * PLATFORM: SHARED — host libc headers; mac + Ubuntu both include them in C prologue.
  */
 export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
@@ -10010,6 +10014,98 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   }
   /* write 5 */
   if (name_len == 5 && name[0] == 119 && name[1] == 114 && name[2] == 105 && name[3] == 116 && name[4] == 101) {
+    return 1;
+  }
+  /* open 4 */
+  if (name_len == 4 && name[0] == 111 && name[1] == 112 && name[2] == 101 && name[3] == 110) {
+    return 1;
+  }
+  /* close 5 */
+  if (name_len == 5 && name[0] == 99 && name[1] == 108 && name[2] == 111 && name[3] == 115 && name[4] == 101) {
+    return 1;
+  }
+  /* fcntl 5 */
+  if (name_len == 5 && name[0] == 102 && name[1] == 99 && name[2] == 110 && name[3] == 116 && name[4] == 108) {
+    return 1;
+  }
+  /* free 4 */
+  if (name_len == 4 && name[0] == 102 && name[1] == 114 && name[2] == 101 && name[3] == 101) {
+    return 1;
+  }
+  /* malloc 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 97 && name[2] == 108 && name[3] == 108 && name[4] == 111 && name[5] == 99) {
+    return 1;
+  }
+  /* calloc 6 */
+  if (name_len == 6 && name[0] == 99 && name[1] == 97 && name[2] == 108 && name[3] == 108 && name[4] == 111 && name[5] == 99) {
+    return 1;
+  }
+  /* memcpy 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 99 && name[4] == 112 && name[5] == 121) {
+    return 1;
+  }
+  /* memcmp 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 99 && name[4] == 109 && name[5] == 112) {
+    return 1;
+  }
+  /* memset 6 */
+  if (name_len == 6 && name[0] == 109 && name[1] == 101 && name[2] == 109 && name[3] == 115 && name[4] == 101 && name[5] == 116) {
+    return 1;
+  }
+  /* getenv 6 — *u8 → uint8_t* conflicts with char *getenv(const char *) */
+  if (name_len == 6 && name[0] == 103 && name[1] == 101 && name[2] == 116 && name[3] == 101 && name[4] == 110 && name[5] == 118) {
+    return 1;
+  }
+  /* getcwd 6 */
+  if (name_len == 6 && name[0] == 103 && name[1] == 101 && name[2] == 116 && name[3] == 99 && name[4] == 119 && name[5] == 100) {
+    return 1;
+  }
+  /* unlink 6 */
+  if (name_len == 6 && name[0] == 117 && name[1] == 110 && name[2] == 108 && name[3] == 105 && name[4] == 110 && name[5] == 107) {
+    return 1;
+  }
+  /* strlen 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 108 && name[4] == 101 && name[5] == 110) {
+    return 1;
+  }
+  /* strcmp 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 99 && name[4] == 109 && name[5] == 112) {
+    return 1;
+  }
+  /* strncmp 7 */
+  if (name_len == 7 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 110 && name[4] == 99 && name[5] == 109 && name[6] == 112) {
+    return 1;
+  }
+  /* strstr 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 115 && name[4] == 116 && name[5] == 114) {
+    return 1;
+  }
+  /* setenv 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 101 && name[2] == 116 && name[3] == 101 && name[4] == 110 && name[5] == 118) {
+    return 1;
+  }
+  /* system 6 */
+  if (name_len == 6 && name[0] == 115 && name[1] == 121 && name[2] == 115 && name[3] == 116 && name[4] == 101 && name[5] == 109) {
+    return 1;
+  }
+  /* fputs 5 */
+  if (name_len == 5 && name[0] == 102 && name[1] == 112 && name[2] == 117 && name[3] == 116 && name[4] == 115) {
+    return 1;
+  }
+  /* strerror 8 */
+  if (name_len == 8 && name[0] == 115 && name[1] == 116 && name[2] == 114 && name[3] == 101 && name[4] == 114 && name[5] == 114 && name[6] == 111 && name[7] == 114) {
+    return 1;
+  }
+  /* opendir 7 */
+  if (name_len == 7 && name[0] == 111 && name[1] == 112 && name[2] == 101 && name[3] == 110 && name[4] == 100 && name[5] == 105 && name[6] == 114) {
+    return 1;
+  }
+  /* closedir 8 */
+  if (name_len == 8 && name[0] == 99 && name[1] == 108 && name[2] == 111 && name[3] == 115 && name[4] == 101 && name[5] == 100 && name[6] == 105 && name[7] == 114) {
+    return 1;
+  }
+  /* access 6 */
+  if (name_len == 6 && name[0] == 97 && name[1] == 99 && name[2] == 99 && name[3] == 101 && name[4] == 115 && name[5] == 115) {
     return 1;
   }
   return 0;

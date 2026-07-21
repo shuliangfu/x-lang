@@ -10392,14 +10392,111 @@ int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOut
   }
   return 0;
 }
+/* PLATFORM: SHARED — skip re-declaring libc symbols that conflict with system
+ * headers when SHUX types (*u8→uint8_t*, i32→int32_t) differ from C. Must match
+ * codegen.x codegen_is_libc_conflicting_extern_name (same names). */
 int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len) {
   if (((name ==((uint8_t *)(0))) || (name_len <=0))) {
     return 0;
   }
+  /* read 4 */
   if ((((((name_len ==4) && ((name)[0] ==114)) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==100))) {
     return 1;
   }
+  /* write 5 */
   if (((((((name_len ==5) && ((name)[0] ==119)) && ((name)[1] ==114)) && ((name)[2] ==105)) && ((name)[3] ==116)) && ((name)[4] ==101))) {
+    return 1;
+  }
+  /* open 4 */
+  if ((((((name_len ==4) && ((name)[0] ==111)) && ((name)[1] ==112)) && ((name)[2] ==101)) && ((name)[3] ==110))) {
+    return 1;
+  }
+  /* close 5 */
+  if (((((((name_len ==5) && ((name)[0] ==99)) && ((name)[1] ==108)) && ((name)[2] ==111)) && ((name)[3] ==115)) && ((name)[4] ==101))) {
+    return 1;
+  }
+  /* fcntl 5 */
+  if (((((((name_len ==5) && ((name)[0] ==102)) && ((name)[1] ==99)) && ((name)[2] ==110)) && ((name)[3] ==116)) && ((name)[4] ==108))) {
+    return 1;
+  }
+  /* free 4 */
+  if ((((((name_len ==4) && ((name)[0] ==102)) && ((name)[1] ==114)) && ((name)[2] ==101)) && ((name)[3] ==101))) {
+    return 1;
+  }
+  /* malloc 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==97)) && ((name)[2] ==108)) && ((name)[3] ==108)) && ((name)[4] ==111)) && ((name)[5] ==99))) {
+    return 1;
+  }
+  /* calloc 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==99)) && ((name)[1] ==97)) && ((name)[2] ==108)) && ((name)[3] ==108)) && ((name)[4] ==111)) && ((name)[5] ==99))) {
+    return 1;
+  }
+  /* memcpy 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==112)) && ((name)[5] ==121))) {
+    return 1;
+  }
+  /* memcmp 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==99)) && ((name)[4] ==109)) && ((name)[5] ==112))) {
+    return 1;
+  }
+  /* memset 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==109)) && ((name)[1] ==101)) && ((name)[2] ==109)) && ((name)[3] ==115)) && ((name)[4] ==101)) && ((name)[5] ==116))) {
+    return 1;
+  }
+  /* getenv 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==103)) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==101)) && ((name)[4] ==110)) && ((name)[5] ==118))) {
+    return 1;
+  }
+  /* getcwd 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==103)) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==99)) && ((name)[4] ==119)) && ((name)[5] ==100))) {
+    return 1;
+  }
+  /* unlink 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==117)) && ((name)[1] ==110)) && ((name)[2] ==108)) && ((name)[3] ==105)) && ((name)[4] ==110)) && ((name)[5] ==107))) {
+    return 1;
+  }
+  /* strlen 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==108)) && ((name)[4] ==101)) && ((name)[5] ==110))) {
+    return 1;
+  }
+  /* strcmp 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==99)) && ((name)[4] ==109)) && ((name)[5] ==112))) {
+    return 1;
+  }
+  /* strncmp 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==110)) && ((name)[4] ==99)) && ((name)[5] ==109)) && ((name)[6] ==112))) {
+    return 1;
+  }
+  /* strstr 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==115)) && ((name)[4] ==116)) && ((name)[5] ==114))) {
+    return 1;
+  }
+  /* setenv 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==101)) && ((name)[2] ==116)) && ((name)[3] ==101)) && ((name)[4] ==110)) && ((name)[5] ==118))) {
+    return 1;
+  }
+  /* system 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==115)) && ((name)[1] ==121)) && ((name)[2] ==115)) && ((name)[3] ==116)) && ((name)[4] ==101)) && ((name)[5] ==109))) {
+    return 1;
+  }
+  /* fputs 5 */
+  if (((((((name_len ==5) && ((name)[0] ==102)) && ((name)[1] ==112)) && ((name)[2] ==117)) && ((name)[3] ==116)) && ((name)[4] ==115))) {
+    return 1;
+  }
+  /* strerror 8 */
+  if ((((((((((name_len ==8) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==101)) && ((name)[4] ==114)) && ((name)[5] ==114)) && ((name)[6] ==111)) && ((name)[7] ==114))) {
+    return 1;
+  }
+  /* opendir 7 */
+  if (((((((((name_len ==7) && ((name)[0] ==111)) && ((name)[1] ==112)) && ((name)[2] ==101)) && ((name)[3] ==110)) && ((name)[4] ==100)) && ((name)[5] ==105)) && ((name)[6] ==114))) {
+    return 1;
+  }
+  /* closedir 8 */
+  if ((((((((((name_len ==8) && ((name)[0] ==99)) && ((name)[1] ==108)) && ((name)[2] ==111)) && ((name)[3] ==115)) && ((name)[4] ==101)) && ((name)[5] ==100)) && ((name)[6] ==105)) && ((name)[7] ==114))) {
+    return 1;
+  }
+  /* access 6 */
+  if ((((((((name_len ==6) && ((name)[0] ==97)) && ((name)[1] ==99)) && ((name)[2] ==99)) && ((name)[3] ==101)) && ((name)[4] ==115)) && ((name)[5] ==115))) {
     return 1;
   }
   return 0;
