@@ -89,6 +89,11 @@
 //     driver_diag_push_file / restore + driver_dispatch_lib_root_at / opt_default
 //     (G.7 typeck_ndep_store + dep_module/arena_set; diag_push_file/restore;
 //      G.7 shux_ptr_slot_get on roots; opt default reuses wave32 BSS lit "2").
+//   + wave36 Cap residual pure：driver_dispatch_lib_roots_from_key +
+//     driver_dispatch_run_compiler_parsed
+//     (BSS 16×512 bufs + 16×LP64 root slots; G.7 driver_lib_roots_from_key;
+//      BSS pack DriverCompileParsedAbi 176B LP64 + driver_run_compiler_parsed;
+//      opt default reuses wave32 lit "2").
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -113,6 +118,10 @@ export extern "C" function diag_push_file(
 ): void;
 /** Diag authority: restore DiagContextSnapshot (diag_thin / seed). */
 export extern "C" function diag_restore(snapshot: *u8): void;
+/** Lib-root expand authority (rt_lib_root / seed). Fills out_arr + contiguous 16×512 bufs. */
+export extern "C" function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8, bufs: *u8): i32;
+/** Parsed compile authority (rt_run_compiler_parsed / seed). p = DriverCompileParsedAbi*. */
+export extern "C" function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32;
 /** Permanent OS wall-clock surface (seed rest). Returns seconds as f64.
  * PLATFORM: POSIX gettimeofday / WINDOWS time — hides timeval layout from .x. */
 export extern "C" function shux_driver_wall_clock_sec(): f64;
@@ -4572,9 +4581,8 @@ export function driver_asm_ndefines_get(): i32 {
 // diag_*: null-guard + diag_push_file / diag_restore (diag_thin pure under PREFER).
 // dispatch_lib_root_at: G.7 shux_ptr_slot_get on opaque const char** (max 16).
 // dispatch_opt_default: reuses wave32 g_driver_parsed_opt_default lit "2" (G.7 one lit).
-// Still seed (not this wave): dispatch_lib_roots_from_key (static 16×512 bufs),
-//   run_compiler_parsed (struct pack + driver_run_compiler_parsed),
-//   sibling_try_spawn (access/fork/exec OS residual).
+// Wave36 pure: dispatch_lib_roots_from_key + run_compiler_parsed (see section below).
+// Still seed (OS residual): sibling_try_spawn (access/fork/exec), fopen family.
 // G.7: hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
 // PLATFORM: SHARED LP64.
 
@@ -4691,11 +4699,175 @@ export function driver_dispatch_lib_root_at(roots: *u8, i: i32): *u8 {
  * Default opt_level C string for dispatch/parsed ("2").
  * @return *u8 — never null; points at wave32 g_driver_parsed_opt_default BSS lit
  * Wave35 pure: G.7 single "2" lit authority (shared with driver_parsed_opt_level default);
- * cold twin keeps g_dispatch_opt_default under #ifndef FROM_X (run_compiler_parsed still seed).
+ * cold twin keeps g_dispatch_opt_default under #ifndef FROM_X.
  * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
 export function driver_dispatch_opt_default(): *u8 {
   return &g_driver_parsed_opt_default[0];
+}
+
+// ---- Wave36 Cap residual pure: dispatch lib_roots_from_key + run_compiler_parsed ----
+// lib_roots_from_key: product .x cannot host char[16][512] / const char*[16] as typed C
+//   arrays; authority is flat BSS (8192 path bytes + 128 root-ptr bytes) + G.7
+//   driver_lib_roots_from_key (rt_lib_root / seed) which writes both tables.
+// run_compiler_parsed: no C struct in .x; pack DriverCompileParsedAbi into BSS scratch
+//   (sizeof 176 LP64; same offsetof map as wave32 accessors) then call
+//   driver_run_compiler_parsed (rt_run_compiler_parsed / seed). want_asm fixed 0.
+// opt default reuses wave32 g_driver_parsed_opt_default (G.7 one lit; wave35 opt_default).
+// Still seed: sibling_try_spawn / fopen OS residual.
+// G.7: hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
+// PLATFORM: SHARED LP64 (Ubuntu x86_64 + Darwin arm64/x86_64). Not MS64 packing.
+
+/** Contiguous path storage for driver_lib_roots_from_key (16 roots × 512 bytes). */
+let g_dispatch_lib_bufs: u8[8192] = [];
+
+/** Root pointer table (16 × LP64 slots) returned as opaque const char**. */
+let g_dispatch_lib_roots_raw: u8[128] = [];
+
+/**
+ * Scratch pack for DriverCompileParsedAbi (sizeof 176 on product LP64).
+ * Single-threaded product dispatch; module BSS avoids large local u8[N] product -E issues.
+ */
+let g_dispatch_parsed_pack_raw: u8[176] = [];
+
+/** sizeof(DriverCompileParsedAbi) on product LP64 (wave32 layout). */
+function driver_abi_parsed_sizeof(): i32 {
+  return 176;
+}
+
+/**
+ * Store an LP64 pointer field at byte offset off from opaque struct base p.
+ * @param p *u8 — struct base; null → no-op
+ * @param off i32 — byte offset of pointer field; off < 0 → no-op
+ * @param v *u8 — pointer value to store (may be null)
+ * @return void
+ * G.7: shux_ptr_slot_set on (p+off) as a 1-slot table (pairs driver_abi_load_ptr_at).
+ * PLATFORM: SHARED LP64 little-endian pointer cells.
+ */
+function driver_abi_store_ptr_at(p: *u8, off: i32, v: *u8): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  unsafe {
+    shux_ptr_slot_set(p + off, 0, v);
+  }
+}
+
+/**
+ * Expand lib_key into the dispatch static root table (16×512 path slots).
+ * @param lib_key *u8 — opaque key / argv state for driver_lib_roots_from_key (may be null)
+ * @param n_out *i32 — optional out count; null → skip write; else *n_out = root count
+ * @return *u8 — base of root pointer table (opaque const char**; never null BSS base)
+ * Wave36 pure: BSS bufs+roots + G.7 driver_lib_roots_from_key; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED LP64 — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_dispatch_lib_roots_from_key(lib_key: *u8, n_out: *i32): *u8 {
+  let n: i32 = 0;
+  unsafe {
+    n = driver_lib_roots_from_key(
+      lib_key,
+      &g_dispatch_lib_roots_raw[0],
+      &g_dispatch_lib_bufs[0]
+    );
+  }
+  if (n_out != 0 as *i32) {
+    unsafe {
+      n_out[0] = n;
+    }
+  }
+  return &g_dispatch_lib_roots_raw[0];
+}
+
+/**
+ * Pack DriverCompileParsedAbi (want_asm=0) and run driver_run_compiler_parsed.
+ * @param input_path *u8 — entry source path C string (may be null; authority may reject)
+ * @param out_path *u8 — output path; null = stdout / no file out per authority
+ * @param lib_roots *u8 — opaque const char** table (may be null when n_lib<=0)
+ * @param n_lib i32 — root count; clamped to [0,16]
+ * @param target *u8 — target triple; null or empty → null field
+ * @param opt_level *u8 — opt string; null or empty → wave32 BSS lit "2"
+ * @param use_lto i32 — non-zero → use_lto=1 in pack
+ * @param argc i32 — argv count for driver_run_compiler_parsed
+ * @param argv *u8 — opaque char** argv
+ * @return i32 — return code from driver_run_compiler_parsed
+ * Wave36 pure: BSS pack + wave32 offsetof map + G.7 driver_run_compiler_parsed;
+ * cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED LP64 — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_dispatch_run_compiler_parsed(
+  input_path: *u8,
+  out_path: *u8,
+  lib_roots: *u8,
+  n_lib: i32,
+  target: *u8,
+  opt_level: *u8,
+  use_lto: i32,
+  argc: i32,
+  argv: *u8
+): i32 {
+  let p: *u8 = &g_dispatch_parsed_pack_raw[0];
+  let n: i32 = n_lib;
+  let i: i32 = 0;
+  let t: *u8 = 0 as *u8;
+  let o: *u8 = &g_driver_parsed_opt_default[0];
+  let lto: i32 = 0;
+  // Zero full abi pack (matches cold memset(&p, 0, sizeof p)).
+  unsafe {
+    memset(p, 0, driver_abi_parsed_sizeof() as usize);
+  }
+  driver_abi_store_ptr_at(p, driver_abi_parsed_off_input_path(), input_path);
+  driver_abi_store_ptr_at(p, driver_abi_parsed_off_out_path(), out_path);
+  if (n > driver_abi_dispatch_max_lib_roots()) {
+    n = driver_abi_dispatch_max_lib_roots();
+  }
+  if (n < 0) {
+    n = 0;
+  }
+  // Copy n root pointers into embedded lib_roots_arr (p+16).
+  if (n > 0) {
+    if (lib_roots != 0 as *u8) {
+      i = 0;
+      while (i < n) {
+        unsafe {
+          let r: *u8 = shux_ptr_slot_get(lib_roots, i);
+          shux_ptr_slot_set(p + driver_abi_parsed_off_lib_roots(), i, r);
+        }
+        i = i + 1;
+      }
+    }
+  }
+  driver_abi_store_i32_le(p, driver_abi_parsed_off_n_lib_roots(), n);
+  // want_asm_backend fixed 0 for dispatch path (matches cold seed).
+  driver_abi_store_i32_le(p, driver_abi_parsed_off_want_asm(), 0);
+  if (target != 0 as *u8) {
+    unsafe {
+      if (target[0] != 0) {
+        t = target;
+      }
+    }
+  }
+  driver_abi_store_ptr_at(p, driver_abi_parsed_off_target(), t);
+  if (opt_level != 0 as *u8) {
+    unsafe {
+      if (opt_level[0] != 0) {
+        o = opt_level;
+      }
+    }
+  }
+  driver_abi_store_ptr_at(p, driver_abi_parsed_off_opt_level(), o);
+  if (use_lto != 0) {
+    lto = 1;
+  }
+  driver_abi_store_i32_le(p, driver_abi_parsed_off_use_lto(), lto);
+  unsafe {
+    return driver_run_compiler_parsed(p, argc, argv);
+  }
+  return 0;
 }
 

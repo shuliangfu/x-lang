@@ -478,11 +478,12 @@ void driver_parsed_work_cleanup(void);
 
 /*
  * Cap residual：rt_dispatch_impl（R2 full）
- *   - lib_key → lib_roots 静态槽（.x 禁局部 u8[N] / **u8 表）
- *   - 填 DriverCompileParsed 调 driver_run_compiler_parsed（opaque 布局）
+ *   - lib_key → lib_roots 静态槽（wave36 pure：BSS 16×512 + 16×LP64；cold twin）
+ *   - 填 DriverCompileParsed 调 driver_run_compiler_parsed（wave36 pure pack；cold twin）
  *   业务分派逻辑在 rt_dispatch_impl.x，不在 rest。
+ *   still always-seed OS residual：sibling_try_spawn / fopen 族。
  */
-/** 从 lib_key 填内部 16×512 槽；*n_out=根数；返回 *u8 实为 const char**。 */
+/** wave36 pure: 从 lib_key 填内部 16×512 槽；*n_out=根数；返回 *u8 实为 const char**；cold twin. */
 uint8_t *driver_dispatch_lib_roots_from_key(uint8_t *lib_key, int32_t *n_out);
 /** wave35 pure: roots 为 lib_roots_from_key 返回值；取第 i 根（越界/空 → NULL）；cold twin. */
 uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i);
@@ -490,7 +491,7 @@ uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i);
  * 构造 Parsed（want_asm=0）并调 driver_run_compiler_parsed。
  * lib_roots 为 const char**（可与 driver_dispatch_lib_roots_from_key 同址）。
  * opt_level 空/NULL → 默认 "2"。
- * always-seed（struct pack + driver_run_compiler_parsed）。
+ * wave36 pure: BSS pack + driver_run_compiler_parsed；cold twin under #ifndef FROM_X.
  */
 int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_path,
                                            uint8_t *lib_roots, int32_t n_lib,

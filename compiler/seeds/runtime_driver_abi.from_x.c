@@ -91,6 +91,11 @@
  *     driver_diag_push_file / restore + driver_dispatch_lib_root_at / opt_default 在 thin.x
  *     （G.7 typeck_ndep_store + dep_module/arena_set；diag_push_file/restore；
  *       G.7 shux_ptr_slot_get；opt default 共用 wave32 BSS lit "2"）；FROM_X 无 pure-dup；
+ *   + wave36 Cap residual pure：driver_dispatch_lib_roots_from_key +
+ *     driver_dispatch_run_compiler_parsed 在 thin.x
+ *     （BSS 16×512 + 16×LP64 roots；G.7 driver_lib_roots_from_key；
+ *       BSS pack DriverCompileParsedAbi 176B + driver_run_compiler_parsed；
+ *       opt default 共用 wave32 lit "2"）；FROM_X 无 pure-dup；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -3479,6 +3484,10 @@ extern int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr,
                                      char bufs[X_FULL_MAX_LIB_ROOTS][512]);
 extern int driver_run_compiler_parsed(void *p, int argc, char **argv);
 
+/* wave36 pure：hybrid thin owns lib_roots_from_key + run_compiler_parsed +
+ * lib_root_at + opt_default; cold seed keeps C twins (static bufs + struct pack).
+ * PLATFORM: SHARED LP64 — FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static char g_dispatch_lib_bufs[X_FULL_MAX_LIB_ROOTS][512];
 static const char *g_dispatch_lib_roots[X_FULL_MAX_LIB_ROOTS];
 static const char g_dispatch_opt_default[] = "2";
@@ -3490,9 +3499,6 @@ uint8_t *driver_dispatch_lib_roots_from_key(uint8_t *lib_key, int32_t *n_out) {
     return (uint8_t *)(void *)g_dispatch_lib_roots;
 }
 
-/* wave35 pure：hybrid thin owns lib_root_at + opt_default; cold seed keeps C twins.
- * lib_roots_from_key / run_compiler_parsed remain always-seed (static bufs + struct pack). */
-#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i) {
     const char **arr;
     if (!roots || i < 0 || i >= X_FULL_MAX_LIB_ROOTS)
@@ -3504,7 +3510,6 @@ uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i) {
 uint8_t *driver_dispatch_opt_default(void) {
     return (uint8_t *)(void *)g_dispatch_opt_default;
 }
-#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_path,
                                             uint8_t *lib_roots, int32_t n_lib,
@@ -3526,6 +3531,7 @@ int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_pa
     p.use_lto = use_lto != 0;
     return (int32_t)driver_run_compiler_parsed((void *)&p, (int)argc, (char **)(void *)argv);
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* ---------- Cap residual：rt_asm_stub R2（GAS 行表 + OutBuf append） ---------- */
 /* wave14 pure：hybrid thin owns gas_line_at/count + out_append_cstr (LE OutBuf layout);
