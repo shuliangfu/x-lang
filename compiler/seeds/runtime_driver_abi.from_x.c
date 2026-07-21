@@ -44,6 +44,9 @@
  *   + wave19 Cap residual pure：driver_pipeline_dep_ctx i32 字段 get/set 在 thin.x
  *     （LP64 固定 offsetof + wave14 LE load/store；无 C 结构体）；calloc/host_defaults 仍 seed；
  *     FROM_X 无 pure-dup dep_ctx field _impl；
+ *   + wave20 Cap residual pure：driver_preamble_{io_net,fs_path}_line_at/count 在 thin.x
+ *     （G.7 shux_ptr_slot_get + always-seed *_lines_raw；巨型表仍 rt_preamble）；
+ *     FROM_X 无 pure-dup line_at/count；fputs 仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -1892,14 +1895,27 @@ size_t driver_module_static_size(void) {
 
 /**
  * Cap-giant-string residual：rt_preamble R2 full .x 访问巨型 C 字串表。
- * 数据定义在 seeds/rt_preamble.from_x.c（跨 TU 非 static）；本层暴露 line_at/count。
- * 始终提供（不随 RDABI thin 宏剥离）。
+ * 数据定义在 seeds/rt_preamble.from_x.c（跨 TU 非 static）。
+ * wave20 pure：hybrid thin owns line_at/count（shux_ptr_slot_get + fixed N）；
+ *   always-seed residual = *_lines_raw（表基址）；cold keeps C line_at/count twins；
+ *   FROM_X 无 pure-dup line_at/count。
+ * PLATFORM: SHARED — table text authority remains rt_preamble.from_x.c.
  */
 extern const char *const driver_preamble_io_net_lines[];
 extern const int32_t driver_preamble_io_net_lines_n;
 extern const char *const driver_preamble_fs_path_lines[];
 extern const int32_t driver_preamble_fs_path_lines_n;
 
+/* Always seed: Cap-giant-string data residual (base of pointer table for pure line_at). */
+uint8_t *driver_preamble_io_net_lines_raw(void) {
+    return (uint8_t *)(void *)driver_preamble_io_net_lines;
+}
+
+uint8_t *driver_preamble_fs_path_lines_raw(void) {
+    return (uint8_t *)(void *)driver_preamble_fs_path_lines;
+}
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_preamble_io_net_line_at(int32_t i) {
     if (i < 0 || i >= driver_preamble_io_net_lines_n)
         return NULL;
@@ -1919,6 +1935,7 @@ uint8_t *driver_preamble_fs_path_line_at(int32_t i) {
 int32_t driver_preamble_fs_path_line_count(void) {
     return driver_preamble_fs_path_lines_n;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /** Cap residual G.7 authority：opaque *u8 stream → FILE* fputs（EOF/null → 负值）。
  * Shared by rt_preamble + async_liveness/async_cps emit pure (.x). No module-local clones.
@@ -2163,6 +2180,9 @@ void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v) {
  *   14 n_closure 15 rc 16 free_src_flag
  * size_t 槽 i: 0 src_len 1 raw_len 2 arena_sz 3 module_sz 4 dep_len
  */
+/* Always-seed decl before cold work cleanup (wave16/17/18); thin pure also links this. */
+extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
+
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 #define DRIVER_X_EMIT_WORK_NP 26
 #define DRIVER_X_EMIT_WORK_NI 17
@@ -2257,9 +2277,6 @@ void driver_x_emit_work_cleanup(void) {
     driver_x_emit_work_reset();
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
-
-/* Always-seed decl: asm_work / parsed_work / cold x_emit cleanup; thin pure also links this. */
-extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 
 int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path) {
     /*

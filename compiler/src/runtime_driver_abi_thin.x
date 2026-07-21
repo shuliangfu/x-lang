@@ -51,6 +51,8 @@
 //     (p: raw u8[192] 24×ptr; i32[14]/usize[4]; free+dep_ctx+fclose cf; unlink tmp_c; clear tmp slots).
 //   + wave19 Cap residual pure：driver_pipeline_dep_ctx field get/set (LP64 fixed offsets
 //     + wave14 LE load/store; no C struct in .x). host_defaults/calloc stay seed.
+//   + wave20 Cap residual pure：driver_preamble_{io_net,fs_path}_line_at/count
+//     (G.7 shux_ptr_slot_get on Cap-giant-string table raw base; tables stay in rt_preamble).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -96,6 +98,13 @@ export extern "C" function driver_parsed_tmp_c_buf(): *u8;
 /** Seed rest: fclose parsed C FILE* (stdout → no-op). Used by parsed_work cleanup pure.
  * PLATFORM: SHARED — null-safe; skips stdout. */
 export extern "C" function driver_parsed_fclose(fp: *u8): void;
+/** Always-seed Cap-giant-string data residual: address of driver_preamble_io_net_lines[]
+ * (pointer table in seeds/rt_preamble.from_x.c). Pure line_at indexes via shux_ptr_slot_get.
+ * PLATFORM: SHARED — table text stays C; only base address is seed surface. */
+export extern "C" function driver_preamble_io_net_lines_raw(): *u8;
+/** Always-seed Cap-giant-string data residual: address of driver_preamble_fs_path_lines[].
+ * PLATFORM: SHARED — same pattern as io_net_lines_raw. */
+export extern "C" function driver_preamble_fs_path_lines_raw(): *u8;
 /** POSIX unlink for tmp .c paths held in parsed work slots.
  * PLATFORM: POSIX (Linux/macOS product path); Windows uses same surface via seed pin. */
 export extern "C" function unlink(path: *u8): i32;
@@ -2562,4 +2571,86 @@ export function driver_pipeline_dep_ctx_set_skip_codegen_dep_0(ctx: *u8, v: i32)
     return;
   }
   driver_abi_store_i32_le(ctx, driver_abi_pctx_off_skip_codegen_dep_0(), v);
+}
+
+// ---- Wave20 Cap residual pure: rt_preamble line_at/count bridge (PLATFORM: SHARED) ----
+// Cap-giant-string data authority stays in seeds/rt_preamble.from_x.c
+//   (driver_preamble_io_net_lines[] / fs_path_lines[] + _n). .x cannot host giant string tables.
+// Hybrid pure owns the public line_at/count surface used by rt_preamble.x write_* loops.
+// Always-seed residual: driver_preamble_*_lines_raw() = base of pointer table (LP64 *u8 slots).
+// Index via G.7 shux_ptr_slot_get (same authority as defines_set_at / work_p).
+// Counts are fixed to match sizeof(...)/sizeof(*...) in rt_preamble.from_x.c (verified 219 / 21).
+// When adding/removing a table row, update N here in the same commit as the C table.
+// Cold seed keeps C line_at/count twins; FROM_X rest drops pure-dup (H↓).
+// Still seed: driver_preamble_fputs (opaque FILE*); giant string text tables.
+
+/** Fixed io_net preamble line count (must match driver_preamble_io_net_lines_n).
+ * PLATFORM: SHARED — wave20 pure; keep in sync with seeds/rt_preamble.from_x.c. */
+function driver_abi_preamble_io_net_n(): i32 {
+  return 219;
+}
+
+/** Fixed fs_path preamble line count (must match driver_preamble_fs_path_lines_n).
+ * PLATFORM: SHARED — wave20 pure; keep in sync with seeds/rt_preamble.from_x.c. */
+function driver_abi_preamble_fs_path_n(): i32 {
+  return 21;
+}
+
+/** Return the i-th io_net Cap-giant-string preamble line (C string as *u8).
+ * Out-of-range or negative i → null. Null table base → null.
+ * Wave20 pure: bounds + G.7 shux_ptr_slot_get on always-seed raw base.
+ * extern calls (raw + ptr_slot) require unsafe (same as wave16 work_p_get).
+ * PLATFORM: SHARED — pure authority under PREFER hybrid; cold seed keeps C index. */
+#[no_mangle]
+export function driver_preamble_io_net_line_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= driver_abi_preamble_io_net_n()) {
+    return 0 as *u8;
+  }
+  unsafe {
+    let base: *u8 = driver_preamble_io_net_lines_raw();
+    if (base == 0 as *u8) {
+      return 0 as *u8;
+    }
+    return shux_ptr_slot_get(base, i);
+  }
+  return 0 as *u8;
+}
+
+/** Number of io_net Cap-giant-string preamble lines (219).
+ * Wave20 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_preamble_io_net_line_count(): i32 {
+  return driver_abi_preamble_io_net_n();
+}
+
+/** Return the i-th fs_path Cap-giant-string preamble line (C string as *u8).
+ * Out-of-range or negative i → null. Null table base → null.
+ * Wave20 pure: bounds + G.7 shux_ptr_slot_get on always-seed raw base.
+ * extern calls require unsafe. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_preamble_fs_path_line_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= driver_abi_preamble_fs_path_n()) {
+    return 0 as *u8;
+  }
+  unsafe {
+    let base: *u8 = driver_preamble_fs_path_lines_raw();
+    if (base == 0 as *u8) {
+      return 0 as *u8;
+    }
+    return shux_ptr_slot_get(base, i);
+  }
+  return 0 as *u8;
+}
+
+/** Number of fs_path Cap-giant-string preamble lines (21).
+ * Wave20 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_preamble_fs_path_line_count(): i32 {
+  return driver_abi_preamble_fs_path_n();
 }
