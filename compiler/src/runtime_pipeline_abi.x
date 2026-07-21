@@ -83,6 +83,9 @@
 // wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
 //   (G.7 shux_ptr_slot_*; product hybrid writers only via accessors — rt_run_* pure +
 //   driver_typeck_*; cold seed naked C globals stay under #ifndef FROM_X for cold twins).
+// wave78: pure shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null) + shux_fputs_stdout
+//   (G.7 g05 shux_driver_stdout_ptr + shux_driver_fputs_opaque) + driver_asm_fp_is_stdout
+//   + driver_asm_fclose_file (G.7 g05 stdout_ptr compare + fclose_opaque); cold twins under FROM_X.
 // Cap residual still: fn-ptr / product_emit / typeck_module C frontend
 //   (+ pipeline_sizeof_* / preprocess engine / OS realpath residual).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
@@ -92,6 +95,8 @@
 // wave75: shux_cstr_typeck_lit / shux_entry_lib_keyword_lit / name_from_path_impl pure below.
 // wave76: shux_cstr_offset is pure export function below (not Cap residual).
 // wave77: typeck_ndep_slot / store_impl / typeck_dep_*_get/set_impl / ptrs_base pure below.
+// wave78: shu_lsp_ptr_slot_clear / shux_fputs_stdout / driver_asm_fp_is_stdout /
+//   driver_asm_fclose_file are pure export functions below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -115,7 +120,7 @@ export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 export extern "C" function runtime_read_file_view(path: *u8, out: *u8): i32;
 export extern "C" function runtime_release_file_view(view: *u8): void;
 export extern "C" function ast_module_free(mod: *u8): void;
-export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
+// wave78: shu_lsp_ptr_slot_clear is pure export function below (G.7 shux_ptr_slot_set).
 /* See implementation. */
 export extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
@@ -135,8 +140,12 @@ export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
 export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
 
-/* See implementation. */
-export extern "C" function shux_fputs_stdout(s: *u8): void;
+// wave78: shux_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
+// g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
+// PLATFORM: SHARED — static inline in g05_try_x_to_o prologue; not a second product authority.
+export extern "C" function shux_driver_fputs_opaque(s: *u8, stream: *u8): i32;
+export extern "C" function shux_driver_stdout_ptr(): *u8;
+export extern "C" function shux_driver_fclose_opaque(stream: *u8): i32;
 // wave75: shux_import_dep_dir_from_path_impl removed — pure import_dep_dir is full body.
 /* wave45: do not export-extern pipeline_debug_trace_named_func_bodies here —
  * pure export function below is the single authority (#[no_mangle]).
@@ -145,9 +154,7 @@ export extern "C" function shux_fputs_stdout(s: *u8): void;
 /* See implementation. */
 /* See implementation. */
 /* See implementation. */
-export extern "C" function driver_asm_fp_is_stdout(fp: *u8): i32;
 export extern "C" function driver_asm_fflush_stdout(): void;
-export extern "C" function driver_asm_fclose_file(fp: *u8): void;
 /* See implementation. */
 export extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
 // wave67: pipeline_dep_ctx_path_bufs_reset / copy_entry_dir are pure export functions below.
@@ -847,10 +854,34 @@ export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_ou
   return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
 }
 
-// shux_emit_pipeline_glue_include: see function docblock below.
-/** Exported function `shux_emit_pipeline_glue_include`.
- * Implements `shux_emit_pipeline_glue_include`.
+/**
+ * Write NUL-terminated C string s to host stdout via fputs.
+ * @param s *u8 — C string; null → no-op
  * @return void
+ * wave78 pure: G.7 g05 shux_driver_stdout_ptr + shux_driver_fputs_opaque (FILE* cast residual
+ * lives in g05_try_x_to_o prologue; .x never names FILE*).
+ * Closes always-seed Cap soft residual for emit_pipeline_glue_include.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function shux_fputs_stdout(s: *u8): void {
+  if (s == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let so: *u8 = shux_driver_stdout_ptr();
+    if (so != 0 as *u8) {
+      shux_driver_fputs_opaque(s, so);
+    }
+  }
+}
+
+// shux_emit_pipeline_glue_include: see function docblock below.
+/**
+ * Emit the pipeline_glue.c include line to stdout (codegen glue surface).
+ * @return void
+ * G.7 pure shux_fputs_stdout (wave78) owns stdout write.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_emit_pipeline_glue_include(): void {
@@ -1090,11 +1121,52 @@ export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): 
   }
 }
 
-// driver_asm_fclose_asm_out: see function docblock below.
-/** Exported function `driver_asm_fclose_asm_out`.
- * Implements `driver_asm_fclose_asm_out`.
- * @param fp *u8
+/**
+ * Return 1 if opaque stream fp is host stdout, else 0.
+ * @param fp *u8 — opaque FILE* as *u8; null → 0
+ * @return i32 — 1 when fp equals stdout, else 0
+ * wave78 pure: G.7 g05 shux_driver_stdout_ptr identity compare (no FILE* in .x).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_asm_fp_is_stdout(fp: *u8): i32 {
+  if (fp == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let so: *u8 = shux_driver_stdout_ptr();
+    if (fp == so) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * fclose an opaque non-stdout stream (null-safe).
+ * @param fp *u8 — opaque FILE* as *u8; null → no-op
  * @return void
+ * wave78 pure: G.7 g05 shux_driver_fclose_opaque (FILE* cast residual in g05 prologue).
+ * Does not special-case stdout — callers use driver_asm_fclose_asm_out for that.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_asm_fclose_file(fp: *u8): void {
+  if (fp == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    shux_driver_fclose_opaque(fp);
+  }
+}
+
+// driver_asm_fclose_asm_out: see function docblock below.
+/**
+ * Close asm output stream: fflush stdout when fp is null/stdout; else fclose.
+ * @param fp *u8 — opaque FILE* as *u8; null or stdout → fflush only
+ * @return void
+ * G.7 pure driver_asm_fp_is_stdout + driver_asm_fclose_file (wave78) + residual fflush.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function driver_asm_fclose_asm_out(fp: *u8): void {
@@ -4903,13 +4975,36 @@ export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8
   return pipeline_typeck_module_for_ctx_impl(module, arena, ctx);
 }
 
-// shu_lsp_free_loaded_imports: see function docblock below.
-/** Exported function `shu_lsp_free_loaded_imports`.
- * Memory management helper `shu_lsp_free_loaded_imports`.
- * @param all_dep_mods *u8
- * @param all_dep_paths *u8
- * @param n_all i32
+/**
+ * Clear pointer table slot i to null (after free/ast_module_free of the old value).
+ * @param arr *u8 — void-star / char-star table base; null → no-op
+ * @param i i32 — index; i < 0 → no-op
  * @return void
+ * wave78 pure: G.7 thin → shux_ptr_slot_set(arr, i, null); single authority for slot stores.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void {
+  if (arr == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  unsafe {
+    shux_ptr_slot_set(arr, i, 0 as *u8);
+  }
+}
+
+// shu_lsp_free_loaded_imports: see function docblock below.
+/**
+ * Free dep modules/paths written by shu_lsp_resolve_and_load_imports (not entry module).
+ * @param all_dep_mods *u8 — void** module table base
+ * @param all_dep_paths *u8 — char** path table base
+ * @param n_all i32 — slot count; <=0 → no-op
+ * @return void
+ * G.7 pure shu_lsp_ptr_slot_clear (wave78) nulls slots after free.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {

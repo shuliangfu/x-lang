@@ -77,6 +77,9 @@
  *   cold twin under #ifndef FROM_X).
  * wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
  *   (G.7 shux_ptr_slot_*; product hybrid writers only via accessors; cold twins under #ifndef FROM_X).
+ * wave78: pure shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null) + shux_fputs_stdout
+ *   (G.7 g05 stdout_ptr + fputs_opaque) + driver_asm_fp_is_stdout + driver_asm_fclose_file
+ *   (G.7 g05 stdout compare + fclose_opaque); cold twins under #ifndef FROM_X.
  * Cap residual still: fn-ptr / product_emit / typeck_module C frontend
  *   (+ pipeline_sizeof_* / preprocess engine / OS realpath residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
@@ -296,6 +299,11 @@ int shux_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, 
     const char *import_key, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int32_t mi);
 void shux_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi);
+/* wave78 pure soft residual — pure emit/fclose_asm_out / free_loaded_imports call under hybrid. */
+void shu_lsp_ptr_slot_clear(void **arr, int32_t i);
+void shux_fputs_stdout(const char *s);
+int driver_asm_fp_is_stdout(FILE *fp);
+void driver_asm_fclose_file(FILE *fp);
 /* pipeline_diag_preprocess_directive_code already declared above */
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -1573,11 +1581,14 @@ int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], i
     return 0;
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-/* G-02f-234：fputs 到 stdout（.x emit_glue pure） */
+/* wave78: hybrid pure owns shux_fputs_stdout (g05 stdout_ptr + fputs_opaque); cold twin under
+ * #ifndef FROM_X. PLATFORM: SHARED — same null-skip + fputs(stdout) semantics as pure. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void shux_fputs_stdout(const char *s) {
     if (s)
         fputs(s, stdout);
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
@@ -1791,20 +1802,25 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
  * asm 后端写出 FILE *：stdout 仅 fflush，避免 fclose(stdout)。
  * 参数：fp 汇编输出流，可为 NULL。
  */
-/* G-02f-234：stdout 判定 / fflush / fclose helpers */
+/* wave78: hybrid pure owns driver_asm_fp_is_stdout + driver_asm_fclose_file (g05 opaque);
+ * cold twins under #ifndef FROM_X. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int driver_asm_fp_is_stdout(FILE *fp) {
     return fp == stdout ? 1 : 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* 产品链与 runtime_driver_abi 同链；driver_abi 为权威定义。弱化避免 Darwin ld 双 T。 */
 SHUX_WEAK void driver_asm_fflush_stdout(void) {
     fflush(stdout);
 }
 
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_asm_fclose_file(FILE *fp) {
     if (fp)
         fclose(fp);
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
@@ -3741,12 +3757,15 @@ int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 释放 shu_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths（不含 entry 模块本身）。 */
-/* G-02f-227：槽清空（.x free 循环后写回 NULL） */
+/* wave78: hybrid pure owns shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null); cold twin under
+ * #ifndef FROM_X. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void shu_lsp_ptr_slot_clear(void **arr, int32_t i) {
     if (!arr || i < 0)
         return;
     arr[i] = NULL;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all) {
     int i;
