@@ -1,12 +1,14 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45+wave46).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
 // Cap residual: heavy FILE*/access/collect/thread C remains seed rest.
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
+// wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
+//   collect_to_load_has, preprocess directive diag codes) — seed cold twins under FROM_X.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -104,23 +106,10 @@ export extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32
 export extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
 export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 /* See implementation. */
-export extern "C" function shux_module_num_imports(module: *u8): i32;
+/* wave46: shux_module_num_imports / import_path_cstr / ptr+size slots / i32_store
+ * are pure export function below (not export-extern Cap residual). */
 export extern "C" function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32;
 export extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void;
-/* See implementation. */
-export extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
-export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
-/**
- * Load pointer slot i from a char-star / void-star array base (G.7 pair with shux_ptr_slot_set).
- * Returns null if arr is null or i < 0.
- * PLATFORM: SHARED — argv/path slot load.
- * Note: never put the two-char end-comment marker inside prose (truncates the block).
- */
-export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
-export extern "C" function shux_i32_store(p: *i32, v: i32): void;
-/* See implementation. */
-export extern "C" function shux_size_slot_get(arr: *u8, i: i32): i64;
-export extern "C" function shux_size_slot_set(arr: *u8, i: i32, v: i64): void;
 export extern "C" function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
 export extern "C" function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32;
 export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
@@ -3058,6 +3047,311 @@ export function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
   a = a + (base[off + 6] as usize) * (m4 * m2);
   a = a + (base[off + 7] as usize) * (m4 * m2 * m);
   return a as *u8;
+}
+
+/**
+ * Store little-endian pointer into base[i] (LP64 8-byte cell).
+ * Module-local pair of pipe_load_ptr_slot (no second G.7 path).
+ * @param base *u8 — table base; null → no-op
+ * @param i i32 — slot index; i < 0 → no-op
+ * @param val *u8 — pointer bits to store (may be null)
+ * @return void
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  let off: i32 = i * 8;
+  unsafe {
+    let m: usize = 256 as usize;
+    let b255: usize = 255 as usize;
+    let u0: usize = val as usize;
+    base[off] = (u0 & b255) as u8;
+    let u1: usize = u0 / m;
+    base[off + 1] = (u1 & b255) as u8;
+    let u2: usize = u1 / m;
+    base[off + 2] = (u2 & b255) as u8;
+    let u3: usize = u2 / m;
+    base[off + 3] = (u3 & b255) as u8;
+    let u4: usize = u3 / m;
+    base[off + 4] = (u4 & b255) as u8;
+    let u5: usize = u4 / m;
+    base[off + 5] = (u5 & b255) as u8;
+    let u6: usize = u5 / m;
+    base[off + 6] = (u6 & b255) as u8;
+    let u7: usize = u6 / m;
+    base[off + 7] = (u7 & b255) as u8;
+  }
+}
+
+/**
+ * Load size_t / i64 slot i from an array of LP64 8-byte cells (LE).
+ * @param arr *u8 — size_t* base as bytes; null → 0
+ * @param i i32 — index; i < 0 → 0
+ * @return i64 — cell value as signed i64 (path lengths fit)
+ * wave46 pure Cap residual; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function shux_size_slot_get(arr: *u8, i: i32): i64 {
+  if (arr == 0 as *u8) {
+    return 0;
+  }
+  if (i < 0) {
+    return 0;
+  }
+  // Same LE reconstruct as pipe_load_ptr_slot; cast pointer bits → i64 length.
+  let p: *u8 = pipe_load_ptr_slot(arr, i);
+  return p as i64;
+}
+
+/**
+ * Store size_t / i64 into arr[i] (LP64 8-byte LE cell).
+ * @param arr *u8 — size_t* base as bytes; null → no-op
+ * @param i i32 — index; i < 0 → no-op
+ * @param v i64 — value (path length / buffer size)
+ * @return void
+ * wave46 pure; pairs shux_size_slot_get. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function shux_size_slot_set(arr: *u8, i: i32, v: i64): void {
+  if (arr == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  pipe_store_ptr_slot(arr, i, v as *u8);
+}
+
+/**
+ * Write pointer p into char-star / void-star array slot i (G.7 product authority).
+ * @param arr *u8 — void** / char** table base as bytes; null → no-op
+ * @param i i32 — slot index; i < 0 → no-op
+ * @param p *u8 — pointer to store (may be null)
+ * @return void
+ * wave46 pure; driver_abi / fmt_check call this as Cap residual surface.
+ * PLATFORM: SHARED LP64 — single authority in this TU under PREFER hybrid.
+ */
+#[no_mangle]
+export function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void {
+  pipe_store_ptr_slot(arr, i, p);
+}
+
+/**
+ * Load pointer slot i from a char-star / void-star array base (G.7 pair with set).
+ * @param arr *u8 — table base; null → null
+ * @param i i32 — index; i < 0 → null
+ * @return *u8 — pointer at slot (may be null)
+ * wave46 pure. PLATFORM: SHARED LP64.
+ * Note: never put the two-char end-comment marker inside prose (truncates the block).
+ */
+#[no_mangle]
+export function shux_ptr_slot_get(arr: *u8, i: i32): *u8 {
+  if (arr == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  return pipe_load_ptr_slot(arr, i);
+}
+
+/**
+ * Store i32 v through pointer p (null-safe).
+ * @param p *i32 — destination; null → no-op
+ * @param v i32 — value
+ * @return void
+ * wave46 pure Cap residual (merge out_n / n_deps). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_i32_store(p: *i32, v: i32): void {
+  if (p == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    p[0] = v;
+  }
+}
+
+/**
+ * Return module import count (null module → 0).
+ * @param module *u8 — opaque AST module; null → 0
+ * @return i32 — import count from parser authority
+ * wave46 pure thin over parser_get_module_num_imports (strong from parser_x at final link).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_module_num_imports(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  return parser_get_module_num_imports(module);
+}
+
+/**
+ * Copy import path at idx into buf as a C string (NUL-terminated).
+ * @param module *u8 — opaque AST module; null → buf[0]=0 when buf valid
+ * @param idx i32 — import index
+ * @param buf *u8 — destination; null or cap<=0 → no-op
+ * @param cap i32 — capacity including NUL; copies min(path, cap-1)
+ * @return void
+ * wave46 pure: parser path bytes then copy loop (no libc). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void {
+  if (buf == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  unsafe {
+    buf[0] = 0;
+  }
+  if (module == 0 as *u8) {
+    return;
+  }
+  let path_buf: u8[64] = [];
+  unsafe {
+    parser_get_module_import_path(module, idx, &path_buf[0]);
+  }
+  let k: i32 = 0;
+  while (k < 64) {
+    let ch: u8 = 0;
+    unsafe {
+      ch = path_buf[k];
+    }
+    if (ch == 0) {
+      break;
+    }
+    if (k + 1 >= cap) {
+      break;
+    }
+    unsafe {
+      buf[k] = ch;
+    }
+    k = k + 1;
+  }
+  unsafe {
+    buf[k] = 0;
+  }
+}
+
+/**
+ * True if to_load[0..to_load_n) already contains path (C-string eq).
+ * @param to_load *u8 — char** queue base as bytes; null → 0
+ * @param to_load_n i32 — live count
+ * @param path *u8 — candidate C string; null → 0
+ * @return i32 — 1 if found, 0 otherwise
+ * wave46 pure; used by Cap residual collect enqueue. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_to_load_has(to_load: *u8, to_load_n: i32, path: *u8): i32 {
+  if (to_load == 0 as *u8) {
+    return 0;
+  }
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (to_load_n <= 0) {
+    return 0;
+  }
+  let t: i32 = 0;
+  while (t < to_load_n) {
+    let p: *u8 = pipe_load_ptr_slot(to_load, t);
+    if (p != 0 as *u8) {
+      if (pipe_cstr_eq(p, path) != 0) {
+        return 1;
+      }
+    }
+    t = t + 1;
+  }
+  return 0;
+}
+
+/**
+ * Map preprocess_x_buf negative directive codes to fixed diag strings (PP002).
+ * @param path_diag *u8 — path for report; may be null
+ * @param code i32 — negative directive fail code (-2..-7 known; else generic fail)
+ * @return void
+ * wave46 pure: fixed msgs via stack byte lits + diag_report_with_code (no va_list).
+ * PLATFORM: SHARED — Cap residual was always-seed; hybrid pure authority.
+ */
+#[no_mangle]
+export function pipeline_diag_preprocess_directive_code(path_diag: *u8, code: i32): void {
+  // Known codes -2..-7; anything else → generic preprocess fail.
+  if (code != (0 - 2)) {
+    if (code != (0 - 3)) {
+      if (code != (0 - 4)) {
+        if (code != (0 - 5)) {
+          if (code != (0 - 6)) {
+            if (code != (0 - 7)) {
+              pipeline_diag_preprocess_fail(path_diag);
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+  pipeline_diag_emitted_note();
+  let kind: u8[24] = [];
+  let dcode: u8[8] = [];
+  // "preprocess error"
+  kind[0] = 112; kind[1] = 114; kind[2] = 101; kind[3] = 112;
+  kind[4] = 114; kind[5] = 111; kind[6] = 99; kind[7] = 101;
+  kind[8] = 115; kind[9] = 115; kind[10] = 32; kind[11] = 101;
+  kind[12] = 114; kind[13] = 114; kind[14] = 111; kind[15] = 114; kind[16] = 0;
+  // "PP002"
+  dcode[0] = 80; dcode[1] = 80; dcode[2] = 48; dcode[3] = 48; dcode[4] = 50; dcode[5] = 0;
+  let msg: u8[32] = [];
+  // Fill msg by code (ASCII byte tables; keep under ~63 lit cap).
+  if (code == (0 - 2)) {
+    // "#else without #if"
+    msg[0] = 35; msg[1] = 101; msg[2] = 108; msg[3] = 115; msg[4] = 101;
+    msg[5] = 32; msg[6] = 119; msg[7] = 105; msg[8] = 116; msg[9] = 104;
+    msg[10] = 111; msg[11] = 117; msg[12] = 116; msg[13] = 32; msg[14] = 35;
+    msg[15] = 105; msg[16] = 102; msg[17] = 0;
+  } else if (code == (0 - 3)) {
+    // "#endif without #if"
+    msg[0] = 35; msg[1] = 101; msg[2] = 110; msg[3] = 100; msg[4] = 105;
+    msg[5] = 102; msg[6] = 32; msg[7] = 119; msg[8] = 105; msg[9] = 116;
+    msg[10] = 104; msg[11] = 111; msg[12] = 117; msg[13] = 116; msg[14] = 32;
+    msg[15] = 35; msg[16] = 105; msg[17] = 102; msg[18] = 0;
+  } else if (code == (0 - 4)) {
+    // "#elseif without #if"
+    msg[0] = 35; msg[1] = 101; msg[2] = 108; msg[3] = 115; msg[4] = 101;
+    msg[5] = 105; msg[6] = 102; msg[7] = 32; msg[8] = 119; msg[9] = 105;
+    msg[10] = 116; msg[11] = 104; msg[12] = 111; msg[13] = 117; msg[14] = 116;
+    msg[15] = 32; msg[16] = 35; msg[17] = 105; msg[18] = 102; msg[19] = 0;
+  } else if (code == (0 - 5)) {
+    // "#elseif after #else"
+    msg[0] = 35; msg[1] = 101; msg[2] = 108; msg[3] = 115; msg[4] = 101;
+    msg[5] = 105; msg[6] = 102; msg[7] = 32; msg[8] = 97; msg[9] = 102;
+    msg[10] = 116; msg[11] = 101; msg[12] = 114; msg[13] = 32; msg[14] = 35;
+    msg[15] = 101; msg[16] = 108; msg[17] = 115; msg[18] = 101; msg[19] = 0;
+  } else if (code == (0 - 6)) {
+    // "duplicate #else"
+    msg[0] = 100; msg[1] = 117; msg[2] = 112; msg[3] = 108; msg[4] = 105;
+    msg[5] = 99; msg[6] = 97; msg[7] = 116; msg[8] = 101; msg[9] = 32;
+    msg[10] = 35; msg[11] = 101; msg[12] = 108; msg[13] = 115; msg[14] = 101;
+    msg[15] = 0;
+  } else {
+    // code == -7: "#if nesting too deep"
+    msg[0] = 35; msg[1] = 105; msg[2] = 102; msg[3] = 32; msg[4] = 110;
+    msg[5] = 101; msg[6] = 115; msg[7] = 116; msg[8] = 105; msg[9] = 110;
+    msg[10] = 103; msg[11] = 32; msg[12] = 116; msg[13] = 111; msg[14] = 111;
+    msg[15] = 32; msg[16] = 100; msg[17] = 101; msg[18] = 101; msg[19] = 112;
+    msg[20] = 0;
+  }
+  unsafe {
+    diag_report_with_code(path_diag, 0, 0, &kind[0], &dcode[0], &msg[0], 0 as *u8);
+  }
 }
 
 // shux_dep_prerun_entry_dir_pick: see function docblock below.

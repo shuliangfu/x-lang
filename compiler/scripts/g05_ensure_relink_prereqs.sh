@@ -1510,8 +1510,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12 / wave45：runtime_pipeline_abi 产品 PREFER hybrid
-  #   full .x pure (~115) + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  # G-02f-12 / wave45+46：runtime_pipeline_abi 产品 PREFER hybrid
+  #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  #   wave46: ptr/size slots, i32_store, module import cstr, collect_to_load_has, directive diag pure.
   # Root fix wave45: .x docblock must not embed the two-char end-comment marker inside prose
   #   (historical "char**/void*" truncated the block → all subsequent export function dropped from AST;
   #    -E emitted only externs; pure never productized). PLATFORM: SHARED.

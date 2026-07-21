@@ -2,6 +2,8 @@
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/223 true .x + C tail).
  * wave45 R2 hybrid (2026-07-21): product PREFER g05_try_x_to_o full .x pure (~115) +
  *   this seed as rest under -DSHUX_RUNTIME_PIPELINE_ABI_FROM_X (no pure-dup public bodies).
+ * wave46: pure residual helpers (ptr/size slots, i32_store, module import cstr,
+ *   collect_to_load_has, preprocess directive diag) — cold twins under FROM_X.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -206,7 +208,9 @@ void pipeline_diag_preprocess_fail(const char *path_diag) {
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* 指令级失败码（preprocess_x_buf 负返回值）→ 历史 C 文案；始终链接（不进 FROM_X 薄迁，避免 hybrid 丢诊断）。 */
+/* wave46 Cap residual pure: directive code map in .x; cold twin below. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+/* 指令级失败码（preprocess_x_buf 负返回值）→ 历史 C 文案。 */
 void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code) {
     const char *msg = NULL;
     if (code == -2)
@@ -228,6 +232,7 @@ void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code
     pipeline_diag_emitted_note();
     diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, msg, NULL);
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
@@ -2571,12 +2576,15 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * 供 parse-only 填 dep struct layout；避免 shux_collect_deps_transitive 耗时/失败。
  * 返回 0 成功；失败时释放已写入 dep_sources/dep_paths 并返回 1。
  */
+/* wave46 pure in .x; cold twin for non-PREFER product. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-236：module import 计数（.x 编排） */
 int32_t shux_module_num_imports(void *module) {
     if (!module)
         return 0;
     return parser_get_module_num_imports(module);
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-236：单项 resolve+read+preprocess → dep 槽 mi；0 成功，1 失败（未写槽） */
 int shux_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
@@ -2691,6 +2699,8 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
  * 将 shux_collect_deps_transitive 得到的 closure（调用方已对 triple 数组做过反转）合并为 pipeline/asm_elf dep 列表。
  * 前 n_imports 项与入口 module import 槽对齐；传递依赖按 closure 顺序追加并路径去重。
  */
+/* wave46 pure in .x; cold twin for non-PREFER product. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-235：size_t 槽读写（.x merge deps pure） */
 size_t shux_size_slot_get(size_t *arr, int32_t i) {
     if (!arr || i < 0)
@@ -2703,6 +2713,7 @@ void shux_size_slot_set(size_t *arr, int32_t i, size_t v) {
         return;
     arr[i] = v;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-235：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
@@ -2775,6 +2786,8 @@ int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
+/* wave46 pure in .x; cold twins for non-PREFER product. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-234：import path 拷到 C 字符串（供 .x merge pure） */
 void shux_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap) {
     uint8_t path_buf[64];
@@ -2809,6 +2822,7 @@ void shux_i32_store(int32_t *p, int32_t v) {
     if (p)
         *p = v;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
@@ -2916,6 +2930,8 @@ int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     return 0;
 }
 
+/* wave46 pure in .x; cold twin for non-PREFER product. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-238：to_load 是否已有 path */
 int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
     int t;
@@ -2927,6 +2943,7 @@ int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
     }
     return 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-239：从已 parse 的 tmp_module 入队子 import（未 loaded / 未在 to_load） */
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n, char *dep_paths[],
