@@ -6,7 +6,9 @@
  *   + FILE* emit_*（typedef/local/codegen_comment via shared driver_preamble_fputs）
  *   由 src/async/async_liveness.x 提供；FROM_X 下 pure C 体省略（仅 slice_marker）。
  * Cap residual（G.7 单一权威）：driver_preamble_fputs（runtime_driver_abi；opaque FILE*）。
- * 冷启动/无 PREFER：完整 pure C 体 + FILE* emit 用原生 fputs；产品默认 -c 本文件。
+ * 冷启动/无 PREFER：完整 pure C 体 + FILE* emit 用原生 fputs；-c 本文件。
+ * 产品 PREFER（2026-07-21）：g05/Makefile full .x + rest (-DSHUX_ASYNC_LIVENESS_FROM_X)
+ *   ld -r → src/async/async_liveness.o（独立 TU，非 pipeline_glue #include）。
  * Prove：seeds/async_liveness_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */

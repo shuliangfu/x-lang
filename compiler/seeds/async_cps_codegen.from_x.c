@@ -12,7 +12,9 @@
  *   by src/async/async_cps_codegen.x（shared driver_preamble_fputs + type_to_c_buf）；
  *   FROM_X 下 pure helper C 体（含 walk _impl + wave4–5 emit）省略。
  * Cap residual（G.7 单一权威）：driver_preamble_fputs（runtime_driver_abi；opaque FILE*）。
- * 冷启动/无 PREFER：完整 pure C 体 + 原生 FILE* fputs；产品默认 -c 本文件（无宏）。
+ * 冷启动/无 PREFER：完整 pure C 体 + 原生 FILE* fputs；-c 本文件（无宏）。
+ * 产品 PREFER（2026-07-21）：g05/Makefile full .x + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X)
+ *   ld -r → src/async/async_cps_codegen.o（独立 TU，非 pipeline_glue #include）。
  * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */

@@ -751,13 +751,54 @@ src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipe
 src/runtime_c_import.o: seeds/runtime_c_import.from_x.c src/runtime_c_import.x src/runtime_c_import.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_c_import.from_x.c -o $@
 
-# G-02f-18：async_liveness 产品 seed
+# G-02f-18 / R2 product PREFER：async_liveness 独立 TU（非 glue #include）。
+# Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DSHUX_ASYNC_LIVENESS_FROM_X, marker) ld -r.
+# -E 产物缺 stdlib/string 声明；与 g05_try_x_to_o 对齐：编译前塞 prologue。
+# PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (legacy mode).
 src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_liveness.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_liveness.from_x.c -o $@
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
+		_raw=$$(mktemp "$${TMPDIR:-/tmp}/aliv.XXXXXX") && \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/alivp.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_liveness.x > "$$_raw" 2>/dev/null && \
+		{ printf '%s\n' '/* PREFER prologue (match g05_try_x_to_o) */' \
+			'#include <stddef.h>' '#include <stdint.h>' '#include <stdlib.h>' \
+			'#include <string.h>' '#include <stdio.h>'; cat "$$_raw"; } > "$$_tmp" && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/async/async_liveness_x.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_ASYNC_LIVENESS_FROM_X -c seeds/async_liveness.from_x.c -o src/async/async_liveness_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/async/async_liveness_x.o src/async/async_liveness_rest.o -o $@ && \
+		rm -f "$$_raw" "$$_tmp" src/async/async_liveness_x.o src/async/async_liveness_rest.o && \
+		echo "phase4: $@ <- full .x + rest marker (PREFER_X_O; R2 pure+Cap residual)"; \
+	}; then :; \
+	elif [ -f seeds/async_liveness.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_liveness.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/async_liveness.from_x.c (cold seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
-# G-02f-18：async_cps_codegen 产品 seed
+# G-02f-18 / R2 product PREFER：async_cps_codegen 独立 TU（非 glue #include）。
+# Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X, marker) ld -r.
+# PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (legacy mode).
 src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_cps_codegen.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_cps_codegen.from_x.c -o $@
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
+		_raw=$$(mktemp "$${TMPDIR:-/tmp}/acps.XXXXXX") && \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/acpsp.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/async/async_cps_codegen.x > "$$_raw" 2>/dev/null && \
+		{ printf '%s\n' '/* PREFER prologue (match g05_try_x_to_o) */' \
+			'#include <stddef.h>' '#include <stdint.h>' '#include <stdlib.h>' \
+			'#include <string.h>' '#include <stdio.h>'; cat "$$_raw"; } > "$$_tmp" && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/async/async_cps_codegen_x.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_ASYNC_CPS_CODEGEN_FROM_X -c seeds/async_cps_codegen.from_x.c -o src/async/async_cps_codegen_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/async/async_cps_codegen_x.o src/async/async_cps_codegen_rest.o -o $@ && \
+		rm -f "$$_raw" "$$_tmp" src/async/async_cps_codegen_x.o src/async/async_cps_codegen_rest.o && \
+		echo "phase4: $@ <- full .x + rest marker (PREFER_X_O; R2 pure wave1–5)"; \
+	}; then :; \
+	elif [ -f seeds/async_cps_codegen.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_cps_codegen.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/async_cps_codegen.from_x.c (cold seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # R2 unbundle async_asm_pool from pipeline_glue #include (2026-07-21).
 # Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X, marker only) ld -r.

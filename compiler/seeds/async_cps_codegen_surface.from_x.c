@@ -1,7 +1,8 @@
 /* seeds/async_cps_codegen_surface.from_x.c
  * R2 pure surface + Cap residual pure wave1–5 — isomorphic with src/async/async_cps_codegen.x
- * Product cold path still cc seeds/async_cps_codegen.from_x.c (no FROM_X) for full C + Cap residual.
- * Hybrid/PREFER: g05_try_x_to_o(async_cps_codegen.x) + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
+ * Product cold path: cc seeds/async_cps_codegen.from_x.c (no FROM_X) for full C + Cap residual.
+ * Product PREFER (g05/Makefile): g05_try_x_to_o(async_cps_codegen.x) + rest
+ *   (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X, marker) ld -r → src/async/async_cps_codegen.o.
  * R2: .x eats pure name gates + thin walk/hoist + await expr classifiers (expr_is_*) +
  *   module/sched resolve + func_uses_void_entry + walk _impl (run-async LE walk) +
  *   FILE* emit end/phase_reset/after_await(_io)/sched_wrapper + begin/param_statics/hoist_impl
