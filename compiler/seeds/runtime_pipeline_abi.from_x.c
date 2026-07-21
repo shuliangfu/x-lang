@@ -30,6 +30,9 @@
  * wave58: pure dep_prerun_parse_skip_typeck_impl orch (driver check_only + skip typeck/codegen
  *   + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack; cold twin
  *   under #ifndef FROM_X).
+ * wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
+ *   pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only; cold twin
+ *   under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -176,6 +179,8 @@ int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void 
 /* wave58 pure dep_prerun_parse_skip_typeck_impl — thin pure gate calls under hybrid. */
 int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src,
     size_t len, void *dep_out, void *one_ctx);
+/* wave59 pure dep_prerun_parse_only_impl — thin pure gate calls under hybrid. */
+int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2568,10 +2573,15 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* G-02f-parse_only / wave59：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
+ * Must use pipeline_parse_set_main_from_buf_c (parse_into_with_init_buf); bare
+ * parser_parse_into under-parses large std modules. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /**
  * dep 预跑：仅 parse，不做全量 typeck。
  * 须走 pipeline_parse_set_main_from_buf_c（parse_into_with_init_buf）；直调 parser_parse_into 的 slice
  * 路径对大库模块（如 std/string/mod.x）常 ok=-2 且仅 ~2 func，co-emit 缺 std_string_* 符号。
+ * SHUX_ASM_DEBUG notes live on cold twin only (pure orch omits diag noise).
  */
 int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
     int32_t parse_rc;
@@ -2593,7 +2603,6 @@ int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, con
     return (parse_rc == 0) ? 0 : -1;
 }
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
   if (dep_mod == NULL) {
     return -1;

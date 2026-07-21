@@ -34,6 +34,8 @@
 //   Cap-fn-ptr + product_emit Cap residual; G.7 driver_run_thread_on_large_stack).
 // wave58: pure dep_prerun_parse_skip_typeck_impl orch (check_only + skip typeck/codegen
 //   flags + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
+// wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
+//   pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -138,8 +140,8 @@ export extern "C" function pipeline_loaded_import_len_get(): i64;
 export extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32;
 // wave56: shux_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
 // wave58: shux_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
-// Cap residual always-seed: parse_only / typeck_only still call C glue (_impl).
-export extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
+// wave59: shux_pipeline_dep_prerun_parse_only_impl is pure export function below.
+// Cap residual always-seed: typeck_only still calls C glue (_impl).
 export extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 // wave58 pure skip_typeck orch: G.7 driver flags + asm_entry field accessors (runtime_driver_abi).
 // PLATFORM: SHARED — same symbols as rt_run_asm_backend pure path.
@@ -1731,13 +1733,62 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_are
   return 0 - 1;
 }
 
-/** Exported function `shux_pipeline_dep_prerun_parse_only`.
- * Implements `shux_pipeline_dep_prerun_parse_only`.
- * @param dep_mod *u8
- * @param dep_arena *u8
- * @param src *u8
- * @param len i64
- * @return i32
+/**
+ * Dep prerun parse-only body: init parse + set_main_from_buf (no typeck).
+ * Must use pipeline_parse_set_main_from_buf_c (parse_into_with_init_buf); a bare
+ * parser_parse_into slice path under-parses large std modules (ok=-2, ~2 funcs).
+ * @param dep_mod *u8 — dep AST module; caller thin already null-checked
+ * @param dep_arena *u8 — dep AST arena
+ * @param src *u8 — source bytes
+ * @param len i64 — byte length; > INT32_MAX → -1
+ * @return i32 — 0 on parse ok; -1 on null/oversized/parse fail
+ * wave59 pure Cap residual:
+ *   G.7 pure parser_parse_into_init (weak empty in this TU; strong parser wins final link);
+ *   G.7 pure pipeline_parse_set_main_from_buf_c surface (real body in pipeline_glue);
+ *   SHUX_ASM_DEBUG notes cold-only (seed twin keeps pipeline_asm_debug_enabled diags).
+ * PLATFORM: SHARED — same return mapping as historical seed _impl (parse_rc==0 → 0 else -1).
+ */
+#[no_mangle]
+export function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
+  if (dep_mod == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (src == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  // INT32_MAX — pipeline glue takes int32_t len.
+  let imax: i64 = 2147483647;
+  if (len > imax) {
+    return 0 - 1;
+  }
+  unsafe {
+    let len_i32: i32 = len as i32;
+    // Authority parse path for dep prerun (not bare parser_parse_into).
+    parser_parse_into_init(dep_mod, dep_arena);
+    let parse_rc: i32 = pipeline_parse_set_main_from_buf_c(dep_mod, dep_arena, src, len_i32);
+    if (parse_rc == 0) {
+      return 0;
+    }
+    return 0 - 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Thin gate for dep prerun parse-only (null / empty source rejected).
+ * @param dep_mod *u8 — dep AST module; null → -1
+ * @param dep_arena *u8 — dep AST arena; null → -1
+ * @param src *u8 — source bytes; null → -1
+ * @param len i64 — byte length; <=0 → -1
+ * @return i32 — 0 ok; -1 reject or parse fail
+ * wave59: body in pure shux_pipeline_dep_prerun_parse_only_impl.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
