@@ -168,21 +168,26 @@ int32_t driver_x_emit_n_lib_roots_get(void);
 uint8_t *driver_x_emit_lib_root_at(int32_t i);
 void driver_x_emit_stdout_set_unbuffered(void);
 int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len);
+/** wave23 pure under PREFER hybrid: calloc(1, 9MiB+4); cold seed sizeof twin. */
 void *driver_codegen_outbuf_calloc(void);
 void driver_codegen_outbuf_free(void *p);
 int32_t driver_codegen_outbuf_len(void *p);
 uint8_t *driver_codegen_outbuf_data(void *p);
+/** wave23 pure: pipeline_sizeof_dep_ctx + calloc; cold seed sizeof twin. */
 void *driver_pipeline_dep_ctx_calloc(void);
+/** wave23 pure: calloc(n, 8) LP64; cold seed sizeof(void*) twin. */
 void *driver_ptr_table_calloc(int32_t n);
 void driver_ptr_table_free(void *t);
 void *driver_ptr_table_get(void *t, int32_t i);
 void driver_ptr_table_set(void *t, int32_t i, void *p);
+/** wave23 pure: calloc(n, 8) LP64; cold seed sizeof(size_t) twin. */
 void *driver_size_table_calloc(int32_t n);
 void driver_size_table_free(void *t);
 size_t driver_size_table_get(void *t, int32_t i);
 void driver_size_table_set(void *t, int32_t i, size_t v);
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx);
+/** wave23 pure: calloc(1, 32) LP64; cold seed sizeof(DiagContextSnapshot) twin. */
 void *driver_diag_snapshot_alloc(void);
 void driver_diag_snapshot_free(void *s);
 void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len);
@@ -269,10 +274,10 @@ int driver_source_has_top_level_import_path(const char *path);
  * 业务控制流在 .x（step 拆分 + work 槽）；本层仅：
  *   - FILE open/write/close + mkstemp 临时 .o
  *   - PipelineDepCtx 字段 set/get（wave19 pure under PREFER: LP64 offsetof; cold C twin）
- *   - host 默认 macho/coff/arch（平台 ifdef；仍 seed）
+ *   - host 默认 macho/coff/arch（wave23 pure orch + OS residual #ifdef helpers）
  *   - defines 与 lib_roots/argv 绑定（.x 禁 **u8）
  *   - C frontend smoke / typeck 预检（产品 NO_C 固定跳过）
- *   - elf_ctx 分配、metric 写盘、asm work 槽
+ *   - elf_ctx 分配（wave23 pure）、metric 写盘、asm work 槽
  */
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
 void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);
@@ -283,8 +288,12 @@ void driver_pipeline_dep_ctx_set_asm_entry_module_only(void *ctx, int32_t v);
 int32_t driver_pipeline_dep_ctx_get_asm_entry_module_only(void *ctx);
 int32_t driver_pipeline_dep_ctx_get_use_macho_o(void *ctx);
 int32_t driver_pipeline_dep_ctx_get_use_coff_o(void *ctx);
-/** target 字符串 + emit_elf_o → 填 arch/macho/coff（含 host #ifdef）。 */
+/** wave23 pure: target 字符串 + emit_elf_o → arch/macho/coff（host #ifdef via OS residual）. */
 void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emit_elf_o);
+/** Permanent OS residual for pure host_defaults (always linked). PLATFORM: MACOS/WINDOWS. */
+int32_t shux_driver_host_default_target_arch(void);
+int32_t shux_driver_host_prefer_macho(int32_t emit_elf_o);
+int32_t shux_driver_host_prefer_coff(int32_t emit_elf_o);
 
 uint8_t *driver_asm_fopen_wb(uint8_t *path);
 /** 写 path_out64（≥64B）为临时路径并 fdopen("wb")；失败 NULL。 */
@@ -296,6 +305,7 @@ void driver_asm_fflush_stdout(void);
 /** 写单字节 0 的 metric .o；0 成功 1 失败。 */
 int32_t driver_asm_write_metric_o(uint8_t *path);
 
+/** wave23 pure: pipeline_sizeof_elf_ctx + malloc/memset; cold seed twin. */
 uint8_t *driver_asm_elf_ctx_calloc(void);
 void driver_asm_elf_ctx_free(uint8_t *p);
 uint8_t *driver_asm_tmp_path_slot(void);

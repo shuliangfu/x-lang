@@ -50,13 +50,15 @@
 //   + wave18 Cap residual pure：driver_parsed_work BSS + get/set/reset/cleanup
 //     (p: raw u8[192] 24×ptr; i32[14]/usize[4]; free+dep_ctx+fclose cf; unlink tmp_c; clear tmp slots).
 //   + wave19 Cap residual pure：driver_pipeline_dep_ctx field get/set (LP64 fixed offsets
-//     + wave14 LE load/store; no C struct in .x). host_defaults/calloc stay seed.
+//     + wave14 LE load/store; no C struct in .x).
 //   + wave20 Cap residual pure：driver_preamble_{io_net,fs_path}_line_at/count
 //     (G.7 shux_ptr_slot_get on Cap-giant-string table raw base; tables stay in rt_preamble).
 //   + wave21 Cap residual pure：driver_entry_fmt_argv_slot
 //     (u8 lit BSS "shux"/"fmt" + 2× LP64 ptr slots via G.7 shux_ptr_slot_set; no *u8[2] lit).
 //   + wave22 Cap residual pure：driver_preamble_fputs
 //     (null guard + g05 prologue shux_driver_fputs_opaque FILE* cast; no FILE* in .x).
+//   + wave23 Cap residual pure：calloc family + driver_asm_pctx_apply_host_defaults
+//     (libc calloc/malloc/memset + pipeline_sizeof_*; host #ifdef → OS residual helpers).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -2420,7 +2422,7 @@ export function driver_parsed_work_cleanup(): void {
 //   (same host-layout pattern as wave14 OutBuf len cell).
 // Layout authority: compiler/src/runtime_pipeline_abi.h struct ast_PipelineDepCtx
 //   (must stay identical to ast.x PipelineDepCtx). Offsets verified with offsetof on LP64.
-// Still seed: driver_pipeline_dep_ctx_calloc (sizeof), driver_asm_pctx_apply_host_defaults (#ifdef).
+// wave23: calloc + host_defaults pure (pipeline_sizeof_* / OS residual for host #ifdef).
 // G.7: single product authority for driver_pipeline_dep_ctx_{set,get}_* under hybrid;
 //   typed pipeline.x path still uses pipeline_dep_ctx_* in ast_pool (typed *PipelineDepCtx).
 // PLATFORM: SHARED LP64 (Ubuntu x86_64 + Darwin arm64/x86_64). Not MS64 field packing.
@@ -2723,4 +2725,212 @@ export function driver_preamble_fputs(s: *u8, stream: *u8): i32 {
     return shux_driver_fputs_opaque(s, stream);
   }
   return -1;
+}
+
+// ---- Wave23 Cap residual pure: calloc family + host_defaults (PLATFORM: SHARED LP64) ----
+// G.7: product authority under PREFER hybrid thin; cold seed keeps C twins (sizeof / #ifdef).
+// Sizes: outbuf = 9MiB data + i32 len (wave14 layout); dep_ctx/elf via pipeline_sizeof_*;
+//   ptr/size table element = 8 on LP64; DiagContextSnapshot = 32 on LP64.
+// host_defaults: field writes via wave19 setters; target substr via strstr + BSS needles;
+//   host #ifdef arch/macho/coff via permanent OS residual helpers (seed rest always linked).
+// Still seed: free/get/set/len/data table accessors; tmp path slots; giant tables.
+
+/** libc zero-fill alloc. PLATFORM: SHARED. */
+export extern "C" function calloc(nmemb: usize, size: usize): *u8;
+/** libc heap alloc. PLATFORM: SHARED. */
+export extern "C" function malloc(sz: usize): *u8;
+/** libc memset. PLATFORM: SHARED. */
+export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
+/** libc strstr. PLATFORM: SHARED — target triple substring parse in host_defaults. */
+export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
+/** Authority size of ast_PipelineDepCtx (pipeline_glue). PLATFORM: SHARED LP64. */
+export extern "C" function pipeline_sizeof_dep_ctx(): usize;
+/** Authority size of ElfCodegenCtx (0 when ELF ctx disabled). PLATFORM: SHARED. */
+export extern "C" function pipeline_sizeof_elf_ctx(): usize;
+/** Pending -mcpu feature bits from target_cpu pure. PLATFORM: SHARED. */
+export extern "C" function driver_get_pending_target_cpu_features(): u32;
+/** Host default target_arch when -target is null (1 = aarch64 on Apple arm64 host).
+ * Permanent OS residual: seed #if __APPLE__ && __aarch64__. PLATFORM: MACOS arm64 vs SHARED.
+ */
+export extern "C" function shux_driver_host_default_target_arch(): i32;
+/** Prefer Mach-O object when emit_elf_o on Apple host. Permanent OS residual. PLATFORM: MACOS. */
+export extern "C" function shux_driver_host_prefer_macho(emit_elf_o: i32): i32;
+/** Prefer COFF object when emit_elf_o on Windows/Cygwin host. Permanent OS residual. PLATFORM: WINDOWS. */
+export extern "C" function shux_driver_host_prefer_coff(emit_elf_o: i32): i32;
+
+// Target-triple needles (NUL-terminated) for strstr in host_defaults.
+// ASCII "aarch64\0"
+let g_driver_host_needle_aarch64: u8[8] = [97, 97, 114, 99, 104, 54, 52, 0];
+// ASCII "arm64\0"
+let g_driver_host_needle_arm64: u8[6] = [97, 114, 109, 54, 52, 0];
+// ASCII "riscv64\0"
+let g_driver_host_needle_riscv64: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
+// ASCII "windows\0"
+let g_driver_host_needle_windows: u8[8] = [119, 105, 110, 100, 111, 119, 115, 0];
+
+/** Fixed sizeof(driver_codegen_outbuf_abi) on product LP64: 9*1024*1024 + 4.
+ * Must match seed X_CODEGEN_OUTBUF_CAP_ABI + int32_t len (wave14 OutBuf layout).
+ */
+function driver_abi_sizeof_codegen_outbuf(): usize {
+  return 9437188 as usize;
+}
+
+/** Fixed sizeof(DiagContextSnapshot) on LP64 (3×ptr + size_t + int + pad = 32). */
+function driver_abi_sizeof_diag_snapshot(): usize {
+  return 32 as usize;
+}
+
+/** LP64 pointer / size_t width in bytes. */
+function driver_abi_sizeof_lp64_word(): usize {
+  return 8 as usize;
+}
+
+/** Allocate zeroed CodegenOutBuf (9MiB data + i32 len).
+ * Wave23 pure: calloc(1, fixed sizeof). PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_codegen_outbuf_calloc(): *u8 {
+  unsafe {
+    return calloc(1 as usize, driver_abi_sizeof_codegen_outbuf());
+  }
+  return 0 as *u8;
+}
+
+/** Allocate zeroed PipelineDepCtx via pipeline_sizeof_dep_ctx.
+ * Wave23 pure: no C struct in .x. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_calloc(): *u8 {
+  unsafe {
+    let sz: usize = pipeline_sizeof_dep_ctx();
+    if (sz == 0 as usize) {
+      return 0 as *u8;
+    }
+    return calloc(1 as usize, sz);
+  }
+  return 0 as *u8;
+}
+
+/** Allocate zeroed void*[n] pointer table (LP64 element size 8).
+ * n <= 0 → null. Wave23 pure. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_ptr_table_calloc(n: i32): *u8 {
+  if (n <= 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return calloc(n as usize, driver_abi_sizeof_lp64_word());
+  }
+  return 0 as *u8;
+}
+
+/** Allocate zeroed size_t[n] table (LP64 element size 8).
+ * n <= 0 → null. Wave23 pure. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_size_table_calloc(n: i32): *u8 {
+  if (n <= 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return calloc(n as usize, driver_abi_sizeof_lp64_word());
+  }
+  return 0 as *u8;
+}
+
+/** Allocate zeroed DiagContextSnapshot (LP64 size 32).
+ * Wave23 pure. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_diag_snapshot_alloc(): *u8 {
+  unsafe {
+    return calloc(1 as usize, driver_abi_sizeof_diag_snapshot());
+  }
+  return 0 as *u8;
+}
+
+/** Allocate zeroed ElfCodegenCtx via pipeline_sizeof_elf_ctx + malloc/memset.
+ * sz==0 (no ELF) → null. Wave23 pure. PLATFORM: SHARED (ELF size 0 on non-ELF builds).
+ */
+#[no_mangle]
+export function driver_asm_elf_ctx_calloc(): *u8 {
+  unsafe {
+    let sz: usize = pipeline_sizeof_elf_ctx();
+    if (sz == 0 as usize) {
+      return 0 as *u8;
+    }
+    let p: *u8 = malloc(sz);
+    if (p != 0 as *u8) {
+      memset(p, 0, sz);
+    }
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/** Fill PipelineDepCtx host defaults from -target string and emit_elf_o flag.
+ * Logic (matches cold seed twin):
+ *   1) target_arch: 0 default; aarch64|arm64 → 1; riscv64 → 2
+ *   2) target_cpu_features from driver_get_pending_target_cpu_features
+ *   3) if target is null, host default arch (Apple aarch64 host → 1) via OS residual
+ *   4) use_macho_o / use_coff_o: host #ifdef via OS residual when emit_elf_o;
+ *      plus target contains "windows" → coff=1 when emit_elf_o
+ * Field writes: wave19 pure setters (G.7). No C struct in .x.
+ * PLATFORM: SHARED orch; MACOS/WINDOWS residual helpers only for host #ifdef.
+ */
+#[no_mangle]
+export function driver_asm_pctx_apply_host_defaults(ctx: *u8, target: *u8, emit_elf_o: i32): void {
+  let arch: i32 = 0;
+  let feats: i32 = 0;
+  let macho: i32 = 0;
+  let coff: i32 = 0;
+  let ha: i32 = 0;
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  // Parse arch from -target triple (substring match).
+  if (target != 0 as *u8) {
+    unsafe {
+      if (strstr(target, &g_driver_host_needle_aarch64[0]) != 0 as *u8) {
+        arch = 1;
+      }
+      if (strstr(target, &g_driver_host_needle_arm64[0]) != 0 as *u8) {
+        arch = 1;
+      }
+      if (strstr(target, &g_driver_host_needle_riscv64[0]) != 0 as *u8) {
+        arch = 2;
+      }
+    }
+  }
+  driver_pipeline_dep_ctx_set_target_arch(ctx, arch);
+  unsafe {
+    feats = driver_get_pending_target_cpu_features() as i32;
+  }
+  driver_pipeline_dep_ctx_set_target_cpu_features(ctx, feats);
+  // Host default arch only when -target is absent (seed: if (!t) on Apple aarch64).
+  if (target == 0 as *u8) {
+    unsafe {
+      ha = shux_driver_host_default_target_arch();
+    }
+    if (ha != 0) {
+      driver_pipeline_dep_ctx_set_target_arch(ctx, ha);
+    }
+  }
+  // Object format prefs: host platform residual + windows in triple.
+  unsafe {
+    macho = shux_driver_host_prefer_macho(emit_elf_o);
+    coff = shux_driver_host_prefer_coff(emit_elf_o);
+  }
+  if (emit_elf_o != 0) {
+    if (target != 0 as *u8) {
+      unsafe {
+        if (strstr(target, &g_driver_host_needle_windows[0]) != 0 as *u8) {
+          coff = 1;
+        }
+      }
+    }
+  }
+  driver_pipeline_dep_ctx_set_use_macho_o(ctx, macho);
+  driver_pipeline_dep_ctx_set_use_coff_o(ctx, coff);
 }

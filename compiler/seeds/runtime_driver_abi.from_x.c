@@ -42,17 +42,20 @@
  *   + wave18 Cap residual pure：driver_parsed_work BSS + get/set/reset/cleanup 在 thin.x
  *     （p raw u8[192] 24×ptr · i32[14] · usize[4]；free+dep_ctx+fclose cf；unlink tmp_c；tmp slots clear）；FROM_X 无 pure-dup parsed work；
  *   + wave19 Cap residual pure：driver_pipeline_dep_ctx i32 字段 get/set 在 thin.x
- *     （LP64 固定 offsetof + wave14 LE load/store；无 C 结构体）；calloc/host_defaults 仍 seed；
+ *     （LP64 固定 offsetof + wave14 LE load/store；无 C 结构体）；
  *     FROM_X 无 pure-dup dep_ctx field _impl；
  *   + wave20 Cap residual pure：driver_preamble_{io_net,fs_path}_line_at/count 在 thin.x
  *     （G.7 shux_ptr_slot_get + always-seed *_lines_raw；巨型表仍 rt_preamble）；
- *     FROM_X 无 pure-dup line_at/count；fputs 仍 seed；
+ *     FROM_X 无 pure-dup line_at/count；
  *   + wave21 Cap residual pure：driver_entry_fmt_argv_slot 在 thin.x
  *     （u8 lit BSS "shux"/"fmt" + 2× LP64 ptr slots via G.7 shux_ptr_slot_set；无 *u8[2] lit）；
  *     FROM_X 无 pure-dup fmt_argv；
  *   + wave22 Cap residual pure：driver_preamble_fputs 在 thin.x
  *     （null 守卫 + g05 prologue shux_driver_fputs_opaque FILE* cast；.x 无 FILE*）；
  *     FROM_X 无 pure-dup fputs；
+ *   + wave23 Cap residual pure：calloc 族 + driver_asm_pctx_apply_host_defaults 在 thin.x
+ *     （libc calloc/malloc/memset + pipeline_sizeof_*；host #ifdef → 永久 OS residual helper）；
+ *     FROM_X 无 pure-dup calloc/host_defaults；仍 seed：table free/get/set、tmp 槽、巨型表；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -2014,9 +2017,12 @@ int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len) {
     return (int32_t)n;
 }
 
+/* wave23 pure：hybrid thin owns calloc family; cold seed keeps sizeof twins. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_codegen_outbuf_calloc(void) {
     return calloc(1, sizeof(struct driver_codegen_outbuf_abi));
 }
+#endif
 
 void driver_codegen_outbuf_free(void *p) {
     free(p);
@@ -2034,6 +2040,7 @@ uint8_t *driver_codegen_outbuf_data(void *p) {
     return ((struct driver_codegen_outbuf_abi *)p)->data;
 }
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_pipeline_dep_ctx_calloc(void) {
     return calloc(1, sizeof(struct ast_PipelineDepCtx));
 }
@@ -2043,6 +2050,7 @@ void *driver_ptr_table_calloc(int32_t n) {
         return NULL;
     return calloc((size_t)n, sizeof(void *));
 }
+#endif
 
 void driver_ptr_table_free(void *t) {
     free(t);
@@ -2060,11 +2068,13 @@ void driver_ptr_table_set(void *t, int32_t i, void *p) {
     ((void **)t)[i] = p;
 }
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_size_table_calloc(int32_t n) {
     if (n <= 0)
         return NULL;
     return calloc((size_t)n, sizeof(size_t));
 }
+#endif
 
 void driver_size_table_free(void *t) {
     free(t);
@@ -2095,9 +2105,12 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
     return pr.ok;
 }
 
+/* wave23 pure：hybrid thin owns diag snapshot alloc (fixed LP64 size 32). */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_diag_snapshot_alloc(void) {
     return calloc(1, sizeof(DiagContextSnapshot));
 }
+#endif
 
 void driver_diag_snapshot_free(void *s) {
     free(s);
@@ -2493,6 +2506,39 @@ int32_t driver_pipeline_dep_ctx_get_use_coff_o(void *ctx) {
 
 extern uint32_t driver_get_pending_target_cpu_features(void);
 
+/*
+ * wave23 permanent OS residual for pure host_defaults orch (always linked under FROM_X).
+ * PLATFORM: MACOS — default arch / macho prefer; WINDOWS — coff prefer; else 0.
+ * G.7: thin.x owns product orchestration; these helpers only hide host #ifdef.
+ */
+int32_t shux_driver_host_default_target_arch(void) {
+#if defined(__APPLE__) && defined(__aarch64__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int32_t shux_driver_host_prefer_macho(int32_t emit_elf_o) {
+#if defined(__APPLE__)
+    return emit_elf_o ? 1 : 0;
+#else
+    (void)emit_elf_o;
+    return 0;
+#endif
+}
+
+int32_t shux_driver_host_prefer_coff(int32_t emit_elf_o) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    return emit_elf_o ? 1 : 0;
+#else
+    (void)emit_elf_o;
+    return 0;
+#endif
+}
+
+/* wave23 pure：hybrid thin owns host_defaults orch; cold seed keeps #ifdef twin. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emit_elf_o) {
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)ctx;
     const char *t = (const char *)(void *)target;
@@ -2521,6 +2567,7 @@ void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emi
     if (emit_elf_o && t && strstr(t, "windows") != NULL)
         pctx->use_coff_o = 1;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 uint8_t *driver_asm_fopen_wb(uint8_t *path) {
     if (path == NULL)
@@ -2593,6 +2640,8 @@ int32_t driver_asm_write_metric_o(uint8_t *path) {
 
 extern size_t pipeline_sizeof_elf_ctx(void);
 
+/* wave23 pure：hybrid thin owns elf_ctx calloc; cold seed keeps sizeof/malloc twin. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_asm_elf_ctx_calloc(void) {
     size_t sz = pipeline_sizeof_elf_ctx();
     void *p;
@@ -2603,6 +2652,7 @@ uint8_t *driver_asm_elf_ctx_calloc(void) {
         memset(p, 0, sz);
     return (uint8_t *)p;
 }
+#endif
 
 void driver_asm_elf_ctx_free(uint8_t *p) {
     free(p);
