@@ -207,9 +207,13 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
 void *driver_diag_snapshot_alloc(void);
 /** wave24 pure: free snapshot; cold seed twin. */
 void driver_diag_snapshot_free(void *s);
+/** wave35 pure: null-guard + diag_push_file; cold seed twin. */
 void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len);
+/** wave35 pure: null-guard + diag_restore; cold seed twin. */
 void driver_diag_restore(void *snap);
+/** wave35 pure: G.7 typeck_ndep_store; cold seed twin. */
 void driver_typeck_ndep_set(int32_t n);
+/** wave35 pure: G.7 typeck_dep_module/arena_set (j in [0,32)); cold seed twin. */
 void driver_typeck_dep_ptrs_set(int32_t j, void *mod, void *arena);
 uint8_t *driver_path_max_slot(void);
 uint8_t *driver_entry_dir_slot(void);
@@ -480,18 +484,19 @@ void driver_parsed_work_cleanup(void);
  */
 /** 从 lib_key 填内部 16×512 槽；*n_out=根数；返回 *u8 实为 const char**。 */
 uint8_t *driver_dispatch_lib_roots_from_key(uint8_t *lib_key, int32_t *n_out);
-/** roots 为 driver_dispatch_lib_roots_from_key 返回值；取第 i 根（越界/空 → NULL）。 */
+/** wave35 pure: roots 为 lib_roots_from_key 返回值；取第 i 根（越界/空 → NULL）；cold twin. */
 uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i);
 /**
  * 构造 Parsed（want_asm=0）并调 driver_run_compiler_parsed。
  * lib_roots 为 const char**（可与 driver_dispatch_lib_roots_from_key 同址）。
  * opt_level 空/NULL → 默认 "2"。
+ * always-seed（struct pack + driver_run_compiler_parsed）。
  */
 int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_path,
                                            uint8_t *lib_roots, int32_t n_lib,
                                            uint8_t *target, uint8_t *opt_level,
                                            int32_t use_lto, int32_t argc, uint8_t *argv);
-/** 缺省 opt 字面量 "2"（.x 禁裸字串依赖时可用）。 */
+/** wave35 pure: 缺省 opt 字面量 "2"（hybrid 共用 wave32 BSS lit）；cold twin. */
 uint8_t *driver_dispatch_opt_default(void);
 
 /*

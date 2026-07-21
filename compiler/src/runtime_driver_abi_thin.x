@@ -85,6 +85,10 @@
 //     bind_lib_roots + argv0 + collect_defines/defines_as_u8/ndefines_get
 //     (product NO_C fixed -2/-1/0; one_root BSS + G.7; defines table BSS 64×LP64 +
 //      pure driver_argv_collect_defines; no FILE*/fopen residual).
+//   + wave35 Cap residual pure：driver_typeck_ndep_set / dep_ptrs_set +
+//     driver_diag_push_file / restore + driver_dispatch_lib_root_at / opt_default
+//     (G.7 typeck_ndep_store + dep_module/arena_set; diag_push_file/restore;
+//      G.7 shux_ptr_slot_get on roots; opt default reuses wave32 BSS lit "2").
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -97,6 +101,18 @@ export extern "C" function codegen_reset_preamble_skip_mask(): void;
 export extern "C" function codegen_or_preamble_skip_mask(mask: i32): void;
 /** Permanent IO residual: write bytes to path (runtime_io_abi). 0 = success. */
 export extern "C" function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32;
+/** Pipeline authority: store typeck_ndep (G.7; used by wave35 driver_typeck_ndep_set). */
+export extern "C" function typeck_ndep_store(n: i32): void;
+/** Pipeline authority: typeck_dep_module_ptrs[i] = mod (G.7; wave35 dep_ptrs_set). */
+export extern "C" function typeck_dep_module_set(i: i32, mod: *u8): void;
+/** Pipeline authority: typeck_dep_arena_ptrs[i] = arena (G.7; wave35 dep_ptrs_set). */
+export extern "C" function typeck_dep_arena_set(i: i32, arena: *u8): void;
+/** Diag authority: push file context into snapshot + apply (diag_thin / seed). */
+export extern "C" function diag_push_file(
+  snapshot: *u8, path: *u8, source: *u8, source_len: i64
+): void;
+/** Diag authority: restore DiagContextSnapshot (diag_thin / seed). */
+export extern "C" function diag_restore(snapshot: *u8): void;
 /** Permanent OS wall-clock surface (seed rest). Returns seconds as f64.
  * PLATFORM: POSIX gettimeofday / WINDOWS time — hides timeval layout from .x. */
 export extern "C" function shux_driver_wall_clock_sec(): f64;
@@ -4548,5 +4564,138 @@ export function driver_asm_defines_as_u8(): *u8 {
 #[no_mangle]
 export function driver_asm_ndefines_get(): i32 {
   return g_driver_asm_ndefines;
+}
+
+// ---- Wave35 Cap residual pure: typeck set + diag push/restore + dispatch root/opt ----
+// typeck_*: G.7 thin wrappers over pipeline typeck_ndep_store / dep_module_set / dep_arena_set
+//   (single table authority remains typeck_dep_*_ptrs[32] in pipeline seed).
+// diag_*: null-guard + diag_push_file / diag_restore (diag_thin pure under PREFER).
+// dispatch_lib_root_at: G.7 shux_ptr_slot_get on opaque const char** (max 16).
+// dispatch_opt_default: reuses wave32 g_driver_parsed_opt_default lit "2" (G.7 one lit).
+// Still seed (not this wave): dispatch_lib_roots_from_key (static 16×512 bufs),
+//   run_compiler_parsed (struct pack + driver_run_compiler_parsed),
+//   sibling_try_spawn (access/fork/exec OS residual).
+// G.7: hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
+// PLATFORM: SHARED LP64.
+
+/** X_FULL_MAX_LIB_ROOTS for dispatch lib_root_at bounds (matches seed). */
+function driver_abi_dispatch_max_lib_roots(): i32 {
+  return 16;
+}
+
+/** typeck_dep_*_ptrs array length (matches pipeline seed). */
+function driver_abi_typeck_dep_cap(): i32 {
+  return 32;
+}
+
+/**
+ * Set global typeck_ndep for C typeck dep sidecar.
+ * @param n i32 — dependency module count (stored as-is via typeck_ndep_store)
+ * @return void
+ * Wave35 pure: G.7 typeck_ndep_store; cold twin writes typeck_ndep under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_typeck_ndep_set(n: i32): void {
+  unsafe {
+    typeck_ndep_store(n);
+  }
+}
+
+/**
+ * Set typeck_dep_module_ptrs[j] and typeck_dep_arena_ptrs[j].
+ * @param j i32 — index; out of range [0,32) is a no-op
+ * @param mod *u8 — opaque ASTModule* (or null)
+ * @param arena *u8 — opaque arena* (or null)
+ * @return void
+ * Wave35 pure: G.7 typeck_dep_module_set + typeck_dep_arena_set; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_typeck_dep_ptrs_set(j: i32, mod: *u8, arena: *u8): void {
+  if (j < 0) {
+    return;
+  }
+  if (j >= driver_abi_typeck_dep_cap()) {
+    return;
+  }
+  unsafe {
+    typeck_dep_module_set(j, mod);
+    typeck_dep_arena_set(j, arena);
+  }
+}
+
+/**
+ * Push diagnostic file context into a DiagContextSnapshot then apply.
+ * @param snap *u8 — opaque DiagContextSnapshot*; null → no-op
+ * @param path *u8 — file path C string (may be null; diag authority handles)
+ * @param src *u8 — source bytes pointer (may be null)
+ * @param len usize — source byte length
+ * @return void
+ * Wave35 pure: null guard + diag_push_file (G.7); cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_diag_push_file(snap: *u8, path: *u8, src: *u8, len: usize): void {
+  if (snap == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    diag_push_file(snap, path, src, len as i64);
+  }
+}
+
+/**
+ * Restore diagnostic context from a DiagContextSnapshot.
+ * @param snap *u8 — opaque DiagContextSnapshot*; null → no-op
+ * @return void
+ * Wave35 pure: null guard + diag_restore (G.7); cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_diag_restore(snap: *u8): void {
+  if (snap == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    diag_restore(snap);
+  }
+}
+
+/**
+ * Index into a dispatch lib_roots table (opaque const char**).
+ * @param roots *u8 — table base from driver_dispatch_lib_roots_from_key (or equivalent)
+ * @param i i32 — root index; null roots or i out of [0,16) → null
+ * @return *u8 — C string path at roots[i], or null
+ * Wave35 pure: G.7 shux_ptr_slot_get; cold twin casts const char** under #ifndef FROM_X.
+ * PLATFORM: SHARED LP64 — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_dispatch_lib_root_at(roots: *u8, i: i32): *u8 {
+  if (roots == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= driver_abi_dispatch_max_lib_roots()) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return shux_ptr_slot_get(roots, i);
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Default opt_level C string for dispatch/parsed ("2").
+ * @return *u8 — never null; points at wave32 g_driver_parsed_opt_default BSS lit
+ * Wave35 pure: G.7 single "2" lit authority (shared with driver_parsed_opt_level default);
+ * cold twin keeps g_dispatch_opt_default under #ifndef FROM_X (run_compiler_parsed still seed).
+ * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+ */
+#[no_mangle]
+export function driver_dispatch_opt_default(): *u8 {
+  return &g_driver_parsed_opt_default[0];
 }
 

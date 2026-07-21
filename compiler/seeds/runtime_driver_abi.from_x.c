@@ -87,6 +87,10 @@
  *     bind_lib_roots + argv0 + collect_defines/defines_as_u8/ndefines_get 在 thin.x
  *     （产品 NO_C 固定 -2/-1/0；one_root BSS + G.7；defines 表 BSS 64×LP64 +
  *       pure argv_collect_defines）；FROM_X 无 pure-dup；
+ *   + wave35 Cap residual pure：driver_typeck_ndep_set / dep_ptrs_set +
+ *     driver_diag_push_file / restore + driver_dispatch_lib_root_at / opt_default 在 thin.x
+ *     （G.7 typeck_ndep_store + dep_module/arena_set；diag_push_file/restore；
+ *       G.7 shux_ptr_slot_get；opt default 共用 wave32 BSS lit "2"）；FROM_X 无 pure-dup；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -2180,6 +2184,8 @@ void driver_diag_snapshot_free(void *s) {
 }
 #endif
 
+/* wave35 pure：hybrid thin owns push/restore + typeck set; cold seed keeps C twins. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len) {
     if (snap == NULL)
         return;
@@ -2203,6 +2209,7 @@ void driver_typeck_dep_ptrs_set(int32_t j, void *mod, void *arena) {
     typeck_dep_module_ptrs[j] = mod;
     typeck_dep_arena_ptrs[j] = arena;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* wave15 pure：hybrid thin owns path_max/entry_dir slots; cold keeps C static; FROM_X no pure-dup. */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -3483,6 +3490,9 @@ uint8_t *driver_dispatch_lib_roots_from_key(uint8_t *lib_key, int32_t *n_out) {
     return (uint8_t *)(void *)g_dispatch_lib_roots;
 }
 
+/* wave35 pure：hybrid thin owns lib_root_at + opt_default; cold seed keeps C twins.
+ * lib_roots_from_key / run_compiler_parsed remain always-seed (static bufs + struct pack). */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i) {
     const char **arr;
     if (!roots || i < 0 || i >= X_FULL_MAX_LIB_ROOTS)
@@ -3494,6 +3504,7 @@ uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i) {
 uint8_t *driver_dispatch_opt_default(void) {
     return (uint8_t *)(void *)g_dispatch_opt_default;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_path,
                                             uint8_t *lib_roots, int32_t n_lib,
