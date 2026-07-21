@@ -46,6 +46,8 @@
 //   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base BSS base).
 // wave64: pure pipeline_parse_into_bytes orch (G.7 pure parser_parse_into_init +
 //   G.7 pure driver_parse_into_buf_rc; non-zero ok → -1; cold twin under FROM_X).
+// wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve +
+//   Cap residual entry_dir_get / resolved_path_buf_slot BSS; cold twin under FROM_X).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -145,8 +147,11 @@ export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32,
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 /* See implementation. */
 
-/* See implementation. */
-export extern "C" function pipeline_resolve_path_into_static(path_c: *u8): void;
+// wave65: pipeline_resolve_path_into_static is pure export function below (not Cap residual).
+// Cap residual always-seed BSS accessors for pure into_static orch:
+// PLATFORM: SHARED — entry_dir pointer + resolved_path static buffer (512).
+export extern "C" function pipeline_entry_dir_get(): *u8;
+export extern "C" function pipeline_resolved_path_buf_slot(): *u8;
 /* See implementation. */
 export extern "C" function pipeline_read_file_stage_prep(): i32;
 export extern "C" function pipeline_read_file_commit_prep(): i32;
@@ -154,6 +159,7 @@ export extern "C" function pipeline_read_file_commit_prep(): i32;
 export extern "C" function pipeline_loaded_import_data(): *u8;
 export extern "C" function pipeline_loaded_import_len_get(): i64;
 // wave64: pipeline_parse_into_bytes is pure export function below (not Cap residual).
+// wave65: pipeline_resolve_path_into_static is pure export function below.
 // wave56: shux_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
 // wave58: shux_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
 // wave59: shux_pipeline_dep_prerun_parse_only_impl is pure export function below.
@@ -1707,12 +1713,44 @@ export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_p
 
 /* ---- G-02f-56：resolve_path / read_file / parse loaded import ---- */
 
-// pipeline_resolve_path: see function docblock below.
-/** Exported function `pipeline_resolve_path`.
- * Implements `pipeline_resolve_path`.
- * @param path_ptr *u8
- * @param path_len i32
- * @return i32
+/**
+ * Resolve import logical path into the pipeline static resolved_path BSS buffer.
+ * Uses a single lib root "." and the current pipeline entry_dir (set via pipeline_set_entry_dir).
+ * @param path_c *u8 — NUL-terminated import path; null → no-op
+ * @return void
+ * wave65 pure Cap residual orch:
+ *   G.7 pure shux_resolve_import_file_path_multi (file-path / -L / entry_dir fallbacks);
+ *   Cap residual pipeline_entry_dir_get + pipeline_resolved_path_buf_slot (seed BSS).
+ * Stack packs one LP64 ptr slot for lib_roots[1] = {"."} (same as historical seed).
+ * PLATFORM: SHARED — resolved buffer cap 512 matches seed pipeline_resolved_path_buf.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_into_static(path_c: *u8): void {
+  if (path_c == 0 as *u8) {
+    return;
+  }
+  // Single root "." — same as seed lib_roots[1] = { "." }.
+  let dot: u8[2] = [];
+  dot[0] = 46;
+  dot[1] = 0;
+  // LP64: one void* slot for multi(lib_roots, n=1, ...).
+  let roots: u8[8] = [];
+  unsafe {
+    shux_ptr_slot_set(&roots[0], 0, &dot[0]);
+    let entry: *u8 = pipeline_entry_dir_get();
+    let rbuf: *u8 = pipeline_resolved_path_buf_slot();
+    // Cap 512 — seed static char pipeline_resolved_path_buf[512].
+    shux_resolve_import_file_path_multi(&roots[0], 1, entry, path_c, rbuf, 512 as i64);
+  }
+}
+
+/**
+ * Copy path_ptr[0..path_len) into a local C string and resolve into static BSS.
+ * @param path_ptr *u8 — import path bytes; null → -1
+ * @param path_len i32 — max copy length; clamped to 1..64 (0 or negative → 64)
+ * @return i32 — 0 on success (always after null gate; multi writes last try path)
+ * wave65: body uses pure pipeline_resolve_path_into_static (no seed _impl).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
@@ -1737,6 +1775,7 @@ export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
       k = k + 1;
     }
     path_c[k] = 0;
+    // G.7 pure into_static (wave65) — Cap residual only BSS accessors inside.
     pipeline_resolve_path_into_static(&path_c[0]);
   }
   return 0;

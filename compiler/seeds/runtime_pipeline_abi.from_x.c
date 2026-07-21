@@ -48,6 +48,8 @@
  * wave64: pure pipeline_parse_into_bytes orch (G.7 parser_parse_into_init +
  *   driver_parse_into_buf_rc; non-zero ok → -1; cold twin + loaded_import_impl under
  *   #ifndef FROM_X).
+ * wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve + Cap residual
+ *   pipeline_entry_dir_get / pipeline_resolved_path_buf_slot BSS; cold twin under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -211,6 +213,8 @@ int32_t typeck_module_with_sidecar(void *module);
 int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void);
 /* wave64 pure pipeline_parse_into_bytes — pure loaded_import + tmp_parse call under hybrid. */
 int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len);
+/* wave65 pure pipeline_resolve_path_into_static — pure resolve_path calls under hybrid. */
+void pipeline_resolve_path_into_static(const char *path_c);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2231,8 +2235,23 @@ void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
 
 
 
+/* wave65 Cap residual always-seed: entry_dir pointer for pure resolve_path_into_static orch.
+ * Pure cannot take address of seed BSS/static pointer cell. PLATFORM: SHARED. */
+const char *pipeline_entry_dir_get(void) {
+    return pipeline_entry_dir ? pipeline_entry_dir : ".";
+}
+
+/* wave65 Cap residual always-seed: base of resolved_path BSS (512) for pure into_static +
+ * Cap residual read_file_stage_prep (same TU). PLATFORM: SHARED. */
+char *pipeline_resolved_path_buf_slot(void) {
+    return pipeline_resolved_path_buf;
+}
+
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
-/* G-02f-237：path_c → 静态 resolved_path_buf（.x resolve pure 后调用） */
+/* G-02f-237 / wave65：hybrid pure owns into_static; cold twin under #ifndef FROM_X.
+ * Pure orch: G.7 pure multi + Cap residual entry_dir_get / resolved_path_buf_slot.
+ * PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_resolve_path_into_static(const char *path_c) {
     const char *lib_roots[1] = { "." };
     if (!path_c)
@@ -2241,7 +2260,7 @@ void pipeline_resolve_path_into_static(const char *path_c) {
         sizeof(pipeline_resolved_path_buf));
 }
 
-/* G-02f-237：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* Cold-only _impl: pure resolve_path inlines path copy + pure into_static under hybrid. */
 int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len) {
     char path_c[65];
     size_t k = 0;
@@ -2257,7 +2276,6 @@ int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len) {
 }
 
 /* G-02f-237：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
   if (path_ptr == NULL) {
     return -1;
