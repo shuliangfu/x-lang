@@ -41,6 +41,8 @@
 // Cap residual pure leaf closed for driver_abi debug_pipe note（OS rest _impl already 0）。
 //   + wave14 Cap residual pure：rt_asm_stub GAS line table + out_append_cstr
 //     (host OutBuf layout: data[9MiB] then i32 len; LE load/store local to this TU).
+//   + wave15 Cap residual pure：rt_entry buffer slots + path_max/entry_dir slots
+//     (BSS u8[N]; fmt_argv *char[2] stays seed — .x **u8 / *u8[2] lit init typeck XT001).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -1715,4 +1717,78 @@ export function driver_asm_stub_out_append_cstr(out: *u8, s: *u8): i32 {
   }
   driver_abi_store_i32_le(out, cap, cur + slen + 1);
   return 0;
+}
+
+// ---- Wave15 Cap residual pure: rt_entry + path buffer slots (PLATFORM: SHARED) ----
+// Cold seed: static char buffers + slot getters (always present for surface R2).
+// PREFER hybrid: authority in this thin TU; FROM_X rest drops pure-dup BSS/slots (H↓).
+// G.7: single product authority for entry_*_slot (buf) / path_max / entry_dir under hybrid.
+// Cap residual left in seed: driver_entry_fmt_argv_slot (char*[2] + string-lit init;
+//   .x **u8 return / *u8[2] lit array trips typeck XT001 — dig when pointer-array init pure).
+// Note: local u8[N] is banned in product .x (-E init_globals); module BSS is OK (diagnostic thin pattern).
+
+let g_driver_entry_ab: u8[256] = [];
+let g_driver_entry_code: u8[256] = [];
+let g_driver_entry_suggest: u8[16] = [];
+let g_driver_entry_msg: u8[256] = [];
+let g_driver_entry_tmp: u8[16] = [];
+let g_driver_entry_tmp2: u8[16] = [];
+let g_driver_path_max_slot_buf: u8[4096] = [];
+let g_driver_entry_dir_slot_buf: u8[512] = [];
+
+/** Return BSS scratch for entry diagnostic / argv buffer (256 bytes).
+ * Wave15 pure: thin owns slot; cold seed keeps C static char[256].
+ * PLATFORM: SHARED — pure buffer authority under PREFER hybrid. */
+#[no_mangle]
+export function driver_entry_ab_slot(): *u8 {
+  return &g_driver_entry_ab[0];
+}
+
+/** Return BSS scratch for entry diagnostic code string (256 bytes).
+ * Wave15 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_entry_code_slot(): *u8 {
+  return &g_driver_entry_code[0];
+}
+
+/** Return BSS scratch for entry suggestion short string (16 bytes).
+ * Wave15 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_entry_suggest_slot(): *u8 {
+  return &g_driver_entry_suggest[0];
+}
+
+/** Return BSS scratch for entry diagnostic message (256 bytes).
+ * Wave15 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_entry_msg_slot(): *u8 {
+  return &g_driver_entry_msg[0];
+}
+
+/** Return BSS scratch for entry temporary small string (16 bytes).
+ * Wave15 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_entry_tmp_slot(): *u8 {
+  return &g_driver_entry_tmp[0];
+}
+
+/** Return second entry temporary small string slot (16 bytes).
+ * Wave15 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_entry_tmp2_slot(): *u8 {
+  return &g_driver_entry_tmp2[0];
+}
+
+/** Return BSS path buffer for import resolve / path_max (4096 bytes).
+ * Wave15 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_path_max_slot(): *u8 {
+  return &g_driver_path_max_slot_buf[0];
+}
+
+/** Return BSS entry directory buffer (512 bytes) used by x_emit dep layout.
+ * Wave15 pure. PLATFORM: SHARED. */
+#[no_mangle]
+export function driver_entry_dir_slot(): *u8 {
+  return &g_driver_entry_dir_slot_buf[0];
 }

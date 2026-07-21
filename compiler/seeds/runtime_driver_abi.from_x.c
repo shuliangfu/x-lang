@@ -33,6 +33,8 @@
  *     FROM_X rest 无 pure-dup load_and_maybe_debug _impl；cold keeps integer-note twin；
  *   + wave14 Cap residual pure：rt_asm_stub GAS 行表 + out_append_cstr 在 thin.x
  *     （data[9MiB]+i32 len 宿主布局 LE；无 memcpy/strlen）；FROM_X 无 pure-dup gas/append；
+ *   + wave15 Cap residual pure：rt_entry 缓冲槽 + path_max/entry_dir 在 thin.x
+ *     （u8[N] BSS；fmt_argv 仍 seed — .x pointer-array lit 触 XT001）；FROM_X 无 pure-dup entry/path buf slots；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -1524,15 +1526,18 @@ void *driver_stdio_stderr(void) {
 
 /**
  * Cap residual：rt_entry R2 缓冲槽 + fmt argv。
- * .x 禁局部 u8[N]（-E 抬 init_globals / 丢函数）。
+ * .x 禁局部 u8[N]（-E 抬 init_globals / 丢函数）；模块 BSS 可 pure（wave15 thin）。
+ * wave15 pure：hybrid thin owns entry_*_slot (char buffers) + path slots；
+ *   fmt_argv stays always-seed (char*[2] + lit init; .x typeck XT001 on **u8 / *u8[2] lit).
+ * cold keeps C static for buffers; FROM_X no pure-dup buffer slots.
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static char driver_entry_ab[256];
 static char driver_entry_code_buf[256];
 static char driver_entry_suggest[16];
 static char driver_entry_msg[256];
 static char driver_entry_tmp[16];
 static char driver_entry_tmp2[16];
-static char *driver_entry_fmt_argv[2] = {"shux", "fmt"};
 
 uint8_t *driver_entry_ab_slot(void) {
     return (uint8_t *)driver_entry_ab;
@@ -1557,6 +1562,10 @@ uint8_t *driver_entry_tmp_slot(void) {
 uint8_t *driver_entry_tmp2_slot(void) {
     return (uint8_t *)driver_entry_tmp2;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
+
+/* Always seed: fixed {"shux","fmt"} argv for driver_run_fmt (Cap residual until .x pointer-array pure). */
+static char *driver_entry_fmt_argv[2] = {"shux", "fmt"};
 
 char **driver_entry_fmt_argv_slot(void) {
     return driver_entry_fmt_argv;
@@ -2083,6 +2092,8 @@ void driver_typeck_dep_ptrs_set(int32_t j, void *mod, void *arena) {
     typeck_dep_arena_ptrs[j] = arena;
 }
 
+/* wave15 pure：hybrid thin owns path_max/entry_dir slots; cold keeps C static; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 static char g_driver_path_max_slot[4096];
 static char g_driver_entry_dir_slot[512];
 
@@ -2093,6 +2104,7 @@ uint8_t *driver_path_max_slot(void) {
 uint8_t *driver_entry_dir_slot(void) {
     return (uint8_t *)g_driver_entry_dir_slot;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 static const char *g_driver_x_emit_dot = ".";
 static const char *g_driver_x_emit_one_root[1];
