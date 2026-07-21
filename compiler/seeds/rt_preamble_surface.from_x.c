@@ -5,6 +5,7 @@
  * Product PREFER_X_O: g05_try_x_to_o(rt_preamble.x) + hybrid rest seed
  *   seeds/rt_preamble.from_x.c (-DSHUX_RT_PREAMBLE_FROM_X) ld -r into runtime_driver_no_c
  * Hybrid rest seed: FROM_X 业务 H=0（表+marker）；冷启动全 C 体
+ * wave29: WEAK_IO_BATCH skip i=178..181 (match .x + cold seed); io_net n via line_count pure 224.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -59,9 +60,10 @@ int32_t write_io_net_abi_inline(uint8_t * cf) {
         }
       }
     }
+    /* wave29: WEAK_IO_BATCH = rows 178..181 (stdio guard + weak batch) */
     if (((skip & 8) !=0)) {
-      if ((i >=124)) {
-        if ((i <=134)) {
+      if ((i >=178)) {
+        if ((i <=181)) {
           (void)((skip_line = 1));
         }
       }

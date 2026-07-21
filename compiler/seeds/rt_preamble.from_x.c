@@ -6,6 +6,7 @@
  * FROM_X 下本文件：巨型字符串表（Cap-giant-string residual 数据）+ 前向声明 + marker
  * （产品 rest 业务 T=0）。冷启动/无 PREFER 时仍编译完整 C 体。
  * Cap residual 行访问 API 在 runtime_driver_abi（平台层，供 .x 取表）。
+ * wave29：io_net n=224；WEAK_IO_BATCH skip i=178..181（与 rt_preamble.x / surface 同权威）。
  */
 #include <shux_weak.h>
 #include <stdio.h>
@@ -511,12 +512,18 @@ int write_io_net_abi_inline(FILE *cf) {
         if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE) && i >= 105 && i < 119)
             skip_line = 1;
         /*
-         * weak IO 块：C 相邻字面量拼成单表项（#include..#endif 含 fixed/async/process/ctx）。
-         * 实测 n≈217 时为 i==174；driver co-emit 时跳过整块避免与 core 强符号重定义。
-         * PLATFORM: SHARED — 与 driver_parsed_apply_preamble_skip(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) 对齐。
-         * 注意：跳过时亦无 process_shux_* weak；需 argv 时链 runtime_process_argv.o 强符号。
+         * weak IO batch: table rows 178..181 inclusive (wave29 re-count, n=224):
+         *   178 #include <stdio.h> + #ifndef __cplusplus
+         *   179 weak shux_io_* / io_* batch stubs (large)
+         *   180 weak process_shux_* / args_iter_*
+         *   181 weak std_io_driver_* / ctx_* + #endif
+         * Stale i==174 only hit a comment after rows grew; product .x had 124..134
+         * (shux_io_* externs) — dual authority; both wrong for co-emit redef.
+         * PLATFORM: SHARED — align with driver_parsed_apply_preamble_skip(WEAK_IO_BATCH)
+         * and src/runtime/rt_preamble.x. Skipping drops process weaks; link
+         * runtime_process_argv.o when argv is required.
          */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i == 174)
+        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 178 && i <= 181)
             skip_line = 1;
         if (!skip_line && fputs(driver_preamble_io_net_lines[i], cf) == EOF)
             return 1;

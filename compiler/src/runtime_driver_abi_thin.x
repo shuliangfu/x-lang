@@ -2626,15 +2626,19 @@ export function driver_pipeline_dep_ctx_set_skip_codegen_dep_0(ctx: *u8, v: i32)
 // Hybrid pure owns the public line_at/count surface used by rt_preamble.x write_* loops.
 // Always-seed residual: driver_preamble_*_lines_raw() = base of pointer table (LP64 *u8 slots).
 // Index via G.7 shux_ptr_slot_get (same authority as defines_set_at / work_p).
-// Counts are fixed to match sizeof(...)/sizeof(*...) in rt_preamble.from_x.c (verified 219 / 21).
+// Counts are fixed to match sizeof(...)/sizeof(*...) in rt_preamble.from_x.c
+// (wave29 re-count: io_net=224 / fs_path=21; was 219 after preamble rows grew).
 // When adding/removing a table row, update N here in the same commit as the C table.
-// Cold seed keeps C line_at/count twins; FROM_X rest drops pure-dup (H↓).
+// Cold seed keeps C line_at/count twins (uses *_lines_n from sizeof); FROM_X rest drops pure-dup (H↓).
 // Wave22 pure: driver_preamble_fputs (g05 FILE* cast helper). Still seed: giant string text tables.
 
-/** Fixed io_net preamble line count (must match driver_preamble_io_net_lines_n).
- * PLATFORM: SHARED — wave20 pure; keep in sync with seeds/rt_preamble.from_x.c. */
+/**
+ * Fixed io_net preamble line count (must match driver_preamble_io_net_lines_n).
+ * @return i32 — 224 (wave29; sizeof table / sizeof slot)
+ * PLATFORM: SHARED — wave20 pure; wave29 N sync with seeds/rt_preamble.from_x.c.
+ */
 function driver_abi_preamble_io_net_n(): i32 {
-  return 219;
+  return 224;
 }
 
 /** Fixed fs_path preamble line count (must match driver_preamble_fs_path_lines_n).
@@ -2666,8 +2670,11 @@ export function driver_preamble_io_net_line_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-/** Number of io_net Cap-giant-string preamble lines (219).
- * Wave20 pure. PLATFORM: SHARED. */
+/**
+ * Number of io_net Cap-giant-string preamble lines (224).
+ * @return i32 — fixed N; must match seeds/rt_preamble.from_x.c table size
+ * Wave20 pure; wave29 N sync. PLATFORM: SHARED.
+ */
 #[no_mangle]
 export function driver_preamble_io_net_line_count(): i32 {
   return driver_abi_preamble_io_net_n();
@@ -3220,8 +3227,9 @@ export function driver_diag_snapshot_free(s: *u8): void {
 // .x cannot name FILE* or compare to stdout — g05 prologue injects:
 //   shux_driver_stdout_ptr / shux_driver_fclose_opaque / shux_driver_fwrite_opaque
 // (same harness pattern as wave22 shux_driver_fputs_opaque).
-// write_out still calls always-seed write_io_net_abi_inline + write_fs_path_map_error_abi_inline
-// (rt_preamble Cap-giant-string tables + skip mask). min preamble via driver_preamble_fputs
+// write_out calls write_io_net_abi_inline + write_fs_path_map_error_abi_inline
+// (R2 pure in rt_preamble.x under PREFER; Cap-giant-string *data* + skip still seed-backed).
+// min preamble via driver_preamble_fputs
 // short lits (avoid long -E string cap). wave27 open_out; wave28 invoke_cc; still seed: giant tables.
 
 /** g05 prologue: opaque identity of host stdout as *u8.
@@ -3329,7 +3337,7 @@ function driver_parsed_write_min_preamble(fp: *u8): i32 {
  * @param len i32 — byte count of data; negative → fail; 0 still inserts preamble path
  * @return i32 — 0 success, 1 I/O or table-write failure
  * Wave26 pure: first-line scan + need_preamble gate in .x; fwrite via g05 opaque;
- * write_io_net_abi_inline / write_fs_path_map_error_abi_inline remain seed (giant tables).
+ * write_io_net / write_fs_path pure in rt_preamble.x; table data always seed (wave29).
  * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
  */
 #[no_mangle]
@@ -3406,7 +3414,8 @@ export function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32 {
 //   - g05 prologue: shux_driver_fopen_write_opaque (FILE* cast; same pattern as wave22/26)
 //   - libc via g05 unistd/stdio: mkstemp, close, rename, unlink
 //   - pure orch: stdout gate, template build, close-before-rename (BLD001), path copy
-// Still seed after wave28: rt_preamble giant tables (write_io_net / write_fs_path).
+// wave29: rt_preamble write pure already R2; residual = Cap-giant-string *data* only.
+// wave29 also: pure io_net N 219→224 + WEAK_IO_BATCH skip 178..181 (seed/.x/surface).
 
 /** Permanent OS residual: host temp path prefix for mkstemp templates.
  * @return *u8 — NUL-terminated C string; POSIX "/tmp/shux_"; WINDOWS "shux_"
@@ -3586,7 +3595,7 @@ export function driver_parsed_open_out_file(
 //     shux_runtime_panic_o_path / shux_repo_root_from_argv0 (same seed surface as cold)
 //   - pure orch: null gate, default opt "2", c_paths pack via G.7 ptr_slot,
 //     fail unlink+BLD001 (append+diag_report_with_code), KEEP_C note, success unlink tmp
-// Still seed: rt_preamble giant tables (io_net / fs_path).
+// Cap residual data: rt_preamble giant string tables (io_net / fs_path) always seed.
 
 /** Resolve std/io/io.o (or product empty F-06) from compiler argv0. */
 export extern "C" function shux_std_io_o_path(argv0: *u8): *u8;

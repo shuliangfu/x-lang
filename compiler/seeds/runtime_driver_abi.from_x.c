@@ -72,7 +72,7 @@
  *     （std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup；
  *      c_paths[1] via G.7 shux_ptr_slot_set；无 va_list reportf）；
  *     FROM_X 无 pure-dup invoke_cc；
- *     仍 seed：巨型 rt_preamble 表（write_io_net / write_fs_path）；
+ *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
