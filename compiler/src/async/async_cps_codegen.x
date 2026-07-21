@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // async_cps_codegen.x — pure surface for async CPS switch emit (A3).
-// R2 pure surface + Cap residual pure wave1 + wave2 + wave3 (walk_impl):
+// R2 pure surface + Cap residual pure wave1 + wave2 + wave3 (walk_impl) + wave4 (FILE* emit):
 //   - name gates (io / future_wait / sched wrapper)
 //   - thin public wrappers for walk/hoist
 //   - await expr classifiers (expr_is_io_await / await_read / await_write / await_fd / future_wait)
 //   - module/sched resolve + func_uses_void_entry (no FILE*; host LE loads)
 //   - walk _impl: expr_references_run_async_impl / block_has_run_async_ref_impl (host LE)
-// Cap residual (seed C always): FILE* emit begin/end/after_await/sched,
-//   emit_param_statics / emit_hoisted_lets_impl (fprintf).
+//   - FILE* emit via opaque fputs bridge: end / phase_reset / after_await(_io) / sched_wrapper
+// Cap residual (seed C always): begin / emit_param_statics / emit_hoisted_lets_impl (fprintf +
+//   type_to_c_buf / run-seed param inject); async_cps_fputs bridge (opaque FILE*).
 // ASTExpr host layout (PLATFORM: SHARED with async_liveness): kind@0; value@24;
 //   unary.operand@24; CALL callee@24 args@32 num@40 resolved_fn@72;
 //   METHOD base@24 name@32 args@40 num@48 impl@56; FIELD name@32; VAR name@24.
@@ -19,6 +20,8 @@
 //   ASTForLoop size 32 body@24; ASTLabeledStmt size 32 kind@8 u@24; AST_STMT_RETURN=1.
 // ASTFunc host layout: name@8 body@56 is_extern@64 is_async@68 (size 176).
 // ASTModule host layout: funcs@152 num_funcs@160 (funcs is ASTFunc**).
+// AsyncCpsCodegenCtx (LP64 size 24): func@0 layout@8 phase_next@16 switch_open@20.
+// AsyncFrameLayout (size 4196): live.names[64][64]@0 live.n@4096 (see async_liveness).
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 // Cold product path: cc seeds/async_cps_codegen.from_x.c (no FROM_X).
 // Hybrid/PREFER (future): g05_try_x_to_o + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
@@ -28,6 +31,9 @@ export extern "C" function emit_hoisted_lets_impl(f: *u8, out: *u8): void;
 // Cap residual liveness predicates (still seed C; used by pure module/sched helpers).
 export extern "C" function async_liveness_func_needs_cps_frame(f: *u8): i32;
 export extern "C" function async_liveness_func_has_await(f: *u8): i32;
+// Cap residual opaque FILE* bridge (always seed C; .x must not cast *u8 to FILE*).
+// Returns 0 on success, negative on error/null (same contract as driver_preamble_fputs).
+export extern "C" function async_cps_fputs(s: *u8, stream: *u8): i32;
 
 /** Prove/doc anchor for the pure surface TU (always 0).
  * PLATFORM: SHARED — no_mangle keeps short surface name for nm IDENTICAL. */
@@ -1122,4 +1128,323 @@ export function async_cps_module_has_sched_extern(m: *u8, async_fn: *u8): i32 {
     }
   }
   return 0;
+}
+
+// ---- Cap residual pure wave4: FILE* emit via opaque fputs bridge ----
+// AsyncCpsCodegenCtx LP64: func@0 layout@8 phase_next@16 switch_open@20 (size 24).
+// AsyncFrameLive names[64][64]@0 n@4096; name row i at layout+(i*64).
+
+/** Store little-endian i32 at p+off (null-safe). Used for phase_next / switch_open.
+ * PLATFORM: SHARED — host LE; mirrors async_live_store_i32 pattern in-module. */
+#[no_mangle]
+export function async_cps_store_i32(p: *u8, off: i32, v: i32): void {
+  if (p == 0) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  let u: u32 = v as u32;
+  p[off] = (u & 255) as u8;
+  p[off + 1] = ((u / 256) & 255) as u8;
+  p[off + 2] = ((u / 65536) & 255) as u8;
+  p[off + 3] = ((u / 16777216) & 255) as u8;
+}
+
+/** Emit non-negative i32 as decimal digits through async_cps_fputs.
+ * Phase counters are always >= 0 in seed semantics; negative is a no-op.
+ * @param out FILE* as *u8
+ * @param v value to print (only v >= 0)
+ * PLATFORM: SHARED — Cap residual pure wave4; uses opaque fputs bridge. */
+#[no_mangle]
+export function async_cps_fputs_i32_dec(out: *u8, v: i32): void {
+  if (out == 0) {
+    return;
+  }
+  if (v < 0) {
+    return;
+  }
+  // Special-case 0 so the digit loop can assume v > 0.
+  if (v == 0) {
+    let z: u8[2] = [48, 0];
+    unsafe {
+      async_cps_fputs(&z[0], out);
+    }
+    return;
+  }
+  // Count digits, then write most-significant first into a small stack buffer.
+  let cnt: i32 = 0;
+  let tc: i32 = v;
+  while (tc > 0) {
+    cnt = cnt + 1;
+    tc = tc / 10;
+  }
+  // Cap 16 digits covers i32 max; +1 for NUL.
+  let buf: u8[17];
+  let k: i32 = cnt - 1;
+  let tm: i32 = v;
+  while (tm > 0) {
+    let d: i32 = tm % 10;
+    tm = tm / 10;
+    if (k >= 0) {
+      if (k < 16) {
+        buf[k] = ((d + 48) as u8);
+      }
+    }
+    k = k - 1;
+  }
+  if (cnt > 0) {
+    if (cnt < 17) {
+      buf[cnt] = 0;
+      unsafe {
+        async_cps_fputs(&buf[0], out);
+      }
+    }
+  }
+}
+
+/** Close CPS switch after function body (seed async_cps_codegen_end).
+ * Emits "    break;\\n  }\\n" and clears switch_open when open.
+ * @param ctx AsyncCpsCodegenCtx* as *u8
+ * @param out FILE* as *u8
+ * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_end(ctx: *u8, out: *u8): void {
+  if (ctx == 0) {
+    return;
+  }
+  if (out == 0) {
+    return;
+  }
+  // switch_open @20
+  if (async_cps_load_i32(ctx, 20) == 0) {
+    return;
+  }
+  unsafe {
+    async_cps_fputs("    break;\n", out);
+    async_cps_fputs("  }\n", out);
+  }
+  async_cps_store_i32(ctx, 20, 0);
+}
+
+/** Emit phase reset before normal return (re-enter static frame).
+ * Writes pad + "__shux_frame.__phase = 0;\\n". Null pad defaults to two spaces.
+ * @param out FILE* as *u8
+ * @param pad optional indent cstr (may be null)
+ * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_emit_phase_reset(out: *u8, pad: *u8): void {
+  if (out == 0) {
+    return;
+  }
+  // Default indent matches seed: two spaces (lifetime covers whole function).
+  let def: u8[3] = [32, 32, 0];
+  let p: *u8 = pad;
+  if (p == 0) {
+    p = &def[0];
+  }
+  unsafe {
+    async_cps_fputs(p, out);
+    async_cps_fputs("__shux_frame.__phase = 0;\n", out);
+  }
+}
+
+/** Shared await-boundary emit (seed async_cps_codegen_after_await_impl).
+ * Saves live locals into __shux_frame, advances phase, emits suspend call + next case,
+ * then restores live locals. Mutates ctx.phase_next (post-increment).
+ * @param ctx AsyncCpsCodegenCtx* as *u8
+ * @param out FILE* as *u8
+ * @param pad indent cstr (null → two spaces)
+ * @param suspend_fn C function name (e.g. shux_async_cps_suspend)
+ * @return 0 success, -1 bad args
+ * PLATFORM: SHARED — host AsyncFrameLayout LE; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8, suspend_fn: *u8): i32 {
+  if (ctx == 0) {
+    return -1;
+  }
+  if (out == 0) {
+    return -1;
+  }
+  if (suspend_fn == 0) {
+    return -1;
+  }
+  // layout @8; require non-null layout and func
+  let layout: *u8 = async_cps_load_ptr(ctx, 8);
+  if (layout == 0) {
+    return -1;
+  }
+  if (async_cps_load_ptr(ctx, 0) == 0) {
+    return -1;
+  }
+  // Default indent: two spaces (lifetime covers whole function).
+  let def: u8[3] = [32, 32, 0];
+  let p: *u8 = pad;
+  if (p == 0) {
+    p = &def[0];
+  }
+  // phase = phase_next++
+  let phase: i32 = async_cps_load_i32(ctx, 16);
+  async_cps_store_i32(ctx, 16, phase + 1);
+  // live.n @4096; each name row is 64 bytes at layout + i*64
+  let n: i32 = async_cps_load_i32(layout, 4096);
+  if (n < 0) {
+    n = 0;
+  }
+  if (n > 64) {
+    n = 64;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let v: *u8 = layout + (i * 64);
+    i = i + 1;
+    if (v == 0) {
+      continue;
+    }
+    if (v[0] == 0) {
+      continue;
+    }
+    // pad __shux_frame.name = name;\n
+    unsafe {
+      async_cps_fputs(p, out);
+      async_cps_fputs("__shux_frame.", out);
+      async_cps_fputs(v, out);
+      async_cps_fputs(" = ", out);
+      async_cps_fputs(v, out);
+      async_cps_fputs(";\n", out);
+    }
+  }
+  // pad __shux_frame.__phase = PHASE;\n
+  unsafe {
+    async_cps_fputs(p, out);
+    async_cps_fputs("__shux_frame.__phase = ", out);
+  }
+  async_cps_fputs_i32_dec(out, phase);
+  unsafe {
+    async_cps_fputs(";\n", out);
+  }
+  // pad if (suspend_fn(&__shux_frame.__phase, PHASE)) return (int32_t)SHUX_ASYNC_SUSPENDED;\n
+  unsafe {
+    async_cps_fputs(p, out);
+    async_cps_fputs("if (", out);
+    async_cps_fputs(suspend_fn, out);
+    async_cps_fputs("(&__shux_frame.__phase, ", out);
+  }
+  async_cps_fputs_i32_dec(out, phase);
+  unsafe {
+    async_cps_fputs(")) return (int32_t)SHUX_ASYNC_SUSPENDED;\n", out);
+  }
+  // pad /* SHUX_ASYNC_CPS fallthrough phase=PHASE */\n
+  unsafe {
+    async_cps_fputs(p, out);
+    async_cps_fputs("/* SHUX_ASYNC_CPS fallthrough phase=", out);
+  }
+  async_cps_fputs_i32_dec(out, phase);
+  unsafe {
+    async_cps_fputs(" */\n", out);
+  }
+  // pad case PHASE:\n
+  unsafe {
+    async_cps_fputs(p, out);
+    async_cps_fputs("case ", out);
+  }
+  async_cps_fputs_i32_dec(out, phase);
+  unsafe {
+    async_cps_fputs(":\n", out);
+  }
+  // restore live: pad name = __shux_frame.name;\n
+  let j: i32 = 0;
+  while (j < n) {
+    let v2: *u8 = layout + (j * 64);
+    j = j + 1;
+    if (v2 == 0) {
+      continue;
+    }
+    if (v2[0] == 0) {
+      continue;
+    }
+    unsafe {
+      async_cps_fputs(p, out);
+      async_cps_fputs(v2, out);
+      async_cps_fputs(" = __shux_frame.", out);
+      async_cps_fputs(v2, out);
+      async_cps_fputs(";\n", out);
+    }
+  }
+  return 0;
+}
+
+/** Await boundary with normal suspend (shux_async_cps_suspend).
+ * @param ctx AsyncCpsCodegenCtx* as *u8
+ * @param out FILE* as *u8
+ * @param pad indent cstr
+ * @return 0 / -1
+ * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_after_await(ctx: *u8, out: *u8, pad: *u8): i32 {
+  // Compile-time constant suspend name (seed uses string literal).
+  let sn: u8[24] = [
+    115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95,
+    115, 117, 115, 112, 101, 110, 100, 0, 0
+  ];
+  // "shux_async_cps_suspend"
+  return async_cps_codegen_after_await_impl(ctx, out, pad, &sn[0]);
+}
+
+/** Await boundary with IO suspend (shux_async_cps_suspend_io).
+ * @param ctx AsyncCpsCodegenCtx* as *u8
+ * @param out FILE* as *u8
+ * @param pad indent cstr
+ * @return 0 / -1
+ * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_after_await_io(ctx: *u8, out: *u8, pad: *u8): i32 {
+  // "shux_async_cps_suspend_io"
+  let sn: u8[27] = [
+    115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95,
+    115, 117, 115, 112, 101, 110, 100, 95, 105, 111, 0, 0
+  ];
+  return async_cps_codegen_after_await_impl(ctx, out, pad, &sn[0]);
+}
+
+/** Emit global scheduler wrapper shux_async_sched_<name> calling shux_async_run_i32.
+ * Matches seed async_cps_codegen_emit_sched_wrapper fprintf sequence.
+ * @param f ASTFunc* as *u8 (requires f->name)
+ * @param c_fname C mangled coroutine entry name
+ * @param out FILE* as *u8
+ * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_emit_sched_wrapper(f: *u8, c_fname: *u8, out: *u8): void {
+  if (f == 0) {
+    return;
+  }
+  if (c_fname == 0) {
+    return;
+  }
+  if (out == 0) {
+    return;
+  }
+  let name: *u8 = async_cps_load_func_name(f);
+  if (name == 0) {
+    return;
+  }
+  if (name[0] == 0) {
+    return;
+  }
+  unsafe {
+    async_cps_fputs("/* A4: scheduler entry shux_async_sched_", out);
+    async_cps_fputs(name, out);
+    async_cps_fputs(" */\n", out);
+    async_cps_fputs("#ifndef SHUX_ASYNC_SCHED_RT_DECL\n", out);
+    async_cps_fputs("#define SHUX_ASYNC_SCHED_RT_DECL\n", out);
+    async_cps_fputs("extern int32_t shux_async_run_i32(int32_t (*fn)(void));\n", out);
+    async_cps_fputs("#endif\n", out);
+    async_cps_fputs("int32_t shux_async_sched_", out);
+    async_cps_fputs(name, out);
+    async_cps_fputs("(void) {\n", out);
+    async_cps_fputs("  return shux_async_run_i32((int32_t (*)(void))", out);
+    async_cps_fputs(c_fname, out);
+    async_cps_fputs(");\n", out);
+    async_cps_fputs("}\n", out);
+  }
 }

@@ -4,13 +4,14 @@
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  *
- * R2 pure surface + Cap residual pure wave1+wave2+wave3（2026-07-21）：
+ * R2 pure surface + Cap residual pure wave1+wave2+wave3+wave4（2026-07-21）：
  *   io/future_wait/sched name gates + thin walk/hoist wrappers +
  *   expr_is_* await classifiers + module/sched resolve + func_uses_void_entry +
- *   walk _impl (expr/block run-async) by src/async/async_cps_codegen.x；
- *   FROM_X 下 pure helper C 体（含 walk _impl）省略。
- * Cap residual（始终 seed C）：emit_hoisted_lets_impl / begin/end/after_await /
- *   emit_phase_reset / emit_sched_wrapper / emit_param_statics（FILE* fprintf）。
+ *   walk _impl (expr/block run-async) + FILE* emit end/phase_reset/after_await/
+ *   sched_wrapper by src/async/async_cps_codegen.x（opaque async_cps_fputs）；
+ *   FROM_X 下 pure helper C 体（含 walk _impl + wave4 emit）省略。
+ * Cap residual（始终 seed C）：emit_hoisted_lets_impl / begin / emit_param_statics
+ *   （FILE* fprintf + type_to_c_buf）；async_cps_fputs 桥（opaque FILE*）。
  * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认 -c 本文件（无宏）。
  * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
@@ -257,12 +258,15 @@ void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
     ctx->switch_open = 1;
 }
 
+/* Cap residual pure wave4：.x 真迁；冷路径仍 seed C */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 void async_cps_codegen_end(AsyncCpsCodegenCtx *ctx, FILE *out) {
     if (!ctx || !out || !ctx->switch_open) return;
     fprintf(out, "    break;\n");
     fprintf(out, "  }\n");
     ctx->switch_open = 0;
 }
+#endif
 
 /** callee 是否为 IO-A5 await 目标（std.io 同步 API / shux_io_* C 入口）。 */
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -448,6 +452,8 @@ int async_cps_expr_is_await_future_wait(const struct ASTExpr *await_expr) {
 }
 #endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
+/* Cap residual pure wave4：.x 真迁 after_await / phase_reset / sched_wrapper；冷路径仍 seed C */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /** await 边界公共 emit：保存 live、推进 phase、开下一 case 并恢复 live。 */
 static int async_cps_codegen_after_await_impl(AsyncCpsCodegenCtx *ctx, FILE *out,
     const char *pad, const char *suspend_fn) {
@@ -504,6 +510,18 @@ void async_cps_codegen_emit_sched_wrapper(const struct ASTFunc *f, const char *c
     fprintf(out, "  return shux_async_run_i32((int32_t (*)(void))%s);\n", c_fname);
     fprintf(out, "}\n");
 }
+#endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
+
+/* Cap residual：opaque *u8 stream → FILE* fputs（EOF/null 时返回负值）。
+ * Always linked (not omitted under FROM_X); .x wave4 emit pure calls this.
+ * PLATFORM: SHARED — same contract as driver_preamble_fputs. */
+int32_t async_cps_fputs(uint8_t *s, uint8_t *stream) {
+    if (s == NULL || stream == NULL)
+        return -1;
+    if (fputs((const char *)(void *)s, (FILE *)(void *)stream) == EOF)
+        return -1;
+    return 0;
+}
 
 /* G-02f-20 thin+rest：DIRECT 模式，thin（.x）提供完整实现 */
 #ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
@@ -546,8 +564,9 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
 #endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 #ifdef SHUX_ASYNC_CPS_CODEGEN_FROM_X
-/* R2 pure surface + Cap residual pure wave1–3 from .x (incl. walk _impl);
- * FILE* emit stay in this TU. */
+/* R2 pure surface + Cap residual pure wave1–4 from .x (walk _impl + FILE* emit
+ * end/phase_reset/after_await/sched); Cap residual begin/param_statics/hoist_impl
+ * + async_cps_fputs bridge stay in this TU. */
 int async_cps_codegen_slice_marker(void) {
     return 0;
 }
