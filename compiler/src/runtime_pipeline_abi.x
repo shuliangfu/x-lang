@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave50).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave51).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual: heavy FILE star / access / tmp_parse / paths resolve+read+preprocess /
-//   thread C remains seed rest (transitive_impl pure wave50).
+// Cap residual: heavy FILE view / PATH_MAX resolve+read+preprocess / tmp_parse /
+//   thread C remains seed rest (load_one pure orch wave51; transitive pure wave50).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -16,6 +16,9 @@
 // wave49: pure collect paths_process_one orch; Cap residual paths_tmp_resolve_parse_enqueue
 //   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue + free prep).
 // wave50: pure collect deps/paths transitive_impl orch (stack to_load[32] + process_one loop).
+// wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
+//   Cap residual shux_load_one_direct_resolve_read_preprocess (FILE/PATH_MAX/preprocess);
+//   G.7 paths_tmp residual reuses same Cap residual (no dual resolve/read/preprocess).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -51,6 +54,9 @@ export extern "C" function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tm
 // wave49 Cap residual: ensure tmp; resolve/read/preprocess path_c; parse+enqueue; free prep.
 // PLATFORM: SHARED — FILE view / PATH_MAX / preprocess stay seed; pure paths_process_one orch.
 export extern "C" function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32;
+// wave51 Cap residual: resolve import + read file view + preprocess → owned prep (no dep slots).
+// PLATFORM: SHARED — PATH_MAX stack + FILE view stay seed; pure load_one orch stores slots.
+export extern "C" function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, out_prep: *u8, out_prep_len: *u8): i32;
 export extern "C" function ast_module_free(mod: *u8): void;
 export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
 /* See implementation. */
@@ -125,8 +131,8 @@ export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, 
 /* See implementation. */
 /* wave46: shux_module_num_imports / import_path_cstr / ptr+size slots / i32_store
  * are pure export function below (not export-extern Cap residual). */
-export extern "C" function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32;
-export extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void;
+// wave51: shux_load_one_direct_import_at + shux_load_direct_fail_cleanup are pure orch below
+// (Cap residual shux_load_one_direct_resolve_read_preprocess for FILE/PATH_MAX/preprocess).
 // wave50: shux_collect_deps_transitive_impl / shux_collect_dep_paths_transitive_impl
 // are pure export function below (not export-extern Cap residual).
 export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
@@ -2332,20 +2338,125 @@ export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx:
   return 0 - 1;
 }
 
+/**
+ * Free dep_sources/dep_paths slots [0, mi) on load_direct failure (partial fill).
+ * @param dep_sources *u8 — char star-star prep sources; may be null (skip frees)
+ * @param dep_paths *u8 — char star-star owned keys; may be null (skip frees)
+ * @param mi i32 — exclusive upper bound of slots to free; mi<=0 → no-op
+ * @return void
+ * wave51 pure Cap residual orch: walk mi-1..0; free non-null slots; clear to null.
+ * G.7 single authority for fail cleanup (load_direct_imports layout + cold twin).
+ * PLATFORM: SHARED — pure link-name; free still libc.
+ */
+#[no_mangle]
+export function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void {
+  let i: i32 = mi;
+  while (i > 0) {
+    i = i - 1;
+    if (dep_sources != 0 as *u8) {
+      let s: *u8 = pipe_load_ptr_slot(dep_sources, i);
+      if (s != 0 as *u8) {
+        unsafe {
+          free(s);
+        }
+        pipe_store_ptr_slot(dep_sources, i, 0 as *u8);
+      }
+    }
+    if (dep_paths != 0 as *u8) {
+      let p: *u8 = pipe_load_ptr_slot(dep_paths, i);
+      if (p != 0 as *u8) {
+        unsafe {
+          free(p);
+        }
+        pipe_store_ptr_slot(dep_paths, i, 0 as *u8);
+      }
+    }
+  }
+}
+
+/**
+ * Resolve one import key, read+preprocess into prep, store dep_sources/lens/paths[mi].
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param import_key *u8 — import path key C string; null → fail 1
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources out; may be null (skip store)
+ * @param dep_lens *u8 — size_t array base as bytes; may be null (skip store)
+ * @param dep_paths *u8 — char star-star owned keys out; may be null (skip strdup store)
+ * @param mi i32 — slot index; mi < 0 → fail 1
+ * @return i32 — 0 success (slot written); 1 fail (no partial slot leave when paths OOM frees prep)
+ * wave51 pure Cap residual orch:
+ *   Cap residual shux_load_one_direct_resolve_read_preprocess → owned prep;
+ *   store prep + prep_len at mi;
+ *   Cap residual shux_collect_strdup(import_key) → dep_paths[mi];
+ *   OOM on key: free prep, clear source slot, return 1.
+ * G.7 process_one / load_direct_imports layout call this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32 {
+  if (import_key == 0 as *u8) {
+    return 1;
+  }
+  if (mi < 0) {
+    return 1;
+  }
+  // out_prep (char*) and out_prep_len (size_t) as 8-byte stack cells (LP64).
+  let prep_cell: u8[8] = [];
+  let prep_len_cell: u8[8] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shux_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, import_key, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
+  let prep_len: i64 = shux_size_slot_get(&prep_len_cell[0], 0);
+  if (prep == 0 as *u8) {
+    return 1;
+  }
+  if (dep_sources != 0 as *u8) {
+    pipe_store_ptr_slot(dep_sources, mi, prep);
+  }
+  if (dep_lens != 0 as *u8) {
+    shux_size_slot_set(dep_lens, mi, prep_len);
+  }
+  if (dep_paths != 0 as *u8) {
+    let key: *u8 = 0 as *u8;
+    unsafe {
+      key = shux_collect_strdup(import_key);
+    }
+    if (key == 0 as *u8) {
+      unsafe {
+        free(prep);
+      }
+      if (dep_sources != 0 as *u8) {
+        pipe_store_ptr_slot(dep_sources, mi, 0 as *u8);
+      }
+      return 1;
+    }
+    pipe_store_ptr_slot(dep_paths, mi, key);
+  }
+  return 0;
+}
+
 // shux_load_direct_imports_for_asm_layout: see function docblock below.
-/** Exported function `shux_load_direct_imports_for_asm_layout`.
- * Implements `shux_load_direct_imports_for_asm_layout`.
- * @param module *u8
- * @param lib_roots *u8
- * @param n_lib_roots i32
- * @param entry_dir *u8
- * @param defines *u8
- * @param ndefines i32
- * @param dep_sources *u8
- * @param dep_lens *u8
- * @param dep_paths *u8
- * @param out_n *i32
- * @return i32
+/**
+ * Load all direct module imports into dep_sources/lens/paths for asm layout.
+ * @param module *u8 — AST module; null → -1
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources out slots
+ * @param dep_lens *u8 — size_t array base as bytes for prep lengths
+ * @param dep_paths *u8 — char star-star owned path keys out slots
+ * @param out_n *i32 — out live count; null → -1
+ * @return i32 — 0 success; 1 load fail (partial freed); -1 null args
+ * wave45+ pure orch; wave51 uses pure load_one + fail_cleanup. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
