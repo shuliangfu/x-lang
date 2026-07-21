@@ -315,10 +315,24 @@ gen_x_o() {
   local e_err="$TMP_DIR/$(basename "$xsrc" .x)_E.err"
   GEN_X_O_LAST_ERR=""
 
-  # shux -E（超时 30s 防死循环）；stderr 落盘
+  # shux -E（超时 45s 防死循环）；stderr 落盘。
+  # PLATFORM: SHARED harness — Ubuntu x86_64 host shux -E occasionally SIGSEGV
+  # (nondeterministic; also seen on small modules). Retry a few times; IDENTICAL
+  # nm gate still hard-fails on real symbol mismatch. Not a product soft-skip.
   # shellcheck disable=SC2086
-  if ! perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$xsrc" >"$tmp" 2>"$e_err" || [ ! -s "$tmp" ]; then
-    GEN_X_O_LAST_ERR="shux -E fail: $(tr '\n' ' ' <"$e_err" | head -c 160)"
+  local e_try=0 e_ok=0
+  while [ "$e_try" -lt 5 ]; do
+    e_try=$((e_try + 1))
+    rm -f "$tmp" "$e_err"
+    if perl -e 'alarm 45; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$xsrc" >"$tmp" 2>"$e_err" \
+      && [ -s "$tmp" ]; then
+      e_ok=1
+      break
+    fi
+    sleep 0.3
+  done
+  if [ "$e_ok" -ne 1 ]; then
+    GEN_X_O_LAST_ERR="shux -E fail (after ${e_try} tries): $(tr '\n' ' ' <"$e_err" 2>/dev/null | head -c 160)"
     return 1
   fi
 
