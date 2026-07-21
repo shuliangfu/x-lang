@@ -98,6 +98,9 @@
 //     driver_run_stack_esc_gate_on_large_stack + driver_parser_diag_fail_tok_kind
 //     (Cap-global BSS base residual; Cap-fn-ptr residual; BSS pack shux_slice_uint8_t
 //      + parser_diag_fail_at_token_kind; fixed 128MiB/2MiB sizes).
+//   + wave38 Cap residual pure：driver_asm_elf_ctx_free + driver_parse_into_buf_rc
+//     (free pairs wave23 elf_ctx_calloc; Cap-struct-return residual
+//      shux_parser_parse_into_buf_rc hides parser_ParseIntoResult from .x).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -175,6 +178,12 @@ export extern "C" function driver_module_static_base(): *u8;
  * Wave37 pure orch binds this then calls driver_run_thread_on_large_stack.
  * PLATFORM: SHARED — .x cannot form function-pointer constants. */
 export extern "C" function driver_stack_esc_gate_thread_fn_ptr(): *u8;
+/** Cap-struct-return residual: call parser_parse_into_buf and unpack ok/main_idx.
+ * Wave38 pure driver_parse_into_buf_rc owns null guards then calls this.
+ * PLATFORM: SHARED — .x cannot safely consume C struct returns; hide in seed rest. */
+export extern "C" function shux_parser_parse_into_buf_rc(
+  arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32
+): i32;
 /** Parser authority: fail token kind from shux_slice_uint8_t* source (LP64 pack).
  * Wave37 pure packs data+length into BSS slice then calls this.
  * PLATFORM: SHARED — G.7 single authority parser_diag_fail_at_token_kind. */
@@ -2986,6 +2995,20 @@ export function driver_asm_elf_ctx_calloc(): *u8 {
   return 0 as *u8;
 }
 
+/**
+ * Free an ElfCodegenCtx from driver_asm_elf_ctx_calloc.
+ * @param p *u8 — heap pointer from elf_ctx_calloc; null is safe (free no-op)
+ * @return void
+ * Wave38 pure: pairs wave23 calloc; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_asm_elf_ctx_free(p: *u8): void {
+  unsafe {
+    free(p);
+  }
+}
+
 /** Fill PipelineDepCtx host defaults from -target string and emit_elf_o flag.
  * Logic (matches cold seed twin):
  *   1) target_arch: 0 default; aarch64|arm64 → 1; riscv64 → 2
@@ -5041,5 +5064,39 @@ export function driver_parser_diag_fail_tok_kind(src: *u8, len: usize): i32 {
     return parser_diag_fail_at_token_kind(p);
   }
   return 0;
+}
+
+/**
+ * Parse source buffer into module; return parser ok and optional main index.
+ * @param arena *u8 — ASTArena*; null → -1 (and *out_main_idx = -1 when non-null)
+ * @param module *u8 — Module*; null → -1
+ * @param data *u8 — source bytes; null → -1
+ * @param len i32 — byte length of data (passed through to residual)
+ * @param out_main_idx *i32 — optional; when non-null set to main_idx or -1 on guard fail
+ * @return i32 — ParseIntoResult.ok from residual; -1 on null arena/module/data
+ * Wave38 pure: null guards pure; Cap-struct-return residual shux_parser_parse_into_buf_rc
+ * unpacks parser_ParseIntoResult (ok + main_idx). Cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — struct return stays seed residual.
+ */
+#[no_mangle]
+export function driver_parse_into_buf_rc(
+  arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32
+): i32 {
+  if (out_main_idx != 0 as *i32) {
+    out_main_idx[0] = -1;
+  }
+  if (arena == 0 as *u8) {
+    return -1;
+  }
+  if (module == 0 as *u8) {
+    return -1;
+  }
+  if (data == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    return shux_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+  }
+  return -1;
 }
 

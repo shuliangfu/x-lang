@@ -208,8 +208,15 @@ void *driver_size_table_calloc(int32_t n);
 void driver_size_table_free(void *t);
 size_t driver_size_table_get(void *t, int32_t i);
 void driver_size_table_set(void *t, int32_t i, size_t v);
+/**
+ * wave38 pure: hybrid thin owns null guards; Cap-struct residual
+ * shux_parser_parse_into_buf_rc always-seed; cold twin under #ifndef FROM_X.
+ */
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx);
+/** Cap-struct-return residual (always seed): parser_parse_into_buf → ok + *out_main_idx. */
+int32_t shux_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
+                                      int32_t *out_main_idx);
 /** wave23 pure: calloc(1, 32) LP64; cold seed sizeof(DiagContextSnapshot) twin. */
 void *driver_diag_snapshot_alloc(void);
 /** wave24 pure: free snapshot; cold seed twin. */
@@ -339,6 +346,7 @@ int32_t driver_asm_write_metric_o(uint8_t *path);
 
 /** wave23 pure: pipeline_sizeof_elf_ctx + malloc/memset; cold seed twin. */
 uint8_t *driver_asm_elf_ctx_calloc(void);
+/** wave38 pure: free pairs wave23 calloc; cold seed twin under #ifndef FROM_X. */
 void driver_asm_elf_ctx_free(uint8_t *p);
 /** wave25 pure: 64-byte BSS mkstemp path slot; cold seed twin. open_out/mkstemp write via pointer. */
 uint8_t *driver_asm_tmp_path_slot(void);

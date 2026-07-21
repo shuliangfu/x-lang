@@ -100,6 +100,9 @@
  *     driver_run_stack_esc_gate_on_large_stack + driver_parser_diag_fail_tok_kind 在 thin.x
  *     （always-seed Cap-global base + Cap-fn-ptr fn_ptr residual；BSS pack slice +
  *       parser_diag_fail_at_token_kind；固定 128MiB/2MiB）；FROM_X 无 pure-dup；
+ *   + wave38 Cap residual pure：driver_asm_elf_ctx_free + driver_parse_into_buf_rc 在 thin.x
+ *     （free 配对 wave23 elf_ctx_calloc；Cap-struct-return residual
+ *       shux_parser_parse_into_buf_rc 藏 parser_ParseIntoResult）；FROM_X 无 pure-dup；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -2188,18 +2191,31 @@ void driver_size_table_set(void *t, int32_t i, size_t v) {
 }
 #endif
 
-int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
-                                 int32_t *out_main_idx) {
+/**
+ * Cap-struct-return residual：unpack parser_parse_into_buf into rc + out_main_idx.
+ * Always-seed (not stripped by FROM_X). Wave38 pure driver_parse_into_buf_rc owns
+ * null guards then calls this. PLATFORM: SHARED — struct return stays C.
+ */
+int32_t shux_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
+                                      int32_t *out_main_idx) {
     struct parser_ParseIntoResult pr;
-    if (out_main_idx)
-        *out_main_idx = -1;
-    if (!arena || !module || !data)
-        return -1;
     pr = parser_parse_into_buf(arena, module, data, len);
     if (out_main_idx)
         *out_main_idx = pr.main_idx;
     return pr.ok;
 }
+
+/* wave38 pure: hybrid thin owns parse_into_buf_rc orch; cold keeps twin with guards. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
+                                 int32_t *out_main_idx) {
+    if (out_main_idx)
+        *out_main_idx = -1;
+    if (!arena || !module || !data)
+        return -1;
+    return shux_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+}
+#endif
 
 /* wave23 pure：hybrid thin owns diag snapshot alloc (fixed LP64 size 32). */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -2764,9 +2780,12 @@ uint8_t *driver_asm_elf_ctx_calloc(void) {
 }
 #endif
 
+/* wave38 pure: hybrid thin owns elf_ctx_free; cold seed twin; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_asm_elf_ctx_free(uint8_t *p) {
     free(p);
 }
+#endif
 
 /* wave25 pure: hybrid thin owns asm tmp path BSS; cold seed twin; FROM_X no pure-dup. */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
