@@ -67,6 +67,9 @@
 //     (g05 stdout_ptr + fclose/fwrite opaque; min preamble via fputs; io_net/fs_path seed).
 //   + wave27 Cap residual pure：driver_parsed_open_out_file
 //     (stdout gate pure; mkstemp/rename/close + g05 fopen_write; seed tmp_prefix residual).
+//   + wave28 Cap residual pure：driver_parsed_invoke_cc
+//     (std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup;
+//      no va_list reportf; c_paths[1] via G.7 shux_ptr_slot_set).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -3219,7 +3222,7 @@ export function driver_diag_snapshot_free(s: *u8): void {
 // (same harness pattern as wave22 shux_driver_fputs_opaque).
 // write_out still calls always-seed write_io_net_abi_inline + write_fs_path_map_error_abi_inline
 // (rt_preamble Cap-giant-string tables + skip mask). min preamble via driver_preamble_fputs
-// short lits (avoid long -E string cap). wave27 owns open_out; still seed: invoke_cc, giant tables.
+// short lits (avoid long -E string cap). wave27 open_out; wave28 invoke_cc; still seed: giant tables.
 
 /** g05 prologue: opaque identity of host stdout as *u8.
  * PLATFORM: SHARED — harness residual; product pure compares pointers only. */
@@ -3403,7 +3406,7 @@ export function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32 {
 //   - g05 prologue: shux_driver_fopen_write_opaque (FILE* cast; same pattern as wave22/26)
 //   - libc via g05 unistd/stdio: mkstemp, close, rename, unlink
 //   - pure orch: stdout gate, template build, close-before-rename (BLD001), path copy
-// Still seed: invoke_cc, rt_preamble giant tables.
+// Still seed after wave28: rt_preamble giant tables (write_io_net / write_fs_path).
 
 /** Permanent OS residual: host temp path prefix for mkstemp templates.
  * @return *u8 — NUL-terminated C string; POSIX "/tmp/shux_"; WINDOWS "shux_"
@@ -3573,5 +3576,177 @@ export function driver_parsed_open_out_file(
     return cf;
   }
   return 0 as *u8;
+}
+
+// ---- Wave28 Cap residual pure: driver_parsed_invoke_cc (PLATFORM: SHARED) ----
+// G.7 authority under PREFER hybrid thin; cold seed keeps C twin (c_paths[1] + path pack).
+// Cap residual split:
+//   - product link authority: shux_invoke_cc (+ set/clear user .o table)
+//   - path resolvers: shux_std_io_o_path / shux_rel_o_path_from_argv0 /
+//     shux_runtime_panic_o_path / shux_repo_root_from_argv0 (same seed surface as cold)
+//   - pure orch: null gate, default opt "2", c_paths pack via G.7 ptr_slot,
+//     fail unlink+BLD001 (append+diag_report_with_code), KEEP_C note, success unlink tmp
+// Still seed: rt_preamble giant tables (io_net / fs_path).
+
+/** Resolve std/io/io.o (or product empty F-06) from compiler argv0. */
+export extern "C" function shux_std_io_o_path(argv0: *u8): *u8;
+/** Resolve repo-relative .o path from argv0 (e.g. "std/process/process.o").
+ * @param argv0 *u8 — compiler argv[0]; may be null
+ * @param rel *u8 — relative path under repo/compiler layout; non-null
+ * @return *u8 — stable path string or null
+ * PLATFORM: SHARED — link_abi authority. */
+export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+/** Resolve runtime_panic.o path from argv0. PLATFORM: SHARED. */
+export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
+/** Repo root directory from compiler argv0 (include_root for invoke_cc).
+ * PLATFORM: SHARED. */
+export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
+/** Product C frontend host-cc link: fixed std/core .o list + scan-on-demand.
+ * @param c_paths *u8 — opaque const char** (one-slot table from pure pack)
+ * @param n i32 — number of .c paths (parsed pipeline uses 1)
+ * @param out_path *u8 — product -o path; non-null
+ * @param target *u8 — triple or null
+ * @param opt_level *u8 — "0".."3"; pure default "2" when caller passes null
+ * @param use_lto i32 — LTO flag
+ * @param … remaining *u8 — optional std/core .o paths (null ok; impl may scan C)
+ * @return i32 — 0 success, non-zero host-cc fail
+ * PLATFORM: SHARED — runtime_link_abi authority. */
+export extern "C" function shux_invoke_cc(
+  c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
+  io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8,
+  runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8,
+  random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8,
+  log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8,
+  sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8,
+  compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8,
+  context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8,
+  config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8,
+  include_root: *u8, async_scheduler_o: *u8): i32;
+/** G.7 single authority: plumb CLI user .o files into invoke_cc/ld link line.
+ * @param argc i32 — argv length
+ * @param argv *u8 — opaque char** (same as process argv)
+ * PLATFORM: SHARED — set before invoke; clear after. */
+export extern "C" function shux_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
+/** Clear user .o table after invoke (prevents stale pointers). PLATFORM: SHARED. */
+export extern "C" function shux_invoke_cc_clear_user_o_files(): void;
+/** Unlink failed product -o path (best-effort). PLATFORM: SHARED. */
+export extern "C" function driver_unlink_failed_output(out_path: *u8): void;
+
+/**
+ * Host-cc link step after open_out/write_out: pack std .o paths, invoke shux_invoke_cc,
+ * then unlink failed out or drop/keep generated tmp .c.
+ * @param tmp_c *u8 — path to generated .c from open_out; null → fail 1
+ * @param out_path *u8 — product -o path; null → fail 1
+ * @param opt_level *u8 — opt level string; null → default "2"
+ * @param use_lto i32 — LTO flag passed through to shux_invoke_cc
+ * @param argv0 *u8 — compiler argv[0] for path resolution; may be null
+ * @param argc i32 — full argv count (user .o scan)
+ * @param argv *u8 — opaque char** argv base (user .o scan)
+ * @return i32 — 0 success, 1 host-cc fail (BLD001 already reported) or bad args
+ * Wave28 pure: c_paths one-slot via G.7 shux_ptr_slot_set; fail/KEEP_C via
+ * append + diag_report(_with_code) (no va_list reportf).
+ * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
+ */
+#[no_mangle]
+export function driver_parsed_invoke_cc(
+  tmp_c: *u8, out_path: *u8, opt_level: *u8, use_lto: i32,
+  argv0: *u8, argc: i32, argv: *u8): i32 {
+  if (tmp_c == 0 as *u8) {
+    return 1;
+  }
+  if (out_path == 0 as *u8) {
+    return 1;
+  }
+  unsafe {
+    let opt: *u8 = opt_level;
+    if (opt == 0 as *u8) {
+      opt = "2";
+    }
+    // c_paths[1] as raw LP64 pointer table (G.7; .x bans **u8 array lit).
+    let c_paths_raw: u8[8] = [];
+    shux_ptr_slot_set(&c_paths_raw[0], 0, tmp_c);
+    // Path pack mirrors cold seed twin (F-06 nulls for scan-on-demand modules).
+    let a0: *u8 = argv0;
+    let io_o: *u8 = shux_std_io_o_path(a0);
+    let fs_o: *u8 = 0 as *u8;
+    let process_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/process/process.o");
+    let string_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/string/string.o");
+    let heap_o: *u8 = 0 as *u8;
+    let path_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/path/path.o");
+    let runtime_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/runtime/runtime.o");
+    let runtime_panic_o: *u8 = shux_runtime_panic_o_path(a0);
+    let net_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/net/net.o");
+    let thread_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/thread/thread.o");
+    let time_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/time/time.o");
+    let random_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/random/random.o");
+    let env_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/env/env.o");
+    let sync_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/sync/sync.o");
+    let encoding_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/encoding/encoding.o");
+    let base64_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/base64/base64.o");
+    let crypto_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/crypto/crypto.o");
+    let log_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/log/log.o");
+    let atomic_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/atomic/atomic.o");
+    let channel_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/channel/channel.o");
+    let backtrace_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/backtrace/backtrace.o");
+    let hash_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/hash/hash.o");
+    let math_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/math/math.o");
+    let sort_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/sort/sort.o");
+    let ffi_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/ffi/ffi.o");
+    let db_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/db/sqlite/sqlite.o");
+    let elf_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/elf/elf.o");
+    let json_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/json/json.o");
+    let csv_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/csv/csv.o");
+    let regex_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/regex/regex.o");
+    let compress_o: *u8 = 0 as *u8;
+    let unicode_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/unicode/unicode.o");
+    let dynlib_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/dynlib/dynlib.o");
+    let http_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/http/http.o");
+    let tar_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/tar/tar.o");
+    let simd_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/simd/simd.o");
+    let context_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/context/context.o");
+    let datetime_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/datetime/datetime.o");
+    let uuid_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/uuid/uuid.o");
+    let url_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/url/url.o");
+    let cli_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/cli/cli.o");
+    let security_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/security/security.o");
+    let config_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/config/config.o");
+    let cache_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/cache/cache.o");
+    let trace_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/trace/trace.o");
+    let task_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/task/task.o");
+    let schema_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/schema/schema.o");
+    let test_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/test/test.o");
+    let include_root: *u8 = shux_repo_root_from_argv0(a0);
+    // G.7: user .o from CLI (e.g. runtime_atomic_glue.o) into the same table as asm ld.
+    shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
+    let cc_ret: i32 = shux_invoke_cc(
+      &c_paths_raw[0], 1, out_path, 0 as *u8, opt, use_lto,
+      io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o,
+      net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o,
+      log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o,
+      json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o,
+      context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o,
+      task_o, schema_o, test_o, include_root, 0 as *u8);
+    shux_invoke_cc_clear_user_o_files();
+    if (cc_ret != 0) {
+      driver_unlink_failed_output(out_path);
+      // BLD001: match cold seed message text without va_list reportf.
+      let msg: u8[512] = [];
+      let at: i32 = driver_diag_append_cstr(&msg[0], 512, 0, "cc failed, keeping generated C: ");
+      at = driver_diag_append_cstr(&msg[0], 512, at, tmp_c);
+      diag_report_with_code(0 as *u8, 0, 0, "build error", "BLD001", &msg[0], 0 as *u8);
+      return 1;
+    }
+    // Success: drop tmp .c unless SHUX_KEEP_C is set (dev inspection).
+    if (getenv("SHUX_KEEP_C") == 0 as *u8) {
+      unlink(tmp_c);
+    } else {
+      let note: u8[512] = [];
+      let atn: i32 = driver_diag_append_cstr(&note[0], 512, 0, "kept generated C: ");
+      atn = driver_diag_append_cstr(&note[0], 512, atn, tmp_c);
+      diag_report(0 as *u8, 0, 0, "note", &note[0], 0 as *u8);
+    }
+    return 0;
+  }
+  return 1;
 }
 

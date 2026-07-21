@@ -68,7 +68,11 @@
  *     （stdout 门控 pure；mkstemp/rename/close/unlink + g05 fopen_write_opaque；
  *      永久 OS residual shux_driver_tmp_prefix 藏 SHUX_TMP_PREFIX #ifdef）；
  *     FROM_X 无 pure-dup open_out；
- *     仍 seed：巨型 rt_preamble 表、invoke_cc 等；
+ *   + wave28 Cap residual pure：driver_parsed_invoke_cc 在 thin.x
+ *     （std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup；
+ *      c_paths[1] via G.7 shux_ptr_slot_set；无 va_list reportf）；
+ *     FROM_X 无 pure-dup invoke_cc；
+ *     仍 seed：巨型 rt_preamble 表（write_io_net / write_fs_path）；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -3155,6 +3159,9 @@ int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len) {
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
+/* wave28 pure: hybrid thin owns invoke_cc orch; cold twin; FROM_X no pure-dup.
+ * PLATFORM: SHARED — path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level, int32_t use_lto,
                                 uint8_t *argv0, int32_t argc, uint8_t *argv) {
     const char *c_paths[1];
@@ -3237,6 +3244,7 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
         diag_reportf(NULL, 0, 0, "note", NULL, "kept generated C: %s", (const char *)(void *)tmp_c);
     return 0;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len) {
     if (!getenv("SHUX_DUMP_PREP") || !src)
