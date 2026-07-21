@@ -80,8 +80,10 @@
  * wave78: pure shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null) + shux_fputs_stdout
  *   (G.7 g05 stdout_ptr + fputs_opaque) + driver_asm_fp_is_stdout + driver_asm_fclose_file
  *   (G.7 g05 stdout compare + fclose_opaque); cold twins under #ifndef FROM_X.
+ * wave79: pure shux_path_try_realpath_inplace (G.7 g05 realpath_opaque + stack 1024 +
+ *   pipe_cstr_copy; fail leave path; cold twin under #ifndef FROM_X).
  * Cap residual still: fn-ptr / product_emit / typeck_module C frontend
- *   (+ pipeline_sizeof_* / preprocess engine / OS realpath residual).
+ *   (+ pipeline_sizeof_* / preprocess engine residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -304,6 +306,8 @@ void shu_lsp_ptr_slot_clear(void **arr, int32_t i);
 void shux_fputs_stdout(const char *s);
 int driver_asm_fp_is_stdout(FILE *fp);
 void driver_asm_fclose_file(FILE *fp);
+/* wave79 pure OS residual — always-seed resolve_*_impl / pure resolve_file call under hybrid. */
+void shux_path_try_realpath_inplace(char *path, size_t path_size);
 /* pipeline_diag_preprocess_directive_code already declared above */
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -1047,7 +1051,10 @@ int shux_import_path_is_file_path(const char *import_path) {
  * 将相对/绝对文件路径解析为可打开的 .x 路径（相对 entry_dir）。
  * 参数：见 runtime_pipeline_abi.h。
  */
-/* G-02f-231：realpath 🔒（.x join 后调用；失败则保留原 path） */
+/* wave79: hybrid pure owns shux_path_try_realpath_inplace (g05 realpath_opaque + stack 1024 +
+ * pipe_cstr_copy); cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — POSIX/APPLE realpath+snprintf; non-POSIX no-op (same as pure harness null). */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void shux_path_try_realpath_inplace(char *path, size_t path_size) {
     if (!path || path_size == 0)
         return;
@@ -1061,6 +1068,7 @@ void shux_path_try_realpath_inplace(char *path, size_t path_size) {
     (void)path_size;
 #endif
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-231：逻辑源 .x（join pure）；seed 保留同语义 C 供产品 cc */
 void shux_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size) {

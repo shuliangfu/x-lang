@@ -86,8 +86,11 @@
 // wave78: pure shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null) + shux_fputs_stdout
 //   (G.7 g05 shux_driver_stdout_ptr + shux_driver_fputs_opaque) + driver_asm_fp_is_stdout
 //   + driver_asm_fclose_file (G.7 g05 stdout_ptr compare + fclose_opaque); cold twins under FROM_X.
+// wave79: pure shux_path_try_realpath_inplace (G.7 g05 shux_driver_realpath_opaque + stack
+//   resolved[1024] + pipe_cstr_copy; fail → leave path unchanged; matches seed POSIX/APPLE
+//   realpath+snprintf and non-POSIX no-op via harness null); cold twin under FROM_X.
 // Cap residual still: fn-ptr / product_emit / typeck_module C frontend
-//   (+ pipeline_sizeof_* / preprocess engine / OS realpath residual).
+//   (+ pipeline_sizeof_* / preprocess engine residual).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -97,6 +100,7 @@
 // wave77: typeck_ndep_slot / store_impl / typeck_dep_*_get/set_impl / ptrs_base pure below.
 // wave78: shu_lsp_ptr_slot_clear / shux_fputs_stdout / driver_asm_fp_is_stdout /
 //   driver_asm_fclose_file are pure export functions below.
+// wave79: shux_path_try_realpath_inplace is pure export function below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -146,6 +150,9 @@ export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): 
 export extern "C" function shux_driver_fputs_opaque(s: *u8, stream: *u8): i32;
 export extern "C" function shux_driver_stdout_ptr(): *u8;
 export extern "C" function shux_driver_fclose_opaque(stream: *u8): i32;
+// wave79: g05 harness — libc realpath char* cast residual (labi_path_io same clash avoidance).
+// PLATFORM: SHARED POSIX/APPLE call realpath; non-POSIX harness returns null (seed no-op).
+export extern "C" function shux_driver_realpath_opaque(path: *u8, resolved: *u8): *u8;
 // wave75: shux_import_dep_dir_from_path_impl removed — pure import_dep_dir is full body.
 /* wave45: do not export-extern pipeline_debug_trace_named_func_bodies here —
  * pure export function below is the single authority (#[no_mangle]).
@@ -155,8 +162,7 @@ export extern "C" function shux_driver_fclose_opaque(stream: *u8): i32;
 /* See implementation. */
 /* See implementation. */
 export extern "C" function driver_asm_fflush_stdout(): void;
-/* See implementation. */
-export extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
+// wave79: shux_path_try_realpath_inplace is pure export function below (not Cap residual).
 // wave67: pipeline_dep_ctx_path_bufs_reset / copy_entry_dir are pure export functions below.
 // wave67: pipeline_dep_ctx_set_use_asm_backend is pure thin over G.7 driver authority.
 export extern "C" function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
@@ -1322,6 +1328,39 @@ export function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
   }
 }
 
+/**
+ * Best-effort realpath into path in place; on failure leave path unchanged.
+ * @param path *u8 — mutable C string buffer; null → no-op
+ * @param path_size i64 — buffer capacity including trailing NUL; 0 → no-op
+ * @return void
+ * wave79 pure Cap residual orch:
+ *   stack resolved[1024] (matches seed char resolved[1024]);
+ *   G.7 g05 shux_driver_realpath_opaque (libc realpath char* cast residual;
+ *   non-POSIX host returns null → no-op, matches seed #else);
+ *   success → G.7 pipe_cstr_copy into path with path_size cap (snprintf "%s" equiv).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  unsafe {
+    // Match seed stack resolved[1024]; PATH_MAX on gold Linux is larger but seed pin is 1024.
+    let resolved: u8[1024] = [];
+    let r: *u8 = shux_driver_realpath_opaque(path, &resolved[0]);
+    if (r != 0 as *u8) {
+      let cap: i32 = path_size as i32;
+      if (cap > 0) {
+        pipe_cstr_copy(path, cap, r);
+      }
+    }
+  }
+}
+
 // shux_resolve_file_import_path: see function docblock below.
 /** Exported function `shux_resolve_file_import_path`.
  * Implements `shux_resolve_file_import_path`.
@@ -1330,6 +1369,7 @@ export function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
  * @param path *u8
  * @param path_size i64
  * @return void
+ * G.7 pure shux_path_try_realpath_inplace (wave79) owns realpath-in-place after join.
  */
 #[no_mangle]
 export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {

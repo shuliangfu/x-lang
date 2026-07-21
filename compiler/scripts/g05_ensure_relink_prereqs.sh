@@ -218,6 +218,23 @@ g05_try_x_to_o() {
     echo '  fp = fdopen((int)fd, "wb");'
     echo '  return (uint8_t *)(void *)fp;'
     echo '}'
+    # PLATFORM: SHARED — wave79 Cap residual: libc realpath as opaque *u8 for pure
+    # shux_path_try_realpath_inplace (runtime_pipeline_abi.x). .x must not name char*
+    # realpath (labi_path_io clash note); non-POSIX returns null → pure leaves path.
+    # POSIX/APPLE: realpath from unistd/stdlib (prologue includes them above).
+    echo '#if defined(_POSIX_VERSION) || defined(__APPLE__)'
+    echo 'static inline uint8_t *shux_driver_realpath_opaque(uint8_t *path, uint8_t *resolved) {'
+    echo '  char *r;'
+    echo '  if (!path || !resolved) return (uint8_t *)0;'
+    echo '  r = realpath((const char *)(void *)path, (char *)(void *)resolved);'
+    echo '  return (uint8_t *)(void *)r;'
+    echo '}'
+    echo '#else'
+    echo 'static inline uint8_t *shux_driver_realpath_opaque(uint8_t *path, uint8_t *resolved) {'
+    echo '  (void)path; (void)resolved;'
+    echo '  return (uint8_t *)0;'
+    echo '}'
+    echo '#endif'
     # Strip -E #include + libc redecls that clash with prologue headers.
     # PLATFORM: SHARED harness — G.7 product authority for libc skip is
     # codegen_is_libc_conflicting_extern_name (codegen.x + seed). After wave30,
@@ -283,6 +300,7 @@ g05_try_x_to_o() {
         -e '/^extern void shux_driver_fflush_stdout(/d' \
         -e '/^extern uint8_t \* shux_driver_fopen_wb_opaque(/d' \
         -e '/^extern uint8_t \* shux_driver_fdopen_wb_opaque(/d' \
+        -e '/^extern uint8_t \* shux_driver_realpath_opaque(/d' \
         -e '/^extern int32_t mkstemp(/d' \
         -e '/^extern int mkstemp(/d' \
         -e '/^extern int32_t rename(/d' \
