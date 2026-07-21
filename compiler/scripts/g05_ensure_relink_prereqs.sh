@@ -196,6 +196,20 @@ g05_try_x_to_o() {
     echo '  if (!path) return (uint8_t *)0;'
     echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "w");'
     echo '}'
+    # PLATFORM: SHARED — wave40 Cap residual: stderr identity + fflush(stdout) + fopen "wb"
+    # for pure driver_stdio_stderr / driver_asm_fflush_stdout / driver_asm_fopen_wb
+    # (runtime_driver_abi_thin.x). "wb" is intentionally not "w" (binary metric/asm out;
+    # G.7: separate surface from fopen_write_opaque text "w").
+    echo 'static inline uint8_t *shux_driver_stderr_ptr(void) {'
+    echo '  return (uint8_t *)(void *)stderr;'
+    echo '}'
+    echo 'static inline void shux_driver_fflush_stdout(void) {'
+    echo '  (void)fflush(stdout);'
+    echo '}'
+    echo 'static inline uint8_t *shux_driver_fopen_wb_opaque(uint8_t *path) {'
+    echo '  if (!path) return (uint8_t *)0;'
+    echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");'
+    echo '}'
     # Strip -E #include + libc redecls that clash with prologue headers.
     # PLATFORM: SHARED harness — G.7 product authority for libc skip is
     # codegen_is_libc_conflicting_extern_name (codegen.x + seed). After wave30,
@@ -257,6 +271,9 @@ g05_try_x_to_o() {
         -e '/^extern int32_t shux_driver_fclose_opaque(/d' \
         -e '/^extern int32_t shux_driver_fwrite_opaque(/d' \
         -e '/^extern uint8_t \* shux_driver_fopen_write_opaque(/d' \
+        -e '/^extern uint8_t \* shux_driver_stderr_ptr(/d' \
+        -e '/^extern void shux_driver_fflush_stdout(/d' \
+        -e '/^extern uint8_t \* shux_driver_fopen_wb_opaque(/d' \
         -e '/^extern int32_t mkstemp(/d' \
         -e '/^extern int mkstemp(/d' \
         -e '/^extern int32_t rename(/d' \

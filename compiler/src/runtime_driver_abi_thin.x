@@ -105,6 +105,11 @@
 //     driver_x_emit_fwrite_stdout
 //     (g05 stdout_ptr + fwrite_opaque; Cap OS residual shux_driver_fwrite_stdout_n
 //      for count+fflush ABI; FILE* cast stays harness / seed).
+//   + wave40 Cap residual pure：driver_stdio_stderr + driver_asm_fflush_stdout +
+//     driver_asm_fopen_wb + driver_asm_write_metric_o
+//     (g05 stderr_ptr / fflush_stdout / fopen_wb_opaque; write_metric pure orch:
+//      fopen_wb + fwrite one 0 byte + fclose_opaque; still seed: mkstemp/sibling/
+//      usage/exec).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -5109,8 +5114,9 @@ export function driver_parse_into_buf_rc(
 // G.7: reuse wave26 g05 harness (shux_driver_stdout_ptr / shux_driver_fwrite_opaque).
 // driver_x_emit_fwrite_stdout returns written byte count (not 0/1); residual
 //   shux_driver_fwrite_stdout_n hides fwrite+fflush and the count ABI.
-// Still seed OS residual: asm_fopen_wb / mkstemp / fflush_stdout / write_metric_o /
-//   sibling_try_spawn / print_usage / exec_compiled_body / stderr.
+// wave40 owns stderr / fflush_stdout / fopen_wb / write_metric_o (see below).
+// Still seed OS residual: mkstemp_fdopen / sibling_try_spawn / print_usage /
+//   exec_compiled_body.
 // PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
 
 /**
@@ -5185,5 +5191,101 @@ export function driver_x_emit_fwrite_stdout(data: *u8, len: i32): i32 {
     return shux_driver_fwrite_stdout_n(data, len);
   }
   return 0;
+}
+
+// ---- Wave40 Cap residual pure: stderr + fflush_stdout + fopen_wb + write_metric_o ----
+// G.7: extend wave26/27 g05 harness (stderr_ptr / fflush_stdout / fopen_wb_opaque).
+// fopen_wb uses mode "wb" (binary) — not fopen_write_opaque "w" (text C emit).
+// write_metric_o pure orch: open + one-byte 0 fwrite + fclose (no fputc in .x).
+// Still seed OS residual: mkstemp_fdopen / sibling_try_spawn / print_usage / exec_compiled_body.
+// PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
+
+/** g05 prologue: opaque identity of host stderr as *u8.
+ * PLATFORM: SHARED — harness residual; product pure returns pointer only. */
+export extern "C" function shux_driver_stderr_ptr(): *u8;
+/** g05 prologue: fflush(stdout). PLATFORM: SHARED — harness residual. */
+export extern "C" function shux_driver_fflush_stdout(): void;
+/** g05 prologue: fopen(path,"wb") as opaque *u8; null path → null.
+ * PLATFORM: SHARED — binary write; distinct from fopen_write_opaque "w". */
+export extern "C" function shux_driver_fopen_wb_opaque(path: *u8): *u8;
+
+/** Single zero byte for pure write_metric_o (one-byte metric .o payload).
+ * PLATFORM: SHARED — BSS lit array base; read-only payload for fwrite. */
+let g_driver_metric_zero_byte: u8[1] = [0];
+
+/**
+ * Opaque stderr FILE* as *u8 for rt_entry diag print paths.
+ * @return *u8 — never null on hosted product (stderr stream handle)
+ * Wave40 pure: G.7 shux_driver_stderr_ptr (wave26 harness sibling of stdout_ptr).
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_stdio_stderr(): *u8 {
+  unsafe {
+    return shux_driver_stderr_ptr();
+  }
+  return 0 as *u8;
+}
+
+/**
+ * fflush(stdout) for asm emit-to-stdout paths.
+ * @return void
+ * Wave40 pure: G.7 shux_driver_fflush_stdout g05 harness.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_asm_fflush_stdout(): void {
+  unsafe {
+    shux_driver_fflush_stdout();
+  }
+}
+
+/**
+ * fopen(path, "wb") as opaque FILE* for asm binary object write.
+ * @param path *u8 — NUL-terminated path; null → null
+ * @return *u8 — opaque FILE* or null on failure / null path
+ * Wave40 pure: null guard pure; g05 shux_driver_fopen_wb_opaque (mode "wb").
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED — binary mode (not text "w").
+ */
+#[no_mangle]
+export function driver_asm_fopen_wb(path: *u8): *u8 {
+  if (path == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return shux_driver_fopen_wb_opaque(path);
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Write a one-byte 0 metric object file at path (parse-metric-only smoke).
+ * @param path *u8 — output path; null → 1 (fail)
+ * @return i32 — 0 success; 1 open/write/close failure
+ * Wave40 pure: null guard + fopen_wb + fwrite_opaque one 0 byte + fclose_opaque.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_asm_write_metric_o(path: *u8): i32 {
+  let fp: *u8 = 0 as *u8;
+  let z: *u8 = 0 as *u8;
+  if (path == 0 as *u8) {
+    return 1;
+  }
+  unsafe {
+    fp = shux_driver_fopen_wb_opaque(path);
+  }
+  if (fp == 0 as *u8) {
+    return 1;
+  }
+  z = &g_driver_metric_zero_byte[0];
+  unsafe {
+    if (shux_driver_fwrite_opaque(z, 1, fp) != 0) {
+      shux_driver_fclose_opaque(fp);
+      return 1;
+    }
+    return shux_driver_fclose_opaque(fp);
+  }
+  return 1;
 }
 

@@ -107,6 +107,11 @@
  *     driver_x_emit_fwrite_stdout 在 thin.x
  *     （g05 stdout_ptr + fwrite_opaque；Cap OS residual shux_driver_fwrite_stdout_n
  *       藏 fwrite+fflush 与字节数返回 ABI）；FROM_X 无 pure-dup；
+ *   + wave40 Cap residual pure：driver_stdio_stderr + driver_asm_fflush_stdout +
+ *     driver_asm_fopen_wb + driver_asm_write_metric_o 在 thin.x
+ *     （g05 stderr_ptr / fflush_stdout / fopen_wb_opaque；write_metric pure orch
+ *       fopen_wb + fwrite 1×0 + fclose_opaque）；FROM_X 无 pure-dup；
+ *     still always-seed：mkstemp_fdopen / sibling / usage / exec；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -1597,19 +1602,19 @@ void driver_run_stack_esc_gate_on_large_stack(void *arg) {
 /**
  * Cap residual：opaque FILE* 供 rt_entry R2 full .x 的 diag_print_*。
  * wave39 pure：hybrid thin owns driver_stdio_stdout via g05 shux_driver_stdout_ptr；
- * cold twin under #ifndef FROM_X；FROM_X 无 pure-dup。
- * stderr 仍 always-seed（无 g05 stderr_ptr 产品面）。
+ * wave40 pure：hybrid thin owns driver_stdio_stderr via g05 shux_driver_stderr_ptr；
+ * cold twins under #ifndef FROM_X；FROM_X 无 pure-dup。
  * PLATFORM: SHARED — FILE* cast stays C.
  */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void *driver_stdio_stdout(void) {
     return (void *)stdout;
 }
-#endif
 
 void *driver_stdio_stderr(void) {
     return (void *)stderr;
 }
+#endif
 
 /**
  * Cap residual：rt_entry R2 缓冲槽 + fmt argv。
@@ -2717,11 +2722,14 @@ void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emi
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
+/* wave40 pure: hybrid thin owns fopen_wb via g05 fopen_wb_opaque; cold twin. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_asm_fopen_wb(uint8_t *path) {
     if (path == NULL)
         return NULL;
     return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");
 }
+#endif
 
 #ifndef SHUX_TMP_PREFIX
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -2731,6 +2739,8 @@ uint8_t *driver_asm_fopen_wb(uint8_t *path) {
 #endif
 #endif
 
+/* Permanent OS residual: mkstemp + fdopen("wb") for asm temp paths (always seed).
+ * PLATFORM: POSIX mkstemp; WINDOWS returns NULL. */
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)path_out64;
@@ -2773,6 +2783,8 @@ int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len) {
 }
 #endif
 
+/* wave40 pure: hybrid thin owns fflush_stdout + write_metric_o; cold twins. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_asm_fflush_stdout(void) {
     (void)fflush(stdout);
 }
@@ -2789,6 +2801,7 @@ int32_t driver_asm_write_metric_o(uint8_t *path) {
         return 1;
     return 0;
 }
+#endif
 
 extern size_t pipeline_sizeof_elf_ctx(void);
 

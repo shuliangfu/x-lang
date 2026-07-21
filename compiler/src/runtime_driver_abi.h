@@ -82,7 +82,7 @@ uint8_t *driver_stack_esc_gate_thread_fn_ptr(void);
 /**
  * Cap residual：opaque FILE* 给 .x（rt_entry R2 等 diag_print_*）。
  * .x 无 FILE 类型。wave39 pure：driver_stdio_stdout via g05 stdout_ptr；
- * stderr 仍 always-seed。
+ * wave40 pure：driver_stdio_stderr via g05 stderr_ptr；cold twins under #ifndef FROM_X。
  */
 void *driver_stdio_stdout(void);
 void *driver_stdio_stderr(void);
@@ -322,8 +322,8 @@ int driver_source_has_top_level_import_path(const char *path);
  *   - defines 与 lib_roots/argv 绑定（wave34 pure under PREFER；cold C twin）
  *   - C frontend smoke / typeck 预检（wave34 pure：产品 NO_C 固定 -2/-1；cold twin）
  *   - elf_ctx 分配（wave23 pure）、metric 写盘、asm work 槽
- * Permanent OS residual (always seed): fopen_wb / mkstemp_fdopen / fwrite / fflush /
- *   write_metric_o (FILE* opaque).
+ * wave40 pure under PREFER: fopen_wb / fflush_stdout / write_metric_o；
+ * Permanent OS residual (always seed): mkstemp_fdopen（FILE* opaque / POSIX）。
  */
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
 void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);
@@ -341,8 +341,12 @@ int32_t shux_driver_host_default_target_arch(void);
 int32_t shux_driver_host_prefer_macho(int32_t emit_elf_o);
 int32_t shux_driver_host_prefer_coff(int32_t emit_elf_o);
 
+/**
+ * wave40 pure: hybrid thin owns (null guard + g05 fopen_wb_opaque "wb");
+ * cold twin under #ifndef FROM_X. Binary mode — not text fopen_write_opaque "w".
+ */
 uint8_t *driver_asm_fopen_wb(uint8_t *path);
-/** 写 path_out64（≥64B）为临时路径并 fdopen("wb")；失败 NULL。 */
+/** Permanent OS residual: 写 path_out64（≥64B）为临时路径并 fdopen("wb")；失败 NULL。 */
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64);
 void driver_asm_fclose(uint8_t *fp);
 /**
@@ -350,8 +354,15 @@ void driver_asm_fclose(uint8_t *fp);
  * fp==NULL 时写 stdout；返回 0 成功 1 短写。cold twin under #ifndef FROM_X.
  */
 int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len);
+/**
+ * wave40 pure: hybrid thin owns via g05 shux_driver_fflush_stdout;
+ * cold twin under #ifndef FROM_X.
+ */
 void driver_asm_fflush_stdout(void);
-/** 写单字节 0 的 metric .o；0 成功 1 失败。 */
+/**
+ * wave40 pure: hybrid thin owns (fopen_wb + one-byte 0 fwrite + fclose_opaque);
+ * 写单字节 0 的 metric .o；0 成功 1 失败。cold twin under #ifndef FROM_X.
+ */
 int32_t driver_asm_write_metric_o(uint8_t *path);
 
 /** wave23 pure: pipeline_sizeof_elf_ctx + malloc/memset; cold seed twin. */
