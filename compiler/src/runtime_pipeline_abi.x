@@ -40,6 +40,8 @@
 //   typeck_dep_prerun_module; SHUX_DEBUG_PIPE notes cold-only).
 // wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
 //   + owned dup; Cap residual preprocess_* / pure diag helpers; oversized → pure fail).
+// wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc arena/module + parse_into
+//   ok/allow -2 + import map via find_loaded; G.7 pctx_update / module import path).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -174,7 +176,12 @@ export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8
 /* See implementation. */
 /* See implementation. */
 export extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
-export extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
+// wave62: shux_pipeline_one_ctx_for_dep_prerun_map_impl is pure export function below.
+// Cap residual sizes (glue) + Cap-struct-return parse ok unpack (driver residual):
+// PLATFORM: SHARED — same symbols as collect tmp_parse / driver_parse_into_buf_rc pure path.
+export extern "C" function pipeline_sizeof_arena(): usize;
+export extern "C" function pipeline_sizeof_module(): usize;
+export extern "C" function driver_parse_into_buf_rc(arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32): i32;
 // wave57: shux_asm_codegen_elf_o_large_stack_impl is pure export function below.
 /* See implementation. */
 /* wave46: shux_module_num_imports / import_path_cstr / ptr+size slots / i32_store
@@ -2594,25 +2601,148 @@ export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_p
   }
 }
 
-// shux_pipeline_one_ctx_for_dep_prerun: see function docblock below.
-/** Exported function `shux_pipeline_one_ctx_for_dep_prerun`.
- * Implements `shux_pipeline_one_ctx_for_dep_prerun`.
- * @param ctx *u8
- * @param j i32
- * @param dep_mods *u8
- * @param dep_ars *u8
- * @param dep_paths *u8
- * @param ndep i32
- * @param dep_src *u8
- * @param dep_src_len i64
+/**
+ * Map one dep prerun ctx slots from dep's own import table (not entry full dep list).
+ * Allocates tmp arena/module, parses dep_src, filters dep_mods/ars/paths by import names,
+ * writes compact ctx slots [0..mapped). Hard parse fail falls back to full ndep slots.
+ * @param ctx *u8 — PipelineDepCtx*; null → no-op
+ * @param dep_mods *u8 — void star-star loaded dep modules base
+ * @param dep_ars *u8 — void star-star loaded dep arenas base
+ * @param dep_paths *u8 — char star-star loaded dep path keys base
+ * @param ndep i32 — loaded dep count (table width)
+ * @param dep_src *u8 — dep source bytes for import scan; caller thin already validated
+ * @param dep_src_len i64 — byte length; must be in (0, INT32_MAX]
  * @return void
+ * wave62 pure Cap residual orch:
+ *   G.7 pipeline_sizeof_arena / pipeline_sizeof_module (glue Cap residual);
+ *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
+ *   G.7 pure driver_parse_into_buf_rc (returns raw ok; allow 0 and -2 like historical seed);
+ *   G.7 pure shux_module_num_imports / shux_module_import_path_cstr /
+ *   shux_find_loaded_import_index / shux_pipeline_pctx_update_dep_slots_no_reset /
+ *   pipe_load_ptr_slot / pipe_cstr_len / ast_pipeline_dep_ctx_set_*.
+ * Why not pipeline_parse_into_bytes: that maps non-zero ok to -1 and loses ok==-2
+ * (under-parse still has usable import table). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let asz: usize = 0 as usize;
+  let msz: usize = 0 as usize;
+  unsafe {
+    asz = pipeline_sizeof_arena();
+    msz = pipeline_sizeof_module();
+  }
+  let tmp_arena: *u8 = 0 as *u8;
+  let tmp_module: *u8 = 0 as *u8;
+  unsafe {
+    tmp_arena = malloc(asz);
+    tmp_module = malloc(msz);
+  }
+  // OOM: fall back to full entry dep table (same as historical seed).
+  if (tmp_arena == 0 as *u8) {
+    if (tmp_module != 0 as *u8) {
+      unsafe {
+        free(tmp_module);
+      }
+    }
+    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    return;
+  }
+  if (tmp_module == 0 as *u8) {
+    unsafe {
+      free(tmp_arena);
+    }
+    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    return;
+  }
+  unsafe {
+    memset(tmp_arena, 0, asz);
+    memset(tmp_module, 0, msz);
+    // Init before parse_into_buf residual (same order as seed map_impl).
+    parser_parse_into_init(tmp_module, tmp_arena);
+  }
+  // INT32_MAX already gated by thin; cast for buf_rc ABI.
+  let len_i32: i32 = dep_src_len as i32;
+  let pr_ok: i32 = 0;
+  unsafe {
+    // Cap-struct-return residual unpacks ParseIntoResult.ok; null out_main_idx.
+    pr_ok = driver_parse_into_buf_rc(tmp_arena, tmp_module, dep_src, len_i32, 0 as *i32);
+  }
+  // Historical: accept ok==0 (full) and ok==-2 (under-parse; import table still usable).
+  // Any other non-zero → free tmp + full slots fallback.
+  if (pr_ok != 0) {
+    if (pr_ok != (0 - 2)) {
+      unsafe {
+        free(tmp_arena);
+        free(tmp_module);
+      }
+      shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+      return;
+    }
+  }
+  let n_imp: i32 = shux_module_num_imports(tmp_module);
+  if (n_imp <= 0) {
+    unsafe {
+      free(tmp_arena);
+      free(tmp_module);
+      ast_pipeline_dep_ctx_set_ndep(ctx, 0);
+    }
+    return;
+  }
+  // Compact map: only imports that match a loaded dep path key (import_idx → ctx slot).
+  let mapped: i32 = 0;
+  let ii: i32 = 0;
+  while (ii < n_imp) {
+    let path_c: u8[65] = [];
+    shux_module_import_path_cstr(tmp_module, ii, &path_c[0], 65);
+    let g: i32 = shux_find_loaded_import_index(&path_c[0], dep_paths, ndep);
+    if (g < 0) {
+      ii = ii + 1;
+      continue;
+    }
+    unsafe {
+      let m: *u8 = pipe_load_ptr_slot(dep_mods, g);
+      let a: *u8 = pipe_load_ptr_slot(dep_ars, g);
+      ast_pipeline_dep_ctx_set_module(ctx, mapped, m);
+      ast_pipeline_dep_ctx_set_arena(ctx, mapped, a);
+      let p: *u8 = pipe_load_ptr_slot(dep_paths, g);
+      if (p != 0 as *u8) {
+        let pl: i32 = pipe_cstr_len(p);
+        ast_pipeline_dep_ctx_set_import_path(ctx, mapped, p, pl);
+      }
+    }
+    mapped = mapped + 1;
+    ii = ii + 1;
+  }
+  unsafe {
+    free(tmp_arena);
+    free(tmp_module);
+    ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
+  }
+}
+
+/**
+ * Thin gate for one-ctx dep prerun mapping (null/empty/oversized → full slots or ndep=0).
+ * @param ctx *u8 — PipelineDepCtx*; null → no-op
+ * @param j i32 — historical dep index; unused (kept for ABI)
+ * @param dep_mods *u8 — void star-star modules; null → ndep=0
+ * @param dep_ars *u8 — void star-star arenas; null → ndep=0
+ * @param dep_paths *u8 — char star-star paths; null → ndep=0
+ * @param ndep i32 — loaded count; <=0 → ndep=0
+ * @param dep_src *u8 — dep source for import scan; null/empty/oversized → full slots
+ * @param dep_src_len i64 — source length; <=0 or > INT32_MAX → full slots
+ * @return void
+ * wave62: body in pure shux_pipeline_one_ctx_for_dep_prerun_map_impl after flags.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
     return;
   }
-  // See implementation.
+  // Historical signature keeps j; map path ignores it.
   let _j: i32 = j;
   unsafe {
     pipeline_dep_ctx_set_use_asm_backend(ctx, 0);
@@ -2641,7 +2771,7 @@ export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods:
     shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
-  // INT32_MAX
+  // INT32_MAX — parse_into_buf residual takes int32_t len.
   let imax: i64 = 2147483647;
   if (dep_src_len > imax) {
     shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);

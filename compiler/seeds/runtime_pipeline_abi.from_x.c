@@ -39,6 +39,9 @@
  * wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
  *   + owned dup; Cap residual preprocess_* engine; pure diag helpers; oversized reportf
  *   cold-only / pure fail; cold twin under #ifndef FROM_X).
+ * wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc arena/module + parse_into
+ *   ok/allow -2 + import map; G.7 pctx_update / find_loaded / import path; cold twin under
+ *   #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -193,6 +196,9 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
 /* wave61 pure preprocess_raw_to_malloc_impl — thin pure gate + load_one paths call under hybrid. */
 int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag);
+/* wave62 pure one_ctx map_impl — thin pure one_ctx_for_dep_prerun + seed _impl call under hybrid. */
+void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+    void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src, size_t dep_src_len);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -1947,7 +1953,9 @@ void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_
     ctx->use_asm_backend = v;
 }
 
-/* G-02f-233：malloc/parse/map 🔒（早退路径由 .x pure） */
+/* G-02f-233 / wave62：hybrid pure owns map_impl; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — same control flow as pure orch (ok 0|-2 accept; else full slots). */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
@@ -2014,6 +2022,7 @@ void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ct
     free(tmp_module);
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-233：逻辑源 .x（早退 pure）；seed 保留同语义全路径 C 供产品 cc */
 void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
