@@ -68,10 +68,13 @@
 //   cold twins under FROM_X).
 // wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (module BSS
 //   buf+len+cap cells; G.7 ptr/size slots + malloc ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP;
-//   cold twins under FROM_X). Cap residual still: fn-ptr / product_emit / typeck_module C frontend.
+//   cold twins under FROM_X).
+// wave73: pure pipeline_diag_emitted_flag_slot (module BSS i32 flag; G.7 single authority for
+//   pure reset/note/get; cold twin under FROM_X). Cap residual still: fn-ptr / product_emit /
+//   typeck_module C frontend (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
-export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
+// wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
 export extern "C" function typeck_ndep_slot(): *i32;
 export extern "C" function typeck_ndep_store_impl(n: i32): void;
 export extern "C" function driver_dep_seeded_slot(i: i32): *i32;
@@ -323,8 +326,12 @@ export function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: 
   return 0;
 }
 
-/* See implementation. */
-
+/**
+ * Reset the pipeline "diag already emitted" sticky flag to 0.
+ * @return void
+ * wave73: pure G.7 pipeline_diag_emitted_flag_slot (pure BSS).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
 #[no_mangle]
 export function pipeline_diag_emitted_reset(): void {
   unsafe {
@@ -333,9 +340,11 @@ export function pipeline_diag_emitted_reset(): void {
   }
 }
 
-/** Exported function `pipeline_diag_emitted_note`.
- * Implements `pipeline_diag_emitted_note`.
+/**
+ * Set the pipeline "diag already emitted" sticky flag to 1.
  * @return void
+ * wave73: pure G.7 pipeline_diag_emitted_flag_slot (pure BSS).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_diag_emitted_note(): void {
@@ -345,9 +354,11 @@ export function pipeline_diag_emitted_note(): void {
   }
 }
 
-/** Exported function `pipeline_diag_emitted_get`.
- * Implements `pipeline_diag_emitted_get`.
- * @return i32
+/**
+ * Read the pipeline "diag already emitted" sticky flag (normalize to 0/1).
+ * @return i32 — 1 when any prior note was recorded; 0 when clear
+ * wave73: pure G.7 pipeline_diag_emitted_flag_slot (pure BSS).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_diag_emitted_get(): i32 {
@@ -2817,6 +2828,24 @@ let g_pipe_rf_stage_prep_len: u8[8] = [];
 let g_pipe_loaded_import_buf: u8[8] = [];
 let g_pipe_loaded_import_len: u8[8] = [];
 let g_pipe_loaded_import_cap: u8[8] = [];
+
+// wave73 pure diag-emitted sticky flag BSS (G.7 single authority for reset/note/get).
+// PLATFORM: SHARED — same ABI as seed static int pipeline_diag_emitted_flag (0/1 sticky).
+// Consumers (rt_run_asm_backend / rt_run_compiler_parsed pure) only call reset/get accessors;
+// no cross-TU raw global writes — safe pure BSS authority under hybrid PREFER.
+let g_pipe_diag_emitted_flag: i32 = 0;
+
+/**
+ * Return address of the pipeline diag-emitted sticky flag (i32 cell).
+ * @return *i32 — always non-null; points at g_pipe_diag_emitted_flag
+ * wave73 pure: pure reset/note/get write/read this cell (0 clear / non-zero noted).
+ * Matches historical seed pipeline_diag_emitted_flag_slot → static int.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; hybrid pure owns this cell only.
+ */
+#[no_mangle]
+export function pipeline_diag_emitted_flag_slot(): *i32 {
+  return &g_pipe_diag_emitted_flag;
+}
 
 /**
  * Free any owned stage-prep buffer and clear stage BSS cells to null/0.

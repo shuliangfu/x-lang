@@ -66,7 +66,9 @@
  *   ptr/size slots; cold twins + seed stage statics under #ifndef FROM_X).
  * wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (pure BSS
  *   buf+len+cap; ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP; cold twins under #ifndef FROM_X).
- *   Cap residual still: fn-ptr / product_emit / typeck_module C frontend.
+ * wave73: pure pipeline_diag_emitted_flag_slot (pure BSS sticky i32; cold twin under
+ *   #ifndef FROM_X). Cap residual still: fn-ptr / product_emit / typeck_module C frontend
+ *   (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -279,12 +281,15 @@ void shux_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32
 /* pipeline_diag_preprocess_directive_code already declared above */
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* G-02f-33 / wave73: hybrid pure owns flag BSS + slot; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — same sticky int as pure g_pipe_diag_emitted_flag. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 static int pipeline_diag_emitted_flag;
 
-/* G-02f-33: storage slot for .x pipeline_diag_emitted_* */
 int32_t *pipeline_diag_emitted_flag_slot(void) {
     return (int32_t *)&pipeline_diag_emitted_flag;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 static int pipeline_last_import_open_valid;
 static char pipeline_last_import_open_import[65];
 static char pipeline_last_import_open_resolved[PATH_MAX];
