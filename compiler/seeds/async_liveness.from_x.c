@@ -3,10 +3,10 @@
  *
  * R2 pure surface + Cap residual pure（2026-07-21）：await walk / live frame / mangle /
  *   frame_build_tag + lookup/type/size/layout/has_await/needs_cps/analyze/module_struct
- *   + FILE* emit_*（typedef/local/codegen_comment via opaque async_liveness_fputs）
+ *   + FILE* emit_*（typedef/local/codegen_comment via shared driver_preamble_fputs）
  *   由 src/async/async_liveness.x 提供；FROM_X 下 pure C 体省略（仅 slice_marker）。
- * Cap residual（始终 seed C）：async_liveness_fputs 桥（opaque FILE*）。
- * 冷启动/无 PREFER：完整 pure C 体 + Cap residual pure + FILE* emit；产品默认 -c 本文件。
+ * Cap residual（G.7 单一权威）：driver_preamble_fputs（runtime_driver_abi；opaque FILE*）。
+ * 冷启动/无 PREFER：完整 pure C 体 + FILE* emit 用原生 fputs；产品默认 -c 本文件。
  * Prove：seeds/async_liveness_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */
@@ -877,13 +877,7 @@ void async_liveness_emit_codegen_comment(const struct ASTFunc *f,
 }
 #endif /* !SHUX_ASYNC_LIVENESS_FROM_X */
 
-/* Cap residual：opaque *u8 stream → FILE* fputs（EOF/null 时返回负值）。
- * Always linked (not omitted under FROM_X); .x emit pure calls this.
- * PLATFORM: SHARED — same contract as driver_preamble_fputs / async_cps_fputs. */
-int32_t async_liveness_fputs(uint8_t *s, uint8_t *stream) {
-    if (s == NULL || stream == NULL)
-        return -1;
-    if (fputs((const char *)(void *)s, (FILE *)(void *)stream) == EOF)
-        return -1;
-    return 0;
-}
+/* G.7 Cap residual：module-local async_liveness_fputs removed.
+ * .x emit pure calls driver_preamble_fputs (authority in runtime_driver_abi seed).
+ * Cold full C path (no FROM_X) uses FILE* fputs directly in emit_* above.
+ * PLATFORM: SHARED — single opaque FILE* fputs authority. */

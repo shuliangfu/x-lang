@@ -8,9 +8,9 @@
 //   - await expr classifiers (expr_is_io_await / await_read / await_write / await_fd / future_wait)
 //   - module/sched resolve + func_uses_void_entry (no FILE*; host LE loads)
 //   - walk _impl: expr_references_run_async_impl / block_has_run_async_ref_impl (host LE)
-//   - FILE* emit via opaque fputs bridge: end / phase_reset / after_await(_io) / sched_wrapper
+//   - FILE* emit via shared Cap residual driver_preamble_fputs: end / phase_reset / after_await / sched
 //   - wave5: begin / emit_param_statics / emit_hoisted_lets_impl (type_to_c_buf + run-seed inject)
-// Cap residual (seed C always): async_cps_fputs bridge (opaque FILE*).
+// Cap residual (seed C always, G.7 single authority): driver_preamble_fputs (opaque FILE*).
 // ASTExpr host layout (PLATFORM: SHARED with async_liveness): kind@0; value@24;
 //   unary.operand@24; CALL callee@24 args@32 num@40 resolved_fn@72;
 //   METHOD base@24 name@32 args@40 num@48 impl@56; FIELD name@32; VAR name@24.
@@ -33,9 +33,10 @@
 export extern "C" function async_liveness_func_needs_cps_frame(f: *u8): i32;
 export extern "C" function async_liveness_func_has_await(f: *u8): i32;
 export extern "C" function async_liveness_type_to_c_buf(ty: *u8, buf: *u8, cap: i32): void;
-// Cap residual opaque FILE* bridge (always seed C; .x must not cast *u8 to FILE*).
-// Returns 0 on success, negative on error/null (same contract as driver_preamble_fputs).
-export extern "C" function async_cps_fputs(s: *u8, stream: *u8): i32;
+// G.7 Cap residual: opaque *u8 stream → FILE* fputs. Authority = driver_preamble_fputs
+// in runtime_driver_abi (always seed); no module-local async_cps_fputs clone.
+// Returns fputs-style status (negative on error/null). .x must not cast *u8 to FILE*.
+export extern "C" function driver_preamble_fputs(s: *u8, stream: *u8): i32;
 
 /** Prove/doc anchor for the pure surface TU (always 0).
  * PLATFORM: SHARED — no_mangle keeps short surface name for nm IDENTICAL. */
@@ -1151,7 +1152,7 @@ export function async_cps_store_i32(p: *u8, off: i32, v: i32): void {
   p[off + 3] = ((u / 16777216) & 255) as u8;
 }
 
-/** Emit non-negative i32 as decimal digits through async_cps_fputs.
+/** Emit non-negative i32 as decimal digits through driver_preamble_fputs.
  * Phase counters are always >= 0 in seed semantics; negative is a no-op.
  * @param out FILE* as *u8
  * @param v value to print (only v >= 0)
@@ -1168,7 +1169,7 @@ export function async_cps_fputs_i32_dec(out: *u8, v: i32): void {
   if (v == 0) {
     let z: u8[2] = [48, 0];
     unsafe {
-      async_cps_fputs(&z[0], out);
+      driver_preamble_fputs(&z[0], out);
     }
     return;
   }
@@ -1197,7 +1198,7 @@ export function async_cps_fputs_i32_dec(out: *u8, v: i32): void {
     if (cnt < 17) {
       buf[cnt] = 0;
       unsafe {
-        async_cps_fputs(&buf[0], out);
+        driver_preamble_fputs(&buf[0], out);
       }
     }
   }
@@ -1221,8 +1222,8 @@ export function async_cps_codegen_end(ctx: *u8, out: *u8): void {
     return;
   }
   unsafe {
-    async_cps_fputs("    break;\n", out);
-    async_cps_fputs("  }\n", out);
+    driver_preamble_fputs("    break;\n", out);
+    driver_preamble_fputs("  }\n", out);
   }
   async_cps_store_i32(ctx, 20, 0);
 }
@@ -1244,8 +1245,8 @@ export function async_cps_codegen_emit_phase_reset(out: *u8, pad: *u8): void {
     p = &def[0];
   }
   unsafe {
-    async_cps_fputs(p, out);
-    async_cps_fputs("__shux_frame.__phase = 0;\n", out);
+    driver_preamble_fputs(p, out);
+    driver_preamble_fputs("__shux_frame.__phase = 0;\n", out);
   }
 }
 
@@ -1306,51 +1307,51 @@ export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8,
     }
     // pad __shux_frame.name = name;\n
     unsafe {
-      async_cps_fputs(p, out);
-      async_cps_fputs("__shux_frame.", out);
-      async_cps_fputs(v, out);
-      async_cps_fputs(" = ", out);
-      async_cps_fputs(v, out);
-      async_cps_fputs(";\n", out);
+      driver_preamble_fputs(p, out);
+      driver_preamble_fputs("__shux_frame.", out);
+      driver_preamble_fputs(v, out);
+      driver_preamble_fputs(" = ", out);
+      driver_preamble_fputs(v, out);
+      driver_preamble_fputs(";\n", out);
     }
   }
   // pad __shux_frame.__phase = PHASE;\n
   unsafe {
-    async_cps_fputs(p, out);
-    async_cps_fputs("__shux_frame.__phase = ", out);
+    driver_preamble_fputs(p, out);
+    driver_preamble_fputs("__shux_frame.__phase = ", out);
   }
   async_cps_fputs_i32_dec(out, phase);
   unsafe {
-    async_cps_fputs(";\n", out);
+    driver_preamble_fputs(";\n", out);
   }
   // pad if (suspend_fn(&__shux_frame.__phase, PHASE)) return (int32_t)SHUX_ASYNC_SUSPENDED;\n
   unsafe {
-    async_cps_fputs(p, out);
-    async_cps_fputs("if (", out);
-    async_cps_fputs(suspend_fn, out);
-    async_cps_fputs("(&__shux_frame.__phase, ", out);
+    driver_preamble_fputs(p, out);
+    driver_preamble_fputs("if (", out);
+    driver_preamble_fputs(suspend_fn, out);
+    driver_preamble_fputs("(&__shux_frame.__phase, ", out);
   }
   async_cps_fputs_i32_dec(out, phase);
   unsafe {
-    async_cps_fputs(")) return (int32_t)SHUX_ASYNC_SUSPENDED;\n", out);
+    driver_preamble_fputs(")) return (int32_t)SHUX_ASYNC_SUSPENDED;\n", out);
   }
   // pad /* SHUX_ASYNC_CPS fallthrough phase=PHASE */\n
   unsafe {
-    async_cps_fputs(p, out);
-    async_cps_fputs("/* SHUX_ASYNC_CPS fallthrough phase=", out);
+    driver_preamble_fputs(p, out);
+    driver_preamble_fputs("/* SHUX_ASYNC_CPS fallthrough phase=", out);
   }
   async_cps_fputs_i32_dec(out, phase);
   unsafe {
-    async_cps_fputs(" */\n", out);
+    driver_preamble_fputs(" */\n", out);
   }
   // pad case PHASE:\n
   unsafe {
-    async_cps_fputs(p, out);
-    async_cps_fputs("case ", out);
+    driver_preamble_fputs(p, out);
+    driver_preamble_fputs("case ", out);
   }
   async_cps_fputs_i32_dec(out, phase);
   unsafe {
-    async_cps_fputs(":\n", out);
+    driver_preamble_fputs(":\n", out);
   }
   // restore live: pad name = __shux_frame.name;\n
   let j: i32 = 0;
@@ -1364,11 +1365,11 @@ export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8,
       continue;
     }
     unsafe {
-      async_cps_fputs(p, out);
-      async_cps_fputs(v2, out);
-      async_cps_fputs(" = __shux_frame.", out);
-      async_cps_fputs(v2, out);
-      async_cps_fputs(";\n", out);
+      driver_preamble_fputs(p, out);
+      driver_preamble_fputs(v2, out);
+      driver_preamble_fputs(" = __shux_frame.", out);
+      driver_preamble_fputs(v2, out);
+      driver_preamble_fputs(";\n", out);
     }
   }
   return 0;
@@ -1432,20 +1433,20 @@ export function async_cps_codegen_emit_sched_wrapper(f: *u8, c_fname: *u8, out: 
     return;
   }
   unsafe {
-    async_cps_fputs("/* A4: scheduler entry shux_async_sched_", out);
-    async_cps_fputs(name, out);
-    async_cps_fputs(" */\n", out);
-    async_cps_fputs("#ifndef SHUX_ASYNC_SCHED_RT_DECL\n", out);
-    async_cps_fputs("#define SHUX_ASYNC_SCHED_RT_DECL\n", out);
-    async_cps_fputs("extern int32_t shux_async_run_i32(int32_t (*fn)(void));\n", out);
-    async_cps_fputs("#endif\n", out);
-    async_cps_fputs("int32_t shux_async_sched_", out);
-    async_cps_fputs(name, out);
-    async_cps_fputs("(void) {\n", out);
-    async_cps_fputs("  return shux_async_run_i32((int32_t (*)(void))", out);
-    async_cps_fputs(c_fname, out);
-    async_cps_fputs(");\n", out);
-    async_cps_fputs("}\n", out);
+    driver_preamble_fputs("/* A4: scheduler entry shux_async_sched_", out);
+    driver_preamble_fputs(name, out);
+    driver_preamble_fputs(" */\n", out);
+    driver_preamble_fputs("#ifndef SHUX_ASYNC_SCHED_RT_DECL\n", out);
+    driver_preamble_fputs("#define SHUX_ASYNC_SCHED_RT_DECL\n", out);
+    driver_preamble_fputs("extern int32_t shux_async_run_i32(int32_t (*fn)(void));\n", out);
+    driver_preamble_fputs("#endif\n", out);
+    driver_preamble_fputs("int32_t shux_async_sched_", out);
+    driver_preamble_fputs(name, out);
+    driver_preamble_fputs("(void) {\n", out);
+    driver_preamble_fputs("  return shux_async_run_i32((int32_t (*)(void))", out);
+    driver_preamble_fputs(c_fname, out);
+    driver_preamble_fputs(");\n", out);
+    driver_preamble_fputs("}\n", out);
   }
 }
 
@@ -1503,11 +1504,11 @@ export function async_cps_emit_static_decl(out: *u8, ty: *u8, name: *u8): void {
     async_liveness_type_to_c_buf(ty, &cty[0], 96);
   }
   unsafe {
-    async_cps_fputs("  static ", out);
-    async_cps_fputs(&cty[0], out);
-    async_cps_fputs(" ", out);
-    async_cps_fputs(name, out);
-    async_cps_fputs(";\n", out);
+    driver_preamble_fputs("  static ", out);
+    driver_preamble_fputs(&cty[0], out);
+    driver_preamble_fputs(" ", out);
+    driver_preamble_fputs(name, out);
+    driver_preamble_fputs(";\n", out);
   }
 }
 
@@ -1558,36 +1559,36 @@ export function async_cps_emit_run_seed_take(out: *u8, pname: *u8, ty: *u8): voi
   // U32
   if (kind == 3) {
     unsafe {
-      async_cps_fputs("      ", out);
-      async_cps_fputs(pname, out);
-      async_cps_fputs(" = shux_async_run_seed_take_u32();\n", out);
+      driver_preamble_fputs("      ", out);
+      driver_preamble_fputs(pname, out);
+      driver_preamble_fputs(" = shux_async_run_seed_take_u32();\n", out);
     }
     return;
   }
   // I64
   if (kind == 5) {
     unsafe {
-      async_cps_fputs("      ", out);
-      async_cps_fputs(pname, out);
-      async_cps_fputs(" = shux_async_run_seed_take_i64();\n", out);
+      driver_preamble_fputs("      ", out);
+      driver_preamble_fputs(pname, out);
+      driver_preamble_fputs(" = shux_async_run_seed_take_i64();\n", out);
     }
     return;
   }
   // USIZE
   if (kind == 6) {
     unsafe {
-      async_cps_fputs("      ", out);
-      async_cps_fputs(pname, out);
-      async_cps_fputs(" = shux_async_run_seed_take_usize();\n", out);
+      driver_preamble_fputs("      ", out);
+      driver_preamble_fputs(pname, out);
+      driver_preamble_fputs(" = shux_async_run_seed_take_usize();\n", out);
     }
     return;
   }
   // I32
   if (kind == 0) {
     unsafe {
-      async_cps_fputs("      ", out);
-      async_cps_fputs(pname, out);
-      async_cps_fputs(" = shux_async_run_seed_take_i32();\n", out);
+      driver_preamble_fputs("      ", out);
+      driver_preamble_fputs(pname, out);
+      driver_preamble_fputs(" = shux_async_run_seed_take_i32();\n", out);
     }
     return;
   }
@@ -1728,25 +1729,25 @@ export function async_cps_codegen_begin(ctx: *u8, f: *u8, layout: *u8, out: *u8)
   }
   if (has_seed_param != 0) {
     unsafe {
-      async_cps_fputs("  if (shux_async_run_seed_valid())\n", out);
-      async_cps_fputs("    __shux_frame.__phase = 0;\n", out);
+      driver_preamble_fputs("  if (shux_async_run_seed_valid())\n", out);
+      driver_preamble_fputs("    __shux_frame.__phase = 0;\n", out);
     }
   }
   // num_awaits @4100
   let num_awaits: i32 = async_cps_load_i32(layout, 4100);
   unsafe {
-    async_cps_fputs("  /* SHUX_ASYNC_CPS switch=1 awaits=", out);
+    driver_preamble_fputs("  /* SHUX_ASYNC_CPS switch=1 awaits=", out);
   }
   async_cps_fputs_i32_dec(out, num_awaits);
   unsafe {
-    async_cps_fputs(" */\n", out);
-    async_cps_fputs("  switch (__shux_frame.__phase) {\n", out);
-    async_cps_fputs("  default:\n", out);
-    async_cps_fputs("  case 0:\n", out);
+    driver_preamble_fputs(" */\n", out);
+    driver_preamble_fputs("  switch (__shux_frame.__phase) {\n", out);
+    driver_preamble_fputs("  default:\n", out);
+    driver_preamble_fputs("  case 0:\n", out);
   }
   if (has_seed_param != 0) {
     unsafe {
-      async_cps_fputs("    if (__shux_frame.__phase == 0 && shux_async_run_seed_valid()) {\n", out);
+      driver_preamble_fputs("    if (__shux_frame.__phase == 0 && shux_async_run_seed_valid()) {\n", out);
     }
     if (params != 0) {
       let pj: i32 = 0;
@@ -1765,7 +1766,7 @@ export function async_cps_codegen_begin(ctx: *u8, f: *u8, layout: *u8, out: *u8)
       }
     }
     unsafe {
-      async_cps_fputs("    }\n", out);
+      driver_preamble_fputs("    }\n", out);
     }
   }
   async_cps_store_i32(ctx, 20, 1);

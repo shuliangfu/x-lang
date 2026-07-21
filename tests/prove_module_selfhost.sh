@@ -253,16 +253,16 @@ MODULES=(
   "async_asm_pool|src/asm/async_asm_pool.x|seeds/async_asm_pool_surface.from_x.c||"
   # async_liveness R2 pure surface + Cap residual pure：.x 吃满 await walk / live frame / mangle/tag
   #   + lookup/type/size/layout/has_await/needs_cps/analyze/module_struct
-  #   + FILE* emit_* typedef/local/codegen_comment（opaque async_liveness_fputs）；
-  # FROM_X 省略 pure C 体（slice_marker）；Cap residual：async_liveness_fputs 桥 always seed
+  #   + FILE* emit_* typedef/local/codegen_comment（shared driver_preamble_fputs）；
+  # FROM_X 省略 pure C 体（slice_marker）；Cap residual fputs：G.7 = driver_preamble_fputs
   # 冷/无 PREFER 仍可走 seeds/async_liveness.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
   # Stack：analyze_block_linear malloc(4096)；layout temps malloc(4196)（Ubuntu -E 稳）
   "async_liveness|src/async/async_liveness.x|seeds/async_liveness_surface.from_x.c||"
   # async_cps_codegen R2 pure + Cap residual pure wave1–5：
   #   .x 吃满 name gates + thin walk/hoist + expr_is_* + module/sched + void_entry + walk _impl
-  #   + FILE* emit end/phase_reset/after_await(_io)/sched_wrapper（opaque async_cps_fputs）；
-  # FROM_X 省略 pure C 体（含 walk _impl + wave4 emit；slice_marker）；
-  # Cap residual：begin/param_statics/hoist_impl + async_cps_fputs 桥 always seed
+  #   + FILE* emit end/phase_reset/after_await(_io)/sched_wrapper（shared driver_preamble_fputs）；
+  # FROM_X 省略 pure C 体（含 walk _impl + wave4–5 emit；slice_marker）；
+  # Cap residual fputs：G.7 = driver_preamble_fputs（no module-local async_cps_fputs）
   # 冷/无 PREFER 仍可走 seeds/async_cps_codegen.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
   # Thin ABI：(e,target)/(b,target) 与 C 公共面一致
   "async_cps_codegen|src/async/async_cps_codegen.x|seeds/async_cps_codegen_surface.from_x.c||"

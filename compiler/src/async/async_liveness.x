@@ -4,17 +4,18 @@
 // async_liveness.x — pure helpers for async cross-await liveness (A3).
 // R2 pure surface + Cap residual pure:
 //   - type/layout/has_await/needs_cps/analyze/module_struct
-//   - FILE* emit_* via opaque async_liveness_fputs (typedef/local/codegen_comment)
-// Cap residual (seed C always): async_liveness_fputs bridge (opaque FILE*).
+//   - FILE* emit_* via shared Cap residual driver_preamble_fputs (typedef/local/codegen_comment)
+// Cap residual (seed C always, G.7 single authority): driver_preamble_fputs (opaque FILE*).
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 //
 // Heap for def-name table (analyze_block_linear): avoid u8[4096] stack on shux -E.
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
-// Cap residual opaque FILE* bridge (always seed C; .x must not cast *u8 to FILE*).
-// Returns 0 on success, negative on error/null (same contract as driver_preamble_fputs).
-export extern "C" function async_liveness_fputs(s: *u8, stream: *u8): i32;
+// G.7 Cap residual: opaque *u8 stream → FILE* fputs. Authority = driver_preamble_fputs
+// in runtime_driver_abi (always seed); no module-local async_liveness_fputs clone.
+// Returns fputs-style status (negative on error/null). .x must not cast *u8 to FILE*.
+export extern "C" function driver_preamble_fputs(s: *u8, stream: *u8): i32;
 
 // async_liveness_x_doc_anchor: see function docblock below.
 
@@ -2041,13 +2042,13 @@ export function async_liveness_analyze_func(f: *u8, out: *u8): i32 {
   return 0;
 }
 
-// ---- Cap residual pure: FILE* emit_* via opaque async_liveness_fputs ----
+// ---- Cap residual pure: FILE* emit_* via opaque driver_preamble_fputs ----
 // Matches seed async_liveness_emit_frame_typedef / emit_frame_local / emit_codegen_comment.
 // Host LE: layout num_awaits@4100 frame_bytes@4104 frame_tag@4108 has_io_rd@4188 has_io_wr@4192;
 // live.n@4096 name row i at layout+(i*64); ASTFunc name@8.
 // G.7: type_to_c_buf + lookup_var_type authority (no second type table).
 
-/** Emit non-negative i32 as decimal digits through async_liveness_fputs.
+/** Emit non-negative i32 as decimal digits through driver_preamble_fputs.
  * Used by emit_codegen_comment for slots/bytes/awaits counters.
  * @param out FILE* as *u8
  * @param v value to print (only v >= 0; negative is a no-op)
@@ -2058,7 +2059,7 @@ export function async_liveness_fputs_i32_dec(out: *u8, v: i32): void {
   if (v < 0) { return; }
   if (v == 0) {
     let z: u8[2] = [48, 0];
-    unsafe { async_liveness_fputs(&z[0], out); }
+    unsafe { driver_preamble_fputs(&z[0], out); }
     return;
   }
   let cnt: i32 = 0;
@@ -2083,7 +2084,7 @@ export function async_liveness_fputs_i32_dec(out: *u8, v: i32): void {
   if (cnt > 0) {
     if (cnt < 17) {
       buf[cnt] = 0;
-      unsafe { async_liveness_fputs(&buf[0], out); }
+      unsafe { driver_preamble_fputs(&buf[0], out); }
     }
   }
 }
@@ -2109,51 +2110,51 @@ export function async_liveness_emit_frame_typedef(f: *u8, layout: *u8, out: *u8)
   // String literal cap ~63 bytes in current -E; split long RT decls (G.9: host product cold
   // path still uses seed fprintf; pure .x must still emit complete text for hybrid).
   unsafe {
-    async_liveness_fputs("#ifndef SHUX_ASYNC_CPS_RT_DECL\n", out);
-    async_liveness_fputs("#define SHUX_ASYNC_CPS_RT_DECL\n", out);
-    async_liveness_fputs("extern int shux_async_cps_suspend(", out);
-    async_liveness_fputs("int32_t *phase, int32_t next_phase);\n", out);
-    async_liveness_fputs("extern int shux_async_cps_suspend_io(", out);
-    async_liveness_fputs("int32_t *phase, int32_t next_phase);\n", out);
-    async_liveness_fputs("extern int shux_io_submit_read_async(", out);
-    async_liveness_fputs("uint8_t *ptr, size_t len, size_t handle);\n", out);
-    async_liveness_fputs("extern int32_t shux_io_complete_read_async(void);\n", out);
-    async_liveness_fputs("extern int32_t shux_io_complete_read_async_slot(int slot);\n", out);
-    async_liveness_fputs("extern int shux_io_submit_write_async(", out);
-    async_liveness_fputs("const uint8_t *ptr, size_t len, size_t handle);\n", out);
-    async_liveness_fputs("extern int32_t shux_io_complete_write_async(void);\n", out);
-    async_liveness_fputs("extern int32_t shux_io_complete_write_async_slot(int slot);\n", out);
-    async_liveness_fputs("extern void shux_async_run_seed_reset(void);\n", out);
-    async_liveness_fputs("extern void shux_async_run_seed_push_i32(int32_t v);\n", out);
-    async_liveness_fputs("extern void shux_async_run_seed_push_u32(uint32_t v);\n", out);
-    async_liveness_fputs("extern void shux_async_run_seed_push_i64(int64_t v);\n", out);
-    async_liveness_fputs("extern void shux_async_run_seed_push_usize(size_t v);\n", out);
-    async_liveness_fputs("extern void shux_async_run_seed_set_i32(int32_t v);\n", out);
-    async_liveness_fputs("extern int shux_async_run_seed_valid(void);\n", out);
-    async_liveness_fputs("extern int32_t shux_async_run_seed_take_i32(void);\n", out);
-    async_liveness_fputs("extern uint32_t shux_async_run_seed_take_u32(void);\n", out);
-    async_liveness_fputs("extern int64_t shux_async_run_seed_take_i64(void);\n", out);
-    async_liveness_fputs("extern size_t shux_async_run_seed_take_usize(void);\n", out);
-    async_liveness_fputs("extern int shux_async_task_submit(int32_t (*fn)(void));\n", out);
-    async_liveness_fputs("extern int32_t shux_async_run_drain_until_idle(void);\n", out);
-    async_liveness_fputs("extern void shux_async_queue_reset(void);\n", out);
-    async_liveness_fputs("extern unsigned shux_io_poll_async_completions(", out);
-    async_liveness_fputs("unsigned timeout_ms);\n", out);
-    async_liveness_fputs("#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)\n", out);
-    async_liveness_fputs("#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)\n", out);
-    async_liveness_fputs("#endif\n", out);
-    async_liveness_fputs("typedef struct ", out);
-    async_liveness_fputs(tag, out);
-    async_liveness_fputs(" {\n", out);
-    async_liveness_fputs("  int32_t __phase;\n", out);
+    driver_preamble_fputs("#ifndef SHUX_ASYNC_CPS_RT_DECL\n", out);
+    driver_preamble_fputs("#define SHUX_ASYNC_CPS_RT_DECL\n", out);
+    driver_preamble_fputs("extern int shux_async_cps_suspend(", out);
+    driver_preamble_fputs("int32_t *phase, int32_t next_phase);\n", out);
+    driver_preamble_fputs("extern int shux_async_cps_suspend_io(", out);
+    driver_preamble_fputs("int32_t *phase, int32_t next_phase);\n", out);
+    driver_preamble_fputs("extern int shux_io_submit_read_async(", out);
+    driver_preamble_fputs("uint8_t *ptr, size_t len, size_t handle);\n", out);
+    driver_preamble_fputs("extern int32_t shux_io_complete_read_async(void);\n", out);
+    driver_preamble_fputs("extern int32_t shux_io_complete_read_async_slot(int slot);\n", out);
+    driver_preamble_fputs("extern int shux_io_submit_write_async(", out);
+    driver_preamble_fputs("const uint8_t *ptr, size_t len, size_t handle);\n", out);
+    driver_preamble_fputs("extern int32_t shux_io_complete_write_async(void);\n", out);
+    driver_preamble_fputs("extern int32_t shux_io_complete_write_async_slot(int slot);\n", out);
+    driver_preamble_fputs("extern void shux_async_run_seed_reset(void);\n", out);
+    driver_preamble_fputs("extern void shux_async_run_seed_push_i32(int32_t v);\n", out);
+    driver_preamble_fputs("extern void shux_async_run_seed_push_u32(uint32_t v);\n", out);
+    driver_preamble_fputs("extern void shux_async_run_seed_push_i64(int64_t v);\n", out);
+    driver_preamble_fputs("extern void shux_async_run_seed_push_usize(size_t v);\n", out);
+    driver_preamble_fputs("extern void shux_async_run_seed_set_i32(int32_t v);\n", out);
+    driver_preamble_fputs("extern int shux_async_run_seed_valid(void);\n", out);
+    driver_preamble_fputs("extern int32_t shux_async_run_seed_take_i32(void);\n", out);
+    driver_preamble_fputs("extern uint32_t shux_async_run_seed_take_u32(void);\n", out);
+    driver_preamble_fputs("extern int64_t shux_async_run_seed_take_i64(void);\n", out);
+    driver_preamble_fputs("extern size_t shux_async_run_seed_take_usize(void);\n", out);
+    driver_preamble_fputs("extern int shux_async_task_submit(int32_t (*fn)(void));\n", out);
+    driver_preamble_fputs("extern int32_t shux_async_run_drain_until_idle(void);\n", out);
+    driver_preamble_fputs("extern void shux_async_queue_reset(void);\n", out);
+    driver_preamble_fputs("extern unsigned shux_io_poll_async_completions(", out);
+    driver_preamble_fputs("unsigned timeout_ms);\n", out);
+    driver_preamble_fputs("#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)\n", out);
+    driver_preamble_fputs("#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)\n", out);
+    driver_preamble_fputs("#endif\n", out);
+    driver_preamble_fputs("typedef struct ", out);
+    driver_preamble_fputs(tag, out);
+    driver_preamble_fputs(" {\n", out);
+    driver_preamble_fputs("  int32_t __phase;\n", out);
   }
   // has_io_rd_slot @4188
   if (async_live_load_i32(layout, 4188) != 0) {
-    unsafe { async_liveness_fputs("  int32_t __io_rd_slot;\n", out); }
+    unsafe { driver_preamble_fputs("  int32_t __io_rd_slot;\n", out); }
   }
   // has_io_wr_slot @4192
   if (async_live_load_i32(layout, 4192) != 0) {
-    unsafe { async_liveness_fputs("  int32_t __io_wr_slot;\n", out); }
+    unsafe { driver_preamble_fputs("  int32_t __io_wr_slot;\n", out); }
   }
   let n: i32 = frame_live_load_n(layout);
   let i: i32 = 0;
@@ -2163,18 +2164,18 @@ export function async_liveness_emit_frame_typedef(f: *u8, layout: *u8, out: *u8)
     let cty: u8[96];
     async_liveness_type_to_c_buf(ty, &cty[0], 96);
     unsafe {
-      async_liveness_fputs("  ", out);
-      async_liveness_fputs(&cty[0], out);
-      async_liveness_fputs(" ", out);
-      async_liveness_fputs(row, out);
-      async_liveness_fputs(";\n", out);
+      driver_preamble_fputs("  ", out);
+      driver_preamble_fputs(&cty[0], out);
+      driver_preamble_fputs(" ", out);
+      driver_preamble_fputs(row, out);
+      driver_preamble_fputs(";\n", out);
     }
     i = i + 1;
   }
   unsafe {
-    async_liveness_fputs("} ", out);
-    async_liveness_fputs(tag, out);
-    async_liveness_fputs(";\n", out);
+    driver_preamble_fputs("} ", out);
+    driver_preamble_fputs(tag, out);
+    driver_preamble_fputs(";\n", out);
   }
 }
 
@@ -2193,9 +2194,9 @@ export function async_liveness_emit_frame_local(f: *u8, layout: *u8, out: *u8): 
     tag = "__shux_async_frame_fn";
   }
   unsafe {
-    async_liveness_fputs("  static ", out);
-    async_liveness_fputs(tag, out);
-    async_liveness_fputs(" __shux_frame;\n", out);
+    driver_preamble_fputs("  static ", out);
+    driver_preamble_fputs(tag, out);
+    driver_preamble_fputs(" __shux_frame;\n", out);
   }
 }
 
@@ -2222,45 +2223,45 @@ export function async_liveness_emit_codegen_comment(f: *u8, layout: *u8, out: *u
   let has_rd: i32 = async_live_load_i32(layout, 4188);
   let has_wr: i32 = async_live_load_i32(layout, 4192);
   unsafe {
-    async_liveness_fputs("  /* SHUX_ASYNC_FRAME func=", out);
-    async_liveness_fputs(fn, out);
-    async_liveness_fputs(" slots=", out);
+    driver_preamble_fputs("  /* SHUX_ASYNC_FRAME func=", out);
+    driver_preamble_fputs(fn, out);
+    driver_preamble_fputs(" slots=", out);
   }
   async_liveness_fputs_i32_dec(out, slots);
-  unsafe { async_liveness_fputs(" bytes=", out); }
+  unsafe { driver_preamble_fputs(" bytes=", out); }
   async_liveness_fputs_i32_dec(out, bytes);
-  unsafe { async_liveness_fputs(" awaits=", out); }
+  unsafe { driver_preamble_fputs(" awaits=", out); }
   async_liveness_fputs_i32_dec(out, awaits);
   if (has_rd != 0 || has_wr != 0) {
-    unsafe { async_liveness_fputs(" io_slots=", out); }
+    unsafe { driver_preamble_fputs(" io_slots=", out); }
     if (has_rd != 0) {
-      unsafe { async_liveness_fputs("rd", out); }
+      unsafe { driver_preamble_fputs("rd", out); }
     }
     if (has_wr != 0) {
       if (has_rd != 0) {
-        unsafe { async_liveness_fputs("+", out); }
+        unsafe { driver_preamble_fputs("+", out); }
       }
-      unsafe { async_liveness_fputs("wr", out); }
+      unsafe { driver_preamble_fputs("wr", out); }
     }
   }
   if (slots > 0) {
-    unsafe { async_liveness_fputs(" vars=", out); }
+    unsafe { driver_preamble_fputs(" vars=", out); }
     let i: i32 = 0;
     while (i < slots) {
       if (i != 0) {
-        unsafe { async_liveness_fputs(",", out); }
+        unsafe { driver_preamble_fputs(",", out); }
       }
       let row: *u8 = frame_live_row_ptr(layout, i);
-      unsafe { async_liveness_fputs(row, out); }
+      unsafe { driver_preamble_fputs(row, out); }
       i = i + 1;
     }
   }
-  unsafe { async_liveness_fputs(" tag=", out); }
+  unsafe { driver_preamble_fputs(" tag=", out); }
   // frame_tag@4108 or "?"
   if (layout[4108] != 0) {
-    unsafe { async_liveness_fputs(layout + 4108, out); }
+    unsafe { driver_preamble_fputs(layout + 4108, out); }
   } else {
-    unsafe { async_liveness_fputs("?", out); }
+    unsafe { driver_preamble_fputs("?", out); }
   }
-  unsafe { async_liveness_fputs(" */\n", out); }
+  unsafe { driver_preamble_fputs(" */\n", out); }
 }

@@ -1900,7 +1900,9 @@ int32_t driver_preamble_fs_path_line_count(void) {
     return driver_preamble_fs_path_lines_n;
 }
 
-/** Cap residual：opaque *u8 stream → FILE* fputs（EOF 时返回负值）。 */
+/** Cap residual G.7 authority：opaque *u8 stream → FILE* fputs（EOF/null → 负值）。
+ * Shared by rt_preamble + async_liveness/async_cps emit pure (.x). No module-local clones.
+ * PLATFORM: SHARED — single FILE* fputs bridge for product + hybrid PREFER. */
 int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
     if (s == NULL || stream == NULL)
         return -1;
