@@ -1,13 +1,14 @@
 /* seeds/async_liveness_surface.from_x.c
- * R2 pure surface — isomorphic with src/async/async_liveness.x pure helpers
+ * R2 pure surface + Cap residual pure (type/layout) — isomorphic with src/async/async_liveness.x
  * Product cold path still cc seeds/async_liveness.from_x.c (no FROM_X) for full C + Cap residual.
  * Hybrid/PREFER: g05_try_x_to_o(async_liveness.x) + rest (-DSHUX_ASYNC_LIVENESS_FROM_X).
- * R2: full.x eats pure helpers (await walk / live frame / mangle/tag); FROM_X omits those C bodies.
- * Cap residual (stay seed C always): lookup_var_type / type_to_c_buf / type_size /
- *   layout_func* / analyze_func / module_struct_in_frame / emit_* (FILE* fprintf).
+ * R2: full.x eats pure helpers (await walk / live frame / mangle/tag) + Cap residual pure
+ *   (lookup/type/size/layout/has_await/needs_cps/analyze/module_struct); FROM_X omits those C bodies.
+ * Cap residual (stay seed C always): emit_* (FILE* fprintf).
  * Prove: full.x vs this seed → nm IDENTICAL (pure surface)
  * Regen: ./shux -E ... src/async/async_liveness.x | filter DBG + polish prologue
- * NOTE: use ./shux (not shux-x). Stack: analyze_block_linear uses malloc(4096) not u8[4096].
+ * NOTE: use ./shux (not shux-x). Stack: analyze_block_linear uses malloc(4096) not u8[4096];
+ *   layout temps use malloc(4196) for AsyncFrameLayout.
  * PLATFORM: SHARED — async liveness pure helpers; mac + Ubuntu prove.
  */
 #include <stddef.h>
@@ -52,6 +53,21 @@ extern void analyze_block_linear(uint8_t * b, uint8_t * prefix, int32_t n_prefix
 extern void frame_mangle_ident(uint8_t * in_name, uint8_t * out, int32_t cap);
 extern void frame_build_tag(uint8_t * f, uint8_t * out, int32_t cap);
 extern int32_t live_name_cmp(uint8_t * a, uint8_t * b);
+extern void async_liveness_async_live_store_i32(uint8_t * p, int32_t off, int32_t v);
+extern void async_liveness_async_live_store_ptr(uint8_t * p, int32_t off, uint8_t * v);
+extern void async_liveness_async_live_cstr_copy_cap(uint8_t * dst, uint8_t * src, int32_t cap);
+extern int32_t async_liveness_async_live_cstr_has_prefix(uint8_t * a, uint8_t * pref, int32_t plen);
+extern void async_live_sort_frame_names(uint8_t * out);
+extern uint8_t * async_liveness_lookup_var_type(uint8_t * f, uint8_t * name);
+extern void async_liveness_type_to_c_buf(uint8_t * ty, uint8_t * buf, int32_t cap);
+extern int32_t async_liveness_type_size_bytes_module(uint8_t * ty, uint8_t * m);
+extern int32_t async_liveness_func_has_await(uint8_t * f);
+extern int32_t async_liveness_expr_has_await(uint8_t * e);
+extern int32_t async_liveness_layout_func_module(uint8_t * f, uint8_t * m, uint8_t * out);
+extern int32_t async_liveness_layout_func(uint8_t * f, uint8_t * out);
+extern int32_t async_liveness_func_needs_cps_frame(uint8_t * f);
+extern int32_t async_liveness_module_struct_in_frame(uint8_t * m, uint8_t * struct_name);
+extern int32_t async_liveness_analyze_func(uint8_t * f, uint8_t * out);
 int32_t async_liveness_x_doc_anchor(void) {
   return 0;
 }
@@ -1535,5 +1551,620 @@ int32_t live_name_cmp(uint8_t * a, uint8_t * b) {
     }
     (void)((i = (i + 1)));
   }
+  return 0;
+}
+void async_liveness_async_live_store_i32(uint8_t * p, int32_t off, int32_t v) {
+  if ((p ==0)) {
+    return;
+  }
+  if ((off < 0)) {
+    return;
+  }
+  uint32_t u = ((uint32_t)(v));
+  (void)(((p)[off] = ((uint8_t)((u & 255)))));
+  (void)(((p)[(off + 1)] = ((uint8_t)(((u / 256) & 255)))));
+  (void)(((p)[(off + 2)] = ((uint8_t)(((u / 65536) & 255)))));
+  (void)(((p)[(off + 3)] = ((uint8_t)(((u / 16777216) & 255)))));
+}
+void async_liveness_async_live_store_ptr(uint8_t * p, int32_t off, uint8_t * v) {
+  if ((p ==0)) {
+    return;
+  }
+  if ((off < 0)) {
+    return;
+  }
+  size_t a = ((size_t)(v));
+  size_t m = 256;
+  size_t m2 = (m * m);
+  size_t m4 = (m2 * m2);
+  (void)(((p)[off] = ((uint8_t)((a % m)))));
+  (void)(((p)[(off + 1)] = ((uint8_t)(((a / m) % m)))));
+  (void)(((p)[(off + 2)] = ((uint8_t)(((a / m2) % m)))));
+  (void)(((p)[(off + 3)] = ((uint8_t)(((a / (m2 * m)) % m)))));
+  (void)(((p)[(off + 4)] = ((uint8_t)(((a / m4) % m)))));
+  (void)(((p)[(off + 5)] = ((uint8_t)(((a / (m4 * m)) % m)))));
+  (void)(((p)[(off + 6)] = ((uint8_t)(((a / (m4 * m2)) % m)))));
+  (void)(((p)[(off + 7)] = ((uint8_t)(((a / ((m4 * m2) * m)) % m)))));
+}
+void async_liveness_async_live_cstr_copy_cap(uint8_t * dst, uint8_t * src, int32_t cap) {
+  if ((dst ==0)) {
+    return;
+  }
+  if ((cap <=0)) {
+    return;
+  }
+  if ((src ==0)) {
+    (void)(((dst)[0] = 0));
+    return;
+  }
+  int32_t i = 0;
+  while (((i + 1) < cap)) {
+    uint8_t c = (src)[i];
+    if ((c ==0)) {
+      break;
+    }
+    (void)(((dst)[i] = c));
+    (void)((i = (i + 1)));
+  }
+  (void)(((dst)[i] = 0));
+}
+int32_t async_liveness_async_live_cstr_has_prefix(uint8_t * a, uint8_t * pref, int32_t plen) {
+  if ((a ==0)) {
+    return 0;
+  }
+  if ((pref ==0)) {
+    return 0;
+  }
+  if ((plen <=0)) {
+    return 1;
+  }
+  int32_t i = 0;
+  while ((i < plen)) {
+    if (((a)[i] !=(pref)[i])) {
+      return 0;
+    }
+    if (((a)[i] ==0)) {
+      return 0;
+    }
+    (void)((i = (i + 1)));
+  }
+  return 1;
+}
+void async_live_sort_frame_names(uint8_t * out) {
+  if ((out ==0)) {
+    return;
+  }
+  int32_t n = async_liveness_frame_live_load_n(out);
+  if ((n <=1)) {
+    return;
+  }
+  int32_t i = 1;
+  while ((i < n)) {
+    uint8_t key[64] = {};
+    uint8_t * src = async_liveness_frame_live_row_ptr(out, i);
+    int32_t k = 0;
+    while ((k < 64)) {
+      (void)(((key)[k] = (src)[k]));
+      (void)((k = (k + 1)));
+    }
+    int32_t j = (i - 1);
+    while ((j >=0)) {
+      uint8_t * row = async_liveness_frame_live_row_ptr(out, j);
+      if ((live_name_cmp(row, &((key)[0])) <=0)) {
+        break;
+      }
+      uint8_t * dst = async_liveness_frame_live_row_ptr(out, (j + 1));
+      int32_t t = 0;
+      while ((t < 64)) {
+        (void)(((dst)[t] = (row)[t]));
+        (void)((t = (t + 1)));
+      }
+      (void)((j = (j - 1)));
+    }
+    uint8_t * dest = async_liveness_frame_live_row_ptr(out, (j + 1));
+    (void)((k = 0));
+    while ((k < 64)) {
+      (void)(((dest)[k] = (key)[k]));
+      (void)((k = (k + 1)));
+    }
+    (void)((i = (i + 1)));
+  }
+}
+uint8_t * async_liveness_lookup_var_type(uint8_t * f, uint8_t * name) {
+  if ((f ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((name ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if (((name)[0] ==0)) {
+    return ((uint8_t *)(0));
+  }
+  int32_t nparams = async_liveness_async_live_load_i32(f, 40);
+  uint8_t * params = async_liveness_async_live_load_ptr(f, 32);
+  if ((params !=0)) {
+    int32_t i = 0;
+    while ((i < nparams)) {
+      uint8_t * pr = (params + (i * 24));
+      uint8_t * pn = async_liveness_async_live_load_ptr(pr, 0);
+      if ((pn !=0)) {
+        if ((async_liveness_async_live_cstr_eq(pn, name) !=0)) {
+          return async_liveness_async_live_load_ptr(pr, 8);
+        }
+      }
+      (void)((i = (i + 1)));
+    }
+  }
+  uint8_t * body = async_liveness_async_live_load_ptr(f, 56);
+  if ((body !=0)) {
+    uint8_t * lets = async_liveness_async_live_load_ptr(body, 16);
+    int32_t nlets = async_liveness_async_live_load_i32(body, 24);
+    if ((lets !=0)) {
+      int32_t i = 0;
+      while ((i < nlets)) {
+        uint8_t * ld = (lets + (i * 48));
+        uint8_t * ln = async_liveness_async_live_load_ptr(ld, 0);
+        if ((ln !=0)) {
+          if ((async_liveness_async_live_cstr_eq(ln, name) !=0)) {
+            return async_liveness_async_live_load_ptr(ld, 8);
+          }
+        }
+        (void)((i = (i + 1)));
+      }
+    }
+  }
+  return ((uint8_t *)(0));
+}
+void async_liveness_type_to_c_buf(uint8_t * ty, uint8_t * buf, int32_t cap) {
+  if ((buf ==0)) {
+    return;
+  }
+  if ((cap <=0)) {
+    return;
+  }
+  if ((ty ==0)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x69\x6e\x74\x33\x32\x5f\x74"), cap));
+    return;
+  }
+  int32_t kind = async_liveness_async_live_load_i32(ty, 0);
+  if ((kind ==0)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x69\x6e\x74\x33\x32\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==1)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x69\x6e\x74\x33\x32\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==2)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x75\x69\x6e\x74\x38\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==3)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x75\x69\x6e\x74\x33\x32\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==4)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x75\x69\x6e\x74\x36\x34\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==5)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x69\x6e\x74\x36\x34\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==6)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x75\x69\x6e\x74\x70\x74\x72\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==7)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x69\x6e\x74\x70\x74\x72\x5f\x74"), cap));
+    return;
+  }
+  if ((kind ==15)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x66\x6c\x6f\x61\x74"), cap));
+    return;
+  }
+  if ((kind ==16)) {
+    (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x64\x6f\x75\x62\x6c\x65"), cap));
+    return;
+  }
+  if ((kind ==9)) {
+    uint8_t * elem = async_liveness_async_live_load_ptr(ty, 16);
+    if ((elem !=0)) {
+      uint8_t inner[64] = {};
+      (void)(async_liveness_type_to_c_buf(elem, &((inner)[0]), 64));
+      int32_t j = 0;
+      while (((j + 1) < cap)) {
+        if (((inner)[j] ==0)) {
+          break;
+        }
+        (void)(((buf)[j] = (inner)[j]));
+        (void)((j = (j + 1)));
+      }
+      if (((j + 1) < cap)) {
+        (void)(((buf)[j] = 32));
+        (void)((j = (j + 1)));
+      }
+      if (((j + 1) < cap)) {
+        (void)(((buf)[j] = 42));
+        (void)((j = (j + 1)));
+      }
+      (void)(((buf)[j] = 0));
+    } else {
+      (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x76\x6f\x69\x64\x20\x2a"), cap));
+    }
+    return;
+  }
+  if ((kind ==8)) {
+    uint8_t * nm = async_liveness_async_live_load_ptr(ty, 8);
+    if ((nm !=0)) {
+      if ((async_liveness_async_live_cstr_has_prefix(nm, ((uint8_t *)"\x73\x74\x72\x75\x63\x74\x20"), 7) !=0)) {
+        (void)(async_liveness_async_live_cstr_copy_cap(buf, nm, cap));
+      } else {
+        uint8_t * pref = ((uint8_t *)"\x73\x74\x72\x75\x63\x74\x20");
+        int32_t j = 0;
+        int32_t i = 0;
+        while (((j + 1) < cap)) {
+          if (((pref)[i] ==0)) {
+            break;
+          }
+          (void)(((buf)[j] = (pref)[i]));
+          (void)((j = (j + 1)));
+          (void)((i = (i + 1)));
+        }
+        (void)((i = 0));
+        while (((j + 1) < cap)) {
+          if (((nm)[i] ==0)) {
+            break;
+          }
+          (void)(((buf)[j] = (nm)[i]));
+          (void)((j = (j + 1)));
+          (void)((i = (i + 1)));
+        }
+        (void)(((buf)[j] = 0));
+      }
+    } else {
+      (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x69\x6e\x74\x33\x32\x5f\x74"), cap));
+    }
+    return;
+  }
+  (void)(async_liveness_async_live_cstr_copy_cap(buf, ((uint8_t *)"\x69\x6e\x74\x33\x32\x5f\x74"), cap));
+}
+int32_t async_liveness_type_size_bytes_module(uint8_t * ty, uint8_t * m) {
+  if ((ty ==0)) {
+    return 4;
+  }
+  int32_t kind = async_liveness_async_live_load_i32(ty, 0);
+  if ((kind ==8)) {
+    uint8_t * nm = async_liveness_async_live_load_ptr(ty, 8);
+    if ((nm !=0)) {
+      if ((m !=0)) {
+        uint8_t * sdefs = async_liveness_async_live_load_ptr(m, 88);
+        int32_t ns = async_liveness_async_live_load_i32(m, 96);
+        if ((sdefs !=0)) {
+          int32_t i = 0;
+          while ((i < ns)) {
+            uint8_t * sd = async_liveness_async_live_load_ptr(sdefs, (i * 8));
+            if ((sd !=0)) {
+              uint8_t * sn = async_liveness_async_live_load_ptr(sd, 0);
+              if ((sn !=0)) {
+                if ((async_liveness_async_live_cstr_eq(sn, nm) !=0)) {
+                  int32_t sz = async_liveness_async_live_load_i32(sd, 568);
+                  if ((sz > 0)) {
+                    return sz;
+                  }
+                }
+              }
+            }
+            (void)((i = (i + 1)));
+          }
+        }
+      }
+    }
+    return 8;
+  }
+  if ((kind ==5)) {
+    return 8;
+  }
+  if ((kind ==4)) {
+    return 8;
+  }
+  if ((kind ==16)) {
+    return 8;
+  }
+  if ((kind ==6)) {
+    return 8;
+  }
+  if ((kind ==7)) {
+    return 8;
+  }
+  if ((kind ==9)) {
+    return 8;
+  }
+  return 4;
+}
+int32_t async_liveness_func_has_await(uint8_t * f) {
+  if ((f ==0)) {
+    return 0;
+  }
+  if ((async_liveness_async_live_load_i32(f, 68) ==0)) {
+    return 0;
+  }
+  uint8_t * body = async_liveness_async_live_load_ptr(f, 56);
+  if ((body ==0)) {
+    return 0;
+  }
+  return block_has_await(body);
+}
+int32_t async_liveness_expr_has_await(uint8_t * e) {
+  return expr_has_await(e);
+}
+int32_t async_liveness_layout_func_module(uint8_t * f, uint8_t * m, uint8_t * out) {
+  if ((out ==0)) {
+    return -1;
+  }
+  (void)(memset(out, 0, 4196));
+  if ((f ==0)) {
+    return 0;
+  }
+  if ((async_liveness_async_live_load_i32(f, 68) ==0)) {
+    return 0;
+  }
+  uint8_t * body = async_liveness_async_live_load_ptr(f, 56);
+  if ((body ==0)) {
+    return 0;
+  }
+  if ((block_has_await(body) ==0)) {
+    return 0;
+  }
+  uint8_t * prefix = 0;
+  (void)((prefix = malloc(512)));
+  if ((prefix ==0)) {
+    return -1;
+  }
+  (void)(memset(prefix, 0, 512));
+  int32_t n_pre = 0;
+  int32_t nparams = async_liveness_async_live_load_i32(f, 40);
+  uint8_t * params = async_liveness_async_live_load_ptr(f, 32);
+  if ((params !=0)) {
+    int32_t i = 0;
+    while ((i < nparams)) {
+      if ((n_pre >=64)) {
+        break;
+      }
+      uint8_t * pr = (params + (i * 24));
+      uint8_t * pn = async_liveness_async_live_load_ptr(pr, 0);
+      if ((pn !=0)) {
+        (void)(async_liveness_async_live_store_ptr(prefix, (n_pre * 8), pn));
+        (void)((n_pre = (n_pre + 1)));
+      }
+      (void)((i = (i + 1)));
+    }
+  }
+  (void)(analyze_block_linear(body, prefix, n_pre, out));
+  (void)(free(prefix));
+  int32_t ln = async_liveness_frame_live_load_n(out);
+  if ((ln > 1)) {
+    (void)(async_live_sort_frame_names(out));
+  }
+  int32_t na = block_count_await(body);
+  (void)(async_liveness_async_live_store_i32(out, 4100, na));
+  int32_t ird = block_has_io_read_await(body);
+  int32_t iwr = block_has_io_write_await(body);
+  (void)(async_liveness_async_live_store_i32(out, 4188, ird));
+  (void)(async_liveness_async_live_store_i32(out, 4192, iwr));
+  (void)(frame_build_tag(f, (out + 4108), 80));
+  int32_t fb = 4;
+  if ((ird !=0)) {
+    (void)((fb = (fb + 4)));
+  }
+  if ((iwr !=0)) {
+    (void)((fb = (fb + 4)));
+  }
+  int32_t li = 0;
+  while ((li < ln)) {
+    uint8_t * row = async_liveness_frame_live_row_ptr(out, li);
+    uint8_t * ty = async_liveness_lookup_var_type(f, row);
+    (void)((fb = (fb + async_liveness_type_size_bytes_module(ty, m))));
+    (void)((li = (li + 1)));
+  }
+  (void)(async_liveness_async_live_store_i32(out, 4104, fb));
+  return 0;
+}
+int32_t async_liveness_layout_func(uint8_t * f, uint8_t * out) {
+  return async_liveness_layout_func_module(f, 0, out);
+}
+int32_t async_liveness_func_needs_cps_frame(uint8_t * f) {
+  if ((f ==0)) {
+    return 0;
+  }
+  if ((async_liveness_async_live_load_i32(f, 68) ==0)) {
+    return 0;
+  }
+  uint8_t * body = async_liveness_async_live_load_ptr(f, 56);
+  if ((body ==0)) {
+    return 0;
+  }
+  if ((block_has_await(body) ==0)) {
+    return 0;
+  }
+  if ((block_has_io_read_await(body) !=0)) {
+    return 1;
+  }
+  if ((block_has_io_write_await(body) !=0)) {
+    return 1;
+  }
+  if ((block_count_await(body) > 1)) {
+    return 1;
+  }
+  if ((async_liveness_async_live_load_i32(body, 24) > 0)) {
+    return 1;
+  }
+  if ((async_liveness_async_live_load_i32(body, 40) > 0)) {
+    return 1;
+  }
+  if ((async_liveness_async_live_load_i32(body, 56) > 0)) {
+    return 1;
+  }
+  uint8_t * layout = 0;
+  (void)((layout = malloc(4196)));
+  if ((layout ==0)) {
+    return 0;
+  }
+  if ((async_liveness_layout_func_module(f, 0, layout) !=0)) {
+    (void)(free(layout));
+    return 0;
+  }
+  int32_t ln = async_liveness_frame_live_load_n(layout);
+  if ((ln <=0)) {
+    (void)(free(layout));
+    return 0;
+  }
+  int32_t nparams = async_liveness_async_live_load_i32(f, 40);
+  uint8_t * params = async_liveness_async_live_load_ptr(f, 32);
+  int32_t i = 0;
+  while ((i < ln)) {
+    uint8_t * row = async_liveness_frame_live_row_ptr(layout, i);
+    int32_t is_param = 0;
+    if ((params !=0)) {
+      int32_t pi = 0;
+      while ((pi < nparams)) {
+        uint8_t * pr = (params + (pi * 24));
+        uint8_t * pn = async_liveness_async_live_load_ptr(pr, 0);
+        if ((pn !=0)) {
+          if ((async_liveness_async_live_cstr_eq(pn, row) !=0)) {
+            (void)((is_param = 1));
+            break;
+          }
+        }
+        (void)((pi = (pi + 1)));
+      }
+    }
+    if ((is_param ==0)) {
+      (void)(free(layout));
+      return 1;
+    }
+    (void)((i = (i + 1)));
+  }
+  (void)(free(layout));
+  return 0;
+}
+int32_t async_liveness_module_struct_in_frame(uint8_t * m, uint8_t * struct_name) {
+  if ((m ==0)) {
+    return 0;
+  }
+  if ((struct_name ==0)) {
+    return 0;
+  }
+  if (((struct_name)[0] ==0)) {
+    return 0;
+  }
+  uint8_t * layout = 0;
+  (void)((layout = malloc(4196)));
+  if ((layout ==0)) {
+    return 0;
+  }
+  uint8_t * funcs = async_liveness_async_live_load_ptr(m, 152);
+  int32_t nfuncs = async_liveness_async_live_load_i32(m, 160);
+  if ((funcs !=0)) {
+    int32_t fi = 0;
+    while ((fi < nfuncs)) {
+      uint8_t * f = async_liveness_async_live_load_ptr(funcs, (fi * 8));
+      if ((f !=0)) {
+        if ((async_liveness_async_live_load_i32(f, 68) !=0)) {
+          if ((async_liveness_func_has_await(f) !=0)) {
+            if ((async_liveness_layout_func_module(f, m, layout) ==0)) {
+              int32_t ln = async_liveness_frame_live_load_n(layout);
+              int32_t li = 0;
+              while ((li < ln)) {
+                uint8_t * row = async_liveness_frame_live_row_ptr(layout, li);
+                uint8_t * ty = async_liveness_lookup_var_type(f, row);
+                if ((ty !=0)) {
+                  if ((async_liveness_async_live_load_i32(ty, 0) ==8)) {
+                    uint8_t * tn = async_liveness_async_live_load_ptr(ty, 8);
+                    if ((tn !=0)) {
+                      if ((async_liveness_async_live_cstr_eq(tn, struct_name) !=0)) {
+                        (void)(free(layout));
+                        return 1;
+                      }
+                    }
+                  }
+                }
+                (void)((li = (li + 1)));
+              }
+            }
+          }
+        }
+      }
+      (void)((fi = (fi + 1)));
+    }
+  }
+  uint8_t * impls = async_liveness_async_live_load_ptr(m, 136);
+  int32_t nimpl = async_liveness_async_live_load_i32(m, 144);
+  if ((impls !=0)) {
+    int32_t k = 0;
+    while ((k < nimpl)) {
+      uint8_t * ib = async_liveness_async_live_load_ptr(impls, (k * 8));
+      if ((ib !=0)) {
+        uint8_t * ifuncs = async_liveness_async_live_load_ptr(ib, 24);
+        int32_t nif = async_liveness_async_live_load_i32(ib, 32);
+        if ((ifuncs !=0)) {
+          int32_t j = 0;
+          while ((j < nif)) {
+            uint8_t * f = async_liveness_async_live_load_ptr(ifuncs, (j * 8));
+            if ((f !=0)) {
+              if ((async_liveness_async_live_load_i32(f, 68) !=0)) {
+                if ((async_liveness_func_has_await(f) !=0)) {
+                  if ((async_liveness_layout_func_module(f, m, layout) ==0)) {
+                    int32_t ln = async_liveness_frame_live_load_n(layout);
+                    int32_t li = 0;
+                    while ((li < ln)) {
+                      uint8_t * row = async_liveness_frame_live_row_ptr(layout, li);
+                      uint8_t * ty = async_liveness_lookup_var_type(f, row);
+                      if ((ty !=0)) {
+                        if ((async_liveness_async_live_load_i32(ty, 0) ==8)) {
+                          uint8_t * tn = async_liveness_async_live_load_ptr(ty, 8);
+                          if ((tn !=0)) {
+                            if ((async_liveness_async_live_cstr_eq(tn, struct_name) !=0)) {
+                              (void)(free(layout));
+                              return 1;
+                            }
+                          }
+                        }
+                      }
+                      (void)((li = (li + 1)));
+                    }
+                  }
+                }
+              }
+            }
+            (void)((j = (j + 1)));
+          }
+        }
+      }
+      (void)((k = (k + 1)));
+    }
+  }
+  (void)(free(layout));
+  return 0;
+}
+int32_t async_liveness_analyze_func(uint8_t * f, uint8_t * out) {
+  if ((out ==0)) {
+    return -1;
+  }
+  uint8_t * layout = 0;
+  (void)((layout = malloc(4196)));
+  if ((layout ==0)) {
+    return -1;
+  }
+  if ((async_liveness_layout_func(f, layout) !=0)) {
+    (void)(free(layout));
+    return -1;
+  }
+  int32_t i = 0;
+  while ((i < 4100)) {
+    (void)(((out)[i] = (layout)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(free(layout));
   return 0;
 }

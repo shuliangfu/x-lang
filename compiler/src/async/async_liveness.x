@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // async_liveness.x — pure helpers for async cross-await liveness (A3).
-// R2 pure surface: await walk / live frame / mangle/tag; Cap residual layout+emit in seed C.
+// R2 pure surface + Cap residual pure (type/layout/has_await/needs_cps/analyze/module_struct).
+// Cap residual FILE* emit_* stays seed C always.
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 //
 // Heap for def-name table (analyze_block_linear): avoid u8[4096] stack on shux -E.
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
+export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 
 // async_liveness_x_doc_anchor: see function docblock below.
 
@@ -1442,6 +1444,595 @@ export function live_name_cmp(a: *u8, b: *u8): i32 {
     if (ca == 0) { return 0; }
     i = i + 1;
   }
+  return 0;
+}
+
+// ---- Cap residual pure: type / layout / has_await / needs_cps / analyze / module_struct ----
+// Host LE layout (LP64; mac arm64 + Ubuntu x86_64 identical for these fields):
+//   ASTType: kind@0 name@8 elem_type@16
+//   ASTParam size24: name@0 type@8; ASTLetDecl size48: name@0 type@8
+//   ASTFunc: name@8 params@32 num_params@40 body@56 is_async@68
+//   ASTBlock: let_decls@16 num_lets@24
+//   ASTModule: struct_defs@88 num_structs@96 impl@136 num_impl@144 funcs@152 num_funcs@160
+//   ASTStructDef: name@0 struct_size@568; ASTImplBlock: funcs@24 num_funcs@32
+//   AsyncFrameLive: names[64][64]@0 n@4096; AsyncFrameLayout size 4196:
+//     live@0 num_awaits@4100 frame_bytes@4104 frame_tag@4108 has_io_rd@4188 has_io_wr@4192
+// AST_TYPE_*: I32=0 BOOL=1 U8=2 U32=3 U64=4 I64=5 USIZE=6 ISIZE=7 NAMED=8 PTR=9 F32=15 F64=16
+// PLATFORM: SHARED — Cap residual pure; FILE* emit stays seed C.
+
+/** Store little-endian i32 at p+off (null-safe).
+ * PLATFORM: SHARED — host LE; used for AsyncFrameLayout field writes. */
+export function async_live_store_i32(p: *u8, off: i32, v: i32): void {
+  if (p == 0) { return; }
+  if (off < 0) { return; }
+  let u: u32 = v as u32;
+  p[off] = (u & 255) as u8;
+  p[off + 1] = ((u / 256) & 255) as u8;
+  p[off + 2] = ((u / 65536) & 255) as u8;
+  p[off + 3] = ((u / 16777216) & 255) as u8;
+}
+
+/** Store little-endian pointer (usize) at p+off.
+ * PLATFORM: SHARED — LP64 host. */
+export function async_live_store_ptr(p: *u8, off: i32, v: *u8): void {
+  if (p == 0) { return; }
+  if (off < 0) { return; }
+  let a: usize = v as usize;
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  p[off] = (a % m) as u8;
+  p[off + 1] = ((a / m) % m) as u8;
+  p[off + 2] = ((a / m2) % m) as u8;
+  p[off + 3] = ((a / (m2 * m)) % m) as u8;
+  p[off + 4] = ((a / m4) % m) as u8;
+  p[off + 5] = ((a / (m4 * m)) % m) as u8;
+  p[off + 6] = ((a / (m4 * m2)) % m) as u8;
+  p[off + 7] = ((a / (m4 * m2 * m)) % m) as u8;
+}
+
+/** Copy NUL-terminated src into dst (cap bytes, always NUL-terminate if cap>0).
+ * PLATFORM: SHARED — replaces strncpy for type_to_c_buf. */
+export function async_live_cstr_copy_cap(dst: *u8, src: *u8, cap: i32): void {
+  if (dst == 0) { return; }
+  if (cap <= 0) { return; }
+  if (src == 0) {
+    dst[0] = 0;
+    return;
+  }
+  let i: i32 = 0;
+  while (i + 1 < cap) {
+    let c: u8 = src[i];
+    if (c == 0) { break; }
+    dst[i] = c;
+    i = i + 1;
+  }
+  dst[i] = 0;
+}
+
+/** True when a equals prefix of length plen and a[plen] may continue (prefix match).
+ * Used for "struct " check on NAMED type names. */
+export function async_live_cstr_has_prefix(a: *u8, pref: *u8, plen: i32): i32 {
+  if (a == 0) { return 0; }
+  if (pref == 0) { return 0; }
+  if (plen <= 0) { return 1; }
+  let i: i32 = 0;
+  while (i < plen) {
+    if (a[i] != pref[i]) { return 0; }
+    if (a[i] == 0) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** Sort AsyncFrameLive.names[0..n) lexicographically (insertion sort, 64-byte rows).
+ * Avoids qsort function-pointer ABI from .x.
+ * PLATFORM: SHARED — same order as seed qsort+live_name_cmp. */
+#[no_mangle]
+export function async_live_sort_frame_names(out: *u8): void {
+  if (out == 0) { return; }
+  let n: i32 = frame_live_load_n(out);
+  if (n <= 1) { return; }
+  let i: i32 = 1;
+  while (i < n) {
+    let key: u8[64] = [];
+    let src: *u8 = frame_live_row_ptr(out, i);
+    let k: i32 = 0;
+    while (k < 64) {
+      key[k] = src[k];
+      k = k + 1;
+    }
+    let j: i32 = i - 1;
+    while (j >= 0) {
+      let row: *u8 = frame_live_row_ptr(out, j);
+      if (live_name_cmp(row, &key[0]) <= 0) { break; }
+      let dst: *u8 = frame_live_row_ptr(out, j + 1);
+      let t: i32 = 0;
+      while (t < 64) {
+        dst[t] = row[t];
+        t = t + 1;
+      }
+      j = j - 1;
+    }
+    let dest: *u8 = frame_live_row_ptr(out, j + 1);
+    k = 0;
+    while (k < 64) {
+      dest[k] = key[k];
+      k = k + 1;
+    }
+    i = i + 1;
+  }
+}
+
+/** Look up variable type in f params then body let_decls (name match).
+ * Returns ASTType* as *u8, or null.
+ * PLATFORM: SHARED — Cap residual pure; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_liveness_lookup_var_type(f: *u8, name: *u8): *u8 {
+  if (f == 0) { return 0 as *u8; }
+  if (name == 0) { return 0 as *u8; }
+  if (name[0] == 0) { return 0 as *u8; }
+  let nparams: i32 = async_live_load_i32(f, 40);
+  let params: *u8 = async_live_load_ptr(f, 32);
+  if (params != 0) {
+    let i: i32 = 0;
+    while (i < nparams) {
+      let pr: *u8 = params + (i * 24);
+      let pn: *u8 = async_live_load_ptr(pr, 0);
+      if (pn != 0) {
+        if (async_live_cstr_eq(pn, name) != 0) {
+          return async_live_load_ptr(pr, 8);
+        }
+      }
+      i = i + 1;
+    }
+  }
+  let body: *u8 = async_live_load_ptr(f, 56);
+  if (body != 0) {
+    let lets: *u8 = async_live_load_ptr(body, 16);
+    let nlets: i32 = async_live_load_i32(body, 24);
+    if (lets != 0) {
+      let i: i32 = 0;
+      while (i < nlets) {
+        let ld: *u8 = lets + (i * 48);
+        let ln: *u8 = async_live_load_ptr(ld, 0);
+        if (ln != 0) {
+          if (async_live_cstr_eq(ln, name) != 0) {
+            return async_live_load_ptr(ld, 8);
+          }
+        }
+        i = i + 1;
+      }
+    }
+  }
+  return 0 as *u8;
+}
+
+/** AST type → C type string into buf (cap bytes). Covers A3 scalars/ptr/named.
+ * Null ty → "int32_t". PTR recurses on elem_type.
+ * PLATFORM: SHARED — Cap residual pure; no FILE*. */
+#[no_mangle]
+export function async_liveness_type_to_c_buf(ty: *u8, buf: *u8, cap: i32): void {
+  if (buf == 0) { return; }
+  if (cap <= 0) { return; }
+  if (ty == 0) {
+    async_live_cstr_copy_cap(buf, "int32_t", cap);
+    return;
+  }
+  let kind: i32 = async_live_load_i32(ty, 0);
+  // AST_TYPE_I32=0 BOOL=1 U8=2 U32=3 U64=4 I64=5 USIZE=6 ISIZE=7 NAMED=8 PTR=9 F32=15 F64=16
+  if (kind == 0) {
+    async_live_cstr_copy_cap(buf, "int32_t", cap);
+    return;
+  }
+  if (kind == 1) {
+    async_live_cstr_copy_cap(buf, "int32_t", cap);
+    return;
+  }
+  if (kind == 2) {
+    async_live_cstr_copy_cap(buf, "uint8_t", cap);
+    return;
+  }
+  if (kind == 3) {
+    async_live_cstr_copy_cap(buf, "uint32_t", cap);
+    return;
+  }
+  if (kind == 4) {
+    async_live_cstr_copy_cap(buf, "uint64_t", cap);
+    return;
+  }
+  if (kind == 5) {
+    async_live_cstr_copy_cap(buf, "int64_t", cap);
+    return;
+  }
+  if (kind == 6) {
+    async_live_cstr_copy_cap(buf, "uintptr_t", cap);
+    return;
+  }
+  if (kind == 7) {
+    async_live_cstr_copy_cap(buf, "intptr_t", cap);
+    return;
+  }
+  if (kind == 15) {
+    async_live_cstr_copy_cap(buf, "float", cap);
+    return;
+  }
+  if (kind == 16) {
+    async_live_cstr_copy_cap(buf, "double", cap);
+    return;
+  }
+  if (kind == 9) {
+    let elem: *u8 = async_live_load_ptr(ty, 16);
+    if (elem != 0) {
+      let inner: u8[64] = [];
+      async_liveness_type_to_c_buf(elem, &inner[0], 64);
+      // "%s *"
+      let j: i32 = 0;
+      while (j + 1 < cap) {
+        if (inner[j] == 0) { break; }
+        buf[j] = inner[j];
+        j = j + 1;
+      }
+      if (j + 1 < cap) {
+        buf[j] = 32; // space
+        j = j + 1;
+      }
+      if (j + 1 < cap) {
+        buf[j] = 42; // *
+        j = j + 1;
+      }
+      buf[j] = 0;
+    } else {
+      async_live_cstr_copy_cap(buf, "void *", cap);
+    }
+    return;
+  }
+  if (kind == 8) {
+    let nm: *u8 = async_live_load_ptr(ty, 8);
+    if (nm != 0) {
+      // if name already starts with "struct " copy as-is; else "struct %s"
+      if (async_live_cstr_has_prefix(nm, "struct ", 7) != 0) {
+        async_live_cstr_copy_cap(buf, nm, cap);
+      } else {
+        let pref: *u8 = "struct ";
+        let j: i32 = 0;
+        let i: i32 = 0;
+        while (j + 1 < cap) {
+          if (pref[i] == 0) { break; }
+          buf[j] = pref[i];
+          j = j + 1;
+          i = i + 1;
+        }
+        i = 0;
+        while (j + 1 < cap) {
+          if (nm[i] == 0) { break; }
+          buf[j] = nm[i];
+          j = j + 1;
+          i = i + 1;
+        }
+        buf[j] = 0;
+      }
+    } else {
+      async_live_cstr_copy_cap(buf, "int32_t", cap);
+    }
+    return;
+  }
+  async_live_cstr_copy_cap(buf, "int32_t", cap);
+}
+
+/** Estimate type size in bytes; NAMED struct uses module struct_size when set.
+ * PLATFORM: SHARED — Cap residual pure. */
+#[no_mangle]
+export function async_liveness_type_size_bytes_module(ty: *u8, m: *u8): i32 {
+  if (ty == 0) { return 4; }
+  let kind: i32 = async_live_load_i32(ty, 0);
+  if (kind == 8) {
+    let nm: *u8 = async_live_load_ptr(ty, 8);
+    if (nm != 0) {
+      if (m != 0) {
+        let sdefs: *u8 = async_live_load_ptr(m, 88);
+        let ns: i32 = async_live_load_i32(m, 96);
+        if (sdefs != 0) {
+          let i: i32 = 0;
+          while (i < ns) {
+            let sd: *u8 = async_live_load_ptr(sdefs, i * 8);
+            if (sd != 0) {
+              let sn: *u8 = async_live_load_ptr(sd, 0);
+              if (sn != 0) {
+                if (async_live_cstr_eq(sn, nm) != 0) {
+                  let sz: i32 = async_live_load_i32(sd, 568);
+                  if (sz > 0) { return sz; }
+                }
+              }
+            }
+            i = i + 1;
+          }
+        }
+      }
+    }
+    return 8;
+  }
+  // I64 U64 F64 USIZE ISIZE PTR → 8
+  if (kind == 5) { return 8; }
+  if (kind == 4) { return 8; }
+  if (kind == 16) { return 8; }
+  if (kind == 6) { return 8; }
+  if (kind == 7) { return 8; }
+  if (kind == 9) { return 8; }
+  return 4;
+}
+
+/** True when async f has await in body.
+ * PLATFORM: SHARED — Cap residual pure. */
+#[no_mangle]
+export function async_liveness_func_has_await(f: *u8): i32 {
+  if (f == 0) { return 0; }
+  if (async_live_load_i32(f, 68) == 0) { return 0; }
+  let body: *u8 = async_live_load_ptr(f, 56);
+  if (body == 0) { return 0; }
+  return block_has_await(body);
+}
+
+/** Thin wrapper: expr_has_await for public API name.
+ * PLATFORM: SHARED — Cap residual pure. */
+#[no_mangle]
+export function async_liveness_expr_has_await(e: *u8): i32 {
+  return expr_has_await(e);
+}
+
+/** Layout async frame into out (AsyncFrameLayout*, size 4196).
+ * Builds param-name char** prefix for analyze_block_linear; sorts live names;
+ * fills await count, IO slots, frame_tag, frame_bytes.
+ * PLATFORM: SHARED — Cap residual pure; heap prefix table (no large stack). */
+#[no_mangle]
+export function async_liveness_layout_func_module(f: *u8, m: *u8, out: *u8): i32 {
+  if (out == 0) { return 0 - 1; }
+  // memset out 4196 bytes
+  unsafe { memset(out, 0, 4196 as usize); }
+  if (f == 0) { return 0; }
+  if (async_live_load_i32(f, 68) == 0) { return 0; }
+  let body: *u8 = async_live_load_ptr(f, 56);
+  if (body == 0) { return 0; }
+  if (block_has_await(body) == 0) { return 0; }
+
+  // char** prefix: 64 slots × 8
+  let prefix: *u8 = 0 as *u8;
+  unsafe { prefix = malloc(512 as usize); }
+  if (prefix == 0) { return 0 - 1; }
+  unsafe { memset(prefix, 0, 512 as usize); }
+  let n_pre: i32 = 0;
+  let nparams: i32 = async_live_load_i32(f, 40);
+  let params: *u8 = async_live_load_ptr(f, 32);
+  if (params != 0) {
+    let i: i32 = 0;
+    while (i < nparams) {
+      if (n_pre >= 64) { break; }
+      let pr: *u8 = params + (i * 24);
+      let pn: *u8 = async_live_load_ptr(pr, 0);
+      if (pn != 0) {
+        async_live_store_ptr(prefix, n_pre * 8, pn);
+        n_pre = n_pre + 1;
+      }
+      i = i + 1;
+    }
+  }
+
+  // out->live is at offset 0
+  analyze_block_linear(body, prefix, n_pre, out);
+  unsafe { free(prefix); }
+
+  let ln: i32 = frame_live_load_n(out);
+  if (ln > 1) {
+    async_live_sort_frame_names(out);
+  }
+
+  let na: i32 = block_count_await(body);
+  async_live_store_i32(out, 4100, na);
+  let ird: i32 = block_has_io_read_await(body);
+  let iwr: i32 = block_has_io_write_await(body);
+  async_live_store_i32(out, 4188, ird);
+  async_live_store_i32(out, 4192, iwr);
+
+  // frame_tag @4108, cap 80
+  frame_build_tag(f, out + 4108, 80);
+
+  let fb: i32 = 4;
+  if (ird != 0) { fb = fb + 4; }
+  if (iwr != 0) { fb = fb + 4; }
+  let li: i32 = 0;
+  while (li < ln) {
+    let row: *u8 = frame_live_row_ptr(out, li);
+    let ty: *u8 = async_liveness_lookup_var_type(f, row);
+    fb = fb + async_liveness_type_size_bytes_module(ty, m);
+    li = li + 1;
+  }
+  async_live_store_i32(out, 4104, fb);
+  return 0;
+}
+
+/** Layout without module (struct sizes default). */
+#[no_mangle]
+export function async_liveness_layout_func(f: *u8, out: *u8): i32 {
+  return async_liveness_layout_func_module(f, 0 as *u8, out);
+}
+
+/** Whether CPS frame is required (IO/multi-await/lets/loops or non-param live).
+ * Heap-allocates temporary AsyncFrameLayout (4196) — avoid stack blow on -E.
+ * PLATFORM: SHARED — Cap residual pure. */
+#[no_mangle]
+export function async_liveness_func_needs_cps_frame(f: *u8): i32 {
+  if (f == 0) { return 0; }
+  if (async_live_load_i32(f, 68) == 0) { return 0; }
+  let body: *u8 = async_live_load_ptr(f, 56);
+  if (body == 0) { return 0; }
+  if (block_has_await(body) == 0) { return 0; }
+  if (block_has_io_read_await(body) != 0) { return 1; }
+  if (block_has_io_write_await(body) != 0) { return 1; }
+  if (block_count_await(body) > 1) { return 1; }
+  // num_lets@24 num_loops@40 num_for_loops@56
+  if (async_live_load_i32(body, 24) > 0) { return 1; }
+  if (async_live_load_i32(body, 40) > 0) { return 1; }
+  if (async_live_load_i32(body, 56) > 0) { return 1; }
+
+  let layout: *u8 = 0 as *u8;
+  unsafe { layout = malloc(4196 as usize); }
+  if (layout == 0) { return 0; }
+  if (async_liveness_layout_func_module(f, 0 as *u8, layout) != 0) {
+    unsafe { free(layout); }
+    return 0;
+  }
+  let ln: i32 = frame_live_load_n(layout);
+  if (ln <= 0) {
+    unsafe { free(layout); }
+    return 0;
+  }
+  let nparams: i32 = async_live_load_i32(f, 40);
+  let params: *u8 = async_live_load_ptr(f, 32);
+  let i: i32 = 0;
+  while (i < ln) {
+    let row: *u8 = frame_live_row_ptr(layout, i);
+    let is_param: i32 = 0;
+    if (params != 0) {
+      let pi: i32 = 0;
+      while (pi < nparams) {
+        let pr: *u8 = params + (pi * 24);
+        let pn: *u8 = async_live_load_ptr(pr, 0);
+        if (pn != 0) {
+          if (async_live_cstr_eq(pn, row) != 0) {
+            is_param = 1;
+            break;
+          }
+        }
+        pi = pi + 1;
+      }
+    }
+    if (is_param == 0) {
+      unsafe { free(layout); }
+      return 1;
+    }
+    i = i + 1;
+  }
+  unsafe { free(layout); }
+  return 0;
+}
+
+/** True if struct_name appears as NAMED type in any async frame live set.
+ * Walks module funcs and impl_blocks methods.
+ * PLATFORM: SHARED — Cap residual pure; heap layout temp. */
+#[no_mangle]
+export function async_liveness_module_struct_in_frame(m: *u8, struct_name: *u8): i32 {
+  if (m == 0) { return 0; }
+  if (struct_name == 0) { return 0; }
+  if (struct_name[0] == 0) { return 0; }
+  let layout: *u8 = 0 as *u8;
+  unsafe { layout = malloc(4196 as usize); }
+  if (layout == 0) { return 0; }
+
+  let funcs: *u8 = async_live_load_ptr(m, 152);
+  let nfuncs: i32 = async_live_load_i32(m, 160);
+  if (funcs != 0) {
+    let fi: i32 = 0;
+    while (fi < nfuncs) {
+      let f: *u8 = async_live_load_ptr(funcs, fi * 8);
+      if (f != 0) {
+        if (async_live_load_i32(f, 68) != 0) {
+          if (async_liveness_func_has_await(f) != 0) {
+            if (async_liveness_layout_func_module(f, m, layout) == 0) {
+              let ln: i32 = frame_live_load_n(layout);
+              let li: i32 = 0;
+              while (li < ln) {
+                let row: *u8 = frame_live_row_ptr(layout, li);
+                let ty: *u8 = async_liveness_lookup_var_type(f, row);
+                if (ty != 0) {
+                  if (async_live_load_i32(ty, 0) == 8) {
+                    let tn: *u8 = async_live_load_ptr(ty, 8);
+                    if (tn != 0) {
+                      if (async_live_cstr_eq(tn, struct_name) != 0) {
+                        unsafe { free(layout); }
+                        return 1;
+                      }
+                    }
+                  }
+                }
+                li = li + 1;
+              }
+            }
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+  }
+
+  let impls: *u8 = async_live_load_ptr(m, 136);
+  let nimpl: i32 = async_live_load_i32(m, 144);
+  if (impls != 0) {
+    let k: i32 = 0;
+    while (k < nimpl) {
+      let ib: *u8 = async_live_load_ptr(impls, k * 8);
+      if (ib != 0) {
+        let ifuncs: *u8 = async_live_load_ptr(ib, 24);
+        let nif: i32 = async_live_load_i32(ib, 32);
+        if (ifuncs != 0) {
+          let j: i32 = 0;
+          while (j < nif) {
+            let f: *u8 = async_live_load_ptr(ifuncs, j * 8);
+            if (f != 0) {
+              if (async_live_load_i32(f, 68) != 0) {
+                if (async_liveness_func_has_await(f) != 0) {
+                  if (async_liveness_layout_func_module(f, m, layout) == 0) {
+                    let ln: i32 = frame_live_load_n(layout);
+                    let li: i32 = 0;
+                    while (li < ln) {
+                      let row: *u8 = frame_live_row_ptr(layout, li);
+                      let ty: *u8 = async_liveness_lookup_var_type(f, row);
+                      if (ty != 0) {
+                        if (async_live_load_i32(ty, 0) == 8) {
+                          let tn: *u8 = async_live_load_ptr(ty, 8);
+                          if (tn != 0) {
+                            if (async_live_cstr_eq(tn, struct_name) != 0) {
+                              unsafe { free(layout); }
+                              return 1;
+                            }
+                          }
+                        }
+                      }
+                      li = li + 1;
+                    }
+                  }
+                }
+              }
+            }
+            j = j + 1;
+          }
+        }
+      }
+      k = k + 1;
+    }
+  }
+  unsafe { free(layout); }
+  return 0;
+}
+
+/** Compat: fill AsyncFrameLive only via layout_func.
+ * PLATFORM: SHARED — Cap residual pure. */
+#[no_mangle]
+export function async_liveness_analyze_func(f: *u8, out: *u8): i32 {
+  if (out == 0) { return 0 - 1; }
+  let layout: *u8 = 0 as *u8;
+  unsafe { layout = malloc(4196 as usize); }
+  if (layout == 0) { return 0 - 1; }
+  if (async_liveness_layout_func(f, layout) != 0) {
+    unsafe { free(layout); }
+    return 0 - 1;
+  }
+  // copy live (4100 bytes: names + n)
+  let i: i32 = 0;
+  while (i < 4100) {
+    out[i] = layout[i];
+    i = i + 1;
+  }
+  unsafe { free(layout); }
   return 0;
 }
 

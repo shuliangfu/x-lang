@@ -1,11 +1,11 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
  * G-02f-169～171 refs/analyze true .x; G-02f-166～168 await AST true .x; G-02f-132 true .x pure helpers.
  *
- * R2 pure surface（2026-07-21）：await walk / live frame / mangle / frame_build_tag 由
- *   src/async/async_liveness.x 提供；FROM_X 下 pure helper C 体省略（仅 slice_marker）。
- * Cap residual（始终 seed C）：lookup_var_type / type_to_c_buf / type_size /
- *   layout_func* / analyze_func / module_struct_in_frame / emit_*（FILE* fprintf）。
- * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认仍 -c 本文件（无宏）。
+ * R2 pure surface + Cap residual pure（2026-07-21）：await walk / live frame / mangle /
+ *   frame_build_tag + lookup/type/size/layout/has_await/needs_cps/analyze/module_struct
+ *   由 src/async/async_liveness.x 提供；FROM_X 下 pure C 体省略（仅 slice_marker）。
+ * Cap residual（始终 seed C）：emit_*（FILE* fprintf only）。
+ * 冷启动/无 PREFER：完整 pure C 体 + Cap residual pure + FILE* emit；产品默认 -c 本文件。
  * Prove：seeds/async_liveness_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */
@@ -579,14 +579,16 @@ void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
     frame_mangle_ident(f && f->name ? f->name : "fn", m, sizeof(m));
     (void)snprintf(buf, n, "__shux_async_frame_%s", m);
 }
-#else /* SHUX_ASYNC_LIVENESS_FROM_X — pure helpers from .x; Cap residual below */
-/* R2 pure surface marker：业务 pure helper 不在此 TU 定义。 */
+#else /* SHUX_ASYNC_LIVENESS_FROM_X — pure helpers + Cap residual pure from .x */
+/* R2 pure surface + Cap residual pure marker：业务 pure 不在此 TU 定义。 */
 int async_liveness_slice_marker(void) {
     return 1;
 }
 #endif /* SHUX_ASYNC_LIVENESS_FROM_X */
 
 
+#ifndef SHUX_ASYNC_LIVENESS_FROM_X
+/* Cap residual pure：.x 真迁；冷路径仍 seed C；FROM_X 时由 .x 提供 */
 /** 在函数体/形参中查找变量类型。 */
 const struct ASTType *async_liveness_lookup_var_type(const struct ASTFunc *f, const char *name) {
     if (!f || !name || !name[0]) return NULL;
@@ -790,7 +792,9 @@ int async_liveness_analyze_func(const struct ASTFunc *f, AsyncFrameLive *out) {
     *out = layout.live;
     return 0;
 }
+#endif /* !SHUX_ASYNC_LIVENESS_FROM_X */
 
+/* Cap residual FILE* emit：始终 seed C（FROM_X hybrid 亦在此 TU） */
 void async_liveness_emit_frame_typedef(const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
     if (!f || !layout || !out || layout->num_awaits <= 0) return;
