@@ -43,7 +43,7 @@
  *   ok/allow -2 + import map; G.7 pctx_update / find_loaded / import path; cold twin under
  *   #ifndef FROM_X).
  * wave63: pure typeck_module_entry_only / with_sidecar / pipeline_typeck_module_for_ctx_impl
- *   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base always-seed;
+ *   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base → wave77 pure;
  *   cold twins under #ifndef FROM_X).
  * wave64: pure pipeline_parse_into_bytes orch (G.7 parser_parse_into_init +
  *   driver_parse_into_buf_rc; non-zero ok → -1; cold twin + loaded_import_impl under
@@ -75,8 +75,10 @@
  *   cold twins under #ifndef FROM_X).
  * wave76: pure shux_cstr_offset (G.7 &s[off] ≡ s+off; closes Cap residual pointer arith leaf;
  *   cold twin under #ifndef FROM_X).
+ * wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
+ *   (G.7 shux_ptr_slot_*; product hybrid writers only via accessors; cold twins under #ifndef FROM_X).
  * Cap residual still: fn-ptr / product_emit / typeck_module C frontend
- *   (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
+ *   (+ pipeline_sizeof_* / preprocess engine / OS realpath residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -238,6 +240,14 @@ void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ct
 int32_t typeck_module_entry_only(void *module);
 int32_t typeck_module_with_sidecar(void *module);
 int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void);
+/* wave77 pure typeck dep BSS accessors — pure orch / pure with_sidecar call under hybrid. */
+int32_t *typeck_ndep_slot(void);
+void typeck_ndep_store_impl(int32_t n);
+void *typeck_dep_module_get(int32_t i);
+void *typeck_dep_arena_get(int32_t i);
+void typeck_dep_module_set_impl(int32_t i, void *mod);
+void typeck_dep_arena_set_impl(int32_t i, void *arena);
+void *typeck_dep_module_ptrs_base(void);
 /* wave64 pure pipeline_parse_into_bytes — pure loaded_import + tmp_parse call under hybrid. */
 int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len);
 /* wave65 pure pipeline_resolve_path_into_static — pure resolve_path calls under hybrid. */
@@ -668,31 +678,30 @@ int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char
 
 
 
-/** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c get_dep_* / pipeline_set_dep）。 */
+/* G-02f-33 / wave77: hybrid pure owns typeck_ndep + typeck_dep_* table BSS + slot/get/set_impl /
+ * ptrs_base; cold twins under #ifndef FROM_X keep naked C globals for cold run seed naked
+ * writers. PLATFORM: SHARED LP64 — 32 void* + int ndep. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+/** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c get_dep_* / pipeline_set_dep；cold path）。 */
 void *typeck_dep_module_ptrs[32];
 void *typeck_dep_arena_ptrs[32];
 int typeck_ndep;
 
-/* G-02f-33: storage slot for .x get_ndep */
+/* G-02f-33: storage slot for cold get_ndep */
 int32_t *typeck_ndep_slot(void) {
     return (int32_t *)&typeck_ndep;
 }
-/* wave45 Cap residual always-seed: BSS write for pure typeck_ndep_store orch.
- * Pure owns clamp; this stores the final value. PLATFORM: SHARED. */
+/* wave45 / wave77 cold twin: BSS write for typeck_ndep_store orch.
+ * Pure hybrid owns the cell; cold clamp orch still calls this. PLATFORM: SHARED. */
 void typeck_ndep_store_impl(int32_t n) {
     typeck_ndep = n;
 }
 /* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void typeck_ndep_store(int32_t n) {
     typeck_ndep_store_impl((n <= 32) ? ((n < 0) ? 0 : n) : 32);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-
-
-
-/* G-02f-40: opaque dep pointer get/set slots for .x API */
+/* G-02f-40: opaque dep pointer get/set slots for .x API (cold) */
 void *typeck_dep_module_get(int32_t i) {
     if (i < 0 || i >= 32)
         return NULL;
@@ -705,14 +714,12 @@ void *typeck_dep_arena_get(int32_t i) {
     return typeck_dep_arena_ptrs[i];
 }
 
-/* wave63 Cap residual always-seed: base of typeck_dep_module_ptrs for pure with_sidecar.
- * Pure cannot take address of this seed BSS array; typeck_module wants void**.
- * PLATFORM: SHARED — LP64 void* table base ABI. */
+/* wave63 / wave77 cold twin: base of typeck_dep_module_ptrs for with_sidecar.
+ * Hybrid pure owns pure BSS base. PLATFORM: SHARED — LP64 void* table base ABI. */
 void *typeck_dep_module_ptrs_base(void) {
     return (void *)typeck_dep_module_ptrs;
 }
-/* wave45 Cap residual always-seed: BSS write for pure typeck_dep_*_set orch.
- * Pure owns bounds; residual writes typeck_dep_*_ptrs. PLATFORM: SHARED. */
+/* wave45 / wave77 cold twin: BSS write for typeck_dep_*_set orch. PLATFORM: SHARED. */
 void typeck_dep_module_set_impl(int32_t i, void *mod) {
     if (i < 0 || i >= 32)
         return;
@@ -724,14 +731,11 @@ void typeck_dep_arena_set_impl(int32_t i, void *arena) {
     typeck_dep_arena_ptrs[i] = arena;
 }
 /* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void typeck_dep_module_set(int32_t i, void *mod) {
     typeck_dep_module_set_impl(i, mod);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void typeck_dep_arena_set(int32_t i, void *arena) {
     typeck_dep_arena_set_impl(i, arena);
 }
@@ -3696,7 +3700,7 @@ extern int typeck_module(void *module, void **dep_mods, int ndep, void *a, int b
  * 使用已填充的 typeck_ndep / typeck_dep_module_ptrs 对入口模块做 C 类型检查（大模块 asm 构建用）。
  * SHUX_NO_C_FRONTEND 时仍导出符号供 pipeline_asm_typecheck_alias 链接。
  * G-02f-242 / wave63：hybrid pure owns entry/sidecar/for_ctx_impl; cold twins under #ifndef FROM_X.
- * Cap residual always-seed: typeck_module C frontend + typeck_dep_module_ptrs_base.
+ * Cap residual always-seed: typeck_module C frontend (wave77 pure owns typeck_dep_module_ptrs_base).
  * PLATFORM: SHARED.
  */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X

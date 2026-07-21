@@ -2127,9 +2127,10 @@ extern const char *driver_x_emit_c_path;
 extern const char *driver_x_emit_lib_roots[];
 extern int driver_x_emit_n_lib_roots;
 extern int driver_x_emit_c_want_extern;
-extern int typeck_ndep;
-extern void *typeck_dep_module_ptrs[];
-extern void *typeck_dep_arena_ptrs[];
+/* wave77: G.7 accessors only — pure owns typeck_dep BSS under hybrid; no naked C globals. */
+extern void typeck_ndep_store(int32_t n);
+extern void typeck_dep_module_set(int32_t i, void *mod);
+extern void typeck_dep_arena_set(int32_t i, void *arena);
 
 struct parser_ParseIntoResult {
     int32_t ok;
@@ -2327,14 +2328,14 @@ void driver_diag_restore(void *snap) {
 }
 
 void driver_typeck_ndep_set(int32_t n) {
-    typeck_ndep = (int)n;
+    typeck_ndep_store((int32_t)((int)n));
 }
 
 void driver_typeck_dep_ptrs_set(int32_t j, void *mod, void *arena) {
     if (j < 0 || j >= 32)
         return;
-    typeck_dep_module_ptrs[j] = mod;
-    typeck_dep_arena_ptrs[j] = arena;
+    typeck_dep_module_set((int32_t)(j), mod);
+    typeck_dep_arena_set((int32_t)(j), arena);
 }
 #endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 

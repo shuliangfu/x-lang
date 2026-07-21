@@ -80,29 +80,26 @@
 //   cold twins under FROM_X).
 // wave76: pure shux_cstr_offset (G.7 &s[off] → C &s[off] / s+off; closes Cap residual pointer
 //   arith leaf for pipe_dir_tail / pipe_strip_prefix_seg / driver -D parse); cold twin under FROM_X.
+// wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
+//   (G.7 shux_ptr_slot_*; product hybrid writers only via accessors — rt_run_* pure +
+//   driver_typeck_*; cold seed naked C globals stay under #ifndef FROM_X for cold twins).
 // Cap residual still: fn-ptr / product_emit / typeck_module C frontend
-//   (+ typeck_dep_* / typeck_ndep cross-TU global BSS).
+//   (+ pipeline_sizeof_* / preprocess engine / OS realpath residual).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
 // wave74: driver_dep_seeded_slot / *_ptr_set_impl / path_registry_* / *_buf are pure below.
 // wave75: shux_cstr_typeck_lit / shux_entry_lib_keyword_lit / name_from_path_impl pure below.
 // wave76: shux_cstr_offset is pure export function below (not Cap residual).
-export extern "C" function typeck_ndep_slot(): *i32;
-export extern "C" function typeck_ndep_store_impl(n: i32): void;
-export extern "C" function typeck_dep_module_get(i: i32): *u8;
-export extern "C" function typeck_dep_arena_get(i: i32): *u8;
-export extern "C" function typeck_dep_module_set_impl(i: i32, mod: *u8): void;
-export extern "C" function typeck_dep_arena_set_impl(i: i32, arena: *u8): void;
+// wave77: typeck_ndep_slot / store_impl / typeck_dep_*_get/set_impl / ptrs_base pure below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
 // wave63: typeck_module_entry_only / typeck_module_with_sidecar are pure export functions below.
-// Cap residual: C frontend typeck_module + BSS base of typeck_dep_module_ptrs for sidecar.
+// Cap residual: C frontend typeck_module only (wave77 pure owns typeck_dep_module_ptrs_base BSS).
 // PLATFORM: SHARED — same ABI as seed cold twins; pure owns null gates and ndep branch.
 export extern "C" function typeck_module(module: *u8, dep_mods: *u8, ndep: i32, a: *u8, b: i32): i32;
-export extern "C" function typeck_dep_module_ptrs_base(): *u8;
 export extern "C" function free(p: *u8): void;
 // wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
 // PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
@@ -2836,6 +2833,15 @@ let g_pipe_driver_dep_module: u8[256] = [];
 let g_pipe_driver_dep_path_registry: u8[256] = [];
 let g_pipe_driver_dep_seeded: i32[32] = [];
 
+// wave77 pure typeck dep sidecar BSS (G.7 single authority for C typeck_module sidecar + pure orch).
+// PLATFORM: SHARED LP64 — same capacity as seed typeck_dep_*_ptrs[32] + typeck_ndep.
+// Product hybrid: pure accessors only (rt_run_* pure + driver_typeck_* + pure set_dep/store);
+// no cross-TU naked global under PREFER FROM_X (cold seed naked globals under #ifndef FROM_X).
+// typeck_dep_module_ptrs_base returns &module table[0] as *u8 for Cap residual typeck_module void**.
+let g_pipe_typeck_ndep: i32 = 0;
+let g_pipe_typeck_dep_module_ptrs: u8[256] = [];
+let g_pipe_typeck_dep_arena_ptrs: u8[256] = [];
+
 // wave75 pure entry_lib lit + stem BSS (G.7 single authority for -E lib_prefix).
 // PLATFORM: SHARED — same string values as seed static lits / stem_buf[128].
 // Keyword order matches seed shux_entry_lib_keyword_lit / strstr checks in name_from_path_impl.
@@ -2851,6 +2857,115 @@ let g_pipe_entry_lib_kw7: u8[6] = [116, 111, 107, 101, 110, 0];
 let g_pipe_entry_lib_kw8: u8[6] = [108, 101, 120, 101, 114, 0];
 let g_pipe_entry_lib_kw9: u8[4] = [97, 115, 116, 0];
 let g_pipe_entry_lib_stem_buf: u8[128] = [];
+
+/**
+ * Storage slot for pure get_ndep (points at g_pipe_typeck_ndep).
+ * @return *i32 — never null; LP64 i32 cell
+ * wave77 pure: G.7 single authority for typeck_ndep count; pure get_ndep / store path.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X returns &typeck_ndep.
+ */
+#[no_mangle]
+export function typeck_ndep_slot(): *i32 {
+  return &g_pipe_typeck_ndep;
+}
+
+/**
+ * Store final clamped typeck_ndep value into pure BSS (bounds owned by typeck_ndep_store orch).
+ * @param n i32 — already-clamped dep count [0,32]
+ * @return void
+ * wave77 pure: Cap residual was always-seed BSS write; pure owns the cell.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X writes seed typeck_ndep.
+ */
+#[no_mangle]
+export function typeck_ndep_store_impl(n: i32): void {
+  g_pipe_typeck_ndep = n;
+}
+
+/**
+ * Load typeck_dep_module_ptrs[i] from pure BSS (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → null
+ * @return *u8 — stored module pointer (may be null)
+ * wave77 pure: G.7 shux_ptr_slot_get on g_pipe_typeck_dep_module_ptrs.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_module_get(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return shux_ptr_slot_get(&g_pipe_typeck_dep_module_ptrs[0], i);
+}
+
+/**
+ * Load typeck_dep_arena_ptrs[i] from pure BSS (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → null
+ * @return *u8 — stored arena pointer (may be null)
+ * wave77 pure: G.7 shux_ptr_slot_get on g_pipe_typeck_dep_arena_ptrs.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_arena_get(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return shux_ptr_slot_get(&g_pipe_typeck_dep_arena_ptrs[0], i);
+}
+
+/**
+ * Store mod into typeck_dep_module_ptrs[i] pure BSS (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param mod *u8 — module pointer (may be null)
+ * @return void
+ * wave77 pure: G.7 shux_ptr_slot_set; pure typeck_dep_module_set / pipeline_set_dep orch own bounds.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_module_set_impl(i: i32, mod: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  shux_ptr_slot_set(&g_pipe_typeck_dep_module_ptrs[0], i, mod);
+}
+
+/**
+ * Store arena into typeck_dep_arena_ptrs[i] pure BSS (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param arena *u8 — arena pointer (may be null)
+ * @return void
+ * wave77 pure: G.7 shux_ptr_slot_set; pure typeck_dep_arena_set / pipeline_set_dep orch own bounds.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_arena_set_impl(i: i32, arena: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  shux_ptr_slot_set(&g_pipe_typeck_dep_arena_ptrs[0], i, arena);
+}
+
+/**
+ * Base address of pure typeck_dep_module_ptrs table for Cap residual typeck_module void**.
+ * @return *u8 — never null; LP64 void*[32] raw base (cast to void** at call site)
+ * wave77 pure: pure BSS base; pure with_sidecar passes this when get_ndep() > 0.
+ * Historical Cap residual: seed BSS addr not takeable from pure .x — closed by pure table.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X returns seed array.
+ */
+#[no_mangle]
+export function typeck_dep_module_ptrs_base(): *u8 {
+  return &g_pipe_typeck_dep_module_ptrs[0];
+}
 
 /**
  * Return static "typeck" C string (default -E lib prefix).
@@ -4720,9 +4835,9 @@ export function typeck_module_entry_only(module: *u8): i32 {
  * Typecheck entry module with typeck_ndep / typeck_dep_module_ptrs sidecar when ndep>0.
  * @param module *u8 — AST module; null → -1
  * @return i32 — 0 success, -1 null or typeck_module failure
- * wave63 pure Cap residual orch:
- *   G.7 pure get_ndep (typeck_ndep_slot Cap residual);
- *   G.7 Cap residual typeck_dep_module_ptrs_base (BSS array base; .x cannot take seed BSS addr);
+ * wave63 pure Cap residual orch (wave77 pure owns BSS base):
+ *   G.7 pure get_ndep (typeck_ndep_slot pure BSS);
+ *   G.7 pure typeck_dep_module_ptrs_base (wave77 pure table base for void**);
  *   G.7 Cap residual typeck_module (C frontend).
  * PLATFORM: SHARED — same as seed: deps null when ndep==0.
  */

@@ -71,9 +71,10 @@ extern void pipeline_set_entry_dir(const char *dir);
 extern int driver_x_emit_asm_direct_import_only(const char *input_path);
 extern int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path);
 extern int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path);
-extern int typeck_ndep;
-extern void *typeck_dep_module_ptrs[];
-extern void *typeck_dep_arena_ptrs[];
+/* wave77: G.7 accessors only — pure owns typeck_dep BSS under hybrid; no naked C globals. */
+extern void typeck_ndep_store(int32_t n);
+extern void typeck_dep_module_set(int32_t i, void *mod);
+extern void typeck_dep_arena_set(int32_t i, void *arena);
 extern void driver_dep_seeded_clear_all(void);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
 extern int shux_pipeline_dep_prerun_parse_skip_typeck(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
@@ -259,7 +260,7 @@ int driver_run_x_emit_c(void) {
                 }
             }
         }
-        typeck_ndep = 0;
+        typeck_ndep_store((int32_t)(0));
         void *dep_arenas[32];
         void *dep_modules[32];
         for (int i = 0; i < n_deps; i++) {
@@ -400,10 +401,13 @@ int driver_run_x_emit_c(void) {
             }
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
         }
-        typeck_ndep = asm_direct_import_only ? 0 : n_deps;
-        for (int j = 0; j < typeck_ndep; j++) {
-            typeck_dep_module_ptrs[j] = dep_modules[j];
-            typeck_dep_arena_ptrs[j] = dep_arenas[j];
+        {
+            int32_t tc_ndep = asm_direct_import_only ? 0 : n_deps;
+            typeck_ndep_store(tc_ndep);
+            for (int j = 0; j < tc_ndep; j++) {
+                typeck_dep_module_set((int32_t)(j), dep_modules[j]);
+                typeck_dep_arena_set((int32_t)(j), dep_arenas[j]);
+            }
         }
         if (asm_direct_import_only) {
             pipeline_set_dep_slots(dep_arenas, dep_modules);

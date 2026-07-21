@@ -80,9 +80,10 @@ extern int driver_get_module_num_funcs(void *m);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void shux_get_entry_dir(const char *path, char *out, size_t out_sz);
 extern int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
-extern int typeck_ndep;
-extern void *typeck_dep_module_ptrs[];
-extern void *typeck_dep_arena_ptrs[];
+/* wave77: G.7 accessors only — pure owns typeck_dep BSS under hybrid; no naked C globals. */
+extern void typeck_ndep_store(int32_t n);
+extern void typeck_dep_module_set(int32_t i, void *mod);
+extern void typeck_dep_arena_set(int32_t i, void *arena);
 extern void driver_dep_seeded_clear_all(void);
 extern void driver_dep_seed_slots(void **arenas, void **modules, int n);
 extern void driver_dep_publish_slot(int j, void *arena, void *module, const char *path);
@@ -329,7 +330,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      * 入口已在上方 parser_parse_into_buf 解析（driver_first_parse）；勿再 memset module/arena，
      * 否则 pipeline 二次 strict parse 大模块仅 ~4 func（parser.x）；见 run-parser-parse-count-gate.sh。
      */
-    typeck_ndep = 0;
+    typeck_ndep_store((int32_t)(0));
     FILE *asm_out = NULL;
     int emit_elf_o = 0;
     void *elf_ctx_ptr = NULL;
@@ -613,10 +614,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
         }
     }
-    typeck_ndep = n_deps;
+    typeck_ndep_store((int32_t)(n_deps));
     for (j = 0; j < n_deps; j++) {
-        typeck_dep_module_ptrs[j] = dep_modules[j];
-        typeck_dep_arena_ptrs[j] = dep_arenas[j];
+        typeck_dep_module_set((int32_t)(j), dep_modules[j]);
+        typeck_dep_arena_set((int32_t)(j), dep_arenas[j]);
     }
     shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pipeline_set_dep_slots(dep_arenas, dep_modules);
@@ -766,22 +767,22 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             free(src);
             if (smoke_ec != 0) {
                 driver_dep_seeded_clear_all();
-                typeck_ndep = 0;
+                typeck_ndep_store((int32_t)(0));
                 return 1;
             }
             if (smoke_num_funcs <= 0) {
                 driver_dep_seeded_clear_all();
-                typeck_ndep = 0;
+                typeck_ndep_store((int32_t)(0));
                 return 1;
             }
             if (driver_check_only_get() && smoke_diag_emitted) {
                 driver_dep_seeded_clear_all();
-                typeck_ndep = 0;
+                typeck_ndep_store((int32_t)(0));
                 return 1;
             }
             /* 烟测与后续 -o 同进程时须清 dep 全局槽，否则第二次 asm 易 SIGSEGV（run-import 等）。 */
             driver_dep_seeded_clear_all();
-            typeck_ndep = 0;
+            typeck_ndep_store((int32_t)(0));
             return 0;
         }
     }
@@ -794,10 +795,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             if (n_deps > 0) {
                 for (j = 0; j < n_deps; j++)
                     driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
-                typeck_ndep = n_deps;
+                typeck_ndep_store((int32_t)(n_deps));
                 for (j = 0; j < n_deps; j++) {
-                    typeck_dep_module_ptrs[j] = dep_modules[j];
-                    typeck_dep_arena_ptrs[j] = dep_arenas[j];
+                    typeck_dep_module_set((int32_t)(j), dep_modules[j]);
+                    typeck_dep_arena_set((int32_t)(j), dep_arenas[j]);
                 }
                 pipeline_set_dep_slots(dep_arenas, dep_modules);
                 driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);

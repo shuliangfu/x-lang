@@ -89,9 +89,10 @@ extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
 extern int driver_get_module_num_funcs(void *m);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void shux_get_entry_dir(const char *path, char *out, size_t out_sz);
-extern int typeck_ndep;
-extern void *typeck_dep_module_ptrs[];
-extern void *typeck_dep_arena_ptrs[];
+/* wave77: G.7 accessors only — pure owns typeck_dep BSS under hybrid; no naked C globals. */
+extern void typeck_ndep_store(int32_t n);
+extern void typeck_dep_module_set(int32_t i, void *mod);
+extern void typeck_dep_arena_set(int32_t i, void *arena);
 extern void driver_dep_seeded_clear_all(void);
 extern void driver_dep_seed_slots(void **arenas, void **modules, int n);
 extern void driver_dep_publish_slot(int j, void *arena, void *module, const char *path);
@@ -716,7 +717,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                              "pipeline debug: dep[%d]=%s", dj, dep_paths[dj] ? dep_paths[dj] : "?");
         }
     }
-    typeck_ndep = 0;
+    typeck_ndep_store((int32_t)(0));
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
     char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
     char tmp_c[256];
@@ -873,10 +874,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         }
         driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
     }
-    typeck_ndep = n_deps;
+    typeck_ndep_store((int32_t)(n_deps));
     for (int j = 0; j < n_deps; j++) {
-        typeck_dep_module_ptrs[j] = dep_modules[j];
-        typeck_dep_arena_ptrs[j] = dep_arenas[j];
+        typeck_dep_module_set((int32_t)(j), dep_modules[j]);
+        typeck_dep_arena_set((int32_t)(j), dep_arenas[j]);
     }
     pipeline_set_dep_slots(dep_arenas, dep_modules);
     driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
