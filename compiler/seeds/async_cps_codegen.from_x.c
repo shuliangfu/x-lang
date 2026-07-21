@@ -4,14 +4,14 @@
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  *
- * R2 pure surface + Cap residual pure wave1+wave2+wave3+wave4（2026-07-21）：
+ * R2 pure surface + Cap residual pure wave1–5（2026-07-21）：
  *   io/future_wait/sched name gates + thin walk/hoist wrappers +
  *   expr_is_* await classifiers + module/sched resolve + func_uses_void_entry +
  *   walk _impl (expr/block run-async) + FILE* emit end/phase_reset/after_await/
- *   sched_wrapper by src/async/async_cps_codegen.x（opaque async_cps_fputs）；
- *   FROM_X 下 pure helper C 体（含 walk _impl + wave4 emit）省略。
- * Cap residual（始终 seed C）：emit_hoisted_lets_impl / begin / emit_param_statics
- *   （FILE* fprintf + type_to_c_buf）；async_cps_fputs 桥（opaque FILE*）。
+ *   sched_wrapper + begin / emit_param_statics / emit_hoisted_lets_impl
+ *   by src/async/async_cps_codegen.x（opaque async_cps_fputs + type_to_c_buf）；
+ *   FROM_X 下 pure helper C 体（含 walk _impl + wave4–5 emit）省略。
+ * Cap residual（始终 seed C）：async_cps_fputs 桥（opaque FILE*）。
  * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认 -c 本文件（无宏）。
  * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
@@ -167,6 +167,8 @@ int async_cps_func_uses_void_entry(const struct ASTFunc *f, const struct ASTModu
 }
 #endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
+/* Cap residual pure wave5：.x 真迁 begin / param_statics / hoist_impl；冷路径仍 seed C */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /** CPS async 形参 emit 为 static 局部（run seed 注入；勿用 C 形参 ABI）。 */
 void async_cps_codegen_emit_param_statics(const struct ASTFunc *f, FILE *out) {
     if (!f || !out)
@@ -197,15 +199,10 @@ void emit_hoisted_lets_impl(const struct ASTFunc *f, FILE *out) {
     }
 }
 
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
     emit_hoisted_lets_impl(f, out);
 }
-#endif
-
-
-
 
 void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
@@ -257,6 +254,7 @@ void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
     }
     ctx->switch_open = 1;
 }
+#endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 /* Cap residual pure wave4：.x 真迁；冷路径仍 seed C */
 #ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X

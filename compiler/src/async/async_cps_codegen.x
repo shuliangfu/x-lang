@@ -2,35 +2,37 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // async_cps_codegen.x — pure surface for async CPS switch emit (A3).
-// R2 pure surface + Cap residual pure wave1 + wave2 + wave3 (walk_impl) + wave4 (FILE* emit):
+// R2 pure surface + Cap residual pure wave1–5:
 //   - name gates (io / future_wait / sched wrapper)
 //   - thin public wrappers for walk/hoist
 //   - await expr classifiers (expr_is_io_await / await_read / await_write / await_fd / future_wait)
 //   - module/sched resolve + func_uses_void_entry (no FILE*; host LE loads)
 //   - walk _impl: expr_references_run_async_impl / block_has_run_async_ref_impl (host LE)
 //   - FILE* emit via opaque fputs bridge: end / phase_reset / after_await(_io) / sched_wrapper
-// Cap residual (seed C always): begin / emit_param_statics / emit_hoisted_lets_impl (fprintf +
-//   type_to_c_buf / run-seed param inject); async_cps_fputs bridge (opaque FILE*).
+//   - wave5: begin / emit_param_statics / emit_hoisted_lets_impl (type_to_c_buf + run-seed inject)
+// Cap residual (seed C always): async_cps_fputs bridge (opaque FILE*).
 // ASTExpr host layout (PLATFORM: SHARED with async_liveness): kind@0; value@24;
 //   unary.operand@24; CALL callee@24 args@32 num@40 resolved_fn@72;
 //   METHOD base@24 name@32 args@40 num@48 impl@56; FIELD name@32; VAR name@24.
 //   AST_EXPR_AWAIT=54 RUN=55 SPAWN=56 CALL=48 METHOD=49 FIELD=44 VAR=3.
-// ASTBlock: loops@32 num@40; for_loops@48 num@56; labeled@80 num@88;
-//   expr_stmts@96 num@104; final_expr@112. ASTWhileLoop size 16 body@8;
-//   ASTForLoop size 32 body@24; ASTLabeledStmt size 32 kind@8 u@24; AST_STMT_RETURN=1.
-// ASTFunc host layout: name@8 body@56 is_extern@64 is_async@68 (size 176).
+// ASTBlock: let_decls@16 num_lets@24; loops@32 num@40; for_loops@48 num@56;
+//   labeled@80 num@88; expr_stmts@96 num@104; final_expr@112.
+//   ASTWhileLoop size 16 body@8; ASTForLoop size 32 body@24;
+//   ASTLabeledStmt size 32 kind@8 u@24; AST_STMT_RETURN=1.
+// ASTFunc host layout: name@8 params@32 num_params@40 body@56 is_extern@64 is_async@68.
+// ASTParam size24: name@0 type@8; ASTLetDecl size48: name@0 type@8.
+// ASTType: kind@0 (I32=0 U32=3 I64=5 USIZE=6 …).
 // ASTModule host layout: funcs@152 num_funcs@160 (funcs is ASTFunc**).
 // AsyncCpsCodegenCtx (LP64 size 24): func@0 layout@8 phase_next@16 switch_open@20.
-// AsyncFrameLayout (size 4196): live.names[64][64]@0 live.n@4096 (see async_liveness).
+// AsyncFrameLayout (size 4196): live@0 live.n@4096 num_awaits@4100 (see async_liveness).
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 // Cold product path: cc seeds/async_cps_codegen.from_x.c (no FROM_X).
 // Hybrid/PREFER (future): g05_try_x_to_o + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
 
-// Cap residual FILE* emit (always linked from seed; thin hoist wrapper calls this).
-export extern "C" function emit_hoisted_lets_impl(f: *u8, out: *u8): void;
-// Cap residual liveness predicates (still seed C; used by pure module/sched helpers).
+// Cap residual liveness predicates / type_to_c (authority in async_liveness; G.7 single path).
 export extern "C" function async_liveness_func_needs_cps_frame(f: *u8): i32;
 export extern "C" function async_liveness_func_has_await(f: *u8): i32;
+export extern "C" function async_liveness_type_to_c_buf(ty: *u8, buf: *u8, cap: i32): void;
 // Cap residual opaque FILE* bridge (always seed C; .x must not cast *u8 to FILE*).
 // Returns 0 on success, negative on error/null (same contract as driver_preamble_fputs).
 export extern "C" function async_cps_fputs(s: *u8, stream: *u8): i32;
@@ -67,15 +69,13 @@ export function async_cps_load_func_name(callee: *u8): *u8 {
 }
 
 /** Thin public wrapper: hoist used lets before the CPS switch (FILE* emit).
- * Cap residual body lives in seed emit_hoisted_lets_impl (fprintf statics).
+ * Body is Cap residual pure wave5 emit_hoisted_lets_impl (fputs statics).
  * @param f ASTFunc* as *u8
  * @param out FILE* as *u8
  * PLATFORM: SHARED — public short name matches seed cold path. */
 #[no_mangle]
 export function emit_hoisted_lets(f: *u8, out: *u8): void {
-  unsafe {
-    emit_hoisted_lets_impl(f, out);
-  }
+  emit_hoisted_lets_impl(f, out);
 }
 
 /** True when callee is an IO-A5 await target (std.io sync API / shux_io_* C entry).
@@ -1447,4 +1447,326 @@ export function async_cps_codegen_emit_sched_wrapper(f: *u8, c_fname: *u8, out: 
     async_cps_fputs(");\n", out);
     async_cps_fputs("}\n", out);
   }
+}
+
+// ---- Cap residual pure wave5: begin / param_statics / hoist_impl ----
+// ASTFunc: params@32 num_params@40 body@56; ASTParam size24 name@0 type@8;
+// ASTBlock: let_decls@16 num_lets@24; ASTLetDecl size48 name@0 type@8;
+// ASTType kind@0; AsyncFrameLayout num_awaits@4100.
+// G.7: type string authority = async_liveness_type_to_c_buf (no second table here).
+
+/** Store little-endian pointer (usize) at p+off (null-safe).
+ * Used to write AsyncCpsCodegenCtx.func / layout fields from pure .x.
+ * PLATFORM: SHARED — LP64 host LE. */
+#[no_mangle]
+export function async_cps_store_ptr(p: *u8, off: i32, v: *u8): void {
+  if (p == 0) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  let a: usize = v as usize;
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  p[off] = (a % m) as u8;
+  p[off + 1] = ((a / m) % m) as u8;
+  p[off + 2] = ((a / m2) % m) as u8;
+  p[off + 3] = ((a / (m2 * m)) % m) as u8;
+  p[off + 4] = ((a / m4) % m) as u8;
+  p[off + 5] = ((a / (m4 * m)) % m) as u8;
+  p[off + 6] = ((a / (m4 * m2)) % m) as u8;
+  p[off + 7] = ((a / (m4 * m2 * m)) % m) as u8;
+}
+
+/** Emit "  static <ctype> <name>;\\n" via fputs + type_to_c_buf.
+ * Shared by param_statics and hoist_impl (G.7 single emit path).
+ * @param out FILE* as *u8
+ * @param ty ASTType* as *u8 (null-safe: type_to_c falls back)
+ * @param name cstr variable name
+ * PLATFORM: SHARED — Cap residual pure wave5. */
+#[no_mangle]
+export function async_cps_emit_static_decl(out: *u8, ty: *u8, name: *u8): void {
+  if (out == 0) {
+    return;
+  }
+  if (name == 0) {
+    return;
+  }
+  if (name[0] == 0) {
+    return;
+  }
+  // 96 bytes matches seed char cty[96].
+  let cty: u8[96] = [];
+  unsafe {
+    async_liveness_type_to_c_buf(ty, &cty[0], 96);
+  }
+  unsafe {
+    async_cps_fputs("  static ", out);
+    async_cps_fputs(&cty[0], out);
+    async_cps_fputs(" ", out);
+    async_cps_fputs(name, out);
+    async_cps_fputs(";\n", out);
+  }
+}
+
+/** True when ASTType kind is a run-seed scalar (I32/U32/I64/USIZE).
+ * Matches seed has_seed_param filter in async_cps_codegen_begin.
+ * AST_TYPE_I32=0 U32=3 I64=5 USIZE=6.
+ * PLATFORM: SHARED — Cap residual pure wave5. */
+#[no_mangle]
+export function async_cps_type_is_run_seed_scalar(ty: *u8): i32 {
+  if (ty == 0) {
+    return 0;
+  }
+  let kind: i32 = async_cps_load_i32(ty, 0);
+  if (kind == 0) {
+    return 1;
+  }
+  if (kind == 3) {
+    return 1;
+  }
+  if (kind == 5) {
+    return 1;
+  }
+  if (kind == 6) {
+    return 1;
+  }
+  return 0;
+}
+
+/** Emit one run-seed take assignment for a param (case 0 inject).
+ * Writes "      name = shux_async_run_seed_take_<kind>();\\n" by type kind.
+ * Only I32/U32/I64/USIZE; others are no-ops (seed same).
+ * @param out FILE* as *u8
+ * @param pname param name cstr
+ * @param ty ASTType* as *u8
+ * PLATFORM: SHARED — Cap residual pure wave5. */
+#[no_mangle]
+export function async_cps_emit_run_seed_take(out: *u8, pname: *u8, ty: *u8): void {
+  if (out == 0) {
+    return;
+  }
+  if (pname == 0) {
+    return;
+  }
+  if (ty == 0) {
+    return;
+  }
+  let kind: i32 = async_cps_load_i32(ty, 0);
+  // U32
+  if (kind == 3) {
+    unsafe {
+      async_cps_fputs("      ", out);
+      async_cps_fputs(pname, out);
+      async_cps_fputs(" = shux_async_run_seed_take_u32();\n", out);
+    }
+    return;
+  }
+  // I64
+  if (kind == 5) {
+    unsafe {
+      async_cps_fputs("      ", out);
+      async_cps_fputs(pname, out);
+      async_cps_fputs(" = shux_async_run_seed_take_i64();\n", out);
+    }
+    return;
+  }
+  // USIZE
+  if (kind == 6) {
+    unsafe {
+      async_cps_fputs("      ", out);
+      async_cps_fputs(pname, out);
+      async_cps_fputs(" = shux_async_run_seed_take_usize();\n", out);
+    }
+    return;
+  }
+  // I32
+  if (kind == 0) {
+    unsafe {
+      async_cps_fputs("      ", out);
+      async_cps_fputs(pname, out);
+      async_cps_fputs(" = shux_async_run_seed_take_i32();\n", out);
+    }
+    return;
+  }
+}
+
+/** CPS async params emit as static locals (run seed inject; not C param ABI).
+ * Seed: async_cps_codegen_emit_param_statics.
+ * @param f ASTFunc* as *u8
+ * @param out FILE* as *u8
+ * PLATFORM: SHARED — Cap residual pure wave5; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_emit_param_statics(f: *u8, out: *u8): void {
+  if (f == 0) {
+    return;
+  }
+  if (out == 0) {
+    return;
+  }
+  let nparams: i32 = async_cps_load_i32(f, 40);
+  let params: *u8 = async_cps_load_ptr(f, 32);
+  if (params == 0) {
+    return;
+  }
+  if (nparams < 0) {
+    return;
+  }
+  let pi: i32 = 0;
+  while (pi < nparams) {
+    let pr: *u8 = params + (pi * 24);
+    pi = pi + 1;
+    let pname: *u8 = async_cps_load_ptr(pr, 0);
+    let pty: *u8 = async_cps_load_ptr(pr, 8);
+    if (pname == 0) {
+      continue;
+    }
+    if (pname[0] == 0) {
+      continue;
+    }
+    if (pty == 0) {
+      continue;
+    }
+    async_cps_emit_static_decl(out, pty, pname);
+  }
+}
+
+/** Hoist block used lets to statics before the CPS switch (A3 linear functions).
+ * Seed: emit_hoisted_lets_impl. Public emit_hoisted_lets is a thin wrapper.
+ * @param f ASTFunc* as *u8
+ * @param out FILE* as *u8
+ * PLATFORM: SHARED — Cap residual pure wave5; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function emit_hoisted_lets_impl(f: *u8, out: *u8): void {
+  if (f == 0) {
+    return;
+  }
+  if (out == 0) {
+    return;
+  }
+  // body @56
+  let body: *u8 = async_cps_load_ptr(f, 56);
+  if (body == 0) {
+    return;
+  }
+  // let_decls @16
+  let lets: *u8 = async_cps_load_ptr(body, 16);
+  if (lets == 0) {
+    return;
+  }
+  let nlets: i32 = async_cps_load_i32(body, 24);
+  if (nlets < 0) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < nlets) {
+    let ld: *u8 = lets + (i * 48);
+    i = i + 1;
+    let name: *u8 = async_cps_load_ptr(ld, 0);
+    if (name == 0) {
+      continue;
+    }
+    if (name[0] == 0) {
+      continue;
+    }
+    let ty: *u8 = async_cps_load_ptr(ld, 8);
+    async_cps_emit_static_decl(out, ty, name);
+  }
+}
+
+/** Open CPS switch for an async function (seed async_cps_codegen_begin).
+ * Initializes ctx, hoists lets, optionally resets phase when run-seed is valid,
+ * emits switch/default/case 0, injects seed takes for scalar params, marks switch_open.
+ * @param ctx AsyncCpsCodegenCtx* as *u8
+ * @param f ASTFunc* as *u8
+ * @param layout AsyncFrameLayout* as *u8
+ * @param out FILE* as *u8
+ * PLATFORM: SHARED — Cap residual pure wave5; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_codegen_begin(ctx: *u8, f: *u8, layout: *u8, out: *u8): void {
+  if (ctx == 0) {
+    return;
+  }
+  if (f == 0) {
+    return;
+  }
+  if (layout == 0) {
+    return;
+  }
+  if (out == 0) {
+    return;
+  }
+  // ctx.func@0 layout@8 phase_next@16=1 switch_open@20=0
+  async_cps_store_ptr(ctx, 0, f);
+  async_cps_store_ptr(ctx, 8, layout);
+  async_cps_store_i32(ctx, 16, 1);
+  async_cps_store_i32(ctx, 20, 0);
+  emit_hoisted_lets(f, out);
+  // Scan params for run-seed scalars (I32/U32/I64/USIZE).
+  let nparams: i32 = async_cps_load_i32(f, 40);
+  let params: *u8 = async_cps_load_ptr(f, 32);
+  let has_seed_param: i32 = 0;
+  if (params != 0) {
+    let pi: i32 = 0;
+    while (pi < nparams) {
+      let pr: *u8 = params + (pi * 24);
+      pi = pi + 1;
+      let pname: *u8 = async_cps_load_ptr(pr, 0);
+      let pty: *u8 = async_cps_load_ptr(pr, 8);
+      if (pname == 0) {
+        continue;
+      }
+      if (pty == 0) {
+        continue;
+      }
+      if (async_cps_type_is_run_seed_scalar(pty) != 0) {
+        has_seed_param = 1;
+      }
+    }
+  }
+  if (has_seed_param != 0) {
+    unsafe {
+      async_cps_fputs("  if (shux_async_run_seed_valid())\n", out);
+      async_cps_fputs("    __shux_frame.__phase = 0;\n", out);
+    }
+  }
+  // num_awaits @4100
+  let num_awaits: i32 = async_cps_load_i32(layout, 4100);
+  unsafe {
+    async_cps_fputs("  /* SHUX_ASYNC_CPS switch=1 awaits=", out);
+  }
+  async_cps_fputs_i32_dec(out, num_awaits);
+  unsafe {
+    async_cps_fputs(" */\n", out);
+    async_cps_fputs("  switch (__shux_frame.__phase) {\n", out);
+    async_cps_fputs("  default:\n", out);
+    async_cps_fputs("  case 0:\n", out);
+  }
+  if (has_seed_param != 0) {
+    unsafe {
+      async_cps_fputs("    if (__shux_frame.__phase == 0 && shux_async_run_seed_valid()) {\n", out);
+    }
+    if (params != 0) {
+      let pj: i32 = 0;
+      while (pj < nparams) {
+        let pr2: *u8 = params + (pj * 24);
+        pj = pj + 1;
+        let pname2: *u8 = async_cps_load_ptr(pr2, 0);
+        let pty2: *u8 = async_cps_load_ptr(pr2, 8);
+        if (pname2 == 0) {
+          continue;
+        }
+        if (pty2 == 0) {
+          continue;
+        }
+        async_cps_emit_run_seed_take(out, pname2, pty2);
+      }
+    }
+    unsafe {
+      async_cps_fputs("    }\n", out);
+    }
+  }
+  async_cps_store_i32(ctx, 20, 1);
 }
