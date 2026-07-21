@@ -10539,14 +10539,7 @@ int32_t codegen_is_libc_conflicting_extern_name(uint8_t * name, int32_t name_len
   if ((((((((((name_len ==8) && ((name)[0] ==115)) && ((name)[1] ==116)) && ((name)[2] ==114)) && ((name)[3] ==101)) && ((name)[4] ==114)) && ((name)[5] ==114)) && ((name)[6] ==111)) && ((name)[7] ==114))) {
     return 1;
   }
-  /* opendir 7 */
-  if (((((((((name_len ==7) && ((name)[0] ==111)) && ((name)[1] ==112)) && ((name)[2] ==101)) && ((name)[3] ==110)) && ((name)[4] ==100)) && ((name)[5] ==105)) && ((name)[6] ==114))) {
-    return 1;
-  }
-  /* closedir 8 */
-  if ((((((((((name_len ==8) && ((name)[0] ==99)) && ((name)[1] ==108)) && ((name)[2] ==111)) && ((name)[3] ==115)) && ((name)[4] ==101)) && ((name)[5] ==100)) && ((name)[6] ==105)) && ((name)[7] ==114))) {
-    return 1;
-  }
+  /* opendir/closedir: not skipped — DIR* modeled as *u8 (sync codegen.x) */
   /* access 6 */
   if ((((((((name_len ==6) && ((name)[0] ==97)) && ((name)[1] ==99)) && ((name)[2] ==99)) && ((name)[3] ==101)) && ((name)[4] ==115)) && ((name)[5] ==115))) {
     return 1;

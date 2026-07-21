@@ -32,14 +32,12 @@ const char *const driver_preamble_io_net_lines[] = {
          * getenv/memcpy/memchr/strtoul/...). SHUX *u8 emits as uint8_t * and
          * clashes with char * / void * in system headers; we skip redecl and
          * rely on these includes. Without them, skipped names become implicit
-         * int (heap malloc / fs opendir int-to-pointer; bstrict red). */
+         * int (heap return malloc -> int-to-pointer).
+         * Do NOT include dirent.h: std.fs models DIR* as *u8 opaque; system
+         * DIR* prototypes conflict. opendir/closedir are not on the skip list. */
         "#include <stdlib.h>\n",
         "#include <string.h>\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <unistd.h>\n#else\n#include <io.h>\n#include <sys/types.h>\n#endif\n",
-        /* PLATFORM: POSIX — opendir/closedir/readdir after skip-list (dirent).
-         * Do NOT include fcntl.h here: preamble still emits open(uint8_t*,...) for
-         * std.fs co-emit; fcntl.h open(const char*,...) would conflict. */
-        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <dirent.h>\n#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <sys/uio.h>\n#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <poll.h>\n#endif\n",
         /*
