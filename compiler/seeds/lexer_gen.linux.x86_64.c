@@ -748,33 +748,51 @@ SHUX_LIB_WEAK int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * restri
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
+/* PLATFORM: SHARED — nested block comments; lockstep with lexer.x depth counter. */
 SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
   struct lexer_Lexer l = lex;
+  int32_t depth = 0;
   while ((l).pos < (data)->length) {
     uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
-    if (c == 32 || c == 9 || c == 10 || c == 13) {   (l = (lexer_advance_one(l, c)));
- } else     if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {   while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
-    (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
-  }
- } else     if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {   (l = (lexer_advance_one(l, 47)));
-  (l = (lexer_advance_one(l, 42)));
-  while ((l).pos + 1 < (data)->length) {
-    if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 42 && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {   (l = (lexer_advance_one(l, 42)));
-  (l = (lexer_advance_one(l, 47)));
-  break;
- }
-    (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
-  }
- } else     if (c == 35) {   if ((l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 91) {   return l;
- } else {   while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
-    (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
-  }
- }
- } else {   return l;
- }
-
-
-
+    if (c == 32 || c == 9 || c == 10 || c == 13) {
+      (l = (lexer_advance_one(l, c)));
+    } else if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {
+      while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
+        (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+      }
+    } else if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
+      (l = (lexer_advance_one(l, 47)));
+      (l = (lexer_advance_one(l, 42)));
+      depth = 1;
+      while ((l).pos < (data)->length && depth > 0) {
+        if ((l).pos + 1 < (data)->length
+            && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 47
+            && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
+          (l = (lexer_advance_one(l, 47)));
+          (l = (lexer_advance_one(l, 42)));
+          depth = depth + 1;
+        } else if ((l).pos + 1 < (data)->length
+            && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 42
+            && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {
+          (l = (lexer_advance_one(l, 42)));
+          (l = (lexer_advance_one(l, 47)));
+          depth = depth - 1;
+        } else {
+          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+        }
+      }
+      depth = 0;
+    } else if (c == 35) {
+      if ((l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 91) {
+        return l;
+      } else {
+        while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
+          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+        }
+      }
+    } else {
+      return l;
+    }
   }
   return l;
 }

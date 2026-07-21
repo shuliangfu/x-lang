@@ -948,8 +948,10 @@ int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struc
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
+/* PLATFORM: SHARED — nested block comments; lockstep with lexer.x depth counter. */
 struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct shux_slice_uint8_t data) {
   struct Lexer l = lex;
+  int32_t depth = 0;
   while (((l.pos) < (data.length))) {
     uint8_t c = (data).data[(l.pos)];
     if (((((c ==32) || (c ==9)) || (c ==10)) || (c ==13))) {
@@ -963,14 +965,21 @@ struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct shux_slice_ui
         if ((((c ==47) && (((l.pos) + 1) < (data.length))) && ((data).data[((l.pos) + 1)] ==42))) {
           (void)((l = advance_one(l, 47)));
           (void)((l = advance_one(l, 42)));
-          while ((((l.pos) + 1) < (data.length))) {
-            if ((((data).data[(l.pos)] ==42) && ((data).data[((l.pos) + 1)] ==47))) {
+          depth = 1;
+          while ((((l.pos) < (data.length)) && (depth > 0))) {
+            if (((((l.pos) + 1) < (data.length)) && ((data).data[(l.pos)] ==47) && ((data).data[((l.pos) + 1)] ==42))) {
+              (void)((l = advance_one(l, 47)));
+              (void)((l = advance_one(l, 42)));
+              depth = depth + 1;
+            } else if (((((l.pos) + 1) < (data.length)) && ((data).data[(l.pos)] ==42) && ((data).data[((l.pos) + 1)] ==47))) {
               (void)((l = advance_one(l, 42)));
               (void)((l = advance_one(l, 47)));
-              break;
+              depth = depth - 1;
+            } else {
+              (void)((l = advance_one(l, (data).data[(l.pos)])));
             }
-            (void)((l = advance_one(l, (data).data[(l.pos)])));
           }
+          depth = 0;
         } else {
           if ((c ==35)) {
             if (((((l.pos) + 1) < (data.length)) && ((data).data[((l.pos) + 1)] ==91))) {
