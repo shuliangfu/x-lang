@@ -1,11 +1,12 @@
 /* seeds/async_cps_codegen_surface.from_x.c
- * R2 pure surface + Cap residual pure wave1 — isomorphic with src/async/async_cps_codegen.x
+ * R2 pure surface + Cap residual pure wave1+wave2 — isomorphic with src/async/async_cps_codegen.x
  * Product cold path still cc seeds/async_cps_codegen.from_x.c (no FROM_X) for full C + Cap residual.
  * Hybrid/PREFER: g05_try_x_to_o(async_cps_codegen.x) + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
- * R2: .x eats pure name gates + thin walk/hoist + await expr classifiers (expr_is_*);
+ * R2: .x eats pure name gates + thin walk/hoist + await expr classifiers (expr_is_*) +
+ *   module/sched resolve + func_uses_void_entry (+ cstr helpers);
  *   FROM_X omits pure C bodies; walk _impl always seed (thin calls).
  * Cap residual (stay seed C always): emit_* FILE* (begin/end/after_await/param_statics/
- *   sched_wrapper/phase_reset); module/sched resolve; walk _impl bodies.
+ *   sched_wrapper/phase_reset); walk _impl bodies.
  * Prove: full.x vs this seed → nm IDENTICAL (pure surface)
  * Regen: ./shux -E ... src/async/async_cps_codegen.x | filter DBG + polish prologue
  * NOTE: use ./shux (not shux-x). Thin wrappers pass (e,target)/(b,target) ABI matching C.
@@ -38,9 +39,18 @@ extern int32_t async_cps_expr_is_await_read_fd(uint8_t * await_expr);
 extern int32_t async_cps_expr_is_await_write_fd(uint8_t * await_expr);
 extern int32_t async_cps_expr_is_await_write(uint8_t * await_expr);
 extern int32_t async_cps_expr_is_await_future_wait(uint8_t * await_expr);
+extern int32_t async_cps_cstr_eq(uint8_t * a, uint8_t * b);
+extern uint8_t * async_cps_cstr_skip(uint8_t * p, int32_t n);
+extern uint8_t * async_cps_module_func_at(uint8_t * m, int32_t i);
+extern int32_t async_cps_func_uses_void_entry(uint8_t * f, uint8_t * m);
+extern int32_t async_cps_module_references_run_async(uint8_t * m, uint8_t * async_fn);
+extern uint8_t * async_cps_resolve_sched_target(uint8_t * m, uint8_t * sched_name);
+extern int32_t async_cps_module_has_sched_extern(uint8_t * m, uint8_t * async_fn);
 extern void emit_hoisted_lets_impl(uint8_t * f, uint8_t * out);
 extern int32_t expr_references_run_async_impl(uint8_t * e, uint8_t * target);
 extern int32_t block_has_run_async_ref_impl(uint8_t * b, uint8_t * target);
+extern int32_t async_liveness_func_needs_cps_frame(uint8_t * f);
+extern int32_t async_liveness_func_has_await(uint8_t * f);
 int32_t async_cps_codegen_x_doc_anchor(void) {
   return 0;
 }
@@ -404,6 +414,193 @@ int32_t async_cps_expr_is_await_future_wait(uint8_t * await_expr) {
       if ((async_cps_callee_is_future_wait_by_name(vname) !=0)) {
         return 1;
       }
+    }
+  }
+  return 0;
+}
+int32_t async_cps_cstr_eq(uint8_t * a, uint8_t * b) {
+  if ((a ==0)) {
+    return 0;
+  }
+  if ((b ==0)) {
+    return 0;
+  }
+  int32_t i = 0;
+  while ((i < 4096)) {
+    uint8_t ca = (a)[i];
+    uint8_t cb = (b)[i];
+    if ((ca !=cb)) {
+      return 0;
+    }
+    if ((ca ==0)) {
+      return 1;
+    }
+    (void)((i = (i + 1)));
+  }
+  return 1;
+}
+uint8_t * async_cps_cstr_skip(uint8_t * p, int32_t n) {
+  if ((p ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((n <=0)) {
+    return p;
+  }
+  size_t a = ((size_t)(p));
+  (void)((a = (a + ((size_t)(n)))));
+  return ((uint8_t *)(a));
+}
+uint8_t * async_cps_module_func_at(uint8_t * m, int32_t i) {
+  if ((m ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  uint8_t * funcs = async_cps_load_ptr(m, 152);
+  if ((funcs ==0)) {
+    return ((uint8_t *)(0));
+  }
+  return async_cps_load_ptr(funcs, (i * 8));
+}
+int32_t async_cps_func_uses_void_entry(uint8_t * f, uint8_t * m) {
+  if ((f ==0)) {
+    return 0;
+  }
+  if ((async_cps_load_i32(f, 68) ==0)) {
+    return 0;
+  }
+  if ((m !=0)) {
+  }
+  return async_liveness_func_needs_cps_frame(f);
+  return 0;
+}
+int32_t async_cps_module_references_run_async(uint8_t * m, uint8_t * async_fn) {
+  if ((m ==0)) {
+    return 0;
+  }
+  if ((async_fn ==0)) {
+    return 0;
+  }
+  int32_t n = async_cps_load_i32(m, 160);
+  if ((n <=0)) {
+    return 0;
+  }
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * f = async_cps_module_func_at(m, i);
+    (void)((i = (i + 1)));
+    if ((f ==0)) {
+      continue;
+    }
+    if ((async_cps_load_i32(f, 64) !=0)) {
+      continue;
+    }
+    uint8_t * body = async_cps_load_ptr(f, 56);
+    if ((body ==0)) {
+      continue;
+    }
+    if ((block_has_run_async_ref(body, async_fn) !=0)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+uint8_t * async_cps_resolve_sched_target(uint8_t * m, uint8_t * sched_name) {
+  if ((m ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((sched_name ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((async_cps_is_sched_wrapper_name(sched_name) ==0)) {
+    return ((uint8_t *)(0));
+  }
+  uint8_t * async_name = async_cps_cstr_skip(sched_name, 16);
+  if ((async_name ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if (((async_name)[0] ==0)) {
+    return ((uint8_t *)(0));
+  }
+  int32_t n = async_cps_load_i32(m, 160);
+  if ((n <=0)) {
+    return ((uint8_t *)(0));
+  }
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * f = async_cps_module_func_at(m, i);
+    (void)((i = (i + 1)));
+    if ((f ==0)) {
+      continue;
+    }
+    uint8_t * fname = async_cps_load_func_name(f);
+    if ((fname ==0)) {
+      continue;
+    }
+    if ((async_cps_load_i32(f, 64) !=0)) {
+      continue;
+    }
+    if ((async_cps_cstr_eq(fname, async_name) ==0)) {
+      continue;
+    }
+    if ((async_cps_load_i32(f, 68) ==0)) {
+      continue;
+    }
+    int32_t has = 0;
+    (void)((has = async_liveness_func_has_await(f)));
+    if ((has !=0)) {
+      return f;
+    }
+  }
+  return ((uint8_t *)(0));
+}
+int32_t async_cps_module_has_sched_extern(uint8_t * m, uint8_t * async_fn) {
+  if ((m ==0)) {
+    return 0;
+  }
+  if ((async_fn ==0)) {
+    return 0;
+  }
+  uint8_t * async_name = async_cps_load_func_name(async_fn);
+  if ((async_name ==0)) {
+    return 0;
+  }
+  if (((async_name)[0] ==0)) {
+    return 0;
+  }
+  if ((async_cps_load_i32(async_fn, 68) ==0)) {
+    return 0;
+  }
+  int32_t has = 0;
+  (void)((has = async_liveness_func_has_await(async_fn)));
+  if ((has ==0)) {
+    return 0;
+  }
+  int32_t n = async_cps_load_i32(m, 160);
+  if ((n <=0)) {
+    return 0;
+  }
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * ef = async_cps_module_func_at(m, i);
+    (void)((i = (i + 1)));
+    if ((ef ==0)) {
+      continue;
+    }
+    if ((async_cps_load_i32(ef, 64) ==0)) {
+      continue;
+    }
+    uint8_t * ename = async_cps_load_func_name(ef);
+    if ((ename ==0)) {
+      continue;
+    }
+    if ((async_cps_is_sched_wrapper_name(ename) ==0)) {
+      continue;
+    }
+    uint8_t * rest = async_cps_cstr_skip(ename, 16);
+    if ((async_cps_cstr_eq(rest, async_name) !=0)) {
+      return 1;
     }
   }
   return 0;

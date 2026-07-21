@@ -4,14 +4,14 @@
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  *
- * R2 pure surface + Cap residual pure wave1（2026-07-21）：
+ * R2 pure surface + Cap residual pure wave1+wave2（2026-07-21）：
  *   io/future_wait/sched name gates + thin walk/hoist wrappers +
- *   expr_is_* await classifiers by src/async/async_cps_codegen.x；
+ *   expr_is_* await classifiers + module/sched resolve + func_uses_void_entry
+ *   by src/async/async_cps_codegen.x；
  *   FROM_X 下 pure helper C 体省略；walk _impl 仍始终 seed（thin 转调）。
  * Cap residual（始终 seed C）：emit_hoisted_lets_impl / begin/end/after_await /
  *   emit_phase_reset / emit_sched_wrapper / emit_param_statics（FILE* fprintf）；
- *   module_references_run_async / func_uses_void_entry /
- *   resolve_sched_target / module_has_sched_extern。
+ *   walk _impl（typed AST walk）。
  * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认 -c 本文件（无宏）。
  * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
@@ -153,6 +153,8 @@ int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *targ
 
 
 /** 模块内是否有 run/spawn async_fn() 引用（供 DCE/WPO 保留协程体）。 */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave2：.x 真迁；冷路径仍 seed C */
 int async_cps_module_references_run_async(const struct ASTModule *m, const struct ASTFunc *async_fn) {
     if (!m || !async_fn)
         return 0;
@@ -171,6 +173,7 @@ int async_cps_func_uses_void_entry(const struct ASTFunc *f, const struct ASTModu
     (void)m;
     return f && f->is_async && async_liveness_func_needs_cps_frame(f);
 }
+#endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 /** CPS async 形参 emit 为 static 局部（run seed 注入；勿用 C 形参 ABI）。 */
 void async_cps_codegen_emit_param_statics(const struct ASTFunc *f, FILE *out) {
@@ -518,6 +521,8 @@ int async_cps_is_sched_wrapper_name(const char *name) {
 }
 #endif
 
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave2：.x 真迁；冷路径仍 seed C */
 struct ASTFunc *async_cps_resolve_sched_target(const struct ASTModule *m, const char *sched_name) {
     const char *async_name;
     if (!m || !sched_name || !async_cps_is_sched_wrapper_name(sched_name))
@@ -547,10 +552,11 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
     }
     return 0;
 }
+#endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 #ifdef SHUX_ASYNC_CPS_CODEGEN_FROM_X
-/* R2 pure surface + Cap residual pure wave1 from .x;
- * FILE* emit + walk _impl + module/sched resolve stay in this TU. */
+/* R2 pure surface + Cap residual pure wave1+wave2 from .x;
+ * FILE* emit + walk _impl stay in this TU. */
 int async_cps_codegen_slice_marker(void) {
     return 0;
 }

@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // async_cps_codegen.x — pure surface for async CPS switch emit (A3).
-// R2 pure surface + Cap residual pure wave1:
+// R2 pure surface + Cap residual pure wave1 + wave2:
 //   - name gates (io / future_wait / sched wrapper)
 //   - thin public wrappers for walk/hoist (call Cap residual _impl in seed C)
 //   - await expr classifiers (expr_is_io_await / await_read|write|fd / future_wait)
+//   - module/sched resolve + func_uses_void_entry (no FILE*; host LE loads)
 // Cap residual (seed C always): FILE* emit begin/end/after_await/sched,
-//   walk _impl, module/sched resolve (snprintf / full module walk).
+//   walk _impl (typed AST walk), emit_param_statics / emit_hoisted_lets_impl.
 // ASTExpr host layout (PLATFORM: SHARED with async_liveness): kind@0; value@24;
 //   unary.operand@24; CALL callee@24 args@32 num@40 resolved_fn@72;
 //   METHOD base@24 name@32 args@40 num@48 impl@56; FIELD name@32; VAR name@24.
 //   AST_EXPR_AWAIT=54 CALL=48 METHOD=49 FIELD=44 VAR=3.
+// ASTFunc host layout: name@8 body@56 is_extern@64 is_async@68 (size 176).
+// ASTModule host layout: funcs@152 num_funcs@160 (funcs is ASTFunc**).
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 // Cold product path: cc seeds/async_cps_codegen.from_x.c (no FROM_X).
 // Hybrid/PREFER (future): g05_try_x_to_o + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
@@ -20,6 +23,9 @@
 export extern "C" function emit_hoisted_lets_impl(f: *u8, out: *u8): void;
 export extern "C" function expr_references_run_async_impl(e: *u8, target: *u8): i32;
 export extern "C" function block_has_run_async_ref_impl(b: *u8, target: *u8): i32;
+// Cap residual liveness predicates (still seed C; used by pure module/sched helpers).
+export extern "C" function async_liveness_func_needs_cps_frame(f: *u8): i32;
+export extern "C" function async_liveness_func_has_await(f: *u8): i32;
 
 /** Prove/doc anchor for the pure surface TU (always 0).
  * PLATFORM: SHARED — no_mangle keeps short surface name for nm IDENTICAL. */
@@ -563,6 +569,256 @@ export function async_cps_expr_is_await_future_wait(await_expr: *u8): i32 {
       if (async_cps_callee_is_future_wait_by_name(vname) != 0) {
         return 1;
       }
+    }
+  }
+  return 0;
+}
+
+// ---- Cap residual pure wave2: module/sched resolve + void entry (no FILE*) ----
+
+/** NUL-terminated C string equality (bounded scan, max 4096).
+ * Null either side → 0. Used by sched resolve name matches only.
+ * PLATFORM: SHARED — pure; local to this TU (prove surface self-contained). */
+#[no_mangle]
+export function async_cps_cstr_eq(a: *u8, b: *u8): i32 {
+  if (a == 0) {
+    return 0;
+  }
+  if (b == 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < 4096) {
+    let ca: u8 = a[i];
+    let cb: u8 = b[i];
+    if (ca != cb) {
+      return 0;
+    }
+    if (ca == 0) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** Advance a C string pointer by n bytes (null-safe).
+ * Used for sched_name + 16 after "shux_async_sched_" prefix.
+ * PLATFORM: SHARED — host pointer arithmetic via usize. */
+#[no_mangle]
+export function async_cps_cstr_skip(p: *u8, n: i32): *u8 {
+  if (p == 0) {
+    return 0 as *u8;
+  }
+  if (n <= 0) {
+    return p;
+  }
+  let a: usize = p as usize;
+  a = a + (n as usize);
+  return a as *u8;
+}
+
+/** Load ASTFunc* at funcs[i] from ASTModule.funcs (ASTFunc** @152).
+ * @param m ASTModule* as *u8
+ * @param i function index (0-based)
+ * PLATFORM: SHARED — pointer table stride 8 on LP64 host. */
+#[no_mangle]
+export function async_cps_module_func_at(m: *u8, i: i32): *u8 {
+  if (m == 0) {
+    return 0 as *u8;
+  }
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  let funcs: *u8 = async_cps_load_ptr(m, 152);
+  if (funcs == 0) {
+    return 0 as *u8;
+  }
+  return async_cps_load_ptr(funcs, i * 8);
+}
+
+/** True when async CPS coroutine uses void (*)(void) entry (needs CPS frame).
+ * ABI matches C: (f, m); m is unused (kept for call-site compatibility).
+ * @param f ASTFunc* as *u8
+ * @param m ASTModule* as *u8 (ignored)
+ * @return 1 if f->is_async && async_liveness_func_needs_cps_frame(f)
+ * PLATFORM: SHARED — Cap residual pure wave2; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_func_uses_void_entry(f: *u8, m: *u8): i32 {
+  // m is unused (C seed uses (void)m); parameter retained for C ABI (f, m).
+  if (f == 0) {
+    return 0;
+  }
+  // ASTFunc.is_async @68
+  if (async_cps_load_i32(f, 68) == 0) {
+    return 0;
+  }
+  // Reference m so the second formal is not DCE'd by frontend (ABI lock).
+  if (m != 0) {
+    // no-op: product ignores module for void-entry decision
+  }
+  unsafe {
+    return async_liveness_func_needs_cps_frame(f);
+  }
+  return 0;
+}
+
+/** True when any non-extern function body in module references run/spawn of async_fn.
+ * Walks m->funcs[0..num_funcs); skips is_extern or null body.
+ * Calls public block_has_run_async_ref (thin → seed _impl).
+ * PLATFORM: SHARED — Cap residual pure wave2; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_module_references_run_async(m: *u8, async_fn: *u8): i32 {
+  if (m == 0) {
+    return 0;
+  }
+  if (async_fn == 0) {
+    return 0;
+  }
+  // ASTModule.num_funcs @160
+  let n: i32 = async_cps_load_i32(m, 160);
+  if (n <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let f: *u8 = async_cps_module_func_at(m, i);
+    i = i + 1;
+    if (f == 0) {
+      continue;
+    }
+    // is_extern @64
+    if (async_cps_load_i32(f, 64) != 0) {
+      continue;
+    }
+    // body @56
+    let body: *u8 = async_cps_load_ptr(f, 56);
+    if (body == 0) {
+      continue;
+    }
+    if (block_has_run_async_ref(body, async_fn) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/** Resolve scheduler wrapper name `shux_async_sched_<async>` to the async ASTFunc*.
+ * Requires is_sched_wrapper_name; strips 16-byte prefix; matches f->name + is_async
+ * + async_liveness_func_has_await. Skips extern funcs.
+ * @return ASTFunc* as *u8, or null
+ * PLATFORM: SHARED — Cap residual pure wave2; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_resolve_sched_target(m: *u8, sched_name: *u8): *u8 {
+  if (m == 0) {
+    return 0 as *u8;
+  }
+  if (sched_name == 0) {
+    return 0 as *u8;
+  }
+  if (async_cps_is_sched_wrapper_name(sched_name) == 0) {
+    return 0 as *u8;
+  }
+  // "shux_async_sched_" length 16
+  let async_name: *u8 = async_cps_cstr_skip(sched_name, 16);
+  if (async_name == 0) {
+    return 0 as *u8;
+  }
+  if (async_name[0] == 0) {
+    return 0 as *u8;
+  }
+  let n: i32 = async_cps_load_i32(m, 160);
+  if (n <= 0) {
+    return 0 as *u8;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let f: *u8 = async_cps_module_func_at(m, i);
+    i = i + 1;
+    if (f == 0) {
+      continue;
+    }
+    let fname: *u8 = async_cps_load_func_name(f);
+    if (fname == 0) {
+      continue;
+    }
+    // is_extern @64
+    if (async_cps_load_i32(f, 64) != 0) {
+      continue;
+    }
+    if (async_cps_cstr_eq(fname, async_name) == 0) {
+      continue;
+    }
+    // is_async @68
+    if (async_cps_load_i32(f, 68) == 0) {
+      continue;
+    }
+    let has: i32 = 0;
+    unsafe {
+      has = async_liveness_func_has_await(f);
+    }
+    if (has != 0) {
+      return f;
+    }
+  }
+  return 0 as *u8;
+}
+
+/** True when module has `extern "C" function shux_async_sched_<async_fn.name>`.
+ * Pure equivalent of seed snprintf+strcmp: prefix gate + cstr_eq(name+16, async name).
+ * Requires async_fn->is_async and async_liveness_func_has_await.
+ * PLATFORM: SHARED — Cap residual pure wave2; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function async_cps_module_has_sched_extern(m: *u8, async_fn: *u8): i32 {
+  if (m == 0) {
+    return 0;
+  }
+  if (async_fn == 0) {
+    return 0;
+  }
+  let async_name: *u8 = async_cps_load_func_name(async_fn);
+  if (async_name == 0) {
+    return 0;
+  }
+  if (async_name[0] == 0) {
+    return 0;
+  }
+  // is_async @68
+  if (async_cps_load_i32(async_fn, 68) == 0) {
+    return 0;
+  }
+  let has: i32 = 0;
+  unsafe {
+    has = async_liveness_func_has_await(async_fn);
+  }
+  if (has == 0) {
+    return 0;
+  }
+  let n: i32 = async_cps_load_i32(m, 160);
+  if (n <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let ef: *u8 = async_cps_module_func_at(m, i);
+    i = i + 1;
+    if (ef == 0) {
+      continue;
+    }
+    // is_extern @64 — only extern decls count
+    if (async_cps_load_i32(ef, 64) == 0) {
+      continue;
+    }
+    let ename: *u8 = async_cps_load_func_name(ef);
+    if (ename == 0) {
+      continue;
+    }
+    if (async_cps_is_sched_wrapper_name(ename) == 0) {
+      continue;
+    }
+    let rest: *u8 = async_cps_cstr_skip(ename, 16);
+    if (async_cps_cstr_eq(rest, async_name) != 0) {
+      return 1;
     }
   }
   return 0;
