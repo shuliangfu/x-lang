@@ -71,9 +71,13 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 
 /**
  * Cap-fn-ptr residual：绑定 driver_stack_esc_gate_thread_fn 后进大栈。
- * .x 无法取函数地址；rt_stack R2 经此入口调用（平台层，非 rest 业务体）。
+ * wave37 pure：hybrid thin owns orch（fn_ptr residual + driver_run_thread_on_large_stack）；
+ * always-seed：driver_stack_esc_gate_thread_fn_ptr；cold twin under #ifndef FROM_X。
+ * .x 无法取函数地址；rt_stack R2 经此入口调用。
  */
 void driver_run_stack_esc_gate_on_large_stack(void *arg);
+/** Always-seed Cap-fn-ptr residual: opaque address of driver_stack_esc_gate_thread_fn. */
+uint8_t *driver_stack_esc_gate_thread_fn_ptr(void);
 
 /**
  * Cap residual：opaque FILE* 给 .x（rt_entry R2 等 diag_print_*）。
@@ -136,8 +140,11 @@ int32_t *driver_x_emit_want_extern_slot(void);
 
 /**
  * Cap-global-bss residual：rt_arena_buf R2 经槽访问 128MiB/2MiB 静态缓冲。
- * 数据定义在 seeds/rt_arena_buf.from_x.c（跨 TU 非 static）；本层暴露槽/尺寸。
+ * 数据定义在 seeds/rt_arena_buf.from_x.c（跨 TU 非 static）。
+ * wave37 pure：hybrid thin owns slot/size；always-seed base residual；cold twins under #ifndef FROM_X。
  */
+uint8_t *driver_arena_static_base(void);
+uint8_t *driver_module_static_base(void);
 uint8_t *driver_arena_static_slot(void);
 uint8_t *driver_module_static_slot(void);
 size_t driver_arena_static_size(void);

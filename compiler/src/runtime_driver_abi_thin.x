@@ -94,6 +94,10 @@
 //     (BSS 16×512 bufs + 16×LP64 root slots; G.7 driver_lib_roots_from_key;
 //      BSS pack DriverCompileParsedAbi 176B LP64 + driver_run_compiler_parsed;
 //      opt default reuses wave32 lit "2").
+//   + wave37 Cap residual pure：driver_arena/module_static_{slot,size} +
+//     driver_run_stack_esc_gate_on_large_stack + driver_parser_diag_fail_tok_kind
+//     (Cap-global BSS base residual; Cap-fn-ptr residual; BSS pack shux_slice_uint8_t
+//      + parser_diag_fail_at_token_kind; fixed 128MiB/2MiB sizes).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -160,6 +164,21 @@ export extern "C" function driver_preamble_io_net_lines_raw(): *u8;
 /** Always-seed Cap-giant-string data residual: address of driver_preamble_fs_path_lines[].
  * PLATFORM: SHARED — same pattern as io_net_lines_raw. */
 export extern "C" function driver_preamble_fs_path_lines_raw(): *u8;
+/** Always-seed Cap-global-bss data residual: address of driver_arena_static[] (rt_arena_buf TU).
+ * Wave37 pure slot/size wraps this; pure does not own the 128MiB array body.
+ * PLATFORM: SHARED — base address only. */
+export extern "C" function driver_arena_static_base(): *u8;
+/** Always-seed Cap-global-bss data residual: address of driver_module_static[] (2MiB).
+ * PLATFORM: SHARED — base address only. */
+export extern "C" function driver_module_static_base(): *u8;
+/** Always-seed Cap-fn-ptr residual: opaque address of driver_stack_esc_gate_thread_fn.
+ * Wave37 pure orch binds this then calls driver_run_thread_on_large_stack.
+ * PLATFORM: SHARED — .x cannot form function-pointer constants. */
+export extern "C" function driver_stack_esc_gate_thread_fn_ptr(): *u8;
+/** Parser authority: fail token kind from shux_slice_uint8_t* source (LP64 pack).
+ * Wave37 pure packs data+length into BSS slice then calls this.
+ * PLATFORM: SHARED — G.7 single authority parser_diag_fail_at_token_kind. */
+export extern "C" function parser_diag_fail_at_token_kind(source: *u8): i32;
 /** POSIX unlink for tmp .c paths held in parsed work slots.
  * PLATFORM: POSIX (Linux/macOS product path); Windows uses same surface via seed pin. */
 export extern "C" function unlink(path: *u8): i32;
@@ -4867,6 +4886,159 @@ export function driver_dispatch_run_compiler_parsed(
   driver_abi_store_i32_le(p, driver_abi_parsed_off_use_lto(), lto);
   unsafe {
     return driver_run_compiler_parsed(p, argc, argv);
+  }
+  return 0;
+}
+
+// ---- Wave37 Cap residual pure: arena/module static + stack_esc_gate + parser_diag ----
+
+/**
+ * Fixed size of Cap-global driver_arena_static (128 MiB).
+ * @return usize — DRIVER_ARENA_STATIC_SIZE_ABI bytes
+ * Wave37 pure; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — constant; array body stays seeds/rt_arena_buf.from_x.c.
+ */
+function driver_abi_arena_static_size_const(): usize {
+  // 128 * 1024 * 1024
+  return 134217728 as usize;
+}
+
+/**
+ * Fixed size of Cap-global driver_module_static (2 MiB).
+ * @return usize — DRIVER_MODULE_STATIC_SIZE_ABI bytes
+ * Wave37 pure; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — constant; array body stays seeds/rt_arena_buf.from_x.c.
+ */
+function driver_abi_module_static_size_const(): usize {
+  // 2 * 1024 * 1024
+  return 2097152 as usize;
+}
+
+/**
+ * LP64 sizeof(struct shux_slice_uint8_t) = 16 (data* + length usize).
+ * @return i32 — bytes for BSS pack used by driver_parser_diag_fail_tok_kind
+ * PLATFORM: SHARED LP64.
+ */
+function driver_abi_slice_uint8_sizeof(): i32 {
+  return 16;
+}
+
+/**
+ * offsetof(shux_slice_uint8_t, data) on LP64.
+ * @return i32 — 0
+ */
+function driver_abi_slice_uint8_off_data(): i32 {
+  return 0;
+}
+
+/**
+ * offsetof(shux_slice_uint8_t, length) on LP64.
+ * @return i32 — 8
+ */
+function driver_abi_slice_uint8_off_length(): i32 {
+  return 8;
+}
+
+// BSS pack for parser_diag_fail_tok_kind (not re-entrant; matches cold stack local lifetime
+// for product single-threaded driver paths).
+let g_driver_parser_diag_slice_raw: u8[16] = [];
+
+/**
+ * Address of Cap-global 128MiB arena static buffer (other TU).
+ * @return *u8 — base of driver_arena_static[]; never null when rt_arena_buf linked
+ * Wave37 pure: always-seed driver_arena_static_base; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap-global-bss residual data; pure owns slot API under PREFER.
+ */
+#[no_mangle]
+export function driver_arena_static_slot(): *u8 {
+  unsafe {
+    return driver_arena_static_base();
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Address of Cap-global 2MiB module static buffer (other TU).
+ * @return *u8 — base of driver_module_static[]
+ * Wave37 pure; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — Cap-global-bss residual data.
+ */
+#[no_mangle]
+export function driver_module_static_slot(): *u8 {
+  unsafe {
+    return driver_module_static_base();
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Byte capacity of driver_arena_static.
+ * @return usize — 134217728 (128 MiB)
+ * Wave37 pure constant; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_arena_static_size(): usize {
+  return driver_abi_arena_static_size_const();
+}
+
+/**
+ * Byte capacity of driver_module_static.
+ * @return usize — 2097152 (2 MiB)
+ * Wave37 pure constant; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_module_static_size(): usize {
+  return driver_abi_module_static_size_const();
+}
+
+/**
+ * Run stack escape-gate thread body on the large-stack path.
+ * @param arg *u8 — opaque arg for driver_stack_esc_gate_thread_fn; null → no-op
+ * @return void
+ * Wave37 pure orch: Cap-fn-ptr residual driver_stack_esc_gate_thread_fn_ptr +
+ * G.7 driver_run_thread_on_large_stack (wave12 pure). Cold twin always-seed under seed.
+ * PLATFORM: SHARED — fn pointer constant stays seed residual.
+ */
+#[no_mangle]
+export function driver_run_stack_esc_gate_on_large_stack(arg: *u8): void {
+  let fn: *u8 = 0 as *u8;
+  if (arg == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    fn = driver_stack_esc_gate_thread_fn_ptr();
+  }
+  if (fn == 0 as *u8) {
+    return;
+  }
+  driver_run_thread_on_large_stack(fn, arg);
+}
+
+/**
+ * Pack source bytes as shux_slice_uint8_t and query parser fail-at token kind.
+ * @param src *u8 — source bytes; null → return 0 (matches cold seed)
+ * @param len usize — byte length of src (may be 0)
+ * @return i32 — parser_diag_fail_at_token_kind result; 0 on null src
+ * Wave37 pure: BSS LP64 slice pack (data@0, length@8) + G.7 parser_diag_fail_at_token_kind.
+ * Cold twin under #ifndef FROM_X. Not re-entrant (single BSS pack).
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function driver_parser_diag_fail_tok_kind(src: *u8, len: usize): i32 {
+  let p: *u8 = &g_driver_parser_diag_slice_raw[0];
+  if (src == 0 as *u8) {
+    return 0;
+  }
+  // Zero pack then store fields (matches cold stack local zero then assign).
+  unsafe {
+    memset(p, 0, driver_abi_slice_uint8_sizeof() as usize);
+  }
+  driver_abi_store_ptr_at(p, driver_abi_slice_uint8_off_data(), src);
+  driver_abi_store_usize_le(p, driver_abi_slice_uint8_off_length(), len);
+  unsafe {
+    return parser_diag_fail_at_token_kind(p);
   }
   return 0;
 }

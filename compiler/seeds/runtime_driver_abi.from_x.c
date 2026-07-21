@@ -96,6 +96,10 @@
  *     （BSS 16×512 + 16×LP64 roots；G.7 driver_lib_roots_from_key；
  *       BSS pack DriverCompileParsedAbi 176B + driver_run_compiler_parsed；
  *       opt default 共用 wave32 lit "2"）；FROM_X 无 pure-dup；
+ *   + wave37 Cap residual pure：driver_arena/module_static_{slot,size} +
+ *     driver_run_stack_esc_gate_on_large_stack + driver_parser_diag_fail_tok_kind 在 thin.x
+ *     （always-seed Cap-global base + Cap-fn-ptr fn_ptr residual；BSS pack slice +
+ *       parser_diag_fail_at_token_kind；固定 128MiB/2MiB）；FROM_X 无 pure-dup；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -1564,15 +1568,24 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
 
 /**
  * Cap-fn-ptr residual：.x 无法形成函数指针常量。
- * 绑定 driver_stack_esc_gate_thread_fn 后走大栈路径（与 pthread 体同层平台原语）。
- * 始终提供（不随 RDABI thin 宏剥离），供 rt_stack R2 full .x 调用。
+ * wave37 pure：hybrid thin owns driver_run_stack_esc_gate_on_large_stack orch
+ * （fn_ptr residual + G.7 driver_run_thread_on_large_stack）；cold twin under #ifndef FROM_X。
+ * always-seed：driver_stack_esc_gate_thread_fn_ptr（取函数地址）。
+ * PLATFORM: SHARED — Cap-fn-ptr residual stays seed.
  */
 extern void *driver_stack_esc_gate_thread_fn(void *arg);
+
+uint8_t *driver_stack_esc_gate_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)driver_stack_esc_gate_thread_fn;
+}
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_run_stack_esc_gate_on_large_stack(void *arg) {
     if (arg == NULL)
         return;
     driver_run_thread_on_large_stack(driver_stack_esc_gate_thread_fn, arg);
 }
+#endif
 
 /**
  * Cap residual：opaque FILE* 供 rt_entry R2 full .x 的 diag_print_*。
@@ -1938,14 +1951,26 @@ void driver_x_emit_bind_lib_root(int i) {
 
 /**
  * Cap-global-bss residual：rt_arena_buf R2 full .x 访问 128MiB/2MiB 静态缓冲。
- * 数据定义在 seeds/rt_arena_buf.from_x.c（跨 TU 非 static）；本层暴露槽/尺寸。
- * 始终提供（不随 RDABI thin 宏剥离）。
+ * 数据定义在 seeds/rt_arena_buf.from_x.c（跨 TU 非 static）。
+ * wave37 pure：hybrid thin owns slot/size；always-seed base residual 供 pure 取址；
+ * cold keeps C slot/size twins under #ifndef FROM_X。
+ * PLATFORM: SHARED — array body stays rt_arena_buf; pure owns public slot/size API under PREFER.
  */
 #define DRIVER_ARENA_STATIC_SIZE_ABI (128 * 1024 * 1024)
 #define DRIVER_MODULE_STATIC_SIZE_ABI (2 * 1024 * 1024)
 extern uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE_ABI];
 extern uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE_ABI];
 
+/* Always-seed Cap-global base residual (like preamble_*_lines_raw). */
+uint8_t *driver_arena_static_base(void) {
+    return driver_arena_static;
+}
+
+uint8_t *driver_module_static_base(void) {
+    return driver_module_static;
+}
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_arena_static_slot(void) {
     return driver_arena_static;
 }
@@ -1961,6 +1986,7 @@ size_t driver_arena_static_size(void) {
 size_t driver_module_static_size(void) {
     return (size_t)DRIVER_MODULE_STATIC_SIZE_ABI;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /**
  * Cap-giant-string residual：rt_preamble R2 full .x 访问巨型 C 字串表。
@@ -2250,6 +2276,8 @@ uint8_t *driver_x_emit_effective_lib_roots(int32_t *n_out) {
 
 extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source);
 
+/* wave37 pure：hybrid thin owns pack + call; cold twin under #ifndef FROM_X. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_parser_diag_fail_tok_kind(uint8_t *src, size_t len) {
     struct shux_slice_uint8_t s;
     if (src == NULL)
@@ -2258,6 +2286,7 @@ int32_t driver_parser_diag_fail_tok_kind(uint8_t *src, size_t len) {
     s.length = len;
     return parser_diag_fail_at_token_kind(&s);
 }
+#endif
 
 /* wave19 pure under PREFER：dep_ctx i32 field set/get; cold keeps C struct twin; FROM_X no pure-dup. */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
