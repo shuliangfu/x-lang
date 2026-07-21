@@ -4,14 +4,13 @@
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  *
- * R2 pure surface + Cap residual pure wave1+wave2（2026-07-21）：
+ * R2 pure surface + Cap residual pure wave1+wave2+wave3（2026-07-21）：
  *   io/future_wait/sched name gates + thin walk/hoist wrappers +
- *   expr_is_* await classifiers + module/sched resolve + func_uses_void_entry
- *   by src/async/async_cps_codegen.x；
- *   FROM_X 下 pure helper C 体省略；walk _impl 仍始终 seed（thin 转调）。
+ *   expr_is_* await classifiers + module/sched resolve + func_uses_void_entry +
+ *   walk _impl (expr/block run-async) by src/async/async_cps_codegen.x；
+ *   FROM_X 下 pure helper C 体（含 walk _impl）省略。
  * Cap residual（始终 seed C）：emit_hoisted_lets_impl / begin/end/after_await /
- *   emit_phase_reset / emit_sched_wrapper / emit_param_statics（FILE* fprintf）；
- *   walk _impl（typed AST walk）。
+ *   emit_phase_reset / emit_sched_wrapper / emit_param_statics（FILE* fprintf）。
  * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认 -c 本文件（无宏）。
  * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
  * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
@@ -36,8 +35,8 @@ int async_cps_callee_is_future_wait_by_name(const char *n);
 int async_cps_callee_is_future_wait(const struct ASTFunc *callee);
 
 /** 表达式是否含 run/spawn target==async_fn 的调用。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/async/async_cps_codegen.x）提供 public wrapper */
+/* Cap residual pure wave3：逻辑源 .x walk _impl；seed 保留同语义 C 供冷路径 */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 int expr_references_run_async_impl(const struct ASTExpr *e, const struct ASTFunc *target) {
     if (!e || !target)
         return 0;
@@ -108,19 +107,12 @@ int expr_references_run_async_impl(const struct ASTExpr *e, const struct ASTFunc
     }
 }
 
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target) {
     return expr_references_run_async_impl(e, target);
 }
-#endif
-
-
-
 
 /** 块内是否含 run/spawn target 调用。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/async/async_cps_codegen.x）提供 public wrapper */
 int block_has_run_async_ref_impl(const struct ASTBlock *b, const struct ASTFunc *target) {
     if (!b || !target)
         return 0;
@@ -142,12 +134,11 @@ int block_has_run_async_ref_impl(const struct ASTBlock *b, const struct ASTFunc 
     return 0;
 }
 
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target) {
     return block_has_run_async_ref_impl(b, target);
 }
-#endif
+#endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 
 
@@ -555,8 +546,8 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
 #endif /* !SHUX_ASYNC_CPS_CODEGEN_FROM_X */
 
 #ifdef SHUX_ASYNC_CPS_CODEGEN_FROM_X
-/* R2 pure surface + Cap residual pure wave1+wave2 from .x;
- * FILE* emit + walk _impl stay in this TU. */
+/* R2 pure surface + Cap residual pure wave1–3 from .x (incl. walk _impl);
+ * FILE* emit stay in this TU. */
 int async_cps_codegen_slice_marker(void) {
     return 0;
 }

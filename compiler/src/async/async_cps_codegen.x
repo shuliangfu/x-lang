@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // async_cps_codegen.x — pure surface for async CPS switch emit (A3).
-// R2 pure surface + Cap residual pure wave1 + wave2:
+// R2 pure surface + Cap residual pure wave1 + wave2 + wave3 (walk_impl):
 //   - name gates (io / future_wait / sched wrapper)
-//   - thin public wrappers for walk/hoist (call Cap residual _impl in seed C)
-//   - await expr classifiers (expr_is_io_await / await_read|write|fd / future_wait)
+//   - thin public wrappers for walk/hoist
+//   - await expr classifiers (expr_is_io_await / await_read / await_write / await_fd / future_wait)
 //   - module/sched resolve + func_uses_void_entry (no FILE*; host LE loads)
+//   - walk _impl: expr_references_run_async_impl / block_has_run_async_ref_impl (host LE)
 // Cap residual (seed C always): FILE* emit begin/end/after_await/sched,
-//   walk _impl (typed AST walk), emit_param_statics / emit_hoisted_lets_impl.
+//   emit_param_statics / emit_hoisted_lets_impl (fprintf).
 // ASTExpr host layout (PLATFORM: SHARED with async_liveness): kind@0; value@24;
 //   unary.operand@24; CALL callee@24 args@32 num@40 resolved_fn@72;
 //   METHOD base@24 name@32 args@40 num@48 impl@56; FIELD name@32; VAR name@24.
-//   AST_EXPR_AWAIT=54 CALL=48 METHOD=49 FIELD=44 VAR=3.
+//   AST_EXPR_AWAIT=54 RUN=55 SPAWN=56 CALL=48 METHOD=49 FIELD=44 VAR=3.
+// ASTBlock: loops@32 num@40; for_loops@48 num@56; labeled@80 num@88;
+//   expr_stmts@96 num@104; final_expr@112. ASTWhileLoop size 16 body@8;
+//   ASTForLoop size 32 body@24; ASTLabeledStmt size 32 kind@8 u@24; AST_STMT_RETURN=1.
 // ASTFunc host layout: name@8 body@56 is_extern@64 is_async@68 (size 176).
 // ASTModule host layout: funcs@152 num_funcs@160 (funcs is ASTFunc**).
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 // Cold product path: cc seeds/async_cps_codegen.from_x.c (no FROM_X).
 // Hybrid/PREFER (future): g05_try_x_to_o + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
 
-// Cap residual C bodies (always linked from seed; thin wrappers call these).
+// Cap residual FILE* emit (always linked from seed; thin hoist wrapper calls this).
 export extern "C" function emit_hoisted_lets_impl(f: *u8, out: *u8): void;
-export extern "C" function expr_references_run_async_impl(e: *u8, target: *u8): i32;
-export extern "C" function block_has_run_async_ref_impl(b: *u8, target: *u8): i32;
 // Cap residual liveness predicates (still seed C; used by pure module/sched helpers).
 export extern "C" function async_liveness_func_needs_cps_frame(f: *u8): i32;
 export extern "C" function async_liveness_func_has_await(f: *u8): i32;
@@ -142,27 +144,21 @@ export function async_cps_callee_is_io(callee: *u8): i32 {
 }
 
 /** Thin public wrapper: whether expr tree references run/spawn of target async.
- * Cap residual body: seed expr_references_run_async_impl (typed AST walk).
+ * Cap residual pure wave3: body is expr_references_run_async_impl (host LE walk).
  * ABI matches C: (expr, target). Do not drop the target parameter.
  * PLATFORM: SHARED */
 #[no_mangle]
 export function expr_references_run_async(e: *u8, target: *u8): i32 {
-  unsafe {
-    return expr_references_run_async_impl(e, target);
-  }
-  return 0;
+  return expr_references_run_async_impl(e, target);
 }
 
 /** Thin public wrapper: whether block references run/spawn of target async.
- * Cap residual body: seed block_has_run_async_ref_impl.
+ * Cap residual pure wave3: body is block_has_run_async_ref_impl (host LE walk).
  * ABI matches C: (block, target).
  * PLATFORM: SHARED */
 #[no_mangle]
 export function block_has_run_async_ref(b: *u8, target: *u8): i32 {
-  unsafe {
-    return block_has_run_async_ref_impl(b, target);
-  }
-  return 0;
+  return block_has_run_async_ref_impl(b, target);
 }
 
 /** True when name is a Future wait entry (exact or substring).
@@ -304,6 +300,310 @@ export function async_cps_load_ptr(p: *u8, off: i32): *u8 {
   a = a + (p[off + 6] as usize) * (m4 * m2);
   a = a + (p[off + 7] as usize) * (m4 * m2 * m);
   return a as *u8;
+}
+
+/** Load pointer table entry base[i] (8-byte LE slots).
+ * PLATFORM: SHARED — ASTExpr** / ASTFunc** tables. */
+#[no_mangle]
+export function async_cps_ptr_at(base: *u8, i: i32): *u8 {
+  if (base == 0) {
+    return 0 as *u8;
+  }
+  return async_cps_load_ptr(base, i * 8);
+}
+
+/** True when expr kind uses value.binop (ADD..LOGOR or ASSIGN..SHR_ASSIGN).
+ * PLATFORM: SHARED — ASTExprKind ranges. */
+#[no_mangle]
+export function async_cps_is_binop_kind(k: i32): i32 {
+  if (k >= 4) {
+    if (k <= 21) {
+      return 1;
+    }
+  }
+  if (k >= 28) {
+    if (k <= 38) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/** True when expr kind uses value.unary.operand (or as_type.operand @24) in run-walk.
+ * Includes NEG/BITNOT/LOGNOT/RETURN/PANIC/ADDR_OF/DEREF/AS/AWAIT/RUN/SPAWN/TRY.
+ * PLATFORM: SHARED — matches seed expr_references_run_async_impl switch. */
+#[no_mangle]
+export function async_cps_is_walk_unary_kind(k: i32): i32 {
+  if (k == 22) { return 1; }
+  if (k == 23) { return 1; }
+  if (k == 24) { return 1; }
+  if (k == 41) { return 1; }
+  if (k == 42) { return 1; }
+  if (k == 51) { return 1; }
+  if (k == 52) { return 1; }
+  if (k == 53) { return 1; }
+  if (k == 54) { return 1; }
+  if (k == 55) { return 1; }
+  if (k == 56) { return 1; }
+  if (k == 57) { return 1; }
+  return 0;
+}
+
+/** Cap residual pure wave3: walk expr tree for run/spawn of `target` async.
+ * Semantics match seed C expr_references_run_async_impl (typed AST walk):
+ *   1) If kind is RUN(55)/SPAWN(56) and unary.op is CALL with resolved_callee_func==target → 1
+ *   2) Recurse binop/unary/if/ternary/call-args/method/field/index/struct/array/match/block
+ * CALL walks args only (not callee expr) — same as seed.
+ * @param e ASTExpr* as *u8
+ * @param target ASTFunc* as *u8 (pointer equality on resolved_callee_func)
+ * @return 1 if found, else 0
+ * PLATFORM: SHARED — host LE layout; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function expr_references_run_async_impl(e: *u8, target: *u8): i32 {
+  if (e == 0) {
+    return 0;
+  }
+  if (target == 0) {
+    return 0;
+  }
+  let k: i32 = async_cps_load_i32(e, 0);
+  // Direct run/spawn of target: operand is CALL with resolved_callee_func == target.
+  if (k == 55) {
+    let op0: *u8 = async_cps_load_ptr(e, 24);
+    if (op0 != 0) {
+      if (async_cps_load_i32(op0, 0) == 48) {
+        let res0: *u8 = async_cps_load_ptr(op0, 72);
+        if (res0 == target) {
+          return 1;
+        }
+      }
+    }
+  }
+  if (k == 56) {
+    let op1: *u8 = async_cps_load_ptr(e, 24);
+    if (op1 != 0) {
+      if (async_cps_load_i32(op1, 0) == 48) {
+        let res1: *u8 = async_cps_load_ptr(op1, 72);
+        if (res1 == target) {
+          return 1;
+        }
+      }
+    }
+  }
+  if (async_cps_is_binop_kind(k) != 0) {
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 24), target) != 0) {
+      return 1;
+    }
+    return expr_references_run_async_impl(async_cps_load_ptr(e, 32), target);
+  }
+  if (async_cps_is_walk_unary_kind(k) != 0) {
+    return expr_references_run_async_impl(async_cps_load_ptr(e, 24), target);
+  }
+  // IF (25) / TERNARY (27): cond@24 then@32 else@40
+  if (k == 25) {
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 24), target) != 0) {
+      return 1;
+    }
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 32), target) != 0) {
+      return 1;
+    }
+    let el: *u8 = async_cps_load_ptr(e, 40);
+    if (el != 0) {
+      if (expr_references_run_async_impl(el, target) != 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  if (k == 27) {
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 24), target) != 0) {
+      return 1;
+    }
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 32), target) != 0) {
+      return 1;
+    }
+    let el2: *u8 = async_cps_load_ptr(e, 40);
+    if (el2 != 0) {
+      if (expr_references_run_async_impl(el2, target) != 0) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  // CALL (48): seed walks args only (not callee)
+  if (k == 48) {
+    let args: *u8 = async_cps_load_ptr(e, 32);
+    let n: i32 = async_cps_load_i32(e, 40);
+    let i: i32 = 0;
+    while (i < n) {
+      if (expr_references_run_async_impl(async_cps_ptr_at(args, i), target) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+    return 0;
+  }
+  // METHOD_CALL (49): base@24 args@40 num@48
+  if (k == 49) {
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 24), target) != 0) {
+      return 1;
+    }
+    let args2: *u8 = async_cps_load_ptr(e, 40);
+    let n2: i32 = async_cps_load_i32(e, 48);
+    let j: i32 = 0;
+    while (j < n2) {
+      if (expr_references_run_async_impl(async_cps_ptr_at(args2, j), target) != 0) {
+        return 1;
+      }
+      j = j + 1;
+    }
+    return 0;
+  }
+  // FIELD_ACCESS (44)
+  if (k == 44) {
+    return expr_references_run_async_impl(async_cps_load_ptr(e, 24), target);
+  }
+  // INDEX (47): base@24 index@32
+  if (k == 47) {
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 24), target) != 0) {
+      return 1;
+    }
+    return expr_references_run_async_impl(async_cps_load_ptr(e, 32), target);
+  }
+  // STRUCT_LIT (45): inits@40 num@48
+  if (k == 45) {
+    let inits: *u8 = async_cps_load_ptr(e, 40);
+    let nf: i32 = async_cps_load_i32(e, 48);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      if (expr_references_run_async_impl(async_cps_ptr_at(inits, fi), target) != 0) {
+        return 1;
+      }
+      fi = fi + 1;
+    }
+    return 0;
+  }
+  // ARRAY_LIT (46): elems@24 num@32
+  if (k == 46) {
+    let elems: *u8 = async_cps_load_ptr(e, 24);
+    let ne: i32 = async_cps_load_i32(e, 32);
+    let ei: i32 = 0;
+    while (ei < ne) {
+      if (expr_references_run_async_impl(async_cps_ptr_at(elems, ei), target) != 0) {
+        return 1;
+      }
+      ei = ei + 1;
+    }
+    return 0;
+  }
+  // MATCH (43): matched@24 arms@32 num@40; MatchArm size 88 result@80
+  if (k == 43) {
+    if (expr_references_run_async_impl(async_cps_load_ptr(e, 24), target) != 0) {
+      return 1;
+    }
+    let arms: *u8 = async_cps_load_ptr(e, 32);
+    let na: i32 = async_cps_load_i32(e, 40);
+    let ai: i32 = 0;
+    while (ai < na) {
+      if (arms == 0) {
+        return 0;
+      }
+      let arm: *u8 = arms + (ai * 88);
+      if (expr_references_run_async_impl(async_cps_load_ptr(arm, 80), target) != 0) {
+        return 1;
+      }
+      ai = ai + 1;
+    }
+    return 0;
+  }
+  // BLOCK (26): value.block @24
+  if (k == 26) {
+    return block_has_run_async_ref_impl(async_cps_load_ptr(e, 24), target);
+  }
+  return 0;
+}
+
+/** Cap residual pure wave3: walk block for run/spawn of `target` async.
+ * Semantics match seed C block_has_run_async_ref_impl:
+ *   expr_stmts[], final_expr, labeled RETURN exprs, while/for body blocks.
+ * @param b ASTBlock* as *u8
+ * @param target ASTFunc* as *u8
+ * @return 1 if found, else 0
+ * PLATFORM: SHARED — host LE layout; seed C under #ifndef FROM_X. */
+#[no_mangle]
+export function block_has_run_async_ref_impl(b: *u8, target: *u8): i32 {
+  if (b == 0) {
+    return 0;
+  }
+  if (target == 0) {
+    return 0;
+  }
+  // expr_stmts @96, num_expr_stmts @104
+  let stmts: *u8 = async_cps_load_ptr(b, 96);
+  let ns: i32 = async_cps_load_i32(b, 104);
+  let si: i32 = 0;
+  while (si < ns) {
+    if (expr_references_run_async_impl(async_cps_ptr_at(stmts, si), target) != 0) {
+      return 1;
+    }
+    si = si + 1;
+  }
+  // final_expr @112
+  let fin: *u8 = async_cps_load_ptr(b, 112);
+  if (fin != 0) {
+    if (expr_references_run_async_impl(fin, target) != 0) {
+      return 1;
+    }
+  }
+  // labeled_stmts @80, num @88; entry size 32: kind@8, u@24; AST_STMT_RETURN=1
+  let labs: *u8 = async_cps_load_ptr(b, 80);
+  let nl: i32 = async_cps_load_i32(b, 88);
+  let li: i32 = 0;
+  while (li < nl) {
+    if (labs != 0) {
+      let lab: *u8 = labs + (li * 32);
+      if (async_cps_load_i32(lab, 8) == 1) {
+        let ret_e: *u8 = async_cps_load_ptr(lab, 24);
+        if (ret_e != 0) {
+          if (expr_references_run_async_impl(ret_e, target) != 0) {
+            return 1;
+          }
+        }
+      }
+    }
+    li = li + 1;
+  }
+  // loops @32, num_loops @40; ASTWhileLoop size 16 body@8
+  let loops: *u8 = async_cps_load_ptr(b, 32);
+  let nloop: i32 = async_cps_load_i32(b, 40);
+  let wi: i32 = 0;
+  while (wi < nloop) {
+    if (loops != 0) {
+      let wbody: *u8 = async_cps_load_ptr(loops + (wi * 16), 8);
+      if (wbody != 0) {
+        if (block_has_run_async_ref_impl(wbody, target) != 0) {
+          return 1;
+        }
+      }
+    }
+    wi = wi + 1;
+  }
+  // for_loops @48, num_for_loops @56; ASTForLoop size 32 body@24
+  let fors: *u8 = async_cps_load_ptr(b, 48);
+  let nfor: i32 = async_cps_load_i32(b, 56);
+  let fi: i32 = 0;
+  while (fi < nfor) {
+    if (fors != 0) {
+      let fbody: *u8 = async_cps_load_ptr(fors + (fi * 32), 24);
+      if (fbody != 0) {
+        if (block_has_run_async_ref_impl(fbody, target) != 0) {
+          return 1;
+        }
+      }
+    }
+    fi = fi + 1;
+  }
+  return 0;
 }
 
 /** True when name is exact ASCII "read" (NUL-terminated).

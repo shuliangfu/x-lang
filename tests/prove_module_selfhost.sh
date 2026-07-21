@@ -257,9 +257,9 @@ MODULES=(
   # 冷/无 PREFER 仍可走 seeds/async_liveness.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
   # Stack：analyze_block_linear malloc(4096)；layout temps malloc(4196)（Ubuntu -E 稳）
   "async_liveness|src/async/async_liveness.x|seeds/async_liveness_surface.from_x.c||"
-  # async_cps_codegen R2 pure + Cap residual pure wave1+wave2：
-  #   .x 吃满 name gates + thin walk/hoist + expr_is_* + module/sched resolve + void_entry；
-  # FROM_X 省略 pure C 体（slice_marker）；walk _impl 始终 seed；Cap residual：FILE* emit only
+  # async_cps_codegen R2 pure + Cap residual pure wave1+wave2+wave3(walk_impl)：
+  #   .x 吃满 name gates + thin walk/hoist + expr_is_* + module/sched + void_entry + walk _impl；
+  # FROM_X 省略 pure C 体（含 walk _impl；slice_marker）；Cap residual：FILE* emit only
   # 冷/无 PREFER 仍可走 seeds/async_cps_codegen.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
   # Thin ABI：(e,target)/(b,target) 与 C 公共面一致
   "async_cps_codegen|src/async/async_cps_codegen.x|seeds/async_cps_codegen_surface.from_x.c||"
