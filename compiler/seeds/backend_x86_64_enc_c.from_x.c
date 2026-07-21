@@ -234,6 +234,8 @@ int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int
 #endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
 
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_prologue */
 /*
  * 【Why 根源】push/pop %rbx：body 用 rbx 作 array/const 基址却未保存，破坏 SysV 被调方保存；
  *   args_iter_count_c 覆写 next 保存在 rbx 的 it → run-env env_iter Ubuntu exit 1。
@@ -252,7 +254,11 @@ int32_t arch_x86_64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx,
   sub[6] = (uint8_t)((frame_size >> 24) & 255);
   return X86_ENC_FIXED(elf_ctx, sub);
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_epilogue */
 int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   uint8_t lea[4] = {72, 141, 101, 248}; /* lea rsp, [rbp-8] */
   if (!elf_ctx) return -1;
@@ -261,6 +267,8 @@ int32_t arch_x86_64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx)
   if (x86_enc_u8(elf_ctx, 93) != 0) return -1; /* pop rbp */
   return x86_enc_u8(elf_ctx, 195); /* ret */
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
   uint8_t *cb;
@@ -280,282 +288,464 @@ int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
   return pipeline_elf_ctx_add_sym(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb));
 }
 
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_add_rax_rbx */
 int32_t arch_x86_64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 1, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_and_rbx_rax */
 int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {33, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_or_rbx_rax */
 int32_t arch_x86_64_enc_enc_or_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {9, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_rbx_rax */
 int32_t arch_x86_64_enc_enc_xor_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {49, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_rax_to_rbx */
 int32_t arch_x86_64_enc_enc_mov_rax_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 137, 195};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_rbx_to_rax */
 int32_t arch_x86_64_enc_enc_mov_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 137, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_rbx_to_ecx */
 int32_t arch_x86_64_enc_enc_mov_rbx_to_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {137, 217};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_edx_to_eax */
 int32_t arch_x86_64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {137, 208};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_not_eax */
 int32_t arch_x86_64_enc_enc_not_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {247, 208};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_neg_eax */
 int32_t arch_x86_64_enc_enc_neg_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {247, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_test_eax_eax */
 int32_t arch_x86_64_enc_enc_test_eax_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {133, 192};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_test_rbx_rbx */
 int32_t arch_x86_64_enc_enc_test_rbx_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {133, 219};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** test %edx,%edx — Result `?` 检查第二槽 err（双寄存器返回 ABI）。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_test_edx_edx */
 int32_t arch_x86_64_enc_enc_test_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {0x85, 0xD2};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_cmp_rbx_rax */
 int32_t arch_x86_64_enc_enc_cmp_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {57, 195};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_cmp_rax_rbx */
 int32_t arch_x86_64_enc_enc_cmp_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {57, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_cltd */
 int32_t arch_x86_64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {153};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_idiv_rbx */
 int32_t arch_x86_64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {247, 251};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_rbx_rax */
 int32_t arch_x86_64_enc_enc_imul_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 15, 175, 195};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_push_rax */
 int32_t arch_x86_64_enc_enc_push_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {80};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_push_rbx */
 int32_t arch_x86_64_enc_enc_push_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {83};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_pop_rbx */
 int32_t arch_x86_64_enc_enc_pop_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {91};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_pop_rax */
 int32_t arch_x86_64_enc_enc_pop_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {88};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shl_cl_eax */
 int32_t arch_x86_64_enc_enc_shl_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {211, 224};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shr_cl_eax */
 int32_t arch_x86_64_enc_enc_shr_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {211, 232};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sar_cl_eax */
 int32_t arch_x86_64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {211, 248};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** shlq %cl, %rax — 64-bit 逻辑左移（REX.W=0x48 前缀）。i64/u64 移位须用 64-bit 指令。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shl_cl_rax */
 int32_t arch_x86_64_enc_enc_shl_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 211, 224};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** shrq %cl, %rax — 64-bit 逻辑右移（REX.W=0x48 前缀）。u64/usize 逻辑右移保留高 32 位。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shr_cl_rax */
 int32_t arch_x86_64_enc_enc_shr_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 211, 232};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** sarq %cl, %rax — 64-bit 算术右移（REX.W=0x48 前缀）。i64/isize 算术右移符号位扩展。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sar_cl_rax */
 int32_t arch_x86_64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 211, 248};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** xorl %edx, %edx — 32-bit 无符号除法前清零 edx（替代 cltd 符号扩展）。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_edx_edx */
 int32_t arch_x86_64_enc_enc_xor_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {49, 210};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** divl %ebx — 32-bit 无符号除法（被除数在 edx:eax，除数在 %ebx）。u32 除法必须用 divl。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_div_rbx */
 int32_t arch_x86_64_enc_enc_div_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {247, 243};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_32_from_rax */
 int32_t arch_x86_64_enc_enc_load_32_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {139, 0};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_64_from_rax */
 int32_t arch_x86_64_enc_enc_load_64_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 139, 0};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_zext8_from_rax */
 int32_t arch_x86_64_enc_enc_load_zext8_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {15, 182, 0};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rax_plus_rbx_scale1 */
 int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 141, 4, 24};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rax_plus_rbx_scale4 */
 int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 141, 4, 152};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rax_plus_rbx_scale8 */
 int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 141, 4, 216};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale1 */
 int32_t arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 141, 28, 11};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale4 */
 int32_t arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 141, 28, 139};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8 */
 int32_t arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 141, 28, 203};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_add_ecx_edx */
 int32_t arch_x86_64_enc_enc_add_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {1, 209};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_ecx_edx */
 int32_t arch_x86_64_enc_enc_sub_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {41, 209};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_add_ebx_edx */
 int32_t arch_x86_64_enc_enc_add_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {1, 211};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_ebx_edx */
 int32_t arch_x86_64_enc_enc_sub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {41, 211};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ecx_edx */
 int32_t arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {15, 175, 209};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ebx_edx */
 int32_t arch_x86_64_enc_enc_imul_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {15, 175, 211};
   if (!elf_ctx) return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_rbx_rax_then_mov */
 int32_t arch_x86_64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t sub[] = {72, 41, 195};
   static const uint8_t mov[] = {72, 137, 216};
@@ -563,7 +753,11 @@ int32_t arch_x86_64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenC
   if (x86_enc_bytes(elf_ctx, sub, 3) != 0) return -1;
   return x86_enc_bytes(elf_ctx, mov, 3);
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rsub_ecx_edx */
 int32_t arch_x86_64_enc_enc_rsub_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t sub[] = {41, 202};
   static const uint8_t mov[] = {137, 209};
@@ -571,7 +765,11 @@ int32_t arch_x86_64_enc_enc_rsub_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_
   if (x86_enc_bytes(elf_ctx, sub, 2) != 0) return -1;
   return x86_enc_bytes(elf_ctx, mov, 2);
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rsub_ebx_edx */
 int32_t arch_x86_64_enc_enc_rsub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t sub[] = {41, 218};
   static const uint8_t mov[] = {137, 211};
@@ -579,7 +777,11 @@ int32_t arch_x86_64_enc_enc_rsub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_
   if (x86_enc_bytes(elf_ctx, sub, 2) != 0) return -1;
   return x86_enc_bytes(elf_ctx, mov, 2);
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
+
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_setz_movzbl_eax */
 int32_t arch_x86_64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t s[] = {15, 148, 192};
   static const uint8_t m[] = {15, 182, 192};
@@ -587,6 +789,8 @@ int32_t arch_x86_64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodegenCtx *e
   if (x86_enc_bytes(elf_ctx, s, 3) != 0) return -1;
   return x86_enc_bytes(elf_ctx, m, 3);
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 int32_t arch_x86_64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc) {
   uint8_t op = 148;
@@ -888,28 +1092,40 @@ int32_t arch_x86_64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodeg
 }
 
 /** subq %rax, %rbx（rax = rax - rbx；字面量左操作数 SUB 快路径）。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_rax_rbx */
 int32_t arch_x86_64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 41, 216};
   if (!elf_ctx)
     return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** movq (%rbx), %rax — SysV 16B struct 返回低 8 字节。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_qword_from_rbx_to_rax */
 int32_t arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 139, 3};
   if (!elf_ctx)
     return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 /** movq 8(%rbx), %rdx — SysV 16B struct 返回高 8 字节。 */
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
+/* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_qword_rbx8_to_rdx */
 int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {72, 139, 83, 8};
   if (!elf_ctx)
     return -1;
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
+
 
 #ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
 /** movq %rdx, -offset(%rbp)。 */
