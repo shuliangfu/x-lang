@@ -1,29 +1,13 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/223 true .x + C tail).
- * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge ends_with/magic true logic + typeck/lsp free gates; C bulk remains.
- * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports, preprocess diag + dep slot stores (G-02f-84).
- * G-02f-93/95: dep-slot/debug match + pipeline thread fns gates.
- * G-02f-223: entry_dir_pick + import_dep_dir pure; dep set/ndep bounds.
- * G-02f-224: path_registry scan + seed_slots pure.
- * G-02f-225: sidecar_clear + preprocess/import diag pure.
- * G-02f-226: entry_lib keywords + set_dep_slots pure.
- * G-02f-227: lsp free_loaded + import_open_fail_once pure.
- * G-02f-228: pctx seed_dep_slots / import_paths_only / update_no_reset pure.
- * G-02f-229: get_entry_dir + import_path_to_file_path pure.
- * G-02f-230: seeded_clear + fill_ctx_path_buffers pure.
- * G-02f-231: resolve_file_import join pure + set_entry_dir pure.
- * G-02f-232: resolve_import_file_path_multi pure (access locked).
- * G-02f-233: one_ctx early pure + map_impl; set_ndep pure.
- * G-02f-234: fclose/emit_glue + merge dep_paths pure.
- * G-02f-235: merge_direct_then_transitive_deps pure.
- * G-02f-236: load_direct_imports_for_asm_layout pure.
- * G-02f-237: resolve_path pure + collect empty-import early.
- * G-02f-238: read_file staged pure + collect seed_to_load helper.
- * G-02f-239: parse_into_loaded pure + dep_prerun/large_stack bounds.
- * G-02f-240: preprocess + asm codegen large_stack bounds pure.
- * G-02f-241: thread_fn bounds + collect process_one + emit prepare bounds.
- * G-02f-242: typeck_module_for_ctx pure; P1-5 soft near-close.
+ * wave45 R2 hybrid (2026-07-21): product PREFER g05_try_x_to_o full .x pure (~115) +
+ *   this seed as rest under -DSHUX_RUNTIME_PIPELINE_ABI_FROM_X (no pure-dup public bodies).
+ * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
+ *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
+ *   subsequent export function; -E only externs; pure never productized until fix).
+ * Cold/fallback without PREFER: full C bodies (no FROM_X). PLATFORM: SHARED.
+ * Regen: g05_try_x_to_o src/runtime_pipeline_abi.x (product) / host-cc this file (cold).
+ * G-02f pure gates remain under #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X for cold twins.
  */
 #include <shux_weak.h>
 #include "win32_compat.h"
@@ -514,10 +498,15 @@ int typeck_ndep;
 int32_t *typeck_ndep_slot(void) {
     return (int32_t *)&typeck_ndep;
 }
+/* wave45 Cap residual always-seed: BSS write for pure typeck_ndep_store orch.
+ * Pure owns clamp; this stores the final value. PLATFORM: SHARED. */
+void typeck_ndep_store_impl(int32_t n) {
+    typeck_ndep = n;
+}
 /* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void typeck_ndep_store(int32_t n) {
-    typeck_ndep = (n <= 32) ? n : 32;
+    typeck_ndep_store_impl((n <= 32) ? ((n < 0) ? 0 : n) : 32);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -536,21 +525,29 @@ void *typeck_dep_arena_get(int32_t i) {
         return NULL;
     return typeck_dep_arena_ptrs[i];
 }
-/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void typeck_dep_module_set(int32_t i, void *mod) {
+/* wave45 Cap residual always-seed: BSS write for pure typeck_dep_*_set orch.
+ * Pure owns bounds; residual writes typeck_dep_*_ptrs. PLATFORM: SHARED. */
+void typeck_dep_module_set_impl(int32_t i, void *mod) {
     if (i < 0 || i >= 32)
         return;
     typeck_dep_module_ptrs[i] = mod;
+}
+void typeck_dep_arena_set_impl(int32_t i, void *arena) {
+    if (i < 0 || i >= 32)
+        return;
+    typeck_dep_arena_ptrs[i] = arena;
+}
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+void typeck_dep_module_set(int32_t i, void *mod) {
+    typeck_dep_module_set_impl(i, mod);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void typeck_dep_arena_set(int32_t i, void *arena) {
-    if (i < 0 || i >= 32)
-        return;
-    typeck_dep_arena_ptrs[i] = arena;
+    typeck_dep_arena_set_impl(i, arena);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -1036,12 +1033,22 @@ extern size_t pipeline_sizeof_module(void);
  */
 
 /* G-02f-42: driver dep pointer/path slots for .x publish_slot */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void driver_dep_arena_ptr_set(int32_t i, void *arena) {
+/* wave45 Cap residual always-seed: BSS write for pure driver_dep_*_ptr_set orch.
+ * Pure owns bounds; residual writes driver_dep_*_ptrs. PLATFORM: SHARED. */
+void driver_dep_arena_ptr_set_impl(int32_t i, void *arena) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
     driver_dep_arena_ptrs[i] = arena;
+}
+void driver_dep_module_ptr_set_impl(int32_t i, void *module) {
+    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+        return;
+    driver_dep_module_ptrs[i] = module;
+}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+void driver_dep_arena_ptr_set(int32_t i, void *arena) {
+    driver_dep_arena_ptr_set_impl(i, arena);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -1051,9 +1058,7 @@ void driver_dep_arena_ptr_set(int32_t i, void *arena) {
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_module_ptr_set(int32_t i, void *module) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
-        return;
-    driver_dep_module_ptrs[i] = module;
+    driver_dep_module_ptr_set_impl(i, module);
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 

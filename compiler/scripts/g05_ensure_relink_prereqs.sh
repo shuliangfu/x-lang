@@ -1510,13 +1510,41 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12：runtime_pipeline_abi 产品 seed（须 SHUX_USE_X_PIPELINE）
+  # G-02f-12 / wave45：runtime_pipeline_abi 产品 PREFER hybrid
+  #   full .x pure (~115) + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  # Root fix wave45: .x docblock must not embed the two-char end-comment marker inside prose
+  #   (historical "char**/void*" truncated the block → all subsequent export function dropped from AST;
+  #    -E emitted only externs; pure never productized). PLATFORM: SHARED.
   _rpabi=seeds/runtime_pipeline_abi.from_x.c
+  _rpabi_x=src/runtime_pipeline_abi.x
+  _rpabi_o=src/runtime_pipeline_abi.o
   if [ -f "$_rpabi" ]; then
-    if [ ! -f src/runtime_pipeline_abi.o ] || [ "$_rpabi" -nt src/runtime_pipeline_abi.o ]; then
-      echo "g05_ensure: runtime_pipeline_abi.o ← seed -DSHUX_USE_X_PIPELINE (G-02f-12)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o src/runtime_pipeline_abi.o "$_rpabi"
+    if [ ! -f "$_rpabi_o" ] || [ "$_rpabi" -nt "$_rpabi_o" ] \
+      || { [ -f "$_rpabi_x" ] && [ "$_rpabi_x" -nt "$_rpabi_o" ]; }; then
+      _rpabi_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rpabi_x" ]; then
+        _rpabi_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rpabi_thin.XXXXXX") || true
+        _rpabi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rpabi_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        # WEAK pure thin: Darwin ld -r tolerates any residual pure-dup still in rest.
+        if [ -n "$_rpabi_thin_o" ] && [ -n "$_rpabi_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_rpabi_x" "$_rpabi_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE \
+               -DSHUX_RUNTIME_PIPELINE_ABI_FROM_X \
+               -c -o "$_rpabi_rest_o" "$_rpabi" \
+          && $CC -r -nostdlib -o "$_rpabi_o" "$_rpabi_thin_o" "$_rpabi_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_rpabi_o ← $_rpabi_x + seed-rest (R2 hybrid pipeline_abi pure wave45)"
+          _rpabi_done=1
+        else
+          echo "g05_ensure: L2 hybrid runtime_pipeline_abi failed; fallback full seed" >&2
+        fi
+        rm -f "$_rpabi_thin_o" "$_rpabi_rest_o"
+      fi
+      if [ "$_rpabi_done" = "0" ]; then
+        echo "g05_ensure: $_rpabi_o ← seed -DSHUX_USE_X_PIPELINE (G-02f-12 cold/fallback)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o "$_rpabi_o" "$_rpabi"
+      fi
     fi
   fi
   # G-02f-12 / G-02f-334：runtime_io_abi.o

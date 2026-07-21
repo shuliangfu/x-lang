@@ -1,34 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// G-02f-224：path_registry scan + seed_slots pure。
-// See implementation.
-// See implementation.
-// See implementation.
-// G-02f-228：pctx seed_dep_slots / import_paths_only / update_dep_slots_no_reset pure。
-// G-02f-229：get_entry_dir + import_path_to_file_path pure。
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// G-02f-235：merge_direct_then_transitive_deps pure（src/lens/path）。
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45).
+// Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
+//   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// Cap residual: heavy FILE*/access/collect/thread C remains seed rest.
+// wave45 root fix: never put the two-char end-comment marker inside block prose
+//   (historical char**/void* truncated parse → silent drop of all later export function).
+// PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 export extern "C" function typeck_ndep_slot(): *i32;
@@ -67,7 +46,10 @@ export extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
 /* See implementation. */
 export extern "C" function shux_fputs_stdout(s: *u8): void;
 export extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
-export extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
+/* wave45: do not export-extern pipeline_debug_trace_named_func_bodies here —
+ * pure export function below is the single authority (#[no_mangle]).
+ * A prior export extern + export function dual caused call sites to emit the
+ * mangled name while the def stayed short → UNDEF under hybrid. */
 /* See implementation. */
 /* See implementation. */
 /* See implementation. */
@@ -128,8 +110,12 @@ export extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_p
 /* See implementation. */
 export extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
 export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
-/** Load pointer slot i from a char**/void* array base (G.7 pair with shux_ptr_slot_set).
- * Returns null if arr is null or i < 0. PLATFORM: SHARED — argv/path slot load. */
+/**
+ * Load pointer slot i from a char-star / void-star array base (G.7 pair with shux_ptr_slot_set).
+ * Returns null if arr is null or i < 0.
+ * PLATFORM: SHARED — argv/path slot load.
+ * Note: never put the two-char end-comment marker inside prose (truncates the block).
+ */
 export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern "C" function shux_i32_store(p: *i32, v: i32): void;
 /* See implementation. */
