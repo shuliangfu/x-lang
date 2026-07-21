@@ -1510,10 +1510,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12 / wave45–49：runtime_pipeline_abi 产品 PREFER hybrid
+  # G-02f-12 / wave45–50：runtime_pipeline_abi 产品 PREFER hybrid
   #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  #   wave50: collect deps/paths transitive_impl pure orch (stack to_load + process_one loop).
   #   wave49: collect paths_process_one pure orch; Cap residual paths_tmp_resolve_parse_enqueue;
-  #     G.7 tmp_parse_and_enqueue; transitive_impl still rest.
+  #     G.7 tmp_parse_and_enqueue.
   #   wave48: collect deps_process_one pure orch; Cap residual tmp_parse_and_enqueue;
   #     G.7 load_one_direct_import_at.
   #   wave47: collect seed_to_load + enqueue pure.

@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave49).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave50).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
 // Cap residual: heavy FILE star / access / tmp_parse / paths resolve+read+preprocess /
-//   transitive_impl / thread C remains seed rest.
+//   thread C remains seed rest (transitive_impl pure wave50).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -14,7 +14,8 @@
 // wave48: pure collect deps_process_one orch; Cap residual tmp_parse_and_enqueue;
 //   G.7 reuses load_one_direct_import_at for resolve/read/preprocess store.
 // wave49: pure collect paths_process_one orch; Cap residual paths_tmp_resolve_parse_enqueue
-//   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue + free prep); transitive still seed.
+//   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue + free prep).
+// wave50: pure collect deps/paths transitive_impl orch (stack to_load[32] + process_one loop).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -126,8 +127,8 @@ export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, 
  * are pure export function below (not export-extern Cap residual). */
 export extern "C" function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32;
 export extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void;
-export extern "C" function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
-export extern "C" function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32;
+// wave50: shux_collect_deps_transitive_impl / shux_collect_dep_paths_transitive_impl
+// are pure export function below (not export-extern Cap residual).
 export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
 
 /* See implementation. */
@@ -3384,7 +3385,7 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
  *   G.7 load_one_direct_import_at stores prep/path at mi=*n (resolve/read/preprocess Cap);
  *   free path_c; *n = mi+1;
  *   Cap residual shux_collect_tmp_parse_and_enqueue for parse + enqueue.
- * wave49: paths_process_one pure; transitive_impl stays seed. PLATFORM: SHARED.
+ * wave50: called from pure transitive_impl orch. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
@@ -3468,7 +3469,7 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
  *   Cap residual shux_collect_paths_tmp_resolve_parse_enqueue
  *     (ensure tmp; resolve/read/preprocess; G.7 tmp_parse_and_enqueue; free prep);
  *   free path_c. If tmp malloc fails residual no-ops success (path still registered).
- * transitive_impl stays seed. PLATFORM: SHARED.
+ * wave50: called from pure paths transitive_impl orch. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
@@ -3525,6 +3526,274 @@ export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_li
     free(path_c);
   }
   return rc;
+}
+
+/**
+ * Transitive collect of dep sources/lens/paths: seed queue, drain via process_one, free leftovers.
+ * @param module *u8 — entry AST module; may be null (seed_to_load then empty)
+ * @param arena_sz i64 — tmp arena malloc size for first process_one that needs parse
+ * @param module_sz i64 — tmp module malloc size for first process_one that needs parse
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources out slots
+ * @param dep_lens *u8 — size_t array base as bytes for prep lengths
+ * @param dep_paths *u8 — char star-star owned path keys out slots
+ * @param n_deps *i32 — out live count; null → fail 1
+ * @return i32 — 0 success; 1 fail (partial deps freed; queue/tmp freed)
+ * wave50 pure Cap residual orch:
+ *   stack char star-star to_load[32] as 256B + two void-star tmp cells as 16B
+ *   (G.7 same stack-ptr pattern as check_one_file argv);
+ *   G.7 shux_collect_seed_to_load then drain with pure process_one;
+ *   success: free remaining queue + tmp, store *n_deps;
+ *   fail: free queue + tmp + dep_sources/paths[0..n).
+ * Slot max = SHUX_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
+  if (n_deps == 0 as *i32) {
+    return 1;
+  }
+  // char* to_load[32] as 32×8 pointer slots on stack (LP64).
+  let to_load: u8[256] = [];
+  let z: i32 = 0;
+  while (z < 256) {
+    to_load[z] = 0;
+    z = z + 1;
+  }
+  let to_load_n: i32 = 0;
+  // void* tmp_arena / tmp_module as two pointer cells (void star-star for process_one).
+  let tmp_cells: u8[16] = [];
+  z = 0;
+  while (z < 16) {
+    tmp_cells[z] = 0;
+    z = z + 1;
+  }
+  let n: i32 = 0;
+  let slot_max: i32 = 32;
+  if (shux_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
+    // Fail: free any partial queue (seed_to_load already clears on OOM; still drain).
+    while (to_load_n > 0) {
+      to_load_n = to_load_n - 1;
+      let p: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+      if (p != 0 as *u8) {
+        unsafe {
+          free(p);
+        }
+      }
+      pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    }
+    return 1;
+  }
+  while (to_load_n > 0) {
+    if (n >= slot_max) {
+      break;
+    }
+    to_load_n = to_load_n - 1;
+    let path_c: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    let rc: i32 = 0;
+    unsafe {
+      rc = shux_collect_deps_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
+    }
+    if (rc != 0) {
+      // Fail path: free remaining queue, tmp, and partial deps.
+      while (to_load_n > 0) {
+        to_load_n = to_load_n - 1;
+        let p2: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+        if (p2 != 0 as *u8) {
+          unsafe {
+            free(p2);
+          }
+        }
+        pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+      }
+      let ta: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+      let tm: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+      if (ta != 0 as *u8) {
+        unsafe {
+          free(ta);
+        }
+      }
+      if (tm != 0 as *u8) {
+        unsafe {
+          free(tm);
+        }
+      }
+      while (n > 0) {
+        n = n - 1;
+        let s: *u8 = pipe_load_ptr_slot(dep_sources, n);
+        let k: *u8 = pipe_load_ptr_slot(dep_paths, n);
+        if (s != 0 as *u8) {
+          unsafe {
+            free(s);
+          }
+        }
+        if (k != 0 as *u8) {
+          unsafe {
+            free(k);
+          }
+        }
+        pipe_store_ptr_slot(dep_sources, n, 0 as *u8);
+        pipe_store_ptr_slot(dep_paths, n, 0 as *u8);
+      }
+      return 1;
+    }
+  }
+  // Success: free leftover queue entries and tmp arena/module.
+  while (to_load_n > 0) {
+    to_load_n = to_load_n - 1;
+    let p3: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    if (p3 != 0 as *u8) {
+      unsafe {
+        free(p3);
+      }
+    }
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+  }
+  let ta_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+  let tm_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+  if (ta_ok != 0 as *u8) {
+    unsafe {
+      free(ta_ok);
+    }
+  }
+  if (tm_ok != 0 as *u8) {
+    unsafe {
+      free(tm_ok);
+    }
+  }
+  unsafe {
+    shux_i32_store(n_deps, n);
+  }
+  return 0;
+}
+
+/**
+ * Paths-only transitive collect: seed queue, drain via paths_process_one, free leftovers.
+ * @param module *u8 — entry AST module; may be null (seed_to_load then empty)
+ * @param arena_sz i64 — tmp arena malloc size for first process_one that needs parse
+ * @param module_sz i64 — tmp module malloc size for first process_one that needs parse
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_paths *u8 — char star-star owned path keys out slots
+ * @param n_deps *i32 — out live count; null → fail 1
+ * @return i32 — 0 success; 1 fail (partial paths freed; queue/tmp freed)
+ * wave50 pure Cap residual orch: same stack to_load + tmp_cells as deps transitive;
+ *   G.7 seed_to_load + pure paths_process_one; fail frees only dep_paths (no sources).
+ * Slot max = SHUX_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
+  if (n_deps == 0 as *i32) {
+    return 1;
+  }
+  let to_load: u8[256] = [];
+  let z: i32 = 0;
+  while (z < 256) {
+    to_load[z] = 0;
+    z = z + 1;
+  }
+  let to_load_n: i32 = 0;
+  let tmp_cells: u8[16] = [];
+  z = 0;
+  while (z < 16) {
+    tmp_cells[z] = 0;
+    z = z + 1;
+  }
+  let n: i32 = 0;
+  let slot_max: i32 = 32;
+  if (shux_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
+    while (to_load_n > 0) {
+      to_load_n = to_load_n - 1;
+      let p: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+      if (p != 0 as *u8) {
+        unsafe {
+          free(p);
+        }
+      }
+      pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    }
+    return 1;
+  }
+  while (to_load_n > 0) {
+    if (n >= slot_max) {
+      break;
+    }
+    to_load_n = to_load_n - 1;
+    let path_c: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    let rc: i32 = 0;
+    unsafe {
+      rc = shux_collect_paths_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
+    }
+    if (rc != 0) {
+      while (to_load_n > 0) {
+        to_load_n = to_load_n - 1;
+        let p2: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+        if (p2 != 0 as *u8) {
+          unsafe {
+            free(p2);
+          }
+        }
+        pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+      }
+      let ta: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+      let tm: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+      if (ta != 0 as *u8) {
+        unsafe {
+          free(ta);
+        }
+      }
+      if (tm != 0 as *u8) {
+        unsafe {
+          free(tm);
+        }
+      }
+      while (n > 0) {
+        n = n - 1;
+        let k: *u8 = pipe_load_ptr_slot(dep_paths, n);
+        if (k != 0 as *u8) {
+          unsafe {
+            free(k);
+          }
+        }
+        pipe_store_ptr_slot(dep_paths, n, 0 as *u8);
+      }
+      return 1;
+    }
+  }
+  while (to_load_n > 0) {
+    to_load_n = to_load_n - 1;
+    let p3: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    if (p3 != 0 as *u8) {
+      unsafe {
+        free(p3);
+      }
+    }
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+  }
+  let ta_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+  let tm_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+  if (ta_ok != 0 as *u8) {
+    unsafe {
+      free(ta_ok);
+    }
+  }
+  if (tm_ok != 0 as *u8) {
+    unsafe {
+      free(tm_ok);
+    }
+  }
+  unsafe {
+    shux_i32_store(n_deps, n);
+  }
+  return 0;
 }
 
 /**

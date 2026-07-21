@@ -8,8 +8,9 @@
  * wave48: pure collect deps_process_one orch; Cap residual tmp_parse_and_enqueue always-seed;
  *   G.7 reuses load_one_direct_import_at for resolve/read/preprocess.
  * wave49: pure collect paths_process_one orch; Cap residual paths_tmp_resolve_parse_enqueue
- *   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue); transitive_impl remains always-seed.
- *   FROM_X rest needs extern prototypes.
+ *   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue).
+ * wave50: pure collect deps/paths transitive_impl orch (stack to_load + process_one loop);
+ *   Cap residual still holds FILE/resolve/tmp_parse helpers; FROM_X rest needs pure externs.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -128,7 +129,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46–49: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46–50: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -139,19 +140,25 @@ void shux_i32_store(int32_t *p, int32_t v);
 size_t shux_size_slot_get(size_t *arr, int32_t i);
 void shux_size_slot_set(size_t *arr, int32_t i, size_t v);
 int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
-/* wave47 pure collect queue helpers — process_one residual still calls these. */
+/* wave47 pure collect queue helpers — Cap residual tmp_parse still calls enqueue. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
     char *dep_paths[], int n_loaded);
-/* wave48 pure process_one orch — transitive_impl residual still calls it. */
+/* wave48 pure process_one orch — pure transitive_impl + Cap residual may call. */
 int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
     size_t arena_sz, size_t module_sz);
-/* wave49 pure paths_process_one orch — dep_paths_transitive_impl residual still calls it. */
+/* wave49 pure paths_process_one orch — pure paths transitive_impl calls it. */
 int shux_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n, char *to_load[],
     int *to_load_n, void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz);
+/* wave50 pure transitive_impl orch — thin pure wrappers still call these. */
+int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
+    size_t dep_lens[], char *dep_paths[], int *n_deps);
+int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps);
 /* pipeline_diag_preprocess_directive_code already declared above */
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -3088,6 +3095,10 @@ int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int 
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* wave50 pure in .x; cold twin for non-PREFER product.
+ * G-02f-237：seed queue + process_one drain + free leftovers / fail partial deps.
+ * Cold body mirrors pure orch (stack to_load + tmp cells via locals). */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
@@ -3132,6 +3143,7 @@ fail_to_load:
     }
     return 1;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
@@ -3231,6 +3243,9 @@ int shux_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* wave50 pure in .x; cold twin for non-PREFER product.
+ * paths-only transitive: same orch as deps_transitive_impl without sources/lens. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
     int n = 0;
@@ -3272,6 +3287,7 @@ fail_to_load:
     }
     return 1;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
