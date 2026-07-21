@@ -1,0 +1,159 @@
+/* seeds/async_cps_codegen_surface.from_x.c
+ * R2 pure surface — isomorphic with src/async/async_cps_codegen.x pure helpers
+ * Product cold path still cc seeds/async_cps_codegen.from_x.c (no FROM_X) for full C + Cap residual.
+ * Hybrid/PREFER: g05_try_x_to_o(async_cps_codegen.x) + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
+ * R2: .x eats pure name gates (io / future_wait / sched wrapper) + thin walk/hoist wrappers;
+ *   FROM_X omits pure C bodies; walk _impl always seed (thin calls).
+ * Cap residual (stay seed C always): emit_* FILE* (begin/end/after_await/param_statics/
+ *   sched_wrapper/phase_reset); module/sched resolve; expr_is_* await classifiers;
+ *   walk _impl bodies.
+ * Prove: full.x vs this seed → nm IDENTICAL (pure surface)
+ * Regen: ./shux -E ... src/async/async_cps_codegen.x | filter DBG + polish prologue
+ * NOTE: use ./shux (not shux-x). Thin wrappers pass (e,target)/(b,target) ABI matching C.
+ * PLATFORM: SHARED — async CPS pure helpers; mac + Ubuntu prove.
+ */
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+extern int32_t async_cps_codegen_x_doc_anchor(void);
+extern uint8_t * async_cps_load_func_name(uint8_t * callee);
+extern void emit_hoisted_lets(uint8_t * f, uint8_t * out);
+extern int32_t async_cps_callee_is_io(uint8_t * callee);
+extern int32_t expr_references_run_async(uint8_t * e, uint8_t * target);
+extern int32_t block_has_run_async_ref(uint8_t * b, uint8_t * target);
+extern int32_t async_cps_callee_is_future_wait_by_name(uint8_t * n);
+extern int32_t async_cps_callee_is_future_wait(uint8_t * callee);
+extern int32_t async_cps_is_sched_wrapper_name(uint8_t * name);
+extern void emit_hoisted_lets_impl(uint8_t * f, uint8_t * out);
+extern int32_t expr_references_run_async_impl(uint8_t * e, uint8_t * target);
+extern int32_t block_has_run_async_ref_impl(uint8_t * b, uint8_t * target);
+int32_t async_cps_codegen_x_doc_anchor(void) {
+  return 0;
+}
+uint8_t * async_cps_load_func_name(uint8_t * callee) {
+  if ((callee ==0)) {
+    return ((uint8_t *)(0));
+  }
+  size_t m = 256;
+  size_t m2 = (m * m);
+  size_t m4 = (m2 * m2);
+  size_t a = ((size_t)((callee)[8]));
+  (void)((a = (a + (((size_t)((callee)[9])) * m))));
+  (void)((a = (a + (((size_t)((callee)[10])) * m2))));
+  (void)((a = (a + (((size_t)((callee)[11])) * (m2 * m)))));
+  (void)((a = (a + (((size_t)((callee)[12])) * m4))));
+  (void)((a = (a + (((size_t)((callee)[13])) * (m4 * m)))));
+  (void)((a = (a + (((size_t)((callee)[14])) * (m4 * m2)))));
+  (void)((a = (a + (((size_t)((callee)[15])) * ((m4 * m2) * m)))));
+  return ((uint8_t *)(a));
+}
+void emit_hoisted_lets(uint8_t * f, uint8_t * out) {
+  (void)(emit_hoisted_lets_impl(f, out));
+}
+int32_t async_cps_callee_is_io(uint8_t * callee) {
+  uint8_t * name = async_cps_load_func_name(callee);
+  if ((name ==0)) {
+    return 0;
+  }
+  if (((name)[0] ==0)) {
+    return 0;
+  }
+  if ((((((((((name)[0] ==115) && ((name)[1] ==104)) && ((name)[2] ==117)) && ((name)[3] ==120)) && ((name)[4] ==95)) && ((name)[5] ==105)) && ((name)[6] ==111)) && ((name)[7] ==95))) {
+    return 1;
+  }
+  if (((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==100)) && ((name)[4] ==0))) {
+    return 1;
+  }
+  if ((((((((name)[0] ==119) && ((name)[1] ==114)) && ((name)[2] ==105)) && ((name)[3] ==116)) && ((name)[4] ==101)) && ((name)[5] ==0))) {
+    return 1;
+  }
+  if ((((((((((((((name)[0] ==115) && ((name)[1] ==117)) && ((name)[2] ==98)) && ((name)[3] ==109)) && ((name)[4] ==105)) && ((name)[5] ==116)) && ((name)[6] ==95)) && ((name)[7] ==114)) && ((name)[8] ==101)) && ((name)[9] ==97)) && ((name)[10] ==100)) && ((name)[11] ==0))) {
+    return 1;
+  }
+  if (((((((((((((((name)[0] ==115) && ((name)[1] ==117)) && ((name)[2] ==98)) && ((name)[3] ==109)) && ((name)[4] ==105)) && ((name)[5] ==116)) && ((name)[6] ==95)) && ((name)[7] ==119)) && ((name)[8] ==114)) && ((name)[9] ==105)) && ((name)[10] ==116)) && ((name)[11] ==101)) && ((name)[12] ==0))) {
+    return 1;
+  }
+  if ((((((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==100)) && ((name)[4] ==95)) && ((name)[5] ==102)) && ((name)[6] ==100)) && ((name)[7] ==0))) {
+    return 1;
+  }
+  if (((((((((((name)[0] ==119) && ((name)[1] ==114)) && ((name)[2] ==105)) && ((name)[3] ==116)) && ((name)[4] ==101)) && ((name)[5] ==95)) && ((name)[6] ==102)) && ((name)[7] ==100)) && ((name)[8] ==0))) {
+    return 1;
+  }
+  if (((((((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==100)) && ((name)[4] ==95)) && ((name)[5] ==112)) && ((name)[6] ==116)) && ((name)[7] ==114)) && ((name)[8] ==0))) {
+    return 1;
+  }
+  if (((((((((((((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==100)) && ((name)[4] ==95)) && ((name)[5] ==115)) && ((name)[6] ==116)) && ((name)[7] ==100)) && ((name)[8] ==105)) && ((name)[9] ==110)) && ((name)[10] ==95)) && ((name)[11] ==112)) && ((name)[12] ==116)) && ((name)[13] ==114)) && ((name)[14] ==0))) {
+    return 1;
+  }
+  if ((((((((((((name)[0] ==114) && ((name)[1] ==101)) && ((name)[2] ==97)) && ((name)[3] ==100)) && ((name)[4] ==95)) && ((name)[5] ==105)) && ((name)[6] ==110)) && ((name)[7] ==116)) && ((name)[8] ==111)) && ((name)[9] ==0))) {
+    return 1;
+  }
+  if (((((((((((((name)[0] ==119) && ((name)[1] ==114)) && ((name)[2] ==105)) && ((name)[3] ==116)) && ((name)[4] ==101)) && ((name)[5] ==95)) && ((name)[6] ==102)) && ((name)[7] ==114)) && ((name)[8] ==111)) && ((name)[9] ==109)) && ((name)[10] ==0))) {
+    return 1;
+  }
+  return 0;
+}
+int32_t expr_references_run_async(uint8_t * e, uint8_t * target) {
+  return expr_references_run_async_impl(e, target);
+  return 0;
+}
+int32_t block_has_run_async_ref(uint8_t * b, uint8_t * target) {
+  return block_has_run_async_ref_impl(b, target);
+  return 0;
+}
+int32_t async_cps_callee_is_future_wait_by_name(uint8_t * n) {
+  if ((n ==0)) {
+    return 0;
+  }
+  if (((n)[0] ==0)) {
+    return 0;
+  }
+  if ((((((((((((((n)[0] ==102) && ((n)[1] ==117)) && ((n)[2] ==116)) && ((n)[3] ==117)) && ((n)[4] ==114)) && ((n)[5] ==101)) && ((n)[6] ==95)) && ((n)[7] ==119)) && ((n)[8] ==97)) && ((n)[9] ==105)) && ((n)[10] ==116)) && ((n)[11] ==0))) {
+    return 1;
+  }
+  if ((((((((((((((((((((((n)[0] ==114) && ((n)[1] ==117)) && ((n)[2] ==110)) && ((n)[3] ==116)) && ((n)[4] ==105)) && ((n)[5] ==109)) && ((n)[6] ==101)) && ((n)[7] ==95)) && ((n)[8] ==119)) && ((n)[9] ==97)) && ((n)[10] ==105)) && ((n)[11] ==116)) && ((n)[12] ==95)) && ((n)[13] ==102)) && ((n)[14] ==117)) && ((n)[15] ==116)) && ((n)[16] ==117)) && ((n)[17] ==114)) && ((n)[18] ==101)) && ((n)[19] ==0))) {
+    return 1;
+  }
+  if (((((((((((((((((((((((((((n)[0] ==115) && ((n)[1] ==104)) && ((n)[2] ==117)) && ((n)[3] ==120)) && ((n)[4] ==95)) && ((n)[5] ==97)) && ((n)[6] ==115)) && ((n)[7] ==121)) && ((n)[8] ==110)) && ((n)[9] ==99)) && ((n)[10] ==95)) && ((n)[11] ==102)) && ((n)[12] ==117)) && ((n)[13] ==116)) && ((n)[14] ==117)) && ((n)[15] ==114)) && ((n)[16] ==101)) && ((n)[17] ==95)) && ((n)[18] ==119)) && ((n)[19] ==97)) && ((n)[20] ==105)) && ((n)[21] ==116)) && ((n)[22] ==95)) && ((n)[23] ==99)) && ((n)[24] ==0))) {
+    return 1;
+  }
+  if ((((((((((((((((((((((((n)[0] ==115) && ((n)[1] ==116)) && ((n)[2] ==100)) && ((n)[3] ==95)) && ((n)[4] ==97)) && ((n)[5] ==115)) && ((n)[6] ==121)) && ((n)[7] ==110)) && ((n)[8] ==99)) && ((n)[9] ==95)) && ((n)[10] ==102)) && ((n)[11] ==117)) && ((n)[12] ==116)) && ((n)[13] ==117)) && ((n)[14] ==114)) && ((n)[15] ==101)) && ((n)[16] ==95)) && ((n)[17] ==119)) && ((n)[18] ==97)) && ((n)[19] ==105)) && ((n)[20] ==116)) && ((n)[21] ==0))) {
+    return 1;
+  }
+  if ((((((((((((((((((((((((((((((((n)[0] ==115) && ((n)[1] ==116)) && ((n)[2] ==100)) && ((n)[3] ==95)) && ((n)[4] ==97)) && ((n)[5] ==115)) && ((n)[6] ==121)) && ((n)[7] ==110)) && ((n)[8] ==99)) && ((n)[9] ==95)) && ((n)[10] ==114)) && ((n)[11] ==117)) && ((n)[12] ==110)) && ((n)[13] ==116)) && ((n)[14] ==105)) && ((n)[15] ==109)) && ((n)[16] ==101)) && ((n)[17] ==95)) && ((n)[18] ==119)) && ((n)[19] ==97)) && ((n)[20] ==105)) && ((n)[21] ==116)) && ((n)[22] ==95)) && ((n)[23] ==102)) && ((n)[24] ==117)) && ((n)[25] ==116)) && ((n)[26] ==117)) && ((n)[27] ==114)) && ((n)[28] ==101)) && ((n)[29] ==0))) {
+    return 1;
+  }
+  int32_t i = 0;
+  while ((i < 512)) {
+    if (((n)[i] ==0)) {
+      break;
+    }
+    if (((((((((((((n)[i] ==102) && ((n)[(i + 1)] ==117)) && ((n)[(i + 2)] ==116)) && ((n)[(i + 3)] ==117)) && ((n)[(i + 4)] ==114)) && ((n)[(i + 5)] ==101)) && ((n)[(i + 6)] ==95)) && ((n)[(i + 7)] ==119)) && ((n)[(i + 8)] ==97)) && ((n)[(i + 9)] ==105)) && ((n)[(i + 10)] ==116))) {
+      return 1;
+    }
+    if (((((((((((((((((((((n)[i] ==114) && ((n)[(i + 1)] ==117)) && ((n)[(i + 2)] ==110)) && ((n)[(i + 3)] ==116)) && ((n)[(i + 4)] ==105)) && ((n)[(i + 5)] ==109)) && ((n)[(i + 6)] ==101)) && ((n)[(i + 7)] ==95)) && ((n)[(i + 8)] ==119)) && ((n)[(i + 9)] ==97)) && ((n)[(i + 10)] ==105)) && ((n)[(i + 11)] ==116)) && ((n)[(i + 12)] ==95)) && ((n)[(i + 13)] ==102)) && ((n)[(i + 14)] ==117)) && ((n)[(i + 15)] ==116)) && ((n)[(i + 16)] ==117)) && ((n)[(i + 17)] ==114)) && ((n)[(i + 18)] ==101))) {
+      return 1;
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t async_cps_callee_is_future_wait(uint8_t * callee) {
+  uint8_t * name = async_cps_load_func_name(callee);
+  if ((name ==0)) {
+    return 0;
+  }
+  return async_cps_callee_is_future_wait_by_name(name);
+}
+int32_t async_cps_is_sched_wrapper_name(uint8_t * name) {
+  if ((name ==0)) {
+    return 0;
+  }
+  if (((((((((((((((((((name)[0] ==115) && ((name)[1] ==104)) && ((name)[2] ==117)) && ((name)[3] ==120)) && ((name)[4] ==95)) && ((name)[5] ==97)) && ((name)[6] ==115)) && ((name)[7] ==121)) && ((name)[8] ==110)) && ((name)[9] ==99)) && ((name)[10] ==95)) && ((name)[11] ==115)) && ((name)[12] ==99)) && ((name)[13] ==104)) && ((name)[14] ==101)) && ((name)[15] ==100)) && ((name)[16] ==95))) {
+    return 1;
+  }
+  return 0;
+}

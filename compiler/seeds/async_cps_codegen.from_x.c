@@ -3,7 +3,17 @@
  * G-02f-120 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
- * Product: src/async/async_cps_codegen.o; logic still C until full .x port.
+ *
+ * R2 pure surface（2026-07-21）：io/future_wait/sched name gates + thin public
+ *   wrappers (walk/hoist) by src/async/async_cps_codegen.x；FROM_X 下 pure
+ *   helper C 体省略；walk _impl 仍始终 seed（thin 转调）。
+ * Cap residual（始终 seed C）：emit_hoisted_lets_impl / begin/end/after_await /
+ *   emit_phase_reset / emit_sched_wrapper / emit_param_statics（FILE* fprintf）；
+ *   module_references_run_async / func_uses_void_entry / expr_is_* await
+ *   classifiers / resolve_sched_target / module_has_sched_extern。
+ * 冷启动/无 PREFER：完整 pure C 体 + Cap residual；产品默认 -c 本文件（无宏）。
+ * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
+ * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */
 /**
  * async_cps_codegen.c — async CPS switch 状态机 emit 实现（A3）
@@ -494,9 +504,12 @@ void async_cps_codegen_emit_sched_wrapper(const struct ASTFunc *f, const char *c
     fprintf(out, "}\n");
 }
 
+/* G-02f-20 thin+rest：DIRECT 模式，thin（.x）提供完整实现 */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_is_sched_wrapper_name(const char *name) {
     return name && strncmp(name, "shux_async_sched_", 16) == 0;
 }
+#endif
 
 struct ASTFunc *async_cps_resolve_sched_target(const struct ASTModule *m, const char *sched_name) {
     const char *async_name;
@@ -527,3 +540,10 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
     }
     return 0;
 }
+
+#ifdef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* R2 pure surface from .x; Cap residual + walk _impl above stay in this TU. */
+int async_cps_codegen_slice_marker(void) {
+    return 0;
+}
+#endif /* SHUX_ASYNC_CPS_CODEGEN_FROM_X */
