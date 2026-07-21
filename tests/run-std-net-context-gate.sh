@@ -50,6 +50,11 @@ echo "net-context manifest OK"
 ensure_std_c_o ../std/context/context.o
 ensure_std_c_o ../std/time/time.o
 ensure_std_c_o ../std/net/net.o
+# context.x declares raw `extern function atomic_*_c` / `time_now_monotonic_ns_c`
+# (not `import std.atomic`/`std.time`), so shux -o cannot auto-discover these
+# runtime glue providers. Build them and pass explicitly on the -o link line.
+ensure_runtime_atomic_glue_o
+ensure_runtime_time_os_o
 
 SHUX_BIN=""
 if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
@@ -67,7 +72,7 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
   exe="/tmp/shux_std092_net_ctx_$$"
-  if ! "$SHUX_BIN" -L . "$SMOKE" -o "$exe" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" -L . "$SMOKE" -o "$exe" compiler/runtime_atomic_glue.o compiler/runtime_time_os.o >/dev/null 2>&1; then
     echo "net-context gate FAIL: compile $SMOKE" >&2
     exit 1
   fi

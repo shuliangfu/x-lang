@@ -376,9 +376,12 @@ int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len);
 /**
  * 链 std .o 调 shux_invoke_cc；argv0 可为 NULL。
  * 失败时 unlink out_path；成功且无 SHUX_KEEP_C 时 unlink tmp_c。
+ * argc/argv：从命令行提取用户 .o 文件（如 runtime_atomic_glue.o）注入 cc 链接行；
+ *   单一权威由 shux_invoke_cc_set_user_o_files_from_argv/clear_user_o_files 承担。
+ * PLATFORM: SHARED — argv 为普通 char**。
  */
 int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level,
-                                int32_t use_lto, uint8_t *argv0);
+                                int32_t use_lto, uint8_t *argv0, int32_t argc, uint8_t *argv);
 void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len);
 /** dep_paths 中是否含 "std.io.core"（strcmp）。 */
 int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps);

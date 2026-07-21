@@ -3347,7 +3347,10 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
       /* path：path.o = runtime_path_fast 权威；co-emit mod.x 再链 path.o → duplicate */
       "std.path",
       /* error：error.o 权威；co-emit 现仅 extern，须链 .o 补符号 */
-      "std.error", NULL};
+      "std.error",
+      /* context：context.o (mod.x + context.x) 权威；co-emit mod.x 的 deadline_ns/with_deadline
+       * etc. 与 context.o 强符号 duplicate（net-context gate 红）。G.7 single authority. */
+      "std.context", NULL};
   int i;
   size_t n;
   size_t plen;
@@ -3764,6 +3767,64 @@ int link_abi_user_o_needs_heap_user_syms(const char *user_o);
 int link_abi_user_o_needs_async_scheduler(const char *user_o);
 int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
+
+/* ============================================================================
+ * User-specified .o files from command line (single authority, G.3/G.4).
+ *
+ * Why: `shux -o exe file.x extra.o` drops extra.o because shux_invoke_cc takes
+ *   a fixed variadic list of std/core .o paths. The driver never extracts .o
+ *   args from argv before calling shux_invoke_cc, so user-provided glue .o
+ *   files (e.g. runtime_atomic_glue.o, runtime_time_os.o) never reach the cc
+ *   link line → undefined symbols at link time.
+ * Authority: this global + setter/clearer is the SINGLE path for user .o files
+ *   to reach the cc link line. Callers wrap shux_invoke_cc with set/clear:
+ *     shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
+ *     shux_invoke_cc(...);
+ *     shux_invoke_cc_clear_user_o_files();
+ * Invariant: g_shux_n_user_extra_o_files == 0 means no user .o (safe default;
+ *   all existing shux_invoke_cc callers that don't wrap keep prior behavior).
+ * PLATFORM: SHARED — works on macOS/Linux/Windows; argv is plain char**.
+ * ========================================================================== */
+#define SHUX_USER_EXTRA_O_FILES_MAX 32
+static const char *g_shux_user_extra_o_files[SHUX_USER_EXTRA_O_FILES_MAX];
+static int g_shux_n_user_extra_o_files = 0;
+
+/* Extract .o file args from argv. Skips options (-o/-L/-I/-target/-backend/-O
+ * and their value), -D<def>, --<flag>, and any arg not ending in ".o".
+ * Stores up to SHUX_USER_EXTRA_O_FILES_MAX pointers (no copy; argv lifetime
+ * must cover the subsequent shux_invoke_cc call). Resets state first. */
+void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
+    int i;
+    g_shux_n_user_extra_o_files = 0;
+    if (!argv)
+        return;
+    for (i = 1; i < argc; i++) {
+        const char *a = argv[i];
+        size_t len;
+        if (!a || !a[0])
+            continue;
+        if (a[0] == '-') {
+            /* Two-token options: skip the value arg too. */
+            if ((!strcmp(a, "-o") || !strcmp(a, "-L") || !strcmp(a, "-I") ||
+                 !strcmp(a, "-target") || !strcmp(a, "-backend") ||
+                 !strcmp(a, "-O") || !strcmp(a, "-opt")) && i + 1 < argc) {
+                i++; /* consume value */
+            }
+            continue;
+        }
+        len = strlen(a);
+        if (len >= 2 && a[len - 2] == '.' && a[len - 1] == 'o') {
+            if (g_shux_n_user_extra_o_files < SHUX_USER_EXTRA_O_FILES_MAX) {
+                g_shux_user_extra_o_files[g_shux_n_user_extra_o_files++] = a;
+            }
+        }
+    }
+}
+
+/* Reset user .o state. Call after shux_invoke_cc to prevent stale pointers. */
+void shux_invoke_cc_clear_user_o_files(void) {
+    g_shux_n_user_extra_o_files = 0;
+}
 
 /**
  * 调用系统 cc 将多个 C 文件编译链接为可执行文件（fork/exec + 可选 strip）。
@@ -4975,6 +5036,18 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         if (i < argv_cap - 1)
             argv[i++] = (char *)"-Wl,--allow-multiple-definition";
 #endif
+        /* User-specified .o files from command line (single authority:
+         * g_shux_user_extra_o_files, set by shux_invoke_cc_set_user_o_files_from_argv).
+         * Pushed AFTER all std/core .o and link flags so user glue resolves last
+         * (resolves UNDEF symbols from std .o that user glue provides, e.g.
+         * runtime_atomic_glue.o provides atomic_load_i32_c referenced by context.o). */
+        {
+            int ui;
+            for (ui = 0; ui < g_shux_n_user_extra_o_files; ui++) {
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                                                    g_shux_user_extra_o_files[ui]);
+            }
+        }
         if (i < argv_cap)
             argv[i++] = NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)

@@ -135,7 +135,7 @@ export const IO_CTX_MS_EXPIRED: i32 = -2;
  * @param ctx Context
  * @return i32
  */
-export function timeout_from_ctx(ctx: Context): i32 {
+export function timeout_from_ctx(ctx: context.Context): i32 {
   if (context.is_cancelled(ctx) != 0) {
     return IO_CTX_MS_CANCELLED;
   }
@@ -164,7 +164,7 @@ export function timeout_from_ctx(ctx: Context): i32 {
  * @param ctx Context
  * @return i32
  */
-export function read_ctx(handle: usize, ptr: *u8, len: usize, ctx: Context): i32 {
+export function read_ctx(handle: usize, ptr: *u8, len: usize, ctx: context.Context): i32 {
   let tm: i32 = timeout_from_ctx(ctx);
   if (tm == IO_CTX_MS_CANCELLED) {
     return err.io_err_cancelled();
@@ -182,7 +182,7 @@ export function read_ctx(handle: usize, ptr: *u8, len: usize, ctx: Context): i32
  * @param ctx Context
  * @return i32
  */
-export function write_ctx(handle: usize, ptr: *u8, len: usize, ctx: Context): i32 {
+export function write_ctx(handle: usize, ptr: *u8, len: usize, ctx: context.Context): i32 {
   let tm: i32 = timeout_from_ctx(ctx);
   if (tm == IO_CTX_MS_CANCELLED) {
     return err.io_err_cancelled();

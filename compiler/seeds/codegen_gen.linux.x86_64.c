@@ -212,6 +212,7 @@ struct std_net_UdpSocket { int32_t fd; };
 #define std_io_driver_io_write_batch_buf io_write_batch_buf
 #define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))
 #include <stdio.h>
+#include <stdlib.h>
 #ifndef __cplusplus
 /* 仅补 co-emit 未定义的符号；勿桩 shux_io_submit_write / submit_read_batch_buf（同 TU 强定义）。 */
 __attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {
@@ -1759,6 +1760,18 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
     int32_t nd = pipeline_dep_ctx_ndep(ctx);
     if ((((ctx ==((struct ast_PipelineDepCtx *)(0))) || (path ==((uint8_t *)(0)))) || (path_len <=0))) {
       return -(1);
+    }
+    if (getenv("SHUX_DEBUG_DEP_LIST")) {
+      fprintf(stderr, "shux: [DBG_DEP_LIST] find_dep_index_by_path lookup='%.*s' len=%d nd=%d\n",
+              (int)path_len, (char*)path, (int)path_len, (int)nd);
+      for (di = 0; di < nd; di++) {
+        uint8_t dp[64] = {};
+        int32_t dl = codegen_dep_import_path_len_at(ctx, di, &dp[0]);
+        struct ast_Module * dm = pipeline_dep_ctx_module_at(ctx, di);
+        fprintf(stderr, "shux: [DBG_DEP_LIST]   [%d] path='%.*s' len=%d mod=%p funcs=%d\n",
+                (int)di, (int)dl, (char*)dp, (int)dl, (void*)dm, dm ? (int)dm->num_funcs : -1);
+      }
+      di = 0;
     }
     while ((di < nd)) {
       uint8_t dep_path[64] = {};
@@ -9791,7 +9804,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                       (void)((nb = codegen_type_ref_to_suffix(search_arena, param_ty, &((sb)[0]), 64)));
                     }
                   }
-                  { extern int getenv(const char *); if (getenv("SHUX_CGFCN")) fprintf(stderr, "SHUX_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
+                  { extern char *getenv(const char *); if (getenv("SHUX_CGFCN")) fprintf(stderr, "SHUX_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
                   if ((na !=nb)) {
                     (void)((types_match = 0));
                   } else {
@@ -10781,9 +10794,15 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
           struct ast_Module * dep_mod = ((struct ast_Module *)(0));
           struct ast_ASTArena * dep_arena = ((struct ast_ASTArena *)(0));
           int32_t dep_ctx_ix = dep_ix;
+          if (getenv("SHUX_DEBUG_PREFIX"))
+            fprintf(stderr, "shux: [DBG_PREFIX] emit_import_dep_decl module=%p n_imp=%d imp_i=%d dep_path=%.*s dep_ix=%d\n",
+                    (void*)module, (int)n_imp, (int)imp_i, (int)dep_path_len, (char*)dep_path, (int)dep_ix);
           if (((dep_ix >=0) && (dep_ix < pipeline_dep_ctx_ndep(ctx)))) {
             (void)((dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix)));
             (void)((dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix)));
+            if (getenv("SHUX_DEBUG_PREFIX"))
+              fprintf(stderr, "shux: [DBG_PREFIX]   -> dep_ix=%d dep_mod=%p num_funcs=%d\n",
+                      (int)dep_ix, (void*)dep_mod, dep_mod ? (int)dep_mod->num_funcs : -1);
           }
           if ((((dep_mod ==((struct ast_Module *)(0))) || (dep_arena ==((struct ast_ASTArena *)(0)))) && (dep_path_len > 0))) {
             int32_t global_slot = codegen_find_seeded_global_dep_slot_by_path(&((dep_path)[0]), dep_path_len);

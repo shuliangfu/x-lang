@@ -569,6 +569,17 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 
 /**
+ * User-specified .o files from command line — single authority (G.3/G.4).
+ * Why: `shux -o exe file.x extra.o` drops extra.o because shux_invoke_cc takes
+ *   a fixed variadic std/core .o list. These setters plumb user .o args from
+ *   argv through shux_invoke_cc_impl to the cc link line.
+ * Contract: caller must wrap shux_invoke_cc with set/clear to avoid stale state.
+ * PLATFORM: SHARED — argv is plain char**.
+ */
+void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
+void shux_invoke_cc_clear_user_o_files(void);
+
+/**
  * task.o 链入时推导 scheduler.o 路径；explicit_scheduler 非空时优先使用。
  * 参数：task_o task 模块 .o 路径；explicit_scheduler 显式 scheduler .o 或 NULL。
  * 返回值：可链入的 scheduler .o 路径，失败 NULL。

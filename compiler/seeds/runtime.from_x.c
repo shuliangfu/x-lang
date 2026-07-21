@@ -2835,7 +2835,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
         const char *async_scheduler_o = NULL;
         if (shux_generated_c_needs_async_scheduler(tmp_c))
             async_scheduler_o = shux_std_async_scheduler_o_path(argv[0]);
+        /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
+        shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
         int cc_ok = shux_invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), async_scheduler_o);
+        shux_invoke_cc_clear_user_o_files();
         if (cc_ok != 0) {
             driver_unlink_failed_output(out_path);
             diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
@@ -3284,7 +3287,10 @@ int run_compiler_x_path(int argc, char **argv) {
             const char *task_o = shux_rel_o_path_from_argv0(argv[0], "std/task/task.o");
             const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
             const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
+            /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
+            shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
             int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
+            shux_invoke_cc_clear_user_o_files();
             if (cc_ret != 0) {
                 driver_unlink_failed_output(out_path);
                 diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
@@ -5437,7 +5443,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 const char *task_o = shux_rel_o_path_from_argv0(argv[0], "std/task/task.o");
                 const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
                 const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
+                /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
+                shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
                 int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
+                shux_invoke_cc_clear_user_o_files();
                 if (cc_ret != 0) {
                     driver_unlink_failed_output(out_path);
                     diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
@@ -5976,7 +5985,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             const char *task_o = shux_rel_o_path_from_argv0(argv[0], "std/task/task.o");
             const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
             const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
+            /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
+            shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
             int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
+            shux_invoke_cc_clear_user_o_files();
             if (cc_ret != 0) {
                 driver_unlink_failed_output(out_path);
                 diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,

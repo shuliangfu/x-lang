@@ -2795,6 +2795,14 @@ extern int shux_invoke_cc(const char **c_paths, int n, const char *out_path, con
                           const char *security_o, const char *config_o, const char *cache_o, const char *trace_o,
                           const char *task_o, const char *schema_o, const char *test_o, const char *include_root,
                           const char *async_scheduler_o);
+/* User-specified .o files from command line — single authority (G.3/G.4).
+ * Why: shux_invoke_cc takes a fixed variadic std/core .o list, so user .o args
+ *   from argv (e.g. runtime_atomic_glue.o) never reach the cc link line.
+ *   These setters plumb user .o args through shux_invoke_cc_impl.
+ * Authority: see runtime_link_abi.from_x.c (g_shux_user_extra_o_files + setters).
+ * PLATFORM: SHARED — argv is plain char**. */
+extern void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
+extern void shux_invoke_cc_clear_user_o_files(void);
 extern void codegen_reset_preamble_skip_mask(void);
 extern void codegen_or_preamble_skip_mask(unsigned mask);
 #ifndef CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
@@ -2962,7 +2970,7 @@ int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len) {
 }
 
 int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level, int32_t use_lto,
-                                uint8_t *argv0) {
+                                uint8_t *argv0, int32_t argc, uint8_t *argv) {
     const char *c_paths[1];
     const char *a0 = (const char *)(void *)argv0;
     const char *opt = opt_level ? (const char *)(void *)opt_level : "2";
@@ -3018,6 +3026,10 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
     if (!tmp_c || !out_path)
         return 1;
     c_paths[0] = (const char *)(void *)tmp_c;
+    /* Single authority (G.3/G.4): set user .o files from argv before shux_invoke_cc
+     * so they are pushed to the cc link line (resolves UNDEF symbols from std .o
+     * that user glue provides, e.g. runtime_atomic_glue.o provides atomic_load_i32_c). */
+    shux_invoke_cc_set_user_o_files_from_argv((int)argc, (char **)(void *)argv);
     cc_ret = shux_invoke_cc(c_paths, 1, (const char *)(void *)out_path, NULL, opt, (int)use_lto, io_o,
                             fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o,
                             thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o,
@@ -3025,6 +3037,8 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
                             csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o,
                             datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o,
                             schema_o, test_o, shux_repo_root_from_argv0(a0), NULL);
+    /* Always clear after invoke to prevent stale pointers across calls. */
+    shux_invoke_cc_clear_user_o_files();
     if (cc_ret != 0) {
         driver_unlink_failed_output((const char *)(void *)out_path);
         diag_reportf_with_code(NULL, 0, 0, "build error", "BLD001", NULL,

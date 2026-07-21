@@ -2061,7 +2061,8 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (append_byte(out, 41) != 0) {
       return -1;
     }
-    (void)is_method;
+    /* is_method is assigned but not read; SHUX has no unused-warning, so no
+     * `(void)is_method;` C-style cast needed (such syntax hangs the parser). */
     return 1;
   }
 }
@@ -3738,7 +3739,8 @@ export function codegen_lookup_struct_field_type_ref(
 ): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    (void)(arena);
+    /* arena unused (layout lives on Module); SHUX has no unused-warning, so no
+     * `(void)(arena);` C-style cast needed (such syntax hangs the parser). */
     if (struct_name == 0 as *u8 || struct_name_len <= 0 || field_name == 0 as *u8 || field_name_len <= 0) {
       return 0;
     }

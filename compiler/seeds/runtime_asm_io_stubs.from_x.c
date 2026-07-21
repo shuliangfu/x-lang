@@ -140,8 +140,11 @@ int32_t io_register_buffer(uint8_t *ptr, size_t len) {
   return 0;
 }
 
-/** std.io.core 三参注册。 */
-int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle) {
+/** std.io.core 三参注册。
+ * PLATFORM: SHARED — weak so that std/io/core.x export (strong T) wins when
+ * user imports std.io.core; fallback when asm/standalone link omits core.x.
+ * G.7 single authority: core.x is the strong impl; this stub is fallback only. */
+SHUX_WEAK int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle) {
   (void)handle;
   return io_register_buffer(ptr, len);
 }
@@ -155,8 +158,11 @@ int32_t shux_io_register_buf(intptr_t buf) {
   return shux_io_register(b->ptr, b->len, b->handle);
 }
 
-/** std.io.core submit_read 桩。 */
-int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+/** std.io.core submit_read 桩。
+ * PLATFORM: SHARED — weak so that std/io/core.x export (strong T) wins when
+ * user imports std.io.core; fallback when asm/standalone link omits core.x.
+ * G.7 single authority: core.x is the strong impl; this stub is fallback only. */
+SHUX_WEAK int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
   (void)ptr;
   (void)len;
   (void)handle;
@@ -164,8 +170,11 @@ int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t ti
   return 0;
 }
 
-/** std.io.core submit_write 桩。 */
-int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+/** std.io.core submit_write 桩。
+ * PLATFORM: SHARED — weak so that std/io/core.x export (strong T) wins when
+ * user imports std.io.core; fallback when asm/standalone link omits core.x.
+ * G.7 single authority: core.x is the strong impl; this stub is fallback only. */
+SHUX_WEAK int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
   (void)ptr;
   (void)len;
   (void)handle;

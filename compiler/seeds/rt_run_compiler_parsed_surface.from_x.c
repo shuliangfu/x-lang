@@ -159,7 +159,7 @@ extern uint8_t * driver_parsed_open_out_file(uint8_t * out_path, uint8_t * tmp_c
 extern void driver_parsed_fclose(uint8_t * fp);
 extern int32_t driver_parsed_fclose_rc(uint8_t * fp);
 extern int32_t driver_parsed_write_out(uint8_t * fp, uint8_t * data, int32_t len);
-extern int32_t driver_parsed_invoke_cc(uint8_t * tmp_c, uint8_t * out_path, uint8_t * opt_level, int32_t use_lto, uint8_t * argv0);
+extern int32_t driver_parsed_invoke_cc(uint8_t * tmp_c, uint8_t * out_path, uint8_t * opt_level, int32_t use_lto, uint8_t * argv0, int32_t argc, uint8_t * argv);
 extern void driver_parsed_maybe_dump_prep(uint8_t * input_path, uint8_t * src, size_t src_len);
 extern void driver_parsed_apply_preamble_skip(uint8_t * dep_paths, int32_t n_deps);
 extern int32_t driver_asm_collect_defines(int32_t argc, uint8_t * argv);
@@ -1247,6 +1247,7 @@ int32_t rt_cp_step_finish(void) {
   uint8_t * opt = ((uint8_t *)(0));
   uint8_t * argv = ((uint8_t *)(0));
   uint8_t * argv0 = ((uint8_t *)(0));
+  int32_t argc = 0;
   int32_t use_lto = 0;
   int32_t emit_stdout = 0;
   int32_t rc = 0;
@@ -1261,6 +1262,7 @@ int32_t rt_cp_step_finish(void) {
     (void)((outp = driver_parsed_work_p_get(pp_out_path())));
     (void)((opt = driver_parsed_work_p_get(pp_opt())));
     (void)((argv = driver_parsed_work_p_get(pp_argv())));
+    (void)((argc = driver_parsed_work_i_get(pi_argc())));
     (void)((use_lto = driver_parsed_work_i_get(pi_use_lto())));
     (void)((emit_stdout = driver_parsed_work_i_get(pi_emit_stdout())));
   }
@@ -1298,7 +1300,7 @@ int32_t rt_cp_step_finish(void) {
   }
   {
     (void)((argv0 = driver_asm_argv0(argv)));
-    (void)((rc = driver_parsed_invoke_cc(tmpc, outp, opt, use_lto, argv0)));
+    (void)((rc = driver_parsed_invoke_cc(tmpc, outp, opt, use_lto, argv0, argc, argv)));
     if ((rc ==0)) {
       (void)(driver_parsed_work_p_set(pp_tmpc(), ((uint8_t *)(0))));
       (void)(free(tmpc));

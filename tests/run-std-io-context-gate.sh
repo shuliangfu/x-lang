@@ -55,6 +55,7 @@ ensure_std_c_o ../std/context/context.o
 ensure_std_c_o ../std/time/time.o
 ensure_std_c_o ../std/atomic/atomic.o
 ensure_runtime_atomic_glue_o
+ensure_runtime_time_os_o
 
 SHUX_BIN=""
 if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then

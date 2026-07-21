@@ -338,13 +338,11 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       continue
       ;;
     run-std-io-context-gate.sh|run-std-net-context-gate.sh)
-      # PLATFORM: SHARED — context.x uses raw 'extern function atomic_store_i32_c' /
-      # 'extern function time_now_monotonic_ns_c' (not import std.atomic/std.time), so
-      # shux -o cannot auto-discover the runtime glue providers (runtime_atomic_glue.o,
-      # runtime_time_os.o). shux -o does not accept extra .o link args. Pre-existing
-      # gate bug; tracked for separate compiler-level fix. Skip on all platforms.
-      echo "run-all-bstrict: skip $script (shux -o can't link runtime_atomic_glue.o for raw externs)"
-      continue
+      # PLATFORM: SHARED — context.x uses raw 'extern function atomic_*_c' /
+      # 'extern function time_now_monotonic_ns_c' (not import std.atomic/std.time),
+      # so shux -o cannot auto-discover the runtime glue providers. Each gate
+      # script now builds runtime_atomic_glue.o / runtime_time_os.o via
+      # ensure_runtime_*_o and passes them explicitly on the -o link line.
       ;;
     run-net.sh)
       # PLATFORM: MACOS|DARWIN — net_tcp_listen_c binds port 8080; on Darwin the listen

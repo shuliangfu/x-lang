@@ -474,9 +474,8 @@ export function read(fd: i32, buf: *u8, len: i32): i32 {
  */
 #[cfg(target_os = "windows")]
 export function read(fd: i32, buf: *u8, len: i32): i32 {
-  (void)fd;
-  (void)buf;
-  (void)len;
+  /* Windows stub: params unused, SHUX has no unused-warning so no `(void)x;`
+   * C-style cast needed (such syntax hangs the parser). */
   return -1;
 }
 
@@ -517,7 +516,8 @@ export function close(fd: i32): i32 {
  */
 #[cfg(target_os = "windows")]
 export function close(fd: i32): i32 {
-  (void)fd;
+  /* Windows stub: param unused, SHUX has no unused-warning so no `(void)fd;`
+   * C-style cast needed (such syntax hangs the parser). */
   return -1;
 }
 

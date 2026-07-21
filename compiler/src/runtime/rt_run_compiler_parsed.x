@@ -117,7 +117,8 @@ export extern "C" function driver_parsed_fclose(fp: *u8): void;
 export extern "C" function driver_parsed_fclose_rc(fp: *u8): i32;
 export extern "C" function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32;
 export extern "C" function driver_parsed_invoke_cc(
-  tmp_c: *u8, out_path: *u8, opt_level: *u8, use_lto: i32, argv0: *u8): i32;
+  tmp_c: *u8, out_path: *u8, opt_level: *u8, use_lto: i32, argv0: *u8,
+  argc: i32, argv: *u8): i32;
 export extern "C" function driver_parsed_maybe_dump_prep(
   input_path: *u8, src: *u8, src_len: usize): void;
 export extern "C" function driver_parsed_apply_preamble_skip(dep_paths: *u8, n_deps: i32): void;
@@ -1176,6 +1177,7 @@ export function rt_cp_step_finish(): i32 {
   let opt: *u8 = 0 as *u8;
   let argv: *u8 = 0 as *u8;
   let argv0: *u8 = 0 as *u8;
+  let argc: i32 = 0;
   let use_lto: i32 = 0;
   let emit_stdout: i32 = 0;
   let rc: i32 = 0;
@@ -1190,6 +1192,7 @@ export function rt_cp_step_finish(): i32 {
     outp = driver_parsed_work_p_get(pp_out_path());
     opt = driver_parsed_work_p_get(pp_opt());
     argv = driver_parsed_work_p_get(pp_argv());
+    argc = driver_parsed_work_i_get(pi_argc());
     use_lto = driver_parsed_work_i_get(pi_use_lto());
     emit_stdout = driver_parsed_work_i_get(pi_emit_stdout());
   }
@@ -1226,7 +1229,7 @@ export function rt_cp_step_finish(): i32 {
   }
   unsafe {
     argv0 = driver_asm_argv0(argv);
-    rc = driver_parsed_invoke_cc(tmpc, outp, opt, use_lto, argv0);
+    rc = driver_parsed_invoke_cc(tmpc, outp, opt, use_lto, argv0, argc, argv);
     /* invoke_cc unlinks tmp_c on success; clear so cleanup won't double-unlink */
     if (rc == 0) {
       driver_parsed_work_p_set(pp_tmpc(), 0 as *u8);
