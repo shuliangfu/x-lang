@@ -282,28 +282,55 @@ int bootstrap_heap_grow(size_t need) { return bootstrap_heap_grow_impl(need); }
 
 
 
-/** malloc 最小实现；bootstrap 链按需。 */
+/*
+ * PLATFORM: SHARED — freestanding bump heap for SHUX_BOOTSTRAP_NOSTDLIB / static shux_asm.
+ *
+ * Layout of every live block:
+ *   [HeapHdr size (16 B, 16-aligned)][user payload ...]
+ * malloc/calloc return the payload pointer; free is still a no-op (bump).
+ *
+ * Why the header: realloc must copy min(old_user_size, new_size). The previous
+ * "memcpy(n, ptr, size)" used the *new* size while the old payload was only
+ * old_size bytes. On grow (e.g. GrowVec 256→4352 × sizeof(ast_Expr)), that
+ * read past the old block into unmapped pages → intermittent Ubuntu SIGSEGV
+ * under ASLR (~50% on large -E; setarch -R 0%; small files OK). GDB often
+ * hid it via different layout.
+ *
+ * Authority: this seed TU only (G.7). .x thin does not reimplement malloc.
+ */
+typedef struct {
+  size_t user_size; /* exact size requested by the last malloc/realloc for this block */
+  size_t _pad;      /* keep header 16 bytes so payload stays 16-aligned */
+} BootstrapHeapHdr;
+
+/** malloc minimal: bump + size header before payload. */
 void *malloc(size_t size) {
     size_t need;
-    void *out;
+    size_t payload;
+    unsigned char *raw;
+    BootstrapHeapHdr *hdr;
     if (size == 0)
         return NULL;
-    need = bootstrap_align16(size);
+    payload = bootstrap_align16(size);
+    need = sizeof(BootstrapHeapHdr) + payload;
     if (!bootstrap_heap_end || bootstrap_heap_end + need > bootstrap_heap_limit) {
         if (bootstrap_heap_grow(need) != 0)
             return NULL;
     }
-    out = bootstrap_heap_end;
+    raw = bootstrap_heap_end;
     bootstrap_heap_end += need;
-    return out;
+    hdr = (BootstrapHeapHdr *)(void *)raw;
+    hdr->user_size = size;
+    hdr->_pad = 0;
+    return (void *)(raw + sizeof(BootstrapHeapHdr));
 }
 
-/** free 最小实现；bump 分配器 no-op。 */
+/** free minimal: bump allocator no-op (payload stays reserved). */
 void free(void *ptr) {
     (void)ptr;
 }
 
-/** calloc 最小实现。 */
+/** calloc minimal: malloc then zero user_size bytes. */
 void *calloc(size_t nmemb, size_t size) {
     size_t total = nmemb * size;
     void *p = malloc(total);
@@ -312,23 +339,28 @@ void *calloc(size_t nmemb, size_t size) {
     return p;
 }
 
-/** realloc 最小实现；仅支持 NULL 或 bump 内指针的简单路径。 */
+/** realloc: allocate new block; copy min(old_user_size, size) only.
+ * PLATFORM: SHARED — must not memcpy with `size` when growing (OOB read). */
 void *realloc(void *ptr, size_t size) {
+    BootstrapHeapHdr *old_hdr;
+    size_t old_size;
+    size_t ncopy;
+    void *n;
     if (!ptr)
         return malloc(size);
     if (size == 0) {
         free(ptr);
         return NULL;
     }
-    /* bump 无法原地扩展；分配新块并拷贝（bootstrap 烟测足够）。 */
-    {
-        void *n = malloc(size);
-        if (!n)
-            return NULL;
-        /* 旧块大小未知；保守拷贝 size 字节。 */
-        memcpy(n, ptr, size);
-        return n;
-    }
+    old_hdr = (BootstrapHeapHdr *)(void *)((unsigned char *)ptr - sizeof(BootstrapHeapHdr));
+    old_size = old_hdr->user_size;
+    n = malloc(size);
+    if (!n)
+        return NULL;
+    ncopy = old_size < size ? old_size : size;
+    if (ncopy > 0)
+        memcpy(n, ptr, ncopy);
+    return n;
 }
 
 /** C 字符串比较；相等返回 0。 */
