@@ -36,9 +36,10 @@ const char *const driver_preamble_io_net_lines[] = {
         "#include <stdlib.h>\n",
         "#include <string.h>\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <unistd.h>\n#else\n#include <io.h>\n#include <sys/types.h>\n#endif\n",
-        /* PLATFORM: POSIX — opendir/closedir/readdir after skip-list (dirent). */
+        /* PLATFORM: POSIX — opendir/closedir/readdir after skip-list (dirent).
+         * Do NOT include fcntl.h here: preamble still emits open(uint8_t*,...) for
+         * std.fs co-emit; fcntl.h open(const char*,...) would conflict. */
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <dirent.h>\n#endif\n",
-        "#if !defined(_WIN32) && !defined(_WIN64)\n#include <fcntl.h>\n#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <sys/uio.h>\n#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n#include <poll.h>\n#endif\n",
         /*
