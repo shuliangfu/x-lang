@@ -47,7 +47,7 @@
 // wave64: pure pipeline_parse_into_bytes orch (G.7 pure parser_parse_into_init +
 //   G.7 pure driver_parse_into_buf_rc; non-zero ok → -1; cold twin under FROM_X).
 // wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve +
-//   Cap residual entry_dir_get / resolved_path_buf_slot BSS; cold twin under FROM_X).
+//   entry_dir_get (wave68 pure) / Cap residual resolved_path_buf_slot BSS; cold twin under FROM_X).
 // wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
 //   (G.7 pure preprocess + Cap residual stage BSS / loaded_import_commit_from_owned;
 //   cold twins under FROM_X).
@@ -55,6 +55,9 @@
 //   (LP64 offsetof + LE store/byte copy; same layout as driver_abi wave19);
 //   pure pipeline_dep_ctx_set_use_asm_backend thin → G.7 driver_pipeline_dep_ctx_set_use_asm;
 //   cold twins under FROM_X.
+// wave68: pure pipeline_entry_dir_copy / set_dot / get orch (module BSS buf 512 +
+//   "." lit + is_dot flag; G.7 single authority for resolve_path / set_entry_dir;
+//   cold twins under FROM_X). Cap residual still: pipeline_resolved_path_buf_slot.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -156,9 +159,9 @@ export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8
 /* See implementation. */
 
 // wave65: pipeline_resolve_path_into_static is pure export function below (not Cap residual).
-// Cap residual always-seed BSS accessors for pure into_static orch:
-// PLATFORM: SHARED — entry_dir pointer + resolved_path static buffer (512).
-export extern "C" function pipeline_entry_dir_get(): *u8;
+// wave68: pipeline_entry_dir_get / copy / set_dot are pure export functions below (pure BSS).
+// Cap residual always-seed: pipeline_resolved_path_buf_slot (resolved path static buffer 512).
+// PLATFORM: SHARED — pure entry_dir + Cap residual resolved_path for into_static orch.
 export extern "C" function pipeline_resolved_path_buf_slot(): *u8;
 // wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
 // Cap residual always-seed stage BSS + loaded_import commit (malloc ensure/memcpy):
@@ -193,8 +196,7 @@ export extern "C" function driver_pipeline_dep_ctx_set_asm_entry_module_only(ctx
 export extern "C" function access(path: *u8, mode: i32): i32;
 export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
 /* See implementation. */
-export extern "C" function pipeline_entry_dir_copy(path: *u8): void;
-export extern "C" function pipeline_entry_dir_set_dot(): void;
+// wave68: pipeline_entry_dir_copy / set_dot are pure export functions below (not Cap residual).
 export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
 /* See implementation. */
 /* See implementation. */
@@ -1733,7 +1735,7 @@ export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_p
  * @return void
  * wave65 pure Cap residual orch:
  *   G.7 pure shux_resolve_import_file_path_multi (file-path / -L / entry_dir fallbacks);
- *   Cap residual pipeline_entry_dir_get + pipeline_resolved_path_buf_slot (seed BSS).
+ *   pure pipeline_entry_dir_get (wave68 BSS) + Cap residual pipeline_resolved_path_buf_slot.
  * Stack packs one LP64 ptr slot for lib_roots[1] = {"."} (same as historical seed).
  * PLATFORM: SHARED — resolved buffer cap 512 matches seed pipeline_resolved_path_buf.
  */
@@ -2783,12 +2785,79 @@ export function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void {
   }
 }
 
+// wave68 pure entry_dir BSS (G.7 single authority for resolve_path / set_entry_dir).
+// PLATFORM: SHARED LP64 — same ABI as seed cold twins; hybrid pure owns these cells.
+// Cap residual still: pipeline_resolved_path_buf_slot (separate static 512 for resolve output).
+let g_pipe_entry_dir_buf: u8[512] = [];
+let g_pipe_entry_dir_dot: u8[2] = [];
+let g_pipe_entry_dir_is_dot: i32 = 1;
+
+/**
+ * Copy NUL-terminated path into the pipeline entry_dir BSS buffer and select it.
+ * @param path *u8 — directory path; null → no-op (keeps prior selection)
+ * @return void
+ * wave68 pure: snprintf-equivalent byte copy into g_pipe_entry_dir_buf (cap 512 incl NUL).
+ * Clears is_dot so pipeline_entry_dir_get returns the buffer base.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_entry_dir_copy(path: *u8): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  let i: i32 = 0;
+  unsafe {
+    // Cap 511 data bytes + trailing NUL — matches seed snprintf into char[512].
+    while (i < 511) {
+      let c: u8 = path[i];
+      g_pipe_entry_dir_buf[i] = c;
+      if (c == 0) {
+        g_pipe_entry_dir_is_dot = 0;
+        return;
+      }
+      i = i + 1;
+    }
+    g_pipe_entry_dir_buf[511] = 0;
+    g_pipe_entry_dir_is_dot = 0;
+  }
+}
+
+/**
+ * Reset pipeline entry_dir selection to the static "." literal BSS.
+ * @return void
+ * wave68 pure: sets is_dot and ensures g_pipe_entry_dir_dot holds '.' + NUL.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_entry_dir_set_dot(): void {
+  g_pipe_entry_dir_is_dot = 1;
+  g_pipe_entry_dir_dot[0] = 46;
+  g_pipe_entry_dir_dot[1] = 0;
+}
+
+/**
+ * Return the active pipeline entry_dir C string (never null).
+ * @return *u8 — either g_pipe_entry_dir_dot (".") or g_pipe_entry_dir_buf; always NUL-terminated
+ * wave68 pure: is_dot selects lit vs copy buffer; default is_dot=1 matches seed ".".
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; used by pure into_static orch.
+ */
+#[no_mangle]
+export function pipeline_entry_dir_get(): *u8 {
+  if (g_pipe_entry_dir_is_dot != 0) {
+    // First get before set_dot may see zeroed BSS — always materialize "." lit.
+    g_pipe_entry_dir_dot[0] = 46;
+    g_pipe_entry_dir_dot[1] = 0;
+    return &g_pipe_entry_dir_dot[0];
+  }
+  return &g_pipe_entry_dir_buf[0];
+}
+
 // pipeline_set_entry_dir: see function docblock below.
 /**
  * Set pipeline resolve/read entry directory from path (null/empty → ".").
- * @param path *u8 — NUL-terminated directory; null or empty → Cap residual set_dot
+ * @param path *u8 — NUL-terminated directory; null or empty → pure set_dot
  * @return void
- * Pure orch over Cap residual entry_dir_copy / set_dot BSS writers.
+ * Pure orch over pure entry_dir_copy / set_dot (wave68 BSS writers).
  * PLATFORM: SHARED.
  */
 #[no_mangle]

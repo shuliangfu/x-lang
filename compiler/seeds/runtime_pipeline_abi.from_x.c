@@ -48,8 +48,8 @@
  * wave64: pure pipeline_parse_into_bytes orch (G.7 parser_parse_into_init +
  *   driver_parse_into_buf_rc; non-zero ok → -1; cold twin + loaded_import_impl under
  *   #ifndef FROM_X).
- * wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve + Cap residual
- *   pipeline_entry_dir_get / pipeline_resolved_path_buf_slot BSS; cold twin under #ifndef FROM_X).
+ * wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve +
+ *   entry_dir_get (wave68 pure) / Cap residual resolved_path_buf_slot BSS; cold twin under #ifndef FROM_X).
  * wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
  *   (G.7 pure preprocess + Cap residual stage BSS / loaded_import_commit_from_owned;
  *   cold twins under #ifndef FROM_X).
@@ -57,6 +57,8 @@
  *   (LP64 offsetof + LE store/byte copy; same layout as driver_abi wave19);
  *   pure pipeline_dep_ctx_set_use_asm_backend thin → G.7 driver_pipeline_dep_ctx_set_use_asm;
  *   cold twins under #ifndef FROM_X).
+ * wave68: pure pipeline_entry_dir_copy / set_dot / get orch (pure BSS buf 512 + "." lit +
+ *   is_dot; cold twins under #ifndef FROM_X). Cap residual still: resolved_path_buf_slot.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -2174,8 +2176,11 @@ int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline.x 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
+/* wave68: hybrid pure owns entry_dir BSS; cold-only statics under #ifndef FROM_X. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 static char pipeline_resolved_path_buf[512];
 static void *pipeline_dep_arena_slots[32];
 static void *pipeline_dep_module_slots[32];
@@ -2200,7 +2205,9 @@ extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, 
 extern int32_t pipeline_module_num_funcs(void *module);
 
 /** 设置 pipeline resolve/read 用的 entry 目录。 */
-/* G-02f-231：静态 entry_dir 缓冲写（.x 编排调用） */
+/* G-02f-231 / wave68：hybrid pure owns entry_dir_copy / set_dot / get (pure BSS);
+ * cold twins under #ifndef FROM_X share seed static buf + pointer. PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_entry_dir_copy(const char *path) {
     if (!path)
         return;
@@ -2208,13 +2215,12 @@ void pipeline_entry_dir_copy(const char *path) {
     pipeline_entry_dir = pipeline_entry_dir_buf;
 }
 
-/* G-02f-231：entry_dir 回落为 "." */
+/* G-02f-231 / wave68：entry_dir 回落为 "." */
 void pipeline_entry_dir_set_dot(void) {
     pipeline_entry_dir = ".";
 }
 
 /* G-02f-231：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_set_entry_dir(const char *path) {
     if (path && path[0]) {
         pipeline_entry_dir_copy(path);
@@ -2254,13 +2260,15 @@ void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
 
 
 
-/* wave65 Cap residual always-seed: entry_dir pointer for pure resolve_path_into_static orch.
- * Pure cannot take address of seed BSS/static pointer cell. PLATFORM: SHARED. */
+/* G-02f-231 / wave68：hybrid pure owns entry_dir_get; cold twin under #ifndef FROM_X.
+ * Cold uses seed static pointer cell (may point at buf or "." lit). PLATFORM: SHARED. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 const char *pipeline_entry_dir_get(void) {
     return pipeline_entry_dir ? pipeline_entry_dir : ".";
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* wave65 Cap residual always-seed: base of resolved_path BSS (512) for pure into_static +
+/* Cap residual always-seed: base of resolved_path BSS (512) for pure into_static +
  * Cap residual read_file_stage_prep (same TU). PLATFORM: SHARED. */
 char *pipeline_resolved_path_buf_slot(void) {
     return pipeline_resolved_path_buf;
