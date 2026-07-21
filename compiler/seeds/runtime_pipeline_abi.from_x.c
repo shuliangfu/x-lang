@@ -42,6 +42,9 @@
  * wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc arena/module + parse_into
  *   ok/allow -2 + import map; G.7 pctx_update / find_loaded / import path; cold twin under
  *   #ifndef FROM_X).
+ * wave63: pure typeck_module_entry_only / with_sidecar / pipeline_typeck_module_for_ctx_impl
+ *   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base always-seed;
+ *   cold twins under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -199,6 +202,10 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
 /* wave62 pure one_ctx map_impl — thin pure one_ctx_for_dep_prerun + seed _impl call under hybrid. */
 void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
     void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src, size_t dep_src_len);
+/* wave63 pure typeck entry/sidecar/for_ctx_impl — thin pure gates call under hybrid. */
+int32_t typeck_module_entry_only(void *module);
+int32_t typeck_module_with_sidecar(void *module);
+int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -645,6 +652,13 @@ void *typeck_dep_arena_get(int32_t i) {
     if (i < 0 || i >= 32)
         return NULL;
     return typeck_dep_arena_ptrs[i];
+}
+
+/* wave63 Cap residual always-seed: base of typeck_dep_module_ptrs for pure with_sidecar.
+ * Pure cannot take address of this seed BSS array; typeck_module wants void**.
+ * PLATFORM: SHARED — LP64 void* table base ABI. */
+void *typeck_dep_module_ptrs_base(void) {
+    return (void *)typeck_dep_module_ptrs;
 }
 /* wave45 Cap residual always-seed: BSS write for pure typeck_dep_*_set orch.
  * Pure owns bounds; residual writes typeck_dep_*_ptrs. PLATFORM: SHARED. */
@@ -3547,8 +3561,11 @@ extern int typeck_module(void *module, void **dep_mods, int ndep, void *a, int b
 /**
  * 使用已填充的 typeck_ndep / typeck_dep_module_ptrs 对入口模块做 C 类型检查（大模块 asm 构建用）。
  * SHUX_NO_C_FRONTEND 时仍导出符号供 pipeline_asm_typecheck_alias 链接。
- * G-02f-242：entry-only / sidecar 两路径（.x 编排 pure）。
+ * G-02f-242 / wave63：hybrid pure owns entry/sidecar/for_ctx_impl; cold twins under #ifndef FROM_X.
+ * Cap residual always-seed: typeck_module C frontend + typeck_dep_module_ptrs_base.
+ * PLATFORM: SHARED.
  */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t typeck_module_entry_only(void *module) {
     if (!module)
         return -1;
@@ -3565,7 +3582,6 @@ int32_t typeck_module_with_sidecar(void *module) {
     return 0;
 }
 
-/* G-02f-242：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void) {
     (void)arena;
     (void)ctx_void;
@@ -3575,7 +3591,6 @@ int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx
 }
 
 /* G-02f-242：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
   if (module == NULL) {
     return -1;

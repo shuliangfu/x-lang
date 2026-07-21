@@ -42,6 +42,8 @@
 //   + owned dup; Cap residual preprocess_* / pure diag helpers; oversized → pure fail).
 // wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc arena/module + parse_into
 //   ok/allow -2 + import map via find_loaded; G.7 pctx_update / module import path).
+// wave63: pure typeck_module_entry_only / with_sidecar / pipeline_typeck_module_for_ctx_impl
+//   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base BSS base).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -62,10 +64,11 @@ export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
-/* See implementation. */
-/* See implementation. */
-export extern "C" function typeck_module_entry_only(module: *u8): i32;
-export extern "C" function typeck_module_with_sidecar(module: *u8): i32;
+// wave63: typeck_module_entry_only / typeck_module_with_sidecar are pure export functions below.
+// Cap residual: C frontend typeck_module + BSS base of typeck_dep_module_ptrs for sidecar.
+// PLATFORM: SHARED — same ABI as seed cold twins; pure owns null gates and ndep branch.
+export extern "C" function typeck_module(module: *u8, dep_mods: *u8, ndep: i32, a: *u8, b: i32): i32;
+export extern "C" function typeck_dep_module_ptrs_base(): *u8;
 export extern "C" function free(p: *u8): void;
 // wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
 // PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
@@ -3446,32 +3449,101 @@ export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, 
   }
 }
 
-/* ---- G-02f-63 / G-02f-242：typeck_for_ctx / lsp free_loaded ---- */
+/* ---- G-02f-63 / G-02f-242 / wave63：typeck_for_ctx / lsp free_loaded ---- */
 
-// pipeline_typeck_module_for_ctx: see function docblock below.
-/** Exported function `pipeline_typeck_module_for_ctx`.
- * Implements `pipeline_typeck_module_for_ctx`.
- * @param module *u8
- * @param arena *u8
- * @param ctx *u8
- * @return i32
+/**
+ * Typecheck entry module with no dep sidecar (ndep path unused).
+ * @param module *u8 — AST module; null → -1
+ * @return i32 — 0 success, -1 null or typeck_module failure
+ * wave63 pure Cap residual orch: G.7 Cap residual typeck_module (C frontend).
+ * PLATFORM: SHARED — same semantics as seed cold twin.
+ */
+#[no_mangle]
+export function typeck_module_entry_only(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    // Cap residual C typeck frontend; no dep table.
+    rc = typeck_module(module, 0 as *u8, 0, 0 as *u8, 0);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Typecheck entry module with typeck_ndep / typeck_dep_module_ptrs sidecar when ndep>0.
+ * @param module *u8 — AST module; null → -1
+ * @return i32 — 0 success, -1 null or typeck_module failure
+ * wave63 pure Cap residual orch:
+ *   G.7 pure get_ndep (typeck_ndep_slot Cap residual);
+ *   G.7 Cap residual typeck_dep_module_ptrs_base (BSS array base; .x cannot take seed BSS addr);
+ *   G.7 Cap residual typeck_module (C frontend).
+ * PLATFORM: SHARED — same as seed: deps null when ndep==0.
+ */
+#[no_mangle]
+export function typeck_module_with_sidecar(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let n: i32 = get_ndep();
+  let deps: *u8 = 0 as *u8;
+  if (n > 0) {
+    unsafe {
+      deps = typeck_dep_module_ptrs_base();
+    }
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = typeck_module(module, deps, n, 0 as *u8, 0);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Choose entry-only vs sidecar typeck from current typeck_ndep (arena/ctx unused).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — historical; unused (kept for ABI)
+ * @param ctx_void *u8 — historical; unused (kept for ABI)
+ * @return i32 — 0 success, -1 failure
+ * wave63 pure Cap residual orch: G.7 pure typeck_module_entry_only / with_sidecar.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx_void: *u8): i32 {
+  let _a: *u8 = arena;
+  let _c: *u8 = ctx_void;
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let n: i32 = get_ndep();
+  if (n > 0) {
+    return typeck_module_with_sidecar(module);
+  }
+  return typeck_module_entry_only(module);
+}
+
+/**
+ * Thin gate for pipeline typeck-for-ctx (null module → -1).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — passed through (unused by impl)
+ * @param ctx *u8 — passed through (unused by impl)
+ * @return i32 — 0 success, -1 failure
+ * wave63: body in pure pipeline_typeck_module_for_ctx_impl after null gate.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
-  // See implementation.
-  let _a: *u8 = arena;
-  let _c: *u8 = ctx;
-  let n: i32 = get_ndep();
-  unsafe {
-    if (n > 0) {
-      return typeck_module_with_sidecar(module);
-    }
-    return typeck_module_entry_only(module);
-  }
-  return 0 - 1;
+  return pipeline_typeck_module_for_ctx_impl(module, arena, ctx);
 }
 
 // shu_lsp_free_loaded_imports: see function docblock below.
