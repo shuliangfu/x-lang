@@ -63,6 +63,8 @@
 //     + diag_snapshot_free (pairs wave23 calloc; G.7 shux_ptr_slot_* + LE usize; free).
 //   + wave25 Cap residual pure：tmp path BSS slots (asm 64B + parsed 64B/256B)
 //     (open_out seed always uses accessors; no dual BSS under hybrid).
+//   + wave26 Cap residual pure：driver_parsed_fclose / fclose_rc / write_out
+//     (g05 stdout_ptr + fclose/fwrite opaque; min preamble via fputs; io_net/fs_path seed).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -96,9 +98,7 @@ export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
 /** Seed rest: fclose asm FILE* (stdout → fflush only). Used by asm_work cleanup pure.
  * PLATFORM: SHARED — wraps driver_asm_fclose_asm_out; null-safe in C body. */
 export extern "C" function driver_asm_fclose(fp: *u8): void;
-/** Seed rest: fclose parsed C FILE* (stdout → no-op). Used by parsed_work cleanup pure.
- * PLATFORM: SHARED — null-safe; skips stdout. */
-export extern "C" function driver_parsed_fclose(fp: *u8): void;
+/* wave26: driver_parsed_fclose is pure in this TU (no seed extern under hybrid). */
 /** Always-seed Cap-giant-string data residual: address of driver_preamble_io_net_lines[]
  * (pointer table in seeds/rt_preamble.from_x.c). Pure line_at indexes via shux_ptr_slot_get.
  * PLATFORM: SHARED — table text stays C; only base address is seed surface. */
@@ -3208,5 +3208,189 @@ export function driver_diag_snapshot_free(s: *u8): void {
   unsafe {
     free(s);
   }
+}
+
+// ---- Wave26 Cap residual pure: parsed fclose + write_out (PLATFORM: SHARED) ----
+// G.7 authority under PREFER hybrid thin; cold seed keeps C twins (FILE* cast).
+// .x cannot name FILE* or compare to stdout — g05 prologue injects:
+//   shux_driver_stdout_ptr / shux_driver_fclose_opaque / shux_driver_fwrite_opaque
+// (same harness pattern as wave22 shux_driver_fputs_opaque).
+// write_out still calls always-seed write_io_net_abi_inline + write_fs_path_map_error_abi_inline
+// (rt_preamble Cap-giant-string tables + skip mask). min preamble via driver_preamble_fputs
+// short lits (avoid long -E string cap). Still seed: open_out body, invoke_cc, giant tables.
+
+/** g05 prologue: opaque identity of host stdout as *u8.
+ * PLATFORM: SHARED — harness residual; product pure compares pointers only. */
+export extern "C" function shux_driver_stdout_ptr(): *u8;
+/** g05 prologue: fclose((FILE*)stream); 0 success, 1 failure; null → 0.
+ * PLATFORM: SHARED — harness FILE* cast residual. */
+export extern "C" function shux_driver_fclose_opaque(stream: *u8): i32;
+/** g05 prologue: fwrite(data,1,len,FILE*); 0 full write, 1 fail; len==0 → 0.
+ * @param data *u8 — bytes to write
+ * @param len i32 — byte count; negative rejected as fail
+ * @param stream *u8 — opaque FILE*
+ * PLATFORM: SHARED — harness FILE* cast residual. */
+export extern "C" function shux_driver_fwrite_opaque(data: *u8, len: i32, stream: *u8): i32;
+/** Always-seed rt_preamble: write io/net Cap-giant-string ABI block to opaque FILE*.
+ * @param cf *u8 — FILE* as *u8 (product C ABI pointer-compatible with FILE*)
+ * @return i32 — 0 success, non-zero fail
+ * PLATFORM: SHARED — table+skip authority remains seeds/rt_preamble.from_x.c. */
+export extern "C" function write_io_net_abi_inline(cf: *u8): i32;
+/** Always-seed rt_preamble: write fs/path/map/error Cap-giant-string ABI block.
+ * @param cf *u8 — FILE* as *u8
+ * @return i32 — 0 success, non-zero fail
+ * PLATFORM: SHARED. */
+export extern "C" function write_fs_path_map_error_abi_inline(cf: *u8): i32;
+
+/**
+ * Close a parsed-pipeline C output FILE* (opaque *u8).
+ * Null or stdout → no-op (stdout must stay open for -E emit-to-stdout).
+ * @param fp *u8 — opaque FILE* from open_out / work slot; may be null or stdout
+ * @return void
+ * Wave26 pure: stdout identity via g05 shux_driver_stdout_ptr; fclose via opaque.
+ * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
+ */
+#[no_mangle]
+export function driver_parsed_fclose(fp: *u8): void {
+  if (fp == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let so: *u8 = shux_driver_stdout_ptr();
+    if (fp == so) {
+      return;
+    }
+    shux_driver_fclose_opaque(fp);
+  }
+}
+
+/**
+ * Close a parsed-pipeline C output FILE* and report status.
+ * Null or stdout → 0 (success no-op). Otherwise 0 if fclose succeeds, 1 on fail.
+ * @param fp *u8 — opaque FILE*; may be null or stdout
+ * @return i32 — 0 success / no-op, 1 fclose failure
+ * Wave26 pure. PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
+ */
+#[no_mangle]
+export function driver_parsed_fclose_rc(fp: *u8): i32 {
+  if (fp == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let so: *u8 = shux_driver_stdout_ptr();
+    if (fp == so) {
+      return 0;
+    }
+    return shux_driver_fclose_opaque(fp);
+  }
+  return 0;
+}
+
+/**
+ * Write min-preamble include block used when generated C lacks leading # or comment.
+ * Split into short fputs lits so -E string cap (~63) cannot truncate a single lit.
+ * @param fp *u8 — opaque FILE*; non-null (caller validated)
+ * @return i32 — 0 success, 1 if any fputs failed
+ * Wave26 pure helper (not product export surface beyond write_out). PLATFORM: SHARED.
+ */
+function driver_parsed_write_min_preamble(fp: *u8): i32 {
+  // Each lit is short; driver_preamble_fputs returns libc fputs result (EOF → negative).
+  if (driver_preamble_fputs("/* generated */\n", fp) < 0) {
+    return 1;
+  }
+  if (driver_preamble_fputs("#include <stdint.h>\n", fp) < 0) {
+    return 1;
+  }
+  if (driver_preamble_fputs("#include <stddef.h>\n", fp) < 0) {
+    return 1;
+  }
+  if (driver_preamble_fputs("#include <stdlib.h>\n", fp) < 0) {
+    return 1;
+  }
+  if (driver_preamble_fputs("#include <stdio.h>\n", fp) < 0) {
+    return 1;
+  }
+  if (driver_preamble_fputs("#include <string.h>\n", fp) < 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Write pipeline C product to open FILE*: optional min preamble, first source line,
+ * then io_net + fs_path Cap residual ABI tables, then remainder of data.
+ * @param fp *u8 — opaque FILE* from open_out; null rejected
+ * @param data *u8 — full generated C bytes; null rejected
+ * @param len i32 — byte count of data; negative → fail; 0 still inserts preamble path
+ * @return i32 — 0 success, 1 I/O or table-write failure
+ * Wave26 pure: first-line scan + need_preamble gate in .x; fwrite via g05 opaque;
+ * write_io_net_abi_inline / write_fs_path_map_error_abi_inline remain seed (giant tables).
+ * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
+ */
+#[no_mangle]
+export function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32 {
+  if (fp == 0 as *u8) {
+    return 1;
+  }
+  if (data == 0 as *u8) {
+    return 1;
+  }
+  if (len < 0) {
+    return 1;
+  }
+  // first_line = index just past first '\n' (or len if no newline).
+  let first_line: i32 = 0;
+  while (first_line < len) {
+    if (data[first_line] == 10) {
+      first_line = first_line + 1;
+      break;
+    }
+    first_line = first_line + 1;
+  }
+  // need_preamble when body does not already start with '#' or '/*'.
+  let need_preamble: i32 = 0;
+  if (len > 0) {
+    if (data[0] != 35) {
+      // not '#'
+      if (len < 2) {
+        need_preamble = 1;
+      } else {
+        if (data[0] != 47) {
+          // not '/'
+          need_preamble = 1;
+        } else {
+          if (data[1] != 42) {
+            // not '*'
+            need_preamble = 1;
+          }
+        }
+      }
+    }
+  }
+  if (need_preamble != 0) {
+    if (driver_parsed_write_min_preamble(fp) != 0) {
+      return 1;
+    }
+  }
+  unsafe {
+    if (shux_driver_fwrite_opaque(data, first_line, fp) != 0) {
+      return 1;
+    }
+    if (write_io_net_abi_inline(fp) != 0) {
+      return 1;
+    }
+    if (write_fs_path_map_error_abi_inline(fp) != 0) {
+      return 1;
+    }
+    let rest: i32 = len - first_line;
+    if (rest > 0) {
+      // data + first_line as *u8 without pointer arithmetic type issues.
+      let rest_p: *u8 = &data[first_line];
+      if (shux_driver_fwrite_opaque(rest_p, rest, fp) != 0) {
+        return 1;
+      }
+    }
+  }
+  return 0;
 }
 

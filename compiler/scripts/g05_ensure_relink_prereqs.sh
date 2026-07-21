@@ -173,6 +173,23 @@ g05_try_x_to_o() {
     echo 'static inline int32_t shux_driver_fputs_opaque(uint8_t *s, uint8_t *stream) {'
     echo '  return (int32_t)fputs((const char *)(void *)s, (FILE *)(void *)stream);'
     echo '}'
+    # PLATFORM: SHARED — wave26 Cap residual: stdout identity + fclose/fwrite for pure
+    # driver_parsed_fclose / fclose_rc / write_out (runtime_driver_abi_thin.x).
+    # .x cannot name FILE* or compare to stdout without these harness casts.
+    echo 'static inline uint8_t *shux_driver_stdout_ptr(void) {'
+    echo '  return (uint8_t *)(void *)stdout;'
+    echo '}'
+    echo 'static inline int32_t shux_driver_fclose_opaque(uint8_t *stream) {'
+    echo '  if (!stream) return 0;'
+    echo '  return fclose((FILE *)(void *)stream) == 0 ? 0 : 1;'
+    echo '}'
+    echo 'static inline int32_t shux_driver_fwrite_opaque(uint8_t *data, int32_t len, uint8_t *stream) {'
+    echo '  size_t n;'
+    echo '  if (!data || len < 0 || !stream) return 1;'
+    echo '  if (len == 0) return 0;'
+    echo '  n = fwrite((const void *)(void *)data, 1, (size_t)len, (FILE *)(void *)stream);'
+    echo '  return n == (size_t)len ? 0 : 1;'
+    echo '}'
     # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
     sed -e '/^#include /d' \
         -e '/^extern ssize_t read(/d' \
@@ -225,6 +242,9 @@ g05_try_x_to_o() {
         -e '/^extern int32_t shux_fmt_access(/d' \
         -e '/^extern uint8_t \* shux_fmt_readdir_name(/d' \
         -e '/^extern int32_t shux_driver_fputs_opaque(/d' \
+        -e '/^extern uint8_t \* shux_driver_stdout_ptr(/d' \
+        -e '/^extern int32_t shux_driver_fclose_opaque(/d' \
+        -e '/^extern int32_t shux_driver_fwrite_opaque(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086

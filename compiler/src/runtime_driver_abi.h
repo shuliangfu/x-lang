@@ -394,13 +394,16 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v);
  * 成功返回 FILE* 作 *u8；tmp_c_out64 写 .c 路径；失败 NULL。
  */
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout);
+/** wave26 pure: hybrid thin owns; cold twin; stdout skip via g05 stdout_ptr. */
 void driver_parsed_fclose(uint8_t *fp);
+/** wave26 pure: hybrid thin owns; cold twin; 0 success / 1 fail. */
 int32_t driver_parsed_fclose_rc(uint8_t *fp);
 /** wave25 pure: 256-byte open_out tmp path; seed open_out writes only via this; cold twin. */
 uint8_t *driver_parsed_tmp_c_buf(void);
 /** wave25 pure: 64-byte parsed tmp slot; pure/cold reset clears [0]. */
 uint8_t *driver_parsed_tmp_c_slot(void);
-/** 写 pipeline 产物：可选 min preamble + first_line + io_net + fs_path + rest。0 成功。 */
+/** wave26 pure: min preamble + first_line + io_net + fs_path + rest; 0 success.
+ * cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X; fwrite via g05 opaque. */
 int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len);
 /**
  * 链 std .o 调 shux_invoke_cc；argv0 可为 NULL。

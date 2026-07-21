@@ -61,7 +61,10 @@
  *     FROM_X 无 pure-dup free/get/set；
  *   + wave25 Cap residual pure：tmp path BSS 槽（asm 64B + parsed 64B/256B）在 thin.x；
  *     open_out 始终 seed 且只经 accessor 写 buf；FROM_X 无 pure-dup tmp 槽；
- *     仍 seed：巨型 rt_preamble 表、open_out/fclose/write_out/invoke_cc 等；
+ *   + wave26 Cap residual pure：driver_parsed_fclose / fclose_rc / write_out 在 thin.x
+ *     （g05 stdout_ptr + fclose/fwrite opaque；write_io_net/fs_path 仍 rt_preamble）；
+ *     FROM_X 无 pure-dup fclose/write_out；
+ *     仍 seed：巨型 rt_preamble 表、open_out 体、invoke_cc 等；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -3038,6 +3041,8 @@ extern uint8_t *driver_parsed_tmp_c_buf(void);
 extern uint8_t *driver_parsed_tmp_c_slot(void);
 #endif
 
+/* Always seed: open_out body (mkstemp/rename/fopen + WINDOWS close-before-rename).
+ * wave25: writes tmp path only via pure/cold driver_parsed_tmp_c_buf(). */
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
     char tmp[128];
     int fd;
@@ -3091,6 +3096,8 @@ uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, in
     return (uint8_t *)(void *)cf;
 }
 
+/* wave26 pure: hybrid thin owns fclose / fclose_rc / write_out; cold twins; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_parsed_fclose(uint8_t *fp) {
     if (!fp || fp == (uint8_t *)(void *)stdout)
         return;
@@ -3132,6 +3139,7 @@ int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len) {
         return 1;
     return 0;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level, int32_t use_lto,
                                 uint8_t *argv0, int32_t argc, uint8_t *argv) {
