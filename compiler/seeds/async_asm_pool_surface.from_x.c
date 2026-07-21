@@ -6,6 +6,7 @@
  * Prove: full.x vs this seed → nm IDENTICAL
  * Regen: ./shux -E ... src/asm/async_asm_pool.x | filter DBG + polish prologue
  * NOTE: use ./shux (not shux-x) so non-#[no_mangle] keep short names where applicable.
+ * Stack: build_layout caches let indices only (no u8[4096]) — Ubuntu -E stability.
  * PLATFORM: SHARED — pool API symbol contract; Ubuntu gold + mac prove.
  */
 #include <stddef.h>
@@ -535,8 +536,7 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
     (void)(asm_pool_store_i32_le(out, 4876, -1));
     int32_t br = pipeline_module_func_body_ref_at(mod, func_index);
     int32_t nso = ast_ast_block_num_stmt_order(arena, br);
-    uint8_t defined_names[4096] = {};
-    int32_t defined_lens[64] = {};
+    int32_t defined_lets[64] = {};
     int32_t n_def = 0;
     int32_t si = 0;
     while ((si < nso)) {
@@ -557,39 +557,18 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
                 }
                 int32_t li = 0;
                 while ((li < n_def)) {
-                  int32_t dlen = (defined_lens)[li];
-                  int32_t dbase = (li * 64);
-                  uint8_t dname[64] = {};
-                  int32_t di = 0;
-                  while ((di < dlen)) {
-                    (void)(((dname)[di] = (defined_names)[(dbase + di)]));
-                    (void)((di = (di + 1)));
-                  }
-                  if ((asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) !=0)) {
-                    int32_t tref = 0;
-                    int32_t j = 0;
-                    while ((j < nlets)) {
-                      if ((pipeline_block_let_name_len(arena, br, j) ==dlen)) {
-                        uint8_t nb[64] = {};
-                        (void)(pipeline_block_let_name_copy64(arena, br, j, nb));
-                        int32_t eq = 1;
-                        int32_t bi = 0;
-                        while ((bi < dlen)) {
-                          if (((nb)[bi] !=(dname)[bi])) {
-                            (void)((eq = 0));
-                            break;
-                          }
-                          (void)((bi = (bi + 1)));
-                        }
-                        if ((eq !=0)) {
-                          (void)((tref = pipeline_block_let_type_ref(arena, br, j)));
-                          break;
-                        }
+                  int32_t def_idx = (defined_lets)[li];
+                  int32_t dlen = pipeline_block_let_name_len(arena, br, def_idx);
+                  if ((dlen > 0)) {
+                    if ((dlen <=63)) {
+                      uint8_t dname[64] = {};
+                      (void)(pipeline_block_let_name_copy64(arena, br, def_idx, dname));
+                      if ((asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) !=0)) {
+                        int32_t tref = pipeline_block_let_type_ref(arena, br, def_idx);
+                        int32_t sz = asm_pool_type_size_bytes(arena, mod, tref);
+                        (void)(asm_pool_live_add(out, dname, dlen, sz));
                       }
-                      (void)((j = (j + 1)));
                     }
-                    int32_t sz = asm_pool_type_size_bytes(arena, mod, tref);
-                    (void)(asm_pool_live_add(out, dname, dlen, sz));
                   }
                   (void)((li = (li + 1)));
                 }
@@ -611,15 +590,7 @@ int32_t async_asm_pool_build_layout(uint8_t * arena, uint8_t * mod, int32_t func
             if ((llen > 0)) {
               if ((llen <=63)) {
                 if ((n_def < 64)) {
-                  uint8_t lnb[64] = {};
-                  (void)(pipeline_block_let_name_copy64(arena, br, idx, lnb));
-                  int32_t dbase2 = (n_def * 64);
-                  int32_t k = 0;
-                  while ((k < llen)) {
-                    (void)(((defined_names)[(dbase2 + k)] = (lnb)[k]));
-                    (void)((k = (k + 1)));
-                  }
-                  (void)(((defined_lens)[n_def] = llen));
+                  (void)(((defined_lets)[n_def] = idx));
                   (void)((n_def = (n_def + 1)));
                 }
               }

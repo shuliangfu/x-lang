@@ -480,6 +480,9 @@ export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: 
  *   live[64]@12 stride 76 (name[64], name_len@+64, size_bytes@+68, frame_data_off@+72),
  *   await_stmt_idx@4876 i32; total 4880 bytes.
  *
+ * Stack discipline: cache only let indices (i32[64]), re-fetch names from the AST
+ * when needed — avoids a u8[4096] frame that flaked Ubuntu shux -E (SIGSEGV).
+ *
  * @param arena AST arena (opaque)
  * @param mod module (opaque)
  * @param func_index function index in module
@@ -511,9 +514,8 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
     asm_pool_store_i32_le(out, 4876, 0 - 1);
     let br: i32 = pipeline_module_func_body_ref_at(mod, func_index);
     let nso: i32 = ast_ast_block_num_stmt_order(arena, br);
-    // defined_names[64][64] flattened; defined_lens[64]
-    let defined_names: u8[4096] = [];
-    let defined_lens: i32[64] = [];
+    // Prior let indices only (re-fetch names via pipeline_block_let_name_*).
+    let defined_lets: i32[64] = [];
     let n_def: i32 = 0;
     let si: i32 = 0;
     while (si < nso) {
@@ -532,42 +534,21 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
                 if (cur_await < 0) {
                   asm_pool_store_i32_le(out, 4876, si);
                 }
-                // Live-add each previously defined name still referenced after this await.
+                // Live-add each previously defined let still referenced after this await.
                 let li: i32 = 0;
                 while (li < n_def) {
-                  let dlen: i32 = defined_lens[li];
-                  let dbase: i32 = li * 64;
-                  let dname: u8[64] = [];
-                  let di: i32 = 0;
-                  while (di < dlen) {
-                    dname[di] = defined_names[dbase + di];
-                    di = di + 1;
-                  }
-                  if (asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) != 0) {
-                    let tref: i32 = 0;
-                    let j: i32 = 0;
-                    while (j < nlets) {
-                      if (pipeline_block_let_name_len(arena, br, j) == dlen) {
-                        let nb: u8[64] = [];
-                        pipeline_block_let_name_copy64(arena, br, j, nb);
-                        let eq: i32 = 1;
-                        let bi: i32 = 0;
-                        while (bi < dlen) {
-                          if (nb[bi] != dname[bi]) {
-                            eq = 0;
-                            break;
-                          }
-                          bi = bi + 1;
-                        }
-                        if (eq != 0) {
-                          tref = pipeline_block_let_type_ref(arena, br, j);
-                          break;
-                        }
+                  let def_idx: i32 = defined_lets[li];
+                  let dlen: i32 = pipeline_block_let_name_len(arena, br, def_idx);
+                  if (dlen > 0) {
+                    if (dlen <= 63) {
+                      let dname: u8[64] = [];
+                      pipeline_block_let_name_copy64(arena, br, def_idx, dname);
+                      if (asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) != 0) {
+                        let tref: i32 = pipeline_block_let_type_ref(arena, br, def_idx);
+                        let sz: i32 = asm_pool_type_size_bytes(arena, mod, tref);
+                        asm_pool_live_add(out, dname, dlen, sz);
                       }
-                      j = j + 1;
                     }
-                    let sz: i32 = asm_pool_type_size_bytes(arena, mod, tref);
-                    asm_pool_live_add(out, dname, dlen, sz);
                   }
                   li = li + 1;
                 }
@@ -586,20 +567,12 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
                 }
               }
             }
-            // Record this let as defined for later await live-sets.
+            // Record this let index for later await live-sets.
             let llen: i32 = pipeline_block_let_name_len(arena, br, idx);
             if (llen > 0) {
               if (llen <= 63) {
                 if (n_def < 64) {
-                  let lnb: u8[64] = [];
-                  pipeline_block_let_name_copy64(arena, br, idx, lnb);
-                  let dbase2: i32 = n_def * 64;
-                  let k: i32 = 0;
-                  while (k < llen) {
-                    defined_names[dbase2 + k] = lnb[k];
-                    k = k + 1;
-                  }
-                  defined_lens[n_def] = llen;
+                  defined_lets[n_def] = idx;
                   n_def = n_def + 1;
                 }
               }
