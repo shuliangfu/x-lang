@@ -126,7 +126,8 @@ if [ "${SHUX_NO_C_SEED_LINK:-0}" != "1" ] && [ "${SHUX_LEGACY_C_FRONTEND:-0}" = 
   _AST_LINK_O="src/ast/ast_seed.o"
   # NOTE: runtime_driver_strict_glue_stubs.o is NOT here — it goes in _GLUE_SUFFIX
   # (link END) per Makefile L1936. See _GLUE_SUFFIX below for why.
-  _DRIVER_SEED_SUPPORT="src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o"
+  # async_asm_pool: unbundled from pipeline_glue (2026-07-21); asm CPS layout.
+  _DRIVER_SEED_SUPPORT="src/async/async_liveness.o src/async/async_cps_codegen.o src/async/async_asm_pool.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o"
 else
   # no_c default (G-02a): X pipeline self-contained, no C lexer/ast.
   _DRIVER_SEED_RUNTIME_O="src/runtime_driver_no_c.o"
@@ -134,7 +135,8 @@ else
   _AST_LINK_O=""
   # NOTE: runtime_driver_strict_glue_stubs.o is NOT here — it goes in _GLUE_SUFFIX
   # (link END) per Makefile L1936. See _GLUE_SUFFIX below for why.
-  _DRIVER_SEED_SUPPORT="src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
+  # async_asm_pool: unbundled from pipeline_glue; required in no_c product link too.
+  _DRIVER_SEED_SUPPORT="src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o"
 fi
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o"
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"

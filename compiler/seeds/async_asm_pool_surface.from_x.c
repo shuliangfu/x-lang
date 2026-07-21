@@ -1,7 +1,8 @@
 /* seeds/async_asm_pool_surface.from_x.c
  * R2 full surface — isomorphic with src/asm/async_asm_pool.x
- * Product cold path still embeds seeds/async_asm_pool.from_x.c via pipeline_glue #include (no FROM_X).
- * Hybrid/PREFER path: g05_try_x_to_o(async_asm_pool.x) + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X, marker only).
+ * Product path unbundled (2026-07-21): src/async/async_asm_pool.o is a standalone
+ *   TU (not #included into pipeline_glue). Cold = full seed; PREFER = .x + rest marker.
+ * Hybrid/PREFER path: g05_try_x_to_o(async_asm_pool.x) + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X).
  * R2: full.x eats helpers + build_layout; FROM_X rest business H=0 (only slice_marker in seed rest).
  * Prove: full.x vs this seed → nm IDENTICAL
  * Regen: ./shux -E ... src/asm/async_asm_pool.x | filter DBG + polish prologue

@@ -1,14 +1,17 @@
 /* seeds/async_asm_pool.from_x.c — G-02f-80 product cold-start TU
  * G-02f-104 helper gates.
  * Promoted from compiler/src/async/async_asm_pool.inc (stub/bridge; retired .inc).
- * Compile: cc -c / cc_inc_tu seeds/async_asm_pool.from_x.c
+ * Compile: cc -c seeds/async_asm_pool.from_x.c → src/async/async_asm_pool.o
  *
  * R2 full（2026-07-21）：公共业务由 full .x 提供（helpers + build_layout）：
  *   asm_pool_expr_is_await / has_await / is_var_named / refs_name / block_rest_refs_name
  *   + type_size_bytes + live_add + fn_id_from_name + func_needs_cps + build_layout
  * FROM_X 下本文件业务 H=0（仅 slice marker）。
  * Cap residual：无（build_layout 已 pure 真迁）。
- * 冷启动/无 PREFER：完整 C 体；产品 pipeline_glue.c 仍 #include 本文件（无宏）直至 glue unbundle。
+ * Unbundle（2026-07-21）：不再 #include 进 pipeline_glue.c；独立 TU 入
+ *   DRIVER_SEED_SUPPORT_EXTRA / g05_relink_env（所有模式）。
+ * 冷启动/无 PREFER：完整 C 体 → src/async/async_asm_pool.o。
+ * PREFER：src/asm/async_asm_pool.x + 本 rest (-DSHUX_ASYNC_ASM_POOL_FROM_X) ld -r。
  * Prove：seeds/async_asm_pool_surface.from_x.c（-E 同构）nm IDENTICAL。
  * PLATFORM: SHARED — pool API 跨平台一致。
  */

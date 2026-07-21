@@ -759,8 +759,25 @@ src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_livene
 src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_cps_codegen.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_cps_codegen.from_x.c -o $@
 
-src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/async_asm_pool.from_x.c $@
+# R2 unbundle async_asm_pool from pipeline_glue #include (2026-07-21).
+# Cold (PREFER_X_O≠1): full seed C. PREFER: full .x + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X, marker only) ld -r.
+# PLATFORM: SHARED — product link via DRIVER_SEED_SUPPORT_EXTRA (all modes).
+src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c src/asm/async_asm_pool.x include/async_asm_pool.h
+	@if [ "$(SHUX_G05_PREFER_X_O)" = "1" ] && [ -x ./shux-c ] && { \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/aap.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/async_asm_pool.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/async/async_asm_pool_x.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_ASYNC_ASM_POOL_FROM_X -c seeds/async_asm_pool.from_x.c -o src/async/async_asm_pool_rest.o && \
+		ld -r $(LD_R_MULTIDEF_FLAGS) src/async/async_asm_pool_x.o src/async/async_asm_pool_rest.o -o $@ && \
+		rm -f "$$_tmp" src/async/async_asm_pool_x.o src/async/async_asm_pool_rest.o && \
+		echo "phase4: $@ <- full .x + rest marker (PREFER_X_O; pipeline_glue unbundled)"; \
+	}; then :; \
+	elif [ -f seeds/async_asm_pool.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_asm_pool.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/async_asm_pool.from_x.c (cold seed; unbundled)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
 # PLATFORM: SHARED 冷链 — 仅 SHUX_G05_PREFER_X_O=1 才 thin（同 simd_enc / runtime_driver_abi）。
@@ -1881,10 +1898,11 @@ DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
 #      Moving stubs to link END guarantees: real impls win when present; stubs
 #      only fill in for symbols with no real impl (C frontend API for lsp_diag).
 # Invariant: DRIVER_SEED_SUPPORT_EXTRA retains the non-stub satellites
-#            (async_liveness, async_cps_codegen, cfg_eval_*, typeck_f64_bits).
+#            (async_liveness, async_cps_codegen, async_asm_pool unbundled,
+#             cfg_eval_*, typeck_f64_bits).
 # PLATFORM: SHARED — fix is Windows-critical; no-op on ELF/Darwin (weak already
 #           correct); verified both modes.
-DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
+DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/async/async_asm_pool.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
 else ifeq ($(SHUX_NO_C_SEED_LINK),1)
@@ -1894,7 +1912,8 @@ else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 # Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
+# async_asm_pool: unbundled from pipeline_glue; required for asm CPS layout (all modes).
+DRIVER_SEED_SUPPORT_EXTRA = src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 else
@@ -1903,7 +1922,8 @@ else
 # Stubs .o 链在 DRIVER_SEED_GLUE_SUFFIX（链接末尾），保证 pipeline_x.o 真实实现优先胜出。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
+# async_asm_pool: unbundled from pipeline_glue; required for asm CPS layout (all modes).
+DRIVER_SEED_SUPPORT_EXTRA = src/async/async_asm_pool.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif

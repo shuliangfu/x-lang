@@ -22112,7 +22112,13 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
 }
 
 #include "ast_pool.c"
-#include "seeds/async_asm_pool.from_x.c"
+/* R2 unbundle (2026-07-21): async_asm_pool is a separate product TU
+ * (src/async/async_asm_pool.o), not embedded here.
+ * Cold: seeds/async_asm_pool.from_x.c full C.
+ * PREFER: src/asm/async_asm_pool.x + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X, marker).
+ * Call sites use include/async_asm_pool.h (top of this file).
+ * PLATFORM: SHARED — link DRIVER_SEED_SUPPORT / g05_relink_env. */
+/* #include "seeds/async_asm_pool.from_x.c" — retired; see src/async/async_asm_pool.o */
 
 extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTArena *arena);
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,

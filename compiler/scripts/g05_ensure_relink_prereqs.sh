@@ -1631,6 +1631,74 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
+  # R2 unbundle：async_asm_pool.o（从 pipeline_glue #include 拆出独立 TU）
+  # PREFER：full .x + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X，仅 slice_marker) ld -r
+  # 冷路径：整 seed C。产品 glue 只 #include 头，符号由本 .o 提供。
+  # PLATFORM: SHARED
+  _aap_seed=seeds/async_asm_pool.from_x.c
+  _aap_x=src/asm/async_asm_pool.x
+  _aap_o=src/async/async_asm_pool.o
+  if [ -f "$_aap_seed" ]; then
+    if [ ! -f "$_aap_o" ] || [ "$_aap_seed" -nt "$_aap_o" ] \
+      || { [ -f "$_aap_x" ] && [ "$_aap_x" -nt "$_aap_o" ]; }; then
+      _aap_done=0
+      mkdir -p src/async
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_aap_x" ]; then
+        _aap_x_o=$(mktemp "${TMPDIR:-/tmp}/g05_aap_x.XXXXXX") || true
+        _aap_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_aap_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_aap_x_o" ] && [ -n "$_aap_rest_o" ] \
+          && g05_try_x_to_o "$_aap_x" "$_aap_x_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_ASYNC_ASM_POOL_FROM_X \
+               -c -o "$_aap_rest_o" "$_aap_seed" \
+          && $CC -r -nostdlib -o "$_aap_o" "$_aap_x_o" "$_aap_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_aap_o ← $_aap_x + rest marker (R2 full async_asm_pool H=0; glue unbundled)"
+          _aap_done=1
+        else
+          echo "g05_ensure: R2 full async_asm_pool PREFER failed; fallback full seed" >&2
+        fi
+        rm -f "$_aap_x_o" "$_aap_rest_o"
+      fi
+      if [ "$_aap_done" = "0" ]; then
+        echo "g05_ensure: $_aap_o ← async_asm_pool.from_x (cold seed; unbundled)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_aap_o" "$_aap_seed"
+      fi
+    fi
+  fi
+  # Unbundle hygiene：pipeline_glue.c 变更后，旧 pipeline_x / filtered / standalone
+  # 仍可能内嵌 pool T → Darwin 与 pool.o 双定义红。产品 g05 无 make 时在此重建。
+  # PLATFORM: SHARED — Linux 允许多定义时也应以无内嵌为真值。
+  if [ -f pipeline_glue.c ] && [ -f pipeline_gen.c ]; then
+    if [ ! -f pipeline_x.o ] || [ pipeline_glue.c -nt pipeline_x.o ] \
+      || [ pipeline_gen.c -nt pipeline_x.o ]; then
+      echo "g05_ensure: pipeline_x.o ← pipeline_gen.c (glue unbundle / stale vs pipeline_glue.c)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Wno-error -c -o pipeline_x.o pipeline_gen.c
+      if [ -d build_asm/gen_driver ]; then
+        cp -f pipeline_x.o build_asm/gen_driver/pipeline_x.o 2>/dev/null || true
+      fi
+    fi
+  fi
+  if [ -f seeds/pipeline_glue_standalone.from_x.c ] && [ -f pipeline_glue.c ]; then
+    _pgs_o=build_asm/pipeline_glue_standalone.o
+    if [ ! -f "$_pgs_o" ] || [ pipeline_glue.c -nt "$_pgs_o" ] \
+      || [ seeds/pipeline_glue_standalone.from_x.c -nt "$_pgs_o" ]; then
+      echo "g05_ensure: $_pgs_o ← pipeline_glue_standalone (glue unbundle; no pool embed)"
+      mkdir -p build_asm
+      # shellcheck disable=SC2086
+      sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$_pgs_o" \
+        -Wno-error=return-type -Ibuild_asm
+    fi
+  fi
+  # Darwin product link uses filtered pipeline; must drop stale pool T after unbundle.
+  _filt=build_asm/bootstrap_seed_pipeline_filtered.o
+  if [ -f pipeline_x.o ] && { [ ! -f "$_filt" ] || [ pipeline_x.o -nt "$_filt" ]; }; then
+    if [ -f Makefile ]; then
+      echo "g05_ensure: make $_filt (pipeline_x newer; drop embedded pool if any)"
+      make -s "$_filt" || echo "g05_ensure: WARN make $_filt failed (Darwin may dual-def pool)" >&2
+    fi
+  fi
   # G-02f-7 / R2 full：simd_enc.o
   # PREFER：full.x 真迁业务 + rest (-DSHUX_SIMD_ENC_FROM_X，仅 marker) ld -r
   # full.x 失败时回退 L2 thin hybrid；再失败整 seed 冷路径
