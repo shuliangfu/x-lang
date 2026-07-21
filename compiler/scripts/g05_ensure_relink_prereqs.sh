@@ -1510,14 +1510,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12 / wave45–51：runtime_pipeline_abi 产品 PREFER hybrid
+  # G-02f-12 / wave45–52：runtime_pipeline_abi 产品 PREFER hybrid
   #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  #   wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue);
+  #     Cap residual strdup / resolve_read_preprocess / paths_tmp shell / thread remain seed.
   #   wave51: pure load_one_direct_import_at + fail_cleanup orch; Cap residual
   #     shux_load_one_direct_resolve_read_preprocess; G.7 paths_tmp reuses Cap residual.
   #   wave50: collect deps/paths transitive_impl pure orch (stack to_load + process_one loop).
   #   wave49: collect paths_process_one pure orch; Cap residual paths_tmp_resolve_parse_enqueue;
-  #     G.7 tmp_parse_and_enqueue.
-  #   wave48: collect deps_process_one pure orch; Cap residual tmp_parse_and_enqueue;
+  #     G.7 tmp_parse_and_enqueue (wave52 pure).
+  #   wave48: collect deps_process_one pure orch; Cap residual tmp_parse (wave52 pure);
   #     G.7 load_one_direct_import_at.
   #   wave47: collect seed_to_load + enqueue pure.
   #   wave46: ptr/size slots, i32_store, module import cstr, collect_to_load_has, directive diag pure.

@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave51).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave52).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual: heavy FILE view / PATH_MAX resolve+read+preprocess / tmp_parse /
-//   thread C remains seed rest (load_one pure orch wave51; transitive pure wave50).
+// Cap residual: heavy FILE view / PATH_MAX resolve+read+preprocess /
+//   thread C remains seed rest (tmp_parse pure orch wave52; load_one pure wave51).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -19,6 +19,8 @@
 // wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
 //   Cap residual shux_load_one_direct_resolve_read_preprocess (FILE/PATH_MAX/preprocess);
 //   G.7 paths_tmp residual reuses same Cap residual (no dual resolve/read/preprocess).
+// wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue);
+//   Cap residual strdup / resolve_read_preprocess / paths_tmp shell / thread remain seed.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -44,15 +46,18 @@ export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u
 export extern "C" function typeck_module_entry_only(module: *u8): i32;
 export extern "C" function typeck_module_with_sidecar(module: *u8): i32;
 export extern "C" function free(p: *u8): void;
+// wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
+// PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
+export extern "C" function malloc(n: usize): *u8;
+export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 // wave47 Cap residual: owned C-string copy for collect queue (seed wraps libc strdup).
 // Do not export-extern libc strdup by name — conflicts with string.h after -E preamble.
 // PLATFORM: SHARED — pure orch owns queue logic; free() still releases ownership.
 export extern "C" function shux_collect_strdup(s: *u8): *u8;
-// wave48 Cap residual: malloc/memset tmp arena+module, parse prep, enqueue sub-imports.
-// PLATFORM: SHARED — parser slice / ParseIntoResult stay seed; pure process_one orch calls this.
-export extern "C" function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, prep: *u8, prep_len: i64, debug_path: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void;
+// wave52: shux_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
 // wave49 Cap residual: ensure tmp; resolve/read/preprocess path_c; parse+enqueue; free prep.
 // PLATFORM: SHARED — FILE view / PATH_MAX / preprocess stay seed; pure paths_process_one orch.
+//   G.7 reuses pure tmp_parse_and_enqueue after Cap residual resolve_read_preprocess.
 export extern "C" function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32;
 // wave51 Cap residual: resolve import + read file view + preprocess → owned prep (no dep slots).
 // PLATFORM: SHARED — PATH_MAX stack + FILE view stay seed; pure load_one orch stores slots.
@@ -135,6 +140,7 @@ export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, 
 // (Cap residual shux_load_one_direct_resolve_read_preprocess for FILE/PATH_MAX/preprocess).
 // wave50: shux_collect_deps_transitive_impl / shux_collect_dep_paths_transitive_impl
 // are pure export function below (not export-extern Cap residual).
+// wave52: shux_collect_tmp_parse_and_enqueue is pure export function below.
 export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
 
 /* See implementation. */
@@ -3473,6 +3479,73 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
 }
 
 /**
+ * Ensure tmp arena/module, parse prep bytes into them, enqueue sub-imports onto to_load.
+ * @param tmp_arena *u8 — void star-star slot for reusable tmp arena; null → no-op
+ * @param tmp_module *u8 — void star-star slot for reusable tmp module; null → no-op
+ * @param arena_sz i64 — malloc size when *tmp_arena is null; must match ParseInto arena layout
+ * @param module_sz i64 — malloc size when first ensuring tmp; must match ParseInto module layout
+ * @param prep *u8 — owned prep source bytes (not freed here); null → no-op
+ * @param prep_len i64 — byte length of prep
+ * @param debug_path *u8 — path key for optional SHUX_DEBUG_PIPE note (cold twin only; pure ignores)
+ * @param to_load *u8 — char star-star queue base for sub-import keys
+ * @param to_load_n *i32 — live queue count (in/out)
+ * @param dep_paths *u8 — already-loaded keys as char star-star; may be null if n_loaded==0
+ * @param n_loaded i32 — count of committed dep_paths
+ * @return void
+ * wave52 pure Cap residual orch:
+ *   if *tmp_arena null → malloc arena_sz + module_sz into both slots;
+ *   if both live → memset zero, pipeline_parse_into_bytes, G.7 pure enqueue_module_imports.
+ *   OOM on malloc: leave null slots and return (same as cold twin skip parse).
+ * G.7 process_one / paths_tmp Cap residual call this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, prep: *u8, prep_len: i64, debug_path: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
+  if (tmp_arena == 0 as *u8) {
+    return;
+  }
+  if (tmp_module == 0 as *u8) {
+    return;
+  }
+  if (prep == 0 as *u8) {
+    return;
+  }
+  // Silence unused debug_path in pure (cold twin may log under SHUX_DEBUG_PIPE).
+  if (debug_path == 0 as *u8) {
+  }
+  let ta: *u8 = pipe_load_ptr_slot(tmp_arena, 0);
+  let tm: *u8 = pipe_load_ptr_slot(tmp_module, 0);
+  // First use: allocate both buffers (same order as cold twin).
+  if (ta == 0 as *u8) {
+    unsafe {
+      ta = malloc(arena_sz as usize);
+      tm = malloc(module_sz as usize);
+    }
+    pipe_store_ptr_slot(tmp_arena, 0, ta);
+    pipe_store_ptr_slot(tmp_module, 0, tm);
+  }
+  // Historical: if either buffer missing, skip parse (path already registered upstream).
+  if (ta == 0 as *u8) {
+    return;
+  }
+  if (tm == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    memset(ta, 0, arena_sz as usize);
+    memset(tm, 0, module_sz as usize);
+  }
+  // ParseIntoResult lives in seed; pure only sees rc (unused beyond call).
+  let pr_rc: i32 = 0;
+  unsafe {
+    pr_rc = pipeline_parse_into_bytes(ta, tm, prep, prep_len);
+  }
+  if (pr_rc != 0) {
+    // Still enqueue whatever imports the partial/failed parse left (same as cold twin).
+  }
+  shux_collect_enqueue_module_imports(tm, to_load, to_load_n, dep_paths, n_loaded);
+}
+
+/**
  * Process one owned to_load path into dep_sources/lens/paths and enqueue its sub-imports.
  * @param path_c *u8 — owned C-string import key; consumed (freed) on all return paths
  * @param lib_roots *u8 — char star-star lib roots for resolve; may be null if n_lib_roots==0
@@ -3495,7 +3568,7 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
  *   already-loaded → free path_c + 0;
  *   G.7 load_one_direct_import_at stores prep/path at mi=*n (resolve/read/preprocess Cap);
  *   free path_c; *n = mi+1;
- *   Cap residual shux_collect_tmp_parse_and_enqueue for parse + enqueue.
+ *   wave52 pure shux_collect_tmp_parse_and_enqueue for parse + enqueue.
  * wave50: called from pure transitive_impl orch. PLATFORM: SHARED.
  */
 #[no_mangle]
