@@ -50,6 +50,9 @@
  *   #ifndef FROM_X).
  * wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve + Cap residual
  *   pipeline_entry_dir_get / pipeline_resolved_path_buf_slot BSS; cold twin under #ifndef FROM_X).
+ * wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
+ *   (G.7 pure preprocess + Cap residual stage BSS / loaded_import_commit_from_owned;
+ *   cold twins under #ifndef FROM_X).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -2288,46 +2291,45 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
-/* G-02f-238：stage 暂存 prep（.x read_file 分阶段） */
+/* G-02f-238 / wave66：stage 暂存 prep BSS（pure stage_prep / commit_prep Cap residual). */
 static char *pipeline_rf_stage_prep;
 static size_t pipeline_rf_stage_prep_len;
 
-/* G-02f-238：读 resolved + preprocess → stage prep；0 成功 */
-int32_t pipeline_read_file_stage_prep(void) {
-    ShuxRuntimeFileView raw_view;
-    char *prep = NULL;
-    size_t prep_len = 0;
-
+/* wave66 Cap residual always-seed: free prior stage prep and clear BSS cells.
+ * Pure stage_prep calls this before read/preprocess. PLATFORM: SHARED. */
+void pipeline_rf_stage_prep_clear(void) {
     free(pipeline_rf_stage_prep);
     pipeline_rf_stage_prep = NULL;
     pipeline_rf_stage_prep_len = 0;
+}
 
-    if (runtime_read_file_view(pipeline_resolved_path_buf, &raw_view) != 0) {
-        pipeline_diag_import_open_fail_once(NULL, pipeline_resolved_path_buf);
-        return -1;
-    }
-    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
-            pipeline_resolved_path_buf, NULL, 0) != 0) {
-        runtime_release_file_view(&raw_view);
-        return -1;
-    }
-    runtime_release_file_view(&raw_view);
-    if (!prep) {
-        pipeline_diag_import_preprocess_fail(NULL, pipeline_resolved_path_buf);
-        return -1;
-    }
+/* wave66 Cap residual always-seed: store owned prep into stage BSS (does not free prior;
+ * caller must clear first). prep may be null (stores empty). PLATFORM: SHARED. */
+void pipeline_rf_stage_prep_set(char *prep, size_t prep_len) {
     pipeline_rf_stage_prep = prep;
-    pipeline_rf_stage_prep_len = prep_len;
+    pipeline_rf_stage_prep_len = prep ? prep_len : 0;
+}
+
+/* wave66 Cap residual always-seed: move stage prep out without free (caller owns);
+ * clear stage BSS. Returns 0 if prep non-null; -1 if empty. PLATFORM: SHARED. */
+int32_t pipeline_rf_stage_prep_take(char **out_prep, size_t *out_len) {
+    char *prep = pipeline_rf_stage_prep;
+    size_t prep_len = pipeline_rf_stage_prep_len;
+    pipeline_rf_stage_prep = NULL;
+    pipeline_rf_stage_prep_len = 0;
+    if (out_prep)
+        *out_prep = prep;
+    if (out_len)
+        *out_len = prep ? prep_len : 0;
+    if (!prep)
+        return -1;
     return 0;
 }
 
-/* G-02f-238：stage prep → loaded 缓冲并释放 stage；0 成功 */
-int32_t pipeline_read_file_commit_prep(void) {
-    char *prep = pipeline_rf_stage_prep;
-    size_t prep_len = pipeline_rf_stage_prep_len;
-
-    pipeline_rf_stage_prep = NULL;
-    pipeline_rf_stage_prep_len = 0;
+/* wave66 Cap residual always-seed: ensure loaded_import BSS, copy prep, set len, free prep.
+ * Same ensure policy as historical commit_prep (cap floor SHUX_PIPELINE_IMPORT_BUF_CAP).
+ * Returns 0 success; -1 null prep or OOM (prep freed on OOM). PLATFORM: SHARED. */
+int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len) {
     if (!prep)
         return -1;
     if (prep_len > pipeline_loaded_import_cap || !pipeline_loaded_import_buf) {
@@ -2346,8 +2348,47 @@ int32_t pipeline_read_file_commit_prep(void) {
     return 0;
 }
 
-/* G-02f-238：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-238 / wave66：hybrid pure owns stage_prep; cold twin under #ifndef FROM_X.
+ * Pure orch: Cap residual clear/set + resolved_path_buf_slot + runtime_read_file_view
+ *   + G.7 pure shux_preprocess_raw_to_malloc + pure diags. PLATFORM: SHARED. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+int32_t pipeline_read_file_stage_prep(void) {
+    ShuxRuntimeFileView raw_view;
+    char *prep = NULL;
+    size_t prep_len = 0;
+
+    pipeline_rf_stage_prep_clear();
+
+    if (runtime_read_file_view(pipeline_resolved_path_buf, &raw_view) != 0) {
+        pipeline_diag_import_open_fail_once(NULL, pipeline_resolved_path_buf);
+        return -1;
+    }
+    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+            pipeline_resolved_path_buf, NULL, 0) != 0) {
+        runtime_release_file_view(&raw_view);
+        return -1;
+    }
+    runtime_release_file_view(&raw_view);
+    if (!prep) {
+        pipeline_diag_import_preprocess_fail(NULL, pipeline_resolved_path_buf);
+        return -1;
+    }
+    pipeline_rf_stage_prep_set(prep, prep_len);
+    return 0;
+}
+
+/* G-02f-238 / wave66：hybrid pure owns commit_prep; cold twin under #ifndef FROM_X.
+ * Pure orch: Cap residual take + loaded_import_commit_from_owned. PLATFORM: SHARED. */
+int32_t pipeline_read_file_commit_prep(void) {
+    char *prep = NULL;
+    size_t prep_len = 0;
+
+    if (pipeline_rf_stage_prep_take(&prep, &prep_len) != 0)
+        return -1;
+    return pipeline_loaded_import_commit_from_owned(prep, prep_len);
+}
+
+/* G-02f-238：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_read_file(void) {
     if (pipeline_read_file_stage_prep() != 0)
         return -1;

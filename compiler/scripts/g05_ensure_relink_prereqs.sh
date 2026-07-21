@@ -1510,8 +1510,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12 / wave45–65：runtime_pipeline_abi 产品 PREFER hybrid
+  # G-02f-12 / wave45–66：runtime_pipeline_abi 产品 PREFER hybrid
   #   full .x pure + seed-rest under SHUX_RUNTIME_PIPELINE_ABI_FROM_X (Cap residual C).
+  #   wave66: pure pipeline_read_file_stage_prep + commit_prep orch (G.7 pure preprocess
+  #     + Cap residual stage BSS / loaded_import_commit_from_owned).
   #   wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi + Cap residual
   #     entry_dir_get / resolved_path_buf_slot BSS).
   #   wave63: pure typeck_module_entry_only / with_sidecar / for_ctx_impl orch
