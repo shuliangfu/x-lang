@@ -185,7 +185,7 @@ uint8_t *driver_entry_dir_slot(void);
 uint8_t *driver_x_emit_effective_lib_roots(int32_t *n_out);
 /** 构造 slice 调 parser_diag_fail_at_token_kind（.x 无 slice 字面量）。 */
 int32_t driver_parser_diag_fail_tok_kind(uint8_t *src, size_t len);
-/** pctx->use_asm_backend = v（.x 无 PipelineDepCtx 字段布局）。 */
+/** pctx->use_asm_backend = v（wave19 pure: LP64 offsetof + LE store under PREFER hybrid）. */
 void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v);
 
 /**
@@ -258,8 +258,8 @@ int driver_source_has_top_level_import_path(const char *path);
  * Cap residual：rt_run_asm_backend R2 平台/FILE/pctx 布局/指针表缺口。
  * 业务控制流在 .x（step 拆分 + work 槽）；本层仅：
  *   - FILE open/write/close + mkstemp 临时 .o
- *   - PipelineDepCtx 字段 set/get（.x 无布局）
- *   - host 默认 macho/coff/arch（平台 ifdef）
+ *   - PipelineDepCtx 字段 set/get（wave19 pure under PREFER: LP64 offsetof; cold C twin）
+ *   - host 默认 macho/coff/arch（平台 ifdef；仍 seed）
  *   - defines 与 lib_roots/argv 绑定（.x 禁 **u8）
  *   - C frontend smoke / typeck 预检（产品 NO_C 固定跳过）
  *   - elf_ctx 分配、metric 写盘、asm work 槽

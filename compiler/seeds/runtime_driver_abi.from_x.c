@@ -41,6 +41,9 @@
  *     （p raw u8[200] 25×ptr · i32[16] · usize[4]；free+dep_ctx+fclose；tmp_path[0] clear）；FROM_X 无 pure-dup asm work；
  *   + wave18 Cap residual pure：driver_parsed_work BSS + get/set/reset/cleanup 在 thin.x
  *     （p raw u8[192] 24×ptr · i32[14] · usize[4]；free+dep_ctx+fclose cf；unlink tmp_c；tmp slots clear）；FROM_X 无 pure-dup parsed work；
+ *   + wave19 Cap residual pure：driver_pipeline_dep_ctx i32 字段 get/set 在 thin.x
+ *     （LP64 固定 offsetof + wave14 LE load/store；无 C 结构体）；calloc/host_defaults 仍 seed；
+ *     FROM_X 无 pure-dup dep_ctx field _impl；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
@@ -2138,11 +2141,14 @@ int32_t driver_parser_diag_fail_tok_kind(uint8_t *src, size_t len) {
     return parser_diag_fail_at_token_kind(&s);
 }
 
+/* wave19 pure under PREFER：dep_ctx i32 field set/get; cold keeps C struct twin; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v) {
     if (ctx == NULL)
         return;
     ((struct ast_PipelineDepCtx *)ctx)->use_asm_backend = v;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /*
  * Cap residual → wave16 pure under PREFER：rt_run_x_emit 工作槽。
@@ -2402,6 +2408,8 @@ int driver_source_has_top_level_import_path(const char *path) {
  * Cap residual：rt_run_asm_backend R2（FILE* / pctx 字段 / host #ifdef / **u8 / work 槽）
  * -------------------------------------------------------------------------- */
 
+/* wave19 pure under PREFER：asm-path dep_ctx field set/get; cold C twin; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v) {
     if (ctx == NULL)
         return;
@@ -2455,6 +2463,7 @@ int32_t driver_pipeline_dep_ctx_get_use_coff_o(void *ctx) {
         return 0;
     return ((struct ast_PipelineDepCtx *)ctx)->use_coff_o;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 extern uint32_t driver_get_pending_target_cpu_features(void);
 
@@ -2904,10 +2913,13 @@ int32_t driver_parsed_try_c_after_pp(uint8_t *input_path, uint8_t *src, size_t s
     return -2;
 }
 
+/* wave19 pure under PREFER：skip_codegen_dep_0; cold C twin; FROM_X no pure-dup. */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v) {
     if (!ctx) return;
     ((struct ast_PipelineDepCtx *)ctx)->skip_codegen_dep_0 = (int)v;
 }
+#endif /* !SHUX_L2_RDABI_THIN_FROM_X */
 
 /* PLATFORM: SHARED — 256 bytes matches .x rt_cp_step_open_out malloc(256)
  * and accommodates Windows long TEMP paths (C:\shux_tmp\shux_shux_x.YZXDC4.c).

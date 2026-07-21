@@ -49,6 +49,8 @@
 //     (p: raw u8[200] 25×ptr; i32[16]/usize[4]; free+dep_ctx+fclose asm_out; clear tmp_path[0]).
 //   + wave18 Cap residual pure：driver_parsed_work BSS + get/set/reset/cleanup
 //     (p: raw u8[192] 24×ptr; i32[14]/usize[4]; free+dep_ctx+fclose cf; unlink tmp_c; clear tmp slots).
+//   + wave19 Cap residual pure：driver_pipeline_dep_ctx field get/set (LP64 fixed offsets
+//     + wave14 LE load/store; no C struct in .x). host_defaults/calloc stay seed.
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -2398,4 +2400,166 @@ export function driver_parsed_work_cleanup(): void {
     free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 20));
   }
   driver_parsed_work_reset();
+}
+
+// ---- Wave19 Cap residual pure: PipelineDepCtx i32 field get/set (PLATFORM: SHARED LP64) ----
+// Cold seed: ((struct ast_PipelineDepCtx *)ctx)->field = v.
+// PREFER hybrid: authority in this thin TU via fixed LP64 offsetof + driver_abi_{load,store}_i32_le
+//   (same host-layout pattern as wave14 OutBuf len cell).
+// Layout authority: compiler/src/runtime_pipeline_abi.h struct ast_PipelineDepCtx
+//   (must stay identical to ast.x PipelineDepCtx). Offsets verified with offsetof on LP64.
+// Still seed: driver_pipeline_dep_ctx_calloc (sizeof), driver_asm_pctx_apply_host_defaults (#ifdef).
+// G.7: single product authority for driver_pipeline_dep_ctx_{set,get}_* under hybrid;
+//   typed pipeline.x path still uses pipeline_dep_ctx_* in ast_pool (typed *PipelineDepCtx).
+// PLATFORM: SHARED LP64 (Ubuntu x86_64 + Darwin arm64/x86_64). Not MS64 field packing.
+
+/** offsetof(ast_PipelineDepCtx, use_asm_backend) on LP64 host layout. */
+function driver_abi_pctx_off_use_asm(): i32 {
+  return 8389660;
+}
+
+/** offsetof(ast_PipelineDepCtx, target_arch) on LP64. */
+function driver_abi_pctx_off_target_arch(): i32 {
+  return 8389664;
+}
+
+/** offsetof(ast_PipelineDepCtx, target_cpu_features) on LP64. */
+function driver_abi_pctx_off_target_cpu_features(): i32 {
+  return 8389668;
+}
+
+/** offsetof(ast_PipelineDepCtx, use_macho_o) on LP64. */
+function driver_abi_pctx_off_use_macho_o(): i32 {
+  return 8389672;
+}
+
+/** offsetof(ast_PipelineDepCtx, use_coff_o) on LP64. */
+function driver_abi_pctx_off_use_coff_o(): i32 {
+  return 8389676;
+}
+
+/** offsetof(ast_PipelineDepCtx, skip_codegen_dep_0) on LP64. */
+function driver_abi_pctx_off_skip_codegen_dep_0(): i32 {
+  return 8389692;
+}
+
+/** offsetof(ast_PipelineDepCtx, entry_already_parsed) on LP64. */
+function driver_abi_pctx_off_entry_already_parsed(): i32 {
+  return 8389696;
+}
+
+/** offsetof(ast_PipelineDepCtx, asm_entry_module_only) on LP64. */
+function driver_abi_pctx_off_asm_entry_module_only(): i32 {
+  return 8389808;
+}
+
+/** Store pctx->use_asm_backend = v. Null ctx is a no-op.
+ * Wave19 pure: LP64 offsetof + LE i32 store (no C struct in .x).
+ * PLATFORM: SHARED LP64 — pure under PREFER hybrid; cold seed keeps C field write. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_use_asm(), v);
+}
+
+/** Store pctx->target_arch = v. Null ctx is a no-op.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_target_arch(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_target_arch(), v);
+}
+
+/** Store pctx->target_cpu_features = v. Null ctx is a no-op.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_target_cpu_features(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_target_cpu_features(), v);
+}
+
+/** Store pctx->use_macho_o = v. Null ctx is a no-op.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_use_macho_o(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_use_macho_o(), v);
+}
+
+/** Store pctx->use_coff_o = v. Null ctx is a no-op.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_use_coff_o(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_use_coff_o(), v);
+}
+
+/** Store pctx->entry_already_parsed = v. Null ctx is a no-op.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_entry_already_parsed(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_entry_already_parsed(), v);
+}
+
+/** Store pctx->asm_entry_module_only = v. Null ctx is a no-op.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_asm_entry_module_only(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_asm_entry_module_only(), v);
+}
+
+/** Read pctx->asm_entry_module_only. Null ctx → 0.
+ * Wave19 pure: LP64 offsetof + LE i32 load. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_get_asm_entry_module_only(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return driver_abi_load_i32_le(ctx, driver_abi_pctx_off_asm_entry_module_only());
+}
+
+/** Read pctx->use_macho_o. Null ctx → 0.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_get_use_macho_o(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return driver_abi_load_i32_le(ctx, driver_abi_pctx_off_use_macho_o());
+}
+
+/** Read pctx->use_coff_o. Null ctx → 0.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_get_use_coff_o(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  return driver_abi_load_i32_le(ctx, driver_abi_pctx_off_use_coff_o());
+}
+
+/** Store pctx->skip_codegen_dep_0 = v. Null ctx is a no-op.
+ * Wave19 pure. PLATFORM: SHARED LP64. */
+#[no_mangle]
+export function driver_pipeline_dep_ctx_set_skip_codegen_dep_0(ctx: *u8, v: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  driver_abi_store_i32_le(ctx, driver_abi_pctx_off_skip_codegen_dep_0(), v);
 }
