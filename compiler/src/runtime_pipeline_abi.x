@@ -1,14 +1,16 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45+wave46).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave47).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual: heavy FILE*/access/collect/thread C remains seed rest.
+// Cap residual: heavy FILE star / access / collect process_one / thread C remains seed rest.
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
 //   collect_to_load_has, preprocess directive diag codes) — seed cold twins under FROM_X.
+// wave47: pure collect seed_to_load + enqueue_module_imports (strdup Cap residual);
+//   process_one / transitive_impl stay always-seed (read_file + preprocess).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -34,6 +36,10 @@ export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u
 export extern "C" function typeck_module_entry_only(module: *u8): i32;
 export extern "C" function typeck_module_with_sidecar(module: *u8): i32;
 export extern "C" function free(p: *u8): void;
+// wave47 Cap residual: owned C-string copy for collect queue (seed wraps libc strdup).
+// Do not export-extern libc strdup by name — conflicts with string.h after -E preamble.
+// PLATFORM: SHARED — pure orch owns queue logic; free() still releases ownership.
+export extern "C" function shux_collect_strdup(s: *u8): *u8;
 export extern "C" function ast_module_free(mod: *u8): void;
 export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
 /* See implementation. */
@@ -3272,6 +3278,147 @@ export function shux_collect_to_load_has(to_load: *u8, to_load_n: i32, path: *u8
     t = t + 1;
   }
   return 0;
+}
+
+/**
+ * Seed the collect to_load queue from module direct imports (owned strdup keys).
+ * @param module *u8 — opaque AST module; null → empty queue + 0
+ * @param to_load *u8 — char** queue base as bytes; null → fail 1
+ * @param to_load_n *i32 — out live count; null → fail 1; reset to 0 first
+ * @return i32 — 0 success; 1 OOM (queue freed and count cleared)
+ * wave47 pure Cap residual: G.7 reuses shux_module_num_imports / import_path_cstr /
+ *   pipe_store_ptr_slot; Cap residual shux_collect_strdup for ownership (free on fail).
+ * Slot max = SHUX_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: *i32): i32 {
+  if (to_load == 0 as *u8) {
+    return 1;
+  }
+  if (to_load_n == 0 as *i32) {
+    return 1;
+  }
+  unsafe {
+    to_load_n[0] = 0;
+  }
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  let slot_max: i32 = 32;
+  let n_imports: i32 = shux_module_num_imports(module);
+  let j: i32 = 0;
+  while (j < n_imports) {
+    if (j >= slot_max) {
+      break;
+    }
+    let n: i32 = 0;
+    unsafe {
+      n = to_load_n[0];
+    }
+    if (n >= slot_max) {
+      break;
+    }
+    let path_c: u8[65] = [];
+    shux_module_import_path_cstr(module, j, &path_c[0], 65);
+    let owned: *u8 = 0 as *u8;
+    unsafe {
+      owned = shux_collect_strdup(&path_c[0]);
+    }
+    if (owned == 0 as *u8) {
+      // Free partial queue on OOM (same contract as seed cold twin).
+      while (n > 0) {
+        n = n - 1;
+        let p: *u8 = pipe_load_ptr_slot(to_load, n);
+        if (p != 0 as *u8) {
+          unsafe {
+            free(p);
+          }
+        }
+        pipe_store_ptr_slot(to_load, n, 0 as *u8);
+      }
+      unsafe {
+        to_load_n[0] = 0;
+      }
+      return 1;
+    }
+    pipe_store_ptr_slot(to_load, n, owned);
+    unsafe {
+      to_load_n[0] = n + 1;
+    }
+    j = j + 1;
+  }
+  return 0;
+}
+
+/**
+ * Enqueue sub-imports from a parsed tmp_module into to_load (skip loaded / already queued).
+ * @param tmp_module *u8 — parsed dep module; null → no-op
+ * @param to_load *u8 — char** queue base; null → no-op
+ * @param to_load_n *i32 — live queue count (in/out); null → no-op
+ * @param dep_paths *u8 — already-loaded import keys as char star-star; may be null if n_loaded==0
+ * @param n_loaded i32 — count of dep_paths already committed
+ * @return void
+ * wave47 pure Cap residual: G.7 reuses module_num_imports / import_path_cstr /
+ *   shux_find_loaded_import_index / shux_collect_to_load_has / pipe slots;
+ *   Cap residual shux_collect_strdup.
+ * OOM on one strdup: skip that import (same as cold twin continue). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_collect_enqueue_module_imports(tmp_module: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
+  if (tmp_module == 0 as *u8) {
+    return;
+  }
+  if (to_load == 0 as *u8) {
+    return;
+  }
+  if (to_load_n == 0 as *i32) {
+    return;
+  }
+  let slot_max: i32 = 32;
+  let n_imp: i32 = 0;
+  unsafe {
+    n_imp = parser_get_module_num_imports(tmp_module);
+  }
+  if (n_imp <= 0) {
+    return;
+  }
+  let jj: i32 = 0;
+  while (jj < n_imp) {
+    if (jj >= slot_max) {
+      break;
+    }
+    let n: i32 = 0;
+    unsafe {
+      n = to_load_n[0];
+    }
+    if (n >= slot_max) {
+      break;
+    }
+    let sub_c: u8[65] = [];
+    shux_module_import_path_cstr(tmp_module, jj, &sub_c[0], 65);
+    // Skip if already loaded or already queued.
+    if (shux_find_loaded_import_index(&sub_c[0], dep_paths, n_loaded) >= 0) {
+      jj = jj + 1;
+      continue;
+    }
+    if (shux_collect_to_load_has(to_load, n, &sub_c[0]) != 0) {
+      jj = jj + 1;
+      continue;
+    }
+    let owned: *u8 = 0 as *u8;
+    unsafe {
+      owned = shux_collect_strdup(&sub_c[0]);
+    }
+    if (owned == 0 as *u8) {
+      jj = jj + 1;
+      continue;
+    }
+    pipe_store_ptr_slot(to_load, n, owned);
+    unsafe {
+      to_load_n[0] = n + 1;
+    }
+    jj = jj + 1;
+  }
 }
 
 /**

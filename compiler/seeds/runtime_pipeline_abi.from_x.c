@@ -4,6 +4,8 @@
  *   this seed as rest under -DSHUX_RUNTIME_PIPELINE_ABI_FROM_X (no pure-dup public bodies).
  * wave46: pure residual helpers (ptr/size slots, i32_store, module import cstr,
  *   collect_to_load_has, preprocess directive diag) — cold twins under FROM_X.
+ * wave47: pure collect seed_to_load + enqueue_module_imports; process_one / transitive_impl
+ *   remain always-seed (FILE star / read_file / preprocess). FROM_X rest needs extern prototypes.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -122,7 +124,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46/47: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -133,6 +135,10 @@ void shux_i32_store(int32_t *p, int32_t v);
 size_t shux_size_slot_get(size_t *arr, int32_t i);
 void shux_size_slot_set(size_t *arr, int32_t i, size_t v);
 int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
+/* wave47 pure collect queue helpers — process_one residual still calls these. */
+int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
+void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
+    char *dep_paths[], int n_loaded);
 /* pipeline_diag_preprocess_directive_code already declared above */
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -2910,6 +2916,16 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
  * 传递加载 dep：从 main 的 import 出发递归解析子 import，填满 dep_sources/dep_lens/dep_paths。
  * 返回 0 成功，1 失败（调用方负责释放已分配）。
  */
+/* wave47 Cap residual: owned C-string copy (always-seed; pure calls this, not libc strdup).
+ * PLATFORM: SHARED — wraps strdup; null s → null. */
+char *shux_collect_strdup(const char *s) {
+    if (!s)
+        return NULL;
+    return strdup(s);
+}
+
+/* wave47 pure in .x; cold twin for non-PREFER product. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-238：入口 import → to_load 队列（strdup）；0 成功，1 OOM（已清队列） */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     int32_t n_imports;
@@ -2930,7 +2946,7 @@ int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
             k++;
         }
         path_c[k] = '\0';
-        to_load[*to_load_n] = strdup(path_c);
+        to_load[*to_load_n] = shux_collect_strdup(path_c);
         if (!to_load[*to_load_n]) {
             while (*to_load_n > 0) {
                 (*to_load_n)--;
@@ -2943,6 +2959,7 @@ int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     }
     return 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave46 pure in .x; cold twin for non-PREFER product. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
@@ -2959,6 +2976,8 @@ int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
+/* wave47 pure in .x; cold twin for non-PREFER product. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-239：从已 parse 的 tmp_module 入队子 import（未 loaded / 未在 to_load） */
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n, char *dep_paths[],
     int n_loaded) {
@@ -2984,12 +3003,13 @@ void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int 
             continue;
         if (shux_collect_to_load_has(to_load, *to_load_n, sub_c))
             continue;
-        to_load[*to_load_n] = strdup(sub_c);
+        to_load[*to_load_n] = shux_collect_strdup(sub_c);
         if (!to_load[*to_load_n])
             continue;
         (*to_load_n)++;
     }
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-241：处理 to_load 一项（owned path_c）；0 继续，1 失败。*n 递增；可更新 tmp_* / to_load */
 int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
