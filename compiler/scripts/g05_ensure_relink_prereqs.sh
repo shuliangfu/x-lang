@@ -210,6 +210,14 @@ g05_try_x_to_o() {
     echo '  if (!path) return (uint8_t *)0;'
     echo '  return (uint8_t *)(void *)fopen((const char *)(void *)path, "wb");'
     echo '}'
+    # PLATFORM: SHARED — wave41 Cap residual: fdopen(fd,"wb") as opaque *u8 for pure
+    # driver_asm_mkstemp_fdopen (runtime_driver_abi_thin.x). .x cannot name FILE*.
+    echo 'static inline uint8_t *shux_driver_fdopen_wb_opaque(int32_t fd) {'
+    echo '  FILE *fp;'
+    echo '  if (fd < 0) return (uint8_t *)0;'
+    echo '  fp = fdopen((int)fd, "wb");'
+    echo '  return (uint8_t *)(void *)fp;'
+    echo '}'
     # Strip -E #include + libc redecls that clash with prologue headers.
     # PLATFORM: SHARED harness — G.7 product authority for libc skip is
     # codegen_is_libc_conflicting_extern_name (codegen.x + seed). After wave30,
@@ -274,6 +282,7 @@ g05_try_x_to_o() {
         -e '/^extern uint8_t \* shux_driver_stderr_ptr(/d' \
         -e '/^extern void shux_driver_fflush_stdout(/d' \
         -e '/^extern uint8_t \* shux_driver_fopen_wb_opaque(/d' \
+        -e '/^extern uint8_t \* shux_driver_fdopen_wb_opaque(/d' \
         -e '/^extern int32_t mkstemp(/d' \
         -e '/^extern int mkstemp(/d' \
         -e '/^extern int32_t rename(/d' \

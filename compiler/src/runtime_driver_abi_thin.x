@@ -108,8 +108,10 @@
 //   + wave40 Cap residual pure：driver_stdio_stderr + driver_asm_fflush_stdout +
 //     driver_asm_fopen_wb + driver_asm_write_metric_o
 //     (g05 stderr_ptr / fflush_stdout / fopen_wb_opaque; write_metric pure orch:
-//      fopen_wb + fwrite one 0 byte + fclose_opaque; still seed: mkstemp/sibling/
-//      usage/exec).
+//      fopen_wb + fwrite one 0 byte + fclose_opaque).
+//   + wave41 Cap residual pure：driver_asm_mkstemp_fdopen
+//     (null + WINDOWS gate residual; template pure via tmp_prefix + "shux_asm_XXXXXX";
+//      mkstemp/close/unlink libc; g05 fdopen_wb_opaque; still seed: sibling/usage/exec).
 //
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -4449,9 +4451,8 @@ export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
 // bind_lib_roots: n<=0 or null → ["."] one_root BSS via G.7; else return caller table.
 // argv0: G.7 / driver_argv_at index 0.
 // collect_defines: zero 64×LP64 BSS table + pure driver_argv_collect_defines (wave10).
-// Permanent OS residual (still seed): asm_fopen_wb / mkstemp_fdopen / fflush /
-//   write_metric_o / sibling_try_spawn / print_usage / exec_compiled_body.
-// Wave39 pure: driver_asm_fwrite + driver_stdio_stdout + driver_x_emit_fwrite_stdout.
+// Permanent OS residual (still seed): sibling_try_spawn / print_usage / exec_compiled_body.
+// Wave39–41 pure: fwrite/stdio/fflush/fopen_wb/write_metric/mkstemp_fdopen.
 // G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
 // PLATFORM: SHARED LP64.
 
@@ -5115,8 +5116,7 @@ export function driver_parse_into_buf_rc(
 // driver_x_emit_fwrite_stdout returns written byte count (not 0/1); residual
 //   shux_driver_fwrite_stdout_n hides fwrite+fflush and the count ABI.
 // wave40 owns stderr / fflush_stdout / fopen_wb / write_metric_o (see below).
-// Still seed OS residual: mkstemp_fdopen / sibling_try_spawn / print_usage /
-//   exec_compiled_body.
+// wave41 owns mkstemp_fdopen. Still seed OS residual: sibling / usage / exec.
 // PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
 
 /**
@@ -5197,7 +5197,7 @@ export function driver_x_emit_fwrite_stdout(data: *u8, len: i32): i32 {
 // G.7: extend wave26/27 g05 harness (stderr_ptr / fflush_stdout / fopen_wb_opaque).
 // fopen_wb uses mode "wb" (binary) — not fopen_write_opaque "w" (text C emit).
 // write_metric_o pure orch: open + one-byte 0 fwrite + fclose (no fputc in .x).
-// Still seed OS residual: mkstemp_fdopen / sibling_try_spawn / print_usage / exec_compiled_body.
+// wave41 owns mkstemp_fdopen (see below). Still seed OS residual: sibling/usage/exec.
 // PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
 
 /** g05 prologue: opaque identity of host stderr as *u8.
@@ -5287,5 +5287,78 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
     return shux_driver_fclose_opaque(fp);
   }
   return 1;
+}
+
+// ---- Wave41 Cap residual pure: driver_asm_mkstemp_fdopen ----
+// G.7: reuse wave27 open_out helpers (tmp_prefix + cstr_copy/cat + mkstemp/close/unlink).
+// Cap residual split:
+//   - seed always: shux_driver_asm_mkstemp_fdopen_enabled (WINDOWS → 0; POSIX → 1)
+//   - g05 prologue: shux_driver_fdopen_wb_opaque(fd) hides FILE* fdopen("wb")
+//   - pure orch: null guard, enable gate, template fill into path_out64, mkstemp,
+//     fdopen; fail → close+unlink+clear path[0]
+// Still seed OS residual: sibling_try_spawn / print_usage_write / exec_compiled_body.
+// PLATFORM: SHARED orch; WINDOWS disabled via residual (matches cold twin).
+
+/**
+ * Host gate for asm mkstemp+fdopen: 0 on Windows (always null), 1 on POSIX product.
+ * @return i32 — 1 enabled; 0 disabled (pure returns null without OS calls)
+ * PLATFORM: WINDOWS returns 0; POSIX/LINUX/MACOS return 1. Always-seed residual.
+ */
+export extern "C" function shux_driver_asm_mkstemp_fdopen_enabled(): i32;
+/**
+ * g05 prologue: fdopen(fd, "wb") as opaque *u8; failure → null (caller closes fd).
+ * @param fd i32 — open file descriptor from mkstemp
+ * @return *u8 — opaque FILE* or null
+ * PLATFORM: SHARED — harness FILE* cast residual (no FILE* in .x).
+ */
+export extern "C" function shux_driver_fdopen_wb_opaque(fd: i32): *u8;
+
+/**
+ * Fill path_out64 with a unique temp path and fdopen it for binary asm object write.
+ * @param path_out64 *u8 — caller buffer capacity >= 64 including NUL; null → null
+ * @return *u8 — opaque FILE* opened "wb", or null on disable/guard/OS failure
+ * On failure after mkstemp: close(fd), unlink(path), clear path_out64[0].
+ * Wave41 pure: null + enable gate pure; template = tmp_prefix + "shux_asm_XXXXXX"
+ * (reuses wave27 cstr helpers); mkstemp/close/unlink libc; g05 fdopen_wb_opaque.
+ * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch; WINDOWS residual disabled.
+ */
+#[no_mangle]
+export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
+  let fd: i32 = 0;
+  let fp: *u8 = 0 as *u8;
+  let prefix: *u8 = 0 as *u8;
+  if (path_out64 == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    // PLATFORM: WINDOWS — cold twin always returns null; do not call mkstemp.
+    if (shux_driver_asm_mkstemp_fdopen_enabled() == 0) {
+      return 0 as *u8;
+    }
+    prefix = shux_driver_tmp_prefix();
+  }
+  // Cap 64 matches cold snprintf(path_out64, 64, ...) and wave25 asm tmp slot.
+  driver_open_out_cstr_copy(path_out64, 64, prefix);
+  // Short suffix keeps under -E string cap (~63); XXXXXX mutated by mkstemp.
+  driver_open_out_cstr_cat(path_out64, 64, "shux_asm_XXXXXX");
+  unsafe {
+    fd = mkstemp(path_out64);
+  }
+  if (fd < 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    fp = shux_driver_fdopen_wb_opaque(fd);
+  }
+  if (fp == 0 as *u8) {
+    // Match cold: close fd, unlink template path, clear first byte for callers.
+    unsafe {
+      close(fd);
+      unlink(path_out64);
+    }
+    path_out64[0] = 0;
+    return 0 as *u8;
+  }
+  return fp;
 }
 

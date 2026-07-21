@@ -323,7 +323,8 @@ int driver_source_has_top_level_import_path(const char *path);
  *   - C frontend smoke / typeck 预检（wave34 pure：产品 NO_C 固定 -2/-1；cold twin）
  *   - elf_ctx 分配（wave23 pure）、metric 写盘、asm work 槽
  * wave40 pure under PREFER: fopen_wb / fflush_stdout / write_metric_o；
- * Permanent OS residual (always seed): mkstemp_fdopen（FILE* opaque / POSIX）。
+ * wave41 pure under PREFER: mkstemp_fdopen（template pure + g05 fdopen_wb_opaque）；
+ * Permanent OS residual (always seed): sibling_try_spawn / print_usage / exec body。
  */
 void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v);
 void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v);
@@ -346,8 +347,14 @@ int32_t shux_driver_host_prefer_coff(int32_t emit_elf_o);
  * cold twin under #ifndef FROM_X. Binary mode — not text fopen_write_opaque "w".
  */
 uint8_t *driver_asm_fopen_wb(uint8_t *path);
-/** Permanent OS residual: 写 path_out64（≥64B）为临时路径并 fdopen("wb")；失败 NULL。 */
+/**
+ * wave41 pure: hybrid thin owns (null + WINDOWS enable residual + template pure +
+ * mkstemp + g05 fdopen_wb_opaque "wb"); cold twin under #ifndef FROM_X.
+ * path_out64 容量 ≥64B；失败 NULL（fail 后可能 clear path[0]）。
+ */
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64);
+/** Permanent OS residual: WINDOWS → 0；POSIX → 1（pure mkstemp_fdopen gate）。 */
+int32_t shux_driver_asm_mkstemp_fdopen_enabled(void);
 void driver_asm_fclose(uint8_t *fp);
 /**
  * wave39 pure: hybrid thin owns (null/len guards + g05 stdout_ptr/fwrite_opaque);

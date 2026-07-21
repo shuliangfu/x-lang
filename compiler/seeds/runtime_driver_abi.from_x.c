@@ -111,7 +111,11 @@
  *     driver_asm_fopen_wb + driver_asm_write_metric_o 在 thin.x
  *     （g05 stderr_ptr / fflush_stdout / fopen_wb_opaque；write_metric pure orch
  *       fopen_wb + fwrite 1×0 + fclose_opaque）；FROM_X 无 pure-dup；
- *     still always-seed：mkstemp_fdopen / sibling / usage / exec；
+ *   + wave41 Cap residual pure：driver_asm_mkstemp_fdopen 在 thin.x
+ *     （null + WINDOWS gate residual shux_driver_asm_mkstemp_fdopen_enabled；
+ *       template pure tmp_prefix+"shux_asm_XXXXXX"；mkstemp/close/unlink；
+ *       g05 shux_driver_fdopen_wb_opaque）；FROM_X 无 pure-dup；
+ *     still always-seed：sibling / usage / exec；
  *     wave29：pure io_net N=224 + WEAK_IO skip 178..181；表数据仍 seed；
  * FROM_X 剔 pure-dup _impl（H↓）。
  */
@@ -2739,8 +2743,20 @@ uint8_t *driver_asm_fopen_wb(uint8_t *path) {
 #endif
 #endif
 
-/* Permanent OS residual: mkstemp + fdopen("wb") for asm temp paths (always seed).
- * PLATFORM: POSIX mkstemp; WINDOWS returns NULL. */
+/* Permanent OS residual: WINDOWS disables asm mkstemp+fdopen (always linked under FROM_X).
+ * Pure wave41 calls this before template/mkstemp; cold twin inlines the same gate.
+ * PLATFORM: WINDOWS → 0; POSIX/LINUX/MACOS → 1. */
+int32_t shux_driver_asm_mkstemp_fdopen_enabled(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+/* wave41 pure: hybrid thin owns mkstemp_fdopen orch; cold twin under #ifndef FROM_X.
+ * PLATFORM: POSIX mkstemp+fdopen; WINDOWS returns NULL (enabled residual). */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)path_out64;
@@ -2764,6 +2780,7 @@ uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64) {
     return (uint8_t *)(void *)fp;
 #endif
 }
+#endif
 
 void driver_asm_fclose(uint8_t *fp) {
     driver_asm_fclose_asm_out((FILE *)(void *)fp);
