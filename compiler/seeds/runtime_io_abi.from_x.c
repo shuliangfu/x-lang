@@ -1,9 +1,11 @@
 /* Generated from src/runtime_io_abi.x (G-02f-29/44/57..59 true .x + C tail).
  * G-02f-334：PREFER_X_O hybrid 时 thin 由 .x→-E；rest 用 SHUX_L2_RIO_THIN_FROM_X
- *   （C 尾 _impl + open_write flags_impl；省略 .x 公共门闩）。
+ *   + SHUX_RUNTIME_IO_ABI_FROM_X（省略已真迁 _impl；仅 slice_marker）。
+ * Cap residual pure (2026-07-21)：4 平台 _impl 真迁 .x
+ *   （flags_impl / write_path_bytes_impl / release_file_view_impl / read_file_view_impl）。
+ * Cold seed 仍保留 mmap/fstat C 体（无 FROM_X）。
  * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
- *         merge fs/path/file_view + open_write flag slots; C mmap bulk.
- * .x covers: std.fs/posix + path/file_view 门闩 + open_write flags/mode。
+ * .x covers: std.fs/posix + path/file_view 门闩 + Cap residual pure _impl。
  */
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
@@ -136,10 +138,13 @@ int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap);
 int shux_write_path_bytes_impl(const char *path, const void *data, size_t len);
 void runtime_release_file_view_impl(ShuxRuntimeFileView *view);
 
-/* G-02f-rest：rest→.x 迁移后，5 个 _impl 由 .x 提供，seed 保留 extern 声明供 4 个保留 _impl 调用 */
+/* G-02f-rest：5 个 pure _impl 已在 .x；FROM_X 时 seed 仅声明供 cold 互调。
+ * Cap residual pure (2026-07-21)：4 平台 _impl 亦真迁 .x（flags/write/release/read_view）。
+ * Cold (no FROM_X) 仍保留下方 C 体（mmap/fstat 路径）。 */
 int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap);
 int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFileView *out);
 
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     int fd;
     int fd_fallback;
@@ -182,6 +187,7 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     out->needs_munmap = 1;
     return 0;
 }
+#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
 
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
@@ -198,6 +204,7 @@ int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
 }
 #endif
 
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
     if (view->needs_munmap && view->data && view->length > 0)
         munmap((void *)view->data, view->length);
@@ -208,6 +215,7 @@ void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
     view->needs_free = 0;
     view->needs_munmap = 0;
 }
+#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
 
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 void runtime_release_file_view(ShuxRuntimeFileView *view) {
@@ -317,7 +325,9 @@ int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
 /**
  * B-20：open(O_WRONLY|O_CREAT|O_TRUNC)/write 写整文件。
  * 参数：见 runtime_io_abi.h。
+ * Cap residual pure：.x 真迁；FROM_X 时由 .x 提供。
  */
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 int shux_write_path_bytes_impl(const char *path, const void *data, size_t len) {
     int fd;
     size_t off;
@@ -340,6 +350,7 @@ int shux_write_path_bytes_impl(const char *path, const void *data, size_t len) {
     close(fd);
     return off == len ? 0 : -1;
 }
+#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
 
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 int shux_write_path_bytes(const char *path, const void *data, size_t len) {
@@ -364,6 +375,8 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 /** G-02f-44：open_write 平台 flags/mode 槽（.x 调 open）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-334：hybrid 时作 flags_impl（.x thin 门闩调 _impl） */
+/* Cap residual pure：flags_impl 真迁 .x；FROM_X 时整段跳过 */
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 int32_t shux_fs_open_write_flags(void)
 #else
@@ -372,6 +385,7 @@ int32_t shux_fs_open_write_flags_impl(void)
 {
     return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY);
 }
+#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
 
 /* G-02f-120：逻辑源 .x（真迁）；hybrid 时 mode 由 .x thin 提供 */
 #ifndef SHUX_L2_RIO_THIN_FROM_X
@@ -513,7 +527,7 @@ int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
 }
 #endif
 
-/* R2：PREFER_X_O + FROM_X 下 rest 仅 Cap residual（4 平台 _impl）+ slice marker */
+/* R2：PREFER_X_O + FROM_X 下 rest 业务 H=0（仅 slice marker；4 平台 Cap residual pure 已闭） */
 int runtime_io_abi_slice_marker(void) {
     return 1;
 }

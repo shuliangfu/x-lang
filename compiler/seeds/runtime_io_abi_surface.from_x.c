@@ -2,7 +2,7 @@
  * G-02f runtime_io_abi R2 full surface — isomorphic with src/runtime_io_abi.x
  * Product PREFER_X_O: g05_try_x_to_o(.x) + seed-rest (-DSHUX_L2_RIO_THIN_FROM_X -DSHUX_RUNTIME_IO_ABI_FROM_X) ld -r
  * Prove: full.x vs this seed → nm IDENTICAL (19 public + 5 _impl in .x)
- * Cap residual: 4 platform _impl (mmap/fstat/O_* flags) in seeds/runtime_io_abi.from_x.c rest
+ * Cap residual pure (2026-07-21): 4 platform _impl true-migrated to .x; rest FROM_X H=0 marker-only
  * Regen: ./shux-c -E ... runtime_io_abi.x | filter DBG + polish prologue
  */
 #include <stddef.h>
