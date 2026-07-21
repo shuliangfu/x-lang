@@ -11,13 +11,14 @@
  *   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue).
  * wave50: pure collect deps/paths transitive_impl orch (stack to_load + process_one loop).
  * wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
- *   Cap residual shux_load_one_direct_resolve_read_preprocess always-seed (FILE/PATH_MAX);
- *   G.7 paths_tmp residual reuses Cap residual (no dual resolve/read/preprocess bodies).
+ *   Cap residual then pure (wave55) shux_load_one_direct_resolve_read_preprocess;
+ *   G.7 paths_tmp reuses same resolve_read (no dual resolve/read/preprocess bodies).
  * wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
- * wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + Cap residual
- *   resolve_read_preprocess + G.7 pure tmp_parse + free prep).
- * wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL);
- *   Cap residual resolve_read_preprocess / thread remain seed.
+ * wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + resolve_read
+ *   + G.7 pure tmp_parse + free prep).
+ * wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL).
+ * wave55: pure resolve_read_preprocess orch (stack resolved + FileView + pure resolve
+ *   + runtime_read_file_view + pure preprocess + release + diags); thread impl remain seed.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -136,7 +137,7 @@ int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
 void *shux_asm_codegen_elf_o_thread_fn(void *arg);
 
-/* wave46–54: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
+/* wave46–55: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
 #ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t shux_module_num_imports(void *module);
@@ -149,6 +150,10 @@ void shux_size_slot_set(size_t *arr, int32_t i, size_t v);
 int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
 /* wave54 pure strdup thin shell — pure orch / cold twins call this under hybrid. */
 char *shux_collect_strdup(const char *s);
+/* wave55 pure resolve_read orch — pure load_one / paths_tmp call under hybrid. */
+int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir, const char *import_key, const char **defines, int ndefines, char **out_prep,
+    size_t *out_prep_len);
 /* wave47 pure collect queue helpers. */
 int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
 void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
@@ -2648,9 +2653,11 @@ int32_t shux_module_num_imports(void *module) {
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* wave51 Cap residual always-seed: resolve + read file view + preprocess → owned prep.
- * Pure load_one orch stores dep slots; paths_tmp residual also reuses this (G.7).
- * PLATFORM: SHARED — PATH_MAX stack + ShuxRuntimeFileView stay C. */
+/* wave55 pure in .x; cold twin for non-PREFER product.
+ * wave51 Cap residual always-seed → wave55 pure orch (stack PATH + FileView + pure resolve/preprocess).
+ * Pure load_one orch stores dep slots; paths_tmp reuses this (G.7).
+ * PLATFORM: SHARED — PATH_MAX stack + ShuxRuntimeFileView cold twin only. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char *import_key, const char **defines, int ndefines, char **out_prep,
     size_t *out_prep_len) {
@@ -2685,6 +2692,7 @@ int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int
     *out_prep_len = prep_len;
     return 0;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave51 pure in .x; cold twin for non-PREFER product.
  * G-02f-236：单项 Cap residual resolve/read/preprocess + store dep 槽 mi；0 成功，1 失败。
@@ -3232,7 +3240,7 @@ int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz
  * ensure tmp; Cap residual resolve/read/preprocess path_c; G.7 pure tmp_parse; free prep.
  * Pure paths_process_one orch calls this after registering owned dep_paths key.
  * If tmp malloc fails: no-op success (path already registered; same as historical body).
- * wave51: G.7 reuses shux_load_one_direct_resolve_read_preprocess (no dual FILE/PATH_MAX body).
+ * wave51/wave55: G.7 reuses pure shux_load_one_direct_resolve_read_preprocess (no dual FILE/PATH_MAX body).
  * wave52: G.7 pure tmp_parse_and_enqueue (FROM_X weak pure; cold twin under #ifndef).
  * PLATFORM: SHARED — Cap residual resolve/read/preprocess + G.7 tmp_parse_and_enqueue. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X

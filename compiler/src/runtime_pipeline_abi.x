@@ -1,11 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave54).
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave55).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual: heavy FILE view / PATH_MAX resolve+read+preprocess /
-//   thread C remains seed rest (strdup pure wave54; paths_tmp pure wave53; tmp_parse pure wave52).
+// Cap residual: thread C large-stack impl bodies remain seed rest
+//   (resolve_read pure wave55; strdup pure wave54; paths_tmp pure wave53; tmp_parse pure wave52).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
 // wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
@@ -17,13 +17,14 @@
 //   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue + free prep).
 // wave50: pure collect deps/paths transitive_impl orch (stack to_load[32] + process_one loop).
 // wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
-//   Cap residual shux_load_one_direct_resolve_read_preprocess (FILE/PATH_MAX/preprocess);
-//   G.7 paths_tmp residual reuses same Cap residual (no dual resolve/read/preprocess).
+//   Cap residual then pure (wave55) shux_load_one_direct_resolve_read_preprocess;
+//   G.7 paths_tmp reuses same resolve_read (no dual resolve/read/preprocess).
 // wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
-// wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + Cap residual
-//   resolve_read_preprocess + G.7 pure tmp_parse + free prep).
+// wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + resolve_read
+//   + G.7 pure tmp_parse + free prep).
 // wave54: pure collect strdup thin shell (malloc + scan len + byte copy + NUL; no libc strdup name).
-//   Cap residual resolve_read_preprocess / thread remain seed.
+// wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]
+//   + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
@@ -57,9 +58,11 @@ export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 // Do not export-extern libc strdup by name — conflicts with string.h after -E preamble.
 // wave52: shux_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
 // wave53: shux_collect_paths_tmp_resolve_parse_enqueue is pure export function below.
-// wave51 Cap residual: resolve import + read file view + preprocess → owned prep (no dep slots).
-// PLATFORM: SHARED — PATH_MAX stack + FILE view stay seed; pure load_one / paths_tmp orch call it.
-export extern "C" function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, out_prep: *u8, out_prep_len: *u8): i32;
+// wave55: shux_load_one_direct_resolve_read_preprocess is pure export function below.
+// wave55 pure resolve_read: runtime file view (ShuxRuntimeFileView 24B; pad 32 stack).
+// PLATFORM: SHARED — same ABI as fmt_check pure path; G.7 no second view layout.
+export extern "C" function runtime_read_file_view(path: *u8, out: *u8): i32;
+export extern "C" function runtime_release_file_view(view: *u8): void;
 export extern "C" function ast_module_free(mod: *u8): void;
 export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
 /* See implementation. */
@@ -135,10 +138,11 @@ export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, 
 /* wave46: shux_module_num_imports / import_path_cstr / ptr+size slots / i32_store
  * are pure export function below (not export-extern Cap residual). */
 // wave51: shux_load_one_direct_import_at + shux_load_direct_fail_cleanup are pure orch below
-// (Cap residual shux_load_one_direct_resolve_read_preprocess for FILE/PATH_MAX/preprocess).
+// (wave55 pure shux_load_one_direct_resolve_read_preprocess for resolve+read+preprocess).
 // wave50: shux_collect_deps_transitive_impl / shux_collect_dep_paths_transitive_impl
 // are pure export function below (not export-extern Cap residual).
 // wave52: shux_collect_tmp_parse_and_enqueue is pure export function below.
+// wave55: shux_load_one_direct_resolve_read_preprocess is pure export function below.
 export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
 
 /* See implementation. */
@@ -2379,6 +2383,95 @@ export function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, 
 }
 
 /**
+ * Resolve import key, read file view, preprocess → owned prep (no dep slot store).
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param import_key *u8 — import path key C string; null → fail 1
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count; if <=0 pass null defines into preprocess
+ * @param out_prep *u8 — char star-star out cell (LP64 8B); null → fail 1; cleared on entry
+ * @param out_prep_len *u8 — size_t out cell as bytes; null → fail 1; cleared on entry
+ * @return i32 — 0 success (*out_prep owned, free with free); 1 fail (out cleared)
+ * wave55 pure Cap residual orch (was always-seed PATH_MAX+FILE view):
+ *   stack resolved[4096] (SHARED path cap; gold Linux PATH_MAX);
+ *   pure shux_resolve_import_file_path_multi;
+ *   runtime_read_file_view into 32B stack ShuxRuntimeFileView (G.7 same as fmt_check);
+ *   open fail → pure pipeline_diag_import_open_fail_once;
+ *   pure shux_preprocess_raw_to_malloc(view.data, view.length, out_prep, out_prep_len, …);
+ *   runtime_release_file_view always after read success path;
+ *   null prep after preprocess ok → pure pipeline_diag_import_preprocess_fail.
+ * G.7 load_one + paths_tmp call this (single resolve/read/preprocess body). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, out_prep: *u8, out_prep_len: *u8): i32 {
+  if (import_key == 0 as *u8) {
+    return 1;
+  }
+  if (out_prep == 0 as *u8) {
+    return 1;
+  }
+  if (out_prep_len == 0 as *u8) {
+    return 1;
+  }
+  // Clear out cells first (same contract as seed cold twin).
+  pipe_store_ptr_slot(out_prep, 0, 0 as *u8);
+  shux_size_slot_set(out_prep_len, 0, 0);
+  // Resolved path buffer: 4096 matches gold Linux PATH_MAX; pure stack (no BSS dual path).
+  let resolved: u8[4096] = [];
+  let zi: i32 = 0;
+  while (zi < 4096) {
+    resolved[zi] = 0;
+    zi = zi + 1;
+  }
+  unsafe {
+    shux_resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_key, &resolved[0], 4096 as i64);
+  }
+  // ShuxRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
+  let view: u8[32] = [];
+  let z: i32 = 0;
+  while (z < 32) {
+    view[z] = 0;
+    z = z + 1;
+  }
+  let view_rc: i32 = 0;
+  unsafe {
+    view_rc = runtime_read_file_view(&resolved[0], &view[0]);
+  }
+  if (view_rc != 0) {
+    pipeline_diag_import_open_fail_once(import_key, &resolved[0]);
+    return 1;
+  }
+  let raw_data: *u8 = shux_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = shux_size_slot_get(&view[0], 1);
+  // defines: only pass table when ndefines > 0 (seed cold twin ternary).
+  let def_arg: *u8 = 0 as *u8;
+  if (ndefines > 0) {
+    def_arg = defines;
+  }
+  let prep_rc: i32 = 0;
+  unsafe {
+    prep_rc = shux_preprocess_raw_to_malloc(raw_data, raw_len, out_prep, out_prep_len, &resolved[0], def_arg, ndefines);
+  }
+  unsafe {
+    runtime_release_file_view(&view[0]);
+  }
+  if (prep_rc != 0) {
+    // Preprocess failed: keep out cleared (preprocess may have written partial; re-clear).
+    pipe_store_ptr_slot(out_prep, 0, 0 as *u8);
+    shux_size_slot_set(out_prep_len, 0, 0);
+    return 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(out_prep, 0);
+  if (prep == 0 as *u8) {
+    pipeline_diag_import_preprocess_fail(import_key, &resolved[0]);
+    shux_size_slot_set(out_prep_len, 0, 0);
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Resolve one import key, read+preprocess into prep, store dep_sources/lens/paths[mi].
  * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
  * @param n_lib_roots i32 — lib root count
@@ -2392,7 +2485,7 @@ export function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, 
  * @param mi i32 — slot index; mi < 0 → fail 1
  * @return i32 — 0 success (slot written); 1 fail (no partial slot leave when paths OOM frees prep)
  * wave51 pure Cap residual orch:
- *   Cap residual shux_load_one_direct_resolve_read_preprocess → owned prep;
+ *   wave55 pure shux_load_one_direct_resolve_read_preprocess → owned prep;
  *   store prep + prep_len at mi;
  *   wave54 pure shux_collect_strdup(import_key) → dep_paths[mi];
  *   OOM on key: free prep, clear source slot, return 1.
@@ -3603,7 +3696,7 @@ export function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *
  * wave53 pure Cap residual orch:
  *   if *tmp_arena null → malloc arena_sz + module_sz into both slots;
  *   if either buffer missing → return 0 (path already registered upstream; historical);
- *   Cap residual shux_load_one_direct_resolve_read_preprocess → owned prep;
+ *   wave55 pure shux_load_one_direct_resolve_read_preprocess → owned prep;
  *   G.7 pure shux_collect_tmp_parse_and_enqueue; free prep.
  * G.7 paths_process_one calls this. PLATFORM: SHARED.
  */
@@ -3638,7 +3731,7 @@ export function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_ro
   if (tm == 0 as *u8) {
     return 0;
   }
-  // Cap residual: PATH_MAX + FILE view + preprocess → owned prep (not stored in dep slots).
+  // wave55 pure: stack PATH + FILE view + preprocess → owned prep (not stored in dep slots).
   let prep_cell: u8[8] = [];
   let prep_len_cell: u8[8] = [];
   let rc: i32 = 0;
