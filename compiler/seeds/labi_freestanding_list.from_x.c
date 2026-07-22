@@ -17,6 +17,8 @@
  *     link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch
  *   + wave138 labi_fs_gen_{core_slice,db_kv,db_arrow}_needle_* +
  *     link_abi_generated_c_needs_{core_slice,db_kv,db_arrow} pure orch
+ *   + wave139 labi_fs_gen_provides_{core_mem,std_heap}_needle_* +
+ *     link_abi_generated_c_provides_{core_mem,std_heap} pure orch
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -554,6 +556,59 @@ int link_abi_generated_c_needs_db_arrow(const char *c_path) {
   }
   return 0;
 }
+/* wave139: co-emit provides_* pure (skip hard-link when TU already defines). */
+int labi_fs_gen_provides_core_mem_needle_count(void) {
+  return 3;
+}
+const char *labi_fs_gen_provides_core_mem_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "void core_mem_mem_copy(";
+  if (i == 1)
+    return "int32_t core_mem_placeholder(void) {";
+  if (i == 2)
+    return "int32_t core_mem_align_of_i32(void) {";
+  return NULL;
+}
+int labi_fs_gen_provides_std_heap_needle_count(void) {
+  return 3;
+}
+const char *labi_fs_gen_provides_std_heap_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "uint8_t * std_heap_libc_heap_alloc_c(size_t size) {";
+  if (i == 1)
+    return "void std_heap_libc_heap_free_c(uint8_t * ptr) {";
+  if (i == 2)
+    return "std_heap_libc_heap_alloc_c(size_t size) {";
+  return NULL;
+}
+int link_abi_generated_c_provides_core_mem(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_provides_core_mem_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_provides_core_mem_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_provides_std_heap(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_provides_std_heap_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_provides_std_heap_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
 
 
 #else
@@ -613,6 +668,13 @@ const char *labi_fs_gen_db_arrow_needle_at(int i);
 int link_abi_generated_c_needs_core_slice(const char *c_path);
 int link_abi_generated_c_needs_db_kv(const char *c_path);
 int link_abi_generated_c_needs_db_arrow(const char *c_path);
+/* wave139: co-emit provides_* pure (L7). */
+int labi_fs_gen_provides_core_mem_needle_count(void);
+const char *labi_fs_gen_provides_core_mem_needle_at(int i);
+int labi_fs_gen_provides_std_heap_needle_count(void);
+const char *labi_fs_gen_provides_std_heap_needle_at(int i);
+int link_abi_generated_c_provides_core_mem(const char *c_path);
+int link_abi_generated_c_provides_std_heap(const char *c_path);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

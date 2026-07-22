@@ -14,6 +14,8 @@
 //     (C-path compress lib string needles; Cap residual contains_substr).
 //   wave138 link_abi_generated_c_needs_{core_slice,db_kv,db_arrow} pure orch
 //     (C-path core.slice / std.db.kv / std.db.arrow on-demand .o needles).
+//   wave139 link_abi_generated_c_provides_{core_mem,std_heap} pure orch
+//     (C-path co-emit strong-def markers; skip hard-link mem.o/heap.o).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -1331,6 +1333,154 @@ export function link_abi_generated_c_needs_db_arrow(c_path: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let needle: *u8 = labi_fs_gen_db_arrow_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of generated-C substr needles for co-emit core.mem strong definitions.
+ * Used to skip hard-linking core/mem/mem.o when the user TU already defines mem.
+ * @return i32 — 3 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_provides_core_mem_needle_count(): i32 {
+  return 3;
+}
+
+/**
+ * Needle at index for co-emit core.mem definition scan.
+ * Invariant: match definition lines (body brace / typed prototype), not bare extern.
+ * @param i i32 — index in [0, 3)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_provides_core_mem_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "void core_mem_mem_copy(";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "int32_t core_mem_placeholder(void) {";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "int32_t core_mem_align_of_i32(void) {";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for co-emit std.heap strong definitions.
+ * Used to skip hard-linking heap.o when the user TU already defines libc heap API.
+ * @return i32 — 3 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_provides_std_heap_needle_count(): i32 {
+  return 3;
+}
+
+/**
+ * Needle at index for co-emit std.heap definition scan.
+ * Invariant: definition lines carry body brace; extern lines prefix "extern " and miss.
+ * @param i i32 — index in [0, 3)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_provides_std_heap_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "uint8_t * std_heap_libc_heap_alloc_c(size_t size) {";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "void std_heap_libc_heap_free_c(uint8_t * ptr) {";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_heap_libc_heap_alloc_c(size_t size) {";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether generated C already co-emits core.mem strong definitions.
+ * Pure orch: fixed definition-line needles; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any definition needle hits, else 0
+ * Why (wave139): hybrid still had provides_core_mem body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_provides_core_mem(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_provides_core_mem_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_provides_core_mem_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C already co-emits std.heap strong definitions.
+ * Pure orch: fixed definition-line needles; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any definition needle hits, else 0
+ * Why (wave139): hybrid still had provides_std_heap body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_provides_std_heap(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_provides_std_heap_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_provides_std_heap_needle_at(i);
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;

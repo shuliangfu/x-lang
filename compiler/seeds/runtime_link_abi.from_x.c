@@ -1907,6 +1907,13 @@ const char *labi_fs_gen_db_arrow_needle_at(int i);
 int link_abi_generated_c_needs_core_slice(const char *c_path);
 int link_abi_generated_c_needs_db_kv(const char *c_path);
 int link_abi_generated_c_needs_db_arrow(const char *c_path);
+/* wave139: co-emit provides_* pure (L7 freestanding). */
+int labi_fs_gen_provides_core_mem_needle_count(void);
+const char *labi_fs_gen_provides_core_mem_needle_at(int i);
+int labi_fs_gen_provides_std_heap_needle_count(void);
+const char *labi_fs_gen_provides_std_heap_needle_at(int i);
+int link_abi_generated_c_provides_core_mem(const char *c_path);
+int link_abi_generated_c_provides_std_heap(const char *c_path);
 #endif
 
 /* G-02f-276：env name from pure table */
@@ -3126,6 +3133,7 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
  * wave136: link_abi_generated_c_needs_{fs,random,time,runtime} pure orch same L7
  * wave137: link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch same L7
  * wave138: link_abi_generated_c_needs_{core_slice,db_kv,db_arrow} pure orch same L7
+ * wave139: link_abi_generated_c_provides_{core_mem,std_heap} pure orch same L7
  * (C-path PRIMARY OS/fs string needles; Cap residual contains_substr).
  * Cap residual: contains_substr / undef_sym stay mega. PLATFORM: SHARED.
  */
@@ -3330,44 +3338,18 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
   return 0;
 }
 
-/**
- * 生成 C 是否已 co-emit 提供 core.mem 强定义（与 mere extern/call 区分）。
- * 【Why】import("core.mem") 走 pipeline co-emit 会把 core_mem_* 函数体写进用户 TU；
- *   heap on_demand 若再硬链 core/mem/mem.o → 31× duplicate。
- * 【Invariant】co-emit 定义形如 `void core_mem_mem_copy(` / `int32_t core_mem_placeholder(void) {`，
- *   非 `extern ...;`。仅当已提供定义时跳过 mem.o；仅引用时仍链 mem.o。
+/* wave139: link_abi_generated_c_provides_core_mem pure orch lives in labi_freestanding_list
+ * (3 definition-line needles + pure scan; Cap residual contains_substr). Was mega body.
+ * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * Why: co-emit core_mem_* bodies in user TU; hard-link mem.o → duplicate.
+ * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
  */
-int link_abi_generated_c_provides_core_mem(const char *c_path) {
-    if (!c_path || !c_path[0])
-        return 0;
-    /* 定义行（无 extern 前缀）：co-emit 权威形态 */
-    if (link_abi_generated_c_contains_substr(c_path, "void core_mem_mem_copy(") != 0)
-        return 1;
-    if (link_abi_generated_c_contains_substr(c_path, "int32_t core_mem_placeholder(void) {") != 0)
-        return 1;
-    if (link_abi_generated_c_contains_substr(c_path, "int32_t core_mem_align_of_i32(void) {") != 0)
-        return 1;
-    return 0;
-}
+int link_abi_generated_c_provides_core_mem(const char *c_path);
 
-/**
- * 生成 C 是否已 co-emit 提供 std.heap 强定义。
- * 【Why】import std.string 等会 co-emit heap_libc 体；再链 heap.o → 46× duplicate
- *   （std_heap_libc_heap_alloc_c 等）。与 provides_core_mem 同形。
- * 【Invariant】定义行：`uint8_t * std_heap_libc_heap_alloc_c(size_t size) {`；
- *   extern 行带 `extern` 前缀，不匹配 body 花括号形态。
+/* wave139: link_abi_generated_c_provides_std_heap pure orch (L7 freestanding).
+ * Why: co-emit heap_libc bodies; hard-link heap.o → duplicate.
  */
-int link_abi_generated_c_provides_std_heap(const char *c_path) {
-    if (!c_path || !c_path[0])
-        return 0;
-    if (link_abi_generated_c_contains_substr(c_path, "uint8_t * std_heap_libc_heap_alloc_c(size_t size) {") != 0)
-        return 1;
-    if (link_abi_generated_c_contains_substr(c_path, "void std_heap_libc_heap_free_c(uint8_t * ptr) {") != 0)
-        return 1;
-    if (link_abi_generated_c_contains_substr(c_path, "std_heap_libc_heap_alloc_c(size_t size) {") != 0)
-        return 1;
-    return 0;
-}
+int link_abi_generated_c_provides_std_heap(const char *c_path);
 
 /* wave138: link_abi_generated_c_needs_db_kv pure orch lives in labi_freestanding_list
  * (7 needles + pure scan; Cap residual contains_substr). Was mega body.
