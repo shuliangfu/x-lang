@@ -2,13 +2,14 @@
  * Logic source: src/runtime/labi_path_pure.x
  * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave114–116 / wave146）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave114–116 / wave146–147）：公共业务符号由 full .x 提供：
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
  *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
  *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
  *   + shux_asm_ld_lib_root_default (wave115 SHUX_LIB/"." ; Cap residual getenv)
  *   + shux_asm_ld_try_under_lib_roots (wave116 pure join; Cap residual skip+bank)
  *   + link_abi_asm_ld_argv_has_obj (wave146 pure scan; Cap residual realpath)
+ *   + link_abi_asm_ld_argv_push_stable (wave147 pure bank+dedup+append; Cap residual bank_push)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -258,8 +259,32 @@ int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path
   return 0;
 }
 
+/* wave147: argv push_stable pure orch (cold twin ≡ .x; Cap residual bank_push). */
+void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la,
+    const char *p) {
+  const char *use_p;
+  int cur;
+  if (!p || !p[0] || !la)
+    return;
+  cur = *la;
+  if (cur >= max_la - 1)
+    return;
+  use_p = p;
+  if (bank) {
+    const char *bp = shux_asm_ld_bank_push(bank, p);
+    if (bp)
+      use_p = bp;
+  }
+  if (link_abi_asm_ld_argv_has_obj(argv, cur, use_p))
+    return;
+  if (!argv)
+    return;
+  argv[cur] = use_p;
+  *la = cur + 1;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 11;
+  return 12;
 }
 
 #else
@@ -274,6 +299,7 @@ int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p);
 void shux_asm_ld_lib_root_default(uint8_t *root_buf);
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
+void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
 int32_t labi_path_pure_count(void);
 #endif
 

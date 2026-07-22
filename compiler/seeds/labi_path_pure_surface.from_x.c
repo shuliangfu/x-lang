@@ -1,9 +1,9 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (11 public gates + count; wave146 argv_has_obj)
+ * Prove: full.x vs this seed → nm IDENTICAL (12 public gates + count; wave147 push_stable)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
- *   link_abi_realpath_cap Cap (wave146)
+ *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -25,6 +25,7 @@ extern int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t * p);
 extern void shux_asm_ld_lib_root_default(uint8_t * root_buf);
 extern uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
 extern int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_t * path);
+extern void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p);
 extern int32_t labi_path_pure_count(void);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
@@ -358,6 +359,38 @@ int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_t * pat
   }
   return 0;
 }
+void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p) {
+  if ((p ==0)) {
+    return;
+  }
+  if (((p)[0] ==0)) {
+    return;
+  }
+  if ((la ==0)) {
+    return;
+  }
+  int32_t cur = (la)[0];
+  if ((cur >=(max_la - 1))) {
+    return;
+  }
+  uint8_t * use_p = p;
+  if ((bank !=0)) {
+    uint8_t * bp = 0;
+    (void)((bp = shux_asm_ld_bank_push(bank, p)));
+    if ((bp !=0)) {
+      (void)((use_p = bp));
+    }
+  }
+  if ((link_abi_asm_ld_argv_has_obj(argv, cur, use_p) !=0)) {
+    return;
+  }
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return;
+  }
+  (void)(((argv)[cur] = use_p));
+  (void)(((la)[0] = (cur + 1)));
+}
 int32_t labi_path_pure_count(void) {
-  return 11;
+  return 12;
 }

@@ -5506,7 +5506,11 @@ int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 /**
  * 将已解析 .o 路径拷入 bank 后追加到 ld argv（避免静态路径缓冲被后续解析覆盖）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* wave147：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: capacity + has_obj dedup + append; Cap residual bank_push.
+ * PLATFORM: SHARED — G.7 single authority; dual-end L2. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la,
     const char *p) {
     if (!p || !p[0] || !la || *la >= max_la - 1)
@@ -5520,7 +5524,10 @@ void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv,
         return;
     argv[(*la)++] = p;
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#else
+void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la,
+    const char *p);
+#endif
 
 
 

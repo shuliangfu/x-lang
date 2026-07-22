@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 11 public gates + count:
+// R2 full: .x owns 12 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -13,6 +13,7 @@
 //   - shux_asm_ld_lib_root_default (wave115; SHUX_LIB or "."; Cap residual: getenv)
 //   - shux_asm_ld_try_under_lib_roots (wave116; pure join root/rel; Cap residual skip+bank)
 //   - link_abi_asm_ld_argv_has_obj (wave146; pure strcmp argv scan; Cap residual realpath)
+//   - link_abi_asm_ld_argv_push_stable (wave147; pure bank+dedup+append; Cap residual bank_push)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -458,11 +459,68 @@ export function link_abi_asm_ld_argv_has_obj(argv: **u8, la: i32, path: *u8): i3
 }
 
 /**
+ * Copy path into durable bank (when bank non-null) then append to ld argv if absent.
+ * Product callers use this so static path buffers are not left live in argv after the
+ * next parse overwrites them.
+ * @param bank *u8 — ShuAsmLdPathBank* or null (skip bank_push; keep p as-is)
+ * @param argv **u8 — ld argv table (char**); null → no-op after bank_push attempt
+ * @param la *i32 — in/out argv length; null → no-op
+ * @param max_la i32 — argv capacity; need *la < max_la - 1 (room for NUL terminator slot)
+ * @param p *u8 — resolved object path; null/empty → no-op
+ * @return void
+ * Pure orch: null/capacity guards + pure has_obj dedup + argv append. Cap residual:
+ * shux_asm_ld_bank_push (durable path copy into bank).
+ * Why (wave147): hybrid still had always-mega C body over pure has_obj leaf.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * Note: la length uses la[0] (*i32 index form; same as labi_gates).
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32, max_la: i32, p: *u8): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  if (p[0] == 0) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  let cur: i32 = la[0];
+  if (cur >= max_la - 1) {
+    return;
+  }
+  // Cap residual: durable copy into bank when present (static buffers must not live in argv).
+  let use_p: *u8 = p;
+  if (bank != 0 as *u8) {
+    let bp: *u8 = 0 as *u8;
+    unsafe {
+      bp = shux_asm_ld_bank_push(bank, p);
+    }
+    if (bp != 0 as *u8) {
+      use_p = bp;
+    }
+  }
+  // Pure dedup (wave146 has_obj; Cap residual realpath inside).
+  if (link_abi_asm_ld_argv_has_obj(argv, cur, use_p) != 0) {
+    return;
+  }
+  // Guard argv null (product never null; pure avoids UB on assign).
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  argv[cur] = use_p;
+  la[0] = cur + 1;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 11 (fixed catalog size for hybrid FROM_X bookkeeping; wave146 +1).
+ * Returns: 12 (fixed catalog size for hybrid FROM_X bookkeeping; wave147 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 11;
+  return 12;
 }
