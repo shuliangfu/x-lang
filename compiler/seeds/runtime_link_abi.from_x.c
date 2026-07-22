@@ -5588,17 +5588,37 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
 /**
  * F-03：仅当对应 std/*.o 已入链时才追加 runtime_*_glue.o，避免 glue 引用 log_write_c 等未定义符号。
  * ensure_fn 非 NULL 时在 push 前 cc -c 生成 glue .o（Docker/CI 无预编译 glue 时须 ensure）。
+ * wave149：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: have_std gate + Cap residual call_ensure + pure peer push_obj.
+ * Cap residual: link_abi_call_ensure_argv0 holds C function-pointer call.
+ * PLATFORM: SHARED — G.7 single authority; dual-end L2.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* Cap residual always: invoke ensure(argv0) through C fnptr (pure cannot form C fnptr calls).
+ * ensure_fn is raw pointer bits (void*) so pure .x *u8 and C function pointers both work.
+ * PLATFORM: SHARED. */
+int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0) {
+    if (!ensure_fn)
+        return 0;
+    return ((int (*)(const char *))ensure_fn)(link_argv0);
+}
+
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
     const char *glue_primary, const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
     if (!have_std)
         return;
-    if (ensure_fn && ensure_fn(link_argv0) != 0)
+    if (ensure_fn && link_abi_call_ensure_argv0((void *)ensure_fn, link_argv0) != 0)
         return;
     link_abi_asm_ld_push_obj(glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
+#else
+/* Hybrid: pure .x authority; ensure_fn pointer-sized (fnptr bits). Keep C fnptr type for call sites. */
+void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
+    const char *glue_primary, const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
+    ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
+#endif
 
 
 

@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 13 public gates + count:
+// R2 full: .x owns 14 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -15,6 +15,7 @@
 //   - link_abi_asm_ld_argv_has_obj (wave146; pure strcmp argv scan; Cap residual realpath)
 //   - link_abi_asm_ld_argv_push_stable (wave147; pure bank+dedup+append; Cap residual bank_push)
 //   - link_abi_asm_ld_push_obj (wave148; pure resolve+bank+dedup orch; Cap residual skip/rel/bank/diag)
+//   - link_abi_asm_ld_push_glue_after_std (wave149; pure have_std+ensure orch; Cap residual call_ensure)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -28,6 +29,9 @@ export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 // Cap residual / peer pure: SHUX_DEBUG_LD note path (labi_diag_pure authority).
 export extern "C" function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void;
+// Cap residual: invoke ensure(argv0) through a C function pointer (no .x fnptr call ABI yet).
+// ensure_fn is raw pointer bits of int (*)(const char*); null → 0 (skip ensure).
+export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0: *u8): i32;
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -707,11 +711,56 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
 }
 
 /**
+ * Push a runtime glue .o only when the owning std module is already on the ld argv.
+ * Avoids glue UNDEF (e.g. log_write_c) when the corresponding std/*.o was not linked.
+ * @param have_std i32 — non-zero when the related std .o is already pushed
+ * @param ensure_fn *u8 — optional int (*)(const char* argv0) bits; null skips ensure
+ * @param glue_primary *u8 — preferred primary path for the glue .o (may be null)
+ * @param link_argv0 *u8 — compiler argv0 for resolve / ensure (may be null)
+ * @param glue_rel *u8 — relative glue path under project/lib roots
+ * @param lib_roots **u8 — lib root table for try_under (null-safe in push_obj)
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank* for durable path copy (may be null)
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * @return void — no-op when have_std==0 or ensure fails (non-zero); else push_obj
+ * Pure orch: have_std gate + Cap residual call_ensure + pure peer push_obj (wave148).
+ * Cap residual: link_abi_call_ensure_argv0 holds C function-pointer call.
+ * Why (wave149): hybrid still had always-mega C body over pure push_obj leaf.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function link_abi_asm_ld_push_glue_after_std(have_std: i32, ensure_fn: *u8, glue_primary: *u8, link_argv0: *u8, glue_rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (have_std == 0) {
+    return;
+  }
+  // Cap residual: only call ensure when a non-null function pointer was supplied.
+  if (ensure_fn != 0 as *u8) {
+    let rc: i32 = 0;
+    unsafe {
+      rc = link_abi_call_ensure_argv0(ensure_fn, link_argv0);
+    }
+    if (rc != 0) {
+      return;
+    }
+  }
+  // Single-authority resolve+append: pure peer wave148 push_obj (flag_out null).
+  let _pushed: i32 = link_abi_asm_ld_push_obj(glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  // Discard push result: mega glue helper is void (missing glue is silent skip).
+  if (_pushed == 0) {
+    return;
+  }
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 13 (fixed catalog size for hybrid FROM_X bookkeeping; wave148 +1).
+ * Returns: 14 (fixed catalog size for hybrid FROM_X bookkeeping; wave149 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 13;
+  return 14;
 }

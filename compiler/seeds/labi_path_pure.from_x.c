@@ -2,7 +2,7 @@
  * Logic source: src/runtime/labi_path_pure.x
  * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave114–116 / wave146–148）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave114–116 / wave146–149）：公共业务符号由 full .x 提供：
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
  *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
  *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
@@ -11,6 +11,7 @@
  *   + link_abi_asm_ld_argv_has_obj (wave146 pure scan; Cap residual realpath)
  *   + link_abi_asm_ld_argv_push_stable (wave147 pure bank+dedup+append; Cap residual bank_push)
  *   + link_abi_asm_ld_push_obj (wave148 pure resolve orch; Cap residual skip/rel/bank/diag)
+ *   + link_abi_asm_ld_push_glue_after_std (wave149 pure have_std+ensure orch; Cap residual call_ensure)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -32,10 +33,15 @@ const char *link_abi_realpath_cap(const char *path, char *out);
 /* Cap residual used by wave148 push_obj cold twin. */
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
+/* Cap residual used by wave149 push_glue cold twin (mega always provides). */
+int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0);
 /* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
+int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la,
+    int *flag_out);
 
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
 
@@ -334,8 +340,22 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
   return 1;
 }
 
+/* wave149: push_glue_after_std pure orch (cold twin ≡ .x; Cap residual call_ensure). */
+void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
+    const char *glue_primary, const char *link_argv0, const char *glue_rel,
+    const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la) {
+  if (!have_std)
+    return;
+  if (ensure_fn) {
+    if (link_abi_call_ensure_argv0((void *)ensure_fn, link_argv0) != 0)
+      return;
+  }
+  (void)link_abi_asm_ld_push_obj(glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots,
+      bank, argv, la, max_la, NULL);
+}
+
 int32_t labi_path_pure_count(void) {
-  return 13;
+  return 14;
 }
 
 #else
@@ -354,6 +374,9 @@ void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, in
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la,
     int *flag_out);
+void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
+    const char *glue_primary, const char *link_argv0, const char *glue_rel,
+    const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
 int32_t labi_path_pure_count(void);
 #endif
 

@@ -1,10 +1,10 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (13 public gates + count; wave148 push_obj)
+ * Prove: full.x vs this seed → nm IDENTICAL (14 public gates + count; wave149 push_glue)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147);
- *   skip/rel/bank/diag Cap (wave148 push_obj)
+ *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -30,7 +30,9 @@ extern uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_
 extern int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_t * path);
 extern void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p);
 extern int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out);
+extern void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, uint8_t * glue_primary, uint8_t * link_argv0, uint8_t * glue_rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern int32_t labi_path_pure_count(void);
+extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
@@ -525,6 +527,23 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   return 1;
 }
+/* wave149: push_glue_after_std pure orch (surface pin; Cap residual call_ensure). */
+void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, uint8_t * glue_primary, uint8_t * link_argv0, uint8_t * glue_rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
+  if ((have_std ==0)) {
+    return;
+  }
+  if ((ensure_fn !=0)) {
+    int32_t rc = 0;
+    (void)((rc = link_abi_call_ensure_argv0(ensure_fn, link_argv0)));
+    if ((rc !=0)) {
+      return;
+    }
+  }
+  int32_t _pushed = link_abi_asm_ld_push_obj(glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+  if ((_pushed ==0)) {
+    return;
+  }
+}
 int32_t labi_path_pure_count(void) {
-  return 13;
+  return 14;
 }
