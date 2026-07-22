@@ -19,6 +19,8 @@
 //   - link_abi_asm_ld_push_minimal_runtime_objs (wave150; pure triple push_obj; Cap residual *_o_path)
 //   - shux_asm_ld_append_user_extra_o_files (wave151; pure CLI extra .o append; Cap residual table+access)
 //   - shux_runtime_compiler_o_path_copy (wave160; pure join compiler-dir/leaf; Cap residual resolve)
+// wave161 G.7: thin mega shux_runtime_*_o_path (static PATH_MAX) route join through this gate
+//   (process_os_glue … ed25519_ref10_glue; + asm_io_stubs / process_argv already on copy).
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -882,8 +884,8 @@ export function shux_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max_
 /**
  * Join `compiler_dir/leaf` into caller buffer after Cap residual resolve.
  * Authority for all thin `shux_runtime_*_o_path` leaves that need compiler-dir
- * primary paths (asm_io_stubs / process_argv / and siblings that still inline
- * resolve+snprintf — G.7 single join orch).
+ * primary paths (wave161 G.7: process_os_glue … ed25519 + asm_io_stubs /
+ * process_argv all route join here; static-buffer return stays mega Cap).
  * @param argv0 *u8 — optional product host path; may be null (resolve uses self/exe)
  * @param leaf *u8 — object leaf under compiler/ (e.g. "runtime_asm_io_stubs.o"); null/empty → -1
  * @param out *u8 — caller buffer for joined path; null → -1

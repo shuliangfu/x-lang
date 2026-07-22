@@ -1344,15 +1344,17 @@ const char *shux_runtime_process_argv_o_path(const char *argv0) {
 
 
 
+/* wave161 G.7 path residual: thin shux_runtime_*_o_path static-buffer leaves
+ * (process_os_glue … ed25519_ref10_glue) route compiler-dir/leaf join through
+ * shux_runtime_compiler_o_path_copy (wave160 pure orch / cold twin). Closes soft
+ * residual of per-leaf resolve+snprintf when single join authority exists.
+ * Cap residual stays: per-leaf static PATH_MAX buffer (return durable *const).
+ * Complex path leaves (panic/async/crt0/freestanding_io/repo_root) still own cwd/
+ * realpath ladders. PLATFORM: SHARED. */
 const char *shux_runtime_process_os_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_process_os_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1364,13 +1366,8 @@ const char *shux_runtime_process_os_glue_o_path(const char *argv0) {
  */
 const char *shux_runtime_test_fn_invoke_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_test_fn_invoke.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1382,13 +1379,8 @@ const char *shux_runtime_test_fn_invoke_o_path(const char *argv0) {
  */
 const char *shux_runtime_random_fill_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_random_fill.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1398,13 +1390,8 @@ const char *shux_runtime_random_fill_o_path(const char *argv0) {
  */
 const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_compress_zlib_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1414,13 +1401,8 @@ const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0) {
  */
 const char *shux_runtime_heap_user_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_heap_user.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1432,13 +1414,8 @@ const char *shux_runtime_heap_user_o_path(const char *argv0) {
  */
 const char *shux_runtime_time_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_time_os.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1450,13 +1427,8 @@ const char *shux_runtime_time_os_o_path(const char *argv0) {
  */
 const char *shux_runtime_queue_contention_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_queue_contention.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1468,13 +1440,8 @@ const char *shux_runtime_queue_contention_o_path(const char *argv0) {
  */
 const char *shux_runtime_dynlib_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_dynlib_os.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1486,13 +1453,8 @@ const char *shux_runtime_dynlib_os_o_path(const char *argv0) {
  */
 const char *shux_runtime_env_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_env_os.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1504,13 +1466,8 @@ const char *shux_runtime_env_os_o_path(const char *argv0) {
  */
 const char *shux_runtime_backtrace_platform_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_backtrace_platform.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1522,13 +1479,8 @@ const char *shux_runtime_backtrace_platform_o_path(const char *argv0) {
  */
 const char *shux_runtime_log_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_log_os.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1540,13 +1492,8 @@ const char *shux_runtime_log_os_o_path(const char *argv0) {
  */
 const char *shux_runtime_math_libm_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_math_libm.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1558,13 +1505,8 @@ const char *shux_runtime_math_libm_o_path(const char *argv0) {
  */
 const char *shux_runtime_atomic_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_atomic_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1576,13 +1518,8 @@ const char *shux_runtime_atomic_glue_o_path(const char *argv0) {
  */
 const char *shux_runtime_channel_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_channel_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1594,13 +1531,8 @@ const char *shux_runtime_channel_glue_o_path(const char *argv0) {
  */
 const char *shux_runtime_net_udp_batch_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_net_udp_batch.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1612,156 +1544,96 @@ const char *shux_runtime_net_udp_batch_o_path(const char *argv0) {
  */
 const char *shux_runtime_net_workers_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_net_workers.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_sync_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_sync_os.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_sync_lock_diag_tls.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_thread_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_thread_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_scheduler_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_scheduler_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_http_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_http_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_tls_mbedtls_bio.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_kv_mmap_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_arrow_simd_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_sqlite_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_sqlite_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_crypto_inc_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    char comp_dir[PATH_MAX];
-    int nn;
-    resolved[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
-        return resolved;
-    nn = snprintf(resolved, sizeof resolved, "%s/runtime_ed25519_ref10_glue.o", comp_dir);
-    if (nn < 0 || (size_t)nn >= sizeof resolved)
+    /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
+    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
