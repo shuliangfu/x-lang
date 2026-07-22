@@ -8,7 +8,11 @@
 //   + NUL scan len (≡ historical parser_gen body). parser_gen seed path64 demoted weak
 //   cold twin so pure hybrid owns product; Cap residual ImportEntry storage stays
 //   pipeline_module_import_path_* in ast_pool. Closes Cap residual path64 under pure
-//   load_and_sync / load_import orch. Cap residual still: g05 &fn cast (language).
+//   load_and_sync / load_import orch.
+// wave100: language residual Cap-fn-ptr — typeck same-module bare fn name → *u8;
+//   pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr use
+//   (fn as *u8) without g05 shux_driver_*_thread_fn_ptr cast harness. Closes hard Cap
+//   residual "g05 &fn cast" on product pure path (ImportEntry storage still Cap).
 // wave98: product complex #if Cap residual — G.7 cfg_eval.x on product link (not
 //   bootstrap stub). Pure preprocess_eval_condition_c already routes complex ops to
 //   cfg_eval_expr_c; Makefile -E-extern used bare CFLAGS → Apple Clang -Werror
@@ -283,11 +287,9 @@ export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void
 // Cap residual always-seed: Cap-fn-ptr for asm large-stack only (wave57/wave80).
 // PLATFORM: SHARED — must not define same-TU body for asm_asm_codegen_elf_o (weak -1 was Cap trap).
 export extern "C" function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
-// wave84: Cap-fn-ptr product surfaces are pure export functions below (not export-extern always-seed).
-// G.7 g05 harness: function-address cast residual (&fn as *u8); pure thin forwards only.
-// PLATFORM: SHARED — same pattern as shux_driver_stdout_ptr / realpath_opaque.
-export extern "C" function shux_driver_pipeline_run_x_thread_fn_ptr(): *u8;
-export extern "C" function shux_driver_asm_elf_o_thread_fn_ptr(): *u8;
+// wave84: Cap-fn-ptr product surfaces pure; wave100: no g05 &fn cast residual —
+//   typeck resolves same-module bare fn name to Cap-fn-ptr *u8; pure bodies use (fn as *u8).
+// PLATFORM: SHARED — g05 may still define dead shux_driver_*_thread_fn_ptr helpers (optional).
 // wave56 pure pipeline large-stack orch: set entry source_len + run pipeline.
 export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
 export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
@@ -8507,18 +8509,16 @@ export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
 /**
  * Product Cap-fn-ptr surface: opaque *u8 address of pipeline_run_x_thread_fn.
  * @return *u8 — function address as opaque byte pointer (never null when linked)
- * wave84 pure thin: G.7 g05 shux_driver_pipeline_run_x_thread_fn_ptr holds &fn cast residual
- *   (.x cannot form function-pointer constants). Product surface is pure; cold twin under
- *   seed #ifndef FROM_X keeps the same cast for full-C cold link.
- * PLATFORM: SHARED — closes always-seed Cap-fn-ptr leaf on pure path.
+ * wave84 pure product surface; wave100 language residual closed:
+ *   typeck types same-module bare function names as Cap-fn-ptr *u8; body is
+ *   (pipeline_run_x_thread_fn as *u8) — no g05 shux_driver_* cast harness.
+ *   C backend emits ((uint8_t *)(pipeline_run_x_thread_fn)); seed cold twin keeps
+ *   (uint8_t *)(void *)fn under #ifndef FROM_X for full-C cold link.
+ * PLATFORM: SHARED — closes g05 &fn cast Cap residual on pure path.
  */
 #[no_mangle]
 export function pipeline_run_x_thread_fn_ptr(): *u8 {
-  let fn: *u8 = 0 as *u8;
-  unsafe {
-    fn = shux_driver_pipeline_run_x_thread_fn_ptr();
-  }
-  return fn;
+  return (pipeline_run_x_thread_fn as *u8);
 }
 
 /**
@@ -8595,18 +8595,14 @@ export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
 /**
  * Product Cap-fn-ptr surface: opaque *u8 address of shux_asm_codegen_elf_o_thread_fn.
  * @return *u8 — function address as opaque byte pointer (never null when linked)
- * wave84 pure thin: G.7 g05 shux_driver_asm_elf_o_thread_fn_ptr holds &fn cast residual
- *   (.x cannot form function-pointer constants). Product surface is pure; cold twin under
- *   seed #ifndef FROM_X keeps the same cast for full-C cold link.
- * PLATFORM: SHARED — closes always-seed Cap-fn-ptr leaf on pure path.
+ * wave84 pure product surface; wave100 language residual closed:
+ *   same-module bare fn → *u8 (typeck); body (shux_asm_codegen_elf_o_thread_fn as *u8);
+ *   no g05 shux_driver_asm_elf_o_thread_fn_ptr cast. Seed cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — closes g05 &fn cast Cap residual on pure path.
  */
 #[no_mangle]
 export function shux_asm_codegen_elf_o_thread_fn_ptr(): *u8 {
-  let fn: *u8 = 0 as *u8;
-  unsafe {
-    fn = shux_driver_asm_elf_o_thread_fn_ptr();
-  }
-  return fn;
+  return (shux_asm_codegen_elf_o_thread_fn as *u8);
 }
 
 /**

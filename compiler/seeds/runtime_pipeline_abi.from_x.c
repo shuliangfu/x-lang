@@ -2649,9 +2649,9 @@ typedef struct {
 } PipelineRunSuArgs;
 
 /** Cold twin Cap-fn-ptr: opaque address of pipeline_run_x_thread_fn.
- * wave84: hybrid pure owns product surface via g05 shux_driver_pipeline_run_x_thread_fn_ptr;
- * cold full-C keeps this cast under #ifndef FROM_X.
- * PLATFORM: SHARED — function address not expressible safely in .x. */
+ * wave84/wave100: hybrid pure owns product surface via (fn as *u8) language residual;
+ * cold full-C keeps this cast under #ifndef FROM_X (≡ pure C emit).
+ * PLATFORM: SHARED — pure path no longer needs g05 shux_driver_* harness. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *pipeline_run_x_thread_fn_ptr(void) {
     return (uint8_t *)(void *)pipeline_run_x_thread_fn;
@@ -3714,9 +3714,9 @@ int32_t shux_asm_codegen_elf_o_product_emit(void *module, void *arena, void *ctx
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** Cold twin Cap-fn-ptr: opaque address of shux_asm_codegen_elf_o_thread_fn.
- * wave84: hybrid pure owns product surface via g05 shux_driver_asm_elf_o_thread_fn_ptr;
- * cold full-C keeps this cast under #ifndef FROM_X.
- * PLATFORM: SHARED — function address not expressible safely in .x. */
+ * wave84/wave100: hybrid pure owns product surface via (fn as *u8) language residual;
+ * cold full-C keeps this cast under #ifndef FROM_X (≡ pure C emit).
+ * PLATFORM: SHARED — pure path no longer needs g05 shux_driver_* harness. */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *shux_asm_codegen_elf_o_thread_fn_ptr(void) {
     return (uint8_t *)(void *)shux_asm_codegen_elf_o_thread_fn;

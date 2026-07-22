@@ -6329,6 +6329,30 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
     }
     (void)(driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, pipeline_dep_ctx_current_func_index(ctx), block_ref, 102, pipeline_expr_resolved_type_ref(arena, expr_ref)));
     (void)(driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 104, pipeline_expr_resolved_type_ref(arena, expr_ref)));
+    /* wave100 language residual: same-module function name as Cap-fn-ptr *u8.
+     * PLATFORM: SHARED — product large-stack needs bare fn as *u8 (closes g05 &fn cast).
+     * Locals/params/top-level lets already resolved above. CALL name-resolves callee. */
+    {
+      int32_t fi = 0;
+      int32_t nfuncs = module->num_funcs;
+      while ((fi < nfuncs)) {
+        if ((pipeline_module_func_name_equal_at(module, fi, vbuf, vnlen) != 0)) {
+          int32_t u8r = typeck_ensure_u8_type_ref(arena);
+          int32_t ptr_u8 = 0;
+          if (ast_ref_is_null(u8r)) {
+            return -1;
+          }
+          (void)((ptr_u8 = typeck_find_or_alloc_ptr_type_ref(arena, u8r)));
+          if ((ast_ref_is_null(ptr_u8) || (ptr_u8 == 0))) {
+            return -1;
+          }
+          (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, ptr_u8));
+          (void)(driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 105, ptr_u8));
+          return 0;
+        }
+        (void)((fi = (fi + 1)));
+      }
+    }
     if (((vnlen ==9) && typeck_name_equal(vbuf, vnlen, &((nm_tok_kind)[0]), 9))) {
       (void)((tk_tr = typeck_find_or_alloc_named_type_ref(arena, &((nm_tok_kind)[0]), 9)));
       if ((tk_tr !=0)) {
