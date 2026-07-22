@@ -748,7 +748,19 @@ SHUX_LIB_WEAK int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * restri
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-/* PLATFORM: SHARED — nested block comments; lockstep with lexer.x depth counter. */
+/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x. */
+static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
+  if (prev >= 65 && prev <= 90)
+    return 1;
+  if (prev >= 97 && prev <= 122)
+    return 1;
+  if (prev >= 48 && prev <= 57)
+    return 1;
+  if (prev == 95 || prev == 46 || prev == 125 || prev == 41 || prev == 93 || prev == 62
+      || prev == 34 || prev == 39)
+    return 1;
+  return 0;
+}
 SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
   struct lexer_Lexer l = lex;
   int32_t depth = 0;
@@ -768,9 +780,29 @@ SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer
         if ((l).pos + 1 < (data)->length
             && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 47
             && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
-          (l = (lexer_advance_one(l, 47)));
-          (l = (lexer_advance_one(l, 42)));
-          depth = depth + 1;
+          /* Path-safe nest-open: suppress src star-slash globs and brace globs. */
+          int nest_ok = 1;
+          if ((l).pos > 0) {
+            uint8_t prev = ((l).pos - 1 < 0 || (size_t)((l).pos - 1) >= (data)->length
+                                ? (shux_panic_(1, 0), (data)->data[0])
+                                : (data)->data[(l).pos - 1]);
+            if (lexer_block_comment_prev_is_path_like(prev))
+              nest_ok = 0;
+          }
+          if (nest_ok && (l).pos + 2 < (data)->length) {
+            uint8_t after = ((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length
+                                 ? (shux_panic_(1, 0), (data)->data[0])
+                                 : (data)->data[(l).pos + 2]);
+            if (after == 46) /* '.' after open: path-style star-dot extension */
+              nest_ok = 0;
+          }
+          if (nest_ok) {
+            (l = (lexer_advance_one(l, 47)));
+            (l = (lexer_advance_one(l, 42)));
+            depth = depth + 1;
+          } else {
+            (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+          }
         } else if ((l).pos + 1 < (data)->length
             && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 42
             && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {

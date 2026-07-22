@@ -948,7 +948,19 @@ int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struc
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-/* PLATFORM: SHARED — nested block comments; lockstep with lexer.x depth counter. */
+/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x. */
+static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
+  if (prev >= 65 && prev <= 90)
+    return 1;
+  if (prev >= 97 && prev <= 122)
+    return 1;
+  if (prev >= 48 && prev <= 57)
+    return 1;
+  if (prev == 95 || prev == 46 || prev == 125 || prev == 41 || prev == 93 || prev == 62
+      || prev == 34 || prev == 39)
+    return 1;
+  return 0;
+}
 struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct shux_slice_uint8_t data) {
   struct Lexer l = lex;
   int32_t depth = 0;
@@ -968,9 +980,21 @@ struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct shux_slice_ui
           depth = 1;
           while ((((l.pos) < (data.length)) && (depth > 0))) {
             if (((((l.pos) + 1) < (data.length)) && ((data).data[(l.pos)] ==47) && ((data).data[((l.pos) + 1)] ==42))) {
-              (void)((l = advance_one(l, 47)));
-              (void)((l = advance_one(l, 42)));
-              depth = depth + 1;
+              int nest_ok = 1;
+              if ((l.pos) > 0) {
+                uint8_t prev = (data).data[((l.pos) - 1)];
+                if (lexer_block_comment_prev_is_path_like(prev))
+                  nest_ok = 0;
+              }
+              if (nest_ok && (((l.pos) + 2) < (data.length)) && ((data).data[((l.pos) + 2)] ==46))
+                nest_ok = 0;
+              if (nest_ok) {
+                (void)((l = advance_one(l, 47)));
+                (void)((l = advance_one(l, 42)));
+                depth = depth + 1;
+              } else {
+                (void)((l = advance_one(l, (data).data[(l.pos)])));
+              }
             } else if (((((l.pos) + 1) < (data.length)) && ((data).data[(l.pos)] ==42) && ((data).data[((l.pos) + 1)] ==47))) {
               (void)((l = advance_one(l, 42)));
               (void)((l = advance_one(l, 47)));
