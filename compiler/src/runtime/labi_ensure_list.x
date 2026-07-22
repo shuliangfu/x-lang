@@ -21,12 +21,16 @@
 //   wave182 shux_ensure_bootstrap_nostdlib_stubs_o pure orch
 //     (peer bootstrap_nostdlib_stubs_o_path + pure byte joins + Cap residual resolve/access/
 //      compile_sync_one_extra -fno-builtin + stat; freestanding mmap malloc face).
+//   wave186 shux_asm_ld_prepare_for_exe_link pure orch
+//     (peer freestanding_enabled/needs + peer ensure_* + peer user_needs + Cap residual
+//      debug report + freestanding_unsupported; pure gate/order ≡ mega).
 // Cap residual: resolve/access/cc/stat (+ one_extra for PIE/SQLITE/HTTP -I pack / -fno-builtin);
 //   + host linux_x86_64 / posix_aarch64 for panic ensure leaf (wave169);
 //   + has_defined_sym / unlink for heap_user stub reject (wave170);
 //   + test_fn_invoke special ensure pure (wave171; no wrap.c / no fopen Cap);
 //   + tls_mbedtls_bio special ensure pure (wave172; compile_sync_one_extra homebrew -I);
 //   + bootstrap_nostdlib_stubs special ensure pure (wave182; compile_sync_one_extra -fno-builtin);
+//   + prepare_for_exe_link pure (wave186; freestanding peers + user_needs + debug report Cap);
 //   + catalog thin wrap path peers *_o_path (static PATH_MAX / compiler_o_path_copy).
 // PLATFORM: SHARED tables / orch; LINUX x86_64 asm prefer; POSIX aarch64 arm64 seed.
 
@@ -83,6 +87,20 @@ export extern "C" function link_diag_runtime_source_missing(obj_name: *u8, sourc
 export extern "C" function link_diag_runtime_source_missing_under(obj_name: *u8, base_dir: *u8, suffix: *u8): void;
 export extern "C" function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): void;
 export extern "C" function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void;
+// Cap residual / peer pure (wave186 prepare_for_exe_link): freestanding L7 + ondemand L8b + debug Cap.
+// freestanding_enabled already returns 0 on non-Linux (≡ mega #if __linux__ freestanding branches).
+export extern "C" function shux_link_freestanding_enabled(driver_freestanding: i32): i32;
+export extern "C" function shux_freestanding_user_o_needs_panic(user_o: *u8): i32;
+export extern "C" function shux_freestanding_user_o_needs_io(user_o: *u8): i32;
+export extern "C" function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32;
+export extern "C" function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32;
+export extern "C" function labi_user_needs_runtime_process_argv(user_o: *u8): i32;
+export extern "C" function labi_user_needs_runtime_random_fill(user_o: *u8): i32;
+export extern "C" function labi_user_needs_runtime_time_os(user_o: *u8): i32;
+export extern "C" function labi_user_needs_runtime_env_os(user_o: *u8): i32;
+export extern "C" function link_diag_freestanding_unsupported(): void;
+// Cap residual: optional hello-stage1 debug probe (fopen/fork/http; no-op when unset).
+export extern "C" function shux_debug_hello_stage1_report(hypothesis_id: *u8, location: *u8, msg: *u8, v1: i32, v2: i32, v3: i32): void;
 
 // labi_ensure_catalog_count: see function docblock below.
 
@@ -2353,4 +2371,174 @@ export function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
     p = shux_runtime_ed25519_ref10_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 25, p);
+}
+
+/**
+ * Prepare runtime objects and freestanding gates before asm -o exe link (invoke_ld path).
+ * Pure orch over peer ensure_* / freestanding / user_needs; Cap residual debug report +
+ * freestanding_unsupported only. Order and gates ≡ historical mega C body.
+ * @param link_eff *u8 — effective product host path for ensure path ladders; null → -1
+ * @param user_o *u8 — user .o path for UNDEF/need probes; null → -1
+ * @param driver_freestanding i32 — CLI/driver freestanding flag (0 = off, nonzero = force)
+ * @param use_macho_o i32 — 1 if target is Mach-O object style; freestanding+macho → BLD001
+ * @param use_coff_o i32 — 1 if target is COFF object style; freestanding+coff → BLD001
+ * @return i32 — 0 success; -1 on null args / ensure failure / freestanding unsupported
+ * Cap residual: shux_debug_hello_stage1_report (enter/exit probes); peer freestanding_enabled
+ *   (already 0 on non-Linux ≡ mega #if __linux__ freestanding panic/io branches);
+ *   peer needs_panic / needs_io; peer user_needs_runtime_*; peer ensure_* (L4/L7 pure);
+ *   peer link_diag_freestanding_unsupported.
+ * Why (wave186): hybrid still had always-mega C body for prepare_for_exe_link after ensure
+ *   pure leaves closed. Soft residual: multi-ensure prep orch still only in mega C.
+ * PLATFORM: SHARED orch / LINUX freestanding panic+io gates via freestanding_enabled.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, driver_freestanding: i32, use_macho_o: i32, use_coff_o: i32): i32 {
+  // Cap residual: enter probe (no-op when .dbg env unset).
+  let loc_enter: *u8 = "runtime_link_abi.c:prepare_for_exe_link_enter";
+  let msg_enter: *u8 = "prepare_for_exe_link_enter";
+  let hyp: *u8 = "A";
+  unsafe {
+    shux_debug_hello_stage1_report(hyp, loc_enter, msg_enter, driver_freestanding, use_macho_o, use_coff_o);
+  }
+  if (link_eff == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (user_o == 0 as *u8) {
+    return 0 - 1;
+  }
+  // Freestanding (Linux only via freestanding_enabled): panic only when user.o needs it.
+  // Hosted / non-Linux: always ensure panic (≡ mega #if __linux__ if/else structure).
+  let fs: i32 = 0;
+  unsafe {
+    fs = shux_link_freestanding_enabled(driver_freestanding);
+  }
+  if (fs != 0) {
+    let need_panic: i32 = 0;
+    unsafe {
+      need_panic = shux_freestanding_user_o_needs_panic(user_o);
+    }
+    if (need_panic != 0) {
+      let prc: i32 = 0;
+      unsafe {
+        prc = shux_ensure_runtime_panic_o(link_eff);
+      }
+      if (prc != 0) {
+        return 0 - 1;
+      }
+    }
+  } else {
+    let prc2: i32 = 0;
+    unsafe {
+      prc2 = shux_ensure_runtime_panic_o(link_eff);
+    }
+    if (prc2 != 0) {
+      return 0 - 1;
+    }
+  }
+  // Hosted asm links: always io stubs; process/random/time/env only on UNDEF need.
+  // Freestanding: skip this block (crt0/io handled below).
+  if (fs == 0) {
+    let erc: i32 = 0;
+    unsafe {
+      erc = shux_ensure_runtime_asm_io_stubs_o(link_eff);
+    }
+    if (erc != 0) {
+      return 0 - 1;
+    }
+    let need_pa: i32 = 0;
+    unsafe {
+      need_pa = labi_user_needs_runtime_process_argv(user_o);
+    }
+    if (need_pa != 0) {
+      unsafe {
+        erc = shux_ensure_runtime_process_argv_o(link_eff);
+      }
+      if (erc != 0) {
+        return 0 - 1;
+      }
+    }
+    let need_rf: i32 = 0;
+    unsafe {
+      need_rf = labi_user_needs_runtime_random_fill(user_o);
+    }
+    if (need_rf != 0) {
+      unsafe {
+        erc = shux_ensure_runtime_random_fill_o(link_eff);
+      }
+      if (erc != 0) {
+        return 0 - 1;
+      }
+    }
+    let need_to: i32 = 0;
+    unsafe {
+      need_to = labi_user_needs_runtime_time_os(user_o);
+    }
+    if (need_to != 0) {
+      unsafe {
+        erc = shux_ensure_runtime_time_os_o(link_eff);
+      }
+      if (erc != 0) {
+        return 0 - 1;
+      }
+    }
+    let need_eo: i32 = 0;
+    unsafe {
+      need_eo = labi_user_needs_runtime_env_os(user_o);
+    }
+    if (need_eo != 0) {
+      unsafe {
+        erc = shux_ensure_runtime_env_os_o(link_eff);
+      }
+      if (erc != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  // Peer freestanding L7: crt0 ensure (no-op when freestanding off).
+  let crc: i32 = 0;
+  unsafe {
+    crc = shux_ensure_crt0_user_o(link_eff, driver_freestanding);
+  }
+  if (crc != 0) {
+    return 0 - 1;
+  }
+  // Freestanding + needs_io → freestanding_io ensure (non-Linux fs==0 skips).
+  if (fs != 0) {
+    let need_io: i32 = 0;
+    unsafe {
+      need_io = shux_freestanding_user_o_needs_io(user_o);
+    }
+    if (need_io != 0) {
+      let irc: i32 = 0;
+      unsafe {
+        irc = shux_ensure_freestanding_io_o(link_eff, driver_freestanding);
+      }
+      if (irc != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  // Freestanding is Linux ELF only — reject Mach-O / COFF object styles.
+  if (fs != 0) {
+    if (use_macho_o != 0) {
+      unsafe {
+        link_diag_freestanding_unsupported();
+      }
+      return 0 - 1;
+    }
+    if (use_coff_o != 0) {
+      unsafe {
+        link_diag_freestanding_unsupported();
+      }
+      return 0 - 1;
+    }
+  }
+  // Cap residual: exit probe.
+  let loc_exit: *u8 = "runtime_link_abi.c:prepare_for_exe_link_exit";
+  let msg_exit: *u8 = "prepare_for_exe_link_exit";
+  unsafe {
+    shux_debug_hello_stage1_report(hyp, loc_exit, msg_exit, 0, 0, 0);
+  }
+  return 0;
 }

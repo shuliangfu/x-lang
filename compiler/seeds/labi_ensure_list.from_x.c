@@ -13,12 +13,14 @@
  *   + wave171 shux_ensure_runtime_test_fn_invoke_o pure orch
  *   + wave172 shux_ensure_runtime_tls_mbedtls_bio_o pure orch
  *   + wave182 shux_ensure_bootstrap_nostdlib_stubs_o pure orch
+ *   + wave186 shux_asm_ld_prepare_for_exe_link pure orch
  * Cap residual：resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack / -fno-builtin)；
  *   wave169 panic ensure：resolve/access/cc/stat + host linux_x86_64 / posix_aarch64；
  *   wave170 heap_user ensure：resolve/access/cc/stat + has_defined_sym + unlink stub；
  *   wave171 test_fn_invoke ensure：resolve/access/cc/stat（direct seed；无 wrap.c）；
  *   wave172 tls_mbedtls_bio ensure：resolve/access/cc_one_extra/stat（homebrew -I）；
  *   wave182 bootstrap_nostdlib_stubs ensure：resolve/access/cc_one_extra(-fno-builtin)/stat；
+ *   wave186 prepare_for_exe_link：freestanding peers + user_needs + debug report Cap；
  *   wave174 catalog thin wraps：peer *_o_path Cap residual only。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -48,6 +50,19 @@ const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
 const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
 /* Peer pure path ladder (wave181 bootstrap_nostdlib_stubs_o_path) for wave182 ensure. */
 const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
+/* Cap residual / peer pure (wave186 prepare_for_exe_link cold twin). */
+int shux_link_freestanding_enabled(int driver_freestanding);
+int shux_freestanding_user_o_needs_panic(const char *user_o);
+int shux_freestanding_user_o_needs_io(const char *user_o);
+int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
+int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
+int labi_user_needs_runtime_process_argv(const char *user_o);
+int labi_user_needs_runtime_random_fill(const char *user_o);
+int labi_user_needs_runtime_time_os(const char *user_o);
+int labi_user_needs_runtime_env_os(const char *user_o);
+void link_diag_freestanding_unsupported(void);
+void shux_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
+                                    const char *msg, int v1, int v2, int v3);
 /* Cap residual path peers for wave174 catalog thin ensure wraps. */
 const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *shux_runtime_process_argv_o_path(const char *argv0);
@@ -1129,6 +1144,81 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
   return link_abi_ensure_from_catalog(argv0, 25, p);
 }
 
+/* wave186: shux_asm_ld_prepare_for_exe_link pure orch (cold twin ≡ .x).
+ * Peer freestanding_enabled/needs + peer ensure_* + peer user_needs;
+ * Cap residual debug report + freestanding_unsupported.
+ * freestanding_enabled already 0 on non-Linux (≡ mega #if __linux__ branches).
+ * PLATFORM: SHARED orch / LINUX freestanding consumers.
+ */
+int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
+                                     int driver_freestanding, int use_macho_o,
+                                     int use_coff_o) {
+  int fs;
+  int need;
+  int rc;
+  shux_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_enter",
+                                 "prepare_for_exe_link_enter", driver_freestanding,
+                                 use_macho_o, use_coff_o);
+  if (!link_eff || !user_o)
+    return -1;
+  fs = shux_link_freestanding_enabled(driver_freestanding);
+  if (fs != 0) {
+    need = shux_freestanding_user_o_needs_panic(user_o);
+    if (need != 0) {
+      rc = shux_ensure_runtime_panic_o(link_eff);
+      if (rc != 0)
+        return -1;
+    }
+  } else {
+    rc = shux_ensure_runtime_panic_o(link_eff);
+    if (rc != 0)
+      return -1;
+  }
+  if (fs == 0) {
+    rc = shux_ensure_runtime_asm_io_stubs_o(link_eff);
+    if (rc != 0)
+      return -1;
+    if (labi_user_needs_runtime_process_argv(user_o)) {
+      rc = shux_ensure_runtime_process_argv_o(link_eff);
+      if (rc != 0)
+        return -1;
+    }
+    if (labi_user_needs_runtime_random_fill(user_o)) {
+      rc = shux_ensure_runtime_random_fill_o(link_eff);
+      if (rc != 0)
+        return -1;
+    }
+    if (labi_user_needs_runtime_time_os(user_o)) {
+      rc = shux_ensure_runtime_time_os_o(link_eff);
+      if (rc != 0)
+        return -1;
+    }
+    if (labi_user_needs_runtime_env_os(user_o)) {
+      rc = shux_ensure_runtime_env_os_o(link_eff);
+      if (rc != 0)
+        return -1;
+    }
+  }
+  rc = shux_ensure_crt0_user_o(link_eff, driver_freestanding);
+  if (rc != 0)
+    return -1;
+  if (fs != 0) {
+    need = shux_freestanding_user_o_needs_io(user_o);
+    if (need != 0) {
+      rc = shux_ensure_freestanding_io_o(link_eff, driver_freestanding);
+      if (rc != 0)
+        return -1;
+    }
+  }
+  if (fs != 0 && (use_macho_o != 0 || use_coff_o != 0)) {
+    link_diag_freestanding_unsupported();
+    return -1;
+  }
+  shux_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_exit",
+                                 "prepare_for_exe_link_exit", 0, 0, 0);
+  return 0;
+}
+
 #else
 int labi_ensure_catalog_count(void);
 const char *labi_ensure_catalog_stem(int i);
@@ -1177,6 +1267,10 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
 int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
 /* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (L4). */
 int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
+/* wave186: prepare_for_exe_link pure orch (L4). */
+int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
+                                     int driver_freestanding, int use_macho_o,
+                                     int use_coff_o);
 #endif
 
 int labi_ensure_list_slice_marker(void) {

@@ -6310,72 +6310,17 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
  * invoke_ld / driver_asm_invoke_ld 共用：ensure 链入对象并校验 freestanding 仅 Linux ELF。
  * 参数：link_eff 有效 link argv0；user_o 用户 .o；driver_freestanding 同 shux_link_freestanding_enabled。
  * 返回值：0 成功，-1 失败。
+ * wave186: pure orch in labi_ensure_list.x (hybrid L4);
+ * mega cold twin under #ifndef SHUX_LABI_ENSURE_LIST_FROM_X (#include above).
+ * Cap residual: freestanding peers + user_needs + ensure_* + debug report Cap.
+ * PLATFORM: SHARED orch / LINUX freestanding via freestanding_enabled.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+/* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
+#else
 int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding,
-    int use_macho_o, int use_coff_o) {
-    /* #region debug-point A:prepare-enter */
-    shux_debug_hello_stage1_report("A", "runtime_link_abi.c:4427", "prepare_for_exe_link_enter", driver_freestanding, use_macho_o, use_coff_o);
-    /* #endregion */
-    if (!link_eff || !user_o)
-        return -1;
-#if defined(__linux__)
-    if (shux_link_freestanding_enabled(driver_freestanding)) {
-        if (shux_freestanding_user_o_needs_panic(user_o)) {
-            if (shux_ensure_runtime_panic_o(link_eff) != 0)
-                return -1;
-        }
-    } else
+    int use_macho_o, int use_coff_o);
 #endif
-    {
-        if (shux_ensure_runtime_panic_o(link_eff) != 0)
-            return -1;
-    }
-    if (!shux_link_freestanding_enabled(driver_freestanding)) {
-        /*
-         * PLATFORM: SHARED — minimal always-on runtime for hosted asm links:
-         * io stubs only. process_argv + random_fill / time_os / env_os: gate on
-         * user.o UNDEF (labi_user_needs_runtime_*). Pure rv/hello must not fork-cc
-         * those seeds on every -o. Complements + C post-module scan ensure transitive
-         * process_shux_*. G.7: complete existing prepare_for_exe_link.
-         * glue (sqlite/http/sync/…) stays on-demand via plan steps / skip_missing.
-         */
-        if (shux_ensure_runtime_asm_io_stubs_o(link_eff) != 0)
-            return -1;
-        if (labi_user_needs_runtime_process_argv(user_o)) {
-            if (shux_ensure_runtime_process_argv_o(link_eff) != 0)
-                return -1;
-        }
-        if (labi_user_needs_runtime_random_fill(user_o)) {
-            if (shux_ensure_runtime_random_fill_o(link_eff) != 0)
-                return -1;
-        }
-        if (labi_user_needs_runtime_time_os(user_o)) {
-            if (shux_ensure_runtime_time_os_o(link_eff) != 0)
-                return -1;
-        }
-        if (labi_user_needs_runtime_env_os(user_o)) {
-            if (shux_ensure_runtime_env_os_o(link_eff) != 0)
-                return -1;
-        }
-    }
-    if (shux_ensure_crt0_user_o(link_eff, driver_freestanding) != 0)
-        return -1;
-#if defined(__linux__)
-    if (shux_link_freestanding_enabled(driver_freestanding) && shux_freestanding_user_o_needs_io(user_o)) {
-        if (shux_ensure_freestanding_io_o(link_eff, driver_freestanding) != 0)
-            return -1;
-    }
-#endif
-    if (shux_link_freestanding_enabled(driver_freestanding) && (use_macho_o || use_coff_o)) {
-        link_diag_freestanding_unsupported();
-        return -1;
-    }
-    /* #region debug-point E:prepare-exit */
-    shux_debug_hello_stage1_report("A", "runtime_link_abi.c:4468", "prepare_for_exe_link_exit", 0, 0, 0);
-    /* #endregion */
-    return 0;
-}
 
 
 

@@ -72,6 +72,8 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ondemand_list.from_x.c 全 C 体
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list_surface.from_x.c||"
   # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）
+  #   + wave173 ensure_from_catalog + wave174 catalog thin + wave169–172/182 special ensure
+  #   + wave186 prepare_for_exe_link pure orch
   #   + wave173 link_abi_ensure_from_catalog pure orch
   #   + wave174 catalog thin ensure wraps pure（26× shux_ensure_runtime_*_o）
   #   + wave169 ensure_runtime_panic_o + wave170 ensure_runtime_heap_user_o

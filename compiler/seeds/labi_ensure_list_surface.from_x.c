@@ -1,15 +1,16 @@
 /* seeds/labi_ensure_list_surface.from_x.c
  * G-02f labi_ensure_list R2 full surface — isomorphic with src/runtime/labi_ensure_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ensure_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave173 ensure_from_catalog + wave174 catalog thin wraps + wave169 panic + wave170 heap_user + wave171 test_fn_invoke + wave172 tls_mbedtls_bio + wave182 ensure_bootstrap_nostdlib_stubs_o)
+ * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave173 ensure_from_catalog + wave174 catalog thin wraps + wave169 panic + wave170 heap_user + wave171 test_fn_invoke + wave172 tls_mbedtls_bio + wave182 ensure_bootstrap_nostdlib_stubs_o + wave186 prepare_for_exe_link)
  * Cap residual: resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack / -fno-builtin);
  *   wave169 panic ensure: resolve/access/cc/stat + host linux_x86_64 / posix_aarch64;
  *   wave170 heap_user ensure: resolve/access/cc/stat + has_defined_sym + unlink stub;
  *   wave171 test_fn_invoke ensure: resolve/access/cc/stat (direct seed; no wrap.c);
  *   wave172 tls_mbedtls_bio ensure: resolve/access/cc_one_extra/stat (homebrew -I);
  *   wave182 bootstrap_nostdlib_stubs ensure: resolve/access/cc_one_extra(-fno-builtin)/stat;
+ *   wave186 prepare_for_exe_link: freestanding peers + user_needs + debug report Cap;
  *   wave174 catalog thin wraps: peer *_o_path Cap residual only
- * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave182)
+ * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave186)
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -26,6 +27,7 @@ extern int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0);
 extern int32_t shux_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0);
+extern int32_t shux_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, int32_t driver_freestanding, int32_t use_macho_o, int32_t use_coff_o);
 extern int32_t shux_ensure_runtime_asm_io_stubs_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_process_os_glue_o(uint8_t * argv0);
@@ -66,6 +68,18 @@ extern uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_test_fn_invoke_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_tls_mbedtls_bio_o_path(uint8_t * argv0);
 extern uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
+/* Cap residual / peer pure (wave186 prepare_for_exe_link surface). */
+extern int32_t shux_link_freestanding_enabled(int32_t driver_freestanding);
+extern int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o);
+extern int32_t shux_freestanding_user_o_needs_io(uint8_t * user_o);
+extern int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding);
+extern int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding);
+extern int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o);
+extern int32_t labi_user_needs_runtime_random_fill(uint8_t * user_o);
+extern int32_t labi_user_needs_runtime_time_os(uint8_t * user_o);
+extern int32_t labi_user_needs_runtime_env_os(uint8_t * user_o);
+extern void link_diag_freestanding_unsupported(void);
+extern void shux_debug_hello_stage1_report(uint8_t * hypothesis_id, uint8_t * location, uint8_t * msg, int32_t v1, int32_t v2, int32_t v3);
 extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_os_glue_o_path(uint8_t * argv0);
@@ -1532,4 +1546,87 @@ int32_t shux_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
   (void)((p = shux_runtime_ed25519_ref10_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 25, p);
+}
+/* wave186: prepare_for_exe_link pure orch (surface pin ≡ .x). */
+int32_t shux_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, int32_t driver_freestanding, int32_t use_macho_o, int32_t use_coff_o) {
+  int32_t fs = 0;
+  int32_t need = 0;
+  int32_t rc = 0;
+  (void)(shux_debug_hello_stage1_report(((uint8_t *)"A"), ((uint8_t *)"runtime_link_abi.c:prepare_for_exe_link_enter"), ((uint8_t *)"prepare_for_exe_link_enter"), driver_freestanding, use_macho_o, use_coff_o));
+  if ((link_eff == 0)) {
+    return -1;
+  }
+  if ((user_o == 0)) {
+    return -1;
+  }
+  (void)((fs = shux_link_freestanding_enabled(driver_freestanding)));
+  if ((fs != 0)) {
+    (void)((need = shux_freestanding_user_o_needs_panic(user_o)));
+    if ((need != 0)) {
+      (void)((rc = shux_ensure_runtime_panic_o(link_eff)));
+      if ((rc != 0)) {
+        return -1;
+      }
+    }
+  } else {
+    (void)((rc = shux_ensure_runtime_panic_o(link_eff)));
+    if ((rc != 0)) {
+      return -1;
+    }
+  }
+  if ((fs == 0)) {
+    (void)((rc = shux_ensure_runtime_asm_io_stubs_o(link_eff)));
+    if ((rc != 0)) {
+      return -1;
+    }
+    (void)((need = labi_user_needs_runtime_process_argv(user_o)));
+    if ((need != 0)) {
+      (void)((rc = shux_ensure_runtime_process_argv_o(link_eff)));
+      if ((rc != 0)) {
+        return -1;
+      }
+    }
+    (void)((need = labi_user_needs_runtime_random_fill(user_o)));
+    if ((need != 0)) {
+      (void)((rc = shux_ensure_runtime_random_fill_o(link_eff)));
+      if ((rc != 0)) {
+        return -1;
+      }
+    }
+    (void)((need = labi_user_needs_runtime_time_os(user_o)));
+    if ((need != 0)) {
+      (void)((rc = shux_ensure_runtime_time_os_o(link_eff)));
+      if ((rc != 0)) {
+        return -1;
+      }
+    }
+    (void)((need = labi_user_needs_runtime_env_os(user_o)));
+    if ((need != 0)) {
+      (void)((rc = shux_ensure_runtime_env_os_o(link_eff)));
+      if ((rc != 0)) {
+        return -1;
+      }
+    }
+  }
+  (void)((rc = shux_ensure_crt0_user_o(link_eff, driver_freestanding)));
+  if ((rc != 0)) {
+    return -1;
+  }
+  if ((fs != 0)) {
+    (void)((need = shux_freestanding_user_o_needs_io(user_o)));
+    if ((need != 0)) {
+      (void)((rc = shux_ensure_freestanding_io_o(link_eff, driver_freestanding)));
+      if ((rc != 0)) {
+        return -1;
+      }
+    }
+  }
+  if ((fs != 0)) {
+    if (((use_macho_o != 0) || (use_coff_o != 0))) {
+      (void)(link_diag_freestanding_unsupported());
+      return -1;
+    }
+  }
+  (void)(shux_debug_hello_stage1_report(((uint8_t *)"A"), ((uint8_t *)"runtime_link_abi.c:prepare_for_exe_link_exit"), ((uint8_t *)"prepare_for_exe_link_exit"), 0, 0, 0));
+  return 0;
 }
