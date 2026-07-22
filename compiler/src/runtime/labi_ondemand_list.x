@@ -7,7 +7,9 @@
 // R2 full: simple/kv/arrow/time/queue + rel_* pure tables +
 //   wave118 labi_od_net_sym_* + link_abi_user_o_needs_std_net pure orch +
 //   wave119 labi_od_set_sym_* + link_abi_user_o_needs_std_set pure orch +
-//   wave120 labi_od_map_sym_* + link_abi_user_o_needs_std_map pure orch.
+//   wave120 labi_od_map_sym_* + link_abi_user_o_needs_std_map pure orch +
+//   wave121 labi_od_queue_api_sym_* + link_abi_user_o_needs_std_queue pure orch
+//     (product API; separate from contention labi_od_queue_sym_*).
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -917,6 +919,117 @@ export function link_abi_user_o_needs_std_map(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_map_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of product std.queue UNDEF symbols (tests/queue surface; not contention).
+ * Complements labi_od_queue_sym_* (contention smoke only).
+ * @return i32 — 12
+ * PLATFORM: SHARED — must match formal queue.o export mangles
+ */
+#[no_mangle]
+export function labi_od_queue_api_sym_count(): i32 {
+  return 12;
+}
+
+/**
+ * Product queue on_demand UNDEF symbol at index (needs_std_queue probe table).
+ * @param i i32 — index in [0, 12)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete product needs_std_queue authority (no second hard-coded list)
+ */
+#[no_mangle]
+export function labi_od_queue_api_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_queue_new_retQueue_i32";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_queue_new_retQueue_u8";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_queue_push_back_Queue_i32_ptr_i32";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_queue_push_back_Queue_u8_ptr_u8";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_queue_push_front";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_queue_pop_front_Queue_i32_ptr";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_queue_pop_back";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_queue_get";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_queue_len_Queue_i32";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_queue_is_empty_Queue_i32";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_queue_deinit_Queue_i32_ptr";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_queue_with_capacity";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references product std.queue API (on-demand chain queue.o).
+ * Pure orch: fixed product queue UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Contention path stays labi_od_queue_sym_* + labi_od_user_needs_any_sym_table in mega.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave121): hybrid still had needs_std_queue body always mega C with hard-coded strings.
+ * Keep single product table+orch in L8b; do not merge with contention table (different objs).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_queue_api_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_queue_api_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;

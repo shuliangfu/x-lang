@@ -5753,6 +5753,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave118: needs_std_net pure orch lives in labi_ondemand_list (net sym table + orch).
  * wave119: needs_std_set pure orch lives in labi_ondemand_list (set sym table + orch).
  * wave120: needs_std_map pure orch lives in labi_ondemand_list (map sym table + orch).
+ * wave121: needs_std_queue pure orch lives in labi_ondemand_list (queue_api sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -5917,45 +5918,10 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
 
 
 /**
- * Product std.queue surface on user.o (asm on_demand).
- * PLATFORM: SHARED — formal queue.o export mangles from tests/queue.
- * Contention/smoke symbols stay in labi_od_queue_sym_* (separate table).
- * G.7: complete queue on_demand authority (was contention-only → product queue BLD001).
- * wave120: needs_std_map pure orch lives in labi_ondemand_list (not here).
+ * wave121: needs_std_queue pure orch lives in labi_ondemand_list
+ * (labi_od_queue_api_sym_* product table + pure scan; not here).
+ * Contention/smoke stays labi_od_queue_sym_* (separate table).
  */
-int link_abi_user_o_needs_std_queue(const char *user_o) {
-  if ((user_o == NULL)) {
-    return 0;
-  }
-  if (((user_o)[0] == 0)) {
-    return 0;
-  }
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_new_retQueue_i32") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_new_retQueue_u8") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_push_back_Queue_i32_ptr_i32") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_push_back_Queue_u8_ptr_u8") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_push_front") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_pop_front_Queue_i32_ptr") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_pop_back") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_get") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_len_Queue_i32") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_is_empty_Queue_i32") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_deinit_Queue_i32_ptr") != 0)
-    return 1;
-  if (shux_link_obj_needs_undef_sym(user_o, "std_queue_with_capacity") != 0)
-    return 1;
-  return 0;
-}
 
 /**
  * 判断用户 .o 是否引用 std.test API（按需链 test.o，避免 hello 等最小链无条件链 test.o 触发 ld 重复）。
@@ -7420,7 +7386,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–120 needs_std_net / needs_std_set / needs_std_map pure orch (L8b pure .x / cold seed). */
+/* wave118–121 needs_std_net/set/map/queue pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7430,6 +7396,9 @@ int link_abi_user_o_needs_std_set(const char *user_o);
 int labi_od_map_sym_count(void);
 const char *labi_od_map_sym_at(int i);
 int link_abi_user_o_needs_std_map(const char *user_o);
+int labi_od_queue_api_sym_count(void);
+const char *labi_od_queue_api_sym_at(int i);
+int link_abi_user_o_needs_std_queue(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
