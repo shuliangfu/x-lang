@@ -34,9 +34,11 @@
 //     (pure null gates + Cap residual file malloc/free + Cap residual buf scan).
 //   wave176 link_abi_generated_c_contains_substr_use_line pure orch
 //     (pure null gates + Cap residual file malloc/free + Cap residual buf use_line scan).
+//   wave177 link_abi_generated_c_contains_any_substr_use_line pure orch
+//     (pure thin loop over needles[i] → pure contains_substr_use_line).
 // Cap residual: undef_sym; getenv; resolve/access/cc/stat for ensure leaves (wave167/168);
 //   runtime_read_file_malloc / free / link_abi_buf_contains_substr (wave175);
-//   link_abi_buf_contains_substr_use_line (wave176).
+//   link_abi_buf_contains_substr_use_line (wave176); any_substr (raw multi-needle residual).
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
 // Cap residual (wave159): host getenv for SHUX_FREESTANDING env gate.
@@ -407,6 +409,50 @@ export function link_abi_generated_c_contains_substr_use_line(c_path: *u8, needl
     free(data);
   }
   return hit;
+}
+
+/**
+ * Return 1 iff generated C at c_path contains any needle on a real use line.
+ * Pure thin orch: null/empty gates + loop needles[i] via pure contains_substr_use_line.
+ * Each hit reuses the single-needle pure authority (file load + Cap residual line filter).
+ * @param c_path *u8 — NUL-terminated path to generated .c; null → 0
+ * @param needles **u8 — C char** table of NUL needles; null → 0
+ * @param n_needles i32 — table length; <=0 → 0
+ * @return i32 — 1 if any nonempty needle hits a non-skipped use line, else 0
+ * Why (wave177): hybrid still had any_substr_use_line body always mega C (thin loop
+ * over pure use_line). Product callers: net_api / crypto_api on-demand scans.
+ * Note: null-check needles via cast to *u8 (do not write needles == 0 as **u8).
+ * G.7 single authority orch; no second use_line scan. PLATFORM: SHARED — hybrid L7 pure;
+ * mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_generated_c_contains_any_substr_use_line(
+  c_path: *u8, needles: **u8, n_needles: i32
+): i32 {
+  // Guard c_path / needles null; empty path still fails inside pure use_line.
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if ((needles as *u8) == 0 as *u8) {
+    return 0;
+  }
+  if (n_needles <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < n_needles) {
+    let needle: *u8 = needles[i];
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = link_abi_generated_c_contains_substr_use_line(c_path, needle);
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
 }
 
 /**

@@ -464,6 +464,7 @@ extern uint8_t * labi_fs_io_out_base(void);
 extern uint8_t * labi_fs_io_src_rel(void);
 extern int32_t link_abi_generated_c_contains_substr(uint8_t * c_path, uint8_t * needle);
 extern int32_t link_abi_generated_c_contains_substr_use_line(uint8_t * c_path, uint8_t * needle);
+extern int32_t link_abi_generated_c_contains_any_substr_use_line(uint8_t * c_path, uint8_t * * needles, int32_t n_needles);
 extern int32_t labi_fs_heap_c_needle_count(void);
 extern uint8_t * labi_fs_heap_c_needle_at(int32_t i);
 extern int32_t labi_fs_heap_o_sym_count(void);
@@ -756,6 +757,31 @@ int32_t link_abi_generated_c_contains_substr_use_line(uint8_t * c_path, uint8_t 
   (void)((hit = link_abi_buf_contains_substr_use_line(data, raw_len, needle)));
   (void)(free(data));
   return hit;
+}
+int32_t link_abi_generated_c_contains_any_substr_use_line(uint8_t * c_path, uint8_t * * needles, int32_t n_needles) {
+  if ((c_path ==0)) {
+    return 0;
+  }
+  if ((((uint8_t *)(needles)) ==0)) {
+    return 0;
+  }
+  if ((n_needles <=0)) {
+    return 0;
+  }
+  int32_t i = 0;
+  while ((i < n_needles)) {
+    uint8_t * needle = (needles)[i];
+    if ((needle !=0)) {
+      if (((needle)[0] !=0)) {
+        int32_t hit = link_abi_generated_c_contains_substr_use_line(c_path, needle);
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
 }
 int32_t labi_fs_heap_c_needle_count(void) {
   return 9;

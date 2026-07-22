@@ -1849,6 +1849,9 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 /* wave176: contains_substr_use_line pure orch (L7; hybrid). */
 int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle);
+/* wave177: any_substr_use_line pure orch (L7; hybrid). */
+int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles,
+                                                     int n_needles);
 #endif
 
 /* wave159: shux_link_freestanding_enabled pure orch — body removed from mega
@@ -2526,21 +2529,17 @@ int link_abi_buf_contains_substr_use_line(const char *data, size_t data_len, con
  * labi_freestanding_list (pure null gates + Cap residual file malloc/free +
  * Cap residual buf_contains_substr_use_line). Was always-mega file-view scan.
  * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
- * any_substr_use_line stays mega thin loop over this pure. PLATFORM: SHARED.
+ * PLATFORM: SHARED.
  */
 int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle);
 
-int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles, int n_needles) {
-    int i;
-    if (!c_path || !needles || n_needles <= 0)
-        return 0;
-    for (i = 0; i < n_needles; i++) {
-        if (needles[i] && needles[i][0] &&
-            link_abi_generated_c_contains_substr_use_line(c_path, needles[i]))
-            return 1;
-    }
-    return 0;
-}
+/* wave177: link_abi_generated_c_contains_any_substr_use_line pure orch lives in
+ * labi_freestanding_list (pure thin loop → pure contains_substr_use_line).
+ * Was always-mega thin loop. Cold twin under #ifndef FREESTANDING_LIST_FROM_X;
+ * hybrid L7 pure .x. Product: net_api / crypto_api on-demand. PLATFORM: SHARED.
+ */
+int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles,
+                                                     int n_needles);
 
 
 /*

@@ -36,8 +36,11 @@
  *     (pure null gates + Cap residual malloc/free + Cap residual buf_contains_substr)
  *   + wave176 link_abi_generated_c_contains_substr_use_line pure orch
  *     (pure null gates + Cap residual malloc/free + Cap residual buf use_line scan)
+ *   + wave177 link_abi_generated_c_contains_any_substr_use_line pure orch
+ *     (pure thin loop → pure contains_substr_use_line)
  * Cap residual：undef_sym；getenv；ensure 叶的 resolve/access/cc/stat（wave167/168）；
- *   file malloc/free + buf_contains_substr（wave175）；buf_contains_substr_use_line（wave176）。
+ *   file malloc/free + buf_contains_substr（wave175）；buf_contains_substr_use_line（wave176）；
+ *   any_substr（raw multi-needle residual）。
  * FROM_X 下本文件仅前向声明 + slice marker。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -277,6 +280,22 @@ int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char
   hit = link_abi_buf_contains_substr_use_line(data, raw_len, needle);
   free(data);
   return hit;
+}
+
+/* wave177: pure orch any_substr_use_line (cold twin ≡ .x).
+ * Thin loop over pure contains_substr_use_line. PLATFORM: SHARED.
+ */
+int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles,
+                                                     int n_needles) {
+  int i;
+  if (!c_path || !needles || n_needles <= 0)
+    return 0;
+  for (i = 0; i < n_needles; i++) {
+    if (needles[i] && needles[i][0] &&
+        link_abi_generated_c_contains_substr_use_line(c_path, needles[i]))
+      return 1;
+  }
+  return 0;
 }
 
 /* Pure orch: table + peer pure contains_substr. PLATFORM: SHARED. */
