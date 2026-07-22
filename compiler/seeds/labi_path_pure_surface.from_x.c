@@ -1,18 +1,19 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (23 public gates + count; wave180 scheduler_o_for_task_link)
+ * Prove: full.x vs this seed → nm IDENTICAL (24 public gates + count; wave181 bootstrap_nostdlib_stubs_o_path)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
- *   link_abi_realpath_cap Cap (wave146; also wave164–166/180 path ladders + task→sched);
+ *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
  *   *_o_path Cap io/process (wave150 push_minimal; wave163–166 panic/crt0/freestanding_io/async pure);
  *   table+access Cap (wave151 append_user_extra);
- *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy);
+ *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy; wave181 bootstrap stubs path);
  *   resolve+rel_o_path Cap (wave162 repo_root);
  *   realpath_if_exists+getcwd+skip Cap (wave163 panic_o_path);
  *   realpath_cap+getcwd Cap (wave164–166 crt0_user / freestanding_io / async_scheduler_o_path);
- *   path_readable+realpath_cap Cap (wave180 scheduler_o_for_task_link)
+ *   path_readable+realpath_cap Cap (wave180 scheduler_o_for_task_link);
+ *   realpath_cap+shu_resolve_compiler_dir Cap (wave181 bootstrap_nostdlib_stubs_o_path)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -57,6 +58,8 @@ extern uint8_t * shux_freestanding_io_o_path(uint8_t * argv0);
 extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
 /* wave180: scheduler_o_for_task_link pure defined below. */
 extern uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler);
+/* wave181: bootstrap_nostdlib_stubs_o_path pure defined below. */
+extern uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
 extern int32_t link_abi_path_readable(uint8_t * path);
@@ -1130,6 +1133,51 @@ uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_schedul
   }
   return 0;
 }
+/* wave181: bootstrap_nostdlib_stubs_o_path pure orch (surface pin; Cap residual realpath_cap+resolve). */
+static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_buf[4096];
+static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_resolved[4096];
+uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0) {
+  (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0] = 0));
+  (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_resolved)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)("compiler/src/asm/bootstrap_nostdlib_stubs.o")), &((g_labi_bootstrap_nostdlib_stubs_o_path_resolved)[0]))));
+  if ((hit != 0)) {
+    return hit;
+  }
+  uint8_t comp[4096];
+  int32_t rc = 0;
+  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), ((int64_t)(4096)))));
+  if ((rc == 0)) {
+    int32_t dn = 0;
+    while (((comp)[dn] != 0)) {
+      (void)((dn = (dn + 1)));
+    }
+    uint8_t * leaf = ((uint8_t *)("src/asm/bootstrap_nostdlib_stubs.o"));
+    int32_t ln = 0;
+    while (((leaf)[ln] != 0)) {
+      (void)((ln = (ln + 1)));
+    }
+    if ((((dn + 1) + ln) < 4096)) {
+      int32_t i = 0;
+      while ((i < dn)) {
+        (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[i] = (comp)[i]));
+        (void)((i = (i + 1)));
+      }
+      (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[dn] = 47));
+      int32_t k = 0;
+      while ((k <= ln)) {
+        (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[((dn + 1) + k)] = (leaf)[k]));
+        (void)((k = (k + 1)));
+      }
+      (void)((hit = link_abi_realpath_cap(&((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0]), &((g_labi_bootstrap_nostdlib_stubs_o_path_resolved)[0]))));
+      if ((hit != 0)) {
+        return hit;
+      }
+      return &((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0]);
+    }
+  }
+  return &((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0]);
+}
 int32_t labi_path_pure_count(void) {
-  return 23;
+  return 24;
 }

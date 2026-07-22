@@ -2550,7 +2550,11 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
 /**
  * PLATFORM: LINUX — path to bootstrap_nostdlib_stubs.o (mmap bump malloc/free face).
  * Same object as compiler nostdlib bag; freestanding user link pulls it on demand.
+ * wave181: pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Cap residual: link_abi_realpath_cap + shu_resolve_compiler_dir (pure owns leaf join).
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
     static char buf[PATH_MAX];
     static char resolved[PATH_MAX];
@@ -2569,6 +2573,9 @@ const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
     }
     return buf;
 }
+#else
+const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
+#endif
 
 /**
  * PLATFORM: LINUX — ensure bootstrap_nostdlib_stubs.o exists (cc seed if missing).

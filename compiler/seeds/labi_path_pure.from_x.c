@@ -23,6 +23,8 @@
  *     step3 realpath(argv0)+parent+/../std/async)
  *   + scheduler_o_for_task_link (wave180 pure task.o→scheduler.o rewrite; Cap residual
  *     path_readable + realpath_cap; static 4096/4096 BSS)
+ *   + shux_bootstrap_nostdlib_stubs_o_path (wave181 pure cwd realpath + compiler-dir/leaf;
+ *     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -864,8 +866,59 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
   return NULL;
 }
 
+/* wave181: bootstrap_nostdlib_stubs_o_path pure orch (cold twin ≡ .x;
+ * Cap residual realpath_cap + shu_resolve_compiler_dir). */
+static char g_labi_bootstrap_nostdlib_stubs_o_path_buf[4096];
+static char g_labi_bootstrap_nostdlib_stubs_o_path_resolved[4096];
+
+const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
+  const char *hit;
+  char comp[4096];
+  int rc;
+  int dn;
+  int ln;
+  int i;
+  int k;
+  const char *leaf;
+  g_labi_bootstrap_nostdlib_stubs_o_path_buf[0] = '\0';
+  g_labi_bootstrap_nostdlib_stubs_o_path_resolved[0] = '\0';
+  hit = link_abi_realpath_cap("compiler/src/asm/bootstrap_nostdlib_stubs.o",
+                              g_labi_bootstrap_nostdlib_stubs_o_path_resolved);
+  if (hit)
+    return hit;
+  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  if (rc == 0) {
+    dn = 0;
+    while (comp[dn] != 0)
+      dn = dn + 1;
+    leaf = "src/asm/bootstrap_nostdlib_stubs.o";
+    ln = 0;
+    while (leaf[ln] != 0)
+      ln = ln + 1;
+    if (dn + 1 + ln < 4096) {
+      i = 0;
+      while (i < dn) {
+        g_labi_bootstrap_nostdlib_stubs_o_path_buf[i] = comp[i];
+        i = i + 1;
+      }
+      g_labi_bootstrap_nostdlib_stubs_o_path_buf[dn] = '/';
+      k = 0;
+      while (k <= ln) {
+        g_labi_bootstrap_nostdlib_stubs_o_path_buf[dn + 1 + k] = leaf[k];
+        k = k + 1;
+      }
+      hit = link_abi_realpath_cap(g_labi_bootstrap_nostdlib_stubs_o_path_buf,
+                                  g_labi_bootstrap_nostdlib_stubs_o_path_resolved);
+      if (hit)
+        return hit;
+      return g_labi_bootstrap_nostdlib_stubs_o_path_buf;
+    }
+  }
+  return g_labi_bootstrap_nostdlib_stubs_o_path_buf;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 23;
+  return 24;
 }
 
 #else
@@ -897,6 +950,7 @@ const char *shux_crt0_user_o_path(const char *argv0);
 const char *shux_freestanding_io_o_path(const char *argv0);
 const char *shux_std_async_scheduler_o_path(const char *argv0);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
+const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
 int32_t labi_path_pure_count(void);
 #endif
 

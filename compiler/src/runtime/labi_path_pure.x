@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 23 public gates + count:
+// R2 full: .x owns 24 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -31,6 +31,8 @@
 //     Cap residual realpath_cap + getcwd; static 4096/4096 BSS; argv0 realpath then parent+/../std/async)
 //   - scheduler_o_for_task_link (wave180; pure task.o→scheduler.o path rewrite + Cap residual
 //     path_readable + realpath_cap; static 4096/4096 BSS; explicit_scheduler short-circuit)
+//   - shux_bootstrap_nostdlib_stubs_o_path (wave181; pure cwd realpath + compiler-dir/leaf join;
+//     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS; LINUX freestanding)
 // wave161 G.7: thin mega shux_runtime_*_o_path (static PATH_MAX) route join through this gate
 //   (process_os_glue … ed25519_ref10_glue; + asm_io_stubs / process_argv already on copy).
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
@@ -56,6 +58,7 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 // wave165: shux_freestanding_io_o_path is pure export below (no longer Cap residual).
 // wave166: shux_std_async_scheduler_o_path is pure export below (no longer Cap residual).
 // wave180: scheduler_o_for_task_link is pure export below (no longer Cap residual always-mega).
+// wave181: shux_bootstrap_nostdlib_stubs_o_path is pure export below (no longer Cap residual always-mega).
 export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
 // Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
@@ -89,6 +92,9 @@ let g_labi_async_scheduler_o_path_resolved: u8[4096] = [];
 // wave180: durable task→scheduler rewrite buffers (≡ mega static derived[PATH_MAX] + cwd_buf).
 let g_labi_sched_for_task_derived: u8[4096] = [];
 let g_labi_sched_for_task_cwd: u8[4096] = [];
+// wave181: durable bootstrap_nostdlib_stubs .o path buffers (≡ mega static PATH_MAX/PATH_MAX).
+let g_labi_bootstrap_nostdlib_stubs_o_path_buf: u8[4096] = [];
+let g_labi_bootstrap_nostdlib_stubs_o_path_resolved: u8[4096] = [];
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
  * Params: s — bytes; n — length (i32); a0/a1 — suffix bytes.
@@ -1658,11 +1664,85 @@ export function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8):
 }
 
 /**
+ * Resolve path of bootstrap_nostdlib_stubs.o (mmap bump malloc/free face for freestanding).
+ * Ladder (≡ mega shux_bootstrap_nostdlib_stubs_o_path):
+ *   1) realpath cwd-relative `compiler/src/asm/bootstrap_nostdlib_stubs.o`
+ *   2) Cap residual shu_resolve_compiler_dir + pure join `comp/src/asm/bootstrap_nostdlib_stubs.o`
+ *      then realpath; if realpath fails still return joined buf (≡ mega)
+ *   3) empty buf on total fail
+ * @param argv0 *u8 — optional product host path for resolve fallback; may be null
+ * @return *u8 — static resolved (realpath hit) or buf (joined/empty); never null
+ * Pure orch: pure byte join compiler-dir/leaf (no snprintf); Cap residual
+ *   link_abi_realpath_cap + shu_resolve_compiler_dir.
+ * Why (wave181): hybrid still had always-mega C body for nostdlib stubs path
+ *   (realpath + snprintf after resolve). Soft residual after wave180 task→scheduler.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch POSIX '/' — product leaf under compiler/src/asm; LINUX freestanding
+ *   consumers primary; hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8 {
+  // Match mega: clear both durable buffers; return empty buf on total fail.
+  g_labi_bootstrap_nostdlib_stubs_o_path_buf[0] = 0;
+  g_labi_bootstrap_nostdlib_stubs_o_path_resolved[0] = 0;
+  let hit: *u8 = 0 as *u8;
+  // Step 1: cwd is repo root — compiler/src/asm/bootstrap_nostdlib_stubs.o.
+  unsafe {
+    hit = link_abi_realpath_cap("compiler/src/asm/bootstrap_nostdlib_stubs.o", &g_labi_bootstrap_nostdlib_stubs_o_path_resolved[0]);
+  }
+  if (hit != 0 as *u8) {
+    return hit;
+  }
+  // Step 2: Cap residual platform resolve of compiler/ then pure join leaf.
+  let comp: u8[4096] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+  }
+  if (rc == 0) {
+    let dn: i32 = 0;
+    while (comp[dn] != 0) {
+      dn = dn + 1;
+    }
+    // leaf "src/asm/bootstrap_nostdlib_stubs.o" is 35 bytes; join needs dn+1+35 < 4096.
+    let leaf: *u8 = "src/asm/bootstrap_nostdlib_stubs.o";
+    let ln: i32 = 0;
+    while (leaf[ln] != 0) {
+      ln = ln + 1;
+    }
+    // mega: snprintf fails when nn >= sizeof(buf); we refuse overflow before write.
+    if (dn + 1 + ln < 4096) {
+      let i: i32 = 0;
+      while (i < dn) {
+        g_labi_bootstrap_nostdlib_stubs_o_path_buf[i] = comp[i];
+        i = i + 1;
+      }
+      g_labi_bootstrap_nostdlib_stubs_o_path_buf[dn] = 47;
+      let k: i32 = 0;
+      while (k <= ln) {
+        g_labi_bootstrap_nostdlib_stubs_o_path_buf[dn + 1 + k] = leaf[k];
+        k = k + 1;
+      }
+      unsafe {
+        hit = link_abi_realpath_cap(&g_labi_bootstrap_nostdlib_stubs_o_path_buf[0], &g_labi_bootstrap_nostdlib_stubs_o_path_resolved[0]);
+      }
+      if (hit != 0 as *u8) {
+        return hit;
+      }
+      // mega: return buf even when realpath fails (product may build into that path next).
+      return &g_labi_bootstrap_nostdlib_stubs_o_path_buf[0];
+    }
+  }
+  return &g_labi_bootstrap_nostdlib_stubs_o_path_buf[0];
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 23 (fixed catalog size for hybrid FROM_X bookkeeping; wave180 +1).
+ * Returns: 24 (fixed catalog size for hybrid FROM_X bookkeeping; wave181 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 23;
+  return 24;
 }
