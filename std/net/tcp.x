@@ -485,9 +485,18 @@ export function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeo
 }
 
 /**
- * See implementation.
+ * Connect up to n TCP clients in parallel (Linux io_uring path).
+ * @param addr_u32 u32 — packed IPv4 address (host byte order as used by net_tcp_connect_c)
+ * @param port_u32 u32 — destination port
+ * @param out_fds *i32 — output fd array; length >= n
+ * @param n i32 — max connects; n<=0 or null out_fds → 0
+ * @param timeout_ms u32 — per-connect timeout milliseconds
+ * @return i32 — number of successful connects written to out_fds
+ * PLATFORM: LINUX — io_uring_connect_many.
+ * G.7: #[no_mangle] matches mod.x `extern function net_connect_many_c` (same as net_accept_many_c).
  */
 #[cfg(target_os = "linux")]
+#[no_mangle]
 export function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   if (n <= 0 || out_fds == 0) {
     return 0;
@@ -497,9 +506,18 @@ export function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, 
 }
 
 /**
- * See implementation.
+ * Connect up to n TCP clients sequentially (non-Linux / Darwin fallback).
+ * @param addr_u32 u32 — packed IPv4 address
+ * @param port_u32 u32 — destination port
+ * @param out_fds *i32 — output fd array; length >= n
+ * @param n i32 — max connects; n<=0 or null out_fds → 0
+ * @param timeout_ms u32 — per-connect timeout milliseconds
+ * @return i32 — number of successful connects; stops on first connect failure
+ * PLATFORM: MACOS / non-Linux — sequential net_tcp_connect_c loop.
+ * G.7: #[no_mangle] matches mod.x extern surface (same as net_accept_many_c).
  */
 #[cfg(not(target_os = "linux"))]
+#[no_mangle]
 export function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   let i: i32 = 0;
   let fd: i32 = 0;

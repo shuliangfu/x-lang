@@ -215,6 +215,10 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 # net.o, and any user program calling net.* API hits Undefined symbol BLD001.
 # Root cause fix (2026-07-19): add mod.x via shux_compile_std_module.sh (matches
 # string/heap/sys/fs pattern). Sub-module .x keep shux_compile_std_x.sh bare path.
+# PLATFORM: MACOS — after wave102 pure-asm arm64 enc, -backend asm succeeds for
+# alpn/tcp/...; ld -r with C mod.o leaves tls_stub/tcp_pool/io UNDEFs live under
+# product -dead_strip (net-context BLD001). Pre-wave102 Darwin fell back to shux-c
+# (code_len=0). Recipe forces ./shux-c for Darwin net submodules; Linux keeps asm.
 ../std/net/net.o: ../std/net/mod.x ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/cc_inc_tu.sh | scripts/shux_compile_std_module.sh
 	@objs=""; \
 	shux="$${SHUX:-}"; \
@@ -225,8 +229,14 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	  else shux=; fi; \
 	fi; \
 	if [ -n "$$shux" ]; then \
+	  net_sub_shux="$$shux"; \
+	  case "$$(uname -s 2>/dev/null)" in \
+	    Darwin) \
+	      if [ -x ./shux-c ]; then net_sub_shux=./shux-c; \
+	      elif [ -x ./shux ]; then net_sub_shux=./shux; fi ;; \
+	  esac; \
 	  for x in alpn udp tcp udp_batch workers; do \
-	  sh scripts/shux_compile_std_x.sh $$shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
+	  sh scripts/shux_compile_std_x.sh $$net_sub_shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
 	  objs="$$objs ../std/net/$$x.o"; \
 	  done; \
 	  sh scripts/shux_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || exit 1; \
