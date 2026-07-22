@@ -16,8 +16,12 @@
  *     + pure flag_* + peer compress orch + peer needs_compress)
  *   shux_asm_ld_append_unix_gcc_tail_libs_impl (wave157 pure orch; host_is_linux
  *     + host_is_apple for -ldl / else -lc gates)
+ *   invoke_cc_append_net_tls_ld (wave158 pure orch; Cap residual exports_marker +
+ *     realpath_cap + rel_o_path + push_existing + host_is_apple for brew -L)
  * Cap residual: host_is_apple; needs+ensure+path Cap; invoke_cc_argv_push_existing;
- *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv.
+ *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
+ *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
+ *   ensure_std_net_o_auto_tls (system/make) stays mega Cap residual.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -37,6 +41,9 @@ int link_abi_user_o_needs_compress_libs(const char *user_o);
 int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
+int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
+const char *link_abi_realpath_cap(const char *path, char *out);
+const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -86,6 +93,43 @@ const char *labi_ld_flag_lc(void) { return "-lc"; }
 const char *labi_ld_flag_lSystem(void) { return "-lSystem"; }
 const char *labi_ld_flag_lws2_32(void) { return "-lws2_32"; }
 const char *labi_ld_flag_lbcrypt(void) { return "-lbcrypt"; }
+
+/* wave158: net_tls pure flag/marker/rel catalog (cold twin ≡ .x). */
+const char *labi_ld_flag_L_hb_openssl(void) { return "-L/opt/homebrew/opt/openssl/lib"; }
+const char *labi_ld_flag_L_hb_mbedtls(void) { return "-L/opt/homebrew/opt/mbedtls/lib"; }
+const char *labi_ld_flag_lssl(void) { return "-lssl"; }
+const char *labi_ld_flag_lcrypto(void) { return "-lcrypto"; }
+const char *labi_ld_flag_lmbedtls(void) { return "-lmbedtls"; }
+const char *labi_ld_flag_lmbedx509(void) { return "-lmbedx509"; }
+const char *labi_ld_flag_lmbedcrypto(void) { return "-lmbedcrypto"; }
+const char *labi_net_tls_openssl_marker(void) { return "shu_net_tls_openssl_marker"; }
+const char *labi_net_tls_mbedtls_marker(void) { return "shu_net_tls_mbedtls_marker"; }
+const char *labi_rel_tls_openssl_o(void) { return "std/net/tls_openssl.o"; }
+const char *labi_rel_tls_mbedtls_o(void) { return "std/net/tls_mbedtls.o"; }
+
+void labi_append_openssl_ld_flags(char *argv[], int *i, int argv_cap) {
+  if (!argv || !i)
+    return;
+  if (link_abi_host_is_apple() && *i < argv_cap - 1)
+    argv[(*i)++] = (char *)labi_ld_flag_L_hb_openssl();
+  if (*i < argv_cap - 1)
+    argv[(*i)++] = (char *)labi_ld_flag_lssl();
+  if (*i < argv_cap - 1)
+    argv[(*i)++] = (char *)labi_ld_flag_lcrypto();
+}
+
+void labi_append_mbedtls_ld_flags(char *argv[], int *i, int argv_cap) {
+  if (!argv || !i)
+    return;
+  if (link_abi_host_is_apple() && *i < argv_cap - 1)
+    argv[(*i)++] = (char *)labi_ld_flag_L_hb_mbedtls();
+  if (*i < argv_cap - 1)
+    argv[(*i)++] = (char *)labi_ld_flag_lmbedtls();
+  if (*i < argv_cap - 1)
+    argv[(*i)++] = (char *)labi_ld_flag_lmbedx509();
+  if (*i < argv_cap - 1)
+    argv[(*i)++] = (char *)labi_ld_flag_lmbedcrypto();
+}
 
 const char *labi_ld_driver_clang(void) { return "clang"; }
 const char *labi_ld_driver_ld(void) { return "ld"; }
@@ -259,6 +303,66 @@ void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const ch
   }
 }
 
+/* wave158: invoke_cc_append_net_tls_ld pure orch (cold twin ≡ .x).
+ * Cap residual: exports_marker + realpath_cap + rel_o_path + push_existing.
+ * Apple brew -L gated by host_is_apple inside append_* helpers. */
+int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root) {
+  char abs_buf[4096];
+  const char *use;
+  const char *rn;
+  const char *tls_o;
+  const char *mk_ssl;
+  const char *mk_mb;
+  if (!argv || !i || *i >= argv_cap - 1)
+    return 0;
+  mk_ssl = labi_net_tls_openssl_marker();
+  mk_mb = labi_net_tls_mbedtls_marker();
+  /* Phase 1: net_o markers (legacy co-located; rare post F-04 v8). */
+  if (net_o && net_o[0]) {
+    use = net_o;
+    rn = link_abi_realpath_cap(net_o, abs_buf);
+    if (rn && rn[0])
+      use = rn;
+    if (link_abi_obj_exports_marker(use, mk_ssl)) {
+      labi_append_openssl_ld_flags(argv, i, argv_cap);
+      return 1;
+    }
+    if (link_abi_obj_exports_marker(use, mk_mb)) {
+      labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+      return 1;
+    }
+  }
+  if (!repo_root || !repo_root[0])
+    return 0;
+  /* Phase 2: std/net/tls_openssl.o */
+  tls_o = shux_rel_o_path_from_argv0(repo_root, labi_rel_tls_openssl_o());
+  if (tls_o && tls_o[0]) {
+    use = tls_o;
+    rn = link_abi_realpath_cap(tls_o, abs_buf);
+    if (rn && rn[0])
+      use = rn;
+    if (link_abi_obj_exports_marker(use, mk_ssl)) {
+      (void)invoke_cc_argv_push_existing(argv, i, argv_cap, tls_o);
+      labi_append_openssl_ld_flags(argv, i, argv_cap);
+      return 1;
+    }
+  }
+  /* Phase 2b: std/net/tls_mbedtls.o */
+  tls_o = shux_rel_o_path_from_argv0(repo_root, labi_rel_tls_mbedtls_o());
+  if (tls_o && tls_o[0]) {
+    use = tls_o;
+    rn = link_abi_realpath_cap(tls_o, abs_buf);
+    if (rn && rn[0])
+      use = rn;
+    if (link_abi_obj_exports_marker(use, mk_mb)) {
+      (void)invoke_cc_argv_push_existing(argv, i, argv_cap, tls_o);
+      labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+      return 1;
+    }
+  }
+  return 0;
+}
+
 #else
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
@@ -277,6 +381,19 @@ const char *labi_ld_flag_lc(void);
 const char *labi_ld_flag_lSystem(void);
 const char *labi_ld_flag_lws2_32(void);
 const char *labi_ld_flag_lbcrypt(void);
+const char *labi_ld_flag_L_hb_openssl(void);
+const char *labi_ld_flag_L_hb_mbedtls(void);
+const char *labi_ld_flag_lssl(void);
+const char *labi_ld_flag_lcrypto(void);
+const char *labi_ld_flag_lmbedtls(void);
+const char *labi_ld_flag_lmbedx509(void);
+const char *labi_ld_flag_lmbedcrypto(void);
+const char *labi_net_tls_openssl_marker(void);
+const char *labi_net_tls_mbedtls_marker(void);
+const char *labi_rel_tls_openssl_o(void);
+const char *labi_rel_tls_mbedtls_o(void);
+void labi_append_openssl_ld_flags(char *argv[], int *i, int argv_cap);
+void labi_append_mbedtls_ld_flags(char *argv[], int *i, int argv_cap);
 const char *labi_ld_driver_clang(void);
 const char *labi_ld_driver_ld(void);
 const char *labi_ld_driver_gcc(void);
@@ -293,6 +410,7 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
     const ShuAsmLdStdLinkFlags *flags, const char **argv, int *la, int max_la, int append_lsystem);
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, int need_pt, const char **argv, int *la, int max_la);
+int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

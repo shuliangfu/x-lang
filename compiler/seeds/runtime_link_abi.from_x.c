@@ -2874,11 +2874,12 @@ const char *labi_ld_common_tail_flag_at(int i);
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
-/* wave156/157: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
+/* wave156/157/158: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
 void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem);
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
+int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 #endif
 
 /**
@@ -2926,6 +2927,14 @@ int link_abi_host_is_apple(void) {
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for unix gcc tail -l*.
  * PLATFORM: SHARED orch / LINUX primary consumers. */
+
+/* wave158: invoke_cc_append_net_tls_ld pure orch lives in labi_invoke_ld_list
+ * (pure flag/marker/rel + peer append_openssl/mbedtls + Cap residual exports_marker
+ *  + realpath_cap + rel_o_path + push_existing + host_is_apple for brew -L).
+ * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
+ * .x (decl in #else). Why: hybrid still had always-mega C body for net_tls -L/-l.
+ * Cap residual stays: ensure_std_net_o_auto_tls (system/make) — not pure-migrable.
+ * PLATFORM: SHARED orch / MACOS brew -L consumers. */
 
 
 
@@ -4956,97 +4965,11 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
 
 
 
-/**
- * net.o / tls_openssl.o / tls_mbedtls.o 为 OpenSSL/mbedTLS 后端时追加对应 -L/-l 链接参数。
- * F-04 v8/v9：marker 在 std/net/tls_*.o（.x 产物），不再编译进 net.o。
- * 参数：argv/i/argv_cap 为 cc 链接 argv；net_o std/net .o；repo_root 仓库根（查 tls_openssl.o）。
- * 返回值：1 已追加 TLS 库，0 否。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root) {
-    static char hb_ssl_lib[72] = "-L/opt/homebrew/opt/openssl/lib";
-    static char hb_mb_lib[72] = "-L/opt/homebrew/opt/mbedtls/lib";
-    const char *use = net_o;
-    static char resolved[PATH_MAX];
-    const char *tls_o;
-    if (!i || *i >= argv_cap - 1)
-        return 0;
-    if (net_o && net_o[0]) {
-#if !defined(_WIN32) && !defined(_WIN64)
-        if (realpath(net_o, resolved) != NULL)
-            use = resolved;
-#endif
-        if (link_abi_obj_exports_marker(use, "shu_net_tls_openssl_marker")) {
-#if defined(__APPLE__)
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = hb_ssl_lib;
-#endif
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lssl";
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lcrypto";
-            return 1;
-        }
-        if (link_abi_obj_exports_marker(use, "shu_net_tls_mbedtls_marker")) {
-#if defined(__APPLE__)
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = hb_mb_lib;
-#endif
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lmbedtls";
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lmbedx509";
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lmbedcrypto";
-            return 1;
-        }
-    }
-    if (!repo_root || !repo_root[0])
-        return 0;
-    tls_o = shux_rel_o_path_from_argv0(repo_root, "std/net/tls_openssl.o");
-    if (tls_o && tls_o[0]) {
-        use = tls_o;
-#if !defined(_WIN32) && !defined(_WIN64)
-        if (realpath(tls_o, resolved) != NULL)
-            use = resolved;
-#endif
-        if (link_abi_obj_exports_marker(use, "shu_net_tls_openssl_marker")) {
-            (void)invoke_cc_argv_push_existing(argv, i, argv_cap, tls_o);
-#if defined(__APPLE__)
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = hb_ssl_lib;
-#endif
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lssl";
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lcrypto";
-            return 1;
-        }
-    }
-    tls_o = shux_rel_o_path_from_argv0(repo_root, "std/net/tls_mbedtls.o");
-    if (tls_o && tls_o[0]) {
-        use = tls_o;
-#if !defined(_WIN32) && !defined(_WIN64)
-        if (realpath(tls_o, resolved) != NULL)
-            use = resolved;
-#endif
-        if (link_abi_obj_exports_marker(use, "shu_net_tls_mbedtls_marker")) {
-            (void)invoke_cc_argv_push_existing(argv, i, argv_cap, tls_o);
-#if defined(__APPLE__)
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = hb_mb_lib;
-#endif
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lmbedtls";
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lmbedx509";
-            if (*i < argv_cap - 1)
-                argv[(*i)++] = (char *)"-lmbedcrypto";
-            return 1;
-        }
-    }
-    return 0;
-}
+/* wave158: invoke_cc_append_net_tls_ld pure orch — body removed from mega
+ * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * ensure_std_net_o_auto_tls (system/make) stays Cap residual above.
+ * PLATFORM: SHARED orch / MACOS brew -L consumers. */
 
 
 

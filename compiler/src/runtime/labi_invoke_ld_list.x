@@ -7,7 +7,7 @@
 //
 // R2 full: .x owns brew/compress/tail/driver/entry pure tables + wave152 brew orch
 // + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch
-// + wave156 mach tail_libs_impl pure orch:
+// + wave156 mach tail_libs_impl pure orch + wave157 unix gcc tail + wave158 net_tls:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -17,9 +17,13 @@
 //     + pure flag_* + peer compress orch + peer needs_compress)
 //   - shux_asm_ld_append_unix_gcc_tail_libs_impl (wave157; pure orch; peer host_is_linux
 //     + host_is_apple for -ldl / else -lc gates)
+//   - invoke_cc_append_net_tls_ld (wave158; pure orch; Cap residual exports_marker +
+//     realpath_cap + rel_o_path + push_existing + host_is_apple for brew -L)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_push_existing (realpath/skip/dedup);
-//   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv.
+//   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
+//   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
+//   ensure_std_net_o_auto_tls (system/make) stays mega Cap residual.
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -44,7 +48,17 @@ export extern "C" function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *
 
 // Cap residual (wave154): push path onto cc argv with skip-missing / realpath / dedup.
 // Used by invoke_cc compress glue append (asm path appends path bytes directly).
+// Also wave158 net_tls: push std/net/tls_*.o before -lssl/-lmbedtls when marker hits.
 export extern "C" function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, path: *u8): i32;
+
+// Cap residual (wave158): nm/marker probe for TLS backend objects (openssl/mbedtls).
+export extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
+
+// Cap residual (wave146/158): POSIX realpath into caller buffer; Windows/fail → null.
+export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
+
+// Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
+export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 
 /**
  * Homebrew /usr/local -L path table size (fixed catalog).
@@ -243,6 +257,236 @@ export function labi_ld_flag_lws2_32(): *u8 {
 export function labi_ld_flag_lbcrypt(): *u8 {
   let p: *u8 = "-lbcrypt";
   return p;
+}
+
+/**
+ * Homebrew OpenSSL libdir -L flag (wave158 net_tls pure catalog).
+ * @return *u8 — always "-L/opt/homebrew/opt/openssl/lib"
+ * PLATFORM: SHARED string; consumers gate with link_abi_host_is_apple (≡ mega #if __APPLE__).
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_ld_flag_L_hb_openssl(): *u8 {
+  let p: *u8 = "-L/opt/homebrew/opt/openssl/lib";
+  return p;
+}
+
+/**
+ * Homebrew mbedTLS libdir -L flag (wave158 net_tls pure catalog).
+ * @return *u8 — always "-L/opt/homebrew/opt/mbedtls/lib"
+ * PLATFORM: SHARED string; consumers gate with link_abi_host_is_apple.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_ld_flag_L_hb_mbedtls(): *u8 {
+  let p: *u8 = "-L/opt/homebrew/opt/mbedtls/lib";
+  return p;
+}
+
+/**
+ * OpenSSL link flag -lssl (wave158 net_tls pure catalog).
+ * @return *u8 — always "-lssl"
+ * PLATFORM: SHARED
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_ld_flag_lssl(): *u8 {
+  let p: *u8 = "-lssl";
+  return p;
+}
+
+/**
+ * OpenSSL link flag -lcrypto (wave158 net_tls pure catalog).
+ * @return *u8 — always "-lcrypto"
+ * PLATFORM: SHARED
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_ld_flag_lcrypto(): *u8 {
+  let p: *u8 = "-lcrypto";
+  return p;
+}
+
+/**
+ * mbedTLS link flag -lmbedtls (wave158 net_tls pure catalog).
+ * @return *u8 — always "-lmbedtls"
+ * PLATFORM: SHARED
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_ld_flag_lmbedtls(): *u8 {
+  let p: *u8 = "-lmbedtls";
+  return p;
+}
+
+/**
+ * mbedTLS link flag -lmbedx509 (wave158 net_tls pure catalog).
+ * @return *u8 — always "-lmbedx509"
+ * PLATFORM: SHARED
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_ld_flag_lmbedx509(): *u8 {
+  let p: *u8 = "-lmbedx509";
+  return p;
+}
+
+/**
+ * mbedTLS link flag -lmbedcrypto (wave158 net_tls pure catalog).
+ * @return *u8 — always "-lmbedcrypto"
+ * PLATFORM: SHARED
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_ld_flag_lmbedcrypto(): *u8 {
+  let p: *u8 = "-lmbedcrypto";
+  return p;
+}
+
+/**
+ * TLS OpenSSL backend marker symbol name (wave158; Cap residual exports_marker needle).
+ * @return *u8 — always "shu_net_tls_openssl_marker"
+ * PLATFORM: SHARED — F-04 v8 marker in std/net/tls_openssl.o (not net.o).
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_net_tls_openssl_marker(): *u8 {
+  let p: *u8 = "shu_net_tls_openssl_marker";
+  return p;
+}
+
+/**
+ * TLS mbedTLS backend marker symbol name (wave158; Cap residual exports_marker needle).
+ * @return *u8 — always "shu_net_tls_mbedtls_marker"
+ * PLATFORM: SHARED — F-04 v9 marker in std/net/tls_mbedtls.o (not net.o).
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_net_tls_mbedtls_marker(): *u8 {
+  let p: *u8 = "shu_net_tls_mbedtls_marker";
+  return p;
+}
+
+/**
+ * Relative path for OpenSSL TLS .o under repo root (wave158 pure catalog).
+ * @return *u8 — always "std/net/tls_openssl.o"
+ * PLATFORM: SHARED
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_rel_tls_openssl_o(): *u8 {
+  let p: *u8 = "std/net/tls_openssl.o";
+  return p;
+}
+
+/**
+ * Relative path for mbedTLS TLS .o under repo root (wave158 pure catalog).
+ * @return *u8 — always "std/net/tls_mbedtls.o"
+ * PLATFORM: SHARED
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_rel_tls_mbedtls_o(): *u8 {
+  let p: *u8 = "std/net/tls_mbedtls.o";
+  return p;
+}
+
+/**
+ * Append OpenSSL -L (Apple homebrew only) + -lssl -lcrypto onto cc/ld argv.
+ * @param argv **u8 — linker argv table (char**); null → no-op
+ * @param i *i32 — in/out argv length; null → no-op
+ * @param argv_cap i32 — capacity; leave one slot for NULL terminator
+ * @return void — appends zero or more flags when capacity remains
+ * Pure orch: pure flag_* + Cap residual link_abi_host_is_apple for -L gate (≡ mega #if __APPLE__).
+ * Why (wave158): share openssl lib append between net_o and tls_openssl.o branches (G.7).
+ * PLATFORM: SHARED orch / MACOS -L path only when host_is_apple.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_append_openssl_ld_flags(argv: **u8, i: *i32, argv_cap: i32): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (i == 0 as *i32) {
+    return;
+  }
+  let is_apple: i32 = 0;
+  unsafe {
+    is_apple = link_abi_host_is_apple();
+  }
+  if (is_apple != 0) {
+    let cur: i32 = i[0];
+    if (cur < argv_cap - 1) {
+      let fl: *u8 = labi_ld_flag_L_hb_openssl();
+      argv[cur] = fl;
+      i[0] = cur + 1;
+    }
+  }
+  let cur2: i32 = i[0];
+  if (cur2 < argv_cap - 1) {
+    let fssl: *u8 = labi_ld_flag_lssl();
+    argv[cur2] = fssl;
+    i[0] = cur2 + 1;
+  }
+  let cur3: i32 = i[0];
+  if (cur3 < argv_cap - 1) {
+    let fcr: *u8 = labi_ld_flag_lcrypto();
+    argv[cur3] = fcr;
+    i[0] = cur3 + 1;
+  }
+}
+
+/**
+ * Append mbedTLS -L (Apple homebrew only) + -lmbedtls -lmbedx509 -lmbedcrypto onto cc/ld argv.
+ * @param argv **u8 — linker argv table (char**); null → no-op
+ * @param i *i32 — in/out argv length; null → no-op
+ * @param argv_cap i32 — capacity; leave one slot for NULL terminator
+ * @return void — appends zero or more flags when capacity remains
+ * Pure orch: pure flag_* + Cap residual link_abi_host_is_apple for -L gate (≡ mega #if __APPLE__).
+ * Why (wave158): share mbedtls lib append between net_o and tls_mbedtls.o branches (G.7).
+ * PLATFORM: SHARED orch / MACOS -L path only when host_is_apple.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function labi_append_mbedtls_ld_flags(argv: **u8, i: *i32, argv_cap: i32): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (i == 0 as *i32) {
+    return;
+  }
+  let is_apple: i32 = 0;
+  unsafe {
+    is_apple = link_abi_host_is_apple();
+  }
+  if (is_apple != 0) {
+    let cur: i32 = i[0];
+    if (cur < argv_cap - 1) {
+      let fl: *u8 = labi_ld_flag_L_hb_mbedtls();
+      argv[cur] = fl;
+      i[0] = cur + 1;
+    }
+  }
+  let cur2: i32 = i[0];
+  if (cur2 < argv_cap - 1) {
+    let fmb: *u8 = labi_ld_flag_lmbedtls();
+    argv[cur2] = fmb;
+    i[0] = cur2 + 1;
+  }
+  let cur3: i32 = i[0];
+  if (cur3 < argv_cap - 1) {
+    let fx: *u8 = labi_ld_flag_lmbedx509();
+    argv[cur3] = fx;
+    i[0] = cur3 + 1;
+  }
+  let cur4: i32 = i[0];
+  if (cur4 < argv_cap - 1) {
+    let fc: *u8 = labi_ld_flag_lmbedcrypto();
+    argv[cur4] = fc;
+    i[0] = cur4 + 1;
+  }
 }
 
 /** Exported function `labi_ld_driver_clang`.
@@ -896,4 +1140,138 @@ export function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user
       }
     }
   }
+}
+
+/**
+ * invoke_cc link: append OpenSSL or mbedTLS -L/-l when net.o or std/net/tls_*.o exports TLS markers.
+ * F-04 v8/v9: markers live in tls_openssl.o / tls_mbedtls.o (not compiled into net.o).
+ * @param argv **u8 — cc linker argv table (char**); null → return 0
+ * @param i *i32 — in/out argv length; null → return 0
+ * @param argv_cap i32 — capacity; early exit if *i >= argv_cap - 1
+ * @param net_o *u8 — path to std/net .o (nullable/empty → skip net_o marker phase)
+ * @param repo_root *u8 — repo root for rel resolve of tls_*.o (nullable/empty → skip phase 2)
+ * @return i32 — 1 if TLS libs were appended, 0 otherwise
+ * Pure orch: pure marker/rel/flag catalogs + peer labi_append_{openssl,mbedtls}_ld_flags.
+ * Cap residual: link_abi_obj_exports_marker; link_abi_realpath_cap (POSIX; Windows null ≡ mega);
+ *   shux_rel_o_path_from_argv0; invoke_cc_argv_push_existing (tls_*.o only, not net_o).
+ * Why (wave158): hybrid still had always-mega C body for net_tls -L/-l append.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * Sibling ensure_std_net_o_auto_tls stays Cap residual (system/make; not pure-migrable).
+ * PLATFORM: SHARED orch / MACOS brew -L gated by host_is_apple inside append_* helpers.
+ * Track-L: #[no_mangle] keeps surface short name matching mega / thin callers.
+ */
+#[no_mangle]
+export function invoke_cc_append_net_tls_ld(argv: **u8, i: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32 {
+  // Guard argv null via *u8 cast (wave147/151–157: avoid **u8 null compare codegen drop).
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return 0;
+  }
+  if (i == 0 as *i32) {
+    return 0;
+  }
+  // Early capacity guard (≡ mega *i >= argv_cap - 1 at entry).
+  if (i[0] >= argv_cap - 1) {
+    return 0;
+  }
+  let mk_ssl: *u8 = labi_net_tls_openssl_marker();
+  let mk_mb: *u8 = labi_net_tls_mbedtls_marker();
+  // Phase 1: probe net_o for legacy co-located markers (rare post F-04 v8).
+  if (net_o != 0 as *u8) {
+    if (net_o[0] != 0) {
+      let use: *u8 = net_o;
+      // Cap residual realpath; on fail keep original path (≡ mega #if !WIN32 realpath).
+      let abs_n: u8[4096] = [];
+      let rn: *u8 = 0 as *u8;
+      unsafe {
+        rn = link_abi_realpath_cap(net_o, &abs_n[0]);
+      }
+      if (rn != 0 as *u8) {
+        use = rn;
+      }
+      let hit_ssl: i32 = 0;
+      unsafe {
+        hit_ssl = link_abi_obj_exports_marker(use, mk_ssl);
+      }
+      if (hit_ssl != 0) {
+        labi_append_openssl_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+      let hit_mb: i32 = 0;
+      unsafe {
+        hit_mb = link_abi_obj_exports_marker(use, mk_mb);
+      }
+      if (hit_mb != 0) {
+        labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+    }
+  }
+  // Phase 2: resolve std/net/tls_*.o under repo_root and push .o + libs on marker.
+  if (repo_root == 0 as *u8) {
+    return 0;
+  }
+  if (repo_root[0] == 0) {
+    return 0;
+  }
+  let rel_ssl: *u8 = labi_rel_tls_openssl_o();
+  let tls_ssl: *u8 = 0 as *u8;
+  unsafe {
+    tls_ssl = shux_rel_o_path_from_argv0(repo_root, rel_ssl);
+  }
+  if (tls_ssl != 0 as *u8) {
+    if (tls_ssl[0] != 0) {
+      let use2: *u8 = tls_ssl;
+      let abs_s: u8[4096] = [];
+      let rs: *u8 = 0 as *u8;
+      unsafe {
+        rs = link_abi_realpath_cap(tls_ssl, &abs_s[0]);
+      }
+      if (rs != 0 as *u8) {
+        use2 = rs;
+      }
+      let hit2: i32 = 0;
+      unsafe {
+        hit2 = link_abi_obj_exports_marker(use2, mk_ssl);
+      }
+      if (hit2 != 0) {
+        // Cap residual: skip-missing / realpath / dedup for the .o path itself.
+        unsafe {
+          let _p: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_ssl);
+        }
+        labi_append_openssl_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+    }
+  }
+  let rel_mb: *u8 = labi_rel_tls_mbedtls_o();
+  let tls_mb: *u8 = 0 as *u8;
+  unsafe {
+    tls_mb = shux_rel_o_path_from_argv0(repo_root, rel_mb);
+  }
+  if (tls_mb != 0 as *u8) {
+    if (tls_mb[0] != 0) {
+      let use3: *u8 = tls_mb;
+      let abs_m: u8[4096] = [];
+      let rm: *u8 = 0 as *u8;
+      unsafe {
+        rm = link_abi_realpath_cap(tls_mb, &abs_m[0]);
+      }
+      if (rm != 0 as *u8) {
+        use3 = rm;
+      }
+      let hit3: i32 = 0;
+      unsafe {
+        hit3 = link_abi_obj_exports_marker(use3, mk_mb);
+      }
+      if (hit3 != 0) {
+        unsafe {
+          let _p2: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_mb);
+        }
+        labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+    }
+  }
+  return 0;
 }

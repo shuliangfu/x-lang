@@ -6,8 +6,10 @@
  *   + wave153 asm_ld_append_compress_libs pure orch
  *   + wave154 invoke_cc_append_compress_ld pure orch
  *   + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch
- *   + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch)
- * Cap residual: host_is_apple; needs + ensure + path; push_existing; spawn/ld/cc IO mega
+ *   + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch
+ *   + wave158 invoke_cc_append_net_tls_ld pure orch)
+ * Cap residual: host_is_apple; needs + ensure + path; push_existing;
+ *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - pure contract; Ubuntu gold + mac prove.
  */
@@ -23,6 +25,9 @@ extern int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o);
 extern int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
 extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
 extern int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path);
+extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
+extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
+extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
 int32_t labi_ld_brew_lib_path_count(void) {
   return 2;
 }
@@ -116,6 +121,119 @@ uint8_t * labi_ld_flag_lws2_32(void) {
 uint8_t * labi_ld_flag_lbcrypt(void) {
   uint8_t * p = (uint8_t[]){45, 108, 98, 99, 114, 121, 112, 116, 0 };
   return p;
+}
+/* wave158: net_tls pure flag/marker/rel catalog (surface pin). */
+uint8_t * labi_ld_flag_L_hb_openssl(void) {
+  uint8_t * p = (uint8_t[]){45, 76, 47, 111, 112, 116, 47, 104, 111, 109, 101, 98, 114, 101, 119, 47, 111, 112, 116, 47, 111, 112, 101, 110, 115, 115, 108, 47, 108, 105, 98, 0 };
+  return p;
+}
+uint8_t * labi_ld_flag_L_hb_mbedtls(void) {
+  uint8_t * p = (uint8_t[]){45, 76, 47, 111, 112, 116, 47, 104, 111, 109, 101, 98, 114, 101, 119, 47, 111, 112, 116, 47, 109, 98, 101, 100, 116, 108, 115, 47, 108, 105, 98, 0 };
+  return p;
+}
+uint8_t * labi_ld_flag_lssl(void) {
+  uint8_t * p = (uint8_t[]){45, 108, 115, 115, 108, 0 };
+  return p;
+}
+uint8_t * labi_ld_flag_lcrypto(void) {
+  uint8_t * p = (uint8_t[]){45, 108, 99, 114, 121, 112, 116, 111, 0 };
+  return p;
+}
+uint8_t * labi_ld_flag_lmbedtls(void) {
+  uint8_t * p = (uint8_t[]){45, 108, 109, 98, 101, 100, 116, 108, 115, 0 };
+  return p;
+}
+uint8_t * labi_ld_flag_lmbedx509(void) {
+  uint8_t * p = (uint8_t[]){45, 108, 109, 98, 101, 100, 120, 53, 48, 57, 0 };
+  return p;
+}
+uint8_t * labi_ld_flag_lmbedcrypto(void) {
+  uint8_t * p = (uint8_t[]){45, 108, 109, 98, 101, 100, 99, 114, 121, 112, 116, 111, 0 };
+  return p;
+}
+uint8_t * labi_net_tls_openssl_marker(void) {
+  uint8_t * p = (uint8_t[]){115, 104, 117, 95, 110, 101, 116, 95, 116, 108, 115, 95, 111, 112, 101, 110, 115, 115, 108, 95, 109, 97, 114, 107, 101, 114, 0 };
+  return p;
+}
+uint8_t * labi_net_tls_mbedtls_marker(void) {
+  uint8_t * p = (uint8_t[]){115, 104, 117, 95, 110, 101, 116, 95, 116, 108, 115, 95, 109, 98, 101, 100, 116, 108, 115, 95, 109, 97, 114, 107, 101, 114, 0 };
+  return p;
+}
+uint8_t * labi_rel_tls_openssl_o(void) {
+  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 110, 101, 116, 47, 116, 108, 115, 95, 111, 112, 101, 110, 115, 115, 108, 46, 111, 0 };
+  return p;
+}
+uint8_t * labi_rel_tls_mbedtls_o(void) {
+  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 110, 101, 116, 47, 116, 108, 115, 95, 109, 98, 101, 100, 116, 108, 115, 46, 111, 0 };
+  return p;
+}
+void labi_append_openssl_ld_flags(uint8_t * * argv, int32_t * i, int32_t argv_cap) {
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return;
+  }
+  if ((i ==0)) {
+    return;
+  }
+  int32_t is_apple = 0;
+  (void)((is_apple = link_abi_host_is_apple()));
+  if ((is_apple !=0)) {
+    int32_t cur = (i)[0];
+    if ((cur <(argv_cap - 1))) {
+      uint8_t * fl = labi_ld_flag_L_hb_openssl();
+      (void)(((argv)[cur] = fl));
+      (void)(((i)[0] = (cur + 1)));
+    }
+  }
+  int32_t cur2 = (i)[0];
+  if ((cur2 <(argv_cap - 1))) {
+    uint8_t * fssl = labi_ld_flag_lssl();
+    (void)(((argv)[cur2] = fssl));
+    (void)(((i)[0] = (cur2 + 1)));
+  }
+  int32_t cur3 = (i)[0];
+  if ((cur3 <(argv_cap - 1))) {
+    uint8_t * fcr = labi_ld_flag_lcrypto();
+    (void)(((argv)[cur3] = fcr));
+    (void)(((i)[0] = (cur3 + 1)));
+  }
+}
+void labi_append_mbedtls_ld_flags(uint8_t * * argv, int32_t * i, int32_t argv_cap) {
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return;
+  }
+  if ((i ==0)) {
+    return;
+  }
+  int32_t is_apple = 0;
+  (void)((is_apple = link_abi_host_is_apple()));
+  if ((is_apple !=0)) {
+    int32_t cur = (i)[0];
+    if ((cur <(argv_cap - 1))) {
+      uint8_t * fl = labi_ld_flag_L_hb_mbedtls();
+      (void)(((argv)[cur] = fl));
+      (void)(((i)[0] = (cur + 1)));
+    }
+  }
+  int32_t cur2 = (i)[0];
+  if ((cur2 <(argv_cap - 1))) {
+    uint8_t * fmb = labi_ld_flag_lmbedtls();
+    (void)(((argv)[cur2] = fmb));
+    (void)(((i)[0] = (cur2 + 1)));
+  }
+  int32_t cur3 = (i)[0];
+  if ((cur3 <(argv_cap - 1))) {
+    uint8_t * fx = labi_ld_flag_lmbedx509();
+    (void)(((argv)[cur3] = fx));
+    (void)(((i)[0] = (cur3 + 1)));
+  }
+  int32_t cur4 = (i)[0];
+  if ((cur4 <(argv_cap - 1))) {
+    uint8_t * fc = labi_ld_flag_lmbedcrypto();
+    (void)(((argv)[cur4] = fc));
+    (void)(((i)[0] = (cur4 + 1)));
+  }
 }
 uint8_t * labi_ld_driver_clang(void) {
   uint8_t * p = (uint8_t[]){99, 108, 97, 110, 103, 0 };
@@ -555,4 +673,92 @@ void shux_asm_ld_append_unix_gcc_tail_libs_impl(uint8_t * compress_o, uint8_t * 
       }
     }
   }
+}/* wave158: invoke_cc_append_net_tls_ld pure orch (surface pin; Cap residual marker/realpath/rel/push). */
+int32_t invoke_cc_append_net_tls_ld(uint8_t * * argv, int32_t * i, int32_t argv_cap, uint8_t * net_o, uint8_t * repo_root) {
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return 0;
+  }
+  if ((i ==0)) {
+    return 0;
+  }
+  if ((((i)[0] >=(argv_cap - 1)))) {
+    return 0;
+  }
+  uint8_t * mk_ssl = labi_net_tls_openssl_marker();
+  uint8_t * mk_mb = labi_net_tls_mbedtls_marker();
+  if ((net_o !=0)) {
+    if ((((net_o)[0] !=0))) {
+      uint8_t * use = net_o;
+      uint8_t abs_n[4096];
+      uint8_t * rn = ((uint8_t *)(0));
+      (void)((rn = link_abi_realpath_cap(net_o, &((abs_n)[0]))));
+      if ((rn !=0)) {
+        use = rn;
+      }
+      int32_t hit_ssl = 0;
+      (void)((hit_ssl = link_abi_obj_exports_marker(use, mk_ssl)));
+      if ((hit_ssl !=0)) {
+        labi_append_openssl_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+      int32_t hit_mb = 0;
+      (void)((hit_mb = link_abi_obj_exports_marker(use, mk_mb)));
+      if ((hit_mb !=0)) {
+        labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+    }
+  }
+  if ((repo_root ==0)) {
+    return 0;
+  }
+  if ((((repo_root)[0] ==0))) {
+    return 0;
+  }
+  uint8_t * rel_ssl = labi_rel_tls_openssl_o();
+  uint8_t * tls_ssl = ((uint8_t *)(0));
+  (void)((tls_ssl = shux_rel_o_path_from_argv0(repo_root, rel_ssl)));
+  if ((tls_ssl !=0)) {
+    if ((((tls_ssl)[0] !=0))) {
+      uint8_t * use2 = tls_ssl;
+      uint8_t abs_s[4096];
+      uint8_t * rs = ((uint8_t *)(0));
+      (void)((rs = link_abi_realpath_cap(tls_ssl, &((abs_s)[0]))));
+      if ((rs !=0)) {
+        use2 = rs;
+      }
+      int32_t hit2 = 0;
+      (void)((hit2 = link_abi_obj_exports_marker(use2, mk_ssl)));
+      if ((hit2 !=0)) {
+        int32_t _p = 0;
+        (void)((_p = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_ssl)));
+        labi_append_openssl_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+    }
+  }
+  uint8_t * rel_mb = labi_rel_tls_mbedtls_o();
+  uint8_t * tls_mb = ((uint8_t *)(0));
+  (void)((tls_mb = shux_rel_o_path_from_argv0(repo_root, rel_mb)));
+  if ((tls_mb !=0)) {
+    if ((((tls_mb)[0] !=0))) {
+      uint8_t * use3 = tls_mb;
+      uint8_t abs_m[4096];
+      uint8_t * rm = ((uint8_t *)(0));
+      (void)((rm = link_abi_realpath_cap(tls_mb, &((abs_m)[0]))));
+      if ((rm !=0)) {
+        use3 = rm;
+      }
+      int32_t hit3 = 0;
+      (void)((hit3 = link_abi_obj_exports_marker(use3, mk_mb)));
+      if ((hit3 !=0)) {
+        int32_t _p2 = 0;
+        (void)((_p2 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_mb)));
+        labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+        return 1;
+      }
+    }
+  }
+  return 0;
 }
