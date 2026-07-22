@@ -18,8 +18,10 @@
 //   wave127 labi_od_sys_sym_* + link_abi_user_o_needs_std_sys pure orch +
 //   wave128 labi_od_heap_api_sym_* + link_abi_user_o_needs_std_heap_api pure orch +
 //   wave129 labi_od_heap_user_sym_* + link_abi_user_o_needs_heap_user_syms pure orch +
-//   wave130 labi_od_async_scheduler_sym_* + link_abi_user_o_needs_async_scheduler pure orch.
-// Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
+//   wave130 labi_od_async_scheduler_sym_* + link_abi_user_o_needs_async_scheduler pure orch +
+//   wave131 link_abi_obj_needs_{zlib,zstd,brotli} + link_abi_user_o_needs_compress_libs pure orch
+//     (marker + UNDEF/prefix tables; Cap residual exports_marker + has_undef_sym).
+// Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
@@ -28,6 +30,26 @@
 
 /** Cap residual: nm UNDEF probe used by pure needs orch (mega always). */
 export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+
+/**
+ * Cap residual: nm export-marker probe (popen nm + strstr line).
+ * Used by compress pure orch (zlib/zstd/brotli package markers).
+ * @param obj_o *u8 — path to .o; null/empty → 0
+ * @param marker *u8 — marker substring; null/empty → 0
+ * @return i32 — 1 if any nm line contains marker
+ * PLATFORM: SHARED — always mega C (popen/nm Cap)
+ */
+export extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
+
+/**
+ * Cap residual: nm UNDEF substring probe (popen nm + " U " + sym needle).
+ * Used by compress pure orch (exact lib symbols and zstd prefix needles).
+ * @param obj_o *u8 — path to .o; null/empty → 0
+ * @param sym *u8 — symbol name or prefix needle; null/empty → 0
+ * @return i32 — 1 if any UNDEF line contains needle
+ * PLATFORM: SHARED — always mega C (popen/nm Cap); zstd uses prefix needles ZSTD_ / _ZSTD
+ */
+export extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
 
 /** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
 #[no_mangle]
@@ -2052,6 +2074,316 @@ export function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
       }
     }
     i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of zlib UNDEF needles for link_abi_obj_needs_zlib (exact libz symbols).
+ * Product complete set (G.7): seed authority _compress2/_deflate/_inflate/_uncompress.
+ * @return i32 — 4
+ * PLATFORM: SHARED — must match zlib C API surface used by product compress gate
+ */
+#[no_mangle]
+export function labi_od_zlib_undef_sym_count(): i32 {
+  return 4;
+}
+
+/**
+ * zlib UNDEF needle at index (needs_zlib probe table; exact symbols).
+ * @param i i32 — index in [0, 4)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete zlib undef authority
+ */
+#[no_mangle]
+export function labi_od_zlib_undef_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "_compress2";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "_deflate";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "_inflate";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "_uncompress";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * shu_compress_zlib_marker export name for package marker gate.
+ * @return *u8 — static C string "shu_compress_zlib_marker"
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_compress_zlib_marker(): *u8 {
+  let p: *u8 = "shu_compress_zlib_marker";
+  return p;
+}
+
+/**
+ * Count of zstd UNDEF/prefix needles for link_abi_obj_needs_zstd.
+ * Product complete set (G.7): seed authority prefix needles ZSTD_ and _ZSTD
+ * (Cap residual has_undef_sym does substring match on UNDEF lines).
+ * @return i32 — 2
+ * PLATFORM: SHARED — must match zstd C API surface used by product compress gate
+ */
+#[no_mangle]
+export function labi_od_zstd_undef_sym_count(): i32 {
+  return 2;
+}
+
+/**
+ * zstd UNDEF/prefix needle at index (needs_zstd probe table).
+ * @param i i32 — index in [0, 2)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED — G.7 complete zstd undef/prefix authority
+ */
+#[no_mangle]
+export function labi_od_zstd_undef_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "ZSTD_";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "_ZSTD";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * shu_compress_zstd_marker export name for package marker gate.
+ * @return *u8 — static C string "shu_compress_zstd_marker"
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_compress_zstd_marker(): *u8 {
+  let p: *u8 = "shu_compress_zstd_marker";
+  return p;
+}
+
+/**
+ * Count of brotli UNDEF needles for link_abi_obj_needs_brotli (exact libbrotli symbols).
+ * Product complete set (G.7): seed authority BrotliEncoderCompress + BrotliDecoderDecompress.
+ * @return i32 — 2
+ * PLATFORM: SHARED — must match brotli C API surface used by product compress gate
+ */
+#[no_mangle]
+export function labi_od_brotli_undef_sym_count(): i32 {
+  return 2;
+}
+
+/**
+ * brotli UNDEF needle at index (needs_brotli probe table; exact symbols).
+ * @param i i32 — index in [0, 2)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete brotli undef authority
+ */
+#[no_mangle]
+export function labi_od_brotli_undef_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "BrotliEncoderCompress";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "BrotliDecoderDecompress";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * shu_compress_brotli_marker export name for package marker gate.
+ * @return *u8 — static C string "shu_compress_brotli_marker"
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_compress_brotli_marker(): *u8 {
+  let p: *u8 = "shu_compress_brotli_marker";
+  return p;
+}
+
+/**
+ * Whether .o depends on libz (package marker or zlib UNDEF symbols).
+ * Pure orch: marker Cap residual + fixed exact UNDEF table + Cap residual has_undef_sym.
+ * @param obj_o *u8 — path to any .o (user or compress); null/empty → 0
+ * @return i32 — 1 if marker or any zlib UNDEF hits, else 0
+ * Why (wave131): hybrid still had needs_zlib body always mega C with hard-coded strings.
+ * Keep single product table+orch in L8b; Cap residual marker/has_undef stay mega.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_obj_needs_zlib(obj_o: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  if (obj_o[0] == 0) {
+    return 0;
+  }
+  let marker: *u8 = labi_od_compress_zlib_marker();
+  if (marker != 0 as *u8) {
+    if (marker[0] != 0) {
+      let mhit: i32 = 0;
+      unsafe {
+        mhit = link_abi_obj_exports_marker(obj_o, marker);
+      }
+      if (mhit != 0) {
+        return 1;
+      }
+    }
+  }
+  let n: i32 = labi_od_zlib_undef_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_zlib_undef_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_obj_has_undef_sym(obj_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether .o depends on libzstd (package marker or zstd UNDEF/prefix needles).
+ * Pure orch: marker Cap residual + fixed prefix-needle table + Cap residual has_undef_sym.
+ * Prefix needles ZSTD_ / _ZSTD match product seed authority (substring on UNDEF lines).
+ * @param obj_o *u8 — path to any .o; null/empty → 0
+ * @return i32 — 1 if marker or any zstd needle hits, else 0
+ * Why (wave131): hybrid still had needs_zstd body always mega C with hard-coded strings.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_obj_needs_zstd(obj_o: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  if (obj_o[0] == 0) {
+    return 0;
+  }
+  let marker: *u8 = labi_od_compress_zstd_marker();
+  if (marker != 0 as *u8) {
+    if (marker[0] != 0) {
+      let mhit: i32 = 0;
+      unsafe {
+        mhit = link_abi_obj_exports_marker(obj_o, marker);
+      }
+      if (mhit != 0) {
+        return 1;
+      }
+    }
+  }
+  let n: i32 = labi_od_zstd_undef_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_zstd_undef_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_obj_has_undef_sym(obj_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether .o depends on libbrotli (package marker or brotli UNDEF symbols).
+ * Pure orch: marker Cap residual + fixed exact UNDEF table + Cap residual has_undef_sym.
+ * @param obj_o *u8 — path to any .o; null/empty → 0
+ * @return i32 — 1 if marker or any brotli UNDEF hits, else 0
+ * Why (wave131): hybrid still had needs_brotli body always mega C with hard-coded strings.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_obj_needs_brotli(obj_o: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  if (obj_o[0] == 0) {
+    return 0;
+  }
+  let marker: *u8 = labi_od_compress_brotli_marker();
+  if (marker != 0 as *u8) {
+    if (marker[0] != 0) {
+      let mhit: i32 = 0;
+      unsafe {
+        mhit = link_abi_obj_exports_marker(obj_o, marker);
+      }
+      if (mhit != 0) {
+        return 1;
+      }
+    }
+  }
+  let n: i32 = labi_od_brotli_undef_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_brotli_undef_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_obj_has_undef_sym(obj_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether user .o references any compress library (zlib/zstd/brotli).
+ * Pure orch: OR of three leaf pure orchs (G.7 single product compress gate).
+ * @param user_o *u8 — path to user .o; null/empty → 0 via leaf null guards
+ * @return i32 — 1 if any leaf needs hits, else 0
+ * Why (wave131): hybrid still had needs_compress_libs body always mega C chaining hard-coded leaves.
+ * Keep single product orch in L8b; leaf pure + Cap residual marker/has_undef.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
+  if (link_abi_obj_needs_zlib(user_o) != 0) {
+    return 1;
+  }
+  if (link_abi_obj_needs_zstd(user_o) != 0) {
+    return 1;
+  }
+  if (link_abi_obj_needs_brotli(user_o) != 0) {
+    return 1;
   }
   return 0;
 }

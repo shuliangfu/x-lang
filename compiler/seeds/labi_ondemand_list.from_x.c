@@ -17,8 +17,9 @@
  *   + labi_od_heap_api_sym_{count,at} + link_abi_user_o_needs_std_heap_api pure orch
  *   + labi_od_heap_user_sym_{count,at} + link_abi_user_o_needs_heap_user_syms pure orch
  *   + labi_od_async_scheduler_sym_{count,at} + link_abi_user_o_needs_async_scheduler pure orch
+ *   + wave131 compress family: zlib/zstd/brotli marker+undef tables + needs_compress_libs pure orch
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
- *   undef_sym 探针仍 mega（pure needs orch Cap）。
+ *   undef_sym / exports_marker / has_undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -28,6 +29,9 @@
 
 /* Cap residual (mega always): nm UNDEF probe used by pure needs orch. */
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
+/* Cap residual (mega always): compress package marker + UNDEF/prefix probes. */
+int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
+int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym);
 
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
 
@@ -973,6 +977,116 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
   return 0;
 }
 
+/* wave131: product compress family marker + UNDEF/prefix tables + pure orch.
+ * PLATFORM: SHARED — Cap residual exports_marker + has_undef_sym (popen/nm). */
+int labi_od_zlib_undef_sym_count(void) { return 4; }
+const char *labi_od_zlib_undef_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "_compress2";
+  if (i == 1)
+    return "_deflate";
+  if (i == 2)
+    return "_inflate";
+  if (i == 3)
+    return "_uncompress";
+  return NULL;
+}
+const char *labi_od_compress_zlib_marker(void) { return "shu_compress_zlib_marker"; }
+
+int labi_od_zstd_undef_sym_count(void) { return 2; }
+const char *labi_od_zstd_undef_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "ZSTD_";
+  if (i == 1)
+    return "_ZSTD";
+  return NULL;
+}
+const char *labi_od_compress_zstd_marker(void) { return "shu_compress_zstd_marker"; }
+
+int labi_od_brotli_undef_sym_count(void) { return 2; }
+const char *labi_od_brotli_undef_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "BrotliEncoderCompress";
+  if (i == 1)
+    return "BrotliDecoderDecompress";
+  return NULL;
+}
+const char *labi_od_compress_brotli_marker(void) { return "shu_compress_brotli_marker"; }
+
+/* Pure orch: zlib marker + exact UNDEF table + Cap residual. PLATFORM: SHARED. */
+int link_abi_obj_needs_zlib(const char *obj_o) {
+  int n;
+  int i;
+  const char *marker;
+  if (!obj_o || !obj_o[0])
+    return 0;
+  marker = labi_od_compress_zlib_marker();
+  if (marker && marker[0] && link_abi_obj_exports_marker(obj_o, marker) != 0)
+    return 1;
+  n = labi_od_zlib_undef_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_zlib_undef_sym_at(i);
+    if (sym && sym[0] && link_abi_obj_has_undef_sym(obj_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/* Pure orch: zstd marker + prefix needles + Cap residual. PLATFORM: SHARED. */
+int link_abi_obj_needs_zstd(const char *obj_o) {
+  int n;
+  int i;
+  const char *marker;
+  if (!obj_o || !obj_o[0])
+    return 0;
+  marker = labi_od_compress_zstd_marker();
+  if (marker && marker[0] && link_abi_obj_exports_marker(obj_o, marker) != 0)
+    return 1;
+  n = labi_od_zstd_undef_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_zstd_undef_sym_at(i);
+    if (sym && sym[0] && link_abi_obj_has_undef_sym(obj_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/* Pure orch: brotli marker + exact UNDEF table + Cap residual. PLATFORM: SHARED. */
+int link_abi_obj_needs_brotli(const char *obj_o) {
+  int n;
+  int i;
+  const char *marker;
+  if (!obj_o || !obj_o[0])
+    return 0;
+  marker = labi_od_compress_brotli_marker();
+  if (marker && marker[0] && link_abi_obj_exports_marker(obj_o, marker) != 0)
+    return 1;
+  n = labi_od_brotli_undef_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_brotli_undef_sym_at(i);
+    if (sym && sym[0] && link_abi_obj_has_undef_sym(obj_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/* Pure orch: OR of three compress leaves. PLATFORM: SHARED. */
+int link_abi_user_o_needs_compress_libs(const char *user_o) {
+  if (link_abi_obj_needs_zlib(user_o) != 0)
+    return 1;
+  if (link_abi_obj_needs_zstd(user_o) != 0)
+    return 1;
+  if (link_abi_obj_needs_brotli(user_o) != 0)
+    return 1;
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -1053,6 +1167,19 @@ int link_abi_user_o_needs_heap_user_syms(const char *user_o);
 int labi_od_async_scheduler_sym_count(void);
 const char *labi_od_async_scheduler_sym_at(int i);
 int link_abi_user_o_needs_async_scheduler(const char *user_o);
+int labi_od_zlib_undef_sym_count(void);
+const char *labi_od_zlib_undef_sym_at(int i);
+const char *labi_od_compress_zlib_marker(void);
+int labi_od_zstd_undef_sym_count(void);
+const char *labi_od_zstd_undef_sym_at(int i);
+const char *labi_od_compress_zstd_marker(void);
+int labi_od_brotli_undef_sym_count(void);
+const char *labi_od_brotli_undef_sym_at(int i);
+const char *labi_od_compress_brotli_marker(void);
+int link_abi_obj_needs_zlib(const char *obj_o);
+int link_abi_obj_needs_zstd(const char *obj_o);
+int link_abi_obj_needs_brotli(const char *obj_o);
+int link_abi_user_o_needs_compress_libs(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

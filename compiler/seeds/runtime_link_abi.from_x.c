@@ -2776,101 +2776,18 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
 
 
 
-/** 任意 .o 是否依赖 libz（marker 或 zlib 未定义符号）。F-04 v4：含用户 .x 链出的 .o。 */
-int link_abi_obj_needs_zlib(const char *obj_o) {
-  if ((obj_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((obj_o)[0] ==0)) {
-      return 0;
-    }
-    if ((link_abi_obj_exports_marker(obj_o, "shu_compress_zlib_marker") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "_compress2") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "_deflate") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "_inflate") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "_uncompress") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
-
-/** 任意 .o 是否依赖 libzstd（F-04 v7+：zstd .x 用户链）。 */
-int link_abi_obj_needs_zstd(const char *obj_o) {
-  if ((obj_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((obj_o)[0] ==0)) {
-      return 0;
-    }
-    if ((link_abi_obj_exports_marker(obj_o, "shu_compress_zstd_marker") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "ZSTD_") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "_ZSTD") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
-
-/** 任意 .o 是否依赖 libbrotli（F-04 v6：lib.x 用户链）。 */
-int link_abi_obj_needs_brotli(const char *obj_o) {
-  if ((obj_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((obj_o)[0] ==0)) {
-      return 0;
-    }
-    if ((link_abi_obj_exports_marker(obj_o, "shu_compress_brotli_marker") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "BrotliEncoderCompress") !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_has_undef_sym(obj_o, "BrotliDecoderDecompress") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
-
-/** 用户 .o 是否引用任一压缩库（F-04 v7：全 .x 按需 -lz/-lzstd/-lbrotli*）。 */
-int link_abi_user_o_needs_compress_libs(const char *user_o) {
-  (void)(({   {
-    if ((link_abi_obj_needs_zlib(user_o) !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_needs_zstd(user_o) !=0)) {
-      return 1;
-    }
-    if ((link_abi_obj_needs_brotli(user_o) !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/*
+ * wave131: compress family pure orch lives in labi_ondemand_list
+ * (zlib/zstd/brotli marker + UNDEF/prefix tables + needs_compress_libs).
+ * Cap residual: link_abi_obj_exports_marker + link_abi_obj_has_undef_sym stay mega.
+ * Cold twin: #include labi_ondemand_list.from_x.c (below); hybrid FROM_X → L8b pure.
+ * Forward decls: call sites below need symbols before the ondemand include block.
+ * PLATFORM: SHARED.
+ */
+int link_abi_obj_needs_zlib(const char *obj_o);
+int link_abi_obj_needs_zstd(const char *obj_o);
+int link_abi_obj_needs_brotli(const char *obj_o);
+int link_abi_user_o_needs_compress_libs(const char *user_o);
 
 /* G-02f-275 L6 invoke_ld list pure */
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
@@ -5763,6 +5680,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave128: needs_std_heap_api pure orch lives in labi_ondemand_list (heap_api sym table + orch).
  * wave129: needs_heap_user_syms pure orch lives in labi_ondemand_list (heap_user sym table + orch).
  * wave130: needs_async_scheduler pure orch lives in labi_ondemand_list (async_scheduler sym table + orch).
+ * wave131: compress family pure orch lives in labi_ondemand_list (zlib/zstd/brotli marker+undef + needs_compress_libs).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -7010,7 +6928,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–130 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler pure orch (L8b pure .x / cold seed). */
+/* wave118–131 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7050,6 +6968,19 @@ int link_abi_user_o_needs_heap_user_syms(const char *user_o);
 int labi_od_async_scheduler_sym_count(void);
 const char *labi_od_async_scheduler_sym_at(int i);
 int link_abi_user_o_needs_async_scheduler(const char *user_o);
+int labi_od_zlib_undef_sym_count(void);
+const char *labi_od_zlib_undef_sym_at(int i);
+const char *labi_od_compress_zlib_marker(void);
+int labi_od_zstd_undef_sym_count(void);
+const char *labi_od_zstd_undef_sym_at(int i);
+const char *labi_od_compress_zstd_marker(void);
+int labi_od_brotli_undef_sym_count(void);
+const char *labi_od_brotli_undef_sym_at(int i);
+const char *labi_od_compress_brotli_marker(void);
+int link_abi_obj_needs_zlib(const char *obj_o);
+int link_abi_obj_needs_zstd(const char *obj_o);
+int link_abi_obj_needs_brotli(const char *obj_o);
+int link_abi_user_o_needs_compress_libs(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

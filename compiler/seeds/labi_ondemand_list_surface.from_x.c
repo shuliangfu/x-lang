@@ -1,8 +1,8 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–130 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler pure)
- * Cap residual: nm/push/ensure + undef_sym probes in mega
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–131 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family pure)
+ * Cap residual: nm/push/ensure + undef_sym / exports_marker / has_undef_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -68,6 +68,19 @@ extern int32_t link_abi_user_o_needs_heap_user_syms(uint8_t * user_o);
 extern int32_t labi_od_async_scheduler_sym_count(void);
 extern uint8_t * labi_od_async_scheduler_sym_at(int32_t i);
 extern int32_t link_abi_user_o_needs_async_scheduler(uint8_t * user_o);
+extern int32_t labi_od_zlib_undef_sym_count(void);
+extern uint8_t * labi_od_zlib_undef_sym_at(int32_t i);
+extern uint8_t * labi_od_compress_zlib_marker(void);
+extern int32_t labi_od_zstd_undef_sym_count(void);
+extern uint8_t * labi_od_zstd_undef_sym_at(int32_t i);
+extern uint8_t * labi_od_compress_zstd_marker(void);
+extern int32_t labi_od_brotli_undef_sym_count(void);
+extern uint8_t * labi_od_brotli_undef_sym_at(int32_t i);
+extern uint8_t * labi_od_compress_brotli_marker(void);
+extern int32_t link_abi_obj_needs_zlib(uint8_t * obj_o);
+extern int32_t link_abi_obj_needs_zstd(uint8_t * obj_o);
+extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
+extern int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o);
 extern uint8_t * labi_od_rel_net(void);
 extern uint8_t * labi_od_rel_thread(void);
 extern uint8_t * labi_od_rel_heap(void);
@@ -87,6 +100,8 @@ extern uint8_t * labi_od_rel_net_udp_batch(void);
 extern uint8_t * labi_od_rel_net_workers(void);
 extern uint8_t * labi_od_rel_test_fn_invoke(void);
 extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
+extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
+extern int32_t link_abi_obj_has_undef_sym(uint8_t * obj_o, uint8_t * sym);
 int32_t labi_od_simple_group_count(void) {
   return 10;
 }
@@ -1613,6 +1628,191 @@ int32_t link_abi_user_o_needs_async_scheduler(uint8_t * user_o) {
       }
     }
     (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_od_zlib_undef_sym_count(void) {
+  return 4;
+}
+uint8_t * labi_od_zlib_undef_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"_compress2");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"_deflate");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"_inflate");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"_uncompress");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+uint8_t * labi_od_compress_zlib_marker(void) {
+  uint8_t * p = ((uint8_t *)"shu_compress_zlib_marker");
+  return p;
+}
+int32_t labi_od_zstd_undef_sym_count(void) {
+  return 2;
+}
+uint8_t * labi_od_zstd_undef_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"ZSTD_");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"_ZSTD");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+uint8_t * labi_od_compress_zstd_marker(void) {
+  uint8_t * p = ((uint8_t *)"shu_compress_zstd_marker");
+  return p;
+}
+int32_t labi_od_brotli_undef_sym_count(void) {
+  return 2;
+}
+uint8_t * labi_od_brotli_undef_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"BrotliEncoderCompress");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"BrotliDecoderDecompress");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+uint8_t * labi_od_compress_brotli_marker(void) {
+  uint8_t * p = ((uint8_t *)"shu_compress_brotli_marker");
+  return p;
+}
+int32_t link_abi_obj_needs_zlib(uint8_t * obj_o) {
+  if ((obj_o ==0)) {
+    return 0;
+  }
+  if (((obj_o)[0] ==0)) {
+    return 0;
+  }
+  uint8_t * marker = labi_od_compress_zlib_marker();
+  if ((marker !=0)) {
+    if (((marker)[0] !=0)) {
+      int32_t mhit = 0;
+      (void)((mhit = link_abi_obj_exports_marker(obj_o, marker)));
+      if ((mhit !=0)) {
+        return 1;
+      }
+    }
+  }
+  int32_t n = labi_od_zlib_undef_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_zlib_undef_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = link_abi_obj_has_undef_sym(obj_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t link_abi_obj_needs_zstd(uint8_t * obj_o) {
+  if ((obj_o ==0)) {
+    return 0;
+  }
+  if (((obj_o)[0] ==0)) {
+    return 0;
+  }
+  uint8_t * marker = labi_od_compress_zstd_marker();
+  if ((marker !=0)) {
+    if (((marker)[0] !=0)) {
+      int32_t mhit = 0;
+      (void)((mhit = link_abi_obj_exports_marker(obj_o, marker)));
+      if ((mhit !=0)) {
+        return 1;
+      }
+    }
+  }
+  int32_t n = labi_od_zstd_undef_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_zstd_undef_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = link_abi_obj_has_undef_sym(obj_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t link_abi_obj_needs_brotli(uint8_t * obj_o) {
+  if ((obj_o ==0)) {
+    return 0;
+  }
+  if (((obj_o)[0] ==0)) {
+    return 0;
+  }
+  uint8_t * marker = labi_od_compress_brotli_marker();
+  if ((marker !=0)) {
+    if (((marker)[0] !=0)) {
+      int32_t mhit = 0;
+      (void)((mhit = link_abi_obj_exports_marker(obj_o, marker)));
+      if ((mhit !=0)) {
+        return 1;
+      }
+    }
+  }
+  int32_t n = labi_od_brotli_undef_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_brotli_undef_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = link_abi_obj_has_undef_sym(obj_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o) {
+  if ((link_abi_obj_needs_zlib(user_o) !=0)) {
+    return 1;
+  }
+  if ((link_abi_obj_needs_zstd(user_o) !=0)) {
+    return 1;
+  }
+  if ((link_abi_obj_needs_brotli(user_o) !=0)) {
+    return 1;
   }
   return 0;
 }
