@@ -1690,59 +1690,18 @@ const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_ensure_runtime_panic_o(const char *argv0) {
-    if (asm_link_obj_skip_missing(shux_runtime_panic_o_path(argv0)))
-        return 0;
-    char comp[PATH_MAX];
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: make -C compiler runtime_panic.o");
-        return -1;
-    }
-    char out_o[PATH_MAX];
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_panic.o", comp) >= sizeof out_o)
-        return -1;
-#if defined(__linux__)
-    char src_s[PATH_MAX];
+/* wave169: shux_ensure_runtime_panic_o pure orch — body removed from mega
+ * (lives in labi_ensure_list L4 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * Why: hybrid still had always-mega C body for special panic ensure (multi-source
+ * prefer) after panic path pure wave163 and freestanding ensure pair wave167/168.
+ * Cap residual: resolve/access/cc/stat + host linux_x86_64 / posix_aarch64.
+ * PLATFORM: SHARED orch; LINUX x86_64 asm; LINUX|MACOS aarch64 arm64 seed. */
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+/* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
+#else
+int shux_ensure_runtime_panic_o(const char *argv0);
 #endif
-    char src_arm[PATH_MAX];
-    char src_c[PATH_MAX];
-    const char *src = NULL;
-    int from_asm_s = 0;
-#if defined(__linux__) && (defined(__x86_64__) || defined(__amd64__))
-    if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/runtime_panic_x86_64.s", comp) < sizeof src_s && access(src_s, R_OK) == 0) {
-        src = src_s;
-        from_asm_s = 1;
-    }
-#endif
-#if (defined(__linux__) || defined(__APPLE__)) && (defined(__aarch64__) || defined(__arm64__))
-    if (!src && (size_t)snprintf(src_arm, sizeof src_arm, "%s/seeds/runtime_panic_arm64.from_x.c", comp) < sizeof src_arm && access(src_arm, R_OK) == 0)
-        src = src_arm;
-#endif
-    if (!src) {
-        if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_panic.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-            link_diag_runtime_source_missing_under("runtime_panic", comp, "/seeds/");
-            return -1;
-        }
-        src = src_c;
-    }
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src, out_o, inc0, inc1, inc2, from_asm_s);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_panic.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_panic_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_panic.o", out_o);
-        return -1;
-    }
-    return 0;
-}
 
 
 
@@ -1944,6 +1903,8 @@ const char *labi_ensure_catalog_stem(int i);
 const char *labi_ensure_catalog_out_base(int i);
 const char *labi_ensure_catalog_seed_base(int i);
 int labi_ensure_catalog_flags(int i);
+/* wave169: ensure_runtime_panic_o pure orch (L4; hybrid). */
+int shux_ensure_runtime_panic_o(const char *argv0);
 #endif
 
 /**
@@ -2764,6 +2725,28 @@ int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *
  */
 int link_abi_host_is_apple(void) {
 #if defined(__APPLE__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+/* Cap residual host #if for wave169 ensure_runtime_panic pure orch.
+ * PLATFORM: LINUX x86_64 — prefer src/asm/runtime_panic_x86_64.s (≡ mega historical gate).
+ */
+int link_abi_host_is_linux_x86_64(void) {
+#if defined(__linux__) && (defined(__x86_64__) || defined(__amd64__))
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+/* Cap residual host #if for wave169 ensure_runtime_panic pure orch.
+ * PLATFORM: LINUX|MACOS aarch64 — prefer seeds/runtime_panic_arm64.from_x.c.
+ */
+int link_abi_host_is_posix_aarch64(void) {
+#if (defined(__linux__) || defined(__APPLE__)) && (defined(__aarch64__) || defined(__arm64__))
     return 1;
 #else
     return 0;

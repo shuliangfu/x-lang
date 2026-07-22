@@ -6,7 +6,9 @@
  *   labi_ensure_catalog_count
  *   labi_ensure_catalog_{stem,out_base,seed_base,flags}
  *   labi_ensure_catalog_step_at
- * Cap residual：spawn/cc IO 仍在 mega link_abi_ensure_from_catalog。
+ *   + wave169 shux_ensure_runtime_panic_o pure orch
+ * Cap residual：spawn/cc IO 仍在 mega link_abi_ensure_from_catalog；
+ *   wave169 panic ensure：resolve/access/cc/stat + host linux_x86_64 / posix_aarch64。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -15,6 +17,21 @@
 #include <stddef.h>
 
 #ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+
+/* Cap residual peers used by wave169 ensure_runtime_panic pure orch (cold twin). */
+int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+int link_abi_path_readable(const char *path);
+int shux_cc_compile_sync(const char *src, const char *out_o, const char *inc0, const char *inc1,
+                         const char *inc2, int from_asm_s);
+const char *asm_link_obj_skip_missing(const char *path);
+int link_abi_host_is_linux_x86_64(void);
+int link_abi_host_is_posix_aarch64(void);
+const char *shux_runtime_panic_o_path(const char *argv0);
+void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint);
+void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
+                                            const char *suffix);
+void link_diag_runtime_obj_build_status(const char *obj_name, int status);
+void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o);
 
 /* flags: 0=NONE, 1=PIE (-fPIE), 2=SQLITE (-DSHUX_DB_USE_SQLITE3) */
 
@@ -239,6 +256,138 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
   return 1;
 }
 
+/* wave169: ensure_runtime_panic_o pure orch (cold twin ≡ .x).
+ * Peer panic_o_path; Cap residual resolve/access/cc/stat + host linux_x86_64 / posix_aarch64.
+ * Pure byte join (no snprintf). PLATFORM: SHARED orch; LINUX x86_64 asm; POSIX aarch64 seed.
+ */
+int shux_ensure_runtime_panic_o(const char *argv0) {
+  char comp[4096];
+  char out_o[4096];
+  char src_s[4096];
+  char src_arm[4096];
+  char src_c[4096];
+  char inc0[4096];
+  char inc1[4096];
+  char inc2[4096];
+  const char *o_path;
+  const char *have;
+  const char *src = NULL;
+  const char *leaf_o = "runtime_panic.o";
+  int dn, ln_o, i, k, rc, crc, from_asm_s = 0;
+  o_path = shux_runtime_panic_o_path(argv0);
+  have = asm_link_obj_skip_missing(o_path);
+  if (have != NULL)
+    return 0;
+  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  if (rc != 0) {
+    link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: make -C compiler runtime_panic.o");
+    return -1;
+  }
+  dn = 0;
+  while (comp[dn] != 0)
+    dn++;
+  ln_o = 0;
+  while (leaf_o[ln_o] != 0)
+    ln_o++;
+  if (dn + 1 + ln_o >= 4096)
+    return -1;
+  for (i = 0; i < dn; i++)
+    out_o[i] = comp[i];
+  out_o[dn] = '/';
+  for (k = 0; k <= ln_o; k++)
+    out_o[dn + 1 + k] = leaf_o[k];
+  if (link_abi_host_is_linux_x86_64() != 0) {
+    const char *leaf_s = "src/asm/runtime_panic_x86_64.s";
+    int ln_s = 0;
+    while (leaf_s[ln_s] != 0)
+      ln_s++;
+    if (dn + 1 + ln_s < 4096) {
+      for (i = 0; i < dn; i++)
+        src_s[i] = comp[i];
+      src_s[dn] = '/';
+      for (k = 0; k <= ln_s; k++)
+        src_s[dn + 1 + k] = leaf_s[k];
+      if (link_abi_path_readable(src_s) != 0) {
+        src = src_s;
+        from_asm_s = 1;
+      }
+    }
+  }
+  if (src == NULL && link_abi_host_is_posix_aarch64() != 0) {
+    const char *leaf_a = "seeds/runtime_panic_arm64.from_x.c";
+    int ln_a = 0;
+    while (leaf_a[ln_a] != 0)
+      ln_a++;
+    if (dn + 1 + ln_a < 4096) {
+      for (i = 0; i < dn; i++)
+        src_arm[i] = comp[i];
+      src_arm[dn] = '/';
+      for (k = 0; k <= ln_a; k++)
+        src_arm[dn + 1 + k] = leaf_a[k];
+      if (link_abi_path_readable(src_arm) != 0)
+        src = src_arm;
+    }
+  }
+  if (src == NULL) {
+    const char *leaf_c = "seeds/runtime_panic.from_x.c";
+    int ln_c = 0;
+    while (leaf_c[ln_c] != 0)
+      ln_c++;
+    if (dn + 1 + ln_c >= 4096)
+      return -1;
+    for (i = 0; i < dn; i++)
+      src_c[i] = comp[i];
+    src_c[dn] = '/';
+    for (k = 0; k <= ln_c; k++)
+      src_c[dn + 1 + k] = leaf_c[k];
+    if (link_abi_path_readable(src_c) == 0) {
+      link_diag_runtime_source_missing_under("runtime_panic", comp, "/seeds/");
+      return -1;
+    }
+    src = src_c;
+  }
+  for (i = 0; i <= dn; i++)
+    inc0[i] = comp[i];
+  {
+    const char *leaf_inc = "include";
+    int ln_inc = 0;
+    while (leaf_inc[ln_inc] != 0)
+      ln_inc++;
+    if (dn + 1 + ln_inc >= 4096)
+      return -1;
+    for (i = 0; i < dn; i++)
+      inc1[i] = comp[i];
+    inc1[dn] = '/';
+    for (k = 0; k <= ln_inc; k++)
+      inc1[dn + 1 + k] = leaf_inc[k];
+  }
+  {
+    const char *leaf_src = "src";
+    int ln_src = 0;
+    while (leaf_src[ln_src] != 0)
+      ln_src++;
+    if (dn + 1 + ln_src >= 4096)
+      return -1;
+    for (i = 0; i < dn; i++)
+      inc2[i] = comp[i];
+    inc2[dn] = '/';
+    for (k = 0; k <= ln_src; k++)
+      inc2[dn + 1 + k] = leaf_src[k];
+  }
+  crc = shux_cc_compile_sync(src, out_o, inc0, inc1, inc2, from_asm_s);
+  if (crc != 0) {
+    link_diag_runtime_obj_build_status("runtime_panic.o", crc);
+    return -1;
+  }
+  o_path = shux_runtime_panic_o_path(argv0);
+  have = asm_link_obj_skip_missing(o_path);
+  if (have == NULL) {
+    link_diag_runtime_obj_missing("runtime_panic.o", out_o);
+    return -1;
+  }
+  return 0;
+}
+
 #else
 int labi_ensure_catalog_count(void);
 const char *labi_ensure_catalog_stem(int i);
@@ -248,6 +397,8 @@ int labi_ensure_catalog_flags(int i);
 int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_base_out,
                                 const char **seed_base_out, int *flags_out,
                                 const char **hint_out);
+/* wave169: ensure_runtime_panic_o pure orch (L4). */
+int shux_ensure_runtime_panic_o(const char *argv0);
 #endif
 
 int labi_ensure_list_slice_marker(void) {
