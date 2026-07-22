@@ -5,13 +5,16 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 8 public gates + count:
+// R2 full: .x owns 9 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
 //   - shux_asm_ld_lib_root_ptr_usable (wave114; low-tag + empty reject)
+//   - shux_asm_ld_lib_root_default (wave115; SHUX_LIB or "."; Cap residual: getenv)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
+
+export extern "C" function getenv(name: *u8): *u8;
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -182,11 +185,47 @@ export function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
 }
 
 /**
+ * Write default lib-root into root_buf (at least 512 bytes): env SHUX_LIB if usable,
+ * else ".".
+ * @param root_buf *u8 — caller buffer; capacity >= 512; always left NUL-terminated
+ * @return void
+ * Why (wave115): product hybrid still had always-linked mega C (getenv+strncpy).
+ * Pure orch: default "." then pure usable-check on getenv("SHUX_LIB") then byte copy
+ * (no strncpy Cap). Cap residual: getenv extern only (same as rt_lib_root.x).
+ * Differs from driver_lib_root_default by using low-tag usable (wave114).
+ * Track-L: #[no_mangle] keeps surface short name. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_asm_ld_lib_root_default(root_buf: *u8): void {
+  // Default to "." before env probe (mega: root_buf[0]='.'; root_buf[1]=0).
+  root_buf[0] = 46;
+  root_buf[1] = 0;
+  let def: *u8 = 0 as *u8;
+  unsafe {
+    def = getenv("SHUX_LIB");
+  }
+  if (shux_asm_ld_lib_root_ptr_usable(def) == 0) {
+    return;
+  }
+  // Copy at most 511 bytes + force trailing NUL at index 511 (mega strncpy).
+  let i: i32 = 0;
+  while (i < 511) {
+    let c: u8 = def[i];
+    root_buf[i] = c;
+    if (c == 0) {
+      return;
+    }
+    i = i + 1;
+  }
+  root_buf[511] = 0;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 8 (fixed catalog size for hybrid FROM_X bookkeeping; wave114 +1).
+ * Returns: 9 (fixed catalog size for hybrid FROM_X bookkeeping; wave115 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 8;
+  return 9;
 }

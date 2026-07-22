@@ -690,7 +690,10 @@ int shux_asm_ld_lib_root_ptr_usable(const char *p);
  * 写入默认 lib root 到 root_buf（SHUX_LIB 或 "."）。
  * 参数：root_buf 至少 512 字节。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-165 / wave115：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Semantics: "." then getenv("SHUX_LIB") if pure usable. PLATFORM: SHARED. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 void shux_asm_ld_lib_root_default(char root_buf[512]) {
     const char *def = getenv("SHUX_LIB");
     root_buf[0] = '.';
@@ -700,6 +703,9 @@ void shux_asm_ld_lib_root_default(char root_buf[512]) {
     strncpy(root_buf, def, 511);
     root_buf[511] = '\0';
 }
+#else
+void shux_asm_ld_lib_root_default(char root_buf[512]);
+#endif
 
 
 

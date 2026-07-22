@@ -1,13 +1,14 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (8 public gates + count; wave114 lib_root_ptr_usable)
- * Cap residual: Windows #if path sep in mega cold path
+ * Prove: full.x vs this seed → nm IDENTICAL (9 public gates + count; wave115 lib_root_default)
+ * Cap residual: Windows #if path sep in mega cold path; getenv Cap residual in default
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <sys/types.h>
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1) {
   if ((n < 2)) {
@@ -147,6 +148,25 @@ int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t * p) {
   }
   return 1;
 }
+void shux_asm_ld_lib_root_default(uint8_t * root_buf) {
+  (void)(((root_buf)[0] = 46));
+  (void)(((root_buf)[1] = 0));
+  uint8_t * def = 0;
+  (void)((def = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4c\x49\x42"))));
+  if ((shux_asm_ld_lib_root_ptr_usable(def) ==0)) {
+    return;
+  }
+  int32_t i = 0;
+  while ((i < 511)) {
+    uint8_t c = (def)[i];
+    (void)(((root_buf)[i] = c));
+    if ((c ==0)) {
+      return;
+    }
+    (void)((i = (i + 1)));
+  }
+  (void)(((root_buf)[511] = 0));
+}
 int32_t labi_path_pure_count(void) {
-  return 8;
+  return 9;
 }

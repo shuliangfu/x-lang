@@ -2809,16 +2809,34 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
 }
 
 
-/** Exported function `shux_asm_ld_lib_root_default`.
- * Implements `shux_asm_ld_lib_root_default`.
- * @param root_buf *u8
- * @return void
+/**
+ * Write default lib-root into root_buf (SHUX_LIB or ".").
+ * @param root_buf *u8 — capacity >= 512
+ * Authority: labi_path_pure.x (wave115 product hybrid). Anchor body matches pure.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function shux_asm_ld_lib_root_default(root_buf: *u8): void {
+  /* Anchor mirror of labi_path_pure pure orch (not product hybrid path). */
+  root_buf[0] = 46;
+  root_buf[1] = 0;
+  let def: *u8 = 0 as *u8;
   unsafe {
-    shux_asm_ld_lib_root_default_impl(root_buf);
+    def = getenv("SHUX_LIB");
   }
+  if (shux_asm_ld_lib_root_ptr_usable(def) == 0) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < 511) {
+    let c: u8 = def[i];
+    root_buf[i] = c;
+    if (c == 0) {
+      return;
+    }
+    i = i + 1;
+  }
+  root_buf[511] = 0;
 }
 
 /** Exported function `shux_linux_host_gcc_path`.

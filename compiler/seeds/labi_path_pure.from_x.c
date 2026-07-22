@@ -2,10 +2,12 @@
  * Logic source: src/runtime/labi_path_pure.x
  * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave114）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave114–115）：公共业务符号由 full .x 提供：
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
  *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
- *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag) + count
+ *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
+ *   + shux_asm_ld_lib_root_default (wave115 SHUX_LIB/"." ; Cap residual getenv)
+ *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -14,6 +16,8 @@
  */
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
+#include <stdlib.h>
 #include <sys/types.h>
 
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
@@ -165,9 +169,22 @@ int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p) {
   return 1;
 }
 
+/* wave115 cold twin: default lib-root (SHUX_LIB or "."). Cap residual: getenv. */
+void shux_asm_ld_lib_root_default(uint8_t *root_buf) {
+  const char *def;
+  root_buf[0] = (uint8_t)'.';
+  root_buf[1] = 0;
+  def = getenv("SHUX_LIB");
+  if (shux_asm_ld_lib_root_ptr_usable((uint8_t *)def) == 0) {
+    return;
+  }
+  strncpy((char *)root_buf, def, 511);
+  root_buf[511] = 0;
+}
+
 /* Pure audit: number of L0 path-pure public gates in this slice. */
 int32_t labi_path_pure_count(void) {
-  return 8;
+  return 9;
 }
 
 #else
@@ -179,6 +196,7 @@ int32_t shux_output_want_exe(uint8_t *path);
 int32_t shux_path_has_sep(uint8_t *s);
 uint8_t *shux_path_last_sep(uint8_t *s);
 int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p);
+void shux_asm_ld_lib_root_default(uint8_t *root_buf);
 int32_t labi_path_pure_count(void);
 #endif
 
