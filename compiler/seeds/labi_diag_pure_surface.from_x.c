@@ -1,9 +1,10 @@
 /* seeds/labi_diag_pure_surface.from_x.c
  * G-02f labi_diag_pure R2 full surface — isomorphic with src/runtime/labi_diag_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_diag_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + 8 report + count)
+ * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + reports + count + wave111/112)
  * Cap residual: link_diag_ld_debug_argv → mega _impl (char**);
- *   link_diag_errno / path (errno+strerror); wave111 shux_link_perror pure orch
+ *   link_diag_errno / path (errno+strerror); link_diag_wait_* (WIF*);
+ *   wave111 shux_link_perror pure orch; wave112 tool_status / obj_build_status pure orch
  * Regen: ./shux -E ... src/runtime/labi_diag_pure.x | filter DBG + polish prologue
  * Track-L (2026-07-16): labi_diag_append keeps short name; .x has #[no_mangle] (was module mangle).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -23,6 +24,7 @@
 #include <fcntl.h>
 #include <errno.h>
 extern int32_t labi_diag_append(uint8_t * dst, int32_t cap, uint8_t * src);
+extern void labi_diag_append_i32(uint8_t * dst, int32_t cap, int32_t v);
 extern uint8_t * link_diag_code_for_kind(uint8_t * kind);
 extern void link_diag_runtime_obj_resolve_fail(uint8_t * obj_name, uint8_t * hint);
 extern void link_diag_runtime_source_missing(uint8_t * obj_name, uint8_t * source_path);
@@ -32,20 +34,25 @@ extern void link_diag_freestanding_missing(uint8_t * obj_name, uint8_t * symbol_
 extern void link_diag_freestanding_unsupported(void);
 extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * path);
 extern void link_diag_ld_debug_argv(uint8_t * label, uint8_t * argv);
+extern void link_diag_tool_status(uint8_t * tool, int32_t status);
+extern void link_diag_runtime_obj_build_status(uint8_t * obj_name, int32_t status);
 extern int32_t labi_diag_pure_count(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern void link_diag_ld_debug_argv_impl(uint8_t * label, uint8_t * argv);
 /* Cap residual (mega always): errno + strerror + reportf. */
 extern void link_diag_errno(uint8_t * kind, uint8_t * op);
 extern void link_diag_errno_path(uint8_t * kind, uint8_t * op, uint8_t * path);
+/* Cap residual (mega always): POSIX wait decode. PLATFORM: POSIX. */
+extern int32_t link_diag_wait_is_signaled(int32_t status);
+extern int32_t link_diag_wait_code(int32_t status);
 extern void shux_link_perror(uint8_t * msg);
 int32_t labi_diag_append(uint8_t * dst, int32_t cap, uint8_t * src) {
   int32_t i = 0;
   int32_t j = 0;
-  if ((dst ==((uint8_t *)(0)))) {
+  if ((dst ==0)) {
     return 0;
   }
-  if ((src ==((uint8_t *)(0)))) {
+  if ((src ==0)) {
     while ((i < cap)) {
       if (((dst)[((size_t)(i))] ==0)) {
         return i;
@@ -77,20 +84,62 @@ int32_t labi_diag_append(uint8_t * dst, int32_t cap, uint8_t * src) {
   (void)(((dst)[((size_t)(i))] = 0));
   return i;
 }
+void labi_diag_append_i32(uint8_t * dst, int32_t cap, int32_t v) {
+  uint8_t dig[16] = {};
+  int32_t n = v;
+  int32_t i = 0;
+  int32_t j = 0;
+  int32_t neg = 0;
+  uint8_t a = 0;
+  (void)(((dig)[0] = 0));
+  if ((n ==0)) {
+    (void)(((dig)[0] = 48));
+    (void)(((dig)[1] = 0));
+    (void)(labi_diag_append(dst, cap, &((dig)[0])));
+    return;
+  }
+  if ((n < 0)) {
+    (void)((neg = 1));
+    (void)((n = (0 - n)));
+  }
+  while ((n > 0)) {
+    if ((i >=15)) {
+      break;
+    }
+    (void)(((dig)[i] = ((uint8_t)((48 + (n - ((n / 10) * 10)))))));
+    (void)((n = (n / 10)));
+    (void)((i = (i + 1)));
+  }
+  if ((neg !=0)) {
+    if ((i < 15)) {
+      (void)(((dig)[i] = 45));
+      (void)((i = (i + 1)));
+    }
+  }
+  (void)((j = 0));
+  while ((j < (i / 2))) {
+    (void)((a = (dig)[j]));
+    (void)(((dig)[j] = (dig)[((i - 1) - j)]));
+    (void)(((dig)[((i - 1) - j)] = a));
+    (void)((j = (j + 1)));
+  }
+  (void)(((dig)[i] = 0));
+  (void)(labi_diag_append(dst, cap, &((dig)[0])));
+}
 uint8_t * link_diag_code_for_kind(uint8_t * kind) {
-  if ((kind ==((uint8_t *)(0)))) {
-    uint8_t * p = (uint8_t[]){80, 82, 67, 48, 48, 49, 0 };
+  if ((kind ==0)) {
+    uint8_t * p = ((uint8_t *)"\x50\x52\x43\x30\x30\x31");
     return p;
   }
   {
-    uint8_t * be = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 };
+    uint8_t * be = ((uint8_t *)"\x62\x75\x69\x6c\x64\x20\x65\x72\x72\x6f\x72");
     if ((strcmp(kind, be) ==0)) {
-      uint8_t * p = (uint8_t[]){66, 76, 68, 48, 48, 49, 0 };
+      uint8_t * p = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31");
       return p;
     }
-    uint8_t * pe = (uint8_t[]){112, 114, 111, 99, 101, 115, 115, 32, 101, 114, 114, 111, 114, 0 };
+    uint8_t * pe = ((uint8_t *)"\x70\x72\x6f\x63\x65\x73\x73\x20\x65\x72\x72\x6f\x72");
     if ((strcmp(kind, pe) ==0)) {
-      uint8_t * p = (uint8_t[]){80, 82, 67, 48, 48, 49, 0 };
+      uint8_t * p = ((uint8_t *)"\x50\x52\x43\x30\x30\x31");
       return p;
     }
   }
@@ -99,170 +148,203 @@ uint8_t * link_diag_code_for_kind(uint8_t * kind) {
 void link_diag_runtime_obj_resolve_fail(uint8_t * obj_name, uint8_t * hint) {
   uint8_t * on = obj_name;
   uint8_t msg[320] = {};
-  uint8_t * kind = ((uint8_t *)(0));
-  uint8_t * code = ((uint8_t *)(0));
-  if ((on ==((uint8_t *)(0)))) {
-    (void)((on = (uint8_t[]){114, 117, 110, 116, 105, 109, 101, 32, 111, 98, 106, 101, 99, 116, 0 }));
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
+  if ((on ==0)) {
+    (void)((on = ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x20\x6f\x62\x6a\x65\x63\x74")));
   }
   (void)(((msg)[0] = 0));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){99, 97, 110, 110, 111, 116, 32, 114, 101, 115, 111, 108, 118, 101, 32, 99, 111, 109, 112, 105, 108, 101, 114, 32, 100, 105, 114, 101, 99, 116, 111, 114, 121, 32, 116, 111, 32, 98, 117, 105, 108, 100, 32, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x63\x61\x6e\x6e\x6f\x74\x20\x72\x65\x73\x6f\x6c\x76\x65\x20\x63\x6f\x6d\x70\x69\x6c\x65\x72\x20\x64\x69\x72\x65\x63\x74\x6f\x72\x79\x20\x74\x6f\x20\x62\x75\x69\x6c\x64\x20")));
   (void)(labi_diag_append(&((msg)[0]), 320, on));
-  if ((hint !=((uint8_t *)(0)))) {
+  if ((hint !=0)) {
     if (((hint)[((size_t)(0))] !=0)) {
-      (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){32, 40, 0 }));
+      (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x28")));
       (void)(labi_diag_append(&((msg)[0]), 320, hint));
-      (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){41, 0 }));
+      (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x29")));
     }
   }
-  (void)((kind = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 }));
-  (void)((code = (uint8_t[]){66, 76, 68, 48, 48, 49, 0 }));
-  {
-    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((msg)[0]), ((uint8_t *)(0))));
-  }
+  (void)((kind = ((uint8_t *)"\x62\x75\x69\x6c\x64\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
 }
 void link_diag_runtime_source_missing(uint8_t * obj_name, uint8_t * source_path) {
   uint8_t * on = obj_name;
   uint8_t * sp = source_path;
   uint8_t msg[320] = {};
-  uint8_t * kind = ((uint8_t *)(0));
-  uint8_t * code = ((uint8_t *)(0));
-  if ((on ==((uint8_t *)(0)))) {
-    (void)((on = (uint8_t[]){114, 117, 110, 116, 105, 109, 101, 32, 111, 98, 106, 101, 99, 116, 0 }));
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
+  if ((on ==0)) {
+    (void)((on = ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x20\x6f\x62\x6a\x65\x63\x74")));
   }
-  if ((sp ==((uint8_t *)(0)))) {
-    (void)((sp = (uint8_t[]){63, 0 }));
+  if ((sp ==0)) {
+    (void)((sp = ((uint8_t *)"\x3f")));
   }
   (void)(((msg)[0] = 0));
   (void)(labi_diag_append(&((msg)[0]), 320, on));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){32, 115, 111, 117, 114, 99, 101, 32, 110, 111, 116, 32, 102, 111, 117, 110, 100, 32, 97, 116, 32, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x73\x6f\x75\x72\x63\x65\x20\x6e\x6f\x74\x20\x66\x6f\x75\x6e\x64\x20\x61\x74\x20")));
   (void)(labi_diag_append(&((msg)[0]), 320, sp));
-  (void)((kind = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 }));
-  (void)((code = (uint8_t[]){66, 76, 68, 48, 48, 49, 0 }));
-  {
-    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((msg)[0]), ((uint8_t *)(0))));
-  }
+  (void)((kind = ((uint8_t *)"\x62\x75\x69\x6c\x64\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
 }
 void link_diag_runtime_source_missing_under(uint8_t * obj_name, uint8_t * base_dir, uint8_t * suffix) {
   uint8_t * on = obj_name;
   uint8_t * bd = base_dir;
   uint8_t * sf = suffix;
   uint8_t msg[384] = {};
-  uint8_t * kind = ((uint8_t *)(0));
-  uint8_t * code = ((uint8_t *)(0));
-  if ((on ==((uint8_t *)(0)))) {
-    (void)((on = (uint8_t[]){114, 117, 110, 116, 105, 109, 101, 32, 111, 98, 106, 101, 99, 116, 0 }));
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
+  if ((on ==0)) {
+    (void)((on = ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x20\x6f\x62\x6a\x65\x63\x74")));
   }
-  if ((bd ==((uint8_t *)(0)))) {
-    (void)((bd = (uint8_t[]){63, 0 }));
+  if ((bd ==0)) {
+    (void)((bd = ((uint8_t *)"\x3f")));
   }
-  if ((sf ==((uint8_t *)(0)))) {
-    (void)((sf = (uint8_t[]){0 }));
+  if ((sf ==0)) {
+    (void)((sf = ((uint8_t *)"")));
   }
   (void)(((msg)[0] = 0));
   (void)(labi_diag_append(&((msg)[0]), 384, on));
-  (void)(labi_diag_append(&((msg)[0]), 384, (uint8_t[]){32, 115, 111, 117, 114, 99, 101, 32, 110, 111, 116, 32, 102, 111, 117, 110, 100, 32, 117, 110, 100, 101, 114, 32, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 384, ((uint8_t *)"\x20\x73\x6f\x75\x72\x63\x65\x20\x6e\x6f\x74\x20\x66\x6f\x75\x6e\x64\x20\x75\x6e\x64\x65\x72\x20")));
   (void)(labi_diag_append(&((msg)[0]), 384, bd));
   (void)(labi_diag_append(&((msg)[0]), 384, sf));
-  (void)((kind = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 }));
-  (void)((code = (uint8_t[]){66, 76, 68, 48, 48, 49, 0 }));
-  {
-    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((msg)[0]), ((uint8_t *)(0))));
-  }
+  (void)((kind = ((uint8_t *)"\x62\x75\x69\x6c\x64\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
 }
 void link_diag_runtime_obj_missing(uint8_t * obj_name, uint8_t * out_o) {
   uint8_t * on = obj_name;
   uint8_t * oo = out_o;
   uint8_t msg[320] = {};
-  uint8_t * kind = ((uint8_t *)(0));
-  uint8_t * code = ((uint8_t *)(0));
-  if ((on ==((uint8_t *)(0)))) {
-    (void)((on = (uint8_t[]){114, 117, 110, 116, 105, 109, 101, 32, 111, 98, 106, 101, 99, 116, 0 }));
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
+  if ((on ==0)) {
+    (void)((on = ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x20\x6f\x62\x6a\x65\x63\x74")));
   }
-  if ((oo ==((uint8_t *)(0)))) {
-    (void)((oo = (uint8_t[]){63, 0 }));
+  if ((oo ==0)) {
+    (void)((oo = ((uint8_t *)"\x3f")));
   }
   (void)(((msg)[0] = 0));
   (void)(labi_diag_append(&((msg)[0]), 320, on));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){32, 109, 105, 115, 115, 105, 110, 103, 32, 97, 102, 116, 101, 114, 32, 99, 99, 32, 45, 99, 32, 40, 101, 120, 112, 101, 99, 116, 101, 100, 32, 110, 101, 97, 114, 32, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x6d\x69\x73\x73\x69\x6e\x67\x20\x61\x66\x74\x65\x72\x20\x63\x63\x20\x2d\x63\x20\x28\x65\x78\x70\x65\x63\x74\x65\x64\x20\x6e\x65\x61\x72\x20")));
   (void)(labi_diag_append(&((msg)[0]), 320, oo));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){41, 0 }));
-  (void)((kind = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 }));
-  (void)((code = (uint8_t[]){66, 76, 68, 48, 48, 49, 0 }));
-  {
-    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((msg)[0]), ((uint8_t *)(0))));
-  }
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x29")));
+  (void)((kind = ((uint8_t *)"\x62\x75\x69\x6c\x64\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
 }
 void link_diag_freestanding_missing(uint8_t * obj_name, uint8_t * symbol_name) {
   uint8_t * on = obj_name;
   uint8_t * sn = symbol_name;
   uint8_t msg[320] = {};
-  uint8_t * kind = ((uint8_t *)(0));
-  uint8_t * code = ((uint8_t *)(0));
-  if ((on ==((uint8_t *)(0)))) {
-    (void)((on = (uint8_t[]){114, 117, 110, 116, 105, 109, 101, 32, 111, 98, 106, 101, 99, 116, 0 }));
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
+  if ((on ==0)) {
+    (void)((on = ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x20\x6f\x62\x6a\x65\x63\x74")));
   }
   (void)(((msg)[0] = 0));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){102, 114, 101, 101, 115, 116, 97, 110, 100, 105, 110, 103, 32, 108, 105, 110, 107, 32, 109, 105, 115, 115, 105, 110, 103, 32, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x20\x6c\x69\x6e\x6b\x20\x6d\x69\x73\x73\x69\x6e\x67\x20")));
   (void)(labi_diag_append(&((msg)[0]), 320, on));
-  if ((sn !=((uint8_t *)(0)))) {
+  if ((sn !=0)) {
     if (((sn)[((size_t)(0))] !=0)) {
-      (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){32, 40, 117, 115, 101, 114, 32, 114, 101, 102, 101, 114, 101, 110, 99, 101, 115, 32, 0 }));
+      (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x28\x75\x73\x65\x72\x20\x72\x65\x66\x65\x72\x65\x6e\x63\x65\x73\x20")));
       (void)(labi_diag_append(&((msg)[0]), 320, sn));
-      (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){41, 0 }));
+      (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x29")));
     }
   }
-  (void)((kind = (uint8_t[]){108, 105, 110, 107, 32, 101, 114, 114, 111, 114, 0 }));
-  (void)((code = (uint8_t[]){66, 76, 68, 48, 48, 49, 0 }));
-  {
-    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((msg)[0]), ((uint8_t *)(0))));
-  }
+  (void)((kind = ((uint8_t *)"\x6c\x69\x6e\x6b\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
 }
 void link_diag_freestanding_unsupported(void) {
   uint8_t msg[192] = {};
-  uint8_t * kind = ((uint8_t *)(0));
-  uint8_t * code = ((uint8_t *)(0));
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
   (void)(((msg)[0] = 0));
-  (void)(labi_diag_append(&((msg)[0]), 192, (uint8_t[]){45, 102, 114, 101, 101, 115, 116, 97, 110, 100, 105, 110, 103, 32, 47, 32, 83, 72, 85, 88, 95, 70, 82, 69, 69, 83, 84, 65, 78, 68, 73, 78, 71, 32, 105, 115, 32, 111, 110, 108, 121, 32, 115, 117, 112, 112, 111, 114, 116, 101, 100, 32, 102, 111, 114, 32, 0 }));
-  (void)(labi_diag_append(&((msg)[0]), 192, (uint8_t[]){76, 105, 110, 117, 120, 32, 69, 76, 70, 32, 120, 56, 54, 95, 54, 52, 32, 40, 45, 111, 32, 112, 114, 111, 103, 44, 32, 110, 111, 116, 32, 46, 111, 47, 46, 111, 98, 106, 32, 111, 110, 32, 109, 97, 99, 79, 83, 47, 67, 79, 70, 70, 41, 0 }));
-  (void)((kind = (uint8_t[]){108, 105, 110, 107, 32, 101, 114, 114, 111, 114, 0 }));
-  (void)((code = (uint8_t[]){66, 76, 68, 48, 48, 49, 0 }));
-  {
-    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, code, &((msg)[0]), ((uint8_t *)(0))));
-  }
+  (void)(labi_diag_append(&((msg)[0]), 192, ((uint8_t *)"\x2d\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x20\x2f\x20\x53\x48\x55\x58\x5f\x46\x52\x45\x45\x53\x54\x41\x4e\x44\x49\x4e\x47\x20\x69\x73\x20\x6f\x6e\x6c\x79\x20\x73\x75\x70\x70\x6f\x72\x74\x65\x64\x20\x66\x6f\x72\x20")));
+  (void)(labi_diag_append(&((msg)[0]), 192, ((uint8_t *)"\x4c\x69\x6e\x75\x78\x20\x45\x4c\x46\x20\x78\x38\x36\x5f\x36\x34\x20\x28\x2d\x6f\x20\x70\x72\x6f\x67\x2c\x20\x6e\x6f\x74\x20\x2e\x6f\x2f\x2e\x6f\x62\x6a\x20\x6f\x6e\x20\x6d\x61\x63\x4f\x53\x2f\x43\x4f\x46\x46\x29")));
+  (void)((kind = ((uint8_t *)"\x6c\x69\x6e\x6b\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
 }
 void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * path) {
   uint8_t * r = rel;
   uint8_t * st = stage;
   uint8_t * p = path;
   uint8_t msg[320] = {};
-  uint8_t * kind = ((uint8_t *)(0));
-  if ((r ==((uint8_t *)(0)))) {
-    (void)((r = (uint8_t[]){40, 110, 117, 108, 108, 41, 0 }));
+  uint8_t * kind = 0;
+  if ((r ==0)) {
+    (void)((r = ((uint8_t *)"\x28\x6e\x75\x6c\x6c\x29")));
   }
-  if ((st ==((uint8_t *)(0)))) {
-    (void)((st = (uint8_t[]){112, 97, 116, 104, 0 }));
+  if ((st ==0)) {
+    (void)((st = ((uint8_t *)"\x70\x61\x74\x68")));
   }
-  if ((p ==((uint8_t *)(0)))) {
-    (void)((p = (uint8_t[]){40, 110, 117, 108, 108, 41, 0 }));
+  if ((p ==0)) {
+    (void)((p = ((uint8_t *)"\x28\x6e\x75\x6c\x6c\x29")));
   }
   (void)(((msg)[0] = 0));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){108, 100, 32, 100, 101, 98, 117, 103, 58, 32, 112, 117, 115, 104, 32, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x6c\x64\x20\x64\x65\x62\x75\x67\x3a\x20\x70\x75\x73\x68\x20")));
   (void)(labi_diag_append(&((msg)[0]), 320, r));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){32, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20")));
   (void)(labi_diag_append(&((msg)[0]), 320, st));
-  (void)(labi_diag_append(&((msg)[0]), 320, (uint8_t[]){61, 0 }));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x3d")));
   (void)(labi_diag_append(&((msg)[0]), 320, p));
-  (void)((kind = (uint8_t[]){110, 111, 116, 101, 0 }));
-  {
-    (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, ((uint8_t *)(0)), &((msg)[0]), ((uint8_t *)(0))));
-  }
+  (void)((kind = ((uint8_t *)"\x6e\x6f\x74\x65")));
+  (void)(diag_report_with_code(0, 0, 0, kind, 0, &((msg)[0]), 0));
 }
 void link_diag_ld_debug_argv(uint8_t * label, uint8_t * argv) {
-  {
-    (void)(link_diag_ld_debug_argv_impl(label, argv));
+  (void)(link_diag_ld_debug_argv_impl(label, argv));
+}
+void link_diag_tool_status(uint8_t * tool, int32_t status) {
+  uint8_t * t = tool;
+  uint8_t msg[320] = {};
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
+  int32_t sig = 0;
+  int32_t c = 0;
+  if ((t ==0)) {
+    (void)((t = ((uint8_t *)"\x74\x6f\x6f\x6c")));
   }
-  (void)(0);
-  return;
+  (void)(((msg)[0] = 0));
+  (void)(labi_diag_append(&((msg)[0]), 320, t));
+  (void)((sig = link_diag_wait_is_signaled(status)));
+  (void)((c = link_diag_wait_code(status)));
+  if ((sig !=0)) {
+    (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x66\x61\x69\x6c\x65\x64\x20\x28\x73\x69\x67\x6e\x61\x6c\x20")));
+  } else {
+    (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x66\x61\x69\x6c\x65\x64\x20\x28\x65\x78\x69\x74\x20")));
+  }
+  (void)(labi_diag_append_i32(&((msg)[0]), 320, c));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x29")));
+  (void)((kind = ((uint8_t *)"\x62\x75\x69\x6c\x64\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
+}
+void link_diag_runtime_obj_build_status(uint8_t * obj_name, int32_t status) {
+  uint8_t * on = obj_name;
+  uint8_t msg[320] = {};
+  uint8_t * kind = 0;
+  uint8_t * code = 0;
+  int32_t sig = 0;
+  int32_t c = 0;
+  if ((on ==0)) {
+    (void)((on = ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x20\x6f\x62\x6a\x65\x63\x74")));
+  }
+  (void)(((msg)[0] = 0));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x66\x61\x69\x6c\x65\x64\x20\x74\x6f\x20\x62\x75\x69\x6c\x64\x20")));
+  (void)(labi_diag_append(&((msg)[0]), 320, on));
+  (void)((sig = link_diag_wait_is_signaled(status)));
+  (void)((c = link_diag_wait_code(status)));
+  if ((sig !=0)) {
+    (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x28\x73\x69\x67\x6e\x61\x6c\x20")));
+  } else {
+    (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x20\x28\x65\x78\x69\x74\x20")));
+  }
+  (void)(labi_diag_append_i32(&((msg)[0]), 320, c));
+  (void)(labi_diag_append(&((msg)[0]), 320, ((uint8_t *)"\x29")));
+  (void)((kind = ((uint8_t *)"\x62\x75\x69\x6c\x64\x20\x65\x72\x72\x6f\x72")));
+  (void)((code = ((uint8_t *)"\x42\x4c\x44\x30\x30\x31")));
+  (void)(diag_report_with_code(0, 0, 0, kind, code, &((msg)[0]), 0));
 }
 void shux_link_perror(uint8_t * msg) {
   uint8_t * pe = ((uint8_t *)"\x70\x72\x6f\x63\x65\x73\x73\x20\x65\x72\x72\x6f\x72");

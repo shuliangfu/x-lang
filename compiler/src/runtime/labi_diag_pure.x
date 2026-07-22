@@ -24,6 +24,11 @@ export extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): 
 export extern "C" function link_diag_errno(kind: *u8, op: *u8): void;
 export extern "C" function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void;
 
+/* Cap residual (mega always): POSIX wait status macros (WIFSIGNALED / WTERMSIG /
+ * WIFEXITED / WEXITSTATUS). PLATFORM: POSIX (macOS + Linux product hosts). */
+export extern "C" function link_diag_wait_is_signaled(status: i32): i32;
+export extern "C" function link_diag_wait_code(status: i32): i32;
+
 /** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
@@ -63,6 +68,61 @@ export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
   }
   dst[i as usize] = 0;
   return i;
+}
+
+/**
+ * Append decimal representation of `v` onto a NUL-terminated `dst` buffer.
+ * Digits are built least-significant-first in a small stack buffer, then
+ * reversed and appended via `labi_diag_append`. Handles 0 and negatives.
+ * Wait-status / exit codes are small; INT_MIN is not required for product use.
+ * @param dst *u8 — destination buffer (must be writable; may already hold text)
+ * @param cap i32 — capacity of dst including trailing NUL
+ * @param v i32 — value to format as decimal ASCII
+ * @return void
+ * PLATFORM: SHARED — pure digit orch; no libc sprintf.
+ */
+#[no_mangle]
+export function labi_diag_append_i32(dst: *u8, cap: i32, v: i32): void {
+  let dig: u8[16] = [];
+  let n: i32 = v;
+  let i: i32 = 0;
+  let j: i32 = 0;
+  let neg: i32 = 0;
+  let a: u8 = 0;
+  dig[0] = 0;
+  if (n == 0) {
+    dig[0] = 48;
+    dig[1] = 0;
+    labi_diag_append(dst, cap, &dig[0]);
+    return;
+  }
+  if (n < 0) {
+    neg = 1;
+    n = 0 - n;
+  }
+  while (n > 0) {
+    if (i >= 15) {
+      break;
+    }
+    dig[i] = (48 + (n - (n / 10) * 10)) as u8;
+    n = n / 10;
+    i = i + 1;
+  }
+  if (neg != 0) {
+    if (i < 15) {
+      dig[i] = 45;
+      i = i + 1;
+    }
+  }
+  j = 0;
+  while (j < i / 2) {
+    a = dig[j];
+    dig[j] = dig[i - 1 - j];
+    dig[i - 1 - j] = a;
+    j = j + 1;
+  }
+  dig[i] = 0;
+  labi_diag_append(dst, cap, &dig[0]);
 }
 
 /* See signature and body for contracts. */
@@ -315,6 +375,93 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
   /* See signature and body for contracts. */
   unsafe {
     link_diag_ld_debug_argv_impl(label, argv);
+  }
+}
+
+/**
+ * Report a tool (cc/ld/…) failure from a wait(2) status word.
+ * Pure owns message orch: `"<tool> failed (signal N)"` or `"<tool> failed (exit N)"`
+ * then `diag_report_with_code` (build error / BLD001). Cap residual wait decode:
+ * `link_diag_wait_is_signaled` / `link_diag_wait_code` (WIF* macros, mega always).
+ * Null tool → literal `"tool"`. Integer formatting via pure `labi_diag_append_i32`.
+ * @param tool *u8 — tool name for the message (null → "tool")
+ * @param status i32 — raw wait status (not a plain exit code)
+ * @return void
+ * wave112: closes soft Cap residual "tool_status body always mega reportf under hybrid".
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ */
+#[no_mangle]
+export function link_diag_tool_status(tool: *u8, status: i32): void {
+  let t: *u8 = tool;
+  let msg: u8[320] = [];
+  let kind: *u8 = 0 as *u8;
+  let code: *u8 = 0 as *u8;
+  let sig: i32 = 0;
+  let c: i32 = 0;
+  if (t == 0 as *u8) {
+    t = "tool";
+  }
+  msg[0] = 0;
+  labi_diag_append(&msg[0], 320, t);
+  unsafe {
+    sig = link_diag_wait_is_signaled(status);
+    c = link_diag_wait_code(status);
+  }
+  if (sig != 0) {
+    labi_diag_append(&msg[0], 320, " failed (signal ");
+  } else {
+    labi_diag_append(&msg[0], 320, " failed (exit ");
+  }
+  labi_diag_append_i32(&msg[0], 320, c);
+  labi_diag_append(&msg[0], 320, ")");
+  kind = "build error";
+  code = "BLD001";
+  unsafe {
+    diag_report_with_code(0 as *u8, 0, 0, kind, code, &msg[0], 0 as *u8);
+  }
+}
+
+/**
+ * Report a runtime object build failure from a wait(2) status word.
+ * Pure owns message orch: `"failed to build <obj> (signal N)"` or
+ * `"failed to build <obj> (exit N)"` then `diag_report_with_code` (build error / BLD001).
+ * Cap residual wait decode same as `link_diag_tool_status`.
+ * Null obj_name → literal `"runtime object"`.
+ * @param obj_name *u8 — object leaf name (null → "runtime object")
+ * @param status i32 — raw wait status (or synthetic -1 when no wait word)
+ * @return void
+ * wave112: closes soft Cap residual "obj_build_status body always mega reportf under hybrid".
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ */
+#[no_mangle]
+export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): void {
+  let on: *u8 = obj_name;
+  let msg: u8[320] = [];
+  let kind: *u8 = 0 as *u8;
+  let code: *u8 = 0 as *u8;
+  let sig: i32 = 0;
+  let c: i32 = 0;
+  if (on == 0 as *u8) {
+    on = "runtime object";
+  }
+  msg[0] = 0;
+  labi_diag_append(&msg[0], 320, "failed to build ");
+  labi_diag_append(&msg[0], 320, on);
+  unsafe {
+    sig = link_diag_wait_is_signaled(status);
+    c = link_diag_wait_code(status);
+  }
+  if (sig != 0) {
+    labi_diag_append(&msg[0], 320, " (signal ");
+  } else {
+    labi_diag_append(&msg[0], 320, " (exit ");
+  }
+  labi_diag_append_i32(&msg[0], 320, c);
+  labi_diag_append(&msg[0], 320, ")");
+  kind = "build error";
+  code = "BLD001";
+  unsafe {
+    diag_report_with_code(0 as *u8, 0, 0, kind, code, &msg[0], 0 as *u8);
   }
 }
 

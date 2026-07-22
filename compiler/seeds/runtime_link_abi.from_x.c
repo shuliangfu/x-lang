@@ -332,11 +332,23 @@ const char * link_diag_code_for_kind(const char *kind) {
 const char * link_diag_code_for_kind(const char *kind);
 #endif
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* Cap residual (always): POSIX wait status decode for pure tool/obj status orch.
+ * PLATFORM: POSIX (macOS + Linux). Windows hybrid uses win32_compat wait macros. */
+int link_diag_wait_is_signaled(int status) {
+    return WIFSIGNALED(status) ? 1 : 0;
+}
+int link_diag_wait_code(int status) {
+    if (WIFSIGNALED(status))
+        return (int)WTERMSIG(status);
+    if (WIFEXITED(status))
+        return (int)WEXITSTATUS(status);
+    return -1;
+}
 
-
-
-
+/* G-02f-165 / wave112：tool_status pure orch in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual wait decode
+ * stays always-linked. PLATFORM: SHARED. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_tool_status(const char *tool, int status) {
     if (!tool)
         tool = "tool";
@@ -348,6 +360,9 @@ void link_diag_tool_status(const char *tool, int status) {
                                "%s failed (exit %d)", tool, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     }
 }
+#else
+void link_diag_tool_status(const char *tool, int status);
+#endif
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -430,6 +445,9 @@ void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o);
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+/* wave112：obj_build_status pure orch in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef. Cap residual wait decode always-linked. PLATFORM: SHARED. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_build_status(const char *obj_name, int status) {
     if (!obj_name)
         obj_name = "runtime object";
@@ -443,6 +461,9 @@ void link_diag_runtime_obj_build_status(const char *obj_name, int status) {
                                obj_name, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     }
 }
+#else
+void link_diag_runtime_obj_build_status(const char *obj_name, int status);
+#endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
