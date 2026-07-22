@@ -1,7 +1,7 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel + wave140 user_o_provides_core_mem/std_heap pure)
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel + wave140 user_o_provides_core_mem/std_heap pure + wave145 link_needs_heap_user_c/std_heap_import aggregate pure)
  * Cap residual: nm/push/ensure + undef_sym / exports_marker / has_undef_sym / has_defined_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -126,10 +126,13 @@ extern int32_t link_abi_user_o_provides_core_mem(uint8_t * user_o);
 extern int32_t labi_od_provides_std_heap_sym_count(void);
 extern uint8_t * labi_od_provides_std_heap_sym_at(int32_t i);
 extern int32_t link_abi_user_o_provides_std_heap(uint8_t * user_o);
+extern int32_t link_abi_link_needs_heap_user_c(uint8_t * user_o, uint8_t * * argv, int32_t la);
+extern int32_t link_abi_link_needs_std_heap_import(uint8_t * user_o, uint8_t * * argv, int32_t la);
 extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
 extern int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
 extern int32_t link_abi_obj_has_undef_sym(uint8_t * obj_o, uint8_t * sym);
+extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
 int32_t labi_od_simple_group_count(void) {
   return 10;
 }
@@ -3123,6 +3126,74 @@ int32_t link_abi_user_o_provides_std_heap(uint8_t * user_o) {
         if ((hit !=0)) {
           return 1;
         }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t link_abi_link_needs_heap_user_c(uint8_t * user_o, uint8_t * * argv, int32_t la) {
+  if ((user_o !=0)) {
+    if (((user_o)[0] !=0)) {
+      int32_t uh = link_abi_user_o_needs_heap_user_syms(user_o);
+      if ((uh !=0)) {
+        return 1;
+      }
+    }
+  }
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return 0;
+  }
+  if ((la <=0)) {
+    return 0;
+  }
+  int32_t i = 0;
+  while ((i < la)) {
+    uint8_t * e = (argv)[i];
+    if ((e ==0)) {
+      return 0;
+    }
+    int32_t is_obj = 0;
+    (void)((is_obj = link_abi_ld_argv_entry_is_obj(e)));
+    if ((is_obj !=0)) {
+      int32_t need = link_abi_user_o_needs_heap_user_syms(e);
+      if ((need !=0)) {
+        return 1;
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t link_abi_link_needs_std_heap_import(uint8_t * user_o, uint8_t * * argv, int32_t la) {
+  if ((user_o !=0)) {
+    if (((user_o)[0] !=0)) {
+      int32_t uh = link_abi_user_o_needs_std_heap_api(user_o);
+      if ((uh !=0)) {
+        return 1;
+      }
+    }
+  }
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return 0;
+  }
+  if ((la <=0)) {
+    return 0;
+  }
+  int32_t i = 0;
+  while ((i < la)) {
+    uint8_t * e = (argv)[i];
+    if ((e ==0)) {
+      return 0;
+    }
+    int32_t is_obj = 0;
+    (void)((is_obj = link_abi_ld_argv_entry_is_obj(e)));
+    if ((is_obj !=0)) {
+      int32_t need = link_abi_user_o_needs_std_heap_api(e);
+      if ((need !=0)) {
+        return 1;
       }
     }
     (void)((i = (i + 1)));

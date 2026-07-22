@@ -28,6 +28,9 @@
 //   wave135 labi_std_fk0_user_needs_rel pure orch (16 rel × 106 exact UNDEF; Cap strstr).
 //   wave140 labi_od_provides_{core_mem,std_heap}_sym_* + link_abi_user_o_provides_* pure orch
 //     (defined-sym tables; Cap residual has_defined_sym; skip hard-link mem.o/heap.o).
+//   wave145 link_abi_link_needs_{heap_user_c,std_heap_import} pure orch
+//     (aggregate: user_o + ld argv .o scan via pure needs_* + ld_argv_entry_is_obj;
+//      Cap residual: none new — reuses pure path_pure is_obj + L8b needs tables).
 // Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef / has_defined Cap.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -37,6 +40,15 @@
 
 /** Cap residual: nm UNDEF probe used by pure needs orch (mega always). */
 export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+
+/**
+ * Cap residual path pure: whether ld argv entry looks like .o/.obj (suffix scan).
+ * Used by wave145 aggregate link_needs_* orch when scanning already-pushed objs.
+ * @param s *u8 — argv entry path; null/empty → 0
+ * @return i32 — 1 if ends with .o or .obj
+ * PLATFORM: SHARED — authority labi_path_pure; dual-end prove IDENTICAL
+ */
+export extern "C" function link_abi_ld_argv_entry_is_obj(s: *u8): i32;
 
 /**
  * Cap residual: nm defined (T/t) probe used by pure provides orch (mega always).
@@ -4074,6 +4086,109 @@ export function link_abi_user_o_provides_std_heap(user_o: *u8): i32 {
         if (hit != 0) {
           return 1;
         }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether user main .o or any already-pushed ld argv .o still needs heap_*_c user glue.
+ * Aggregate pure orch: probe user_o via needs_heap_user_syms, then scan argv for .o entries
+ * and re-probe each. Stops early on null argv slot (≡ mega: i < la && argv[i]).
+ * @param user_o *u8 — primary user object path; null/empty skipped (still scan argv)
+ * @param argv **u8 — ld argv table (char**); null → only user_o path
+ * @param la i32 — argv length; la <= 0 → no argv scan
+ * @return i32 — 1 if any object needs heap user symbols, else 0
+ * Why (wave145): hybrid still had aggregate body always mega C; leaf needs_* pure since wave129.
+ * Cap residual: none new — reuses pure needs_heap_user_syms + path_pure ld_argv_entry_is_obj.
+ * Note: null-check argv via cast to *u8 (do not write `argv == 0 as **u8`; -E may drop body).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_link_needs_heap_user_c(user_o: *u8, argv: **u8, la: i32): i32 {
+  if (user_o != 0 as *u8) {
+    if (user_o[0] != 0) {
+      let uh: i32 = link_abi_user_o_needs_heap_user_syms(user_o);
+      if (uh != 0) {
+        return 1;
+      }
+    }
+  }
+  // Null-check argv without `0 as **u8` (see rt_emit_state discipline; -E body drop risk).
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return 0;
+  }
+  if (la <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < la) {
+    let e: *u8 = argv[i];
+    if (e == 0 as *u8) {
+      return 0;
+    }
+    let is_obj: i32 = 0;
+    unsafe {
+      is_obj = link_abi_ld_argv_entry_is_obj(e);
+    }
+    if (is_obj != 0) {
+      let need: i32 = link_abi_user_o_needs_heap_user_syms(e);
+      if (need != 0) {
+        return 1;
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether user main .o or any already-pushed ld argv .o needs formal std.heap API.
+ * Aggregate pure orch: probe user_o via needs_std_heap_api, then scan argv .o entries.
+ * Stops early on null argv slot (≡ mega: i < la && argv[i]).
+ * @param user_o *u8 — primary user object path; null/empty skipped (still scan argv)
+ * @param argv **u8 — ld argv table (char**); null → only user_o path
+ * @param la i32 — argv length; la <= 0 → no argv scan
+ * @return i32 — 1 if any object needs std heap API, else 0
+ * Why (wave145): hybrid still had aggregate body always mega C; leaf needs_* pure since wave128.
+ * Cap residual: none new — reuses pure needs_std_heap_api + path_pure ld_argv_entry_is_obj.
+ * Note: null-check argv via cast to *u8 (do not write `argv == 0 as **u8`; -E may drop body).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_link_needs_std_heap_import(user_o: *u8, argv: **u8, la: i32): i32 {
+  if (user_o != 0 as *u8) {
+    if (user_o[0] != 0) {
+      let uh: i32 = link_abi_user_o_needs_std_heap_api(user_o);
+      if (uh != 0) {
+        return 1;
+      }
+    }
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return 0;
+  }
+  if (la <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < la) {
+    let e: *u8 = argv[i];
+    if (e == 0 as *u8) {
+      return 0;
+    }
+    let is_obj: i32 = 0;
+    unsafe {
+      is_obj = link_abi_ld_argv_entry_is_obj(e);
+    }
+    if (is_obj != 0) {
+      let need: i32 = link_abi_user_o_needs_std_heap_api(e);
+      if (need != 0) {
+        return 1;
       }
     }
     i = i + 1;

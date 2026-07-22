@@ -3418,7 +3418,8 @@ const char *asm_link_obj_skip_missing(const char *path);
 int link_abi_user_o_needs_std_heap_api(const char *user_o);
 int link_abi_user_o_needs_heap_user_syms(const char *user_o);
 int link_abi_user_o_needs_async_scheduler(const char *user_o);
-int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
+/* wave145 aggregate pure orch (L8b ondemand); always forward decl before call sites. */
+int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la);
 int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 
 /* ============================================================================
@@ -5351,26 +5352,12 @@ int link_abi_ld_argv_entry_is_obj(const char *s);
 #endif
 
 
-/**
- * 用户主 .o 或已入链 argv 中的 std/*.o 是否仍引用 heap_*_c。
- * hash/sort 等经 libc.x 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
+/* wave145: link_abi_link_needs_heap_user_c pure orch lives in labi_ondemand_list
+ * (aggregate user_o + argv .o scan via pure needs_heap_user_syms + ld_argv_entry_is_obj).
+ * Was mega body always over pure leaf orch. Cold twin under #ifndef ONDEMAND_LIST_FROM_X;
+ * hybrid L8b pure .x. PLATFORM: SHARED — G.7 single authority; dual-end L2.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la) {
-    /* G-02f-37：单路径探针 .x link_abi_user_o_needs_heap_user_syms；argv 循环仍 C。 */
-    int i;
-    if (user_o && user_o[0] && link_abi_user_o_needs_heap_user_syms(user_o))
-        return 1;
-    if (!argv || la <= 0)
-        return 0;
-    for (i = 0; i < la && argv[i]; i++) {
-        if (!link_abi_ld_argv_entry_is_obj(argv[i]))
-            continue;
-        if (link_abi_user_o_needs_heap_user_syms(argv[i]))
-            return 1;
-    }
-    return 0;
-}
+int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la);
 
 
 
@@ -5413,7 +5400,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o);
  * (labi_od_heap_api_sym_* product table + pure scan; not here).
  * Exact symbols only (no prefix probes).
  * Why: F-闭合删除 import_alias C 桩后 std/*.o 直接引用 std_heap_*；product heap.o gate.
- * Invariant: link_abi_link_needs_std_heap_import still scans user_o + argv via this orch.
+ * wave145: aggregate link_abi_link_needs_std_heap_import pure orch also in L8b.
  */
 
 /**
@@ -5421,25 +5408,15 @@ int shux_freestanding_user_o_needs_panic(const char *user_o);
  * (labi_od_heap_user_sym_* product table ×7 exact + pure scan; not here).
  * Exact symbols only (no prefix probes). Product complete: alloc/free/realloc/arena64_alloc
  * + with_arena heap_arena_init_c / heap_arena64_{init,deinit}_c (G.7 close incomplete mega.x residual).
- * Invariant: link_abi_link_needs_heap_user_c still scans user_o + argv via this orch.
+ * wave145: aggregate link_abi_link_needs_heap_user_c pure orch also in L8b.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la) {
-    /* G-02f-37：单路径探针 .x link_abi_user_o_needs_std_heap_api；argv 循环仍 C。 */
-    int i;
-    if (user_o && user_o[0] && link_abi_user_o_needs_std_heap_api(user_o))
-        return 1;
-    if (!argv || la <= 0)
-        return 0;
-    for (i = 0; i < la && argv[i]; i++) {
-        if (!link_abi_ld_argv_entry_is_obj(argv[i]))
-            continue;
-        if (link_abi_user_o_needs_std_heap_api(argv[i]))
-            return 1;
-    }
-    return 0;
-}
+/* wave145: link_abi_link_needs_std_heap_import pure orch lives in labi_ondemand_list
+ * (aggregate user_o + argv .o scan via pure needs_std_heap_api + ld_argv_entry_is_obj).
+ * Was mega body always over pure leaf orch. Cold twin under #ifndef ONDEMAND_LIST_FROM_X;
+ * hybrid L8b pure .x. PLATFORM: SHARED — G.7 single authority; dual-end L2.
+ */
+int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 
 
 
@@ -6450,6 +6427,15 @@ const char *labi_fk0_rel_at(int k);
 int labi_fk0_sym_count(int k);
 const char *labi_fk0_sym_at(int k, int i);
 int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
+int labi_od_provides_core_mem_sym_count(void);
+const char *labi_od_provides_core_mem_sym_at(int i);
+int link_abi_user_o_provides_core_mem(const char *user_o);
+int labi_od_provides_std_heap_sym_count(void);
+const char *labi_od_provides_std_heap_sym_at(int i);
+int link_abi_user_o_provides_std_heap(const char *user_o);
+/* wave145 aggregate pure orch (L8b). */
+int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la);
+int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
