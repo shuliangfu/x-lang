@@ -2177,6 +2177,11 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
     int *need_flags, int flags_cap, const char *include_root,
     const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o,
     const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o);
+void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char **c_paths, int n,
+    const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o,
+    const char *elf_o, const char *regex_o, const char *compress_o, const char *hash_o);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2210,6 +2215,13 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push mid always-mega after wave200 front.
  * PLATFORM: SHARED orch / LINUX -rdynamic -ldl / APPLE -export_dynamic / WINDOWS -ldbghelp.
+ */
+
+/* wave202: invoke_cc_append_std_ensure_push_heavy_a pure orch lives in labi_invoke_cc_list
+ * (ensure-push heavy_a math…compress inside shux_invoke_cc_impl). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had ensure-push heavy always-mega after wave201 mid.
+ * PLATFORM: SHARED orch; brew -L peer mac-oriented; set/map/queue formal ensure.
  */
 
 
@@ -3280,7 +3292,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * 38 url 39 cli 40 security 41 config 42 cache 43 trace 44 task 45 schema
              * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
              * wave200: ensure-push front string→env pure; wave201 mid sync→hash pure;
-             * heavy tail math…process_argv + heap F-06 + fork/exec still mega. */
+             * wave202 heavy_a math…compress pure; heavy_b unicode…process_argv + heap F-06
+             * + fork/exec still mega. */
             int need_flags[52];
             invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
             /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
@@ -3291,16 +3304,9 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             /* wave201 pure: sync/encoding/base64/crypto/log/atomic/channel/backtrace/hash. */
             invoke_cc_append_std_ensure_push_mid(argv, &i, argv_cap, need_flags, 52, include_root,
                 sync_o, encoding_o, base64_o, crypto_o, atomic_o, channel_o, backtrace_o, hash_o);
-            int need_math = need_flags[19];
-            int need_sort = need_flags[20];
-            int need_vec = need_flags[21];
-            int need_ffi = need_flags[22];
-            int need_db = need_flags[23];
-            int need_elf = need_flags[24];
-            int need_json = need_flags[25];
-            int need_csv = need_flags[26];
-            int need_regex = need_flags[27];
-            int need_compress = need_flags[28];
+            /* wave202 pure: math/sort/vec/ffi/db/elf/json/csv/set/map/queue/regex/compress. */
+            invoke_cc_append_std_ensure_push_heavy_a(argv, &i, argv_cap, need_flags, 52, include_root,
+                c_paths, n, math_o, sort_o, ffi_o, db_o, elf_o, regex_o, compress_o, hash_o);
             int need_unicode = need_flags[29];
             int need_dynlib = need_flags[30];
             int need_http = need_flags[31];
@@ -3320,207 +3326,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             int need_schema = need_flags[45];
             int need_test = need_flags[46];
             int need_socketio = need_flags[47];
-            int need_set = need_flags[48];
-            int need_map = need_flags[49];
-            int need_queue = need_flags[50];
             int jscan;
-            /* PLATFORM: SHARED — L4 wipe removes formal math.o; ensure before push.
-             * math_o is resolved at invoke entry via shux_rel_o_path_from_argv0; when the
-             * file is missing that returns "" and stays empty for the whole invoke.
-             * After ensure, re-resolve (same as need_vec/set/map) — do not push stale math_o. */
-            if (need_math) {
-                if (include_root && include_root[0])
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/math/math.o", "../std/math/math.o");
-                {
-                    const char *math_push = shux_rel_o_path_from_argv0(include_root, "std/math/math.o");
-                    if ((!math_push || !math_push[0]) && math_o && math_o[0])
-                        math_push = math_o;
-                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap, math_push)) {
-                        (void)shux_ensure_runtime_math_libm_o(NULL);
-                        {
-                            const char *rml = shux_runtime_math_libm_o_path(NULL);
-                            if (rml && rml[0])
-                                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rml);
-                        }
-                        if (i < argv_cap - 1)
-                            argv[i++] = (char *)"-lm";
-                    }
-                }
-            }
-            /* sort.o：仅当未 co-emit 实现时链入（co-emit 定义形如 void std_sort_sort_…） */
-            if (need_sort) {
-                int have_sort_body = 0;
-                for (jscan = 0; jscan < n; jscan++) {
-                    const char *cp = c_paths[jscan];
-                    if (!cp)
-                        continue;
-                    if (link_abi_generated_c_contains_substr(cp, "void std_sort_sort_") != 0 ||
-                        link_abi_generated_c_contains_substr(cp, "void std_sort_sort(") != 0) {
-                        have_sort_body = 1;
-                        break;
-                    }
-                }
-                if (!have_sort_body)
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, sort_o);
-            }
-            /* PLATFORM: SHARED — vec.o authority for link_only std.vec (same as set/map).
-             * Must key on *body* open-brace, not "int32_t std_vec_*(..." which matches
-             * link_only extern prototypes and would skip the product .o (false co-emit).
-             * Formal vec.o U: std_heap_default_alloc / kind_arena / alloc_Allocator_* /
-             * realloc_Allocator_* — user C has no std_heap_* use_line, so mirror set/map and
-             * push heap.o + core mem with vec.o (G.7 complete need_vec path).
-             * L4 wipe: formal .o gitignored → ensure via Makefile before push_existing. */
-            if (need_vec) {
-                int have_vec_body = 0;
-                for (jscan = 0; jscan < n; jscan++) {
-                    const char *cp = c_paths[jscan];
-                    if (!cp)
-                        continue;
-                    if (link_abi_generated_c_contains_substr(cp, "std_vec_new_retVec_u8(void) {") != 0 ||
-                        link_abi_generated_c_contains_substr(cp, "std_vec_new_retVec_u8(void){") != 0 ||
-                        link_abi_generated_c_contains_substr(cp, "std_vec_push_Vec_u8_ptr_u8(struct std_vec_Vec_u8 * v, uint8_t x) {") != 0 ||
-                        link_abi_generated_c_contains_substr(cp, "std_vec_push_Vec_u8_ptr_u8(struct std_vec_Vec_u8 *v, uint8_t x){") != 0) {
-                        have_vec_body = 1;
-                        break;
-                    }
-                }
-                if (!have_vec_body) {
-                    int c_prov_cm_v = 0;
-                    int c_prov_sh_v = 0;
-                    for (jscan = 0; jscan < n; jscan++) {
-                        const char *cp = c_paths[jscan];
-                        if (!cp) continue;
-                        if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_v = 1;
-                        if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_v = 1;
-                    }
-                    if (include_root && include_root[0]) {
-                        (void)shux_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
-                        if (!c_prov_sh_v) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                        if (!c_prov_cm_v) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
-                    }
-                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
-                        if (!c_prov_sh_v) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                        if (!c_prov_cm_v) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-                    }
-                }
-            }
-            if (need_ffi)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ffi_o);
-            if (need_db && invoke_cc_argv_push_existing(argv, &i, argv_cap, db_o)) {
-                (void)shux_ensure_runtime_sqlite_glue_o(NULL);
-                {
-                    const char *rsg = shux_runtime_sqlite_glue_o_path(NULL);
-                    if (rsg && rsg[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
-                }
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-lsqlite3";
-            }
-            if (need_elf)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, elf_o);
-            if (need_json)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
-            if (need_csv)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
-            /*
-             * set.o U：std_heap_libc_heap_alloc_*_c / std_heap_map_find / std_hash_bytes。
-             * 现有 heap_import 探针不含 *_i32_c 等符号，故 need_set 时显式链 heap+hash+mem。
-             * L4 wipe: formal set/heap/mem via Makefile ensure before push.
-             */
-            if (need_set) {
-                int c_prov_cm_s = 0, c_prov_sh_s = 0;
-                for (jscan = 0; jscan < n; jscan++) {
-                    const char *cp = c_paths[jscan];
-                    if (!cp) continue;
-                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_s = 1;
-                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_s = 1;
-                }
-                if (include_root && include_root[0]) {
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
-                    if (!c_prov_sh_s) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                    if (!c_prov_cm_s) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
-                }
-                if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
-                    if (!c_prov_sh_s) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                    if (!c_prov_cm_s) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
-                }
-            }
-            if (need_map) {
-                int c_prov_cm_m = 0, c_prov_sh_m = 0;
-                for (jscan = 0; jscan < n; jscan++) {
-                    const char *cp = c_paths[jscan];
-                    if (!cp) continue;
-                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_m = 1;
-                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_m = 1;
-                }
-                if (include_root && include_root[0]) {
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
-                    if (!c_prov_sh_m) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-                    if (!c_prov_cm_m) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
-                }
-                if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
-                    if (!c_prov_sh_m) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                    if (!c_prov_cm_m) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-                }
-            }
-            if (need_queue && invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
-                int c_prov_cm_q = 0, c_prov_sh_q = 0;
-                for (jscan = 0; jscan < n; jscan++) {
-                    const char *cp = c_paths[jscan];
-                    if (!cp) continue;
-                    if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_q = 1;
-                    if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_q = 1;
-                }
-                if (!c_prov_sh_q) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
-                if (!c_prov_cm_q) (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-            }
-            if (need_regex)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, regex_o);
-            /* compress.o 仅 need_compress；库路径仍可按生成 C 的 zlib/zstd/brotli 引用按需 -l* */
-            if (need_compress && invoke_cc_argv_push_existing(argv, &i, argv_cap, compress_o))
-                invoke_cc_append_compress_ld(argv, &i, argv_cap, compress_o, NULL);
-            else {
-                int needs_zlib = 0, needs_zstd = 0, needs_brotli = 0, j;
-                for (j = 0; j < n; j++) {
-                    if (link_abi_generated_c_needs_zlib(c_paths[j]))
-                        needs_zlib = 1;
-                    if (link_abi_generated_c_needs_zstd(c_paths[j]))
-                        needs_zstd = 1;
-                    if (link_abi_generated_c_needs_brotli(c_paths[j]))
-                        needs_brotli = 1;
-                }
-                if (needs_zlib || needs_zstd || needs_brotli) {
-                    ld_append_brew_lib_paths((const char **)argv, &i, argv_cap);
-                    if (needs_zlib && i < argv_cap - 1) {
-                        argv[i++] = (char *)"-lz";
-                        (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                            shux_runtime_compress_zlib_glue_o_path(NULL));
-                    }
-                    if (needs_zstd && i < argv_cap - 1)
-                        argv[i++] = (char *)"-lzstd";
-                    if (needs_brotli && i < argv_cap - 1) {
-                        argv[i++] = (char *)"-lbrotlienc";
-                        if (i < argv_cap - 1)
-                            argv[i++] = (char *)"-lbrotlidec";
-                    }
-                }
-            }
             /* unicode.o：co-emit mod+unicode.x 时勿再链，否则 std_unicode_unicode_* 双定义 */
             if (need_unicode) {
                 int have_unicode_body = 0;

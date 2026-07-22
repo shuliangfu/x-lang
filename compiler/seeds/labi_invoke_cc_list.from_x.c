@@ -11,8 +11,9 @@
  *   invoke_cc_scan_std_module_needs (wave199 pure table scan std need flags)
  *   invoke_cc_append_std_ensure_push_front (wave200 pure ensure-push front string→env)
  *   invoke_cc_append_std_ensure_push_mid (wave201 pure ensure-push mid sync→hash)
+ *   invoke_cc_append_std_ensure_push_heavy_a (wave202 pure ensure-push heavy_a math…compress)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
- *   ensure-push heavy tail (math…process_argv complement) + heap F-06 + fork/exec 仍 mega。
+ *   ensure-push heavy_b (unicode…process_argv complement) + heap F-06 + fork/exec 仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -84,6 +85,27 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0);
 const char *shux_runtime_channel_glue_o_path(const char *argv0);
 int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
 const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
+/* wave202 ensure-push heavy_a peers */
+int shux_ensure_runtime_math_libm_o(const char *argv0);
+const char *shux_runtime_math_libm_o_path(const char *argv0);
+int shux_ensure_runtime_sqlite_glue_o(const char *argv0);
+const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
+int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
+const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
+int link_abi_generated_c_provides_core_mem(const char *c_path);
+int link_abi_generated_c_provides_std_heap(const char *c_path);
+int link_abi_generated_c_needs_zlib(const char *c_path);
+int link_abi_generated_c_needs_zstd(const char *c_path);
+int link_abi_generated_c_needs_brotli(const char *c_path);
+void invoke_cc_append_compress_ld(char **argv, int *ia, int argv_cap, const char *compress_o, const char *user_o);
+void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
+int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
+int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle);
+const char *labi_icc_rel_json_o(void);
+const char *labi_icc_rel_csv_o(void);
+const char *labi_icc_rel_heap_o(void);
+const char *labi_icc_rel_core_mem_o(void);
+void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag);
 
 int labi_linux_harden_flag_count(void) {
   return 5;
@@ -967,6 +989,213 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, hash_o);
 }
 
+/* wave202: invoke_cc_append_std_ensure_push_heavy_a pure orch (cold twin ≡ .x).
+ * Ensure-push heavy_a math…compress; co-emit scans + formal ensure + compress_ld. */
+void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char **c_paths, int n,
+    const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o,
+    const char *elf_o, const char *regex_o, const char *compress_o, const char *hash_o) {
+  int need_math, need_sort, need_vec, need_ffi, need_db, need_elf;
+  int need_json, need_csv, need_regex, need_compress;
+  int need_set, need_map, need_queue;
+  int jscan;
+  if (!argv || !ia || *ia < 0 || !need_flags || flags_cap < 52)
+    return;
+  need_math = need_flags[19];
+  need_sort = need_flags[20];
+  need_vec = need_flags[21];
+  need_ffi = need_flags[22];
+  need_db = need_flags[23];
+  need_elf = need_flags[24];
+  need_json = need_flags[25];
+  need_csv = need_flags[26];
+  need_regex = need_flags[27];
+  need_compress = need_flags[28];
+  need_set = need_flags[48];
+  need_map = need_flags[49];
+  need_queue = need_flags[50];
+
+  if (need_math) {
+    if (include_root && include_root[0])
+      (void)shux_ensure_formal_std_make_o(include_root, "std/math/math.o", "../std/math/math.o");
+    {
+      const char *math_push = shux_rel_o_path_from_argv0(include_root, "std/math/math.o");
+      if ((!math_push || !math_push[0]) && math_o && math_o[0])
+        math_push = math_o;
+      if (invoke_cc_argv_push_existing(argv, ia, argv_cap, math_push)) {
+        (void)shux_ensure_runtime_math_libm_o(NULL);
+        {
+          const char *rml = shux_runtime_math_libm_o_path(NULL);
+          if (rml && rml[0])
+            (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rml);
+        }
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lm");
+      }
+    }
+  }
+  if (need_sort) {
+    int have_sort_body = 0;
+    for (jscan = 0; jscan < n; jscan++) {
+      const char *cp = c_paths ? c_paths[jscan] : NULL;
+      if (!cp)
+        continue;
+      if (link_abi_generated_c_contains_substr(cp, "void std_sort_sort_") != 0 ||
+          link_abi_generated_c_contains_substr(cp, "void std_sort_sort(") != 0) {
+        have_sort_body = 1;
+        break;
+      }
+    }
+    if (!have_sort_body)
+      (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, sort_o);
+  }
+  if (need_vec) {
+    int have_vec_body = 0;
+    for (jscan = 0; jscan < n; jscan++) {
+      const char *cp = c_paths ? c_paths[jscan] : NULL;
+      if (!cp)
+        continue;
+      if (link_abi_generated_c_contains_substr(cp, "std_vec_new_retVec_u8(void) {") != 0 ||
+          link_abi_generated_c_contains_substr(cp, "std_vec_new_retVec_u8(void){") != 0 ||
+          link_abi_generated_c_contains_substr(cp, "std_vec_push_Vec_u8_ptr_u8(struct std_vec_Vec_u8 * v, uint8_t x) {") != 0 ||
+          link_abi_generated_c_contains_substr(cp, "std_vec_push_Vec_u8_ptr_u8(struct std_vec_Vec_u8 *v, uint8_t x){") != 0) {
+        have_vec_body = 1;
+        break;
+      }
+    }
+    if (!have_vec_body) {
+      int c_prov_cm_v = 0;
+      int c_prov_sh_v = 0;
+      for (jscan = 0; jscan < n; jscan++) {
+        const char *cp = c_paths ? c_paths[jscan] : NULL;
+        if (!cp) continue;
+        if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_v = 1;
+        if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_v = 1;
+      }
+      if (include_root && include_root[0]) {
+        (void)shux_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
+        if (!c_prov_sh_v) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+        if (!c_prov_cm_v) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+      }
+      if (invoke_cc_argv_push_existing(argv, ia, argv_cap,
+          shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
+        if (!c_prov_sh_v) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+        if (!c_prov_cm_v) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+      }
+    }
+  }
+  if (need_ffi)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ffi_o);
+  if (need_db && invoke_cc_argv_push_existing(argv, ia, argv_cap, db_o)) {
+    (void)shux_ensure_runtime_sqlite_glue_o(NULL);
+    {
+      const char *rsg = shux_runtime_sqlite_glue_o_path(NULL);
+      if (rsg && rsg[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
+    }
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lsqlite3");
+  }
+  if (need_elf)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, elf_o);
+  if (need_json)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
+  if (need_csv)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
+  if (need_set) {
+    int c_prov_cm_s = 0, c_prov_sh_s = 0;
+    for (jscan = 0; jscan < n; jscan++) {
+      const char *cp = c_paths ? c_paths[jscan] : NULL;
+      if (!cp) continue;
+      if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_s = 1;
+      if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_s = 1;
+    }
+    if (include_root && include_root[0]) {
+      (void)shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
+      if (!c_prov_sh_s) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      if (!c_prov_cm_s) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+    }
+    if (invoke_cc_argv_push_existing(argv, ia, argv_cap,
+            shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
+      if (!c_prov_sh_s) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+      if (!c_prov_cm_s) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+      (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, hash_o);
+    }
+  }
+  if (need_map) {
+    int c_prov_cm_m = 0, c_prov_sh_m = 0;
+    for (jscan = 0; jscan < n; jscan++) {
+      const char *cp = c_paths ? c_paths[jscan] : NULL;
+      if (!cp) continue;
+      if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_m = 1;
+      if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_m = 1;
+    }
+    if (include_root && include_root[0]) {
+      (void)shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
+      if (!c_prov_sh_m) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      if (!c_prov_cm_m) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+    }
+    if (invoke_cc_argv_push_existing(argv, ia, argv_cap,
+            shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
+      if (!c_prov_sh_m) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+      if (!c_prov_cm_m) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+    }
+  }
+  if (need_queue && invoke_cc_argv_push_existing(argv, ia, argv_cap,
+          shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
+    int c_prov_cm_q = 0, c_prov_sh_q = 0;
+    for (jscan = 0; jscan < n; jscan++) {
+      const char *cp = c_paths ? c_paths[jscan] : NULL;
+      if (!cp) continue;
+      if (link_abi_generated_c_provides_core_mem(cp)) c_prov_cm_q = 1;
+      if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_q = 1;
+    }
+    if (!c_prov_sh_q) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+    if (!c_prov_cm_q) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+  }
+  if (need_regex)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, regex_o);
+  if (need_compress && invoke_cc_argv_push_existing(argv, ia, argv_cap, compress_o))
+    invoke_cc_append_compress_ld(argv, ia, argv_cap, compress_o, NULL);
+  else {
+    int needs_zlib = 0, needs_zstd = 0, needs_brotli = 0, j;
+    for (j = 0; j < n; j++) {
+      const char *cp = c_paths ? c_paths[j] : NULL;
+      if (!cp) continue;
+      if (link_abi_generated_c_needs_zlib(cp))
+        needs_zlib = 1;
+      if (link_abi_generated_c_needs_zstd(cp))
+        needs_zstd = 1;
+      if (link_abi_generated_c_needs_brotli(cp))
+        needs_brotli = 1;
+    }
+    if (needs_zlib || needs_zstd || needs_brotli) {
+      ld_append_brew_lib_paths((const char **)argv, ia, argv_cap);
+      if (needs_zlib) {
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lz");
+        (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+            shux_runtime_compress_zlib_glue_o_path(NULL));
+      }
+      if (needs_zstd)
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lzstd");
+      if (needs_brotli) {
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lbrotlienc");
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lbrotlidec");
+      }
+    }
+  }
+}
+
 
 #else
 int labi_linux_harden_flag_count(void);
@@ -1006,6 +1235,11 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
     int *need_flags, int flags_cap, const char *include_root,
     const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o,
     const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o);
+void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char **c_paths, int n,
+    const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o,
+    const char *elf_o, const char *regex_o, const char *compress_o, const char *hash_o);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {
