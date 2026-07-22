@@ -1232,10 +1232,15 @@ void ast_pool_arena_release(struct ast_ASTArena *a) {
  *
  * PLATFORM: SHARED — see `module_sidecar_free`.
  */
+/* wave110 pure strong / Cap SHUX_WEAK empty cold — free pure ImportEntry map. */
+void pipeline_module_import_storage_release(struct ast_Module *m);
+
 void ast_pool_module_release(struct ast_Module *m) {
   int i;
   if (!m)
     return;
+  /* wave110: pure ImportEntry map free (strong pure / weak empty cold). */
+  pipeline_module_import_storage_release(m);
   for (i = 0; i < MAX_MODULE_SIDECARS; i++) {
     if (g_module_sc[i].used && g_module_sc[i].module == m) {
       module_sidecar_free(&g_module_sc[i]);
@@ -3199,7 +3204,19 @@ int32_t pipeline_arena_func_cap(void) { return AST_POOL_NO_LIMIT; }
 
 /** ---------- Module import / struct_layout / top_level / enum 动态池 ---------- */
 
-int32_t pipeline_module_import_alloc(struct ast_Module *m) {
+/*
+ * wave110: product pure owns ImportEntry storage via runtime_pipeline_abi.x
+ * (multi-module malloc map + full pipeline_module_import_* set). Cap GrowVec
+ * bodies stay as SHUX_WEAK cold twins for non-PREFER / seed-only links.
+ * PLATFORM: SHARED — pure strong overrides weak at final product hybrid link.
+ */
+
+/** Cold twin no-op: pure pipeline_module_import_storage_release frees pure map. */
+SHUX_WEAK void pipeline_module_import_storage_release(struct ast_Module *m) {
+  (void)m;
+}
+
+SHUX_WEAK int32_t pipeline_module_import_alloc(struct ast_Module *m) {
   ModuleSidecar *sc;
   int32_t idx;
   if (!m || !(sc = module_sidecar_get(m, 1)))
@@ -3211,7 +3228,7 @@ int32_t pipeline_module_import_alloc(struct ast_Module *m) {
   return idx;
 }
 
-void pipeline_module_import_set_path(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
+SHUX_WEAK void pipeline_module_import_set_path(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   ImportEntry *ie;
   if (!bytes || len <= 0 || len > 255)
     return;
@@ -3223,12 +3240,12 @@ void pipeline_module_import_set_path(struct ast_Module *m, int32_t idx, uint8_t 
   memcpy(ie->path, bytes, (size_t)len);
 }
 
-int32_t pipeline_module_import_path_len(struct ast_Module *m, int32_t idx) {
+SHUX_WEAK int32_t pipeline_module_import_path_len(struct ast_Module *m, int32_t idx) {
   ImportEntry *ie = module_import_at(m, idx);
   return ie ? ie->path_len : 0;
 }
 
-void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap) {
+SHUX_WEAK void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap) {
   ImportEntry *ie;
   int32_t n;
   if (!dst || dst_cap <= 0)
@@ -3246,7 +3263,7 @@ void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t
   dst[n] = 0;
 }
 
-uint8_t pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
+SHUX_WEAK uint8_t pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
   ImportEntry *ie;
   if (off < 0)
     return 0;
@@ -3256,18 +3273,18 @@ uint8_t pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, i
   return ie->path[off];
 }
 
-void pipeline_module_import_set_kind(struct ast_Module *m, int32_t idx, int32_t kind) {
+SHUX_WEAK void pipeline_module_import_set_kind(struct ast_Module *m, int32_t idx, int32_t kind) {
   ImportEntry *ie = module_import_at(m, idx);
   if (ie)
     ie->kind = kind;
 }
 
-int32_t pipeline_module_import_kind_at(struct ast_Module *m, int32_t idx) {
+SHUX_WEAK int32_t pipeline_module_import_kind_at(struct ast_Module *m, int32_t idx) {
   ImportEntry *ie = module_import_at(m, idx);
   return ie ? ie->kind : 0;
 }
 
-void pipeline_module_import_set_binding_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
+SHUX_WEAK void pipeline_module_import_set_binding_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   ImportEntry *ie;
   if (!bytes || len <= 0 || len > 64)
     return;
@@ -3279,12 +3296,12 @@ void pipeline_module_import_set_binding_name(struct ast_Module *m, int32_t idx, 
   memcpy(ie->binding_name, bytes, (size_t)len);
 }
 
-int32_t pipeline_module_import_binding_name_len(struct ast_Module *m, int32_t idx) {
+SHUX_WEAK int32_t pipeline_module_import_binding_name_len(struct ast_Module *m, int32_t idx) {
   ImportEntry *ie = module_import_at(m, idx);
   return ie ? ie->binding_name_len : 0;
 }
 
-uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
+SHUX_WEAK uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off) {
   ImportEntry *ie;
   if (off < 0 || off >= 64)
     return 0;
@@ -3294,14 +3311,14 @@ uint8_t pipeline_module_import_binding_name_byte_at(struct ast_Module *m, int32_
   return ie->binding_name[off];
 }
 
-void pipeline_module_import_set_select_count(struct ast_Module *m, int32_t idx, int32_t n) {
+SHUX_WEAK void pipeline_module_import_set_select_count(struct ast_Module *m, int32_t idx, int32_t n) {
   ImportEntry *ie = module_import_at(m, idx);
   if (ie)
     ie->select_count = n;
 }
 
 /** 向 import 槽追加一条 select 名称（动态 grow，无 8 条上限）。 */
-int32_t pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
+SHUX_WEAK int32_t pipeline_module_import_append_select_name(struct ast_Module *m, int32_t idx, uint8_t *bytes, int32_t len) {
   ModuleSidecar *sc;
   ImportEntry *ie;
   uint8_t *row;
@@ -3327,12 +3344,12 @@ int32_t pipeline_module_import_append_select_name(struct ast_Module *m, int32_t 
   return ie->select_count - 1;
 }
 
-int32_t pipeline_module_import_select_count_at(struct ast_Module *m, int32_t idx) {
+SHUX_WEAK int32_t pipeline_module_import_select_count_at(struct ast_Module *m, int32_t idx) {
   ImportEntry *ie = module_import_at(m, idx);
   return ie ? ie->select_count : 0;
 }
 
-void pipeline_module_import_set_select_name(struct ast_Module *m, int32_t idx, int32_t sel, uint8_t *bytes,
+SHUX_WEAK void pipeline_module_import_set_select_name(struct ast_Module *m, int32_t idx, int32_t sel, uint8_t *bytes,
                                             int32_t len) {
   ModuleSidecar *sc;
   ImportEntry *ie;
@@ -3359,7 +3376,7 @@ void pipeline_module_import_set_select_name(struct ast_Module *m, int32_t idx, i
   *pl = n;
 }
 
-int32_t pipeline_module_import_select_name_len(struct ast_Module *m, int32_t idx, int32_t sel) {
+SHUX_WEAK int32_t pipeline_module_import_select_name_len(struct ast_Module *m, int32_t idx, int32_t sel) {
   ModuleSidecar *sc;
   ImportEntry *ie;
   int32_t *pl;
@@ -3373,7 +3390,7 @@ int32_t pipeline_module_import_select_name_len(struct ast_Module *m, int32_t idx
   return pl ? *pl : 0;
 }
 
-uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t idx, int32_t sel, int32_t off) {
+SHUX_WEAK uint8_t pipeline_module_import_select_name_byte_at(struct ast_Module *m, int32_t idx, int32_t sel, int32_t off) {
   ModuleSidecar *sc;
   ImportEntry *ie;
   uint8_t *row;

@@ -1,5 +1,7 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave110: pure ImportEntry storage (pipeline_module_import_* + storage_release) in .x
+ *   product hybrid; Cap ast_pool SHUX_WEAK cold twins. Structure debt close.
  * wave97: pure load_and_sync step5 typeck merge+wpo → G.7 typeck.x authority
  *   (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts;
  *   no typeck_typeck_* hop). Closes Cap residual merge call surface under pure load_and_sync.
