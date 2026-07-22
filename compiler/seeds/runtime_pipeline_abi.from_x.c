@@ -97,8 +97,11 @@
  *   of preprocess engine (x_buf / if_stack still Cap residual).
  * wave86: pure preprocess_if_stack_* (fixed i32[32] BSS; ast_pool GrowVec SHUX_WEAK
  *   cold fallback). Closes Cap residual preprocess #if stack leaf.
- * Cap residual still: typeck_module C frontend (+ preprocess_x_buf;
- *   g05 harness still holds &fn cast for Cap-fn-ptr).
+ * wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
+ *   (G.7 single typeck authority; C typeck_module deleted). Closes Cap residual
+ *   typeck_module C frontend leaf. Cold twin under #ifndef FROM_X matches pure route.
+ * Cap residual still: preprocess_x_buf in preprocess.x TU (already pure .x engine;
+ *   pipeline orch export-extern); g05 harness still holds &fn cast for Cap-fn-ptr.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -3742,42 +3745,52 @@ int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
 
 
 
-/** C typecheck 入口；由 typeck.c 提供。 */
-extern int typeck_module(void *module, void **dep_mods, int ndep, void *a, int b);
+/* wave87: product typeck authority is typeck_x_ast* (typeck.x); C typeck_module deleted. */
+extern int32_t typeck_x_ast(void *module, void *arena, void *ctx);
+extern int32_t typeck_x_ast_library(void *module, void *arena, void *ctx);
+extern int32_t pipeline_module_main_func_index(void *module);
 
 /**
- * 使用已填充的 typeck_ndep / typeck_dep_module_ptrs 对入口模块做 C 类型检查（大模块 asm 构建用）。
- * SHUX_NO_C_FRONTEND 时仍导出符号供 pipeline_asm_typecheck_alias 链接。
- * G-02f-242 / wave63：hybrid pure owns entry/sidecar/for_ctx_impl; cold twins under #ifndef FROM_X.
- * Cap residual always-seed: typeck_module C frontend (wave77 pure owns typeck_dep_module_ptrs_base).
+ * Historical C typeck surfaces + product force_c for_ctx.
+ * wave87: for_ctx_impl routes to typeck_x_ast / typeck_x_ast_library (G.7 single authority).
+ * entry_only / with_sidecar fail-closed (-1): X frontend needs arena+ctx via for_ctx.
+ * SHUX_NO_C_FRONTEND: still export symbols for pipeline_asm_typecheck_alias link.
+ * G-02f-242 / wave63 / wave87: hybrid pure owns bodies; cold twins under #ifndef FROM_X.
  * PLATFORM: SHARED.
  */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t typeck_module_entry_only(void *module) {
     if (!module)
         return -1;
-    if (typeck_module(module, NULL, 0, NULL, 0) != 0)
-        return -1;
-    return 0;
+    /* No arena/ctx — cannot call typeck_x_ast. Use pipeline_typeck_module_for_ctx. */
+    return -1;
 }
 
 int32_t typeck_module_with_sidecar(void *module) {
     if (!module)
         return -1;
-    if (typeck_module(module, typeck_ndep > 0 ? (void **)typeck_dep_module_ptrs : NULL, typeck_ndep, NULL, 0) != 0)
+    /* C sidecar BSS obsolete under X frontend (deps live in PipelineDepCtx). */
+    return -1;
+}
+
+int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void) {
+    int32_t mi;
+    int32_t rc;
+    if (!module)
+        return -1;
+    if (!arena || !ctx_void)
+        return -1;
+    mi = pipeline_module_main_func_index(module);
+    if (mi < 0)
+        rc = typeck_x_ast_library(module, arena, ctx_void);
+    else
+        rc = typeck_x_ast(module, arena, ctx_void);
+    if (rc != 0)
         return -1;
     return 0;
 }
 
-int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void) {
-    (void)arena;
-    (void)ctx_void;
-    if (typeck_ndep > 0)
-        return typeck_module_with_sidecar(module);
-    return typeck_module_entry_only(module);
-}
-
-/* G-02f-242：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
+/* G-02f-242：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cold */
 int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
   if (module == NULL) {
     return -1;

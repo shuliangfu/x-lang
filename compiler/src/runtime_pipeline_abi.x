@@ -109,8 +109,11 @@
 // wave86: pure preprocess_if_stack_reset / len / push / pop / at / set_at
 //   (G.7 single fixed i32[32] BSS; ast_pool GrowVec SHUX_WEAK cold fallback).
 //   Closes Cap residual preprocess #if stack leaf (x_buf still Cap residual).
-// Cap residual still: typeck_module C frontend (+ preprocess_x_buf;
-//   g05 harness still holds &fn cast for Cap-fn-ptr).
+// wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
+//   (G.7 single typeck authority; C typeck_module frontend deleted — was weak -1 only).
+//   Closes Cap residual typeck_module C frontend leaf.
+// Cap residual still: preprocess_x_buf lives in preprocess.x TU (already pure .x engine;
+//   pipeline pure orch still export-extern calls it); g05 &fn cast for Cap-fn-ptr.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -127,14 +130,19 @@
 // wave84: pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr pure below.
 // wave85: preprocess_define_reset / add / has are pure export functions below.
 // wave86: preprocess_if_stack_* are pure export functions below (not Cap residual).
+// wave87: typeck_module_* / pipeline_typeck_module_for_ctx* pure below (route to typeck_x_ast).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
-// wave63: typeck_module_entry_only / typeck_module_with_sidecar are pure export functions below.
-// Cap residual: C frontend typeck_module only (wave77 pure owns typeck_dep_module_ptrs_base BSS).
-// PLATFORM: SHARED — same ABI as seed cold twins; pure owns null gates and ndep branch.
-export extern "C" function typeck_module(module: *u8, dep_mods: *u8, ndep: i32, a: *u8, b: i32): i32;
+// wave63: typeck_module_entry_only / with_sidecar / for_ctx pure export functions below.
+// wave87: product force_c path no longer calls deleted C typeck_module (weak -1 stub).
+// G.7 authority = typeck_x_ast / typeck_x_ast_library (typeck.x → typeck_x.o).
+// pipeline_module_main_func_index chooses entry vs library (≡ pipeline_impl_typecheck).
+// PLATFORM: SHARED — same ABI as seed cold twins; pure owns null gates and X route.
+export extern "C" function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
 export extern "C" function free(p: *u8): void;
 // wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
 // PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
@@ -5668,53 +5676,69 @@ export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, 
 /* ---- G-02f-63 / G-02f-242 / wave63：typeck_for_ctx / lsp free_loaded ---- */
 
 /**
- * Typecheck entry module with no dep sidecar (ndep path unused).
+ * Historical C typeck entry-only surface (no arena/ctx).
  * @param module *u8 — AST module; null → -1
- * @return i32 — 0 success, -1 null or typeck_module failure
- * wave63 pure Cap residual orch: G.7 Cap residual typeck_module (C frontend).
- * PLATFORM: SHARED — same semantics as seed cold twin.
+ * @return i32 — always -1 when module non-null (X frontend needs arena+ctx)
+ * wave87: C typeck_module frontend deleted (weak -1 only). Callers with arena/ctx
+ * must use pipeline_typeck_module_for_ctx → typeck_x_ast. Keep symbol for cold/ABI.
+ * PLATFORM: SHARED — same fail-closed semantics as deleted C frontend stub.
  */
 #[no_mangle]
 export function typeck_module_entry_only(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
-  let rc: i32 = 0;
-  unsafe {
-    // Cap residual C typeck frontend; no dep table.
-    rc = typeck_module(module, 0 as *u8, 0, 0 as *u8, 0);
-  }
-  if (rc != 0) {
-    return 0 - 1;
-  }
-  return 0;
+  // No arena/ctx: cannot invoke typeck_x_ast. Use pipeline_typeck_module_for_ctx.
+  return 0 - 1;
 }
 
 /**
- * Typecheck entry module with typeck_ndep / typeck_dep_module_ptrs sidecar when ndep>0.
+ * Historical C typeck sidecar surface (typeck_ndep BSS + typeck_module).
  * @param module *u8 — AST module; null → -1
- * @return i32 — 0 success, -1 null or typeck_module failure
- * wave63 pure Cap residual orch (wave77 pure owns BSS base):
- *   G.7 pure get_ndep (typeck_ndep_slot pure BSS);
- *   G.7 pure typeck_dep_module_ptrs_base (wave77 pure table base for void**);
- *   G.7 Cap residual typeck_module (C frontend).
- * PLATFORM: SHARED — same as seed: deps null when ndep==0.
+ * @return i32 — always -1 when module non-null (X frontend uses PipelineDepCtx, not BSS)
+ * wave87: dep sidecar for deleted C typeck_module is obsolete; product deps live in ctx.
+ * PLATFORM: SHARED — fail-closed; G.7 authority is typeck_x_ast via for_ctx.
  */
 #[no_mangle]
 export function typeck_module_with_sidecar(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
-  let n: i32 = get_ndep();
-  let deps: *u8 = 0 as *u8;
-  if (n > 0) {
-    unsafe {
-      deps = typeck_dep_module_ptrs_base();
-    }
+  return 0 - 1;
+}
+
+/**
+ * Product typeck-for-ctx: route to typeck_x_ast authority (entry vs library).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena (required by typeck_x_ast*)
+ * @param ctx_void *u8 — PipelineDepCtx (required by typeck_x_ast*; holds import deps)
+ * @return i32 — 0 success, -1 failure (maps any non-zero typeck_x_ast* code to -1)
+ * wave87 pure Cap residual close: G.7 single authority typeck_x_ast / typeck_x_ast_library
+ *   (typeck.x); chooses library when pipeline_module_main_func_index < 0
+ *   (≡ pipeline_impl_typecheck / force_c branch). No C typeck_module.
+ * PLATFORM: SHARED — force_c and default product path share X frontend.
+ */
+#[no_mangle]
+export function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx_void: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  // Reject missing arena/ctx early (typeck_x_ast_library returns -5; keep for_ctx as 0/-1).
+  if (arena == 0 as *u8 || ctx_void == 0 as *u8) {
+    return 0 - 1;
+  }
+  let mi: i32 = 0;
+  unsafe {
+    mi = pipeline_module_main_func_index(module);
   }
   let rc: i32 = 0;
   unsafe {
-    rc = typeck_module(module, deps, n, 0 as *u8, 0);
+    // Library modules (no main): typeck_x_ast_library; entry with main: typeck_x_ast.
+    if (mi < 0) {
+      rc = typeck_x_ast_library(module, arena, ctx_void);
+    } else {
+      rc = typeck_x_ast(module, arena, ctx_void);
+    }
   }
   if (rc != 0) {
     return 0 - 1;
@@ -5723,35 +5747,12 @@ export function typeck_module_with_sidecar(module: *u8): i32 {
 }
 
 /**
- * Choose entry-only vs sidecar typeck from current typeck_ndep (arena/ctx unused).
- * @param module *u8 — AST module; null → -1
- * @param arena *u8 — historical; unused (kept for ABI)
- * @param ctx_void *u8 — historical; unused (kept for ABI)
- * @return i32 — 0 success, -1 failure
- * wave63 pure Cap residual orch: G.7 pure typeck_module_entry_only / with_sidecar.
- * PLATFORM: SHARED.
- */
-#[no_mangle]
-export function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx_void: *u8): i32 {
-  let _a: *u8 = arena;
-  let _c: *u8 = ctx_void;
-  if (module == 0 as *u8) {
-    return 0 - 1;
-  }
-  let n: i32 = get_ndep();
-  if (n > 0) {
-    return typeck_module_with_sidecar(module);
-  }
-  return typeck_module_entry_only(module);
-}
-
-/**
  * Thin gate for pipeline typeck-for-ctx (null module → -1).
  * @param module *u8 — AST module; null → -1
- * @param arena *u8 — passed through (unused by impl)
- * @param ctx *u8 — passed through (unused by impl)
+ * @param arena *u8 — passed through to typeck_x_ast*
+ * @param ctx *u8 — passed through to typeck_x_ast* (PipelineDepCtx)
  * @return i32 — 0 success, -1 failure
- * wave63: body in pure pipeline_typeck_module_for_ctx_impl after null gate.
+ * wave63/wave87: body in pure pipeline_typeck_module_for_ctx_impl after null gate.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
