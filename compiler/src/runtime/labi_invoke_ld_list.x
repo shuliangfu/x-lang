@@ -11,7 +11,8 @@
 // + wave179 invoke_cc_argv_push_existing pure orch
 // + wave187 ensure_std_net_o_auto_tls pure orch
 // + wave188 shux_ensure_formal_std_make_o pure orch
-// + wave191 labi_std_append_formal_ensure_for_rel pure orch:
+// + wave191 labi_std_append_formal_ensure_for_rel pure orch
+// + wave192 labi_std_append_glue_for_op pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -30,12 +31,14 @@
 //     getenv+access+realpath_cap+system+asm_link_obj_skip_missing; shell make Cap residual)
 //   - labi_std_append_formal_ensure_for_rel (wave191; pure formal ensure+companions orch for
 //     append_std OP_STD; Cap residual repo_root + ensure_runtime_* + peer push_obj)
+//   - labi_std_append_glue_for_op (wave192; pure OP_GLUE_* ensure+path+push orch for
+//     append_std plan glue leaves; Cap residual ensure_runtime_*_glue + peer path + push_obj)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
 //   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap);
-//   runtime ensure/path peers for wave191 formal companions (env_os/random_fill/time_os).
+//   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves.
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -98,9 +101,40 @@ export extern "C" function shux_ensure_runtime_time_os_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
 
 // Peer pure (path_pure L0 wave148): push one .o onto asm ld argv (resolve+bank+dedup).
-// wave191 companions call this after formal/runtime ensure.
+// wave191 companions + wave192 glue leaves call this after ensure.
 // Note: single-line signature (multi-line export decls can drop the symbol).
 export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32;
+
+// Cap residual / peer pure (ensure_list L4 + path_pure L0): OP_GLUE_* runtime glue
+// ensure + path for append_std plan leaves (wave192).
+// PLATFORM: SHARED — product symbols; hybrid may resolve via pure L0/L4 path ladders.
+// G.7: compose ensure+path+push_obj (≡ push_glue_after_std without C fnptr); no second gate.
+export extern "C" function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_sync_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_log_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_log_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_channel_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_math_libm_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_math_libm_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_http_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_http_glue_o_path(argv0: *u8): *u8;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -2125,5 +2159,248 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
     if (_ens != 0) {
       return;
     }
+  }
+}
+
+/**
+ * Helper: if have!=0 and ensure returns 0, push glue_rel via primary path.
+ * Mirrors link_abi_asm_ld_push_glue_after_std without a C function-pointer ensure_fn
+ * (G.7: same gate semantics — have gate + ensure success + peer push_obj).
+ * @param have i32 — non-zero when owning formal std .o is already on ld argv
+ * @param er i32 — ensure_* return (0 success; non-zero skip push)
+ * @param primary *u8 — preferred glue .o path (may be null; push_obj resolves via rel)
+ * @param link_argv0 *u8 — compiler argv0
+ * @param glue_rel *u8 — relative glue path under project/lib roots
+ * @param lib_roots **u8 — -L style roots
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * PLATFORM: SHARED — pure thin; used only by labi_std_append_glue_for_op.
+ */
+function labi_std_glue_push_if(have: i32, er: i32, primary: *u8, link_argv0: *u8, glue_rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (have == 0) {
+    return;
+  }
+  if (er != 0) {
+    return;
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  let _p: i32 = 0;
+  unsafe {
+    _p = link_abi_asm_ld_push_obj(primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  }
+  if (_p == 0) {
+    return;
+  }
+}
+
+/**
+ * Append_std plan OP_GLUE_* leaf: when `have` is set, ensure runtime glue .o and push
+ * onto ld argv. Pure orch over plan op codes (≡ mega LABI_STD_OP_GLUE_*):
+ *   10 THREAD, 11 SYNC_PAIR, 12 CRYPTO_PAIR, 13 LOG, 14 ATOMIC, 15 CHANNEL,
+ *   16 BACKTRACE, 17 MATH, 18 SQLITE, 19 DYNLIB, 20 HTTP.
+ * Pairs (sync/crypto): two glue pushes when have (lock_diag+sync_os / ed25519+crypto_inc).
+ * Single leaves: use plan `rel` when non-null/non-empty else default compiler/runtime_*.o.
+ * @param op i32 — LABI_STD_OP_GLUE_* (10..20); other → no-op
+ * @param have i32 — flag set by prior OP_STD step (local or ShuAsmLdStdLinkFlags)
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param rel *u8 — plan step rel (may be null; singles fall back to default path)
+ * @param lib_roots **u8 — -L style roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * Cap residual: ensure_runtime_*_glue / *_os / math_libm + peer path pure + push_obj.
+ * Why (wave192): hybrid still had all OP_GLUE_* cases always-mega inline after wave191
+ *   formal ensure pure (soft residual append_std plan glue/flag).
+ * G.7: compose existing ensure+path+push (same semantics as push_glue_after_std); no
+ *   second gate table; no C ensure_fn pointer from .x.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — dual-end L2.
+ * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
+ */
+#[no_mangle]
+export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  // Resolve effective rel for single-glue leaves (mega: rel ? rel : default).
+  let use_rel: *u8 = rel;
+  let rel_ok: i32 = 0;
+  if (rel != 0 as *u8) {
+    if (rel[0] != 0) {
+      rel_ok = 1;
+    }
+  }
+  // ≡ push_glue_after_std: have gate before any ensure (do not build unused glue).
+  if (have == 0) {
+    return;
+  }
+  // op 10: THREAD glue
+  if (op == 10) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_thread_glue.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_thread_glue_o(link_argv0);
+      p = shux_runtime_thread_glue_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 11: SYNC_PAIR — lock_diag_tls + sync_os (mega hardcodes both rels)
+  if (op == 11) {
+    let er1: i32 = 0;
+    let p1: *u8 = 0 as *u8;
+    let er2: i32 = 0;
+    let p2: *u8 = 0 as *u8;
+    unsafe {
+      er1 = shux_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
+      p1 = shux_runtime_sync_lock_diag_tls_o_path(link_argv0);
+      er2 = shux_ensure_runtime_sync_os_o(link_argv0);
+      p2 = shux_runtime_sync_os_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er1, p1, link_argv0, "compiler/runtime_sync_lock_diag_tls.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+    labi_std_glue_push_if(1, er2, p2, link_argv0, "compiler/runtime_sync_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 12: CRYPTO_PAIR — ed25519_ref10 + crypto_inc
+  if (op == 12) {
+    let er1: i32 = 0;
+    let p1: *u8 = 0 as *u8;
+    let er2: i32 = 0;
+    let p2: *u8 = 0 as *u8;
+    unsafe {
+      er1 = shux_ensure_runtime_ed25519_ref10_glue_o(link_argv0);
+      p1 = shux_runtime_ed25519_ref10_glue_o_path(link_argv0);
+      er2 = shux_ensure_runtime_crypto_inc_glue_o(link_argv0);
+      p2 = shux_runtime_crypto_inc_glue_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er1, p1, link_argv0, "compiler/runtime_ed25519_ref10_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+    labi_std_glue_push_if(1, er2, p2, link_argv0, "compiler/runtime_crypto_inc_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 13: LOG
+  if (op == 13) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_log_os.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_log_os_o(link_argv0);
+      p = shux_runtime_log_os_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 14: ATOMIC
+  if (op == 14) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_atomic_glue.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_atomic_glue_o(link_argv0);
+      p = shux_runtime_atomic_glue_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 15: CHANNEL
+  if (op == 15) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_channel_glue.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_channel_glue_o(link_argv0);
+      p = shux_runtime_channel_glue_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 16: BACKTRACE
+  if (op == 16) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_backtrace_platform.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_backtrace_platform_o(link_argv0);
+      p = shux_runtime_backtrace_platform_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 17: MATH
+  if (op == 17) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_math_libm.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_math_libm_o(link_argv0);
+      p = shux_runtime_math_libm_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 18: SQLITE
+  if (op == 18) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_sqlite_glue.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_sqlite_glue_o(link_argv0);
+      p = shux_runtime_sqlite_glue_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 19: DYNLIB
+  if (op == 19) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_dynlib_os.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_dynlib_os_o(link_argv0);
+      p = shux_runtime_dynlib_os_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+  // op 20: HTTP
+  if (op == 20) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_http_glue.o";
+    }
+    let er: i32 = 0;
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      er = shux_ensure_runtime_http_glue_o(link_argv0);
+      p = shux_runtime_http_glue_o_path(link_argv0);
+    }
+    labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
   }
 }

@@ -52,6 +52,10 @@ int labi_std_rel_is_std_or_core(const char *rel);
 void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
+/* wave192: OP_GLUE_* pure orch for append_std plan glue leaves (L6 pure / cold twin). */
+void labi_std_append_glue_for_op(int op, int have, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
 /* G-02f-68 link helpers */
 int shu_waitpid_retry(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
@@ -5482,70 +5486,55 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
             }
             break;
+        /*
+         * wave192: OP_GLUE_* → labi_std_append_glue_for_op pure orch
+         * (ensure+path+push ≡ push_glue_after_std without C fnptr from pure).
+         * Why: hybrid still had glue cases always-mega inline after wave191 formal ensure.
+         * PLATFORM: SHARED — G.7 single glue-append authority; dual-end L2.
+         */
         case LABI_STD_OP_GLUE_THREAD:
-            link_abi_asm_ld_push_glue_after_std(flags && flags->have_thread, shux_ensure_runtime_thread_glue_o,
-                shux_runtime_thread_glue_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_thread_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, flags && flags->have_thread, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_SYNC_PAIR:
-            if (flags && flags->have_sync) {
-                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_lock_diag_tls_o,
-                    shux_runtime_sync_lock_diag_tls_o_path(link_argv0), link_argv0,
-                    "compiler/runtime_sync_lock_diag_tls.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_os_o,
-                    shux_runtime_sync_os_o_path(link_argv0), link_argv0,
-                    "compiler/runtime_sync_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-            }
+            labi_std_append_glue_for_op(op, flags && flags->have_sync, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_CRYPTO_PAIR:
-            if (have_crypto) {
-                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_ed25519_ref10_glue_o,
-                    shux_runtime_ed25519_ref10_glue_o_path(link_argv0), link_argv0,
-                    "compiler/runtime_ed25519_ref10_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_crypto_inc_glue_o,
-                    shux_runtime_crypto_inc_glue_o_path(link_argv0), link_argv0,
-                    "compiler/runtime_crypto_inc_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-            }
+            labi_std_append_glue_for_op(op, have_crypto, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_LOG:
-            link_abi_asm_ld_push_glue_after_std(have_log, shux_ensure_runtime_log_os_o,
-                shux_runtime_log_os_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_log_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, have_log, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_ATOMIC:
-            link_abi_asm_ld_push_glue_after_std(have_atomic, shux_ensure_runtime_atomic_glue_o,
-                shux_runtime_atomic_glue_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, have_atomic, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_CHANNEL:
-            link_abi_asm_ld_push_glue_after_std(flags && flags->have_channel, shux_ensure_runtime_channel_glue_o,
-                shux_runtime_channel_glue_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_channel_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, flags && flags->have_channel, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_BACKTRACE:
-            link_abi_asm_ld_push_glue_after_std(have_backtrace, shux_ensure_runtime_backtrace_platform_o,
-                shux_runtime_backtrace_platform_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_backtrace_platform.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, have_backtrace, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_MATH:
-            link_abi_asm_ld_push_glue_after_std(flags && flags->have_math, shux_ensure_runtime_math_libm_o,
-                shux_runtime_math_libm_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_math_libm.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, flags && flags->have_math, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_SQLITE:
-            link_abi_asm_ld_push_glue_after_std(flags && flags->have_sqlite, shux_ensure_runtime_sqlite_glue_o,
-                shux_runtime_sqlite_glue_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_sqlite_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, flags && flags->have_sqlite, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_DYNLIB:
-            link_abi_asm_ld_push_glue_after_std(flags && flags->have_dynlib, shux_ensure_runtime_dynlib_os_o,
-                shux_runtime_dynlib_os_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_dynlib_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, flags && flags->have_dynlib, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_HTTP:
-            link_abi_asm_ld_push_glue_after_std(have_http, shux_ensure_runtime_http_glue_o,
-                shux_runtime_http_glue_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_http_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_std_append_glue_for_op(op, have_http, link_argv0, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_TASK_SPECIAL:
             /* PLATFORM: SHARED — gate bulk task+scheduler on user UNDEF (see labi_user_needs_std_task). */
