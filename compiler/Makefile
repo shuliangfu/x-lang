@@ -1567,11 +1567,12 @@ typeck_c_module_stubs.o: seeds/typeck_c_module_stubs.from_x.c typeck_c_module_st
 USER_ASM_SEED_HOST_DIR = build_asm/seed_host
 USER_ASM_SEED_HOST_OBJS = $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o
 USER_ASM_SEED_HOST_STUBS = $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.o
-USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o
+USER_ASM_SEED_OBJS = src/asm/user_asm_seed_bridge.o src/asm/asm_backend_compat_stubs.o src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arm64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o
 USER_ASM_LINK = $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(USER_ASM_SEED_OBJS)
 ifeq ($(UNAME_S),Darwin)
 BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O = build_asm/bootstrap_seed_pipeline_filtered.o
-BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS = build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o
+# PLATFORM: MACOS — backend_arm64_enc_c.o strong arch_arm64_enc_* override seed_link_compat weak -1 (CG002).
+BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS = build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_arm64_enc_c.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o
 BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
 SHUX_X_PIPELINE_LINK_O = $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O)
 SHUX_X_USER_ASM_OBJS = $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
@@ -1639,6 +1640,11 @@ src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/back
 # G-02f-15：backend_x86_64_enc_c 产品 seed
 src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/backend_x86_64_enc_c.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_x86_64_enc_c.from_x.c -o $@
+
+# CG002：backend_arm64_enc_c 产品 seed（强符号覆盖 seed_link_compat weak -1 桩）
+# PLATFORM: MACOS arm64 pure-asm 必需；其它主机链接无害（ta!=1 不调）。
+src/asm/backend_arm64_enc_c.o: seeds/backend_arm64_enc_c.from_x.c
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_arm64_enc_c.from_x.c -o $@
 
 src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch_thin.x src/asm/backend_arch_emit_dispatch.x
 	@if [ -x ./shux-c ] && { \
