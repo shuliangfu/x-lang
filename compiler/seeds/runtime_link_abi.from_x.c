@@ -5751,92 +5751,10 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
 
 /*
  * wave118: needs_std_net pure orch lives in labi_ondemand_list (net sym table + orch).
+ * wave119: needs_std_set pure orch lives in labi_ondemand_list (set sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
-
-/**
- * 判断用户 .o 是否引用 std.set API（按需链 set.o + heap.o + hash.o）。
- * PLATFORM: SHARED — probes must match formal std/set/set.o export mangles
- * (overload surface: insert_Set_i32_ptr_i32, new_i32_retSet_i32, …).
- * Stale names std_set_set_i32_* never appear as U on product asm user.o → set.o never
- * pushed → BLD001 (Ubuntu gold). G.7: complete existing needs_std_set authority.
- */
-int link_abi_user_o_needs_std_set(const char *user_o) {
-  if ((user_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((user_o)[0] ==0)) {
-      return 0;
-    }
-    /* Current product overload mangles (tests/set, formal set.o). */
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_new_i32_retSet_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_new_i32_retSet_u64") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_with_capacity_Set_i32_ptr_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_insert_Set_i32_ptr_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_insert_Set_u64_ptr_u64") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_contains_key_Set_i32_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_contains_key_Set_u64_u64") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_remove_Set_i32_ptr_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_remove_Set_u64_ptr_u64") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_len_Set_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_len_Set_u64") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_deinit_Set_i32_ptr") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_deinit_Set_u64_ptr") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_str_new") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_str_insert") !=0)) {
-      return 1;
-    }
-    /* Legacy / alternate mangles kept so old user.o still pulls set.o. */
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_insert") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_contains") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_remove") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_len") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_deinit") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
 
 /**
  * 判断用户 .o 或已入链 argv 中的 std/*.o 是否引用 std.heap API（按需链 heap.o）。
@@ -7546,10 +7464,13 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118 needs_std_net pure orch (bodies in L8b pure .x / cold seed). */
+/* wave118–119 needs_std_net / needs_std_set pure orch (bodies in L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
+int labi_od_set_sym_count(void);
+const char *labi_od_set_sym_at(int i);
+int link_abi_user_o_needs_std_set(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

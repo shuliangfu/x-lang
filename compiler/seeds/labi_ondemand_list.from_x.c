@@ -2,9 +2,10 @@
  * Logic source: src/runtime/labi_ondemand_list.x
  * Hybrid: SHUX_LABI_ONDEMAND_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave118）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave118–119）：公共业务符号由 full .x 提供：
  *   simple/kv/arrow/time/queue + rel_* 纯表
  *   + labi_od_net_sym_{count,at} + link_abi_user_o_needs_std_net pure orch
+ *   + labi_od_set_sym_{count,at} + link_abi_user_o_needs_std_set pure orch
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -378,6 +379,70 @@ int link_abi_user_o_needs_std_net(const char *user_o) {
   return 0;
 }
 
+/* wave119: set UNDEF table + needs_std_set pure orch. PLATFORM: SHARED. */
+int labi_od_set_sym_count(void) { return 20; }
+const char *labi_od_set_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_set_new_i32_retSet_i32";
+  if (i == 1)
+    return "std_set_new_i32_retSet_u64";
+  if (i == 2)
+    return "std_set_with_capacity_Set_i32_ptr_i32";
+  if (i == 3)
+    return "std_set_insert_Set_i32_ptr_i32";
+  if (i == 4)
+    return "std_set_insert_Set_u64_ptr_u64";
+  if (i == 5)
+    return "std_set_contains_key_Set_i32_i32";
+  if (i == 6)
+    return "std_set_contains_key_Set_u64_u64";
+  if (i == 7)
+    return "std_set_remove_Set_i32_ptr_i32";
+  if (i == 8)
+    return "std_set_remove_Set_u64_ptr_u64";
+  if (i == 9)
+    return "std_set_len_Set_i32";
+  if (i == 10)
+    return "std_set_len_Set_u64";
+  if (i == 11)
+    return "std_set_deinit_Set_i32_ptr";
+  if (i == 12)
+    return "std_set_deinit_Set_u64_ptr";
+  if (i == 13)
+    return "std_set_str_new";
+  if (i == 14)
+    return "std_set_str_insert";
+  /* Legacy / alternate mangles. */
+  if (i == 15)
+    return "std_set_set_i32_insert";
+  if (i == 16)
+    return "std_set_set_i32_contains";
+  if (i == 17)
+    return "std_set_set_i32_remove";
+  if (i == 18)
+    return "std_set_set_i32_len";
+  if (i == 19)
+    return "std_set_set_i32_deinit";
+  return NULL;
+}
+
+/* Pure orch: table + Cap residual undef_sym. PLATFORM: SHARED. */
+int link_abi_user_o_needs_std_set(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_set_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_set_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -422,6 +487,9 @@ const char *labi_od_queue_contention_rel(void);
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
+int labi_od_set_sym_count(void);
+const char *labi_od_set_sym_at(int i);
+int link_abi_user_o_needs_std_set(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

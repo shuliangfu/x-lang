@@ -5,7 +5,8 @@
 // Hybrid macro SHUX_LABI_ONDEMAND_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: simple/kv/arrow/time/queue + rel_* pure tables +
-//   wave118 labi_od_net_sym_* + link_abi_user_o_needs_std_net pure orch.
+//   wave118 labi_od_net_sym_* + link_abi_user_o_needs_std_net pure orch +
+//   wave119 labi_od_set_sym_* + link_abi_user_o_needs_std_set pure orch.
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -676,6 +677,148 @@ export function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_net_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of UNDEF symbols that pull std/set/set.o on product asm on_demand.
+ * @return i32 — 20 (formal overload mangles + legacy std_set_set_i32_*)
+ * PLATFORM: SHARED — must match formal set.o export / historical user.o
+ */
+#[no_mangle]
+export function labi_od_set_sym_count(): i32 {
+  return 20;
+}
+
+/**
+ * Set on_demand UNDEF symbol at index (product probe table for needs_std_set).
+ * @param i i32 — index in [0, 20)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete existing needs_std_set authority (no second table)
+ */
+#[no_mangle]
+export function labi_od_set_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_set_new_i32_retSet_i32";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_set_new_i32_retSet_u64";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_set_with_capacity_Set_i32_ptr_i32";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_set_insert_Set_i32_ptr_i32";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_set_insert_Set_u64_ptr_u64";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_set_contains_key_Set_i32_i32";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_set_contains_key_Set_u64_u64";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_set_remove_Set_i32_ptr_i32";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_set_remove_Set_u64_ptr_u64";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_set_len_Set_i32";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_set_len_Set_u64";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_set_deinit_Set_i32_ptr";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_set_deinit_Set_u64_ptr";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_set_str_new";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_set_str_insert";
+    return p;
+  }
+  /* Legacy / alternate mangles: old user.o still pulls set.o. */
+  if (i == 15) {
+    let p: *u8 = "std_set_set_i32_insert";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "std_set_set_i32_contains";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "std_set_set_i32_remove";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "std_set_set_i32_len";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "std_set_set_i32_deinit";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.set API (on-demand chain set.o + heap/hash deps).
+ * Pure orch: fixed set UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave119): hybrid still had needs_std_set body always mega C with hard-coded strings.
+ * Stale names alone never appear as U on product asm → set.o never pushed → BLD001 (Ubuntu).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_set_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_set_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
