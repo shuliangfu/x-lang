@@ -4,6 +4,12 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave98: product complex #if Cap residual — G.7 cfg_eval.x on product link (not
+//   bootstrap stub). Pure preprocess_eval_condition_c already routes complex ops to
+//   cfg_eval_expr_c; Makefile -E-extern used bare CFLAGS → Apple Clang -Werror
+//   parentheses-equality → silent stub pin (dual-auth vs cfg_eval.x). Root fix:
+//   PIPELINE_GEN_CFLAGS (+ -Wno-parentheses-equality) on cfg_eval_gen.c. Closes
+//   product hard Cap residual "cfg_eval complex body was stub under hybrid pure".
 // wave97: pure load_and_sync step5 typeck merge+wpo call surface → G.7 typeck.x
 //   authority (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts);
 //   remove export-extern typeck_typeck_* double-prefix hop (link-alias still serves
@@ -163,8 +169,10 @@
 // wave91: pure set_dep_ctx / get_dep_ctx BSS (G.7 single ptr; same-TU orch + ast_pool get).
 // wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
 // wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7; no typeck_typeck_* hop).
-// Cap residual still: cfg_eval complex #if; preprocess_x_buf pure preprocess.x cross-TU;
-//   g05 &fn cast; parser_copy_module_import_path64 under pure load_and_sync.
+// Cap residual still: g05 &fn cast (language; g05 harness); preprocess_x_buf pure
+//   preprocess.x cross-TU; parser_copy_module_import_path64 under pure load_and_sync.
+//   cfg_eval complex #if = permanent G.7 cross-TU call to cfg_eval.x (wave98 product
+//   link fixed; body no longer bootstrap stub when -E works).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -193,7 +201,8 @@
 // wave96: pipeline_parse_into_buf is pure export function below (not Cap residual).
 // wave97: load_and_sync step5 merge+wpo call typeck.x authority below (not Cap residual hop).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
-// wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
+// wave88/98: complex #if → G.7 cfg_eval.x authority (surface cfg_eval_expr_c via
+// link_alias to lexer_cfg_eval_expr_c; product must not pin bootstrap stub — wave98).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;

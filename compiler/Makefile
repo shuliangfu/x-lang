@@ -51,7 +51,11 @@ endif
 # 仅编译 pipeline_gen.c / driver_gen.c 等生成代码时加：静默已知警告，使 bootstrap-driver 整次 0 警告
 # GCC 不识别 -Wno-logical-op-parentheses / -Wno-bitwise-op-parentheses / -Wno-incompatible-pointer-types-discards-qualifiers，会出 cc1 note；仅 Clang 追加
 PIPELINE_GEN_CFLAGS_BASE = -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits
-PIPELINE_GEN_CFLAGS_CLANG = -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers
+# PLATFORM: MACOS/CLANG — Apple Clang treats -Wparentheses-equality as distinct from
+# -Wparentheses; without -Wno-parentheses-equality, -E-extern gen C (cfg_eval/typeck/…)
+# hard-fails under -Werror and silently falls back to bootstrap stubs (false Cap residual).
+# PLATFORM: LINUX/GCC — -Wno-parentheses in BASE is usually enough; extra flag is no-op.
+PIPELINE_GEN_CFLAGS_CLANG = -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers -Wno-parentheses-equality
 CC_IS_CLANG := $(findstring clang,$(shell $(CC) -v 2>&1))
 PIPELINE_GEN_CFLAGS = $(PIPELINE_GEN_CFLAGS_BASE) $(if $(CC_IS_CLANG),$(PIPELINE_GEN_CFLAGS_CLANG))
 # 阶段 8：make OPT=1 时为 shux 启用 -O2，便于开发时快速运行测试
@@ -995,9 +999,15 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 
 # G-02-B1：cfg_eval 仅 cfg_eval.x（无 cfg_eval.c 回退）。
 # cold bootstrap 时 shux-c 默认 pipeline 可能挂起；timeout 后回退 -E-extern / stub。
+# wave98 Cap residual pure: product complex #if must link cfg_eval.x authority
+# (lexer_cfg_eval_expr_c + link_alias → cfg_eval_expr_c), NOT bootstrap stub when -E works.
+# Root cause of long stub pin: $(CC) $(CFLAGS) alone lacked PIPELINE_GEN_CFLAGS so
+# -Werror -Wparentheses-equality (Apple Clang) failed the -E-extern object and silently
+# fell through to stub — pure preprocess_eval_condition_c still called cfg_eval_expr_c,
+# but body was C stub dual-auth vs cfg_eval.x. Fix: compile gen with PIPELINE_GEN_CFLAGS.
 # PLATFORM: SHARED — if -E emits illegal C (e.g. dual cfg-host os lit redefinition on
 # Darwin), cc must not hard-fail the recipe: fall through to bootstrap stub so L4
-# cold bootstrap can finish (Ubuntu already took stub when asm/-E both unusable).
+# cold bootstrap can finish (true cold-only residual when .x path unusable).
 src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c scripts/cc_inc_tu.sh
 	@set -e; \
 	$(MAKE) $(SHUX_C); \
@@ -1015,7 +1025,7 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c sc
 	  echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
 	elif ./$(SHUX_C) -E -E-extern -L .. src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
 	  && [ -s src/lexer/cfg_eval_gen.c ] \
-	  && $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c 2>/dev/null; then \
+	  && $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c 2>/dev/null; then \
 	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \

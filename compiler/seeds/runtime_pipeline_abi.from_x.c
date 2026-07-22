@@ -125,8 +125,11 @@
  * wave93: pure load_and_sync_direct_import_deps_c orch + try_bind + realign
  *   (ast_pool SHUX_WEAK cold; Cap residual disk load / sync / typeck merge+wpo).
  *   Closes Cap residual layout validate+patch helpers under pure dep-prerun light fallback.
- * Cap residual still: load_and_sync_direct_import_deps_c; cfg_eval complex #if;
- *   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
+ * wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7).
+ * wave98: product cfg_eval complex #if → cfg_eval.x (-E+alias), not bootstrap stub
+ *   (Makefile PIPELINE_GEN_CFLAGS + -Wno-parentheses-equality on gen).
+ * Cap residual still: preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast;
+ *   parser_copy_module_import_path64; cfg_eval complex = permanent G.7 cross-TU.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
