@@ -600,6 +600,12 @@ SHUX_WEAK int32_t pipeline_module_main_func_index(struct ast_Module *m) {
     return -1;
 }
 
+/**
+ * wave89: pure runtime_pipeline_abi owns product pipeline_typeck_dep_prerun_module_c.
+ * This stub is only for cold/empty-surface links without pure or pipeline_glue.
+ * pipeline_glue also keeps a full SHUX_WEAK cold twin (set_dep_ctx + typeck_x_ast_library).
+ * PLATFORM: SHARED — pure strong wins under hybrid PREFER.
+ */
 SHUX_WEAK int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   struct ast_PipelineDepCtx *ctx) {
     (void)module;

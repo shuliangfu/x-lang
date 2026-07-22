@@ -103,8 +103,12 @@
  * wave88: pure preprocess_eval_condition_c (trim + pure define_has simple path;
  *   Cap residual cfg_eval_expr_c complex; glue strict_stubs SHUX_WEAK cold fallback).
  *   Closes Cap residual preprocess #if condition-eval leaf.
- * Cap residual still: cfg_eval_expr_c complex branch; preprocess_x_buf pure preprocess.x
- *   TU (cross-TU export-extern, not always-seed Cap); g05 harness still holds &fn cast.
+ * wave89: pure pipeline_typeck_dep_prerun_module_c (set_dep_ctx + soft_suppress +
+ *   typeck_x_ast_library + Cap residual layout validate/patch; glue SHUX_WEAK cold).
+ *   Closes Cap residual typeck dep-prerun leaf used by wave60 typeck_only orch.
+ * Cap residual still: load_and_sync_direct_import_deps_c; cfg_eval complex #if;
+ *   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast; set_dep_ctx / soft_suppress /
+ *   layout validate+patch helpers under pure dep-prerun.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).

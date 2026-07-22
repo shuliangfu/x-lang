@@ -29684,8 +29684,14 @@ int32_t pipeline_typeck_diag_soft_suppress_get(void) {
  */
 extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct ast_PipelineDepCtx *ctx);
-int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
-                                            struct ast_PipelineDepCtx *ctx) {
+/*
+ * wave89: product pure owns pipeline_typeck_dep_prerun_module_c (runtime_pipeline_abi.x).
+ * Keep SHUX_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure; same steps as pure orch.
+ */
+__attribute__((weak)) int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module,
+                                                                  struct ast_ASTArena *arena,
+                                                                  struct ast_PipelineDepCtx *ctx) {
   int32_t tc;
   if (!module || !arena || !ctx)
     return -5;

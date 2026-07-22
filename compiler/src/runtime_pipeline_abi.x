@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave89: pure pipeline_typeck_dep_prerun_module_c orch (set_dep_ctx + soft_suppress +
+//   typeck_x_ast_library + Cap residual layout validate/patch fallback; glue SHUX_WEAK cold).
+//   Closes Cap residual typeck dep-prerun leaf used by wave60 typeck_only orch.
 // wave88: pure preprocess_eval_condition_c orch (trim + simple → pure define_has;
 //   complex ops → Cap residual cfg_eval_expr_c; glue SHUX_WEAK cold fallback).
 //   Closes Cap residual preprocess #if condition-eval leaf (x_buf already pure cross-TU).
@@ -118,8 +121,12 @@
 // wave88: pure preprocess_eval_condition_c (G.7 pure define_has simple path + Cap residual
 //   cfg_eval_expr_c for complex #if); glue SHUX_WEAK cold fallback.
 //   Closes Cap residual preprocess condition-eval leaf of preprocess.x engine path.
-// Cap residual still: cfg_eval_expr_c complex branch; preprocess_x_buf is pure preprocess.x
-//   TU (cross-TU export-extern, not always-seed Cap); g05 &fn cast for Cap-fn-ptr.
+// wave89: pure pipeline_typeck_dep_prerun_module_c (G.7 pure orch → typeck_x_ast_library +
+//   Cap residual set_dep_ctx / soft_suppress / validate / patch; glue SHUX_WEAK cold).
+//   Closes Cap residual typeck dep-prerun leaf (wave60 typeck_only no longer always-seed body).
+// Cap residual still: load_and_sync_direct_import_deps_c (ast_pool); cfg_eval complex #if;
+//   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast; set_dep_ctx / soft_suppress /
+//   layout validate+patch helpers under pure dep-prerun orch.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -138,6 +145,7 @@
 // wave86: preprocess_if_stack_* are pure export functions below (not Cap residual).
 // wave87: typeck_module_* / pipeline_typeck_module_for_ctx* pure below (route to typeck_x_ast).
 // wave88: preprocess_eval_condition_c is pure export function below (not Cap residual glue body).
+// wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual glue body).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 // wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
@@ -247,10 +255,15 @@ export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 // wave58: shux_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
 // wave59: shux_pipeline_dep_prerun_parse_only_impl is pure export function below.
 // wave60: shux_pipeline_dep_prerun_typeck_only_impl is pure export function below.
-// Cap residual glue still called from pure typeck_only orch (strong defs in glue/ast_pool):
+// Cap residual glue still called from pure typeck_only orch (ast_pool load_and_sync):
 // PLATFORM: SHARED — same C ABI as seed _impl; weak pure parse_set_main_from_buf surface in this TU.
 export extern "C" function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: *u8, ctx: *u8): i32;
-export extern "C" function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx: *u8): i32;
+// wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual body).
+// Cap residual helpers used by pure dep-prerun orch (pipeline_glue / ast_pool authority):
+export extern "C" function pipeline_typeck_set_dep_ctx(ctx: *u8): void;
+export extern "C" function pipeline_typeck_diag_soft_suppress_set(v: i32): void;
+export extern "C" function pipeline_typeck_validate_struct_layouts_zero_padding_c(module: *u8, arena: *u8): i32;
+export extern "C" function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena: *u8): void;
 // wave58 pure skip_typeck orch: G.7 driver flags + asm_entry field accessors (runtime_driver_abi).
 // PLATFORM: SHARED — same symbols as rt_run_asm_backend pure path.
 export extern "C" function driver_check_only_get(): i32;
@@ -2476,10 +2489,10 @@ export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8
  * @param dep_out *u8 — unused (historical signature; seed voids it)
  * @param one_ctx *u8 — PipelineDepCtx; required for load + typeck
  * @return i32 — 0 ok; -1 null/oversized; -2 parse fail; else load_rc / typeck_rc
- * wave60 pure Cap residual:
+ * wave60 pure Cap residual; wave89 pure owns typeck_dep_prerun_module_c:
  *   G.7 pure pipeline_parse_set_main_from_buf_c surface (weak empty here; strong glue wins);
- *   G.7 pipeline_load_and_sync_direct_import_deps_c (ast_pool authority);
- *   G.7 pipeline_typeck_dep_prerun_module_c (pipeline_glue authority);
+ *   G.7 pipeline_load_and_sync_direct_import_deps_c (ast_pool Cap residual);
+ *   G.7 pure pipeline_typeck_dep_prerun_module_c (same-TU; Cap residual layout helpers);
  *   SHUX_DEBUG_PIPE notes cold-only (seed twin keeps getenv diags).
  * PLATFORM: SHARED — same return mapping as historical seed _impl.
  */
@@ -2518,11 +2531,66 @@ export function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_aren
     if (load_rc != 0) {
       return load_rc;
     }
-    // Typeck dep prerun module (skip codegen); return code is authority surface.
+    // wave89: pure same-TU typeck dep prerun (skip codegen); return code is authority surface.
     let tc_rc: i32 = pipeline_typeck_dep_prerun_module_c(dep_mod, dep_arena, one_ctx);
     return tc_rc;
   }
   return 0 - 1;
+}
+
+/**
+ * Dep-module typeck prerun: exploratory full library typeck, then light layout fallback.
+ * @param module *u8 — dep AST module; null → -5
+ * @param arena *u8 — dep AST arena; null → -5
+ * @param ctx *u8 — PipelineDepCtx; null → -5
+ * @return i32 — 0 ok; -5 null args; -7 zero-padding layout fail; else 0 after light fallback
+ * wave89 pure Cap residual: G.7 single product authority for pipeline_typeck_dep_prerun_module_c
+ * (historical strong body in pipeline_glue.c now SHUX_WEAK cold fallback).
+ * Steps (match historical C; SHUX_DEBUG_PIPE notes cold-only):
+ *   1) pipeline_typeck_set_dep_ctx(ctx) — Cap residual global dep_ctx for glue accessors;
+ *   2) soft_suppress_set(1) — Cap residual suppress exploratory XT001 soft diags;
+ *   3) typeck_x_ast_library (G.7 typeck.x authority; same as wave87 library route);
+ *   4) soft_suppress_set(0);
+ *   5) tc==0 → 0; else Cap residual validate zero-padding → -7; patch body parent links → 0.
+ * PLATFORM: SHARED — glue SHUX_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 5;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 5;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 5;
+  }
+  let tc: i32 = 0;
+  unsafe {
+    // Cap residual: publish dep ctx for glue typeck accessors (g_typeck_dep_ctx in ast_pool).
+    pipeline_typeck_set_dep_ctx(ctx);
+    // Suppress soft XT001 during exploratory full typeck (light fallback intentional).
+    pipeline_typeck_diag_soft_suppress_set(1);
+    // G.7 typeck authority: library path (dep modules have no entry main).
+    tc = typeck_x_ast_library(module, arena, ctx);
+    pipeline_typeck_diag_soft_suppress_set(0);
+  }
+  if (tc == 0) {
+    return 0;
+  }
+  // Full typeck failed: light fallback — validate struct layout padding then patch parent links.
+  // SHUX_DEBUG_PIPE getenv/fprintf remains cold-only (seed/glue twin); pure skips notes.
+  let vrc: i32 = 0;
+  unsafe {
+    vrc = pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena);
+  }
+  if (vrc != 0) {
+    return 0 - 7;
+  }
+  unsafe {
+    pipeline_typeck_patch_all_body_parent_links_c(module, arena);
+  }
+  return 0;
 }
 
 /**
