@@ -4,6 +4,8 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave90: pure pipeline_typeck_diag_soft_suppress_set / _get (i32 BSS; glue SHUX_WEAK cold).
+//   Closes Cap residual soft-suppress leaf under wave89 pure dep-prerun orch.
 // wave89: pure pipeline_typeck_dep_prerun_module_c orch (set_dep_ctx + soft_suppress +
 //   typeck_x_ast_library + Cap residual layout validate/patch fallback; glue SHUX_WEAK cold).
 //   Closes Cap residual typeck dep-prerun leaf used by wave60 typeck_only orch.
@@ -124,8 +126,9 @@
 // wave89: pure pipeline_typeck_dep_prerun_module_c (G.7 pure orch → typeck_x_ast_library +
 //   Cap residual set_dep_ctx / soft_suppress / validate / patch; glue SHUX_WEAK cold).
 //   Closes Cap residual typeck dep-prerun leaf (wave60 typeck_only no longer always-seed body).
+// wave90: pure soft_suppress set/get BSS (G.7 single flag; same-TU orch + diagnostic get).
 // Cap residual still: load_and_sync_direct_import_deps_c (ast_pool); cfg_eval complex #if;
-//   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast; set_dep_ctx / soft_suppress /
+//   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast; set_dep_ctx /
 //   layout validate+patch helpers under pure dep-prerun orch.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
@@ -146,6 +149,7 @@
 // wave87: typeck_module_* / pipeline_typeck_module_for_ctx* pure below (route to typeck_x_ast).
 // wave88: preprocess_eval_condition_c is pure export function below (not Cap residual glue body).
 // wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual glue body).
+// wave90: pipeline_typeck_diag_soft_suppress_set / _get are pure export functions below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 // wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
@@ -259,9 +263,9 @@ export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 // PLATFORM: SHARED — same C ABI as seed _impl; weak pure parse_set_main_from_buf surface in this TU.
 export extern "C" function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: *u8, ctx: *u8): i32;
 // wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual body).
+// wave90: soft_suppress set/get pure below (not export-extern Cap residual).
 // Cap residual helpers used by pure dep-prerun orch (pipeline_glue / ast_pool authority):
 export extern "C" function pipeline_typeck_set_dep_ctx(ctx: *u8): void;
-export extern "C" function pipeline_typeck_diag_soft_suppress_set(v: i32): void;
 export extern "C" function pipeline_typeck_validate_struct_layouts_zero_padding_c(module: *u8, arena: *u8): i32;
 export extern "C" function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena: *u8): void;
 // wave58 pure skip_typeck orch: G.7 driver flags + asm_entry field accessors (runtime_driver_abi).
@@ -2548,7 +2552,7 @@ export function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_aren
  * (historical strong body in pipeline_glue.c now SHUX_WEAK cold fallback).
  * Steps (match historical C; SHUX_DEBUG_PIPE notes cold-only):
  *   1) pipeline_typeck_set_dep_ctx(ctx) — Cap residual global dep_ctx for glue accessors;
- *   2) soft_suppress_set(1) — Cap residual suppress exploratory XT001 soft diags;
+ *   2) soft_suppress_set(1) — wave90 pure same-TU BSS (suppress exploratory XT001 soft diags);
  *   3) typeck_x_ast_library (G.7 typeck.x authority; same as wave87 library route);
  *   4) soft_suppress_set(0);
  *   5) tc==0 → 0; else Cap residual validate zero-padding → -7; patch body parent links → 0.
@@ -2569,7 +2573,7 @@ export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx
   unsafe {
     // Cap residual: publish dep ctx for glue typeck accessors (g_typeck_dep_ctx in ast_pool).
     pipeline_typeck_set_dep_ctx(ctx);
-    // Suppress soft XT001 during exploratory full typeck (light fallback intentional).
+    // wave90 pure same-TU: suppress soft XT001 during exploratory full typeck.
     pipeline_typeck_diag_soft_suppress_set(1);
     // G.7 typeck authority: library path (dep modules have no entry main).
     tc = typeck_x_ast_library(module, arena, ctx);
@@ -3225,6 +3229,44 @@ let g_pipe_pp_ndefines: i32 = 0;
 // preprocess.x thin wrappers + preprocess_x_buf call these by C link name.
 let g_pipe_pp_if_stack: i32[32] = [];
 let g_pipe_pp_if_n: i32 = 0;
+
+// wave90 pure typeck soft-suppress flag (G.7 single authority for XT001 soft diags).
+// PLATFORM: SHARED — same ABI as glue static g_pipeline_typeck_diag_soft_suppress (0/1).
+// Product hybrid: pure strong override of pipeline_glue SHUX_WEAK cold fallback.
+// Consumers: pure dep_prerun orch set(1)/set(0); diagnostic path get() skips soft XT001.
+// No cross-TU naked global — only set/get accessors (safe pure BSS under PREFER hybrid).
+let g_pipe_typeck_diag_soft_suppress: i32 = 0;
+
+/**
+ * Set soft-suppress flag for exploratory typeck XT001 soft diags (0/1).
+ * @param v i32 — non-zero → suppress; zero → report normally
+ * @return void
+ * wave90 pure Cap residual: G.7 single product authority for soft-suppress flag
+ * (historical strong body in pipeline_glue.c now SHUX_WEAK cold fallback).
+ * PLATFORM: SHARED — diagnostic path uses get(); pure dep_prerun orch set(1)/set(0).
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_soft_suppress_set(v: i32): void {
+  if (v != 0) {
+    g_pipe_typeck_diag_soft_suppress = 1;
+  } else {
+    g_pipe_typeck_diag_soft_suppress = 0;
+  }
+}
+
+/**
+ * Read soft-suppress flag (1 = skip soft XT001 diags; 0 = report).
+ * @return i32 — 0 or 1
+ * wave90 pure Cap residual: G.7 single product authority (paired with set).
+ * PLATFORM: SHARED — runtime_driver_diagnostic_thin / glue cold twin get.
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_soft_suppress_get(): i32 {
+  if (g_pipe_typeck_diag_soft_suppress != 0) {
+    return 1;
+  }
+  return 0;
+}
 
 // wave75 pure entry_lib lit + stem BSS (G.7 single authority for -E lib_prefix).
 // PLATFORM: SHARED — same string values as seed static lits / stem_buf[128].

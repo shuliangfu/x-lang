@@ -29665,14 +29665,18 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
  * (ndep=1 empty); full typeck fails on import METHOD_CALL (heap.default_alloc / mem.mem_set)
  * then light fallback continues. Emitting XT001 for that exploratory fail is product noise.
  * Entry / final typeck still report hard XT001 (suppress cleared after prerun attempt).
+ *
+ * wave90: product pure owns pipeline_typeck_diag_soft_suppress_set / _get
+ * (runtime_pipeline_abi.x BSS). Keep SHUX_WEAK cold fallback for links without pure
+ * pipeline_abi / PREFER hybrid. PLATFORM: SHARED — ELF weak overridden by pure.
  */
 static int32_t g_pipeline_typeck_diag_soft_suppress = 0;
 
-void pipeline_typeck_diag_soft_suppress_set(int32_t v) {
+__attribute__((weak)) void pipeline_typeck_diag_soft_suppress_set(int32_t v) {
   g_pipeline_typeck_diag_soft_suppress = v ? 1 : 0;
 }
 
-int32_t pipeline_typeck_diag_soft_suppress_get(void) {
+__attribute__((weak)) int32_t pipeline_typeck_diag_soft_suppress_get(void) {
   return g_pipeline_typeck_diag_soft_suppress;
 }
 
