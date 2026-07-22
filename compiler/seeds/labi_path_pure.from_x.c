@@ -25,6 +25,8 @@
  *     path_readable + realpath_cap; static 4096/4096 BSS)
  *   + shux_bootstrap_nostdlib_stubs_o_path (wave181 pure cwd realpath + compiler-dir/leaf;
  *     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS)
+ *   + 29× thin shux_runtime_*_o_path (wave183 pure BSS + compiler_o_path_copy;
+ *     asm_io_stubs … ed25519_ref10_glue; static 4096 BSS each)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -917,8 +919,242 @@ const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
   return g_labi_bootstrap_nostdlib_stubs_o_path_buf;
 }
 
+/* wave183: thin runtime_*_o_path pure orch (cold twin ≡ .x). */
+static char g_labi_asm_io_stubs_o_path_buf[4096];
+static char g_labi_process_argv_o_path_buf[4096];
+static char g_labi_process_os_glue_o_path_buf[4096];
+static char g_labi_test_fn_invoke_o_path_buf[4096];
+static char g_labi_random_fill_o_path_buf[4096];
+static char g_labi_compress_zlib_glue_o_path_buf[4096];
+static char g_labi_heap_user_o_path_buf[4096];
+static char g_labi_time_os_o_path_buf[4096];
+static char g_labi_queue_contention_o_path_buf[4096];
+static char g_labi_dynlib_os_o_path_buf[4096];
+static char g_labi_env_os_o_path_buf[4096];
+static char g_labi_backtrace_platform_o_path_buf[4096];
+static char g_labi_log_os_o_path_buf[4096];
+static char g_labi_math_libm_o_path_buf[4096];
+static char g_labi_atomic_glue_o_path_buf[4096];
+static char g_labi_channel_glue_o_path_buf[4096];
+static char g_labi_net_udp_batch_o_path_buf[4096];
+static char g_labi_net_workers_o_path_buf[4096];
+static char g_labi_sync_os_o_path_buf[4096];
+static char g_labi_sync_lock_diag_tls_o_path_buf[4096];
+static char g_labi_thread_glue_o_path_buf[4096];
+static char g_labi_scheduler_glue_o_path_buf[4096];
+static char g_labi_http_glue_o_path_buf[4096];
+static char g_labi_tls_mbedtls_bio_o_path_buf[4096];
+static char g_labi_kv_mmap_glue_o_path_buf[4096];
+static char g_labi_arrow_simd_glue_o_path_buf[4096];
+static char g_labi_sqlite_glue_o_path_buf[4096];
+static char g_labi_crypto_inc_glue_o_path_buf[4096];
+static char g_labi_ed25519_ref10_glue_o_path_buf[4096];
+
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
+  g_labi_asm_io_stubs_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", g_labi_asm_io_stubs_o_path_buf, sizeof g_labi_asm_io_stubs_o_path_buf) != 0)
+    g_labi_asm_io_stubs_o_path_buf[0] = '\0';
+  return g_labi_asm_io_stubs_o_path_buf;
+}
+
+const char *shux_runtime_process_argv_o_path(const char *argv0) {
+  g_labi_process_argv_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", g_labi_process_argv_o_path_buf, sizeof g_labi_process_argv_o_path_buf) != 0)
+    g_labi_process_argv_o_path_buf[0] = '\0';
+  return g_labi_process_argv_o_path_buf;
+}
+
+const char *shux_runtime_process_os_glue_o_path(const char *argv0) {
+  g_labi_process_os_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", g_labi_process_os_glue_o_path_buf, sizeof g_labi_process_os_glue_o_path_buf) != 0)
+    g_labi_process_os_glue_o_path_buf[0] = '\0';
+  return g_labi_process_os_glue_o_path_buf;
+}
+
+const char *shux_runtime_test_fn_invoke_o_path(const char *argv0) {
+  g_labi_test_fn_invoke_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", g_labi_test_fn_invoke_o_path_buf, sizeof g_labi_test_fn_invoke_o_path_buf) != 0)
+    g_labi_test_fn_invoke_o_path_buf[0] = '\0';
+  return g_labi_test_fn_invoke_o_path_buf;
+}
+
+const char *shux_runtime_random_fill_o_path(const char *argv0) {
+  g_labi_random_fill_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", g_labi_random_fill_o_path_buf, sizeof g_labi_random_fill_o_path_buf) != 0)
+    g_labi_random_fill_o_path_buf[0] = '\0';
+  return g_labi_random_fill_o_path_buf;
+}
+
+const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0) {
+  g_labi_compress_zlib_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", g_labi_compress_zlib_glue_o_path_buf, sizeof g_labi_compress_zlib_glue_o_path_buf) != 0)
+    g_labi_compress_zlib_glue_o_path_buf[0] = '\0';
+  return g_labi_compress_zlib_glue_o_path_buf;
+}
+
+const char *shux_runtime_heap_user_o_path(const char *argv0) {
+  g_labi_heap_user_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", g_labi_heap_user_o_path_buf, sizeof g_labi_heap_user_o_path_buf) != 0)
+    g_labi_heap_user_o_path_buf[0] = '\0';
+  return g_labi_heap_user_o_path_buf;
+}
+
+const char *shux_runtime_time_os_o_path(const char *argv0) {
+  g_labi_time_os_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", g_labi_time_os_o_path_buf, sizeof g_labi_time_os_o_path_buf) != 0)
+    g_labi_time_os_o_path_buf[0] = '\0';
+  return g_labi_time_os_o_path_buf;
+}
+
+const char *shux_runtime_queue_contention_o_path(const char *argv0) {
+  g_labi_queue_contention_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", g_labi_queue_contention_o_path_buf, sizeof g_labi_queue_contention_o_path_buf) != 0)
+    g_labi_queue_contention_o_path_buf[0] = '\0';
+  return g_labi_queue_contention_o_path_buf;
+}
+
+const char *shux_runtime_dynlib_os_o_path(const char *argv0) {
+  g_labi_dynlib_os_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", g_labi_dynlib_os_o_path_buf, sizeof g_labi_dynlib_os_o_path_buf) != 0)
+    g_labi_dynlib_os_o_path_buf[0] = '\0';
+  return g_labi_dynlib_os_o_path_buf;
+}
+
+const char *shux_runtime_env_os_o_path(const char *argv0) {
+  g_labi_env_os_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", g_labi_env_os_o_path_buf, sizeof g_labi_env_os_o_path_buf) != 0)
+    g_labi_env_os_o_path_buf[0] = '\0';
+  return g_labi_env_os_o_path_buf;
+}
+
+const char *shux_runtime_backtrace_platform_o_path(const char *argv0) {
+  g_labi_backtrace_platform_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", g_labi_backtrace_platform_o_path_buf, sizeof g_labi_backtrace_platform_o_path_buf) != 0)
+    g_labi_backtrace_platform_o_path_buf[0] = '\0';
+  return g_labi_backtrace_platform_o_path_buf;
+}
+
+const char *shux_runtime_log_os_o_path(const char *argv0) {
+  g_labi_log_os_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", g_labi_log_os_o_path_buf, sizeof g_labi_log_os_o_path_buf) != 0)
+    g_labi_log_os_o_path_buf[0] = '\0';
+  return g_labi_log_os_o_path_buf;
+}
+
+const char *shux_runtime_math_libm_o_path(const char *argv0) {
+  g_labi_math_libm_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", g_labi_math_libm_o_path_buf, sizeof g_labi_math_libm_o_path_buf) != 0)
+    g_labi_math_libm_o_path_buf[0] = '\0';
+  return g_labi_math_libm_o_path_buf;
+}
+
+const char *shux_runtime_atomic_glue_o_path(const char *argv0) {
+  g_labi_atomic_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", g_labi_atomic_glue_o_path_buf, sizeof g_labi_atomic_glue_o_path_buf) != 0)
+    g_labi_atomic_glue_o_path_buf[0] = '\0';
+  return g_labi_atomic_glue_o_path_buf;
+}
+
+const char *shux_runtime_channel_glue_o_path(const char *argv0) {
+  g_labi_channel_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", g_labi_channel_glue_o_path_buf, sizeof g_labi_channel_glue_o_path_buf) != 0)
+    g_labi_channel_glue_o_path_buf[0] = '\0';
+  return g_labi_channel_glue_o_path_buf;
+}
+
+const char *shux_runtime_net_udp_batch_o_path(const char *argv0) {
+  g_labi_net_udp_batch_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", g_labi_net_udp_batch_o_path_buf, sizeof g_labi_net_udp_batch_o_path_buf) != 0)
+    g_labi_net_udp_batch_o_path_buf[0] = '\0';
+  return g_labi_net_udp_batch_o_path_buf;
+}
+
+const char *shux_runtime_net_workers_o_path(const char *argv0) {
+  g_labi_net_workers_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", g_labi_net_workers_o_path_buf, sizeof g_labi_net_workers_o_path_buf) != 0)
+    g_labi_net_workers_o_path_buf[0] = '\0';
+  return g_labi_net_workers_o_path_buf;
+}
+
+const char *shux_runtime_sync_os_o_path(const char *argv0) {
+  g_labi_sync_os_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", g_labi_sync_os_o_path_buf, sizeof g_labi_sync_os_o_path_buf) != 0)
+    g_labi_sync_os_o_path_buf[0] = '\0';
+  return g_labi_sync_os_o_path_buf;
+}
+
+const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0) {
+  g_labi_sync_lock_diag_tls_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", g_labi_sync_lock_diag_tls_o_path_buf, sizeof g_labi_sync_lock_diag_tls_o_path_buf) != 0)
+    g_labi_sync_lock_diag_tls_o_path_buf[0] = '\0';
+  return g_labi_sync_lock_diag_tls_o_path_buf;
+}
+
+const char *shux_runtime_thread_glue_o_path(const char *argv0) {
+  g_labi_thread_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", g_labi_thread_glue_o_path_buf, sizeof g_labi_thread_glue_o_path_buf) != 0)
+    g_labi_thread_glue_o_path_buf[0] = '\0';
+  return g_labi_thread_glue_o_path_buf;
+}
+
+const char *shux_runtime_scheduler_glue_o_path(const char *argv0) {
+  g_labi_scheduler_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", g_labi_scheduler_glue_o_path_buf, sizeof g_labi_scheduler_glue_o_path_buf) != 0)
+    g_labi_scheduler_glue_o_path_buf[0] = '\0';
+  return g_labi_scheduler_glue_o_path_buf;
+}
+
+const char *shux_runtime_http_glue_o_path(const char *argv0) {
+  g_labi_http_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", g_labi_http_glue_o_path_buf, sizeof g_labi_http_glue_o_path_buf) != 0)
+    g_labi_http_glue_o_path_buf[0] = '\0';
+  return g_labi_http_glue_o_path_buf;
+}
+
+const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0) {
+  g_labi_tls_mbedtls_bio_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", g_labi_tls_mbedtls_bio_o_path_buf, sizeof g_labi_tls_mbedtls_bio_o_path_buf) != 0)
+    g_labi_tls_mbedtls_bio_o_path_buf[0] = '\0';
+  return g_labi_tls_mbedtls_bio_o_path_buf;
+}
+
+const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0) {
+  g_labi_kv_mmap_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", g_labi_kv_mmap_glue_o_path_buf, sizeof g_labi_kv_mmap_glue_o_path_buf) != 0)
+    g_labi_kv_mmap_glue_o_path_buf[0] = '\0';
+  return g_labi_kv_mmap_glue_o_path_buf;
+}
+
+const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0) {
+  g_labi_arrow_simd_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", g_labi_arrow_simd_glue_o_path_buf, sizeof g_labi_arrow_simd_glue_o_path_buf) != 0)
+    g_labi_arrow_simd_glue_o_path_buf[0] = '\0';
+  return g_labi_arrow_simd_glue_o_path_buf;
+}
+
+const char *shux_runtime_sqlite_glue_o_path(const char *argv0) {
+  g_labi_sqlite_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", g_labi_sqlite_glue_o_path_buf, sizeof g_labi_sqlite_glue_o_path_buf) != 0)
+    g_labi_sqlite_glue_o_path_buf[0] = '\0';
+  return g_labi_sqlite_glue_o_path_buf;
+}
+
+const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0) {
+  g_labi_crypto_inc_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", g_labi_crypto_inc_glue_o_path_buf, sizeof g_labi_crypto_inc_glue_o_path_buf) != 0)
+    g_labi_crypto_inc_glue_o_path_buf[0] = '\0';
+  return g_labi_crypto_inc_glue_o_path_buf;
+}
+
+const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
+  g_labi_ed25519_ref10_glue_o_path_buf[0] = '\0';
+  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", g_labi_ed25519_ref10_glue_o_path_buf, sizeof g_labi_ed25519_ref10_glue_o_path_buf) != 0)
+    g_labi_ed25519_ref10_glue_o_path_buf[0] = '\0';
+  return g_labi_ed25519_ref10_glue_o_path_buf;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 24;
+  return 53;
 }
 
 #else
@@ -951,6 +1187,35 @@ const char *shux_freestanding_io_o_path(const char *argv0);
 const char *shux_std_async_scheduler_o_path(const char *argv0);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
 const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *shux_runtime_process_argv_o_path(const char *argv0);
+const char *shux_runtime_process_os_glue_o_path(const char *argv0);
+const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
+const char *shux_runtime_random_fill_o_path(const char *argv0);
+const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
+const char *shux_runtime_heap_user_o_path(const char *argv0);
+const char *shux_runtime_time_os_o_path(const char *argv0);
+const char *shux_runtime_queue_contention_o_path(const char *argv0);
+const char *shux_runtime_dynlib_os_o_path(const char *argv0);
+const char *shux_runtime_env_os_o_path(const char *argv0);
+const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
+const char *shux_runtime_log_os_o_path(const char *argv0);
+const char *shux_runtime_math_libm_o_path(const char *argv0);
+const char *shux_runtime_atomic_glue_o_path(const char *argv0);
+const char *shux_runtime_channel_glue_o_path(const char *argv0);
+const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
+const char *shux_runtime_net_workers_o_path(const char *argv0);
+const char *shux_runtime_sync_os_o_path(const char *argv0);
+const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0);
+const char *shux_runtime_thread_glue_o_path(const char *argv0);
+const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
+const char *shux_runtime_http_glue_o_path(const char *argv0);
+const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
+const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0);
+const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
+const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
+const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
+const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
 int32_t labi_path_pure_count(void);
 #endif
 

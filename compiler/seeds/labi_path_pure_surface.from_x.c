@@ -1,12 +1,12 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (24 public gates + count; wave181 bootstrap_nostdlib_stubs_o_path)
+ * Prove: full.x vs this seed → nm IDENTICAL (53 public gates + count; wave183 29× thin runtime_*_o_path)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
- *   *_o_path Cap io/process (wave150 push_minimal; wave163–166 panic/crt0/freestanding_io/async pure);
+ *   peer pure thin runtime_*_o_path (wave183 BSS; was Cap residual wave150/161);
  *   table+access Cap (wave151 append_user_extra);
  *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy; wave181 bootstrap stubs path);
  *   resolve+rel_o_path Cap (wave162 repo_root);
@@ -21,12 +21,45 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <unistd.h> /* getcwd */
+extern int32_t link_abi_path_readable(uint8_t * path);
+extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
+extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
-extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
 extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * path);
-int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1);
+extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
+extern int32_t link_abi_user_extra_o_count(void);
+extern uint8_t * link_abi_user_extra_o_at(int32_t i);
+extern uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
+extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
+extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
+extern uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms);
+extern int32_t shux_io_read_ptr_len(void);
+extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t shux_io_read_ptr_backend(void);
+extern uint64_t shux_io_read_ptr_gen(void);
+extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void shux_io_unregister_provided_buffers(void);
+extern uint8_t *shux_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t shux_io_provided_buffer_size(void);
+extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);
+extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);
+extern int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_read_async(void);
+extern int32_t shux_io_complete_read_async_slot(int32_t slot);
+extern int32_t shux_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t shux_io_complete_write_async(void);
+extern int32_t shux_io_complete_write_async_slot(int32_t slot);
+extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t shux_io_uring_is_available_c(void);
+extern void shux_panic_(int, int);
+extern int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1);
 extern int32_t labi_suffix_eq4(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3);
 extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
 extern int32_t shux_output_is_elf_o(uint8_t * path);
@@ -40,36 +73,143 @@ extern int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_
 extern void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p);
 extern int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out);
 extern void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, uint8_t * glue_primary, uint8_t * link_argv0, uint8_t * glue_rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
+extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
+extern uint8_t * shux_crt0_user_o_path(uint8_t * argv0);
+extern uint8_t * shux_freestanding_io_o_path(uint8_t * argv0);
+extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
 extern void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32_t max_la);
 extern int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8_t * out, int64_t out_sz);
 extern uint8_t * shux_repo_root_from_argv0(uint8_t * argv0);
-extern int32_t labi_path_pure_count(void);
-extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
+extern uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler);
+extern uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
-/* wave163: panic_o_path pure defined below (forward for push_minimal). */
-extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
-/* wave164: crt0_user_o_path pure defined below. */
-extern uint8_t * shux_crt0_user_o_path(uint8_t * argv0);
-/* wave165: freestanding_io_o_path pure defined below. */
-extern uint8_t * shux_freestanding_io_o_path(uint8_t * argv0);
-/* wave166: async_scheduler_o_path pure defined below. */
-extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
-/* wave180: scheduler_o_for_task_link pure defined below. */
-extern uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler);
-/* wave181: bootstrap_nostdlib_stubs_o_path pure defined below. */
-extern uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_process_os_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_test_fn_invoke_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_random_fill_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_time_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_queue_contention_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_dynlib_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_env_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_backtrace_platform_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_log_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_math_libm_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_atomic_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_channel_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_net_udp_batch_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_net_workers_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_sync_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_sync_lock_diag_tls_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_thread_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_scheduler_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_http_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_tls_mbedtls_bio_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_sqlite_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_crypto_inc_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_ed25519_ref10_glue_o_path(uint8_t * argv0);
+extern int32_t labi_path_pure_count(void);
+#undef g_labi_repo_root_buf
+static uint8_t g_labi_repo_root_buf[512];
+#undef g_labi_panic_o_path_buf
+static uint8_t g_labi_panic_o_path_buf[512];
+#undef g_labi_panic_o_path_resolved
+static uint8_t g_labi_panic_o_path_resolved[4096];
+#undef g_labi_crt0_user_o_path_buf
+static uint8_t g_labi_crt0_user_o_path_buf[512];
+#undef g_labi_crt0_user_o_path_resolved
+static uint8_t g_labi_crt0_user_o_path_resolved[4096];
+#undef g_labi_freestanding_io_o_path_buf
+static uint8_t g_labi_freestanding_io_o_path_buf[512];
+#undef g_labi_freestanding_io_o_path_resolved
+static uint8_t g_labi_freestanding_io_o_path_resolved[4096];
+#undef g_labi_async_scheduler_o_path_buf
+static uint8_t g_labi_async_scheduler_o_path_buf[4096];
+#undef g_labi_async_scheduler_o_path_resolved
+static uint8_t g_labi_async_scheduler_o_path_resolved[4096];
+#undef g_labi_sched_for_task_derived
+static uint8_t g_labi_sched_for_task_derived[4096];
+#undef g_labi_sched_for_task_cwd
+static uint8_t g_labi_sched_for_task_cwd[4096];
+#undef g_labi_bootstrap_nostdlib_stubs_o_path_buf
+static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_buf[4096];
+#undef g_labi_bootstrap_nostdlib_stubs_o_path_resolved
+static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_resolved[4096];
+#undef g_labi_asm_io_stubs_o_path_buf
+static uint8_t g_labi_asm_io_stubs_o_path_buf[4096];
+#undef g_labi_process_argv_o_path_buf
+static uint8_t g_labi_process_argv_o_path_buf[4096];
+#undef g_labi_process_os_glue_o_path_buf
+static uint8_t g_labi_process_os_glue_o_path_buf[4096];
+#undef g_labi_test_fn_invoke_o_path_buf
+static uint8_t g_labi_test_fn_invoke_o_path_buf[4096];
+#undef g_labi_random_fill_o_path_buf
+static uint8_t g_labi_random_fill_o_path_buf[4096];
+#undef g_labi_compress_zlib_glue_o_path_buf
+static uint8_t g_labi_compress_zlib_glue_o_path_buf[4096];
+#undef g_labi_heap_user_o_path_buf
+static uint8_t g_labi_heap_user_o_path_buf[4096];
+#undef g_labi_time_os_o_path_buf
+static uint8_t g_labi_time_os_o_path_buf[4096];
+#undef g_labi_queue_contention_o_path_buf
+static uint8_t g_labi_queue_contention_o_path_buf[4096];
+#undef g_labi_dynlib_os_o_path_buf
+static uint8_t g_labi_dynlib_os_o_path_buf[4096];
+#undef g_labi_env_os_o_path_buf
+static uint8_t g_labi_env_os_o_path_buf[4096];
+#undef g_labi_backtrace_platform_o_path_buf
+static uint8_t g_labi_backtrace_platform_o_path_buf[4096];
+#undef g_labi_log_os_o_path_buf
+static uint8_t g_labi_log_os_o_path_buf[4096];
+#undef g_labi_math_libm_o_path_buf
+static uint8_t g_labi_math_libm_o_path_buf[4096];
+#undef g_labi_atomic_glue_o_path_buf
+static uint8_t g_labi_atomic_glue_o_path_buf[4096];
+#undef g_labi_channel_glue_o_path_buf
+static uint8_t g_labi_channel_glue_o_path_buf[4096];
+#undef g_labi_net_udp_batch_o_path_buf
+static uint8_t g_labi_net_udp_batch_o_path_buf[4096];
+#undef g_labi_net_workers_o_path_buf
+static uint8_t g_labi_net_workers_o_path_buf[4096];
+#undef g_labi_sync_os_o_path_buf
+static uint8_t g_labi_sync_os_o_path_buf[4096];
+#undef g_labi_sync_lock_diag_tls_o_path_buf
+static uint8_t g_labi_sync_lock_diag_tls_o_path_buf[4096];
+#undef g_labi_thread_glue_o_path_buf
+static uint8_t g_labi_thread_glue_o_path_buf[4096];
+#undef g_labi_scheduler_glue_o_path_buf
+static uint8_t g_labi_scheduler_glue_o_path_buf[4096];
+#undef g_labi_http_glue_o_path_buf
+static uint8_t g_labi_http_glue_o_path_buf[4096];
+#undef g_labi_tls_mbedtls_bio_o_path_buf
+static uint8_t g_labi_tls_mbedtls_bio_o_path_buf[4096];
+#undef g_labi_kv_mmap_glue_o_path_buf
+static uint8_t g_labi_kv_mmap_glue_o_path_buf[4096];
+#undef g_labi_arrow_simd_glue_o_path_buf
+static uint8_t g_labi_arrow_simd_glue_o_path_buf[4096];
+#undef g_labi_sqlite_glue_o_path_buf
+static uint8_t g_labi_sqlite_glue_o_path_buf[4096];
+#undef g_labi_crypto_inc_glue_o_path_buf
+static uint8_t g_labi_crypto_inc_glue_o_path_buf[4096];
+#undef g_labi_ed25519_ref10_glue_o_path_buf
+static uint8_t g_labi_ed25519_ref10_glue_o_path_buf[4096];
+static void init_globals(void) {
+}
+extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
+extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
+extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
+extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
+extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * path);
+extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
-extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
-/* Cap residual (wave163 panic ladder): path_io peer + libc getcwd. */
 extern uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
-extern uint8_t * getcwd(uint8_t * buf, int32_t size);
-extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
-extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1) {
   if ((n < 2)) {
     return 0;
@@ -431,7 +571,6 @@ void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t 
   (void)(((argv)[cur] = use_p));
   (void)(((la)[0] = (cur + 1)));
 }
-/* wave148: push_obj pure orch (surface pin; Cap residual skip/rel/bank/diag). */
 int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out) {
   if ((la ==0)) {
     return 0;
@@ -442,8 +581,8 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   int32_t debug_runtime_obj = 0;
   if ((rel !=0)) {
-    uint8_t * t1 = ((uint8_t *)("compiler/runtime_asm_io_stubs.o"));
-    uint8_t * t2 = ((uint8_t *)("compiler/runtime_process_argv.o"));
+    uint8_t * t1 = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x61\x73\x6d\x5f\x69\x6f\x5f\x73\x74\x75\x62\x73\x2e\x6f");
+    uint8_t * t2 = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x72\x6f\x63\x65\x73\x73\x5f\x61\x72\x67\x76\x2e\x6f");
     int32_t eq1 = 1;
     int32_t i1 = 0;
     while ((i1 < 1048576)) {
@@ -483,13 +622,13 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   if ((debug_runtime_obj !=0)) {
     uint8_t * dbg = 0;
-    (void)((dbg = getenv(((uint8_t *)("SHUX_DEBUG_LD")))));
+    (void)((dbg = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
     if ((dbg !=0)) {
       uint8_t * pp = primary;
       if ((pp ==0)) {
-        (void)((pp = ((uint8_t *)("(null)"))));
+        (void)((pp = ((uint8_t *)"\x28\x6e\x75\x6c\x6c\x29")));
       }
-      link_diag_ld_debug_push(rel, ((uint8_t *)("primary")), pp);
+      (void)(link_diag_ld_debug_push(rel, ((uint8_t *)"\x70\x72\x69\x6d\x61\x72\x79"), pp));
     }
   }
   uint8_t * p = 0;
@@ -500,13 +639,13 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   if ((debug_runtime_obj !=0)) {
     uint8_t * dbg2 = 0;
-    (void)((dbg2 = getenv(((uint8_t *)("SHUX_DEBUG_LD")))));
+    (void)((dbg2 = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
     if ((dbg2 !=0)) {
       uint8_t * ap = p;
       if ((ap ==0)) {
-        (void)((ap = ((uint8_t *)("(null)"))));
+        (void)((ap = ((uint8_t *)"\x28\x6e\x75\x6c\x6c\x29")));
       }
-      link_diag_ld_debug_push(rel, ((uint8_t *)("after-primary")), ap);
+      (void)(link_diag_ld_debug_push(rel, ((uint8_t *)"\x61\x66\x74\x65\x72\x2d\x70\x72\x69\x6d\x61\x72\x79"), ap));
     }
   }
   if ((p ==0)) {
@@ -542,17 +681,17 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   if ((debug_runtime_obj !=0)) {
     uint8_t * dbg3 = 0;
-    (void)((dbg3 = getenv(((uint8_t *)("SHUX_DEBUG_LD")))));
+    (void)((dbg3 = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
     if ((dbg3 !=0)) {
       uint8_t * fp = p;
       if ((fp ==0)) {
-        (void)((fp = ((uint8_t *)("(null)"))));
+        (void)((fp = ((uint8_t *)"\x28\x6e\x75\x6c\x6c\x29")));
       }
-      link_diag_ld_debug_push(rel, ((uint8_t *)("final")), fp);
+      (void)(link_diag_ld_debug_push(rel, ((uint8_t *)"\x66\x69\x6e\x61\x6c"), fp));
     }
   }
   int32_t before = (la)[0];
-  link_abi_asm_ld_argv_push_stable(0, argv, la, max_la, p);
+  (void)(link_abi_asm_ld_argv_push_stable(0, argv, la, max_la, p));
   if (((la)[0] <=before)) {
     return 0;
   }
@@ -561,7 +700,6 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   return 1;
 }
-/* wave149: push_glue_after_std pure orch (surface pin; Cap residual call_ensure). */
 void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, uint8_t * glue_primary, uint8_t * link_argv0, uint8_t * glue_rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
   if ((have_std ==0)) {
     return;
@@ -578,7 +716,300 @@ void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, 
     return;
   }
 }
-/* wave150: push_minimal pure orch (surface pin; Cap residual io/process *_o_path; wave163 panic pure peer). */
+uint8_t * shux_runtime_panic_o_path(uint8_t * argv0) {
+  (void)(((g_labi_panic_o_path_buf)[0] = 0));
+  (void)(((g_labi_panic_o_path_resolved)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = shux_runtime_o_realpath_if_exists(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), &((g_labi_panic_o_path_resolved)[0]))));
+  if ((hit !=0)) {
+    return hit;
+  }
+  (void)((hit = shux_runtime_o_realpath_if_exists(((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), &((g_labi_panic_o_path_resolved)[0]))));
+  if ((hit !=0)) {
+    return hit;
+  }
+  uint8_t cwd[512] = {};
+  uint8_t * gp = 0;
+  (void)((gp = getcwd(&((cwd)[0]), 488)));
+  if ((gp !=0)) {
+    int32_t L = 0;
+    while (((cwd)[L] !=0)) {
+      (void)((L = (L + 1)));
+    }
+    if (((L + 24) < 512)) {
+      uint8_t * suf = ((uint8_t *)"\x2f\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f");
+      int32_t si = 0;
+      while ((si <=24)) {
+        (void)(((cwd)[(L + si)] = (suf)[si]));
+        (void)((si = (si + 1)));
+      }
+      (void)((hit = shux_runtime_o_realpath_if_exists(&((cwd)[0]), &((g_labi_panic_o_path_resolved)[0]))));
+      if ((hit !=0)) {
+        return hit;
+      }
+    }
+  }
+  if ((argv0 !=0)) {
+    if (((argv0)[0] !=0)) {
+      int32_t i = 0;
+      int32_t last_sep_i = -1;
+      while (((argv0)[i] !=0)) {
+        if (((argv0)[i] ==47)) {
+          (void)((last_sep_i = i));
+        }
+        (void)((i = (i + 1)));
+      }
+      int32_t n = 0;
+      if ((last_sep_i >=0)) {
+        if ((last_sep_i >=492)) {
+          return &((g_labi_panic_o_path_buf)[0]);
+        }
+        int32_t j = 0;
+        while ((j < last_sep_i)) {
+          (void)(((g_labi_panic_o_path_buf)[j] = (argv0)[j]));
+          (void)((j = (j + 1)));
+        }
+        (void)(((g_labi_panic_o_path_buf)[last_sep_i] = 0));
+        (void)((n = last_sep_i));
+      } else {
+        (void)(((g_labi_panic_o_path_buf)[0] = 46));
+        (void)(((g_labi_panic_o_path_buf)[1] = 0));
+        (void)((n = 1));
+      }
+      if (((n + 18) < 512)) {
+        uint8_t * leaf = ((uint8_t *)"\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f");
+        int32_t k = 0;
+        while (((leaf)[k] !=0)) {
+          (void)(((g_labi_panic_o_path_buf)[(n + k)] = (leaf)[k]));
+          (void)((k = (k + 1)));
+        }
+        (void)(((g_labi_panic_o_path_buf)[(n + k)] = 0));
+        (void)((hit = shux_runtime_o_realpath_if_exists(&((g_labi_panic_o_path_buf)[0]), &((g_labi_panic_o_path_resolved)[0]))));
+        if ((hit !=0)) {
+          return hit;
+        }
+        uint8_t * sm = 0;
+        (void)((sm = asm_link_obj_skip_missing(&((g_labi_panic_o_path_buf)[0]))));
+        if ((sm !=0)) {
+          return &((g_labi_panic_o_path_buf)[0]);
+        }
+      }
+    }
+  }
+  return &((g_labi_panic_o_path_buf)[0]);
+}
+uint8_t * shux_crt0_user_o_path(uint8_t * argv0) {
+  (void)(((g_labi_crt0_user_o_path_buf)[0] = 0));
+  (void)(((g_labi_crt0_user_o_path_resolved)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x63\x72\x74\x30\x5f\x75\x73\x65\x72\x2e\x6f"), &((g_labi_crt0_user_o_path_resolved)[0]))));
+  if ((hit !=0)) {
+    return hit;
+  }
+  uint8_t cwd[512] = {};
+  uint8_t * gp = 0;
+  (void)((gp = getcwd(&((cwd)[0]), 490)));
+  if ((gp !=0)) {
+    int32_t L = 0;
+    while (((cwd)[L] !=0)) {
+      (void)((L = (L + 1)));
+    }
+    if (((L + 21) < 512)) {
+      uint8_t * suf = ((uint8_t *)"\x2f\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x63\x72\x74\x30\x5f\x75\x73\x65\x72\x2e\x6f");
+      int32_t si = 0;
+      while ((si <=21)) {
+        (void)(((cwd)[(L + si)] = (suf)[si]));
+        (void)((si = (si + 1)));
+      }
+      (void)((hit = link_abi_realpath_cap(&((cwd)[0]), &((g_labi_crt0_user_o_path_resolved)[0]))));
+      if ((hit !=0)) {
+        return hit;
+      }
+    }
+  }
+  if ((argv0 !=0)) {
+    if (((argv0)[0] !=0)) {
+      int32_t i = 0;
+      int32_t last_sep_i = -1;
+      while (((argv0)[i] !=0)) {
+        if (((argv0)[i] ==47)) {
+          (void)((last_sep_i = i));
+        }
+        (void)((i = (i + 1)));
+      }
+      int32_t n = 0;
+      if ((last_sep_i >=0)) {
+        if ((last_sep_i >=496)) {
+          return &((g_labi_crt0_user_o_path_buf)[0]);
+        }
+        int32_t j = 0;
+        while ((j < last_sep_i)) {
+          (void)(((g_labi_crt0_user_o_path_buf)[j] = (argv0)[j]));
+          (void)((j = (j + 1)));
+        }
+        (void)(((g_labi_crt0_user_o_path_buf)[last_sep_i] = 0));
+        (void)((n = last_sep_i));
+      } else {
+        (void)(((g_labi_crt0_user_o_path_buf)[0] = 46));
+        (void)(((g_labi_crt0_user_o_path_buf)[1] = 0));
+        (void)((n = 1));
+      }
+      if (((n + 14) < 512)) {
+        uint8_t * leaf = ((uint8_t *)"\x2f\x63\x72\x74\x30\x5f\x75\x73\x65\x72\x2e\x6f");
+        int32_t k = 0;
+        while (((leaf)[k] !=0)) {
+          (void)(((g_labi_crt0_user_o_path_buf)[(n + k)] = (leaf)[k]));
+          (void)((k = (k + 1)));
+        }
+        (void)(((g_labi_crt0_user_o_path_buf)[(n + k)] = 0));
+        (void)((hit = link_abi_realpath_cap(&((g_labi_crt0_user_o_path_buf)[0]), &((g_labi_crt0_user_o_path_resolved)[0]))));
+        if ((hit !=0)) {
+          return hit;
+        }
+        return &((g_labi_crt0_user_o_path_buf)[0]);
+      }
+    }
+  }
+  return &((g_labi_crt0_user_o_path_buf)[0]);
+}
+uint8_t * shux_freestanding_io_o_path(uint8_t * argv0) {
+  (void)(((g_labi_freestanding_io_o_path_buf)[0] = 0));
+  (void)(((g_labi_freestanding_io_o_path_resolved)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f\x2e\x6f"), &((g_labi_freestanding_io_o_path_resolved)[0]))));
+  if ((hit !=0)) {
+    return hit;
+  }
+  uint8_t cwd[512] = {};
+  uint8_t * gp = 0;
+  (void)((gp = getcwd(&((cwd)[0]), 484)));
+  if ((gp !=0)) {
+    int32_t L = 0;
+    while (((cwd)[L] !=0)) {
+      (void)((L = (L + 1)));
+    }
+    if (((L + 27) < 512)) {
+      uint8_t * suf = ((uint8_t *)"\x2f\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f\x2e\x6f");
+      int32_t si = 0;
+      while ((si <=27)) {
+        (void)(((cwd)[(L + si)] = (suf)[si]));
+        (void)((si = (si + 1)));
+      }
+      (void)((hit = link_abi_realpath_cap(&((cwd)[0]), &((g_labi_freestanding_io_o_path_resolved)[0]))));
+      if ((hit !=0)) {
+        return hit;
+      }
+    }
+  }
+  if ((argv0 !=0)) {
+    if (((argv0)[0] !=0)) {
+      int32_t i = 0;
+      int32_t last_sep_i = -1;
+      while (((argv0)[i] !=0)) {
+        if (((argv0)[i] ==47)) {
+          (void)((last_sep_i = i));
+        }
+        (void)((i = (i + 1)));
+      }
+      int32_t n = 0;
+      if ((last_sep_i >=0)) {
+        if ((last_sep_i >=492)) {
+          return &((g_labi_freestanding_io_o_path_buf)[0]);
+        }
+        int32_t j = 0;
+        while ((j < last_sep_i)) {
+          (void)(((g_labi_freestanding_io_o_path_buf)[j] = (argv0)[j]));
+          (void)((j = (j + 1)));
+        }
+        (void)(((g_labi_freestanding_io_o_path_buf)[last_sep_i] = 0));
+        (void)((n = last_sep_i));
+      } else {
+        (void)(((g_labi_freestanding_io_o_path_buf)[0] = 46));
+        (void)(((g_labi_freestanding_io_o_path_buf)[1] = 0));
+        (void)((n = 1));
+      }
+      if (((n + 18) < 512)) {
+        uint8_t * leaf = ((uint8_t *)"\x2f\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f\x2e\x6f");
+        int32_t k = 0;
+        while (((leaf)[k] !=0)) {
+          (void)(((g_labi_freestanding_io_o_path_buf)[(n + k)] = (leaf)[k]));
+          (void)((k = (k + 1)));
+        }
+        (void)(((g_labi_freestanding_io_o_path_buf)[(n + k)] = 0));
+        (void)((hit = link_abi_realpath_cap(&((g_labi_freestanding_io_o_path_buf)[0]), &((g_labi_freestanding_io_o_path_resolved)[0]))));
+        if ((hit !=0)) {
+          return hit;
+        }
+        return &((g_labi_freestanding_io_o_path_buf)[0]);
+      }
+    }
+  }
+  return &((g_labi_freestanding_io_o_path_buf)[0]);
+}
+uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0) {
+  (void)(((g_labi_async_scheduler_o_path_buf)[0] = 0));
+  (void)(((g_labi_async_scheduler_o_path_resolved)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)"\x73\x74\x64\x2f\x61\x73\x79\x6e\x63\x2f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x2e\x6f"), &((g_labi_async_scheduler_o_path_resolved)[0]))));
+  if ((hit !=0)) {
+    return hit;
+  }
+  uint8_t cwd[512] = {};
+  uint8_t * gp = 0;
+  (void)((gp = getcwd(&((cwd)[0]), 486)));
+  if ((gp !=0)) {
+    int32_t L = 0;
+    while (((cwd)[L] !=0)) {
+      (void)((L = (L + 1)));
+    }
+    if (((L + 26) <=512)) {
+      uint8_t * suf = ((uint8_t *)"\x2f\x73\x74\x64\x2f\x61\x73\x79\x6e\x63\x2f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x2e\x6f");
+      int32_t si = 0;
+      while ((si <=22)) {
+        (void)(((cwd)[(L + si)] = (suf)[si]));
+        (void)((si = (si + 1)));
+      }
+      (void)((hit = link_abi_realpath_cap(&((cwd)[0]), &((g_labi_async_scheduler_o_path_resolved)[0]))));
+      if ((hit !=0)) {
+        return hit;
+      }
+    }
+  }
+  if ((argv0 !=0)) {
+    if (((argv0)[0] !=0)) {
+      uint8_t * rp = 0;
+      (void)((rp = link_abi_realpath_cap(argv0, &((g_labi_async_scheduler_o_path_buf)[0]))));
+      if ((rp !=0)) {
+        int32_t i = 0;
+        int32_t last_sep_i = -1;
+        while (((g_labi_async_scheduler_o_path_buf)[i] !=0)) {
+          if (((g_labi_async_scheduler_o_path_buf)[i] ==47)) {
+            (void)((last_sep_i = i));
+          }
+          (void)((i = (i + 1)));
+        }
+        if ((last_sep_i >=0)) {
+          if (((last_sep_i + 26) < 4096)) {
+            (void)(((g_labi_async_scheduler_o_path_buf)[last_sep_i] = 0));
+            int32_t n = last_sep_i;
+            uint8_t * leaf = ((uint8_t *)"\x2f\x2e\x2e\x2f\x73\x74\x64\x2f\x61\x73\x79\x6e\x63\x2f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x2e\x6f");
+            int32_t k = 0;
+            while (((leaf)[k] !=0)) {
+              (void)(((g_labi_async_scheduler_o_path_buf)[(n + k)] = (leaf)[k]));
+              (void)((k = (k + 1)));
+            }
+            (void)(((g_labi_async_scheduler_o_path_buf)[(n + k)] = 0));
+            (void)((hit = link_abi_realpath_cap(&((g_labi_async_scheduler_o_path_buf)[0]), &((g_labi_async_scheduler_o_path_resolved)[0]))));
+            if ((hit !=0)) {
+              return hit;
+            }
+          }
+        }
+      }
+    }
+  }
+  return &((g_labi_async_scheduler_o_path_buf)[0]);
+}
 void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
   uint8_t * io_p = 0;
   uint8_t * proc_p = 0;
@@ -586,18 +1017,17 @@ void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * *
   (void)((io_p = shux_runtime_asm_io_stubs_o_path(link_argv0)));
   (void)((proc_p = shux_runtime_process_argv_o_path(link_argv0)));
   (void)((panic_p = shux_runtime_panic_o_path(link_argv0)));
-  int32_t _io = link_abi_asm_ld_push_obj(io_p, link_argv0, "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+  int32_t _io = link_abi_asm_ld_push_obj(io_p, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x61\x73\x6d\x5f\x69\x6f\x5f\x73\x74\x75\x62\x73\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
   if ((_io ==0)) {
   }
-  int32_t _pa = link_abi_asm_ld_push_obj(proc_p, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+  int32_t _pa = link_abi_asm_ld_push_obj(proc_p, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x72\x6f\x63\x65\x73\x73\x5f\x61\x72\x67\x76\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
   if ((_pa ==0)) {
   }
-  int32_t _pn = link_abi_asm_ld_push_obj(panic_p, link_argv0, "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+  int32_t _pn = link_abi_asm_ld_push_obj(panic_p, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
   if ((_pn ==0)) {
     return;
   }
 }
-/* wave151: append_user_extra_o_files pure orch (surface pin; Cap residual table+access). */
 void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32_t max_la) {
   uint8_t * ab = ((uint8_t *)(argv));
   if ((ab ==0)) {
@@ -609,7 +1039,7 @@ void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32
   int32_t n = 0;
   (void)((n = link_abi_user_extra_o_count()));
   int32_t ui = 0;
-  while ((ui <n)) {
+  while ((ui < n)) {
     int32_t cur = (la)[0];
     if ((cur >=(max_la - 1))) {
       break;
@@ -632,37 +1062,36 @@ void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32
     (void)(((la)[0] = (cur + 1)));
   }
 }
-/* wave160: compiler_o_path_copy pure orch (surface pin; Cap residual shu_resolve_compiler_dir). */
 int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8_t * out, int64_t out_sz) {
-  if ((out == 0)) {
+  if ((out ==0)) {
     return -1;
   }
-  if ((out_sz == 0)) {
+  if ((out_sz ==0)) {
     return -1;
   }
-  if ((leaf == 0)) {
+  if ((leaf ==0)) {
     return -1;
   }
-  if (((leaf)[0] == 0)) {
+  if (((leaf)[0] ==0)) {
     return -1;
   }
   (void)(((out)[0] = 0));
-  uint8_t comp_dir[4096];
+  uint8_t comp_dir[4096] = {};
   int32_t rc = 0;
   (void)((rc = shu_resolve_compiler_dir(argv0, &((comp_dir)[0]), 4096)));
-  if ((rc != 0)) {
+  if ((rc !=0)) {
     return -1;
   }
   int32_t dn = 0;
-  while (((comp_dir)[dn] != 0)) {
+  while (((comp_dir)[dn] !=0)) {
     (void)((dn = (dn + 1)));
   }
   int32_t ln = 0;
-  while (((leaf)[ln] != 0)) {
+  while (((leaf)[ln] !=0)) {
     (void)((ln = (ln + 1)));
   }
   int64_t need = ((((int64_t)(dn)) + 1) + ((int64_t)(ln)));
-  if ((need >= out_sz)) {
+  if ((need >=out_sz)) {
     (void)(((out)[0] = 0));
     return -1;
   }
@@ -673,35 +1102,32 @@ int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8
   }
   (void)(((out)[dn] = 47));
   int32_t k = 0;
-  while ((k <= ln)) {
-    (void)(((out)[(dn + 1) + k] = (leaf)[k]));
+  while ((k <=ln)) {
+    (void)(((out)[((dn + 1) + k)] = (leaf)[k]));
     (void)((k = (k + 1)));
   }
   return 0;
 }
-/* wave162: repo_root pure orch (surface pin; Cap residual resolve + rel_o_path). */
-static uint8_t g_labi_repo_root_buf[512];
 uint8_t * shux_repo_root_from_argv0(uint8_t * argv0) {
   (void)(((g_labi_repo_root_buf)[0] = 0));
-  uint8_t comp[4096];
+  uint8_t comp[4096] = {};
   int32_t rc = 0;
   (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
-  if ((rc == 0)) {
-    if (((comp)[0] != 0)) {
+  if ((rc ==0)) {
+    if (((comp)[0] !=0)) {
       int32_t n = 0;
-      while (((comp)[n] != 0)) {
+      while (((comp)[n] !=0)) {
         (void)((n = (n + 1)));
       }
       if ((n < 512)) {
         int32_t i = 0;
-        while ((i <= n)) {
+        while ((i <=n)) {
           (void)(((g_labi_repo_root_buf)[i] = (comp)[i]));
           (void)((i = (i + 1)));
         }
-        uint8_t * last = 0;
-        (void)((last = shux_path_last_sep(&((g_labi_repo_root_buf)[0]))));
-        if ((last != 0)) {
-          if ((last != &((g_labi_repo_root_buf)[0]))) {
+        uint8_t * last = shux_path_last_sep(&((g_labi_repo_root_buf)[0]));
+        if ((last !=0)) {
+          if ((last !=&((g_labi_repo_root_buf)[0]))) {
             (void)(((last)[0] = 0));
             return &((g_labi_repo_root_buf)[0]);
           }
@@ -710,406 +1136,95 @@ uint8_t * shux_repo_root_from_argv0(uint8_t * argv0) {
       }
     }
   }
-  uint8_t * rel = ((uint8_t *)("std/process/process.o"));
+  uint8_t * rel = ((uint8_t *)"\x73\x74\x64\x2f\x70\x72\x6f\x63\x65\x73\x73\x2f\x70\x72\x6f\x63\x65\x73\x73\x2e\x6f");
   uint8_t * proc_o = 0;
   (void)((proc_o = shux_rel_o_path_from_argv0(argv0, rel)));
-  if ((proc_o == 0)) {
+  if ((proc_o ==0)) {
     return &((g_labi_repo_root_buf)[0]);
   }
-  if (((proc_o)[0] == 0)) {
+  if (((proc_o)[0] ==0)) {
     return &((g_labi_repo_root_buf)[0]);
   }
   int32_t pn = 0;
-  while (((proc_o)[pn] != 0)) {
+  while (((proc_o)[pn] !=0)) {
     (void)((pn = (pn + 1)));
   }
-  if ((pn >= 512)) {
+  if ((pn >=512)) {
     return &((g_labi_repo_root_buf)[0]);
   }
   int32_t j = 0;
-  while ((j <= pn)) {
+  while ((j <=pn)) {
     (void)(((g_labi_repo_root_buf)[j] = (proc_o)[j]));
     (void)((j = (j + 1)));
   }
-  int32_t k2 = 0;
-  while ((k2 < 3)) {
-    uint8_t * last2 = 0;
-    (void)((last2 = shux_path_last_sep(&((g_labi_repo_root_buf)[0]))));
-    if ((last2 == 0)) {
+  int32_t k = 0;
+  while ((k < 3)) {
+    uint8_t * last2 = shux_path_last_sep(&((g_labi_repo_root_buf)[0]));
+    if ((last2 ==0)) {
       break;
     }
-    if ((last2 == &((g_labi_repo_root_buf)[0]))) {
+    if ((last2 ==&((g_labi_repo_root_buf)[0]))) {
       break;
     }
     (void)(((last2)[0] = 0));
-    (void)((k2 = (k2 + 1)));
+    (void)((k = (k + 1)));
   }
   return &((g_labi_repo_root_buf)[0]);
 }
-/* wave163: panic_o_path pure orch (surface pin; Cap residual realpath+getcwd+skip). */
-static uint8_t g_labi_panic_o_path_buf[512];
-static uint8_t g_labi_panic_o_path_resolved[4096];
-uint8_t * shux_runtime_panic_o_path(uint8_t * argv0) {
-  (void)(((g_labi_panic_o_path_buf)[0] = 0));
-  (void)(((g_labi_panic_o_path_resolved)[0] = 0));
-  uint8_t * hit = 0;
-  (void)((hit = shux_runtime_o_realpath_if_exists(((uint8_t *)("runtime_panic.o")), &((g_labi_panic_o_path_resolved)[0]))));
-  if ((hit != 0)) {
-    return hit;
-  }
-  (void)((hit = shux_runtime_o_realpath_if_exists(((uint8_t *)("compiler/runtime_panic.o")), &((g_labi_panic_o_path_resolved)[0]))));
-  if ((hit != 0)) {
-    return hit;
-  }
-  uint8_t cwd[512];
-  uint8_t * gp = 0;
-  (void)((gp = getcwd(&((cwd)[0]), 488)));
-  if ((gp != 0)) {
-    int32_t L = 0;
-    while (((cwd)[L] != 0)) {
-      (void)((L = (L + 1)));
-    }
-    if (((L + 24) < 512)) {
-      uint8_t * suf = ((uint8_t *)("/compiler/runtime_panic.o"));
-      int32_t si = 0;
-      while ((si <= 24)) {
-        (void)(((cwd)[(L + si)] = (suf)[si]));
-        (void)((si = (si + 1)));
-      }
-      (void)((hit = shux_runtime_o_realpath_if_exists(&((cwd)[0]), &((g_labi_panic_o_path_resolved)[0]))));
-      if ((hit != 0)) {
-        return hit;
-      }
-    }
-  }
-  if ((argv0 != 0)) {
-    if (((argv0)[0] != 0)) {
-      int32_t i = 0;
-      int32_t last_sep_i = -1;
-      while (((argv0)[i] != 0)) {
-        if (((argv0)[i] == 47)) {
-          (void)((last_sep_i = i));
-        }
-        (void)((i = (i + 1)));
-      }
-      int32_t n = 0;
-      if ((last_sep_i >= 0)) {
-        if ((last_sep_i >= 492)) {
-          return &((g_labi_panic_o_path_buf)[0]);
-        }
-        int32_t j = 0;
-        while ((j < last_sep_i)) {
-          (void)(((g_labi_panic_o_path_buf)[j] = (argv0)[j]));
-          (void)((j = (j + 1)));
-        }
-        (void)(((g_labi_panic_o_path_buf)[last_sep_i] = 0));
-        (void)((n = last_sep_i));
-      } else {
-        (void)(((g_labi_panic_o_path_buf)[0] = 46));
-        (void)(((g_labi_panic_o_path_buf)[1] = 0));
-        (void)((n = 1));
-      }
-      if (((n + 18) < 512)) {
-        uint8_t * leaf = ((uint8_t *)("/runtime_panic.o"));
-        int32_t k = 0;
-        while (((leaf)[k] != 0)) {
-          (void)(((g_labi_panic_o_path_buf)[(n + k)] = (leaf)[k]));
-          (void)((k = (k + 1)));
-        }
-        (void)(((g_labi_panic_o_path_buf)[(n + k)] = 0));
-        (void)((hit = shux_runtime_o_realpath_if_exists(&((g_labi_panic_o_path_buf)[0]), &((g_labi_panic_o_path_resolved)[0]))));
-        if ((hit != 0)) {
-          return hit;
-        }
-        uint8_t * sm = 0;
-        (void)((sm = asm_link_obj_skip_missing(&((g_labi_panic_o_path_buf)[0]))));
-        if ((sm != 0)) {
-          return &((g_labi_panic_o_path_buf)[0]);
-        }
-      }
-    }
-  }
-  return &((g_labi_panic_o_path_buf)[0]);
-}
-/* wave164: crt0_user_o_path pure orch (surface pin; Cap residual realpath_cap+getcwd). */
-static uint8_t g_labi_crt0_user_o_path_buf[512];
-static uint8_t g_labi_crt0_user_o_path_resolved[4096];
-uint8_t * shux_crt0_user_o_path(uint8_t * argv0) {
-  (void)(((g_labi_crt0_user_o_path_buf)[0] = 0));
-  (void)(((g_labi_crt0_user_o_path_resolved)[0] = 0));
-  uint8_t * hit = 0;
-  (void)((hit = link_abi_realpath_cap(((uint8_t *)("compiler/crt0_user.o")), &((g_labi_crt0_user_o_path_resolved)[0]))));
-  if ((hit != 0)) {
-    return hit;
-  }
-  uint8_t cwd[512];
-  uint8_t * gp = 0;
-  (void)((gp = getcwd(&((cwd)[0]), 490)));
-  if ((gp != 0)) {
-    int32_t L = 0;
-    while (((cwd)[L] != 0)) {
-      (void)((L = (L + 1)));
-    }
-    if (((L + 21) < 512)) {
-      uint8_t * suf = ((uint8_t *)("/compiler/crt0_user.o"));
-      int32_t si = 0;
-      while ((si <= 21)) {
-        (void)(((cwd)[(L + si)] = (suf)[si]));
-        (void)((si = (si + 1)));
-      }
-      (void)((hit = link_abi_realpath_cap(&((cwd)[0]), &((g_labi_crt0_user_o_path_resolved)[0]))));
-      if ((hit != 0)) {
-        return hit;
-      }
-    }
-  }
-  if ((argv0 != 0)) {
-    if (((argv0)[0] != 0)) {
-      int32_t i = 0;
-      int32_t last_sep_i = -1;
-      while (((argv0)[i] != 0)) {
-        if (((argv0)[i] == 47)) {
-          (void)((last_sep_i = i));
-        }
-        (void)((i = (i + 1)));
-      }
-      int32_t n = 0;
-      if ((last_sep_i >= 0)) {
-        if ((last_sep_i >= 496)) {
-          return &((g_labi_crt0_user_o_path_buf)[0]);
-        }
-        int32_t j = 0;
-        while ((j < last_sep_i)) {
-          (void)(((g_labi_crt0_user_o_path_buf)[j] = (argv0)[j]));
-          (void)((j = (j + 1)));
-        }
-        (void)(((g_labi_crt0_user_o_path_buf)[last_sep_i] = 0));
-        (void)((n = last_sep_i));
-      } else {
-        (void)(((g_labi_crt0_user_o_path_buf)[0] = 46));
-        (void)(((g_labi_crt0_user_o_path_buf)[1] = 0));
-        (void)((n = 1));
-      }
-      if (((n + 14) < 512)) {
-        uint8_t * leaf = ((uint8_t *)("/crt0_user.o"));
-        int32_t k = 0;
-        while (((leaf)[k] != 0)) {
-          (void)(((g_labi_crt0_user_o_path_buf)[(n + k)] = (leaf)[k]));
-          (void)((k = (k + 1)));
-        }
-        (void)(((g_labi_crt0_user_o_path_buf)[(n + k)] = 0));
-        (void)((hit = link_abi_realpath_cap(&((g_labi_crt0_user_o_path_buf)[0]), &((g_labi_crt0_user_o_path_resolved)[0]))));
-        if ((hit != 0)) {
-          return hit;
-        }
-        return &((g_labi_crt0_user_o_path_buf)[0]);
-      }
-    }
-  }
-  return &((g_labi_crt0_user_o_path_buf)[0]);
-}
-/* wave165: freestanding_io_o_path pure orch (surface pin; Cap residual realpath_cap+getcwd). */
-static uint8_t g_labi_freestanding_io_o_path_buf[512];
-static uint8_t g_labi_freestanding_io_o_path_resolved[4096];
-uint8_t * shux_freestanding_io_o_path(uint8_t * argv0) {
-  (void)(((g_labi_freestanding_io_o_path_buf)[0] = 0));
-  (void)(((g_labi_freestanding_io_o_path_resolved)[0] = 0));
-  uint8_t * hit = 0;
-  (void)((hit = link_abi_realpath_cap(((uint8_t *)("compiler/freestanding_io.o")), &((g_labi_freestanding_io_o_path_resolved)[0]))));
-  if ((hit != 0)) {
-    return hit;
-  }
-  uint8_t cwd[512];
-  uint8_t * gp = 0;
-  (void)((gp = getcwd(&((cwd)[0]), 484)));
-  if ((gp != 0)) {
-    int32_t L = 0;
-    while (((cwd)[L] != 0)) {
-      (void)((L = (L + 1)));
-    }
-    if (((L + 27) < 512)) {
-      uint8_t * suf = ((uint8_t *)("/compiler/freestanding_io.o"));
-      int32_t si = 0;
-      while ((si <= 27)) {
-        (void)(((cwd)[(L + si)] = (suf)[si]));
-        (void)((si = (si + 1)));
-      }
-      (void)((hit = link_abi_realpath_cap(&((cwd)[0]), &((g_labi_freestanding_io_o_path_resolved)[0]))));
-      if ((hit != 0)) {
-        return hit;
-      }
-    }
-  }
-  if ((argv0 != 0)) {
-    if (((argv0)[0] != 0)) {
-      int32_t i = 0;
-      int32_t last_sep_i = -1;
-      while (((argv0)[i] != 0)) {
-        if (((argv0)[i] == 47)) {
-          (void)((last_sep_i = i));
-        }
-        (void)((i = (i + 1)));
-      }
-      int32_t n = 0;
-      if ((last_sep_i >= 0)) {
-        if ((last_sep_i >= 492)) {
-          return &((g_labi_freestanding_io_o_path_buf)[0]);
-        }
-        int32_t j = 0;
-        while ((j < last_sep_i)) {
-          (void)(((g_labi_freestanding_io_o_path_buf)[j] = (argv0)[j]));
-          (void)((j = (j + 1)));
-        }
-        (void)(((g_labi_freestanding_io_o_path_buf)[last_sep_i] = 0));
-        (void)((n = last_sep_i));
-      } else {
-        (void)(((g_labi_freestanding_io_o_path_buf)[0] = 46));
-        (void)(((g_labi_freestanding_io_o_path_buf)[1] = 0));
-        (void)((n = 1));
-      }
-      if (((n + 18) < 512)) {
-        uint8_t * leaf = ((uint8_t *)("/freestanding_io.o"));
-        int32_t k = 0;
-        while (((leaf)[k] != 0)) {
-          (void)(((g_labi_freestanding_io_o_path_buf)[(n + k)] = (leaf)[k]));
-          (void)((k = (k + 1)));
-        }
-        (void)(((g_labi_freestanding_io_o_path_buf)[(n + k)] = 0));
-        (void)((hit = link_abi_realpath_cap(&((g_labi_freestanding_io_o_path_buf)[0]), &((g_labi_freestanding_io_o_path_resolved)[0]))));
-        if ((hit != 0)) {
-          return hit;
-        }
-        return &((g_labi_freestanding_io_o_path_buf)[0]);
-      }
-    }
-  }
-  return &((g_labi_freestanding_io_o_path_buf)[0]);
-}
-/* wave166: async_scheduler_o_path pure orch (surface pin; Cap residual realpath_cap+getcwd).
- * Step3: realpath(argv0) then parent + /../std/async/scheduler.o. */
-static uint8_t g_labi_async_scheduler_o_path_buf[4096];
-static uint8_t g_labi_async_scheduler_o_path_resolved[4096];
-uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0) {
-  (void)(((g_labi_async_scheduler_o_path_buf)[0] = 0));
-  (void)(((g_labi_async_scheduler_o_path_resolved)[0] = 0));
-  uint8_t * hit = 0;
-  (void)((hit = link_abi_realpath_cap(((uint8_t *)("std/async/scheduler.o")), &((g_labi_async_scheduler_o_path_resolved)[0]))));
-  if ((hit != 0)) {
-    return hit;
-  }
-  uint8_t cwd[512];
-  uint8_t * gp = 0;
-  (void)((gp = getcwd(&((cwd)[0]), 486)));
-  if ((gp != 0)) {
-    int32_t L = 0;
-    while (((cwd)[L] != 0)) {
-      (void)((L = (L + 1)));
-    }
-    if (((L + 26) <= 512)) {
-      uint8_t * suf = ((uint8_t *)("/std/async/scheduler.o"));
-      int32_t si = 0;
-      while ((si <= 22)) {
-        (void)(((cwd)[(L + si)] = (suf)[si]));
-        (void)((si = (si + 1)));
-      }
-      (void)((hit = link_abi_realpath_cap(&((cwd)[0]), &((g_labi_async_scheduler_o_path_resolved)[0]))));
-      if ((hit != 0)) {
-        return hit;
-      }
-    }
-  }
-  if ((argv0 != 0)) {
-    if (((argv0)[0] != 0)) {
-      uint8_t * rp = 0;
-      (void)((rp = link_abi_realpath_cap(argv0, &((g_labi_async_scheduler_o_path_buf)[0]))));
-      if ((rp != 0)) {
-        int32_t i = 0;
-        int32_t last_sep_i = -1;
-        while (((g_labi_async_scheduler_o_path_buf)[i] != 0)) {
-          if (((g_labi_async_scheduler_o_path_buf)[i] == 47)) {
-            (void)((last_sep_i = i));
-          }
-          (void)((i = (i + 1)));
-        }
-        if ((last_sep_i >= 0)) {
-          if (((last_sep_i + 26) < 4096)) {
-            (void)(((g_labi_async_scheduler_o_path_buf)[last_sep_i] = 0));
-            int32_t n = last_sep_i;
-            uint8_t * leaf = ((uint8_t *)("/../std/async/scheduler.o"));
-            int32_t k = 0;
-            while (((leaf)[k] != 0)) {
-              (void)(((g_labi_async_scheduler_o_path_buf)[(n + k)] = (leaf)[k]));
-              (void)((k = (k + 1)));
-            }
-            (void)(((g_labi_async_scheduler_o_path_buf)[(n + k)] = 0));
-            (void)((hit = link_abi_realpath_cap(&((g_labi_async_scheduler_o_path_buf)[0]), &((g_labi_async_scheduler_o_path_resolved)[0]))));
-            if ((hit != 0)) {
-              return hit;
-            }
-          }
-        }
-      }
-    }
-  }
-  return &((g_labi_async_scheduler_o_path_buf)[0]);
-}
-/* wave180: scheduler_o_for_task_link pure orch (surface pin; Cap residual path_readable+realpath_cap). */
-static uint8_t g_labi_sched_for_task_derived[4096];
-static uint8_t g_labi_sched_for_task_cwd[4096];
 uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler) {
-  if ((explicit_scheduler != 0)) {
-    if (((explicit_scheduler)[0] != 0)) {
+  if ((explicit_scheduler !=0)) {
+    if (((explicit_scheduler)[0] !=0)) {
       return explicit_scheduler;
     }
   }
-  if ((task_o == 0)) {
-    return 0;
+  if ((task_o ==0)) {
+    return ((uint8_t *)(0));
   }
-  if (((task_o)[0] == 0)) {
-    return 0;
+  if (((task_o)[0] ==0)) {
+    return ((uint8_t *)(0));
   }
   int32_t n = 0;
-  while (((task_o)[n] != 0)) {
+  while (((task_o)[n] !=0)) {
     (void)((n = (n + 1)));
   }
-  if ((n >= 4096)) {
-    return 0;
+  if ((n >=4096)) {
+    return ((uint8_t *)(0));
   }
   int32_t ci = 0;
-  while ((ci <= n)) {
+  while ((ci <=n)) {
     (void)(((g_labi_sched_for_task_derived)[ci] = (task_o)[ci]));
     (void)((ci = (ci + 1)));
   }
-  uint8_t * from = ((uint8_t *)("std/task/task.o"));
+  uint8_t * from = ((uint8_t *)"\x73\x74\x64\x2f\x74\x61\x73\x6b\x2f\x74\x61\x73\x6b\x2e\x6f");
   int32_t from_len = 15;
-  uint8_t * to = ((uint8_t *)("std/async/scheduler.o"));
+  uint8_t * to = ((uint8_t *)"\x73\x74\x64\x2f\x61\x73\x79\x6e\x63\x2f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x2e\x6f");
   int32_t to_len = 22;
   int32_t delta = 7;
   int32_t pos = -1;
   int32_t i = 0;
-  while (((i + from_len) <= n)) {
+  while (((i + from_len) <=n)) {
     if ((pos < 0)) {
       int32_t j = 0;
       int32_t ok = 1;
       while ((j < from_len)) {
-        if ((ok != 0)) {
-          if (((g_labi_sched_for_task_derived)[(i + j)] != (from)[j])) {
+        if ((ok !=0)) {
+          if (((g_labi_sched_for_task_derived)[(i + j)] !=(from)[j])) {
             (void)((ok = 0));
           }
         }
         (void)((j = (j + 1)));
       }
-      if ((ok != 0)) {
+      if ((ok !=0)) {
         (void)((pos = i));
       }
     }
     (void)((i = (i + 1)));
   }
-  if ((pos >= 0)) {
+  if ((pos >=0)) {
     int32_t new_n = (n + delta);
     if ((new_n < 4096)) {
       int32_t si = n;
-      while ((si >= (pos + from_len))) {
+      while ((si >=(pos + from_len))) {
         (void)(((g_labi_sched_for_task_derived)[(si + delta)] = (g_labi_sched_for_task_derived)[si]));
         (void)((si = (si - 1)));
       }
@@ -1120,41 +1235,38 @@ uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_schedul
       }
       int32_t readable = 0;
       (void)((readable = link_abi_path_readable(&((g_labi_sched_for_task_derived)[0]))));
-      if ((readable != 0)) {
+      if ((readable !=0)) {
         return &((g_labi_sched_for_task_derived)[0]);
       }
     }
   }
   (void)(((g_labi_sched_for_task_cwd)[0] = 0));
   uint8_t * hit = 0;
-  (void)((hit = link_abi_realpath_cap(((uint8_t *)("std/async/scheduler.o")), &((g_labi_sched_for_task_cwd)[0]))));
-  if ((hit != 0)) {
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)"\x73\x74\x64\x2f\x61\x73\x79\x6e\x63\x2f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x2e\x6f"), &((g_labi_sched_for_task_cwd)[0]))));
+  if ((hit !=0)) {
     return hit;
   }
-  return 0;
+  return ((uint8_t *)(0));
 }
-/* wave181: bootstrap_nostdlib_stubs_o_path pure orch (surface pin; Cap residual realpath_cap+resolve). */
-static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_buf[4096];
-static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_resolved[4096];
 uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0) {
   (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0] = 0));
   (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_resolved)[0] = 0));
   uint8_t * hit = 0;
-  (void)((hit = link_abi_realpath_cap(((uint8_t *)("compiler/src/asm/bootstrap_nostdlib_stubs.o")), &((g_labi_bootstrap_nostdlib_stubs_o_path_resolved)[0]))));
-  if ((hit != 0)) {
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x73\x72\x63\x2f\x61\x73\x6d\x2f\x62\x6f\x6f\x74\x73\x74\x72\x61\x70\x5f\x6e\x6f\x73\x74\x64\x6c\x69\x62\x5f\x73\x74\x75\x62\x73\x2e\x6f"), &((g_labi_bootstrap_nostdlib_stubs_o_path_resolved)[0]))));
+  if ((hit !=0)) {
     return hit;
   }
-  uint8_t comp[4096];
+  uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), ((int64_t)(4096)))));
-  if ((rc == 0)) {
+  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  if ((rc ==0)) {
     int32_t dn = 0;
-    while (((comp)[dn] != 0)) {
+    while (((comp)[dn] !=0)) {
       (void)((dn = (dn + 1)));
     }
-    uint8_t * leaf = ((uint8_t *)("src/asm/bootstrap_nostdlib_stubs.o"));
+    uint8_t * leaf = ((uint8_t *)"\x73\x72\x63\x2f\x61\x73\x6d\x2f\x62\x6f\x6f\x74\x73\x74\x72\x61\x70\x5f\x6e\x6f\x73\x74\x64\x6c\x69\x62\x5f\x73\x74\x75\x62\x73\x2e\x6f");
     int32_t ln = 0;
-    while (((leaf)[ln] != 0)) {
+    while (((leaf)[ln] !=0)) {
       (void)((ln = (ln + 1)));
     }
     if ((((dn + 1) + ln) < 4096)) {
@@ -1165,12 +1277,12 @@ uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0) {
       }
       (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[dn] = 47));
       int32_t k = 0;
-      while ((k <= ln)) {
+      while ((k <=ln)) {
         (void)(((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[((dn + 1) + k)] = (leaf)[k]));
         (void)((k = (k + 1)));
       }
       (void)((hit = link_abi_realpath_cap(&((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0]), &((g_labi_bootstrap_nostdlib_stubs_o_path_resolved)[0]))));
-      if ((hit != 0)) {
+      if ((hit !=0)) {
         return hit;
       }
       return &((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0]);
@@ -1178,6 +1290,238 @@ uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0) {
   }
   return &((g_labi_bootstrap_nostdlib_stubs_o_path_buf)[0]);
 }
+uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0) {
+  (void)(((g_labi_asm_io_stubs_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x61\x73\x6d\x5f\x69\x6f\x5f\x73\x74\x75\x62\x73\x2e\x6f"), &((g_labi_asm_io_stubs_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_asm_io_stubs_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_asm_io_stubs_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0) {
+  (void)(((g_labi_process_argv_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x72\x6f\x63\x65\x73\x73\x5f\x61\x72\x67\x76\x2e\x6f"), &((g_labi_process_argv_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_process_argv_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_process_argv_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_process_os_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_process_os_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x72\x6f\x63\x65\x73\x73\x5f\x6f\x73\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_process_os_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_process_os_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_process_os_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_test_fn_invoke_o_path(uint8_t * argv0) {
+  (void)(((g_labi_test_fn_invoke_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f"), &((g_labi_test_fn_invoke_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_test_fn_invoke_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_test_fn_invoke_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_random_fill_o_path(uint8_t * argv0) {
+  (void)(((g_labi_random_fill_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x72\x61\x6e\x64\x6f\x6d\x5f\x66\x69\x6c\x6c\x2e\x6f"), &((g_labi_random_fill_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_random_fill_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_random_fill_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_compress_zlib_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x63\x6f\x6d\x70\x72\x65\x73\x73\x5f\x7a\x6c\x69\x62\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_compress_zlib_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_compress_zlib_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_compress_zlib_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0) {
+  (void)(((g_labi_heap_user_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f"), &((g_labi_heap_user_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_heap_user_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_heap_user_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_time_os_o_path(uint8_t * argv0) {
+  (void)(((g_labi_time_os_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x69\x6d\x65\x5f\x6f\x73\x2e\x6f"), &((g_labi_time_os_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_time_os_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_time_os_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_queue_contention_o_path(uint8_t * argv0) {
+  (void)(((g_labi_queue_contention_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x71\x75\x65\x75\x65\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x69\x6f\x6e\x2e\x6f"), &((g_labi_queue_contention_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_queue_contention_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_queue_contention_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_dynlib_os_o_path(uint8_t * argv0) {
+  (void)(((g_labi_dynlib_os_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x64\x79\x6e\x6c\x69\x62\x5f\x6f\x73\x2e\x6f"), &((g_labi_dynlib_os_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_dynlib_os_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_dynlib_os_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_env_os_o_path(uint8_t * argv0) {
+  (void)(((g_labi_env_os_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x65\x6e\x76\x5f\x6f\x73\x2e\x6f"), &((g_labi_env_os_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_env_os_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_env_os_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_backtrace_platform_o_path(uint8_t * argv0) {
+  (void)(((g_labi_backtrace_platform_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x62\x61\x63\x6b\x74\x72\x61\x63\x65\x5f\x70\x6c\x61\x74\x66\x6f\x72\x6d\x2e\x6f"), &((g_labi_backtrace_platform_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_backtrace_platform_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_backtrace_platform_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_log_os_o_path(uint8_t * argv0) {
+  (void)(((g_labi_log_os_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6c\x6f\x67\x5f\x6f\x73\x2e\x6f"), &((g_labi_log_os_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_log_os_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_log_os_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_math_libm_o_path(uint8_t * argv0) {
+  (void)(((g_labi_math_libm_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6d\x61\x74\x68\x5f\x6c\x69\x62\x6d\x2e\x6f"), &((g_labi_math_libm_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_math_libm_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_math_libm_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_atomic_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_atomic_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x61\x74\x6f\x6d\x69\x63\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_atomic_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_atomic_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_atomic_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_channel_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_channel_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x63\x68\x61\x6e\x6e\x65\x6c\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_channel_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_channel_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_channel_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_net_udp_batch_o_path(uint8_t * argv0) {
+  (void)(((g_labi_net_udp_batch_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6e\x65\x74\x5f\x75\x64\x70\x5f\x62\x61\x74\x63\x68\x2e\x6f"), &((g_labi_net_udp_batch_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_net_udp_batch_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_net_udp_batch_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_net_workers_o_path(uint8_t * argv0) {
+  (void)(((g_labi_net_workers_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6e\x65\x74\x5f\x77\x6f\x72\x6b\x65\x72\x73\x2e\x6f"), &((g_labi_net_workers_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_net_workers_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_net_workers_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_sync_os_o_path(uint8_t * argv0) {
+  (void)(((g_labi_sync_os_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x73\x79\x6e\x63\x5f\x6f\x73\x2e\x6f"), &((g_labi_sync_os_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_sync_os_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_sync_os_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_sync_lock_diag_tls_o_path(uint8_t * argv0) {
+  (void)(((g_labi_sync_lock_diag_tls_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x73\x79\x6e\x63\x5f\x6c\x6f\x63\x6b\x5f\x64\x69\x61\x67\x5f\x74\x6c\x73\x2e\x6f"), &((g_labi_sync_lock_diag_tls_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_sync_lock_diag_tls_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_sync_lock_diag_tls_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_thread_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_thread_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x68\x72\x65\x61\x64\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_thread_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_thread_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_thread_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_scheduler_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_scheduler_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_scheduler_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_scheduler_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_scheduler_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_http_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_http_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x74\x74\x70\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_http_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_http_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_http_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_tls_mbedtls_bio_o_path(uint8_t * argv0) {
+  (void)(((g_labi_tls_mbedtls_bio_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x5f\x62\x69\x6f\x2e\x6f"), &((g_labi_tls_mbedtls_bio_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_tls_mbedtls_bio_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_tls_mbedtls_bio_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_kv_mmap_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_kv_mmap_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6b\x76\x5f\x6d\x6d\x61\x70\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_kv_mmap_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_kv_mmap_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_kv_mmap_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_arrow_simd_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_arrow_simd_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x61\x72\x72\x6f\x77\x5f\x73\x69\x6d\x64\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_arrow_simd_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_arrow_simd_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_arrow_simd_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_sqlite_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_sqlite_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x73\x71\x6c\x69\x74\x65\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_sqlite_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_sqlite_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_sqlite_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_crypto_inc_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_crypto_inc_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x63\x72\x79\x70\x74\x6f\x5f\x69\x6e\x63\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_crypto_inc_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_crypto_inc_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_crypto_inc_glue_o_path_buf)[0]);
+}
+uint8_t * shux_runtime_ed25519_ref10_glue_o_path(uint8_t * argv0) {
+  (void)(((g_labi_ed25519_ref10_glue_o_path_buf)[0] = 0));
+  int32_t rc = shux_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x65\x64\x32\x35\x35\x31\x39\x5f\x72\x65\x66\x31\x30\x5f\x67\x6c\x75\x65\x2e\x6f"), &((g_labi_ed25519_ref10_glue_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_ed25519_ref10_glue_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_ed25519_ref10_glue_o_path_buf)[0]);
+}
 int32_t labi_path_pure_count(void) {
-  return 24;
+  return 53;
 }

@@ -1381,6 +1381,14 @@ int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char 
 
 
 
+/* wave183: thin shux_runtime_*_o_path pure orch — body removed from mega
+ * (lives in labi_path_pure L0 pure / cold twin). Hybrid SHUX_LABI_PATH_PURE_FROM_X → L0 pure;
+ * cold path defines via #ifndef below (static PATH_MAX BSS + compiler_o_path_copy).
+ * Why: hybrid still had always-mega C bodies for 29 thin runtime path leaves after wave161
+ * G.7 join through compiler_o_path_copy (resolve+snprintf already removed).
+ * Cap residual: shu_resolve_compiler_dir inside peer compiler_o_path_copy only.
+ * PLATFORM: SHARED orch. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 /**
  * seed asm 用户程序：std.io 桩 .o（与 io.o 同链）；见 seeds/runtime_asm_io_stubs.from_x.c。
  * 参数：argv0 用于解析 compiler 目录。
@@ -1705,6 +1713,38 @@ const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
         resolved[0] = '\0';
     return resolved;
 }
+
+#else
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *shux_runtime_process_argv_o_path(const char *argv0);
+const char *shux_runtime_process_os_glue_o_path(const char *argv0);
+const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
+const char *shux_runtime_random_fill_o_path(const char *argv0);
+const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
+const char *shux_runtime_heap_user_o_path(const char *argv0);
+const char *shux_runtime_time_os_o_path(const char *argv0);
+const char *shux_runtime_queue_contention_o_path(const char *argv0);
+const char *shux_runtime_dynlib_os_o_path(const char *argv0);
+const char *shux_runtime_env_os_o_path(const char *argv0);
+const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
+const char *shux_runtime_log_os_o_path(const char *argv0);
+const char *shux_runtime_math_libm_o_path(const char *argv0);
+const char *shux_runtime_atomic_glue_o_path(const char *argv0);
+const char *shux_runtime_channel_glue_o_path(const char *argv0);
+const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
+const char *shux_runtime_net_workers_o_path(const char *argv0);
+const char *shux_runtime_sync_os_o_path(const char *argv0);
+const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0);
+const char *shux_runtime_thread_glue_o_path(const char *argv0);
+const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
+const char *shux_runtime_http_glue_o_path(const char *argv0);
+const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
+const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0);
+const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
+const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
+const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
+const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+#endif
 
 /**
  * 若 runtime_panic.o 尚不存在则用 cc -c 从 src/asm 下源码生成到 shux 同目录，以便 ASM -o exe 链接能提供 shux_panic_。
