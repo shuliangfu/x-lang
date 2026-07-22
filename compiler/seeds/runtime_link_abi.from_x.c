@@ -582,11 +582,10 @@ void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
 void link_diag_ld_debug_argv(const char *label, const char *const *argv);
 #endif
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
-
+/* G-02f-165 / wave111：shux_link_perror pure orch in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual errno path
+ * stays always-linked (link_diag_errno / _path). PLATFORM: SHARED. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void shux_link_perror(const char *msg) {
     char op_buf[128];
     char path_buf[160];
@@ -622,9 +621,9 @@ void shux_link_perror(const char *msg) {
     }
     link_diag_errno("process error", text);
 }
-
-
-
+#else
+void shux_link_perror(const char *msg);
+#endif
 
 #define perror(msg) shux_link_perror((msg))
 

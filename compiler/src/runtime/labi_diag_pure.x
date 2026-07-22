@@ -20,6 +20,10 @@ export extern "C" function diag_report_with_code(
 /* See signature and body for contracts. */
 export extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): void;
 
+/* Cap residual (mega always): errno + strerror + va_list reportf path. */
+export extern "C" function link_diag_errno(kind: *u8, op: *u8): void;
+export extern "C" function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void;
+
 /** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
@@ -314,7 +318,124 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
   }
 }
 
-/* Pure audit: public L1 gates in this slice (code_for_kind + 8 report). */
+/**
+ * Parse a classic `perror`-style link/process message and report via link_diag_errno*.
+ * Accepts optional leading `shux: ` prefix. If the remaining text ends with
+ * `op (path)` (last `(` / `)` with trailing NUL after `)`), splits into op + path
+ * for `link_diag_errno_path`; otherwise reports the whole remaining text as op.
+ * Null/empty msg → `system call` with no path.
+ * @param msg *u8 — NUL-terminated diagnostic text; null treated as empty
+ * @return void
+ * Cap residual: `link_diag_errno` / `link_diag_errno_path` hold errno+strerror+reportf
+ * (mega always). Pure owns only prefix strip + paren split + stack copies for op/path.
+ * wave111: closes soft Cap residual "shux_link_perror body always mega C under hybrid".
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ */
+#[no_mangle]
+export function shux_link_perror(msg: *u8): void {
+  let pe: *u8 = "process error";
+  let sc: *u8 = "system call";
+  let base: *u8 = msg;
+  let start: i32 = 0;
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let lparen: i32 = 0 - 1;
+  let rparen: i32 = 0 - 1;
+  let op_end: i32 = 0;
+  let op_len: i32 = 0;
+  let path_len: i32 = 0;
+  let j: i32 = 0;
+  let op_buf: u8[128] = [];
+  let path_buf: u8[160] = [];
+  let text: *u8 = 0 as *u8;
+
+  if (base == 0 as *u8) {
+    unsafe {
+      link_diag_errno(pe, sc);
+    }
+    return;
+  }
+  if (base[0] == 0) {
+    unsafe {
+      link_diag_errno(pe, sc);
+    }
+    return;
+  }
+
+  /* Optional "shux: " prefix (6 ASCII bytes). Nested checks keep short strings
+   * from reading past NUL (same short-circuit intent as C strncmp). */
+  if (base[0] == 115) {
+    if (base[1] == 104) {
+      if (base[2] == 117) {
+        if (base[3] == 120) {
+          if (base[4] == 58) {
+            if (base[5] == 32) {
+              start = 6;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  n = start;
+  while (base[n] != 0) {
+    n = n + 1;
+  }
+
+  /* Last '(' and ')' in [start, n). */
+  i = start;
+  while (i < n) {
+    if (base[i] == 40) {
+      lparen = i;
+    }
+    if (base[i] == 41) {
+      rparen = i;
+    }
+    i = i + 1;
+  }
+
+  if (lparen >= start && rparen > lparen && rparen + 1 == n) {
+    /* Trim trailing spaces before '('. */
+    op_end = lparen;
+    while (op_end > start && base[op_end - 1] == 32) {
+      op_end = op_end - 1;
+    }
+    op_len = op_end - start;
+    if (op_len >= 128) {
+      op_len = 127;
+    }
+    path_len = rparen - lparen - 1;
+    if (path_len >= 160) {
+      path_len = 159;
+    }
+    j = 0;
+    while (j < op_len) {
+      op_buf[j as usize] = base[(start + j) as usize];
+      j = j + 1;
+    }
+    op_buf[op_len as usize] = 0;
+    j = 0;
+    while (j < path_len) {
+      path_buf[j as usize] = base[(lparen + 1 + j) as usize];
+      j = j + 1;
+    }
+    path_buf[path_len as usize] = 0;
+    unsafe {
+      link_diag_errno_path(pe, &op_buf[0], &path_buf[0]);
+    }
+    return;
+  }
+
+  /* Whole remaining text as op (pointer into msg after optional prefix). */
+  unsafe {
+    text = &base[start];
+    link_diag_errno(pe, text);
+  }
+}
+
+/* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
+ * wave111: shux_link_perror is extra pure orch (not counted in the original 9). */
 #[no_mangle]
 export function labi_diag_pure_count(): i32 {
   return 9;

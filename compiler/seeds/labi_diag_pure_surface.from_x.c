@@ -2,7 +2,8 @@
  * G-02f labi_diag_pure R2 full surface — isomorphic with src/runtime/labi_diag_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_diag_pure.x) + mega rest under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + 8 report + count)
- * Cap residual: link_diag_ld_debug_argv → mega _impl (char**)
+ * Cap residual: link_diag_ld_debug_argv → mega _impl (char**);
+ *   link_diag_errno / path (errno+strerror); wave111 shux_link_perror pure orch
  * Regen: ./shux -E ... src/runtime/labi_diag_pure.x | filter DBG + polish prologue
  * Track-L (2026-07-16): labi_diag_append keeps short name; .x has #[no_mangle] (was module mangle).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -34,6 +35,10 @@ extern void link_diag_ld_debug_argv(uint8_t * label, uint8_t * argv);
 extern int32_t labi_diag_pure_count(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern void link_diag_ld_debug_argv_impl(uint8_t * label, uint8_t * argv);
+/* Cap residual (mega always): errno + strerror + reportf. */
+extern void link_diag_errno(uint8_t * kind, uint8_t * op);
+extern void link_diag_errno_path(uint8_t * kind, uint8_t * op, uint8_t * path);
+extern void shux_link_perror(uint8_t * msg);
 int32_t labi_diag_append(uint8_t * dst, int32_t cap, uint8_t * src) {
   int32_t i = 0;
   int32_t j = 0;
@@ -258,6 +263,88 @@ void link_diag_ld_debug_argv(uint8_t * label, uint8_t * argv) {
   }
   (void)(0);
   return;
+}
+void shux_link_perror(uint8_t * msg) {
+  uint8_t * pe = ((uint8_t *)"\x70\x72\x6f\x63\x65\x73\x73\x20\x65\x72\x72\x6f\x72");
+  uint8_t * sc = ((uint8_t *)"\x73\x79\x73\x74\x65\x6d\x20\x63\x61\x6c\x6c");
+  uint8_t * base = msg;
+  int32_t start = 0;
+  int32_t n = 0;
+  int32_t i = 0;
+  int32_t lparen = -1;
+  int32_t rparen = -1;
+  int32_t op_end = 0;
+  int32_t op_len = 0;
+  int32_t path_len = 0;
+  int32_t j = 0;
+  uint8_t op_buf[128] = {};
+  uint8_t path_buf[160] = {};
+  uint8_t * text = 0;
+  if ((base ==0)) {
+    (void)(link_diag_errno(pe, sc));
+    return;
+  }
+  if (((base)[0] ==0)) {
+    (void)(link_diag_errno(pe, sc));
+    return;
+  }
+  if (((base)[0] ==115)) {
+    if (((base)[1] ==104)) {
+      if (((base)[2] ==117)) {
+        if (((base)[3] ==120)) {
+          if (((base)[4] ==58)) {
+            if (((base)[5] ==32)) {
+              (void)((start = 6));
+            }
+          }
+        }
+      }
+    }
+  }
+  (void)((n = start));
+  while (((base)[n] !=0)) {
+    (void)((n = (n + 1)));
+  }
+  (void)((i = start));
+  while ((i < n)) {
+    if (((base)[i] ==40)) {
+      (void)((lparen = i));
+    }
+    if (((base)[i] ==41)) {
+      (void)((rparen = i));
+    }
+    (void)((i = (i + 1)));
+  }
+  if ((((lparen >=start) && (rparen > lparen)) && ((rparen + 1) ==n))) {
+    (void)((op_end = lparen));
+    while (((op_end > start) && ((base)[(op_end - 1)] ==32))) {
+      (void)((op_end = (op_end - 1)));
+    }
+    (void)((op_len = (op_end - start)));
+    if ((op_len >=128)) {
+      (void)((op_len = 127));
+    }
+    (void)((path_len = ((rparen - lparen) - 1)));
+    if ((path_len >=160)) {
+      (void)((path_len = 159));
+    }
+    (void)((j = 0));
+    while ((j < op_len)) {
+      (void)(((op_buf)[((size_t)(j))] = (base)[((size_t)((start + j)))]));
+      (void)((j = (j + 1)));
+    }
+    (void)(((op_buf)[((size_t)(op_len))] = 0));
+    (void)((j = 0));
+    while ((j < path_len)) {
+      (void)(((path_buf)[((size_t)(j))] = (base)[((size_t)(((lparen + 1) + j)))]));
+      (void)((j = (j + 1)));
+    }
+    (void)(((path_buf)[((size_t)(path_len))] = 0));
+    (void)(link_diag_errno_path(pe, &((op_buf)[0]), &((path_buf)[0])));
+    return;
+  }
+  (void)((text = &((base)[start])));
+  (void)(link_diag_errno(pe, text));
 }
 int32_t labi_diag_pure_count(void) {
   return 9;
