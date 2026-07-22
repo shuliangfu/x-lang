@@ -28,7 +28,10 @@
  *     (io_sym / panic_sym tables + undef_sym Cap residual)
  *   + wave159 shux_link_freestanding_enabled pure orch
  *     (peer host_is_linux + pure env name + Cap residual getenv)
- * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega；getenv。
+ *   + wave167 shux_ensure_crt0_user_o pure orch
+ *     (peer freestanding_enabled + tables + Cap residual resolve/access/cc/stat)
+ * Cap residual：freestanding_io ensure 仍 mega；contains_substr / undef_sym；
+ *   getenv；ensure_crt0 的 resolve/access/cc/stat（wave167）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -42,6 +45,19 @@ int link_abi_generated_c_contains_substr(const char *c_path, const char *needle)
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
 /* Peer pure (host_lit) used by wave159 freestanding_enabled cold twin. */
 int shux_host_is_linux(void);
+/* Cap residual (wave167 ensure_crt0 cold twin; mega always provides). */
+int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+int link_abi_path_readable(const char *path);
+int shux_cc_compile_sync(const char *src, const char *out_o, const char *inc0, const char *inc1,
+                         const char *inc2, int from_asm_s);
+const char *asm_link_obj_skip_missing(const char *path);
+/* Peer pure path ladder (path_pure L0 wave164; mega always provides). */
+const char *shux_crt0_user_o_path(const char *argv0);
+/* Peer pure diags (diag_pure L1; mega always provides). */
+void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint);
+void link_diag_runtime_source_missing(const char *obj_name, const char *source_path);
+void link_diag_runtime_obj_build_status(const char *obj_name, int status);
+void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o);
 
 #ifndef SHUX_LABI_FREESTANDING_LIST_FROM_X
 
@@ -791,6 +807,76 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
   return 1;
 }
 
+/* wave167: ensure_crt0_user_o pure orch (cold twin ≡ .x).
+ * Peer freestanding_enabled + pure tables; Cap residual resolve/access/cc/stat.
+ * Pure byte join (no snprintf). PLATFORM: SHARED orch / LINUX freestanding consumers.
+ */
+int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
+  char comp[4096];
+  char out_o[4096];
+  char src_s[4096];
+  const char *out_base = labi_fs_crt0_out_base();
+  const char *src_rel = labi_fs_crt0_src_rel();
+  const char *stem = labi_fs_ensure_stem(0);
+  const char *leaf_o;
+  const char *leaf_s;
+  const char *o_path;
+  const char *have;
+  int dn, ln_o, ln_s, i, k, rc, crc;
+  if (shux_link_freestanding_enabled(driver_freestanding) == 0)
+    return 0;
+  o_path = shux_crt0_user_o_path(argv0);
+  have = asm_link_obj_skip_missing(o_path);
+  if (have != NULL)
+    return 0;
+  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  if (rc != 0) {
+    link_diag_runtime_obj_resolve_fail(out_base ? out_base : "crt0_user.o", NULL);
+    return -1;
+  }
+  leaf_o = out_base ? out_base : "crt0_user.o";
+  leaf_s = src_rel ? src_rel : "src/asm/crt0_user_x86_64.s";
+  dn = 0;
+  while (comp[dn] != 0)
+    dn++;
+  ln_o = 0;
+  while (leaf_o[ln_o] != 0)
+    ln_o++;
+  if (dn + 1 + ln_o >= 4096)
+    return -1;
+  for (i = 0; i < dn; i++)
+    out_o[i] = comp[i];
+  out_o[dn] = '/';
+  for (k = 0; k <= ln_o; k++)
+    out_o[dn + 1 + k] = leaf_o[k];
+  ln_s = 0;
+  while (leaf_s[ln_s] != 0)
+    ln_s++;
+  if (dn + 1 + ln_s >= 4096)
+    return -1;
+  for (i = 0; i < dn; i++)
+    src_s[i] = comp[i];
+  src_s[dn] = '/';
+  for (k = 0; k <= ln_s; k++)
+    src_s[dn + 1 + k] = leaf_s[k];
+  if (link_abi_path_readable(src_s) == 0) {
+    link_diag_runtime_source_missing(stem ? stem : "crt0_user", src_s);
+    return -1;
+  }
+  crc = shux_cc_compile_sync(src_s, out_o, NULL, NULL, NULL, 1);
+  if (crc != 0) {
+    link_diag_runtime_obj_build_status(leaf_o, crc);
+    return -1;
+  }
+  o_path = shux_crt0_user_o_path(argv0);
+  have = asm_link_obj_skip_missing(o_path);
+  if (have == NULL) {
+    link_diag_runtime_obj_missing(leaf_o, out_o);
+    return -1;
+  }
+  return 0;
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -875,6 +961,8 @@ int shux_freestanding_user_o_needs_io(const char *user_o);
 int shux_freestanding_user_o_needs_panic(const char *user_o);
 /* wave159: freestanding_enabled pure orch (L7). */
 int shux_link_freestanding_enabled(int driver_freestanding);
+/* wave167: ensure_crt0_user_o pure orch (L7). */
+int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

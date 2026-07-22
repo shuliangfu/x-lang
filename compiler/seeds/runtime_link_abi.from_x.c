@@ -1863,6 +1863,8 @@ int link_abi_generated_c_provides_core_mem(const char *c_path);
 int link_abi_generated_c_provides_std_heap(const char *c_path);
 /* wave159: freestanding_enabled pure orch (L7; hybrid). */
 int shux_link_freestanding_enabled(int driver_freestanding);
+/* wave167: ensure_crt0_user_o pure orch (L7; hybrid). */
+int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 #endif
 
 /* wave159: shux_link_freestanding_enabled pure orch — body removed from mega
@@ -1870,6 +1872,13 @@ int shux_link_freestanding_enabled(int driver_freestanding);
  * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
  * Why: hybrid still had always-mega C body for freestanding env gate over pure env name.
  * Cap residual: getenv; peer host_is_linux. PLATFORM: SHARED orch / LINUX consumers. */
+
+/* wave167: shux_ensure_crt0_user_o pure orch — body removed from mega
+ * (lives in labi_freestanding_list L7 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
+ * Why: hybrid still had always-mega C body for freestanding crt0 ensure over pure tables.
+ * Cap residual: resolve/access/cc/stat. Sibling ensure_freestanding_io still mega.
+ * PLATFORM: SHARED orch / LINUX freestanding consumers. */
 
 /**
  * 若 runtime_asm_io_stubs.o 尚不存在则用 cc -c 从 seeds/runtime_asm_io_stubs.from_x.c 生成到 shux 同目录，
@@ -2488,51 +2497,12 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
 
 
 
-/**
- * 若 crt0_user.o 尚不存在则从 crt0_user_x86_64.s 编译到 shux 同目录（仅 SHUX_FREESTANDING 路径需要）。
- * 参数：argv0；driver_freestanding 同 shux_link_freestanding_enabled。
- * 返回值：0 成功；未启用 freestanding 时 no-op 返回 0。
+/* wave167: shux_ensure_crt0_user_o pure orch lives in labi_freestanding_list
+ * (peer freestanding_enabled + pure tables + Cap residual resolve/access/cc/stat).
+ * Was always-mega body. Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED orch / LINUX freestanding consumers — dual-end L2.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-276：crt0 ensure paths from pure table */
-int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_s[PATH_MAX];
-    const char *out_base = labi_fs_crt0_out_base();
-    const char *src_rel = labi_fs_crt0_src_rel();
-    const char *stem = labi_fs_ensure_stem(0);
-    if (!shux_link_freestanding_enabled(driver_freestanding))
-        return 0;
-    if (asm_link_obj_skip_missing(shux_crt0_user_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail(out_base ? out_base : "crt0_user.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/%s", comp, out_base ? out_base : "crt0_user.o") >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_s, sizeof src_s, "%s/%s", comp, src_rel ? src_rel : "src/asm/crt0_user_x86_64.s") >= sizeof src_s
-        || access(src_s, R_OK) != 0) {
-        link_diag_runtime_source_missing(stem ? stem : "crt0_user", src_s);
-        return -1;
-    }
-    {
-        int rc = shux_cc_compile_sync(src_s, out_o, NULL, NULL, NULL, 1);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status(out_base ? out_base : "crt0_user.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_crt0_user_o_path(argv0))) {
-        link_diag_runtime_obj_missing(out_base ? out_base : "crt0_user.o", out_o);
-        return -1;
-    }
-    return 0;
-}
-
-
-
+int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 
 /**
  * 若 freestanding_io.o 尚不存在则从 freestanding_io_x86_64.s 编译（SHUX_FREESTANDING 链入 shux_sys_write）。

@@ -58,8 +58,8 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + push_existing + exports_marker/realpath/rel_o + spawn/ld/cc IO mega
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"
-  # labi_freestanding_list R2 full：.x 吃满 env/io_sym/panic/ensure + wave117 heap/nostdlib + wave136 gen needs + wave137 compress + wave138 core_slice/db + wave139 provides_core_mem/std_heap + wave141 needs_win32/wsa + wave142 needs_core_builtin/mem stub0 + wave143 needs_async_scheduler + wave144 freestanding needs_io/panic + wave159 freestanding_enabled 纯表+orch；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ensure/cc/spawn + contains_substr/undef_sym
+  # labi_freestanding_list R2 full：.x 吃满 env/io_sym/panic/ensure + wave117 heap/nostdlib + wave136 gen needs + wave137 compress + wave138 core_slice/db + wave139 provides_core_mem/std_heap + wave141 needs_win32/wsa + wave142 needs_core_builtin/mem stub0 + wave143 needs_async_scheduler + wave144 freestanding needs_io/panic + wave159 freestanding_enabled + wave167 ensure_crt0_user_o 纯表+orch；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：freestanding_io ensure + contains_substr/undef_sym + resolve/access/cc/stat
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_freestanding_list.from_x.c 全 C 体
   "labi_freestanding_list|src/runtime/labi_freestanding_list.x|seeds/labi_freestanding_list_surface.from_x.c||"
   # labi_std_list R2 full：.x 吃满 58 步 plan + default_std_rel 纯表；
