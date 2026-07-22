@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 21 public gates + count:
+// R2 full: .x owns 22 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -27,6 +27,8 @@
 //     Cap residual realpath_cap + getcwd; static 512/4096 BSS; freestanding entry)
 //   - shux_freestanding_io_o_path (wave165; pure cwd/argv0 path ladder for freestanding_io.o;
 //     Cap residual realpath_cap + getcwd; static 512/4096 BSS; freestanding syscall write)
+//   - shux_std_async_scheduler_o_path (wave166; pure cwd/argv0 path ladder for std/async/scheduler.o;
+//     Cap residual realpath_cap + getcwd; static 4096/4096 BSS; argv0 realpath then parent+/../std/async)
 // wave161 G.7: thin mega shux_runtime_*_o_path (static PATH_MAX) route join through this gate
 //   (process_os_glue … ed25519_ref10_glue; + asm_io_stubs / process_argv already on copy).
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
@@ -50,6 +52,7 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 // wave163: shux_runtime_panic_o_path is pure export below (no longer Cap residual).
 // wave164: shux_crt0_user_o_path is pure export below (no longer Cap residual).
 // wave165: shux_freestanding_io_o_path is pure export below (no longer Cap residual).
+// wave166: shux_std_async_scheduler_o_path is pure export below (no longer Cap residual).
 export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
 // Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
@@ -76,6 +79,10 @@ let g_labi_crt0_user_o_path_resolved: u8[4096] = [];
 // wave165: durable freestanding_io .o path buffers (≡ mega static buf[512] + resolved[PATH_MAX]).
 let g_labi_freestanding_io_o_path_buf: u8[512] = [];
 let g_labi_freestanding_io_o_path_resolved: u8[4096] = [];
+// wave166: durable async scheduler .o path buffers (≡ mega static PATH_MAX for both;
+//   step3 realpath(argv0) needs room for absolute host paths, so 4096/4096 not 512).
+let g_labi_async_scheduler_o_path_buf: u8[4096] = [];
+let g_labi_async_scheduler_o_path_resolved: u8[4096] = [];
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
  * Params: s — bytes; n — length (i32); a0/a1 — suffix bytes.
@@ -1050,7 +1057,7 @@ export function shux_crt0_user_o_path(argv0: *u8): *u8 {
  *   link_abi_realpath_cap (POSIX realpath; Windows null) + getcwd.
  * Cap residual: getcwd (libc); realpath via link_abi_realpath_cap (G.7 single Cap).
  * Why (wave165): hybrid still had always-mega C body for complex freestanding_io path ladder
- *   after wave164 crt0 ladder. Third complex ladder leaf; async_scheduler remain Cap residual.
+ *   after wave164 crt0 ladder. Third complex ladder leaf; async_scheduler pure at wave166.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch POSIX '/' — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
  *   Windows mega rest may still use '\\' via cold path; product PREFER uses this pure POSIX.
@@ -1150,6 +1157,110 @@ export function shux_freestanding_io_o_path(argv0: *u8): *u8 {
     }
   }
   return &g_labi_freestanding_io_o_path_buf[0];
+}
+
+/**
+ * Resolve path of std/async/scheduler.o for on-demand async coop link.
+ * Ladder (≡ mega): `std/async/scheduler.o` → getcwd+`/std/async/scheduler.o` →
+ * realpath(argv0) then parent dir + `/../std/async/scheduler.o` (repo-root relative from
+ * compiler binary location). Distinct from freestanding/crt0 leaf join under compiler/.
+ * @param argv0 *u8 — optional product host path; may be null (cwd steps still run)
+ * @return *u8 — static g_labi_async_scheduler_o_path_resolved (realpath hit) or
+ *   g_labi_async_scheduler_o_path_buf (argv0 realpath / join / empty); never null
+ * Pure orch: pure byte join + pure last-sep index strip; Cap residual
+ *   link_abi_realpath_cap (POSIX realpath; Windows null) + getcwd.
+ * Cap residual: getcwd (libc); realpath via link_abi_realpath_cap (G.7 single Cap).
+ * Why (wave166): hybrid still had always-mega C body for complex async_scheduler path ladder
+ *   after wave165 freestanding_io ladder. Fourth complex ladder leaf.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch POSIX '/' — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ *   Windows mega rest may still use '\\' via cold path; product PREFER uses this pure POSIX.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_std_async_scheduler_o_path(argv0: *u8): *u8 {
+  // Match mega: clear both durable buffers; return empty buf on total fail.
+  g_labi_async_scheduler_o_path_buf[0] = 0;
+  g_labi_async_scheduler_o_path_resolved[0] = 0;
+  let hit: *u8 = 0 as *u8;
+  // Step 1: cwd is repo root — std/async/scheduler.o.
+  unsafe {
+    hit = link_abi_realpath_cap("std/async/scheduler.o", &g_labi_async_scheduler_o_path_resolved[0]);
+  }
+  if (hit != 0 as *u8) {
+    return hit;
+  }
+  // Step 2: getcwd + "/std/async/scheduler.o" then realpath.
+  // mega: getcwd(cwd, sizeof(cwd)-26) with cwd[512]; memcpy 22 path bytes + NUL at L+22.
+  let cwd: u8[512] = [];
+  let gp: *u8 = 0 as *u8;
+  unsafe {
+    gp = getcwd(&cwd[0], 486);
+  }
+  if (gp != 0 as *u8) {
+    let L: i32 = 0;
+    while (cwd[L] != 0) {
+      L = L + 1;
+    }
+    // mega: L + 26 <= sizeof(cwd); 22 path bytes + trailing NUL.
+    if (L + 26 <= 512) {
+      let suf: *u8 = "/std/async/scheduler.o";
+      let si: i32 = 0;
+      while (si <= 22) {
+        cwd[L + si] = suf[si];
+        si = si + 1;
+      }
+      unsafe {
+        hit = link_abi_realpath_cap(&cwd[0], &g_labi_async_scheduler_o_path_resolved[0]);
+      }
+      if (hit != 0 as *u8) {
+        return hit;
+      }
+    }
+  }
+  // Step 3: realpath(argv0) into work buf, strip last sep, append /../std/async/scheduler.o.
+  // mega requires realpath(argv0) success first (unlike freestanding raw argv0 parent strip).
+  if (argv0 != 0 as *u8) {
+    if (argv0[0] != 0) {
+      let rp: *u8 = 0 as *u8;
+      unsafe {
+        rp = link_abi_realpath_cap(argv0, &g_labi_async_scheduler_o_path_buf[0]);
+      }
+      if (rp != 0 as *u8) {
+        // Pure last-sep index on resolved argv0 (POSIX '/'); avoid pointer subtraction.
+        let i: i32 = 0;
+        let last_sep_i: i32 = -1;
+        while (g_labi_async_scheduler_o_path_buf[i] != 0) {
+          if (g_labi_async_scheduler_o_path_buf[i] == 47) {
+            last_sep_i = i;
+          }
+          i = i + 1;
+        }
+        if (last_sep_i >= 0) {
+          // mega: (last - buf) + 26 < sizeof(buf); sizeof ≡ 4096.
+          if (last_sep_i + 26 < 4096) {
+            g_labi_async_scheduler_o_path_buf[last_sep_i] = 0;
+            let n: i32 = last_sep_i;
+            // "/../std/async/scheduler.o" is 25 chars.
+            let leaf: *u8 = "/../std/async/scheduler.o";
+            let k: i32 = 0;
+            while (leaf[k] != 0) {
+              g_labi_async_scheduler_o_path_buf[n + k] = leaf[k];
+              k = k + 1;
+            }
+            g_labi_async_scheduler_o_path_buf[n + k] = 0;
+            unsafe {
+              hit = link_abi_realpath_cap(&g_labi_async_scheduler_o_path_buf[0], &g_labi_async_scheduler_o_path_resolved[0]);
+            }
+            if (hit != 0 as *u8) {
+              return hit;
+            }
+          }
+        }
+      }
+    }
+  }
+  return &g_labi_async_scheduler_o_path_buf[0];
 }
 
 /**
@@ -1430,10 +1541,10 @@ export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
 
 /**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 21 (fixed catalog size for hybrid FROM_X bookkeeping; wave165 +1).
+ * Returns: 22 (fixed catalog size for hybrid FROM_X bookkeeping; wave166 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 21;
+  return 22;
 }

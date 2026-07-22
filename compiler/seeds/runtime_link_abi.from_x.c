@@ -1163,7 +1163,14 @@ const char *shux_runtime_panic_o_path(const char *argv0);
  * std.async 协作调度内核（std/async/scheduler.o）；调用 coop_pingpong* 时按需链入。
  * 参数：argv0 可选 shux 路径。
  * 返回值：.o 路径或空串。
+ *
+ * wave166: pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: BSS join + last-sep index + argv0 realpath then parent+/../std/async;
+ * Cap residual link_abi_realpath_cap + getcwd.
+ * PLATFORM: SHARED orch POSIX; Windows sep rest stays mega cold when non-hybrid.
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_std_async_scheduler_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
@@ -1192,6 +1199,9 @@ const char *shux_std_async_scheduler_o_path(const char *argv0) {
     }
     return buf;
 }
+#else
+const char *shux_std_async_scheduler_o_path(const char *argv0);
+#endif
 
 /**
  * crt0_user.o 路径；与 runtime_panic.o 同目录（compiler/），供 SHUX_FREESTANDING 链入。
