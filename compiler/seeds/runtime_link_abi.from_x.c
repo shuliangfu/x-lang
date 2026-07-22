@@ -5760,109 +5760,18 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave125: needs_std_heap_page_mmap pure orch lives in labi_ondemand_list (page_mmap sym table + orch).
  * wave126: needs_std_sys_linux pure orch lives in labi_ondemand_list (sys_linux sym table + orch).
  * wave127: needs_std_sys pure orch lives in labi_ondemand_list (sys facade sym table + orch).
+ * wave128: needs_std_heap_api pure orch lives in labi_ondemand_list (heap_api sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
 
 /**
- * 判断用户 .o 或已入链 argv 中的 std/*.o 是否引用 std.heap API（按需链 heap.o）。
- * 【Why 根源】F-闭合删除 *_import_alias.c C 桩后，std/http.o、std/string.o 等内部
- * 直接引用 std_heap_alloc_usize / std_heap_libc_heap_arena64_alloc_c 等内部 API，
- * 不再经过 C 桩内联。shux_invoke_cc 必须递归扫描已入链的 std/*.o 的 undefined 符号，
- * 否则 hello 等最小用户程序的 user.o 本身不引用 heap API，heap.o 不会被推入 → 链接失败。
- * 【Invariant】调用点必须在 string.o/http.o/crypto.o 等已入链之后；argv 须反映当前已推入的 .o。
- * 【Asm/Perf】nm -u 子进程调用 O(n×m)，n=argv 中 .o 数，m=符号数；仅在链接期触发一次，可接受。
+ * wave128: needs_std_heap_api pure orch lives in labi_ondemand_list
+ * (labi_od_heap_api_sym_* product table + pure scan; not here).
+ * Exact symbols only (no prefix probes).
+ * Why: F-闭合删除 import_alias C 桩后 std/*.o 直接引用 std_heap_*；product heap.o gate.
+ * Invariant: link_abi_link_needs_std_heap_import still scans user_o + argv via this orch.
  */
-int link_abi_user_o_needs_std_heap_api(const char *user_o) {
-  if ((user_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((user_o)[0] ==0)) {
-      return 0;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_u8") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_size_zero") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_usize") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8_ptr") !=0)) {
-      return 1;
-    }
-    /* Formal std/vec/vec.o (and similar) — Allocator/default/kind family (G.7 complete probes). */
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_default_alloc") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_kind_arena") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_Allocator_usize") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_realloc_Allocator_u8_ptr_usize") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_Allocator_u8_ptr") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_arena64_alloc") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_arena64_alloc_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_aligned_c") !=0)) {
-      return 1;
-    }
-    /* Typed libc heap surface used by formal set/map/queue/vec .o (G.7 complete). */
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_i32_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_u8_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_u64_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_i32_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_u8_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_u64_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_map_find") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_copy_u8_at_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
 
 int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
   if ((user_o ==NULL)) {
@@ -7232,7 +7141,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–127 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys pure orch (L8b pure .x / cold seed). */
+/* wave118–128 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7263,6 +7172,9 @@ int link_abi_user_o_needs_std_sys_linux(const char *user_o);
 int labi_od_sys_sym_count(void);
 const char *labi_od_sys_sym_at(int i);
 int link_abi_user_o_needs_std_sys(const char *user_o);
+int labi_od_heap_api_sym_count(void);
+const char *labi_od_heap_api_sym_at(int i);
+int link_abi_user_o_needs_std_heap_api(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

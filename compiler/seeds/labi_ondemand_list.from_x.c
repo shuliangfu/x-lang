@@ -14,6 +14,7 @@
  *   + labi_od_page_mmap_sym_{count,at} + link_abi_user_o_needs_std_heap_page_mmap pure orch
  *   + labi_od_sys_linux_sym_{count,at} + link_abi_user_o_needs_std_sys_linux pure orch
  *   + labi_od_sys_sym_{count,at} + link_abi_user_o_needs_std_sys pure orch
+ *   + labi_od_heap_api_sym_{count,at} + link_abi_user_o_needs_std_heap_api pure orch
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -764,6 +765,80 @@ int link_abi_user_o_needs_std_sys(const char *user_o) {
   return 0;
 }
 
+/* wave128: product std.heap formal API exact UNDEF table + needs_std_heap_api pure orch.
+ * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
+int labi_od_heap_api_sym_count(void) { return 25; }
+const char *labi_od_heap_api_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_heap_alloc_i32";
+  if (i == 1)
+    return "std_heap_alloc_u8";
+  if (i == 2)
+    return "std_heap_free_i32";
+  if (i == 3)
+    return "std_heap_free_u8";
+  if (i == 4)
+    return "std_heap_alloc_size_zero";
+  if (i == 5)
+    return "std_heap_alloc_usize";
+  if (i == 6)
+    return "std_heap_free_u8_ptr";
+  if (i == 7)
+    return "std_heap_default_alloc";
+  if (i == 8)
+    return "std_heap_kind_arena";
+  if (i == 9)
+    return "std_heap_alloc_Allocator_usize";
+  if (i == 10)
+    return "std_heap_realloc_Allocator_u8_ptr_usize";
+  if (i == 11)
+    return "std_heap_free_Allocator_u8_ptr";
+  if (i == 12)
+    return "std_heap_arena64_alloc";
+  if (i == 13)
+    return "std_heap_libc_heap_arena64_alloc_c";
+  if (i == 14)
+    return "std_heap_libc_heap_alloc_c";
+  if (i == 15)
+    return "std_heap_libc_heap_free_c";
+  if (i == 16)
+    return "std_heap_libc_heap_alloc_aligned_c";
+  if (i == 17)
+    return "std_heap_libc_heap_alloc_i32_c";
+  if (i == 18)
+    return "std_heap_libc_heap_alloc_u8_c";
+  if (i == 19)
+    return "std_heap_libc_heap_alloc_u64_c";
+  if (i == 20)
+    return "std_heap_libc_heap_free_i32_c";
+  if (i == 21)
+    return "std_heap_libc_heap_free_u8_c";
+  if (i == 22)
+    return "std_heap_libc_heap_free_u64_c";
+  if (i == 23)
+    return "std_heap_map_find";
+  if (i == 24)
+    return "std_heap_libc_heap_copy_u8_at_c";
+  return NULL;
+}
+
+/* Pure orch: heap_api table + Cap residual undef_sym. PLATFORM: SHARED. */
+int link_abi_user_o_needs_std_heap_api(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_heap_api_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_heap_api_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -835,6 +910,9 @@ int link_abi_user_o_needs_std_sys_linux(const char *user_o);
 int labi_od_sys_sym_count(void);
 const char *labi_od_sys_sym_at(int i);
 int link_abi_user_o_needs_std_sys(const char *user_o);
+int labi_od_heap_api_sym_count(void);
+const char *labi_od_heap_api_sym_at(int i);
+int link_abi_user_o_needs_std_heap_api(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

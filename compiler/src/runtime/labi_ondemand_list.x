@@ -15,7 +15,8 @@
 //   wave124 labi_od_core_slice_sym_* + link_abi_user_o_needs_core_slice pure orch +
 //   wave125 labi_od_page_mmap_sym_* + link_abi_user_o_needs_std_heap_page_mmap pure orch +
 //   wave126 labi_od_sys_linux_sym_* + link_abi_user_o_needs_std_sys_linux pure orch +
-//   wave127 labi_od_sys_sym_* + link_abi_user_o_needs_std_sys pure orch.
+//   wave127 labi_od_sys_sym_* + link_abi_user_o_needs_std_sys pure orch +
+//   wave128 labi_od_heap_api_sym_* + link_abi_user_o_needs_std_heap_api pure orch.
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -1574,6 +1575,170 @@ export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_sys_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of std.heap formal API on_demand UNDEF probes (product heap.o gate).
+ * Exact symbol names only (no prefix/strstr probes).
+ * @return i32 — 25
+ * PLATFORM: SHARED — must match formal std/heap export surface (incl. Allocator/libc family)
+ */
+#[no_mangle]
+export function labi_od_heap_api_sym_count(): i32 {
+  return 25;
+}
+
+/**
+ * Product std.heap on_demand UNDEF symbol at index (needs_std_heap_api probe table).
+ * @param i i32 — index in [0, 25)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_std_heap_api authority (no second hard-coded list)
+ */
+#[no_mangle]
+export function labi_od_heap_api_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_heap_alloc_i32";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_heap_alloc_u8";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_heap_free_i32";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_heap_free_u8";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_heap_alloc_size_zero";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_heap_alloc_usize";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_heap_free_u8_ptr";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_heap_default_alloc";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_heap_kind_arena";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_heap_alloc_Allocator_usize";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_heap_realloc_Allocator_u8_ptr_usize";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_heap_free_Allocator_u8_ptr";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_heap_arena64_alloc";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_heap_libc_heap_arena64_alloc_c";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_heap_libc_heap_alloc_c";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "std_heap_libc_heap_free_c";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "std_heap_libc_heap_alloc_aligned_c";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "std_heap_libc_heap_alloc_i32_c";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "std_heap_libc_heap_alloc_u8_c";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "std_heap_libc_heap_alloc_u64_c";
+    return p;
+  }
+  if (i == 20) {
+    let p: *u8 = "std_heap_libc_heap_free_i32_c";
+    return p;
+  }
+  if (i == 21) {
+    let p: *u8 = "std_heap_libc_heap_free_u8_c";
+    return p;
+  }
+  if (i == 22) {
+    let p: *u8 = "std_heap_libc_heap_free_u64_c";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "std_heap_map_find";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "std_heap_libc_heap_copy_u8_at_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.heap formal API (on-demand chain std/heap/heap.o).
+ * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Covers typed alloc/free, Allocator/default/kind, arena64, and libc heap surface
+ * used by formal set/map/queue/vec .o after import_alias C stubs were removed.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave128): hybrid still had needs_std_heap_api body always mega C with hard-coded strings.
+ * Keep single product table+orch in L8b; exact symbols only (no prefix table).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_heap_api_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_heap_api_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
