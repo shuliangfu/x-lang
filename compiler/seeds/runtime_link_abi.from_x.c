@@ -5368,27 +5368,18 @@ int shux_link_obj_has_defined_sym(const char *o_path, const char *sym) {
     return 0;
 }
 
-/** user.o 是否已由 co-emit 提供 core_mem_* 强定义。 */
-int link_abi_user_o_provides_core_mem(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    if (shux_link_obj_has_defined_sym(user_o, "core_mem_mem_copy") != 0)
-        return 1;
-    if (shux_link_obj_has_defined_sym(user_o, "core_mem_placeholder") != 0)
-        return 1;
-    return 0;
-}
+/* wave140: link_abi_user_o_provides_core_mem pure orch lives in labi_ondemand_list
+ * (2 defined-sym needles + pure scan; Cap residual has_defined_sym). Was mega body.
+ * Cold twin under #ifndef ONDEMAND_LIST_FROM_X; hybrid L8b pure .x.
+ * Why: co-emit core_mem_* strong defs in user.o; hard-link mem.o → duplicate.
+ * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
+ */
+int link_abi_user_o_provides_core_mem(const char *user_o);
 
-/** user.o 是否已由 co-emit 提供 std.heap 强定义。 */
-int link_abi_user_o_provides_std_heap(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    if (shux_link_obj_has_defined_sym(user_o, "std_heap_libc_heap_alloc_c") != 0)
-        return 1;
-    if (shux_link_obj_has_defined_sym(user_o, "std_heap_alloc_usize") != 0)
-        return 1;
-    return 0;
-}
+/* wave140: link_abi_user_o_provides_std_heap pure orch (L8b ondemand).
+ * Why: co-emit heap strong defs; hard-link heap.o → duplicate.
+ */
+int link_abi_user_o_provides_std_heap(const char *user_o);
 
 
 

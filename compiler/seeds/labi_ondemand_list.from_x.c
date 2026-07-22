@@ -23,8 +23,10 @@
  *   + wave134 labi_od_std_task_sym_* + labi_user_needs_std_task pure orch
  *   + wave135 labi_fk0_rel/sym_* + labi_std_fk0_user_needs_rel pure orch
  *     (PRIMARY OS + TASK_SPECIAL; null/empty user_o → 1)
+ *   + wave140 labi_od_provides_{core_mem,std_heap}_sym_* + link_abi_user_o_provides_* pure orch
+ *     (defined T/t probes; Cap residual has_defined_sym; skip hard-link mem.o/heap.o)
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
- *   undef_sym / exports_marker / has_undef_sym 探针仍 mega（pure needs orch Cap）。
+ *   undef_sym / exports_marker / has_undef_sym / has_defined_sym 探针仍 mega（pure orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -35,6 +37,8 @@
 
 /* Cap residual (mega always): nm UNDEF probe used by pure needs orch. */
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
+/* Cap residual (mega always): nm defined T/t probe used by pure provides orch. */
+int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
 /* Cap residual (mega always): compress package marker + UNDEF/prefix probes. */
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym);
@@ -1732,6 +1736,58 @@ int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
   return 0;
 }
 
+/* wave140: user.o provides_core_mem/std_heap defined-sym tables + pure orch.
+ * Cap residual: shux_link_obj_has_defined_sym (popen/nm). PLATFORM: SHARED. */
+int labi_od_provides_core_mem_sym_count(void) { return 2; }
+const char *labi_od_provides_core_mem_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "core_mem_mem_copy";
+  if (i == 1)
+    return "core_mem_placeholder";
+  return NULL;
+}
+
+int link_abi_user_o_provides_core_mem(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_provides_core_mem_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_provides_core_mem_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_has_defined_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+int labi_od_provides_std_heap_sym_count(void) { return 2; }
+const char *labi_od_provides_std_heap_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_heap_libc_heap_alloc_c";
+  if (i == 1)
+    return "std_heap_alloc_usize";
+  return NULL;
+}
+
+int link_abi_user_o_provides_std_heap(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_provides_std_heap_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_provides_std_heap_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_has_defined_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -1845,6 +1901,12 @@ const char *labi_fk0_rel_at(int k);
 int labi_fk0_sym_count(int k);
 const char *labi_fk0_sym_at(int k, int i);
 int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
+int labi_od_provides_core_mem_sym_count(void);
+const char *labi_od_provides_core_mem_sym_at(int i);
+int link_abi_user_o_provides_core_mem(const char *user_o);
+int labi_od_provides_std_heap_sym_count(void);
+const char *labi_od_provides_std_heap_sym_at(int i);
+int link_abi_user_o_provides_std_heap(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

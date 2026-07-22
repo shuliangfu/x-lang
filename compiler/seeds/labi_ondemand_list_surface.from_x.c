@@ -1,8 +1,8 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel pure)
- * Cap residual: nm/push/ensure + undef_sym / exports_marker / has_undef_sym probes in mega
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel + wave140 user_o_provides_core_mem/std_heap pure)
+ * Cap residual: nm/push/ensure + undef_sym / exports_marker / has_undef_sym / has_defined_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -120,7 +120,14 @@ extern uint8_t * labi_od_rel_thread_glue(void);
 extern uint8_t * labi_od_rel_net_udp_batch(void);
 extern uint8_t * labi_od_rel_net_workers(void);
 extern uint8_t * labi_od_rel_test_fn_invoke(void);
+extern int32_t labi_od_provides_core_mem_sym_count(void);
+extern uint8_t * labi_od_provides_core_mem_sym_at(int32_t i);
+extern int32_t link_abi_user_o_provides_core_mem(uint8_t * user_o);
+extern int32_t labi_od_provides_std_heap_sym_count(void);
+extern uint8_t * labi_od_provides_std_heap_sym_at(int32_t i);
+extern int32_t link_abi_user_o_provides_std_heap(uint8_t * user_o);
 extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
+extern int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
 extern int32_t link_abi_obj_has_undef_sym(uint8_t * obj_o, uint8_t * sym);
 int32_t labi_od_simple_group_count(void) {
@@ -3039,4 +3046,86 @@ uint8_t * labi_od_rel_net_workers(void) {
 uint8_t * labi_od_rel_test_fn_invoke(void) {
   uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f");
   return p;
+}
+int32_t labi_od_provides_core_mem_sym_count(void) {
+  return 2;
+}
+uint8_t * labi_od_provides_core_mem_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x6d\x65\x6d\x5f\x6d\x65\x6d\x5f\x63\x6f\x70\x79");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x6d\x65\x6d\x5f\x70\x6c\x61\x63\x65\x68\x6f\x6c\x64\x65\x72");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t link_abi_user_o_provides_core_mem(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 0;
+  }
+  if (((user_o)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_od_provides_core_mem_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_provides_core_mem_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_has_defined_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_od_provides_std_heap_sym_count(void) {
+  return 2;
+}
+uint8_t * labi_od_provides_std_heap_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x68\x65\x61\x70\x5f\x6c\x69\x62\x63\x5f\x68\x65\x61\x70\x5f\x61\x6c\x6c\x6f\x63\x5f\x63");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x68\x65\x61\x70\x5f\x61\x6c\x6c\x6f\x63\x5f\x75\x73\x69\x7a\x65");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t link_abi_user_o_provides_std_heap(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 0;
+  }
+  if (((user_o)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_od_provides_std_heap_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_provides_std_heap_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_has_defined_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
 }

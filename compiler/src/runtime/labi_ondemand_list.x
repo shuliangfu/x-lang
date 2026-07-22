@@ -26,7 +26,9 @@
 //   wave133 labi_user_needs_runtime_process_argv pure orch (9 needles; single-leaf) +
 //   wave134 labi_user_needs_std_task pure orch (29 needles; TASK_SPECIAL bulk gate).
 //   wave135 labi_std_fk0_user_needs_rel pure orch (16 rel × 106 exact UNDEF; Cap strstr).
-// Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef Cap for needs orch.
+//   wave140 labi_od_provides_{core_mem,std_heap}_sym_* + link_abi_user_o_provides_* pure orch
+//     (defined-sym tables; Cap residual has_defined_sym; skip hard-link mem.o/heap.o).
+// Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef / has_defined Cap.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
@@ -35,6 +37,15 @@
 
 /** Cap residual: nm UNDEF probe used by pure needs orch (mega always). */
 export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+
+/**
+ * Cap residual: nm defined (T/t) probe used by pure provides orch (mega always).
+ * @param o_path *u8 — path to .o; null/empty → 0
+ * @param sym *u8 — exact symbol name (no leading underscore); null/empty → 0
+ * @return i32 — 1 if nm shows T/t definition for sym (Darwin underscore stripped)
+ * PLATFORM: SHARED — always mega C (popen/nm Cap); wave140 user_o_provides_* orch
+ */
+export extern "C" function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 
 /**
  * Cap residual: nm export-marker probe (popen nm + strstr line).
@@ -3929,4 +3940,143 @@ export function labi_od_rel_net_workers(): *u8 {
 export function labi_od_rel_test_fn_invoke(): *u8 {
   let p: *u8 = "compiler/runtime_test_fn_invoke.o";
   return p;
+}
+
+/**
+ * Count of defined-symbol probes for user.o co-emit core.mem strong defs.
+ * Used to skip hard-linking core/mem/mem.o when user.o already defines mem API.
+ * @return i32 — 2
+ * PLATFORM: SHARED — must match mega historical provides_core_mem surface
+ */
+#[no_mangle]
+export function labi_od_provides_core_mem_sym_count(): i32 {
+  return 2;
+}
+
+/**
+ * Defined-symbol probe at index for user.o provides_core_mem.
+ * @param i i32 — index in [0, 2)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 single product table (no second hard-coded list in mega)
+ */
+#[no_mangle]
+export function labi_od_provides_core_mem_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "core_mem_mem_copy";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "core_mem_placeholder";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o already co-emits core.mem strong definitions (T/t).
+ * Pure orch: fixed exact defined-sym table; Cap residual has_defined_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any defined probe hits, else 0
+ * Why (wave140): hybrid still had provides_core_mem body always mega C hard-coded strings.
+ * Keep single product table+orch in L8b; exact symbols only.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_provides_core_mem(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_provides_core_mem_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_provides_core_mem_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_has_defined_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of defined-symbol probes for user.o co-emit std.heap strong defs.
+ * Used to skip hard-linking heap.o when user.o already defines libc heap API.
+ * @return i32 — 2
+ * PLATFORM: SHARED — must match mega historical provides_std_heap surface
+ */
+#[no_mangle]
+export function labi_od_provides_std_heap_sym_count(): i32 {
+  return 2;
+}
+
+/**
+ * Defined-symbol probe at index for user.o provides_std_heap.
+ * @param i i32 — index in [0, 2)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 single product table
+ */
+#[no_mangle]
+export function labi_od_provides_std_heap_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_heap_libc_heap_alloc_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_heap_alloc_usize";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o already co-emits std.heap strong definitions (T/t).
+ * Pure orch: fixed exact defined-sym table; Cap residual has_defined_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any defined probe hits, else 0
+ * Why (wave140): hybrid still had provides_std_heap body always mega C hard-coded strings.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_provides_std_heap(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_provides_std_heap_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_provides_std_heap_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_has_defined_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
 }
