@@ -8,7 +8,8 @@
 // R2 full: .x owns brew/compress/tail/driver/entry pure tables + wave152 brew orch
 // + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch
 // + wave156 mach tail_libs_impl pure orch + wave157 unix gcc tail + wave158 net_tls
-// + wave179 invoke_cc_argv_push_existing pure orch:
+// + wave179 invoke_cc_argv_push_existing pure orch
+// + wave187 ensure_std_net_o_auto_tls pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -21,11 +22,13 @@
 //   - invoke_cc_append_net_tls_ld (wave158; pure orch; Cap residual exports_marker +
 //     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
 //   - invoke_cc_argv_push_existing (wave179; pure gates/dedup/append; Cap residual resolve pool)
+//   - ensure_std_net_o_auto_tls (wave187; pure mode/path orch; Cap residual getenv+system+
+//     realpath_cap+exports_marker; shell make net-o-* stays Cap residual)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
-//   ensure_std_net_o_auto_tls (system/make) stays mega Cap residual.
+//   getenv / system for ensure_std_net_o_auto_tls shell make (wave187 Cap residual).
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -61,6 +64,12 @@ export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 
 // Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
 export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+
+// Cap residual (wave187 ensure_std_net_o_auto_tls): host getenv / system shell make.
+// PLATFORM: SHARED — mode SHUX_NET_TLS + make -C compiler net-o-*.
+export extern "C" function getenv(name: *u8): *u8;
+export extern "C" function system(cmd: *u8): i32;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -1233,7 +1242,7 @@ export function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user
  *   shux_rel_o_path_from_argv0; invoke_cc_argv_push_existing (tls_*.o only, not net_o).
  * Why (wave158): hybrid still had always-mega C body for net_tls -L/-l append.
  * Note: export signature must stay single-line (multi-line export drops the function).
- * Sibling ensure_std_net_o_auto_tls stays Cap residual (system/make; not pure-migrable).
+ * Sibling ensure_std_net_o_auto_tls pure at wave187 (Cap residual getenv+system still).
  * PLATFORM: SHARED orch / MACOS brew -L gated by host_is_apple inside append_* helpers.
  * Track-L: #[no_mangle] keeps surface short name matching mega / thin callers.
  */
@@ -1348,4 +1357,283 @@ export function invoke_cc_append_net_tls_ld(argv: **u8, i: *i32, argv_cap: i32, 
     }
   }
   return 0;
+}
+
+/**
+ * Append bytes of `src` onto `dst` starting at `pos` (NUL-terminated result).
+ * Pure helper for ensure_std_net_o_auto_tls shell/path buffers (wave187).
+ * @param dst *u8 — destination buffer
+ * @param cap i32 — capacity including trailing NUL
+ * @param pos i32 — current write index (0..cap-1)
+ * @param src *u8 — source C string; null treated as empty
+ * @return i32 — new pos after append, or -1 if capacity would overflow
+ * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL.
+ */
+#[no_mangle]
+export function labi_net_tls_buf_append(dst: *u8, cap: i32, pos: i32, src: *u8): i32 {
+  if (dst == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (pos < 0) {
+    return 0 - 1;
+  }
+  if (pos >= cap) {
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  if (src == 0 as *u8) {
+    dst[pos as usize] = 0;
+    return pos;
+  }
+  while (1 == 1) {
+    let c: u8 = src[i as usize];
+    if (c == 0) {
+      break;
+    }
+    if (pos + 1 >= cap) {
+      dst[pos as usize] = 0;
+      return 0 - 1;
+    }
+    dst[pos as usize] = c;
+    pos = pos + 1;
+    i = i + 1;
+  }
+  dst[pos as usize] = 0;
+  return pos;
+}
+
+/**
+ * Build `make -C '<repo>/compiler' <target> >/dev/null 2>&1` into `cmd` (cap 640).
+ * @param cmd *u8 — destination shell buffer
+ * @param cap i32 — capacity (use 640 ≡ mega)
+ * @param repo_root *u8 — absolute repo root (already non-empty)
+ * @param target *u8 — make target (e.g. net-o-openssl)
+ * @return i32 — 1 on success, 0 on overflow
+ * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL.
+ */
+#[no_mangle]
+export function labi_net_tls_build_make_cmd(cmd: *u8, cap: i32, repo_root: *u8, target: *u8): i32 {
+  let pos: i32 = 0;
+  // Prefix: make -C '
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "make -C '");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
+  if (pos < 0) {
+    return 0;
+  }
+  // '/compiler' <target> >/dev/null 2>&1
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "'/compiler' ");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, target);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, " >/dev/null 2>&1");
+  if (pos < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Join repo_root + '/' + rel into path_buf (pure byte join; no realpath).
+ * @param path_buf *u8 — destination
+ * @param cap i32 — capacity
+ * @param repo_root *u8 — absolute root
+ * @param rel *u8 — relative under root (e.g. std/net/tls_openssl.o)
+ * @return i32 — 1 success, 0 overflow/null
+ * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL.
+ */
+#[no_mangle]
+export function labi_net_tls_join_repo_rel(path_buf: *u8, cap: i32, repo_root: *u8, rel: *u8): i32 {
+  let pos: i32 = 0;
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, repo_root);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, "/");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, rel);
+  if (pos < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * If SHUX_NET_TLS is set and net/tls objects still lack real TLS markers, run
+ * `make -C <repo>/compiler net-o-{stub,openssl,mbedtls}` (system shell Cap residual).
+ * F-04 v8: OpenSSL/mbedTLS markers live in std/net/tls_*.o (not compiled into net.o).
+ * Modes: stub | openssl | mbedtls | auto (default when mode string is "auto").
+ * Empty/unset SHUX_NET_TLS → no-op (≡ mega).
+ * @param repo_root *u8 — absolute repository root; null/empty → no-op
+ * @return void — best-effort make; marker short-circuit when already built
+ * Pure orch: mode strcmp + pure path join + pure make-cmd join.
+ * Cap residual: getenv (SHUX_NET_TLS); system(make); link_abi_realpath_cap;
+ *   link_abi_obj_exports_marker (nm/marker probe).
+ * Why (wave187): hybrid still had always-mega C body for auto TLS ensure orch
+ *   (getenv + marker probe + system make). Soft residual after wave158 net_tls ld append.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
+ * Track-L: #[no_mangle] keeps surface short name for invoke_cc_impl call sites.
+ */
+#[no_mangle]
+export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
+  if (repo_root == 0 as *u8) {
+    return;
+  }
+  if (repo_root[0] == 0) {
+    return;
+  }
+  // Cap residual: mode from env; empty/unset → no rebuild.
+  let mode: *u8 = 0 as *u8;
+  unsafe {
+    mode = getenv("SHUX_NET_TLS");
+  }
+  if (mode == 0 as *u8) {
+    return;
+  }
+  if (mode[0] == 0) {
+    return;
+  }
+  let cmd: u8[640] = [];
+  let path_buf: u8[4096] = [];
+  let resolved: u8[4096] = [];
+  let mk_ssl: *u8 = labi_net_tls_openssl_marker();
+  let mk_mb: *u8 = labi_net_tls_mbedtls_marker();
+  // stub: always force make net-o-stub (≡ mega).
+  let eq_stub: i32 = 0;
+  unsafe {
+    eq_stub = strcmp(mode, "stub");
+  }
+  if (eq_stub == 0) {
+    let ok: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-stub");
+    if (ok != 0) {
+      unsafe {
+        let _s: i32 = system(&cmd[0]);
+      }
+    }
+    return;
+  }
+  // Already have OpenSSL marker object under repo? short-circuit.
+  let j1: i32 = labi_net_tls_join_repo_rel(&path_buf[0], 4096, repo_root, "std/net/tls_openssl.o");
+  if (j1 != 0) {
+    let rp1: *u8 = 0 as *u8;
+    unsafe {
+      rp1 = link_abi_realpath_cap(&path_buf[0], &resolved[0]);
+    }
+    if (rp1 != 0 as *u8) {
+      let hit1: i32 = 0;
+      unsafe {
+        hit1 = link_abi_obj_exports_marker(rp1, mk_ssl);
+      }
+      if (hit1 != 0) {
+        return;
+      }
+    }
+  }
+  // Already have mbedTLS marker object?
+  let j2: i32 = labi_net_tls_join_repo_rel(&path_buf[0], 4096, repo_root, "std/net/tls_mbedtls.o");
+  if (j2 != 0) {
+    let rp2: *u8 = 0 as *u8;
+    unsafe {
+      rp2 = link_abi_realpath_cap(&path_buf[0], &resolved[0]);
+    }
+    if (rp2 != 0 as *u8) {
+      let hit2: i32 = 0;
+      unsafe {
+        hit2 = link_abi_obj_exports_marker(rp2, mk_mb);
+      }
+      if (hit2 != 0) {
+        return;
+      }
+    }
+  }
+  // Legacy: markers co-located in net.o (pre F-04 v8 rare path).
+  // Try repo/std/net/net.o then cwd std/net/net.o (≡ mega realpath pair).
+  resolved[0] = 0;
+  let j3: i32 = labi_net_tls_join_repo_rel(&path_buf[0], 4096, repo_root, "std/net/net.o");
+  if (j3 != 0) {
+    let rp3: *u8 = 0 as *u8;
+    unsafe {
+      rp3 = link_abi_realpath_cap(&path_buf[0], &resolved[0]);
+    }
+    if (rp3 == 0 as *u8) {
+      // Fallback: cwd-relative std/net/net.o
+      unsafe {
+        rp3 = link_abi_realpath_cap("std/net/net.o", &resolved[0]);
+      }
+    }
+    if (rp3 != 0 as *u8) {
+      let hit_s: i32 = 0;
+      let hit_m: i32 = 0;
+      unsafe {
+        hit_s = link_abi_obj_exports_marker(rp3, mk_ssl);
+        hit_m = link_abi_obj_exports_marker(rp3, mk_mb);
+      }
+      if (hit_s != 0) {
+        return;
+      }
+      if (hit_m != 0) {
+        return;
+      }
+    }
+  }
+  // Mode openssl: only openssl make.
+  let eq_ssl: i32 = 0;
+  unsafe {
+    eq_ssl = strcmp(mode, "openssl");
+  }
+  if (eq_ssl == 0) {
+    let ok2: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-openssl");
+    if (ok2 != 0) {
+      unsafe {
+        let _s2: i32 = system(&cmd[0]);
+      }
+    }
+    return;
+  }
+  // Mode mbedtls: only mbedtls make.
+  let eq_mb: i32 = 0;
+  unsafe {
+    eq_mb = strcmp(mode, "mbedtls");
+  }
+  if (eq_mb == 0) {
+    let ok3: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-mbedtls");
+    if (ok3 != 0) {
+      unsafe {
+        let _s3: i32 = system(&cmd[0]);
+      }
+    }
+    return;
+  }
+  // auto: try openssl then mbedtls on failure (≡ mega system != 0).
+  let eq_auto: i32 = 0;
+  unsafe {
+    eq_auto = strcmp(mode, "auto");
+  }
+  if (eq_auto != 0) {
+    return;
+  }
+  let ok4: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-openssl");
+  if (ok4 != 0) {
+    let rc: i32 = 0;
+    unsafe {
+      rc = system(&cmd[0]);
+    }
+    if (rc != 0) {
+      let ok5: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-mbedtls");
+      if (ok5 != 0) {
+        unsafe {
+          let _s5: i32 = system(&cmd[0]);
+        }
+      }
+    }
+  }
 }

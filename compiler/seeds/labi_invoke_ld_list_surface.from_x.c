@@ -8,9 +8,11 @@
  *   + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch
  *   + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch
  *   + wave158 invoke_cc_append_net_tls_ld pure orch
- *   + wave179 invoke_cc_argv_push_existing pure orch)
+ *   + wave179 invoke_cc_argv_push_existing pure orch
+ *   + wave187 ensure_std_net_o_auto_tls pure orch)
  * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path pool;
- *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega
+ *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega;
+ *   getenv / system for ensure_std_net_o_auto_tls shell make (wave187 Cap residual)
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - pure contract; Ubuntu gold + mac prove.
  */
@@ -29,6 +31,10 @@ extern uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
+/* Cap residual (wave187 ensure_std_net_o_auto_tls surface). */
+extern uint8_t * getenv(uint8_t * name);
+extern int32_t system(uint8_t * cmd);
+extern int32_t strcmp(uint8_t * a, uint8_t * b);
 /* wave179: pure orch invoke_cc_argv_push_existing (surface ≡ .x -E). */
 int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path) {
   uint8_t * ab = ((uint8_t *)(argv));
@@ -814,4 +820,190 @@ int32_t invoke_cc_append_net_tls_ld(uint8_t * * argv, int32_t * i, int32_t argv_
     }
   }
   return 0;
+}
+/* wave187: ensure_std_net_o_auto_tls pure orch helpers + body (surface pin ≡ .x).
+ * Cap residual getenv+system+realpath_cap+exports_marker; pure path/make-cmd join. */
+int32_t labi_net_tls_buf_append(uint8_t * dst, int32_t cap, int32_t pos, uint8_t * src) {
+  if ((dst ==0)) {
+    return (0 -1);
+  }
+  if ((pos <0)) {
+    return (0 -1);
+  }
+  if ((pos >=cap)) {
+    return (0 -1);
+  }
+  int32_t i = 0;
+  if ((src ==0)) {
+    (void)(((dst)[pos] = 0));
+    return pos;
+  }
+  while ((1 ==1)) {
+    uint8_t c = ((src)[i]);
+    if ((c ==0)) {
+      break;
+    }
+    if (((pos +1) >=cap)) {
+      (void)(((dst)[pos] = 0));
+      return (0 -1);
+    }
+    (void)(((dst)[pos] = c));
+    pos = (pos +1);
+    i = (i +1);
+  }
+  (void)(((dst)[pos] = 0));
+  return pos;
+}
+int32_t labi_net_tls_build_make_cmd(uint8_t * cmd, int32_t cap, uint8_t * repo_root, uint8_t * target) {
+  int32_t pos = 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"make -C '"));
+  if ((pos <0)) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
+  if ((pos <0)) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"'/compiler' "));
+  if ((pos <0)) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, target);
+  if ((pos <0)) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)" >/dev/null 2>&1"));
+  if ((pos <0)) {
+    return 0;
+  }
+  return 1;
+}
+int32_t labi_net_tls_join_repo_rel(uint8_t * path_buf, int32_t cap, uint8_t * repo_root, uint8_t * rel) {
+  int32_t pos = 0;
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, repo_root);
+  if ((pos <0)) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, ((uint8_t *)"/"));
+  if ((pos <0)) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, rel);
+  if ((pos <0)) {
+    return 0;
+  }
+  return 1;
+}
+void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
+  if ((repo_root ==0)) {
+    return;
+  }
+  if ((((repo_root)[0] ==0))) {
+    return;
+  }
+  uint8_t * mode = ((uint8_t *)(0));
+  (void)((mode = getenv(((uint8_t *)"SHUX_NET_TLS"))));
+  if ((mode ==0)) {
+    return;
+  }
+  if ((((mode)[0] ==0))) {
+    return;
+  }
+  uint8_t cmd[640];
+  uint8_t path_buf[4096];
+  uint8_t resolved[4096];
+  uint8_t * mk_ssl = labi_net_tls_openssl_marker();
+  uint8_t * mk_mb = labi_net_tls_mbedtls_marker();
+  int32_t eq_stub = 0;
+  (void)((eq_stub = strcmp(mode, ((uint8_t *)"stub"))));
+  if ((eq_stub ==0)) {
+    int32_t ok = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-stub"));
+    if ((ok !=0)) {
+      int32_t _s = 0;
+      (void)((_s = system(&((cmd)[0]))));
+    }
+    return;
+  }
+  int32_t j1 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"std/net/tls_openssl.o"));
+  if ((j1 !=0)) {
+    uint8_t * rp1 = ((uint8_t *)(0));
+    (void)((rp1 = link_abi_realpath_cap(&((path_buf)[0]), &((resolved)[0]))));
+    if ((rp1 !=0)) {
+      int32_t hit1 = 0;
+      (void)((hit1 = link_abi_obj_exports_marker(rp1, mk_ssl)));
+      if ((hit1 !=0)) {
+        return;
+      }
+    }
+  }
+  int32_t j2 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"std/net/tls_mbedtls.o"));
+  if ((j2 !=0)) {
+    uint8_t * rp2 = ((uint8_t *)(0));
+    (void)((rp2 = link_abi_realpath_cap(&((path_buf)[0]), &((resolved)[0]))));
+    if ((rp2 !=0)) {
+      int32_t hit2 = 0;
+      (void)((hit2 = link_abi_obj_exports_marker(rp2, mk_mb)));
+      if ((hit2 !=0)) {
+        return;
+      }
+    }
+  }
+  (void)(((resolved)[0] = 0));
+  int32_t j3 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"std/net/net.o"));
+  if ((j3 !=0)) {
+    uint8_t * rp3 = ((uint8_t *)(0));
+    (void)((rp3 = link_abi_realpath_cap(&((path_buf)[0]), &((resolved)[0]))));
+    if ((rp3 ==0)) {
+      (void)((rp3 = link_abi_realpath_cap(((uint8_t *)"std/net/net.o"), &((resolved)[0]))));
+    }
+    if ((rp3 !=0)) {
+      int32_t hit_s = 0;
+      int32_t hit_m = 0;
+      (void)((hit_s = link_abi_obj_exports_marker(rp3, mk_ssl)));
+      (void)((hit_m = link_abi_obj_exports_marker(rp3, mk_mb)));
+      if ((hit_s !=0)) {
+        return;
+      }
+      if ((hit_m !=0)) {
+        return;
+      }
+    }
+  }
+  int32_t eq_ssl = 0;
+  (void)((eq_ssl = strcmp(mode, ((uint8_t *)"openssl"))));
+  if ((eq_ssl ==0)) {
+    int32_t ok2 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-openssl"));
+    if ((ok2 !=0)) {
+      int32_t _s2 = 0;
+      (void)((_s2 = system(&((cmd)[0]))));
+    }
+    return;
+  }
+  int32_t eq_mb = 0;
+  (void)((eq_mb = strcmp(mode, ((uint8_t *)"mbedtls"))));
+  if ((eq_mb ==0)) {
+    int32_t ok3 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-mbedtls"));
+    if ((ok3 !=0)) {
+      int32_t _s3 = 0;
+      (void)((_s3 = system(&((cmd)[0]))));
+    }
+    return;
+  }
+  int32_t eq_auto = 0;
+  (void)((eq_auto = strcmp(mode, ((uint8_t *)"auto"))));
+  if ((eq_auto !=0)) {
+    return;
+  }
+  int32_t ok4 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-openssl"));
+  if ((ok4 !=0)) {
+    int32_t rc = 0;
+    (void)((rc = system(&((cmd)[0]))));
+    if ((rc !=0)) {
+      int32_t ok5 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-mbedtls"));
+      if ((ok5 !=0)) {
+        int32_t _s5 = 0;
+        (void)((_s5 = system(&((cmd)[0]))));
+      }
+    }
+  }
 }

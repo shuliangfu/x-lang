@@ -19,11 +19,13 @@
  *   invoke_cc_append_net_tls_ld (wave158 pure orch; Cap residual exports_marker +
  *     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
  *   invoke_cc_argv_push_existing (wave179 pure orch; Cap residual resolve pool)
+ *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual getenv+system+
+ *     realpath_cap+exports_marker; shell make net-o-* Cap residual)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
  *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
- *   ensure_std_net_o_auto_tls (system/make) stays mega Cap residual.
+ *   getenv / system for ensure_std_net_o_auto_tls shell make (wave187 Cap residual).
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -48,6 +50,9 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
+/* Cap residual (wave187 ensure_std_net_o_auto_tls): getenv / system from libc. */
+char *getenv(const char *name);
+int system(const char *cmd);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -390,6 +395,121 @@ int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *
   return 0;
 }
 
+/* wave187: ensure_std_net_o_auto_tls pure orch (cold twin ≡ .x).
+ * Cap residual: getenv + system + realpath_cap + exports_marker.
+ * Pure helpers + mode orch. PLATFORM: SHARED.
+ */
+int labi_net_tls_buf_append(char *dst, int cap, int pos, const char *src) {
+  int i = 0;
+  if (!dst || pos < 0 || pos >= cap)
+    return -1;
+  if (!src) {
+    dst[pos] = '\0';
+    return pos;
+  }
+  while (src[i]) {
+    if (pos + 1 >= cap) {
+      dst[pos] = '\0';
+      return -1;
+    }
+    dst[pos++] = src[i++];
+  }
+  dst[pos] = '\0';
+  return pos;
+}
+
+int labi_net_tls_build_make_cmd(char *cmd, int cap, const char *repo_root, const char *target) {
+  int pos = 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "make -C '");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "'/compiler' ");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, target);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, " >/dev/null 2>&1");
+  if (pos < 0)
+    return 0;
+  return 1;
+}
+
+int labi_net_tls_join_repo_rel(char *path_buf, int cap, const char *repo_root, const char *rel) {
+  int pos = 0;
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, repo_root);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, "/");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(path_buf, cap, pos, rel);
+  if (pos < 0)
+    return 0;
+  return 1;
+}
+
+void ensure_std_net_o_auto_tls(const char *repo_root) {
+  char cmd[640];
+  char path_buf[4096];
+  char resolved[4096];
+  const char *mode;
+  const char *mk_ssl;
+  const char *mk_mb;
+  const char *rp;
+  if (!repo_root || !repo_root[0])
+    return;
+  mode = getenv("SHUX_NET_TLS");
+  if (!mode || !mode[0])
+    return;
+  mk_ssl = labi_net_tls_openssl_marker();
+  mk_mb = labi_net_tls_mbedtls_marker();
+  if (strcmp(mode, "stub") == 0) {
+    if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-stub"))
+      (void)system(cmd);
+    return;
+  }
+  if (labi_net_tls_join_repo_rel(path_buf, 4096, repo_root, "std/net/tls_openssl.o")) {
+    rp = link_abi_realpath_cap(path_buf, resolved);
+    if (rp && link_abi_obj_exports_marker(rp, mk_ssl))
+      return;
+  }
+  if (labi_net_tls_join_repo_rel(path_buf, 4096, repo_root, "std/net/tls_mbedtls.o")) {
+    rp = link_abi_realpath_cap(path_buf, resolved);
+    if (rp && link_abi_obj_exports_marker(rp, mk_mb))
+      return;
+  }
+  resolved[0] = '\0';
+  if (labi_net_tls_join_repo_rel(path_buf, 4096, repo_root, "std/net/net.o")) {
+    rp = link_abi_realpath_cap(path_buf, resolved);
+    if (!rp)
+      rp = link_abi_realpath_cap("std/net/net.o", resolved);
+    if (rp && (link_abi_obj_exports_marker(rp, mk_ssl) || link_abi_obj_exports_marker(rp, mk_mb)))
+      return;
+  }
+  if (strcmp(mode, "openssl") == 0) {
+    if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-openssl"))
+      (void)system(cmd);
+    return;
+  }
+  if (strcmp(mode, "mbedtls") == 0) {
+    if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-mbedtls"))
+      (void)system(cmd);
+    return;
+  }
+  if (strcmp(mode, "auto") != 0)
+    return;
+  if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-openssl")) {
+    if (system(cmd) != 0) {
+      if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-mbedtls"))
+        (void)system(cmd);
+    }
+  }
+}
+
 #else
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
@@ -439,6 +559,11 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, int need_pt, const char **argv, int *la, int max_la);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
+/* wave187: ensure_std_net_o_auto_tls pure orch + helpers (L6). */
+int labi_net_tls_buf_append(char *dst, int cap, int pos, const char *src);
+int labi_net_tls_build_make_cmd(char *cmd, int cap, const char *repo_root, const char *target);
+int labi_net_tls_join_repo_rel(char *path_buf, int cap, const char *repo_root, const char *rel);
+void ensure_std_net_o_auto_tls(const char *repo_root);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

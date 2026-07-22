@@ -2354,6 +2354,11 @@ void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const ch
     int need_pt, const char **argv, int *la, int max_la);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
+/* wave187: ensure_std_net_o_auto_tls pure orch + helpers (L6). */
+int labi_net_tls_buf_append(char *dst, int cap, int pos, const char *src);
+int labi_net_tls_build_make_cmd(char *cmd, int cap, const char *repo_root, const char *target);
+int labi_net_tls_join_repo_rel(char *path_buf, int cap, const char *repo_root, const char *rel);
+void ensure_std_net_o_auto_tls(const char *repo_root);
 #endif
 
 /**
@@ -2429,7 +2434,8 @@ int link_abi_host_is_posix_aarch64(void) {
  *  + realpath_cap + rel_o_path + push_existing + host_is_apple for brew -L).
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for net_tls -L/-l.
- * Cap residual stays: ensure_std_net_o_auto_tls (system/make) — not pure-migrable.
+ * Cap residual stays: ensure_std_net_o_auto_tls shell make via pure orch (wave187;
+ * Cap residual getenv+system+realpath_cap+exports_marker).
  * PLATFORM: SHARED orch / MACOS brew -L consumers. */
 
 
@@ -4376,68 +4382,22 @@ static int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_
     return asm_link_obj_skip_missing(abs) ? 1 : 0;
 }
 
-/**
- * 若 net.o / tls_openssl.o 仍为 TLS 桩且 SHUX_NET_TLS 非 stub，尝试 make net-o-openssl / net-o-mbedtls。
- * F-04 v8：OpenSSL 标记在 std/net/tls_openssl.o，不再编译进 net.o。
- * SHUX_NET_TLS：stub | openssl | mbedtls | auto（默认 auto）。
- * 参数：repo_root 仓库根目录绝对路径。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void ensure_std_net_o_auto_tls(const char *repo_root) {
-    char cmd[640];
-    char resolved[PATH_MAX];
-    const char *mode;
-    if (!repo_root || !repo_root[0])
-        return;
-    mode = getenv("SHUX_NET_TLS");
-    if (!mode || !mode[0])
-        return;
-    if (strcmp(mode, "stub") == 0) {
-        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-stub >/dev/null 2>&1", repo_root);
-        (void)system(cmd);
-        return;
-    }
-    snprintf(cmd, sizeof(cmd), "%s/std/net/tls_openssl.o", repo_root);
-    if (realpath(cmd, resolved) != NULL &&
-        link_abi_obj_exports_marker(resolved, "shu_net_tls_openssl_marker"))
-        return;
-    snprintf(cmd, sizeof(cmd), "%s/std/net/tls_mbedtls.o", repo_root);
-    if (realpath(cmd, resolved) != NULL &&
-        link_abi_obj_exports_marker(resolved, "shu_net_tls_mbedtls_marker"))
-        return;
-    snprintf(cmd, sizeof(cmd), "%s/std/net/net.o", repo_root);
-    if (realpath(cmd, resolved) == NULL && realpath("std/net/net.o", resolved) == NULL)
-        resolved[0] = '\0';
-    if (resolved[0] &&
-        (link_abi_obj_exports_marker(resolved, "shu_net_tls_openssl_marker") ||
-         link_abi_obj_exports_marker(resolved, "shu_net_tls_mbedtls_marker")))
-        return;
-    if (strcmp(mode, "openssl") == 0) {
-        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-openssl >/dev/null 2>&1", repo_root);
-        (void)system(cmd);
-        return;
-    }
-    if (strcmp(mode, "mbedtls") == 0) {
-        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-mbedtls >/dev/null 2>&1", repo_root);
-        (void)system(cmd);
-        return;
-    }
-    if (strcmp(mode, "auto") != 0)
-        return;
-    snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-openssl >/dev/null 2>&1", repo_root);
-    if (system(cmd) != 0) {
-        snprintf(cmd, sizeof(cmd), "make -C '%s/compiler' net-o-mbedtls >/dev/null 2>&1", repo_root);
-        (void)system(cmd);
-    }
-}
-
-
-
+/* wave187: ensure_std_net_o_auto_tls pure orch — body removed from mega
+ * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * Pure: mode strcmp + path/make-cmd join; Cap residual getenv+system+realpath_cap+exports_marker.
+ * Why: hybrid still had always-mega C body for auto TLS ensure (system/make orch).
+ * PLATFORM: SHARED orch / host shell make. */
+#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+/* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
+#else
+void ensure_std_net_o_auto_tls(const char *repo_root);
+#endif
 
 /* wave158: invoke_cc_append_net_tls_ld pure orch — body removed from mega
  * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
  * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
- * ensure_std_net_o_auto_tls (system/make) stays Cap residual above.
+ * wave187: ensure_std_net_o_auto_tls pure sibling (Cap residual getenv+system).
  * PLATFORM: SHARED orch / MACOS brew -L consumers. */
 
 
