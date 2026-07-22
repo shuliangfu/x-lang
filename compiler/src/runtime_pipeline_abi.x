@@ -4,11 +4,15 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave96: pure pipeline_parse_into_buf orch under wave94 pure load_import
+//   (G.7 pure parser_parse_into_init + driver_parse_into_buf_rc + same-TU pure
+//   debug_trace + fixup on ok==0; non-zero ok → -1; buf_len<=0 → -1). glue
+//   SHUX_WEAK cold twin. Closes Cap residual parse_into_buf leaf under load_import.
 // wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /
 //   pipeline_preprocess_loaded_into_ctx orch under wave94 pure load_import;
 //   Cap residual try_one_lib_root / try_entry_dir / path+loaded buf accessors /
 //   set_loaded_len / preprocess_x_buf + pure preprocess_len store; parse_into_buf
-//   still Cap residual. glue/ast_pool SHUX_WEAK cold twins (resolve/read already
+//   wave96→pure. glue/ast_pool SHUX_WEAK cold twins (resolve/read already
 //   weak; preprocess_loaded now weak). Closes Cap residual resolve/read/pp leaves.
 // wave94: pure pipeline_load_import_from_disk_c orch + pure
 //   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
@@ -155,7 +159,7 @@
 // wave91: pure set_dep_ctx / get_dep_ctx BSS (G.7 single ptr; same-TU orch + ast_pool get).
 // wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
 // Cap residual still: typeck merge+wpo under wave93 pure load_and_sync;
-//   resolve/read/preprocess/parse leaves under wave94 pure load_import orch;
+//   wave95–96 closed resolve/read/pp/parse leaves under wave94 pure load_import orch;
 //   cfg_eval complex #if; preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
@@ -182,6 +186,7 @@
 //   pipeline_typeck_patch_all_body_parent_links_c are pure export functions below.
 // wave93: pipeline_load_and_sync_direct_import_deps_c / try_bind / realign pure below.
 // wave94: load_import_from_disk_c / sync_dep_slots_from_driver_c / bind / sync_one pure below.
+// wave96: pipeline_parse_into_buf is pure export function below (not Cap residual).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 // wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
@@ -199,11 +204,12 @@ export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u
 // PLATFORM: SHARED — light fallback under pure dep-prerun routes here (not glue metrics fork).
 export extern "C" function typeck_validate_struct_layouts_zero_padding(module: *u8, arena: *u8): i32;
 export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena: *u8): void;
-// wave93–95 Cap residual leaves under pure load_and_sync / load_import orch.
+// wave93–96 Cap residual leaves under pure load_and_sync / load_import orch.
 // PLATFORM: SHARED — strong bodies remain in glue/parser/typeck for sub-leaves;
 //   wave94 pure owns load_import_from_disk_c / sync_dep_slots_from_driver_c /
 //   bind_import_dep_buffers / sync_one_dep_slot (same-TU; not export-extern);
-//   wave95 pure owns resolve_path_x / read_file_x / preprocess_loaded_into_ctx.
+//   wave95 pure owns resolve_path_x / read_file_x / preprocess_loaded_into_ctx;
+//   wave96 pure owns pipeline_parse_into_buf (same-TU; not export-extern).
 export extern "C" function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
@@ -217,11 +223,11 @@ export extern "C" function pipeline_dep_ctx_path_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_loaded_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void;
 export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
-// wave95 Cap residual under pure load_import orch (parse still C; arena/prep ptrs).
+// wave95 Cap residual under pure load_import orch (arena/prep ptr accessors).
+// wave96: pipeline_parse_into_buf is pure export function below (not export-extern).
 export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_len_get(ctx: *u8): i32;
-export extern "C" function pipeline_parse_into_buf(arena: *u8, module: *u8, buf: *u8, buf_len: i32): i32;
 export extern "C" function typeck_typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
 export extern "C" function typeck_typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
 export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
@@ -2857,7 +2863,7 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  *   4) same-TU pure pipeline_preprocess_loaded_into_ctx (wave95)
  *   5) pin import path on same slot (path authority for later sync)
  *   6) same-TU pure pipeline_bind_import_dep_buffers
- *   7) Cap residual pipeline_parse_into_buf(dep_arena, dep_module, preprocess_buf, len)
+ *   7) same-TU pure pipeline_parse_into_buf (wave96)
  * wave94 pure Cap residual: G.7 single product authority for pipeline_load_import_from_disk_c
  * (historical glue strong _c → X thin / impl_c). Product pure load_and_sync calls this name.
  * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
@@ -3907,6 +3913,55 @@ export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
   // Match C: ctx->preprocess_len = out_len (i32 LE at pure offset).
   pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), out_len);
   return 0;
+}
+
+/**
+ * Parse source buffer into module (init + parse + post-parse fixup on success).
+ * @param arena *u8 — AST arena; null → -1
+ * @param module *u8 — AST module; null → -1
+ * @param buf *u8 — source bytes (typically preprocess_buf); null → -1
+ * @param buf_len i32 — byte length; <=0 → -1 (stricter than parse_into_bytes)
+ * @return i32 — 0 if parser ok==0 after fixup; -1 on null/empty/any non-zero ok
+ * Steps (match historical pipeline_parse_into_buf_impl_c):
+ *   1) G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link)
+ *   2) G.7 pure driver_parse_into_buf_rc (unpacks Cap-struct-return ParseIntoResult.ok)
+ *   3) on ok==0: same-TU pure debug_trace("parse_post") + fixup_stmt_orders +
+ *      debug_trace("parse_post_fixup")
+ *   4) ok==0 → 0; any other ok (incl. -2) → -1
+ * wave96 pure Cap residual: G.7 product authority for pipeline_parse_into_buf
+ * (historical glue weak → impl_c / pipeline.x thin → _c). Distinct from wave64
+ * pipeline_parse_into_bytes (allows len==0, no post fixup/trace).
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_parse_into_buf(arena: *u8, module: *u8, buf: *u8, buf_len: i32): i32 {
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  // Historical C: buf_len <= 0 → -1 (parse_into_bytes allows zero length).
+  if (buf_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    // Same order as historical impl_c: init then Cap-struct parse unpack.
+    parser_parse_into_init(module, arena);
+    let pr_ok: i32 = driver_parse_into_buf_rc(arena, module, buf, buf_len, 0 as *i32);
+    if (pr_ok == 0) {
+      // Match C post-success: optional body-trace + stmt_order fixup + re-trace.
+      pipeline_debug_trace_named_func_bodies("parse_post", module, arena);
+      pipeline_module_fixup_with_arena_stmt_orders(module, arena);
+      pipeline_debug_trace_named_func_bodies("parse_post_fixup", module, arena);
+      return 0;
+    }
+    return 0 - 1;
+  }
+  return 0 - 1;
 }
 
 /**

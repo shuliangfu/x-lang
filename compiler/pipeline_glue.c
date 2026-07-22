@@ -22142,6 +22142,11 @@ extern uint8_t *driver_dep_module_buf(int32_t i);
 extern void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a);
 extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
 
+/**
+ * wave96: product pure owns pipeline_parse_into_buf (runtime_pipeline_abi.x orch).
+ * This impl_c remains cold authority for pipeline.x thin / non-PREFER via weak dispatch.
+ * PLATFORM: SHARED.
+ */
 int32_t pipeline_parse_into_buf_impl_c(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *buf,
                                         int32_t buf_len) {
   struct parser_ParseIntoResult pr;
@@ -22268,7 +22273,11 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
 }
 
 #ifdef SHUX_PIPELINE_GLUE_STANDALONE_TU
-/** weak 默认：standalone glue 链；build_asm pipeline.o 链入时被 X 强符号覆盖。 */
+/**
+ * wave96: product pure owns pipeline_parse_into_buf (runtime_pipeline_abi.x).
+ * Keep weak cold twin for standalone / non-PREFER links.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
+ */
 __attribute__((weak)) int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,
                                                        uint8_t *buf, int32_t buf_len) {
   return pipeline_parse_into_buf_impl_c(arena, module, buf, buf_len);
