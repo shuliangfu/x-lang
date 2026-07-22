@@ -38,6 +38,11 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+/* wave151: CLI extra .o append (path_pure L0 pure orch; Cap residual table+access). */
+void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+int link_abi_user_extra_o_count(void);
+const char *link_abi_user_extra_o_at(int i);
+int link_abi_path_readable(const char *path);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
 /* PLATFORM: SHARED — formal std .o after L4 wipe (def near ensure_std_net_o_auto_tls). */
@@ -3444,25 +3449,66 @@ static const char *g_shux_user_extra_o_files[SHUX_USER_EXTRA_O_FILES_MAX];
 static int g_shux_n_user_extra_o_files = 0;
 
 /**
+ * Cap residual (wave151): CLI user-extra .o table size (globals stay mega).
+ * Pure orch: shux_asm_ld_append_user_extra_o_files walks count/at + path_readable.
+ * PLATFORM: SHARED — single authority table for cc + asm ld.
+ */
+int link_abi_user_extra_o_count(void) {
+    return g_shux_n_user_extra_o_files;
+}
+
+/**
+ * Cap residual (wave151): CLI user-extra .o path at index (null if OOB / unset).
+ * No copy — pointer lifetime is the driver argv covering the subsequent spawn.
+ * PLATFORM: SHARED.
+ */
+const char *link_abi_user_extra_o_at(int i) {
+    if (i < 0 || i >= g_shux_n_user_extra_o_files)
+        return NULL;
+    return g_shux_user_extra_o_files[i];
+}
+
+/**
+ * Cap residual (wave151): host access(path, R_OK) == 0 → 1; null/empty → 0.
+ * Preserves mega append_user_extra skip semantics (not nonempty-regular-file).
+ * PLATFORM: SHARED — host libc access.
+ */
+int link_abi_path_readable(const char *path) {
+    if (!path || !path[0])
+        return 0;
+    return access(path, R_OK) == 0 ? 1 : 0;
+}
+
+/**
  * Append CLI user .o paths (g_shux_user_extra_o_files) onto an asm ld argv.
+ * wave151：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: Cap residual table count/at + path_readable + pure append loop.
+ * Cap residual: link_abi_user_extra_o_count / link_abi_user_extra_o_at / link_abi_path_readable.
  * PLATFORM: SHARED — same authority as invoke_cc push loop; skip unreadable paths.
  * Call immediately before terminating argv with NULL on every asm ld branch.
  */
-static void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
+void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
     int ui;
+    int n;
     if (!argv || !la)
         return;
-    for (ui = 0; ui < g_shux_n_user_extra_o_files; ui++) {
-        const char *p = g_shux_user_extra_o_files[ui];
+    n = link_abi_user_extra_o_count();
+    for (ui = 0; ui < n; ui++) {
+        const char *p = link_abi_user_extra_o_at(ui);
         if (!p || !p[0])
             continue;
         if (*la >= max_la - 1)
             break;
-        if (access(p, R_OK) != 0)
+        if (!link_abi_path_readable(p))
             continue;
         argv[(*la)++] = p;
     }
 }
+#else
+void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+#endif
 
 /* Extract .o file args from argv. Skips options (-o/-L/-I/-target/-backend/-O
  * and their value), -D<def>, --<flag>, and any arg not ending in ".o".

@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 15 public gates + count:
+// R2 full: .x owns 16 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -17,6 +17,7 @@
 //   - link_abi_asm_ld_push_obj (wave148; pure resolve+bank+dedup orch; Cap residual skip/rel/bank/diag)
 //   - link_abi_asm_ld_push_glue_after_std (wave149; pure have_std+ensure orch; Cap residual call_ensure)
 //   - link_abi_asm_ld_push_minimal_runtime_objs (wave150; pure triple push_obj; Cap residual *_o_path)
+//   - shux_asm_ld_append_user_extra_o_files (wave151; pure CLI extra .o append; Cap residual table+access)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -38,6 +39,10 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
+// Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
+export extern "C" function link_abi_user_extra_o_count(): i32;
+export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
+export extern "C" function link_abi_path_readable(path: *u8): i32;
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -809,11 +814,73 @@ export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_r
 }
 
 /**
+ * Append CLI user-specified extra .o paths onto an asm ld argv.
+ * Same single-authority table as invoke_cc (`g_shux_user_extra_o_files`); call after
+ * std/on_demand appends and before argv NULL terminator on every asm ld branch.
+ * @param argv **u8 — ld argv table (char**); null → no-op
+ * @param la *i32 — in/out argv length; null → no-op
+ * @param max_la i32 — argv capacity; need *la < max_la - 1 (room for NUL terminator)
+ * @return void — skips null/empty/unreadable paths; stops when capacity exhausted
+ * Pure orch: Cap residual table count/at + path_readable (access R_OK) + pure append loop.
+ * Cap residual: link_abi_user_extra_o_count / link_abi_user_extra_o_at / link_abi_path_readable
+ *   (globals + host access stay mega; pure owns the argv walk).
+ * Why (wave151): hybrid still had always-mega C body for CLI extra .o push (static helper).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max_la: i32): void {
+  // Guard argv null via *u8 cast (same as wave147 push_stable; avoid **u8 null compare drop).
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  let n: i32 = 0;
+  unsafe {
+    n = link_abi_user_extra_o_count();
+  }
+  let ui: i32 = 0;
+  while (ui < n) {
+    // Capacity guard: leave one slot for argv NULL terminator (≡ mega max_la - 1).
+    let cur: i32 = la[0];
+    if (cur >= max_la - 1) {
+      break;
+    }
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      p = link_abi_user_extra_o_at(ui);
+    }
+    ui = ui + 1;
+    if (p == 0 as *u8) {
+      continue;
+    }
+    if (p[0] == 0) {
+      continue;
+    }
+    // Cap residual: host access(path, R_OK) — skip unreadable paths (≡ mega).
+    let ok: i32 = 0;
+    unsafe {
+      ok = link_abi_path_readable(p);
+    }
+    if (ok == 0) {
+      continue;
+    }
+    // Store path pointer (no copy; argv lifetime covers subsequent spawn).
+    argv[cur] = p;
+    la[0] = cur + 1;
+  }
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 15 (fixed catalog size for hybrid FROM_X bookkeeping; wave150 +1).
+ * Returns: 16 (fixed catalog size for hybrid FROM_X bookkeeping; wave151 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 15;
+  return 16;
 }

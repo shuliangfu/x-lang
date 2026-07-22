@@ -13,6 +13,7 @@
  *   + link_abi_asm_ld_push_obj (wave148 pure resolve orch; Cap residual skip/rel/bank/diag)
  *   + link_abi_asm_ld_push_glue_after_std (wave149 pure have_std+ensure orch; Cap residual call_ensure)
  *   + link_abi_asm_ld_push_minimal_runtime_objs (wave150 pure triple push_obj; Cap residual *_o_path)
+ *   + shux_asm_ld_append_user_extra_o_files (wave151 pure CLI extra .o append; Cap residual table+access)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -40,6 +41,10 @@ int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0);
 const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *shux_runtime_process_argv_o_path(const char *argv0);
 const char *shux_runtime_panic_o_path(const char *argv0);
+/* Cap residual used by wave151 append_user_extra cold twin (mega always provides). */
+int link_abi_user_extra_o_count(void);
+const char *link_abi_user_extra_o_at(int i);
+int link_abi_path_readable(const char *path);
 /* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
@@ -373,8 +378,28 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
       lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
 
+/* wave151: append_user_extra_o_files pure orch (cold twin ≡ .x; Cap residual table+access). */
+void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
+  int n;
+  int ui;
+  if (!argv || !la)
+    return;
+  n = link_abi_user_extra_o_count();
+  for (ui = 0; ui < n; ui++) {
+    const char *p;
+    if (*la >= max_la - 1)
+      break;
+    p = link_abi_user_extra_o_at(ui);
+    if (!p || !p[0])
+      continue;
+    if (!link_abi_path_readable(p))
+      continue;
+    argv[(*la)++] = p;
+  }
+}
+
 int32_t labi_path_pure_count(void) {
-  return 15;
+  return 16;
 }
 
 #else
@@ -398,6 +423,7 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
     const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
+void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
 int32_t labi_path_pure_count(void);
 #endif
 
