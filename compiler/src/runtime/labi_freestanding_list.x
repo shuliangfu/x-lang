@@ -1,14 +1,15 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
-// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
-// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
+// G-02f-276 / P2 link_abi L7 freestanding pure table + wave117 needs pure orch.
+// Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_freestanding_list.from_x.c.
+// Hybrid macro SHUX_LABI_FREESTANDING_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
-// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
-// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
-// link_abi L7 freestanding pure table (G.9 English; body is authoritative).
-// labi_fs_env_freestanding: see function docblock below.
+// R2 full: env/io/panic/ensure catalog tables + wave117 heap needle tables +
+//   link_abi_generated_c_needs_libc_heap / link_abi_user_o_needs_libc_heap /
+//   link_abi_user_o_needs_freestanding_nostdlib_face pure orch.
+// Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
+// PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
 /** Exported function `labi_fs_env_freestanding`.
  * Memory management helper `labi_fs_env_freestanding`.
@@ -262,4 +263,261 @@ export function labi_fs_io_out_base(): *u8 {
 export function labi_fs_io_src_rel(): *u8 {
   let p: *u8 = "src/asm/freestanding_io_x86_64.s";
   return p;
+}
+
+/* Cap residual: file/object probes stay in mega (contains_substr / undef_sym). */
+export extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
+export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+
+/**
+ * Count of generated-C substr needles for libc-heap / heap API on-demand.
+ * @return i32 — 9 needles (malloc family + heap_*_c + getenv)
+ * PLATFORM: SHARED — pure table authority under FREESTANDING_LIST hybrid.
+ */
+#[no_mangle]
+export function labi_fs_heap_c_needle_count(): i32 {
+  return 9;
+}
+
+/**
+ * Needle at index for generated-C heap scan.
+ * @param i i32 — index in [0, 9)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_heap_c_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "malloc";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "calloc";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "realloc";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "posix_memalign";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "heap_alloc_c";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "heap_free_c";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "heap_realloc_c";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "heap_alloc_zeroed_c";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "getenv";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of user .o undef symbols for libc-heap face.
+ * @return i32 — 6 symbols (malloc family + free + getenv)
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_heap_o_sym_count(): i32 {
+  return 6;
+}
+
+/**
+ * Undef symbol at index for user .o heap scan.
+ * @param i i32 — index in [0, 6)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_heap_o_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "malloc";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "calloc";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "realloc";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "free";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "posix_memalign";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "getenv";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of extra mem* symbols for freestanding nostdlib face (beyond heap).
+ * @return i32 — 3 (memcpy, memcmp, memset)
+ * PLATFORM: SHARED / LINUX freestanding face
+ */
+#[no_mangle]
+export function labi_fs_memcpy_face_sym_count(): i32 {
+  return 3;
+}
+
+/**
+ * Extra mem* symbol at index for freestanding nostdlib face.
+ * @param i i32 — index in [0, 3)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_memcpy_face_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "memcpy";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "memcmp";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "memset";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether generated C needs libc heap / heap API (on-demand -lc or stubs).
+ * Pure orch: scan fixed needle table via Cap residual contains_substr (file IO).
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave117): hybrid still had needs_libc_heap body always mega C with hard-coded strings.
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_heap_c_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_heap_c_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether user .o still needs libc heap symbols (UNDEF probe).
+ * Pure orch: fixed undef-symbol table; Cap residual shux_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_libc_heap(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_heap_o_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_fs_heap_o_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether freestanding nostdlib face is required (heap + memcpy/memcmp/memset UNDEF).
+ * Pure orch: reuse pure needs_libc_heap + mem* table; Cap residual undef only.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if zero-libc face needed, else 0
+ * PLATFORM: LINUX freestanding face (table SHARED; ensure path still mega)
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_freestanding_nostdlib_face(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  if (link_abi_user_o_needs_libc_heap(user_o) != 0) {
+    return 1;
+  }
+  let n: i32 = labi_fs_memcpy_face_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_fs_memcpy_face_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
 }

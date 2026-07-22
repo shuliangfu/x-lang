@@ -1864,6 +1864,16 @@ const char *labi_fs_crt0_out_base(void);
 const char *labi_fs_crt0_src_rel(void);
 const char *labi_fs_io_out_base(void);
 const char *labi_fs_io_src_rel(void);
+/* wave117 needs pure orch (bodies in L7 pure .x / cold seed). */
+int labi_fs_heap_c_needle_count(void);
+const char *labi_fs_heap_c_needle_at(int i);
+int labi_fs_heap_o_sym_count(void);
+const char *labi_fs_heap_o_sym_at(int i);
+int labi_fs_memcpy_face_sym_count(void);
+const char *labi_fs_memcpy_face_sym_at(int i);
+int link_abi_generated_c_needs_libc_heap(const char *c_path);
+int link_abi_user_o_needs_libc_heap(const char *user_o);
+int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o);
 #endif
 
 /* G-02f-276：env name from pure table */
@@ -3159,91 +3169,13 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
 }
 
 
-/**
- * 生成的 .c 是否引用 libc 堆符号（F-03 v2：libc.x 经 codegen 生成 extern malloc 等，按需 -lc）。
+/*
+ * wave117: needs_libc_heap / freestanding_nostdlib_face pure orch live in
+ * labi_freestanding_list (tables + orch). Full-seed path: bodies via #include above
+ * (!FROM_X). Hybrid FROM_X: L7 pure .x provides; decls in #else of freestanding include.
+ * Cap residual: contains_substr / undef_sym stay mega. PLATFORM: SHARED.
  */
-int link_abi_generated_c_needs_libc_heap(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "malloc") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "calloc") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "realloc") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "posix_memalign") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "heap_alloc_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "heap_free_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "heap_realloc_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "heap_alloc_zeroed_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "getenv") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
-
-/**
- * 用户 .o 是否仍引用 libc 堆符号（F-03 v2：无 heap.o，由 -lc 解析）。
- * Freestanding: same probe → chain bootstrap_nostdlib_stubs (mmap bump malloc), not -lc.
- */
-int link_abi_user_o_needs_libc_heap(const char *user_o) {
-  (void)(({   {
-    if ((shux_link_obj_needs_undef_sym(user_o, "malloc") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "calloc") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "realloc") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "free") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "posix_memalign") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "getenv") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
-
-/**
- * PLATFORM: LINUX freestanding — co-emit std.heap.libc / mem ops need zero-libc face.
- * G.7: reuse link_abi_user_o_needs_libc_heap + memcpy/memcmp (stubs authority).
- */
-int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    if (link_abi_user_o_needs_libc_heap(user_o))
-        return 1;
-    if (shux_link_obj_needs_undef_sym(user_o, "memcpy") != 0)
-        return 1;
-    if (shux_link_obj_needs_undef_sym(user_o, "memcmp") != 0)
-        return 1;
-    if (shux_link_obj_needs_undef_sym(user_o, "memset") != 0)
-        return 1;
-    return 0;
-}
+/* (definitions: seeds/labi_freestanding_list.from_x.c or L7 pure .x) */
 
 /**
  * PLATFORM: LINUX — path to bootstrap_nostdlib_stubs.o (mmap bump malloc/free face).
