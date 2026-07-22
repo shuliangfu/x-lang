@@ -12,6 +12,7 @@
  *   + link_abi_asm_ld_argv_push_stable (wave147 pure bank+dedup+append; Cap residual bank_push)
  *   + link_abi_asm_ld_push_obj (wave148 pure resolve orch; Cap residual skip/rel/bank/diag)
  *   + link_abi_asm_ld_push_glue_after_std (wave149 pure have_std+ensure orch; Cap residual call_ensure)
+ *   + link_abi_asm_ld_push_minimal_runtime_objs (wave150 pure triple push_obj; Cap residual *_o_path)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -35,6 +36,10 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
 /* Cap residual used by wave149 push_glue cold twin (mega always provides). */
 int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0);
+/* Cap residual used by wave150 push_minimal cold twin (mega always provides). */
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *shux_runtime_process_argv_o_path(const char *argv0);
+const char *shux_runtime_panic_o_path(const char *argv0);
 /* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
@@ -354,8 +359,22 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
       bank, argv, la, max_la, NULL);
 }
 
+/* wave150: push_minimal_runtime_objs pure orch (cold twin ≡ .x; Cap residual *_o_path). */
+void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, void *bank, const char **argv, int *la, int max_la) {
+  const char *io_p = shux_runtime_asm_io_stubs_o_path(link_argv0);
+  const char *proc_p = shux_runtime_process_argv_o_path(link_argv0);
+  const char *panic_p = shux_runtime_panic_o_path(link_argv0);
+  (void)link_abi_asm_ld_push_obj(io_p, link_argv0, "compiler/runtime_asm_io_stubs.o",
+      lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)link_abi_asm_ld_push_obj(proc_p, link_argv0, "compiler/runtime_process_argv.o",
+      lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  (void)link_abi_asm_ld_push_obj(panic_p, link_argv0, "compiler/runtime_panic.o",
+      lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+}
+
 int32_t labi_path_pure_count(void) {
-  return 14;
+  return 15;
 }
 
 #else
@@ -377,6 +396,8 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
 void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
     const char *glue_primary, const char *link_argv0, const char *glue_rel,
     const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
+void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots,
+    int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
 int32_t labi_path_pure_count(void);
 #endif
 

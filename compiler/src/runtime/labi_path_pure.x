@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 14 public gates + count:
+// R2 full: .x owns 15 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -16,6 +16,7 @@
 //   - link_abi_asm_ld_argv_push_stable (wave147; pure bank+dedup+append; Cap residual bank_push)
 //   - link_abi_asm_ld_push_obj (wave148; pure resolve+bank+dedup orch; Cap residual skip/rel/bank/diag)
 //   - link_abi_asm_ld_push_glue_after_std (wave149; pure have_std+ensure orch; Cap residual call_ensure)
+//   - link_abi_asm_ld_push_minimal_runtime_objs (wave150; pure triple push_obj; Cap residual *_o_path)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -32,6 +33,11 @@ export extern "C" function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *
 // Cap residual: invoke ensure(argv0) through a C function pointer (no .x fnptr call ABI yet).
 // ensure_fn is raw pointer bits of int (*)(const char*); null → 0 (skip ensure).
 export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0: *u8): i32;
+// Cap residual: compiler-dir / cwd primary paths for nostdlib minimal runtime .o (static buf).
+// Empty string on fail — push_obj treats primary[0]==0 as missing (falls back to rel).
+export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -756,11 +762,58 @@ export function link_abi_asm_ld_push_glue_after_std(have_std: i32, ensure_fn: *u
 }
 
 /**
+ * Push nostdlib minimal runtime .o set: io_stubs + process_argv + panic.
+ * hello / freestanding product paths still need std_fmt_print stubs and panic even when
+ * no std/*.o is scanned; omit only when resolve fails (push_obj silent skip).
+ * @param link_argv0 *u8 — compiler argv0 for Cap residual primary path helpers (may be null)
+ * @param lib_roots **u8 — lib root table for try_under (null-safe in push_obj)
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank* for durable path copy (may be null)
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * @return void — always attempts three push_obj; each may no-op if resolve fails
+ * Pure orch: Cap residual *_o_path primary + pure peer push_obj ×3 (wave148).
+ * Cap residual: shux_runtime_asm_io_stubs_o_path / process_argv_o_path / panic_o_path
+ *   (compiler-dir / cwd resolve; static buffers; empty → primary unused).
+ * Why (wave150): hybrid still had always-mega C body over pure push_obj leaves.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  let io_p: *u8 = 0 as *u8;
+  let proc_p: *u8 = 0 as *u8;
+  let panic_p: *u8 = 0 as *u8;
+  // Cap residual: preferred primary next to compiler binary (static buf per helper).
+  unsafe {
+    io_p = shux_runtime_asm_io_stubs_o_path(link_argv0);
+    proc_p = shux_runtime_process_argv_o_path(link_argv0);
+    panic_p = shux_runtime_panic_o_path(link_argv0);
+  }
+  // Single-authority resolve+append ×3: pure peer wave148 push_obj (flag_out null).
+  // Each result discarded: mega helper is void (missing .o is silent skip).
+  let _io: i32 = link_abi_asm_ld_push_obj(io_p, link_argv0, "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  if (_io == 0) {
+    // continue: missing io_stubs does not block process_argv/panic
+  }
+  let _pa: i32 = link_abi_asm_ld_push_obj(proc_p, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  if (_pa == 0) {
+    // continue: missing process_argv does not block panic
+  }
+  let _pn: i32 = link_abi_asm_ld_push_obj(panic_p, link_argv0, "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  if (_pn == 0) {
+    return;
+  }
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 14 (fixed catalog size for hybrid FROM_X bookkeeping; wave149 +1).
+ * Returns: 15 (fixed catalog size for hybrid FROM_X bookkeeping; wave150 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 14;
+  return 15;
 }

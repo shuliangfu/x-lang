@@ -1,10 +1,11 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (14 public gates + count; wave149 push_glue)
+ * Prove: full.x vs this seed → nm IDENTICAL (15 public gates + count; wave150 push_minimal)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147);
- *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue)
+ *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
+ *   *_o_path Cap (wave150 push_minimal)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -31,8 +32,12 @@ extern int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_
 extern void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p);
 extern int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out);
 extern void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, uint8_t * glue_primary, uint8_t * link_argv0, uint8_t * glue_rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
+extern void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern int32_t labi_path_pure_count(void);
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
+extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
@@ -544,6 +549,25 @@ void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, 
     return;
   }
 }
+/* wave150: push_minimal_runtime_objs pure orch (surface pin; Cap residual *_o_path). */
+void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
+  uint8_t * io_p = 0;
+  uint8_t * proc_p = 0;
+  uint8_t * panic_p = 0;
+  (void)((io_p = shux_runtime_asm_io_stubs_o_path(link_argv0)));
+  (void)((proc_p = shux_runtime_process_argv_o_path(link_argv0)));
+  (void)((panic_p = shux_runtime_panic_o_path(link_argv0)));
+  int32_t _io = link_abi_asm_ld_push_obj(io_p, link_argv0, "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+  if ((_io ==0)) {
+  }
+  int32_t _pa = link_abi_asm_ld_push_obj(proc_p, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+  if ((_pa ==0)) {
+  }
+  int32_t _pn = link_abi_asm_ld_push_obj(panic_p, link_argv0, "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+  if ((_pn ==0)) {
+    return;
+  }
+}
 int32_t labi_path_pure_count(void) {
-  return 14;
+  return 15;
 }

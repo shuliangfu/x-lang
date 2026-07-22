@@ -5673,18 +5673,19 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
  * nostdlib minimal gcc link still needs compiler runtime stubs; hello depends on
  * std_fmt_print / std_fmt_println (runtime_asm_io_stubs; PLATFORM: SHARED).
  * popen 桩恒失败时 has_undef 误判为自包含，勿因此省略 io_stubs。
+ * wave150：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: Cap residual *_o_path primary + pure peer push_obj ×3.
+ * Cap residual: shux_runtime_asm_io_stubs_o_path / process_argv_o_path / panic_o_path.
+ * PLATFORM: SHARED — G.7 single authority; dual-end L2.
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
-    char io_stubs_o[PATH_MAX];
-    char process_argv_o[PATH_MAX];
-    const char *io_stubs_p = NULL;
-    const char *process_argv_p = NULL;
-    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_asm_io_stubs.o", io_stubs_o, sizeof io_stubs_o) == 0)
-        io_stubs_p = io_stubs_o;
-    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_process_argv.o", process_argv_o, sizeof process_argv_o) == 0)
-        process_argv_p = process_argv_o;
+    /* Cold twin prefers same Cap residual *_o_path as pure .x (static buf ≡ stack copy). */
+    const char *io_stubs_p = shux_runtime_asm_io_stubs_o_path(link_argv0);
+    const char *process_argv_p = shux_runtime_process_argv_o_path(link_argv0);
     link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
         "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(process_argv_p, link_argv0,
@@ -5692,6 +5693,10 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
     link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
+#else
+void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
+    ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
+#endif
 
 
 
