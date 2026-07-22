@@ -27,12 +27,17 @@
  *     ensure_runtime_* + peer push_obj; formal ensure companions for append_std OP_STD)
  *   labi_std_append_glue_for_op (wave192 pure orch; Cap residual ensure_runtime_*_glue +
  *     peer path + push_obj; append_std OP_GLUE_* plan leaves)
+ *   labi_std_append_primary_for_op (wave193 pure orch; Cap residual needs_* + ensure/path +
+ *     push_obj; append_std IO_STUBS + PRIMARY_* plan leaves)
+ *   labi_std_append_process_argv_if (wave193 pure orch; Cap residual process_argv ensure+path;
+ *     complement after plan loop when heavy std without process.o)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
  *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
  *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual);
- *   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves.
+ *   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
+ *   needs + primary ensure/path + process_argv for wave193 primary/complement.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -100,6 +105,14 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0);
 const char *shux_runtime_dynlib_os_o_path(const char *argv0);
 int shux_ensure_runtime_http_glue_o(const char *argv0);
 const char *shux_runtime_http_glue_o_path(const char *argv0);
+/* wave193 primary/complement peers (ondemand needs + path_pure + process_argv). */
+int labi_user_needs_runtime_time_os(const char *user_o);
+int labi_user_needs_runtime_random_fill(const char *user_o);
+int labi_user_needs_runtime_env_os(const char *user_o);
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *shux_runtime_panic_o_path(const char *argv0);
+int shux_ensure_runtime_process_argv_o(const char *argv0);
+const char *shux_runtime_process_argv_o_path(const char *argv0);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -849,6 +862,85 @@ void labi_std_append_glue_for_op(int op, int have, const char *link_argv0, const
   }
 }
 
+/* wave193: labi_std_append_primary_for_op pure orch (cold twin ≡ .x).
+ * Cap residual needs_* + ensure/path + push_obj.
+ * PLATFORM: SHARED — append_std IO_STUBS + PRIMARY_* plan leaves (2..6).
+ */
+void labi_std_append_primary_for_op(int op, const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la) {
+  const char *use_rel;
+  int rel_ok;
+  if (!link_argv0)
+    return;
+  use_rel = rel;
+  rel_ok = (rel && rel[0]) ? 1 : 0;
+  if (op == 2) { /* IO_STUBS */
+    if (!rel_ok)
+      use_rel = "compiler/runtime_asm_io_stubs.o";
+    if (argv && la)
+      (void)link_abi_asm_ld_push_obj(shux_runtime_asm_io_stubs_o_path(link_argv0), link_argv0,
+                                     use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    return;
+  }
+  if (op == 3) { /* PRIMARY_PANIC */
+    if (!rel_ok)
+      use_rel = "compiler/runtime_panic.o";
+    if (argv && la)
+      (void)link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
+                                     use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    return;
+  }
+  if (op == 4) { /* PRIMARY_TIME_OS */
+    if (!labi_user_needs_runtime_time_os(user_o))
+      return;
+    if (!rel_ok)
+      use_rel = "compiler/runtime_time_os.o";
+    (void)shux_ensure_runtime_time_os_o(link_argv0);
+    if (argv && la)
+      (void)link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
+                                     use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    return;
+  }
+  if (op == 5) { /* PRIMARY_RANDOM_FILL */
+    if (!labi_user_needs_runtime_random_fill(user_o))
+      return;
+    if (!rel_ok)
+      use_rel = "compiler/runtime_random_fill.o";
+    (void)shux_ensure_runtime_random_fill_o(link_argv0);
+    if (argv && la)
+      (void)link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
+                                     use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    return;
+  }
+  if (op == 6) { /* PRIMARY_ENV_OS */
+    if (!labi_user_needs_runtime_env_os(user_o))
+      return;
+    if (!rel_ok)
+      use_rel = "compiler/runtime_env_os.o";
+    (void)shux_ensure_runtime_env_os_o(link_argv0);
+    if (argv && la)
+      (void)link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
+                                     use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    return;
+  }
+}
+
+/* wave193: labi_std_append_process_argv_if pure orch (cold twin ≡ .x).
+ * Cap residual ensure_runtime_process_argv + path + push_obj.
+ * PLATFORM: SHARED — complement after plan loop; never dual-link process.o.
+ */
+void labi_std_append_process_argv_if(int need, const char *link_argv0,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la) {
+  if (!need || !link_argv0 || !argv || !la)
+    return;
+  (void)shux_ensure_runtime_process_argv_o(link_argv0);
+  (void)link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
+                                 "compiler/runtime_process_argv.o",
+                                 lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+}
+
 #else
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
@@ -915,6 +1007,13 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
     const char **argv, int *la, int max_la);
 /* wave192: OP_GLUE_* pure orch for append_std plan glue leaves (L6). */
 void labi_std_append_glue_for_op(int op, int have, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+/* wave193: IO_STUBS + PRIMARY_* + process_argv complement pure orch (L6). */
+void labi_std_append_primary_for_op(int op, const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+void labi_std_append_process_argv_if(int need, const char *link_argv0,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
 #endif

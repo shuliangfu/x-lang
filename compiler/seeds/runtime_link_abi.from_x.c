@@ -56,6 +56,13 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
 void labi_std_append_glue_for_op(int op, int have, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
+/* wave193: IO_STUBS + PRIMARY_* pure orch + process_argv complement (L6 pure / cold twin). */
+void labi_std_append_primary_for_op(int op, const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+void labi_std_append_process_argv_if(int need, const char *link_argv0,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
 /* G-02f-68 link helpers */
 int shu_waitpid_retry(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
@@ -5371,8 +5378,6 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
     const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     const char *p;
-    char io_stubs_o[PATH_MAX];
-    const char *io_stubs_p = NULL;
     int have_process = 0;
     int have_log = 0;
     int have_crypto = 0;
@@ -5396,38 +5401,19 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
         if (!labi_std_plan_step_at(si, &op, &rel, &fk))
             continue;
         switch (op) {
+        /*
+         * wave193: IO_STUBS + PRIMARY_* → labi_std_append_primary_for_op pure orch
+         * (path/gate/ensure+push; Cap residual needs_* + ensure/path + push_obj).
+         * Why: hybrid still had primary leaves always-mega inline after wave192 glue.
+         * PLATFORM: SHARED — G.7 single primary-append authority; dual-end L2.
+         */
         case LABI_STD_OP_IO_STUBS:
-            if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_asm_io_stubs.o", io_stubs_o, sizeof io_stubs_o) == 0)
-                io_stubs_p = io_stubs_o;
-            link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
-                rel ? rel : "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-            break;
         case LABI_STD_OP_PRIMARY_PANIC:
-            link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-            break;
         case LABI_STD_OP_PRIMARY_TIME_OS:
-            /* PLATFORM: SHARED — on_demand also covers time.o+time_os; skip bulk when pure.
-             * ensure at push (glue pattern): prepare may have skipped or been bypassed. */
-            if (!labi_user_needs_runtime_time_os(user_o))
-                break;
-            (void)shux_ensure_runtime_time_os_o(link_argv0);
-            link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-            break;
         case LABI_STD_OP_PRIMARY_RANDOM_FILL:
-            if (!labi_user_needs_runtime_random_fill(user_o))
-                break;
-            (void)shux_ensure_runtime_random_fill_o(link_argv0);
-            link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-            break;
         case LABI_STD_OP_PRIMARY_ENV_OS:
-            if (!labi_user_needs_runtime_env_os(user_o))
-                break;
-            (void)shux_ensure_runtime_env_os_o(link_argv0);
-            link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
-                rel ? rel : "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            labi_std_append_primary_for_op(op, link_argv0, user_o, rel,
+                lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_STD:
             flag_out = NULL;
@@ -5603,15 +5589,15 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
     /*
      * thread/sync/atomic/log/dynlib/… 预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
      * 已推且未推 process.o 时补 runtime_process_argv.o（勿与 process.o 双链）。
+     * wave193: pure orch labi_std_append_process_argv_if (ensure+path+push).
      */
-    if ((have_atomic || have_log || have_backtrace
-         || (flags && (flags->have_sync || flags->have_thread || flags->have_dynlib
-                       || flags->have_channel || flags->have_math || flags->have_elf
-                       || flags->have_sqlite)))
-        && !have_process) {
-        (void)shux_ensure_runtime_process_argv_o(link_argv0);
-        link_abi_asm_ld_push_obj(shux_runtime_process_argv_o_path(link_argv0), link_argv0,
-            "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    {
+        int need_pav = (have_atomic || have_log || have_backtrace
+            || (flags && (flags->have_sync || flags->have_thread || flags->have_dynlib
+                          || flags->have_channel || flags->have_math || flags->have_elf
+                          || flags->have_sqlite)))
+            && !have_process;
+        labi_std_append_process_argv_if(need_pav, link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
 }
 

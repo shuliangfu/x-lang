@@ -12,7 +12,8 @@
 // + wave187 ensure_std_net_o_auto_tls pure orch
 // + wave188 shux_ensure_formal_std_make_o pure orch
 // + wave191 labi_std_append_formal_ensure_for_rel pure orch
-// + wave192 labi_std_append_glue_for_op pure orch:
+// + wave192 labi_std_append_glue_for_op pure orch
+// + wave193 labi_std_append_primary_for_op + process_argv_if pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -33,12 +34,17 @@
 //     append_std OP_STD; Cap residual repo_root + ensure_runtime_* + peer push_obj)
 //   - labi_std_append_glue_for_op (wave192; pure OP_GLUE_* ensure+path+push orch for
 //     append_std plan glue leaves; Cap residual ensure_runtime_*_glue + peer path + push_obj)
+//   - labi_std_append_primary_for_op (wave193; pure IO_STUBS/PRIMARY_* path+gate+ensure+push
+//     for append_std plan primary leaves; Cap residual needs_* + ensure/path + push_obj)
+//   - labi_std_append_process_argv_if (wave193; pure process_argv complement when
+//     heavy std on argv without process.o; Cap residual ensure+path + push_obj)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
 //   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap);
-//   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves.
+//   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
+//   needs + primary ensure/path + process_argv for wave193 primary/complement.
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -135,6 +141,23 @@ export extern "C" function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8;
 export extern "C" function shux_ensure_runtime_http_glue_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_http_glue_o_path(argv0: *u8): *u8;
+
+// Peer pure (ondemand L8b wave132–133): bulk PRIMARY OS gates for append_std plan.
+// null/empty user_o → 1 (always need; matches mega hard-link when no user filter).
+// PLATFORM: SHARED — product UNDEF probe tables; Cap residual undef_sym inside orch.
+export extern "C" function labi_user_needs_runtime_time_os(user_o: *u8): i32;
+export extern "C" function labi_user_needs_runtime_random_fill(user_o: *u8): i32;
+export extern "C" function labi_user_needs_runtime_env_os(user_o: *u8): i32;
+
+// Peer pure (path_pure L0): primary runtime path ladders for IO_STUBS / PANIC leaves.
+// PLATFORM: SHARED — product path symbols used by append_std PRIMARY plan steps.
+export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
+
+// Cap residual / peer pure: process_argv ensure+path for wave193 complement.
+// PLATFORM: SHARED — constructor-bound argc/argv glue; never dual-link with process.o.
+export extern "C" function shux_ensure_runtime_process_argv_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -2401,6 +2424,224 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
       p = shux_runtime_http_glue_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    return;
+  }
+}
+
+/**
+ * Append_std plan primary leaf: IO_STUBS / PRIMARY_PANIC / TIME_OS / RANDOM_FILL / ENV_OS.
+ * Pure orch over plan op codes (≡ mega LABI_STD_OP_*):
+ *   2 IO_STUBS — push runtime_asm_io_stubs.o (no gate; always on plan)
+ *   3 PRIMARY_PANIC — push runtime_panic.o (no gate)
+ *   4 PRIMARY_TIME_OS — gate labi_user_needs_runtime_time_os then ensure+push time_os
+ *   5 PRIMARY_RANDOM_FILL — gate needs_random_fill then ensure+push random_fill
+ *   6 PRIMARY_ENV_OS — gate needs_env_os then ensure+push env_os
+ * Gated leaves ignore ensure return (≡ mega `(void)ensure` then always push_obj).
+ * @param op i32 — 2..6; other → no-op
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param user_o *u8 — user .o for needs gates; null/empty → needs returns 1
+ * @param rel *u8 — plan step rel (may be null; fall back to default compiler/runtime_*.o)
+ * @param lib_roots **u8 — -L style roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * Cap residual: labi_user_needs_runtime_* (undef_sym tables) + ensure_runtime_* + path + push_obj.
+ * Why (wave193): hybrid still had IO_STUBS + PRIMARY_* cases always-mega inline after wave192 glue.
+ * G.7: compose existing needs+ensure+path+push; no second gate table.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — dual-end L2.
+ * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
+ */
+#[no_mangle]
+export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  let use_rel: *u8 = rel;
+  let rel_ok: i32 = 0;
+  if (rel != 0 as *u8) {
+    if (rel[0] != 0) {
+      rel_ok = 1;
+    }
+  }
+  // op 2: IO_STUBS — always push (plan first leaf; nostdlib/minimal also uses same path)
+  if (op == 2) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_asm_io_stubs.o";
+    }
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      p = shux_runtime_asm_io_stubs_o_path(link_argv0);
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _p: i32 = 0;
+        unsafe {
+          _p = link_abi_asm_ld_push_obj(p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    return;
+  }
+  // op 3: PRIMARY_PANIC — always push (no ensure in plan leaf; prepare may ensure earlier)
+  if (op == 3) {
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_panic.o";
+    }
+    let p: *u8 = 0 as *u8;
+    unsafe {
+      p = shux_runtime_panic_o_path(link_argv0);
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _p: i32 = 0;
+        unsafe {
+          _p = link_abi_asm_ld_push_obj(p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    return;
+  }
+  // op 4: PRIMARY_TIME_OS — gate + ensure + push
+  if (op == 4) {
+    let need: i32 = 0;
+    unsafe {
+      need = labi_user_needs_runtime_time_os(user_o);
+    }
+    if (need == 0) {
+      return;
+    }
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_time_os.o";
+    }
+    let p: *u8 = 0 as *u8;
+    let _e: i32 = 0;
+    unsafe {
+      _e = shux_ensure_runtime_time_os_o(link_argv0);
+      p = shux_runtime_time_os_o_path(link_argv0);
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _p: i32 = 0;
+        unsafe {
+          _p = link_abi_asm_ld_push_obj(p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    return;
+  }
+  // op 5: PRIMARY_RANDOM_FILL
+  if (op == 5) {
+    let need: i32 = 0;
+    unsafe {
+      need = labi_user_needs_runtime_random_fill(user_o);
+    }
+    if (need == 0) {
+      return;
+    }
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_random_fill.o";
+    }
+    let p: *u8 = 0 as *u8;
+    let _e: i32 = 0;
+    unsafe {
+      _e = shux_ensure_runtime_random_fill_o(link_argv0);
+      p = shux_runtime_random_fill_o_path(link_argv0);
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _p: i32 = 0;
+        unsafe {
+          _p = link_abi_asm_ld_push_obj(p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    return;
+  }
+  // op 6: PRIMARY_ENV_OS
+  if (op == 6) {
+    let need: i32 = 0;
+    unsafe {
+      need = labi_user_needs_runtime_env_os(user_o);
+    }
+    if (need == 0) {
+      return;
+    }
+    if (rel_ok == 0) {
+      use_rel = "compiler/runtime_env_os.o";
+    }
+    let p: *u8 = 0 as *u8;
+    let _e: i32 = 0;
+    unsafe {
+      _e = shux_ensure_runtime_env_os_o(link_argv0);
+      p = shux_runtime_env_os_o_path(link_argv0);
+    }
+    let ab: *u8 = argv as *u8;
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _p: i32 = 0;
+        unsafe {
+          _p = link_abi_asm_ld_push_obj(p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    return;
+  }
+}
+
+/**
+ * When heavy std/runtime leaves already on ld argv but process.o was not pushed,
+ * ensure+push runtime_process_argv.o so weak process_arg*_c resolve to process_shux_*.
+ * Pure orch: need gate → Cap residual ensure → path → peer push_obj.
+ * Caller computes need as (have_atomic|have_log|…|flags.have_*) && !have_process
+ * (must NOT dual-link with process.o — have_process=1 suppresses this).
+ * @param need i32 — non-zero to run complement; 0 → no-op
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param lib_roots **u8 — -L style roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * Cap residual: shux_ensure_runtime_process_argv_o + peer path + push_obj.
+ * Why (wave193): hybrid still had process_argv complement always-mega inline after plan loop.
+ * G.7: complete existing C-backend process_argv path; no second plan table.
+ * Note: export signature must stay single-line.
+ * PLATFORM: SHARED orch — dual-end L2.
+ * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
+ */
+#[no_mangle]
+export function labi_std_append_process_argv_if(need: i32, link_argv0: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (need == 0) {
+    return;
+  }
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  let p: *u8 = 0 as *u8;
+  let _e: i32 = 0;
+  unsafe {
+    _e = shux_ensure_runtime_process_argv_o(link_argv0);
+    p = shux_runtime_process_argv_o_path(link_argv0);
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  let _p: i32 = 0;
+  unsafe {
+    _p = link_abi_asm_ld_push_obj(p, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  }
+  if (_p == 0) {
     return;
   }
 }
