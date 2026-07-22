@@ -6,12 +6,15 @@
 // Hybrid macro SHUX_LABI_INVOKE_LD_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: .x owns brew/compress/tail/driver/entry pure tables + wave152 brew orch
-// + wave153 asm compress-libs orch:
+// + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
+//   - invoke_cc_append_compress_ld (wave154; pure orch; Cap residual needs+ensure+path
+//     + invoke_cc_argv_push_existing for glue realpath/skip/dedup)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
-//   ensure/path for zlib glue; spawn/ld/cc IO; invoke_cc_append_compress_ld still mega.
+//   ensure/path for zlib glue; invoke_cc_argv_push_existing (realpath/skip/dedup);
+//   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv.
 // PLATFORM: SHARED orch / MACOS consumers for brew -L paths.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -26,6 +29,10 @@ export extern "C" function link_abi_obj_needs_brotli(obj_o: *u8): i32;
 // Cap residual: ensure zlib macro-wrapper glue .o + resolve its path for ld argv.
 export extern "C" function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
+
+// Cap residual (wave154): push path onto cc argv with skip-missing / realpath / dedup.
+// Used by invoke_cc compress glue append (asm path appends path bytes directly).
+export extern "C" function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, path: *u8): i32;
 
 /**
  * Homebrew /usr/local -L path table size (fixed catalog).
@@ -417,7 +424,7 @@ export function ld_append_brew_lib_paths(argv: **u8, la: *i32, max_la: i32): voi
  *   needs_* Cap (marker/has_undef) live under ondemand hybrid pure.
  * Why (wave153): hybrid still had always-mega C body for asm compress -l* append.
  * Note: export signature must stay single-line (multi-line export drops the function).
- * Sibling invoke_cc_append_compress_ld remains mega (uses invoke_cc_argv_push_existing for glue).
+ * Sibling invoke_cc_append_compress_ld: wave154 pure orch (push_existing Cap residual for glue).
  * PLATFORM: SHARED — verify mac + Ubuntu compress neighborhood + prove IDENTICAL.
  * Track-L: #[no_mangle] keeps surface short name.
  */
@@ -497,6 +504,103 @@ export function asm_ld_append_compress_libs(compress_o: *u8, user_o: *u8, argv: 
       let fld: *u8 = labi_ld_flag_lbrotlidec();
       argv[curb2] = fld;
       la[0] = curb2 + 1;
+    }
+  }
+}
+
+/**
+ * invoke_cc link: append -lz / -lzstd / -lbrotli* (and zlib glue .o) when compress_o or user_o needs them.
+ * Same needs/brew/flag structure as asm_ld_append_compress_libs, but glue goes through Cap residual
+ * invoke_cc_argv_push_existing (skip missing, realpath on POSIX, dedup) rather than direct argv store.
+ * @param argv **u8 — cc linker argv table (char**); null → no-op
+ * @param i *i32 — in/out argv length; null → no-op
+ * @param argv_cap i32 — argv capacity; early exit if *i >= argv_cap - 1 (room for NUL terminator)
+ * @param compress_o *u8 — path to std/compress .o (nullable/empty → ignored by needs_*)
+ * @param user_o *u8 — path to user main .o (nullable/empty → ignored by needs_*)
+ * @return void — appends only when a needs_* hits and capacity remains
+ * Pure orch: needs_* Cap/peer + brew pure + flag pure + ensure/path Cap + push_existing Cap.
+ * Cap residual: invoke_cc_argv_push_existing (realpath/skip/dedup pool); ensure + path for glue;
+ *   needs_* Cap (marker/has_undef) live under ondemand hybrid pure.
+ * Why (wave154): hybrid still had always-mega C body for invoke_cc compress -l* append.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED — verify mac + Ubuntu compress neighborhood + prove IDENTICAL.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function invoke_cc_append_compress_ld(argv: **u8, i: *i32, argv_cap: i32, compress_o: *u8, user_o: *u8): void {
+  // Guard argv null via *u8 cast (wave147/151–153: avoid **u8 null compare codegen drop).
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (i == 0 as *i32) {
+    return;
+  }
+  // Early capacity guard (≡ mega *i >= argv_cap - 1 at entry).
+  if (i[0] >= argv_cap - 1) {
+    return;
+  }
+  let need_z: i32 = 0;
+  let need_zs: i32 = 0;
+  let need_br: i32 = 0;
+  unsafe {
+    need_z = link_abi_obj_needs_zlib(compress_o);
+    if (need_z == 0) {
+      need_z = link_abi_obj_needs_zlib(user_o);
+    }
+    need_zs = link_abi_obj_needs_zstd(compress_o);
+    if (need_zs == 0) {
+      need_zs = link_abi_obj_needs_zstd(user_o);
+    }
+    need_br = link_abi_obj_needs_brotli(compress_o);
+    if (need_br == 0) {
+      need_br = link_abi_obj_needs_brotli(user_o);
+    }
+  }
+  if (need_z != 0) {
+    // brew -L then -lz; ensure zlib glue .o and push via Cap residual push_existing.
+    ld_append_brew_lib_paths(argv, i, argv_cap);
+    let cur: i32 = i[0];
+    if (cur < argv_cap - 1) {
+      let fl: *u8 = labi_ld_flag_lz();
+      argv[cur] = fl;
+      i[0] = cur + 1;
+    }
+    // Cap residual: build/ensure glue then push path (argv0 null ≡ mega NULL).
+    unsafe {
+      let _e: i32 = shux_ensure_runtime_compress_zlib_glue_o(0 as *u8);
+    }
+    let glue: *u8 = 0 as *u8;
+    unsafe {
+      glue = shux_runtime_compress_zlib_glue_o_path(0 as *u8);
+    }
+    // Cap residual: skip-missing / realpath / dedup (asm path stores path bytes directly).
+    unsafe {
+      let _p: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, glue);
+    }
+  }
+  if (need_zs != 0) {
+    ld_append_brew_lib_paths(argv, i, argv_cap);
+    let curz: i32 = i[0];
+    if (curz < argv_cap - 1) {
+      let flz: *u8 = labi_ld_flag_lzstd();
+      argv[curz] = flz;
+      i[0] = curz + 1;
+    }
+  }
+  if (need_br != 0) {
+    ld_append_brew_lib_paths(argv, i, argv_cap);
+    let curb: i32 = i[0];
+    if (curb < argv_cap - 1) {
+      let fle: *u8 = labi_ld_flag_lbrotlienc();
+      argv[curb] = fle;
+      i[0] = curb + 1;
+    }
+    let curb2: i32 = i[0];
+    if (curb2 < argv_cap - 1) {
+      let fld: *u8 = labi_ld_flag_lbrotlidec();
+      argv[curb2] = fld;
+      i[0] = curb2 + 1;
     }
   }
 }

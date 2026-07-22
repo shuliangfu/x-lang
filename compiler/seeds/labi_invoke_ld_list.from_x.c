@@ -10,8 +10,10 @@
  *   labi_ld_common_tail_flag_{count,at}
  *   ld_append_brew_lib_paths (wave152 pure orch; Cap residual link_abi_host_is_apple)
  *   asm_ld_append_compress_libs (wave153 pure orch; Cap residual needs+ensure+path)
- * Cap residual: host_is_apple; needs+ensure+path Cap; spawn/ld/cc IO;
- *   invoke_cc_append_compress_ld still mega.
+ *   invoke_cc_append_compress_ld (wave154 pure orch; Cap residual needs+ensure+path
+ *     + invoke_cc_argv_push_existing for glue realpath/skip/dedup)
+ * Cap residual: host_is_apple; needs+ensure+path Cap; invoke_cc_argv_push_existing;
+ *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -26,6 +28,7 @@ int link_abi_obj_needs_zstd(const char *obj_o);
 int link_abi_obj_needs_brotli(const char *obj_o);
 int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
+int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -157,6 +160,32 @@ void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, con
   }
 }
 
+/* wave154: invoke_cc_append_compress_ld pure orch (cold twin ≡ .x; Cap residual push_existing). */
+void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o) {
+  if (!argv || !i || *i >= argv_cap - 1)
+    return;
+  if (link_abi_obj_needs_zlib(compress_o) || link_abi_obj_needs_zlib(user_o)) {
+    ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
+    if (*i < argv_cap - 1)
+      argv[(*i)++] = (char *)labi_ld_flag_lz();
+    (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
+    (void)invoke_cc_argv_push_existing(argv, i, argv_cap,
+        shux_runtime_compress_zlib_glue_o_path(NULL));
+  }
+  if (link_abi_obj_needs_zstd(compress_o) || link_abi_obj_needs_zstd(user_o)) {
+    ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
+    if (*i < argv_cap - 1)
+      argv[(*i)++] = (char *)labi_ld_flag_lzstd();
+  }
+  if (link_abi_obj_needs_brotli(compress_o) || link_abi_obj_needs_brotli(user_o)) {
+    ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
+    if (*i < argv_cap - 1)
+      argv[(*i)++] = (char *)labi_ld_flag_lbrotlienc();
+    if (*i < argv_cap - 1)
+      argv[(*i)++] = (char *)labi_ld_flag_lbrotlidec();
+  }
+}
+
 #else
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
@@ -186,6 +215,7 @@ int labi_ld_common_tail_flag_count(void);
 const char *labi_ld_common_tail_flag_at(int i);
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
+void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

@@ -50,8 +50,8 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_cc_list.from_x.c 全 C 体
   "labi_invoke_cc_list|src/runtime/labi_invoke_cc_list.x|seeds/labi_invoke_cc_list_surface.from_x.c||"
   # labi_invoke_ld_list R2 full：.x 吃满 brew/compress/tail/driver/entry 纯表 + wave152 brew orch
-  # + wave153 asm_ld_append_compress_libs pure orch；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs_*/ensure/path + spawn/ld/cc IO mega
+  # + wave153 asm_ld_append_compress_libs pure orch + wave154 invoke_cc_append_compress_ld pure orch；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + push_existing + spawn/ld/cc IO mega
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"
   # labi_freestanding_list R2 full：.x 吃满 env/io_sym/panic/ensure + wave117 heap/nostdlib + wave136 gen needs + wave137 compress + wave138 core_slice/db + wave139 provides_core_mem/std_heap + wave141 needs_win32/wsa + wave142 needs_core_builtin/mem stub0 + wave143 needs_async_scheduler + wave144 freestanding needs_io/panic 纯表+orch；

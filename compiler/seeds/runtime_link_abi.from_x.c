@@ -2866,6 +2866,7 @@ int labi_ld_common_tail_flag_count(void);
 const char *labi_ld_common_tail_flag_at(int i);
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
+void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
 #endif
 
 /**
@@ -2890,46 +2891,17 @@ int link_abi_host_is_apple(void) {
  * PLATFORM: SHARED orch / MACOS consumers. */
 
 /* wave153: asm_ld_append_compress_libs pure orch lives in labi_invoke_ld_list
- * (needs_* Cap/peer + brew pure + flag pure + ensure/path Cap). Cold twin via
- * #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure .x (decl in #else).
+ * (needs + ensure + path Cap). Cold twin via #include labi_invoke_ld_list.from_x.c
+ * above; hybrid FROM_X → L6 pure .x (decl in #else).
  * Why: hybrid still had always-mega C body for asm compress -l* append.
- * Sibling invoke_cc_append_compress_ld remains always-mega (push_existing glue path).
  * PLATFORM: SHARED. */
 
-
-
-
-/**
- * invoke_cc 链接：按 compress.o / 用户 .o 实际依赖追加 -lz / -lzstd / -lbrotli*。
- * 参数：argv/i/argv_cap 为 cc 链接 argv；compress_o 候选 compress .o；user_o 用户 .o（可 NULL）。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-275：invoke_cc compress -l* from pure table */
-void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o) {
-    if (!argv || !i || *i >= argv_cap - 1)
-        return;
-    if (link_abi_obj_needs_zlib(compress_o) || link_abi_obj_needs_zlib(user_o)) {
-        ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
-        if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)labi_ld_flag_lz();
-        /* zlib 宏包装桩：deflateInit2/inflateInit2 是宏，需真实函数符号 */
-        (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
-        (void)invoke_cc_argv_push_existing(argv, i, argv_cap,
-            shux_runtime_compress_zlib_glue_o_path(NULL));
-    }
-    if (link_abi_obj_needs_zstd(compress_o) || link_abi_obj_needs_zstd(user_o)) {
-        ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
-        if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)labi_ld_flag_lzstd();
-    }
-    if (link_abi_obj_needs_brotli(compress_o) || link_abi_obj_needs_brotli(user_o)) {
-        ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
-        if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)labi_ld_flag_lbrotlienc();
-        if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)labi_ld_flag_lbrotlidec();
-    }
-}
+/* wave154: invoke_cc_append_compress_ld pure orch lives in labi_invoke_ld_list
+ * (needs + ensure + path Cap + Cap residual invoke_cc_argv_push_existing for glue).
+ * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
+ * .x (decl in #else). Why: hybrid still had always-mega C body for invoke_cc compress.
+ * Cap residual stays: invoke_cc_argv_push_existing (realpath/skip/dedup).
+ * PLATFORM: SHARED. */
 
 
 

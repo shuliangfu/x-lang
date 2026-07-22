@@ -3,8 +3,9 @@
  * Product PREFER_X_O: g05_try_x_to_o(labi_invoke_ld_list.x) + mega rest under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (brew/compress/tail/driver pure table
  *   + wave152 ld_append_brew_lib_paths pure orch
- *   + wave153 asm_ld_append_compress_libs pure orch)
- * Cap residual: host_is_apple; needs + ensure + path; spawn/ld/cc IO mega
+ *   + wave153 asm_ld_append_compress_libs pure orch
+ *   + wave154 invoke_cc_append_compress_ld pure orch)
+ * Cap residual: host_is_apple; needs + ensure + path; push_existing; spawn/ld/cc IO mega
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
  */
@@ -17,6 +18,7 @@ extern int32_t link_abi_obj_needs_zstd(uint8_t * obj_o);
 extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
 extern int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
 extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
+extern int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path);
 int32_t labi_ld_brew_lib_path_count(void) {
   return 2;
 }
@@ -277,6 +279,73 @@ void asm_ld_append_compress_libs(uint8_t * compress_o, uint8_t * user_o, uint8_t
       uint8_t * fld = labi_ld_flag_lbrotlidec();
       (void)(((argv)[curb2] = fld));
       (void)(((la)[0] = (curb2 + 1)));
+    }
+  }
+}
+/* wave154: invoke_cc_append_compress_ld pure orch (surface pin; Cap residual push_existing). */
+void invoke_cc_append_compress_ld(uint8_t * * argv, int32_t * i, int32_t argv_cap, uint8_t * compress_o, uint8_t * user_o) {
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return;
+  }
+  if ((i ==0)) {
+    return;
+  }
+  if ((((i)[0] >=(argv_cap - 1)))) {
+    return;
+  }
+  int32_t need_z = 0;
+  int32_t need_zs = 0;
+  int32_t need_br = 0;
+  (void)((need_z = link_abi_obj_needs_zlib(compress_o)));
+  if ((need_z ==0)) {
+    (void)((need_z = link_abi_obj_needs_zlib(user_o)));
+  }
+  (void)((need_zs = link_abi_obj_needs_zstd(compress_o)));
+  if ((need_zs ==0)) {
+    (void)((need_zs = link_abi_obj_needs_zstd(user_o)));
+  }
+  (void)((need_br = link_abi_obj_needs_brotli(compress_o)));
+  if ((need_br ==0)) {
+    (void)((need_br = link_abi_obj_needs_brotli(user_o)));
+  }
+  if ((need_z !=0)) {
+    ld_append_brew_lib_paths(argv, i, argv_cap);
+    int32_t cur = (i)[0];
+    if ((cur <(argv_cap - 1))) {
+      uint8_t * fl = labi_ld_flag_lz();
+      (void)(((argv)[cur] = fl));
+      (void)(((i)[0] = (cur + 1)));
+    }
+    int32_t _e = 0;
+    (void)((_e = shux_ensure_runtime_compress_zlib_glue_o(((uint8_t *)(0)))));
+    uint8_t * glue = ((uint8_t *)(0));
+    (void)((glue = shux_runtime_compress_zlib_glue_o_path(((uint8_t *)(0)))));
+    int32_t _p = 0;
+    (void)((_p = invoke_cc_argv_push_existing(argv, i, argv_cap, glue)));
+  }
+  if ((need_zs !=0)) {
+    ld_append_brew_lib_paths(argv, i, argv_cap);
+    int32_t curz = (i)[0];
+    if ((curz <(argv_cap - 1))) {
+      uint8_t * flz = labi_ld_flag_lzstd();
+      (void)(((argv)[curz] = flz));
+      (void)(((i)[0] = (curz + 1)));
+    }
+  }
+  if ((need_br !=0)) {
+    ld_append_brew_lib_paths(argv, i, argv_cap);
+    int32_t curb = (i)[0];
+    if ((curb <(argv_cap - 1))) {
+      uint8_t * fle = labi_ld_flag_lbrotlienc();
+      (void)(((argv)[curb] = fle));
+      (void)(((i)[0] = (curb + 1)));
+    }
+    int32_t curb2 = (i)[0];
+    if ((curb2 <(argv_cap - 1))) {
+      uint8_t * fld = labi_ld_flag_lbrotlidec();
+      (void)(((argv)[curb2] = fld));
+      (void)(((i)[0] = (curb2 + 1)));
     }
   }
 }
