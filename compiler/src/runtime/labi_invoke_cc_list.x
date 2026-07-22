@@ -8,10 +8,42 @@
 //   - labi_invoke_cc_skip_native_env_{count,at} + invoke_cc_skip_native_tuning
 //   - labi_icc_rel_* (12) + labi_icc_needs_rel_{count,at}
 //   - shux_append_linux_link_harden_impl (wave155; pure orch over harden table)
-// Cap residual: getenv (libc); fork/exec still mega shux_invoke_cc_impl.
-// PLATFORM: SHARED tables; LINUX consumers for harden -pie/-z flags.
+//   - invoke_cc_append_early_needs (wave198; pure orch early needs scan+push)
+// Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
+//   fork/exec still mega shux_invoke_cc_impl (rest of large leaf).
+// PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 export extern "C" function getenv(name: *u8): *u8;
+
+/* ===== wave198 Cap residual / peer pure for invoke_cc early needs ===== */
+export extern "C" function link_abi_generated_c_needs_core_builtin(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_core_mem(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_core_slice(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_db_kv(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_db_arrow(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_fs(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_random(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_time(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_runtime(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_win32(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32;
+export extern "C" function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32;
+export extern "C" function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, path: *u8): i32;
+export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+export extern "C" function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_random_fill_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_random_fill_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_time_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_panic_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
+export extern "C" function shux_host_is_linux(): i32;
+export extern "C" function link_abi_host_is_apple(): i32;
+export extern "C" function link_abi_host_is_windows(): i32;
+export extern "C" function labi_ld_flag_lc(): *u8;
+export extern "C" function labi_ld_flag_lbcrypt(): *u8;
+export extern "C" function labi_ld_flag_lws2_32(): *u8;
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -352,5 +384,310 @@ export function shux_append_linux_link_harden_impl(argv: **u8, la: *i32, cap: i3
     // Store table pointer (static string lifetime from pure flag_at; no copy).
     argv[cur] = f;
     la[0] = cur + 1;
+  }
+}
+
+/**
+ * Capacity-guarded push of one non-empty flag onto invoke_cc argv.
+ * @param argv **u8 — argv table; null → no-op
+ * @param ia *i32 — in/out length; null or *ia < 0 → no-op
+ * @param cap i32 — capacity; leave one slot for NULL terminator
+ * @param flag *u8 — flag string; null/empty skipped
+ * @return void
+ * PLATFORM: SHARED helper for wave198 early needs flag appends (-lc / -lbcrypt / …).
+ * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL (no module mangle).
+ */
+#[no_mangle]
+export function labi_icc_argv_try_push_flag(argv: **u8, ia: *i32, cap: i32, flag: *u8): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+  if (flag == 0 as *u8) {
+    return;
+  }
+  if (flag[0] == 0) {
+    return;
+  }
+  let cur: i32 = ia[0];
+  if (cur >= cap - 1) {
+    return;
+  }
+  argv[cur] = flag;
+  ia[0] = cur + 1;
+}
+
+/**
+ * invoke_cc early needs: scan generated C paths then ensure/push core|db|fs|random|time|runtime|win32|heap.
+ * Composes peer pure needs_* / rel_o / push_existing / path / ensure + host_is_* platform gates.
+ * @param argv **u8 — cc argv table (char**); null → no-op
+ * @param ia *i32 — in/out argv length; null → no-op; *ia < 0 → no-op
+ * @param argv_cap i32 — argv capacity; leave one slot for NULL terminator
+ * @param c_paths **u8 — generated C path table; null or n < 1 → no-op scan
+ * @param n i32 — number of c_paths entries
+ * @param include_root *u8 — repo/include root for rel_o_path (nullable)
+ * @param random_o *u8 — product random.o path (nullable; push_existing skips missing)
+ * @param time_o *u8 — product time.o path (nullable)
+ * @param runtime_o *u8 — product runtime.o path (nullable)
+ * @param runtime_panic_o *u8 — product runtime_panic.o path (nullable)
+ * @return void — may append -include / .o paths / -l* flags; mutates *ia
+ * Pure orch: ≡ mega early block inside shux_invoke_cc_impl (pre-MINIMAL_CC_LINK).
+ * Cap residual: generated_c_needs_* (file view peers) + ensure_runtime_* + host_is_windows
+ *   + peer push_existing resolve pool; host_is_linux / host_is_apple for -lc POSIX gate.
+ * Why (wave198): hybrid still had early needs scan+push always-mega inside invoke_cc_impl.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * Callers: mega shux_invoke_cc_impl child argv build (SHARED product C link path).
+ * PLATFORM: SHARED orch / POSIX -lc (linux|apple) / WINDOWS -lbcrypt -lkernel32 -lws2_32.
+ * Track-L: #[no_mangle] keeps surface short name for mega call sites.
+ */
+#[no_mangle]
+export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32, c_paths: **u8, n: i32, include_root: *u8, random_o: *u8, time_o: *u8, runtime_o: *u8, runtime_panic_o: *u8): void {
+  // Guard argv/ia null via *u8 cast (wave147/151–197: avoid **u8 null compare codegen drop).
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+  let needs_core_builtin: i32 = 0;
+  let needs_core_mem: i32 = 0;
+  let needs_core_slice: i32 = 0;
+  let needs_db_kv: i32 = 0;
+  let needs_db_arrow: i32 = 0;
+  let needs_fs: i32 = 0;
+  let needs_random: i32 = 0;
+  let needs_time: i32 = 0;
+  let needs_runtime: i32 = 0;
+  let needs_win32: i32 = 0;
+  let needs_win32_wsa: i32 = 0;
+  let needs_libc_heap: i32 = 0;
+  // Scan all generated C paths (peer pure needs_* use_line / marker gates).
+  if (n > 0) {
+    let cpb: *u8 = c_paths as *u8;
+    if (cpb != 0 as *u8) {
+      let j: i32 = 0;
+      while (j < n) {
+        let cp: *u8 = c_paths[j];
+        j = j + 1;
+        if (cp == 0 as *u8) {
+          continue;
+        }
+        unsafe {
+          if (link_abi_generated_c_needs_core_builtin(cp) != 0) {
+            needs_core_builtin = 1;
+          }
+          if (link_abi_generated_c_needs_core_mem(cp) != 0) {
+            needs_core_mem = 1;
+          }
+          if (link_abi_generated_c_needs_core_slice(cp) != 0) {
+            needs_core_slice = 1;
+          }
+          if (link_abi_generated_c_needs_db_kv(cp) != 0) {
+            needs_db_kv = 1;
+          }
+          if (link_abi_generated_c_needs_db_arrow(cp) != 0) {
+            needs_db_arrow = 1;
+          }
+          if (link_abi_generated_c_needs_fs(cp) != 0) {
+            needs_fs = 1;
+          }
+          if (link_abi_generated_c_needs_random(cp) != 0) {
+            needs_random = 1;
+          }
+          if (link_abi_generated_c_needs_time(cp) != 0) {
+            needs_time = 1;
+          }
+          if (link_abi_generated_c_needs_runtime(cp) != 0) {
+            needs_runtime = 1;
+          }
+          if (link_abi_generated_c_needs_win32(cp) != 0) {
+            needs_win32 = 1;
+          }
+          if (link_abi_generated_c_needs_win32_wsa(cp) != 0) {
+            needs_win32_wsa = 1;
+          }
+          if (link_abi_generated_c_needs_libc_heap(cp) != 0) {
+            needs_libc_heap = 1;
+          }
+        }
+      }
+    }
+  }
+  // core.builtin: -include abi.h then push builtin.o when present.
+  if (needs_core_builtin != 0) {
+    let abi_h: *u8 = 0 as *u8;
+    unsafe {
+      abi_h = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_abi_h());
+    }
+    if (abi_h != 0 as *u8) {
+      if (abi_h[0] != 0) {
+        let cur: i32 = ia[0];
+        if (cur < argv_cap - 2) {
+          let inc: *u8 = "-include";
+          argv[cur] = inc;
+          ia[0] = cur + 1;
+          argv[ia[0]] = abi_h;
+          ia[0] = ia[0] + 1;
+        }
+      }
+    }
+    let bpath: *u8 = 0 as *u8;
+    unsafe {
+      bpath = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_o());
+      let _p0: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, bpath);
+    }
+  }
+  if (needs_core_mem != 0) {
+    unsafe {
+      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+      let _pm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
+    }
+  }
+  if (needs_core_slice != 0) {
+    unsafe {
+      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_slice_o());
+      let _ps: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
+    }
+  }
+  if (needs_db_kv != 0) {
+    unsafe {
+      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_kv_o());
+      let _pk: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
+      let rkv: *u8 = shux_runtime_kv_mmap_glue_o_path(0 as *u8);
+      if (rkv != 0 as *u8) {
+        if (rkv[0] != 0) {
+          let _pk2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rkv);
+        }
+      }
+    }
+  }
+  if (needs_db_arrow != 0) {
+    unsafe {
+      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_arrow_o());
+      let _pa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
+      let rar: *u8 = shux_runtime_arrow_simd_glue_o_path(0 as *u8);
+      if (rar != 0 as *u8) {
+        if (rar[0] != 0) {
+          let _pa2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rar);
+        }
+      }
+    }
+  }
+  // -lc on POSIX when fs needs libc (mega #if linux||apple).
+  if (needs_fs != 0) {
+    let is_posix: i32 = 0;
+    unsafe {
+      is_posix = shux_host_is_linux();
+      if (is_posix == 0) {
+        is_posix = link_abi_host_is_apple();
+      }
+    }
+    if (is_posix != 0) {
+      let flc: *u8 = 0 as *u8;
+      unsafe {
+        flc = labi_ld_flag_lc();
+      }
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
+    }
+  }
+  // random.o + ensure random_fill before push (L4 cold tree; G.7 ensure-then-push).
+  if (needs_random != 0) {
+    unsafe {
+      let _pr: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, random_o);
+      let _er: i32 = shux_ensure_runtime_random_fill_o(0 as *u8);
+      let rrf: *u8 = shux_runtime_random_fill_o_path(0 as *u8);
+      if (rrf != 0 as *u8) {
+        if (rrf[0] != 0) {
+          let _pr2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rrf);
+        }
+      }
+    }
+    // PLATFORM: WINDOWS — BCrypt needs -lbcrypt; Linux/macOS use getrandom/getentropy.
+    let is_win: i32 = 0;
+    unsafe {
+      is_win = link_abi_host_is_windows();
+    }
+    if (is_win != 0) {
+      let fbc: *u8 = 0 as *u8;
+      unsafe {
+        fbc = labi_ld_flag_lbcrypt();
+      }
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, fbc);
+    }
+  }
+  if (needs_time != 0) {
+    unsafe {
+      let _pt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, time_o);
+      let _et: i32 = shux_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = shux_runtime_time_os_o_path(0 as *u8);
+      if (rto != 0 as *u8) {
+        if (rto[0] != 0) {
+          let _pt2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
+        }
+      }
+    }
+  }
+  if (needs_runtime != 0) {
+    unsafe {
+      let _prt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_o);
+      let _ep: i32 = shux_ensure_runtime_panic_o(0 as *u8);
+      let _pp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_panic_o);
+      let rp: *u8 = shux_runtime_panic_o_path(0 as *u8);
+      if (rp != 0 as *u8) {
+        if (rp[0] != 0) {
+          let _pp2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+        }
+      }
+    }
+  }
+  // PLATFORM: WINDOWS — win32 / WSA link flags only when generated C needs them.
+  if (needs_win32 != 0) {
+    let is_win2: i32 = 0;
+    unsafe {
+      is_win2 = link_abi_host_is_windows();
+    }
+    if (is_win2 != 0) {
+      let fk: *u8 = "-lkernel32";
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, fk);
+    }
+  }
+  if (needs_win32_wsa != 0) {
+    let is_win3: i32 = 0;
+    unsafe {
+      is_win3 = link_abi_host_is_windows();
+    }
+    if (is_win3 != 0) {
+      let fws: *u8 = 0 as *u8;
+      unsafe {
+        fws = labi_ld_flag_lws2_32();
+      }
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, fws);
+    }
+  }
+  if (needs_libc_heap != 0) {
+    let is_posix2: i32 = 0;
+    unsafe {
+      is_posix2 = shux_host_is_linux();
+      if (is_posix2 == 0) {
+        is_posix2 = link_abi_host_is_apple();
+      }
+    }
+    if (is_posix2 != 0) {
+      let flc2: *u8 = 0 as *u8;
+      unsafe {
+        flc2 = labi_ld_flag_lc();
+      }
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc2);
+    }
   }
 }

@@ -2160,6 +2160,10 @@ const char *labi_icc_rel_socketio_o(void);
 int labi_icc_needs_rel_count(void);
 const char *labi_icc_needs_rel_at(int i);
 void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
+void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag);
+void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
+    const char **c_paths, int n, const char *include_root,
+    const char *random_o, const char *time_o, const char *runtime_o, const char *runtime_panic_o);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2167,6 +2171,12 @@ void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had always-mega C body for Linux harden -pie/-z* append.
  * PLATFORM: SHARED orch / LINUX consumers. */
+
+/* wave198: invoke_cc_append_early_needs pure orch lives in labi_invoke_cc_list
+ * (early needs scan+push inside shux_invoke_cc_impl). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had early needs block always-mega inside invoke_cc_impl.
+ * PLATFORM: SHARED orch / POSIX -lc / WINDOWS -lbcrypt -lkernel32 -lws2_32. */
 
 
 /**
@@ -2394,6 +2404,19 @@ void ensure_std_net_o_auto_tls(const char *repo_root);
  */
 int link_abi_host_is_apple(void) {
 #if defined(__APPLE__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+/* Cap residual host #if for wave198 invoke_cc_append_early_needs pure orch.
+ * PLATFORM: WINDOWS — #if _WIN32|_WIN64|CYGWIN; Linux/macOS → 0.
+ * Gates -lbcrypt / -lkernel32 / -lws2_32 (≡ mega historical #if blocks).
+ * Always mega (both cold include path and hybrid FROM_X).
+ */
+int link_abi_host_is_windows(void) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     return 1;
 #else
     return 0;
@@ -3160,143 +3183,11 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         }
         for (int j = 0; j < n && i < SHUX_INVOKE_CC_MAX_C_FILES + 8; j++)
             argv[i++] = (char *)c_paths[j];
-        {
-            int needs_core_builtin = 0;
-            int needs_core_mem = 0;
-            int needs_core_slice = 0;
-            int needs_db_kv = 0;
-            int needs_db_arrow = 0;
-            int needs_fs = 0;
-            int needs_random = 0;
-            int needs_time = 0;
-            int needs_runtime = 0;
-            int needs_win32 = 0;
-            int needs_win32_wsa = 0;
-            int needs_libc_heap = 0;
-            for (int j = 0; j < n; j++) {
-                if (link_abi_generated_c_needs_core_builtin(c_paths[j]))
-                    needs_core_builtin = 1;
-                if (link_abi_generated_c_needs_core_mem(c_paths[j]))
-                    needs_core_mem = 1;
-                if (link_abi_generated_c_needs_core_slice(c_paths[j]))
-                    needs_core_slice = 1;
-                if (link_abi_generated_c_needs_db_kv(c_paths[j]))
-                    needs_db_kv = 1;
-                if (link_abi_generated_c_needs_db_arrow(c_paths[j]))
-                    needs_db_arrow = 1;
-                if (link_abi_generated_c_needs_fs(c_paths[j]))
-                    needs_fs = 1;
-                if (link_abi_generated_c_needs_random(c_paths[j]))
-                    needs_random = 1;
-                if (link_abi_generated_c_needs_time(c_paths[j]))
-                    needs_time = 1;
-                if (link_abi_generated_c_needs_runtime(c_paths[j]))
-                    needs_runtime = 1;
-                if (link_abi_generated_c_needs_win32(c_paths[j]))
-                    needs_win32 = 1;
-                if (link_abi_generated_c_needs_win32_wsa(c_paths[j]))
-                    needs_win32_wsa = 1;
-                if (link_abi_generated_c_needs_libc_heap(c_paths[j]))
-                    needs_libc_heap = 1;
-            }
-            if (needs_core_builtin) {
-                const char *abi_h = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_abi_h());
-                if (abi_h && abi_h[0]) {
-                    if (i < argv_cap - 2) {
-                        argv[i++] = (char *)"-include";
-                        argv[i++] = (char *)abi_h;
-                    }
-                }
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_o()));
-            }
-            if (needs_core_mem)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
-            if (needs_core_slice)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_slice_o()));
-
-            if (needs_db_kv) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_kv_o()));
-                {
-                    const char *rkv = shux_runtime_kv_mmap_glue_o_path(NULL);
-                    if (rkv && rkv[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rkv);
-                }
-            }
-            if (needs_db_arrow) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_arrow_o()));
-                {
-                    const char *rar = shux_runtime_arrow_simd_glue_o_path(NULL);
-                    if (rar && rar[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rar);
-                }
-            }
-            if (needs_fs) {
-#if defined(__linux__) || defined(__APPLE__)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-lc";
-#endif
-            }
-            if (needs_random) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o);
-                {
-                    /* PLATFORM: SHARED — random_fill_bytes_c 在 runtime_random_fill.o。
-                     * 此 early 路径会先 push random.o；若仅 push_existing glue 而不 ensure，
-                     * L4 冷树缺 .o 时 silent skip，且下方 need_random 因去重 push 返回 0
-                     * 永远进不了 ensure → UNDEF random_fill_bytes_c（mac/Ubuntu 同）。
-                     * 权威：链 random 必先 ensure 再 push fill。 */
-                    (void)shux_ensure_runtime_random_fill_o(NULL);
-                    const char *rrf = shux_runtime_random_fill_o_path(NULL);
-                    if (rrf && rrf[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
-                }
-#if defined(_WIN32) || defined(_WIN64)
-                /* 【Why 根源】runtime_random_fill.inc 在 Windows 用 BCryptGenRandom/BCryptOpenAlgorithmProvider，
-                 * MinGW 不自动链 bcrypt；needs_random 路径须显式加 -lbcrypt，与下方 random_o 存在性路径对齐。
-                 * 【Invariant】仅 Windows 需 -lbcrypt；Linux/macOS 走 getrandom/getentropy。 */
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)labi_ld_flag_lbcrypt();
-#endif
-            }
-            if (needs_time) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);
-                {
-                    /* PLATFORM: SHARED — 同 needs_random：early push 后 ensure，防 L4 冷缺 time_os。 */
-                    (void)shux_ensure_runtime_time_os_o(NULL);
-                    const char *rto = shux_runtime_time_os_o_path(NULL);
-                    if (rto && rto[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
-                }
-            }
-            if (needs_runtime) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
-                /* PLATFORM: SHARED — L4 冷树可无 runtime_panic.o；仅 push_existing 会静默跳过 → UNDEF shux_panic_。 */
-                (void)shux_ensure_runtime_panic_o(NULL);
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
-                {
-                    const char *rp = shux_runtime_panic_o_path(NULL);
-                    if (rp && rp[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rp);
-                }
-            }
-            if (needs_win32) {
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-lkernel32";
-#endif
-            }
-            if (needs_win32_wsa) {
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)labi_ld_flag_lws2_32();
-#endif
-            }
-            if (needs_libc_heap) {
-#if defined(__linux__) || defined(__APPLE__)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-lc";
-#endif
-            }
-        }
+        /* wave198: early needs scan+push pure orch (L5 invoke_cc_list).
+         * G.7 compose peer needs/rel/push/ensure/path + host_is_* platform gates.
+         * Cap residual still mega for fork/exec and remaining invoke_cc_impl body. */
+        invoke_cc_append_early_needs(argv, &i, argv_cap, c_paths, n, include_root,
+            random_o, time_o, runtime_o, runtime_panic_o);
         /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。
          * 【Why 根源】Windows codegen 生成 extern 声明（非 weak 定义），minimal 链须显式链入
          * runtime_process_argv.o 提供 shux_process_argc/argv 定义，否则链接报 undefined reference。

@@ -45,7 +45,7 @@ MODULES=(
   # mega rest 在 FROM_X 下业务 H=0；Cap residual：*_impl 主体在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_gates.from_x.c 全 C 体
   "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates_surface.from_x.c||"
-  # labi_invoke_cc_list R2 full：.x 吃满 harden/skip-native/icc rel 纯表
+  # labi_invoke_cc_list R2 full：.x 吃满 harden/skip-native/icc rel 纯表 + wave155 harden orch + wave198 early_needs orch
   # + wave155 shux_append_linux_link_harden_impl pure orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：getenv 🔒 + mega invoke_cc_impl
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_cc_list.from_x.c 全 C 体
