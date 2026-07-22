@@ -10,6 +10,8 @@
 //   link_abi_user_o_needs_freestanding_nostdlib_face pure orch +
 //   wave136 link_abi_generated_c_needs_{fs,random,time,runtime} pure orch
 //     (C-path PRIMARY OS/fs string needles; Cap residual contains_substr).
+//   wave137 link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch
+//     (C-path compress lib string needles; Cap residual contains_substr).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -836,6 +838,247 @@ export function link_abi_generated_c_needs_runtime(c_path: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let needle: *u8 = labi_fs_gen_runtime_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/* wave137: generated-C compress lib string needs pure tables + orch.
+ * Cap residual: link_abi_generated_c_contains_substr (file IO stays mega).
+ * Product: on-demand -lz / -lzstd / -lbrotli* when generated C references these APIs.
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X. */
+
+/**
+ * Count of generated-C substr needles for libz C-path on-demand (-lz).
+ * @return i32 — 7 needles (Mach-O-ish _compress2/_deflate… + bare compress2/deflateInit/inflateInit)
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_zlib_needle_count(): i32 {
+  return 7;
+}
+
+/**
+ * Needle at index for generated-C libz scan.
+ * @param i i32 — index in [0, 7)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_zlib_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "_compress2";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "_deflate";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "_inflate";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "_uncompress";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "compress2";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "deflateInit";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "inflateInit";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for libzstd C-path on-demand (-lzstd).
+ * @return i32 — 5 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_zstd_needle_count(): i32 {
+  return 5;
+}
+
+/**
+ * Needle at index for generated-C libzstd scan.
+ * @param i i32 — index in [0, 5)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_zstd_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "ZSTD_compress";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "ZSTD_decompress";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "ZSTD_create";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "ZSTD_free";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "ZSTD_isError";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for libbrotli C-path on-demand (-lbrotli*).
+ * @return i32 — 2 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_brotli_needle_count(): i32 {
+  return 2;
+}
+
+/**
+ * Needle at index for generated-C libbrotli scan.
+ * @param i i32 — index in [0, 2)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_brotli_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "BrotliEncoder";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "BrotliDecoder";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether generated C needs libz (-lz).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave137): hybrid still had needs_zlib body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_zlib(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_zlib_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_zlib_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs libzstd (-lzstd).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave137): hybrid still had needs_zstd body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_zstd(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_zstd_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_zstd_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs libbrotli (-lbrotli*).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave137): hybrid still had needs_brotli body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_brotli(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_brotli_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_brotli_needle_at(i);
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;

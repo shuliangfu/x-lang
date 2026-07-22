@@ -1887,6 +1887,16 @@ int link_abi_generated_c_needs_fs(const char *c_path);
 int link_abi_generated_c_needs_random(const char *c_path);
 int link_abi_generated_c_needs_time(const char *c_path);
 int link_abi_generated_c_needs_runtime(const char *c_path);
+/* wave137: compress lib generated_c needs pure (L7). */
+int labi_fs_gen_zlib_needle_count(void);
+const char *labi_fs_gen_zlib_needle_at(int i);
+int labi_fs_gen_zstd_needle_count(void);
+const char *labi_fs_gen_zstd_needle_at(int i);
+int labi_fs_gen_brotli_needle_count(void);
+const char *labi_fs_gen_brotli_needle_at(int i);
+int link_abi_generated_c_needs_zlib(const char *c_path);
+int link_abi_generated_c_needs_zstd(const char *c_path);
+int link_abi_generated_c_needs_brotli(const char *c_path);
 #endif
 
 /* G-02f-276：env name from pure table */
@@ -3104,6 +3114,7 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
  * labi_freestanding_list (tables + orch). Full-seed path: bodies via #include above
  * (!FROM_X). Hybrid FROM_X: L7 pure .x provides; decls in #else of freestanding include.
  * wave136: link_abi_generated_c_needs_{fs,random,time,runtime} pure orch same L7
+ * wave137: link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch same L7
  * (C-path PRIMARY OS/fs string needles; Cap residual contains_substr).
  * Cap residual: contains_substr / undef_sym stay mega. PLATFORM: SHARED.
  */
@@ -3430,74 +3441,18 @@ int link_abi_generated_c_needs_core_slice(const char *c_path) {
  */
 int link_abi_generated_c_needs_fs(const char *c_path);
 
-/** 扫描生成 C 是否引用 libz（F-06 v1 / F-04 v7：无 compress.o，按需 -lz）。 */
-int link_abi_generated_c_needs_zlib(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "_compress2") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "_deflate") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "_inflate") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "_uncompress") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "compress2") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "deflateInit") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "inflateInit") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave137: link_abi_generated_c_needs_zlib pure orch lives in labi_freestanding_list
+ * (7 needles + pure scan; Cap residual contains_substr). Was mega body.
+ * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
+ */
+int link_abi_generated_c_needs_zlib(const char *c_path);
 
-/** 扫描生成 C 是否引用 libzstd（F-06 v1 / F-04 v7：无 compress.o，按需 -lzstd）。 */
-int link_abi_generated_c_needs_zstd(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_compress") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_decompress") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_create") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_free") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_isError") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave137: link_abi_generated_c_needs_zstd pure orch (L7 freestanding). */
+int link_abi_generated_c_needs_zstd(const char *c_path);
 
-/** 扫描生成 C 是否引用 libbrotli（F-06 v1 / F-04 v7：无 compress.o，按需 -lbrotli*）。 */
-int link_abi_generated_c_needs_brotli(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "BrotliEncoder") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "BrotliDecoder") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave137: link_abi_generated_c_needs_brotli pure orch (L7 freestanding). */
+int link_abi_generated_c_needs_brotli(const char *c_path);
 
 /* wave136: link_abi_generated_c_needs_random pure orch (L7 freestanding). */
 int link_abi_generated_c_needs_random(const char *c_path);

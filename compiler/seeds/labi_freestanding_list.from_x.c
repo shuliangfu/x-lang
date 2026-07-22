@@ -13,6 +13,8 @@
  *   + link_abi_user_o_needs_freestanding_nostdlib_face
  *   + wave136 labi_fs_gen_{fs,random,time,runtime}_needle_* +
  *     link_abi_generated_c_needs_{fs,random,time,runtime} pure orch
+ *   + wave137 labi_fs_gen_{zlib,zstd,brotli}_needle_* +
+ *     link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -367,6 +369,96 @@ int link_abi_generated_c_needs_runtime(const char *c_path) {
   return 0;
 }
 
+/* wave137: compress lib generated_c needs pure (cold twin). */
+int labi_fs_gen_zlib_needle_count(void) {
+  return 7;
+}
+const char *labi_fs_gen_zlib_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "_compress2";
+  if (i == 1)
+    return "_deflate";
+  if (i == 2)
+    return "_inflate";
+  if (i == 3)
+    return "_uncompress";
+  if (i == 4)
+    return "compress2";
+  if (i == 5)
+    return "deflateInit";
+  if (i == 6)
+    return "inflateInit";
+  return NULL;
+}
+int labi_fs_gen_zstd_needle_count(void) {
+  return 5;
+}
+const char *labi_fs_gen_zstd_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "ZSTD_compress";
+  if (i == 1)
+    return "ZSTD_decompress";
+  if (i == 2)
+    return "ZSTD_create";
+  if (i == 3)
+    return "ZSTD_free";
+  if (i == 4)
+    return "ZSTD_isError";
+  return NULL;
+}
+int labi_fs_gen_brotli_needle_count(void) {
+  return 2;
+}
+const char *labi_fs_gen_brotli_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "BrotliEncoder";
+  if (i == 1)
+    return "BrotliDecoder";
+  return NULL;
+}
+int link_abi_generated_c_needs_zlib(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_zlib_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_zlib_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_zstd(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_zstd_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_zstd_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_brotli(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_brotli_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_brotli_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -405,6 +497,16 @@ int link_abi_generated_c_needs_fs(const char *c_path);
 int link_abi_generated_c_needs_random(const char *c_path);
 int link_abi_generated_c_needs_time(const char *c_path);
 int link_abi_generated_c_needs_runtime(const char *c_path);
+/* wave137: compress lib generated_c needs pure (L7). */
+int labi_fs_gen_zlib_needle_count(void);
+const char *labi_fs_gen_zlib_needle_at(int i);
+int labi_fs_gen_zstd_needle_count(void);
+const char *labi_fs_gen_zstd_needle_at(int i);
+int labi_fs_gen_brotli_needle_count(void);
+const char *labi_fs_gen_brotli_needle_at(int i);
+int link_abi_generated_c_needs_zlib(const char *c_path);
+int link_abi_generated_c_needs_zstd(const char *c_path);
+int link_abi_generated_c_needs_brotli(const char *c_path);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {
