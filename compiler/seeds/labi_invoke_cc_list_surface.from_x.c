@@ -1,10 +1,14 @@
 /* seeds/labi_invoke_cc_list_surface.from_x.c
- * G-02f labi_invoke_cc_list R2 full surface — isomorphic with cold seed string tables.
+ * G-02f labi_invoke_cc_list R2 full surface — isomorphic with cold seed string tables
+ *   + wave155 shux_append_linux_link_harden_impl pure orch.
  *
  * 【Why 根源】旧 surface 由 .x STRING_LIT 生成 `(uint8_t[]){...}; return p`：
  *   C 块作用域 compound literal 为自动存储，return 后悬空。
  *   labi_linux_harden_flag_at 被 invoke_cc 写入 argv → gcc 收到乱码路径。
  * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
+ * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table
+ *   + wave155 shux_append_linux_link_harden_impl pure orch).
+ * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -127,4 +131,20 @@ uint8_t *labi_icc_needs_rel_at(int32_t i) {
   if (i == 11)
     return (uint8_t *)"std/socketio/socketio.o";
   return NULL;
+}
+
+/* wave155: shux_append_linux_link_harden_impl pure orch (surface pin; pure harden table). */
+void shux_append_linux_link_harden_impl(uint8_t **argv, int32_t *la, int32_t cap) {
+  int32_t n;
+  int32_t k;
+  if (!argv || !la || *la < 0)
+    return;
+  n = labi_linux_harden_flag_count();
+  for (k = 0; k < n; k++) {
+    uint8_t *f = labi_linux_harden_flag_at(k);
+    if (!f || !f[0])
+      continue;
+    if (*la < cap - 1)
+      argv[(*la)++] = f;
+  }
 }

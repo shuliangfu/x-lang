@@ -2,10 +2,11 @@
  * Logic source: src/runtime/labi_invoke_cc_list.x
  * Hybrid: SHUX_LABI_INVOKE_CC_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ * R2 full：公共业务符号由 full .x 提供：
  *   labi_linux_harden_flag_{count,at}
  *   labi_invoke_cc_skip_native_env_{count,at} + invoke_cc_skip_native_tuning
  *   labi_icc_rel_* (12) + labi_icc_needs_rel_{count,at}
+ *   shux_append_linux_link_harden_impl (wave155 pure orch over harden table)
  * Cap residual：getenv 🔒（libc；.x extern）；fork/exec 仍在 mega shux_invoke_cc_impl。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -111,6 +112,22 @@ const char *labi_icc_needs_rel_at(int i) {
   return NULL;
 }
 
+/* wave155: shux_append_linux_link_harden_impl pure orch (cold twin ≡ .x). */
+void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
+  int n;
+  int k;
+  if (!argv || !la || *la < 0)
+    return;
+  n = labi_linux_harden_flag_count();
+  for (k = 0; k < n; k++) {
+    const char *f = labi_linux_harden_flag_at(k);
+    if (!f || !f[0])
+      continue;
+    if (*la < cap - 1)
+      argv[(*la)++] = (char *)f;
+  }
+}
+
 #else
 int labi_linux_harden_flag_count(void);
 const char *labi_linux_harden_flag_at(int i);
@@ -131,6 +148,7 @@ const char *labi_icc_rel_log_o(void);
 const char *labi_icc_rel_socketio_o(void);
 int labi_icc_needs_rel_count(void);
 const char *labi_icc_needs_rel_at(int i);
+void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {

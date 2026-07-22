@@ -2675,7 +2675,14 @@ const char *labi_icc_rel_log_o(void);
 const char *labi_icc_rel_socketio_o(void);
 int labi_icc_needs_rel_count(void);
 const char *labi_icc_needs_rel_at(int i);
+void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 #endif
+
+/* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
+ * (pure harden table count/at + append loop). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had always-mega C body for Linux harden -pie/-z* append.
+ * PLATFORM: SHARED orch / LINUX consumers. */
 
 
 /**
@@ -7130,35 +7137,10 @@ void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *u
     int need_pt, const char **argv, int *la, int max_la);
 #endif
 
-#if defined(__linux__)
-/**
- * Linux release 链接硬化：PIE + NX（GNU_STACK 无 E）+ partial RELRO。
- * 参数：argv/la/cap 为 gcc/ld 链接 argv 构建状态。
- */
-/* G-02f-274：linux harden flags from pure table */
-void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
-    int n;
-    int k;
-    if (!argv || !la || *la < 0)
-        return;
-    n = labi_linux_harden_flag_count();
-    for (k = 0; k < n; k++) {
-        const char *f = labi_linux_harden_flag_at(k);
-        if (!f || !f[0])
-            continue;
-        if (*la < cap - 1)
-            argv[(*la)++] = (char *)f;
-    }
-}
-
-
-#else
-void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
-    (void)argv;
-    (void)la;
-    (void)cap;
-}
-#endif
+/* wave155: shux_append_linux_link_harden_impl pure orch — body removed from mega
+ * (was #if __linux__ real + #else no-op stub). Cold twin / hybrid pure always provide
+ * the symbol via labi_invoke_cc_list (table scan is host-agnostic; callers stay Linux-gated).
+ * PLATFORM: SHARED orch / LINUX consumers. */
 
 /* G-02f-277 L9 gates */
 #ifndef SHUX_LABI_GATES_FROM_X
