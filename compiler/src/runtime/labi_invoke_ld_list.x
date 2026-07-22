@@ -14,7 +14,8 @@
 // + wave191 labi_std_append_formal_ensure_for_rel pure orch
 // + wave192 labi_std_append_glue_for_op pure orch
 // + wave193 labi_std_append_primary_for_op + process_argv_if pure orch
-// + wave194 labi_std_append_task_special pure orch:
+// + wave194 labi_std_append_task_special pure orch
+// + wave195 labi_std_append_op_std pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -41,6 +42,8 @@
 //     heavy std on argv without process.o; Cap residual ensure+path + push_obj)
 //   - labi_std_append_task_special (wave194; pure TASK_SPECIAL orch: needs_std_task gate +
 //     formal ensure task.o + push task/scheduler/scheduler_glue; Cap residual skip/path/bank)
+//   - labi_std_append_op_std (wave195; pure OP_STD orch: fk→flag_out map + fk0/fk1–13 gate +
+//     formal ensure + push_obj; Cap residual undef_sym inside fk gate peers)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
@@ -48,7 +51,8 @@
 //   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap);
 //   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
 //   needs + primary ensure/path + process_argv for wave193 primary/complement;
-//   task/scheduler path peers + bank_push for wave194 TASK_SPECIAL.
+//   task/scheduler path peers + bank_push for wave194 TASK_SPECIAL;
+//   fk gate peers (wave135/190) for wave195 OP_STD.
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -173,6 +177,12 @@ export extern "C" function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: 
 export extern "C" function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32, max_la: i32, p: *u8): void;
 export extern "C" function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+
+// Peer pure (ondemand L8b wave135/190): OP_STD plan gates for fk0 (rel×sym) and fk 1–13.
+// Cap residual undef_sym / strstr stays inside those orchs; pure OP_STD only composes.
+// PLATFORM: SHARED — product UNDEF gate tables; G.7 single gate authority.
+export extern "C" function labi_std_fk0_user_needs_rel(user_o: *u8, rel: *u8): i32;
+export extern "C" function labi_std_fk_user_needs(user_o: *u8, fk: i32): i32;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -2837,6 +2847,174 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
   }
   // keep Cap residual peer args live for typeck (lib_roots used via try_under only).
   if (_eg != 0) {
+    return;
+  }
+}
+
+/**
+ * Resolve OP_STD flag_out slot for plan flag_kind `fk`.
+ * Maps fk → either a field of ShuAsmLdStdLinkFlags (LP64 i32 layout) or a slot in
+ * caller-owned `local_have[6]` (locals that are not in the public flags struct).
+ * @param fk i32 — plan flag_kind (0..13); 0 and unknown → null
+ * @param flags *u8 — ShuAsmLdStdLinkFlags* as opaque bytes; null skips flags slots
+ * @param local_have *i32 — array of 6 ints: [0]process [1]crypto [2]log [3]atomic
+ *   [4]backtrace [5]http; null skips local slots
+ * @return *i32 — pointer written by push_obj on success; null when no flag to set
+ * Flag layout (PLATFORM: SHARED LP64; ≡ runtime_link_abi.h ShuAsmLdStdLinkFlags):
+ *   0=have_io 1=have_net 2=have_thread 3=have_sync 4=have_channel
+ *   5=have_math 6=have_compress 7=have_dynlib 8=have_sqlite
+ *   9=have_elf 10=have_libc_heap 11=have_fs
+ * Map (≡ mega OP_STD flag_out if/else):
+ *   fk1→local[0] process; fk2→flags[2] thread; fk3→flags[3] sync;
+ *   fk4→local[1] crypto; fk5→local[2] log; fk6→local[3] atomic;
+ *   fk7→flags[4] channel; fk8→local[4] backtrace; fk9→flags[5] math;
+ *   fk10→flags[8] sqlite; fk11→flags[9] elf; fk12→flags[7] dynlib;
+ *   fk13→local[5] http.
+ * Why (wave195): hybrid still had fk→flag_out pointer map always-mega inline.
+ * PLATFORM: SHARED pure; dual-end L2.
+ * Track-L: not exported (internal helper for labi_std_append_op_std only).
+ */
+function labi_std_op_std_flag_out(fk: i32, flags: *u8, local_have: *i32): *i32 {
+  // Locals bank (process/crypto/log/atomic/backtrace/http).
+  if (local_have != 0 as *i32) {
+    if (fk == 1) {
+      return &local_have[0];
+    }
+    if (fk == 4) {
+      return &local_have[1];
+    }
+    if (fk == 5) {
+      return &local_have[2];
+    }
+    if (fk == 6) {
+      return &local_have[3];
+    }
+    if (fk == 8) {
+      return &local_have[4];
+    }
+    if (fk == 13) {
+      return &local_have[5];
+    }
+  }
+  // ShuAsmLdStdLinkFlags fields used by glue + tail -l*.
+  if (flags != 0 as *u8) {
+    let f: *i32 = flags as *i32;
+    if (fk == 2) {
+      return &f[2];
+    }
+    if (fk == 3) {
+      return &f[3];
+    }
+    if (fk == 7) {
+      return &f[4];
+    }
+    if (fk == 9) {
+      return &f[5];
+    }
+    if (fk == 10) {
+      return &f[8];
+    }
+    if (fk == 11) {
+      return &f[9];
+    }
+    if (fk == 12) {
+      return &f[7];
+    }
+  }
+  return 0 as *i32;
+}
+
+/**
+ * append_std plan OP_STD leaf: gate by fk + formal ensure + push rel with flag_out.
+ * Pure orch composes existing peers (G.7 no second gate/ensure/push path):
+ *   1) pure fk→flag_out map (labi_std_op_std_flag_out)
+ *   2) peer pure labi_std_fk0_user_needs_rel (fk==0) / labi_std_fk_user_needs (fk 1–13)
+ *   3) peer pure labi_std_append_formal_ensure_for_rel when user_o set
+ *   4) peer pure link_abi_asm_ld_push_obj(NULL, …, flag_out)
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param user_o *u8 — user main .o path; null/empty → hard-link style (fk≥1 always; fk0 still gates)
+ * @param rel *u8 — plan OP_STD rel (std/... or core/...); null/empty → no-op
+ * @param fk i32 — plan flag_kind 0..13
+ * @param lib_roots **u8 — -L style roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * @param flags *u8 — ShuAsmLdStdLinkFlags* (opaque); may be null
+ * @param local_have *i32 — caller array of 6 have_* locals (see labi_std_op_std_flag_out)
+ * Cap residual: undef_sym inside fk gate peers; formal ensure shell make Cap residual.
+ * Why (wave195): hybrid still had OP_STD flag map + gate + ensure + push always-mega inline
+ *   after wave191 formal ensure pure and wave190 fk gates pure (soft residual "flag 映射").
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — dual-end L2.
+ * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
+ */
+#[no_mangle]
+export function labi_std_append_op_std(link_argv0: *u8, user_o: *u8, rel: *u8, fk: i32, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8, local_have: *i32): void {
+  // Resolve flag_out before gate (≡ mega: map then maybe break; push only when rel ok).
+  let flag_out: *i32 = labi_std_op_std_flag_out(fk, flags, local_have);
+  // Gate: when user_o is a real path, fk0 uses rel×sym; fk 1–13 use gate table.
+  let user_ok: i32 = 0;
+  if (user_o != 0 as *u8) {
+    if (user_o[0] != 0) {
+      user_ok = 1;
+    }
+  }
+  let rel_ok: i32 = 0;
+  if (rel != 0 as *u8) {
+    if (rel[0] != 0) {
+      rel_ok = 1;
+    }
+  }
+  if (rel_ok != 0) {
+    if (user_ok != 0) {
+      if (fk == 0) {
+        let need0: i32 = 0;
+        unsafe {
+          need0 = labi_std_fk0_user_needs_rel(user_o, rel);
+        }
+        if (need0 == 0) {
+          return;
+        }
+      }
+      if (fk >= 1) {
+        if (fk <= 13) {
+          let needk: i32 = 0;
+          unsafe {
+            needk = labi_std_fk_user_needs(user_o, fk);
+          }
+          if (needk == 0) {
+            return;
+          }
+        }
+      }
+    } else {
+      // No user filter: fk0 still probes (null user → needs_rel authority; ≡ mega else-if).
+      if (fk == 0) {
+        let need0b: i32 = 0;
+        unsafe {
+          need0b = labi_std_fk0_user_needs_rel(user_o, rel);
+        }
+        if (need0b == 0) {
+          return;
+        }
+      }
+    }
+  } else {
+    // Empty rel: nothing to push (≡ mega if (rel && rel[0]) body skipped).
+    return;
+  }
+  // L4 wipe: formal ensure + companions only when user actually needs this rel.
+  if (user_ok != 0) {
+    labi_std_append_formal_ensure_for_rel(link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  }
+  // Push plan rel; flag_out set to 1 on successful new argv slot (peer pure push_obj).
+  let _push: i32 = 0;
+  unsafe {
+    _push = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
+  }
+  if (_push != 0) {
     return;
   }
 }

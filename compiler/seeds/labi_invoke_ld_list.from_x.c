@@ -33,6 +33,8 @@
  *     complement after plan loop when heavy std without process.o)
  *   labi_std_append_task_special (wave194 pure orch; Cap residual skip/path/bank + formal ensure;
  *     append_std TASK_SPECIAL task+scheduler+scheduler_glue)
+ *   labi_std_append_op_std (wave195 pure orch; fk→flag_out map + fk0/fk1–13 gate +
+ *     formal ensure + push_obj; append_std OP_STD plan leaf)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
  *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
@@ -40,7 +42,8 @@
  *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual);
  *   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
  *   needs + primary ensure/path + process_argv for wave193 primary/complement;
- *   task/scheduler path peers + bank for wave194 TASK_SPECIAL.
+ *   task/scheduler path peers + bank for wave194 TASK_SPECIAL;
+ *   fk gate peers (wave135/190) for wave195 OP_STD.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -90,6 +93,9 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
 void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
 int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
 const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
+/* Peer pure (wave135/190 fk gates for wave195 OP_STD). */
+int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
+int labi_std_fk_user_needs(const char *user_o, int fk);
 /* wave192 glue ensure+path peers (ensure_list L4 / path_pure L0). */
 int shux_ensure_runtime_thread_glue_o(const char *argv0);
 const char *shux_runtime_thread_glue_o_path(const char *argv0);
@@ -1018,6 +1024,69 @@ void labi_std_append_task_special(const char *link_argv0, const char *user_o, co
   (void)n_lib_roots;
 }
 
+/* wave195: labi_std_op_std_flag_out + labi_std_append_op_std pure orch (cold twin ≡ .x).
+ * local_have[6]: [0]process [1]crypto [2]log [3]atomic [4]backtrace [5]http.
+ * flags: ShuAsmLdStdLinkFlags LP64 i32 layout (thread/sync/channel/math/sqlite/elf/dynlib).
+ * Cap residual: undef_sym inside fk gate peers; formal ensure shell make Cap residual.
+ * PLATFORM: SHARED — append_std OP_STD (flag map + gate + ensure + push).
+ */
+static int *labi_std_op_std_flag_out(int fk, ShuAsmLdStdLinkFlags *flags, int *local_have) {
+  if (local_have) {
+    if (fk == 1)
+      return &local_have[0];
+    if (fk == 4)
+      return &local_have[1];
+    if (fk == 5)
+      return &local_have[2];
+    if (fk == 6)
+      return &local_have[3];
+    if (fk == 8)
+      return &local_have[4];
+    if (fk == 13)
+      return &local_have[5];
+  }
+  if (flags) {
+    if (fk == 2)
+      return &flags->have_thread;
+    if (fk == 3)
+      return &flags->have_sync;
+    if (fk == 7)
+      return &flags->have_channel;
+    if (fk == 9)
+      return &flags->have_math;
+    if (fk == 10)
+      return &flags->have_sqlite;
+    if (fk == 11)
+      return &flags->have_elf;
+    if (fk == 12)
+      return &flags->have_dynlib;
+  }
+  return NULL;
+}
+
+void labi_std_append_op_std(const char *link_argv0, const char *user_o, const char *rel, int fk,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have) {
+  int *flag_out = labi_std_op_std_flag_out(fk, flags, local_have);
+  int user_ok = (user_o && user_o[0]) ? 1 : 0;
+  int rel_ok = (rel && rel[0]) ? 1 : 0;
+  if (!rel_ok)
+    return;
+  if (user_ok) {
+    if (fk == 0 && !labi_std_fk0_user_needs_rel(user_o, rel))
+      return;
+    if (fk >= 1 && fk <= 13 && !labi_std_fk_user_needs(user_o, fk))
+      return;
+  } else if (fk == 0 && !labi_std_fk0_user_needs_rel(user_o, rel)) {
+    return;
+  }
+  if (user_ok)
+    labi_std_append_formal_ensure_for_rel(link_argv0, rel, lib_roots, n_lib_roots,
+                                         bank, argv, la, max_la);
+  (void)link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la,
+                                 flag_out);
+}
+
 #else
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
@@ -1097,6 +1166,10 @@ void labi_std_append_process_argv_if(int need, const char *link_argv0,
 void labi_std_append_task_special(const char *link_argv0, const char *user_o, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
+/* wave195: OP_STD pure orch (flag map + gate + ensure + push) (L6). */
+void labi_std_append_op_std(const char *link_argv0, const char *user_o, const char *rel, int fk,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

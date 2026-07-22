@@ -62,6 +62,7 @@ MODULES=(
   # + wave192 labi_std_append_glue_for_op pure orch（Cap residual ensure_runtime_*_glue + peer path + push_obj；append_std OP_GLUE_*）；
   # + wave193 labi_std_append_primary_for_op + process_argv_if pure orch（Cap residual needs_* + ensure/path + process_argv；append_std PRIMARY/IO_STUBS + complement）；
   # + wave194 labi_std_append_task_special pure orch（Cap residual skip/path/bank + formal ensure；append_std TASK_SPECIAL task+scheduler+glue）；
+  # + wave195 labi_std_append_op_std pure orch（fk→flag_out map + fk0/fk1–13 gate + formal ensure + push_obj；append_std OP_STD）；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + resolve_existing_path + exports_marker/realpath/rel_o + spawn/ld/cc IO mega + getenv/system shell make
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"

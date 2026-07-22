@@ -67,6 +67,10 @@ void labi_std_append_process_argv_if(int need, const char *link_argv0,
 void labi_std_append_task_special(const char *link_argv0, const char *user_o, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
+/* wave195: OP_STD pure orch (fk→flag_out + gate + formal ensure + push; L6 pure / cold twin). */
+void labi_std_append_op_std(const char *link_argv0, const char *user_o, const char *rel, int fk,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have);
 /* G-02f-68 link helpers */
 int shu_waitpid_retry(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
@@ -5381,15 +5385,12 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
 void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
     const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
-    const char *p;
-    int have_process = 0;
-    int have_log = 0;
-    int have_crypto = 0;
-    int have_atomic = 0;
-    int have_backtrace = 0;
-    int have_http = 0;
+    /* wave195 local_have bank for OP_STD flags not in ShuAsmLdStdLinkFlags:
+     * [0]process [1]crypto [2]log [3]atomic [4]backtrace [5]http. */
+    int local_have[6];
     int n_steps;
     int si;
+    memset(local_have, 0, sizeof local_have);
     if (flags)
         memset(flags, 0, sizeof *flags);
     if (flags)
@@ -5401,7 +5402,6 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
         int op = 0;
         const char *rel = NULL;
         int fk = 0;
-        int *flag_out = NULL;
         if (!labi_std_plan_step_at(si, &op, &rel, &fk))
             continue;
         switch (op) {
@@ -5419,62 +5419,16 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
             labi_std_append_primary_for_op(op, link_argv0, user_o, rel,
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
+        /*
+         * wave195: OP_STD → labi_std_append_op_std pure orch
+         * (fk→flag_out map + fk0/fk1–13 gate + formal ensure + push_obj).
+         * Why: hybrid still had flag map + gate + ensure + push always-mega inline
+         * after wave191 formal ensure pure and wave190 fk gates pure.
+         * PLATFORM: SHARED — G.7 single OP_STD append authority; dual-end L2.
+         */
         case LABI_STD_OP_STD:
-            flag_out = NULL;
-            if (fk == 1)
-                flag_out = &have_process;
-            else if (fk == 2)
-                flag_out = flags ? &flags->have_thread : NULL;
-            else if (fk == 3)
-                flag_out = flags ? &flags->have_sync : NULL;
-            else if (fk == 4)
-                flag_out = &have_crypto;
-            else if (fk == 5)
-                flag_out = &have_log;
-            else if (fk == 6)
-                flag_out = &have_atomic;
-            else if (fk == 7)
-                flag_out = flags ? &flags->have_channel : NULL;
-            else if (fk == 8)
-                flag_out = &have_backtrace;
-            else if (fk == 9)
-                flag_out = flags ? &flags->have_math : NULL;
-            else if (fk == 10)
-                flag_out = flags ? &flags->have_sqlite : NULL;
-            else if (fk == 11)
-                flag_out = flags ? &flags->have_elf : NULL;
-            else if (fk == 12)
-                flag_out = flags ? &flags->have_dynlib : NULL;
-            else if (fk == 13)
-                flag_out = &have_http;
-            /* 残缺预编 .o 勿无条件硬链：仅 user.o 有对应 UNDEF 时推入。
-             * wave135: fk0 → labi_std_fk0_user_needs_rel pure (rel×sym).
-             * wave190: fk 1–13 → labi_std_fk_user_needs pure (gate table + Cap undef_sym).
-             * Why: pure-asm must not hard-link process/sync/atomic/http/… (bstrict26/29/42/44).
-             * PLATFORM: SHARED — G.7 single gate authority; no inline probe second path. */
-            if (rel && rel[0] && user_o && user_o[0]) {
-                if (fk == 0 && !labi_std_fk0_user_needs_rel(user_o, rel))
-                    break;
-                if (fk >= 1 && fk <= 13 && !labi_std_fk_user_needs(user_o, fk))
-                    break;
-            } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
-                break;
-            }
-            if (rel && rel[0]) {
-                /*
-                 * PLATFORM: SHARED — L4 wipe deletes gitignored formal std|core .o.
-                 * push_obj alone silent-skips missing files → Ubuntu asm BLD001 UNDEF
-                 * (e.g. std_vec_len_empty after true-cold). G.7: complete the existing
-                 * ensure authority (was only fk==9 math); do not invent a second path.
-                 * wave191: formal ensure + companions pure orch (labi_std_append_formal_ensure_for_rel).
-                 * Why: hybrid still had always-mega inline ensure/companions after wave188/190.
-                 * PLATFORM: SHARED — G.7 single formal ensure authority; no inline second path.
-                 */
-                if (user_o && user_o[0])
-                    labi_std_append_formal_ensure_for_rel(link_argv0, rel, lib_roots, n_lib_roots,
-                                                         bank, argv, la, max_la);
-                link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
-            }
+            labi_std_append_op_std(link_argv0, user_o, rel, fk, lib_roots, n_lib_roots,
+                bank, argv, la, max_la, flags, local_have);
             break;
         /*
          * wave192: OP_GLUE_* → labi_std_append_glue_for_op pure orch
@@ -5491,15 +5445,15 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_CRYPTO_PAIR:
-            labi_std_append_glue_for_op(op, have_crypto, link_argv0, rel,
+            labi_std_append_glue_for_op(op, local_have[1], link_argv0, rel,
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_LOG:
-            labi_std_append_glue_for_op(op, have_log, link_argv0, rel,
+            labi_std_append_glue_for_op(op, local_have[2], link_argv0, rel,
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_ATOMIC:
-            labi_std_append_glue_for_op(op, have_atomic, link_argv0, rel,
+            labi_std_append_glue_for_op(op, local_have[3], link_argv0, rel,
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_CHANNEL:
@@ -5507,7 +5461,7 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_BACKTRACE:
-            labi_std_append_glue_for_op(op, have_backtrace, link_argv0, rel,
+            labi_std_append_glue_for_op(op, local_have[4], link_argv0, rel,
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_MATH:
@@ -5523,7 +5477,7 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         case LABI_STD_OP_GLUE_HTTP:
-            labi_std_append_glue_for_op(op, have_http, link_argv0, rel,
+            labi_std_append_glue_for_op(op, local_have[5], link_argv0, rel,
                 lib_roots, n_lib_roots, bank, argv, la, max_la);
             break;
         /*
@@ -5544,13 +5498,14 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
      * thread/sync/atomic/log/dynlib/… 预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
      * 已推且未推 process.o 时补 runtime_process_argv.o（勿与 process.o 双链）。
      * wave193: pure orch labi_std_append_process_argv_if (ensure+path+push).
+     * local_have: [0]process [2]log [3]atomic [4]backtrace.
      */
     {
-        int need_pav = (have_atomic || have_log || have_backtrace
+        int need_pav = (local_have[3] || local_have[2] || local_have[4]
             || (flags && (flags->have_sync || flags->have_thread || flags->have_dynlib
                           || flags->have_channel || flags->have_math || flags->have_elf
                           || flags->have_sqlite)))
-            && !have_process;
+            && !local_have[0];
         labi_std_append_process_argv_if(need_pav, link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
 }
