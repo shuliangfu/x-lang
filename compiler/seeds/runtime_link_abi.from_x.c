@@ -281,6 +281,25 @@ int shux_cc_compile_sync(const char *src, const char *out_o,
     return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
 }
 
+/**
+ * wave172 Cap residual: shux_cc_compile_sync_ex with at most one extra flag string.
+ * Pure ensure orch cannot safely build a local NULL-terminated const char** table;
+ * this peer packs extra0 into a stack array and calls the authority compile_sync_ex.
+ * @param extra0 optional single flag (e.g. "-I/opt/homebrew/opt/mbedtls/include"); NULL → no extra
+ * @return 0 success; non-zero failure (same as compile_sync_ex)
+ * PLATFORM: SHARED — G.7 complete compile_sync family; used by ensure_runtime_tls_mbedtls_bio pure.
+ */
+int shux_cc_compile_sync_one_extra(const char *src, const char *out_o,
+                                   const char *inc0, const char *inc1, const char *inc2,
+                                   int from_asm_s, const char *extra0) {
+    const char *extra_flags[2];
+    if (extra0 == NULL)
+        return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
+    extra_flags[0] = extra0;
+    extra_flags[1] = NULL;
+    return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, extra_flags);
+}
+
 
 
 
@@ -1909,6 +1928,8 @@ int shux_ensure_runtime_panic_o(const char *argv0);
 int shux_ensure_runtime_heap_user_o(const char *argv0);
 /* wave171: ensure_runtime_test_fn_invoke_o pure orch (L4; hybrid). */
 int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
+/* wave172: ensure_runtime_tls_mbedtls_bio_o pure orch (L4; hybrid). */
+int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
 #endif
 
 /**
@@ -2299,44 +2320,18 @@ int shux_ensure_runtime_http_glue_o(const char *argv0) {
 
 
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_tls_mbedtls_bio_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_tls_mbedtls_bio.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_tls_mbedtls_bio.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_tls_mbedtls_bio.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_tls_mbedtls_bio", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        const char *extra_flags[] = { "-I/opt/homebrew/opt/mbedtls/include", NULL };
-        int rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
-        if (rc != 0) {
-            /* 无 mbedTLS 头时由 Makefile 规则兜底；此处仅 best-effort */
-            link_diag_runtime_obj_build_status("runtime_tls_mbedtls_bio.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_tls_mbedtls_bio_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_tls_mbedtls_bio.o", out_o);
-        return -1;
-    }
-    return 0;
-}
+/* wave172: shux_ensure_runtime_tls_mbedtls_bio_o pure orch — body removed from mega
+ * (lives in labi_ensure_list L4 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * Why: hybrid still had always-mega C body for special tls_mbedtls_bio ensure
+ * (homebrew -I via compile_sync_ex) after test_fn_invoke pure wave171.
+ * Cap residual: resolve/access/cc_one_extra/stat.
+ * PLATFORM: SHARED orch; MACOS homebrew -I always best-effort. */
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+/* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
+#else
+int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+#endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
