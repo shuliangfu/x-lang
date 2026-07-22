@@ -849,13 +849,18 @@ SHUX_WEAK int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *modul
   return 0;
 }
 
-/** 清空 -D 宏表。 */
-void preprocess_define_reset(void) {
+/**
+ * wave85: pure runtime_pipeline_abi owns product preprocess_define_* (G.7 single -D table).
+ * Glue keeps SHUX_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — same table semantics as pure (128 × 64).
+ */
+/** Clear -D macro table (weak cold fallback). */
+SHUX_WEAK void preprocess_define_reset(void) {
   g_preprocess_ndefines = 0;
 }
 
-/** 追加 -D 宏名。 */
-void preprocess_define_add(const char *name) {
+/** Append one -D macro name (weak cold fallback). */
+SHUX_WEAK void preprocess_define_add(const char *name) {
   size_t n;
   if (!name || g_preprocess_ndefines >= PREPROCESS_MAX_DEFINES)
     return;
@@ -866,8 +871,8 @@ void preprocess_define_add(const char *name) {
   g_preprocess_ndefines++;
 }
 
-/** 判断 sym[0..sym_len) 是否在 -D 宏表中。 */
-int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
+/** True if sym[0..sym_len) is in -D table (weak cold fallback). */
+SHUX_WEAK int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
   int i, k;
   if (!sym || sym_len <= 0)
     return 0;

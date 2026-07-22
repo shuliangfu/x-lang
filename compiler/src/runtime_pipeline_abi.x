@@ -4,6 +4,7 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave85: pure preprocess_define_reset / add / has (-D table BSS; glue SHUX_WEAK cold fallback).
 // wave84: pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr thin
 //   (G.7 g05 shux_driver_*_thread_fn_ptr function-address cast residual; product surface pure;
 //   seed cold twin under #ifndef FROM_X). Closes Cap residual always-seed Cap-fn-ptr leaf.
@@ -102,7 +103,10 @@
 //   matching pipeline_glue sizeof; dual-end verified 16 / 68). Glue keeps weak cold fallback.
 // wave84: pure Cap-fn-ptr surface thin (pipeline_run_x_thread_fn_ptr /
 //   shux_asm_codegen_elf_o_thread_fn_ptr) via g05 function-address opaques.
-// Cap residual still: typeck_module C frontend (+ preprocess engine residual;
+// wave85: pure preprocess_define_reset / add / has (G.7 single -D table BSS;
+//   glue strict_stubs SHUX_WEAK cold fallback). Closes Cap residual define-table
+//   leaf of preprocess engine (x_buf / if_stack still Cap residual).
+// Cap residual still: typeck_module C frontend (+ preprocess x_buf / if_stack;
 //   g05 harness still holds &fn cast for Cap-fn-ptr).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
@@ -118,6 +122,7 @@
 // wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below.
 // wave83: pipeline_sizeof_arena / pipeline_sizeof_module are pure export functions below.
 // wave84: pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr pure below.
+// wave85: preprocess_define_reset / add / has are pure export functions below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -188,9 +193,8 @@ export extern "C" function driver_asm_fflush_stdout(): void;
 export extern "C" function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
 export extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
 /* wave61: shux_preprocess_raw_to_malloc_impl is pure export function below.
- * Cap residual preprocess engine still C (ast_pool / preprocess.x authority): */
-export extern "C" function preprocess_define_reset(): void;
-export extern "C" function preprocess_define_add(name: *u8): void;
+ * wave85: define_reset/add/has pure below (G.7 single -D table). Cap residual:
+ * preprocess_x_buf (preprocess.x) + if_stack (ast_pool GrowVec): */
 export extern "C" function preprocess_x_buf(src: *u8, src_len: i64, out_buf: *u8, out_cap: i32): i32;
 export extern "C" function preprocess_if_stack_len(): i32;
 // PLATFORM: SHARED — same C ABI as seed cold twin; pure orch owns malloc/copy/diag gates.
@@ -1501,9 +1505,9 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  * @param ndefines i32 — define count; < 0 rejected by thin gate
  * @param emit_diag i32 — non-zero → emit PP/XP diags on failure
  * @return i32 — 0 success; -1 fail (OOM / oversized / preprocess error / unclosed #if)
- * wave61 pure Cap residual orch:
- *   G.7 preprocess_define_reset / preprocess_define_add / preprocess_x_buf /
- *   preprocess_if_stack_len (preprocess engine Cap residual in C);
+ * wave61 pure Cap residual orch; wave85 pure owns -D define table:
+ *   G.7 pure preprocess_define_reset / preprocess_define_add (same-TU pure BSS);
+ *   G.7 Cap residual preprocess_x_buf / preprocess_if_stack_len (engine still C/.x);
  *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
  *   G.7 shux_ptr_slot_set / shux_size_slot_set for out slots (char** / size_t*);
  *   oversized raw → pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
@@ -3112,6 +3116,14 @@ let g_pipe_typeck_ndep: i32 = 0;
 let g_pipe_typeck_dep_module_ptrs: u8[256] = [];
 let g_pipe_typeck_dep_arena_ptrs: u8[256] = [];
 
+// wave85 pure preprocess -D define table (G.7 single authority for product define_has/eval).
+// PLATFORM: SHARED — same capacity as glue PREPROCESS_MAX_DEFINES=128 × name[64].
+// Flat layout: slot i occupies bytes [i*64 .. i*64+63], NUL-terminated name (len 1..63).
+// Product hybrid: pure strong override of glue SHUX_WEAK cold fallback in strict_glue_stubs.
+// preprocess_eval_condition_c (glue) → preprocess_define_has resolves to pure table under hybrid.
+let g_pipe_pp_defines: u8[8192] = [];
+let g_pipe_pp_ndefines: i32 = 0;
+
 // wave75 pure entry_lib lit + stem BSS (G.7 single authority for -E lib_prefix).
 // PLATFORM: SHARED — same string values as seed static lits / stem_buf[128].
 // Keyword order matches seed shux_entry_lib_keyword_lit / strstr checks in name_from_path_impl.
@@ -3127,6 +3139,112 @@ let g_pipe_entry_lib_kw7: u8[6] = [116, 111, 107, 101, 110, 0];
 let g_pipe_entry_lib_kw8: u8[6] = [108, 101, 120, 101, 114, 0];
 let g_pipe_entry_lib_kw9: u8[4] = [97, 115, 116, 0];
 let g_pipe_entry_lib_stem_buf: u8[128] = [];
+
+/**
+ * Clear the pure -D define table (ndefines → 0; slot bytes left stale until overwrite).
+ * @return void
+ * wave85 pure Cap residual: G.7 single authority for product define table
+ * (historical always-seed body in runtime_driver_strict_glue_stubs).
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function preprocess_define_reset(): void {
+  g_pipe_pp_ndefines = 0;
+}
+
+/**
+ * Append one -D macro name into the pure define table.
+ * @param name *u8 — NUL-terminated C string; null / empty / len>=64 → no-op
+ * @return void
+ * wave85 pure Cap residual: matches glue preprocess_define_add
+ * (PREPROCESS_MAX_DEFINES=128, name slot 64 including NUL).
+ * PLATFORM: SHARED — same reject rules as historical C body.
+ */
+#[no_mangle]
+export function preprocess_define_add(name: *u8): void {
+  if (name == 0 as *u8) {
+    return;
+  }
+  if (g_pipe_pp_ndefines >= 128) {
+    return;
+  }
+  // Measure C string length (cap 64 so n>=64 rejects without over-read past slot).
+  let n: i32 = 0;
+  unsafe {
+    while (n < 64) {
+      if (name[n] == 0) {
+        break;
+      }
+      n = n + 1;
+    }
+  }
+  if (n == 0) {
+    return;
+  }
+  if (n >= 64) {
+    return;
+  }
+  let base: i32 = g_pipe_pp_ndefines * 64;
+  let k: i32 = 0;
+  unsafe {
+    while (k < n) {
+      g_pipe_pp_defines[base + k] = name[k];
+      k = k + 1;
+    }
+    g_pipe_pp_defines[base + n] = 0;
+  }
+  g_pipe_pp_ndefines = g_pipe_pp_ndefines + 1;
+}
+
+/**
+ * Return 1 if sym[0..sym_len) exactly matches a stored -D name (NUL-terminated slot).
+ * @param sym *u8 — symbol bytes (not required to be NUL-terminated beyond sym_len)
+ * @param sym_len i32 — byte length; <=0 → 0
+ * @return i32 — 1 if present, else 0
+ * wave85 pure Cap residual: G.7 single authority for preprocess_eval_condition_c
+ * simple-name path (glue still owns complex cfg_eval_expr_c branch).
+ * PLATFORM: SHARED — same compare semantics as historical C preprocess_define_has.
+ */
+#[no_mangle]
+export function preprocess_define_has(sym: *u8, sym_len: i32): i32 {
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym_len <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < g_pipe_pp_ndefines) {
+    let base: i32 = i * 64;
+    let k: i32 = 0;
+    let ok: i32 = 1;
+    while (k < sym_len) {
+      unsafe {
+        let tb: u8 = g_pipe_pp_defines[base + k];
+        if (tb != sym[k]) {
+          ok = 0;
+          break;
+        }
+        if (tb == 0) {
+          // Stored name shorter than sym_len → not equal.
+          ok = 0;
+          break;
+        }
+      }
+      k = k + 1;
+    }
+    if (ok != 0) {
+      // Exact match requires stored NUL immediately after sym_len bytes.
+      unsafe {
+        if (g_pipe_pp_defines[base + sym_len] == 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
 
 /**
  * Storage slot for pure get_ndep (points at g_pipe_typeck_ndep).

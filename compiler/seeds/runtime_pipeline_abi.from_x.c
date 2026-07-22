@@ -92,7 +92,10 @@
  * wave84: pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr thin
  *   (G.7 g05 shux_driver_*_thread_fn_ptr &fn cast residual; cold twins under #ifndef FROM_X).
  *   Closes Cap residual always-seed Cap-fn-ptr product surface leaf.
- * Cap residual still: typeck_module C frontend (+ preprocess engine residual;
+ * wave85: pure preprocess_define_reset / add / has (-D table BSS in pure pipeline_abi;
+ *   glue strict_stubs SHUX_WEAK cold fallback). Closes Cap residual define-table leaf
+ *   of preprocess engine (x_buf / if_stack still Cap residual).
+ * Cap residual still: typeck_module C frontend (+ preprocess x_buf / if_stack;
  *   g05 harness still holds &fn cast for Cap-fn-ptr).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
