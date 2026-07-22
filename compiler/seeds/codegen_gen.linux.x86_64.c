@@ -1529,6 +1529,9 @@ extern int32_t codegen_func_param_sig_equal(struct ast_ASTArena * arena, struct 
 extern int32_t codegen_module_overload_param_sig_count(struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
 extern int32_t codegen_func_c_symbol_prefix_len(struct ast_Module * module, int32_t fi, int32_t prefix_len);
 extern int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_Module * module, int32_t fi);
+/* wave101 soft residual: fn-as-value mangle (G.7 link name + module prefix). */
+extern int32_t codegen_name_is_local_binding(struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len);
+extern int32_t codegen_try_emit_fn_as_value(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len);
 extern struct ast_ASTArena * codegen_arena_for_module(struct ast_PipelineDepCtx * ctx, struct ast_Module * module, struct ast_ASTArena * fallback);
 extern int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len);
 extern void codegen_copy_func_name64_from_module(struct ast_Module * module, int32_t fi, uint8_t * dst);
@@ -5742,6 +5745,16 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
             return codegen_emit_bytes_4(out, l0, 3);
           }
         }
+        /* wave101: same-module fn-as-value → G.7 prefix + link name (not bare source). */
+        {
+          int32_t fn_val = codegen_try_emit_fn_as_value(out, arena, ctx, &(((e.var_name))[0]), (e.var_name_len));
+          if ((fn_val == 0)) {
+            return 0;
+          }
+          if ((fn_val < 0)) {
+            return -(1);
+          }
+        }
         return codegen_emit_bytes_64(out, &(((e.var_name))[0]), (e.var_name_len));
       }
       if (((ctx !=((struct ast_PipelineDepCtx *)(0))) && ((ctx->emit_expr_as_callee) !=0))) {
@@ -9614,6 +9627,133 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
       }
     }
     return 0;
+  }
+  return 0;
+}
+/* PLATFORM: SHARED — wave101: local binding shadow check for fn-as-value emit. */
+int32_t codegen_name_is_local_binding(struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len) {
+  {
+    if (((((arena == ((struct ast_ASTArena *)(0))) || (ctx == ((struct ast_PipelineDepCtx *)(0)))) || (name == ((uint8_t *)(0)))) || (name_len <= 0))) {
+      return 0;
+    }
+    {
+      struct ast_Module * mod = (ctx->current_codegen_module);
+      if ((((mod != ((struct ast_Module *)(0))) && ((ctx->current_func_index) >= 0)) && ((ctx->current_func_index) < (mod->num_funcs)))) {
+        int32_t fi = (ctx->current_func_index);
+        int32_t np = pipeline_module_func_num_params_at(mod, fi);
+        int32_t pi = 0;
+        while ((pi < np)) {
+          int32_t pl = pipeline_module_func_param_name_len_at(mod, fi, pi);
+          if (((pl == name_len) && (pl > 0))) {
+            uint8_t pb[32] = {};
+            int32_t ok = 1;
+            int32_t j = 0;
+            (void)(pipeline_module_func_param_name_copy32(mod, fi, pi, &((pb)[0])));
+            while ((j < pl)) {
+              if ((((pb)[j]) != (name[j]))) {
+                (void)((ok = 0));
+                (void)((j = pl));
+              } else {
+                (void)((j = (j + 1)));
+              }
+            }
+            if ((ok != 0)) {
+              return 1;
+            }
+          }
+          (void)((pi = (pi + 1)));
+        }
+      }
+      if ((((ctx->current_block_ref) > 0) && ((ctx->current_block_ref) <= (arena->num_blocks)))) {
+        int32_t br = (ctx->current_block_ref);
+        int32_t li = 0;
+        int32_t nlets = ast_ast_block_num_lets(arena, br);
+        while ((li < nlets)) {
+          int32_t nl = pipeline_block_let_name_len(arena, br, li);
+          if (((nl == name_len) && (nl > 0))) {
+            uint8_t nb[64] = {};
+            int32_t ok2 = 1;
+            int32_t j2 = 0;
+            (void)(pipeline_block_let_name_copy64(arena, br, li, &((nb)[0])));
+            while ((j2 < nl)) {
+              if ((((nb)[j2]) != (name[j2]))) {
+                (void)((ok2 = 0));
+                (void)((j2 = nl));
+              } else {
+                (void)((j2 = (j2 + 1)));
+              }
+            }
+            if ((ok2 != 0)) {
+              return 1;
+            }
+          }
+          (void)((li = (li + 1)));
+        }
+        {
+          int32_t ci = 0;
+          int32_t nconsts = ast_ast_block_num_consts(arena, br);
+          while ((ci < nconsts)) {
+            int32_t cl = pipeline_block_const_name_len(arena, br, ci);
+            if (((cl == name_len) && (cl > 0))) {
+              uint8_t cb[64] = {};
+              int32_t ok3 = 1;
+              int32_t j3 = 0;
+              (void)(pipeline_block_const_name_copy64(arena, br, ci, &((cb)[0])));
+              while ((j3 < cl)) {
+                if ((((cb)[j3]) != (name[j3]))) {
+                  (void)((ok3 = 0));
+                  (void)((j3 = cl));
+                } else {
+                  (void)((j3 = (j3 + 1)));
+                }
+              }
+              if ((ok3 != 0)) {
+                return 1;
+              }
+            }
+            (void)((ci = (ci + 1)));
+          }
+        }
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+/* PLATFORM: SHARED — wave101: emit same-module fn-as-value with G.7 link name. */
+int32_t codegen_try_emit_fn_as_value(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, uint8_t * name, int32_t name_len) {
+  {
+    if (((((out == ((struct codegen_CodegenOutBuf *)(0))) || (name == ((uint8_t *)(0)))) || (name_len <= 0)))) {
+      return 1;
+    }
+    if (((ctx == ((struct ast_PipelineDepCtx *)(0))) || ((ctx->current_codegen_module) == ((struct ast_Module *)(0))))) {
+      return 1;
+    }
+    if ((codegen_name_is_local_binding(arena, ctx, name, name_len) != 0)) {
+      return 1;
+    }
+    {
+      struct ast_Module * mod = (ctx->current_codegen_module);
+      int32_t fi = codegen_find_module_func_index_by_name(mod, name, name_len);
+      int32_t pre_len = 0;
+      int32_t sym_pre = 0;
+      if ((fi < 0)) {
+        return 1;
+      }
+      (void)((pre_len = (ctx->current_codegen_prefix_len)));
+      (void)((sym_pre = codegen_func_c_symbol_prefix_len(mod, fi, pre_len)));
+      if ((sym_pre > 0)) {
+        if ((codegen_c_prefix_redundant_with_name(&(((ctx->current_codegen_prefix_mirror))[0]), sym_pre, name, name_len) == 0)) {
+          if ((codegen_emit_bytes_from_ptr(out, &(((ctx->current_codegen_prefix_mirror))[0]), sym_pre) != 0)) {
+            return -(1);
+          }
+        }
+      }
+      if ((codegen_emit_func_link_name(out, arena, mod, fi) != 0)) {
+        return -(1);
+      }
+      return 0;
+    }
   }
   return 0;
 }

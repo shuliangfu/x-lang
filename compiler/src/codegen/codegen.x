@@ -5118,6 +5118,19 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
             return emit_bytes_4(out, l0, 3);
           }
         }
+        /*
+         * wave101 soft residual: same-module bare function used as value (e.g. cast
+         * `(f as *u8)`) must emit G.7 link symbol (module prefix + overload mangle),
+         * not the bare source name. Locals keep bare emit via name_is_local_binding.
+         * PLATFORM: SHARED — def/call/extern already use codegen_emit_func_link_name.
+         */
+        let fn_val: i32 = codegen_try_emit_fn_as_value(out, arena, ctx, &e.var_name[0], e.var_name_len);
+        if (fn_val == 0) {
+          return 0;
+        }
+        if (fn_val < 0) {
+          return 0 - 1;
+        }
         return emit_bytes_64(out, &e.var_name[0], e.var_name_len);
       }
       if (ctx != 0 as *PipelineDepCtx && ctx.emit_expr_as_callee != 0) {
@@ -9119,6 +9132,155 @@ export function codegen_emit_func_link_name(out: *CodegenOutBuf, arena: *ASTAren
           return -1;
         }
       }
+    }
+    return 0;
+  }
+}
+
+/**
+ * True when `name` is a local binding that must stay bare in C (param / let / const).
+ * Used so EXPR_VAR fn-as-value only mangles real function values, not locals that
+ * happen to share a name with a module function.
+ * @param arena *ASTArena — active emit arena (block let/const pool)
+ * @param ctx *PipelineDepCtx — current_func_index + current_block_ref + module
+ * @param name *u8 — identifier bytes
+ * @param name_len i32 — byte length; <=0 → not local
+ * @return i32 — 1 if param/let/const matches; 0 otherwise
+ * PLATFORM: SHARED — scope scan for emit; not a second typeck.
+ */
+export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDepCtx, name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || name == 0 as *u8 || name_len <= 0) {
+      return 0;
+    }
+    let mod: *Module = ctx.current_codegen_module;
+    // Current function params shadow free functions for bare identifiers.
+    if (mod != 0 as *Module && ctx.current_func_index >= 0 && ctx.current_func_index < mod.num_funcs) {
+      let fi: i32 = ctx.current_func_index;
+      let np: i32 = pipeline_module_func_num_params_at(mod, fi);
+      let pi: i32 = 0;
+      while (pi < np) {
+        let pl: i32 = pipeline_module_func_param_name_len_at(mod, fi, pi);
+        if (pl == name_len && pl > 0) {
+          let pb: u8[32] = [];
+          let ok: i32 = 1;
+          let j: i32 = 0;
+          pipeline_module_func_param_name_copy32(mod, fi, pi, &pb[0]);
+          while (j < pl) {
+            if (pb[j] != name[j]) {
+              ok = 0;
+              j = pl;
+            } else {
+              j = j + 1;
+            }
+          }
+          if (ok != 0) {
+            return 1;
+          }
+        }
+        pi = pi + 1;
+      }
+    }
+    // Current block lets / consts (shallow: emit uses current_block_ref).
+    if (ctx.current_block_ref > 0 && ctx.current_block_ref <= arena.num_blocks) {
+      let br: i32 = ctx.current_block_ref;
+      let li: i32 = 0;
+      let nlets: i32 = ast.ast_block_num_lets(arena, br);
+      while (li < nlets) {
+        let nl: i32 = pipeline_block_let_name_len(arena, br, li);
+        if (nl == name_len && nl > 0) {
+          let nb: u8[64] = [];
+          let ok2: i32 = 1;
+          let j2: i32 = 0;
+          pipeline_block_let_name_copy64(arena, br, li, &nb[0]);
+          while (j2 < nl) {
+            if (nb[j2] != name[j2]) {
+              ok2 = 0;
+              j2 = nl;
+            } else {
+              j2 = j2 + 1;
+            }
+          }
+          if (ok2 != 0) {
+            return 1;
+          }
+        }
+        li = li + 1;
+      }
+      let ci: i32 = 0;
+      let nconsts: i32 = ast.ast_block_num_consts(arena, br);
+      while (ci < nconsts) {
+        let cl: i32 = pipeline_block_const_name_len(arena, br, ci);
+        if (cl == name_len && cl > 0) {
+          let cb: u8[64] = [];
+          let ok3: i32 = 1;
+          let j3: i32 = 0;
+          pipeline_block_const_name_copy64(arena, br, ci, &cb[0]);
+          while (j3 < cl) {
+            if (cb[j3] != name[j3]) {
+              ok3 = 0;
+              j3 = cl;
+            } else {
+              j3 = j3 + 1;
+            }
+          }
+          if (ok3 != 0) {
+            return 1;
+          }
+        }
+        ci = ci + 1;
+      }
+    }
+    return 0;
+  }
+}
+
+/**
+ * Emit C symbol for EXPR_VAR that names a same-module function value (fn-as-value).
+ * G.7 single path: same module prefix + codegen_emit_func_link_name as def/call/extern.
+ * wave101 soft residual: non-#[no_mangle] `(f as *u8)` must not emit bare source name
+ * (def is prefix_f / overload-mangled → undeclared C identifier).
+ * @param out *CodegenOutBuf — C text sink
+ * @param arena *ASTArena — module arena for overload suffixes
+ * @param ctx *PipelineDepCtx — current_codegen_module + prefix mirror
+ * @param name *u8 — bare source identifier
+ * @param name_len i32 — length
+ * @return i32 — 0 emitted function link; 1 not a free function (caller emits bare);
+ *               -1 emit error
+ * PLATFORM: SHARED — link-name contract; verify mac + Ubuntu.
+ */
+export function codegen_try_emit_fn_as_value(out: *CodegenOutBuf, arena: *ASTArena, ctx: *PipelineDepCtx, name: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (out == 0 as *CodegenOutBuf || name == 0 as *u8 || name_len <= 0) {
+      return 1;
+    }
+    if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+      return 1;
+    }
+    if (codegen_name_is_local_binding(arena, ctx, name, name_len) != 0) {
+      return 1;
+    }
+    let mod: *Module = ctx.current_codegen_module;
+    let fi: i32 = codegen_find_module_func_index_by_name(mod, name, name_len);
+    if (fi < 0) {
+      return 1;
+    }
+    // Same-module value: emit arena is the function module arena (no forward dep on
+    // codegen_arena_for_module — defined later in this TU).
+    // Module C prefix (entry stem / import path) unless #[no_mangle].
+    let pre_len: i32 = ctx.current_codegen_prefix_len;
+    let sym_pre: i32 = codegen_func_c_symbol_prefix_len(mod, fi, pre_len);
+    if (sym_pre > 0) {
+      if (codegen_c_prefix_redundant_with_name(&ctx.current_codegen_prefix_mirror[0], sym_pre, name, name_len) == 0) {
+        if (emit_bytes_from_ptr(out, &ctx.current_codegen_prefix_mirror[0], sym_pre) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (codegen_emit_func_link_name(out, arena, mod, fi) != 0) {
+      return 0 - 1;
     }
     return 0;
   }
