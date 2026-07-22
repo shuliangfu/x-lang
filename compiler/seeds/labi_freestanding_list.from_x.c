@@ -15,6 +15,8 @@
  *     link_abi_generated_c_needs_{fs,random,time,runtime} pure orch
  *   + wave137 labi_fs_gen_{zlib,zstd,brotli}_needle_* +
  *     link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch
+ *   + wave138 labi_fs_gen_{core_slice,db_kv,db_arrow}_needle_* +
+ *     link_abi_generated_c_needs_{core_slice,db_kv,db_arrow} pure orch
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -459,6 +461,100 @@ int link_abi_generated_c_needs_brotli(const char *c_path) {
   return 0;
 }
 
+/* wave138: core.slice / std.db.kv / std.db.arrow generated_c needs pure (cold twin). */
+int labi_fs_gen_core_slice_needle_count(void) {
+  return 6;
+}
+const char *labi_fs_gen_core_slice_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "core_slice_i32_from_ptr_c";
+  if (i == 1)
+    return "core_subslice_i32_c";
+  if (i == 2)
+    return "core_slice_u8_from_ptr_c";
+  if (i == 3)
+    return "core_subslice_u8_c";
+  if (i == 4)
+    return "core_slice_u64_from_ptr_c";
+  if (i == 5)
+    return "core_subslice_u64_c";
+  return NULL;
+}
+int labi_fs_gen_db_kv_needle_count(void) {
+  return 7;
+}
+const char *labi_fs_gen_db_kv_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "db_kv_open_c";
+  if (i == 1)
+    return "db_kv_put_c";
+  if (i == 2)
+    return "db_kv_get_c";
+  if (i == 3)
+    return "db_kv_append_ts_c";
+  if (i == 4)
+    return "db_kv_wal_flush_c";
+  if (i == 5)
+    return "db_kv_compact_c";
+  if (i == 6)
+    return "db_kv_sst_level_count_c";
+  return NULL;
+}
+int labi_fs_gen_db_arrow_needle_count(void) {
+  return 3;
+}
+const char *labi_fs_gen_db_arrow_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "arrow_column_";
+  if (i == 1)
+    return "arrow_batch_";
+  if (i == 2)
+    return "arrow_smoke_c";
+  return NULL;
+}
+int link_abi_generated_c_needs_core_slice(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_core_slice_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_core_slice_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_db_kv(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_db_kv_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_db_kv_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_db_arrow(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_db_arrow_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_db_arrow_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -507,6 +603,16 @@ const char *labi_fs_gen_brotli_needle_at(int i);
 int link_abi_generated_c_needs_zlib(const char *c_path);
 int link_abi_generated_c_needs_zstd(const char *c_path);
 int link_abi_generated_c_needs_brotli(const char *c_path);
+/* wave138: core.slice / std.db.kv / std.db.arrow generated_c needs pure (L7). */
+int labi_fs_gen_core_slice_needle_count(void);
+const char *labi_fs_gen_core_slice_needle_at(int i);
+int labi_fs_gen_db_kv_needle_count(void);
+const char *labi_fs_gen_db_kv_needle_at(int i);
+int labi_fs_gen_db_arrow_needle_count(void);
+const char *labi_fs_gen_db_arrow_needle_at(int i);
+int link_abi_generated_c_needs_core_slice(const char *c_path);
+int link_abi_generated_c_needs_db_kv(const char *c_path);
+int link_abi_generated_c_needs_db_arrow(const char *c_path);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

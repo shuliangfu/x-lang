@@ -1,7 +1,7 @@
 /* seeds/labi_freestanding_list_surface.from_x.c
  * G-02f labi_freestanding_list R2 full surface — isomorphic with src/runtime/labi_freestanding_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_freestanding_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (env/io/ensure + wave117 heap/nostdlib + wave136/137 gen needs pure)
+ * Prove: full.x vs this seed → nm IDENTICAL (env/io/ensure + wave117 heap/nostdlib + wave136/137/138 gen needs pure)
  * Cap residual: ensure/cc/spawn IO + contains_substr/undef_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_freestanding_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -54,6 +54,15 @@ extern uint8_t * labi_fs_gen_brotli_needle_at(int32_t i);
 extern int32_t link_abi_generated_c_needs_zlib(uint8_t * c_path);
 extern int32_t link_abi_generated_c_needs_zstd(uint8_t * c_path);
 extern int32_t link_abi_generated_c_needs_brotli(uint8_t * c_path);
+extern int32_t labi_fs_gen_core_slice_needle_count(void);
+extern uint8_t * labi_fs_gen_core_slice_needle_at(int32_t i);
+extern int32_t labi_fs_gen_db_kv_needle_count(void);
+extern uint8_t * labi_fs_gen_db_kv_needle_at(int32_t i);
+extern int32_t labi_fs_gen_db_arrow_needle_count(void);
+extern uint8_t * labi_fs_gen_db_arrow_needle_at(int32_t i);
+extern int32_t link_abi_generated_c_needs_core_slice(uint8_t * c_path);
+extern int32_t link_abi_generated_c_needs_db_kv(uint8_t * c_path);
+extern int32_t link_abi_generated_c_needs_db_arrow(uint8_t * c_path);
 uint8_t * labi_fs_env_freestanding(void) {
   uint8_t * p = ((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x52\x45\x45\x53\x54\x41\x4e\x44\x49\x4e\x47");
   return p;
@@ -757,6 +766,169 @@ int32_t link_abi_generated_c_needs_brotli(uint8_t * c_path) {
   int32_t i = 0;
   while ((i < n)) {
     uint8_t * needle = labi_fs_gen_brotli_needle_at(i);
+    if ((needle !=0)) {
+      if (((needle)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = link_abi_generated_c_contains_substr(c_path, needle)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_fs_gen_core_slice_needle_count(void) {
+  return 6;
+}
+uint8_t * labi_fs_gen_core_slice_needle_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x69\x33\x32\x5f\x66\x72\x6f\x6d\x5f\x70\x74\x72\x5f\x63");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x75\x62\x73\x6c\x69\x63\x65\x5f\x69\x33\x32\x5f\x63");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x75\x38\x5f\x66\x72\x6f\x6d\x5f\x70\x74\x72\x5f\x63");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x75\x62\x73\x6c\x69\x63\x65\x5f\x75\x38\x5f\x63");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x75\x36\x34\x5f\x66\x72\x6f\x6d\x5f\x70\x74\x72\x5f\x63");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x75\x62\x73\x6c\x69\x63\x65\x5f\x75\x36\x34\x5f\x63");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_fs_gen_db_kv_needle_count(void) {
+  return 7;
+}
+uint8_t * labi_fs_gen_db_kv_needle_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x6f\x70\x65\x6e\x5f\x63");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x70\x75\x74\x5f\x63");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x67\x65\x74\x5f\x63");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x61\x70\x70\x65\x6e\x64\x5f\x74\x73\x5f\x63");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x77\x61\x6c\x5f\x66\x6c\x75\x73\x68\x5f\x63");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x63\x6f\x6d\x70\x61\x63\x74\x5f\x63");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x73\x73\x74\x5f\x6c\x65\x76\x65\x6c\x5f\x63\x6f\x75\x6e\x74\x5f\x63");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_fs_gen_db_arrow_needle_count(void) {
+  return 3;
+}
+uint8_t * labi_fs_gen_db_arrow_needle_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"\x61\x72\x72\x6f\x77\x5f\x63\x6f\x6c\x75\x6d\x6e\x5f");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"\x61\x72\x72\x6f\x77\x5f\x62\x61\x74\x63\x68\x5f");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"\x61\x72\x72\x6f\x77\x5f\x73\x6d\x6f\x6b\x65\x5f\x63");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t link_abi_generated_c_needs_core_slice(uint8_t * c_path) {
+  if ((c_path ==0)) {
+    return 0;
+  }
+  if (((c_path)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_fs_gen_core_slice_needle_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * needle = labi_fs_gen_core_slice_needle_at(i);
+    if ((needle !=0)) {
+      if (((needle)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = link_abi_generated_c_contains_substr(c_path, needle)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t link_abi_generated_c_needs_db_kv(uint8_t * c_path) {
+  if ((c_path ==0)) {
+    return 0;
+  }
+  if (((c_path)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_fs_gen_db_kv_needle_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * needle = labi_fs_gen_db_kv_needle_at(i);
+    if ((needle !=0)) {
+      if (((needle)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = link_abi_generated_c_contains_substr(c_path, needle)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t link_abi_generated_c_needs_db_arrow(uint8_t * c_path) {
+  if ((c_path ==0)) {
+    return 0;
+  }
+  if (((c_path)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_fs_gen_db_arrow_needle_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * needle = labi_fs_gen_db_arrow_needle_at(i);
     if ((needle !=0)) {
       if (((needle)[0] !=0)) {
         int32_t hit = 0;

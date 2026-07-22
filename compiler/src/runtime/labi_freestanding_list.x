@@ -12,6 +12,8 @@
 //     (C-path PRIMARY OS/fs string needles; Cap residual contains_substr).
 //   wave137 link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch
 //     (C-path compress lib string needles; Cap residual contains_substr).
+//   wave138 link_abi_generated_c_needs_{core_slice,db_kv,db_arrow} pure orch
+//     (C-path core.slice / std.db.kv / std.db.arrow on-demand .o needles).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -1079,6 +1081,256 @@ export function link_abi_generated_c_needs_brotli(c_path: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let needle: *u8 = labi_fs_gen_brotli_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/* wave138: generated-C core.slice / std.db.kv / std.db.arrow string needs pure tables + orch.
+ * Cap residual: link_abi_generated_c_contains_substr (file IO stays mega).
+ * Product: on-demand core/db .o when generated C references these APIs (G-01 pure .x no slice.o;
+ *   db.kv / db.arrow still on-demand link std/db/{kv,arrow}/*.o).
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X. */
+
+/**
+ * Count of generated-C substr needles for core.slice C-path scan (G-01 no slice.o chain).
+ * @return i32 — 6 needles (i32/u8/u64 from_ptr + subslice)
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_core_slice_needle_count(): i32 {
+  return 6;
+}
+
+/**
+ * Needle at index for generated-C core.slice scan.
+ * @param i i32 — index in [0, 6)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_core_slice_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "core_slice_i32_from_ptr_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "core_subslice_i32_c";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "core_slice_u8_from_ptr_c";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "core_subslice_u8_c";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "core_slice_u64_from_ptr_c";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "core_subslice_u64_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for std.db.kv C-path on-demand (kv.o).
+ * @return i32 — 7 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_db_kv_needle_count(): i32 {
+  return 7;
+}
+
+/**
+ * Needle at index for generated-C std.db.kv scan.
+ * @param i i32 — index in [0, 7)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_db_kv_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "db_kv_open_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "db_kv_put_c";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "db_kv_get_c";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "db_kv_append_ts_c";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "db_kv_wal_flush_c";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "db_kv_compact_c";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "db_kv_sst_level_count_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for std.db.arrow C-path on-demand (arrow.o).
+ * @return i32 — 3 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_db_arrow_needle_count(): i32 {
+  return 3;
+}
+
+/**
+ * Needle at index for generated-C std.db.arrow scan.
+ * @param i i32 — index in [0, 3)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_db_arrow_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "arrow_column_";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "arrow_batch_";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "arrow_smoke_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether generated C references core.slice C helpers (scan only; G-01 no slice.o).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave138): hybrid still had needs_core_slice body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_core_slice(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_core_slice_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_core_slice_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs std.db.kv (.o on-demand).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave138): hybrid still had needs_db_kv body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_db_kv(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_db_kv_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_db_kv_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs std.db.arrow (.o on-demand).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave138): hybrid still had needs_db_arrow body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_db_arrow(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_db_arrow_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_db_arrow_needle_at(i);
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;

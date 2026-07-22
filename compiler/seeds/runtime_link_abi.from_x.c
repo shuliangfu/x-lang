@@ -1897,6 +1897,16 @@ const char *labi_fs_gen_brotli_needle_at(int i);
 int link_abi_generated_c_needs_zlib(const char *c_path);
 int link_abi_generated_c_needs_zstd(const char *c_path);
 int link_abi_generated_c_needs_brotli(const char *c_path);
+/* wave138: core.slice / std.db.kv / std.db.arrow generated_c needs pure (L7). */
+int labi_fs_gen_core_slice_needle_count(void);
+const char *labi_fs_gen_core_slice_needle_at(int i);
+int labi_fs_gen_db_kv_needle_count(void);
+const char *labi_fs_gen_db_kv_needle_at(int i);
+int labi_fs_gen_db_arrow_needle_count(void);
+const char *labi_fs_gen_db_arrow_needle_at(int i);
+int link_abi_generated_c_needs_core_slice(const char *c_path);
+int link_abi_generated_c_needs_db_kv(const char *c_path);
+int link_abi_generated_c_needs_db_arrow(const char *c_path);
 #endif
 
 /* G-02f-276：env name from pure table */
@@ -3115,6 +3125,7 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
  * (!FROM_X). Hybrid FROM_X: L7 pure .x provides; decls in #else of freestanding include.
  * wave136: link_abi_generated_c_needs_{fs,random,time,runtime} pure orch same L7
  * wave137: link_abi_generated_c_needs_{zlib,zstd,brotli} pure orch same L7
+ * wave138: link_abi_generated_c_needs_{core_slice,db_kv,db_arrow} pure orch same L7
  * (C-path PRIMARY OS/fs string needles; Cap residual contains_substr).
  * Cap residual: contains_substr / undef_sym stay mega. PLATFORM: SHARED.
  */
@@ -3358,80 +3369,18 @@ int link_abi_generated_c_provides_std_heap(const char *c_path) {
     return 0;
 }
 
-/** 扫描生成 C 是否引用 std.db.kv 符号（按需链 std/db/kv/kv.o）。 */
-int link_abi_generated_c_needs_db_kv(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_open_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_put_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_get_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_append_ts_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_wal_flush_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_compact_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_sst_level_count_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave138: link_abi_generated_c_needs_db_kv pure orch lives in labi_freestanding_list
+ * (7 needles + pure scan; Cap residual contains_substr). Was mega body.
+ * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
+ */
+int link_abi_generated_c_needs_db_kv(const char *c_path);
 
-/** 扫描生成 C 是否引用 std.db.arrow 符号（按需链 std/db/arrow/arrow.o）。 */
-int link_abi_generated_c_needs_db_arrow(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "arrow_column_") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "arrow_batch_") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "arrow_smoke_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave138: link_abi_generated_c_needs_db_arrow pure orch (L7 freestanding). */
+int link_abi_generated_c_needs_db_arrow(const char *c_path);
 
-/** 扫描生成 C 是否引用 core.slice C 辅助符号（G-01：纯 .x，不再链 slice.o）。 */
-int link_abi_generated_c_needs_core_slice(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "core_slice_i32_from_ptr_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "core_subslice_i32_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "core_slice_u8_from_ptr_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "core_subslice_u8_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "core_slice_u64_from_ptr_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "core_subslice_u64_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave138: link_abi_generated_c_needs_core_slice pure orch (L7 freestanding). */
+int link_abi_generated_c_needs_core_slice(const char *c_path);
 
 
 /* wave136: link_abi_generated_c_needs_fs pure orch lives in labi_freestanding_list
