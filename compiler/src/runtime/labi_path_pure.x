@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 16 public gates + count:
+// R2 full: .x owns 17 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -18,6 +18,7 @@
 //   - link_abi_asm_ld_push_glue_after_std (wave149; pure have_std+ensure orch; Cap residual call_ensure)
 //   - link_abi_asm_ld_push_minimal_runtime_objs (wave150; pure triple push_obj; Cap residual *_o_path)
 //   - shux_asm_ld_append_user_extra_o_files (wave151; pure CLI extra .o append; Cap residual table+access)
+//   - shux_runtime_compiler_o_path_copy (wave160; pure join compiler-dir/leaf; Cap residual resolve)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -43,6 +44,9 @@ export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
 export extern "C" function link_abi_user_extra_o_count(): i32;
 export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
 export extern "C" function link_abi_path_readable(path: *u8): i32;
+// Cap residual (wave160): platform resolve of compiler/ dir (readlink / _NSGetExecutablePath /
+// realpath argv0). Pure owns the leaf join into caller buffer (no snprintf Cap).
+export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -876,11 +880,85 @@ export function shux_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max_
 }
 
 /**
+ * Join `compiler_dir/leaf` into caller buffer after Cap residual resolve.
+ * Authority for all thin `shux_runtime_*_o_path` leaves that need compiler-dir
+ * primary paths (asm_io_stubs / process_argv / and siblings that still inline
+ * resolve+snprintf — G.7 single join orch).
+ * @param argv0 *u8 — optional product host path; may be null (resolve uses self/exe)
+ * @param leaf *u8 — object leaf under compiler/ (e.g. "runtime_asm_io_stubs.o"); null/empty → -1
+ * @param out *u8 — caller buffer for joined path; null → -1
+ * @param out_sz i64 — out capacity in bytes; 0 → -1; must fit dir + '/' + leaf + NUL
+ * @return i32 — 0 on success (out NUL-terminated); -1 on resolve fail / overflow / bad args
+ * Pure orch: null/empty guards + Cap residual shu_resolve_compiler_dir into 4096 stack
+ *   + pure byte join (no snprintf Cap; ≡ mega snprintf("%s/%s", dir, leaf)).
+ * Cap residual: shu_resolve_compiler_dir (PLATFORM LINUX/MACOS/WINDOWS #if body stays mega).
+ * Why (wave160): hybrid still had always-mega C body for compiler-dir/leaf join after
+ *   platform resolve (path residual first clean leaf after freestanding_enabled).
+ * Note: out_sz uses i64 (ABI with size_t callers); compare joins as i64.
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u8, out_sz: i64): i32 {
+  // Match mega: reject null out, zero size, null/empty leaf.
+  if (out == 0 as *u8) {
+    return -1;
+  }
+  if (out_sz == 0) {
+    return -1;
+  }
+  if (leaf == 0 as *u8) {
+    return -1;
+  }
+  if (leaf[0] == 0) {
+    return -1;
+  }
+  out[0] = 0;
+  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
+  let comp_dir: u8[4096] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shu_resolve_compiler_dir(argv0, &comp_dir[0], 4096);
+  }
+  if (rc != 0) {
+    return -1;
+  }
+  // Pure strlen(comp_dir) / strlen(leaf).
+  let dn: i32 = 0;
+  while (comp_dir[dn] != 0) {
+    dn = dn + 1;
+  }
+  let ln: i32 = 0;
+  while (leaf[ln] != 0) {
+    ln = ln + 1;
+  }
+  // snprintf("%s/%s") writes dn+1+ln chars + NUL; fails if nn >= out_sz (mega size_t).
+  let need: i64 = (dn as i64) + 1 + (ln as i64);
+  if (need >= out_sz) {
+    out[0] = 0;
+    return -1;
+  }
+  // Byte join: comp_dir[0..dn) + '/' + leaf[0..ln] + NUL.
+  let i: i32 = 0;
+  while (i < dn) {
+    out[i] = comp_dir[i];
+    i = i + 1;
+  }
+  out[dn] = 47;
+  let k: i32 = 0;
+  while (k <= ln) {
+    out[dn + 1 + k] = leaf[k];
+    k = k + 1;
+  }
+  return 0;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 16 (fixed catalog size for hybrid FROM_X bookkeeping; wave151 +1).
+ * Returns: 17 (fixed catalog size for hybrid FROM_X bookkeeping; wave160 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 16;
+  return 17;
 }

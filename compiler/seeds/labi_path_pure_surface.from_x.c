@@ -1,11 +1,12 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (16 public gates + count; wave151 append_user_extra)
+ * Prove: full.x vs this seed → nm IDENTICAL (17 public gates + count; wave160 compiler_o_path_copy)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
- *   *_o_path Cap (wave150 push_minimal); table+access Cap (wave151 append_user_extra)
+ *   *_o_path Cap (wave150 push_minimal); table+access Cap (wave151 append_user_extra);
+ *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -34,6 +35,7 @@ extern int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0,
 extern void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, uint8_t * glue_primary, uint8_t * link_argv0, uint8_t * glue_rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32_t max_la);
+extern int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8_t * out, int64_t out_sz);
 extern int32_t labi_path_pure_count(void);
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
@@ -42,6 +44,7 @@ extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
 extern int32_t link_abi_path_readable(uint8_t * path);
+extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
@@ -607,6 +610,53 @@ void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32
     (void)(((la)[0] = (cur + 1)));
   }
 }
+/* wave160: compiler_o_path_copy pure orch (surface pin; Cap residual shu_resolve_compiler_dir). */
+int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8_t * out, int64_t out_sz) {
+  if ((out == 0)) {
+    return -1;
+  }
+  if ((out_sz == 0)) {
+    return -1;
+  }
+  if ((leaf == 0)) {
+    return -1;
+  }
+  if (((leaf)[0] == 0)) {
+    return -1;
+  }
+  (void)(((out)[0] = 0));
+  uint8_t comp_dir[4096];
+  int32_t rc = 0;
+  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp_dir)[0]), 4096)));
+  if ((rc != 0)) {
+    return -1;
+  }
+  int32_t dn = 0;
+  while (((comp_dir)[dn] != 0)) {
+    (void)((dn = (dn + 1)));
+  }
+  int32_t ln = 0;
+  while (((leaf)[ln] != 0)) {
+    (void)((ln = (ln + 1)));
+  }
+  int64_t need = ((((int64_t)(dn)) + 1) + ((int64_t)(ln)));
+  if ((need >= out_sz)) {
+    (void)(((out)[0] = 0));
+    return -1;
+  }
+  int32_t i = 0;
+  while ((i < dn)) {
+    (void)(((out)[i] = (comp_dir)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((out)[dn] = 47));
+  int32_t k = 0;
+  while ((k <= ln)) {
+    (void)(((out)[(dn + 1) + k] = (leaf)[k]));
+    (void)((k = (k + 1)));
+  }
+  return 0;
+}
 int32_t labi_path_pure_count(void) {
-  return 16;
+  return 17;
 }

@@ -1269,23 +1269,47 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
     }
     return buf;
 }
+/* wave160: shux_runtime_compiler_o_path_copy pure orch lives in labi_path_pure
+ * (Cap residual shu_resolve_compiler_dir + pure byte join compiler-dir/leaf).
+ * Cold twin via L0 seed / mega #ifndef below; hybrid FROM_X → L0 pure .x.
+ * Why: hybrid still had always-mega C body for path join after platform resolve.
+ * Cap residual stays: shu_resolve_compiler_dir (#if LINUX/MACOS/WINDOWS).
+ * PLATFORM: SHARED orch. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
-    char comp_dir[PATH_MAX];
-    int nn;
+    char comp_dir[4096];
+    int dn;
+    int ln;
+    int i;
+    int k;
+    size_t need;
     if (!out || out_sz == 0 || !leaf || !leaf[0])
         return -1;
     out[0] = '\0';
     if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
         return -1;
-    nn = snprintf(out, out_sz, "%s/%s", comp_dir, leaf);
-    if (nn < 0 || (size_t)nn >= out_sz) {
+    dn = 0;
+    while (comp_dir[dn] != 0)
+        dn = dn + 1;
+    ln = 0;
+    while (leaf[ln] != 0)
+        ln = ln + 1;
+    need = (size_t)dn + 1u + (size_t)ln;
+    if (need >= out_sz) {
         out[0] = '\0';
         return -1;
     }
+    for (i = 0; i < dn; i++)
+        out[i] = comp_dir[i];
+    out[dn] = '/';
+    for (k = 0; k <= ln; k++)
+        out[dn + 1 + k] = leaf[k];
     return 0;
 }
+#else
+int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
+#endif
 
 
 

@@ -14,6 +14,7 @@
  *   + link_abi_asm_ld_push_glue_after_std (wave149 pure have_std+ensure orch; Cap residual call_ensure)
  *   + link_abi_asm_ld_push_minimal_runtime_objs (wave150 pure triple push_obj; Cap residual *_o_path)
  *   + shux_asm_ld_append_user_extra_o_files (wave151 pure CLI extra .o append; Cap residual table+access)
+ *   + shux_runtime_compiler_o_path_copy (wave160 pure join compiler-dir/leaf; Cap residual resolve)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -45,6 +46,8 @@ const char *shux_runtime_panic_o_path(const char *argv0);
 int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
+/* Cap residual used by wave160 compiler_o_path_copy cold twin (mega always provides). */
+int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 /* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
@@ -398,8 +401,40 @@ void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_l
   }
 }
 
+/* wave160: compiler_o_path_copy pure orch (cold twin ≡ .x; Cap residual resolve). */
+int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
+  char comp_dir[4096];
+  int dn;
+  int ln;
+  int i;
+  int k;
+  size_t need;
+  if (!out || out_sz == 0 || !leaf || !leaf[0])
+    return -1;
+  out[0] = '\0';
+  if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
+    return -1;
+  dn = 0;
+  while (comp_dir[dn] != 0)
+    dn = dn + 1;
+  ln = 0;
+  while (leaf[ln] != 0)
+    ln = ln + 1;
+  need = (size_t)dn + 1u + (size_t)ln;
+  if (need >= out_sz) {
+    out[0] = '\0';
+    return -1;
+  }
+  for (i = 0; i < dn; i++)
+    out[i] = comp_dir[i];
+  out[dn] = '/';
+  for (k = 0; k <= ln; k++)
+    out[dn + 1 + k] = leaf[k];
+  return 0;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 16;
+  return 17;
 }
 
 #else
@@ -424,6 +459,7 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
 void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
 int32_t labi_path_pure_count(void);
 #endif
 
