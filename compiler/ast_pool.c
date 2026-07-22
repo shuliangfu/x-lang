@@ -4357,8 +4357,14 @@ int32_t pipeline_module_enum_append_variant(struct ast_Module *m, int32_t idx, u
 }
 
 /** 按枚举类型名 + 变体名查 tag；未命中返回 -1。 */
-static struct ast_PipelineDepCtx *g_typeck_dep_ctx = 0;
-void pipeline_typeck_set_dep_ctx(struct ast_PipelineDepCtx *ctx) { g_typeck_dep_ctx = ctx; }
+/*
+ * wave91: product pure owns pipeline_typeck_set_dep_ctx / get_dep_ctx
+ * (runtime_pipeline_abi.x BSS). Historical static g_typeck_dep_ctx dual-auth removed;
+ * readers call get_dep_ctx only. Cold twin SHUX_WEAK lives in pipeline_glue.c.
+ * PLATFORM: SHARED — hybrid pure strong; cold weak when pure not linked.
+ */
+extern struct ast_PipelineDepCtx *pipeline_typeck_get_dep_ctx(void);
+extern void pipeline_typeck_set_dep_ctx(struct ast_PipelineDepCtx *ctx);
 
 int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,
                                                    uint8_t *variant_name, int32_t variant_len) {
@@ -4405,11 +4411,14 @@ int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t
     return -1;
   }
   /* Fallback: search dep modules' enums if not found in current module */
-  if (g_typeck_dep_ctx) {
-    int32_t ndep = pipeline_dep_ctx_ndep(g_typeck_dep_ctx);
+  {
+    /* wave91 G.7: single authority via get_dep_ctx (pure BSS / glue cold twin). */
+    struct ast_PipelineDepCtx *dep_ctx = pipeline_typeck_get_dep_ctx();
+    if (dep_ctx) {
+    int32_t ndep = pipeline_dep_ctx_ndep(dep_ctx);
     int32_t di;
     for (di = 0; di < ndep; di++) {
-      struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(g_typeck_dep_ctx, di);
+      struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(dep_ctx, di);
       if (!dep_mod || dep_mod == m) continue;
       sc = module_sidecar_get(dep_mod, 0);
       if (!sc) continue;
@@ -4434,6 +4443,7 @@ int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t
         }
       }
     }
+    } /* if (dep_ctx) */
   }
   return -1;
 }

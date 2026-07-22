@@ -29680,6 +29680,22 @@ __attribute__((weak)) int32_t pipeline_typeck_diag_soft_suppress_get(void) {
   return g_pipeline_typeck_diag_soft_suppress;
 }
 
+/*
+ * wave91: product pure owns pipeline_typeck_set_dep_ctx / get_dep_ctx
+ * (runtime_pipeline_abi.x LP64 BSS). Keep SHUX_WEAK cold fallback for links without pure
+ * pipeline_abi / PREFER hybrid. Independent cold BSS (not shared with pure).
+ * PLATFORM: SHARED — ELF weak overridden by pure; ast_pool enum fallback calls get.
+ */
+static struct ast_PipelineDepCtx *g_pipeline_typeck_dep_ctx_cold = 0;
+
+__attribute__((weak)) void pipeline_typeck_set_dep_ctx(struct ast_PipelineDepCtx *ctx) {
+  g_pipeline_typeck_dep_ctx_cold = ctx;
+}
+
+__attribute__((weak)) struct ast_PipelineDepCtx *pipeline_typeck_get_dep_ctx(void) {
+  return g_pipeline_typeck_dep_ctx_cold;
+}
+
 /**
  * dep prerun typeck：优先全量 library typeck（写 CALL resolved_func_index，供 overload mangle）。
  * 【Why 根源】-E co-emit 只 typeck entry，dep 若仅 light typeck 则 body 内 alloc(al,size) 无 resolve，
