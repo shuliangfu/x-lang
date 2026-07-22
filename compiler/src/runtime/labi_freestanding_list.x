@@ -36,9 +36,11 @@
 //     (pure null gates + Cap residual file malloc/free + Cap residual buf use_line scan).
 //   wave177 link_abi_generated_c_contains_any_substr_use_line pure orch
 //     (pure thin loop over needles[i] → pure contains_substr_use_line).
+//   wave178 link_abi_generated_c_contains_any_substr pure orch
+//     (pure thin loop over needles[i] → pure contains_substr; raw multi-needle).
 // Cap residual: undef_sym; getenv; resolve/access/cc/stat for ensure leaves (wave167/168);
 //   runtime_read_file_malloc / free / link_abi_buf_contains_substr (wave175);
-//   link_abi_buf_contains_substr_use_line (wave176); any_substr (raw multi-needle residual).
+//   link_abi_buf_contains_substr_use_line (wave176).
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
 // Cap residual (wave159): host getenv for SHUX_FREESTANDING env gate.
@@ -445,6 +447,53 @@ export function link_abi_generated_c_contains_any_substr_use_line(
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = link_abi_generated_c_contains_substr_use_line(c_path, needle);
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Return 1 iff generated C at c_path contains any needle as raw bytes
+ * (no line filter — whole-file memcmp via pure contains_substr).
+ * Pure thin orch: null gates + loop needles[i] via pure contains_substr.
+ * Each hit reuses the single-needle pure authority (file load + Cap residual buf scan).
+ * @param c_path *u8 — NUL-terminated path to generated .c; null → 0
+ * @param needles **u8 — C char** table of NUL needles; null → 0
+ * @param n_needles i32 — table length; <=0 → 0
+ * @return i32 — 1 if any nonempty needle hits the file view, else 0
+ * Why (wave178): hybrid still had any_substr body always mega C (file-view multi-needle
+ * memcmp). No product callers post-wave175 (on-demand uses use_line / single contains_substr);
+ * migrate for G.7 residual closure + family symmetry with any_substr_use_line.
+ * Empty needles skipped (0), aligned with pure contains_substr — not mega empty→1 quirk.
+ * Note: null-check needles via cast to *u8 (do not write needles == 0 as **u8).
+ * G.7 single authority orch; no second raw scan. PLATFORM: SHARED — hybrid L7 pure;
+ * mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_generated_c_contains_any_substr(
+  c_path: *u8, needles: **u8, n_needles: i32
+): i32 {
+  // Guard c_path / needles null; empty path still fails inside pure contains_substr.
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if ((needles as *u8) == 0 as *u8) {
+    return 0;
+  }
+  if (n_needles <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < n_needles) {
+    let needle: *u8 = needles[i];
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = link_abi_generated_c_contains_substr(c_path, needle);
         if (hit != 0) {
           return 1;
         }

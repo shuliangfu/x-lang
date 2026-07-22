@@ -1852,6 +1852,9 @@ int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char
 /* wave177: any_substr_use_line pure orch (L7; hybrid). */
 int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles,
                                                      int n_needles);
+/* wave178: any_substr pure orch (L7; hybrid). */
+int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles,
+                                            int n_needles);
 #endif
 
 /* wave159: shux_link_freestanding_enabled pure orch — body removed from mega
@@ -2352,42 +2355,14 @@ int link_abi_host_is_posix_aarch64(void) {
 
 
 
-/**
- * B-20 v1：扫描生成 C 是否含任一子串（invoke_cc 按需链入判定）。
+/* wave178: link_abi_generated_c_contains_any_substr pure orch lives in
+ * labi_freestanding_list (pure thin loop → pure contains_substr).
+ * Was always-mega file-view multi-needle memcmp. Cold twin under
+ * #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * Empty needles skipped (family align; not mega empty→1). PLATFORM: SHARED.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles, int n_needles) {
-    ShuxRuntimeFileView view;
-    int i;
-    int found = 0;
-
-    if (!c_path || !c_path[0] || !needles || n_needles <= 0)
-        return 0;
-    if (runtime_read_file_view(c_path, &view) != 0)
-        return 0;
-    for (i = 0; i < n_needles; i++) {
-        if (needles[i]) {
-            size_t needle_len = strlen(needles[i]);
-            if (needle_len == 0) {
-                found = 1;
-                break;
-            }
-            if (view.length >= needle_len) {
-                size_t off;
-                for (off = 0; off + needle_len <= view.length; off++) {
-                    if (memcmp(view.data + off, needles[i], needle_len) == 0) {
-                        found = 1;
-                        break;
-                    }
-                }
-                if (found)
-                    break;
-            }
-        }
-    }
-    runtime_release_file_view(&view);
-    return found;
-}
+int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles,
+                                            int n_needles);
 
 
 

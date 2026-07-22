@@ -38,9 +38,10 @@
  *     (pure null gates + Cap residual malloc/free + Cap residual buf use_line scan)
  *   + wave177 link_abi_generated_c_contains_any_substr_use_line pure orch
  *     (pure thin loop → pure contains_substr_use_line)
+ *   + wave178 link_abi_generated_c_contains_any_substr pure orch
+ *     (pure thin loop → pure contains_substr; raw multi-needle)
  * Cap residual：undef_sym；getenv；ensure 叶的 resolve/access/cc/stat（wave167/168）；
- *   file malloc/free + buf_contains_substr（wave175）；buf_contains_substr_use_line（wave176）；
- *   any_substr（raw multi-needle residual）。
+ *   file malloc/free + buf_contains_substr（wave175）；buf_contains_substr_use_line（wave176）。
  * FROM_X 下本文件仅前向声明 + slice marker。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -293,6 +294,23 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
   for (i = 0; i < n_needles; i++) {
     if (needles[i] && needles[i][0] &&
         link_abi_generated_c_contains_substr_use_line(c_path, needles[i]))
+      return 1;
+  }
+  return 0;
+}
+
+/* wave178: pure orch any_substr (cold twin ≡ .x).
+ * Thin loop over pure contains_substr (raw multi-needle; no line filter).
+ * Empty needles skipped (aligned with pure contains_substr). PLATFORM: SHARED.
+ */
+int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles,
+                                            int n_needles) {
+  int i;
+  if (!c_path || !needles || n_needles <= 0)
+    return 0;
+  for (i = 0; i < n_needles; i++) {
+    if (needles[i] && needles[i][0] &&
+        link_abi_generated_c_contains_substr(c_path, needles[i]))
       return 1;
   }
   return 0;
@@ -1107,6 +1125,12 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 /* wave176: contains_substr_use_line pure orch (L7). */
 int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle);
+/* wave177: any_substr_use_line pure orch (L7). */
+int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles,
+                                                     int n_needles);
+/* wave178: any_substr pure orch (L7). */
+int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles,
+                                            int n_needles);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {
