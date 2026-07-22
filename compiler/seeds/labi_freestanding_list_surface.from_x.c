@@ -524,6 +524,11 @@ extern int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o);
 extern char * getenv(const char * name);
 extern int32_t shux_host_is_linux(void);
 extern int32_t shux_link_freestanding_enabled(int32_t driver_freestanding);
+/* wave175: contains_substr pure orch Cap residual (file malloc + buf scan). */
+extern char * runtime_read_file_malloc(uint8_t * path, size_t * out_len);
+extern void free(void * p);
+extern int32_t link_abi_buf_contains_substr(uint8_t * data, size_t data_len, uint8_t * needle);
+extern int32_t link_abi_generated_c_contains_substr(uint8_t * c_path, uint8_t * needle);
 /* wave167/168: ensure_crt0 / ensure_freestanding_io pure orch (surface pin; Cap residual resolve/access/cc/stat). */
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
@@ -706,8 +711,31 @@ uint8_t * labi_fs_io_src_rel(void) {
   uint8_t * p = ((uint8_t *)"\x73\x72\x63\x2f\x61\x73\x6d\x2f\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f\x5f\x78\x38\x36\x5f\x36\x34\x2e\x73");
   return p;
 }
-extern int32_t link_abi_generated_c_contains_substr(uint8_t * c_path, uint8_t * needle);
 extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
+int32_t link_abi_generated_c_contains_substr(uint8_t * c_path, uint8_t * needle) {
+  if ((c_path ==0)) {
+    return 0;
+  }
+  if (((c_path)[0] ==0)) {
+    return 0;
+  }
+  if ((needle ==0)) {
+    return 0;
+  }
+  if (((needle)[0] ==0)) {
+    return 0;
+  }
+  size_t raw_len = 0;
+  uint8_t * data = 0;
+  (void)((data = runtime_read_file_malloc(c_path, &(raw_len))));
+  if ((data ==0)) {
+    return 0;
+  }
+  int32_t hit = 0;
+  (void)((hit = link_abi_buf_contains_substr(data, raw_len, needle)));
+  (void)(free(data));
+  return hit;
+}
 int32_t labi_fs_heap_c_needle_count(void) {
   return 9;
 }
@@ -1740,76 +1768,74 @@ int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o) {
   }
   return 0;
 }
-/* wave159: freestanding_enabled pure orch (surface pin; Cap residual getenv + peer host_is_linux). */
 int32_t shux_link_freestanding_enabled(int32_t driver_freestanding) {
   int32_t is_linux = 0;
   (void)((is_linux = shux_host_is_linux()));
-  if ((is_linux == 0)) {
+  if ((is_linux ==0)) {
     return 0;
   }
-  if ((driver_freestanding != 0)) {
+  if ((driver_freestanding !=0)) {
     return 1;
   }
   uint8_t * name = labi_fs_env_freestanding();
-  uint8_t * e = ((uint8_t *)(0));
-  (void)((e = ((uint8_t *)getenv((const char *)name))));
-  if ((e == 0)) {
+  uint8_t * e = 0;
+  (void)((e = getenv(name)));
+  if ((e ==0)) {
     return 0;
   }
-  if (((e)[0] == 0)) {
+  if (((e)[0] ==0)) {
     return 0;
   }
-  if (((e)[0] == 48)) {
+  if (((e)[0] ==48)) {
     return 0;
   }
   return 1;
 }
-/* wave167: ensure_crt0_user_o pure orch (surface pin; Cap residual resolve/access/cc/stat). */
 int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding) {
   uint8_t * out_base = labi_fs_crt0_out_base();
   uint8_t * src_rel = labi_fs_crt0_src_rel();
   uint8_t * stem = labi_fs_ensure_stem(0);
-  if ((shux_link_freestanding_enabled(driver_freestanding) == 0)) {
+  if ((shux_link_freestanding_enabled(driver_freestanding) ==0)) {
     return 0;
   }
-  uint8_t * o_path = ((uint8_t *)(0));
-  uint8_t * have = ((uint8_t *)(0));
+  uint8_t * o_path = 0;
+  uint8_t * have = 0;
   (void)((o_path = shux_crt0_user_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
-  if ((have != 0)) {
+  if ((have !=0)) {
     return 0;
   }
-  uint8_t comp[4096];
+  uint8_t comp[4096] = {};
   int32_t rc = 0;
   (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
-  if ((rc != 0)) {
+  if ((rc !=0)) {
     uint8_t * name = out_base;
-    if ((name == 0)) {
-      name = ((uint8_t *)"crt0_user.o");
+    if ((name ==0)) {
+      (void)((name = ((uint8_t *)"\x63\x72\x74\x30\x5f\x75\x73\x65\x72\x2e\x6f")));
     }
-    (void)(link_diag_runtime_obj_resolve_fail(name, ((uint8_t *)(0))));
+    (void)(link_diag_runtime_obj_resolve_fail(name, 0));
     return -1;
   }
   uint8_t * leaf_o = out_base;
-  if ((leaf_o == 0)) {
-    leaf_o = ((uint8_t *)"crt0_user.o");
+  if ((leaf_o ==0)) {
+    (void)((leaf_o = ((uint8_t *)"\x63\x72\x74\x30\x5f\x75\x73\x65\x72\x2e\x6f")));
   }
   uint8_t * leaf_s = src_rel;
-  if ((leaf_s == 0)) {
-    leaf_s = ((uint8_t *)"src/asm/crt0_user_x86_64.s");
+  if ((leaf_s ==0)) {
+    (void)((leaf_s = ((uint8_t *)"\x73\x72\x63\x2f\x61\x73\x6d\x2f\x63\x72\x74\x30\x5f\x75\x73\x65\x72\x5f\x78\x38\x36\x5f\x36\x34\x2e\x73")));
   }
   int32_t dn = 0;
-  while (((comp)[dn] != 0)) {
+  while (((comp)[dn] !=0)) {
     (void)((dn = (dn + 1)));
   }
   int32_t ln_o = 0;
-  while (((leaf_o)[ln_o] != 0)) {
+  while (((leaf_o)[ln_o] !=0)) {
     (void)((ln_o = (ln_o + 1)));
   }
-  if ((((dn + 1) + ln_o) >= 4096)) {
+  if ((((dn + 1) + ln_o) >=4096)) {
     return -1;
   }
-  uint8_t out_o[4096];
+  uint8_t out_o[4096] = {};
   int32_t i = 0;
   while ((i < dn)) {
     (void)(((out_o)[i] = (comp)[i]));
@@ -1817,18 +1843,18 @@ int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding) {
   }
   (void)(((out_o)[dn] = 47));
   int32_t k = 0;
-  while ((k <= ln_o)) {
-    (void)(((out_o)[(dn + 1) + k] = (leaf_o)[k]));
+  while ((k <=ln_o)) {
+    (void)(((out_o)[((dn + 1) + k)] = (leaf_o)[k]));
     (void)((k = (k + 1)));
   }
   int32_t ln_s = 0;
-  while (((leaf_s)[ln_s] != 0)) {
+  while (((leaf_s)[ln_s] !=0)) {
     (void)((ln_s = (ln_s + 1)));
   }
-  if ((((dn + 1) + ln_s) >= 4096)) {
+  if ((((dn + 1) + ln_s) >=4096)) {
     return -1;
   }
-  uint8_t src_s[4096];
+  uint8_t src_s[4096] = {};
   (void)((i = 0));
   while ((i < dn)) {
     (void)(((src_s)[i] = (comp)[i]));
@@ -1836,80 +1862,79 @@ int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding) {
   }
   (void)(((src_s)[dn] = 47));
   (void)((k = 0));
-  while ((k <= ln_s)) {
-    (void)(((src_s)[(dn + 1) + k] = (leaf_s)[k]));
+  while ((k <=ln_s)) {
+    (void)(((src_s)[((dn + 1) + k)] = (leaf_s)[k]));
     (void)((k = (k + 1)));
   }
   int32_t readable = 0;
   (void)((readable = link_abi_path_readable(&((src_s)[0]))));
-  if ((readable == 0)) {
+  if ((readable ==0)) {
     uint8_t * st = stem;
-    if ((st == 0)) {
-      st = ((uint8_t *)"crt0_user");
+    if ((st ==0)) {
+      (void)((st = ((uint8_t *)"\x63\x72\x74\x30\x5f\x75\x73\x65\x72")));
     }
     (void)(link_diag_runtime_source_missing(st, &((src_s)[0])));
     return -1;
   }
   int32_t crc = 0;
-  (void)((crc = shux_cc_compile_sync(&((src_s)[0]), &((out_o)[0]), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), 1)));
-  if ((crc != 0)) {
+  (void)((crc = shux_cc_compile_sync(&((src_s)[0]), &((out_o)[0]), 0, 0, 0, 1)));
+  if ((crc !=0)) {
     (void)(link_diag_runtime_obj_build_status(leaf_o, crc));
     return -1;
   }
   (void)((o_path = shux_crt0_user_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
-  if ((have == 0)) {
+  if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(leaf_o, &((out_o)[0])));
     return -1;
   }
   return 0;
 }
-/* wave168: ensure_freestanding_io_o pure orch (surface pin; Cap residual resolve/access/cc/stat). */
 int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding) {
   uint8_t * out_base = labi_fs_io_out_base();
   uint8_t * src_rel = labi_fs_io_src_rel();
   uint8_t * stem = labi_fs_ensure_stem(1);
-  if ((shux_link_freestanding_enabled(driver_freestanding) == 0)) {
+  if ((shux_link_freestanding_enabled(driver_freestanding) ==0)) {
     return 0;
   }
-  uint8_t * o_path = ((uint8_t *)(0));
-  uint8_t * have = ((uint8_t *)(0));
+  uint8_t * o_path = 0;
+  uint8_t * have = 0;
   (void)((o_path = shux_freestanding_io_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
-  if ((have != 0)) {
+  if ((have !=0)) {
     return 0;
   }
-  uint8_t comp[4096];
+  uint8_t comp[4096] = {};
   int32_t rc = 0;
   (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
-  if ((rc != 0)) {
+  if ((rc !=0)) {
     uint8_t * name = out_base;
-    if ((name == 0)) {
-      name = ((uint8_t *)"freestanding_io.o");
+    if ((name ==0)) {
+      (void)((name = ((uint8_t *)"\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f\x2e\x6f")));
     }
-    (void)(link_diag_runtime_obj_resolve_fail(name, ((uint8_t *)(0))));
+    (void)(link_diag_runtime_obj_resolve_fail(name, 0));
     return -1;
   }
   uint8_t * leaf_o = out_base;
-  if ((leaf_o == 0)) {
-    leaf_o = ((uint8_t *)"freestanding_io.o");
+  if ((leaf_o ==0)) {
+    (void)((leaf_o = ((uint8_t *)"\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f\x2e\x6f")));
   }
   uint8_t * leaf_s = src_rel;
-  if ((leaf_s == 0)) {
-    leaf_s = ((uint8_t *)"src/asm/freestanding_io_x86_64.s");
+  if ((leaf_s ==0)) {
+    (void)((leaf_s = ((uint8_t *)"\x73\x72\x63\x2f\x61\x73\x6d\x2f\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f\x5f\x78\x38\x36\x5f\x36\x34\x2e\x73")));
   }
   int32_t dn = 0;
-  while (((comp)[dn] != 0)) {
+  while (((comp)[dn] !=0)) {
     (void)((dn = (dn + 1)));
   }
   int32_t ln_o = 0;
-  while (((leaf_o)[ln_o] != 0)) {
+  while (((leaf_o)[ln_o] !=0)) {
     (void)((ln_o = (ln_o + 1)));
   }
-  if ((((dn + 1) + ln_o) >= 4096)) {
+  if ((((dn + 1) + ln_o) >=4096)) {
     return -1;
   }
-  uint8_t out_o[4096];
+  uint8_t out_o[4096] = {};
   int32_t i = 0;
   while ((i < dn)) {
     (void)(((out_o)[i] = (comp)[i]));
@@ -1917,18 +1942,18 @@ int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestandi
   }
   (void)(((out_o)[dn] = 47));
   int32_t k = 0;
-  while ((k <= ln_o)) {
-    (void)(((out_o)[(dn + 1) + k] = (leaf_o)[k]));
+  while ((k <=ln_o)) {
+    (void)(((out_o)[((dn + 1) + k)] = (leaf_o)[k]));
     (void)((k = (k + 1)));
   }
   int32_t ln_s = 0;
-  while (((leaf_s)[ln_s] != 0)) {
+  while (((leaf_s)[ln_s] !=0)) {
     (void)((ln_s = (ln_s + 1)));
   }
-  if ((((dn + 1) + ln_s) >= 4096)) {
+  if ((((dn + 1) + ln_s) >=4096)) {
     return -1;
   }
-  uint8_t src_s[4096];
+  uint8_t src_s[4096] = {};
   (void)((i = 0));
   while ((i < dn)) {
     (void)(((src_s)[i] = (comp)[i]));
@@ -1936,29 +1961,29 @@ int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestandi
   }
   (void)(((src_s)[dn] = 47));
   (void)((k = 0));
-  while ((k <= ln_s)) {
-    (void)(((src_s)[(dn + 1) + k] = (leaf_s)[k]));
+  while ((k <=ln_s)) {
+    (void)(((src_s)[((dn + 1) + k)] = (leaf_s)[k]));
     (void)((k = (k + 1)));
   }
   int32_t readable = 0;
   (void)((readable = link_abi_path_readable(&((src_s)[0]))));
-  if ((readable == 0)) {
+  if ((readable ==0)) {
     uint8_t * st = stem;
-    if ((st == 0)) {
-      st = ((uint8_t *)"freestanding_io");
+    if ((st ==0)) {
+      (void)((st = ((uint8_t *)"\x66\x72\x65\x65\x73\x74\x61\x6e\x64\x69\x6e\x67\x5f\x69\x6f")));
     }
     (void)(link_diag_runtime_source_missing(st, &((src_s)[0])));
     return -1;
   }
   int32_t crc = 0;
-  (void)((crc = shux_cc_compile_sync(&((src_s)[0]), &((out_o)[0]), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), 1)));
-  if ((crc != 0)) {
+  (void)((crc = shux_cc_compile_sync(&((src_s)[0]), &((out_o)[0]), 0, 0, 0, 1)));
+  if ((crc !=0)) {
     (void)(link_diag_runtime_obj_build_status(leaf_o, crc));
     return -1;
   }
   (void)((o_path = shux_freestanding_io_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
-  if ((have == 0)) {
+  if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(leaf_o, &((out_o)[0])));
     return -1;
   }

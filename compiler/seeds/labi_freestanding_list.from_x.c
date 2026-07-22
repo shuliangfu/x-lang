@@ -32,18 +32,23 @@
  *     (peer freestanding_enabled + tables + Cap residual resolve/access/cc/stat)
  *   + wave168 shux_ensure_freestanding_io_o pure orch
  *     (peer freestanding_enabled + io tables + Cap residual resolve/access/cc/stat)
- * Cap residual：contains_substr / undef_sym；getenv；ensure 叶的 resolve/access/cc/stat
- *   （wave167/168）。FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
+ *   + wave175 link_abi_generated_c_contains_substr pure orch
+ *     (pure null gates + Cap residual malloc/free + Cap residual buf_contains_substr)
+ * Cap residual：undef_sym；getenv；ensure 叶的 resolve/access/cc/stat（wave167/168）；
+ *   file malloc/free + buf_contains_substr（wave175）。FROM_X 下本文件仅前向声明 + slice marker。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
  * Prove：seeds/labi_freestanding_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
-/* Cap residual (mega always): file scan + nm UNDEF probes used by pure needs orch. */
-int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
+/* Cap residual (mega/runtime always): nm UNDEF probe used by pure needs orch. */
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
+/* Cap residual (wave175): whole-file malloc + buf scan (mega / runtime_io_abi). */
+char *runtime_read_file_malloc(const char *path, size_t *out_len);
+int link_abi_buf_contains_substr(const char *data, size_t data_len, const char *needle);
 /* Peer pure (host_lit) used by wave159 freestanding_enabled cold twin. */
 int shux_host_is_linux(void);
 /* Cap residual (wave167/168 ensure cold twin; mega always provides). */
@@ -232,7 +237,26 @@ const char *labi_fs_memcpy_face_sym_at(int i) {
   return NULL;
 }
 
-/* Pure orch: table + Cap residual contains_substr. PLATFORM: SHARED. */
+/* wave175: pure orch contains_substr (cold twin ≡ .x).
+ * Cap residual: runtime_read_file_malloc + free + link_abi_buf_contains_substr.
+ * Pure: null/empty gates + load/scan orch. PLATFORM: SHARED — not use_line.
+ */
+int link_abi_generated_c_contains_substr(const char *c_path, const char *needle) {
+  size_t raw_len;
+  char *data;
+  int hit;
+  if (!c_path || !c_path[0] || !needle || !needle[0])
+    return 0;
+  raw_len = 0;
+  data = runtime_read_file_malloc(c_path, &raw_len);
+  if (!data)
+    return 0;
+  hit = link_abi_buf_contains_substr(data, raw_len, needle);
+  free(data);
+  return hit;
+}
+
+/* Pure orch: table + peer pure contains_substr. PLATFORM: SHARED. */
 int link_abi_generated_c_needs_libc_heap(const char *c_path) {
   int n;
   int i;
@@ -1037,6 +1061,8 @@ int shux_link_freestanding_enabled(int driver_freestanding);
 int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 /* wave168: ensure_freestanding_io_o pure orch (L7). */
 int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
+/* wave175: contains_substr pure orch (L7). */
+int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

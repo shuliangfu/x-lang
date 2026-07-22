@@ -1843,6 +1843,10 @@ int link_abi_generated_c_provides_std_heap(const char *c_path);
 int shux_link_freestanding_enabled(int driver_freestanding);
 /* wave167: ensure_crt0_user_o pure orch (L7; hybrid). */
 int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
+/* wave168: ensure_freestanding_io_o pure orch (L7; hybrid). */
+int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
+/* wave175: contains_substr pure orch (L7; hybrid). */
+int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 #endif
 
 /* wave159: shux_link_freestanding_enabled pure orch — body removed from mega
@@ -2383,14 +2387,35 @@ int link_abi_generated_c_contains_any_substr(const char *c_path, const char **ne
 
 
 
-/** G-02f-39：单 needle 包装，供 .x generated_c_needs_* 调用。 */
-int link_abi_generated_c_contains_substr(const char *c_path, const char *needle) {
-    const char *needles[1];
-    if (!needle || !needle[0])
+/**
+ * Cap residual (wave175): return 1 iff data[0..data_len) contains needle as raw bytes.
+ * Null/empty needle → 0; empty data with nonempty needle → 0.
+ * Pure orch link_abi_generated_c_contains_substr loads the file then calls this.
+ * PLATFORM: SHARED — host memcmp loop; always mega (cold + hybrid FROM_X).
+ */
+int link_abi_buf_contains_substr(const char *data, size_t data_len, const char *needle) {
+    size_t nlen;
+    size_t off;
+    if (!data || !needle || !needle[0])
         return 0;
-    needles[0] = needle;
-    return link_abi_generated_c_contains_any_substr(c_path, needles, 1);
+    nlen = strlen(needle);
+    if (nlen == 0 || data_len < nlen)
+        return 0;
+    for (off = 0; off + nlen <= data_len; off++) {
+        if (memcmp(data + off, needle, nlen) == 0)
+            return 1;
+    }
+    return 0;
 }
+
+/* wave175: link_abi_generated_c_contains_substr pure orch lives in labi_freestanding_list
+ * (pure null gates + Cap residual file malloc/free + Cap residual buf_contains_substr).
+ * Was always-mega thin wrap over contains_any_substr (file view). Cold twin under
+ * #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * Not the same as contains_substr_use_line (line-filter Cap residual).
+ * PLATFORM: SHARED — dual-end L2.
+ */
+int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 
 /**
  * 生成 C 是否含 needle，且命中行不是 `extern` 声明 / `#define` 宏头。
