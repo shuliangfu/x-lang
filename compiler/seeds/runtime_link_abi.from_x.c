@@ -5749,73 +5749,11 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
   return shux_link_obj_needs_undef_sym(user_o, s);
 }
 
-/**
- * 判断用户 .o 是否引用 std.net API（按需链 net.o，避免 hello 等最小链无条件链 net.o 触发 PIE/未定义符号）。
+/*
+ * wave118: needs_std_net pure orch lives in labi_ondemand_list (net sym table + orch).
+ * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
+ * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
-int link_abi_user_o_needs_std_net(const char *user_o) {
-  if ((user_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((user_o)[0] ==0)) {
-      return 0;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_listen") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_connect") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_udp_bind") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_udp_recv_many_buf") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_udp_send_many_buf") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_addr_to_u32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_close_udp") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_stream_write_batch_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_tcp_connect_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_tcp_listen_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_bind_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_recv_many_buf_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_send_many_buf_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_close_socket_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_send_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_dns_resolve_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "net_sock_create_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
 
 /**
  * 判断用户 .o 是否引用 std.set API（按需链 set.o + heap.o + hash.o）。
@@ -7608,6 +7546,10 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
+/* wave118 needs_std_net pure orch (bodies in L8b pure .x / cold seed). */
+int labi_od_net_sym_count(void);
+const char *labi_od_net_sym_at(int i);
+int link_abi_user_o_needs_std_net(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

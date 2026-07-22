@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
-// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
-// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
+// Hybrid macro SHUX_LABI_ONDEMAND_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
-// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
-// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
-// link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
-//
+// R2 full: simple/kv/arrow/time/queue + rel_* pure tables +
+//   wave118 labi_od_net_sym_* + link_abi_user_o_needs_std_net pure orch.
+// Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
+// PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
 // Formal core/*/*.o; g1 rel is core/types/types.o; g9 rel is core/slice/mod.o (API, not glue).
-// PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // g9: length.x needs core_slice_len_i32/get_* from mod.x; glue remains core/slice/slice.o.
+
+/** Cap residual: nm UNDEF probe used by pure needs orch (mega always). */
+export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 
 /** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
 #[no_mangle]
@@ -563,7 +564,140 @@ export function labi_od_queue_contention_rel(): *u8 {
   return p;
 }
 
+/**
+ * Count of UNDEF symbols that pull std/net/net.o on product asm on_demand.
+ * @return i32 — 17 (std_net_* + net_*_c surface)
+ * PLATFORM: SHARED — must match formal net.o export / C glue mangles
+ */
+#[no_mangle]
+export function labi_od_net_sym_count(): i32 {
+  return 17;
+}
+
+/**
+ * Net on_demand UNDEF symbol at index (product probe table for needs_std_net).
+ * @param i i32 — index in [0, 17)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_net_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_net_listen";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_net_connect";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_net_udp_bind";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_net_udp_recv_many_buf";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_net_udp_send_many_buf";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_net_addr_to_u32";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_net_close_udp";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "net_stream_write_batch_c";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "net_tcp_connect_c";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "net_tcp_listen_c";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "net_udp_bind_c";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "net_udp_recv_many_buf_c";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "net_udp_send_many_buf_c";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "net_close_socket_c";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "net_udp_send_c";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "net_dns_resolve_c";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "net_sock_create_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.net / net_*_c (on-demand chain net.o).
+ * Pure orch: fixed net UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave118): hybrid still had needs_std_net body always mega C with hard-coded strings.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_net_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_net_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
+/**
+ * Relative path of formal std/net/net.o for on_demand push.
+ * @return *u8 — static C string "std/net/net.o"
+ * PLATFORM: SHARED
+ */
 #[no_mangle]
 export function labi_od_rel_net(): *u8 {
   let p: *u8 = "std/net/net.o";

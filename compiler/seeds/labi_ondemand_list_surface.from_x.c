@@ -1,15 +1,58 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand symbol/rel pure table)
- * Cap residual: nm/push/ensure in mega shux_asm_ld_append_on_demand_user_objs
- * Regen: ./shux -E ... src/runtime/labi_ondemand_list.x | tail -n +42 (skip extern decls)
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118 needs_std_net pure)
+ * Cap residual: nm/push/ensure + undef_sym probes in mega
+ * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
+ * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
+extern int32_t labi_od_simple_group_count(void);
+extern int32_t labi_od_simple_group_sym_count(int32_t g);
+extern uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i);
+extern uint8_t * labi_od_simple_group_rel(int32_t g);
+extern int32_t labi_od_kv_sym_count(void);
+extern uint8_t * labi_od_kv_sym_at(int32_t i);
+extern uint8_t * labi_od_kv_rel(void);
+extern uint8_t * labi_od_kv_glue_rel(void);
+extern int32_t labi_od_arrow_sym_count(void);
+extern uint8_t * labi_od_arrow_sym_at(int32_t i);
+extern uint8_t * labi_od_arrow_rel(void);
+extern uint8_t * labi_od_arrow_glue_rel(void);
+extern int32_t labi_od_time_sym_count(void);
+extern uint8_t * labi_od_time_sym_at(int32_t i);
+extern uint8_t * labi_od_time_rel(void);
+extern uint8_t * labi_od_time_os_rel(void);
+extern int32_t labi_od_queue_sym_count(void);
+extern uint8_t * labi_od_queue_sym_at(int32_t i);
+extern uint8_t * labi_od_queue_rel(void);
+extern uint8_t * labi_od_queue_contention_rel(void);
+extern int32_t labi_od_net_sym_count(void);
+extern uint8_t * labi_od_net_sym_at(int32_t i);
+extern int32_t link_abi_user_o_needs_std_net(uint8_t * user_o);
+extern uint8_t * labi_od_rel_net(void);
+extern uint8_t * labi_od_rel_thread(void);
+extern uint8_t * labi_od_rel_heap(void);
+extern uint8_t * labi_od_rel_set(void);
+extern uint8_t * labi_od_rel_map(void);
+extern uint8_t * labi_od_rel_async_scheduler(void);
+extern uint8_t * labi_od_rel_core_mem(void);
+extern uint8_t * labi_od_rel_sys_linux(void);
+extern uint8_t * labi_od_rel_page_mmap(void);
+extern uint8_t * labi_od_rel_sys(void);
+extern uint8_t * labi_od_rel_core_slice(void);
+extern uint8_t * labi_od_rel_test(void);
+extern uint8_t * labi_od_rel_heap_user(void);
+extern uint8_t * labi_od_rel_scheduler_glue(void);
+extern uint8_t * labi_od_rel_thread_glue(void);
+extern uint8_t * labi_od_rel_net_udp_batch(void);
+extern uint8_t * labi_od_rel_net_workers(void);
+extern uint8_t * labi_od_rel_test_fn_invoke(void);
+extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
 int32_t labi_od_simple_group_count(void) {
-  return 6;
+  return 10;
 }
 int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g < 0)) {
@@ -33,6 +76,18 @@ int32_t labi_od_simple_group_sym_count(int32_t g) {
   if ((g ==5)) {
     return 3;
   }
+  if ((g ==6)) {
+    return 4;
+  }
+  if ((g ==7)) {
+    return 4;
+  }
+  if ((g ==8)) {
+    return 6;
+  }
+  if ((g ==9)) {
+    return 10;
+  }
   return 0;
 }
 uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
@@ -44,126 +99,234 @@ uint8_t * labi_od_simple_group_sym_at(int32_t g, int32_t i) {
   }
   if ((g ==0)) {
     if ((i ==0)) {
-      uint8_t * p = (uint8_t[]){115, 104, 117, 120, 95, 115, 116, 114, 105, 110, 103, 95, 99, 111, 112, 121, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x68\x75\x78\x5f\x73\x74\x72\x69\x6e\x67\x5f\x63\x6f\x70\x79\x5f\x63");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = (uint8_t[]){115, 104, 117, 120, 95, 115, 116, 114, 105, 110, 103, 95, 109, 101, 109, 99, 109, 112, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x68\x75\x78\x5f\x73\x74\x72\x69\x6e\x67\x5f\x6d\x65\x6d\x63\x6d\x70\x5f\x63");
       return p;
     }
     if ((i ==2)) {
-      uint8_t * p = (uint8_t[]){115, 104, 117, 120, 95, 115, 116, 114, 105, 110, 103, 95, 109, 101, 109, 99, 104, 114, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x68\x75\x78\x5f\x73\x74\x72\x69\x6e\x67\x5f\x6d\x65\x6d\x63\x68\x72\x5f\x63");
       return p;
     }
     if ((i ==3)) {
-      uint8_t * p = (uint8_t[]){115, 104, 117, 120, 95, 115, 116, 114, 105, 110, 103, 95, 109, 101, 109, 109, 101, 109, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x68\x75\x78\x5f\x73\x74\x72\x69\x6e\x67\x5f\x6d\x65\x6d\x6d\x65\x6d\x5f\x63");
       return p;
     }
     if ((i ==4)) {
-      uint8_t * p = (uint8_t[]){115, 104, 117, 120, 95, 115, 116, 114, 105, 110, 103, 95, 109, 101, 109, 114, 99, 104, 114, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x68\x75\x78\x5f\x73\x74\x72\x69\x6e\x67\x5f\x6d\x65\x6d\x72\x63\x68\x72\x5f\x63");
       return p;
     }
     if ((i ==5)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 103, 95, 110, 101, 119, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x73\x74\x72\x69\x6e\x67\x5f\x73\x74\x72\x69\x6e\x67\x5f\x6e\x65\x77");
       return p;
     }
     if ((i ==6)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 103, 95, 102, 114, 111, 109, 95, 115, 108, 105, 99, 101, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x73\x74\x72\x69\x6e\x67\x5f\x73\x74\x72\x69\x6e\x67\x5f\x66\x72\x6f\x6d\x5f\x73\x6c\x69\x63\x65");
       return p;
     }
     if ((i ==7)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 103, 95, 118, 105, 101, 119, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x73\x74\x72\x69\x6e\x67\x5f\x73\x74\x72\x69\x6e\x67\x5f\x76\x69\x65\x77");
       return p;
     }
     if ((i ==8)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 115, 116, 114, 105, 110, 103, 95, 115, 116, 114, 105, 110, 103, 95, 108, 101, 110, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x73\x74\x72\x69\x6e\x67\x5f\x73\x74\x72\x69\x6e\x67\x5f\x6c\x65\x6e");
       return p;
     }
     return ((uint8_t *)(0));
   }
   if ((g ==1)) {
     if ((i ==0)) {
-      uint8_t * p = (uint8_t[]){99, 111, 114, 101, 95, 116, 121, 112, 101, 115, 95, 115, 105, 122, 101, 95, 111, 102, 95, 105, 51, 50, 0 };
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x74\x79\x70\x65\x73\x5f\x73\x69\x7a\x65\x5f\x6f\x66\x5f\x69\x33\x32");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = (uint8_t[]){99, 111, 114, 101, 95, 116, 121, 112, 101, 115, 95, 112, 108, 97, 99, 101, 104, 111, 108, 100, 101, 114, 0 };
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x74\x79\x70\x65\x73\x5f\x70\x6c\x61\x63\x65\x68\x6f\x6c\x64\x65\x72");
       return p;
     }
     return ((uint8_t *)(0));
   }
   if ((g ==2)) {
     if ((i ==0)) {
-      uint8_t * p = (uint8_t[]){101, 110, 99, 111, 100, 105, 110, 103, 95, 117, 116, 102, 56, 95, 118, 97, 108, 105, 100, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x65\x6e\x63\x6f\x64\x69\x6e\x67\x5f\x75\x74\x66\x38\x5f\x76\x61\x6c\x69\x64\x5f\x63");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = (uint8_t[]){101, 110, 99, 111, 100, 105, 110, 103, 95, 104, 101, 120, 95, 101, 110, 99, 111, 100, 101, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x65\x6e\x63\x6f\x64\x69\x6e\x67\x5f\x68\x65\x78\x5f\x65\x6e\x63\x6f\x64\x65\x5f\x63");
       return p;
     }
     if ((i ==2)) {
-      uint8_t * p = (uint8_t[]){101, 110, 99, 111, 100, 105, 110, 103, 95, 97, 115, 99, 105, 105, 95, 105, 115, 95, 97, 108, 112, 104, 97, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x65\x6e\x63\x6f\x64\x69\x6e\x67\x5f\x61\x73\x63\x69\x69\x5f\x69\x73\x5f\x61\x6c\x70\x68\x61\x5f\x63");
       return p;
     }
     if ((i ==3)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 101, 110, 99, 111, 100, 105, 110, 103, 95, 117, 116, 102, 56, 95, 118, 97, 108, 105, 100, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x65\x6e\x63\x6f\x64\x69\x6e\x67\x5f\x75\x74\x66\x38\x5f\x76\x61\x6c\x69\x64");
       return p;
     }
     if ((i ==4)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 101, 110, 99, 111, 100, 105, 110, 103, 95, 117, 116, 102, 56, 95, 100, 101, 99, 111, 100, 101, 95, 114, 117, 110, 101, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x65\x6e\x63\x6f\x64\x69\x6e\x67\x5f\x75\x74\x66\x38\x5f\x64\x65\x63\x6f\x64\x65\x5f\x72\x75\x6e\x65");
       return p;
     }
     if ((i ==5)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 101, 110, 99, 111, 100, 105, 110, 103, 95, 97, 115, 99, 105, 105, 95, 105, 115, 95, 97, 108, 112, 104, 97, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x65\x6e\x63\x6f\x64\x69\x6e\x67\x5f\x61\x73\x63\x69\x69\x5f\x69\x73\x5f\x61\x6c\x70\x68\x61");
       return p;
     }
     return ((uint8_t *)(0));
   }
   if ((g ==3)) {
     if ((i ==0)) {
-      uint8_t * p = (uint8_t[]){98, 97, 115, 101, 54, 52, 95, 101, 110, 99, 111, 100, 101, 95, 115, 116, 97, 110, 100, 97, 114, 100, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x62\x61\x73\x65\x36\x34\x5f\x65\x6e\x63\x6f\x64\x65\x5f\x73\x74\x61\x6e\x64\x61\x72\x64\x5f\x63");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 98, 97, 115, 101, 54, 52, 95, 101, 110, 99, 111, 100, 101, 95, 115, 116, 97, 110, 100, 97, 114, 100, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x62\x61\x73\x65\x36\x34\x5f\x65\x6e\x63\x6f\x64\x65\x5f\x73\x74\x61\x6e\x64\x61\x72\x64");
       return p;
     }
     if ((i ==2)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 98, 97, 115, 101, 54, 52, 95, 100, 101, 99, 111, 100, 101, 95, 115, 116, 97, 110, 100, 97, 114, 100, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x62\x61\x73\x65\x36\x34\x5f\x64\x65\x63\x6f\x64\x65\x5f\x73\x74\x61\x6e\x64\x61\x72\x64");
       return p;
     }
     if ((i ==3)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 98, 97, 115, 101, 54, 52, 95, 101, 110, 99, 111, 100, 101, 95, 117, 114, 108, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x62\x61\x73\x65\x36\x34\x5f\x65\x6e\x63\x6f\x64\x65\x5f\x75\x72\x6c");
       return p;
     }
     return ((uint8_t *)(0));
   }
   if ((g ==4)) {
     if ((i ==0)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 99, 115, 118, 95, 110, 101, 120, 116, 95, 102, 105, 101, 108, 100, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x73\x76\x5f\x6e\x65\x78\x74\x5f\x66\x69\x65\x6c\x64");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 99, 115, 118, 95, 101, 115, 99, 97, 112, 101, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x73\x76\x5f\x65\x73\x63\x61\x70\x65");
       return p;
     }
     if ((i ==2)) {
-      uint8_t * p = (uint8_t[]){115, 116, 100, 95, 99, 115, 118, 95, 99, 115, 118, 95, 116, 101, 115, 116, 95, 113, 117, 111, 116, 101, 100, 95, 102, 105, 114, 115, 116, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x63\x73\x76\x5f\x63\x73\x76\x5f\x74\x65\x73\x74\x5f\x71\x75\x6f\x74\x65\x64\x5f\x66\x69\x72\x73\x74");
       return p;
     }
     return ((uint8_t *)(0));
   }
   if ((g ==5)) {
     if ((i ==0)) {
-      uint8_t * p = (uint8_t[]){115, 99, 104, 101, 109, 97, 95, 99, 114, 101, 97, 116, 101, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x63\x68\x65\x6d\x61\x5f\x63\x72\x65\x61\x74\x65\x5f\x63");
       return p;
     }
     if ((i ==1)) {
-      uint8_t * p = (uint8_t[]){115, 99, 104, 101, 109, 97, 95, 100, 101, 99, 111, 100, 101, 95, 106, 115, 111, 110, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x63\x68\x65\x6d\x61\x5f\x64\x65\x63\x6f\x64\x65\x5f\x6a\x73\x6f\x6e\x5f\x63");
       return p;
     }
     if ((i ==2)) {
-      uint8_t * p = (uint8_t[]){115, 99, 104, 101, 109, 97, 95, 115, 109, 111, 107, 101, 95, 99, 0 };
+      uint8_t * p = ((uint8_t *)"\x73\x63\x68\x65\x6d\x61\x5f\x73\x6d\x6f\x6b\x65\x5f\x63");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==6)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x6f\x70\x74\x69\x6f\x6e\x5f\x73\x6f\x6d\x65\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x6f\x70\x74\x69\x6f\x6e\x5f\x75\x6e\x77\x72\x61\x70\x5f\x6f\x72\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x6f\x70\x74\x69\x6f\x6e\x5f\x6e\x6f\x6e\x65\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x6f\x70\x74\x69\x6f\x6e\x5f\x69\x73\x5f\x73\x6f\x6d\x65\x5f\x69\x33\x32");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==7)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x72\x65\x73\x75\x6c\x74\x5f\x6f\x6b\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x72\x65\x73\x75\x6c\x74\x5f\x69\x73\x5f\x6f\x6b\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x72\x65\x73\x75\x6c\x74\x5f\x65\x72\x72\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x72\x65\x73\x75\x6c\x74\x5f\x6f\x6b");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==8)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x64\x65\x62\x75\x67\x5f\x61\x73\x73\x65\x72\x74\x5f\x65\x71\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x64\x65\x62\x75\x67\x5f\x61\x73\x73\x65\x72\x74\x5f\x65\x71\x5f\x75\x33\x32");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x64\x65\x62\x75\x67\x5f\x61\x73\x73\x65\x72\x74\x5f\x65\x71\x5f\x75\x36\x34");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x64\x65\x62\x75\x67\x5f\x61\x73\x73\x65\x72\x74\x5f\x6e\x65\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x64\x65\x62\x75\x67\x5f\x61\x73\x73\x65\x72\x74");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x64\x65\x62\x75\x67\x5f\x64\x65\x62\x75\x67\x5f\x61\x73\x73\x65\x72\x74");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((g ==9)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x6c\x65\x6e\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x67\x65\x74\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x67\x65\x74\x5f\x69\x33\x32\x5f\x75\x6e\x63\x68\x65\x63\x6b\x65\x64");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x6c\x65\x6e\x5f\x75\x38");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x67\x65\x74\x5f\x75\x38");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x67\x65\x74\x5f\x75\x38\x5f\x75\x6e\x63\x68\x65\x63\x6b\x65\x64");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x73\x75\x62\x73\x6c\x69\x63\x65\x5f\x69\x33\x32");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x73\x75\x62\x73\x6c\x69\x63\x65\x5f\x75\x38");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x6c\x65\x6e\x5f\x75\x36\x34");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x5f\x73\x6c\x69\x63\x65\x5f\x67\x65\x74\x5f\x75\x36\x34");
       return p;
     }
     return ((uint8_t *)(0));
@@ -175,27 +338,43 @@ uint8_t * labi_od_simple_group_rel(int32_t g) {
     return ((uint8_t *)(0));
   }
   if ((g ==0)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 115, 116, 114, 105, 110, 103, 47, 115, 116, 114, 105, 110, 103, 46, 111, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x73\x74\x72\x69\x6e\x67\x2f\x73\x74\x72\x69\x6e\x67\x2e\x6f");
     return p;
   }
   if ((g ==1)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 98, 97, 115, 101, 54, 52, 47, 98, 97, 115, 101, 54, 52, 46, 111, 0 };
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x74\x79\x70\x65\x73\x2f\x74\x79\x70\x65\x73\x2e\x6f");
     return p;
   }
   if ((g ==2)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 101, 110, 99, 111, 100, 105, 110, 103, 47, 101, 110, 99, 111, 100, 105, 110, 103, 46, 111, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x65\x6e\x63\x6f\x64\x69\x6e\x67\x2f\x65\x6e\x63\x6f\x64\x69\x6e\x67\x2e\x6f");
     return p;
   }
   if ((g ==3)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 98, 97, 115, 101, 54, 52, 47, 98, 97, 115, 101, 54, 52, 46, 111, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x62\x61\x73\x65\x36\x34\x2f\x62\x61\x73\x65\x36\x34\x2e\x6f");
     return p;
   }
   if ((g ==4)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 99, 115, 118, 47, 99, 115, 118, 46, 111, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x63\x73\x76\x2f\x63\x73\x76\x2e\x6f");
     return p;
   }
   if ((g ==5)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 47, 115, 99, 104, 101, 109, 97, 47, 115, 99, 104, 101, 109, 97, 46, 111, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x73\x63\x68\x65\x6d\x61\x2f\x73\x63\x68\x65\x6d\x61\x2e\x6f");
+    return p;
+  }
+  if ((g ==6)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6f\x70\x74\x69\x6f\x6e\x2f\x6f\x70\x74\x69\x6f\x6e\x2e\x6f");
+    return p;
+  }
+  if ((g ==7)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x72\x65\x73\x75\x6c\x74\x2f\x72\x65\x73\x75\x6c\x74\x2e\x6f");
+    return p;
+  }
+  if ((g ==8)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x64\x65\x62\x75\x67\x2f\x64\x65\x62\x75\x67\x2e\x6f");
+    return p;
+  }
+  if ((g ==9)) {
+    uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x6d\x6f\x64\x2e\x6f");
     return p;
   }
   return ((uint8_t *)(0));
@@ -208,21 +387,21 @@ uint8_t * labi_od_kv_sym_at(int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){100, 98, 95, 107, 118, 95, 111, 112, 101, 110, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x6f\x70\x65\x6e\x5f\x63");
     return p;
   }
   if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){100, 98, 95, 107, 118, 95, 103, 101, 116, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x64\x62\x5f\x6b\x76\x5f\x67\x65\x74\x5f\x63");
     return p;
   }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_kv_rel(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 100, 98, 47, 107, 118, 47, 107, 118, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x64\x62\x2f\x6b\x76\x2f\x6b\x76\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_kv_glue_rel(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 107, 118, 95, 109, 109, 97, 112, 95, 103, 108, 117, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6b\x76\x5f\x6d\x6d\x61\x70\x5f\x67\x6c\x75\x65\x2e\x6f");
   return p;
 }
 int32_t labi_od_arrow_sym_count(void) {
@@ -233,21 +412,21 @@ uint8_t * labi_od_arrow_sym_at(int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){97, 114, 114, 111, 119, 95, 99, 111, 108, 117, 109, 110, 95, 105, 51, 50, 95, 99, 114, 101, 97, 116, 101, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x61\x72\x72\x6f\x77\x5f\x63\x6f\x6c\x75\x6d\x6e\x5f\x69\x33\x32\x5f\x63\x72\x65\x61\x74\x65\x5f\x63");
     return p;
   }
   if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){97, 114, 114, 111, 119, 95, 99, 111, 108, 117, 109, 110, 95, 97, 100, 111, 112, 116, 95, 102, 51, 50, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x61\x72\x72\x6f\x77\x5f\x63\x6f\x6c\x75\x6d\x6e\x5f\x61\x64\x6f\x70\x74\x5f\x66\x33\x32\x5f\x63");
     return p;
   }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_arrow_rel(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 100, 98, 47, 97, 114, 114, 111, 119, 47, 97, 114, 114, 111, 119, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x64\x62\x2f\x61\x72\x72\x6f\x77\x2f\x61\x72\x72\x6f\x77\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_arrow_glue_rel(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 97, 114, 114, 111, 119, 95, 115, 105, 109, 100, 95, 103, 108, 117, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x61\x72\x72\x6f\x77\x5f\x73\x69\x6d\x64\x5f\x67\x6c\x75\x65\x2e\x6f");
   return p;
 }
 int32_t labi_od_time_sym_count(void) {
@@ -258,29 +437,29 @@ uint8_t * labi_od_time_sym_at(int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 95, 116, 105, 109, 101, 95, 110, 111, 119, 95, 109, 111, 110, 111, 116, 111, 110, 105, 99, 95, 110, 115, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x74\x69\x6d\x65\x5f\x6e\x6f\x77\x5f\x6d\x6f\x6e\x6f\x74\x6f\x6e\x69\x63\x5f\x6e\x73");
     return p;
   }
   if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 95, 116, 105, 109, 101, 95, 115, 108, 101, 101, 112, 95, 109, 115, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x74\x69\x6d\x65\x5f\x73\x6c\x65\x65\x70\x5f\x6d\x73");
     return p;
   }
   if ((i ==2)) {
-    uint8_t * p = (uint8_t[]){115, 116, 100, 95, 116, 105, 109, 101, 95, 116, 105, 109, 101, 114, 95, 115, 116, 97, 114, 116, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x74\x69\x6d\x65\x5f\x74\x69\x6d\x65\x72\x5f\x73\x74\x61\x72\x74");
     return p;
   }
   if ((i ==3)) {
-    uint8_t * p = (uint8_t[]){116, 105, 109, 101, 95, 110, 111, 119, 95, 109, 111, 110, 111, 116, 111, 110, 105, 99, 95, 110, 115, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x74\x69\x6d\x65\x5f\x6e\x6f\x77\x5f\x6d\x6f\x6e\x6f\x74\x6f\x6e\x69\x63\x5f\x6e\x73\x5f\x63");
     return p;
   }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_time_rel(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 116, 105, 109, 101, 47, 116, 105, 109, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x74\x69\x6d\x65\x2f\x74\x69\x6d\x65\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_time_os_rel(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 116, 105, 109, 101, 95, 111, 115, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x69\x6d\x65\x5f\x6f\x73\x2e\x6f");
   return p;
 }
 int32_t labi_od_queue_sym_count(void) {
@@ -291,96 +470,197 @@ uint8_t * labi_od_queue_sym_at(int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){115, 121, 110, 99, 95, 113, 117, 101, 117, 101, 95, 99, 111, 110, 116, 101, 110, 116, 105, 111, 110, 95, 115, 109, 111, 107, 101, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x73\x79\x6e\x63\x5f\x71\x75\x65\x75\x65\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x69\x6f\x6e\x5f\x73\x6d\x6f\x6b\x65\x5f\x63");
     return p;
   }
   if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){113, 117, 101, 117, 101, 95, 111, 115, 95, 114, 117, 110, 95, 116, 119, 111, 95, 119, 111, 114, 107, 101, 114, 115, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x71\x75\x65\x75\x65\x5f\x6f\x73\x5f\x72\x75\x6e\x5f\x74\x77\x6f\x5f\x77\x6f\x72\x6b\x65\x72\x73\x5f\x63");
     return p;
   }
   if ((i ==2)) {
-    uint8_t * p = (uint8_t[]){113, 117, 101, 117, 101, 95, 99, 111, 110, 116, 101, 110, 116, 105, 111, 110, 95, 119, 111, 114, 107, 101, 114, 95, 112, 117, 115, 104, 95, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x71\x75\x65\x75\x65\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x69\x6f\x6e\x5f\x77\x6f\x72\x6b\x65\x72\x5f\x70\x75\x73\x68\x5f\x63");
     return p;
   }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_od_queue_rel(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 113, 117, 101, 117, 101, 47, 113, 117, 101, 117, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x71\x75\x65\x75\x65\x2f\x71\x75\x65\x75\x65\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_queue_contention_rel(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 113, 117, 101, 117, 101, 95, 99, 111, 110, 116, 101, 110, 116, 105, 111, 110, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x71\x75\x65\x75\x65\x5f\x63\x6f\x6e\x74\x65\x6e\x74\x69\x6f\x6e\x2e\x6f");
   return p;
 }
+int32_t labi_od_net_sym_count(void) {
+  return 17;
+}
+uint8_t * labi_od_net_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6e\x65\x74\x5f\x6c\x69\x73\x74\x65\x6e");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6e\x65\x74\x5f\x63\x6f\x6e\x6e\x65\x63\x74");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6e\x65\x74\x5f\x75\x64\x70\x5f\x62\x69\x6e\x64");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6e\x65\x74\x5f\x75\x64\x70\x5f\x72\x65\x63\x76\x5f\x6d\x61\x6e\x79\x5f\x62\x75\x66");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6e\x65\x74\x5f\x75\x64\x70\x5f\x73\x65\x6e\x64\x5f\x6d\x61\x6e\x79\x5f\x62\x75\x66");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6e\x65\x74\x5f\x61\x64\x64\x72\x5f\x74\x6f\x5f\x75\x33\x32");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"\x73\x74\x64\x5f\x6e\x65\x74\x5f\x63\x6c\x6f\x73\x65\x5f\x75\x64\x70");
+    return p;
+  }
+  if ((i ==7)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x73\x74\x72\x65\x61\x6d\x5f\x77\x72\x69\x74\x65\x5f\x62\x61\x74\x63\x68\x5f\x63");
+    return p;
+  }
+  if ((i ==8)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x74\x63\x70\x5f\x63\x6f\x6e\x6e\x65\x63\x74\x5f\x63");
+    return p;
+  }
+  if ((i ==9)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x74\x63\x70\x5f\x6c\x69\x73\x74\x65\x6e\x5f\x63");
+    return p;
+  }
+  if ((i ==10)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x75\x64\x70\x5f\x62\x69\x6e\x64\x5f\x63");
+    return p;
+  }
+  if ((i ==11)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x75\x64\x70\x5f\x72\x65\x63\x76\x5f\x6d\x61\x6e\x79\x5f\x62\x75\x66\x5f\x63");
+    return p;
+  }
+  if ((i ==12)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x75\x64\x70\x5f\x73\x65\x6e\x64\x5f\x6d\x61\x6e\x79\x5f\x62\x75\x66\x5f\x63");
+    return p;
+  }
+  if ((i ==13)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x63\x6c\x6f\x73\x65\x5f\x73\x6f\x63\x6b\x65\x74\x5f\x63");
+    return p;
+  }
+  if ((i ==14)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x75\x64\x70\x5f\x73\x65\x6e\x64\x5f\x63");
+    return p;
+  }
+  if ((i ==15)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x64\x6e\x73\x5f\x72\x65\x73\x6f\x6c\x76\x65\x5f\x63");
+    return p;
+  }
+  if ((i ==16)) {
+    uint8_t * p = ((uint8_t *)"\x6e\x65\x74\x5f\x73\x6f\x63\x6b\x5f\x63\x72\x65\x61\x74\x65\x5f\x63");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t link_abi_user_o_needs_std_net(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 0;
+  }
+  if (((user_o)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_od_net_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_net_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
 uint8_t * labi_od_rel_net(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 110, 101, 116, 47, 110, 101, 116, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x6e\x65\x74\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_thread(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 116, 104, 114, 101, 97, 100, 47, 116, 104, 114, 101, 97, 100, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x74\x68\x72\x65\x61\x64\x2f\x74\x68\x72\x65\x61\x64\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_heap(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 104, 101, 97, 112, 47, 104, 101, 97, 112, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_set(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 115, 101, 116, 47, 115, 101, 116, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x73\x65\x74\x2f\x73\x65\x74\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_map(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 109, 97, 112, 47, 109, 97, 112, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x6d\x61\x70\x2f\x6d\x61\x70\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_async_scheduler(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 97, 115, 121, 110, 99, 47, 115, 99, 104, 101, 100, 117, 108, 101, 114, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x61\x73\x79\x6e\x63\x2f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_core_mem(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 109, 101, 109, 47, 109, 101, 109, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_sys_linux(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 115, 121, 115, 47, 108, 105, 110, 117, 120, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x73\x79\x73\x2f\x6c\x69\x6e\x75\x78\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_page_mmap(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 104, 101, 97, 112, 47, 112, 97, 103, 101, 95, 109, 109, 97, 112, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x70\x61\x67\x65\x5f\x6d\x6d\x61\x70\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_sys(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 115, 121, 115, 47, 115, 121, 115, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x73\x79\x73\x2f\x73\x79\x73\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_core_slice(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 114, 101, 47, 115, 108, 105, 99, 101, 47, 115, 108, 105, 99, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x73\x6c\x69\x63\x65\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_test(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 116, 101, 115, 116, 47, 116, 101, 115, 116, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x74\x65\x73\x74\x2f\x74\x65\x73\x74\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_heap_user(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 104, 101, 97, 112, 95, 117, 115, 101, 114, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_scheduler_glue(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 115, 99, 104, 101, 100, 117, 108, 101, 114, 95, 103, 108, 117, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x5f\x67\x6c\x75\x65\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_thread_glue(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 116, 104, 114, 101, 97, 100, 95, 103, 108, 117, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x68\x72\x65\x61\x64\x5f\x67\x6c\x75\x65\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_net_udp_batch(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 110, 101, 116, 95, 117, 100, 112, 95, 98, 97, 116, 99, 104, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6e\x65\x74\x5f\x75\x64\x70\x5f\x62\x61\x74\x63\x68\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_net_workers(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 110, 101, 116, 95, 119, 111, 114, 107, 101, 114, 115, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6e\x65\x74\x5f\x77\x6f\x72\x6b\x65\x72\x73\x2e\x6f");
   return p;
 }
 uint8_t * labi_od_rel_test_fn_invoke(void) {
-  uint8_t * p = (uint8_t[]){99, 111, 109, 112, 105, 108, 101, 114, 47, 114, 117, 110, 116, 105, 109, 101, 95, 116, 101, 115, 116, 95, 102, 110, 95, 105, 110, 118, 111, 107, 101, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f");
   return p;
 }

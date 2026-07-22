@@ -2,14 +2,20 @@
  * Logic source: src/runtime/labi_ondemand_list.x
  * Hybrid: SHUX_LABI_ONDEMAND_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14）：公共业务符号由 full .x 提供（simple/kv/arrow/time/queue + rel_*）。
- * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs。
+ * R2 full（2026-07-14 / wave118）：公共业务符号由 full .x 提供：
+ *   simple/kv/arrow/time/queue + rel_* 纯表
+ *   + labi_od_net_sym_{count,at} + link_abi_user_o_needs_std_net pure orch
+ * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
+ *   undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
  * Prove：seeds/labi_ondemand_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+
+/* Cap residual (mega always): nm UNDEF probe used by pure needs orch. */
+int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
 
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
 
@@ -315,6 +321,63 @@ const char *labi_od_queue_contention_rel(void) {
   return "compiler/runtime_queue_contention.o";
 }
 
+/* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED. */
+int labi_od_net_sym_count(void) { return 17; }
+const char *labi_od_net_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_net_listen";
+  if (i == 1)
+    return "std_net_connect";
+  if (i == 2)
+    return "std_net_udp_bind";
+  if (i == 3)
+    return "std_net_udp_recv_many_buf";
+  if (i == 4)
+    return "std_net_udp_send_many_buf";
+  if (i == 5)
+    return "std_net_addr_to_u32";
+  if (i == 6)
+    return "std_net_close_udp";
+  if (i == 7)
+    return "net_stream_write_batch_c";
+  if (i == 8)
+    return "net_tcp_connect_c";
+  if (i == 9)
+    return "net_tcp_listen_c";
+  if (i == 10)
+    return "net_udp_bind_c";
+  if (i == 11)
+    return "net_udp_recv_many_buf_c";
+  if (i == 12)
+    return "net_udp_send_many_buf_c";
+  if (i == 13)
+    return "net_close_socket_c";
+  if (i == 14)
+    return "net_udp_send_c";
+  if (i == 15)
+    return "net_dns_resolve_c";
+  if (i == 16)
+    return "net_sock_create_c";
+  return NULL;
+}
+
+/* Pure orch: table + Cap residual undef_sym. PLATFORM: SHARED. */
+int link_abi_user_o_needs_std_net(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_net_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_net_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -356,6 +419,9 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
+int labi_od_net_sym_count(void);
+const char *labi_od_net_sym_at(int i);
+int link_abi_user_o_needs_std_net(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
