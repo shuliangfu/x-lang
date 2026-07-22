@@ -1,5 +1,9 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/223 true .x + C tail).
+ * wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /
+ *   pipeline_preprocess_loaded_into_ctx orch (under wave94 pure load_import);
+ *   Cap residual try_one/try_entry + path/loaded accessors + preprocess_x_buf;
+ *   parse_into_buf still Cap residual. glue/ast_pool SHUX_WEAK cold twins.
  * wave45 R2 hybrid (2026-07-21): product PREFER g05_try_x_to_o full .x pure (~115) +
  *   this seed as rest under -DSHUX_RUNTIME_PIPELINE_ABI_FROM_X (no pure-dup public bodies).
  * wave46: pure residual helpers (ptr/size slots, i32_store, module import cstr,

@@ -22284,11 +22284,21 @@ __attribute__((weak)) int32_t pipeline_sync_dep_slots_from_driver(struct ast_Mod
   return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
 }
 
+/**
+ * wave95: product pure owns pipeline_resolve_path_x (runtime_pipeline_abi.x).
+ * Keep weak cold twin for standalone / non-PREFER links.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
+ */
 __attribute__((weak)) int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t *import_path,
                                                         int32_t path_len) {
   return pipeline_resolve_path_x_impl_c(ctx, import_path, path_len);
 }
 
+/**
+ * wave95: product pure owns pipeline_read_file_x (runtime_pipeline_abi.x).
+ * Keep weak cold twin for standalone / non-PREFER links.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
+ */
 __attribute__((weak)) int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx) {
   return pipeline_read_file_x_impl_c(ctx);
 }

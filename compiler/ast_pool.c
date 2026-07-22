@@ -6254,6 +6254,8 @@ extern int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx);
 
 /**
  * M8-tail strict 回退：`resolve_path_x` 按 lib_roots 与 entry_dir 解析 import 到 ctx.path_buf。
+ * wave95: product pure owns pipeline_resolve_path_x; this impl remains cold twin target.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_resolve_path_x_impl_c(struct ast_PipelineDepCtx *ctx, uint8_t *import_path, int32_t path_len) {
   int32_t r;
@@ -6283,6 +6285,8 @@ int32_t pipeline_read_fd_into_loaded_buf(struct ast_PipelineDepCtx *ctx, int32_t
 
 /**
  * M8-tail strict 回退：`read_file_x` 读 ctx.path_buf 文件到 ctx.loaded_buf（B-20 POSIX，非 fopen）。
+ * wave95: product pure owns pipeline_read_file_x; this impl remains cold twin target.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_read_file_x_impl_c(struct ast_PipelineDepCtx *ctx) {
   int32_t n;
@@ -6334,8 +6338,11 @@ int32_t pipeline_dep_ctx_preprocess_len_get(struct ast_PipelineDepCtx *ctx) {
 
 /**
  * loaded_buf → preprocess_buf；成功返回 0，preprocess 失败返回 -9。
+ * wave95: product pure owns pipeline_preprocess_loaded_into_ctx (runtime_pipeline_abi.x).
+ * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-int32_t pipeline_preprocess_loaded_into_ctx(struct ast_PipelineDepCtx *ctx) {
+SHUX_WEAK int32_t pipeline_preprocess_loaded_into_ctx(struct ast_PipelineDepCtx *ctx) {
   int32_t out_len;
 
   if (!ctx)

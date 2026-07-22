@@ -4,10 +4,16 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /
+//   pipeline_preprocess_loaded_into_ctx orch under wave94 pure load_import;
+//   Cap residual try_one_lib_root / try_entry_dir / path+loaded buf accessors /
+//   set_loaded_len / preprocess_x_buf + pure preprocess_len store; parse_into_buf
+//   still Cap residual. glue/ast_pool SHUX_WEAK cold twins (resolve/read already
+//   weak; preprocess_loaded now weak). Closes Cap residual resolve/read/pp leaves.
 // wave94: pure pipeline_load_import_from_disk_c orch + pure
 //   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
 //   pipeline_bind_import_dep_buffers + pipeline_sync_one_dep_slot;
-//   Cap residual resolve/read/preprocess/parse + typeck merge+wpo +
+//   Cap residual (wave95→pure) resolve/read/preprocess; parse + typeck merge+wpo +
 //   parser_copy_module_import_path64; glue/ast_pool SHUX_WEAK cold twins.
 //   Closes Cap residual disk-load + dep-sync leaves under wave93 load_and_sync.
 // wave93: pure pipeline_load_and_sync_direct_import_deps_c orch + same-TU pure
@@ -193,17 +199,25 @@ export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u
 // PLATFORM: SHARED — light fallback under pure dep-prerun routes here (not glue metrics fork).
 export extern "C" function typeck_validate_struct_layouts_zero_padding(module: *u8, arena: *u8): i32;
 export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena: *u8): void;
-// wave93/wave94 Cap residual leaves under pure load_and_sync / load_import orch.
+// wave93–95 Cap residual leaves under pure load_and_sync / load_import orch.
 // PLATFORM: SHARED — strong bodies remain in glue/parser/typeck for sub-leaves;
 //   wave94 pure owns load_import_from_disk_c / sync_dep_slots_from_driver_c /
-//   bind_import_dep_buffers / sync_one_dep_slot (same-TU; not export-extern).
+//   bind_import_dep_buffers / sync_one_dep_slot (same-TU; not export-extern);
+//   wave95 pure owns resolve_path_x / read_file_x / preprocess_loaded_into_ctx.
 export extern "C" function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
-// wave94 Cap residual under pure load_import orch (resolve / read / preprocess / parse).
-export extern "C" function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i32): i32;
-export extern "C" function pipeline_read_file_x(ctx: *u8): i32;
-export extern "C" function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32;
+// wave95 Cap residual under pure resolve/read/pp orch (G.7 try_* from pipeline.x
+// product surface; path/loaded accessors + set_loaded_len from ast_pool).
+// preprocess_x_buf already declared above (preprocess.x engine).
+export extern "C" function pipeline_loop_should_continue_lib_root_c(ctx: *u8, idx: i32): i32;
+export extern "C" function pipeline_resolve_path_try_one_lib_root(ctx: *u8, lib_idx: i32, import_path: *u8, path_len: i32): i32;
+export extern "C" function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_path: *u8, path_len: i32): i32;
+export extern "C" function pipeline_dep_ctx_path_buf_ptr(ctx: *u8): *u8;
+export extern "C" function pipeline_dep_ctx_loaded_buf_ptr(ctx: *u8): *u8;
+export extern "C" function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void;
+export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
+// wave95 Cap residual under pure load_import orch (parse still C; arena/prep ptrs).
 export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_len_get(ctx: *u8): i32;
@@ -2838,9 +2852,9 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  * @return i32 — 0 ok; -1 null; -7 resolve fail; -8 read fail; -9 preprocess fail; -10 parse fail
  * Steps (match historical pipeline_load_import_from_disk_impl_c):
  *   1) parser_copy_module_import_path64
- *   2) Cap residual pipeline_resolve_path_x
- *   3) Cap residual pipeline_read_file_x
- *   4) Cap residual pipeline_preprocess_loaded_into_ctx
+ *   2) same-TU pure pipeline_resolve_path_x (wave95)
+ *   3) same-TU pure pipeline_read_file_x (wave95)
+ *   4) same-TU pure pipeline_preprocess_loaded_into_ctx (wave95)
  *   5) pin import path on same slot (path authority for later sync)
  *   6) same-TU pure pipeline_bind_import_dep_buffers
  *   7) Cap residual pipeline_parse_into_buf(dep_arena, dep_module, preprocess_buf, len)
@@ -3747,6 +3761,152 @@ export function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void {
   pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), 0);
   pipe_store_i32_le(ctx, pipe_pctx_off_entry_dir_len(), 0);
   pipe_store_i32_le(ctx, pipe_pctx_off_num_lib_roots(), 0);
+}
+
+/**
+ * Resolve import path into ctx.path_buf via lib_roots then entry_dir.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param import_path *u8 — import path bytes; null → -1
+ * @param path_len i32 — path byte length; <=0 → -1
+ * @return i32 — 0 first successful probe; -1 null/miss
+ * Rules (match historical pipeline_resolve_path_x_impl_c / pipeline.x resolve_path_x):
+ *   - loop lib_i while pipeline_loop_should_continue_lib_root_c(ctx, lib_i);
+ *     on pipeline_resolve_path_try_one_lib_root == 0 return 0
+ *   - else pipeline_resolve_path_try_entry_dir; 0 → success else -1
+ * wave95 pure Cap residual: G.7 product authority for pipeline_resolve_path_x
+ * (historical glue weak → impl_c). Reuses G.7 try_one / try_entry product surface
+ * (pipeline.x pure helpers already linked; no second path-build body).
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (import_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (path_len <= 0) {
+    return 0 - 1;
+  }
+  let lib_i: i32 = 0;
+  while (1 == 1) {
+    let cont: i32 = 0;
+    unsafe {
+      cont = pipeline_loop_should_continue_lib_root_c(ctx, lib_i);
+    }
+    if (cont == 0) {
+      break;
+    }
+    let try_rc: i32 = 0;
+    unsafe {
+      try_rc = pipeline_resolve_path_try_one_lib_root(ctx, lib_i, import_path, path_len);
+    }
+    if (try_rc == 0) {
+      return 0;
+    }
+    lib_i = lib_i + 1;
+  }
+  let entry_rc: i32 = 0;
+  unsafe {
+    entry_rc = pipeline_resolve_path_try_entry_dir(ctx, import_path, path_len);
+  }
+  if (entry_rc == 0) {
+    return 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Read ctx.path_buf file into ctx.loaded_buf and set loaded_len.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 null / open-or-read fail
+ * Steps (match historical pipeline_read_file_x_impl_c):
+ *   1) Cap residual path_buf_ptr + loaded_buf_ptr
+ *   2) G.7 pure shux_read_file_into_path (cap 4194304 = PIPELINE_SOURCE_BUF_CAP)
+ *   3) Cap residual pipeline_dep_ctx_set_loaded_len(n) on n>=0
+ * wave95 pure Cap residual: G.7 product authority for pipeline_read_file_x
+ * (historical glue weak → impl_c). PLATFORM: SHARED — glue SHUX_WEAK cold twin.
+ */
+#[no_mangle]
+export function pipeline_read_file_x(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let path: *u8 = 0 as *u8;
+  let buf: *u8 = 0 as *u8;
+  unsafe {
+    path = pipeline_dep_ctx_path_buf_ptr(ctx);
+    buf = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+  }
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  // PIPELINE_SOURCE_BUF_CAP — same as historical C / pipeline_loaded_buf_cap.
+  let cap: i64 = 4194304;
+  let n: i32 = 0;
+  unsafe {
+    n = shux_read_file_into_path(path, buf, cap);
+  }
+  if (n < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_dep_ctx_set_loaded_len(ctx, n as i64);
+  }
+  return 0;
+}
+
+/**
+ * Preprocess ctx.loaded_buf into ctx.preprocess_buf; set preprocess_len.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 null; -9 preprocess_x_buf fail (match historical)
+ * Steps (match historical pipeline_preprocess_loaded_into_ctx):
+ *   1) Cap residual loaded_buf_ptr + preprocess_buf_ptr
+ *   2) pure load loaded_len via LP64 offsetof + shux_size_slot_get
+ *      (offset 4195344 = slot index 524418; same as pipe_pctx_off_loaded_len)
+ *   3) G.7 pure cross-TU preprocess_x_buf (preprocess.x engine)
+ *   4) pure store preprocess_len via pipe_store_i32_le (wave67 offset)
+ * wave95 pure Cap residual: G.7 product authority for pipeline_preprocess_loaded_into_ctx
+ * (historical strong body in ast_pool). PLATFORM: SHARED — ast_pool SHUX_WEAK cold twin.
+ */
+#[no_mangle]
+export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let loaded: *u8 = 0 as *u8;
+  let prep: *u8 = 0 as *u8;
+  unsafe {
+    loaded = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+    prep = pipeline_dep_ctx_preprocess_buf_ptr(ctx);
+  }
+  if (loaded == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (prep == 0 as *u8) {
+    return 0 - 1;
+  }
+  // loaded_len is ptrdiff_t/i64 at LP64 offset 4195344 = slot index 524418.
+  let loaded_len: i64 = 0;
+  unsafe {
+    loaded_len = shux_size_slot_get(ctx, 524418);
+  }
+  // PIPELINE_SOURCE_BUF_CAP for out_cap.
+  let out_cap: i32 = 4194304;
+  let out_len: i32 = 0;
+  unsafe {
+    out_len = preprocess_x_buf(loaded, loaded_len, prep, out_cap);
+  }
+  if (out_len < 0) {
+    return 0 - 9;
+  }
+  // Match C: ctx->preprocess_len = out_len (i32 LE at pure offset).
+  pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), out_len);
+  return 0;
 }
 
 /**
