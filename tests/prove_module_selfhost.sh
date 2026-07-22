@@ -52,7 +52,8 @@ MODULES=(
   "labi_invoke_cc_list|src/runtime/labi_invoke_cc_list.x|seeds/labi_invoke_cc_list_surface.from_x.c||"
   # labi_invoke_ld_list R2 full：.x 吃满 brew/compress/tail/driver/entry 纯表 + wave152 brew orch
   # + wave153 asm_ld_append_compress_libs pure orch + wave154 invoke_cc_append_compress_ld pure orch
-  # + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch；
+  # + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch
+  # + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + push_existing + spawn/ld/cc IO mega
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"

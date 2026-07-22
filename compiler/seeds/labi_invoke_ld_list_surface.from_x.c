@@ -5,15 +5,17 @@
  *   + wave152 ld_append_brew_lib_paths pure orch
  *   + wave153 asm_ld_append_compress_libs pure orch
  *   + wave154 invoke_cc_append_compress_ld pure orch
- *   + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch)
+ *   + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch
+ *   + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch)
  * Cap residual: host_is_apple; needs + ensure + path; push_existing; spawn/ld/cc IO mega
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
- * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
+ * PLATFORM: SHARED - pure contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
 extern int32_t link_abi_host_is_apple(void);
+extern int32_t shux_host_is_linux(void);
 extern int32_t link_abi_obj_needs_zlib(uint8_t * obj_o);
 extern int32_t link_abi_obj_needs_zstd(uint8_t * obj_o);
 extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
@@ -420,6 +422,137 @@ void shux_asm_ld_append_mach_tail_libs_impl(uint8_t * compress_o, uint8_t * user
       uint8_t * fsys = labi_ld_flag_lSystem();
       (void)(((argv)[curl] = fsys));
       (void)(((la)[0] = (curl + 1)));
+    }
+  }
+}
+/* wave157: shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch (surface pin; flags i32 layout). */
+void shux_asm_ld_append_unix_gcc_tail_libs_impl(uint8_t * compress_o, uint8_t * user_o, uint8_t * flags, int32_t need_pt, uint8_t * * argv, int32_t * la, int32_t max_la) {
+  if ((flags == 0)) {
+    return;
+  }
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab == 0)) {
+    return;
+  }
+  if ((la == 0)) {
+    return;
+  }
+  if ((((la)[0] < 0))) {
+    return;
+  }
+  int32_t * f = ((int32_t *)(flags));
+  int32_t have_io = (f)[0];
+  int32_t have_net = (f)[1];
+  int32_t have_math = (f)[5];
+  int32_t have_compress = (f)[6];
+  int32_t have_dynlib = (f)[7];
+  int32_t have_sqlite = (f)[8];
+  int32_t have_libc_heap = (f)[10];
+  int32_t have_fs = (f)[11];
+  if ((have_io != 0)) {
+    if ((need_pt != 0)) {
+      int32_t cur0 = (la)[0];
+      if ((cur0 <(max_la - 1))) {
+        uint8_t * fp0 = labi_ld_flag_pthread();
+        (void)(((argv)[cur0] = fp0));
+        (void)(((la)[0] = (cur0 + 1)));
+      }
+    }
+  } else {
+    if ((need_pt != 0)) {
+      int32_t cur1 = (la)[0];
+      if ((cur1 <(max_la - 1))) {
+        uint8_t * fp1 = labi_ld_flag_lpthread();
+        (void)(((argv)[cur1] = fp1));
+        (void)(((la)[0] = (cur1 + 1)));
+      }
+    }
+  }
+  if ((have_math != 0)) {
+    int32_t curm = (la)[0];
+    if ((curm <(max_la - 1))) {
+      uint8_t * fm = labi_ld_flag_lm();
+      (void)(((argv)[curm] = fm));
+      (void)(((la)[0] = (curm + 1)));
+    }
+  }
+  int32_t need_comp = have_compress;
+  if ((need_comp == 0)) {
+    (void)((need_comp = link_abi_user_o_needs_compress_libs(user_o)));
+  }
+  if ((need_comp != 0)) {
+    asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
+  }
+  if ((have_sqlite != 0)) {
+    int32_t curs = (la)[0];
+    if ((curs <(max_la - 1))) {
+      uint8_t * fs = labi_ld_flag_lsqlite3();
+      (void)(((argv)[curs] = fs));
+      (void)(((la)[0] = (curs + 1)));
+    }
+  }
+  if ((have_dynlib != 0)) {
+    int32_t is_linux = 0;
+    (void)((is_linux = shux_host_is_linux()));
+    if ((is_linux != 0)) {
+      int32_t curd = (la)[0];
+      if ((curd <(max_la - 1))) {
+        uint8_t * fd = labi_ld_flag_ldl();
+        (void)(((argv)[curd] = fd));
+        (void)(((la)[0] = (curd + 1)));
+      }
+    }
+  }
+  int32_t always_lc = 0;
+  if ((have_io != 0)) {
+    always_lc = 1;
+  }
+  if ((have_net != 0)) {
+    always_lc = 1;
+  }
+  if ((need_pt != 0)) {
+    always_lc = 1;
+  }
+  if ((always_lc != 0)) {
+    int32_t curc = (la)[0];
+    if ((curc <(max_la - 1))) {
+      uint8_t * fc = labi_ld_flag_lc();
+      (void)(((argv)[curc] = fc));
+      (void)(((la)[0] = (curc + 1)));
+    }
+  } else {
+    int32_t want_lc = 0;
+    if ((have_libc_heap != 0)) {
+      want_lc = 1;
+    }
+    if ((have_fs != 0)) {
+      want_lc = 1;
+    }
+    if ((have_math != 0)) {
+      want_lc = 1;
+    }
+    if ((have_compress != 0)) {
+      want_lc = 1;
+    }
+    if ((have_sqlite != 0)) {
+      want_lc = 1;
+    }
+    if ((have_dynlib != 0)) {
+      want_lc = 1;
+    }
+    if ((want_lc != 0)) {
+      int32_t is_linux2 = 0;
+      int32_t is_apple = 0;
+      (void)((is_linux2 = shux_host_is_linux()));
+      (void)((is_apple = link_abi_host_is_apple()));
+      if (((is_linux2 != 0) || (is_apple != 0))) {
+        int32_t curc2 = (la)[0];
+        if ((curc2 <(max_la - 1))) {
+          uint8_t * fc2 = labi_ld_flag_lc();
+          (void)(((argv)[curc2] = fc2));
+          (void)(((la)[0] = (curc2 + 1)));
+        }
+      }
     }
   }
 }

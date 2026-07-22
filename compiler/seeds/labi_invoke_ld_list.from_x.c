@@ -14,20 +14,22 @@
  *     + invoke_cc_argv_push_existing for glue realpath/skip/dedup)
  *   shux_asm_ld_append_mach_tail_libs_impl (wave156 pure orch; flags i32 layout
  *     + pure flag_* + peer compress orch + peer needs_compress)
+ *   shux_asm_ld_append_unix_gcc_tail_libs_impl (wave157 pure orch; host_is_linux
+ *     + host_is_apple for -ldl / else -lc gates)
  * Cap residual: host_is_apple; needs+ensure+path Cap; invoke_cc_argv_push_existing;
- *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
- *   unix_gcc_tail_libs_impl still always mega.
+ *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
  * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
-/* ShuAsmLdStdLinkFlags for wave156 cold twin (standalone seed cc + mega include). */
+/* ShuAsmLdStdLinkFlags for wave156/157 cold twin (standalone seed cc + mega include). */
 #include "runtime_link_abi.h"
 
 /* Cap residual / peer pure always provided by mega (or other pure slices); cold twin calls them. */
 int link_abi_host_is_apple(void);
+int shux_host_is_linux(void);
 int link_abi_obj_needs_zlib(const char *obj_o);
 int link_abi_obj_needs_zstd(const char *obj_o);
 int link_abi_obj_needs_brotli(const char *obj_o);
@@ -216,6 +218,47 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
     argv[(*la)++] = labi_ld_flag_lSystem();
 }
 
+/* wave157: shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch (cold twin ≡ .x).
+ * Signature keeps ShuAsmLdStdLinkFlags* (mega ABI); pure .x reads same LP64 i32 layout.
+ * -ldl gated by peer shux_host_is_linux; else-branch -lc by linux|apple. */
+void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o,
+    const ShuAsmLdStdLinkFlags *flags, int need_pt, const char **argv, int *la, int max_la) {
+  int need_comp;
+  int always_lc;
+  if (!flags || !argv || !la || *la < 0)
+    return;
+  /* pthread: have_io uses -pthread; !have_io && need_pt uses -lpthread (≡ mega). */
+  if (flags->have_io) {
+    if (need_pt && *la < max_la - 1)
+      argv[(*la)++] = labi_ld_flag_pthread();
+  } else if (need_pt && *la < max_la - 1) {
+    argv[(*la)++] = labi_ld_flag_lpthread();
+  }
+  if (flags->have_math && *la < max_la - 1)
+    argv[(*la)++] = labi_ld_flag_lm();
+  need_comp = flags->have_compress;
+  if (!need_comp)
+    need_comp = link_abi_user_o_needs_compress_libs(user_o);
+  if (need_comp)
+    asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
+  if (flags->have_sqlite && *la < max_la - 1)
+    argv[(*la)++] = labi_ld_flag_lsqlite3();
+  /* -ldl only on Linux when dynlib (mega #if __linux__). */
+  if (flags->have_dynlib && shux_host_is_linux() && *la < max_la - 1)
+    argv[(*la)++] = labi_ld_flag_ldl();
+  always_lc = (flags->have_io || flags->have_net || need_pt) ? 1 : 0;
+  if (always_lc) {
+    if (*la < max_la - 1)
+      argv[(*la)++] = labi_ld_flag_lc();
+  } else {
+    /* Final else: -lc only on linux|apple when any of heap/fs/math/compress/sqlite/dynlib. */
+    if ((flags->have_libc_heap || flags->have_fs || flags->have_math || flags->have_compress
+            || flags->have_sqlite || flags->have_dynlib)
+        && (shux_host_is_linux() || link_abi_host_is_apple()) && *la < max_la - 1)
+      argv[(*la)++] = labi_ld_flag_lc();
+  }
+}
+
 #else
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
@@ -248,6 +291,8 @@ void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, con
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
 void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o,
     const ShuAsmLdStdLinkFlags *flags, const char **argv, int *la, int max_la, int append_lsystem);
+void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o,
+    const ShuAsmLdStdLinkFlags *flags, int need_pt, const char **argv, int *la, int max_la);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

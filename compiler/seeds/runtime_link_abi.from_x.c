@@ -2874,9 +2874,11 @@ const char *labi_ld_common_tail_flag_at(int i);
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
-/* wave156: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
+/* wave156/157: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
 void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem);
+void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    int need_pt, const char **argv, int *la, int max_la);
 #endif
 
 /**
@@ -2917,8 +2919,13 @@ int link_abi_host_is_apple(void) {
  * (flags i32 layout + pure flag_* + peer compress orch + peer needs_compress).
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for mach tail -l*.
- * Sibling unix_gcc_tail_libs_impl still always mega (next residual).
  * PLATFORM: SHARED orch / MACOS consumers. */
+
+/* wave157: shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch lives in labi_invoke_ld_list
+ * (flags i32 layout + pure flag_* + peer compress + peer host_is_linux + host_is_apple).
+ * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
+ * .x (decl in #else). Why: hybrid still had always-mega C body for unix gcc tail -l*.
+ * PLATFORM: SHARED orch / LINUX primary consumers. */
 
 
 
@@ -7026,89 +7033,10 @@ void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_
     const char **argv, int *la, int max_la, int append_lsystem);
 #endif
 
-/**
- * Linux/Unix gcc 或裸 ld 路径：按 std 链入标记追加 -pthread、-lm、压缩库、-ldl、-lc（F-03 v2/v3 无 -luring）。
- * G-02f-66：主体 _impl；.x 门闩 null 检查后转发。
- */
-/* G-02f-275：unix tail -l* from pure table */
-void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
-    int need_pt, const char **argv, int *la, int max_la) {
-    if (flags->have_io) {
-        if (need_pt && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_pthread();
-        if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lm();
-        if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
-            asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-        if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lsqlite3();
-#if defined(__linux__)
-        if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_ldl();
-#endif
-        if (*la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lc();
-    } else if (flags->have_net && need_pt) {
-        if (*la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lpthread();
-        if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lm();
-        if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
-            asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-        if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lsqlite3();
-#if defined(__linux__)
-        if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_ldl();
-#endif
-        if (*la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lc();
-    } else if (flags->have_net) {
-        if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lm();
-        if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
-            asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-        if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lsqlite3();
-#if defined(__linux__)
-        if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_ldl();
-#endif
-        if (*la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lc();
-    } else if (need_pt) {
-        if (*la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lpthread();
-        if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lm();
-        if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
-            asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-        if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lsqlite3();
-#if defined(__linux__)
-        if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_ldl();
-#endif
-        if (*la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lc();
-    } else {
-        if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lm();
-        if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
-            asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-        if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lsqlite3();
-#if defined(__linux__)
-        if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_ldl();
-#endif
-#if defined(__linux__) || defined(__APPLE__)
-        if ((flags->have_libc_heap || flags->have_fs || flags->have_math || flags->have_compress || flags->have_sqlite
-                || flags->have_dynlib) && *la < max_la - 1)
-            argv[(*la)++] = labi_ld_flag_lc();
-#endif
-    }
-}
+/* wave157: shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch — body removed from mega
+ * (was multi-branch always-mega with #if __linux__ / linux||apple). Cold twin / hybrid pure
+ * always provide the symbol via labi_invoke_ld_list (host_is_linux + host_is_apple peers).
+ * PLATFORM: SHARED orch / LINUX consumers. */
 
 /* G-02f-277 L9 gates */
 #ifndef SHUX_LABI_GATES_FROM_X
