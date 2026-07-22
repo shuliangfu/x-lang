@@ -2391,9 +2391,11 @@ export function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
   return 0;
 }
 
-/* wave132: bulk PRIMARY OS pure tables + orch (time_os / random_fill / env_os).
+/* wave132–133: bulk PRIMARY OS pure tables + orch.
+ * wave132: time_os / random_fill / env_os.
+ * wave133: process_argv (9 needles; single-leaf to stay under module codegen capacity).
  * Semantics: null/empty user_o → 1 (legacy hard-link for old call sites without user_o).
- * process_argv + std_task stay mega until module capacity / split.
+ * std_task stays mega until capacity raise or L8b split.
  * Cap residual: shux_link_obj_needs_undef_sym. PLATFORM: SHARED. */
 
 /**
@@ -2730,6 +2732,105 @@ export function labi_user_needs_runtime_env_os(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_runtime_env_os_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of runtime process_argv UNDEF needles for labi_user_needs_runtime_process_argv.
+ * Product complete (G.7): process_*_c + process_shux_* + std_process_* + std_env_args_iter.
+ * @return i32 — 9
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_process_argv_sym_count(): i32 {
+  return 9;
+}
+
+/**
+ * runtime process_argv UNDEF needle at index (exact symbols only).
+ * @param i i32 — index in [0, 9)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_process_argv_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "process_shux_argc_get";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "process_shux_argv_get";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "process_arg_c";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "process_args_count_c";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_process_args";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_process_arg";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_process_argc";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_process_argv";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_env_args_iter";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o needs runtime process_argv companion (PRIMARY process argv bulk gate).
+ * Pure orch: fixed exact UNDEF table; Cap residual undef_sym.
+ * null/empty user_o → 1 (legacy hard-link when call site has no user_o).
+ * @param user_o *u8 — path to user .o
+ * @return i32 — 1 if gate open (push/ensure process_argv path), else 0
+ * Why (wave133): hybrid still had labi_user_needs_runtime_process_argv body always mega C;
+ * single-leaf migrate after wave132 capacity clip blocked process_argv+std_task together.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function labi_user_needs_runtime_process_argv(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 1;
+  }
+  if (user_o[0] == 0) {
+    return 1;
+  }
+  let n: i32 = labi_od_runtime_process_argv_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_runtime_process_argv_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;

@@ -5682,7 +5682,8 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave130: needs_async_scheduler pure orch lives in labi_ondemand_list (async_scheduler sym table + orch).
  * wave131: compress family pure orch lives in labi_ondemand_list (zlib/zstd/brotli marker+undef + needs_compress_libs).
  * wave132: labi_user_needs_runtime_{time_os,random_fill,env_os} pure orch lives in labi_ondemand_list
- *   (PRIMARY OS tables; null/empty → 1; process_argv + std_task stay mega — capacity).
+ *   (PRIMARY OS tables; null/empty → 1).
+ * wave133: labi_user_needs_runtime_process_argv pure orch (9 needles; std_task still mega — capacity).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -6343,35 +6344,16 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
 }
 
 /*
- * wave132: labi_user_needs_runtime_{time_os,random_fill,env_os} pure orch lives
- * in labi_ondemand_list (product tables + pure scan; null/empty → 1).
- * process_argv + std_task remain mega (module codegen capacity; deferred).
+ * wave132–133: labi_user_needs_runtime_{time_os,random_fill,env_os,process_argv}
+ * pure orch lives in labi_ondemand_list (product tables + pure scan; null/empty → 1).
+ * std_task remains mega (module codegen capacity; deferred).
  * Cap residual: undef_sym stays mega. Call sites need forward decls before
  * the ondemand include block. PLATFORM: SHARED.
  */
 int labi_user_needs_runtime_time_os(const char *user_o);
 int labi_user_needs_runtime_random_fill(const char *user_o);
 int labi_user_needs_runtime_env_os(const char *user_o);
-
-/*
- * PLATFORM: SHARED — prepare residual: process_argv used to always ensure on every
- * hosted -o (cold tree fork-cc even for pure rv/hello). Gate on user.o surface;
- * null user_o keeps legacy hard ensure. Deferred from wave132 pure (capacity).
- * G.7: complete existing labi_user_needs_runtime_* family; no second table.
- */
-static int labi_user_needs_runtime_process_argv(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 1;
-    return shux_link_obj_needs_undef_sym(user_o, "process_shux_argc_get")
-        || shux_link_obj_needs_undef_sym(user_o, "process_shux_argv_get")
-        || shux_link_obj_needs_undef_sym(user_o, "process_arg_c")
-        || shux_link_obj_needs_undef_sym(user_o, "process_args_count_c")
-        || shux_link_obj_needs_undef_sym(user_o, "std_process_args")
-        || shux_link_obj_needs_undef_sym(user_o, "std_process_arg")
-        || shux_link_obj_needs_undef_sym(user_o, "std_process_argc")
-        || shux_link_obj_needs_undef_sym(user_o, "std_process_argv")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
-}
+int labi_user_needs_runtime_process_argv(const char *user_o);
 
 /*
  * PLATFORM: SHARED — bulk residual TASK_SPECIAL: task.o (+ scheduler companions).
@@ -6933,6 +6915,9 @@ int labi_user_needs_runtime_random_fill(const char *user_o);
 int labi_od_runtime_env_os_sym_count(void);
 const char *labi_od_runtime_env_os_sym_at(int i);
 int labi_user_needs_runtime_env_os(const char *user_o);
+int labi_od_runtime_process_argv_sym_count(void);
+const char *labi_od_runtime_process_argv_sym_at(int i);
+int labi_user_needs_runtime_process_argv(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

@@ -90,6 +90,9 @@ extern int32_t labi_user_needs_runtime_random_fill(uint8_t * user_o);
 extern int32_t labi_od_runtime_env_os_sym_count(void);
 extern uint8_t * labi_od_runtime_env_os_sym_at(int32_t i);
 extern int32_t labi_user_needs_runtime_env_os(uint8_t * user_o);
+extern int32_t labi_od_runtime_process_argv_sym_count(void);
+extern uint8_t * labi_od_runtime_process_argv_sym_at(int32_t i);
+extern int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o);
 extern uint8_t * labi_od_rel_net(void);
 extern uint8_t * labi_od_rel_thread(void);
 extern uint8_t * labi_od_rel_heap(void);
@@ -2075,6 +2078,75 @@ int32_t labi_user_needs_runtime_env_os(uint8_t * user_o) {
   int32_t i = 0;
   while ((i < n)) {
     uint8_t * sym = labi_od_runtime_env_os_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_od_runtime_process_argv_sym_count(void) {
+  return 9;
+}
+uint8_t * labi_od_runtime_process_argv_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"process_shux_argc_get");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"process_shux_argv_get");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"process_arg_c");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"process_args_count_c");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"std_process_args");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"std_process_arg");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"std_process_argc");
+    return p;
+  }
+  if ((i ==7)) {
+    uint8_t * p = ((uint8_t *)"std_process_argv");
+    return p;
+  }
+  if ((i ==8)) {
+    uint8_t * p = ((uint8_t *)"std_env_args_iter");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 1;
+  }
+  if (((user_o)[0] ==0)) {
+    return 1;
+  }
+  int32_t n = labi_od_runtime_process_argv_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_runtime_process_argv_sym_at(i);
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
