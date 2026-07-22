@@ -1,8 +1,9 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (10 public gates + count; wave116 try_under_lib_roots)
- * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap
+ * Prove: full.x vs this seed → nm IDENTICAL (11 public gates + count; wave146 argv_has_obj)
+ * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
+ *   link_abi_realpath_cap Cap (wave146)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -12,6 +13,7 @@
 #include <sys/types.h>
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
+extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1);
 extern int32_t labi_suffix_eq4(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3);
 extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
@@ -22,9 +24,11 @@ extern uint8_t * shux_path_last_sep(uint8_t * s);
 extern int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t * p);
 extern void shux_asm_ld_lib_root_default(uint8_t * root_buf);
 extern uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
+extern int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_t * path);
 extern int32_t labi_path_pure_count(void);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
+extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1) {
   if ((n < 2)) {
     return 0;
@@ -262,6 +266,98 @@ uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, 
   }
   return ((uint8_t *)(0));
 }
+int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_t * path) {
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return 0;
+  }
+  if ((la <=0)) {
+    return 0;
+  }
+  if ((path ==0)) {
+    return 0;
+  }
+  if (((path)[0] ==0)) {
+    return 0;
+  }
+  uint8_t abs_new[4096] = {};
+  uint8_t * use_new = path;
+  uint8_t * rn = 0;
+  (void)((rn = link_abi_realpath_cap(path, &((abs_new)[0]))));
+  if ((rn !=0)) {
+    (void)((use_new = rn));
+  }
+  int32_t k = 0;
+  while ((k < la)) {
+    uint8_t * exist = (argv)[k];
+    if ((exist ==0)) {
+      (void)((k = (k + 1)));
+      continue;
+    }
+    if (((exist)[0] ==0)) {
+      (void)((k = (k + 1)));
+      continue;
+    }
+    int32_t eq_path = 1;
+    int32_t i0 = 0;
+    while ((i0 < 1048576)) {
+      uint8_t ca = (exist)[i0];
+      uint8_t cb = (path)[i0];
+      if ((ca !=cb)) {
+        (void)((eq_path = 0));
+        break;
+      }
+      if ((ca ==0)) {
+        break;
+      }
+      (void)((i0 = (i0 + 1)));
+    }
+    if ((eq_path !=0)) {
+      return 1;
+    }
+    int32_t eq_new = 1;
+    int32_t i1 = 0;
+    while ((i1 < 1048576)) {
+      uint8_t ca2 = (exist)[i1];
+      uint8_t cb2 = (use_new)[i1];
+      if ((ca2 !=cb2)) {
+        (void)((eq_new = 0));
+        break;
+      }
+      if ((ca2 ==0)) {
+        break;
+      }
+      (void)((i1 = (i1 + 1)));
+    }
+    if ((eq_new !=0)) {
+      return 1;
+    }
+    uint8_t abs_exist[4096] = {};
+    uint8_t * re = 0;
+    (void)((re = link_abi_realpath_cap(exist, &((abs_exist)[0]))));
+    if ((re !=0)) {
+      int32_t eq_re = 1;
+      int32_t i2 = 0;
+      while ((i2 < 1048576)) {
+        uint8_t ca3 = (re)[i2];
+        uint8_t cb3 = (use_new)[i2];
+        if ((ca3 !=cb3)) {
+          (void)((eq_re = 0));
+          break;
+        }
+        if ((ca3 ==0)) {
+          break;
+        }
+        (void)((i2 = (i2 + 1)));
+      }
+      if ((eq_re !=0)) {
+        return 1;
+      }
+    }
+    (void)((k = (k + 1)));
+  }
+  return 0;
+}
 int32_t labi_path_pure_count(void) {
-  return 10;
+  return 11;
 }

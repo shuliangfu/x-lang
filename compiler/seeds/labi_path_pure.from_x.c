@@ -2,12 +2,13 @@
  * Logic source: src/runtime/labi_path_pure.x
  * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave114–116）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave114–116 / wave146）：公共业务符号由 full .x 提供：
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
  *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
  *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
  *   + shux_asm_ld_lib_root_default (wave115 SHUX_LIB/"." ; Cap residual getenv)
  *   + shux_asm_ld_try_under_lib_roots (wave116 pure join; Cap residual skip+bank)
+ *   + link_abi_asm_ld_argv_has_obj (wave146 pure scan; Cap residual realpath)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -24,6 +25,8 @@
 /* Cap residual used by wave116 cold twin (product hybrid: path_io + gates). */
 const char *asm_link_obj_skip_missing(const char *path);
 const char *shux_asm_ld_bank_push(void *b, const char *path);
+/* Cap residual used by wave146 argv_has_obj cold twin (mega always provides). */
+const char *link_abi_realpath_cap(const char *path, char *out);
 
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
 
@@ -228,8 +231,35 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
 }
 
 /* Pure audit: number of L0 path-pure public gates in this slice. */
+/* wave146: argv has_obj pure orch (cold twin ≡ .x; Cap residual realpath_cap). */
+int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
+  int k;
+  char abs_new[4096];
+  char abs_exist[4096];
+  const char *use_new;
+  const char *rn;
+  if (!argv || la <= 0 || !path || !path[0])
+    return 0;
+  use_new = path;
+  rn = link_abi_realpath_cap(path, abs_new);
+  if (rn)
+    use_new = rn;
+  for (k = 0; k < la; k++) {
+    const char *exist = argv[k];
+    const char *re;
+    if (!exist || !exist[0])
+      continue;
+    if (strcmp(exist, path) == 0 || strcmp(exist, use_new) == 0)
+      return 1;
+    re = link_abi_realpath_cap(exist, abs_exist);
+    if (re && strcmp(re, use_new) == 0)
+      return 1;
+  }
+  return 0;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 10;
+  return 11;
 }
 
 #else
@@ -243,6 +273,7 @@ uint8_t *shux_path_last_sep(uint8_t *s);
 int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p);
 void shux_asm_ld_lib_root_default(uint8_t *root_buf);
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
+int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 int32_t labi_path_pure_count(void);
 #endif
 

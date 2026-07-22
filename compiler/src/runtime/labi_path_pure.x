@@ -5,13 +5,14 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 10 public gates + count:
+// R2 full: .x owns 11 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
 //   - shux_asm_ld_lib_root_ptr_usable (wave114; low-tag + empty reject)
 //   - shux_asm_ld_lib_root_default (wave115; SHUX_LIB or "."; Cap residual: getenv)
 //   - shux_asm_ld_try_under_lib_roots (wave116; pure join root/rel; Cap residual skip+bank)
+//   - link_abi_asm_ld_argv_has_obj (wave146; pure strcmp argv scan; Cap residual realpath)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -19,6 +20,8 @@ export extern "C" function getenv(name: *u8): *u8;
 // Cap residual path-IO / bank (hybrid authority: labi_path_io / labi_gates / mega cold).
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 export extern "C" function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8;
+// Cap residual: POSIX realpath into caller buffer; Windows / fail → null (≡ mega #if).
+export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -335,11 +338,131 @@ export function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib
 }
 
 /**
+ * Return 1 iff path is already present in ld argv (string or realpath-equal).
+ * Dedup helper for on-demand .o push: avoid linking the same object twice when
+ * paths differ only by relative vs absolute spelling.
+ * @param argv **u8 — ld argv table (char**); null → 0
+ * @param la i32 — argv length; la <= 0 → 0
+ * @param path *u8 — candidate path; null/empty → 0
+ * @return i32 — 1 if found, else 0
+ * Pure orch: null guards + pure byte cstr eq + argv scan. Cap residual:
+ * link_abi_realpath_cap (POSIX realpath; Windows always null → string-only path).
+ * Buffers: two 4096-byte stack arrays (conservative PATH_MAX upper; same as
+ * try_under_lib_roots). Mega used static PATH_MAX to avoid deep-stack realpath
+ * recursion; product push is non-recursive so stack is fine.
+ * Why (wave146): hybrid still had always-mega C body over pure path leaf gates.
+ * Note: null-check argv via cast to *u8 (do not write `argv == 0 as **u8`).
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function link_abi_asm_ld_argv_has_obj(argv: **u8, la: i32, path: *u8): i32 {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return 0;
+  }
+  if (la <= 0) {
+    return 0;
+  }
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (path[0] == 0) {
+    return 0;
+  }
+  // Resolve path once (Cap residual realpath); on fail keep original path.
+  let abs_new: u8[4096] = [];
+  let use_new: *u8 = path;
+  let rn: *u8 = 0 as *u8;
+  unsafe {
+    rn = link_abi_realpath_cap(path, &abs_new[0]);
+  }
+  if (rn != 0 as *u8) {
+    use_new = rn;
+  }
+  let k: i32 = 0;
+  while (k < la) {
+    let exist: *u8 = argv[k];
+    if (exist == 0 as *u8) {
+      k = k + 1;
+      continue;
+    }
+    if (exist[0] == 0) {
+      k = k + 1;
+      continue;
+    }
+    // Exact string match against original path (inline pure cstr eq ≡ strcmp).
+    let eq_path: i32 = 1;
+    let i0: i32 = 0;
+    while (i0 < 1048576) {
+      let ca: u8 = exist[i0];
+      let cb: u8 = path[i0];
+      if (ca != cb) {
+        eq_path = 0;
+        break;
+      }
+      if (ca == 0) {
+        break;
+      }
+      i0 = i0 + 1;
+    }
+    if (eq_path != 0) {
+      return 1;
+    }
+    // Exact match against resolved path (may be same pointer as path).
+    let eq_new: i32 = 1;
+    let i1: i32 = 0;
+    while (i1 < 1048576) {
+      let ca2: u8 = exist[i1];
+      let cb2: u8 = use_new[i1];
+      if (ca2 != cb2) {
+        eq_new = 0;
+        break;
+      }
+      if (ca2 == 0) {
+        break;
+      }
+      i1 = i1 + 1;
+    }
+    if (eq_new != 0) {
+      return 1;
+    }
+    // Resolve exist and compare to use_new (Cap residual realpath).
+    let abs_exist: u8[4096] = [];
+    let re: *u8 = 0 as *u8;
+    unsafe {
+      re = link_abi_realpath_cap(exist, &abs_exist[0]);
+    }
+    if (re != 0 as *u8) {
+      let eq_re: i32 = 1;
+      let i2: i32 = 0;
+      while (i2 < 1048576) {
+        let ca3: u8 = re[i2];
+        let cb3: u8 = use_new[i2];
+        if (ca3 != cb3) {
+          eq_re = 0;
+          break;
+        }
+        if (ca3 == 0) {
+          break;
+        }
+        i2 = i2 + 1;
+      }
+      if (eq_re != 0) {
+        return 1;
+      }
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 10 (fixed catalog size for hybrid FROM_X bookkeeping; wave116 +1).
+ * Returns: 11 (fixed catalog size for hybrid FROM_X bookkeeping; wave146 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 10;
+  return 11;
 }

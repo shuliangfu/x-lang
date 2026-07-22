@@ -5446,9 +5446,30 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
  */
 
 /**
+ * Cap residual: POSIX realpath into out; Windows / fail → NULL.
+ * Pure orch (wave146 labi_path_pure) calls this for path resolution only.
+ * PLATFORM: SHARED export; WINDOWS always NULL (≡ mega #if skip realpath).
+ */
+const char *link_abi_realpath_cap(const char *path, char *out) {
+#if defined(_WIN32) || defined(_WIN64)
+    (void)path;
+    (void)out;
+    return NULL;
+#else
+    if (!path || !path[0] || !out)
+        return NULL;
+    return realpath(path, out);
+#endif
+}
+
+/**
  * 检查 path 是否已在 ld argv 中（realpath 去重，避免 /src/std/... 与 -L 解析路径重复入链）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* wave146：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: cstr eq + argv scan; Cap residual link_abi_realpath_cap.
+ * PLATFORM: SHARED — G.7 single authority; dual-end L2. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
     int k;
     /** 勿放栈上：nostdlib shux_asm 在 elf emit 后主栈已深，8KiB×递归 realpath 易 SIGSEGV。 */
@@ -5475,6 +5496,9 @@ int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
     }
     return 0;
 }
+#else
+int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
+#endif
 
 
 
