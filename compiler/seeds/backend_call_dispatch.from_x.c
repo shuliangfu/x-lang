@@ -226,8 +226,14 @@ void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint
 
 
 /**
- * x86_64：jmp 跳过尾挂字面量，再 lea reg,[rip+disp] 指向字面量（避免字面量落在指令流中被执行）。
- * reg_k：0→rdi（fmt 实参 ptr），1→rax（*u8 表达式结果）。
+ * Embed a short string in the text stream and load its address into a GP reg.
+ *
+ * PLATFORM: SHARED (emit shape) / x86_64 + aarch64 (encodings):
+ * - ta==0 (x86_64): short jmp over bytes + lea reg,[rip+disp]
+ *   reg_k 0→rdi (fmt arg0 ptr), 1→rax (*u8 result)
+ * - ta==1 (aarch64): B over 4-byte-aligned bytes + ADR x0, string
+ *   reg_k 0 and 1 both map to x0 (AAPCS arg0 / result alias of "rax")
+ * Wave108: open arm64 residual (Darwin pure-asm hello CG002).
  */
 /* G-02f-143：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-375 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -236,9 +242,66 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t 
   uint8_t jmp2[2];
   uint8_t lea7[7];
   uint8_t z;
+  uint8_t pad_z;
+  uint8_t b4[4];
+  uint8_t adr4[4];
   int32_t disp32;
-  if (!ctx_bytes || !sbuf || slen <= 0 || slen > 63 || ta != 0)
+  int32_t raw;
+  int32_t pad;
+  int32_t skip;
+  int32_t imm26;
+  int32_t imm;
+  uint32_t b_inst;
+  uint32_t adr_inst;
+  uint32_t imm_bits;
+  uint32_t immlo;
+  uint32_t immhi;
+  int32_t i;
+  if (!ctx_bytes || !sbuf || slen <= 0 || slen > 63)
     return -1;
+  if (ta != 0 && ta != 1)
+    return -1;
+  /* PLATFORM: MACOS/LINUX aarch64 — B + ADR PC-relative string embed (wave108). */
+  if (ta == 1) {
+    raw = slen + 1; /* +NUL */
+    pad = (4 - (raw & 3)) & 3;
+    skip = raw + pad;
+    /* B imm26 units of 4: from B to after string = 4+skip bytes → 1+skip/4 words. */
+    imm26 = 1 + (skip / 4);
+    if (imm26 <= 0 || imm26 >= (1 << 25))
+      return -1;
+    b_inst = 0x14000000u | ((uint32_t)imm26 & 0x3FFFFFFu);
+    b4[0] = (uint8_t)(b_inst);
+    b4[1] = (uint8_t)(b_inst >> 8);
+    b4[2] = (uint8_t)(b_inst >> 16);
+    b4[3] = (uint8_t)(b_inst >> 24);
+    if (pipeline_elf_ctx_append_bytes(ctx_bytes, b4, 4) != 0)
+      return -1;
+    if (pipeline_elf_ctx_append_bytes(ctx_bytes, (uint8_t *)sbuf, slen) != 0)
+      return -1;
+    z = 0;
+    if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0)
+      return -1;
+    pad_z = 0;
+    for (i = 0; i < pad; i++) {
+      if (pipeline_elf_ctx_append_bytes(ctx_bytes, &pad_z, 1) != 0)
+        return -1;
+    }
+    /* ADR x0, string: imm = -skip (string is skip bytes before this insn). */
+    imm = -skip;
+    imm_bits = (uint32_t)imm & 0x1FFFFFu;
+    immlo = imm_bits & 3u;
+    immhi = (imm_bits >> 2) & 0x7FFFFu;
+    /* Rd = x0 for both reg_k (arg0 / result). */
+    (void)reg_k;
+    adr_inst = 0x10000000u | (immlo << 29) | (immhi << 5);
+    adr4[0] = (uint8_t)(adr_inst);
+    adr4[1] = (uint8_t)(adr_inst >> 8);
+    adr4[2] = (uint8_t)(adr_inst >> 16);
+    adr4[3] = (uint8_t)(adr_inst >> 24);
+    return pipeline_elf_ctx_append_bytes(ctx_bytes, adr4, 4);
+  }
+  /* PLATFORM: LINUX+MACOS x86_64 — short jmp + lea [rip]. */
   if (slen + 1 > 127)
     return -1;
   jmp2[0] = 0xeb;
@@ -334,6 +397,7 @@ extern int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t ta);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta);
 extern int32_t backend_enc_call_stack_cleanup_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t nbytes,
                                                    int32_t ta);
 extern int32_t backend_enc_call_stack_reserve_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t nbytes,
@@ -2845,7 +2909,8 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c_impl(struct ast_ASTArena *arena, 
                                                int32_t str_expr_ref, int32_t ta) {
   uint8_t sbuf[64];
   int32_t slen;
-  if (!arena || !elf_ctx || str_expr_ref <= 0 || ta != 0)
+  /* PLATFORM: SHARED — ta 0/1 via glue_asm_emit_jmp_skip_string_then_lea (wave108 arm64). */
+  if (!arena || !elf_ctx || str_expr_ref <= 0 || (ta != 0 && ta != 1))
     return -1;
   if (pipeline_expr_kind_ord_at(arena, str_expr_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return -1;
@@ -2871,7 +2936,8 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struc
  *
  * PLATFORM: SHARED — product parses `fmt.println("…")` as METHOD_CALL (kind 49), not
  * CALL+FIELD_ACCESS. G.7: accept both CALL and METHOD_CALL arg accessors (same leaf).
- * x86_64 only for now (ta==0): jmp-skip+lea string embed; arm64 residual until ADR path.
+ * ta==0 x86_64: lea rdi + mov eax,len + mov rsi,rax.
+ * ta==1 aarch64: ADR x0 + mov_imm w1 (rbx alias) so len does not clobber ptr in x0 (wave108).
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-378 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -2888,7 +2954,8 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   uint8_t sym_flat[64];
   int32_t sym_len;
   uint8_t sbuf[64];
-  if (!arena || !elf_ctx || !ctx || call_expr_ref <= 0 || ta != 0)
+  /* PLATFORM: SHARED — x86_64 (0) + aarch64 (1) string-embed fmt path (wave108). */
+  if (!arena || !elf_ctx || !ctx || call_expr_ref <= 0 || (ta != 0 && ta != 1))
     return 0;
   /* PLATFORM: SHARED — METHOD_CALL vs CALL arg table (hello.x pure-asm wave105). */
   expr_ko = pipeline_expr_kind_ord_at(arena, call_expr_ref);
@@ -2926,14 +2993,23 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   if (sym_len <= 0)
     return -1;
   (void)is_ln;
-  backend_call_debugf("fmt string lit call %.*s slen=%d", (int)sym_len, (char *)sym_flat, (int)slen);
+  backend_call_debugf("fmt string lit call %.*s slen=%d ta=%d", (int)sym_len, (char *)sym_flat, (int)slen, (int)ta);
   if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 0, sbuf, slen) != 0)
     return -1;
-  /** arg1 = len (i32/size_t low 32; SysV zero-extends). */
-  if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, slen, ta) != 0)
-    return -1;
-  if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
-    return -1;
+  if (ta == 1) {
+    /*
+     * PLATFORM: aarch64 AAPCS — ptr already in x0 from ADR.
+     * mov_imm32_to_w0 would clobber x0; load len into w1 via rbx alias instead.
+     */
+    if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, slen, ta) != 0)
+      return -1;
+  } else {
+    /** arg1 = len (i32/size_t low 32; SysV zero-extends): eax then → rsi. */
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, slen, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
+      return -1;
+  }
   if (glue_asm_enc_call_redirected(elf_ctx, sym_flat, sym_len, ta) != 0)
     return -1;
   return 1;

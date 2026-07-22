@@ -37,6 +37,7 @@ export extern "C" function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf: *u8, t
 export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, i: i32): i32;
 export extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_imm32_to_rbx_arch(elf: *u8, imm: i32, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
 export extern "C" function driver_get_current_dep_path_for_codegen(): *u8;
 export extern "C" function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
@@ -401,16 +402,17 @@ export function glue_asm_call_reg_max(ta: i32): i32 {
   return 8;
 }
 
-// G-02f-143：x86_64 jmp over string lit then lea reg,[rip+disp]
+// G-02f-143 / wave108：x86_64 jmp+lea and aarch64 B+ADR string embed
 // glue_asm_emit_jmp_skip_string_then_lea: see function docblock below.
-/** Exported function `glue_asm_emit_jmp_skip_string_then_lea`.
- * Implements `glue_asm_emit_jmp_skip_string_then_lea`.
- * @param ctx_bytes *u8
- * @param ta i32
- * @param reg_k i32
- * @param sbuf *u8
- * @param slen i32
- * @return i32
+/**
+ * Embed a short string in the text stream and load its address into a GP reg.
+ * @param ctx_bytes *u8 — platform_elf_ElfCodegenCtx bytes
+ * @param ta i32 — 0=x86_64, 1=aarch64; other → -1
+ * @param reg_k i32 — x86: 0→rdi, 1→rax; aarch64: both map to x0
+ * @param sbuf *u8 — string bytes (not required NUL-terminated)
+ * @param slen i32 — length 1..63
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED emit shape / x86_64+aarch64 encodings (wave108 Darwin pure-asm).
  */
 #[no_mangle]
 export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, reg_k: i32, sbuf: *u8, slen: i32): i32 {
@@ -418,17 +420,56 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
   if (sbuf == 0) { return 0 - 1; }
   if (slen <= 0) { return 0 - 1; }
   if (slen > 63) { return 0 - 1; }
-  if (ta != 0) { return 0 - 1; }
-  if (slen + 1 > 127) { return 0 - 1; }
+  if (ta != 0) {
+    if (ta != 1) { return 0 - 1; }
+  }
   unsafe {
+    // PLATFORM: aarch64 — B over 4-aligned bytes + ADR x0 (wave108).
+    if (ta == 1) {
+      let raw: i32 = slen + 1;
+      let pad: i32 = (4 - (raw & 3)) & 3;
+      let skip: i32 = raw + pad;
+      let imm26: i32 = 1 + (skip / 4);
+      if (imm26 <= 0) { return 0 - 1; }
+      if (imm26 >= 33554432) { return 0 - 1; }
+      let b_inst: u32 = 335544320u | ((imm26 as u32) & 67108863u); // 0x14000000 | imm26
+      let b4: u8[4] = [];
+      b4[0] = (b_inst & 255) as u8;
+      b4[1] = ((b_inst / 256) & 255) as u8;
+      b4[2] = ((b_inst / 65536) & 255) as u8;
+      b4[3] = ((b_inst / 16777216) & 255) as u8;
+      if (pipeline_elf_ctx_append_bytes(ctx_bytes, &b4[0], 4) != 0) { return 0 - 1; }
+      if (pipeline_elf_ctx_append_bytes(ctx_bytes, sbuf, slen) != 0) { return 0 - 1; }
+      let z: u8 = 0;
+      if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0) { return 0 - 1; }
+      let pi: i32 = 0;
+      while (pi < pad) {
+        if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0) { return 0 - 1; }
+        pi = pi + 1;
+      }
+      // ADR x0, string: imm = -skip (Rd=0 for both reg_k).
+      let imm: i32 = 0 - skip;
+      let imm_bits: u32 = (imm as u32) & 2097151u; // 0x1FFFFF
+      let immlo: u32 = imm_bits & 3u;
+      let immhi: u32 = (imm_bits / 4u) & 524287u; // 0x7FFFF
+      let adr_inst: u32 = 268435456u | (immlo * 536870912u) | (immhi * 32u); // 0x10000000 | ...
+      let adr4: u8[4] = [];
+      adr4[0] = (adr_inst & 255) as u8;
+      adr4[1] = ((adr_inst / 256) & 255) as u8;
+      adr4[2] = ((adr_inst / 65536) & 255) as u8;
+      adr4[3] = ((adr_inst / 16777216) & 255) as u8;
+      if (reg_k == 0) { /* x0 */ }
+      return pipeline_elf_ctx_append_bytes(ctx_bytes, &adr4[0], 4);
+    }
+    // PLATFORM: x86_64 — short jmp + lea [rip].
+    if (slen + 1 > 127) { return 0 - 1; }
     let jmp2: u8[2] = [];
     jmp2[0] = 235; // 0xeb
     jmp2[1] = (slen + 1) as u8;
     if (pipeline_elf_ctx_append_bytes(ctx_bytes, &jmp2[0], 2) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(ctx_bytes, sbuf, slen) != 0) { return 0 - 1; }
-    let z: u8 = 0;
-    if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0) { return 0 - 1; }
-    // See implementation.
+    let z0: u8 = 0;
+    if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z0, 1) != 0) { return 0 - 1; }
     let d: i32 = 0 - slen - 8;
     let u: u32 = d as u32;
     let lea7: u8[7] = [];
@@ -936,13 +977,13 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
  * @param elf_ctx *u8 — platform_elf_ElfCodegenCtx bytes
  * @param call_expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL (hello fmt.println is METHOD_CALL)
  * @param ctx *u8 — AsmFuncCtx
- * @param ta i32 — 0=x86_64 only for string embed; non-zero → skip (arm64 residual)
+ * @param ta i32 — 0=x86_64, 1=aarch64; other → skip (return 0)
  * @param pre_buf *u8 — C prefix e.g. std_fmt_
  * @param pre_len i32 — prefix length
  * @param field_name *u8 — print or println
  * @param field_len i32 — 5 or 7
  * @return i32 — 1 emitted, 0 not applicable, -1 hard fail
- * PLATFORM: SHARED — METHOD_CALL + CALL arg tables (wave105 pure-asm hello).
+ * PLATFORM: SHARED — METHOD_CALL + CALL; wave108 opens aarch64 (ADR x0 + mov len w1).
  */
 #[no_mangle]
 export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
@@ -953,7 +994,9 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
   if (elf_ctx == 0) { return 0; }
   if (ctx == 0) { return 0; }
   if (call_expr_ref <= 0) { return 0; }
-  if (ta != 0) { return 0; }
+  if (ta != 0) {
+    if (ta != 1) { return 0; }
+  }
   unsafe {
     if (glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len) == 0) { return 0; }
     let is_ln: i32 = 0;
@@ -1008,8 +1051,13 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
     if (glue_asm_emit_jmp_skip_string_then_lea(elf_ctx, ta, 0, &sbuf[0], slen) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, slen, ta) != 0) { return 0 - 1; }
-    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
+    // aarch64: len → w1 via rbx alias (do not clobber ptr in x0 with mov w0).
+    if (ta == 1) {
+      if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, slen, ta) != 0) { return 0 - 1; }
+    } else {
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, slen, ta) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
+    }
     if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }
     return 1;
   }
@@ -1166,20 +1214,23 @@ export function pipeline_asm_emit_call_args_elf_c(
 }
 
 // glue_asm_emit_string_lit_ptr_rax_elf_c: see function docblock below.
-/** Exported function `glue_asm_emit_string_lit_ptr_rax_elf_c`.
- * Implements `glue_asm_emit_string_lit_ptr_rax_elf_c`.
- * @param arena *u8
- * @param elf_ctx *u8
- * @param str_expr_ref i32
- * @param ta i32
- * @return i32
+/**
+ * Emit STRING_LIT as *u8 pointer in result reg (x86 rax / aarch64 x0).
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — codegen ctx bytes
+ * @param str_expr_ref i32 — EXPR_STRING_LIT
+ * @param ta i32 — 0=x86_64, 1=aarch64
+ * @return i32 — 0 ok, -1 fail
+ * PLATFORM: SHARED — delegates to glue_asm_emit_jmp_skip_string_then_lea (wave108).
  */
 #[no_mangle]
 export function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32 {
   if (arena == 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   if (str_expr_ref <= 0) { return 0 - 1; }
-  if (ta != 0) { return 0 - 1; }
+  if (ta != 0) {
+    if (ta != 1) { return 0 - 1; }
+  }
   unsafe {
     if (pipeline_expr_kind_ord_at(arena, str_expr_ref) != 59) { return 0 - 1; }
     let slen: i32 = glue_asm_string_lit_len(arena, str_expr_ref);
