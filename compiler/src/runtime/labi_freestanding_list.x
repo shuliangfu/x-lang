@@ -7,7 +7,9 @@
 //
 // R2 full: env/io/panic/ensure catalog tables + wave117 heap needle tables +
 //   link_abi_generated_c_needs_libc_heap / link_abi_user_o_needs_libc_heap /
-//   link_abi_user_o_needs_freestanding_nostdlib_face pure orch.
+//   link_abi_user_o_needs_freestanding_nostdlib_face pure orch +
+//   wave136 link_abi_generated_c_needs_{fs,random,time,runtime} pure orch
+//     (C-path PRIMARY OS/fs string needles; Cap residual contains_substr).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -511,6 +513,334 @@ export function link_abi_user_o_needs_freestanding_nostdlib_face(user_o: *u8): i
         let hit: i32 = 0;
         unsafe {
           hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/* wave136: generated-C string needs pure tables + orch (C-path PRIMARY OS/fs).
+ * Cap residual: link_abi_generated_c_contains_substr (file IO stays mega).
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X. */
+
+/**
+ * Count of generated-C substr needles for std.fs C-path on-demand.
+ * @return i32 — 5 needles (fs_open_read_c / last_error / close / read / write)
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_fs_needle_count(): i32 {
+  return 5;
+}
+
+/**
+ * Needle at index for generated-C std.fs scan.
+ * @param i i32 — index in [0, 5)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_fs_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "fs_open_read_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "fs_last_error_c";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "fs_close_c";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "fs_read_c";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "fs_write_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for std.random C-path on-demand.
+ * @return i32 — 3 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_random_needle_count(): i32 {
+  return 3;
+}
+
+/**
+ * Needle at index for generated-C std.random scan.
+ * @param i i32 — index in [0, 3)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_random_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "random_rng_smoke_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "random_fill_bytes_c";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "random_u64_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for std.time C-path on-demand.
+ * @return i32 — 10 needles (std_time_* API + time_*_c OS face)
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_time_needle_count(): i32 {
+  return 10;
+}
+
+/**
+ * Needle at index for generated-C std.time scan.
+ * @param i i32 — index in [0, 10)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_time_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_time_now_monotonic_ns";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_time_sleep_ms";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_time_duration_ns";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_time_now_wall_ns";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_time_format_timezone_smoke";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "time_now_monotonic_ns_c";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "time_sleep_ms_c";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "time_duration_ns_c";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "time_now_wall_ns_c";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "time_format_timezone_smoke_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for std.runtime C-path on-demand.
+ * @return i32 — 3 needles
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_runtime_needle_count(): i32 {
+  return 3;
+}
+
+/**
+ * Needle at index for generated-C std.runtime scan.
+ * @param i i32 — index in [0, 3)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_runtime_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "runtime_crash_evidence_collect_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "runtime_panic";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "runtime_abort";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether generated C needs std.fs C symbols (C-path -lc / fs face).
+ * Pure orch: scan fixed needle table via Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave136): hybrid still had needs_fs body always mega C with hard-coded strings.
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_fs(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_fs_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_fs_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs std.random C symbols.
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave136): hybrid still had needs_random body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_random(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_random_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_random_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs std.time C symbols (time.o + runtime_time_os.o).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave136): hybrid still had needs_time body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_time(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_time_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_time_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs std.runtime C symbols (runtime.o).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave136): hybrid still had needs_runtime body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_runtime(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_runtime_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_runtime_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
         }
         if (hit != 0) {
           return 1;

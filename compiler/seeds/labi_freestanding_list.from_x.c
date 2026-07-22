@@ -2,7 +2,7 @@
  * Logic source: src/runtime/labi_freestanding_list.x
  * Hybrid: SHUX_LABI_FREESTANDING_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave117）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave117 / wave136）：公共业务符号由 full .x 提供：
  *   labi_fs_env_freestanding
  *   labi_fs_io_sym_{count,at} + labi_fs_panic_sym
  *   labi_fs_ensure_catalog_{count,step_at}
@@ -11,6 +11,8 @@
  *   + labi_fs_heap_{c_needle,o_sym}_* + labi_fs_memcpy_face_sym_* (wave117 tables)
  *   + link_abi_{generated_c,user_o}_needs_libc_heap
  *   + link_abi_user_o_needs_freestanding_nostdlib_face
+ *   + wave136 labi_fs_gen_{fs,random,time,runtime}_needle_* +
+ *     link_abi_generated_c_needs_{fs,random,time,runtime} pure orch
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -241,6 +243,131 @@ int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o) {
   return 0;
 }
 
+/* wave136: generated-C string needs pure cold twin (tables + orch). */
+int labi_fs_gen_fs_needle_count(void) {
+  return 5;
+}
+const char *labi_fs_gen_fs_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "fs_open_read_c";
+  if (i == 1)
+    return "fs_last_error_c";
+  if (i == 2)
+    return "fs_close_c";
+  if (i == 3)
+    return "fs_read_c";
+  if (i == 4)
+    return "fs_write_c";
+  return NULL;
+}
+int labi_fs_gen_random_needle_count(void) {
+  return 3;
+}
+const char *labi_fs_gen_random_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "random_rng_smoke_c";
+  if (i == 1)
+    return "random_fill_bytes_c";
+  if (i == 2)
+    return "random_u64_c";
+  return NULL;
+}
+int labi_fs_gen_time_needle_count(void) {
+  return 10;
+}
+const char *labi_fs_gen_time_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_time_now_monotonic_ns";
+  if (i == 1)
+    return "std_time_sleep_ms";
+  if (i == 2)
+    return "std_time_duration_ns";
+  if (i == 3)
+    return "std_time_now_wall_ns";
+  if (i == 4)
+    return "std_time_format_timezone_smoke";
+  if (i == 5)
+    return "time_now_monotonic_ns_c";
+  if (i == 6)
+    return "time_sleep_ms_c";
+  if (i == 7)
+    return "time_duration_ns_c";
+  if (i == 8)
+    return "time_now_wall_ns_c";
+  if (i == 9)
+    return "time_format_timezone_smoke_c";
+  return NULL;
+}
+int labi_fs_gen_runtime_needle_count(void) {
+  return 3;
+}
+const char *labi_fs_gen_runtime_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "runtime_crash_evidence_collect_c";
+  if (i == 1)
+    return "runtime_panic";
+  if (i == 2)
+    return "runtime_abort";
+  return NULL;
+}
+int link_abi_generated_c_needs_fs(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_fs_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_fs_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_random(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_random_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_random_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_time(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_time_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_time_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_runtime(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_runtime_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_runtime_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+
 #else
 const char *labi_fs_env_freestanding(void);
 int labi_fs_io_sym_count(void);
@@ -265,6 +392,19 @@ const char *labi_fs_memcpy_face_sym_at(int i);
 int link_abi_generated_c_needs_libc_heap(const char *c_path);
 int link_abi_user_o_needs_libc_heap(const char *user_o);
 int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o);
+/* wave136: C-path PRIMARY OS/fs generated_c needs pure (L7). */
+int labi_fs_gen_fs_needle_count(void);
+const char *labi_fs_gen_fs_needle_at(int i);
+int labi_fs_gen_random_needle_count(void);
+const char *labi_fs_gen_random_needle_at(int i);
+int labi_fs_gen_time_needle_count(void);
+const char *labi_fs_gen_time_needle_at(int i);
+int labi_fs_gen_runtime_needle_count(void);
+const char *labi_fs_gen_runtime_needle_at(int i);
+int link_abi_generated_c_needs_fs(const char *c_path);
+int link_abi_generated_c_needs_random(const char *c_path);
+int link_abi_generated_c_needs_time(const char *c_path);
+int link_abi_generated_c_needs_runtime(const char *c_path);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

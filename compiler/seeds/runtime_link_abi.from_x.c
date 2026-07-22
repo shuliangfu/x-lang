@@ -1874,6 +1874,19 @@ const char *labi_fs_memcpy_face_sym_at(int i);
 int link_abi_generated_c_needs_libc_heap(const char *c_path);
 int link_abi_user_o_needs_libc_heap(const char *user_o);
 int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o);
+/* wave136: C-path PRIMARY OS/fs generated_c needs pure (L7). */
+int labi_fs_gen_fs_needle_count(void);
+const char *labi_fs_gen_fs_needle_at(int i);
+int labi_fs_gen_random_needle_count(void);
+const char *labi_fs_gen_random_needle_at(int i);
+int labi_fs_gen_time_needle_count(void);
+const char *labi_fs_gen_time_needle_at(int i);
+int labi_fs_gen_runtime_needle_count(void);
+const char *labi_fs_gen_runtime_needle_at(int i);
+int link_abi_generated_c_needs_fs(const char *c_path);
+int link_abi_generated_c_needs_random(const char *c_path);
+int link_abi_generated_c_needs_time(const char *c_path);
+int link_abi_generated_c_needs_runtime(const char *c_path);
 #endif
 
 /* G-02f-276：env name from pure table */
@@ -3090,6 +3103,8 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
  * wave117: needs_libc_heap / freestanding_nostdlib_face pure orch live in
  * labi_freestanding_list (tables + orch). Full-seed path: bodies via #include above
  * (!FROM_X). Hybrid FROM_X: L7 pure .x provides; decls in #else of freestanding include.
+ * wave136: link_abi_generated_c_needs_{fs,random,time,runtime} pure orch same L7
+ * (C-path PRIMARY OS/fs string needles; Cap residual contains_substr).
  * Cap residual: contains_substr / undef_sym stay mega. PLATFORM: SHARED.
  */
 /* (definitions: seeds/labi_freestanding_list.from_x.c or L7 pure .x) */
@@ -3408,29 +3423,12 @@ int link_abi_generated_c_needs_core_slice(const char *c_path) {
 }
 
 
-/** 扫描生成 C 是否引用 std.fs 符号（F-03 v2：按需链 -lc，无 fs.o）。 */
-int link_abi_generated_c_needs_fs(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "fs_open_read_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "fs_last_error_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "fs_close_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "fs_read_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "fs_write_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave136: link_abi_generated_c_needs_fs pure orch lives in labi_freestanding_list
+ * (5 needles + pure scan; Cap residual contains_substr). Was mega body.
+ * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
+ */
+int link_abi_generated_c_needs_fs(const char *c_path);
 
 /** 扫描生成 C 是否引用 libz（F-06 v1 / F-04 v7：无 compress.o，按需 -lz）。 */
 int link_abi_generated_c_needs_zlib(const char *c_path) {
@@ -3501,80 +3499,14 @@ int link_abi_generated_c_needs_brotli(const char *c_path) {
   return 0;
 }
 
-/** 扫描生成 C 是否引用 std.random C 符号（按需链 std/random/random.o）。 */
-int link_abi_generated_c_needs_random(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "random_rng_smoke_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "random_fill_bytes_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "random_u64_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave136: link_abi_generated_c_needs_random pure orch (L7 freestanding). */
+int link_abi_generated_c_needs_random(const char *c_path);
 
-/** 扫描生成 C 是否引用 std.time 符号（按需链 std/time/time.o + runtime_time_os.o）。 */
-int link_abi_generated_c_needs_time(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "std_time_now_monotonic_ns") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "std_time_sleep_ms") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "std_time_duration_ns") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "std_time_now_wall_ns") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "std_time_format_timezone_smoke") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "time_now_monotonic_ns_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "time_sleep_ms_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "time_duration_ns_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "time_now_wall_ns_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "time_format_timezone_smoke_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave136: link_abi_generated_c_needs_time pure orch (L7 freestanding). */
+int link_abi_generated_c_needs_time(const char *c_path);
 
-/** 扫描生成 C 是否引用 std.runtime C 符号（按需链 std/runtime/runtime.o）。 */
-int link_abi_generated_c_needs_runtime(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "runtime_crash_evidence_collect_c") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "runtime_panic") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "runtime_abort") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* wave136: link_abi_generated_c_needs_runtime pure orch (L7 freestanding). */
+int link_abi_generated_c_needs_runtime(const char *c_path);
 
 /**
  * 生成的 .c 是否引用 std.async scheduler（C 前端 invoke_cc 按需链 scheduler.o）。
