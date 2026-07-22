@@ -1930,84 +1930,22 @@ int shux_ensure_runtime_heap_user_o(const char *argv0);
 int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
 /* wave172: ensure_runtime_tls_mbedtls_bio_o pure orch (L4; hybrid). */
 int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+/* wave173: link_abi_ensure_from_catalog pure orch (L4; hybrid).
+ * product_path from peer *_o_path (no path_fn in pure; no .x fnptr ABI). */
+int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path);
 #endif
 
-/**
- * G-02f-273：通用 ensure — 读纯目录表，缺 .o 则 seeds/*.from_x.c → cc -c。
- * path_fn：对应 shux_runtime_*_o_path（探活 / 最终校验）。
- * 返回值：0 成功，-1 失败并已写诊断。
+/*
+ * wave173: link_abi_ensure_from_catalog pure orch — body removed from mega
+ * (lives in labi_ensure_list L4 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * Thin wraps below pass product_path = shux_runtime_*_o_path(argv0).
+ * Cap residual: resolve/access/cc/one_extra/stat. PLATFORM: SHARED orch.
  */
-static int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx,
-    const char *(*path_fn)(const char *argv0)) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    const char *stem = NULL;
-    const char *out_base = NULL;
-    const char *seed_base = NULL;
-    const char *hint = NULL;
-    int flags = 0;
-    if (!path_fn)
-        return -1;
-    if (!labi_ensure_catalog_step_at(catalog_idx, &stem, &out_base, &seed_base, &flags, &hint))
-        return -1;
-    if (!stem || !out_base || !seed_base)
-        return -1;
-    if (asm_link_obj_skip_missing(path_fn(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail(out_base, hint);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/%s", comp, out_base) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/%s", comp, seed_base) >= sizeof src_c
-        || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing(stem, src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0
-        || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc;
-        if (flags == LABI_ENS_FLAG_PIE) {
-            const char *extra_flags[] = { "-fPIE", NULL };
-            rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
-        } else if (flags == LABI_ENS_FLAG_SQLITE) {
-            const char *extra_flags[] = { "-DSHUX_DB_USE_SQLITE3", NULL };
-            rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
-        } else if (flags == LABI_ENS_FLAG_HTTP_SEEDS) {
-            /* 【Why 根源】http2/http_*.inc 在 seeds/http/；无 -I 则 ensure 编 glue 失败，
-               C 路径 -o 链 http.o 时 U http2_*（hello 也无条件链 http.o）。 */
-            char http_inc[PATH_MAX];
-            const char *extra_flags[3];
-            if ((size_t)snprintf(http_inc, sizeof http_inc, "%s/seeds/http", comp) >= sizeof http_inc)
-                return -1;
-            extra_flags[0] = "-I";
-            extra_flags[1] = http_inc;
-            extra_flags[2] = NULL;
-            rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
-        } else {
-            rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        }
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status(out_base, rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(path_fn(argv0))) {
-        link_diag_runtime_obj_missing(out_base, out_o);
-        return -1;
-    }
-    return 0;
-}
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ASM_IO_STUBS, shux_runtime_asm_io_stubs_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ASM_IO_STUBS, shux_runtime_asm_io_stubs_o_path(argv0));
 }
 
 
@@ -2023,7 +1961,7 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_process_argv_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_ARGV, shux_runtime_process_argv_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_ARGV, shux_runtime_process_argv_o_path(argv0));
 }
 
 
@@ -2033,7 +1971,7 @@ int shux_ensure_runtime_process_argv_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_OS_GLUE, shux_runtime_process_os_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_OS_GLUE, shux_runtime_process_os_glue_o_path(argv0));
 }
 
 
@@ -2065,7 +2003,7 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_random_fill_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_RANDOM_FILL, shux_runtime_random_fill_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_RANDOM_FILL, shux_runtime_random_fill_o_path(argv0));
 }
 
 
@@ -2079,7 +2017,7 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_COMPRESS_ZLIB_GLUE, shux_runtime_compress_zlib_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_COMPRESS_ZLIB_GLUE, shux_runtime_compress_zlib_glue_o_path(argv0));
 }
 
 
@@ -2115,7 +2053,7 @@ int shux_ensure_runtime_heap_user_o(const char *argv0);
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_time_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_TIME_OS, shux_runtime_time_os_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_TIME_OS, shux_runtime_time_os_o_path(argv0));
 }
 
 
@@ -2130,7 +2068,7 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_queue_contention_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_QUEUE_CONTENTION, shux_runtime_queue_contention_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_QUEUE_CONTENTION, shux_runtime_queue_contention_o_path(argv0));
 }
 
 
@@ -2145,7 +2083,7 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_DYNLIB_OS, shux_runtime_dynlib_os_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_DYNLIB_OS, shux_runtime_dynlib_os_o_path(argv0));
 }
 
 
@@ -2160,7 +2098,7 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_env_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ENV_OS, shux_runtime_env_os_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ENV_OS, shux_runtime_env_os_o_path(argv0));
 }
 
 
@@ -2175,7 +2113,7 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_BACKTRACE_PLATFORM, shux_runtime_backtrace_platform_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_BACKTRACE_PLATFORM, shux_runtime_backtrace_platform_o_path(argv0));
 }
 
 
@@ -2190,7 +2128,7 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_log_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_LOG_OS, shux_runtime_log_os_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_LOG_OS, shux_runtime_log_os_o_path(argv0));
 }
 
 
@@ -2205,7 +2143,7 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_math_libm_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_MATH_LIBM, shux_runtime_math_libm_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_MATH_LIBM, shux_runtime_math_libm_o_path(argv0));
 }
 
 
@@ -2220,7 +2158,7 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ATOMIC_GLUE, shux_runtime_atomic_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ATOMIC_GLUE, shux_runtime_atomic_glue_o_path(argv0));
 }
 
 
@@ -2235,7 +2173,7 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_channel_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CHANNEL_GLUE, shux_runtime_channel_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CHANNEL_GLUE, shux_runtime_channel_glue_o_path(argv0));
 }
 
 
@@ -2250,7 +2188,7 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_UDP_BATCH, shux_runtime_net_udp_batch_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_UDP_BATCH, shux_runtime_net_udp_batch_o_path(argv0));
 }
 
 
@@ -2265,7 +2203,7 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_net_workers_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_WORKERS, shux_runtime_net_workers_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_WORKERS, shux_runtime_net_workers_o_path(argv0));
 }
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -2275,7 +2213,7 @@ int shux_ensure_runtime_net_workers_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_sync_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_OS, shux_runtime_sync_os_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_OS, shux_runtime_sync_os_o_path(argv0));
 }
 
 
@@ -2285,7 +2223,7 @@ int shux_ensure_runtime_sync_os_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_LOCK_DIAG_TLS, shux_runtime_sync_lock_diag_tls_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_LOCK_DIAG_TLS, shux_runtime_sync_lock_diag_tls_o_path(argv0));
 }
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -2295,7 +2233,7 @@ int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_thread_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_THREAD_GLUE, shux_runtime_thread_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_THREAD_GLUE, shux_runtime_thread_glue_o_path(argv0));
 }
 
 
@@ -2305,7 +2243,7 @@ int shux_ensure_runtime_thread_glue_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SCHEDULER_GLUE, shux_runtime_scheduler_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SCHEDULER_GLUE, shux_runtime_scheduler_glue_o_path(argv0));
 }
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -2315,7 +2253,7 @@ int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_http_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_HTTP_GLUE, shux_runtime_http_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_HTTP_GLUE, shux_runtime_http_glue_o_path(argv0));
 }
 
 
@@ -2339,7 +2277,7 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_KV_MMAP_GLUE, shux_runtime_kv_mmap_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_KV_MMAP_GLUE, shux_runtime_kv_mmap_glue_o_path(argv0));
 }
 
 
@@ -2349,7 +2287,7 @@ int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ARROW_SIMD_GLUE, shux_runtime_arrow_simd_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ARROW_SIMD_GLUE, shux_runtime_arrow_simd_glue_o_path(argv0));
 }
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -2359,7 +2297,7 @@ int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SQLITE_GLUE, shux_runtime_sqlite_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SQLITE_GLUE, shux_runtime_sqlite_glue_o_path(argv0));
 }
 
 
@@ -2369,7 +2307,7 @@ int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CRYPTO_INC_GLUE, shux_runtime_crypto_inc_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CRYPTO_INC_GLUE, shux_runtime_crypto_inc_glue_o_path(argv0));
 }
 
 
@@ -2379,7 +2317,7 @@ int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
 
 /* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ED25519_REF10_GLUE, shux_runtime_ed25519_ref10_glue_o_path);
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ED25519_REF10_GLUE, shux_runtime_ed25519_ref10_glue_o_path(argv0));
 }
 
 

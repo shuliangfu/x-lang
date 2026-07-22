@@ -6,6 +6,9 @@
 // Hybrid macro SHUX_LABI_ENSURE_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: ensure catalog tables (stem/out_base/seed_base/flags/step_at) +
+//   wave173 link_abi_ensure_from_catalog pure orch
+//     (catalog tables + pure byte joins + Cap residual resolve/access/cc/one_extra/stat;
+//      thin mega wraps pass product_path from peer *_o_path — no .x fnptr ABI).
 //   wave169 shux_ensure_runtime_panic_o pure orch
 //     (peer panic_o_path + Cap residual resolve/access/cc/stat + host #if prefer).
 //   wave170 shux_ensure_runtime_heap_user_o pure orch
@@ -14,11 +17,12 @@
 //     (peer test_fn_invoke_o_path + pure byte joins + Cap residual resolve/access/cc/stat).
 //   wave172 shux_ensure_runtime_tls_mbedtls_bio_o pure orch
 //     (peer tls_mbedtls_bio_o_path + pure byte joins + Cap residual resolve/access/cc_one_extra/stat).
-// Cap residual: link_abi_ensure_from_catalog spawn/cc still mega; resolve/access/cc/stat
+// Cap residual: resolve/access/cc/stat (+ one_extra for PIE/SQLITE/HTTP -I pack);
 //   + host linux_x86_64 / posix_aarch64 for panic ensure leaf (wave169);
 //   + has_defined_sym / unlink for heap_user stub reject (wave170);
 //   + test_fn_invoke special ensure pure (wave171; no wrap.c / no fopen Cap);
-//   + tls_mbedtls_bio special ensure pure (wave172; compile_sync_one_extra homebrew -I).
+//   + tls_mbedtls_bio special ensure pure (wave172; compile_sync_one_extra homebrew -I);
+//   + catalog thin wraps still mega (call pure ensure_from_catalog + path peers).
 // PLATFORM: SHARED tables / orch; LINUX x86_64 asm prefer; POSIX aarch64 arm64 seed.
 
 // Cap residual (wave169/170/171/172 special ensure pure orch): resolve / access / cc / skip-stat.
@@ -484,6 +488,274 @@ export function labi_ensure_catalog_step_at(
     }
   }
   return 1;
+}
+
+/**
+ * Generic L4 ensure from pure catalog tables: if product .o is missing, compile
+ * seeds/<seed_base> → compiler_dir/<out_base> with catalog flags.
+ * @param argv0 *u8 — optional product host path for compiler-dir resolve; may be null
+ * @param catalog_idx i32 — row in labi_ensure_catalog_* (0..25); invalid → -1
+ * @param product_path *u8 — pre-resolved product .o path from peer shux_runtime_*_o_path;
+ *   null → -1. Caller passes path once (no .x function-pointer call ABI; Cap residual
+ *   path peers stay C / pure path ladder).
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure orch: labi_ensure_catalog_* tables + pure byte joins (no snprintf Cap) after Cap
+ *   residual resolve; Cap residual path_readable + compile_sync / one_extra + skip_missing
+ *   + peer diags (resolve_fail / source_missing / build_status / missing).
+ * Flags (≡ mega LABI_ENS_FLAG_*): 0 NONE → compile_sync; 1 PIE → one_extra "-fPIE";
+ *   2 SQLITE → one_extra "-DSHUX_DB_USE_SQLITE3"; 3 HTTP_SEEDS → pack single
+ *   "-I{comp}/seeds/http" via one_extra (≡ mega separate -I + path argv entries).
+ * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ *   shux_cc_compile_sync / shux_cc_compile_sync_one_extra (spawn/cc); asm_link_obj_skip_missing.
+ * Why (wave173): hybrid still had always-mega C body for generic catalog ensure after special
+ *   ensure leaves pure (wave169–172). Tables were pure; orch/spawn/cc stayed mega.
+ *   Thin mega wraps remain: ensure_*(argv0) → ensure_from_catalog(argv0, idx, path(argv0)).
+ * PLATFORM: SHARED orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, product_path: *u8): i32 {
+  // Reject null path (≡ mega path_fn null).
+  if (product_path == 0 as *u8) {
+    return -1;
+  }
+  // Catalog row: tables are pure authority (G.7); invalid idx / null stem → fail.
+  let stem: *u8 = labi_ensure_catalog_stem(catalog_idx);
+  let out_base: *u8 = labi_ensure_catalog_out_base(catalog_idx);
+  let seed_base: *u8 = labi_ensure_catalog_seed_base(catalog_idx);
+  if (stem == 0 as *u8) {
+    return -1;
+  }
+  if (out_base == 0 as *u8) {
+    return -1;
+  }
+  if (seed_base == 0 as *u8) {
+    return -1;
+  }
+  let flags: i32 = labi_ensure_catalog_flags(catalog_idx);
+  // Cap residual: skip if product path already has the .o.
+  let have: *u8 = 0 as *u8;
+  unsafe {
+    have = asm_link_obj_skip_missing(product_path);
+  }
+  if (have != 0 as *u8) {
+    return 0;
+  }
+  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
+  let comp: u8[4096] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+  }
+  if (rc != 0) {
+    // Hints only for catalog 0/1 (≡ mega step_at / thin historic make tips).
+    let hint: *u8 = 0 as *u8;
+    if (catalog_idx == 0) {
+      hint = "try: make -C compiler runtime_asm_io_stubs.o";
+    } else {
+      if (catalog_idx == 1) {
+        hint = "try: make -C compiler runtime_process_argv.o";
+      }
+    }
+    unsafe {
+      link_diag_runtime_obj_resolve_fail(out_base, hint);
+    }
+    return -1;
+  }
+  // Pure strlen(comp) once for joins.
+  let dn: i32 = 0;
+  while (comp[dn] != 0) {
+    dn = dn + 1;
+  }
+  // Pure join out_o = comp + '/' + out_base + NUL (no snprintf Cap).
+  let ln_o: i32 = 0;
+  while (out_base[ln_o] != 0) {
+    ln_o = ln_o + 1;
+  }
+  if (dn + 1 + ln_o >= 4096) {
+    return -1;
+  }
+  let out_o: u8[4096] = [];
+  let i: i32 = 0;
+  while (i < dn) {
+    out_o[i] = comp[i];
+    i = i + 1;
+  }
+  out_o[dn] = 47;
+  let k: i32 = 0;
+  while (k <= ln_o) {
+    out_o[dn + 1 + k] = out_base[k];
+    k = k + 1;
+  }
+  // Pure join src_c = comp + '/' + "seeds/" + seed_base + NUL.
+  let seeds_pfx: *u8 = "seeds/";
+  let ln_pfx: i32 = 0;
+  while (seeds_pfx[ln_pfx] != 0) {
+    ln_pfx = ln_pfx + 1;
+  }
+  let ln_seed: i32 = 0;
+  while (seed_base[ln_seed] != 0) {
+    ln_seed = ln_seed + 1;
+  }
+  if (dn + 1 + ln_pfx + ln_seed >= 4096) {
+    return -1;
+  }
+  let src_c: u8[4096] = [];
+  i = 0;
+  while (i < dn) {
+    src_c[i] = comp[i];
+    i = i + 1;
+  }
+  src_c[dn] = 47;
+  k = 0;
+  while (k < ln_pfx) {
+    src_c[dn + 1 + k] = seeds_pfx[k];
+    k = k + 1;
+  }
+  let off: i32 = dn + 1 + ln_pfx;
+  k = 0;
+  while (k <= ln_seed) {
+    src_c[off + k] = seed_base[k];
+    k = k + 1;
+  }
+  let readable: i32 = 0;
+  unsafe {
+    readable = link_abi_path_readable(&src_c[0]);
+  }
+  if (readable == 0) {
+    unsafe {
+      link_diag_runtime_source_missing(stem, &src_c[0]);
+    }
+    return -1;
+  }
+  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega).
+  let inc0: u8[4096] = [];
+  i = 0;
+  while (i <= dn) {
+    inc0[i] = comp[i];
+    i = i + 1;
+  }
+  let leaf_inc: *u8 = "include";
+  let ln_inc: i32 = 0;
+  while (leaf_inc[ln_inc] != 0) {
+    ln_inc = ln_inc + 1;
+  }
+  if (dn + 1 + ln_inc >= 4096) {
+    return -1;
+  }
+  let inc1: u8[4096] = [];
+  i = 0;
+  while (i < dn) {
+    inc1[i] = comp[i];
+    i = i + 1;
+  }
+  inc1[dn] = 47;
+  k = 0;
+  while (k <= ln_inc) {
+    inc1[dn + 1 + k] = leaf_inc[k];
+    k = k + 1;
+  }
+  let leaf_src: *u8 = "src";
+  let ln_src: i32 = 0;
+  while (leaf_src[ln_src] != 0) {
+    ln_src = ln_src + 1;
+  }
+  if (dn + 1 + ln_src >= 4096) {
+    return -1;
+  }
+  let inc2: u8[4096] = [];
+  i = 0;
+  while (i < dn) {
+    inc2[i] = comp[i];
+    i = i + 1;
+  }
+  inc2[dn] = 47;
+  k = 0;
+  while (k <= ln_src) {
+    inc2[dn + 1 + k] = leaf_src[k];
+    k = k + 1;
+  }
+  // Cap residual: cc -c with catalog flag family (PIE / SQLITE / HTTP -I pack / none).
+  let crc: i32 = 0;
+  if (flags == 1) {
+    // LABI_ENS_FLAG_PIE
+    let flag_pie: *u8 = "-fPIE";
+    unsafe {
+      crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_pie);
+    }
+  } else {
+    if (flags == 2) {
+      // LABI_ENS_FLAG_SQLITE
+      let flag_sql: *u8 = "-DSHUX_DB_USE_SQLITE3";
+      unsafe {
+        crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_sql);
+      }
+    } else {
+      if (flags == 3) {
+        // LABI_ENS_FLAG_HTTP_SEEDS: pack "-I" + comp + "/seeds/http" (≡ mega -I + path).
+        let http_leaf: *u8 = "seeds/http";
+        let ln_http: i32 = 0;
+        while (http_leaf[ln_http] != 0) {
+          ln_http = ln_http + 1;
+        }
+        if (dn + 1 + ln_http >= 4096) {
+          return -1;
+        }
+        let http_inc: u8[4096] = [];
+        i = 0;
+        while (i < dn) {
+          http_inc[i] = comp[i];
+          i = i + 1;
+        }
+        http_inc[dn] = 47;
+        k = 0;
+        while (k <= ln_http) {
+          http_inc[dn + 1 + k] = http_leaf[k];
+          k = k + 1;
+        }
+        // flag_I = "-I" + http_inc + NUL (single extra string for one_extra Cap).
+        let dash_I: *u8 = "-I";
+        let ln_I: i32 = 2;
+        let ln_http_abs: i32 = dn + 1 + ln_http;
+        if (ln_I + ln_http_abs >= 4096) {
+          return -1;
+        }
+        let flag_I: u8[4096] = [];
+        flag_I[0] = 45; // '-'
+        flag_I[1] = 73; // 'I'
+        k = 0;
+        while (k <= ln_http_abs) {
+          flag_I[ln_I + k] = http_inc[k];
+          k = k + 1;
+        }
+        unsafe {
+          crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, &flag_I[0]);
+        }
+      } else {
+        // LABI_ENS_FLAG_NONE
+        unsafe {
+          crc = shux_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+        }
+      }
+    }
+  }
+  if (crc != 0) {
+    unsafe {
+      link_diag_runtime_obj_build_status(out_base, crc);
+    }
+    return -1;
+  }
+  // Cap residual: re-stat product path; missing after cc → diag fail.
+  unsafe {
+    have = asm_link_obj_skip_missing(product_path);
+  }
+  if (have == 0 as *u8) {
+    unsafe {
+      link_diag_runtime_obj_missing(out_base, &out_o[0]);
+    }
+    return -1;
+  }
+  return 0;
 }
 
 /**
