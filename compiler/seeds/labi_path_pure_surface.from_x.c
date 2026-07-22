@@ -1,8 +1,8 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (9 public gates + count; wave115 lib_root_default)
- * Cap residual: Windows #if path sep in mega cold path; getenv Cap residual in default
+ * Prove: full.x vs this seed → nm IDENTICAL (10 public gates + count; wave116 try_under_lib_roots)
+ * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -10,6 +10,21 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/types.h>
+extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
+extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
+int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1);
+extern int32_t labi_suffix_eq4(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3);
+extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
+extern int32_t shux_output_is_elf_o(uint8_t * path);
+extern int32_t shux_output_want_exe(uint8_t * path);
+extern int32_t shux_path_has_sep(uint8_t * s);
+extern uint8_t * shux_path_last_sep(uint8_t * s);
+extern int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t * p);
+extern void shux_asm_ld_lib_root_default(uint8_t * root_buf);
+extern uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
+extern int32_t labi_path_pure_count(void);
+extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
+extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1) {
   if ((n < 2)) {
     return 0;
@@ -167,6 +182,86 @@ void shux_asm_ld_lib_root_default(uint8_t * root_buf) {
   }
   (void)(((root_buf)[511] = 0));
 }
+uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank) {
+  if ((shux_asm_ld_lib_root_ptr_usable(rel) ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((bank ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((((size_t)(bank)) < 4096)) {
+    return ((uint8_t *)(0));
+  }
+  uint8_t * roots_base = ((uint8_t *)(lib_roots));
+  if ((roots_base ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((((size_t)(roots_base)) < 4096)) {
+    return ((uint8_t *)(0));
+  }
+  if ((n_lib_roots <=0)) {
+    return ((uint8_t *)(0));
+  }
+  int32_t rel_n = 0;
+  while (((rel)[rel_n] !=0)) {
+    (void)((rel_n = (rel_n + 1)));
+  }
+  int32_t i = 0;
+  while ((i < n_lib_roots)) {
+    if ((i >=24)) {
+      break;
+    }
+    uint8_t * root = (lib_roots)[i];
+    if ((shux_asm_ld_lib_root_ptr_usable(root) ==0)) {
+      (void)((i = (i + 1)));
+      continue;
+    }
+    int32_t rn = 0;
+    while (((root)[rn] !=0)) {
+      (void)((rn = (rn + 1)));
+    }
+    while ((rn > 1)) {
+      if (((root)[(rn - 1)] !=47)) {
+        break;
+      }
+      (void)((rn = (rn - 1)));
+    }
+    if ((((rn + 2) + rel_n) >=4096)) {
+      (void)((i = (i + 1)));
+      continue;
+    }
+    uint8_t tmp[4096] = {};
+    if ((rn > 0)) {
+      int32_t j = 0;
+      while ((j < rn)) {
+        (void)(((tmp)[j] = (root)[j]));
+        (void)((j = (j + 1)));
+      }
+      (void)(((tmp)[rn] = 47));
+      int32_t k = 0;
+      while ((k <=rel_n)) {
+        (void)(((tmp)[((rn + 1) + k)] = (rel)[k]));
+        (void)((k = (k + 1)));
+      }
+    } else {
+      int32_t k2 = 0;
+      while ((k2 <=rel_n)) {
+        (void)(((tmp)[k2] = (rel)[k2]));
+        (void)((k2 = (k2 + 1)));
+      }
+    }
+    uint8_t * hit = 0;
+    (void)((hit = asm_link_obj_skip_missing(&((tmp)[0]))));
+    if ((hit ==0)) {
+      (void)((i = (i + 1)));
+      continue;
+    }
+    uint8_t * pushed = 0;
+    (void)((pushed = shux_asm_ld_bank_push(bank, &((tmp)[0]))));
+    return pushed;
+  }
+  return ((uint8_t *)(0));
+}
 int32_t labi_path_pure_count(void) {
-  return 9;
+  return 10;
 }

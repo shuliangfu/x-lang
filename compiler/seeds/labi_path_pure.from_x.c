@@ -2,11 +2,12 @@
  * Logic source: src/runtime/labi_path_pure.x
  * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave114–115）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave114–116）：公共业务符号由 full .x 提供：
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
  *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
  *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
  *   + shux_asm_ld_lib_root_default (wave115 SHUX_LIB/"." ; Cap residual getenv)
+ *   + shux_asm_ld_try_under_lib_roots (wave116 pure join; Cap residual skip+bank)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -19,6 +20,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+/* Cap residual used by wave116 cold twin (product hybrid: path_io + gates). */
+const char *asm_link_obj_skip_missing(const char *path);
+const char *shux_asm_ld_bank_push(void *b, const char *path);
 
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
 
@@ -182,9 +187,49 @@ void shux_asm_ld_lib_root_default(uint8_t *root_buf) {
   root_buf[511] = 0;
 }
 
+/* wave116 cold twin: try rel under each lib root (pure join; Cap skip+bank). */
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank) {
+  int i;
+  char tmp[4096];
+  size_t rel_n;
+  if (!rel || (uintptr_t)rel < 4096u)
+    return NULL;
+  if (!rel[0] || !bank || !lib_roots || (uintptr_t)lib_roots < 4096u || n_lib_roots <= 0)
+    return NULL;
+  rel_n = strlen(rel);
+  for (i = 0; i < n_lib_roots && i < 24; i++) {
+    size_t rn;
+    size_t j;
+    const char *root = lib_roots[i];
+    if (!root || (uintptr_t)root < 4096u)
+      continue;
+    if (!root[0])
+      continue;
+    rn = strlen(root);
+    while (rn > 1 && root[rn - 1] == '/')
+      rn--;
+    if (rn + 2 + rel_n >= sizeof(tmp))
+      continue;
+    if (rn > 0) {
+      for (j = 0; j < rn; j++)
+        tmp[j] = root[j];
+      tmp[rn] = '/';
+      for (j = 0; j <= rel_n; j++)
+        tmp[rn + 1 + j] = rel[j];
+    } else {
+      for (j = 0; j <= rel_n; j++)
+        tmp[j] = rel[j];
+    }
+    if (!asm_link_obj_skip_missing(tmp))
+      continue;
+    return shux_asm_ld_bank_push(bank, tmp);
+  }
+  return NULL;
+}
+
 /* Pure audit: number of L0 path-pure public gates in this slice. */
 int32_t labi_path_pure_count(void) {
-  return 9;
+  return 10;
 }
 
 #else
@@ -197,6 +242,7 @@ int32_t shux_path_has_sep(uint8_t *s);
 uint8_t *shux_path_last_sep(uint8_t *s);
 int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p);
 void shux_asm_ld_lib_root_default(uint8_t *root_buf);
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t labi_path_pure_count(void);
 #endif
 

@@ -1008,6 +1008,11 @@ const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
  * 在每个 -L（lib root）根下尝试 rel（如 std/process/process.o）；命中则拷入 bank 并返回指针。
  * 参数：rel 相对路径；lib_roots/n_lib_roots -L 根；bank 路径持久化。
  */
+/* wave116：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: join root/rel without snprintf; Cap residual skip_missing + bank_push.
+ * PLATFORM: SHARED. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank) {
     int i;
     char tmp[PATH_MAX];
@@ -1039,6 +1044,9 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
     }
     return NULL;
 }
+#else
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank);
+#endif
 
 /**
  * 对 path 做 realpath，仅当目标为已存在常规文件时返回 resolved（避免 nostdlib realpath 拼出不存在的路径）。
