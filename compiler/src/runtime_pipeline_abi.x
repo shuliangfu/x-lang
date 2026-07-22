@@ -4,6 +4,11 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave99: pure parser_copy_module_import_path64 thin → G.7 pipeline_module_import_path_copy
+//   + NUL scan len (≡ historical parser_gen body). parser_gen seed path64 demoted weak
+//   cold twin so pure hybrid owns product; Cap residual ImportEntry storage stays
+//   pipeline_module_import_path_* in ast_pool. Closes Cap residual path64 under pure
+//   load_and_sync / load_import orch. Cap residual still: g05 &fn cast (language).
 // wave98: product complex #if Cap residual — G.7 cfg_eval.x on product link (not
 //   bootstrap stub). Pure preprocess_eval_condition_c already routes complex ops to
 //   cfg_eval_expr_c; Makefile -E-extern used bare CFLAGS → Apple Clang -Werror
@@ -28,12 +33,12 @@
 //   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
 //   pipeline_bind_import_dep_buffers + pipeline_sync_one_dep_slot;
 //   Cap residual (wave95–96→pure) resolve/read/preprocess/parse; typeck merge+wpo
-//   (wave97→typeck.x) + parser_copy_module_import_path64; glue/ast_pool SHUX_WEAK.
+//   (wave97→typeck.x); path64 wave99→pure; glue/ast_pool SHUX_WEAK.
 //   Closes Cap residual disk-load + dep-sync leaves under wave93 load_and_sync.
 // wave93: pure pipeline_load_and_sync_direct_import_deps_c orch + same-TU pure
 //   pipeline_try_bind_seeded_import + pipeline_dep_ctx_realign_ndep_for_entry_c;
-//   Cap residual (wave94→pure) load_import/sync; typeck merge+wpo (wave97→typeck.x) +
-//   parser_copy_module_import_path64; ast_pool SHUX_WEAK cold twins.
+//   Cap residual (wave94→pure) load_import/sync; typeck merge+wpo (wave97→typeck.x);
+//   path64 wave99→pure; ast_pool SHUX_WEAK cold twins.
 //   Closes Cap residual load_and_sync leaf under wave60 typeck_only orch.
 // wave92: pure pipeline_typeck_validate_struct_layouts_zero_padding_c /
 //   pipeline_typeck_patch_all_body_parent_links_c thin → G.7 typeck.x authority
@@ -170,7 +175,7 @@
 // wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
 // wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7; no typeck_typeck_* hop).
 // Cap residual still: g05 &fn cast (language; g05 harness); preprocess_x_buf pure
-//   preprocess.x cross-TU; parser_copy_module_import_path64 under pure load_and_sync.
+//   preprocess.x cross-TU; ImportEntry storage via pipeline_module_import_path_* (ast_pool).
 //   cfg_eval complex #if = permanent G.7 cross-TU call to cfg_eval.x (wave98 product
 //   link fixed; body no longer bootstrap stub when -E works).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
@@ -218,14 +223,16 @@ export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u
 // PLATFORM: SHARED — light fallback under pure dep-prerun routes here (not glue metrics fork).
 export extern "C" function typeck_validate_struct_layouts_zero_padding(module: *u8, arena: *u8): i32;
 export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena: *u8): void;
-// wave93–97 leaves under pure load_and_sync / load_import orch.
+// wave93–99 leaves under pure load_and_sync / load_import orch.
 // PLATFORM: SHARED — strong bodies remain in glue/parser for sub-leaves;
 //   wave94 pure owns load_import_from_disk_c / sync_dep_slots_from_driver_c /
 //   bind_import_dep_buffers / sync_one_dep_slot (same-TU; not export-extern);
 //   wave95 pure owns resolve_path_x / read_file_x / preprocess_loaded_into_ctx;
 //   wave96 pure owns pipeline_parse_into_buf (same-TU; not export-extern);
-//   wave97 pure load_and_sync step5 routes merge+wpo → typeck.x (below).
-export extern "C" function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32;
+//   wave97 pure load_and_sync step5 routes merge+wpo → typeck.x (below);
+//   wave99 pure owns parser_copy_module_import_path64 (below; not export-extern).
+// G.7 ImportEntry path storage authority (ast_pool); pure path64 only copies + len.
+export extern "C" function pipeline_module_import_path_copy(module: *u8, idx: i32, dst: *u8, dst_cap: i32): void;
 export extern "C" function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
 // wave95 Cap residual under pure resolve/read/pp orch (G.7 try_* from pipeline.x
@@ -430,6 +437,46 @@ export function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *
   unsafe {
     path_buf[0] = 0;
   }
+}
+
+/**
+ * Copy import path at index i into out[0..64) (NUL-terminated) and return path length.
+ * @param module *u8 — opaque AST module; null → out[0]=0 when out valid, return 0
+ * @param i i32 — import index (negative / OOB handled by G.7 path_copy / ImportEntry)
+ * @param out *u8 — destination buffer; capacity 64 bytes including NUL; null → 0
+ * @return i32 — byte length of path excluding NUL; 0 on null/missing path
+ * wave99 pure Cap residual close: G.7 single product authority for path64 surface.
+ * Body ≡ historical parser_gen: pipeline_module_import_path_copy(..., 64) + scan NUL.
+ * ImportEntry storage remains Cap residual in ast_pool (pipeline_module_import_path_*).
+ * PLATFORM: SHARED — parser_gen path64 demoted weak cold twin; product pure hybrid owns.
+ */
+#[no_mangle]
+export function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32 {
+  if (out == 0 as *u8) {
+    return 0;
+  }
+  if (module == 0 as *u8) {
+    unsafe {
+      out[0] = 0;
+    }
+    return 0;
+  }
+  // G.7: ImportEntry path bytes live in ast_pool; this surface only copies + measures.
+  unsafe {
+    pipeline_module_import_path_copy(module, i, out, 64);
+  }
+  let path_len: i32 = 0;
+  while (path_len < 64) {
+    let ch: u8 = 0;
+    unsafe {
+      ch = out[path_len];
+    }
+    if (ch == 0) {
+      break;
+    }
+    path_len = path_len + 1;
+  }
+  return path_len;
 }
 
 /** Exported function `asm_skip_heavy_set_pipeline_ctx`.
@@ -2874,7 +2921,7 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  * @param import_idx i32 — entry import index / ctx slot; <0 → -1
  * @return i32 — 0 ok; -1 null; -7 resolve fail; -8 read fail; -9 preprocess fail; -10 parse fail
  * Steps (match historical pipeline_load_import_from_disk_impl_c):
- *   1) parser_copy_module_import_path64
+ *   1) same-TU pure parser_copy_module_import_path64 (wave99)
  *   2) same-TU pure pipeline_resolve_path_x (wave95)
  *   3) same-TU pure pipeline_read_file_x (wave95)
  *   4) same-TU pure pipeline_preprocess_loaded_into_ctx (wave95)

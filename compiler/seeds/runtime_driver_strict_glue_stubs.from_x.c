@@ -719,15 +719,24 @@ SHUX_WEAK void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, 
   ast_pipeline_dep_ctx_set_import_path(ctx, idx, bytes, len);
 }
 
+/* wave99: product pure owns path64; this SHUX_WEAK is cold twin when pure not linked.
+ * G.7: ImportEntry path storage = pipeline_module_import_path_copy (ast_pool).
+ * PLATFORM: SHARED — semantics ≡ pure / parser_gen weak cold twin. */
+extern void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap);
+
 SHUX_WEAK int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]) {
-  int32_t k;
-  (void)module;
-  (void)i;
+  int32_t path_len;
   if (!out)
     return 0;
-  for (k = 0; k < 64; k++)
-    out[k] = 0;
-  return 0;
+  if (!module) {
+    out[0] = 0;
+    return 0;
+  }
+  pipeline_module_import_path_copy(module, i, out, 64);
+  path_len = 0;
+  while (path_len < 64 && out[path_len] != 0)
+    path_len++;
+  return path_len;
 }
 
 /** 旧硬顶 32：pool-limits deep_if_nest 需 40 层 -DL；uname 等还会再占几槽。 */

@@ -8370,7 +8370,10 @@ void parser_get_module_import_path(struct ast_Module * module, int32_t i, uint8_
   }
   (void)(pipeline_module_import_path_copy(module, i, &((out)[0]), 64));
 }
-int32_t parser_copy_module_import_path64(struct ast_Module * module, int32_t i, uint8_t * out) {
+/* wave99: product pure owns parser_copy_module_import_path64 (runtime_pipeline_abi.x).
+ * Keep body as SHUX_WEAK cold twin so hybrid PREFER pure wins; cold/non-PREFER still works.
+ * PLATFORM: SHARED — semantics ≡ pure (get_path + NUL scan). */
+__attribute__((weak)) int32_t parser_copy_module_import_path64(struct ast_Module * module, int32_t i, uint8_t * out) {
   {
     (void)(parser_get_module_import_path(module, i, out));
     int32_t path_len = 0;

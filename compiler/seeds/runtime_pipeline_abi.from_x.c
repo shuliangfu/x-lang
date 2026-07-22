@@ -128,8 +128,10 @@
  * wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7).
  * wave98: product cfg_eval complex #if → cfg_eval.x (-E+alias), not bootstrap stub
  *   (Makefile PIPELINE_GEN_CFLAGS + -Wno-parentheses-equality on gen).
+ * wave99: pure parser_copy_module_import_path64 thin → G.7 pipeline_module_import_path_copy
+ *   + NUL len; parser_gen path64 weak cold twin.
  * Cap residual still: preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast;
- *   parser_copy_module_import_path64; cfg_eval complex = permanent G.7 cross-TU.
+ *   ImportEntry storage pipeline_module_import_path_*; cfg_eval complex = permanent G.7 cross-TU.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
