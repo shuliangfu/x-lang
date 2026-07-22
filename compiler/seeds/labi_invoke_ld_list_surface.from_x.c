@@ -1,13 +1,16 @@
 /* seeds/labi_invoke_ld_list_surface.from_x.c
  * G-02f labi_invoke_ld_list R2 full surface — isomorphic with src/runtime/labi_invoke_ld_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_invoke_ld_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (brew/compress/tail/driver pure table)
- * Cap residual: spawn/ld/cc IO in mega shux_asm_invoke_ld_platform / tail_libs
- * Regen: ./shux -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
+ * Prove: full.x vs this seed → nm IDENTICAL (brew/compress/tail/driver pure table
+ *   + wave152 ld_append_brew_lib_paths pure orch)
+ * Cap residual: link_abi_host_is_apple (#if __APPLE__); spawn/ld/cc IO mega
+ * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
+ * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
+extern int32_t link_abi_host_is_apple(void);
 int32_t labi_ld_brew_lib_path_count(void) {
   return 2;
 }
@@ -166,4 +169,37 @@ uint8_t * labi_ld_common_tail_flag_at(int32_t i) {
     return p;
   }
   return ((uint8_t *)(0));
+}
+/* wave152: ld_append_brew_lib_paths pure orch (surface pin; Cap residual host_is_apple). */
+void ld_append_brew_lib_paths(uint8_t * * argv, int32_t * la, int32_t max_la) {
+  int32_t apple = 0;
+  (void)((apple = link_abi_host_is_apple()));
+  if ((apple ==0)) {
+    return;
+  }
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return;
+  }
+  if ((la ==0)) {
+    return;
+  }
+  int32_t n = labi_ld_brew_lib_path_count();
+  int32_t k = 0;
+  while ((k <n)) {
+    int32_t cur = (la)[0];
+    if ((cur >=(max_la - 1))) {
+      break;
+    }
+    uint8_t * p = labi_ld_brew_lib_path_at(k);
+    (void)((k = (k + 1)));
+    if ((p ==0)) {
+      continue;
+    }
+    if (((p)[0] ==0)) {
+      continue;
+    }
+    (void)(((argv)[cur] = p));
+    (void)(((la)[0] = (cur + 1)));
+  }
 }

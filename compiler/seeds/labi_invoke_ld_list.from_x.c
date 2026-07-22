@@ -2,19 +2,23 @@
  * Logic source: src/runtime/labi_invoke_ld_list.x
  * Hybrid: SHUX_LABI_INVOKE_LD_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ * R2 full：公共业务符号由 full .x 提供：
  *   labi_ld_brew_lib_path_{count,at}
  *   labi_ld_compress_flag_{count,at} + labi_ld_flag_lz/zstd/brotli*
  *   labi_ld_flag_lm/sqlite3/pthread/ldl/lc/lSystem/lws2_32/lbcrypt
  *   labi_ld_driver_{clang,ld,gcc,cc} + labi_ld_mach_entry_main + labi_ld_flag_{e,o}
  *   labi_ld_common_tail_flag_{count,at}
- * Cap residual：spawn/ld/cc IO 仍在 mega shux_asm_invoke_ld_platform / tail_libs。
+ *   ld_append_brew_lib_paths (wave152 pure orch; Cap residual link_abi_host_is_apple)
+ * Cap residual：link_abi_host_is_apple (#if __APPLE__) in mega; spawn/ld/cc IO mega.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
  * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+
+/* Cap residual always provided by mega (compile-time #if); cold twin calls it. */
+int link_abi_host_is_apple(void);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -97,6 +101,26 @@ const char *labi_ld_common_tail_flag_at(int i) {
   return NULL;
 }
 
+/* wave152: ld_append_brew_lib_paths pure orch (cold twin ≡ .x; Cap residual host_is_apple). */
+void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
+  int n;
+  int k;
+  if (!link_abi_host_is_apple())
+    return;
+  if (!argv || !la)
+    return;
+  n = labi_ld_brew_lib_path_count();
+  for (k = 0; k < n; k++) {
+    const char *p;
+    if (*la >= max_la - 1)
+      break;
+    p = labi_ld_brew_lib_path_at(k);
+    if (!p || !p[0])
+      continue;
+    argv[(*la)++] = p;
+  }
+}
+
 #else
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
@@ -124,6 +148,7 @@ const char *labi_ld_flag_e(void);
 const char *labi_ld_flag_o(void);
 int labi_ld_common_tail_flag_count(void);
 const char *labi_ld_common_tail_flag_at(int i);
+void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

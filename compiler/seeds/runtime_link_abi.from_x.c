@@ -2864,28 +2864,29 @@ const char *labi_ld_flag_e(void);
 const char *labi_ld_flag_o(void);
 int labi_ld_common_tail_flag_count(void);
 const char *labi_ld_common_tail_flag_at(int i);
+void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 #endif
 
-/** macOS Homebrew /usr/local：便于 -lz / -lzstd 解析。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-275：brew -L 表驱动 */
-void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
+/**
+ * Cap residual (wave152): return 1 iff host is Apple (any arch).
+ * PLATFORM: MACOS — #if defined(__APPLE__); Linux/Windows → 0.
+ * Not the same as shux_host_is_apple_aarch64 (arm64 only; host_lit L2).
+ * Pure orch ld_append_brew_lib_paths gates brew -L append on this.
+ * Always mega (both cold include path and hybrid FROM_X).
+ */
+int link_abi_host_is_apple(void) {
 #if defined(__APPLE__)
-    int n = labi_ld_brew_lib_path_count();
-    int k;
-    for (k = 0; k < n; k++) {
-        const char *p = labi_ld_brew_lib_path_at(k);
-        if (!p || !p[0])
-            continue;
-        if (*la < max_la - 1)
-            argv[(*la)++] = p;
-    }
+    return 1;
 #else
-    (void)argv;
-    (void)la;
-    (void)max_la;
+    return 0;
 #endif
 }
+
+/* wave152: ld_append_brew_lib_paths pure orch lives in labi_invoke_ld_list
+ * (table scan + Cap residual host_is_apple). Cold twin via #include
+ * labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure .x (decl in #else).
+ * Why: hybrid still had always-mega C body for brew -L append.
+ * PLATFORM: SHARED orch / MACOS consumers. */
 
 
 
