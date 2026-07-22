@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 20 public gates + count:
+// R2 full: .x owns 21 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -25,6 +25,8 @@
 //     Cap residual realpath_if_exists + getcwd + skip_missing; static 512/4096 BSS)
 //   - shux_crt0_user_o_path (wave164; pure cwd/argv0 path ladder for crt0_user.o;
 //     Cap residual realpath_cap + getcwd; static 512/4096 BSS; freestanding entry)
+//   - shux_freestanding_io_o_path (wave165; pure cwd/argv0 path ladder for freestanding_io.o;
+//     Cap residual realpath_cap + getcwd; static 512/4096 BSS; freestanding syscall write)
 // wave161 G.7: thin mega shux_runtime_*_o_path (static PATH_MAX) route join through this gate
 //   (process_os_glue … ed25519_ref10_glue; + asm_io_stubs / process_argv already on copy).
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
@@ -47,6 +49,7 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 // Empty string on fail — push_obj treats primary[0]==0 as missing (falls back to rel).
 // wave163: shux_runtime_panic_o_path is pure export below (no longer Cap residual).
 // wave164: shux_crt0_user_o_path is pure export below (no longer Cap residual).
+// wave165: shux_freestanding_io_o_path is pure export below (no longer Cap residual).
 export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
 // Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
@@ -70,6 +73,9 @@ let g_labi_panic_o_path_resolved: u8[4096] = [];
 // wave164: durable crt0_user .o path buffers (≡ mega static buf[512] + resolved[PATH_MAX]).
 let g_labi_crt0_user_o_path_buf: u8[512] = [];
 let g_labi_crt0_user_o_path_resolved: u8[4096] = [];
+// wave165: durable freestanding_io .o path buffers (≡ mega static buf[512] + resolved[PATH_MAX]).
+let g_labi_freestanding_io_o_path_buf: u8[512] = [];
+let g_labi_freestanding_io_o_path_resolved: u8[4096] = [];
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
  * Params: s — bytes; n — length (i32); a0/a1 — suffix bytes.
@@ -804,7 +810,7 @@ export function link_abi_asm_ld_push_glue_after_std(have_std: i32, ensure_fn: *u
  * Cap residual: getcwd (libc); realpath_if_exists_impl under path_io; skip via path_io pure.
  * Why (wave163): hybrid still had always-mega C body for complex panic path ladder after
  *   wave160–162 path residual (compiler-dir join / thin *_o_path / repo_root). First complex
- *   ladder leaf; freestanding_io / async_scheduler remain Cap residual (crt0 wave164 pure).
+ *   ladder leaf; freestanding_io pure at wave165; async_scheduler remain Cap residual.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch POSIX '/' — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
  *   Windows mega rest may still use '\\' via cold path; product PREFER uses this pure POSIX.
@@ -930,8 +936,8 @@ export function shux_runtime_panic_o_path(argv0: *u8): *u8 {
  *   link_abi_realpath_cap (POSIX realpath; Windows null) + getcwd.
  * Cap residual: getcwd (libc); realpath via link_abi_realpath_cap (G.7 single Cap).
  * Why (wave164): hybrid still had always-mega C body for complex crt0 path ladder after
- *   wave163 panic ladder. Second complex ladder leaf; freestanding_io / async_scheduler
- *   remain Cap residual.
+ *   wave163 panic ladder. Second complex ladder leaf; freestanding_io pure at wave165;
+ *   async_scheduler remain Cap residual.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch POSIX '/' — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
  *   Windows mega rest may still use '\\' via cold path; product PREFER uses this pure POSIX.
@@ -1031,6 +1037,119 @@ export function shux_crt0_user_o_path(argv0: *u8): *u8 {
     }
   }
   return &g_labi_crt0_user_o_path_buf[0];
+}
+
+/**
+ * Resolve path of compiler/freestanding_io.o for freestanding / nostdlib syscall write.
+ * Ladder (≡ mega): `compiler/freestanding_io.o` → getcwd+`/compiler/freestanding_io.o` →
+ * argv0-dir+`/freestanding_io.o` (realpath then return joined buf even without realpath hit).
+ * @param argv0 *u8 — optional product host path; may be null (cwd steps still run)
+ * @return *u8 — static g_labi_freestanding_io_o_path_resolved (realpath hit) or
+ *   g_labi_freestanding_io_o_path_buf (argv0 join / empty); never null
+ * Pure orch: pure byte join + pure last-sep index strip; Cap residual
+ *   link_abi_realpath_cap (POSIX realpath; Windows null) + getcwd.
+ * Cap residual: getcwd (libc); realpath via link_abi_realpath_cap (G.7 single Cap).
+ * Why (wave165): hybrid still had always-mega C body for complex freestanding_io path ladder
+ *   after wave164 crt0 ladder. Third complex ladder leaf; async_scheduler remain Cap residual.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch POSIX '/' — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ *   Windows mega rest may still use '\\' via cold path; product PREFER uses this pure POSIX.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_freestanding_io_o_path(argv0: *u8): *u8 {
+  // Match mega: clear both durable buffers; return empty buf on total fail.
+  g_labi_freestanding_io_o_path_buf[0] = 0;
+  g_labi_freestanding_io_o_path_resolved[0] = 0;
+  let hit: *u8 = 0 as *u8;
+  // Step 1: cwd is repo root — compiler/freestanding_io.o (mega starts here; no bare leaf).
+  unsafe {
+    hit = link_abi_realpath_cap("compiler/freestanding_io.o", &g_labi_freestanding_io_o_path_resolved[0]);
+  }
+  if (hit != 0 as *u8) {
+    return hit;
+  }
+  // Step 2: getcwd + "/compiler/freestanding_io.o" then realpath.
+  // mega: getcwd(cwd, sizeof(cwd)-28) with cwd[512]; path is 27 chars + NUL memcpy 28.
+  let cwd: u8[512] = [];
+  let gp: *u8 = 0 as *u8;
+  unsafe {
+    gp = getcwd(&cwd[0], 484);
+  }
+  if (gp != 0 as *u8) {
+    let L: i32 = 0;
+    while (cwd[L] != 0) {
+      L = L + 1;
+    }
+    // 27 path bytes + NUL; need L+27 < 512.
+    if (L + 27 < 512) {
+      let suf: *u8 = "/compiler/freestanding_io.o";
+      let si: i32 = 0;
+      // Copy 27 path bytes + trailing NUL.
+      while (si <= 27) {
+        cwd[L + si] = suf[si];
+        si = si + 1;
+      }
+      unsafe {
+        hit = link_abi_realpath_cap(&cwd[0], &g_labi_freestanding_io_o_path_resolved[0]);
+      }
+      if (hit != 0 as *u8) {
+        return hit;
+      }
+    }
+  }
+  // Step 3: argv0 parent directory + "/freestanding_io.o".
+  if (argv0 != 0 as *u8) {
+    if (argv0[0] != 0) {
+      // Pure last-sep index (POSIX '/'); avoid pointer subtraction (no .x ptrdiff).
+      let i: i32 = 0;
+      let last_sep_i: i32 = -1;
+      while (argv0[i] != 0) {
+        if (argv0[i] == 47) {
+          last_sep_i = i;
+        }
+        i = i + 1;
+      }
+      let n: i32 = 0;
+      if (last_sep_i >= 0) {
+        // mega: n = last_slash - argv0; refuse if n >= sizeof(buf)-20.
+        if (last_sep_i >= 512 - 20) {
+          return &g_labi_freestanding_io_o_path_buf[0];
+        }
+        let j: i32 = 0;
+        while (j < last_sep_i) {
+          g_labi_freestanding_io_o_path_buf[j] = argv0[j];
+          j = j + 1;
+        }
+        g_labi_freestanding_io_o_path_buf[last_sep_i] = 0;
+        n = last_sep_i;
+      } else {
+        // No sep: use "." as dir (≡ mega).
+        g_labi_freestanding_io_o_path_buf[0] = 46;
+        g_labi_freestanding_io_o_path_buf[1] = 0;
+        n = 1;
+      }
+      // "/freestanding_io.o" is 18 chars; mega guard n + 18 < sizeof(buf).
+      if (n + 18 < 512) {
+        let leaf: *u8 = "/freestanding_io.o";
+        let k: i32 = 0;
+        while (leaf[k] != 0) {
+          g_labi_freestanding_io_o_path_buf[n + k] = leaf[k];
+          k = k + 1;
+        }
+        g_labi_freestanding_io_o_path_buf[n + k] = 0;
+        unsafe {
+          hit = link_abi_realpath_cap(&g_labi_freestanding_io_o_path_buf[0], &g_labi_freestanding_io_o_path_resolved[0]);
+        }
+        if (hit != 0 as *u8) {
+          return hit;
+        }
+        // mega: after argv0 join, always return buf even without realpath hit.
+        return &g_labi_freestanding_io_o_path_buf[0];
+      }
+    }
+  }
+  return &g_labi_freestanding_io_o_path_buf[0];
 }
 
 /**
@@ -1311,10 +1430,10 @@ export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
 
 /**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 20 (fixed catalog size for hybrid FROM_X bookkeeping; wave164 +1).
+ * Returns: 21 (fixed catalog size for hybrid FROM_X bookkeeping; wave165 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 20;
+  return 21;
 }

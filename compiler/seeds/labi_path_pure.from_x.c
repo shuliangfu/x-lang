@@ -18,6 +18,7 @@
  *   + shux_repo_root_from_argv0 (wave162 pure strip parent / process.o walk; Cap residual resolve+rel)
  *   + shux_runtime_panic_o_path (wave163 pure cwd/argv0 ladder; Cap residual realpath+getcwd+skip)
  *   + shux_crt0_user_o_path (wave164 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd)
+ *   + shux_freestanding_io_o_path (wave165 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -55,8 +56,8 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
 /* Cap residual used by wave163 panic_o_path cold twin (path_io / libc). */
 const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
 char *getcwd(char *buf, size_t size);
-/* Cap residual used by wave164 crt0_user_o_path cold twin (POSIX realpath; already declared
- * as link_abi_realpath_cap above for wave146). */
+/* Cap residual used by wave164/165 crt0_user / freestanding_io_o_path cold twin (POSIX realpath;
+ * already declared as link_abi_realpath_cap above for wave146). */
 /* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
@@ -637,8 +638,79 @@ const char *shux_crt0_user_o_path(const char *argv0) {
   return g_labi_crt0_user_o_path_buf;
 }
 
+/* wave165: freestanding_io_o_path pure orch (cold twin ≡ .x; Cap residual realpath_cap+getcwd). */
+static char g_labi_freestanding_io_o_path_buf[512];
+static char g_labi_freestanding_io_o_path_resolved[4096];
+
+const char *shux_freestanding_io_o_path(const char *argv0) {
+  const char *hit;
+  char cwd[512];
+  int i;
+  int last_sep_i;
+  int n;
+  int j;
+  int k;
+  g_labi_freestanding_io_o_path_buf[0] = '\0';
+  g_labi_freestanding_io_o_path_resolved[0] = '\0';
+  hit = link_abi_realpath_cap("compiler/freestanding_io.o", g_labi_freestanding_io_o_path_resolved);
+  if (hit)
+    return hit;
+  if (getcwd(cwd, 484) != NULL) {
+    int L = 0;
+    while (cwd[L] != 0)
+      L = L + 1;
+    if (L + 27 < 512) {
+      const char *suf = "/compiler/freestanding_io.o";
+      int si = 0;
+      while (si <= 27) {
+        cwd[L + si] = suf[si];
+        si = si + 1;
+      }
+      hit = link_abi_realpath_cap(cwd, g_labi_freestanding_io_o_path_resolved);
+      if (hit)
+        return hit;
+    }
+  }
+  if (argv0 && argv0[0]) {
+    i = 0;
+    last_sep_i = -1;
+    while (argv0[i] != 0) {
+      if ((uint8_t)argv0[i] == 47)
+        last_sep_i = i;
+      i = i + 1;
+    }
+    n = 0;
+    if (last_sep_i >= 0) {
+      if (last_sep_i >= 512 - 20)
+        return g_labi_freestanding_io_o_path_buf;
+      for (j = 0; j < last_sep_i; j++)
+        g_labi_freestanding_io_o_path_buf[j] = argv0[j];
+      g_labi_freestanding_io_o_path_buf[last_sep_i] = '\0';
+      n = last_sep_i;
+    } else {
+      g_labi_freestanding_io_o_path_buf[0] = '.';
+      g_labi_freestanding_io_o_path_buf[1] = '\0';
+      n = 1;
+    }
+    if (n + 18 < 512) {
+      const char *leaf = "/freestanding_io.o";
+      k = 0;
+      while (leaf[k] != 0) {
+        g_labi_freestanding_io_o_path_buf[n + k] = leaf[k];
+        k = k + 1;
+      }
+      g_labi_freestanding_io_o_path_buf[n + k] = '\0';
+      hit = link_abi_realpath_cap(g_labi_freestanding_io_o_path_buf, g_labi_freestanding_io_o_path_resolved);
+      if (hit)
+        return hit;
+      return g_labi_freestanding_io_o_path_buf;
+    }
+  }
+  return g_labi_freestanding_io_o_path_buf;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 20;
+  return 21;
 }
 
 #else
@@ -667,6 +739,7 @@ int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char 
 const char *shux_repo_root_from_argv0(const char *argv0);
 const char *shux_runtime_panic_o_path(const char *argv0);
 const char *shux_crt0_user_o_path(const char *argv0);
+const char *shux_freestanding_io_o_path(const char *argv0);
 int32_t labi_path_pure_count(void);
 #endif
 

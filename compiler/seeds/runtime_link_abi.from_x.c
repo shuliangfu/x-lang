@@ -1253,7 +1253,13 @@ const char *shux_crt0_user_o_path(const char *argv0);
  * freestanding_io.o 路径；与 crt0_user.o 同目录（compiler/），供 SHUX_FREESTANDING syscall write。
  * 参数：argv0 可选 shux 路径。
  * 返回值：.o 路径或空串。
+ *
+ * wave165: pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: BSS join + last-sep index; Cap residual link_abi_realpath_cap + getcwd.
+ * PLATFORM: SHARED orch POSIX; Windows sep rest stays mega cold when non-hybrid.
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_freestanding_io_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
@@ -1295,6 +1301,9 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
     }
     return buf;
 }
+#else
+const char *shux_freestanding_io_o_path(const char *argv0);
+#endif
 /* wave160: shux_runtime_compiler_o_path_copy pure orch lives in labi_path_pure
  * (Cap residual shu_resolve_compiler_dir + pure byte join compiler-dir/leaf).
  * Cold twin via L0 seed / mega #ifndef below; hybrid FROM_X → L0 pure .x.
