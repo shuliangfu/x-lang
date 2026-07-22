@@ -100,8 +100,11 @@
  * wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
  *   (G.7 single typeck authority; C typeck_module deleted). Closes Cap residual
  *   typeck_module C frontend leaf. Cold twin under #ifndef FROM_X matches pure route.
- * Cap residual still: preprocess_x_buf in preprocess.x TU (already pure .x engine;
- *   pipeline orch export-extern); g05 harness still holds &fn cast for Cap-fn-ptr.
+ * wave88: pure preprocess_eval_condition_c (trim + pure define_has simple path;
+ *   Cap residual cfg_eval_expr_c complex; glue strict_stubs SHUX_WEAK cold fallback).
+ *   Closes Cap residual preprocess #if condition-eval leaf.
+ * Cap residual still: cfg_eval_expr_c complex branch; preprocess_x_buf pure preprocess.x
+ *   TU (cross-TU export-extern, not always-seed Cap); g05 harness still holds &fn cast.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).

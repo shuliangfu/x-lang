@@ -4,6 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave88: pure preprocess_eval_condition_c orch (trim + simple → pure define_has;
+//   complex ops → Cap residual cfg_eval_expr_c; glue SHUX_WEAK cold fallback).
+//   Closes Cap residual preprocess #if condition-eval leaf (x_buf already pure cross-TU).
 // wave85: pure preprocess_define_reset / add / has (-D table BSS; glue SHUX_WEAK cold fallback).
 // wave84: pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr thin
 //   (G.7 g05 shux_driver_*_thread_fn_ptr function-address cast residual; product surface pure;
@@ -112,8 +115,11 @@
 // wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
 //   (G.7 single typeck authority; C typeck_module frontend deleted — was weak -1 only).
 //   Closes Cap residual typeck_module C frontend leaf.
-// Cap residual still: preprocess_x_buf lives in preprocess.x TU (already pure .x engine;
-//   pipeline pure orch still export-extern calls it); g05 &fn cast for Cap-fn-ptr.
+// wave88: pure preprocess_eval_condition_c (G.7 pure define_has simple path + Cap residual
+//   cfg_eval_expr_c for complex #if); glue SHUX_WEAK cold fallback.
+//   Closes Cap residual preprocess condition-eval leaf of preprocess.x engine path.
+// Cap residual still: cfg_eval_expr_c complex branch; preprocess_x_buf is pure preprocess.x
+//   TU (cross-TU export-extern, not always-seed Cap); g05 &fn cast for Cap-fn-ptr.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -131,7 +137,10 @@
 // wave85: preprocess_define_reset / add / has are pure export functions below.
 // wave86: preprocess_if_stack_* are pure export functions below (not Cap residual).
 // wave87: typeck_module_* / pipeline_typeck_module_for_ctx* pure below (route to typeck_x_ast).
+// wave88: preprocess_eval_condition_c is pure export function below (not Cap residual glue body).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
+// wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
+export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
@@ -1521,7 +1530,8 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  * wave86 pure owns #if stack:
  *   G.7 pure preprocess_define_reset / preprocess_define_add (same-TU pure BSS);
  *   G.7 pure preprocess_if_stack_len (same-TU fixed stack; no GrowVec);
- *   G.7 Cap residual preprocess_x_buf (preprocess.x engine still C/.x);
+ *   G.7 pure cross-TU preprocess_x_buf (preprocess.x engine; wave88 eval pure);
+ *   G.7 pure preprocess_eval_condition_c (simple) + Cap residual cfg_eval_expr_c (complex);
  *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
  *   G.7 shux_ptr_slot_set / shux_size_slot_set for out slots (char** / size_t*);
  *   oversized raw → pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
@@ -3134,7 +3144,8 @@ let g_pipe_typeck_dep_arena_ptrs: u8[256] = [];
 // PLATFORM: SHARED — same capacity as glue PREPROCESS_MAX_DEFINES=128 × name[64].
 // Flat layout: slot i occupies bytes [i*64 .. i*64+63], NUL-terminated name (len 1..63).
 // Product hybrid: pure strong override of glue SHUX_WEAK cold fallback in strict_glue_stubs.
-// preprocess_eval_condition_c (glue) → preprocess_define_has resolves to pure table under hybrid.
+// wave88: pure preprocess_eval_condition_c → same-TU preprocess_define_has (simple names);
+//   complex #if still Cap residual cfg_eval_expr_c (lexer/cfg_eval authority).
 let g_pipe_pp_defines: u8[8192] = [];
 let g_pipe_pp_ndefines: i32 = 0;
 
@@ -3225,7 +3236,7 @@ export function preprocess_define_add(name: *u8): void {
  * @param sym_len i32 — byte length; <=0 → 0
  * @return i32 — 1 if present, else 0
  * wave85 pure Cap residual: G.7 single authority for preprocess_eval_condition_c
- * simple-name path (glue still owns complex cfg_eval_expr_c branch).
+ * simple-name path (wave88 pure orch; complex still Cap residual cfg_eval_expr_c).
  * PLATFORM: SHARED — same compare semantics as historical C preprocess_define_has.
  */
 #[no_mangle]
@@ -3267,6 +3278,111 @@ export function preprocess_define_has(sym: *u8, sym_len: i32): i32 {
     i = i + 1;
   }
   return 0;
+}
+
+/**
+ * Evaluate a preprocess #if / #elif condition for the pure preprocess.x engine path.
+ * @param cond *u8 — condition bytes (not required to be NUL-terminated beyond cond_len)
+ * @param cond_len i32 — byte length; null/<=0 → 0 (false)
+ * @return i32 — non-zero if condition is true, else 0
+ * wave88 pure Cap residual: G.7 single product authority for preprocess_eval_condition_c
+ * (historical always-seed body in runtime_driver_strict_glue_stubs).
+ * Steps (match historical C):
+ *   1) trim leading/trailing space/tab;
+ *   2) if empty after trim → 0;
+ *   3) if any complex op char (space/tab/=/!/(/)) → Cap residual cfg_eval_expr_c;
+ *   4) else same-TU pure preprocess_define_has (wave85 -D table).
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
+  if (cond == 0 as *u8) {
+    return 0;
+  }
+  if (cond_len <= 0) {
+    return 0;
+  }
+  // Trim leading whitespace by advancing the base pointer one byte at a time.
+  let base: *u8 = cond;
+  let n: i32 = cond_len;
+  while (n > 0) {
+    let lead: u8 = 0;
+    unsafe {
+      lead = base[0];
+    }
+    if (lead != 32) {
+      if (lead != 9) {
+        break;
+      }
+    }
+    base = shux_cstr_offset(base, 1);
+    n = n - 1;
+  }
+  // Trim trailing whitespace without moving base (shrink length only).
+  while (n > 0) {
+    let trail: u8 = 0;
+    unsafe {
+      trail = base[n - 1];
+    }
+    if (trail != 32) {
+      if (trail != 9) {
+        break;
+      }
+    }
+    n = n - 1;
+  }
+  if (n <= 0) {
+    return 0;
+  }
+  // Complex conditions (spaces / comparison / grouping) use Cap residual cfg_eval.
+  // Scan for any complex op char first; then one Cap residual call under unsafe (T001).
+  let k: i32 = 0;
+  let complex: i32 = 0;
+  while (k < n) {
+    let c: u8 = 0;
+    unsafe {
+      c = base[k];
+    }
+    // space, tab, '=', '!', '(', ')'
+    if (c == 32) {
+      complex = 1;
+      break;
+    }
+    if (c == 9) {
+      complex = 1;
+      break;
+    }
+    if (c == 61) {
+      complex = 1;
+      break;
+    }
+    if (c == 33) {
+      complex = 1;
+      break;
+    }
+    if (c == 40) {
+      complex = 1;
+      break;
+    }
+    if (c == 41) {
+      complex = 1;
+      break;
+    }
+    k = k + 1;
+  }
+  if (complex != 0) {
+    let er: i32 = 0;
+    unsafe {
+      // Cap residual: cfg_eval_expr_c is export-extern FFI (lexer/cfg_eval authority).
+      er = cfg_eval_expr_c(base, n);
+    }
+    if (er != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  // Simple identifier: true iff present in pure -D table (same-TU pure).
+  return preprocess_define_has(base, n);
 }
 
 /**

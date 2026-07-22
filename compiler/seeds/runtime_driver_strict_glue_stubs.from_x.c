@@ -890,16 +890,17 @@ SHUX_WEAK int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
 }
 
 /**
- * .x 预处理路径：求值 #if COND（bridge 内 -D 宏表；不依赖 preprocess.c）。
- * 参数：cond 条件字节；cond_len 长度。
- * 返回值：非 0 表示成立。
+ * wave88: pure runtime_pipeline_abi owns product preprocess_eval_condition_c
+ * (G.7 single authority: trim + simple → pure define_has; complex → cfg_eval_expr_c).
+ * Glue keeps SHUX_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — same semantics as pure (space/tab trim; complex ops → cfg_eval).
  */
-int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond_len) {
+SHUX_WEAK int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond_len) {
   int k;
 
   if (!cond || cond_len <= 0)
     return 0;
-  /* 去首尾空白。 */
+  /* Trim leading/trailing whitespace. */
   while (cond_len > 0 && (cond[0] == ' ' || cond[0] == '\t')) {
     cond++;
     cond_len--;
@@ -908,7 +909,7 @@ int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond_len) {
     cond_len--;
   if (cond_len <= 0)
     return 0;
-  /* 复杂条件（含空格/运算符）走 cfg_eval，与 #[cfg] / preprocess.c 对齐。 */
+  /* Complex conditions (spaces/operators) use Cap residual cfg_eval_expr_c. */
   for (k = 0; k < cond_len; k++) {
     char c = (char)cond[k];
     if (c == ' ' || c == '\t' || c == '=' || c == '!' || c == '(' || c == ')')
