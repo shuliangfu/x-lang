@@ -2168,6 +2168,11 @@ int labi_icc_std_need_count(void);
 int labi_icc_std_need_needle_count(int mid);
 const char *labi_icc_std_need_needle_at(int mid, int i);
 void invoke_cc_scan_std_module_needs(const char **c_paths, int n, int *flags, int flags_cap);
+void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char *process_o, const char *string_o, const char *heap_o, const char *path_o,
+    const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o,
+    const char *time_o, const char *random_o, const char *env_o);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2187,6 +2192,13 @@ void invoke_cc_scan_std_module_needs(const char **c_paths, int n, int *flags, in
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had std need scan loop always-mega inside invoke_cc_impl.
  * PLATFORM: SHARED orch; Cap residual contains_substr(_use_line) peers.
+ */
+
+/* wave200: invoke_cc_append_std_ensure_push_front pure orch lives in labi_invoke_cc_list
+ * (ensure-push front string→env inside shux_invoke_cc_impl). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had ensure-push front always-mega after wave199 flags bank.
+ * PLATFORM: SHARED orch / LINUX -pthread+asm_io_stubs / WINDOWS -lws2_32 -lbcrypt.
  */
 
 
@@ -3256,19 +3268,14 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * 30 dynlib 31 http 32 tar 33 simd 34 context 35 error 36 datetime 37 uuid
              * 38 url 39 cli 40 security 41 config 42 cache 43 trace 44 task 45 schema
              * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
-             * Cap residual still mega for ensure-push main + fork/exec. */
+             * wave200: ensure-push front string→env pure; tail sync… + fork/exec still mega. */
             int need_flags[52];
             invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
-            int need_process = need_flags[0];
-            int need_process_argv_glue = need_flags[1];
-            int need_string = need_flags[2];
-            int need_path = need_flags[3];
-            int need_runtime = need_flags[4];
-            int need_net = need_flags[5];
-            int need_thread = need_flags[6];
-            int need_time = need_flags[7];
-            int need_random = need_flags[8];
-            int need_env = need_flags[9];
+            /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
+             * May set need_flags[6]=1 when net.o links (workers → thread). */
+            invoke_cc_append_std_ensure_push_front(argv, &i, argv_cap, need_flags, 52, include_root,
+                process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o,
+                net_o, thread_o, time_o, random_o, env_o);
             int need_sync = need_flags[10];
             int need_encoding = need_flags[11];
             int need_base64 = need_flags[12];
@@ -3310,143 +3317,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             int need_set = need_flags[48];
             int need_map = need_flags[49];
             int need_queue = need_flags[50];
-            int need_panic = need_flags[51];
             int jscan;
-            /* co-emit 已有函数体时勿再链同模块 .o（防 duplicate）。anchor 体 = co-emit 标志。 */
-            if (need_string) {
-                int has = 0;
-                for (jscan = 0; jscan < n; jscan++)
-                    if (link_abi_generated_c_contains_substr(c_paths[jscan], "std_string_string_module_anchor(void) {") ||
-                        link_abi_generated_c_contains_substr(c_paths[jscan], "int32_t std_string_new("))
-                        has = 1;
-                /* string 常部分 co-emit；只要引用就链 string.o（.o 与部分 T 若冲突再另修） */
-                (void)has;
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, string_o);
-            }
-            {
-                int pushed_process_o = 0;
-                if (need_process && invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o)) {
-                    pushed_process_o = 1;
-#if defined(__linux__)
-                    if (i < argv_cap - 1)
-                        argv[i++] = (char *)"-pthread";
-#endif
-                }
-                /* process.o 已 ld -r 含 argv glue；否则链 runtime_process_argv.o（constructor 绑 CRT argc）。
-                 * need_process 但 process.o 缺失时也必须推 glue，否则 co-emit 的 process_shux_argc_get
-                 * 只读 BSS=0 → args_count()<1（bstrict31 run-process args）。
-                 * 禁止 process.o + runtime_process_argv.o 双链（process_shux_* 强符号重复）。 */
-                if (!pushed_process_o && (need_process || need_env || need_process_argv_glue)) {
-                    (void)shux_ensure_runtime_process_argv_o(NULL);
-                    {
-                        const char *rpa = shux_runtime_process_argv_o_path(NULL);
-                        if (rpa && rpa[0])
-                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpa);
-                    }
-                }
-            }
-            if (heap_o && heap_o[0])
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o);
-            if (need_path)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, path_o);
-            if (need_runtime)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_o);
-            /* PLATFORM: SHARED — need_panic 时必须 ensure 再建链；cold 缺 .o 时 push_existing 静默 skip
-             * 会 UNDEF shux_panic_（run-panic L4）。path 可能为空串（文件尚不存在），ensure 后再取 path。 */
-            if (need_panic || need_runtime) {
-                (void)shux_ensure_runtime_panic_o(NULL);
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, runtime_panic_o);
-                {
-                    const char *rp = shux_runtime_panic_o_path(NULL);
-                    if (rp && rp[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rp);
-                }
-            }
-            if (need_net && invoke_cc_argv_push_existing(argv, &i, argv_cap, net_o)) {
-                (void)invoke_cc_append_net_tls_ld(argv, &i, argv_cap, net_o, include_root);
-                (void)shux_ensure_runtime_net_udp_batch_o(NULL);
-                {
-                    const char *rnub = shux_runtime_net_udp_batch_o_path(NULL);
-                    if (rnub && rnub[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnub);
-                }
-                (void)shux_ensure_runtime_net_workers_o(NULL);
-                {
-                    const char *rnw = shux_runtime_net_workers_o_path(NULL);
-                    if (rnw && rnw[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnw);
-                }
-                /*
-                 * workers.x → U thread_create_c / thread_join_c（net.o 内，非用户 C use_line）。
-                 * 与 asm on_demand（labi 在 have_net 后推 thread）同权威：C 后端链 net 时亦 need_thread。
-                 */
-                need_thread = 1;
-#if defined(__linux__)
-                {
-                    (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
-                    const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
-                    if (ris && ris[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
-                }
-#endif
-#if defined(_WIN32) || defined(_WIN64)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)labi_ld_flag_lws2_32();
-#endif
-            }
-            /* PLATFORM: SHARED — ensure glue before push_existing (cold tree may lack .o). */
-            if (need_thread && invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o)) {
-                (void)shux_ensure_runtime_thread_glue_o(NULL);
-                {
-                    const char *rtg = shux_runtime_thread_glue_o_path(NULL);
-                    if (rtg && rtg[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtg);
-                }
-            }
-            /* PLATFORM: SHARED — push 与 ensure 解耦：needs_* early 路径已 push 时
-             * invoke_cc_argv_push_existing 因去重返回 0，不得跳过 glue ensure。
-             * L4 wipe: formal time.o is gitignored; push_existing alone silent-skips
-             * → U std_time_* (tests/time). G.7: complete need_time like need_math/env. */
-            if (need_time) {
-                if (include_root && include_root[0])
-                    (void)shux_ensure_formal_std_make_o(include_root, "std/time/time.o",
-                                                        "../std/time/time.o");
-                {
-                    const char *time_push = shux_rel_o_path_from_argv0(include_root, "std/time/time.o");
-                    if ((!time_push || !time_push[0]) && time_o && time_o[0])
-                        time_push = time_o;
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_push);
-                }
-                (void)shux_ensure_runtime_time_os_o(NULL);
-                {
-                    const char *rto = shux_runtime_time_os_o_path(NULL);
-                    if (rto && rto[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rto);
-                }
-            }
-            if (need_random) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o);
-                (void)shux_ensure_runtime_random_fill_o(NULL);
-                {
-                    const char *rrf = shux_runtime_random_fill_o_path(NULL);
-                    if (rrf && rrf[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
-                }
-#if defined(_WIN32) || defined(_WIN64)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)labi_ld_flag_lbcrypt();
-#endif
-            }
-            if (need_env) {
-                /* mod.x co-emit 提供 std_env_*；env.o 可选。argv glue 已在上方统一推入。 */
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, env_o);
-                (void)shux_ensure_runtime_env_os_o(NULL);
-                {
-                    const char *reo = shux_runtime_env_os_o_path(NULL);
-                    if (reo && reo[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, reo);
-                }
-            }
             /* PLATFORM: SHARED — cold tree often lacks runtime_sync_*.o; push_existing alone
              * is a silent no-op when missing → U sync_mutex_*_c from sync.o (mac bstrict).
              * Authority: ensure (same as process_argv / net glue) then push. */

@@ -10,8 +10,9 @@
 //   - shux_append_linux_link_harden_impl (wave155; pure orch over harden table)
 //   - invoke_cc_append_early_needs (wave198; pure orch early needs scan+push)
 //   - invoke_cc_scan_std_module_needs (wave199; pure table scan std need flags)
+//   - invoke_cc_append_std_ensure_push_front (wave200; pure ensure-push front string→env)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
-//   contains_substr(_use_line) peers for scan; fork/exec + ensure-push still mega.
+//   contains_substr(_use_line) peers for scan; ensure-push tail (sync…) + fork/exec still mega.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -45,6 +46,22 @@ export extern "C" function link_abi_host_is_windows(): i32;
 export extern "C" function labi_ld_flag_lc(): *u8;
 export extern "C" function labi_ld_flag_lbcrypt(): *u8;
 export extern "C" function labi_ld_flag_lws2_32(): *u8;
+
+/* ===== wave200 Cap residual / peer pure for ensure-push front (string→env) ===== */
+export extern "C" function shux_ensure_runtime_process_argv_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function invoke_cc_append_net_tls_ld(argv: **u8, ia: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32;
+export extern "C" function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_net_workers_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_net_workers_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
+export extern "C" function shux_ensure_runtime_env_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_env_os_o_path(argv0: *u8): *u8;
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -1757,6 +1774,293 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
         }
       }
       mid = mid + 1;
+    }
+  }
+}
+
+/**
+ * invoke_cc ensure-push front: string → process → heap → path → runtime → panic →
+ * net → thread → time → random → env (contiguous prefix; preserves link argv order).
+ * Composes Cap residual ensure/path/push peers + pure labi_icc_argv_try_push_flag.
+ * Mutates need_flags[6] (thread) when net.o is linked (workers → thread_create_c).
+ * @param argv **u8 — cc argv table; null → no-op
+ * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op
+ * @param argv_cap i32 — argv capacity (leave room for NULL terminator later)
+ * @param need_flags *i32 — flags bank from invoke_cc_scan_std_module_needs; null → no-op
+ * @param flags_cap i32 — must be >= 52
+ * @param include_root *u8 — repo/include root for formal time ensure + rel paths (nullable)
+ * @param process_o *u8 — product process.o path (nullable)
+ * @param string_o *u8 — product string.o path (nullable)
+ * @param heap_o *u8 — product heap.o path (nullable; push if non-empty)
+ * @param path_o *u8 — product path.o path (nullable)
+ * @param runtime_o *u8 — product runtime.o path (nullable)
+ * @param runtime_panic_o *u8 — product runtime_panic.o path (nullable)
+ * @param net_o *u8 — product net.o path (nullable)
+ * @param thread_o *u8 — product thread.o path (nullable)
+ * @param time_o *u8 — product time.o path (nullable; fallback after formal ensure)
+ * @param random_o *u8 — product random.o path (nullable)
+ * @param env_o *u8 — product env.o path (nullable)
+ * @return void — appends .o paths and platform -l* / -pthread flags; mutates *ia and flags[6]
+ * Pure orch: ≡ mega ensure-push front inside shux_invoke_cc_impl (after std need scan).
+ * Cap residual: ensure_runtime_* + push_existing resolve pool + formal_std_make + net_tls_ld.
+ * Why (wave200): hybrid still had ensure-push front always-mega after wave199 flags bank.
+ * Tail residual (sync…process_argv complement) + heap F-06 + fork/exec remain mega.
+ * Callers: mega shux_invoke_cc_impl after invoke_cc_scan_std_module_needs.
+ * PLATFORM: SHARED orch / LINUX -pthread + asm_io_stubs with net / WINDOWS -lws2_32 -lbcrypt.
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, argv_cap: i32, need_flags: *i32, flags_cap: i32, include_root: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+  if (need_flags == 0 as *i32) {
+    return;
+  }
+  if (flags_cap < 52) {
+    return;
+  }
+  let need_process: i32 = need_flags[0];
+  let need_process_argv_glue: i32 = need_flags[1];
+  let need_string: i32 = need_flags[2];
+  let need_path: i32 = need_flags[3];
+  let need_runtime: i32 = need_flags[4];
+  let need_net: i32 = need_flags[5];
+  let need_thread: i32 = need_flags[6];
+  let need_time: i32 = need_flags[7];
+  let need_random: i32 = need_flags[8];
+  let need_env: i32 = need_flags[9];
+  let need_panic: i32 = need_flags[51];
+
+  // string.o: co-emit scan historically no-op; always push when need_string.
+  if (need_string != 0) {
+    unsafe {
+      let _ps: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, string_o);
+    }
+  }
+
+  // process.o + optional -pthread; else ensure process_argv glue (no double-link).
+  let pushed_process_o: i32 = 0;
+  if (need_process != 0) {
+    let pr: i32 = 0;
+    unsafe {
+      pr = invoke_cc_argv_push_existing(argv, ia, argv_cap, process_o);
+    }
+    if (pr != 0) {
+      pushed_process_o = 1;
+      let is_lin: i32 = 0;
+      unsafe {
+        is_lin = shux_host_is_linux();
+      }
+      if (is_lin != 0) {
+        let pthr: *u8 = "-pthread";
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, pthr);
+      }
+    }
+  }
+  if (pushed_process_o == 0) {
+    if (need_process != 0 || need_env != 0 || need_process_argv_glue != 0) {
+      unsafe {
+        let _epa: i32 = shux_ensure_runtime_process_argv_o(0 as *u8);
+        let rpa: *u8 = shux_runtime_process_argv_o_path(0 as *u8);
+        if (rpa != 0 as *u8) {
+          if (rpa[0] != 0) {
+            let _ppa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+          }
+        }
+      }
+    }
+  }
+
+  // heap.o always candidate when path non-empty (F-06 on-demand complement is still mega).
+  if (heap_o != 0 as *u8) {
+    if (heap_o[0] != 0) {
+      unsafe {
+        let _ph: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
+      }
+    }
+  }
+  if (need_path != 0) {
+    unsafe {
+      let _pp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, path_o);
+    }
+  }
+  if (need_runtime != 0) {
+    unsafe {
+      let _pru: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_o);
+    }
+  }
+  // PLATFORM: SHARED — need_panic/need_runtime must ensure then push (L4 cold may lack .o).
+  if (need_panic != 0 || need_runtime != 0) {
+    unsafe {
+      let _ep: i32 = shux_ensure_runtime_panic_o(0 as *u8);
+      let _ppn: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_panic_o);
+      let rp: *u8 = shux_runtime_panic_o_path(0 as *u8);
+      if (rp != 0 as *u8) {
+        if (rp[0] != 0) {
+          let _ppn2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+        }
+      }
+    }
+  }
+
+  // net.o + tls ld + udp_batch + workers; force need_thread; Linux asm_io_stubs; Win ws2_32.
+  if (need_net != 0) {
+    let pn: i32 = 0;
+    unsafe {
+      pn = invoke_cc_argv_push_existing(argv, ia, argv_cap, net_o);
+    }
+    if (pn != 0) {
+      unsafe {
+        let _nt: i32 = invoke_cc_append_net_tls_ld(argv, ia, argv_cap, net_o, include_root);
+        let _eub: i32 = shux_ensure_runtime_net_udp_batch_o(0 as *u8);
+        let rnub: *u8 = shux_runtime_net_udp_batch_o_path(0 as *u8);
+        if (rnub != 0 as *u8) {
+          if (rnub[0] != 0) {
+            let _pub: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rnub);
+          }
+        }
+        let _enw: i32 = shux_ensure_runtime_net_workers_o(0 as *u8);
+        let rnw: *u8 = shux_runtime_net_workers_o_path(0 as *u8);
+        if (rnw != 0 as *u8) {
+          if (rnw[0] != 0) {
+            let _pnw: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rnw);
+          }
+        }
+      }
+      // workers.x U thread_*; same authority as asm on_demand after have_net.
+      need_thread = 1;
+      need_flags[6] = 1;
+      let is_lin2: i32 = 0;
+      unsafe {
+        is_lin2 = shux_host_is_linux();
+      }
+      if (is_lin2 != 0) {
+        unsafe {
+          let _eis: i32 = shux_ensure_runtime_asm_io_stubs_o(0 as *u8);
+          let ris: *u8 = shux_runtime_asm_io_stubs_o_path(0 as *u8);
+          if (ris != 0 as *u8) {
+            if (ris[0] != 0) {
+              let _pis: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
+            }
+          }
+        }
+      }
+      let is_win: i32 = 0;
+      unsafe {
+        is_win = link_abi_host_is_windows();
+      }
+      if (is_win != 0) {
+        let fws: *u8 = 0 as *u8;
+        unsafe {
+          fws = labi_ld_flag_lws2_32();
+        }
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, fws);
+      }
+    }
+  }
+
+  // thread.o + thread_glue (ensure after push success — product path present).
+  if (need_thread != 0) {
+    let pt: i32 = 0;
+    unsafe {
+      pt = invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o);
+    }
+    if (pt != 0) {
+      unsafe {
+        let _etg: i32 = shux_ensure_runtime_thread_glue_o(0 as *u8);
+        let rtg: *u8 = shux_runtime_thread_glue_o_path(0 as *u8);
+        if (rtg != 0 as *u8) {
+          if (rtg[0] != 0) {
+            let _ptg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtg);
+          }
+        }
+      }
+    }
+  }
+
+  // PLATFORM: SHARED — formal time.o ensure + push decoupled from glue ensure (dedup).
+  if (need_time != 0) {
+    if (include_root != 0 as *u8) {
+      if (include_root[0] != 0) {
+        let rel_t: *u8 = "std/time/time.o";
+        let mt_t: *u8 = "../std/time/time.o";
+        unsafe {
+          let _eft: i32 = shux_ensure_formal_std_make_o(include_root, rel_t, mt_t);
+        }
+      }
+    }
+    unsafe {
+      let time_push: *u8 = shux_rel_o_path_from_argv0(include_root, "std/time/time.o");
+      let use_fallback: i32 = 0;
+      if (time_push == 0 as *u8) {
+        use_fallback = 1;
+      } else {
+        if (time_push[0] == 0) {
+          use_fallback = 1;
+        }
+      }
+      if (use_fallback != 0) {
+        if (time_o != 0 as *u8) {
+          if (time_o[0] != 0) {
+            time_push = time_o;
+          }
+        }
+      }
+      let _ptp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, time_push);
+      let _eto: i32 = shux_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = shux_runtime_time_os_o_path(0 as *u8);
+      if (rto != 0 as *u8) {
+        if (rto[0] != 0) {
+          let _pto: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
+        }
+      }
+    }
+  }
+
+  if (need_random != 0) {
+    unsafe {
+      let _prnd: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, random_o);
+      let _erf: i32 = shux_ensure_runtime_random_fill_o(0 as *u8);
+      let rrf: *u8 = shux_runtime_random_fill_o_path(0 as *u8);
+      if (rrf != 0 as *u8) {
+        if (rrf[0] != 0) {
+          let _prf: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rrf);
+        }
+      }
+    }
+    let is_win2: i32 = 0;
+    unsafe {
+      is_win2 = link_abi_host_is_windows();
+    }
+    if (is_win2 != 0) {
+      let fbc: *u8 = 0 as *u8;
+      unsafe {
+        fbc = labi_ld_flag_lbcrypt();
+      }
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, fbc);
+    }
+  }
+
+  // env.o optional; argv glue already handled above when process.o missing.
+  if (need_env != 0) {
+    unsafe {
+      let _pe: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, env_o);
+      let _eeo: i32 = shux_ensure_runtime_env_os_o(0 as *u8);
+      let reo: *u8 = shux_runtime_env_os_o_path(0 as *u8);
+      if (reo != 0 as *u8) {
+        if (reo[0] != 0) {
+          let _peo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
+        }
+      }
     }
   }
 }

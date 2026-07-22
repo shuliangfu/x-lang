@@ -9,8 +9,9 @@
  *   shux_append_linux_link_harden_impl (wave155 pure orch over harden table)
  *   invoke_cc_append_early_needs (wave198 pure orch early needs scan+push)
  *   invoke_cc_scan_std_module_needs (wave199 pure table scan std need flags)
+ *   invoke_cc_append_std_ensure_push_front (wave200 pure ensure-push front string→env)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
- *   fork/exec 仍在 mega shux_invoke_cc_impl（大叶其余）。
+ *   ensure-push tail (sync…) + fork/exec 仍在 mega shux_invoke_cc_impl。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -48,6 +49,21 @@ int shux_host_is_linux(void);
 int link_abi_host_is_apple(void);
 int link_abi_host_is_windows(void);
 const char *labi_ld_flag_lc(void);
+/* wave200 ensure-push front peers */
+int shux_ensure_runtime_process_argv_o(const char *argv0);
+const char *shux_runtime_process_argv_o_path(const char *argv0);
+int invoke_cc_append_net_tls_ld(char **argv, int *ia, int argv_cap, const char *net_o, const char *repo_root);
+int shux_ensure_runtime_net_udp_batch_o(const char *argv0);
+const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
+int shux_ensure_runtime_net_workers_o(const char *argv0);
+const char *shux_runtime_net_workers_o_path(const char *argv0);
+int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
+int shux_ensure_runtime_thread_glue_o(const char *argv0);
+const char *shux_runtime_thread_glue_o_path(const char *argv0);
+int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+int shux_ensure_runtime_env_os_o(const char *argv0);
+const char *shux_runtime_env_os_o_path(const char *argv0);
 const char *labi_ld_flag_lbcrypt(void);
 const char *labi_ld_flag_lws2_32(void);
 
@@ -699,6 +715,140 @@ void invoke_cc_scan_std_module_needs(const char **c_paths, int n, int *flags, in
   }
 }
 
+/* wave200: invoke_cc_append_std_ensure_push_front pure orch (cold twin ≡ .x).
+ * Ensure-push front string→env; mutates need_flags[6] when net links thread. */
+void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char *process_o, const char *string_o, const char *heap_o, const char *path_o,
+    const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o,
+    const char *time_o, const char *random_o, const char *env_o) {
+  int need_process, need_process_argv_glue, need_string, need_path, need_runtime;
+  int need_net, need_thread, need_time, need_random, need_env, need_panic;
+  int pushed_process_o = 0;
+  if (!argv || !ia || *ia < 0 || !need_flags || flags_cap < 52)
+    return;
+  need_process = need_flags[0];
+  need_process_argv_glue = need_flags[1];
+  need_string = need_flags[2];
+  need_path = need_flags[3];
+  need_runtime = need_flags[4];
+  need_net = need_flags[5];
+  need_thread = need_flags[6];
+  need_time = need_flags[7];
+  need_random = need_flags[8];
+  need_env = need_flags[9];
+  need_panic = need_flags[51];
+
+  if (need_string)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, string_o);
+
+  if (need_process && invoke_cc_argv_push_existing(argv, ia, argv_cap, process_o)) {
+    pushed_process_o = 1;
+    if (shux_host_is_linux())
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-pthread");
+  }
+  if (!pushed_process_o && (need_process || need_env || need_process_argv_glue)) {
+    (void)shux_ensure_runtime_process_argv_o(NULL);
+    {
+      const char *rpa = shux_runtime_process_argv_o_path(NULL);
+      if (rpa && rpa[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+    }
+  }
+
+  if (heap_o && heap_o[0])
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
+  if (need_path)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, path_o);
+  if (need_runtime)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_o);
+  if (need_panic || need_runtime) {
+    (void)shux_ensure_runtime_panic_o(NULL);
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_panic_o);
+    {
+      const char *rp = shux_runtime_panic_o_path(NULL);
+      if (rp && rp[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
+    }
+  }
+
+  if (need_net && invoke_cc_argv_push_existing(argv, ia, argv_cap, net_o)) {
+    (void)invoke_cc_append_net_tls_ld(argv, ia, argv_cap, net_o, include_root);
+    (void)shux_ensure_runtime_net_udp_batch_o(NULL);
+    {
+      const char *rnub = shux_runtime_net_udp_batch_o_path(NULL);
+      if (rnub && rnub[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rnub);
+    }
+    (void)shux_ensure_runtime_net_workers_o(NULL);
+    {
+      const char *rnw = shux_runtime_net_workers_o_path(NULL);
+      if (rnw && rnw[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rnw);
+    }
+    need_thread = 1;
+    need_flags[6] = 1;
+    if (shux_host_is_linux()) {
+      (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+      {
+        const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+        if (ris && ris[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
+      }
+    }
+    if (link_abi_host_is_windows())
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lws2_32());
+  }
+
+  if (need_thread && invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o)) {
+    (void)shux_ensure_runtime_thread_glue_o(NULL);
+    {
+      const char *rtg = shux_runtime_thread_glue_o_path(NULL);
+      if (rtg && rtg[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rtg);
+    }
+  }
+
+  if (need_time) {
+    if (include_root && include_root[0])
+      (void)shux_ensure_formal_std_make_o(include_root, "std/time/time.o", "../std/time/time.o");
+    {
+      const char *time_push = shux_rel_o_path_from_argv0(include_root, "std/time/time.o");
+      if ((!time_push || !time_push[0]) && time_o && time_o[0])
+        time_push = time_o;
+      (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, time_push);
+    }
+    (void)shux_ensure_runtime_time_os_o(NULL);
+    {
+      const char *rto = shux_runtime_time_os_o_path(NULL);
+      if (rto && rto[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
+    }
+  }
+
+  if (need_random) {
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, random_o);
+    (void)shux_ensure_runtime_random_fill_o(NULL);
+    {
+      const char *rrf = shux_runtime_random_fill_o_path(NULL);
+      if (rrf && rrf[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rrf);
+    }
+    if (link_abi_host_is_windows())
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lbcrypt());
+  }
+
+  if (need_env) {
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, env_o);
+    (void)shux_ensure_runtime_env_os_o(NULL);
+    {
+      const char *reo = shux_runtime_env_os_o_path(NULL);
+      if (reo && reo[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
+    }
+  }
+}
+
 
 #else
 int labi_linux_harden_flag_count(void);
@@ -729,6 +879,11 @@ int labi_icc_std_need_count(void);
 int labi_icc_std_need_needle_count(int mid);
 const char *labi_icc_std_need_needle_at(int mid, int i);
 void invoke_cc_scan_std_module_needs(const char **c_paths, int n, int *flags, int flags_cap);
+void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char *process_o, const char *string_o, const char *heap_o, const char *path_o,
+    const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o,
+    const char *time_o, const char *random_o, const char *env_o);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {
