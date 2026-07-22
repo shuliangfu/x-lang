@@ -14,7 +14,8 @@
 //   wave123 labi_od_core_mem_sym_* + link_abi_user_o_needs_core_mem pure orch +
 //   wave124 labi_od_core_slice_sym_* + link_abi_user_o_needs_core_slice pure orch +
 //   wave125 labi_od_page_mmap_sym_* + link_abi_user_o_needs_std_heap_page_mmap pure orch +
-//   wave126 labi_od_sys_linux_sym_* + link_abi_user_o_needs_std_sys_linux pure orch.
+//   wave126 labi_od_sys_linux_sym_* + link_abi_user_o_needs_std_sys_linux pure orch +
+//   wave127 labi_od_sys_sym_* + link_abi_user_o_needs_std_sys pure orch.
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -1477,6 +1478,102 @@ export function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_sys_linux_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of std.sys facade on_demand UNDEF probes (product sys.o gate).
+ * Exact symbol names only (no prefix/strstr probes).
+ * @return i32 — 8
+ * PLATFORM: SHARED — must match formal std/sys export surface
+ */
+#[no_mangle]
+export function labi_od_sys_sym_count(): i32 {
+  return 8;
+}
+
+/**
+ * Product std.sys on_demand UNDEF symbol at index (needs_std_sys probe table).
+ * @param i i32 — index in [0, 8)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_std_sys authority (no second hard-coded list)
+ */
+#[no_mangle]
+export function labi_od_sys_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_sys_write_stdout";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_sys_write_stderr";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_sys_write";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_sys_read";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_sys_close";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_sys_exit";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_sys_freestanding_write_available";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_sys_linux_syscall_table_available";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.sys facade API (on-demand chain std/sys/sys.o).
+ * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * F-no-libc: write_stdout/read/close/exit + freestanding availability probes.
+ * On Linux, sys.o may transitively pull linux.o via cfg target_os.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave127): hybrid still had needs_std_sys body always mega C with hard-coded strings.
+ * Keep single product table+orch in L8b; exact symbols only (no prefix table).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_sys_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_sys_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
