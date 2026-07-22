@@ -16,6 +16,7 @@
  *   + labi_od_sys_sym_{count,at} + link_abi_user_o_needs_std_sys pure orch
  *   + labi_od_heap_api_sym_{count,at} + link_abi_user_o_needs_std_heap_api pure orch
  *   + labi_od_heap_user_sym_{count,at} + link_abi_user_o_needs_heap_user_syms pure orch
+ *   + labi_od_async_scheduler_sym_{count,at} + link_abi_user_o_needs_async_scheduler pure orch
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -878,6 +879,100 @@ int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
   return 0;
 }
 
+/* wave130: product async scheduler exact UNDEF table + needs_async_scheduler pure orch.
+ * PLATFORM: SHARED — exact symbols only; product complete coop/cps/frame/run/task/worker/io. */
+int labi_od_async_scheduler_sym_count(void) { return 35; }
+const char *labi_od_async_scheduler_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "shux_async_coop_pingpong";
+  if (i == 1)
+    return "shux_async_coop_pingpong_jmp";
+  if (i == 2)
+    return "shux_async_cps_suspend";
+  if (i == 3)
+    return "shux_async_asm_frame_phase_by_id";
+  if (i == 4)
+    return "shux_async_asm_frame_store_from_ptr";
+  if (i == 5)
+    return "shux_async_asm_frame_load_to_ptr";
+  if (i == 6)
+    return "shux_async_asm_frame_reset_by_id";
+  if (i == 7)
+    return "shux_async_cps_suspend_io";
+  if (i == 8)
+    return "shux_async_run_i32";
+  if (i == 9)
+    return "shux_async_task_submit";
+  if (i == 10)
+    return "shux_async_task_submit_to";
+  if (i == 11)
+    return "shux_async_scheduler_drain";
+  if (i == 12)
+    return "shux_async_worker_drain";
+  if (i == 13)
+    return "shux_async_worker_count";
+  if (i == 14)
+    return "shux_async_worker_pending";
+  if (i == 15)
+    return "shux_async_queue_reset";
+  if (i == 16)
+    return "shux_async_scheduler_pending";
+  if (i == 17)
+    return "shux_async_io_wake_all";
+  if (i == 18)
+    return "shux_async_io_waiters_pending";
+  if (i == 19)
+    return "shux_async_io_completions_ready";
+  if (i == 20)
+    return "shux_async_run_seed_set_i32";
+  if (i == 21)
+    return "shux_async_run_seed_reset";
+  if (i == 22)
+    return "shux_async_run_seed_push_i32";
+  if (i == 23)
+    return "shux_async_run_seed_push_u32";
+  if (i == 24)
+    return "shux_async_run_seed_push_i64";
+  if (i == 25)
+    return "shux_async_run_seed_valid";
+  if (i == 26)
+    return "shux_async_run_seed_take_i32";
+  if (i == 27)
+    return "shux_async_run_seed_take_u32";
+  if (i == 28)
+    return "shux_async_run_seed_take_i64";
+  if (i == 29)
+    return "shux_io_submit_read_async";
+  if (i == 30)
+    return "shux_io_complete_read_async";
+  if (i == 31)
+    return "shux_io_complete_read_async_slot";
+  if (i == 32)
+    return "shux_io_submit_write_async";
+  if (i == 33)
+    return "shux_io_complete_write_async";
+  if (i == 34)
+    return "shux_io_complete_write_async_slot";
+  return NULL;
+}
+
+/* Pure orch: async_scheduler table + Cap residual undef_sym. PLATFORM: SHARED. */
+int link_abi_user_o_needs_async_scheduler(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_async_scheduler_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_async_scheduler_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -955,6 +1050,9 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o);
 int labi_od_heap_user_sym_count(void);
 const char *labi_od_heap_user_sym_at(int i);
 int link_abi_user_o_needs_heap_user_syms(const char *user_o);
+int labi_od_async_scheduler_sym_count(void);
+const char *labi_od_async_scheduler_sym_at(int i);
+int link_abi_user_o_needs_async_scheduler(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

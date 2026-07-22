@@ -5762,6 +5762,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave127: needs_std_sys pure orch lives in labi_ondemand_list (sys facade sym table + orch).
  * wave128: needs_std_heap_api pure orch lives in labi_ondemand_list (heap_api sym table + orch).
  * wave129: needs_heap_user_syms pure orch lives in labi_ondemand_list (heap_user sym table + orch).
+ * wave130: needs_async_scheduler pure orch lives in labi_ondemand_list (async_scheduler sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -5943,119 +5944,17 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
 
 
 
+/* PLATFORM: POSIX (linux||apple) — block historically opened around needs_async_scheduler;
+ * wave130 moved pure orch to labi_ondemand_list; keep #if for push_minimal + nested linux only. */
 #if defined(__linux__) || defined(__APPLE__)
-int link_abi_user_o_needs_async_scheduler(const char *user_o) {
-  (void)(({   {
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong_jmp") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_phase_by_id") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_store_from_ptr") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_load_to_ptr") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_reset_by_id") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend_io") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit_to") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_drain") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_drain") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_count") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_pending") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_queue_reset") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_pending") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_io_wake_all") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_io_waiters_pending") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_io_completions_ready") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_set_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_reset") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_u32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i64") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_valid") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_u32") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i64") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_read_async") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async_slot") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_write_async") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async_slot") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/**
+ * wave130: needs_async_scheduler pure orch lives in labi_ondemand_list
+ * (labi_od_async_scheduler_sym_* product table ×35 exact + pure scan; not here).
+ * Exact symbols only (no prefix probes). Product complete: coop/cps/frame/run/task/worker/io
+ * + async read/write complete surface (G.7 single product table).
+ * Invariant: on_demand push of std/async/scheduler.o still gates via this orch.
+ * PLATFORM: SHARED (hybrid L8b; cold twin under ondemand include).
+ */
 
 /**
  * wave123: needs_core_mem pure orch lives in labi_ondemand_list
@@ -7111,7 +7010,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–129 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms pure orch (L8b pure .x / cold seed). */
+/* wave118–130 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7148,6 +7047,9 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o);
 int labi_od_heap_user_sym_count(void);
 const char *labi_od_heap_user_sym_at(int i);
 int link_abi_user_o_needs_heap_user_syms(const char *user_o);
+int labi_od_async_scheduler_sym_count(void);
+const char *labi_od_async_scheduler_sym_at(int i);
+int link_abi_user_o_needs_async_scheduler(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

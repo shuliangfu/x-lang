@@ -17,7 +17,8 @@
 //   wave126 labi_od_sys_linux_sym_* + link_abi_user_o_needs_std_sys_linux pure orch +
 //   wave127 labi_od_sys_sym_* + link_abi_user_o_needs_std_sys pure orch +
 //   wave128 labi_od_heap_api_sym_* + link_abi_user_o_needs_std_heap_api pure orch +
-//   wave129 labi_od_heap_user_sym_* + link_abi_user_o_needs_heap_user_syms pure orch.
+//   wave129 labi_od_heap_user_sym_* + link_abi_user_o_needs_heap_user_syms pure orch +
+//   wave130 labi_od_async_scheduler_sym_* + link_abi_user_o_needs_async_scheduler pure orch.
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -1835,6 +1836,210 @@ export function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_heap_user_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of std.async.scheduler on_demand UNDEF probes (std/async/scheduler.o gate).
+ * Exact symbol names only (no prefix/strstr probes).
+ * Product complete set (G.7): seed authority coop/cps/frame/run/task/worker/io + seed I/O complete surface.
+ * @return i32 — 35
+ * PLATFORM: SHARED — must match async scheduler + async IO export surface used by product on_demand
+ */
+#[no_mangle]
+export function labi_od_async_scheduler_sym_count(): i32 {
+  return 35;
+}
+
+/**
+ * Product async scheduler on_demand UNDEF symbol at index (needs_async_scheduler probe table).
+ * @param i i32 — index in [0, 35)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_async_scheduler authority (no second hard-coded list)
+ */
+#[no_mangle]
+export function labi_od_async_scheduler_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "shux_async_coop_pingpong";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "shux_async_coop_pingpong_jmp";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "shux_async_cps_suspend";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "shux_async_asm_frame_phase_by_id";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "shux_async_asm_frame_store_from_ptr";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "shux_async_asm_frame_load_to_ptr";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "shux_async_asm_frame_reset_by_id";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "shux_async_cps_suspend_io";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "shux_async_run_i32";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "shux_async_task_submit";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "shux_async_task_submit_to";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "shux_async_scheduler_drain";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "shux_async_worker_drain";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "shux_async_worker_count";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "shux_async_worker_pending";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "shux_async_queue_reset";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "shux_async_scheduler_pending";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "shux_async_io_wake_all";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "shux_async_io_waiters_pending";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "shux_async_io_completions_ready";
+    return p;
+  }
+  if (i == 20) {
+    let p: *u8 = "shux_async_run_seed_set_i32";
+    return p;
+  }
+  if (i == 21) {
+    let p: *u8 = "shux_async_run_seed_reset";
+    return p;
+  }
+  if (i == 22) {
+    let p: *u8 = "shux_async_run_seed_push_i32";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "shux_async_run_seed_push_u32";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "shux_async_run_seed_push_i64";
+    return p;
+  }
+  if (i == 25) {
+    let p: *u8 = "shux_async_run_seed_valid";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "shux_async_run_seed_take_i32";
+    return p;
+  }
+  if (i == 27) {
+    let p: *u8 = "shux_async_run_seed_take_u32";
+    return p;
+  }
+  if (i == 28) {
+    let p: *u8 = "shux_async_run_seed_take_i64";
+    return p;
+  }
+  if (i == 29) {
+    let p: *u8 = "shux_io_submit_read_async";
+    return p;
+  }
+  if (i == 30) {
+    let p: *u8 = "shux_io_complete_read_async";
+    return p;
+  }
+  if (i == 31) {
+    let p: *u8 = "shux_io_complete_read_async_slot";
+    return p;
+  }
+  if (i == 32) {
+    let p: *u8 = "shux_io_submit_write_async";
+    return p;
+  }
+  if (i == 33) {
+    let p: *u8 = "shux_io_complete_write_async";
+    return p;
+  }
+  if (i == 34) {
+    let p: *u8 = "shux_io_complete_write_async_slot";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references async scheduler / async IO symbols (on-demand chain scheduler.o + glue).
+ * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Covers coop/cps/frame/run/task/worker/io waiters and async read/write complete surface.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave130): hybrid still had needs_async_scheduler body always mega C with hard-coded strings.
+ * Keep single product table+orch in L8b; exact symbols only (no prefix table).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_async_scheduler_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_async_scheduler_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
