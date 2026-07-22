@@ -22167,6 +22167,9 @@ int32_t pipeline_parse_into_buf_c(struct ast_ASTArena *arena, struct ast_Module 
 /**
  * strict 回退：单 import resolve/read/preprocess/parse（C 路径，与 X 版语义对齐）。
  * build_asm/pipeline.o 链入时由强符号 pipeline_load_import_from_disk 覆盖 weak 默认。
+ * wave94: product pure owns pipeline_load_import_from_disk_c (runtime_pipeline_abi.x orch);
+ * this impl_c remains cold authority for pipeline.x thin / non-PREFER via weak _c dispatch.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_load_import_from_disk_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                              struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
@@ -22208,6 +22211,9 @@ extern int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_
 
 /**
  * strict 回退：各 dep 槽与 driver seed 对齐；build_asm 链入时由 X 强符号覆盖 weak 默认。
+ * wave94: product pure owns pipeline_sync_dep_slots_from_driver_c (runtime_pipeline_abi.x orch);
+ * this impl_c remains cold authority for pipeline.x thin / non-PREFER via weak _c dispatch.
+ * PLATFORM: SHARED.
  */
 int32_t pipeline_sync_dep_slots_from_driver_impl_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   int32_t dep_sync_nd;
@@ -22295,8 +22301,13 @@ __attribute__((weak)) struct parser_ParseIntoResult pipeline_parse_into_with_ini
 }
 #endif
 
-/** M8-tail：优先 dispatch 至 pipeline_load_import_from_disk（X 或 weak impl_c）。 */
-int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
+/**
+ * M8-tail：优先 dispatch 至 pipeline_load_import_from_disk（X 或 weak impl_c）。
+ * wave94: product pure owns pipeline_load_import_from_disk_c (runtime_pipeline_abi.x).
+ * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
+ */
+__attribute__((weak)) int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                           struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
   return pipeline_load_import_from_disk(module, arena, ctx, import_idx);
 }
@@ -22318,8 +22329,13 @@ extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 extern void driver_diagnostic_typeck_fail(void);
 
-/** M8-tail：优先 dispatch 至 pipeline_sync_dep_slots_from_driver（X 或 weak impl_c）。 */
-int32_t pipeline_sync_dep_slots_from_driver_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+/**
+ * M8-tail：优先 dispatch 至 pipeline_sync_dep_slots_from_driver（X 或 weak impl_c）。
+ * wave94: product pure owns pipeline_sync_dep_slots_from_driver_c (runtime_pipeline_abi.x).
+ * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
+ */
+__attribute__((weak)) int32_t pipeline_sync_dep_slots_from_driver_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   return pipeline_sync_dep_slots_from_driver(module, ctx);
 }
 

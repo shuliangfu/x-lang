@@ -4,9 +4,15 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave94: pure pipeline_load_import_from_disk_c orch + pure
+//   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
+//   pipeline_bind_import_dep_buffers + pipeline_sync_one_dep_slot;
+//   Cap residual resolve/read/preprocess/parse + typeck merge+wpo +
+//   parser_copy_module_import_path64; glue/ast_pool SHUX_WEAK cold twins.
+//   Closes Cap residual disk-load + dep-sync leaves under wave93 load_and_sync.
 // wave93: pure pipeline_load_and_sync_direct_import_deps_c orch + same-TU pure
 //   pipeline_try_bind_seeded_import + pipeline_dep_ctx_realign_ndep_for_entry_c;
-//   Cap residual load_import_from_disk_c / sync_dep_slots / typeck merge+wpo +
+//   Cap residual (wave94→pure) load_import/sync; typeck merge+wpo +
 //   parser_copy_module_import_path64; ast_pool SHUX_WEAK cold twins.
 //   Closes Cap residual load_and_sync leaf under wave60 typeck_only orch.
 // wave92: pure pipeline_typeck_validate_struct_layouts_zero_padding_c /
@@ -142,9 +148,9 @@
 // wave90: pure soft_suppress set/get BSS (G.7 single flag; same-TU orch + diagnostic get).
 // wave91: pure set_dep_ctx / get_dep_ctx BSS (G.7 single ptr; same-TU orch + ast_pool get).
 // wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
-// Cap residual still: load_import_from_disk / sync_dep_slots / typeck merge+wpo under
-//   wave93 pure load_and_sync orch; cfg_eval complex #if;
-//   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
+// Cap residual still: typeck merge+wpo under wave93 pure load_and_sync;
+//   resolve/read/preprocess/parse leaves under wave94 pure load_import orch;
+//   cfg_eval complex #if; preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -169,6 +175,7 @@
 // wave92: pipeline_typeck_validate_struct_layouts_zero_padding_c /
 //   pipeline_typeck_patch_all_body_parent_links_c are pure export functions below.
 // wave93: pipeline_load_and_sync_direct_import_deps_c / try_bind / realign pure below.
+// wave94: load_import_from_disk_c / sync_dep_slots_from_driver_c / bind / sync_one pure below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 // wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
@@ -186,13 +193,21 @@ export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u
 // PLATFORM: SHARED — light fallback under pure dep-prerun routes here (not glue metrics fork).
 export extern "C" function typeck_validate_struct_layouts_zero_padding(module: *u8, arena: *u8): i32;
 export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena: *u8): void;
-// wave93 Cap residual leaves under pure load_and_sync orch (disk load / sync / layout merge).
-// PLATFORM: SHARED — strong bodies remain in glue/parser/typeck; pure only orchestrates.
+// wave93/wave94 Cap residual leaves under pure load_and_sync / load_import orch.
+// PLATFORM: SHARED — strong bodies remain in glue/parser/typeck for sub-leaves;
+//   wave94 pure owns load_import_from_disk_c / sync_dep_slots_from_driver_c /
+//   bind_import_dep_buffers / sync_one_dep_slot (same-TU; not export-extern).
 export extern "C" function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
-export extern "C" function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32;
-export extern "C" function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i32;
+// wave94 Cap residual under pure load_import orch (resolve / read / preprocess / parse).
+export extern "C" function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i32): i32;
+export extern "C" function pipeline_read_file_x(ctx: *u8): i32;
+export extern "C" function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32;
+export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
+export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
+export extern "C" function pipeline_dep_ctx_preprocess_len_get(ctx: *u8): i32;
+export extern "C" function pipeline_parse_into_buf(arena: *u8, module: *u8, buf: *u8, buf_len: i32): i32;
 export extern "C" function typeck_typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
 export extern "C" function typeck_typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
 export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
@@ -2681,6 +2696,224 @@ export function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena
 }
 
 /**
+ * Bind import slot arena/module pointers from driver_dep publish buffers.
+ * @param ctx *u8 — PipelineDepCtx; null → no-op
+ * @param import_idx i32 — ctx slot index; <0 → no-op
+ * @return void
+ * wave94 pure Cap residual: G.7 single product authority for pipeline_bind_import_dep_buffers
+ * (historical strong body in ast_pool). Same pattern as pure try_bind (driver buf → set_*).
+ * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_bind_import_dep_buffers(ctx: *u8, import_idx: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  if (import_idx < 0) {
+    return;
+  }
+  unsafe {
+    let a: *u8 = driver_dep_arena_buf(import_idx);
+    let m: *u8 = driver_dep_module_buf(import_idx);
+    ast_pipeline_dep_ctx_set_arena(ctx, import_idx, a);
+    ast_pipeline_dep_ctx_set_module(ctx, import_idx, m);
+  }
+}
+
+/**
+ * Align one dep slot path/module/arena with driver seed authority.
+ * @param module *u8 — entry AST module (for import path at dep_i); null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param dep_i i32 — dep slot index; <0 → -1
+ * @return i32 — 0 ok; -1 null/bad index
+ * wave94 pure Cap residual: G.7 single product authority for pipeline_sync_one_dep_slot
+ * (historical strong body in ast_pool). Pins path from entry import[dep_i], maps
+ * driver_dep_slot_for_path (fallback dep_i), then set_module/set_arena from that slot.
+ * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_sync_one_dep_slot(module: *u8, ctx: *u8, dep_i: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_i < 0) {
+    return 0 - 1;
+  }
+  let sync_path: u8[64] = [];
+  unsafe {
+    memset(&sync_path[0], 0, 64 as usize);
+    let _pl: i32 = parser_copy_module_import_path64(module, dep_i, &sync_path[0]);
+  }
+  let sync_slot: i32 = 0;
+  unsafe {
+    sync_slot = driver_dep_slot_for_path(&sync_path[0]);
+  }
+  if (sync_slot < 0) {
+    sync_slot = dep_i;
+  }
+  let pl: i32 = 0;
+  while (pl < 64) {
+    let b: u8 = 0;
+    unsafe {
+      b = sync_path[pl];
+    }
+    if (b == 0) {
+      break;
+    }
+    pl = pl + 1;
+  }
+  if (pl > 0) {
+    unsafe {
+      ast_pipeline_dep_ctx_set_import_path(ctx, dep_i, &sync_path[0], pl);
+    }
+  }
+  unsafe {
+    let m: *u8 = driver_dep_module_buf(sync_slot);
+    let a: *u8 = driver_dep_arena_buf(sync_slot);
+    ast_pipeline_dep_ctx_set_module(ctx, dep_i, m);
+    ast_pipeline_dep_ctx_set_arena(ctx, dep_i, a);
+  }
+  return 0;
+}
+
+/**
+ * Sync all dep slots from driver seed authority (entry-indexed only).
+ * @param module *u8 — entry AST module; null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 null; else first pipeline_sync_one_dep_slot rc
+ * Rules (match historical C; SHUX_DEBUG_PIPE notes cold-only):
+ *   - if n_entry_imports < ndep (BFS closure): skip entry-index sync (slots already
+ *     aligned by pctx_seed / load_and_sync keep-closure rebind); return 0
+ *   - else: loop dep_i 0..ndep-1 same-TU pure pipeline_sync_one_dep_slot
+ * wave94 pure Cap residual: G.7 single product authority for
+ * pipeline_sync_dep_slots_from_driver_c (historical body in pipeline_glue impl_c +
+ * strong _c dispatch). Product pure load_and_sync (wave93) calls this name.
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let dep_sync_nd: i32 = 0;
+  let n_entry_imports: i32 = 0;
+  unsafe {
+    dep_sync_nd = ast_pipeline_dep_ctx_ndep(ctx);
+    // Strong parser_get_module_num_imports wins at final link over pure weak stub.
+    n_entry_imports = parser_get_module_num_imports(module);
+  }
+  // Closure seed: ndep > entry imports — skip entry-index re-sync (same invariant as
+  // load_and_sync keep-closure; entry-index sync would clobber transitive deps).
+  if (n_entry_imports >= 0) {
+    if (n_entry_imports < dep_sync_nd) {
+      return 0;
+    }
+  }
+  let dep_sync_i: i32 = 0;
+  while (dep_sync_i < dep_sync_nd) {
+    let sync_rc: i32 = 0;
+    unsafe {
+      sync_rc = pipeline_sync_one_dep_slot(module, ctx, dep_sync_i);
+    }
+    if (sync_rc != 0) {
+      return sync_rc;
+    }
+    dep_sync_i = dep_sync_i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Load one unseeded import from disk into ctx slot import_idx (resolve/read/pp/parse).
+ * @param module *u8 — entry AST module; null → -1
+ * @param arena *u8 — entry AST arena (unused; slot uses dep arena); null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param import_idx i32 — entry import index / ctx slot; <0 → -1
+ * @return i32 — 0 ok; -1 null; -7 resolve fail; -8 read fail; -9 preprocess fail; -10 parse fail
+ * Steps (match historical pipeline_load_import_from_disk_impl_c):
+ *   1) parser_copy_module_import_path64
+ *   2) Cap residual pipeline_resolve_path_x
+ *   3) Cap residual pipeline_read_file_x
+ *   4) Cap residual pipeline_preprocess_loaded_into_ctx
+ *   5) pin import path on same slot (path authority for later sync)
+ *   6) same-TU pure pipeline_bind_import_dep_buffers
+ *   7) Cap residual pipeline_parse_into_buf(dep_arena, dep_module, preprocess_buf, len)
+ * wave94 pure Cap residual: G.7 single product authority for pipeline_load_import_from_disk_c
+ * (historical glue strong _c → X thin / impl_c). Product pure load_and_sync calls this name.
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (import_idx < 0) {
+    return 0 - 1;
+  }
+  let path_buf: u8[64] = [];
+  let path_len: i32 = 0;
+  unsafe {
+    memset(&path_buf[0], 0, 64 as usize);
+    path_len = parser_copy_module_import_path64(module, import_idx, &path_buf[0]);
+  }
+  let rr: i32 = 0;
+  unsafe {
+    rr = pipeline_resolve_path_x(ctx, &path_buf[0], path_len);
+  }
+  if (rr != 0) {
+    return 0 - 7;
+  }
+  unsafe {
+    rr = pipeline_read_file_x(ctx);
+  }
+  if (rr != 0) {
+    return 0 - 8;
+  }
+  unsafe {
+    rr = pipeline_preprocess_loaded_into_ctx(ctx);
+  }
+  if (rr != 0) {
+    return 0 - 9;
+  }
+  // Pin path on the same slot we parse into (authority for path de-dupe / sync).
+  if (path_len > 0) {
+    unsafe {
+      ast_pipeline_dep_ctx_set_import_path(ctx, import_idx, &path_buf[0], path_len);
+    }
+  }
+  unsafe {
+    pipeline_bind_import_dep_buffers(ctx, import_idx);
+  }
+  let dep_arena: *u8 = 0 as *u8;
+  let dep_module: *u8 = 0 as *u8;
+  let prep_buf: *u8 = 0 as *u8;
+  let prep_len: i32 = 0;
+  unsafe {
+    dep_arena = pipeline_dep_ctx_arena_at(ctx, import_idx);
+    dep_module = ast_pipeline_dep_ctx_module_at(ctx, import_idx);
+    prep_buf = pipeline_dep_ctx_preprocess_buf_ptr(ctx);
+    prep_len = pipeline_dep_ctx_preprocess_len_get(ctx);
+    rr = pipeline_parse_into_buf(dep_arena, dep_module, prep_buf, prep_len);
+  }
+  if (rr != 0) {
+    return 0 - 10;
+  }
+  return 0;
+}
+
+/**
  * Bind one entry-import slot from a driver-seeded global slot when available.
  * @param ctx *u8 — PipelineDepCtx; null → 0 (not bound)
  * @param import_idx i32 — entry import index (ctx slot to fill); <0 → 0
@@ -2775,12 +3008,12 @@ export function pipeline_dep_ctx_realign_ndep_for_entry_c(module: *u8, ctx: *u8)
  * pipeline_load_and_sync_direct_import_deps_c (historical strong body in ast_pool).
  * Steps (match historical C; SHUX_DEBUG_PIPE notes cold-only):
  *   1) same-TU pure realign_ndep_for_entry_c;
- *   2) if ndep==0 && n_imports>0: entry walk — pin path, pure try_bind or Cap residual
- *      load_import_from_disk_c; set_ndep(n_imports);
+ *   2) if ndep==0 && n_imports>0: entry walk — pin path, pure try_bind or same-TU pure
+ *      load_import_from_disk_c (wave94); set_ndep(n_imports);
  *   3) else if n_imports>0:
  *        - ndep > n_imports: keep BFS order; rebind module/arena/path from driver slots;
  *        - else: entry re-pin + try_bind / load empty slots; bump ndep if needed;
- *   4) Cap residual pipeline_sync_dep_slots_from_driver_c;
+ *   4) same-TU pure pipeline_sync_dep_slots_from_driver_c (wave94);
  *   5) if not all entry imports seeded: Cap residual typeck merge layouts + wpo unify.
  * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
  */

@@ -6348,8 +6348,13 @@ int32_t pipeline_preprocess_loaded_into_ctx(struct ast_PipelineDepCtx *ctx) {
   return 0;
 }
 
-/** import 槽绑定 driver dep arena/module 缓冲（指针 cast 须 C glue）。 */
-void pipeline_bind_import_dep_buffers(struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
+/**
+ * import 槽绑定 driver dep arena/module 缓冲（指针 cast 须 C glue）。
+ * wave94: product pure owns pipeline_bind_import_dep_buffers (runtime_pipeline_abi.x).
+ * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
+ */
+SHUX_WEAK void pipeline_bind_import_dep_buffers(struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
   if (!ctx || import_idx < 0)
     return;
   pipeline_dep_ctx_set_arena(ctx, import_idx, (struct ast_ASTArena *)driver_dep_arena_buf(import_idx));
@@ -6381,8 +6386,11 @@ SHUX_WEAK int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx *ctx
 
 /**
  * 将 dep_i 槽与 driver 全局 seed 槽对齐；C glue 单点指针 cast。
+ * wave94: product pure owns pipeline_sync_one_dep_slot (runtime_pipeline_abi.x).
+ * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t dep_i) {
+SHUX_WEAK int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t dep_i) {
   uint8_t sync_path[64];
   int32_t sync_slot;
 
