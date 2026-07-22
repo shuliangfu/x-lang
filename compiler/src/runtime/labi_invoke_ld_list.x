@@ -15,7 +15,8 @@
 // + wave192 labi_std_append_glue_for_op pure orch
 // + wave193 labi_std_append_primary_for_op + process_argv_if pure orch
 // + wave194 labi_std_append_task_special pure orch
-// + wave195 labi_std_append_op_std pure orch:
+// + wave195 labi_std_append_op_std pure orch
+// + wave196 shux_asm_ld_append_std_objs_for_user plan loop shell pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -44,6 +45,9 @@
 //     formal ensure task.o + push task/scheduler/scheduler_glue; Cap residual skip/path/bank)
 //   - labi_std_append_op_std (wave195; pure OP_STD orch: fk→flag_out map + fk0/fk1–13 gate +
 //     formal ensure + push_obj; Cap residual undef_sym inside fk gate peers)
+//   - shux_asm_ld_append_std_objs_for_user (wave196; pure plan shell: flags/local_have init +
+//     plan_count/step_at loop + dispatch to wave190–195 leaf pure + process_argv complement;
+//     Cap residual stays inside leaf peers / plan table L8)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
@@ -52,7 +56,8 @@
 //   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
 //   needs + primary ensure/path + process_argv for wave193 primary/complement;
 //   task/scheduler path peers + bank_push for wave194 TASK_SPECIAL;
-//   fk gate peers (wave135/190) for wave195 OP_STD.
+//   fk gate peers (wave135/190) for wave195 OP_STD;
+//   plan table accessors (labi_std_list L8) for wave196 plan shell.
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -183,6 +188,11 @@ export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 // PLATFORM: SHARED — product UNDEF gate tables; G.7 single gate authority.
 export extern "C" function labi_std_fk0_user_needs_rel(user_o: *u8, rel: *u8): i32;
 export extern "C" function labi_std_fk_user_needs(user_o: *u8, fk: i32): i32;
+
+// Peer pure (labi_std_list L8): default std link plan table for wave196 plan shell.
+// PLATFORM: SHARED — plan table authority; shell only iterates + dispatches leaves.
+export extern "C" function labi_std_plan_count(): i32;
+export extern "C" function labi_std_plan_step_at(i: i32, op_out: *i32, rel_out: *usize, flag_kind_out: *i32): i32;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -3017,4 +3027,213 @@ export function labi_std_append_op_std(link_argv0: *u8, user_o: *u8, rel: *u8, f
   if (_push != 0) {
     return;
   }
+}
+
+/**
+ * Resolve OP_GLUE_* have bit from flags / local_have (≡ mega case LABI_STD_OP_GLUE_*).
+ * @param op i32 — LABI_STD_OP_GLUE_* 10..20; other → 0
+ * @param flags *u8 — ShuAsmLdStdLinkFlags* opaque; null → flags slots 0
+ * @param local_have *i32 — [0]process [1]crypto [2]log [3]atomic [4]backtrace [5]http
+ * @return i32 — non-zero when glue leaf should ensure+push
+ * Map: 10 thread→f[2]; 11 sync→f[3]; 12 crypto→local[1]; 13 log→local[2];
+ *   14 atomic→local[3]; 15 channel→f[4]; 16 backtrace→local[4]; 17 math→f[5];
+ *   18 sqlite→f[8]; 19 dynlib→f[7]; 20 http→local[5].
+ * PLATFORM: SHARED pure; dual-end L2.
+ * Track-L: not exported (internal helper for plan shell only).
+ */
+function labi_std_glue_have_for_op(op: i32, flags: *u8, local_have: *i32): i32 {
+  if (local_have != 0 as *i32) {
+    if (op == 12) {
+      return local_have[1];
+    }
+    if (op == 13) {
+      return local_have[2];
+    }
+    if (op == 14) {
+      return local_have[3];
+    }
+    if (op == 16) {
+      return local_have[4];
+    }
+    if (op == 20) {
+      return local_have[5];
+    }
+  }
+  if (flags != 0 as *u8) {
+    let f: *i32 = flags as *i32;
+    if (op == 10) {
+      return f[2];
+    }
+    if (op == 11) {
+      return f[3];
+    }
+    if (op == 15) {
+      return f[4];
+    }
+    if (op == 17) {
+      return f[5];
+    }
+    if (op == 18) {
+      return f[8];
+    }
+    if (op == 19) {
+      return f[7];
+    }
+  }
+  return 0;
+}
+
+/**
+ * Compute process_argv complement need after plan loop (≡ mega need_pav).
+ * True when heavy std is on argv (atomic/log/backtrace locals or flags
+ * sync/thread/dynlib/channel/math/elf/sqlite) and process.o was not pushed.
+ * @param flags *u8 — ShuAsmLdStdLinkFlags* opaque; null skips flags terms
+ * @param local_have *i32 — must be non-null bank of 6 ints (see wave195)
+ * @return i32 — 1 when process_argv should be ensured+pushed
+ * PLATFORM: SHARED pure; dual-end L2.
+ * Track-L: not exported (internal helper for plan shell only).
+ */
+function labi_std_need_process_argv(flags: *u8, local_have: *i32): i32 {
+  if (local_have == 0 as *i32) {
+    return 0;
+  }
+  // Already have process.o → never dual-link process_argv.
+  if (local_have[0] != 0) {
+    return 0;
+  }
+  let heavy: i32 = 0;
+  if (local_have[3] != 0) {
+    heavy = 1;
+  }
+  if (local_have[2] != 0) {
+    heavy = 1;
+  }
+  if (local_have[4] != 0) {
+    heavy = 1;
+  }
+  if (flags != 0 as *u8) {
+    let f: *i32 = flags as *i32;
+    if (f[3] != 0) {
+      heavy = 1;
+    }
+    if (f[2] != 0) {
+      heavy = 1;
+    }
+    if (f[7] != 0) {
+      heavy = 1;
+    }
+    if (f[4] != 0) {
+      heavy = 1;
+    }
+    if (f[5] != 0) {
+      heavy = 1;
+    }
+    if (f[9] != 0) {
+      heavy = 1;
+    }
+    if (f[8] != 0) {
+      heavy = 1;
+    }
+  }
+  return heavy;
+}
+
+/**
+ * Product append_std plan shell: init flags/local_have, walk plan table, dispatch
+ * leaf pure orchs (wave190–195), then process_argv complement.
+ * Pure orch composes existing peers (G.7 no second plan/gate/ensure path):
+ *   1) zero flags + set have_io=1 have_fs=1 (≡ mega memset + defaults)
+ *   2) zero local_have[6] bank (process/crypto/log/atomic/backtrace/http)
+ *   3) peer pure labi_std_plan_count / labi_std_plan_step_at (L8 table)
+ *   4) dispatch op → primary / OP_STD / OP_GLUE_* / TASK_SPECIAL pure leaves
+ *   5) peer pure labi_std_append_process_argv_if when heavy without process
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param user_o *u8 — user main .o; null → hard-link style (no user UNDEF filter)
+ * @param lib_roots **u8 — -L style roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * @param flags *u8 — ShuAsmLdStdLinkFlags* opaque; may be null
+ * Cap residual: inside leaf peers (undef_sym / ensure shell make / resolve / path).
+ * Why (wave196): hybrid still had plan loop shell always-mega inline after wave190–195
+ *   leaf pure (soft residual "plan 循环壳").
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — dual-end L2.
+ * Track-L: #[no_mangle] product short name (mega call sites / old wrapper).
+ */
+#[no_mangle]
+export function shux_asm_ld_append_std_objs_for_user(link_argv0: *u8, user_o: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void {
+  // local_have bank: [0]process [1]crypto [2]log [3]atomic [4]backtrace [5]http.
+  let local_have: i32[6] = [];
+  local_have[0] = 0;
+  local_have[1] = 0;
+  local_have[2] = 0;
+  local_have[3] = 0;
+  local_have[4] = 0;
+  local_have[5] = 0;
+  // Flags: zero all 12 LP64 i32 fields then set have_io + have_fs (≡ mega).
+  if (flags != 0 as *u8) {
+    let f: *i32 = flags as *i32;
+    let zi: i32 = 0;
+    while (zi < 12) {
+      f[zi] = 0;
+      zi = zi + 1;
+    }
+    f[0] = 1;
+    f[11] = 1;
+  }
+  let n_steps: i32 = 0;
+  unsafe {
+    n_steps = labi_std_plan_count();
+  }
+  let si: i32 = 0;
+  while (si < n_steps) {
+    let op: i32 = 0;
+    let rel_u: usize = 0;
+    let fk: i32 = 0;
+    let ok: i32 = 0;
+    unsafe {
+      ok = labi_std_plan_step_at(si, &op, &rel_u, &fk);
+    }
+    if (ok != 0) {
+      let rel: *u8 = rel_u as *u8;
+      // IO_STUBS=2 PRIMARY_PANIC=3 TIME_OS=4 RANDOM_FILL=5 ENV_OS=6 → primary pure.
+      if (op == 2) {
+        labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+      if (op == 3) {
+        labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+      if (op == 4) {
+        labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+      if (op == 5) {
+        labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+      if (op == 6) {
+        labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+      // OP_STD=1 → wave195 pure leaf.
+      if (op == 1) {
+        labi_std_append_op_std(link_argv0, user_o, rel, fk, lib_roots, n_lib_roots, bank, argv, la, max_la, flags, &local_have[0]);
+      }
+      // OP_GLUE_*=10..20 → wave192 pure leaf with have from flags/local.
+      if (op >= 10) {
+        if (op <= 20) {
+          let have: i32 = labi_std_glue_have_for_op(op, flags, &local_have[0]);
+          labi_std_append_glue_for_op(op, have, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+        }
+      }
+      // TASK_SPECIAL=30 → wave194 pure leaf.
+      if (op == 30) {
+        labi_std_append_task_special(link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+    }
+    si = si + 1;
+  }
+  // Complement: heavy std without process.o → process_argv (wave193 pure).
+  let need_pav: i32 = labi_std_need_process_argv(flags, &local_have[0]);
+  labi_std_append_process_argv_if(need_pav, link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
 }

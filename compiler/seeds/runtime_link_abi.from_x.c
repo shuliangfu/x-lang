@@ -5382,133 +5382,20 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     shux_asm_ld_append_std_objs_for_user(link_argv0, NULL, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
 }
 
+/* wave196: shux_asm_ld_append_std_objs_for_user plan shell pure orch —
+ * body removed from mega (lives in labi_invoke_ld_list L6 pure / cold twin via #include).
+ * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * Pure: flags/local_have init + plan_count/step_at loop + dispatch wave190–195 leaves
+ *   + process_argv complement; Cap residual inside leaf peers / L8 plan table.
+ * Why: hybrid still had plan loop shell always-mega inline after wave190–195 leaf pure.
+ * PLATFORM: SHARED orch. */
+#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+/* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
+#else
 void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
-    const char **lib_roots, int n_lib_roots,
-    ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
-    /* wave195 local_have bank for OP_STD flags not in ShuAsmLdStdLinkFlags:
-     * [0]process [1]crypto [2]log [3]atomic [4]backtrace [5]http. */
-    int local_have[6];
-    int n_steps;
-    int si;
-    memset(local_have, 0, sizeof local_have);
-    if (flags)
-        memset(flags, 0, sizeof *flags);
-    if (flags)
-        flags->have_fs = 1;
-    if (flags)
-        flags->have_io = 1;
-    n_steps = labi_std_plan_count();
-    for (si = 0; si < n_steps; si++) {
-        int op = 0;
-        const char *rel = NULL;
-        int fk = 0;
-        if (!labi_std_plan_step_at(si, &op, &rel, &fk))
-            continue;
-        switch (op) {
-        /*
-         * wave193: IO_STUBS + PRIMARY_* → labi_std_append_primary_for_op pure orch
-         * (path/gate/ensure+push; Cap residual needs_* + ensure/path + push_obj).
-         * Why: hybrid still had primary leaves always-mega inline after wave192 glue.
-         * PLATFORM: SHARED — G.7 single primary-append authority; dual-end L2.
-         */
-        case LABI_STD_OP_IO_STUBS:
-        case LABI_STD_OP_PRIMARY_PANIC:
-        case LABI_STD_OP_PRIMARY_TIME_OS:
-        case LABI_STD_OP_PRIMARY_RANDOM_FILL:
-        case LABI_STD_OP_PRIMARY_ENV_OS:
-            labi_std_append_primary_for_op(op, link_argv0, user_o, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        /*
-         * wave195: OP_STD → labi_std_append_op_std pure orch
-         * (fk→flag_out map + fk0/fk1–13 gate + formal ensure + push_obj).
-         * Why: hybrid still had flag map + gate + ensure + push always-mega inline
-         * after wave191 formal ensure pure and wave190 fk gates pure.
-         * PLATFORM: SHARED — G.7 single OP_STD append authority; dual-end L2.
-         */
-        case LABI_STD_OP_STD:
-            labi_std_append_op_std(link_argv0, user_o, rel, fk, lib_roots, n_lib_roots,
-                bank, argv, la, max_la, flags, local_have);
-            break;
-        /*
-         * wave192: OP_GLUE_* → labi_std_append_glue_for_op pure orch
-         * (ensure+path+push ≡ push_glue_after_std without C fnptr from pure).
-         * Why: hybrid still had glue cases always-mega inline after wave191 formal ensure.
-         * PLATFORM: SHARED — G.7 single glue-append authority; dual-end L2.
-         */
-        case LABI_STD_OP_GLUE_THREAD:
-            labi_std_append_glue_for_op(op, flags && flags->have_thread, link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_SYNC_PAIR:
-            labi_std_append_glue_for_op(op, flags && flags->have_sync, link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_CRYPTO_PAIR:
-            labi_std_append_glue_for_op(op, local_have[1], link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_LOG:
-            labi_std_append_glue_for_op(op, local_have[2], link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_ATOMIC:
-            labi_std_append_glue_for_op(op, local_have[3], link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_CHANNEL:
-            labi_std_append_glue_for_op(op, flags && flags->have_channel, link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_BACKTRACE:
-            labi_std_append_glue_for_op(op, local_have[4], link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_MATH:
-            labi_std_append_glue_for_op(op, flags && flags->have_math, link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_SQLITE:
-            labi_std_append_glue_for_op(op, flags && flags->have_sqlite, link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_DYNLIB:
-            labi_std_append_glue_for_op(op, flags && flags->have_dynlib, link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        case LABI_STD_OP_GLUE_HTTP:
-            labi_std_append_glue_for_op(op, local_have[5], link_argv0, rel,
-                lib_roots, n_lib_roots, bank, argv, la, max_la);
-            break;
-        /*
-         * wave194: TASK_SPECIAL → labi_std_append_task_special pure orch
-         * (needs gate + formal ensure task + push task/scheduler/scheduler_glue).
-         * Why: hybrid still had TASK_SPECIAL always-mega inline after wave193 primary.
-         * PLATFORM: SHARED — G.7 single task-append authority; dual-end L2.
-         */
-        case LABI_STD_OP_TASK_SPECIAL:
-            labi_std_append_task_special(link_argv0, user_o, rel, lib_roots, n_lib_roots,
-                bank, argv, la, max_la);
-            break;
-        default:
-            break;
-        }
-    }
-    /*
-     * thread/sync/atomic/log/dynlib/… 预编 .o 内 preamble weak process_arg*_c → U process_shux_*。
-     * 已推且未推 process.o 时补 runtime_process_argv.o（勿与 process.o 双链）。
-     * wave193: pure orch labi_std_append_process_argv_if (ensure+path+push).
-     * local_have: [0]process [2]log [3]atomic [4]backtrace.
-     */
-    {
-        int need_pav = (local_have[3] || local_have[2] || local_have[4]
-            || (flags && (flags->have_sync || flags->have_thread || flags->have_dynlib
-                          || flags->have_channel || flags->have_math || flags->have_elf
-                          || flags->have_sqlite)))
-            && !local_have[0];
-        labi_std_append_process_argv_if(need_pav, link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
-    }
-}
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+#endif
 
 /* G-02f-272 L8b on_demand list pure */
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X

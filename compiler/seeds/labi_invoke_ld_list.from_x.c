@@ -35,6 +35,8 @@
  *     append_std TASK_SPECIAL task+scheduler+scheduler_glue)
  *   labi_std_append_op_std (wave195 pure orch; fk→flag_out map + fk0/fk1–13 gate +
  *     formal ensure + push_obj; append_std OP_STD plan leaf)
+ *   shux_asm_ld_append_std_objs_for_user (wave196 pure orch; plan shell init+loop+
+ *     dispatch wave190–195 leaves + process_argv complement)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
  *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
@@ -43,7 +45,8 @@
  *   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
  *   needs + primary ensure/path + process_argv for wave193 primary/complement;
  *   task/scheduler path peers + bank for wave194 TASK_SPECIAL;
- *   fk gate peers (wave135/190) for wave195 OP_STD.
+ *   fk gate peers (wave135/190) for wave195 OP_STD;
+ *   plan table accessors (labi_std_list L8) for wave196 plan shell.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -1087,6 +1090,105 @@ void labi_std_append_op_std(const char *link_argv0, const char *user_o, const ch
                                  flag_out);
 }
 
+/* wave196: plan shell pure orch (cold twin ≡ .x).
+ * Cap residual: inside leaf peers + plan table L8. PLATFORM: SHARED.
+ * Peer pure: labi_std_plan_count / labi_std_plan_step_at (L8).
+ */
+int labi_std_plan_count(void);
+int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out);
+
+static int labi_std_glue_have_for_op(int op, ShuAsmLdStdLinkFlags *flags, int *local_have) {
+  if (local_have) {
+    if (op == 12) return local_have[1];
+    if (op == 13) return local_have[2];
+    if (op == 14) return local_have[3];
+    if (op == 16) return local_have[4];
+    if (op == 20) return local_have[5];
+  }
+  if (flags) {
+    if (op == 10) return flags->have_thread;
+    if (op == 11) return flags->have_sync;
+    if (op == 15) return flags->have_channel;
+    if (op == 17) return flags->have_math;
+    if (op == 18) return flags->have_sqlite;
+    if (op == 19) return flags->have_dynlib;
+  }
+  return 0;
+}
+
+static int labi_std_need_process_argv(ShuAsmLdStdLinkFlags *flags, int *local_have) {
+  int heavy;
+  if (!local_have)
+    return 0;
+  if (local_have[0])
+    return 0;
+  heavy = (local_have[3] || local_have[2] || local_have[4]
+           || (flags && (flags->have_sync || flags->have_thread || flags->have_dynlib
+                         || flags->have_channel || flags->have_math || flags->have_elf
+                         || flags->have_sqlite)))
+          ? 1 : 0;
+  return heavy;
+}
+
+void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
+  int local_have[6];
+  int n_steps;
+  int si;
+  memset(local_have, 0, sizeof local_have);
+  if (flags)
+    memset(flags, 0, sizeof *flags);
+  if (flags)
+    flags->have_fs = 1;
+  if (flags)
+    flags->have_io = 1;
+  n_steps = labi_std_plan_count();
+  for (si = 0; si < n_steps; si++) {
+    int op = 0;
+    const char *rel = NULL;
+    int fk = 0;
+    if (!labi_std_plan_step_at(si, &op, &rel, &fk))
+      continue;
+    switch (op) {
+    case 2: /* LABI_STD_OP_IO_STUBS */
+    case 3: /* LABI_STD_OP_PRIMARY_PANIC */
+    case 4: /* LABI_STD_OP_PRIMARY_TIME_OS */
+    case 5: /* LABI_STD_OP_PRIMARY_RANDOM_FILL */
+    case 6: /* LABI_STD_OP_PRIMARY_ENV_OS */
+      labi_std_append_primary_for_op(op, link_argv0, user_o, rel,
+          lib_roots, n_lib_roots, bank, argv, la, max_la);
+      break;
+    case 1: /* LABI_STD_OP_STD */
+      labi_std_append_op_std(link_argv0, user_o, rel, fk, lib_roots, n_lib_roots,
+          bank, argv, la, max_la, flags, local_have);
+      break;
+    case 10: /* LABI_STD_OP_GLUE_THREAD */
+    case 11:
+    case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20: /* LABI_STD_OP_GLUE_HTTP */
+      labi_std_append_glue_for_op(op, labi_std_glue_have_for_op(op, flags, local_have),
+          link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      break;
+    case 30: /* LABI_STD_OP_TASK_SPECIAL */
+      labi_std_append_task_special(link_argv0, user_o, rel, lib_roots, n_lib_roots,
+          bank, argv, la, max_la);
+      break;
+    default:
+      break;
+    }
+  }
+  labi_std_append_process_argv_if(labi_std_need_process_argv(flags, local_have),
+      link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+}
+
 #else
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
@@ -1170,6 +1272,10 @@ void labi_std_append_task_special(const char *link_argv0, const char *user_o, co
 void labi_std_append_op_std(const char *link_argv0, const char *user_o, const char *rel, int fk,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have);
+/* wave196: plan shell pure orch (init+loop+dispatch+process_argv) (L6). */
+void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

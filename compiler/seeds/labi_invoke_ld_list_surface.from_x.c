@@ -15,7 +15,8 @@
  *   + wave192 labi_std_append_glue_for_op pure orch
  *   + wave193 labi_std_append_primary_for_op + process_argv_if pure orch
  *   + wave194 labi_std_append_task_special pure orch
- *   + wave195 labi_std_append_op_std pure orch)
+ *   + wave195 labi_std_append_op_std pure orch
+ *   + wave196 shux_asm_ld_append_std_objs_for_user plan shell pure orch)
  * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path pool;
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega;
  *   getenv / system / access / skip_missing for ensure_std_net + formal_std_make (wave187/188);
@@ -23,7 +24,8 @@
  *   ensure_runtime_*_glue + path peers for wave192 OP_GLUE_* leaves;
  *   needs + primary ensure/path + process_argv for wave193 primary/complement;
  *   task/scheduler path peers + bank for wave194 TASK_SPECIAL;
- *   fk0/fk1–13 gate peers for wave195 OP_STD
+ *   fk0/fk1–13 gate peers for wave195 OP_STD;
+ *   plan table accessors (labi_std_list L8) for wave196 plan shell
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - pure contract; Ubuntu gold + mac prove.
  */
@@ -105,6 +107,9 @@ extern int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_
 /* wave195 OP_STD peers (fk0/fk1–13 gates; formal ensure is surface-local export). */
 extern int32_t labi_std_fk0_user_needs_rel(uint8_t * user_o, uint8_t * rel);
 extern int32_t labi_std_fk_user_needs(uint8_t * user_o, int32_t fk);
+/* wave196 plan shell peers (L8 plan table accessors). */
+extern int32_t labi_std_plan_count(void);
+extern int32_t labi_std_plan_step_at(int32_t i, int32_t * op_out, size_t * rel_out, int32_t * flag_kind_out);
 
 int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path) {
   uint8_t * ab = ((uint8_t *)(argv));
@@ -1877,4 +1882,150 @@ void labi_std_append_op_std(uint8_t * link_argv0, uint8_t * user_o, uint8_t * re
   if ((_push !=0)) {
     return;
   }
+}
+int32_t labi_invoke_ld_list_labi_std_glue_have_for_op(int32_t op, uint8_t * flags, int32_t * local_have) {
+  if ((local_have !=0)) {
+    if ((op ==12)) {
+      return (local_have)[1];
+    }
+    if ((op ==13)) {
+      return (local_have)[2];
+    }
+    if ((op ==14)) {
+      return (local_have)[3];
+    }
+    if ((op ==16)) {
+      return (local_have)[4];
+    }
+    if ((op ==20)) {
+      return (local_have)[5];
+    }
+  }
+  if ((flags !=0)) {
+    int32_t * f = ((int32_t *)(flags));
+    if ((op ==10)) {
+      return (f)[2];
+    }
+    if ((op ==11)) {
+      return (f)[3];
+    }
+    if ((op ==15)) {
+      return (f)[4];
+    }
+    if ((op ==17)) {
+      return (f)[5];
+    }
+    if ((op ==18)) {
+      return (f)[8];
+    }
+    if ((op ==19)) {
+      return (f)[7];
+    }
+  }
+  return 0;
+}
+int32_t labi_invoke_ld_list_labi_std_need_process_argv(uint8_t * flags, int32_t * local_have) {
+  if ((local_have ==0)) {
+    return 0;
+  }
+  if (((local_have)[0] !=0)) {
+    return 0;
+  }
+  int32_t heavy = 0;
+  if (((local_have)[3] !=0)) {
+    (void)((heavy = 1));
+  }
+  if (((local_have)[2] !=0)) {
+    (void)((heavy = 1));
+  }
+  if (((local_have)[4] !=0)) {
+    (void)((heavy = 1));
+  }
+  if ((flags !=0)) {
+    int32_t * f = ((int32_t *)(flags));
+    if (((f)[3] !=0)) {
+      (void)((heavy = 1));
+    }
+    if (((f)[2] !=0)) {
+      (void)((heavy = 1));
+    }
+    if (((f)[7] !=0)) {
+      (void)((heavy = 1));
+    }
+    if (((f)[4] !=0)) {
+      (void)((heavy = 1));
+    }
+    if (((f)[5] !=0)) {
+      (void)((heavy = 1));
+    }
+    if (((f)[9] !=0)) {
+      (void)((heavy = 1));
+    }
+    if (((f)[8] !=0)) {
+      (void)((heavy = 1));
+    }
+  }
+  return heavy;
+}
+void shux_asm_ld_append_std_objs_for_user(uint8_t * link_argv0, uint8_t * user_o, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * flags) {
+  int32_t local_have[6] = {};
+  (void)(((local_have)[0] = 0));
+  (void)(((local_have)[1] = 0));
+  (void)(((local_have)[2] = 0));
+  (void)(((local_have)[3] = 0));
+  (void)(((local_have)[4] = 0));
+  (void)(((local_have)[5] = 0));
+  if ((flags !=0)) {
+    int32_t * f = ((int32_t *)(flags));
+    int32_t zi = 0;
+    while ((zi < 12)) {
+      (void)(((f)[zi] = 0));
+      (void)((zi = (zi + 1)));
+    }
+    (void)(((f)[0] = 1));
+    (void)(((f)[11] = 1));
+  }
+  int32_t n_steps = 0;
+  (void)((n_steps = labi_std_plan_count()));
+  int32_t si = 0;
+  while ((si < n_steps)) {
+    int32_t op = 0;
+    size_t rel_u = 0;
+    int32_t fk = 0;
+    int32_t ok = 0;
+    (void)((ok = labi_std_plan_step_at(si, &(op), &(rel_u), &(fk))));
+    if ((ok !=0)) {
+      uint8_t * rel = ((uint8_t *)(rel_u));
+      if ((op ==2)) {
+        (void)(labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+      }
+      if ((op ==3)) {
+        (void)(labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+      }
+      if ((op ==4)) {
+        (void)(labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+      }
+      if ((op ==5)) {
+        (void)(labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+      }
+      if ((op ==6)) {
+        (void)(labi_std_append_primary_for_op(op, link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+      }
+      if ((op ==1)) {
+        (void)(labi_std_append_op_std(link_argv0, user_o, rel, fk, lib_roots, n_lib_roots, bank, argv, la, max_la, flags, &((local_have)[0])));
+      }
+      if ((op >=10)) {
+        if ((op <=20)) {
+          int32_t have = labi_invoke_ld_list_labi_std_glue_have_for_op(op, flags, &((local_have)[0]));
+          (void)(labi_std_append_glue_for_op(op, have, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+        }
+      }
+      if ((op ==30)) {
+        (void)(labi_std_append_task_special(link_argv0, user_o, rel, lib_roots, n_lib_roots, bank, argv, la, max_la));
+      }
+    }
+    (void)((si = (si + 1)));
+  }
+  int32_t need_pav = labi_invoke_ld_list_labi_std_need_process_argv(flags, &((local_have)[0]));
+  (void)(labi_std_append_process_argv_if(need_pav, link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la));
 }
