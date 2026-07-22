@@ -14,8 +14,9 @@
 //   - invoke_cc_append_std_ensure_push_mid (wave201; pure ensure-push mid sync→hash)
 //   - invoke_cc_append_std_ensure_push_heavy_a (wave202; pure ensure-push heavy_a math…compress)
 //   - invoke_cc_append_std_ensure_push_heavy_b (wave203; pure ensure-push heavy_b unicode…process_argv)
+//   - invoke_cc_append_heap_f06_ondemand (wave204; pure heap F-06 on-demand + page_mmap companions)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
-//   contains_substr(_use_line) peers for scan; heap F-06 + fork/exec still mega.
+//   contains_substr(_use_line) peers for scan; fork/exec still mega.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -113,6 +114,12 @@ export extern "C" function shux_generated_c_needs_async_scheduler(c_path: *u8): 
 export extern "C" function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8): *u8;
 export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
+
+/* ===== wave204 Cap residual / peer pure for heap F-06 on-demand ===== */
+/* nm-based heap U scan over argv (peer pure in labi_ondemand_list). */
+export extern "C" function link_abi_link_needs_std_heap_import(user_o: *u8, argv: **u8, la: i32): i32;
+/* page_mmap.o rel path peer pure (labi_ondemand_list); heap.o always imports freestanding mmap path. */
+export extern "C" function labi_od_rel_page_mmap(): *u8;
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -2857,7 +2864,7 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
  * Cap residual: dynlib_os / http_glue / test_fn_invoke / scheduler_glue / async path /
  *   scheduler_o_for_task_link / link_obj_needs_undef_sym / process_argv ensure+path.
  * Why (wave203): hybrid still had ensure-push heavy_b always-mega after wave202 heavy_a.
- * Residual heap F-06 + fork/exec remain mega.
+ * Residual heap F-06 pure @ wave204; fork/exec remain mega.
  * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_a.
  * PLATFORM: SHARED orch / LINUX -ldl -pthread / WINDOWS -lws2_32 on http.
  * Track-L: #[no_mangle] surface short name for mega call sites.
@@ -3235,6 +3242,221 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
               let _ppa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
             }
           }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Count of use_line needles for heap F-06 generated-C demand scan.
+ * @return i32 — 11 (fixed table; ≡ mega inline list)
+ * PLATFORM: SHARED — table pure; no host branch.
+ */
+#[no_mangle]
+export function labi_icc_heap_f06_needle_count(): i32 {
+  return 11;
+}
+
+/**
+ * Heap F-06 use_line needle at index i (std_heap_* symbols).
+ * @param i i32 — index in [0, 11); out of range → null
+ * @return *u8 — static string literal; null if i out of range
+ * Authority for wave204 generated-C heap demand (G.7 table, not mega hardcode).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function labi_icc_heap_f06_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_heap_alloc_size_zero";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_heap_alloc_usize";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_heap_default_alloc";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_heap_kind_arena";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_heap_heap_alloc";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_heap_alloc_Allocator";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_heap_realloc_Allocator";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_heap_free_Allocator";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_heap_arena64_alloc";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_heap_map_find";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_heap_libc_heap_alloc";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * invoke_cc heap F-06 on-demand: when argv or generated C needs std.heap,
+ * push core/mem.o + heap.o (unless co-emitted) and page_mmap + asm_io_stubs.
+ * @param argv **u8 — cc argv table (already holds ensure-push std .o); null → no-op
+ * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op
+ * @param argv_cap i32 — argv capacity
+ * @param c_paths **u8 — generated C paths for use_line + provides scan (nullable if n<=0)
+ * @param n i32 — count of c_paths entries
+ * @param include_root *u8 — repo root for rel_o_path (nullable; path may fail soft)
+ * @return void — mutates *ia only when heap chain is required
+ * Pure orch: ≡ mega F-06 block after ensure-push heavy_b inside shux_invoke_cc_impl.
+ * Cap residual: link_abi_link_needs_std_heap_import (nm argv) + contains_substr_use_line +
+ *   provides_core_mem / provides_std_heap + labi_od_rel_page_mmap + asm_io_stubs ensure/path.
+ * Why (wave204): hybrid still had heap F-06 always-mega after wave203 heavy_b.
+ * Residual fork/exec remain mega.
+ * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_b.
+ * PLATFORM: SHARED orch (page_mmap companions required on Ubuntu L4 cold for heap UNDEF).
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_cap: i32, c_paths: **u8, n: i32, include_root: *u8): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+
+  // (1) nm / argv U scan: already-linked std .o may import heap without C use_line yet.
+  let need_heap: i32 = 0;
+  unsafe {
+    need_heap = link_abi_link_needs_std_heap_import(0 as *u8, argv, ia[0]);
+  }
+
+  // (2) generated-C use_line scan: C backend has no user .o yet; nm alone misses refs.
+  let cpb: *u8 = c_paths as *u8;
+  let has_c_paths: i32 = 0;
+  if (cpb != 0 as *u8) {
+    if (n > 0) {
+      has_c_paths = 1;
+    }
+  }
+  if (need_heap == 0) {
+    if (has_c_paths != 0) {
+      let nc: i32 = 0;
+      unsafe {
+        nc = labi_icc_heap_f06_needle_count();
+      }
+      let cj: i32 = 0;
+      while (cj < n) {
+        let cp: *u8 = c_paths[cj];
+        cj = cj + 1;
+        if (cp == 0 as *u8) {
+          continue;
+        }
+        let ki: i32 = 0;
+        while (ki < nc) {
+          let nd: *u8 = 0 as *u8;
+          unsafe {
+            nd = labi_icc_heap_f06_needle_at(ki);
+          }
+          ki = ki + 1;
+          if (nd == 0 as *u8) {
+            continue;
+          }
+          let hit: i32 = 0;
+          unsafe {
+            hit = link_abi_generated_c_contains_substr_use_line(cp, nd);
+          }
+          if (hit != 0) {
+            need_heap = 1;
+            break;
+          }
+        }
+        if (need_heap != 0) {
+          break;
+        }
+      }
+    }
+  }
+
+  if (need_heap == 0) {
+    return;
+  }
+
+  // Co-emit: skip core/mem.o or heap.o when generated C already provides definitions.
+  let c_provides_core_mem: i32 = 0;
+  let c_provides_std_heap: i32 = 0;
+  if (has_c_paths != 0) {
+    let pj: i32 = 0;
+    while (pj < n) {
+      let cpp: *u8 = c_paths[pj];
+      pj = pj + 1;
+      if (cpp == 0 as *u8) {
+        continue;
+      }
+      unsafe {
+        let pcm: i32 = link_abi_generated_c_provides_core_mem(cpp);
+        if (pcm != 0) {
+          c_provides_core_mem = 1;
+        }
+        let psh: i32 = link_abi_generated_c_provides_std_heap(cpp);
+        if (psh != 0) {
+          c_provides_std_heap = 1;
+        }
+      }
+    }
+  }
+
+  if (c_provides_core_mem == 0) {
+    unsafe {
+      let mem_o: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+      let _pm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, mem_o);
+    }
+  }
+  if (c_provides_std_heap == 0) {
+    unsafe {
+      let heap_o: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
+      let _ph: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
+    }
+  }
+
+  // PLATFORM: SHARED / LINUX gold — heap.o imports page_mmap freestanding path unconditionally.
+  // C backend must also push page_mmap.o + runtime_asm_io_stubs (weak mmap/munmap).
+  // Symmetric with asm on-demand (labi_od_rel_page_mmap). Root fix 2026-07-19 Ubuntu L4 cold.
+  unsafe {
+    let pm_rel: *u8 = labi_od_rel_page_mmap();
+    let pm_o: *u8 = shux_rel_o_path_from_argv0(include_root, pm_rel);
+    let ppm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, pm_o);
+    if (ppm != 0) {
+      let _eis: i32 = shux_ensure_runtime_asm_io_stubs_o(0 as *u8);
+      let ris: *u8 = shux_runtime_asm_io_stubs_o_path(0 as *u8);
+      if (ris != 0 as *u8) {
+        if (ris[0] != 0) {
+          let _pris: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
         }
       }
     }

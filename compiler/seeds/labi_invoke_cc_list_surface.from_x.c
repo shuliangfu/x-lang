@@ -5,14 +5,15 @@
  *   + wave200 invoke_cc_append_std_ensure_push_front pure orch
  *   + wave201 invoke_cc_append_std_ensure_push_mid pure orch
  *   + wave202 invoke_cc_append_std_ensure_push_heavy_a pure orch
- *   + wave203 invoke_cc_append_std_ensure_push_heavy_b pure orch.
+ *   + wave203 invoke_cc_append_std_ensure_push_heavy_b pure orch
+ *   + wave204 invoke_cc_append_heap_f06_ondemand pure orch.
  *
  * 【Why 根源】旧 surface 由 .x STRING_LIT 生成 `(uint8_t[]){...}; return p`：
  *   C 块作用域 compound literal 为自动存储，return 后悬空。
  *   labi_linux_harden_flag_at 被 invoke_cc 写入 argv → gcc 收到乱码路径。
  * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
  * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table
- *   + wave155/198/199/200/201/202/203 pure orch).
+ *   + wave155/198/199/200/201/202/203/204 pure orch).
  * Cap residual: generated_c_needs_* + ensure/path/push peers + host_is_* + net_tls_ld.
  * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
  */
@@ -112,7 +113,10 @@ extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
 extern int32_t shux_generated_c_needs_async_scheduler(uint8_t * c_path);
 extern uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler);
 extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
-/* labi_icc_rel_error_o / labi_icc_rel_socketio_o defined in this surface file */
+/* wave204 heap F-06 peers */
+extern int32_t link_abi_link_needs_std_heap_import(uint8_t * user_o, uint8_t * * argv, int32_t la);
+extern uint8_t * labi_od_rel_page_mmap(void);
+/* labi_icc_rel_error_o / labi_icc_rel_socketio_o / provides_* defined in this surface file */
 
 int32_t labi_linux_harden_flag_count(void) {
   return 5;
@@ -1395,6 +1399,100 @@ void invoke_cc_append_std_ensure_push_heavy_b(uint8_t **argv, int32_t *ia, int32
         uint8_t *rpa = shux_runtime_process_argv_o_path(NULL);
         if (rpa && rpa[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+      }
+    }
+  }
+}
+
+/* wave204: heap F-06 use_line needle table (surface pin ≡ .x). */
+int32_t labi_icc_heap_f06_needle_count(void) {
+  return 11;
+}
+
+uint8_t *labi_icc_heap_f06_needle_at(int32_t i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return (uint8_t *)"std_heap_alloc_size_zero";
+  if (i == 1)
+    return (uint8_t *)"std_heap_alloc_usize";
+  if (i == 2)
+    return (uint8_t *)"std_heap_default_alloc";
+  if (i == 3)
+    return (uint8_t *)"std_heap_kind_arena";
+  if (i == 4)
+    return (uint8_t *)"std_heap_heap_alloc";
+  if (i == 5)
+    return (uint8_t *)"std_heap_alloc_Allocator";
+  if (i == 6)
+    return (uint8_t *)"std_heap_realloc_Allocator";
+  if (i == 7)
+    return (uint8_t *)"std_heap_free_Allocator";
+  if (i == 8)
+    return (uint8_t *)"std_heap_arena64_alloc";
+  if (i == 9)
+    return (uint8_t *)"std_heap_map_find";
+  if (i == 10)
+    return (uint8_t *)"std_heap_libc_heap_alloc";
+  return NULL;
+}
+
+/* wave204: invoke_cc_append_heap_f06_ondemand pure orch (surface pin ≡ .x). */
+void invoke_cc_append_heap_f06_ondemand(uint8_t **argv, int32_t *ia, int32_t argv_cap,
+    uint8_t **c_paths, int32_t n, uint8_t *include_root) {
+  int32_t need_heap = 0;
+  int32_t c_provides_core_mem = 0;
+  int32_t c_provides_std_heap = 0;
+  int32_t cj;
+  int32_t has_c_paths = (c_paths != NULL && n > 0);
+  if (!argv || !ia || *ia < 0)
+    return;
+  if (link_abi_link_needs_std_heap_import(NULL, argv, *ia))
+    need_heap = 1;
+  if (!need_heap && has_c_paths) {
+    int32_t nc = labi_icc_heap_f06_needle_count();
+    for (cj = 0; cj < n && !need_heap; cj++) {
+      uint8_t *cp = c_paths[cj];
+      int32_t ki;
+      if (!cp)
+        continue;
+      for (ki = 0; ki < nc; ki++) {
+        uint8_t *nd = labi_icc_heap_f06_needle_at(ki);
+        if (!nd)
+          continue;
+        if (link_abi_generated_c_contains_substr_use_line(cp, nd)) {
+          need_heap = 1;
+          break;
+        }
+      }
+    }
+  }
+  if (!need_heap)
+    return;
+  if (has_c_paths) {
+    for (cj = 0; cj < n; cj++) {
+      if (link_abi_generated_c_provides_core_mem(c_paths[cj]))
+        c_provides_core_mem = 1;
+      if (link_abi_generated_c_provides_std_heap(c_paths[cj]))
+        c_provides_std_heap = 1;
+    }
+  }
+  if (!c_provides_core_mem) {
+    uint8_t *mem_o = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, mem_o);
+  }
+  if (!c_provides_std_heap) {
+    uint8_t *heap_o = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
+  }
+  {
+    uint8_t *pm_o = shux_rel_o_path_from_argv0(include_root, labi_od_rel_page_mmap());
+    if (invoke_cc_argv_push_existing(argv, ia, argv_cap, pm_o)) {
+      (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+      {
+        uint8_t *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+        if (ris && ris[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
       }
     }
   }

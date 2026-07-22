@@ -13,8 +13,9 @@
  *   invoke_cc_append_std_ensure_push_mid (wave201 pure ensure-push mid sync→hash)
  *   invoke_cc_append_std_ensure_push_heavy_a (wave202 pure ensure-push heavy_a math…compress)
  *   invoke_cc_append_std_ensure_push_heavy_b (wave203 pure ensure-push heavy_b unicode…process_argv)
+ *   invoke_cc_append_heap_f06_ondemand (wave204 pure heap F-06 on-demand + page_mmap)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
- *   heap F-06 + fork/exec 仍 mega。
+ *   fork/exec 仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -123,6 +124,11 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
 const char *labi_icc_rel_error_o(void);
 const char *labi_icc_rel_socketio_o(void);
+/* wave204 heap F-06 peers */
+int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
+const char *labi_od_rel_page_mmap(void);
+int link_abi_generated_c_provides_core_mem(const char *c_path);
+int link_abi_generated_c_provides_std_heap(const char *c_path);
 
 int labi_linux_harden_flag_count(void) {
   return 5;
@@ -1393,6 +1399,101 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
   }
 }
 
+/* wave204: heap F-06 use_line needle table (cold twin ≡ .x). */
+int labi_icc_heap_f06_needle_count(void) {
+  return 11;
+}
+
+const char *labi_icc_heap_f06_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_heap_alloc_size_zero";
+  if (i == 1)
+    return "std_heap_alloc_usize";
+  if (i == 2)
+    return "std_heap_default_alloc";
+  if (i == 3)
+    return "std_heap_kind_arena";
+  if (i == 4)
+    return "std_heap_heap_alloc";
+  if (i == 5)
+    return "std_heap_alloc_Allocator";
+  if (i == 6)
+    return "std_heap_realloc_Allocator";
+  if (i == 7)
+    return "std_heap_free_Allocator";
+  if (i == 8)
+    return "std_heap_arena64_alloc";
+  if (i == 9)
+    return "std_heap_map_find";
+  if (i == 10)
+    return "std_heap_libc_heap_alloc";
+  return NULL;
+}
+
+/* wave204: invoke_cc_append_heap_f06_ondemand pure orch (cold twin ≡ .x). */
+void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
+    const char **c_paths, int n, const char *include_root) {
+  int need_heap = 0;
+  int c_provides_core_mem = 0;
+  int c_provides_std_heap = 0;
+  int cj;
+  int has_c_paths = (c_paths != NULL && n > 0);
+  if (!argv || !ia || *ia < 0)
+    return;
+  if (link_abi_link_needs_std_heap_import(NULL, (const char **)argv, *ia))
+    need_heap = 1;
+  if (!need_heap && has_c_paths) {
+    int nc = labi_icc_heap_f06_needle_count();
+    for (cj = 0; cj < n && !need_heap; cj++) {
+      const char *cp = c_paths[cj];
+      int ki;
+      if (!cp)
+        continue;
+      for (ki = 0; ki < nc; ki++) {
+        const char *nd = labi_icc_heap_f06_needle_at(ki);
+        if (!nd)
+          continue;
+        if (link_abi_generated_c_contains_substr_use_line(cp, nd)) {
+          need_heap = 1;
+          break;
+        }
+      }
+    }
+  }
+  if (!need_heap)
+    return;
+  if (has_c_paths) {
+    for (cj = 0; cj < n; cj++) {
+      if (link_abi_generated_c_provides_core_mem(c_paths[cj]))
+        c_provides_core_mem = 1;
+      if (link_abi_generated_c_provides_std_heap(c_paths[cj]))
+        c_provides_std_heap = 1;
+    }
+  }
+  if (!c_provides_core_mem) {
+    const char *mem_o = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, mem_o);
+  }
+  if (!c_provides_std_heap) {
+    const char *heap_o = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
+  }
+  /* PLATFORM: SHARED / LINUX gold — page_mmap + asm_io_stubs companions for heap.o. */
+  {
+    const char *pm_o = shux_rel_o_path_from_argv0(include_root, labi_od_rel_page_mmap());
+    if (invoke_cc_argv_push_existing(argv, ia, argv_cap, pm_o)) {
+      (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+      {
+        const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+        if (ris && ris[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
+      }
+    }
+  }
+}
+
 
 #else
 int labi_linux_harden_flag_count(void);
@@ -1445,6 +1546,10 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     const char *url_o, const char *cli_o, const char *security_o, const char *config_o,
     const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o,
     const char *test_o, const char *async_scheduler_o);
+int labi_icc_heap_f06_needle_count(void);
+const char *labi_icc_heap_f06_needle_at(int i);
+void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
+    const char **c_paths, int n, const char *include_root);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {

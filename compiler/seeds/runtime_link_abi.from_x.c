@@ -2190,6 +2190,8 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     const char *url_o, const char *cli_o, const char *security_o, const char *config_o,
     const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o,
     const char *test_o, const char *async_scheduler_o);
+void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
+    const char **c_paths, int n, const char *include_root);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2237,6 +2239,13 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push heavy_b always-mega after wave202 heavy_a.
  * PLATFORM: SHARED orch / LINUX -ldl -pthread / WINDOWS -lws2_32 on http.
+ */
+
+/* wave204: invoke_cc_append_heap_f06_ondemand pure orch lives in labi_invoke_cc_list
+ * (heap F-06 on-demand + page_mmap companions inside shux_invoke_cc_impl). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had heap F-06 always-mega after wave203 heavy_b.
+ * PLATFORM: SHARED orch (Ubuntu L4 cold needs page_mmap + asm_io_stubs with heap.o).
  */
 
 
@@ -3308,7 +3317,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
              * wave200: ensure-push front string→env pure; wave201 mid sync→hash pure;
              * wave202 heavy_a math…compress pure; wave203 heavy_b unicode…process_argv pure;
-             * heap F-06 + fork/exec still mega. */
+             * wave204 heap F-06 pure; fork/exec still mega. */
             int need_flags[52];
             invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
             /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
@@ -3328,75 +3337,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o,
                 task_o, schema_o, test_o, async_scheduler_o);
         }
-        /* F-06 v1：heap.o 按需链入。
-         * 【Why】① 已入链 std/*.o 的 U（nm）；② 用户生成 C 的真实引用（use_line）。
-         * 仅扫 argv 会漏：C 后端是「源码直链」，此时用户 .c 尚未成 .o，nm 不可见。
-         * link_only 后 tests/heap 仅有 extern std_heap_alloc_size_zero → 须②。 */
-        {
-            int need_heap_from_c = 0;
-            int cj;
-            if (link_abi_link_needs_std_heap_import(NULL, (const char **)argv, i))
-                need_heap_from_c = 1;
-            for (cj = 0; cj < n && !need_heap_from_c; cj++) {
-                const char *cp = c_paths[cj];
-                if (!cp)
-                    continue;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_size_zero") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_usize") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_default_alloc") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_kind_arena") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_heap_alloc") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_alloc_Allocator") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_realloc_Allocator") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_free_Allocator") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_arena64_alloc") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_map_find") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_heap_libc_heap_alloc"))
-                    need_heap_from_c = 1;
-            }
-            if (need_heap_from_c) {
-                int c_provides_core_mem = 0;
-                int c_provides_std_heap = 0;
-                for (cj = 0; cj < n; cj++) {
-                    if (link_abi_generated_c_provides_core_mem(c_paths[cj]))
-                        c_provides_core_mem = 1;
-                    if (link_abi_generated_c_provides_std_heap(c_paths[cj]))
-                        c_provides_std_heap = 1;
-                }
-                if (!c_provides_core_mem) {
-                    const char *mem_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, mem_o_ondemand);
-                }
-                if (!c_provides_std_heap) {
-                    const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o_ondemand);
-                }
-                /*
-                 * PLATFORM: SHARED / LINUX gold — heap.o (mod.x) imports page_mmap and
-                 * references std_heap_page_mmap_page_mmap_heap_{init,alloc,deinit,available,
-                 * free} unconditionally (freestanding bump-heap path). On Ubuntu L4 cold the
-                 * C backend pushes heap.o but NOT page_mmap.o, so the link fails with
-                 * 'undefined reference to std_heap_page_mmap_page_mmap_heap_*'. Symmetric with
-                 * the asm on-demand path (link_abi_user_o_needs_std_heap_page_mmap push of
-                 * labi_od_rel_page_mmap). Also ensure + push runtime_asm_io_stubs.o which
-                 * provides the weak shux_sys_mmap / shux_sys_munmap that page_mmap.o calls
-                 * (same authority as the need_net block below for #if defined(__linux__)).
-                 * Root fix 2026-07-19: backtrace L4 cold was red on Ubuntu only because the
-                 * C backend heap chain missed page_mmap + asm_io_stubs companions.
-                 */
-                {
-                    const char *pm_o = shux_rel_o_path_from_argv0(include_root, labi_od_rel_page_mmap());
-                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap, pm_o)) {
-                        (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
-                        {
-                            const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
-                            if (ris && ris[0])
-                                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
-                        }
-                    }
-                }
-            }
-        }
+        /* wave204 pure: heap F-06 on-demand (nm argv + use_line + provides + page_mmap companions). */
+        invoke_cc_append_heap_f06_ondemand(argv, &i, argv_cap, c_paths, n, include_root);
 #if defined(__linux__) || defined(__APPLE__)
         /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
         if ((asm_link_obj_skip_missing(thread_o) || asm_link_obj_skip_missing(sync_o) ||
