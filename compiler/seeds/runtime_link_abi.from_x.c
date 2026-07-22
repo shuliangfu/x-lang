@@ -2173,6 +2173,10 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
     const char *process_o, const char *string_o, const char *heap_o, const char *path_o,
     const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o,
     const char *time_o, const char *random_o, const char *env_o);
+void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o,
+    const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2199,6 +2203,13 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push front always-mega after wave199 flags bank.
  * PLATFORM: SHARED orch / LINUX -pthread+asm_io_stubs / WINDOWS -lws2_32 -lbcrypt.
+ */
+
+/* wave201: invoke_cc_append_std_ensure_push_mid pure orch lives in labi_invoke_cc_list
+ * (ensure-push mid sync→hash inside shux_invoke_cc_impl). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had ensure-push mid always-mega after wave200 front.
+ * PLATFORM: SHARED orch / LINUX -rdynamic -ldl / APPLE -export_dynamic / WINDOWS -ldbghelp.
  */
 
 
@@ -3268,7 +3279,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * 30 dynlib 31 http 32 tar 33 simd 34 context 35 error 36 datetime 37 uuid
              * 38 url 39 cli 40 security 41 config 42 cache 43 trace 44 task 45 schema
              * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
-             * wave200: ensure-push front string→env pure; tail sync… + fork/exec still mega. */
+             * wave200: ensure-push front string→env pure; wave201 mid sync→hash pure;
+             * heavy tail math…process_argv + heap F-06 + fork/exec still mega. */
             int need_flags[52];
             invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
             /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
@@ -3276,15 +3288,9 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             invoke_cc_append_std_ensure_push_front(argv, &i, argv_cap, need_flags, 52, include_root,
                 process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o,
                 net_o, thread_o, time_o, random_o, env_o);
-            int need_sync = need_flags[10];
-            int need_encoding = need_flags[11];
-            int need_base64 = need_flags[12];
-            int need_crypto = need_flags[13];
-            int need_log = need_flags[14];
-            int need_atomic = need_flags[15];
-            int need_channel = need_flags[16];
-            int need_backtrace = need_flags[17];
-            int need_hash = need_flags[18];
+            /* wave201 pure: sync/encoding/base64/crypto/log/atomic/channel/backtrace/hash. */
+            invoke_cc_append_std_ensure_push_mid(argv, &i, argv_cap, need_flags, 52, include_root,
+                sync_o, encoding_o, base64_o, crypto_o, atomic_o, channel_o, backtrace_o, hash_o);
             int need_math = need_flags[19];
             int need_sort = need_flags[20];
             int need_vec = need_flags[21];
@@ -3318,95 +3324,6 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             int need_map = need_flags[49];
             int need_queue = need_flags[50];
             int jscan;
-            /* PLATFORM: SHARED — cold tree often lacks runtime_sync_*.o; push_existing alone
-             * is a silent no-op when missing → U sync_mutex_*_c from sync.o (mac bstrict).
-             * Authority: ensure (same as process_argv / net glue) then push. */
-            if (need_sync && invoke_cc_argv_push_existing(argv, &i, argv_cap, sync_o)) {
-                (void)shux_ensure_runtime_sync_lock_diag_tls_o(NULL);
-                {
-                    const char *rsld = shux_runtime_sync_lock_diag_tls_o_path(NULL);
-                    if (rsld && rsld[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsld);
-                }
-                (void)shux_ensure_runtime_sync_os_o(NULL);
-                {
-                    const char *rso = shux_runtime_sync_os_o_path(NULL);
-                    if (rso && rso[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rso);
-                }
-            }
-            if (need_encoding)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, encoding_o);
-            if (need_base64)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, base64_o);
-            if (need_crypto) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, crypto_o);
-                (void)shux_ensure_runtime_ed25519_ref10_glue_o(NULL);
-                {
-                    const char *red = shux_runtime_ed25519_ref10_glue_o_path(NULL);
-                    if (red && red[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, red);
-                }
-                (void)shux_ensure_runtime_crypto_inc_glue_o(NULL);
-                {
-                    const char *rci = shux_runtime_crypto_inc_glue_o_path(NULL);
-                    if (rci && rci[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rci);
-                }
-            }
-            if (need_log && invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_log_o()))) {
-                (void)shux_ensure_runtime_log_os_o(NULL);
-                {
-                    const char *rlo = shux_runtime_log_os_o_path(NULL);
-                    if (rlo && rlo[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rlo);
-                }
-            }
-            /* PLATFORM: SHARED — mac cold bstrict: U atomic_*_c from atomic.o when
-             * runtime_atomic_glue.o missing; ensure then push (same as channel/sync). */
-            if (need_atomic && invoke_cc_argv_push_existing(argv, &i, argv_cap, atomic_o)) {
-                (void)shux_ensure_runtime_atomic_glue_o(NULL);
-                {
-                    const char *rag = shux_runtime_atomic_glue_o_path(NULL);
-                    if (rag && rag[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rag);
-                }
-            }
-            if (need_channel) {
-                /* marker channel.o 可选；API 由 co-emit mod.x，实现由 runtime_channel_glue.o */
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, channel_o);
-                (void)shux_ensure_runtime_channel_glue_o(NULL);
-                {
-                    const char *rcg = shux_runtime_channel_glue_o_path(NULL);
-                    if (rcg && rcg[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rcg);
-                }
-            }
-            if (need_backtrace) {
-                /* marker backtrace.o 可选；API 由 co-emit mod.x，平台由 runtime_backtrace_platform.o */
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, backtrace_o);
-                (void)shux_ensure_runtime_backtrace_platform_o(NULL);
-                {
-                    const char *rbp = shux_runtime_backtrace_platform_o_path(NULL);
-                    if (rbp && rbp[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rbp);
-                }
-#if defined(__linux__)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-rdynamic";
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-ldl";
-#elif defined(__APPLE__)
-                if (i < argv_cap - 2)
-                    argv[i++] = (char *)"-Wl,-export_dynamic";
-#elif defined(_WIN32) || defined(_WIN64)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-ldbghelp";
-#endif
-            }
-            if (need_hash)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
             /* PLATFORM: SHARED — L4 wipe removes formal math.o; ensure before push.
              * math_o is resolved at invoke entry via shux_rel_o_path_from_argv0; when the
              * file is missing that returns "" and stays empty for the whole invoke.

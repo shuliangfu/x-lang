@@ -11,8 +11,10 @@
 //   - invoke_cc_append_early_needs (wave198; pure orch early needs scan+push)
 //   - invoke_cc_scan_std_module_needs (wave199; pure table scan std need flags)
 //   - invoke_cc_append_std_ensure_push_front (wave200; pure ensure-push front string→env)
+//   - invoke_cc_append_std_ensure_push_mid (wave201; pure ensure-push mid sync→hash)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
-//   contains_substr(_use_line) peers for scan; ensure-push tail (sync…) + fork/exec still mega.
+//   contains_substr(_use_line) peers for scan; ensure-push heavy tail (math…process_argv
+//   complement) + heap F-06 + fork/exec still mega.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -62,6 +64,24 @@ export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
 export extern "C" function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
 export extern "C" function shux_ensure_runtime_env_os_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_env_os_o_path(argv0: *u8): *u8;
+
+/* ===== wave201 Cap residual / peer pure for ensure-push mid (sync→hash) ===== */
+export extern "C" function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_sync_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_log_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_log_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_channel_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -2061,6 +2081,228 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
           let _peo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
         }
       }
+    }
+  }
+}
+
+/**
+ * invoke_cc ensure-push mid: sync → encoding → base64 → crypto → log → atomic →
+ * channel → backtrace → hash (contiguous after front; preserves link argv order).
+ * Composes Cap residual ensure/path/push peers + pure labi_icc_argv_try_push_flag +
+ * labi_icc_rel_log_o. Does not mutate need_flags (unlike front net→thread).
+ * @param argv **u8 — cc argv table; null → no-op
+ * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op
+ * @param argv_cap i32 — argv capacity (leave room for NULL terminator later)
+ * @param need_flags *i32 — flags bank from invoke_cc_scan_std_module_needs; null → no-op
+ * @param flags_cap i32 — must be >= 52
+ * @param include_root *u8 — repo root for log.o rel path (nullable)
+ * @param sync_o *u8 — product sync.o path (nullable)
+ * @param encoding_o *u8 — product encoding.o path (nullable)
+ * @param base64_o *u8 — product base64.o path (nullable)
+ * @param crypto_o *u8 — product crypto.o path (nullable)
+ * @param atomic_o *u8 — product atomic.o path (nullable)
+ * @param channel_o *u8 — product channel.o path (nullable; marker optional)
+ * @param backtrace_o *u8 — product backtrace.o path (nullable; marker optional)
+ * @param hash_o *u8 — product hash.o path (nullable)
+ * @return void — appends .o paths and platform ld flags; mutates *ia
+ * Pure orch: ≡ mega ensure-push mid inside shux_invoke_cc_impl (after front).
+ * Cap residual: ensure_runtime_sync_* / crypto glues / log_os / atomic / channel /
+ *   backtrace_platform + push_existing resolve pool.
+ * Why (wave201): hybrid still had ensure-push mid always-mega after wave200 front.
+ * Heavy tail residual (math…process_argv complement) + heap F-06 + fork/exec remain mega.
+ * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_front.
+ * PLATFORM: SHARED orch / LINUX -rdynamic -ldl on backtrace / APPLE -export_dynamic /
+ *   WINDOWS -ldbghelp on backtrace.
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_cap: i32, need_flags: *i32, flags_cap: i32, include_root: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+  if (need_flags == 0 as *i32) {
+    return;
+  }
+  if (flags_cap < 52) {
+    return;
+  }
+  let need_sync: i32 = need_flags[10];
+  let need_encoding: i32 = need_flags[11];
+  let need_base64: i32 = need_flags[12];
+  let need_crypto: i32 = need_flags[13];
+  let need_log: i32 = need_flags[14];
+  let need_atomic: i32 = need_flags[15];
+  let need_channel: i32 = need_flags[16];
+  let need_backtrace: i32 = need_flags[17];
+  let need_hash: i32 = need_flags[18];
+
+  // PLATFORM: SHARED — cold tree may lack runtime_sync_*.o; ensure then push (not push-only).
+  if (need_sync != 0) {
+    let ps: i32 = 0;
+    unsafe {
+      ps = invoke_cc_argv_push_existing(argv, ia, argv_cap, sync_o);
+    }
+    if (ps != 0) {
+      unsafe {
+        let _esld: i32 = shux_ensure_runtime_sync_lock_diag_tls_o(0 as *u8);
+        let rsld: *u8 = shux_runtime_sync_lock_diag_tls_o_path(0 as *u8);
+        if (rsld != 0 as *u8) {
+          if (rsld[0] != 0) {
+            let _psld: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rsld);
+          }
+        }
+        let _eso: i32 = shux_ensure_runtime_sync_os_o(0 as *u8);
+        let rso: *u8 = shux_runtime_sync_os_o_path(0 as *u8);
+        if (rso != 0 as *u8) {
+          if (rso[0] != 0) {
+            let _pso: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rso);
+          }
+        }
+      }
+    }
+  }
+
+  if (need_encoding != 0) {
+    unsafe {
+      let _penc: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, encoding_o);
+    }
+  }
+  if (need_base64 != 0) {
+    unsafe {
+      let _pb64: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, base64_o);
+    }
+  }
+
+  if (need_crypto != 0) {
+    unsafe {
+      let _pc: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, crypto_o);
+      let _eed: i32 = shux_ensure_runtime_ed25519_ref10_glue_o(0 as *u8);
+      let red: *u8 = shux_runtime_ed25519_ref10_glue_o_path(0 as *u8);
+      if (red != 0 as *u8) {
+        if (red[0] != 0) {
+          let _ped: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, red);
+        }
+      }
+      let _eci: i32 = shux_ensure_runtime_crypto_inc_glue_o(0 as *u8);
+      let rci: *u8 = shux_runtime_crypto_inc_glue_o_path(0 as *u8);
+      if (rci != 0 as *u8) {
+        if (rci[0] != 0) {
+          let _pci: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rci);
+        }
+      }
+    }
+  }
+
+  // log.o via pure rel table + ensure log_os (same as mega: not pre-resolved log_o arg).
+  if (need_log != 0) {
+    let log_rel: *u8 = labi_icc_rel_log_o();
+    let log_path: *u8 = 0 as *u8;
+    unsafe {
+      log_path = shux_rel_o_path_from_argv0(include_root, log_rel);
+    }
+    let pl: i32 = 0;
+    unsafe {
+      pl = invoke_cc_argv_push_existing(argv, ia, argv_cap, log_path);
+    }
+    if (pl != 0) {
+      unsafe {
+        let _elo: i32 = shux_ensure_runtime_log_os_o(0 as *u8);
+        let rlo: *u8 = shux_runtime_log_os_o_path(0 as *u8);
+        if (rlo != 0 as *u8) {
+          if (rlo[0] != 0) {
+            let _plo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rlo);
+          }
+        }
+      }
+    }
+  }
+
+  // PLATFORM: SHARED — atomic_glue ensure before U atomic_*_c (mac cold bstrict).
+  if (need_atomic != 0) {
+    let pa: i32 = 0;
+    unsafe {
+      pa = invoke_cc_argv_push_existing(argv, ia, argv_cap, atomic_o);
+    }
+    if (pa != 0) {
+      unsafe {
+        let _eag: i32 = shux_ensure_runtime_atomic_glue_o(0 as *u8);
+        let rag: *u8 = shux_runtime_atomic_glue_o_path(0 as *u8);
+        if (rag != 0 as *u8) {
+          if (rag[0] != 0) {
+            let _pag: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rag);
+          }
+        }
+      }
+    }
+  }
+
+  // channel.o marker optional; API co-emit + runtime_channel_glue.o.
+  if (need_channel != 0) {
+    unsafe {
+      let _pch: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, channel_o);
+      let _ecg: i32 = shux_ensure_runtime_channel_glue_o(0 as *u8);
+      let rcg: *u8 = shux_runtime_channel_glue_o_path(0 as *u8);
+      if (rcg != 0 as *u8) {
+        if (rcg[0] != 0) {
+          let _pcg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rcg);
+        }
+      }
+    }
+  }
+
+  // backtrace marker optional; platform .o + host ld flags (rdynamic/export_dynamic/dbghelp).
+  if (need_backtrace != 0) {
+    unsafe {
+      let _pbt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, backtrace_o);
+      let _ebp: i32 = shux_ensure_runtime_backtrace_platform_o(0 as *u8);
+      let rbp: *u8 = shux_runtime_backtrace_platform_o_path(0 as *u8);
+      if (rbp != 0 as *u8) {
+        if (rbp[0] != 0) {
+          let _pbp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rbp);
+        }
+      }
+    }
+    let is_lin: i32 = 0;
+    unsafe {
+      is_lin = shux_host_is_linux();
+    }
+    if (is_lin != 0) {
+      let frd: *u8 = "-rdynamic";
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, frd);
+      let fdl: *u8 = "-ldl";
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, fdl);
+    } else {
+      let is_apple: i32 = 0;
+      unsafe {
+        is_apple = link_abi_host_is_apple();
+      }
+      if (is_apple != 0) {
+        let fex: *u8 = "-Wl,-export_dynamic";
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, fex);
+      } else {
+        let is_win: i32 = 0;
+        unsafe {
+          is_win = link_abi_host_is_windows();
+        }
+        if (is_win != 0) {
+          let fdbg: *u8 = "-ldbghelp";
+          labi_icc_argv_try_push_flag(argv, ia, argv_cap, fdbg);
+        }
+      }
+    }
+  }
+
+  if (need_hash != 0) {
+    unsafe {
+      let _ph: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, hash_o);
     }
   }
 }
