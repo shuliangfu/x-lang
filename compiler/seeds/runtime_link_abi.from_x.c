@@ -1877,8 +1877,14 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
  * (lives in labi_freestanding_list L7 pure / cold twin via #include above).
  * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
  * Why: hybrid still had always-mega C body for freestanding crt0 ensure over pure tables.
- * Cap residual: resolve/access/cc/stat. Sibling ensure_freestanding_io still mega.
+ * Cap residual: resolve/access/cc/stat. Sibling wave168 ensure_freestanding_io pure.
  * PLATFORM: SHARED orch / LINUX freestanding consumers. */
+
+/* wave168: shux_ensure_freestanding_io_o pure orch — body removed from mega
+ * (lives in labi_freestanding_list L7 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
+ * Why: hybrid still had always-mega C body for freestanding_io ensure over pure tables.
+ * Cap residual: resolve/access/cc/stat. Peer wave167 ensure_crt0. PLATFORM: SHARED orch. */
 
 /**
  * 若 runtime_asm_io_stubs.o 尚不存在则用 cc -c 从 seeds/runtime_asm_io_stubs.from_x.c 生成到 shux 同目录，
@@ -2504,48 +2510,12 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
  */
 int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 
-/**
- * 若 freestanding_io.o 尚不存在则从 freestanding_io_x86_64.s 编译（SHUX_FREESTANDING 链入 shux_sys_write）。
- * 参数：argv0；driver_freestanding 同 shux_link_freestanding_enabled。
- * 返回值：0 成功；未启用 freestanding 时 no-op 返回 0。
+/* wave168: shux_ensure_freestanding_io_o pure orch lives in labi_freestanding_list
+ * (peer freestanding_enabled + pure io tables + Cap residual resolve/access/cc/stat).
+ * Was always-mega body. Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED orch / LINUX freestanding consumers — dual-end L2.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-276：freestanding_io ensure paths from pure table */
-int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_s[PATH_MAX];
-    const char *out_base = labi_fs_io_out_base();
-    const char *src_rel = labi_fs_io_src_rel();
-    const char *stem = labi_fs_ensure_stem(1);
-    if (!shux_link_freestanding_enabled(driver_freestanding))
-        return 0;
-    if (asm_link_obj_skip_missing(shux_freestanding_io_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail(out_base ? out_base : "freestanding_io.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/%s", comp, out_base ? out_base : "freestanding_io.o") >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_s, sizeof src_s, "%s/%s", comp, src_rel ? src_rel : "src/asm/freestanding_io_x86_64.s") >= sizeof src_s
-        || access(src_s, R_OK) != 0) {
-        link_diag_runtime_source_missing(stem ? stem : "freestanding_io", src_s);
-        return -1;
-    }
-    {
-        int rc = shux_cc_compile_sync(src_s, out_o, NULL, NULL, NULL, 1);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status(out_base ? out_base : "freestanding_io.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_freestanding_io_o_path(argv0))) {
-        link_diag_runtime_obj_missing(out_base ? out_base : "freestanding_io.o", out_o);
-        return -1;
-    }
-    return 0;
-}
+int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 
 
 

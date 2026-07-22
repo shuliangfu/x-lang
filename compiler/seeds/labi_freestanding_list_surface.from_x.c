@@ -524,17 +524,19 @@ extern int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o);
 extern char * getenv(const char * name);
 extern int32_t shux_host_is_linux(void);
 extern int32_t shux_link_freestanding_enabled(int32_t driver_freestanding);
-/* wave167: ensure_crt0_user_o pure orch (surface pin; Cap residual resolve/access/cc/stat). */
+/* wave167/168: ensure_crt0 / ensure_freestanding_io pure orch (surface pin; Cap residual resolve/access/cc/stat). */
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shux_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_crt0_user_o_path(uint8_t * argv0);
+extern uint8_t * shux_freestanding_io_o_path(uint8_t * argv0);
 extern void link_diag_runtime_obj_resolve_fail(uint8_t * obj_name, uint8_t * hint);
 extern void link_diag_runtime_source_missing(uint8_t * obj_name, uint8_t * source_path);
 extern void link_diag_runtime_obj_build_status(uint8_t * obj_name, int32_t status);
 extern void link_diag_runtime_obj_missing(uint8_t * obj_name, uint8_t * out_o);
 extern int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding);
+extern int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding);
 uint8_t * labi_fs_env_freestanding(void) {
   uint8_t * p = ((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x52\x45\x45\x53\x54\x41\x4e\x44\x49\x4e\x47");
   return p;
@@ -1855,6 +1857,106 @@ int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding) {
     return -1;
   }
   (void)((o_path = shux_crt0_user_o_path(argv0)));
+  (void)((have = asm_link_obj_skip_missing(o_path)));
+  if ((have == 0)) {
+    (void)(link_diag_runtime_obj_missing(leaf_o, &((out_o)[0])));
+    return -1;
+  }
+  return 0;
+}
+/* wave168: ensure_freestanding_io_o pure orch (surface pin; Cap residual resolve/access/cc/stat). */
+int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding) {
+  uint8_t * out_base = labi_fs_io_out_base();
+  uint8_t * src_rel = labi_fs_io_src_rel();
+  uint8_t * stem = labi_fs_ensure_stem(1);
+  if ((shux_link_freestanding_enabled(driver_freestanding) == 0)) {
+    return 0;
+  }
+  uint8_t * o_path = ((uint8_t *)(0));
+  uint8_t * have = ((uint8_t *)(0));
+  (void)((o_path = shux_freestanding_io_o_path(argv0)));
+  (void)((have = asm_link_obj_skip_missing(o_path)));
+  if ((have != 0)) {
+    return 0;
+  }
+  uint8_t comp[4096];
+  int32_t rc = 0;
+  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  if ((rc != 0)) {
+    uint8_t * name = out_base;
+    if ((name == 0)) {
+      name = ((uint8_t *)"freestanding_io.o");
+    }
+    (void)(link_diag_runtime_obj_resolve_fail(name, ((uint8_t *)(0))));
+    return -1;
+  }
+  uint8_t * leaf_o = out_base;
+  if ((leaf_o == 0)) {
+    leaf_o = ((uint8_t *)"freestanding_io.o");
+  }
+  uint8_t * leaf_s = src_rel;
+  if ((leaf_s == 0)) {
+    leaf_s = ((uint8_t *)"src/asm/freestanding_io_x86_64.s");
+  }
+  int32_t dn = 0;
+  while (((comp)[dn] != 0)) {
+    (void)((dn = (dn + 1)));
+  }
+  int32_t ln_o = 0;
+  while (((leaf_o)[ln_o] != 0)) {
+    (void)((ln_o = (ln_o + 1)));
+  }
+  if ((((dn + 1) + ln_o) >= 4096)) {
+    return -1;
+  }
+  uint8_t out_o[4096];
+  int32_t i = 0;
+  while ((i < dn)) {
+    (void)(((out_o)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((out_o)[dn] = 47));
+  int32_t k = 0;
+  while ((k <= ln_o)) {
+    (void)(((out_o)[(dn + 1) + k] = (leaf_o)[k]));
+    (void)((k = (k + 1)));
+  }
+  int32_t ln_s = 0;
+  while (((leaf_s)[ln_s] != 0)) {
+    (void)((ln_s = (ln_s + 1)));
+  }
+  if ((((dn + 1) + ln_s) >= 4096)) {
+    return -1;
+  }
+  uint8_t src_s[4096];
+  (void)((i = 0));
+  while ((i < dn)) {
+    (void)(((src_s)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((src_s)[dn] = 47));
+  (void)((k = 0));
+  while ((k <= ln_s)) {
+    (void)(((src_s)[(dn + 1) + k] = (leaf_s)[k]));
+    (void)((k = (k + 1)));
+  }
+  int32_t readable = 0;
+  (void)((readable = link_abi_path_readable(&((src_s)[0]))));
+  if ((readable == 0)) {
+    uint8_t * st = stem;
+    if ((st == 0)) {
+      st = ((uint8_t *)"freestanding_io");
+    }
+    (void)(link_diag_runtime_source_missing(st, &((src_s)[0])));
+    return -1;
+  }
+  int32_t crc = 0;
+  (void)((crc = shux_cc_compile_sync(&((src_s)[0]), &((out_o)[0]), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), 1)));
+  if ((crc != 0)) {
+    (void)(link_diag_runtime_obj_build_status(leaf_o, crc));
+    return -1;
+  }
+  (void)((o_path = shux_freestanding_io_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have == 0)) {
     (void)(link_diag_runtime_obj_missing(leaf_o, &((out_o)[0])));
