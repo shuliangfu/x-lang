@@ -11,14 +11,16 @@
  *   ld_append_brew_lib_paths (wave152 pure orch; Cap residual link_abi_host_is_apple)
  *   asm_ld_append_compress_libs (wave153 pure orch; Cap residual needs+ensure+path)
  *   invoke_cc_append_compress_ld (wave154 pure orch; Cap residual needs+ensure+path
- *     + invoke_cc_argv_push_existing for glue realpath/skip/dedup)
+ *     + pure push_existing for glue realpath/skip/dedup)
  *   shux_asm_ld_append_mach_tail_libs_impl (wave156 pure orch; flags i32 layout
  *     + pure flag_* + peer compress orch + peer needs_compress)
  *   shux_asm_ld_append_unix_gcc_tail_libs_impl (wave157 pure orch; host_is_linux
  *     + host_is_apple for -ldl / else -lc gates)
  *   invoke_cc_append_net_tls_ld (wave158 pure orch; Cap residual exports_marker +
- *     realpath_cap + rel_o_path + push_existing + host_is_apple for brew -L)
- * Cap residual: host_is_apple; needs+ensure+path Cap; invoke_cc_argv_push_existing;
+ *     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
+ *   invoke_cc_argv_push_existing (wave179 pure orch; Cap residual resolve pool)
+ * Cap residual: host_is_apple; needs+ensure+path Cap;
+ *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
  *   ensure_std_net_o_auto_tls (system/make) stays mega Cap residual.
@@ -28,6 +30,7 @@
  * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+#include <string.h>
 /* ShuAsmLdStdLinkFlags for wave156/157 cold twin (standalone seed cc + mega include). */
 #include "runtime_link_abi.h"
 
@@ -40,12 +43,36 @@ int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
 int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
-int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
+/* Cap residual (wave179): skip_missing + realpath multi-slot pool. */
+const char *invoke_cc_argv_resolve_existing_path(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+
+/* wave179: pure orch invoke_cc_argv_push_existing (cold twin ≡ .x).
+ * Cap residual resolve + pure gates/dedup/append. PLATFORM: SHARED.
+ */
+int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path) {
+  const char *use;
+  int k;
+  int cur;
+  if (!argv || !ia || !path || !path[0])
+    return 0;
+  cur = *ia;
+  if (cur >= max_ia - 1)
+    return 0;
+  use = invoke_cc_argv_resolve_existing_path(path);
+  if (!use)
+    return 0;
+  for (k = 0; k < cur; k++) {
+    if (argv[k] && strcmp(argv[k], use) == 0)
+      return 0;
+  }
+  argv[(*ia)++] = (char *)use;
+  return 1;
+}
 
 int labi_ld_brew_lib_path_count(void) {
   return 2;
@@ -364,6 +391,7 @@ int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *
 }
 
 #else
+int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
 const char *labi_ld_flag_lz(void);

@@ -52,6 +52,9 @@ int shu_waitpid_retry(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
+/* Cap residual (wave179): skip_missing + realpath multi-slot pool for pure push_existing. */
+const char *invoke_cc_argv_resolve_existing_path(const char *path);
+/* wave179: pure orch in L6 (cold twin include / hybrid FROM_X pure .x). */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding, int use_macho_o, int use_coff_o);
 /* G-02f-67 ensure impls */
@@ -2080,21 +2083,22 @@ void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 
 
 /**
- * invoke_cc 子进程：仅当 path 指向已存在的 .o 时追加到 argv（可选 realpath）。
- * 参数：见 runtime_link_abi.h。
- * 返回值：1 已追加，0 跳过。
+ * Cap residual (wave179): resolve path for invoke_cc argv push.
+ * skip_missing then (POSIX) realpath into multi-slot static pool so multiple
+ * pushes keep durable pointers (single static slot would overwrite earlier argv).
+ * Windows: skip realpath; return skip_missing path as-is.
+ * Pure orch invoke_cc_argv_push_existing owns gates / dedup / append.
+ * PLATFORM: SHARED resolve face / POSIX realpath pool / WINDOWS no realpath.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path) {
+const char *invoke_cc_argv_resolve_existing_path(const char *path) {
     static char abs_pool[INVOKE_CC_ABS_POOL_SZ][PATH_MAX];
     static int abs_pool_i;
     const char *use;
-    if (!path || !path[0] || !ia || *ia >= max_ia - 1)
-        return 0;
+    if (!path || !path[0])
+        return NULL;
     use = asm_link_obj_skip_missing(path);
-    if (!use) {
-        return 0;
-    }
+    if (!use)
+        return NULL;
 #if !defined(_WIN32) && !defined(_WIN64)
     {
         char *slot = abs_pool[abs_pool_i % INVOKE_CC_ABS_POOL_SZ];
@@ -2103,17 +2107,20 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
             use = slot;
     }
 #endif
-    /* needs_fs/needs_runtime 按需块与后续全量链入勿重复同一 .o（EXC-002 ld duplicate）。 */
-    {
-        int k;
-        for (k = 0; k < *ia; k++) {
-            if (argv[k] && strcmp(argv[k], use) == 0)
-                return 0;
-        }
-    }
-    argv[(*ia)++] = (char *)use;
-    return 1;
+    return use;
 }
+
+/**
+ * invoke_cc 子进程：仅当 path 指向已存在的 .o 时追加到 argv（可选 realpath）。
+ * wave179: pure orch in labi_invoke_ld_list.x (hybrid L6);
+ * mega cold twin under #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X (include above).
+ * Pure: gates + Cap residual resolve + pure cstr dedup + pure append.
+ * Cap residual: invoke_cc_argv_resolve_existing_path (skip + multi-slot pool).
+ * Why: hybrid still had always-mega C body for push_existing.
+ * PLATFORM: SHARED.
+ */
+/* Body: cold twin via #include labi_invoke_ld_list.from_x.c; hybrid L6 pure .x. */
+int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 
 
 
@@ -2268,12 +2275,13 @@ const char *labi_ld_common_tail_flag_at(int i);
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
-/* wave156/157/158: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
+/* wave156/157/158/179: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
 void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem);
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
+int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 #endif
 
 /**
@@ -2326,10 +2334,10 @@ int link_abi_host_is_posix_aarch64(void) {
  * PLATFORM: SHARED. */
 
 /* wave154: invoke_cc_append_compress_ld pure orch lives in labi_invoke_ld_list
- * (needs + ensure + path Cap + Cap residual invoke_cc_argv_push_existing for glue).
+ * (needs + ensure + path Cap + pure push_existing / Cap residual resolve for glue).
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for invoke_cc compress.
- * Cap residual stays: invoke_cc_argv_push_existing (realpath/skip/dedup).
+ * Cap residual stays: invoke_cc_argv_resolve_existing_path (skip+realpath pool; wave179).
  * PLATFORM: SHARED. */
 
 /* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch lives in labi_invoke_ld_list

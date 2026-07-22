@@ -7,8 +7,9 @@
  *   + wave154 invoke_cc_append_compress_ld pure orch
  *   + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch
  *   + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch
- *   + wave158 invoke_cc_append_net_tls_ld pure orch)
- * Cap residual: host_is_apple; needs + ensure + path; push_existing;
+ *   + wave158 invoke_cc_append_net_tls_ld pure orch
+ *   + wave179 invoke_cc_argv_push_existing pure orch)
+ * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path pool;
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - pure contract; Ubuntu gold + mac prove.
@@ -24,10 +25,62 @@ extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
 extern int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o);
 extern int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
 extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
-extern int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path);
+extern uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
+/* wave179: pure orch invoke_cc_argv_push_existing (surface ≡ .x -E). */
+int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path) {
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return 0;
+  }
+  if ((ia ==0)) {
+    return 0;
+  }
+  if ((path ==0)) {
+    return 0;
+  }
+  if (((path)[0] ==0)) {
+    return 0;
+  }
+  int32_t cur = (ia)[0];
+  if ((cur >=(max_ia - 1))) {
+    return 0;
+  }
+  uint8_t * use = 0;
+  (void)((use = invoke_cc_argv_resolve_existing_path(path)));
+  if ((use ==0)) {
+    return 0;
+  }
+  int32_t k = 0;
+  while ((k < cur)) {
+    uint8_t * exist = (argv)[k];
+    if ((exist !=0)) {
+      int32_t eq = 1;
+      int32_t i0 = 0;
+      while ((i0 < 1048576)) {
+        uint8_t ca = (exist)[i0];
+        uint8_t cb = (use)[i0];
+        if ((ca !=cb)) {
+          (void)((eq = 0));
+          break;
+        }
+        if ((ca ==0)) {
+          break;
+        }
+        (void)((i0 = (i0 + 1)));
+      }
+      if ((eq !=0)) {
+        return 0;
+      }
+    }
+    (void)((k = (k + 1)));
+  }
+  (void)(((argv)[cur] = use));
+  (void)(((ia)[0] = (cur + 1)));
+  return 1;
+}
 int32_t labi_ld_brew_lib_path_count(void) {
   return 2;
 }

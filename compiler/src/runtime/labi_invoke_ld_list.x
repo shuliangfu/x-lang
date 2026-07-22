@@ -7,20 +7,22 @@
 //
 // R2 full: .x owns brew/compress/tail/driver/entry pure tables + wave152 brew orch
 // + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch
-// + wave156 mach tail_libs_impl pure orch + wave157 unix gcc tail + wave158 net_tls:
+// + wave156 mach tail_libs_impl pure orch + wave157 unix gcc tail + wave158 net_tls
+// + wave179 invoke_cc_argv_push_existing pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
 //   - invoke_cc_append_compress_ld (wave154; pure orch; Cap residual needs+ensure+path
-//     + invoke_cc_argv_push_existing for glue realpath/skip/dedup)
+//     + pure push_existing for glue realpath/skip/dedup)
 //   - shux_asm_ld_append_mach_tail_libs_impl (wave156; pure orch over flags i32 layout
 //     + pure flag_* + peer compress orch + peer needs_compress)
 //   - shux_asm_ld_append_unix_gcc_tail_libs_impl (wave157; pure orch; peer host_is_linux
 //     + host_is_apple for -ldl / else -lc gates)
 //   - invoke_cc_append_net_tls_ld (wave158; pure orch; Cap residual exports_marker +
-//     realpath_cap + rel_o_path + push_existing + host_is_apple for brew -L)
+//     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
+//   - invoke_cc_argv_push_existing (wave179; pure gates/dedup/append; Cap residual resolve pool)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
-//   ensure/path for zlib glue; invoke_cc_argv_push_existing (realpath/skip/dedup);
+//   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
 //   ensure_std_net_o_auto_tls (system/make) stays mega Cap residual.
@@ -46,10 +48,10 @@ export extern "C" function link_abi_user_o_needs_compress_libs(user_o: *u8): i32
 export extern "C" function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
 
-// Cap residual (wave154): push path onto cc argv with skip-missing / realpath / dedup.
-// Used by invoke_cc compress glue append (asm path appends path bytes directly).
-// Also wave158 net_tls: push std/net/tls_*.o before -lssl/-lmbedtls when marker hits.
-export extern "C" function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, path: *u8): i32;
+// Cap residual (wave179): skip_missing + POSIX realpath multi-slot pool → durable path ptr.
+// Pure push_existing owns gates / strcmp dedup / argv append; pool stays mega (static slots).
+// PLATFORM: SHARED resolve face; Windows skips realpath (returns skip_missing path).
+export extern "C" function invoke_cc_argv_resolve_existing_path(path: *u8): *u8;
 
 // Cap residual (wave158): nm/marker probe for TLS backend objects (openssl/mbedtls).
 export extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
@@ -59,6 +61,83 @@ export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 
 // Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
 export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+
+/**
+ * Push an existing .o path onto invoke_cc argv when the file is present.
+ * Pure orch: null/capacity gates + Cap residual resolve (skip_missing + realpath pool)
+ * + pure cstr-eq dedup over argv[0..*ia) + pure append of the durable path pointer.
+ * @param argv **u8 — cc linker argv table (char**); null → 0
+ * @param ia *i32 — in/out argv length; null → 0
+ * @param max_ia i32 — argv capacity; need *ia < max_ia - 1 (room for NUL terminator)
+ * @param path *u8 — candidate .o path; null/empty → 0
+ * @return i32 — 1 if appended, 0 if skipped (missing / capacity / duplicate)
+ * Cap residual: invoke_cc_argv_resolve_existing_path only (skip + multi-slot realpath pool).
+ * Why (wave179): hybrid still had always-mega C body for push_existing (pool + dedup + append).
+ * Dedup matches mega strcmp on the resolved-or-original use pointer (EXC-002 ld duplicate).
+ * Note: null-check argv via cast to *u8 (do not write argv == 0 as **u8).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED — hybrid L6 pure; mega cold twin under #ifndef INVOKE_LD_LIST_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, path: *u8): i32 {
+  // Guard argv null via *u8 cast (wave147/151–158: avoid **u8 null compare codegen drop).
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return 0;
+  }
+  if (ia == 0 as *i32) {
+    return 0;
+  }
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (path[0] == 0) {
+    return 0;
+  }
+  // Capacity: leave one slot for argv NULL terminator (≡ mega *ia >= max_ia - 1).
+  let cur: i32 = ia[0];
+  if (cur >= max_ia - 1) {
+    return 0;
+  }
+  // Cap residual: skip missing + realpath into multi-slot pool (durable ptr for argv).
+  let use: *u8 = 0 as *u8;
+  unsafe {
+    use = invoke_cc_argv_resolve_existing_path(path);
+  }
+  if (use == 0 as *u8) {
+    return 0;
+  }
+  // Pure dedup: skip if any argv[k] is cstr-equal to use (≡ mega strcmp).
+  let k: i32 = 0;
+  while (k < cur) {
+    let exist: *u8 = argv[k];
+    if (exist != 0 as *u8) {
+      let eq: i32 = 1;
+      let i0: i32 = 0;
+      while (i0 < 1048576) {
+        let ca: u8 = exist[i0];
+        let cb: u8 = use[i0];
+        if (ca != cb) {
+          eq = 0;
+          break;
+        }
+        if (ca == 0) {
+          break;
+        }
+        i0 = i0 + 1;
+      }
+      if (eq != 0) {
+        return 0;
+      }
+    }
+    k = k + 1;
+  }
+  // Append durable path pointer (no copy; pool / skip path lifetime covers spawn).
+  argv[cur] = use;
+  ia[0] = cur + 1;
+  return 1;
+}
 
 /**
  * Homebrew /usr/local -L path table size (fixed catalog).
@@ -774,8 +853,8 @@ export function asm_ld_append_compress_libs(compress_o: *u8, user_o: *u8, argv: 
  * @param compress_o *u8 — path to std/compress .o (nullable/empty → ignored by needs_*)
  * @param user_o *u8 — path to user main .o (nullable/empty → ignored by needs_*)
  * @return void — appends only when a needs_* hits and capacity remains
- * Pure orch: needs_* Cap/peer + brew pure + flag pure + ensure/path Cap + push_existing Cap.
- * Cap residual: invoke_cc_argv_push_existing (realpath/skip/dedup pool); ensure + path for glue;
+ * Pure orch: needs_* Cap/peer + brew pure + flag pure + ensure/path Cap + pure push_existing.
+ * Cap residual: push_existing resolve pool (wave179 Cap); ensure + path for glue;
  *   needs_* Cap (marker/has_undef) live under ondemand hybrid pure.
  * Why (wave154): hybrid still had always-mega C body for invoke_cc compress -l* append.
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -814,7 +893,7 @@ export function invoke_cc_append_compress_ld(argv: **u8, i: *i32, argv_cap: i32,
     }
   }
   if (need_z != 0) {
-    // brew -L then -lz; ensure zlib glue .o and push via Cap residual push_existing.
+    // brew -L then -lz; ensure zlib glue .o and push via pure push_existing (wave179).
     ld_append_brew_lib_paths(argv, i, argv_cap);
     let cur: i32 = i[0];
     if (cur < argv_cap - 1) {
@@ -830,10 +909,8 @@ export function invoke_cc_append_compress_ld(argv: **u8, i: *i32, argv_cap: i32,
     unsafe {
       glue = shux_runtime_compress_zlib_glue_o_path(0 as *u8);
     }
-    // Cap residual: skip-missing / realpath / dedup (asm path stores path bytes directly).
-    unsafe {
-      let _p: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, glue);
-    }
+    // Pure peer wave179: skip-missing / realpath / dedup (asm path stores path bytes directly).
+    let _p: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, glue);
   }
   if (need_zs != 0) {
     ld_append_brew_lib_paths(argv, i, argv_cap);
@@ -1235,10 +1312,8 @@ export function invoke_cc_append_net_tls_ld(argv: **u8, i: *i32, argv_cap: i32, 
         hit2 = link_abi_obj_exports_marker(use2, mk_ssl);
       }
       if (hit2 != 0) {
-        // Cap residual: skip-missing / realpath / dedup for the .o path itself.
-        unsafe {
-          let _p: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_ssl);
-        }
+        // Pure peer wave179: skip-missing / realpath / dedup for the .o path itself.
+        let _p: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_ssl);
         labi_append_openssl_ld_flags(argv, i, argv_cap);
         return 1;
       }
@@ -1265,9 +1340,8 @@ export function invoke_cc_append_net_tls_ld(argv: **u8, i: *i32, argv_cap: i32, 
         hit3 = link_abi_obj_exports_marker(use3, mk_mb);
       }
       if (hit3 != 0) {
-        unsafe {
-          let _p2: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_mb);
-        }
+        // Pure peer wave179: skip-missing / realpath / dedup for the .o path itself.
+        let _p2: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_mb);
         labi_append_mbedtls_ld_flags(argv, i, argv_cap);
         return 1;
       }

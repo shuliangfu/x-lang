@@ -566,6 +566,9 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
  * 参数：argv/ia/max_ia 为 cc 链接 argv 构建状态；path 候选 .o。
  * 返回值：1 已追加，0 跳过。
  */
+/* Cap residual (wave179): skip_missing + realpath multi-slot pool for pure push_existing. */
+const char *invoke_cc_argv_resolve_existing_path(const char *path);
+/* wave179 pure orch (L6); Cap residual resolve above. */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 
 /**
