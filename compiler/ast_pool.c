@@ -6359,8 +6359,11 @@ void pipeline_bind_import_dep_buffers(struct ast_PipelineDepCtx *ctx, int32_t im
 /**
  * 若 global_slot 或 import_idx 已由 driver seed，绑定 arena/module 槽并返回 1；未 seed 返回 0。
  * C glue：X 侧 (struct ast_ASTArena *)driver_dep_arena_buf 指针 cast 在 M8 asm 真 emit 时易 SIGSEGV。
+ * wave93: product pure owns pipeline_try_bind_seeded_import (runtime_pipeline_abi.x).
+ * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure.
  */
-int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx *ctx, int32_t import_idx, int32_t global_slot) {
+SHUX_WEAK int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx *ctx, int32_t import_idx, int32_t global_slot) {
   if (!ctx || import_idx < 0)
     return 0;
   if (global_slot >= 0 && driver_dep_seeded_get(global_slot) != 0) {
@@ -6667,8 +6670,10 @@ extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry, struct
  *
  * Historical bug: zero whenever ndep != n_imp destroyed healthy closures.
  * PLATFORM: SHARED — Cap force hello pure static -o + run-net closure.
+ * wave93: product pure owns pipeline_dep_ctx_realign_ndep_for_entry_c
+ * (runtime_pipeline_abi.x). Keep SHUX_WEAK cold twin for non-PREFER links.
  */
-void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
+SHUX_WEAK void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   int32_t n_imp;
   int32_t ndep;
 
@@ -6734,8 +6739,12 @@ int32_t pipeline_load_one_import_slot_c(struct ast_Module *module, struct ast_AS
 /**
  * run_x_pipeline_impl EMIT_HEAVY：同模块 pipeline_load_and_sync X CALL 在 let/assign asm emit 失败；
  * C 复刻 pipeline.x::pipeline_load_and_sync_direct_import_deps 逻辑。
+ * wave93: product pure owns pipeline_load_and_sync_direct_import_deps_c
+ * (runtime_pipeline_abi.x orch → pure try_bind/realign + Cap residual disk/sync/merge).
+ * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure; cold keeps full C body.
  */
-int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
+SHUX_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     struct ast_PipelineDepCtx *ctx) {
   int32_t n_imports;
   int32_t i;

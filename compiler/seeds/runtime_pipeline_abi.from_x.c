@@ -111,6 +111,8 @@
  * wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue SHUX_WEAK cold).
  *   Closes Cap residual set_dep_ctx leaf; ast_pool enum fallback via get_dep_ctx.
  * wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
+ * wave93: pure load_and_sync_direct_import_deps_c orch + try_bind + realign
+ *   (ast_pool SHUX_WEAK cold; Cap residual disk load / sync / typeck merge+wpo).
  *   Closes Cap residual layout validate+patch helpers under pure dep-prerun light fallback.
  * Cap residual still: load_and_sync_direct_import_deps_c; cfg_eval complex #if;
  *   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
