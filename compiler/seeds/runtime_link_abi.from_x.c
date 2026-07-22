@@ -5758,6 +5758,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave123: needs_core_mem pure orch lives in labi_ondemand_list (core_mem sym table + orch).
  * wave124: needs_core_slice pure orch lives in labi_ondemand_list (core_slice sym table + orch).
  * wave125: needs_std_heap_page_mmap pure orch lives in labi_ondemand_list (page_mmap sym table + orch).
+ * wave126: needs_std_sys_linux pure orch lives in labi_ondemand_list (sys_linux sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -6196,42 +6197,11 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
  */
 
 /**
- * F-no-libc：判断 user_o 是否引用 std.sys.linux API（Linux freestanding syscall 薄封装）。
+ * wave126: needs_std_sys_linux pure orch lives in labi_ondemand_list
+ * (labi_od_sys_linux_sym_* product table + pure scan; not here).
+ * Exact symbols only (no prefix probes).
+ * F-no-libc: freestanding Linux syscall thin wrappers; product linux.o gate.
  */
-int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
-  if ((user_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((user_o)[0] ==0)) {
-      return 0;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_invoke_available") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_anonymous_mmap") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_munmap") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_read") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_write") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_close") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_exit") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
 
 /**
  * F-no-libc：判断 user_o 是否引用 std.sys 门面 API（write_stdout/read/close/exit 等）。
@@ -7295,7 +7265,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–125 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap pure orch (L8b pure .x / cold seed). */
+/* wave118–126 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7320,6 +7290,9 @@ int link_abi_user_o_needs_core_slice(const char *user_o);
 int labi_od_page_mmap_sym_count(void);
 const char *labi_od_page_mmap_sym_at(int i);
 int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o);
+int labi_od_sys_linux_sym_count(void);
+const char *labi_od_sys_linux_sym_at(int i);
+int link_abi_user_o_needs_std_sys_linux(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
