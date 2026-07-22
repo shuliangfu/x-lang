@@ -13,9 +13,9 @@
 //   - invoke_cc_append_std_ensure_push_front (wave200; pure ensure-push front string→env)
 //   - invoke_cc_append_std_ensure_push_mid (wave201; pure ensure-push mid sync→hash)
 //   - invoke_cc_append_std_ensure_push_heavy_a (wave202; pure ensure-push heavy_a math…compress)
+//   - invoke_cc_append_std_ensure_push_heavy_b (wave203; pure ensure-push heavy_b unicode…process_argv)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
-//   contains_substr(_use_line) peers for scan; ensure-push heavy_b (unicode…process_argv
-//   complement) + heap F-06 + fork/exec still mega.
+//   contains_substr(_use_line) peers for scan; heap F-06 + fork/exec still mega.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -98,6 +98,21 @@ export extern "C" function link_abi_generated_c_needs_zstd(c_path: *u8): i32;
 export extern "C" function link_abi_generated_c_needs_brotli(c_path: *u8): i32;
 export extern "C" function invoke_cc_append_compress_ld(argv: **u8, ia: *i32, argv_cap: i32, compress_o: *u8, user_o: *u8): void;
 export extern "C" function ld_append_brew_lib_paths(argv: **u8, la: *i32, max_la: i32): void;
+
+/* ===== wave203 Cap residual / peer pure for ensure-push heavy_b (unicode…process_argv) ===== */
+export extern "C" function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_http_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_http_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_std_async_scheduler_o_path(argv0: *u8): *u8;
+export extern "C" function shux_generated_c_needs_async_scheduler(c_path: *u8): i32;
+export extern "C" function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8): *u8;
+export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -2348,7 +2363,7 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
  * Pure orch: ≡ mega ensure-push heavy slice math…compress inside shux_invoke_cc_impl.
  * Cap residual: formal_std_make / math_libm / sqlite / compress_ld / brew paths / provides_*.
  * Why (wave202): hybrid still had ensure-push heavy always-mega after wave201 mid.
- * Residual heavy_b (unicode…process_argv complement) + heap F-06 + fork/exec remain mega.
+ * Residual heavy_b (unicode…process_argv) pure @ wave203; heap F-06 + fork/exec remain mega.
  * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_mid.
  * PLATFORM: SHARED orch; brew -L is mac-oriented peer (ld_append_brew_lib_paths).
  * Track-L: #[no_mangle] surface short name for mega call sites.
@@ -2800,6 +2815,426 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, fbe);
         let fbd: *u8 = "-lbrotlidec";
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, fbd);
+      }
+    }
+  }
+}
+
+/**
+ * invoke_cc ensure-push heavy_b: unicode → dynlib → http → socketio → tar → simd →
+ * context → error → datetime → uuid → url → cli → security → config → cache →
+ * trace → task/schema/test → async scheduler → process_argv complement.
+ * Composes Cap residual ensure/path/push peers + co-emit unicode body scan +
+ * post-push process_argv UNDEF scan. Local need_error may rise when http pushes.
+ * @param argv **u8 — cc argv table; null → no-op
+ * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op
+ * @param argv_cap i32 — argv capacity (leave room for NULL terminator later)
+ * @param need_flags *i32 — flags bank from invoke_cc_scan_std_module_needs; null → no-op
+ * @param flags_cap i32 — must be >= 52
+ * @param include_root *u8 — repo root for rel socketio/error + async_scheduler (nullable)
+ * @param c_paths **u8 — generated C paths for unicode co-emit / async scan (nullable if n<=0)
+ * @param n i32 — count of c_paths entries
+ * @param unicode_o *u8 — product unicode.o path (nullable; skipped when co-emit body present)
+ * @param dynlib_o *u8 — product dynlib.o path (nullable; + dynlib_os + LINUX -ldl)
+ * @param http_o *u8 — product http.o path (nullable; + http_glue + WINDOWS -lws2_32; sets need_error)
+ * @param tar_o *u8 — product tar.o path (nullable)
+ * @param simd_o *u8 — product simd.o path (nullable)
+ * @param context_o *u8 — product context.o path (nullable)
+ * @param datetime_o *u8 — product datetime.o path (nullable)
+ * @param uuid_o *u8 — product uuid.o path (nullable)
+ * @param url_o *u8 — product url.o path (nullable)
+ * @param cli_o *u8 — product cli.o path (nullable)
+ * @param security_o *u8 — product security.o path (nullable)
+ * @param config_o *u8 — product config.o path (nullable)
+ * @param cache_o *u8 — product cache.o path (nullable)
+ * @param trace_o *u8 — product trace.o path (nullable)
+ * @param task_o *u8 — product task.o path (nullable; pulls scheduler + glue + LINUX -pthread)
+ * @param schema_o *u8 — product schema.o path (nullable)
+ * @param test_o *u8 — product test.o path (nullable; + test_fn_invoke glue)
+ * @param async_scheduler_o *u8 — explicit async_scheduler.o path (nullable; else scan C needs)
+ * @return void — appends .o paths and platform ld flags; mutates *ia only
+ * Pure orch: ≡ mega ensure-push heavy slice unicode…process_argv inside shux_invoke_cc_impl.
+ * Cap residual: dynlib_os / http_glue / test_fn_invoke / scheduler_glue / async path /
+ *   scheduler_o_for_task_link / link_obj_needs_undef_sym / process_argv ensure+path.
+ * Why (wave203): hybrid still had ensure-push heavy_b always-mega after wave202 heavy_a.
+ * Residual heap F-06 + fork/exec remain mega.
+ * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_a.
+ * PLATFORM: SHARED orch / LINUX -ldl -pthread / WINDOWS -lws2_32 on http.
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, argv_cap: i32, need_flags: *i32, flags_cap: i32, include_root: *u8, c_paths: **u8, n: i32, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, async_scheduler_o: *u8): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+  if (need_flags == 0 as *i32) {
+    return;
+  }
+  if (flags_cap < 52) {
+    return;
+  }
+  let need_unicode: i32 = need_flags[29];
+  let need_dynlib: i32 = need_flags[30];
+  let need_http: i32 = need_flags[31];
+  let need_tar: i32 = need_flags[32];
+  let need_simd: i32 = need_flags[33];
+  let need_context: i32 = need_flags[34];
+  // Local copy: http push may force error.o (mega does not write back to need_flags).
+  let need_error: i32 = need_flags[35];
+  let need_datetime: i32 = need_flags[36];
+  let need_uuid: i32 = need_flags[37];
+  let need_url: i32 = need_flags[38];
+  let need_cli: i32 = need_flags[39];
+  let need_security: i32 = need_flags[40];
+  let need_config: i32 = need_flags[41];
+  let need_cache: i32 = need_flags[42];
+  let need_trace: i32 = need_flags[43];
+  let need_task: i32 = need_flags[44];
+  let need_schema: i32 = need_flags[45];
+  let need_test: i32 = need_flags[46];
+  let need_socketio: i32 = need_flags[47];
+  // Guard c_paths via *u8 cast (wave147/151–202: avoid **u8 null compare codegen drop).
+  let cpb: *u8 = c_paths as *u8;
+  let has_c_paths: i32 = 0;
+  if (cpb != 0 as *u8) {
+    if (n > 0) {
+      has_c_paths = 1;
+    }
+  }
+
+  // unicode.o: skip when co-emit already provides category body (avoid dual def).
+  if (need_unicode != 0) {
+    let have_unicode_body: i32 = 0;
+    if (has_c_paths != 0) {
+      let jscan: i32 = 0;
+      while (jscan < n) {
+        let cp: *u8 = c_paths[jscan];
+        jscan = jscan + 1;
+        if (cp == 0 as *u8) {
+          continue;
+        }
+        unsafe {
+          let h1: i32 = link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_category(");
+          let h2: i32 = link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_unicode_category(");
+          if (h1 != 0 || h2 != 0) {
+            have_unicode_body = 1;
+          }
+        }
+        if (have_unicode_body != 0) {
+          break;
+        }
+      }
+    }
+    if (have_unicode_body == 0) {
+      unsafe {
+        let _pu: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, unicode_o);
+      }
+    }
+  }
+
+  // PLATFORM: SHARED dynlib.o + dynlib_os; LINUX -ldl for dlopen.
+  if (need_dynlib != 0) {
+    let pd: i32 = 0;
+    unsafe {
+      pd = invoke_cc_argv_push_existing(argv, ia, argv_cap, dynlib_o);
+    }
+    if (pd != 0) {
+      unsafe {
+        let _edo: i32 = shux_ensure_runtime_dynlib_os_o(0 as *u8);
+        let rdo: *u8 = shux_runtime_dynlib_os_o_path(0 as *u8);
+        if (rdo != 0 as *u8) {
+          if (rdo[0] != 0) {
+            let _pdo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rdo);
+          }
+        }
+      }
+      let is_lin: i32 = 0;
+      unsafe {
+        is_lin = shux_host_is_linux();
+      }
+      if (is_lin != 0) {
+        let fdl: *u8 = "-ldl";
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, fdl);
+      }
+    }
+  }
+
+  // http.o + glue; WINDOWS winsock; force need_error for error.o symbols.
+  if (need_http != 0) {
+    let ph: i32 = 0;
+    unsafe {
+      ph = invoke_cc_argv_push_existing(argv, ia, argv_cap, http_o);
+    }
+    if (ph != 0) {
+      unsafe {
+        let _ehg: i32 = shux_ensure_runtime_http_glue_o(0 as *u8);
+        let rhg: *u8 = shux_runtime_http_glue_o_path(0 as *u8);
+        if (rhg != 0 as *u8) {
+          if (rhg[0] != 0) {
+            let _phg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rhg);
+          }
+        }
+      }
+      let is_win: i32 = 0;
+      unsafe {
+        is_win = link_abi_host_is_windows();
+      }
+      if (is_win != 0) {
+        let fws: *u8 = 0 as *u8;
+        unsafe {
+          fws = labi_ld_flag_lws2_32();
+        }
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, fws);
+      }
+      need_error = 1;
+    }
+  }
+
+  if (need_socketio != 0) {
+    unsafe {
+      let _psio: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
+    }
+  }
+  if (need_tar != 0) {
+    unsafe {
+      let _pt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, tar_o);
+    }
+  }
+  if (need_simd != 0) {
+    unsafe {
+      let _ps: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, simd_o);
+    }
+  }
+  if (need_context != 0) {
+    unsafe {
+      let _pcx: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, context_o);
+    }
+  }
+  if (need_error != 0) {
+    unsafe {
+      let _per: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
+    }
+  }
+  if (need_datetime != 0) {
+    unsafe {
+      let _pdt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, datetime_o);
+    }
+  }
+  if (need_uuid != 0) {
+    unsafe {
+      let _puu: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, uuid_o);
+    }
+  }
+  if (need_url != 0) {
+    unsafe {
+      let _purl: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, url_o);
+    }
+  }
+  if (need_cli != 0) {
+    unsafe {
+      let _pcli: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, cli_o);
+    }
+  }
+  if (need_security != 0) {
+    unsafe {
+      let _psec: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, security_o);
+    }
+  }
+  if (need_config != 0) {
+    unsafe {
+      let _pcfg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, config_o);
+    }
+  }
+  if (need_cache != 0) {
+    unsafe {
+      let _pca: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, cache_o);
+    }
+  }
+  if (need_trace != 0) {
+    unsafe {
+      let _ptr: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, trace_o);
+    }
+  }
+
+  // task/schema/test + async scheduler (explicit path or generated-C needs scan).
+  let sched_link: *u8 = async_scheduler_o;
+  let task_linked: i32 = 0;
+  if (need_task != 0) {
+    unsafe {
+      task_linked = invoke_cc_argv_push_existing(argv, ia, argv_cap, task_o);
+    }
+  }
+  if (need_schema != 0) {
+    unsafe {
+      let _psc: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, schema_o);
+    }
+  }
+  if (need_test != 0) {
+    let pte: i32 = 0;
+    unsafe {
+      pte = invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o);
+    }
+    if (pte != 0) {
+      unsafe {
+        let _etfi: i32 = shux_ensure_runtime_test_fn_invoke_o(0 as *u8);
+        let rtfi: *u8 = shux_runtime_test_fn_invoke_o_path(0 as *u8);
+        if (rtfi != 0 as *u8) {
+          if (rtfi[0] != 0) {
+            let _ptfi: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
+          }
+        }
+      }
+    }
+  }
+  // Resolve scheduler when not explicitly provided.
+  let sched_ok: i32 = 0;
+  if (sched_link != 0 as *u8) {
+    if (sched_link[0] != 0) {
+      sched_ok = 1;
+    }
+  }
+  if (sched_ok == 0) {
+    if (has_c_paths != 0) {
+      let j: i32 = 0;
+      while (j < n) {
+        let cpj: *u8 = c_paths[j];
+        j = j + 1;
+        if (cpj == 0 as *u8) {
+          continue;
+        }
+        let needs_as: i32 = 0;
+        unsafe {
+          needs_as = shux_generated_c_needs_async_scheduler(cpj);
+        }
+        if (needs_as != 0) {
+          unsafe {
+            sched_link = shux_std_async_scheduler_o_path(include_root);
+          }
+          break;
+        }
+      }
+    }
+  }
+  if (task_linked != 0) {
+    let sched: *u8 = 0 as *u8;
+    unsafe {
+      sched = scheduler_o_for_task_link(task_o, sched_link);
+    }
+    let psch: i32 = 0;
+    unsafe {
+      psch = invoke_cc_argv_push_existing(argv, ia, argv_cap, sched);
+    }
+    if (psch != 0) {
+      let is_lin2: i32 = 0;
+      unsafe {
+        is_lin2 = shux_host_is_linux();
+      }
+      if (is_lin2 != 0) {
+        let fpth: *u8 = "-pthread";
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, fpth);
+      }
+      unsafe {
+        let _esg: i32 = shux_ensure_runtime_scheduler_glue_o(0 as *u8);
+        let rsg: *u8 = shux_runtime_scheduler_glue_o_path(0 as *u8);
+        if (rsg != 0 as *u8) {
+          if (rsg[0] != 0) {
+            let _psg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
+          }
+        }
+      }
+    }
+  } else {
+    let sched2_ok: i32 = 0;
+    if (sched_link != 0 as *u8) {
+      if (sched_link[0] != 0) {
+        sched2_ok = 1;
+      }
+    }
+    if (sched2_ok != 0) {
+      let psch2: i32 = 0;
+      unsafe {
+        psch2 = invoke_cc_argv_push_existing(argv, ia, argv_cap, sched_link);
+      }
+      if (psch2 != 0) {
+        let is_lin3: i32 = 0;
+        unsafe {
+          is_lin3 = shux_host_is_linux();
+        }
+        if (is_lin3 != 0) {
+          let fpth2: *u8 = "-pthread";
+          labi_icc_argv_try_push_flag(argv, ia, argv_cap, fpth2);
+        }
+        unsafe {
+          let _esg2: i32 = shux_ensure_runtime_scheduler_glue_o(0 as *u8);
+          let rsg2: *u8 = shux_runtime_scheduler_glue_o_path(0 as *u8);
+          if (rsg2 != 0 as *u8) {
+            if (rsg2[0] != 0) {
+              let _psg2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg2);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // PLATFORM: SHARED — after std/*.o pushes, complement process_argv when any linked
+  // .o has U process_shux_* (string/math/… preamble weak). Skip if process.o already on line.
+  // G.7: complete existing C-backend process_argv path; no second plan table.
+  let need_pav: i32 = 0;
+  let have_process_o: i32 = 0;
+  let have_pav: i32 = 0;
+  let ai: i32 = 0;
+  let nargv: i32 = ia[0];
+  while (ai < nargv) {
+    let e: *u8 = argv[ai];
+    ai = ai + 1;
+    if (e == 0 as *u8) {
+      break;
+    }
+    if (e[0] == 45) {
+      // Skip ld flags (-*)
+      continue;
+    }
+    unsafe {
+      let hit_po: *u8 = strstr(e, "process.o");
+      let hit_pav_name: *u8 = strstr(e, "process_argv");
+      if (hit_po != 0 as *u8) {
+        if (hit_pav_name == 0 as *u8) {
+          have_process_o = 1;
+        }
+      }
+      let hit_rpa: *u8 = strstr(e, "runtime_process_argv.o");
+      let hit_pa: *u8 = strstr(e, "process_argv.o");
+      if (hit_rpa != 0 as *u8 || hit_pa != 0 as *u8) {
+        have_pav = 1;
+      }
+      let u1: i32 = shux_link_obj_needs_undef_sym(e, "process_shux_argc_get");
+      let u2: i32 = shux_link_obj_needs_undef_sym(e, "process_shux_argv_get");
+      if (u1 != 0 || u2 != 0) {
+        need_pav = 1;
+      }
+    }
+  }
+  if (need_pav != 0) {
+    if (have_process_o == 0) {
+      if (have_pav == 0) {
+        unsafe {
+          let _epa: i32 = shux_ensure_runtime_process_argv_o(0 as *u8);
+          let rpa: *u8 = shux_runtime_process_argv_o_path(0 as *u8);
+          if (rpa != 0 as *u8) {
+            if (rpa[0] != 0) {
+              let _ppa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+            }
+          }
+        }
       }
     }
   }

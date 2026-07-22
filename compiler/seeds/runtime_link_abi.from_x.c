@@ -2182,6 +2182,14 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
     const char **c_paths, int n,
     const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o,
     const char *elf_o, const char *regex_o, const char *compress_o, const char *hash_o);
+void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char **c_paths, int n,
+    const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o,
+    const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o,
+    const char *url_o, const char *cli_o, const char *security_o, const char *config_o,
+    const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o,
+    const char *test_o, const char *async_scheduler_o);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2222,6 +2230,13 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push heavy always-mega after wave201 mid.
  * PLATFORM: SHARED orch; brew -L peer mac-oriented; set/map/queue formal ensure.
+ */
+
+/* wave203: invoke_cc_append_std_ensure_push_heavy_b pure orch lives in labi_invoke_cc_list
+ * (ensure-push heavy_b unicode…process_argv inside shux_invoke_cc_impl). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had ensure-push heavy_b always-mega after wave202 heavy_a.
+ * PLATFORM: SHARED orch / LINUX -ldl -pthread / WINDOWS -lws2_32 on http.
  */
 
 
@@ -3292,8 +3307,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
              * 38 url 39 cli 40 security 41 config 42 cache 43 trace 44 task 45 schema
              * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
              * wave200: ensure-push front string→env pure; wave201 mid sync→hash pure;
-             * wave202 heavy_a math…compress pure; heavy_b unicode…process_argv + heap F-06
-             * + fork/exec still mega. */
+             * wave202 heavy_a math…compress pure; wave203 heavy_b unicode…process_argv pure;
+             * heap F-06 + fork/exec still mega. */
             int need_flags[52];
             invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
             /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
@@ -3307,179 +3322,11 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             /* wave202 pure: math/sort/vec/ffi/db/elf/json/csv/set/map/queue/regex/compress. */
             invoke_cc_append_std_ensure_push_heavy_a(argv, &i, argv_cap, need_flags, 52, include_root,
                 c_paths, n, math_o, sort_o, ffi_o, db_o, elf_o, regex_o, compress_o, hash_o);
-            int need_unicode = need_flags[29];
-            int need_dynlib = need_flags[30];
-            int need_http = need_flags[31];
-            int need_tar = need_flags[32];
-            int need_simd = need_flags[33];
-            int need_context = need_flags[34];
-            int need_error = need_flags[35];
-            int need_datetime = need_flags[36];
-            int need_uuid = need_flags[37];
-            int need_url = need_flags[38];
-            int need_cli = need_flags[39];
-            int need_security = need_flags[40];
-            int need_config = need_flags[41];
-            int need_cache = need_flags[42];
-            int need_trace = need_flags[43];
-            int need_task = need_flags[44];
-            int need_schema = need_flags[45];
-            int need_test = need_flags[46];
-            int need_socketio = need_flags[47];
-            int jscan;
-            /* unicode.o：co-emit mod+unicode.x 时勿再链，否则 std_unicode_unicode_* 双定义 */
-            if (need_unicode) {
-                int have_unicode_body = 0;
-                for (jscan = 0; jscan < n; jscan++) {
-                    const char *cp = c_paths[jscan];
-                    if (!cp)
-                        continue;
-                    if (link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_category(") != 0 ||
-                        link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_unicode_category(") != 0) {
-                        have_unicode_body = 1;
-                        break;
-                    }
-                }
-                if (!have_unicode_body)
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, unicode_o);
-            }
-            if (need_dynlib && invoke_cc_argv_push_existing(argv, &i, argv_cap, dynlib_o)) {
-                (void)shux_ensure_runtime_dynlib_os_o(NULL);
-                {
-                    const char *rdo = shux_runtime_dynlib_os_o_path(NULL);
-                    if (rdo && rdo[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rdo);
-                }
-#if defined(__linux__)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-ldl";
-#endif
-            }
-            if (need_http && invoke_cc_argv_push_existing(argv, &i, argv_cap, http_o)) {
-                (void)shux_ensure_runtime_http_glue_o(NULL);
-                {
-                    const char *rhg = shux_runtime_http_glue_o_path(NULL);
-                    if (rhg && rhg[0])
-                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rhg);
-                }
-#if defined(_WIN32) || defined(_WIN64)
-                if (i < argv_cap - 1)
-                    argv[i++] = (char *)labi_ld_flag_lws2_32();
-#endif
-                need_error = 1; /* http 依赖 error.o 符号 */
-            }
-            if (need_socketio)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
-            if (need_tar)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
-            if (need_simd)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, simd_o);
-            if (need_context)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, context_o);
-            if (need_error)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                    shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
-            if (need_datetime)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, datetime_o);
-            if (need_uuid)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, uuid_o);
-            if (need_url)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, url_o);
-            if (need_cli)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cli_o);
-            if (need_security)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, security_o);
-            if (need_config)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, config_o);
-            if (need_cache)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, cache_o);
-            if (need_trace)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, trace_o);
-            {
-                const char *sched_link = async_scheduler_o;
-                int j;
-                int task_linked = 0;
-                if (need_task)
-                    task_linked = invoke_cc_argv_push_existing(argv, &i, argv_cap, task_o);
-                if (need_schema)
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, schema_o);
-                if (need_test && invoke_cc_argv_push_existing(argv, &i, argv_cap, test_o)) {
-                    (void)shux_ensure_runtime_test_fn_invoke_o(NULL);
-                    {
-                        const char *rtfi = shux_runtime_test_fn_invoke_o_path(NULL);
-                        if (rtfi && rtfi[0])
-                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rtfi);
-                    }
-                }
-                if (!sched_link) {
-                    for (j = 0; j < n; j++) {
-                        if (shux_generated_c_needs_async_scheduler(c_paths[j])) {
-                            sched_link = shux_std_async_scheduler_o_path(include_root);
-                            break;
-                        }
-                    }
-                }
-                if (task_linked) {
-                    const char *sched = scheduler_o_for_task_link(task_o, sched_link);
-                    if (invoke_cc_argv_push_existing(argv, &i, argv_cap, sched)) {
-#if defined(__linux__)
-                        if (i < argv_cap - 1)
-                            argv[i++] = (char *)"-pthread";
-#endif
-                        (void)shux_ensure_runtime_scheduler_glue_o(NULL);
-                        {
-                            const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
-                            if (rsg && rsg[0])
-                                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
-                        }
-                    }
-                } else if (sched_link && invoke_cc_argv_push_existing(argv, &i, argv_cap, sched_link)) {
-#if defined(__linux__)
-                    if (i < argv_cap - 1)
-                        argv[i++] = (char *)"-pthread";
-#endif
-                    (void)shux_ensure_runtime_scheduler_glue_o(NULL);
-                    {
-                        const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
-                        if (rsg && rsg[0])
-                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
-                    }
-                }
-            }
-            /*
-             * PLATFORM: SHARED — after std/*.o pushes, complement process_argv when any
-             * linked .o has U process_shux_* (string/math/… preamble weak). Early gate
-             * only sees user C use_line; formal .o U is invisible until push.
-             * Same authority as asm post-on_demand scan. Skip if process.o already on line.
-             * G.7: complete existing C-backend process_argv path; no second plan table.
-             */
-            {
-                int need_pav = 0;
-                int have_process_o = 0;
-                int have_pav = 0;
-                int ai;
-                for (ai = 0; ai < i && argv[ai]; ai++) {
-                    const char *e = argv[ai];
-                    if (!e || e[0] == '-')
-                        continue;
-                    if (strstr(e, "process.o") && !strstr(e, "process_argv"))
-                        have_process_o = 1;
-                    if (strstr(e, "runtime_process_argv.o") || strstr(e, "process_argv.o"))
-                        have_pav = 1;
-                    if (shux_link_obj_needs_undef_sym(e, "process_shux_argc_get")
-                        || shux_link_obj_needs_undef_sym(e, "process_shux_argv_get"))
-                        need_pav = 1;
-                }
-                if (need_pav && !have_process_o && !have_pav) {
-                    (void)shux_ensure_runtime_process_argv_o(NULL);
-                    {
-                        const char *rpa = shux_runtime_process_argv_o_path(NULL);
-                        if (rpa && rpa[0])
-                            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpa);
-                    }
-                }
-            }
+            /* wave203 pure: unicode…process_argv complement (task/scheduler/test/dynlib/http…). */
+            invoke_cc_append_std_ensure_push_heavy_b(argv, &i, argv_cap, need_flags, 52, include_root,
+                c_paths, n, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o,
+                datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o,
+                task_o, schema_o, test_o, async_scheduler_o);
         }
         /* F-06 v1：heap.o 按需链入。
          * 【Why】① 已入链 std/*.o 的 U（nm）；② 用户生成 C 的真实引用（use_line）。

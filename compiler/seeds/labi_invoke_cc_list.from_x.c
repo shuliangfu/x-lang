@@ -12,8 +12,9 @@
  *   invoke_cc_append_std_ensure_push_front (wave200 pure ensure-push front string→env)
  *   invoke_cc_append_std_ensure_push_mid (wave201 pure ensure-push mid sync→hash)
  *   invoke_cc_append_std_ensure_push_heavy_a (wave202 pure ensure-push heavy_a math…compress)
+ *   invoke_cc_append_std_ensure_push_heavy_b (wave203 pure ensure-push heavy_b unicode…process_argv)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
- *   ensure-push heavy_b (unicode…process_argv complement) + heap F-06 + fork/exec 仍 mega。
+ *   heap F-06 + fork/exec 仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -21,6 +22,7 @@
  */
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifndef SHUX_LABI_INVOKE_CC_LIST_FROM_X
 
@@ -106,6 +108,21 @@ const char *labi_icc_rel_csv_o(void);
 const char *labi_icc_rel_heap_o(void);
 const char *labi_icc_rel_core_mem_o(void);
 void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag);
+/* wave203 ensure-push heavy_b peers */
+int shux_ensure_runtime_dynlib_os_o(const char *argv0);
+const char *shux_runtime_dynlib_os_o_path(const char *argv0);
+int shux_ensure_runtime_http_glue_o(const char *argv0);
+const char *shux_runtime_http_glue_o_path(const char *argv0);
+int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
+const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
+int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
+const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
+const char *shux_std_async_scheduler_o_path(const char *argv0);
+int shux_generated_c_needs_async_scheduler(const char *c_path);
+const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
+int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
+const char *labi_icc_rel_error_o(void);
+const char *labi_icc_rel_socketio_o(void);
 
 int labi_linux_harden_flag_count(void) {
   return 5;
@@ -1196,6 +1213,184 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
   }
 }
 
+/* wave203: invoke_cc_append_std_ensure_push_heavy_b pure orch (cold twin ≡ .x).
+ * Ensure-push heavy_b unicode…process_argv complement; co-emit + UNDEF scan. */
+void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char **c_paths, int n,
+    const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o,
+    const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o,
+    const char *url_o, const char *cli_o, const char *security_o, const char *config_o,
+    const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o,
+    const char *test_o, const char *async_scheduler_o) {
+  int need_unicode, need_dynlib, need_http, need_tar, need_simd, need_context;
+  int need_error, need_datetime, need_uuid, need_url, need_cli, need_security;
+  int need_config, need_cache, need_trace, need_task, need_schema, need_test, need_socketio;
+  int jscan;
+  const char *sched_link;
+  int task_linked = 0;
+  if (!argv || !ia || *ia < 0 || !need_flags || flags_cap < 52)
+    return;
+  need_unicode = need_flags[29];
+  need_dynlib = need_flags[30];
+  need_http = need_flags[31];
+  need_tar = need_flags[32];
+  need_simd = need_flags[33];
+  need_context = need_flags[34];
+  need_error = need_flags[35];
+  need_datetime = need_flags[36];
+  need_uuid = need_flags[37];
+  need_url = need_flags[38];
+  need_cli = need_flags[39];
+  need_security = need_flags[40];
+  need_config = need_flags[41];
+  need_cache = need_flags[42];
+  need_trace = need_flags[43];
+  need_task = need_flags[44];
+  need_schema = need_flags[45];
+  need_test = need_flags[46];
+  need_socketio = need_flags[47];
+  sched_link = async_scheduler_o;
+
+  if (need_unicode) {
+    int have_unicode_body = 0;
+    for (jscan = 0; jscan < n; jscan++) {
+      const char *cp = c_paths ? c_paths[jscan] : NULL;
+      if (!cp)
+        continue;
+      if (link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_category(") != 0 ||
+          link_abi_generated_c_contains_substr(cp, "int32_t std_unicode_unicode_category(") != 0) {
+        have_unicode_body = 1;
+        break;
+      }
+    }
+    if (!have_unicode_body)
+      (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, unicode_o);
+  }
+  if (need_dynlib && invoke_cc_argv_push_existing(argv, ia, argv_cap, dynlib_o)) {
+    (void)shux_ensure_runtime_dynlib_os_o(NULL);
+    {
+      const char *rdo = shux_runtime_dynlib_os_o_path(NULL);
+      if (rdo && rdo[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rdo);
+    }
+    if (shux_host_is_linux())
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ldl");
+  }
+  if (need_http && invoke_cc_argv_push_existing(argv, ia, argv_cap, http_o)) {
+    (void)shux_ensure_runtime_http_glue_o(NULL);
+    {
+      const char *rhg = shux_runtime_http_glue_o_path(NULL);
+      if (rhg && rhg[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rhg);
+    }
+    if (link_abi_host_is_windows())
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lws2_32());
+    need_error = 1;
+  }
+  if (need_socketio)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
+  if (need_tar)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, tar_o);
+  if (need_simd)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, simd_o);
+  if (need_context)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, context_o);
+  if (need_error)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
+        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
+  if (need_datetime)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, datetime_o);
+  if (need_uuid)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, uuid_o);
+  if (need_url)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, url_o);
+  if (need_cli)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, cli_o);
+  if (need_security)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, security_o);
+  if (need_config)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, config_o);
+  if (need_cache)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, cache_o);
+  if (need_trace)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, trace_o);
+  if (need_task)
+    task_linked = invoke_cc_argv_push_existing(argv, ia, argv_cap, task_o);
+  if (need_schema)
+    (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, schema_o);
+  if (need_test && invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o)) {
+    (void)shux_ensure_runtime_test_fn_invoke_o(NULL);
+    {
+      const char *rtfi = shux_runtime_test_fn_invoke_o_path(NULL);
+      if (rtfi && rtfi[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
+    }
+  }
+  if (!(sched_link && sched_link[0])) {
+    for (jscan = 0; jscan < n; jscan++) {
+      const char *cp = c_paths ? c_paths[jscan] : NULL;
+      if (!cp)
+        continue;
+      if (shux_generated_c_needs_async_scheduler(cp)) {
+        sched_link = shux_std_async_scheduler_o_path(include_root);
+        break;
+      }
+    }
+  }
+  if (task_linked) {
+    const char *sched = scheduler_o_for_task_link(task_o, sched_link);
+    if (invoke_cc_argv_push_existing(argv, ia, argv_cap, sched)) {
+      if (shux_host_is_linux())
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-pthread");
+      (void)shux_ensure_runtime_scheduler_glue_o(NULL);
+      {
+        const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
+        if (rsg && rsg[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
+      }
+    }
+  } else if (sched_link && sched_link[0] &&
+             invoke_cc_argv_push_existing(argv, ia, argv_cap, sched_link)) {
+    if (shux_host_is_linux())
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-pthread");
+    (void)shux_ensure_runtime_scheduler_glue_o(NULL);
+    {
+      const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
+      if (rsg && rsg[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
+    }
+  }
+  /* process_argv complement after std o pushes */
+  {
+    int need_pav = 0;
+    int have_process_o = 0;
+    int have_pav = 0;
+    int ai;
+    for (ai = 0; ai < *ia && argv[ai]; ai++) {
+      const char *e = argv[ai];
+      if (!e || e[0] == '-')
+        continue;
+      if (strstr(e, "process.o") && !strstr(e, "process_argv"))
+        have_process_o = 1;
+      if (strstr(e, "runtime_process_argv.o") || strstr(e, "process_argv.o"))
+        have_pav = 1;
+      if (shux_link_obj_needs_undef_sym(e, "process_shux_argc_get") ||
+          shux_link_obj_needs_undef_sym(e, "process_shux_argv_get"))
+        need_pav = 1;
+    }
+    if (need_pav && !have_process_o && !have_pav) {
+      (void)shux_ensure_runtime_process_argv_o(NULL);
+      {
+        const char *rpa = shux_runtime_process_argv_o_path(NULL);
+        if (rpa && rpa[0])
+          (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
+      }
+    }
+  }
+}
+
 
 #else
 int labi_linux_harden_flag_count(void);
@@ -1240,6 +1435,14 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
     const char **c_paths, int n,
     const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o,
     const char *elf_o, const char *regex_o, const char *compress_o, const char *hash_o);
+void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap,
+    int *need_flags, int flags_cap, const char *include_root,
+    const char **c_paths, int n,
+    const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o,
+    const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o,
+    const char *url_o, const char *cli_o, const char *security_o, const char *config_o,
+    const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o,
+    const char *test_o, const char *async_scheduler_o);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {
