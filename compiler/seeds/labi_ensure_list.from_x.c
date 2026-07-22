@@ -12,11 +12,13 @@
  *   + wave170 shux_ensure_runtime_heap_user_o pure orch
  *   + wave171 shux_ensure_runtime_test_fn_invoke_o pure orch
  *   + wave172 shux_ensure_runtime_tls_mbedtls_bio_o pure orch
- * Cap residual：resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack)；
+ *   + wave182 shux_ensure_bootstrap_nostdlib_stubs_o pure orch
+ * Cap residual：resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack / -fno-builtin)；
  *   wave169 panic ensure：resolve/access/cc/stat + host linux_x86_64 / posix_aarch64；
  *   wave170 heap_user ensure：resolve/access/cc/stat + has_defined_sym + unlink stub；
  *   wave171 test_fn_invoke ensure：resolve/access/cc/stat（direct seed；无 wrap.c）；
  *   wave172 tls_mbedtls_bio ensure：resolve/access/cc_one_extra/stat（homebrew -I）；
+ *   wave182 bootstrap_nostdlib_stubs ensure：resolve/access/cc_one_extra(-fno-builtin)/stat；
  *   wave174 catalog thin wraps：peer *_o_path Cap residual only。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -44,6 +46,8 @@ const char *shux_runtime_panic_o_path(const char *argv0);
 const char *shux_runtime_heap_user_o_path(const char *argv0);
 const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
 const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
+/* Peer pure path ladder (wave181 bootstrap_nostdlib_stubs_o_path) for wave182 ensure. */
+const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
 /* Cap residual path peers for wave174 catalog thin ensure wraps. */
 const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *shux_runtime_process_argv_o_path(const char *argv0);
@@ -868,6 +872,106 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   return 0;
 }
 
+/* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (cold twin ≡ .x).
+ * Peer bootstrap_nostdlib_stubs_o_path; Cap residual resolve/access/cc_one_extra/stat.
+ * Pure byte join (no snprintf). Direct seed compile + -fno-builtin (≡ mega system -fno-builtin).
+ * PLATFORM: SHARED orch / LINUX freestanding consumers primary.
+ */
+int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
+  char comp[4096];
+  char out_o[4096];
+  char src_c[4096];
+  char inc0[4096];
+  char inc1[4096];
+  char inc2[4096];
+  const char *existing;
+  const char *have;
+  const char *o_path;
+  const char *leaf_o = "src/asm/bootstrap_nostdlib_stubs.o";
+  const char *leaf_c = "seeds/bootstrap_nostdlib_stubs.from_x.c";
+  const char *flag_nb = "-fno-builtin";
+  int dn, ln_o, ln_c, i, k, rc, crc, readable;
+  existing = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+  if (existing != NULL && existing[0] != 0) {
+    have = asm_link_obj_skip_missing(existing);
+    if (have != NULL)
+      return 0;
+  }
+  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  if (rc != 0) {
+    link_diag_runtime_obj_resolve_fail("bootstrap_nostdlib_stubs.o", NULL);
+    return -1;
+  }
+  dn = 0;
+  while (comp[dn] != 0)
+    dn++;
+  ln_o = 0;
+  while (leaf_o[ln_o] != 0)
+    ln_o++;
+  if (dn + 1 + ln_o >= 4096)
+    return -1;
+  for (i = 0; i < dn; i++)
+    out_o[i] = comp[i];
+  out_o[dn] = '/';
+  for (k = 0; k <= ln_o; k++)
+    out_o[dn + 1 + k] = leaf_o[k];
+  ln_c = 0;
+  while (leaf_c[ln_c] != 0)
+    ln_c++;
+  if (dn + 1 + ln_c >= 4096)
+    return -1;
+  for (i = 0; i < dn; i++)
+    src_c[i] = comp[i];
+  src_c[dn] = '/';
+  for (k = 0; k <= ln_c; k++)
+    src_c[dn + 1 + k] = leaf_c[k];
+  readable = link_abi_path_readable(src_c);
+  if (readable == 0) {
+    link_diag_runtime_source_missing("bootstrap_nostdlib_stubs", src_c);
+    return -1;
+  }
+  for (i = 0; i <= dn; i++)
+    inc0[i] = comp[i];
+  {
+    const char *leaf_inc = "include";
+    int ln_inc = 0;
+    while (leaf_inc[ln_inc] != 0)
+      ln_inc++;
+    if (dn + 1 + ln_inc >= 4096)
+      return -1;
+    for (i = 0; i < dn; i++)
+      inc1[i] = comp[i];
+    inc1[dn] = '/';
+    for (k = 0; k <= ln_inc; k++)
+      inc1[dn + 1 + k] = leaf_inc[k];
+  }
+  {
+    const char *leaf_src = "src";
+    int ln_src = 0;
+    while (leaf_src[ln_src] != 0)
+      ln_src++;
+    if (dn + 1 + ln_src >= 4096)
+      return -1;
+    for (i = 0; i < dn; i++)
+      inc2[i] = comp[i];
+    inc2[dn] = '/';
+    for (k = 0; k <= ln_src; k++)
+      inc2[dn + 1 + k] = leaf_src[k];
+  }
+  crc = shux_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, flag_nb);
+  if (crc != 0) {
+    link_diag_runtime_obj_build_status("bootstrap_nostdlib_stubs.o", crc);
+    return -1;
+  }
+  o_path = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+  have = asm_link_obj_skip_missing(o_path);
+  if (have == NULL) {
+    link_diag_runtime_obj_missing("bootstrap_nostdlib_stubs.o", out_o);
+    return -1;
+  }
+  return 0;
+}
+
 /* wave174: 26 catalog thin ensure wraps pure (cold twin ≡ labi_ensure_list.x). */
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
 int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
@@ -1071,6 +1175,8 @@ int shux_ensure_runtime_heap_user_o(const char *argv0);
 int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
 /* wave172: ensure_runtime_tls_mbedtls_bio_o pure orch (L4). */
 int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+/* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (L4). */
+int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
 #endif
 
 int labi_ensure_list_slice_marker(void) {

@@ -1,14 +1,15 @@
 /* seeds/labi_ensure_list_surface.from_x.c
  * G-02f labi_ensure_list R2 full surface — isomorphic with src/runtime/labi_ensure_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ensure_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave173 ensure_from_catalog + wave174 catalog thin wraps + wave169 panic + wave170 heap_user + wave171 test_fn_invoke + wave172 tls_mbedtls_bio)
- * Cap residual: resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack);
+ * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave173 ensure_from_catalog + wave174 catalog thin wraps + wave169 panic + wave170 heap_user + wave171 test_fn_invoke + wave172 tls_mbedtls_bio + wave182 ensure_bootstrap_nostdlib_stubs_o)
+ * Cap residual: resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack / -fno-builtin);
  *   wave169 panic ensure: resolve/access/cc/stat + host linux_x86_64 / posix_aarch64;
  *   wave170 heap_user ensure: resolve/access/cc/stat + has_defined_sym + unlink stub;
  *   wave171 test_fn_invoke ensure: resolve/access/cc/stat (direct seed; no wrap.c);
  *   wave172 tls_mbedtls_bio ensure: resolve/access/cc_one_extra/stat (homebrew -I);
+ *   wave182 bootstrap_nostdlib_stubs ensure: resolve/access/cc_one_extra(-fno-builtin)/stat;
  *   wave174 catalog thin wraps: peer *_o_path Cap residual only
- * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave174)
+ * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave182)
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -24,6 +25,7 @@ extern int32_t shux_ensure_runtime_panic_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0);
+extern int32_t shux_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_asm_io_stubs_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_process_os_glue_o(uint8_t * argv0);
@@ -63,6 +65,7 @@ extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_test_fn_invoke_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_tls_mbedtls_bio_o_path(uint8_t * argv0);
+extern uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_os_glue_o_path(uint8_t * argv0);
@@ -1264,6 +1267,138 @@ int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0) {
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x5f\x62\x69\x6f\x2e\x6f"), &((out_o)[0])));
+    return -1;
+  }
+  return 0;
+}
+/* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (surface pin). */
+int32_t shux_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0) {
+  uint8_t * existing = 0;
+  uint8_t * have = 0;
+  (void)((existing = shux_bootstrap_nostdlib_stubs_o_path(argv0)));
+  if ((existing !=0)) {
+    if ((((uint8_t *)existing)[0] !=0)) {
+      (void)((have = asm_link_obj_skip_missing(existing)));
+      if ((have !=0)) {
+        return 0;
+      }
+    }
+  }
+  uint8_t comp[4096] = {};
+  int32_t rc = 0;
+  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  if ((rc !=0)) {
+    (void)(link_diag_runtime_obj_resolve_fail(((uint8_t *)"bootstrap_nostdlib_stubs.o"), 0));
+    return -1;
+  }
+  int32_t dn = 0;
+  while (((comp)[dn] !=0)) {
+    (void)((dn = (dn + 1)));
+  }
+  uint8_t * leaf_o = ((uint8_t *)"src/asm/bootstrap_nostdlib_stubs.o");
+  int32_t ln_o = 0;
+  while (((leaf_o)[ln_o] !=0)) {
+    (void)((ln_o = (ln_o + 1)));
+  }
+  if ((((dn + 1) + ln_o) >=4096)) {
+    return -1;
+  }
+  uint8_t out_o[4096] = {};
+  int32_t i = 0;
+  while ((i < dn)) {
+    (void)(((out_o)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((out_o)[dn] = 47));
+  int32_t k = 0;
+  while ((k <=ln_o)) {
+    (void)(((out_o)[((dn + 1) + k)] = (leaf_o)[k]));
+    (void)((k = (k + 1)));
+  }
+  uint8_t * leaf_c = ((uint8_t *)"seeds/bootstrap_nostdlib_stubs.from_x.c");
+  int32_t ln_c = 0;
+  while (((leaf_c)[ln_c] !=0)) {
+    (void)((ln_c = (ln_c + 1)));
+  }
+  if ((((dn + 1) + ln_c) >=4096)) {
+    return -1;
+  }
+  uint8_t src_c[4096] = {};
+  (void)((i = 0));
+  while ((i < dn)) {
+    (void)(((src_c)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((src_c)[dn] = 47));
+  (void)((k = 0));
+  while ((k <=ln_c)) {
+    (void)(((src_c)[((dn + 1) + k)] = (leaf_c)[k]));
+    (void)((k = (k + 1)));
+  }
+  int32_t readable = 0;
+  (void)((readable = link_abi_path_readable(&((src_c)[0]))));
+  if ((readable ==0)) {
+    (void)(link_diag_runtime_source_missing(((uint8_t *)"bootstrap_nostdlib_stubs"), &((src_c)[0])));
+    return -1;
+  }
+  uint8_t inc0[4096] = {};
+  (void)((i = 0));
+  while ((i <=dn)) {
+    (void)(((inc0)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  uint8_t * leaf_inc = ((uint8_t *)"include");
+  int32_t ln_inc = 0;
+  while (((leaf_inc)[ln_inc] !=0)) {
+    (void)((ln_inc = (ln_inc + 1)));
+  }
+  if ((((dn + 1) + ln_inc) >=4096)) {
+    return -1;
+  }
+  uint8_t inc1[4096] = {};
+  (void)((i = 0));
+  while ((i < dn)) {
+    (void)(((inc1)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((inc1)[dn] = 47));
+  (void)((k = 0));
+  while ((k <=ln_inc)) {
+    (void)(((inc1)[((dn + 1) + k)] = (leaf_inc)[k]));
+    (void)((k = (k + 1)));
+  }
+  uint8_t * leaf_src = ((uint8_t *)"src");
+  int32_t ln_src = 0;
+  while (((leaf_src)[ln_src] !=0)) {
+    (void)((ln_src = (ln_src + 1)));
+  }
+  if ((((dn + 1) + ln_src) >=4096)) {
+    return -1;
+  }
+  uint8_t inc2[4096] = {};
+  (void)((i = 0));
+  while ((i < dn)) {
+    (void)(((inc2)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((inc2)[dn] = 47));
+  (void)((k = 0));
+  while ((k <=ln_src)) {
+    (void)(((inc2)[((dn + 1) + k)] = (leaf_src)[k]));
+    (void)((k = (k + 1)));
+  }
+  uint8_t * flag_nb = ((uint8_t *)"-fno-builtin");
+  int32_t crc = 0;
+  (void)((crc = shux_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_nb)));
+  if ((crc !=0)) {
+    (void)(link_diag_runtime_obj_build_status(((uint8_t *)"bootstrap_nostdlib_stubs.o"), crc));
+    return -1;
+  }
+  uint8_t * o_path = 0;
+  (void)((o_path = shux_bootstrap_nostdlib_stubs_o_path(argv0)));
+  (void)((have = asm_link_obj_skip_missing(o_path)));
+  if ((have ==0)) {
+    (void)(link_diag_runtime_obj_missing(((uint8_t *)"bootstrap_nostdlib_stubs.o"), &((out_o)[0])));
     return -1;
   }
   return 0;

@@ -1945,6 +1945,8 @@ int shux_ensure_runtime_heap_user_o(const char *argv0);
 int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
 /* wave172: ensure_runtime_tls_mbedtls_bio_o pure orch (L4; hybrid). */
 int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+/* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (L4; hybrid). */
+int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
 /* wave173: link_abi_ensure_from_catalog pure orch (L4; hybrid).
  * product_path from peer *_o_path (no path_fn in pure; no .x fnptr ABI). */
 int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path);
@@ -2580,43 +2582,15 @@ const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
 /**
  * PLATFORM: LINUX — ensure bootstrap_nostdlib_stubs.o exists (cc seed if missing).
  * G.7: one face for freestanding malloc (page-backed), shared with compiler nostdlib bag.
+ * wave182: pure orch in labi_ensure_list.x (hybrid L4);
+ * mega cold twin under #ifndef SHUX_LABI_ENSURE_LIST_FROM_X (#include above).
+ * Cap residual: resolve/access/cc_one_extra(-fno-builtin)/stat (no system() Cap path).
  */
-int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
-    const char *existing = shux_bootstrap_nostdlib_stubs_o_path(argv0);
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char cmd[PATH_MAX * 3];
-    int rc;
-    if (existing && existing[0] && asm_link_obj_skip_missing(existing))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("bootstrap_nostdlib_stubs.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/src/asm/bootstrap_nostdlib_stubs.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/bootstrap_nostdlib_stubs.from_x.c", comp) >= sizeof src_c
-        || !asm_link_obj_skip_missing(src_c)) {
-        link_diag_runtime_source_missing("bootstrap_nostdlib_stubs", src_c);
-        return -1;
-    }
-    /* PLATFORM: LINUX — same seed as g05 ensure_bootstrap_nostdlib_stubs_obj. */
-    rc = snprintf(cmd, sizeof cmd, "cc -c -O2 -fno-builtin -I%s -I%s/include -I%s/src -o %s %s",
-                  comp, comp, comp, out_o, src_c);
-    if (rc < 0 || (size_t)rc >= sizeof cmd)
-        return -1;
-    rc = system(cmd);
-    if (rc != 0) {
-        link_diag_runtime_obj_build_status("bootstrap_nostdlib_stubs.o", rc);
-        return -1;
-    }
-    if (!asm_link_obj_skip_missing(shux_bootstrap_nostdlib_stubs_o_path(argv0))) {
-        link_diag_runtime_obj_missing("bootstrap_nostdlib_stubs.o", out_o);
-        return -1;
-    }
-    return 0;
-}
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+/* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
+#else
+int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
+#endif
 
 /* wave141: link_abi_generated_c_needs_win32 pure orch lives in labi_freestanding_list
  * (9 needles + pure scan; Cap residual contains_substr). Was mega body.

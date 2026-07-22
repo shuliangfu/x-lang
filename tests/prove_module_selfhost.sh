@@ -75,7 +75,8 @@ MODULES=(
   #   + wave173 link_abi_ensure_from_catalog pure orch
   #   + wave174 catalog thin ensure wraps pure（26× shux_ensure_runtime_*_o）
   #   + wave169 ensure_runtime_panic_o + wave170 ensure_runtime_heap_user_o
-  #   + wave171 ensure_runtime_test_fn_invoke_o + wave172 ensure_runtime_tls_mbedtls_bio_o pure orch；
+  #   + wave171 ensure_runtime_test_fn_invoke_o + wave172 ensure_runtime_tls_mbedtls_bio_o pure orch
+  #   + wave182 ensure_bootstrap_nostdlib_stubs_o pure orch（-fno-builtin one_extra；peer path wave181）；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：resolve/access/cc/stat (+ one_extra catalog flags)；
   #   panic ensure resolve/access/cc/stat + host linux_x86_64/posix_aarch64；heap_user has_defined_sym + unlink stub；
   #   tls_mbedtls_bio ensure resolve/access/cc_one_extra/stat（homebrew -I）；thin wrap path peers *_o_path

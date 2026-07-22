@@ -18,11 +18,15 @@
 //     (peer test_fn_invoke_o_path + pure byte joins + Cap residual resolve/access/cc/stat).
 //   wave172 shux_ensure_runtime_tls_mbedtls_bio_o pure orch
 //     (peer tls_mbedtls_bio_o_path + pure byte joins + Cap residual resolve/access/cc_one_extra/stat).
-// Cap residual: resolve/access/cc/stat (+ one_extra for PIE/SQLITE/HTTP -I pack);
+//   wave182 shux_ensure_bootstrap_nostdlib_stubs_o pure orch
+//     (peer bootstrap_nostdlib_stubs_o_path + pure byte joins + Cap residual resolve/access/
+//      compile_sync_one_extra -fno-builtin + stat; freestanding mmap malloc face).
+// Cap residual: resolve/access/cc/stat (+ one_extra for PIE/SQLITE/HTTP -I pack / -fno-builtin);
 //   + host linux_x86_64 / posix_aarch64 for panic ensure leaf (wave169);
 //   + has_defined_sym / unlink for heap_user stub reject (wave170);
 //   + test_fn_invoke special ensure pure (wave171; no wrap.c / no fopen Cap);
 //   + tls_mbedtls_bio special ensure pure (wave172; compile_sync_one_extra homebrew -I);
+//   + bootstrap_nostdlib_stubs special ensure pure (wave182; compile_sync_one_extra -fno-builtin);
 //   + catalog thin wrap path peers *_o_path (static PATH_MAX / compiler_o_path_copy).
 // PLATFORM: SHARED tables / orch; LINUX x86_64 asm prefer; POSIX aarch64 arm64 seed.
 
@@ -44,6 +48,8 @@ export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_heap_user_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8;
+// Peer pure path ladder (labi_path_pure L0 / wave181 bootstrap_nostdlib_stubs_o_path).
+export extern "C" function shux_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8;
 // Cap residual path peers for wave174 catalog thin ensure wraps (mega / path pure).
 export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
@@ -1562,6 +1568,188 @@ export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   if (have == 0 as *u8) {
     unsafe {
       link_diag_runtime_obj_missing("runtime_tls_mbedtls_bio.o", &out_o[0]);
+    }
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * Ensure bootstrap_nostdlib_stubs.o exists (compile seed if missing).
+ * Special ensure (not catalog): freestanding mmap bump malloc/free face shared with
+ *   compiler nostdlib bag (PLATFORM: LINUX freestanding consumers primary).
+ * @param argv0 *u8 — optional product host path for compiler-dir resolve / path ladder; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing
+ * Pure orch: peer bootstrap_nostdlib_stubs_o_path + pure byte joins (no snprintf Cap) after
+ *   Cap residual resolve; Cap residual path_readable + cc_compile_sync_one_extra(-fno-builtin)
+ *   + skip_missing (stat) + peer diags (resolve_fail / source_missing / build_status / missing).
+ * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ *   shux_cc_compile_sync_one_extra (spawn/cc + -fno-builtin); asm_link_obj_skip_missing (stat).
+ * Why (wave182): hybrid still had always-mega C body for ensure_bootstrap after path pure
+ *   (wave181). Mega used system("cc -c -O2 -fno-builtin -I…"); pure uses Cap residual
+ *   one_extra("-fno-builtin") over the shared compile_sync face (G.7; no second system path).
+ * Note: -O2 dropped vs mega system line (optimization only; correctness = -fno-builtin + -I).
+ * PLATFORM: SHARED orch / LINUX freestanding consumers — hybrid L4 pure; mega cold twin under
+ *   #ifndef ENSURE_LIST_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
+  // Cap residual: product path; skip if .o already present (match mega: empty path is not ready).
+  let existing: *u8 = 0 as *u8;
+  let have: *u8 = 0 as *u8;
+  unsafe {
+    existing = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+  }
+  if (existing != 0 as *u8) {
+    if (existing[0] != 0) {
+      unsafe {
+        have = asm_link_obj_skip_missing(existing);
+      }
+      if (have != 0 as *u8) {
+        return 0;
+      }
+    }
+  }
+  // Cap residual: platform compiler-dir resolve into 4096 stack (PATH_MAX upper).
+  let comp: u8[4096] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+  }
+  if (rc != 0) {
+    unsafe {
+      link_diag_runtime_obj_resolve_fail("bootstrap_nostdlib_stubs.o", 0 as *u8);
+    }
+    return -1;
+  }
+  // Pure strlen(comp) once for joins.
+  let dn: i32 = 0;
+  while (comp[dn] != 0) {
+    dn = dn + 1;
+  }
+  // Pure join out_o = comp + '/' + "src/asm/bootstrap_nostdlib_stubs.o" + NUL (≡ mega snprintf).
+  let leaf_o: *u8 = "src/asm/bootstrap_nostdlib_stubs.o";
+  let ln_o: i32 = 0;
+  while (leaf_o[ln_o] != 0) {
+    ln_o = ln_o + 1;
+  }
+  if (dn + 1 + ln_o >= 4096) {
+    return -1;
+  }
+  let out_o: u8[4096] = [];
+  let i: i32 = 0;
+  while (i < dn) {
+    out_o[i] = comp[i];
+    i = i + 1;
+  }
+  out_o[dn] = 47;
+  let k: i32 = 0;
+  while (k <= ln_o) {
+    out_o[dn + 1 + k] = leaf_o[k];
+    k = k + 1;
+  }
+  // Single source: seeds/bootstrap_nostdlib_stubs.from_x.c (direct compile; ≡ mega).
+  let leaf_c: *u8 = "seeds/bootstrap_nostdlib_stubs.from_x.c";
+  let ln_c: i32 = 0;
+  while (leaf_c[ln_c] != 0) {
+    ln_c = ln_c + 1;
+  }
+  if (dn + 1 + ln_c >= 4096) {
+    return -1;
+  }
+  let src_c: u8[4096] = [];
+  i = 0;
+  while (i < dn) {
+    src_c[i] = comp[i];
+    i = i + 1;
+  }
+  src_c[dn] = 47;
+  k = 0;
+  while (k <= ln_c) {
+    src_c[dn + 1 + k] = leaf_c[k];
+    k = k + 1;
+  }
+  // Cap residual: access(src, R_OK) via path_readable (wave151 Cap; ≡ mega skip_missing on src).
+  let readable: i32 = 0;
+  unsafe {
+    readable = link_abi_path_readable(&src_c[0]);
+  }
+  if (readable == 0) {
+    unsafe {
+      link_diag_runtime_source_missing("bootstrap_nostdlib_stubs", &src_c[0]);
+    }
+    return -1;
+  }
+  // Pure join include paths: inc0=comp, inc1=comp/include, inc2=comp/src (≡ mega -I triple).
+  let inc0: u8[4096] = [];
+  i = 0;
+  while (i <= dn) {
+    inc0[i] = comp[i];
+    i = i + 1;
+  }
+  let leaf_inc: *u8 = "include";
+  let ln_inc: i32 = 0;
+  while (leaf_inc[ln_inc] != 0) {
+    ln_inc = ln_inc + 1;
+  }
+  if (dn + 1 + ln_inc >= 4096) {
+    return -1;
+  }
+  let inc1: u8[4096] = [];
+  i = 0;
+  while (i < dn) {
+    inc1[i] = comp[i];
+    i = i + 1;
+  }
+  inc1[dn] = 47;
+  k = 0;
+  while (k <= ln_inc) {
+    inc1[dn + 1 + k] = leaf_inc[k];
+    k = k + 1;
+  }
+  let leaf_src: *u8 = "src";
+  let ln_src: i32 = 0;
+  while (leaf_src[ln_src] != 0) {
+    ln_src = ln_src + 1;
+  }
+  if (dn + 1 + ln_src >= 4096) {
+    return -1;
+  }
+  let inc2: u8[4096] = [];
+  i = 0;
+  while (i < dn) {
+    inc2[i] = comp[i];
+    i = i + 1;
+  }
+  inc2[dn] = 47;
+  k = 0;
+  while (k <= ln_src) {
+    inc2[dn + 1 + k] = leaf_src[k];
+    k = k + 1;
+  }
+  // Cap residual: cc -c seed with -fno-builtin (malloc/free face must not call libc builtins).
+  // PLATFORM: LINUX freestanding primary; SHARED orch over compile_sync_one_extra Cap.
+  let flag_nb: *u8 = "-fno-builtin";
+  let crc: i32 = 0;
+  unsafe {
+    crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_nb);
+  }
+  if (crc != 0) {
+    unsafe {
+      link_diag_runtime_obj_build_status("bootstrap_nostdlib_stubs.o", crc);
+    }
+    return -1;
+  }
+  // Cap residual: re-stat product path; missing after cc → diag fail.
+  let o_path: *u8 = 0 as *u8;
+  unsafe {
+    o_path = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+    have = asm_link_obj_skip_missing(o_path);
+  }
+  if (have == 0 as *u8) {
+    unsafe {
+      link_diag_runtime_obj_missing("bootstrap_nostdlib_stubs.o", &out_o[0]);
     }
     return -1;
   }
