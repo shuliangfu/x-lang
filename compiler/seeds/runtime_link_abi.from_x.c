@@ -5756,6 +5756,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave121: needs_std_queue pure orch lives in labi_ondemand_list (queue_api sym table + orch).
  * wave122: needs_std_test pure orch lives in labi_ondemand_list (test sym table + orch).
  * wave123: needs_core_mem pure orch lives in labi_ondemand_list (core_mem sym table + orch).
+ * wave124: needs_core_slice pure orch lives in labi_ondemand_list (core_slice sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -5934,6 +5935,12 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
 /**
  * wave123: needs_core_mem pure orch lives in labi_ondemand_list
  * (labi_od_core_mem_sym_* product table + pure scan; not here).
+ * Exact symbols only (no prefix probes).
+ */
+
+/**
+ * wave124: needs_core_slice pure orch lives in labi_ondemand_list
+ * (labi_od_core_slice_sym_* product table + pure scan; not here).
  * Exact symbols only (no prefix probes).
  */
 
@@ -6174,31 +6181,11 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
  * Exact symbols only (no prefix probes).
  */
 
-int link_abi_user_o_needs_core_slice(const char *user_o) {
-  (void)(({   {
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_slice_i32_from_ptr_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_subslice_i32_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_slice_u8_from_ptr_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_subslice_u8_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_slice_u64_from_ptr_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_subslice_u64_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/**
+ * wave124: needs_core_slice pure orch lives in labi_ondemand_list
+ * (labi_od_core_slice_sym_* product table + pure scan; not here).
+ * Exact symbols only (no prefix probes).
+ */
 
 /**
  * F-no-libc NL-03：判断 user_o 是否引用 std.heap.page_mmap API（freestanding mmap bump 堆）。
@@ -7333,7 +7320,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–123 needs_std_net/set/map/queue/test + needs_core_mem pure orch (L8b pure .x / cold seed). */
+/* wave118–124 needs_std_net/set/map/queue/test + needs_core_mem + needs_core_slice pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7352,6 +7339,9 @@ int link_abi_user_o_needs_std_test(const char *user_o);
 int labi_od_core_mem_sym_count(void);
 const char *labi_od_core_mem_sym_at(int i);
 int link_abi_user_o_needs_core_mem(const char *user_o);
+int labi_od_core_slice_sym_count(void);
+const char *labi_od_core_slice_sym_at(int i);
+int link_abi_user_o_needs_core_slice(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
