@@ -33,7 +33,10 @@
 //      Cap residual: none new — reuses pure path_pure is_obj + L8b needs tables).
 //   wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs pure orch
 //     (fk 1–13 plan gates; Cap residual undef_sym; G.7 complete wave135 fk0 sibling).
-// Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef / has_defined Cap.
+//   wave197 shux_asm_ld_append_on_demand_user_objs pure orch
+//     (product on_demand shell: pure needs/provides + pure push/path peers;
+//      Cap residual ensure/skip/path + freestanding_get + undef_sym).
+// Cap residual: ensure/skip/path Cap inside shell peers; undef_sym / marker / has_undef / has_defined Cap.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
@@ -80,6 +83,36 @@ export extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8):
  * PLATFORM: SHARED — always mega C (popen/nm Cap); zstd uses prefix needles ZSTD_ / _ZSTD
  */
 export extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
+
+/* ===== wave197 Cap residual / peer pure for on_demand product shell ===== */
+export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32;
+export extern "C" function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32, max_la: i32, p: *u8): void;
+export extern "C" function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
+export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
+export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
+export extern "C" function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
+export extern "C" function driver_freestanding_get(): i32;
+export extern "C" function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_net_workers_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_net_workers_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_heap_user_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_heap_user_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_process_argv_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_time_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_queue_contention_o_path(argv0: *u8): *u8;
+export extern "C" function shux_std_async_scheduler_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
 
 /** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
 #[no_mangle]
@@ -4643,4 +4676,844 @@ export function link_abi_link_needs_std_heap_import(user_o: *u8, argv: **u8, la:
     i = i + 1;
   }
   return 0;
+}
+
+
+/**
+ * Pure first-match substring scan (≡ libc strstr non-null).
+ * @param hay *u8 — haystack NUL-terminated; null/empty → 0
+ * @param needle *u8 — needle NUL-terminated; null/empty → 0
+ * @return i32 — 1 if needle occurs in hay, else 0
+ * PLATFORM: SHARED pure; dual-end L2.
+ * Track-L: not exported (internal helper for on_demand shell only).
+ */
+function labi_od_cstr_contains(hay: *u8, needle: *u8): i32 {
+  if (hay == 0 as *u8) {
+    return 0;
+  }
+  if (needle == 0 as *u8) {
+    return 0;
+  }
+  if (hay[0] == 0) {
+    return 0;
+  }
+  if (needle[0] == 0) {
+    return 0;
+  }
+  let nlen: i32 = 0;
+  while (needle[nlen] != 0) {
+    nlen = nlen + 1;
+  }
+  let hlen: i32 = 0;
+  while (hay[hlen] != 0) {
+    hlen = hlen + 1;
+  }
+  if (nlen > hlen) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i + nlen <= hlen) {
+    let j: i32 = 0;
+    let ok: i32 = 1;
+    while (j < nlen) {
+      if (ok != 0) {
+        if (hay[i + j] != needle[j]) {
+          ok = 0;
+        }
+      }
+      j = j + 1;
+    }
+    if (ok != 0) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether user_o has any UNDEF from simple on_demand group g (table + Cap undef_sym).
+ * Pure orch ≡ mega static labi_od_user_needs_simple_group.
+ * @param user_o *u8 — user .o path; null/empty → 0
+ * @param g i32 — simple group index 0..count-1
+ * @return i32 — 1 if any group symbol is UNDEF in user_o
+ * PLATFORM: SHARED pure; Cap residual undef_sym.
+ * Track-L: not exported (internal shell helper).
+ */
+function labi_od_user_needs_simple_group(user_o: *u8, g: i32): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_simple_group_sym_count(g);
+  if (n <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let s: *u8 = labi_od_simple_group_sym_at(g, i);
+    if (s != 0 as *u8) {
+      if (s[0] != 0) {
+        let u: i32 = 0;
+        unsafe {
+          u = shux_link_obj_needs_undef_sym(user_o, s);
+        }
+        if (u != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether user_o has any UNDEF from a pure table accessed by count/at pair.
+ * Specializations below call this with concrete table accessors.
+ * @param user_o *u8 — user .o; null/empty → 0
+ * @param n i32 — symbol count
+ * @param which i32 — 0=kv 1=arrow 2=time 3=queue_contention
+ * @return i32 — 1 if any UNDEF hit
+ * PLATFORM: SHARED pure; Cap residual undef_sym.
+ */
+function labi_od_user_needs_table_which(user_o: *u8, n: i32, which: i32): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  if (n <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let s: *u8 = 0 as *u8;
+    if (which == 0) {
+      s = labi_od_kv_sym_at(i);
+    }
+    if (which == 1) {
+      s = labi_od_arrow_sym_at(i);
+    }
+    if (which == 2) {
+      s = labi_od_time_sym_at(i);
+    }
+    if (which == 3) {
+      s = labi_od_queue_sym_at(i);
+    }
+    if (s != 0 as *u8) {
+      if (s[0] != 0) {
+        let u: i32 = 0;
+        unsafe {
+          u = shux_link_obj_needs_undef_sym(user_o, s);
+        }
+        if (u != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Helper: if er==0, push glue_rel via primary (≡ push_glue_after_std without fn-ptr).
+ * @param er i32 — ensure return (0 = success)
+ * @param primary *u8 — preferred glue path (may be null)
+ * @param link_argv0 *u8 — argv0
+ * @param glue_rel *u8 — relative glue path
+ * PLATFORM: SHARED pure thin.
+ */
+function labi_od_glue_push_if(er: i32, primary: *u8, link_argv0: *u8, glue_rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (er != 0) {
+    return;
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  let _p: i32 = 0;
+  unsafe {
+    _p = link_abi_asm_ld_push_obj(primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  }
+  if (_p == 0) {
+    return;
+  }
+}
+
+/**
+ * Resolve path: skip_missing(primary) else try_under(rel).
+ * @return *u8 — path or null
+ */
+function labi_od_resolve_or_try(primary: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8 {
+  let p: *u8 = 0 as *u8;
+  if (primary != 0 as *u8) {
+    unsafe {
+      p = asm_link_obj_skip_missing(primary);
+    }
+  }
+  if (p == 0 as *u8) {
+    if (bank != 0 as *u8) {
+      if (rel != 0 as *u8) {
+        unsafe {
+          p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
+        }
+      }
+    }
+  }
+  return p;
+}
+
+/**
+ * Product on_demand shell: push formal/runtime .o for UNDEFs in user_o.
+ * Pure orch composes existing peers (G.7 no second needs/push/ensure path):
+ *   net/thread/glue → heap import (provides skip) → set/map formal → async sched →
+ *   core_mem → freestanding-gated page_mmap/sys → core_slice → kv/arrow →
+ *   test glue → heap_user → simple groups (+ core formal ensure) →
+ *   process_argv complement scan → time formal+os → queue product/contention.
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param user_o *u8 — user main .o; null/empty → no-op
+ * @param lib_roots **u8 — -L style roots
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length; null or near-full → no-op
+ * @param max_la i32 — argv capacity
+ * @param flags *u8 — ShuAsmLdStdLinkFlags* opaque; may be null
+ * Cap residual: ensure_* / skip_missing / freestanding_get / undef_sym (inside peers).
+ * Why (wave197): hybrid still had full on_demand IO shell always-mega after wave118–145
+ *   needs/provides pure (soft residual "on_demand body").
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — dual-end L2 (POSIX product; Windows hybrid not gold).
+ * Track-L: #[no_mangle] product short name (mega call sites / old wrapper).
+ */
+#[no_mangle]
+export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void {
+  if (user_o == 0 as *u8) {
+    return;
+  }
+  if (user_o[0] == 0) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  if (la[0] >= max_la - 1) {
+    return;
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+
+  // --- net + thread companions ---
+  let need_net: i32 = link_abi_user_o_needs_std_net(user_o);
+  if (need_net != 0) {
+    let have_net: i32 = 0;
+    let rel_net: *u8 = labi_od_rel_net();
+    unsafe {
+      let _n: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_net, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_net);
+    }
+    if (have_net != 0) {
+      if (flags != 0 as *u8) {
+        let f: *i32 = flags as *i32;
+        f[1] = 1;
+      }
+      let rel_th: *u8 = labi_od_rel_thread();
+      let have_th: i32 = 0;
+      unsafe {
+        let _t: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel_th, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_th);
+      }
+      if (have_th != 0) {
+        if (flags != 0 as *u8) {
+          let f2: *i32 = flags as *i32;
+          f2[2] = 1;
+        }
+        let er: i32 = 0;
+        let tp: *u8 = 0 as *u8;
+        let trel: *u8 = labi_od_rel_thread_glue();
+        unsafe {
+          er = shux_ensure_runtime_thread_glue_o(link_argv0);
+          tp = shux_runtime_thread_glue_o_path(link_argv0);
+        }
+        labi_od_glue_push_if(er, tp, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      }
+      // net udp batch + workers glue (always after have_net; ensure then push)
+      let er_u: i32 = 0;
+      let up: *u8 = 0 as *u8;
+      let urel: *u8 = labi_od_rel_net_udp_batch();
+      unsafe {
+        er_u = shux_ensure_runtime_net_udp_batch_o(link_argv0);
+        up = shux_runtime_net_udp_batch_o_path(link_argv0);
+      }
+      labi_od_glue_push_if(er_u, up, link_argv0, urel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      let er_w: i32 = 0;
+      let wp: *u8 = 0 as *u8;
+      let wrel: *u8 = labi_od_rel_net_workers();
+      unsafe {
+        er_w = shux_ensure_runtime_net_workers_o(link_argv0);
+        wp = shux_runtime_net_workers_o_path(link_argv0);
+      }
+      labi_od_glue_push_if(er_w, wp, link_argv0, wrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    }
+  }
+
+  // --- heap import (skip if user provides) ---
+  let la_n: i32 = la[0];
+  let need_hi: i32 = link_abi_link_needs_std_heap_import(user_o, argv, la_n);
+  if (need_hi != 0) {
+    let prov_m: i32 = link_abi_user_o_provides_core_mem(user_o);
+    if (prov_m == 0) {
+      let rm: *u8 = labi_od_rel_core_mem();
+      unsafe {
+        let _m: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    let prov_h: i32 = link_abi_user_o_provides_std_heap(user_o);
+    if (prov_h == 0) {
+      let rh: *u8 = labi_od_rel_heap();
+      unsafe {
+        let _h: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+  }
+
+  // --- set formal + companions ---
+  let need_set: i32 = link_abi_user_o_needs_std_set(user_o);
+  if (need_set != 0) {
+    let root: *u8 = 0 as *u8;
+    unsafe {
+      root = shux_repo_root_from_argv0(link_argv0);
+    }
+    if (root != 0 as *u8) {
+      if (root[0] != 0) {
+        unsafe {
+          let _e1: i32 = shux_ensure_formal_std_make_o(root, "std/set/set.o", "../std/set/set.o");
+          let _e2: i32 = shux_ensure_formal_std_make_o(root, "std/heap/heap.o", "../std/heap/heap.o");
+          let _e3: i32 = shux_ensure_formal_std_make_o(root, "core/mem/mem.o", "../core/mem/mem.o");
+          let _e4: i32 = shux_ensure_formal_std_make_o(root, "std/hash/hash.o", "../std/hash/hash.o");
+        }
+      }
+    }
+    let rs: *u8 = labi_od_rel_set();
+    let rh2: *u8 = labi_od_rel_heap();
+    let rm2: *u8 = labi_od_rel_core_mem();
+    unsafe {
+      let _s: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rs, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _sh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rh2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _sm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rm2, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _hh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/hash/hash.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    }
+  }
+
+  // --- map formal + companions ---
+  let need_map: i32 = link_abi_user_o_needs_std_map(user_o);
+  if (need_map != 0) {
+    let rootm: *u8 = 0 as *u8;
+    unsafe {
+      rootm = shux_repo_root_from_argv0(link_argv0);
+    }
+    if (rootm != 0 as *u8) {
+      if (rootm[0] != 0) {
+        unsafe {
+          let _m1: i32 = shux_ensure_formal_std_make_o(rootm, "std/map/map.o", "../std/map/map.o");
+          let _m2: i32 = shux_ensure_formal_std_make_o(rootm, "std/heap/heap.o", "../std/heap/heap.o");
+          let _m3: i32 = shux_ensure_formal_std_make_o(rootm, "core/mem/mem.o", "../core/mem/mem.o");
+        }
+      }
+    }
+    let rmap: *u8 = labi_od_rel_map();
+    let rhm: *u8 = labi_od_rel_heap();
+    let rmm: *u8 = labi_od_rel_core_mem();
+    unsafe {
+      let _mp: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rmap, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _mph: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rhm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _mpm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rmm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    }
+  }
+
+  // --- async scheduler + glue ---
+  let need_as: i32 = link_abi_user_o_needs_async_scheduler(user_o);
+  if (need_as != 0) {
+    let spath: *u8 = 0 as *u8;
+    unsafe {
+      spath = shux_std_async_scheduler_o_path(link_argv0);
+    }
+    let p_as: *u8 = labi_od_resolve_or_try(spath, labi_od_rel_async_scheduler(), lib_roots, n_lib_roots, bank);
+    if (p_as != 0 as *u8) {
+      if (la[0] < max_la - 1) {
+        unsafe {
+          link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_as);
+        }
+      }
+      if (la[0] < max_la - 1) {
+        let gpath: *u8 = 0 as *u8;
+        unsafe {
+          gpath = shux_runtime_scheduler_glue_o_path(link_argv0);
+        }
+        let p_sg: *u8 = labi_od_resolve_or_try(gpath, labi_od_rel_scheduler_glue(), lib_roots, n_lib_roots, bank);
+        if (p_sg != 0 as *u8) {
+          unsafe {
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_sg);
+          }
+        }
+      }
+    }
+  }
+
+  // --- core_mem (user needs) ---
+  let need_cm: i32 = link_abi_user_o_needs_core_mem(user_o);
+  if (need_cm != 0) {
+    let crel: *u8 = labi_od_rel_core_mem();
+    let cprim: *u8 = 0 as *u8;
+    unsafe {
+      cprim = shux_rel_o_path_from_argv0(link_argv0, crel);
+    }
+    let p_cm: *u8 = labi_od_resolve_or_try(cprim, crel, lib_roots, n_lib_roots, bank);
+    if (p_cm != 0 as *u8) {
+      unsafe {
+        link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_cm);
+      }
+    }
+  }
+
+  // --- freestanding-gated page_mmap / sys / linux ---
+  let fs: i32 = 0;
+  unsafe {
+    fs = driver_freestanding_get();
+  }
+  if (fs == 0) {
+    let need_pm: i32 = link_abi_user_o_needs_std_heap_page_mmap(user_o);
+    let need_sl: i32 = link_abi_user_o_needs_std_sys_linux(user_o);
+    let need_sy: i32 = link_abi_user_o_needs_std_sys(user_o);
+    // Scan already-pushed argv for formal heap → page_mmap needs
+    let ai: i32 = 0;
+    let la_now: i32 = la[0];
+    while (ai < la_now) {
+      let e: *u8 = argv[ai];
+      if (e == 0 as *u8) {
+        // stop like mega for-loop && argv[ai]
+        ai = la_now;
+      }
+      if (e != 0 as *u8) {
+        let is_obj: i32 = 0;
+        unsafe {
+          is_obj = link_abi_ld_argv_entry_is_obj(e);
+        }
+        if (is_obj != 0) {
+          if (link_abi_user_o_needs_std_heap_page_mmap(e) != 0) {
+            need_pm = 1;
+          }
+          if (link_abi_user_o_needs_std_sys_linux(e) != 0) {
+            need_sl = 1;
+          }
+          if (link_abi_user_o_needs_std_sys(e) != 0) {
+            need_sy = 1;
+          }
+        }
+      }
+      ai = ai + 1;
+    }
+    let need_any_sys: i32 = 0;
+    if (need_sl != 0) {
+      need_any_sys = 1;
+    }
+    if (need_pm != 0) {
+      need_any_sys = 1;
+    }
+    if (need_sy != 0) {
+      need_any_sys = 1;
+    }
+    if (need_any_sys != 0) {
+      let rsl: *u8 = labi_od_rel_sys_linux();
+      unsafe {
+        let _sl: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rsl, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    // core_mem when page_mmap or sys
+    let need_cm_sys: i32 = 0;
+    if (need_pm != 0) {
+      need_cm_sys = 1;
+    }
+    if (need_sy != 0) {
+      need_cm_sys = 1;
+    }
+    if (need_cm_sys != 0) {
+      let rcm: *u8 = labi_od_rel_core_mem();
+      unsafe {
+        let _cm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rcm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    if (need_pm != 0) {
+      let rpm: *u8 = labi_od_rel_page_mmap();
+      unsafe {
+        let _pm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rpm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    if (need_sy != 0) {
+      let rsy: *u8 = labi_od_rel_sys();
+      unsafe {
+        let _sy: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rsy, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+  }
+
+  // --- core_slice ---
+  let need_cs: i32 = link_abi_user_o_needs_core_slice(user_o);
+  if (need_cs != 0) {
+    let csrel: *u8 = labi_od_rel_core_slice();
+    let csprim: *u8 = 0 as *u8;
+    unsafe {
+      csprim = shux_rel_o_path_from_argv0(link_argv0, csrel);
+    }
+    let p_cs: *u8 = labi_od_resolve_or_try(csprim, csrel, lib_roots, n_lib_roots, bank);
+    if (p_cs != 0 as *u8) {
+      unsafe {
+        link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_cs);
+      }
+    }
+  }
+
+  // --- kv + glue ---
+  let n_kv: i32 = labi_od_kv_sym_count();
+  if (labi_od_user_needs_table_which(user_o, n_kv, 0) != 0) {
+    let kvrel: *u8 = labi_od_kv_rel();
+    let kvprim: *u8 = 0 as *u8;
+    unsafe {
+      kvprim = shux_rel_o_path_from_argv0(link_argv0, kvrel);
+    }
+    let p_kv: *u8 = labi_od_resolve_or_try(kvprim, kvrel, lib_roots, n_lib_roots, bank);
+    if (p_kv != 0 as *u8) {
+      unsafe {
+        link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_kv);
+      }
+      if (la[0] < max_la - 1) {
+        let kvp: *u8 = 0 as *u8;
+        unsafe {
+          kvp = shux_runtime_kv_mmap_glue_o_path(link_argv0);
+        }
+        let p_kg: *u8 = labi_od_resolve_or_try(kvp, labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
+        if (p_kg != 0 as *u8) {
+          unsafe {
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_kg);
+          }
+        }
+      }
+    }
+  }
+
+  // --- arrow + glue ---
+  let n_ar: i32 = labi_od_arrow_sym_count();
+  if (labi_od_user_needs_table_which(user_o, n_ar, 1) != 0) {
+    let arrel: *u8 = labi_od_arrow_rel();
+    let arprim: *u8 = 0 as *u8;
+    unsafe {
+      arprim = shux_rel_o_path_from_argv0(link_argv0, arrel);
+    }
+    let p_ar: *u8 = labi_od_resolve_or_try(arprim, arrel, lib_roots, n_lib_roots, bank);
+    if (p_ar != 0 as *u8) {
+      unsafe {
+        link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ar);
+      }
+      if (la[0] < max_la - 1) {
+        let arp: *u8 = 0 as *u8;
+        unsafe {
+          arp = shux_runtime_arrow_simd_glue_o_path(link_argv0);
+        }
+        let p_ag: *u8 = labi_od_resolve_or_try(arp, labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
+        if (p_ag != 0 as *u8) {
+          unsafe {
+            link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ag);
+          }
+        }
+      }
+    }
+  }
+
+  // --- test + fn_invoke glue ---
+  let need_test: i32 = link_abi_user_o_needs_std_test(user_o);
+  if (need_test != 0) {
+    let have_test: i32 = 0;
+    let trel: *u8 = labi_od_rel_test();
+    unsafe {
+      let _tt: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, &have_test);
+    }
+    if (have_test != 0) {
+      let er_t: i32 = 0;
+      let tp: *u8 = 0 as *u8;
+      let tfrel: *u8 = labi_od_rel_test_fn_invoke();
+      unsafe {
+        er_t = shux_ensure_runtime_test_fn_invoke_o(link_argv0);
+        tp = shux_runtime_test_fn_invoke_o_path(link_argv0);
+      }
+      labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+    }
+  }
+
+  // --- heap_user (not freestanding) ---
+  if (fs == 0) {
+    let la_hu: i32 = la[0];
+    let need_hu: i32 = link_abi_link_needs_heap_user_c(user_o, argv, la_hu);
+    if (need_hu != 0) {
+      let er_hu: i32 = 0;
+      unsafe {
+        er_hu = shux_ensure_runtime_heap_user_o(link_argv0);
+      }
+      if (er_hu != 0) {
+        return;
+      }
+      let hup: *u8 = 0 as *u8;
+      let hurel: *u8 = labi_od_rel_heap_user();
+      unsafe {
+        hup = shux_runtime_heap_user_o_path(link_argv0);
+        let _hu: i32 = link_abi_asm_ld_push_obj(hup, link_argv0, hurel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+      if (flags != 0 as *u8) {
+        let fh: *i32 = flags as *i32;
+        fh[10] = 1;
+      }
+    }
+  }
+
+  // --- simple multi-sym groups ---
+  let pushed_core_formal: i32 = 0;
+  let gcount: i32 = labi_od_simple_group_count();
+  let sg: i32 = 0;
+  while (sg < gcount) {
+    let rel: *u8 = labi_od_simple_group_rel(sg);
+    if (rel != 0 as *u8) {
+      if (rel[0] != 0) {
+        if (labi_od_user_needs_simple_group(user_o, sg) != 0) {
+          // Formal ensure for core/* groups by fixed group ids (≡ mega strstr).
+          // g1 types, g6 option, g7 result, g8 debug, g9 slice/mod.
+          if (sg == 1) {
+            let rt: *u8 = 0 as *u8;
+            unsafe {
+              rt = shux_repo_root_from_argv0(link_argv0);
+            }
+            if (rt != 0 as *u8) {
+              if (rt[0] != 0) {
+                unsafe {
+                  let _fe: i32 = shux_ensure_formal_std_make_o(rt, "core/types/types.o", "../core/types/types.o");
+                }
+                pushed_core_formal = 1;
+              }
+            }
+          }
+          if (sg == 6) {
+            let rt6: *u8 = 0 as *u8;
+            unsafe {
+              rt6 = shux_repo_root_from_argv0(link_argv0);
+            }
+            if (rt6 != 0 as *u8) {
+              if (rt6[0] != 0) {
+                unsafe {
+                  let _fe6: i32 = shux_ensure_formal_std_make_o(rt6, "core/option/option.o", "../core/option/option.o");
+                }
+                pushed_core_formal = 1;
+              }
+            }
+          }
+          if (sg == 7) {
+            let rt7: *u8 = 0 as *u8;
+            unsafe {
+              rt7 = shux_repo_root_from_argv0(link_argv0);
+            }
+            if (rt7 != 0 as *u8) {
+              if (rt7[0] != 0) {
+                unsafe {
+                  let _fe7: i32 = shux_ensure_formal_std_make_o(rt7, "core/result/result.o", "../core/result/result.o");
+                }
+                pushed_core_formal = 1;
+              }
+            }
+          }
+          if (sg == 8) {
+            let rt8: *u8 = 0 as *u8;
+            unsafe {
+              rt8 = shux_repo_root_from_argv0(link_argv0);
+            }
+            if (rt8 != 0 as *u8) {
+              if (rt8[0] != 0) {
+                unsafe {
+                  let _fe8: i32 = shux_ensure_formal_std_make_o(rt8, "core/debug/debug.o", "../core/debug/debug.o");
+                }
+                pushed_core_formal = 1;
+              }
+            }
+          }
+          if (sg == 9) {
+            let rt9: *u8 = 0 as *u8;
+            unsafe {
+              rt9 = shux_repo_root_from_argv0(link_argv0);
+            }
+            if (rt9 != 0 as *u8) {
+              if (rt9[0] != 0) {
+                unsafe {
+                  let _fe9: i32 = shux_ensure_formal_std_make_o(rt9, "core/slice/mod.o", "../core/slice/mod.o");
+                }
+                pushed_core_formal = 1;
+              }
+            }
+          }
+          unsafe {
+            let _sg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+          // g9: co-push glue slice.o after formal mod.o
+          if (sg == 9) {
+            let rtg: *u8 = 0 as *u8;
+            unsafe {
+              rtg = shux_repo_root_from_argv0(link_argv0);
+            }
+            if (rtg != 0 as *u8) {
+              if (rtg[0] != 0) {
+                unsafe {
+                  let _feg: i32 = shux_ensure_formal_std_make_o(rtg, "core/slice/slice.o", "../core/slice/slice.o");
+                }
+              }
+            }
+            let csgl: *u8 = labi_od_rel_core_slice();
+            unsafe {
+              let _csg: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, csgl, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+            }
+          }
+        }
+      }
+    }
+    sg = sg + 1;
+  }
+  if (pushed_core_formal != 0) {
+    let pav: *u8 = 0 as *u8;
+    unsafe {
+      let _ep: i32 = shux_ensure_runtime_process_argv_o(link_argv0);
+      pav = shux_runtime_process_argv_o_path(link_argv0);
+      let _pp: i32 = link_abi_asm_ld_push_obj(pav, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    }
+  }
+
+  // --- process_argv complement scan after on_demand pushes ---
+  let need_pav: i32 = 0;
+  let have_process_o: i32 = 0;
+  let bi: i32 = 0;
+  let la_b: i32 = la[0];
+  while (bi < la_b) {
+    let e2: *u8 = argv[bi];
+    if (e2 == 0 as *u8) {
+      bi = la_b;
+    }
+    if (e2 != 0 as *u8) {
+      let is_o: i32 = 0;
+      unsafe {
+        is_o = link_abi_ld_argv_entry_is_obj(e2);
+      }
+      if (is_o != 0) {
+        let has_po: i32 = labi_od_cstr_contains(e2, "process.o");
+        let has_pa: i32 = labi_od_cstr_contains(e2, "process_argv");
+        if (has_po != 0) {
+          if (has_pa == 0) {
+            have_process_o = 1;
+          }
+        }
+        let u1: i32 = 0;
+        let u2: i32 = 0;
+        unsafe {
+          u1 = shux_link_obj_needs_undef_sym(e2, "process_shux_argc_get");
+          u2 = shux_link_obj_needs_undef_sym(e2, "process_shux_argv_get");
+        }
+        if (u1 != 0) {
+          need_pav = 1;
+        }
+        if (u2 != 0) {
+          need_pav = 1;
+        }
+      }
+    }
+    bi = bi + 1;
+  }
+  if (need_pav != 0) {
+    if (have_process_o == 0) {
+      let pav2: *u8 = 0 as *u8;
+      unsafe {
+        let _ep2: i32 = shux_ensure_runtime_process_argv_o(link_argv0);
+        pav2 = shux_runtime_process_argv_o_path(link_argv0);
+        let _pp2: i32 = link_abi_asm_ld_push_obj(pav2, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+  }
+
+  // --- time formal + time_os ---
+  let n_tm: i32 = labi_od_time_sym_count();
+  if (labi_od_user_needs_table_which(user_o, n_tm, 2) != 0) {
+    let rtt: *u8 = 0 as *u8;
+    unsafe {
+      rtt = shux_repo_root_from_argv0(link_argv0);
+    }
+    if (rtt != 0 as *u8) {
+      if (rtt[0] != 0) {
+        unsafe {
+          let _te: i32 = shux_ensure_formal_std_make_o(rtt, "std/time/time.o", "../std/time/time.o");
+        }
+      }
+    }
+    let er_to: i32 = 0;
+    let top: *u8 = 0 as *u8;
+    let torel: *u8 = labi_od_time_os_rel();
+    unsafe {
+      er_to = shux_ensure_runtime_time_os_o(link_argv0);
+      top = shux_runtime_time_os_o_path(link_argv0);
+    }
+    if (er_to == 0) {
+      unsafe {
+        let _to: i32 = link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    let trel: *u8 = labi_od_time_rel();
+    unsafe {
+      let _tm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    }
+  }
+
+  // --- queue product + contention ---
+  let need_qp: i32 = link_abi_user_o_needs_std_queue(user_o);
+  let n_qc: i32 = labi_od_queue_sym_count();
+  let need_qc: i32 = labi_od_user_needs_table_which(user_o, n_qc, 3);
+  if (need_qp != 0 || need_qc != 0) {
+    let rq: *u8 = 0 as *u8;
+    unsafe {
+      rq = shux_repo_root_from_argv0(link_argv0);
+    }
+    if (rq != 0 as *u8) {
+      if (rq[0] != 0) {
+        unsafe {
+          let _q1: i32 = shux_ensure_formal_std_make_o(rq, "std/queue/queue.o", "../std/queue/queue.o");
+          let _q2: i32 = shux_ensure_formal_std_make_o(rq, "std/heap/heap.o", "../std/heap/heap.o");
+          let _q3: i32 = shux_ensure_formal_std_make_o(rq, "core/mem/mem.o", "../core/mem/mem.o");
+        }
+      }
+    }
+    if (need_qc != 0) {
+      let qcp: *u8 = 0 as *u8;
+      let qcrel: *u8 = labi_od_queue_contention_rel();
+      unsafe {
+        let _eq: i32 = shux_ensure_runtime_queue_contention_o(link_argv0);
+        qcp = shux_runtime_queue_contention_o_path(link_argv0);
+        let _qc: i32 = link_abi_asm_ld_push_obj(qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      }
+    }
+    let qrel: *u8 = labi_od_queue_rel();
+    let qh: *u8 = labi_od_rel_heap();
+    let qm: *u8 = labi_od_rel_core_mem();
+    unsafe {
+      let _qq: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _qh: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qh, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+      let _qm: i32 = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, qm, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+    }
+  }
 }
