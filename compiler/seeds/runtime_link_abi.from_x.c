@@ -5322,12 +5322,19 @@ const char *labi_std_default_std_rel_at(int j);
  * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
  */
 int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
+/* wave190: labi_std_fk_user_needs pure orch (fk 1–13 plan gates; Cap undef_sym).
+ * null/empty user_o → 1; unknown fk → 1. Was always-mega inline in append_std.
+ * Cold twin under #ifndef ONDEMAND_LIST_FROM_X; hybrid L8b pure .x.
+ * PLATFORM: SHARED — G.7 complete wave135 fk0 sibling; dual-end L2.
+ */
+int labi_std_fk_user_needs(const char *user_o, int fk);
 
 /*
  * wave132–134: labi_user_needs_runtime_{time_os,random_fill,env_os,process_argv}
  * + labi_user_needs_std_task pure orch live in labi_ondemand_list
  * (product tables + pure scan; null/empty → 1).
  * wave135: labi_std_fk0_user_needs_rel pure (fk0 plan gate; Cap strstr).
+ * wave190: labi_std_fk_user_needs pure (fk 1–13 plan gates; Cap undef_sym).
  * Cap residual: undef_sym stays mega. Call sites need forward decls before
  * the ondemand include block. PLATFORM: SHARED.
  */
@@ -5434,138 +5441,15 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                 flag_out = flags ? &flags->have_dynlib : NULL;
             else if (fk == 13)
                 flag_out = &have_http;
-            /* 残缺预编 .o 勿无条件硬链：仅 user.o 有对应 UNDEF 时推入 */
+            /* 残缺预编 .o 勿无条件硬链：仅 user.o 有对应 UNDEF 时推入。
+             * wave135: fk0 → labi_std_fk0_user_needs_rel pure (rel×sym).
+             * wave190: fk 1–13 → labi_std_fk_user_needs pure (gate table + Cap undef_sym).
+             * Why: pure-asm must not hard-link process/sync/atomic/http/… (bstrict26/29/42/44).
+             * PLATFORM: SHARED — G.7 single gate authority; no inline probe second path. */
             if (rel && rel[0] && user_o && user_o[0]) {
                 if (fk == 0 && !labi_std_fk0_user_needs_rel(user_o, rel))
                     break;
-                if (fk == 4 /* crypto */ && !shux_link_obj_needs_undef_sym(user_o, "std_crypto_mem_eq")
-                    && !shux_link_obj_needs_undef_sym(user_o, "crypto_mem_eq_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_crypto_sha256"))
-                    break;
-                if (fk == 1 /* process */ && !shux_link_obj_needs_undef_sym(user_o, "process_shux_argv_get")
-                    && !shux_link_obj_needs_undef_sym(user_o, "process_arg_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_process_exit")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_process_args"))
-                    break;
-                /*
-                 * 【Why 根源】sync/atomic 预编 .o 经 -backend c 带 preamble weak process_arg*_c，
-                 *   对 process_shux_* 有 U。无条件硬链 → 纯 asm（binop_var 等仅 U shux_panic_）
-                 *   也拖入 sync/atomic → ld 缺 process_shux_argc_get（bstrict26）。
-                 * 【Invariant】与 crypto/process 同：仅 user.o 有 std_sync_ 或 std_atomic_ 前缀 UNDEF 才推。
-                 */
-                if (fk == 2 /* thread */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_thread_spawn")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_thread_join")
-                    && !shux_link_obj_needs_undef_sym(user_o, "thread_create_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "thread_join_c"))
-                    break;
-                /* PLATFORM: SHARED — gate names must match std/sync export symbols
-                 * (std_sync_lock / std_sync_new_mutex / …), not stale mutex_* mangling.
-                 * Wrong probes → never push sync.o → never set have_sync → glue ensure skipped. */
-                if (fk == 3 /* sync */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_lock")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_new_mutex")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_try_lock")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_sync_wait")
-                    && !shux_link_obj_needs_undef_sym(user_o, "sync_mutex_lock_c"))
-                    break;
-                if (fk == 6 /* atomic */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_store_i32_ptr_i32")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_load_i32_ptr")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_fetch_add_i32_ptr_i32")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_atomic_store_i64_ptr_i64")
-                    && !shux_link_obj_needs_undef_sym(user_o, "atomic_store_i32_c"))
-                    break;
-                /*
-                 * http.o 对 context/error/heap 有 U；无条件硬链 → 纯 asm（binop 仅 U panic）
-                 * 也拖入 http → ld 缺 std_context_* / std_error_http_* / std_heap_*（bstrict29）。
-                 * 与 crypto/sync 同：仅 user 有 std_http_ 入口 UNDEF 才推。
-                 */
-                if (fk == 13 /* http */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_get")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_request")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_client_new")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_http_request_timeout_ms_for_ctx"))
-                    break;
-                /*
-                 * log.o 预编带 preamble weak process_arg*_c → U process_shux_*。
-                 * 无条件硬链 → 纯 asm（binop_var 仅 U panic）在 run-log 建出 log.o 后
-                 * 全红（bstrict42）。与 crypto/http 同：仅 user 有 std_log_ 入口才推。
-                 */
-                if (fk == 5 /* log */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_log")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_level_info")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_set_min_level")
-                    && !shux_link_obj_needs_undef_sym(user_o, "log_write_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_log_structured_kv"))
-                    break;
-                /*
-                 * channel/backtrace/math/sqlite/elf/dynlib：预编 .o 常带 preamble weak
-                 * process_arg*_c → U process_shux_*。无条件硬链会毒化纯 asm（bstrict44：
-                 * 预建 dynlib.o 后 binop_var 红）。与 log/crypto 同：仅 user 有入口 UNDEF 才推。
-                 */
-                if (fk == 7 /* channel */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_channel_send")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_channel_recv")
-                    && !shux_link_obj_needs_undef_sym(user_o, "channel_send")
-                    && !shux_link_obj_needs_undef_sym(user_o, "channel_recv"))
-                    break;
-                if (fk == 8 /* backtrace */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_backtrace_capture")
-                    && !shux_link_obj_needs_undef_sym(user_o, "backtrace_capture"))
-                    break;
-                /*
-                 * PLATFORM: SHARED — math gate must cover full std.math surface, not only sin/cos.
-                 * Residual: tests/math/main.x uses pi/e/floor/ceil/sqrt/abs/signum → U std_math_*
-                 * but old probes only sin/cos → -backend asm never pushed math.o (Ubuntu L2).
-                 * G.7: complete existing fk==9 authority (no second needs_math path).
-                 * have_math also pulls GLUE_MATH (libm) + process_argv complement below.
-                 */
-                if (fk == 9 /* math */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_sin")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_cos")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_tan")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_pi")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_e")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_tau")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_floor")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_ceil")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_trunc")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_round")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_sqrt")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_cbrt")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_pow")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_exp")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_log")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_abs")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_signum")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_min")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_max")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_asin")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_acos")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_atan")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_math_atan2")
-                    && !shux_link_obj_needs_undef_sym(user_o, "math_sin")
-                    && !shux_link_obj_needs_undef_sym(user_o, "math_cos")
-                    && !shux_link_obj_needs_undef_sym(user_o, "math_sin_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "math_cos_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "math_floor_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "math_pi_c"))
-                    break;
-                if (fk == 10 /* sqlite */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_db_sqlite")
-                    && !shux_link_obj_needs_undef_sym(user_o, "sqlite3_open")
-                    && !shux_link_obj_needs_undef_sym(user_o, "db_sqlite_open"))
-                    break;
-                if (fk == 11 /* elf */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_elf_parse")
-                    && !shux_link_obj_needs_undef_sym(user_o, "elf_parse"))
-                    break;
-                if (fk == 12 /* dynlib */
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_dynlib_open")
-                    && !shux_link_obj_needs_undef_sym(user_o, "std_dynlib_sym")
-                    && !shux_link_obj_needs_undef_sym(user_o, "dynlib_open_c")
-                    && !shux_link_obj_needs_undef_sym(user_o, "dynlib_open"))
+                if (fk >= 1 && fk <= 13 && !labi_std_fk_user_needs(user_o, fk))
                     break;
             } else if (fk == 0 && rel && rel[0] && !labi_std_fk0_user_needs_rel(user_o, rel)) {
                 break;

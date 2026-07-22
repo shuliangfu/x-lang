@@ -31,6 +31,8 @@
 //   wave145 link_abi_link_needs_{heap_user_c,std_heap_import} pure orch
 //     (aggregate: user_o + ld argv .o scan via pure needs_* + ld_argv_entry_is_obj;
 //      Cap residual: none new — reuses pure path_pure is_obj + L8b needs tables).
+//   wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs pure orch
+//     (fk 1–13 plan gates; Cap residual undef_sym; G.7 complete wave135 fk0 sibling).
 // Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef / has_defined Cap.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -3756,6 +3758,453 @@ export function labi_std_fk0_user_needs_rel(user_o: *u8, rel: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_fk0_sym_at(kind, i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of exact UNDEF needles for std-plan flag_kind fk (1=process … 13=http).
+ * fk 0 is gated by labi_std_fk0_user_needs_rel (rel×sym tables); unknown fk → 0.
+ * @param fk i32 — plan flag_kind from labi_std_plan_step_at
+ * @return i32 — needle count; 0 if no gate table (always push when called)
+ * PLATFORM: SHARED — pure table; G.7 single authority for fk≥1 plan gates
+ */
+#[no_mangle]
+export function labi_std_fk_gate_sym_count(fk: i32): i32 {
+  if (fk == 1) {
+    return 4;
+  }
+  if (fk == 2) {
+    return 4;
+  }
+  if (fk == 3) {
+    return 5;
+  }
+  if (fk == 4) {
+    return 3;
+  }
+  if (fk == 5) {
+    return 5;
+  }
+  if (fk == 6) {
+    return 5;
+  }
+  if (fk == 7) {
+    return 4;
+  }
+  if (fk == 8) {
+    return 2;
+  }
+  if (fk == 9) {
+    return 29;
+  }
+  if (fk == 10) {
+    return 3;
+  }
+  if (fk == 11) {
+    return 2;
+  }
+  if (fk == 12) {
+    return 4;
+  }
+  if (fk == 13) {
+    return 4;
+  }
+  return 0;
+}
+
+/**
+ * Exact UNDEF needle at index i for std-plan flag_kind fk (fk 1–13).
+ * Tables match historical mega append_std_objs_for_user inline probes (G.7 no second path).
+ * @param fk i32 — plan flag_kind
+ * @param i i32 — zero-based needle index
+ * @return *u8 — static C string; null if out of range
+ * PLATFORM: SHARED — pure table; seed cold twin must stay in sync
+ */
+#[no_mangle]
+export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (fk == 1) {
+    if (i == 0) {
+      let p: *u8 = "process_shux_argv_get";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "process_arg_c";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_process_exit";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_process_args";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 2) {
+    if (i == 0) {
+      let p: *u8 = "std_thread_spawn";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_thread_join";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "thread_create_c";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "thread_join_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 3) {
+    if (i == 0) {
+      let p: *u8 = "std_sync_lock";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_sync_new_mutex";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_sync_try_lock";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_sync_wait";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "sync_mutex_lock_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 4) {
+    if (i == 0) {
+      let p: *u8 = "std_crypto_mem_eq";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "crypto_mem_eq_c";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_crypto_sha256";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 5) {
+    if (i == 0) {
+      let p: *u8 = "std_log_log";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_log_level_info";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_log_set_min_level";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "log_write_c";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_log_structured_kv";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 6) {
+    if (i == 0) {
+      let p: *u8 = "std_atomic_store_i32_ptr_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_atomic_load_i32_ptr";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_atomic_fetch_add_i32_ptr_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_atomic_store_i64_ptr_i64";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "atomic_store_i32_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 7) {
+    if (i == 0) {
+      let p: *u8 = "std_channel_send";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_channel_recv";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "channel_send";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "channel_recv";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 8) {
+    if (i == 0) {
+      let p: *u8 = "std_backtrace_capture";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "backtrace_capture";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 9) {
+    if (i == 0) {
+      let p: *u8 = "std_math_sin";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_math_cos";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_math_tan";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_math_pi";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_math_e";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_math_tau";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_math_floor";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_math_ceil";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_math_trunc";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_math_round";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "std_math_sqrt";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "std_math_cbrt";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "std_math_pow";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "std_math_exp";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "std_math_log";
+      return p;
+    }
+    if (i == 15) {
+      let p: *u8 = "std_math_abs";
+      return p;
+    }
+    if (i == 16) {
+      let p: *u8 = "std_math_signum";
+      return p;
+    }
+    if (i == 17) {
+      let p: *u8 = "std_math_min";
+      return p;
+    }
+    if (i == 18) {
+      let p: *u8 = "std_math_max";
+      return p;
+    }
+    if (i == 19) {
+      let p: *u8 = "std_math_asin";
+      return p;
+    }
+    if (i == 20) {
+      let p: *u8 = "std_math_acos";
+      return p;
+    }
+    if (i == 21) {
+      let p: *u8 = "std_math_atan";
+      return p;
+    }
+    if (i == 22) {
+      let p: *u8 = "std_math_atan2";
+      return p;
+    }
+    if (i == 23) {
+      let p: *u8 = "math_sin";
+      return p;
+    }
+    if (i == 24) {
+      let p: *u8 = "math_cos";
+      return p;
+    }
+    if (i == 25) {
+      let p: *u8 = "math_sin_c";
+      return p;
+    }
+    if (i == 26) {
+      let p: *u8 = "math_cos_c";
+      return p;
+    }
+    if (i == 27) {
+      let p: *u8 = "math_floor_c";
+      return p;
+    }
+    if (i == 28) {
+      let p: *u8 = "math_pi_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 10) {
+    if (i == 0) {
+      let p: *u8 = "std_db_sqlite";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "sqlite3_open";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "db_sqlite_open";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 11) {
+    if (i == 0) {
+      let p: *u8 = "std_elf_parse";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "elf_parse";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 12) {
+    if (i == 0) {
+      let p: *u8 = "std_dynlib_open";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_dynlib_sym";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "dynlib_open_c";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "dynlib_open";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (fk == 13) {
+    if (i == 0) {
+      let p: *u8 = "std_http_get";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_http_request";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_http_client_new";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_http_request_timeout_ms_for_ctx";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o needs std plan OP_STD step with flag_kind fk (1–13).
+ * Pure orch: scan pure gate needle table; Cap residual shux_link_obj_needs_undef_sym.
+ * null/empty user_o → 1 (legacy hard-link when call site has no user_o).
+ * Unknown fk (no table / fk0) → 1 (no gate here; fk0 uses labi_std_fk0_user_needs_rel).
+ * @param user_o *u8 — path to user .o
+ * @param fk i32 — plan flag_kind (1=process … 13=http)
+ * @return i32 — 1 if gate open (push/ensure that std .o), else 0
+ * Why (wave190): hybrid still had fk 1–13 gate probes always-mega inline in
+ *   append_std_objs_for_user (soft residual sibling of wave135 fk0 pure table).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
+ */
+#[no_mangle]
+export function labi_std_fk_user_needs(user_o: *u8, fk: i32): i32 {
+  if (user_o == 0 as *u8) {
+    return 1;
+  }
+  if (user_o[0] == 0) {
+    return 1;
+  }
+  let n: i32 = labi_std_fk_gate_sym_count(fk);
+  if (n <= 0) {
+    return 1;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_std_fk_gate_sym_at(fk, i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;

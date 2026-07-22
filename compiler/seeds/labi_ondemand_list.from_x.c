@@ -27,6 +27,8 @@
  *     (defined T/t probes; Cap residual has_defined_sym; skip hard-link mem.o/heap.o)
  *   + wave145 link_abi_link_needs_{heap_user_c,std_heap_import} pure orch
  *     (aggregate user_o + argv .o scan via pure needs_* + ld_argv_entry_is_obj)
+ *   + wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs pure orch
+ *     (fk 1–13 plan gates; Cap residual undef_sym; G.7 complete wave135 fk0 sibling)
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym / exports_marker / has_undef_sym / has_defined_sym 探针仍 mega（pure orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -1740,6 +1742,159 @@ int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
   return 0;
 }
 
+/* wave190: labi_std_fk_user_needs pure cold twin (fk 1–13 gate tables + orch).
+ * Cap residual: shux_link_obj_needs_undef_sym. PLATFORM: SHARED. */
+int labi_std_fk_gate_sym_count(int fk) {
+  if (fk == 1) return 4;
+  if (fk == 2) return 4;
+  if (fk == 3) return 5;
+  if (fk == 4) return 3;
+  if (fk == 5) return 5;
+  if (fk == 6) return 5;
+  if (fk == 7) return 4;
+  if (fk == 8) return 2;
+  if (fk == 9) return 29;
+  if (fk == 10) return 3;
+  if (fk == 11) return 2;
+  if (fk == 12) return 4;
+  if (fk == 13) return 4;
+  return 0;
+}
+
+const char *labi_std_fk_gate_sym_at(int fk, int i) {
+  if (i < 0) return NULL;
+  if (fk == 1) {
+    if (i == 0) return "process_shux_argv_get";
+    if (i == 1) return "process_arg_c";
+    if (i == 2) return "std_process_exit";
+    if (i == 3) return "std_process_args";
+    return NULL;
+  }
+  if (fk == 2) {
+    if (i == 0) return "std_thread_spawn";
+    if (i == 1) return "std_thread_join";
+    if (i == 2) return "thread_create_c";
+    if (i == 3) return "thread_join_c";
+    return NULL;
+  }
+  if (fk == 3) {
+    if (i == 0) return "std_sync_lock";
+    if (i == 1) return "std_sync_new_mutex";
+    if (i == 2) return "std_sync_try_lock";
+    if (i == 3) return "std_sync_wait";
+    if (i == 4) return "sync_mutex_lock_c";
+    return NULL;
+  }
+  if (fk == 4) {
+    if (i == 0) return "std_crypto_mem_eq";
+    if (i == 1) return "crypto_mem_eq_c";
+    if (i == 2) return "std_crypto_sha256";
+    return NULL;
+  }
+  if (fk == 5) {
+    if (i == 0) return "std_log_log";
+    if (i == 1) return "std_log_level_info";
+    if (i == 2) return "std_log_set_min_level";
+    if (i == 3) return "log_write_c";
+    if (i == 4) return "std_log_structured_kv";
+    return NULL;
+  }
+  if (fk == 6) {
+    if (i == 0) return "std_atomic_store_i32_ptr_i32";
+    if (i == 1) return "std_atomic_load_i32_ptr";
+    if (i == 2) return "std_atomic_fetch_add_i32_ptr_i32";
+    if (i == 3) return "std_atomic_store_i64_ptr_i64";
+    if (i == 4) return "atomic_store_i32_c";
+    return NULL;
+  }
+  if (fk == 7) {
+    if (i == 0) return "std_channel_send";
+    if (i == 1) return "std_channel_recv";
+    if (i == 2) return "channel_send";
+    if (i == 3) return "channel_recv";
+    return NULL;
+  }
+  if (fk == 8) {
+    if (i == 0) return "std_backtrace_capture";
+    if (i == 1) return "backtrace_capture";
+    return NULL;
+  }
+  if (fk == 9) {
+    if (i == 0) return "std_math_sin";
+    if (i == 1) return "std_math_cos";
+    if (i == 2) return "std_math_tan";
+    if (i == 3) return "std_math_pi";
+    if (i == 4) return "std_math_e";
+    if (i == 5) return "std_math_tau";
+    if (i == 6) return "std_math_floor";
+    if (i == 7) return "std_math_ceil";
+    if (i == 8) return "std_math_trunc";
+    if (i == 9) return "std_math_round";
+    if (i == 10) return "std_math_sqrt";
+    if (i == 11) return "std_math_cbrt";
+    if (i == 12) return "std_math_pow";
+    if (i == 13) return "std_math_exp";
+    if (i == 14) return "std_math_log";
+    if (i == 15) return "std_math_abs";
+    if (i == 16) return "std_math_signum";
+    if (i == 17) return "std_math_min";
+    if (i == 18) return "std_math_max";
+    if (i == 19) return "std_math_asin";
+    if (i == 20) return "std_math_acos";
+    if (i == 21) return "std_math_atan";
+    if (i == 22) return "std_math_atan2";
+    if (i == 23) return "math_sin";
+    if (i == 24) return "math_cos";
+    if (i == 25) return "math_sin_c";
+    if (i == 26) return "math_cos_c";
+    if (i == 27) return "math_floor_c";
+    if (i == 28) return "math_pi_c";
+    return NULL;
+  }
+  if (fk == 10) {
+    if (i == 0) return "std_db_sqlite";
+    if (i == 1) return "sqlite3_open";
+    if (i == 2) return "db_sqlite_open";
+    return NULL;
+  }
+  if (fk == 11) {
+    if (i == 0) return "std_elf_parse";
+    if (i == 1) return "elf_parse";
+    return NULL;
+  }
+  if (fk == 12) {
+    if (i == 0) return "std_dynlib_open";
+    if (i == 1) return "std_dynlib_sym";
+    if (i == 2) return "dynlib_open_c";
+    if (i == 3) return "dynlib_open";
+    return NULL;
+  }
+  if (fk == 13) {
+    if (i == 0) return "std_http_get";
+    if (i == 1) return "std_http_request";
+    if (i == 2) return "std_http_client_new";
+    if (i == 3) return "std_http_request_timeout_ms_for_ctx";
+    return NULL;
+  }
+  return NULL;
+}
+
+int labi_std_fk_user_needs(const char *user_o, int fk) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 1;
+  n = labi_std_fk_gate_sym_count(fk);
+  if (n <= 0)
+    return 1;
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_std_fk_gate_sym_at(fk, i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* wave140: user.o provides_core_mem/std_heap defined-sym tables + pure orch.
  * Cap residual: shux_link_obj_has_defined_sym (popen/nm). PLATFORM: SHARED. */
 int labi_od_provides_core_mem_sym_count(void) { return 2; }
@@ -1938,6 +2093,9 @@ const char *labi_fk0_rel_at(int k);
 int labi_fk0_sym_count(int k);
 const char *labi_fk0_sym_at(int k, int i);
 int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
+int labi_std_fk_gate_sym_count(int fk);
+const char *labi_std_fk_gate_sym_at(int fk, int i);
+int labi_std_fk_user_needs(const char *user_o, int fk);
 int labi_od_provides_core_mem_sym_count(void);
 const char *labi_od_provides_core_mem_sym_at(int i);
 int link_abi_user_o_provides_core_mem(const char *user_o);
