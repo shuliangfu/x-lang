@@ -6,7 +6,8 @@
 //
 // R2 full: simple/kv/arrow/time/queue + rel_* pure tables +
 //   wave118 labi_od_net_sym_* + link_abi_user_o_needs_std_net pure orch +
-//   wave119 labi_od_set_sym_* + link_abi_user_o_needs_std_set pure orch.
+//   wave119 labi_od_set_sym_* + link_abi_user_o_needs_std_set pure orch +
+//   wave120 labi_od_map_sym_* + link_abi_user_o_needs_std_map pure orch.
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -819,6 +820,103 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_set_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of UNDEF symbols that pull std/map/map.o on product asm on_demand.
+ * @return i32 — 9 (empty_size smoke + Map_i32_i32 surface + str map)
+ * PLATFORM: SHARED — must match formal map.o export mangles
+ */
+#[no_mangle]
+export function labi_od_map_sym_count(): i32 {
+  return 9;
+}
+
+/**
+ * Map on_demand UNDEF symbol at index (product probe table for needs_std_map).
+ * @param i i32 — index in [0, 9)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete existing needs_std_map authority (no second table)
+ */
+#[no_mangle]
+export function labi_od_map_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_map_empty_size";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_map_new_Map_i32_i32";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_map_with_capacity_Map_i32_i32_ptr_i32";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_map_insert_Map_i32_i32_ptr_i32_i32";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_map_get_Map_i32_i32_i32";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_map_find_Map_i32_i32_i32";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_map_deinit_Map_i32_i32_ptr";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_map_str_new";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_map_str_insert";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.map API (on-demand chain map.o + heap companions).
+ * Pure orch: fixed map UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave120): hybrid still had needs_std_map body always mega C with hard-coded strings.
+ * Complete authority was empty_size + full Map_i32/str surface; keep single table+orch in L8b.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_map(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_map_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_map_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
