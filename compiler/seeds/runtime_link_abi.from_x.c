@@ -5681,6 +5681,8 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave129: needs_heap_user_syms pure orch lives in labi_ondemand_list (heap_user sym table + orch).
  * wave130: needs_async_scheduler pure orch lives in labi_ondemand_list (async_scheduler sym table + orch).
  * wave131: compress family pure orch lives in labi_ondemand_list (zlib/zstd/brotli marker+undef + needs_compress_libs).
+ * wave132: labi_user_needs_runtime_{time_os,random_fill,env_os} pure orch lives in labi_ondemand_list
+ *   (PRIMARY OS tables; null/empty → 1; process_argv + std_task stay mega — capacity).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -6341,73 +6343,20 @@ static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
 }
 
 /*
- * PLATFORM: SHARED — bulk residual (§0.1): PRIMARY_TIME_OS / RANDOM_FILL / ENV_OS used to
- * always enter the asm link line. With user_o known, gate on real UNDEF (same authority as
- * fk0 / on_demand probes). null user_o keeps legacy hard-link for old call sites.
- * G.7: complete existing append_std_objs_for_user; no second link plan.
+ * wave132: labi_user_needs_runtime_{time_os,random_fill,env_os} pure orch lives
+ * in labi_ondemand_list (product tables + pure scan; null/empty → 1).
+ * process_argv + std_task remain mega (module codegen capacity; deferred).
+ * Cap residual: undef_sym stays mega. Call sites need forward decls before
+ * the ondemand include block. PLATFORM: SHARED.
  */
-static int labi_user_needs_runtime_time_os(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 1;
-    return shux_link_obj_needs_undef_sym(user_o, "time_now_monotonic_ns_c")
-        || shux_link_obj_needs_undef_sym(user_o, "time_now_wall_ns_c")
-        || shux_link_obj_needs_undef_sym(user_o, "time_sleep_ns_c")
-        || shux_link_obj_needs_undef_sym(user_o, "time_format_wall_rfc3339_c")
-        || shux_link_obj_needs_undef_sym(user_o, "time_wall_local_offset_min_c")
-        || shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ns")
-        || shux_link_obj_needs_undef_sym(user_o, "std_time_now_wall_ns")
-        || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ms")
-        || shux_link_obj_needs_undef_sym(user_o, "std_time_timer_start")
-        || shux_link_obj_needs_undef_sym(user_o, "std_time_duration_ns");
-}
-
-static int labi_user_needs_runtime_random_fill(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 1;
-    return shux_link_obj_needs_undef_sym(user_o, "random_fill_bytes_c")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_fill_bytes")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_fill")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_next")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_range_u32_u32")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_gen")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_flip")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_rng_smoke")
-        || shux_link_obj_needs_undef_sym(user_o, "std_random_seed")
-        || shux_link_obj_needs_undef_sym(user_o, "random_u32_c")
-        || shux_link_obj_needs_undef_sym(user_o, "random_u64_c")
-        || shux_link_obj_needs_undef_sym(user_o, "random_rng_smoke_c");
-}
-
-static int labi_user_needs_runtime_env_os(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 1;
-    /* OS glue + formal env API (user.o has U std_env_*; env_*_c only after env.o). */
-    return shux_link_obj_needs_undef_sym(user_o, "env_getenv_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_getenv_exists_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_getenv_z_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_getenv_ptr_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_setenv_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_unsetenv_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_temp_dir_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_iter_count_c")
-        || shux_link_obj_needs_undef_sym(user_o, "env_iter_at_c")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_exists")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_z")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_ptr")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_setenv")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_unsetenv")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_temp_dir")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_iter")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_iter_count")
-        || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
-}
+int labi_user_needs_runtime_time_os(const char *user_o);
+int labi_user_needs_runtime_random_fill(const char *user_o);
+int labi_user_needs_runtime_env_os(const char *user_o);
 
 /*
  * PLATFORM: SHARED — prepare residual: process_argv used to always ensure on every
  * hosted -o (cold tree fork-cc even for pure rv/hello). Gate on user.o surface;
- * transitive process_shux_* from formal/std .o still ensure+push via complements
- * (asm post-on_demand scan + C post-module scan). null user_o keeps legacy hard ensure.
+ * null user_o keeps legacy hard ensure. Deferred from wave132 pure (capacity).
  * G.7: complete existing labi_user_needs_runtime_* family; no second table.
  */
 static int labi_user_needs_runtime_process_argv(const char *user_o) {
@@ -6425,19 +6374,14 @@ static int labi_user_needs_runtime_process_argv(const char *user_o) {
 }
 
 /*
- * PLATFORM: SHARED — bulk residual TASK_SPECIAL: task.o (+ scheduler companions)
- * used to enter the asm link line whenever the .o existed (no UNDEF gate). Pure
- * rv/hello then dragged task+async when a warm tree had prebuilt task.o.
- * Align with C backend need_task (std_task_*) and PRIMARY OS gates: only push
- * when user.o has real task surface UNDEFs. null user_o keeps legacy hard-link.
- * G.7: complete existing LABI_STD_OP_TASK_SPECIAL; do not add a second plan.
+ * PLATFORM: SHARED — bulk residual TASK_SPECIAL: task.o (+ scheduler companions).
+ * null user_o keeps legacy hard-link. Deferred from wave132 pure (capacity).
  * Do NOT probe shux_async_task_submit* here — pure async goes through on_demand
  * scheduler path without forcing task.o.
  */
 static int labi_user_needs_std_task(const char *user_o) {
     if (!user_o || !user_o[0])
         return 1;
-    /* formal mod.x surface (std_task_*) */
     return shux_link_obj_needs_undef_sym(user_o, "std_task_new")
         || shux_link_obj_needs_undef_sym(user_o, "std_task_free")
         || shux_link_obj_needs_undef_sym(user_o, "std_task_bind")
@@ -6456,7 +6400,6 @@ static int labi_user_needs_std_task(const char *user_o) {
         || shux_link_obj_needs_undef_sym(user_o, "std_task_echo_ptr")
         || shux_link_obj_needs_undef_sym(user_o, "std_task_retry")
         || shux_link_obj_needs_undef_sym(user_o, "std_task_err_ok")
-        /* task.x bare C surface (no_mangle / smoke) */
         || shux_link_obj_needs_undef_sym(user_o, "task_group_create_c")
         || shux_link_obj_needs_undef_sym(user_o, "task_group_spawn_c")
         || shux_link_obj_needs_undef_sym(user_o, "task_group_join_c")
@@ -6928,7 +6871,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–131 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family pure orch (L8b pure .x / cold seed). */
+/* wave118–132 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -6981,6 +6924,15 @@ int link_abi_obj_needs_zlib(const char *obj_o);
 int link_abi_obj_needs_zstd(const char *obj_o);
 int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
+int labi_od_runtime_time_os_sym_count(void);
+const char *labi_od_runtime_time_os_sym_at(int i);
+int labi_user_needs_runtime_time_os(const char *user_o);
+int labi_od_runtime_random_fill_sym_count(void);
+const char *labi_od_runtime_random_fill_sym_at(int i);
+int labi_user_needs_runtime_random_fill(const char *user_o);
+int labi_od_runtime_env_os_sym_count(void);
+const char *labi_od_runtime_env_os_sym_at(int i);
+int labi_user_needs_runtime_env_os(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

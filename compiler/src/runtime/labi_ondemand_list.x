@@ -20,7 +20,10 @@
 //   wave129 labi_od_heap_user_sym_* + link_abi_user_o_needs_heap_user_syms pure orch +
 //   wave130 labi_od_async_scheduler_sym_* + link_abi_user_o_needs_async_scheduler pure orch +
 //   wave131 link_abi_obj_needs_{zlib,zstd,brotli} + link_abi_user_o_needs_compress_libs pure orch
-//     (marker + UNDEF/prefix tables; Cap residual exports_marker + has_undef_sym).
+//     (marker + UNDEF/prefix tables; Cap residual exports_marker + has_undef_sym) +
+//   wave132 labi_user_needs_runtime_{time_os,random_fill,env_os} pure orch
+//     (PRIMARY OS bulk gates; null/empty user_o → 1 legacy hard-link;
+//      process_argv + std_task deferred: codegen capacity on this module).
 // Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -2387,6 +2390,362 @@ export function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
   }
   return 0;
 }
+
+/* wave132: bulk PRIMARY OS pure tables + orch (time_os / random_fill / env_os).
+ * Semantics: null/empty user_o → 1 (legacy hard-link for old call sites without user_o).
+ * process_argv + std_task stay mega until module capacity / split.
+ * Cap residual: shux_link_obj_needs_undef_sym. PLATFORM: SHARED. */
+
+/**
+ * Count of runtime time_os UNDEF needles for labi_user_needs_runtime_time_os.
+ * Product complete (G.7): time_*_c OS glue + std_time_* formal API.
+ * @return i32 — 10
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_time_os_sym_count(): i32 {
+  return 10;
+}
+
+/**
+ * runtime time_os UNDEF needle at index (exact symbols only).
+ * @param i i32 — index in [0, 10)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_time_os_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "time_now_monotonic_ns_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "time_now_wall_ns_c";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "time_sleep_ns_c";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "time_format_wall_rfc3339_c";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "time_wall_local_offset_min_c";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_time_now_monotonic_ns";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_time_now_wall_ns";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_time_sleep_ms";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_time_timer_start";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_time_duration_ns";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o needs runtime time_os companion (PRIMARY_TIME_OS bulk gate).
+ * Pure orch: fixed exact UNDEF table; Cap residual undef_sym.
+ * null/empty user_o → 1 (legacy hard-link when call site has no user_o).
+ * @param user_o *u8 — path to user .o
+ * @return i32 — 1 if gate open (push/ensure time_os), else 0
+ * Why (wave132): hybrid still had labi_user_needs_runtime_time_os body always mega C.
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function labi_user_needs_runtime_time_os(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 1;
+  }
+  if (user_o[0] == 0) {
+    return 1;
+  }
+  let n: i32 = labi_od_runtime_time_os_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_runtime_time_os_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of runtime random_fill UNDEF needles for labi_user_needs_runtime_random_fill.
+ * Product complete (G.7): random_*_c OS glue + std_random_* formal API.
+ * @return i32 — 12
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_random_fill_sym_count(): i32 {
+  return 12;
+}
+
+/**
+ * runtime random_fill UNDEF needle at index (exact symbols only).
+ * @param i i32 — index in [0, 12)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_random_fill_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "random_fill_bytes_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_random_fill_bytes";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_random_fill";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_random_next";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_random_range_u32_u32";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_random_gen";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_random_flip";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_random_rng_smoke";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_random_seed";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "random_u32_c";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "random_u64_c";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "random_rng_smoke_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o needs runtime random_fill companion (PRIMARY_RANDOM_FILL bulk gate).
+ * Pure orch: fixed exact UNDEF table; Cap residual undef_sym.
+ * null/empty user_o → 1 (legacy hard-link).
+ * @param user_o *u8 — path to user .o
+ * @return i32 — 1 if gate open, else 0
+ * Why (wave132): hybrid still had labi_user_needs_runtime_random_fill body always mega C.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_user_needs_runtime_random_fill(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 1;
+  }
+  if (user_o[0] == 0) {
+    return 1;
+  }
+  let n: i32 = labi_od_runtime_random_fill_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_runtime_random_fill_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of runtime env_os UNDEF needles for labi_user_needs_runtime_env_os.
+ * Product complete (G.7): env_*_c OS glue + std_env_* formal API (incl args_iter).
+ * @return i32 — 19
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_env_os_sym_count(): i32 {
+  return 19;
+}
+
+/**
+ * runtime env_os UNDEF needle at index (exact symbols only).
+ * @param i i32 — index in [0, 19)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_runtime_env_os_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "env_getenv_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "env_getenv_exists_c";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "env_getenv_z_c";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "env_getenv_ptr_c";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "env_setenv_c";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "env_unsetenv_c";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "env_temp_dir_c";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "env_iter_count_c";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "env_iter_at_c";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_env_getenv";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_env_getenv_exists";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_env_getenv_z";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_env_getenv_ptr";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_env_setenv";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_env_unsetenv";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "std_env_temp_dir";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "std_env_iter";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "std_env_iter_count";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "std_env_args_iter";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o needs runtime env_os companion (PRIMARY_ENV_OS bulk gate).
+ * Pure orch: fixed exact UNDEF table; Cap residual undef_sym.
+ * null/empty user_o → 1 (legacy hard-link).
+ * @param user_o *u8 — path to user .o
+ * @return i32 — 1 if gate open, else 0
+ * Why (wave132): hybrid still had labi_user_needs_runtime_env_os body always mega C.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_user_needs_runtime_env_os(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 1;
+  }
+  if (user_o[0] == 0) {
+    return 1;
+  }
+  let n: i32 = labi_od_runtime_env_os_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_runtime_env_os_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
 
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 /**

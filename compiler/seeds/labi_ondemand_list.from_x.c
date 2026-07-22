@@ -18,6 +18,8 @@
  *   + labi_od_heap_user_sym_{count,at} + link_abi_user_o_needs_heap_user_syms pure orch
  *   + labi_od_async_scheduler_sym_{count,at} + link_abi_user_o_needs_async_scheduler pure orch
  *   + wave131 compress family: zlib/zstd/brotli marker+undef tables + needs_compress_libs pure orch
+ *   + wave132 labi_od_runtime_{time_os,random_fill,env_os}_sym_* + labi_user_needs_runtime_* pure orch
+ *     (PRIMARY OS; null/empty user_o → 1; process_argv/std_task stay mega)
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym / exports_marker / has_undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -1087,6 +1089,151 @@ int link_abi_user_o_needs_compress_libs(const char *user_o) {
   return 0;
 }
 
+/* wave132: bulk PRIMARY OS pure tables + orch (time_os / random_fill / env_os).
+ * PLATFORM: SHARED — exact symbols only; null/empty user_o → 1 legacy hard-link.
+ * process_argv + std_task stay mega (module codegen capacity). */
+int labi_od_runtime_time_os_sym_count(void) { return 10; }
+const char *labi_od_runtime_time_os_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "time_now_monotonic_ns_c";
+  if (i == 1)
+    return "time_now_wall_ns_c";
+  if (i == 2)
+    return "time_sleep_ns_c";
+  if (i == 3)
+    return "time_format_wall_rfc3339_c";
+  if (i == 4)
+    return "time_wall_local_offset_min_c";
+  if (i == 5)
+    return "std_time_now_monotonic_ns";
+  if (i == 6)
+    return "std_time_now_wall_ns";
+  if (i == 7)
+    return "std_time_sleep_ms";
+  if (i == 8)
+    return "std_time_timer_start";
+  if (i == 9)
+    return "std_time_duration_ns";
+  return NULL;
+}
+int labi_user_needs_runtime_time_os(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 1;
+  n = labi_od_runtime_time_os_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_runtime_time_os_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+int labi_od_runtime_random_fill_sym_count(void) { return 12; }
+const char *labi_od_runtime_random_fill_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "random_fill_bytes_c";
+  if (i == 1)
+    return "std_random_fill_bytes";
+  if (i == 2)
+    return "std_random_fill";
+  if (i == 3)
+    return "std_random_next";
+  if (i == 4)
+    return "std_random_range_u32_u32";
+  if (i == 5)
+    return "std_random_gen";
+  if (i == 6)
+    return "std_random_flip";
+  if (i == 7)
+    return "std_random_rng_smoke";
+  if (i == 8)
+    return "std_random_seed";
+  if (i == 9)
+    return "random_u32_c";
+  if (i == 10)
+    return "random_u64_c";
+  if (i == 11)
+    return "random_rng_smoke_c";
+  return NULL;
+}
+int labi_user_needs_runtime_random_fill(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 1;
+  n = labi_od_runtime_random_fill_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_runtime_random_fill_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+int labi_od_runtime_env_os_sym_count(void) { return 19; }
+const char *labi_od_runtime_env_os_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "env_getenv_c";
+  if (i == 1)
+    return "env_getenv_exists_c";
+  if (i == 2)
+    return "env_getenv_z_c";
+  if (i == 3)
+    return "env_getenv_ptr_c";
+  if (i == 4)
+    return "env_setenv_c";
+  if (i == 5)
+    return "env_unsetenv_c";
+  if (i == 6)
+    return "env_temp_dir_c";
+  if (i == 7)
+    return "env_iter_count_c";
+  if (i == 8)
+    return "env_iter_at_c";
+  if (i == 9)
+    return "std_env_getenv";
+  if (i == 10)
+    return "std_env_getenv_exists";
+  if (i == 11)
+    return "std_env_getenv_z";
+  if (i == 12)
+    return "std_env_getenv_ptr";
+  if (i == 13)
+    return "std_env_setenv";
+  if (i == 14)
+    return "std_env_unsetenv";
+  if (i == 15)
+    return "std_env_temp_dir";
+  if (i == 16)
+    return "std_env_iter";
+  if (i == 17)
+    return "std_env_iter_count";
+  if (i == 18)
+    return "std_env_args_iter";
+  return NULL;
+}
+int labi_user_needs_runtime_env_os(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 1;
+  n = labi_od_runtime_env_os_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_runtime_env_os_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -1180,6 +1327,15 @@ int link_abi_obj_needs_zlib(const char *obj_o);
 int link_abi_obj_needs_zstd(const char *obj_o);
 int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
+int labi_od_runtime_time_os_sym_count(void);
+const char *labi_od_runtime_time_os_sym_at(int i);
+int labi_user_needs_runtime_time_os(const char *user_o);
+int labi_od_runtime_random_fill_sym_count(void);
+const char *labi_od_runtime_random_fill_sym_at(int i);
+int labi_user_needs_runtime_random_fill(const char *user_o);
+int labi_od_runtime_env_os_sym_count(void);
+const char *labi_od_runtime_env_os_sym_at(int i);
+int labi_user_needs_runtime_env_os(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

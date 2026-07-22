@@ -1,7 +1,7 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–131 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family pure)
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–132 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os pure)
  * Cap residual: nm/push/ensure + undef_sym / exports_marker / has_undef_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -81,6 +81,15 @@ extern int32_t link_abi_obj_needs_zlib(uint8_t * obj_o);
 extern int32_t link_abi_obj_needs_zstd(uint8_t * obj_o);
 extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
 extern int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o);
+extern int32_t labi_od_runtime_time_os_sym_count(void);
+extern uint8_t * labi_od_runtime_time_os_sym_at(int32_t i);
+extern int32_t labi_user_needs_runtime_time_os(uint8_t * user_o);
+extern int32_t labi_od_runtime_random_fill_sym_count(void);
+extern uint8_t * labi_od_runtime_random_fill_sym_at(int32_t i);
+extern int32_t labi_user_needs_runtime_random_fill(uint8_t * user_o);
+extern int32_t labi_od_runtime_env_os_sym_count(void);
+extern uint8_t * labi_od_runtime_env_os_sym_at(int32_t i);
+extern int32_t labi_user_needs_runtime_env_os(uint8_t * user_o);
 extern uint8_t * labi_od_rel_net(void);
 extern uint8_t * labi_od_rel_thread(void);
 extern uint8_t * labi_od_rel_heap(void);
@@ -1813,6 +1822,269 @@ int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o) {
   }
   if ((link_abi_obj_needs_brotli(user_o) !=0)) {
     return 1;
+  }
+  return 0;
+}
+int32_t labi_od_runtime_time_os_sym_count(void) {
+  return 10;
+}
+uint8_t * labi_od_runtime_time_os_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"time_now_monotonic_ns_c");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"time_now_wall_ns_c");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"time_sleep_ns_c");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"time_format_wall_rfc3339_c");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"time_wall_local_offset_min_c");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"std_time_now_monotonic_ns");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"std_time_now_wall_ns");
+    return p;
+  }
+  if ((i ==7)) {
+    uint8_t * p = ((uint8_t *)"std_time_sleep_ms");
+    return p;
+  }
+  if ((i ==8)) {
+    uint8_t * p = ((uint8_t *)"std_time_timer_start");
+    return p;
+  }
+  if ((i ==9)) {
+    uint8_t * p = ((uint8_t *)"std_time_duration_ns");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_user_needs_runtime_time_os(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 1;
+  }
+  if (((user_o)[0] ==0)) {
+    return 1;
+  }
+  int32_t n = labi_od_runtime_time_os_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_runtime_time_os_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_od_runtime_random_fill_sym_count(void) {
+  return 12;
+}
+uint8_t * labi_od_runtime_random_fill_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"random_fill_bytes_c");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"std_random_fill_bytes");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"std_random_fill");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"std_random_next");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"std_random_range_u32_u32");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"std_random_gen");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"std_random_flip");
+    return p;
+  }
+  if ((i ==7)) {
+    uint8_t * p = ((uint8_t *)"std_random_rng_smoke");
+    return p;
+  }
+  if ((i ==8)) {
+    uint8_t * p = ((uint8_t *)"std_random_seed");
+    return p;
+  }
+  if ((i ==9)) {
+    uint8_t * p = ((uint8_t *)"random_u32_c");
+    return p;
+  }
+  if ((i ==10)) {
+    uint8_t * p = ((uint8_t *)"random_u64_c");
+    return p;
+  }
+  if ((i ==11)) {
+    uint8_t * p = ((uint8_t *)"random_rng_smoke_c");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_user_needs_runtime_random_fill(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 1;
+  }
+  if (((user_o)[0] ==0)) {
+    return 1;
+  }
+  int32_t n = labi_od_runtime_random_fill_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_runtime_random_fill_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_od_runtime_env_os_sym_count(void) {
+  return 19;
+}
+uint8_t * labi_od_runtime_env_os_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"env_getenv_c");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"env_getenv_exists_c");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"env_getenv_z_c");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"env_getenv_ptr_c");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"env_setenv_c");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"env_unsetenv_c");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"env_temp_dir_c");
+    return p;
+  }
+  if ((i ==7)) {
+    uint8_t * p = ((uint8_t *)"env_iter_count_c");
+    return p;
+  }
+  if ((i ==8)) {
+    uint8_t * p = ((uint8_t *)"env_iter_at_c");
+    return p;
+  }
+  if ((i ==9)) {
+    uint8_t * p = ((uint8_t *)"std_env_getenv");
+    return p;
+  }
+  if ((i ==10)) {
+    uint8_t * p = ((uint8_t *)"std_env_getenv_exists");
+    return p;
+  }
+  if ((i ==11)) {
+    uint8_t * p = ((uint8_t *)"std_env_getenv_z");
+    return p;
+  }
+  if ((i ==12)) {
+    uint8_t * p = ((uint8_t *)"std_env_getenv_ptr");
+    return p;
+  }
+  if ((i ==13)) {
+    uint8_t * p = ((uint8_t *)"std_env_setenv");
+    return p;
+  }
+  if ((i ==14)) {
+    uint8_t * p = ((uint8_t *)"std_env_unsetenv");
+    return p;
+  }
+  if ((i ==15)) {
+    uint8_t * p = ((uint8_t *)"std_env_temp_dir");
+    return p;
+  }
+  if ((i ==16)) {
+    uint8_t * p = ((uint8_t *)"std_env_iter");
+    return p;
+  }
+  if ((i ==17)) {
+    uint8_t * p = ((uint8_t *)"std_env_iter_count");
+    return p;
+  }
+  if ((i ==18)) {
+    uint8_t * p = ((uint8_t *)"std_env_args_iter");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_user_needs_runtime_env_os(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 1;
+  }
+  if (((user_o)[0] ==0)) {
+    return 1;
+  }
+  int32_t n = labi_od_runtime_env_os_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_runtime_env_os_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
   }
   return 0;
 }
