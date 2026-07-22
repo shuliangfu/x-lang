@@ -9,8 +9,9 @@
 //   - labi_icc_rel_* (12) + labi_icc_needs_rel_{count,at}
 //   - shux_append_linux_link_harden_impl (wave155; pure orch over harden table)
 //   - invoke_cc_append_early_needs (wave198; pure orch early needs scan+push)
+//   - invoke_cc_scan_std_module_needs (wave199; pure table scan std need flags)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
-//   fork/exec still mega shux_invoke_cc_impl (rest of large leaf).
+//   contains_substr(_use_line) peers for scan; fork/exec + ensure-push still mega.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -688,6 +689,1074 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
         flc2 = labi_ld_flag_lc();
       }
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc2);
+    }
+  }
+}
+
+/* ===== wave199 Cap residual pure: invoke_cc std module need scan ===== */
+export extern "C" function link_abi_generated_c_contains_substr_use_line(c_path: *u8, needle: *u8): i32;
+export extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
+
+/**
+ * Count of std-module need flag slots written by invoke_cc_scan_std_module_needs.
+ * @return i32 — 52 (process..panic); mega flags[] must be at least this long
+ * PLATFORM: SHARED — pure table size
+ */
+#[no_mangle]
+export function labi_icc_std_need_count(): i32 {
+  return 52;
+}
+
+
+/**
+ * Needle count for one std-module need id (use_line OR of needles).
+ * @param mid i32 — module id 0..51 (see labi_icc_std_need_count)
+ * @return i32 — needle count; 0 if mid out of range
+ * PLATFORM: SHARED pure table
+ */
+#[no_mangle]
+export function labi_icc_std_need_needle_count(mid: i32): i32 {
+
+  if (mid == 0) {
+    return 5;
+  }
+  if (mid == 1) {
+    return 8;
+  }
+  if (mid == 2) {
+    return 2;
+  }
+  if (mid == 3) {
+    return 3;
+  }
+  if (mid == 4) {
+    return 1;
+  }
+  if (mid == 5) {
+    return 18;
+  }
+  if (mid == 6) {
+    return 3;
+  }
+  if (mid == 7) {
+    return 3;
+  }
+  if (mid == 8) {
+    return 2;
+  }
+  if (mid == 9) {
+    return 3;
+  }
+  if (mid == 10) {
+    return 3;
+  }
+  if (mid == 11) {
+    return 1;
+  }
+  if (mid == 12) {
+    return 3;
+  }
+  if (mid == 13) {
+    return 5;
+  }
+  if (mid == 14) {
+    return 3;
+  }
+  if (mid == 15) {
+    return 4;
+  }
+  if (mid == 16) {
+    return 3;
+  }
+  if (mid == 17) {
+    return 2;
+  }
+  if (mid == 18) {
+    return 3;
+  }
+  if (mid == 19) {
+    return 3;
+  }
+  if (mid == 20) {
+    return 3;
+  }
+  if (mid == 21) {
+    return 10;
+  }
+  if (mid == 22) {
+    return 2;
+  }
+  if (mid == 23) {
+    return 3;
+  }
+  if (mid == 24) {
+    return 2;
+  }
+  if (mid == 25) {
+    return 2;
+  }
+  if (mid == 26) {
+    return 2;
+  }
+  if (mid == 27) {
+    return 2;
+  }
+  if (mid == 28) {
+    return 4;
+  }
+  if (mid == 29) {
+    return 2;
+  }
+  if (mid == 30) {
+    return 2;
+  }
+  if (mid == 31) {
+    return 3;
+  }
+  if (mid == 32) {
+    return 3;
+  }
+  if (mid == 33) {
+    return 1;
+  }
+  if (mid == 34) {
+    return 8;
+  }
+  if (mid == 35) {
+    return 2;
+  }
+  if (mid == 36) {
+    return 1;
+  }
+  if (mid == 37) {
+    return 3;
+  }
+  if (mid == 38) {
+    return 3;
+  }
+  if (mid == 39) {
+    return 2;
+  }
+  if (mid == 40) {
+    return 1;
+  }
+  if (mid == 41) {
+    return 1;
+  }
+  if (mid == 42) {
+    return 1;
+  }
+  if (mid == 43) {
+    return 1;
+  }
+  if (mid == 44) {
+    return 1;
+  }
+  if (mid == 45) {
+    return 1;
+  }
+  if (mid == 46) {
+    return 2;
+  }
+  if (mid == 47) {
+    return 3;
+  }
+  if (mid == 48) {
+    return 1;
+  }
+  if (mid == 49) {
+    return 1;
+  }
+  if (mid == 50) {
+    return 1;
+  }
+  if (mid == 51) {
+    return 1;
+  }
+  return 0;
+}
+
+
+/**
+ * Needle string at index for std-module need id.
+ * @param mid i32 — module id 0..51
+ * @param i i32 — needle index; out of range → null
+ * @return *u8 — NUL-terminated needle; null if invalid
+ * PLATFORM: SHARED pure table
+ */
+#[no_mangle]
+export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+
+  if (mid == 0) {
+    if (i == 0) {
+      let p: *u8 = "std_process_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "shux_process_spawn";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "shux_process_wait";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "process_spawn";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "process_exec";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 1) {
+    if (i == 0) {
+      let p: *u8 = "process_shux_argc_get";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "process_shux_argv_get";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "process_args_count_c";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "process_arg_c";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "args_iter_count_c";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "args_iter_at_c";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_process_args";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_env_args_iter";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 2) {
+    if (i == 0) {
+      let p: *u8 = "std_string_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "shux_string_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 3) {
+    if (i == 0) {
+      let p: *u8 = "std_path_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "path_join";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "path_dirname";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 4) {
+    if (i == 0) {
+      let p: *u8 = "std_runtime_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 5) {
+    if (i == 0) {
+      let p: *u8 = "std_net_listen";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_net_connect";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_net_udp_bind";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_net_udp_recv";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_net_udp_send";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_net_addr_to_u32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_net_close_udp";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "net_tcp_connect_c";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "net_tcp_listen_c";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "net_udp_bind_c";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "net_udp_recv_many_buf_c";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "net_udp_send_many_buf_c";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "net_udp_send_c";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "net_dns_resolve_c";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "net_sock_create_c";
+      return p;
+    }
+    if (i == 15) {
+      let p: *u8 = "net_stream_write_batch_c";
+      return p;
+    }
+    if (i == 16) {
+      let p: *u8 = "net_close_socket_c_real";
+      return p;
+    }
+    if (i == 17) {
+      let p: *u8 = "net_run_accept_workers_c_real";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 6) {
+    if (i == 0) {
+      let p: *u8 = "std_thread_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "thread_create_c";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "thread_join_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 7) {
+    if (i == 0) {
+      let p: *u8 = "std_time_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "time_now_";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "time_sleep_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 8) {
+    if (i == 0) {
+      let p: *u8 = "std_random_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "random_fill_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 9) {
+    if (i == 0) {
+      let p: *u8 = "std_env_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "env_get_";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "env_set_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 10) {
+    if (i == 0) {
+      let p: *u8 = "std_sync_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "sync_mutex_";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "sync_rwlock_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 11) {
+    if (i == 0) {
+      let p: *u8 = "std_encoding_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 12) {
+    if (i == 0) {
+      let p: *u8 = "std_base64_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "base64_encode";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "base64_decode";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 13) {
+    if (i == 0) {
+      let p: *u8 = "std_crypto_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "core_crypto_mem_eq";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "core_crypto_sha";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "crypto_sha";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "ed25519_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 14) {
+    if (i == 0) {
+      let p: *u8 = "std_log_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "log_write_c";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "log_info_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 15) {
+    if (i == 0) {
+      let p: *u8 = "std_atomic_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "atomic_load_i32_c";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "atomic_store_i32_c";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "atomic_fetch_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 16) {
+    if (i == 0) {
+      let p: *u8 = "std_channel_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "channel_send";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "channel_recv";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 17) {
+    if (i == 0) {
+      let p: *u8 = "std_backtrace_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "backtrace_capture";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 18) {
+    if (i == 0) {
+      let p: *u8 = "std_hash_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "hash_fnv";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "hash_sip";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 19) {
+    if (i == 0) {
+      let p: *u8 = "std_math_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "math_sin";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "math_cos";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 20) {
+    if (i == 0) {
+      let p: *u8 = "std_sort_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "sort_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "sort_stable";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 21) {
+    if (i == 0) {
+      let p: *u8 = "std_vec_new";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_vec_push";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_vec_len_Vec";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_vec_len_ptr";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_vec_with_capacity";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_vec_from_slice";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_vec_append";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_vec_reserve";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_vec_clear";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_vec_free";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 22) {
+    if (i == 0) {
+      let p: *u8 = "std_ffi_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "ffi_call";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 23) {
+    if (i == 0) {
+      let p: *u8 = "std_db_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "sqlite3_";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "db_sqlite_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 24) {
+    if (i == 0) {
+      let p: *u8 = "std_elf_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "elf_parse";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 25) {
+    if (i == 0) {
+      let p: *u8 = "std_json_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "json_parse_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 26) {
+    if (i == 0) {
+      let p: *u8 = "std_csv_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "csv_next_field";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 27) {
+    if (i == 0) {
+      let p: *u8 = "std_regex_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "regex_match";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 28) {
+    if (i == 0) {
+      let p: *u8 = "std_compress_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "compress_gzip";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "compress_zstd";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "compress_brotli";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 29) {
+    if (i == 0) {
+      let p: *u8 = "std_unicode_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "unicode_utf8";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 30) {
+    if (i == 0) {
+      let p: *u8 = "std_dynlib_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "dynlib_open";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 31) {
+    if (i == 0) {
+      let p: *u8 = "std_http_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "http_request";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "http2_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 32) {
+    if (i == 0) {
+      let p: *u8 = "std_tar_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "tar_open";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "tar_extract";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 33) {
+    if (i == 0) {
+      let p: *u8 = "std_simd_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 34) {
+    if (i == 0) {
+      let p: *u8 = "std_context_background(";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_context_with_cancel(";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_context_with_deadline(";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_context_with_timeout(";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_context_cancel(";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_context_set_value(";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_context_get_value(";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_context_free(";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 35) {
+    if (i == 0) {
+      let p: *u8 = "std_error_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "error_wrap_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 36) {
+    if (i == 0) {
+      let p: *u8 = "std_datetime_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 37) {
+    if (i == 0) {
+      let p: *u8 = "std_uuid_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "uuid_v4";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "uuid_parse";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 38) {
+    if (i == 0) {
+      let p: *u8 = "std_url_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "url_parse";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "url_join";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 39) {
+    if (i == 0) {
+      let p: *u8 = "std_cli_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "cli_parse";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 40) {
+    if (i == 0) {
+      let p: *u8 = "std_security_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 41) {
+    if (i == 0) {
+      let p: *u8 = "std_config_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 42) {
+    if (i == 0) {
+      let p: *u8 = "std_cache_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 43) {
+    if (i == 0) {
+      let p: *u8 = "std_trace_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 44) {
+    if (i == 0) {
+      let p: *u8 = "std_task_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 45) {
+    if (i == 0) {
+      let p: *u8 = "std_schema_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 46) {
+    if (i == 0) {
+      let p: *u8 = "std_test_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "test_call_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 47) {
+    if (i == 0) {
+      let p: *u8 = "std_socketio_";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "socketio_emit";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "socketio_on";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 48) {
+    if (i == 0) {
+      let p: *u8 = "std_set_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 49) {
+    if (i == 0) {
+      let p: *u8 = "std_map_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 50) {
+    if (i == 0) {
+      let p: *u8 = "std_queue_";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (mid == 51) {
+    if (i == 0) {
+      let p: *u8 = "shux_panic_(";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  return 0 as *u8;
+}
+
+
+/**
+ * Scan generated C paths and set std-module need flags (OR across paths).
+ * Composes pure needle tables + Cap residual peer contains_substr_use_line.
+ * Special mid=51 panic: use_line "shux_panic_(" AND not co-emit body via contains_substr.
+ * @param c_paths **u8 — generated C path table; null or n < 1 → zero flags only
+ * @param n i32 — number of c_paths entries
+ * @param flags *i32 — out flags bank; each slot 0/1; null → no-op
+ * @param flags_cap i32 — length of flags; must be >= labi_icc_std_need_count() (52)
+ * @return void — zeros flags[0..count) then ORs hits; does not touch flags beyond count
+ * Pure orch: ≡ mega std need scan loop inside shux_invoke_cc_impl (pre ensure-push).
+ * Cap residual: link_abi_generated_c_contains_substr_use_line + contains_substr (file view).
+ * Why (wave199): hybrid still had std need scan always-mega inside invoke_cc_impl.
+ * Flag index map (stable):
+ *   0 process 1 process_argv_glue 2 string 3 path 4 runtime 5 net 6 thread 7 time
+ *   8 random 9 env 10 sync 11 encoding 12 base64 13 crypto 14 log 15 atomic
+ *   16 channel 17 backtrace 18 hash 19 math 20 sort 21 vec 22 ffi 23 db
+ *   24 elf 25 json 26 csv 27 regex 28 compress 29 unicode 30 dynlib 31 http
+ *   32 tar 33 simd 34 context 35 error 36 datetime 37 uuid 38 url 39 cli
+ *   40 security 41 config 42 cache 43 trace 44 task 45 schema 46 test 47 socketio
+ *   48 set 49 map 50 queue 51 panic
+ * Callers: mega shux_invoke_cc_impl after early needs / MINIMAL path (SHARED product C link).
+ * PLATFORM: SHARED orch
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i32, flags_cap: i32): void {
+  if (flags == 0 as *i32) {
+    return;
+  }
+  if (flags_cap < 52) {
+    return;
+  }
+  let k: i32 = 0;
+  while (k < 52) {
+    flags[k] = 0;
+    k = k + 1;
+  }
+  if (n < 1) {
+    return;
+  }
+  let cpb: *u8 = c_paths as *u8;
+  if (cpb == 0 as *u8) {
+    return;
+  }
+  let j: i32 = 0;
+  while (j < n) {
+    let cp: *u8 = c_paths[j];
+    j = j + 1;
+    if (cp == 0 as *u8) {
+      continue;
+    }
+    let mid: i32 = 0;
+    while (mid < 52) {
+      // panic (51): use_line + not co-emit body
+      if (mid == 51) {
+        let hit_panic: i32 = 0;
+        unsafe {
+          hit_panic = link_abi_generated_c_contains_substr_use_line(cp, "shux_panic_(");
+        }
+        if (hit_panic != 0) {
+          let body1: i32 = 0;
+          let body2: i32 = 0;
+          unsafe {
+            body1 = link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val) {");
+            body2 = link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val){");
+          }
+          if (body1 == 0) {
+            if (body2 == 0) {
+              flags[51] = 1;
+            }
+          }
+        }
+        mid = mid + 1;
+        continue;
+      }
+      let nc: i32 = labi_icc_std_need_needle_count(mid);
+      let ni: i32 = 0;
+      while (ni < nc) {
+        let nd: *u8 = labi_icc_std_need_needle_at(mid, ni);
+        ni = ni + 1;
+        if (nd == 0 as *u8) {
+          continue;
+        }
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr_use_line(cp, nd);
+        }
+        if (hit != 0) {
+          flags[mid] = 1;
+          // OR done for this mid on this path; still continue other mids
+          ni = nc;
+        }
+      }
+      mid = mid + 1;
     }
   }
 }

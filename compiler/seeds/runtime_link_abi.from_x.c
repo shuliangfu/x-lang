@@ -2164,6 +2164,10 @@ void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag
 void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root,
     const char *random_o, const char *time_o, const char *runtime_o, const char *runtime_panic_o);
+int labi_icc_std_need_count(void);
+int labi_icc_std_need_needle_count(int mid);
+const char *labi_icc_std_need_needle_at(int mid, int i);
+void invoke_cc_scan_std_module_needs(const char **c_paths, int n, int *flags, int flags_cap);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2177,6 +2181,13 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had early needs block always-mega inside invoke_cc_impl.
  * PLATFORM: SHARED orch / POSIX -lc / WINDOWS -lbcrypt -lkernel32 -lws2_32. */
+
+/* wave199: invoke_cc_scan_std_module_needs pure orch lives in labi_invoke_cc_list
+ * (std module need flag scan inside shux_invoke_cc_impl). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Why: hybrid still had std need scan loop always-mega inside invoke_cc_impl.
+ * PLATFORM: SHARED orch; Cap residual contains_substr(_use_line) peers.
+ */
 
 
 /**
@@ -3236,258 +3247,71 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
          * 配合上方 -dead_strip/--gc-sections：co-emit 的未引用 io_ctx 体不迫使链 context。
          */
         {
-            int need_process = 0, need_string = 0, need_path = 0, need_runtime = 0;
-            /* preamble weak process_args_* 转发 process_shux_*_get；export_dynamic（backtrace）
-             * 等会保活 weak → 须链 runtime_process_argv.o（或 process.o 已含 glue）。 */
-            int need_process_argv_glue = 0;
-            int need_net = 0, need_thread = 0, need_time = 0, need_random = 0, need_env = 0;
-            int need_sync = 0, need_encoding = 0, need_base64 = 0, need_crypto = 0;
-            int need_log = 0, need_atomic = 0, need_channel = 0, need_backtrace = 0;
-            int need_hash = 0, need_math = 0, need_sort = 0, need_vec = 0, need_ffi = 0, need_db = 0;
-            int need_elf = 0, need_json = 0, need_csv = 0, need_regex = 0, need_compress = 0, need_unicode = 0;
-            int need_dynlib = 0, need_http = 0, need_tar = 0, need_simd = 0, need_context = 0;
-            int need_error = 0, need_datetime = 0, need_uuid = 0, need_url = 0, need_cli = 0;
-            int need_security = 0, need_config = 0, need_cache = 0, need_trace = 0;
-            int need_task = 0, need_schema = 0, need_test = 0, need_socketio = 0;
-            int need_set = 0, need_map = 0, need_queue = 0;
-            int need_panic = 0;
-            /* 使用 use_line：忽略 preamble 的 extern/#define 行，只认真实引用 */
-            static const char *net_api[] = {
-                "std_net_listen", "std_net_connect", "std_net_udp_bind", "std_net_udp_recv",
-                "std_net_udp_send", "std_net_addr_to_u32", "std_net_close_udp",
-                "net_tcp_connect_c", "net_tcp_listen_c", "net_udp_bind_c",
-                "net_udp_recv_many_buf_c", "net_udp_send_many_buf_c",
-                "net_udp_send_c", "net_dns_resolve_c", "net_sock_create_c",
-                "net_stream_write_batch_c", "net_close_socket_c_real",
-                "net_run_accept_workers_c_real"
-            };
-            /* string：用 std_string_ 前缀 + use_line（已跳过 struct/typedef/extern/placeholder） */
-            static const char *context_api[] = {
-                "std_context_background(", "std_context_with_cancel(",
-                "std_context_with_deadline(", "std_context_with_timeout(",
-                "std_context_cancel(", "std_context_set_value(",
-                "std_context_get_value(", "std_context_free(",
-                "std_context_is_cancelled(", "std_context_deadline_ns(",
-                "std_context_remaining_ns("
-            };
-            static const char *crypto_api[] = {
-                "std_crypto_", "core_crypto_mem_eq", "core_crypto_sha",
-                "crypto_sha", "ed25519_"
-            };
+            /* wave199: std module need scan pure orch (L5 invoke_cc_list).
+             * G.7 pure needle tables + Cap residual contains_substr(_use_line).
+             * Flag map: 0 process 1 process_argv_glue 2 string 3 path 4 runtime 5 net
+             * 6 thread 7 time 8 random 9 env 10 sync 11 encoding 12 base64 13 crypto
+             * 14 log 15 atomic 16 channel 17 backtrace 18 hash 19 math 20 sort 21 vec
+             * 22 ffi 23 db 24 elf 25 json 26 csv 27 regex 28 compress 29 unicode
+             * 30 dynlib 31 http 32 tar 33 simd 34 context 35 error 36 datetime 37 uuid
+             * 38 url 39 cli 40 security 41 config 42 cache 43 trace 44 task 45 schema
+             * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
+             * Cap residual still mega for ensure-push main + fork/exec. */
+            int need_flags[52];
+            invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
+            int need_process = need_flags[0];
+            int need_process_argv_glue = need_flags[1];
+            int need_string = need_flags[2];
+            int need_path = need_flags[3];
+            int need_runtime = need_flags[4];
+            int need_net = need_flags[5];
+            int need_thread = need_flags[6];
+            int need_time = need_flags[7];
+            int need_random = need_flags[8];
+            int need_env = need_flags[9];
+            int need_sync = need_flags[10];
+            int need_encoding = need_flags[11];
+            int need_base64 = need_flags[12];
+            int need_crypto = need_flags[13];
+            int need_log = need_flags[14];
+            int need_atomic = need_flags[15];
+            int need_channel = need_flags[16];
+            int need_backtrace = need_flags[17];
+            int need_hash = need_flags[18];
+            int need_math = need_flags[19];
+            int need_sort = need_flags[20];
+            int need_vec = need_flags[21];
+            int need_ffi = need_flags[22];
+            int need_db = need_flags[23];
+            int need_elf = need_flags[24];
+            int need_json = need_flags[25];
+            int need_csv = need_flags[26];
+            int need_regex = need_flags[27];
+            int need_compress = need_flags[28];
+            int need_unicode = need_flags[29];
+            int need_dynlib = need_flags[30];
+            int need_http = need_flags[31];
+            int need_tar = need_flags[32];
+            int need_simd = need_flags[33];
+            int need_context = need_flags[34];
+            int need_error = need_flags[35];
+            int need_datetime = need_flags[36];
+            int need_uuid = need_flags[37];
+            int need_url = need_flags[38];
+            int need_cli = need_flags[39];
+            int need_security = need_flags[40];
+            int need_config = need_flags[41];
+            int need_cache = need_flags[42];
+            int need_trace = need_flags[43];
+            int need_task = need_flags[44];
+            int need_schema = need_flags[45];
+            int need_test = need_flags[46];
+            int need_socketio = need_flags[47];
+            int need_set = need_flags[48];
+            int need_map = need_flags[49];
+            int need_queue = need_flags[50];
+            int need_panic = need_flags[51];
             int jscan;
-            for (jscan = 0; jscan < n; jscan++) {
-                const char *cp = c_paths[jscan];
-                if (!cp)
-                    continue;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_process_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "shux_process_spawn") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "shux_process_wait") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "process_spawn") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "process_exec"))
-                    need_process = 1;
-                /*
-                 * PLATFORM: SHARED — process_argv glue only on real use_line.
-                 * Do NOT bare-substr process_shux_*: rt_preamble always injects weak
-                 * process_args_* → process_shux_* (pure rv/hello false positive →
-                 * every -o ensure runtime_process_argv.o). use_line skips weak stubs
-                 * (see link_abi_generated_c_contains_substr_use_line). Transitive U
-                 * from pushed std/*.o: post-module scan below (asm path complement).
-                 * G.7: complete need_process_argv_glue; no second always-on ensure.
-                 */
-                if (link_abi_generated_c_contains_substr_use_line(cp, "process_shux_argc_get") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "process_shux_argv_get") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "process_args_count_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "process_arg_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "args_iter_count_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "args_iter_at_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_process_args") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_env_args_iter"))
-                    need_process_argv_glue = 1;
-                /* std_string_* API 或 string.o 内 bare C 辅助（vec_add_verify 等直接 extern shux_string_memcmp_c） */
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_string_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "shux_string_"))
-                    need_string = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_path_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "path_join") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "path_dirname"))
-                    need_path = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_runtime_"))
-                    need_runtime = 1;
-                if (link_abi_generated_c_contains_any_substr_use_line(cp, net_api, (int)(sizeof net_api / sizeof net_api[0])))
-                    need_net = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_thread_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "thread_create_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "thread_join_c"))
-                    need_thread = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_time_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "time_now_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "time_sleep_"))
-                    need_time = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_random_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "random_fill_"))
-                    need_random = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_env_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "env_get_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "env_set_"))
-                    need_env = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_sync_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "sync_mutex_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "sync_rwlock_"))
-                    need_sync = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_encoding_"))
-                    need_encoding = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_base64_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "base64_encode") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "base64_decode"))
-                    need_base64 = 1;
-                if (link_abi_generated_c_contains_any_substr_use_line(cp, crypto_api, (int)(sizeof crypto_api / sizeof crypto_api[0])))
-                    need_crypto = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_log_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "log_write_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "log_info_"))
-                    need_log = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_atomic_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "atomic_load_i32_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "atomic_store_i32_c") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "atomic_fetch_"))
-                    need_atomic = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_channel_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "channel_send") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "channel_recv"))
-                    need_channel = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_backtrace_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "backtrace_capture"))
-                    need_backtrace = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_hash_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "hash_fnv") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "hash_sip"))
-                    need_hash = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_math_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "math_sin") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "math_cos"))
-                    need_math = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_sort_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "sort_i32") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "sort_stable"))
-                    need_sort = 1;
-                /* PLATFORM: SHARED — std.vec is link_only; user C has extern + calls only.
-                 * Ignore weak preamble std_vec_len_empty / placeholder lines (use_line). */
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_vec_new") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_push") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_len_Vec") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_len_ptr") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_with_capacity") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_from_slice") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_append") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_reserve") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_clear") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_vec_free"))
-                    need_vec = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_ffi_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "ffi_call"))
-                    need_ffi = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_db_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "sqlite3_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "db_sqlite_"))
-                    need_db = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_elf_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "elf_parse"))
-                    need_elf = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_json_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "json_parse_"))
-                    need_json = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_csv_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "csv_next_field"))
-                    need_csv = 1;
-                /* set/map：link_only 后用户 C 仅有 extern/call；按需链预编 .o */
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_set_"))
-                    need_set = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_map_"))
-                    need_map = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_queue_"))
-                    need_queue = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_regex_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "regex_match"))
-                    need_regex = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_compress_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "compress_gzip") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "compress_zstd") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "compress_brotli"))
-                    need_compress = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_unicode_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "unicode_utf8"))
-                    need_unicode = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_dynlib_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "dynlib_open"))
-                    need_dynlib = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_http_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "http_request") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "http2_"))
-                    need_http = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_tar_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "tar_open") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "tar_extract"))
-                    need_tar = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_simd_"))
-                    need_simd = 1;
-                /*
-                 * context：use_line 会命中 co-emit 的 std_io_timeout_from_ctx 体内
-                 * std_context_is_cancelled 调用；靠 -dead_strip 去掉未引用体后，
-                 * 若仍 need 链 context 会拖 atomic。策略：仅用户入口 API 触发 need；
-                 * io 体里的 is_cancelled/deadline/remaining 不单独成 need（依赖 GC）。
-                 */
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_context_background(") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_with_cancel(") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_with_deadline(") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_with_timeout(") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_cancel(") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_set_value(") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_get_value(") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "std_context_free("))
-                    need_context = 1;
-                (void)context_api; /* 文档表；入口 API 已逐条 use_line */
-                /* 含 std_error_ok / chain_* / is_* 等；勿只扫 new/format（tests/error 用 ok） */
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_error_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "error_wrap_"))
-                    need_error = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_datetime_"))
-                    need_datetime = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_uuid_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "uuid_v4") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "uuid_parse"))
-                    need_uuid = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_url_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "url_parse") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "url_join"))
-                    need_url = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_cli_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "cli_parse"))
-                    need_cli = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_security_"))
-                    need_security = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_config_"))
-                    need_config = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_cache_"))
-                    need_cache = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_trace_"))
-                    need_trace = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_task_"))
-                    need_task = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_schema_"))
-                    need_schema = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_test_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "test_call_"))
-                    need_test = 1;
-                if (link_abi_generated_c_contains_substr_use_line(cp, "std_socketio_") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "socketio_emit") ||
-                    link_abi_generated_c_contains_substr_use_line(cp, "socketio_on"))
-                    need_socketio = 1;
-                /* panic：co-emit 已有 void shux_panic_(...) 体则不链 panic.o */
-                if (link_abi_generated_c_contains_substr_use_line(cp, "shux_panic_(") &&
-                    !link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val) {") &&
-                    !link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val){"))
-                    need_panic = 1;
-            }
             /* co-emit 已有函数体时勿再链同模块 .o（防 duplicate）。anchor 体 = co-emit 标志。 */
             if (need_string) {
                 int has = 0;
