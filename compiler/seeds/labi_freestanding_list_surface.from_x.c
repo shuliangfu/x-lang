@@ -1,7 +1,7 @@
 /* seeds/labi_freestanding_list_surface.from_x.c
  * G-02f labi_freestanding_list R2 full surface — isomorphic with src/runtime/labi_freestanding_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_freestanding_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (env/io/ensure + wave117 heap/nostdlib + wave136/137/138 gen needs + wave139 provides + wave141 win32/wsa pure)
+ * Prove: full.x vs this seed → nm IDENTICAL (env/io/ensure + wave117 heap/nostdlib + wave136/137/138 gen needs + wave139 provides + wave141 win32/wsa + wave142 core_builtin/mem stub0 pure)
  * Cap residual: ensure/cc/spawn IO + contains_substr/undef_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_freestanding_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -75,6 +75,8 @@ extern int32_t labi_fs_gen_win32_wsa_needle_count(void);
 extern uint8_t * labi_fs_gen_win32_wsa_needle_at(int32_t i);
 extern int32_t link_abi_generated_c_needs_win32(uint8_t * c_path);
 extern int32_t link_abi_generated_c_needs_win32_wsa(uint8_t * c_path);
+extern int32_t link_abi_generated_c_needs_core_builtin(uint8_t * c_path);
+extern int32_t link_abi_generated_c_needs_core_mem(uint8_t * c_path);
 uint8_t * labi_fs_env_freestanding(void) {
   uint8_t * p = ((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x52\x45\x45\x53\x54\x41\x4e\x44\x49\x4e\x47");
   return p;
@@ -1156,5 +1158,11 @@ int32_t link_abi_generated_c_needs_win32_wsa(uint8_t * c_path) {
     }
     (void)((i = (i + 1)));
   }
+  return 0;
+}
+int32_t link_abi_generated_c_needs_core_builtin(uint8_t * c_path) {
+  return 0;
+}
+int32_t link_abi_generated_c_needs_core_mem(uint8_t * c_path) {
   return 0;
 }

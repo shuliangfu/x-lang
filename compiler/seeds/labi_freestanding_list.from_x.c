@@ -21,6 +21,7 @@
  *     link_abi_generated_c_provides_{core_mem,std_heap} pure orch
  *   + wave141 labi_fs_gen_{win32,win32_wsa}_needle_* +
  *     link_abi_generated_c_needs_{win32,win32_wsa} pure orch
+ *   + wave142 link_abi_generated_c_needs_{core_builtin,core_mem} pure stub0 orch
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -678,6 +679,19 @@ int link_abi_generated_c_needs_win32_wsa(const char *c_path) {
   return 0;
 }
 
+/* wave142: G-01 stub0 — never hard-link core/builtin or core/mem from C-path scan.
+ * Pure orch lives in labi_freestanding_list.x under hybrid; cold twin here.
+ * PLATFORM: SHARED
+ */
+int link_abi_generated_c_needs_core_builtin(const char *c_path) {
+  (void)c_path;
+  return 0;
+}
+int link_abi_generated_c_needs_core_mem(const char *c_path) {
+  (void)c_path;
+  return 0;
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -750,6 +764,9 @@ int labi_fs_gen_win32_wsa_needle_count(void);
 const char *labi_fs_gen_win32_wsa_needle_at(int i);
 int link_abi_generated_c_needs_win32(const char *c_path);
 int link_abi_generated_c_needs_win32_wsa(const char *c_path);
+/* wave142: core_builtin / core_mem stub0 pure (L7). */
+int link_abi_generated_c_needs_core_builtin(const char *c_path);
+int link_abi_generated_c_needs_core_mem(const char *c_path);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

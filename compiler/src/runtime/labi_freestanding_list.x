@@ -18,6 +18,8 @@
 //     (C-path co-emit strong-def markers; skip hard-link mem.o/heap.o).
 //   wave141 link_abi_generated_c_needs_{win32,win32_wsa} pure orch
 //     (C-path Windows kernel32 / winsock2 string needles; Cap residual contains_substr).
+//   wave142 link_abi_generated_c_needs_{core_builtin,core_mem} pure stub0 orch
+//     (G-01: always 0 — no hard-link builtin.o / mem.o; was mega-only stub0 body).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -1669,5 +1671,37 @@ export function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32 {
     }
     i = i + 1;
   }
+  return 0;
+}
+
+/* wave142: generated-C core.builtin / core.mem needs pure stub0 orch.
+ * G-01 product: bitops are __builtin_* inline; mem is pure .x — never hard-link
+ * core/builtin/builtin.o or core/mem/mem.o from C-path scan.
+ * No needle tables (always 0). Closes soft residual «hybrid still always mega stub0».
+ * PLATFORM: SHARED — call-site ABI kept; body pure under L7. */
+
+/**
+ * Whether generated C needs core.builtin.o (G-01: always 0).
+ * Bitops emit as host __builtin_*; no hard-link of core/builtin/builtin.o.
+ * @param c_path *u8 — unused; kept for call-site ABI (generated_c needs_* family)
+ * @return i32 — always 0
+ * Why (wave142): hybrid still had needs_core_builtin body always mega C stub0.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_core_builtin(c_path: *u8): i32 {
+  return 0;
+}
+
+/**
+ * Whether generated C needs core/mem.o (G-01: always 0).
+ * core.mem is pure .x on product path; no hard-link of core/mem/mem.o from C scan.
+ * @param c_path *u8 — unused; kept for call-site ABI (generated_c needs_* family)
+ * @return i32 — always 0
+ * Why (wave142): hybrid still had needs_core_mem body always mega C stub0.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_core_mem(c_path: *u8): i32 {
   return 0;
 }

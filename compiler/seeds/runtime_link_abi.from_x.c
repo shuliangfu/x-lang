@@ -3215,18 +3215,17 @@ int link_abi_generated_c_needs_win32(const char *c_path);
  */
 int link_abi_generated_c_needs_win32_wsa(const char *c_path);
 
-/**
- * 生成的 .c 是否引用 core.builtin 位运算（G-01：__builtin_* 内联，不再链 builtin.o）。
+/* wave142: link_abi_generated_c_needs_core_builtin pure stub0 orch lives in
+ * labi_freestanding_list (always 0; G-01 no hard-link builtin.o). Was mega body.
+ * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
  */
-int link_abi_generated_c_needs_core_builtin(const char *c_path) {
-  return 0;
-}
+int link_abi_generated_c_needs_core_builtin(const char *c_path);
 
-/** 扫描生成 C 是否引用 core.mem volatile/fence 符号（G-01：纯 .x，不再链 mem.o）。 */
-int link_abi_generated_c_needs_core_mem(const char *c_path) {
-  (void)c_path;
-  return 0;
-}
+/* wave142: link_abi_generated_c_needs_core_mem pure stub0 orch (L7 freestanding).
+ * G-01: pure .x mem; never hard-link core/mem/mem.o from C-path scan.
+ */
+int link_abi_generated_c_needs_core_mem(const char *c_path);
 
 /**
  * 产品轨 std 模块：预编 std/*.o 为符号权威时，禁止 pipeline co-emit 函数体。
