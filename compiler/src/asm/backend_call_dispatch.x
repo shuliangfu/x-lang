@@ -930,6 +930,20 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
  * Purpose: implements `glue_asm_try_emit_fmt_string_lit_import_call_elf_c`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
+/**
+ * Embed STRING_LIT + call std_fmt_print/println(ptr,len) for fmt/debug binding.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — platform_elf_ElfCodegenCtx bytes
+ * @param call_expr_ref i32 — EXPR_CALL or EXPR_METHOD_CALL (hello fmt.println is METHOD_CALL)
+ * @param ctx *u8 — AsmFuncCtx
+ * @param ta i32 — 0=x86_64 only for string embed; non-zero → skip (arm64 residual)
+ * @param pre_buf *u8 — C prefix e.g. std_fmt_
+ * @param pre_len i32 — prefix length
+ * @param field_name *u8 — print or println
+ * @param field_len i32 — 5 or 7
+ * @return i32 — 1 emitted, 0 not applicable, -1 hard fail
+ * PLATFORM: SHARED — METHOD_CALL + CALL arg tables (wave105 pure-asm hello).
+ */
 #[no_mangle]
 export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
   arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32,
@@ -963,9 +977,22 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
         return 0;
       }
     }
-    let nargs: i32 = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    // PLATFORM: SHARED — METHOD_CALL (49) vs CALL (48) arg accessors.
+    let expr_ko: i32 = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+    let nargs: i32 = 0;
+    let arg_ref: i32 = 0;
+    if (expr_ko == 49) {
+      nargs = pipeline_expr_method_call_num_args_at(arena, call_expr_ref);
+      if (nargs == 1) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, call_expr_ref, 0);
+      }
+    } else {
+      nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+      if (nargs == 1) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
+      }
+    }
     if (nargs != 1) { return 0; }
-    let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
     if (arg_ref <= 0) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, arg_ref) != 59) { return 0; }
     let slen: i32 = glue_asm_string_lit_len(arena, arg_ref);
@@ -974,9 +1001,9 @@ export function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
     let sbuf: u8[64] = [];
     glue_asm_string_lit_into(arena, arg_ref, &sbuf[0]);
     let sym_flat: u8[64] = [];
+    // Bare std_fmt_println — not overload mid println_i32_reti32.
     let sym_len: i32 = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, &sym_flat[0]);
     if (sym_len <= 0) { return 0 - 1; }
-    // is_ln reserved for future println vs print
     if (is_ln == 0) { /* print */ }
     if (glue_asm_emit_jmp_skip_string_then_lea(elf_ctx, ta, 0, &sbuf[0], slen) != 0) {
       return 0 - 1;
@@ -1424,6 +1451,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                     let pre_buf: u8[128] = [];
                     let pre_len: i32 = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, &pre_buf[0]);
                     if (pre_len <= 0) { return 0 - 1; }
+                    // PLATFORM: SHARED — fmt.println string lit (METHOD_CALL). G.7 seed _impl same leaf.
+                    let fmt_lit: i32 = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
+                      arena, elf_ctx, expr_ref, ctx, ta, &pre_buf[0], pre_len, &name[0], name_len);
+                    if (fmt_lit < 0) { return 0 - 1; }
+                    if (fmt_lit > 0) { return 0; }
                     let sym_flat: u8[64] = [];
                     let sym_len: i32 = glue_asm_build_import_binding_call_sym(&pre_buf[0], pre_len, &name[0], name_len, &sym_flat[0]);
                     if (sym_len <= 0) { return 0 - 1; }

@@ -172,6 +172,9 @@ struct glue_AsmFuncCtxCall {
 /** ast.x ExprKind.EXPR_INDEX / EXPR_AS — sort(&b[0]) / cast arg typing. */
 #define GLUE_EXPR_INDEX_ORD 47
 #define GLUE_EXPR_AS_ORD 54
+/** ast.x ExprKind.EXPR_CALL / EXPR_METHOD_CALL — hello `fmt.println` is METHOD_CALL. */
+#define GLUE_EXPR_CALL_ORD 48
+#define GLUE_EXPR_METHOD_CALL_ORD 49
 /** ast.x TypeKind.TYPE_PTR / TYPE_ARRAY / TYPE_SLICE */
 #define GLUE_TYPE_PTR_ORD 9
 #define GLUE_TYPE_ARRAY_ORD 10
@@ -2865,6 +2868,10 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struc
 /**
  * fmt/debug binding.print / println("…"): embed rodata + call std_fmt_print or
  * std_fmt_println(ptr,len). Avoid generic emit_expr on STRING_LIT (hello.x SIGSEGV).
+ *
+ * PLATFORM: SHARED — product parses `fmt.println("…")` as METHOD_CALL (kind 49), not
+ * CALL+FIELD_ACCESS. G.7: accept both CALL and METHOD_CALL arg accessors (same leaf).
+ * x86_64 only for now (ta==0): jmp-skip+lea string embed; arm64 residual until ADR path.
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-378 call：实现体始终 seed；public PREFER 时 thin forward */
@@ -2877,16 +2884,24 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   int32_t nargs;
   int32_t arg_ref;
   int32_t slen;
+  int32_t expr_ko;
   uint8_t sym_flat[64];
   int32_t sym_len;
   uint8_t sbuf[64];
   if (!arena || !elf_ctx || !ctx || call_expr_ref <= 0 || ta != 0)
     return 0;
-  nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
-  arg_ref = (nargs == 1) ? pipeline_expr_call_arg_ref(arena, call_expr_ref, 0) : 0;
-  backend_call_debugf("try fmt lit pre=%.*s field=%.*s nargs=%d arg_ko=%d", (int)pre_len,
+  /* PLATFORM: SHARED — METHOD_CALL vs CALL arg table (hello.x pure-asm wave105). */
+  expr_ko = pipeline_expr_kind_ord_at(arena, call_expr_ref);
+  if (expr_ko == GLUE_EXPR_METHOD_CALL_ORD) {
+    nargs = pipeline_expr_method_call_num_args_at(arena, call_expr_ref);
+    arg_ref = (nargs == 1) ? pipeline_expr_method_call_arg_ref(arena, call_expr_ref, 0) : 0;
+  } else {
+    nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    arg_ref = (nargs == 1) ? pipeline_expr_call_arg_ref(arena, call_expr_ref, 0) : 0;
+  }
+  backend_call_debugf("try fmt lit pre=%.*s field=%.*s nargs=%d arg_ko=%d expr_ko=%d", (int)pre_len,
                       pre_len > 0 ? (char *)pre_buf : "", (int)field_len, field_len > 0 ? (char *)field_name : "",
-                      (int)nargs, arg_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, arg_ref) : -1);
+                      (int)nargs, arg_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, arg_ref) : -1, (int)expr_ko);
   if (!glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len))
     return 0;
   if (field_len == 7 && memcmp(field_name, "println", 7) == 0)
@@ -2895,16 +2910,18 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
     is_ln = 0;
   else
     return 0;
-  nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
   if (nargs != 1)
     return 0;
-  arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, 0);
   if (arg_ref <= 0 || pipeline_expr_kind_ord_at(arena, arg_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return 0;
   slen = glue_asm_string_lit_len(arena, arg_ref);
   if (slen <= 0 || slen > 63)
     return -1;
   glue_asm_string_lit_into(arena, arg_ref, sbuf);
+  /*
+   * Link name: bare std_fmt_println / std_fmt_print (runtime_asm_io_stubs T symbols).
+   * Do not overload-mangle string lit → println_i32_reti32 UNDEF (wave105 root).
+   */
   sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
   if (sym_len <= 0)
     return -1;
@@ -2912,7 +2929,7 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(struct ast_ASTAr
   backend_call_debugf("fmt string lit call %.*s slen=%d", (int)sym_len, (char *)sym_flat, (int)slen);
   if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 0, sbuf, slen) != 0)
     return -1;
-  /** arg1 = len */
+  /** arg1 = len (i32/size_t low 32; SysV zero-extends). */
   if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, slen, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 1, ta) != 0)
@@ -3241,6 +3258,19 @@ int32_t pipeline_asm_emit_method_call_elf_c_impl(struct ast_ASTArena *arena, str
           pre_len = glue_asm_fill_c_prefix_from_module_import(mod_ref, j, pre_buf);
           if (pre_len <= 0)
             return -1;
+          /*
+           * PLATFORM: SHARED — hello.x `fmt.println("…")` is METHOD_CALL (not CALL+FIELD_ACCESS).
+           * G.7: same fmt string-lit special as pipeline_asm_emit_call_elf_c (ptr+len → std_fmt_println).
+           * Without this leaf, overload mangle invents println_i32_reti32 → pure-asm BLD001 UNDEF.
+           */
+          {
+            int32_t fmt_lit = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(
+                arena, elf_ctx, expr_ref, ctx, ta, pre_buf, pre_len, name, name_len);
+            if (fmt_lit < 0)
+              return -1;
+            if (fmt_lit > 0)
+              return 0;
+          }
           /*
            * PLATFORM: SHARED — import-binding METHOD_CALL mangle (G.7 same authority as CALL).
            * Parser emits METHOD_CALL for string.len(v); bare pre+name → U std_string_len.
