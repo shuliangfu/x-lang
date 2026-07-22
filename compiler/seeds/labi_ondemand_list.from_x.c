@@ -20,7 +20,8 @@
  *   + wave131 compress family: zlib/zstd/brotli marker+undef tables + needs_compress_libs pure orch
  *   + wave132 labi_od_runtime_{time_os,random_fill,env_os}_sym_* + labi_user_needs_runtime_* pure orch
  *   + wave133 labi_od_runtime_process_argv_sym_* + labi_user_needs_runtime_process_argv pure orch
- *     (PRIMARY OS; null/empty user_o → 1; std_task stays mega until capacity/split)
+ *   + wave134 labi_od_std_task_sym_* + labi_user_needs_std_task pure orch
+ *     (PRIMARY OS + TASK_SPECIAL; null/empty user_o → 1)
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym / exports_marker / has_undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -1090,9 +1091,9 @@ int link_abi_user_o_needs_compress_libs(const char *user_o) {
   return 0;
 }
 
-/* wave132–133: bulk PRIMARY OS pure tables + orch.
+/* wave132–134: bulk PRIMARY OS + TASK_SPECIAL pure tables + orch.
  * PLATFORM: SHARED — exact symbols only; null/empty user_o → 1 legacy hard-link.
- * wave133: process_argv pure; std_task stays mega (module codegen capacity). */
+ * wave133: process_argv pure; wave134: std_task pure (single-leaf after capacity clip). */
 int labi_od_runtime_time_os_sym_count(void) { return 10; }
 const char *labi_od_runtime_time_os_sym_at(int i) {
   if (i < 0)
@@ -1274,6 +1275,85 @@ int labi_user_needs_runtime_process_argv(const char *user_o) {
   return 0;
 }
 
+/* wave134: std_task pure table + orch (29 needles; TASK_SPECIAL). */
+int labi_od_std_task_sym_count(void) { return 29; }
+const char *labi_od_std_task_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_task_new";
+  if (i == 1)
+    return "std_task_free";
+  if (i == 2)
+    return "std_task_bind";
+  if (i == 3)
+    return "std_task_spawn";
+  if (i == 4)
+    return "std_task_join";
+  if (i == 5)
+    return "std_task_pending";
+  if (i == 6)
+    return "std_task_check_leak";
+  if (i == 7)
+    return "std_task_cancel";
+  if (i == 8)
+    return "std_task_total";
+  if (i == 9)
+    return "std_task_set_new";
+  if (i == 10)
+    return "std_task_set_free";
+  if (i == 11)
+    return "std_task_set_spawn";
+  if (i == 12)
+    return "std_task_set_join";
+  if (i == 13)
+    return "std_task_set_check_leak";
+  if (i == 14)
+    return "std_task_echo";
+  if (i == 15)
+    return "std_task_echo_ptr";
+  if (i == 16)
+    return "std_task_retry";
+  if (i == 17)
+    return "std_task_err_ok";
+  if (i == 18)
+    return "task_group_create_c";
+  if (i == 19)
+    return "task_group_spawn_c";
+  if (i == 20)
+    return "task_group_join_c";
+  if (i == 21)
+    return "task_group_free_c";
+  if (i == 22)
+    return "join_set_create_c";
+  if (i == 23)
+    return "join_set_spawn_c";
+  if (i == 24)
+    return "join_set_join_c";
+  if (i == 25)
+    return "task_smoke_c";
+  if (i == 26)
+    return "task_supervise_retry_c";
+  if (i == 27)
+    return "task_echo_fn_c";
+  if (i == 28)
+    return "task_echo_fn_ptr_c";
+  return NULL;
+}
+int labi_user_needs_std_task(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 1;
+  n = labi_od_std_task_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_std_task_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -1379,6 +1459,9 @@ int labi_user_needs_runtime_env_os(const char *user_o);
 int labi_od_runtime_process_argv_sym_count(void);
 const char *labi_od_runtime_process_argv_sym_at(int i);
 int labi_user_needs_runtime_process_argv(const char *user_o);
+int labi_od_std_task_sym_count(void);
+const char *labi_od_std_task_sym_at(int i);
+int labi_user_needs_std_task(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

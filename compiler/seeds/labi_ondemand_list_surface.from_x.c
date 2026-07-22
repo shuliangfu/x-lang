@@ -1,7 +1,7 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–132 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os pure)
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task pure)
  * Cap residual: nm/push/ensure + undef_sym / exports_marker / has_undef_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -93,6 +93,9 @@ extern int32_t labi_user_needs_runtime_env_os(uint8_t * user_o);
 extern int32_t labi_od_runtime_process_argv_sym_count(void);
 extern uint8_t * labi_od_runtime_process_argv_sym_at(int32_t i);
 extern int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o);
+extern int32_t labi_od_std_task_sym_count(void);
+extern uint8_t * labi_od_std_task_sym_at(int32_t i);
+extern int32_t labi_user_needs_std_task(uint8_t * user_o);
 extern uint8_t * labi_od_rel_net(void);
 extern uint8_t * labi_od_rel_thread(void);
 extern uint8_t * labi_od_rel_heap(void);
@@ -2147,6 +2150,155 @@ int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o) {
   int32_t i = 0;
   while ((i < n)) {
     uint8_t * sym = labi_od_runtime_process_argv_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_od_std_task_sym_count(void) {
+  return 29;
+}
+uint8_t * labi_od_std_task_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"std_task_new");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"std_task_free");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"std_task_bind");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"std_task_spawn");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"std_task_join");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"std_task_pending");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"std_task_check_leak");
+    return p;
+  }
+  if ((i ==7)) {
+    uint8_t * p = ((uint8_t *)"std_task_cancel");
+    return p;
+  }
+  if ((i ==8)) {
+    uint8_t * p = ((uint8_t *)"std_task_total");
+    return p;
+  }
+  if ((i ==9)) {
+    uint8_t * p = ((uint8_t *)"std_task_set_new");
+    return p;
+  }
+  if ((i ==10)) {
+    uint8_t * p = ((uint8_t *)"std_task_set_free");
+    return p;
+  }
+  if ((i ==11)) {
+    uint8_t * p = ((uint8_t *)"std_task_set_spawn");
+    return p;
+  }
+  if ((i ==12)) {
+    uint8_t * p = ((uint8_t *)"std_task_set_join");
+    return p;
+  }
+  if ((i ==13)) {
+    uint8_t * p = ((uint8_t *)"std_task_set_check_leak");
+    return p;
+  }
+  if ((i ==14)) {
+    uint8_t * p = ((uint8_t *)"std_task_echo");
+    return p;
+  }
+  if ((i ==15)) {
+    uint8_t * p = ((uint8_t *)"std_task_echo_ptr");
+    return p;
+  }
+  if ((i ==16)) {
+    uint8_t * p = ((uint8_t *)"std_task_retry");
+    return p;
+  }
+  if ((i ==17)) {
+    uint8_t * p = ((uint8_t *)"std_task_err_ok");
+    return p;
+  }
+  if ((i ==18)) {
+    uint8_t * p = ((uint8_t *)"task_group_create_c");
+    return p;
+  }
+  if ((i ==19)) {
+    uint8_t * p = ((uint8_t *)"task_group_spawn_c");
+    return p;
+  }
+  if ((i ==20)) {
+    uint8_t * p = ((uint8_t *)"task_group_join_c");
+    return p;
+  }
+  if ((i ==21)) {
+    uint8_t * p = ((uint8_t *)"task_group_free_c");
+    return p;
+  }
+  if ((i ==22)) {
+    uint8_t * p = ((uint8_t *)"join_set_create_c");
+    return p;
+  }
+  if ((i ==23)) {
+    uint8_t * p = ((uint8_t *)"join_set_spawn_c");
+    return p;
+  }
+  if ((i ==24)) {
+    uint8_t * p = ((uint8_t *)"join_set_join_c");
+    return p;
+  }
+  if ((i ==25)) {
+    uint8_t * p = ((uint8_t *)"task_smoke_c");
+    return p;
+  }
+  if ((i ==26)) {
+    uint8_t * p = ((uint8_t *)"task_supervise_retry_c");
+    return p;
+  }
+  if ((i ==27)) {
+    uint8_t * p = ((uint8_t *)"task_echo_fn_c");
+    return p;
+  }
+  if ((i ==28)) {
+    uint8_t * p = ((uint8_t *)"task_echo_fn_ptr_c");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_user_needs_std_task(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 1;
+  }
+  if (((user_o)[0] ==0)) {
+    return 1;
+  }
+  int32_t n = labi_od_std_task_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_std_task_sym_at(i);
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;

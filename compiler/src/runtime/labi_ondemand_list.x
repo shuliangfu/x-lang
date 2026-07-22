@@ -22,8 +22,9 @@
 //   wave131 link_abi_obj_needs_{zlib,zstd,brotli} + link_abi_user_o_needs_compress_libs pure orch
 //     (marker + UNDEF/prefix tables; Cap residual exports_marker + has_undef_sym) +
 //   wave132 labi_user_needs_runtime_{time_os,random_fill,env_os} pure orch
-//     (PRIMARY OS bulk gates; null/empty user_o → 1 legacy hard-link;
-//      process_argv + std_task deferred: codegen capacity on this module).
+//     (PRIMARY OS bulk gates; null/empty user_o → 1 legacy hard-link) +
+//   wave133 labi_user_needs_runtime_process_argv pure orch (9 needles; single-leaf) +
+//   wave134 labi_user_needs_std_task pure orch (29 needles; TASK_SPECIAL bulk gate).
 // Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -2831,6 +2832,191 @@ export function labi_user_needs_runtime_process_argv(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_runtime_process_argv_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/* wave134: bulk TASK_SPECIAL pure table + orch (std_task / task.o gate).
+ * Do NOT probe shux_async_task_submit* here — pure async goes through on_demand
+ * scheduler path without forcing task.o. null/empty user_o → 1 legacy hard-link.
+ * PLATFORM: SHARED — exact symbols only; Cap residual undef_sym. */
+
+/**
+ * Count of std.task / task glue UNDEF needles for labi_user_needs_std_task.
+ * Product complete (G.7): std_task_* formal API + task_group_* / join_set_* / task_*_c.
+ * @return i32 — 29
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_std_task_sym_count(): i32 {
+  return 29;
+}
+
+/**
+ * std.task UNDEF needle at index (exact symbols only; no async submit* probes).
+ * @param i i32 — index in [0, 29)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_od_std_task_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_task_new";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_task_free";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_task_bind";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_task_spawn";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_task_join";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "std_task_pending";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "std_task_check_leak";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "std_task_cancel";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "std_task_total";
+    return p;
+  }
+  if (i == 9) {
+    let p: *u8 = "std_task_set_new";
+    return p;
+  }
+  if (i == 10) {
+    let p: *u8 = "std_task_set_free";
+    return p;
+  }
+  if (i == 11) {
+    let p: *u8 = "std_task_set_spawn";
+    return p;
+  }
+  if (i == 12) {
+    let p: *u8 = "std_task_set_join";
+    return p;
+  }
+  if (i == 13) {
+    let p: *u8 = "std_task_set_check_leak";
+    return p;
+  }
+  if (i == 14) {
+    let p: *u8 = "std_task_echo";
+    return p;
+  }
+  if (i == 15) {
+    let p: *u8 = "std_task_echo_ptr";
+    return p;
+  }
+  if (i == 16) {
+    let p: *u8 = "std_task_retry";
+    return p;
+  }
+  if (i == 17) {
+    let p: *u8 = "std_task_err_ok";
+    return p;
+  }
+  if (i == 18) {
+    let p: *u8 = "task_group_create_c";
+    return p;
+  }
+  if (i == 19) {
+    let p: *u8 = "task_group_spawn_c";
+    return p;
+  }
+  if (i == 20) {
+    let p: *u8 = "task_group_join_c";
+    return p;
+  }
+  if (i == 21) {
+    let p: *u8 = "task_group_free_c";
+    return p;
+  }
+  if (i == 22) {
+    let p: *u8 = "join_set_create_c";
+    return p;
+  }
+  if (i == 23) {
+    let p: *u8 = "join_set_spawn_c";
+    return p;
+  }
+  if (i == 24) {
+    let p: *u8 = "join_set_join_c";
+    return p;
+  }
+  if (i == 25) {
+    let p: *u8 = "task_smoke_c";
+    return p;
+  }
+  if (i == 26) {
+    let p: *u8 = "task_supervise_retry_c";
+    return p;
+  }
+  if (i == 27) {
+    let p: *u8 = "task_echo_fn_c";
+    return p;
+  }
+  if (i == 28) {
+    let p: *u8 = "task_echo_fn_ptr_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o needs std.task / task.o bulk (TASK_SPECIAL gate).
+ * Pure orch: fixed exact UNDEF table; Cap residual undef_sym.
+ * null/empty user_o → 1 (legacy hard-link when call site has no user_o).
+ * Does not probe shux_async_task_submit* (scheduler on_demand path).
+ * @param user_o *u8 — path to user .o
+ * @return i32 — 1 if gate open (push/ensure task.o path), else 0
+ * Why (wave134): hybrid still had labi_user_needs_std_task body always mega C;
+ * single-leaf migrate after wave133 process_argv pure (capacity-safe one leaf).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function labi_user_needs_std_task(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 1;
+  }
+  if (user_o[0] == 0) {
+    return 1;
+  }
+  let n: i32 = labi_od_std_task_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_std_task_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
