@@ -16644,6 +16644,138 @@ static int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx
 }
 
 /**
+ * PLATFORM: SHARED — pure-asm two-pass let emit dependency mask.
+ * Pass 0 hoists pure lets before if/loop (parser stmt_order can place let after if).
+ * Seed pass-1 deferred: INDEX(47) / CALL(48) / METHOD_CALL(49) inits (side effects /
+ * index-addr cache). Also mark any let whose init uses a deferred let slot (transitive
+ * fixpoint), so `let extra = a + (buf[0] as i32)` is not evaluated before
+ * `a = option.unwrap_or_i32(...)` (Ubuntu pure-asm tests/option SEGV / wrong value).
+ */
+#define GLUE_BLOCK_LET_DEFER_MAX 512
+
+/** Deeper use walk for defer analysis: INDEX / AS / field / array-lit elems / unaries. */
+static void glue_live_fwd_collect_expr_uses_for_defer(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                     int32_t expr_ref, GlueBlockLiveFwd *gen) {
+  int32_t ko;
+  int32_t i;
+  int32_t n;
+  int32_t left_ref;
+  int32_t right_ref;
+  int32_t op_ref;
+  int32_t off;
+  if (!arena || !ctx || !gen || expr_ref <= 0)
+    return;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == GLUE_EXPR_KIND_VAR) {
+    off = glue_var_expr_stack_off_elf_c(arena, ctx, expr_ref);
+    if (off >= 0)
+      glue_live_fwd_add(gen, off);
+    return;
+  }
+  if (ko >= 4 && ko <= 21) {
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, left_ref, gen);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, right_ref, gen);
+    return;
+  }
+  /* unary / LOGNOT / etc. */
+  if (ko == 22 || ko == 23 || ko == 24 || ko == 41) {
+    op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
+    return;
+  }
+  /* EXPR_AS */
+  if (ko == (int32_t)ast_ExprKind_EXPR_AS || pipeline_expr_as_operand_ref_at(arena, expr_ref) > 0) {
+    op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+    if (op_ref <= 0)
+      op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, op_ref, gen);
+    return;
+  }
+  /* EXPR_INDEX */
+  if (ko == 47) {
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, pipeline_expr_index_base_ref(arena, expr_ref), gen);
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, pipeline_expr_index_index_ref(arena, expr_ref), gen);
+    return;
+  }
+  /* field access base */
+  if (ko == 44) {
+    glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, pipeline_expr_field_access_base_ref(arena, expr_ref), gen);
+    return;
+  }
+  /* ARRAY_LIT elements (rare non-lit elems) */
+  if (ko == 46) {
+    n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    for (i = 0; i < n; i++)
+      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, pipeline_expr_array_lit_elem_ref(arena, expr_ref, i),
+                                                gen);
+    return;
+  }
+  /* STRUCT_LIT field inits */
+  if (ko == 45) {
+    n = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+    for (i = 0; i < n; i++)
+      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, pipeline_expr_struct_lit_init_ref(arena, expr_ref, i),
+                                                gen);
+    return;
+  }
+}
+
+/**
+ * Mark lets that must stay in pass 1 (stmt_order position).
+ * @param deferred out[0..nlet) 1 = pass1 only; caller supplies buffer of size nlet
+ */
+static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                  int32_t block_ref, int32_t slot_base, int32_t nconst, int32_t nlet,
+                                                  uint8_t *deferred) {
+  int32_t li;
+  int32_t changed;
+  int32_t guard;
+  GlueBlockLiveFwd uses;
+  if (!arena || !ctx || !deferred || nlet <= 0)
+    return;
+  for (li = 0; li < nlet; li++) {
+    int32_t init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, li);
+    int32_t ko = init_ref > 0 ? pipeline_expr_kind_ord_at(arena, init_ref) : 0;
+    /* INDEX / CALL / METHOD_CALL: historical pass-1 seeds (side effects / addr cache). */
+    deferred[li] = (uint8_t)(ko == 47 || ko == 48 || ko == 49 ? 1 : 0);
+  }
+  /* Transitive: let whose init reads a deferred let slot also defers. */
+  for (guard = 0; guard < nlet + 2; guard++) {
+    changed = 0;
+    for (li = 0; li < nlet; li++) {
+      int32_t init_ref;
+      int32_t ui;
+      int32_t uj;
+      if (deferred[li])
+        continue;
+      init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, li);
+      if (init_ref <= 0)
+        continue;
+      glue_live_fwd_clear(&uses);
+      glue_live_fwd_collect_expr_uses_for_defer(arena, ctx, init_ref, &uses);
+      for (ui = 0; ui < uses.n; ui++) {
+        int32_t off = uses.offs[ui];
+        for (uj = 0; uj < nlet; uj++) {
+          if (!deferred[uj])
+            continue;
+          if (backend_asm_ctx_slot_offset(ctx, slot_base + nconst + uj) == off) {
+            deferred[li] = 1;
+            changed = 1;
+            break;
+          }
+        }
+        if (deferred[li])
+          break;
+      }
+    }
+    if (!changed)
+      break;
+  }
+}
+
+/**
  * 按 stmt_order 同步发射块体（C for 循环）：避免 shux-c -E 使 backend.x 内 while(i<nso) 只跑一轮，
  * 导致 while 体内仅首条 if/赋值被发射（escape 的 else 与 j++ 丢失）。
  */
@@ -16654,6 +16786,8 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   int32_t slot_base;
   int32_t nso;
   int32_t i;
+  uint8_t let_defer_stack[GLUE_BLOCK_LET_DEFER_MAX];
+  uint8_t *let_defer = NULL;
   /** 父 cfg 块 Chaitin 着色 / live_cfg_parent 快照（if 子块 emit 后须恢复）。 */
   int32_t saved_cfg_color_active;
   int32_t saved_cfg_live_parent;
@@ -16706,6 +16840,13 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   nlet = ast_ast_block_num_lets(arena, block_ref);
   slot_base = backend_block_slot_base_for(ctx, arena, block_ref);
   nso = ast_ast_block_num_stmt_order(arena, block_ref);
+  /** Pass-1 deferred let mask (CALL/INDEX + transitive users). Cap stack; oversize → all non-pure seed only. */
+  if (nlet > 0 && nlet <= GLUE_BLOCK_LET_DEFER_MAX) {
+    let_defer = let_defer_stack;
+    glue_block_compute_pass1_deferred_lets(arena, ctx, block_ref, slot_base, nconst, nlet, let_defer);
+  } else {
+    let_defer = NULL;
+  }
   glue_block_live_cfg_parent = glue_block_stmt_order_has_cfg(arena, block_ref);
   glue_block_live_fwd_active = 1;
   glue_live_fwd_clear(&glue_block_live_fwd);
@@ -16781,30 +16922,40 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         continue;
       if (item_kind != 1)
         continue;
-      /** EXPR_INDEX 初值 let 留 pass 1，勿抢在块内前置 INDEX assign 之前读。 */
+      /**
+       * Pass 0: pure lets only (literals / array lit / binops of already-pure slots).
+       * Defer INDEX/CALL/METHOD_CALL and any let that uses a deferred slot (transitive).
+       * PLATFORM: SHARED — without transitive defer, option pure-asm SEGV at main entry.
+       */
       if (item_kind == 1 && idx >= 0 && idx < nlet) {
         int32_t ix_init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, idx);
         int32_t ix_ko = ix_init_ref > 0 ? pipeline_expr_kind_ord_at(arena, ix_init_ref) : 0;
-        if (ix_ko == 47)
-          continue;
-        /** CALL/METHOD_CALL 初值须按 stmt_order 原位 emit（timer_elapsed 越过 sleep、next_field 实参顺序等）。 */
-        if (ix_ko == 48)
-          continue;
-        /** EXPR_METHOD_CALL(49)：module.func(args) 形式，与 CALL 同有副作用，留 pass 1 原位 emit。 */
-        if (ix_ko == 49)
-          continue;
+        if (let_defer != NULL) {
+          if (let_defer[idx])
+            continue;
+        } else {
+          /* Fallback when nlet > GLUE_BLOCK_LET_DEFER_MAX: historical seed only. */
+          if (ix_ko == 47 || ix_ko == 48 || ix_ko == 49)
+            continue;
+        }
       }
     } else if (item_kind == 0) {
       continue;
     } else if (item_kind == 1) {
-      /** pass 0 已发射纯字面/数组 let；pass 1 补 INDEX/CALL/METHOD_CALL 初值（须保 stmt_order 顺序）。 */
+      /** pass 0 已发射无依赖纯 let；pass 1 补 deferred（INDEX/CALL/METHOD_CALL + 依赖它们的 let）。 */
       if (idx < 0 || idx >= nlet)
         continue;
       {
         int32_t ix_init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, idx);
         int32_t ix_ko = ix_init_ref > 0 ? pipeline_expr_kind_ord_at(arena, ix_init_ref) : 0;
-        if (ix_init_ref <= 0 || (ix_ko != 47 && ix_ko != 48 && ix_ko != 49))
+        if (ix_init_ref <= 0)
           continue;
+        if (let_defer != NULL) {
+          if (!let_defer[idx])
+            continue;
+        } else if (ix_ko != 47 && ix_ko != 48 && ix_ko != 49) {
+          continue;
+        }
       }
     }
     glue_block_emit_stmt_i = i;
