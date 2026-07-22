@@ -1,14 +1,14 @@
 /* seeds/labi_ensure_list_surface.from_x.c
  * G-02f labi_ensure_list R2 full surface — isomorphic with src/runtime/labi_ensure_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ensure_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave173 ensure_from_catalog + wave169 panic + wave170 heap_user + wave171 test_fn_invoke + wave172 tls_mbedtls_bio)
+ * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave173 ensure_from_catalog + wave174 catalog thin wraps + wave169 panic + wave170 heap_user + wave171 test_fn_invoke + wave172 tls_mbedtls_bio)
  * Cap residual: resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack);
  *   wave169 panic ensure: resolve/access/cc/stat + host linux_x86_64 / posix_aarch64;
  *   wave170 heap_user ensure: resolve/access/cc/stat + has_defined_sym + unlink stub;
  *   wave171 test_fn_invoke ensure: resolve/access/cc/stat (direct seed; no wrap.c);
  *   wave172 tls_mbedtls_bio ensure: resolve/access/cc_one_extra/stat (homebrew -I);
- *   catalog thin wraps still mega (call pure ensure_from_catalog + path peers)
- * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave173)
+ *   wave174 catalog thin wraps: peer *_o_path Cap residual only
+ * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave174)
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -24,6 +24,32 @@ extern int32_t shux_ensure_runtime_panic_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_asm_io_stubs_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_process_os_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_random_fill_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_time_os_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_queue_contention_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_dynlib_os_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_env_os_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_backtrace_platform_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_log_os_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_math_libm_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_atomic_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_channel_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_net_udp_batch_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_net_workers_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_sync_os_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_sync_lock_diag_tls_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_thread_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_scheduler_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_http_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_kv_mmap_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_arrow_simd_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_sqlite_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_crypto_inc_glue_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shux_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
@@ -37,6 +63,32 @@ extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_test_fn_invoke_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_tls_mbedtls_bio_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_process_os_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_random_fill_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_time_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_queue_contention_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_dynlib_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_env_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_backtrace_platform_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_log_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_math_libm_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_atomic_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_channel_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_net_udp_batch_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_net_workers_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_sync_os_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_sync_lock_diag_tls_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_thread_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_scheduler_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_http_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_sqlite_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_crypto_inc_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_ed25519_ref10_glue_o_path(uint8_t * argv0);
 extern void link_diag_runtime_obj_resolve_fail(uint8_t * obj_name, uint8_t * hint);
 extern void link_diag_runtime_source_missing(uint8_t * obj_name, uint8_t * source_path);
 extern void link_diag_runtime_source_missing_under(uint8_t * obj_name, uint8_t * base_dir, uint8_t * suffix);
@@ -1215,4 +1267,134 @@ int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0) {
     return -1;
   }
   return 0;
+}
+int32_t shux_ensure_runtime_asm_io_stubs_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_asm_io_stubs_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 0, p);
+}
+int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_process_argv_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 1, p);
+}
+int32_t shux_ensure_runtime_process_os_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_process_os_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 2, p);
+}
+int32_t shux_ensure_runtime_random_fill_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_random_fill_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 3, p);
+}
+int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_compress_zlib_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 4, p);
+}
+int32_t shux_ensure_runtime_time_os_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_time_os_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 5, p);
+}
+int32_t shux_ensure_runtime_queue_contention_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_queue_contention_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 6, p);
+}
+int32_t shux_ensure_runtime_dynlib_os_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_dynlib_os_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 7, p);
+}
+int32_t shux_ensure_runtime_env_os_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_env_os_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 8, p);
+}
+int32_t shux_ensure_runtime_backtrace_platform_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_backtrace_platform_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 9, p);
+}
+int32_t shux_ensure_runtime_log_os_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_log_os_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 10, p);
+}
+int32_t shux_ensure_runtime_math_libm_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_math_libm_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 11, p);
+}
+int32_t shux_ensure_runtime_atomic_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_atomic_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 12, p);
+}
+int32_t shux_ensure_runtime_channel_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_channel_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 13, p);
+}
+int32_t shux_ensure_runtime_net_udp_batch_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_net_udp_batch_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 14, p);
+}
+int32_t shux_ensure_runtime_net_workers_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_net_workers_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 15, p);
+}
+int32_t shux_ensure_runtime_sync_os_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_sync_os_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 16, p);
+}
+int32_t shux_ensure_runtime_sync_lock_diag_tls_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_sync_lock_diag_tls_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 17, p);
+}
+int32_t shux_ensure_runtime_thread_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_thread_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 18, p);
+}
+int32_t shux_ensure_runtime_scheduler_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_scheduler_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 19, p);
+}
+int32_t shux_ensure_runtime_http_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_http_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 20, p);
+}
+int32_t shux_ensure_runtime_kv_mmap_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_kv_mmap_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 21, p);
+}
+int32_t shux_ensure_runtime_arrow_simd_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_arrow_simd_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 22, p);
+}
+int32_t shux_ensure_runtime_sqlite_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_sqlite_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 23, p);
+}
+int32_t shux_ensure_runtime_crypto_inc_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_crypto_inc_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 24, p);
+}
+int32_t shux_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0) {
+  uint8_t * p = 0;
+  (void)((p = shux_runtime_ed25519_ref10_glue_o_path(argv0)));
+  return link_abi_ensure_from_catalog(argv0, 25, p);
 }

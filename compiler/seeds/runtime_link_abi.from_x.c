@@ -1933,396 +1933,84 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
 /* wave173: link_abi_ensure_from_catalog pure orch (L4; hybrid).
  * product_path from peer *_o_path (no path_fn in pure; no .x fnptr ABI). */
 int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path);
+/* wave174: catalog thin ensure wraps pure (L4; hybrid). */
+int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
+int shux_ensure_runtime_process_argv_o(const char *argv0);
+int shux_ensure_runtime_process_os_glue_o(const char *argv0);
+int shux_ensure_runtime_random_fill_o(const char *argv0);
+int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
+int shux_ensure_runtime_time_os_o(const char *argv0);
+int shux_ensure_runtime_queue_contention_o(const char *argv0);
+int shux_ensure_runtime_dynlib_os_o(const char *argv0);
+int shux_ensure_runtime_env_os_o(const char *argv0);
+int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
+int shux_ensure_runtime_log_os_o(const char *argv0);
+int shux_ensure_runtime_math_libm_o(const char *argv0);
+int shux_ensure_runtime_atomic_glue_o(const char *argv0);
+int shux_ensure_runtime_channel_glue_o(const char *argv0);
+int shux_ensure_runtime_net_udp_batch_o(const char *argv0);
+int shux_ensure_runtime_net_workers_o(const char *argv0);
+int shux_ensure_runtime_sync_os_o(const char *argv0);
+int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
+int shux_ensure_runtime_thread_glue_o(const char *argv0);
+int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
+int shux_ensure_runtime_http_glue_o(const char *argv0);
+int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0);
+int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0);
+int shux_ensure_runtime_sqlite_glue_o(const char *argv0);
+int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
 #endif
 
 /*
  * wave173: link_abi_ensure_from_catalog pure orch — body removed from mega
  * (lives in labi_ensure_list L4 pure / cold twin via #include above).
  * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
- * Thin wraps below pass product_path = shux_runtime_*_o_path(argv0).
  * Cap residual: resolve/access/cc/one_extra/stat. PLATFORM: SHARED orch.
  */
 
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ASM_IO_STUBS, shux_runtime_asm_io_stubs_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_process_argv.o 尚不存在则用 cc -c 从 seeds/runtime_process_argv.from_x.c 生成到 shux 同目录，
- * 以便链 process.o 时提供 shux_process_argc/argv 与 process_shux_argc_get。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_process_argv_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_ARGV, shux_runtime_process_argv_o_path(argv0));
-}
-
-
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_OS_GLUE, shux_runtime_process_os_glue_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_test_fn_invoke.o 尚不存在则生成到 shux 同目录。
- * G-02e-16：源为 seeds/runtime_test_fn_invoke.from_x.c（G-02f-76）。
- * wave171: pure orch — body removed from mega (lives in labi_ensure_list L4 pure /
- * cold twin via #include above). Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure;
- * cold path defines via include. Direct seed compile (no wrap.c; ≡ wave169/170).
- * Why: hybrid still had always-mega C body for special test_fn_invoke ensure.
- */
-/* wave171: shux_ensure_runtime_test_fn_invoke_o pure orch — body removed from mega
+/*
+ * wave174: catalog thin ensure wraps pure — bodies removed from mega
  * (lives in labi_ensure_list L4 pure / cold twin via #include above).
  * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * 26× shux_ensure_runtime_*_o: peer *_o_path + pure ensure_from_catalog.
+ * Why: hybrid still had always-mega thin wrap C after ensure_from_catalog pure wave173.
+ * Cap residual: only peer path ladders (static PATH_MAX / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch.
  */
-int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
-
-
-
-
-/**
- * 若 runtime_random_fill.o 尚不存在则用 cc -c 从 seeds/runtime_random_fill.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
+/* Catalog thin ensure symbols (hybrid FROM_X → L4 pure; cold → include above):
+ *   shux_ensure_runtime_asm_io_stubs_o
+ *   shux_ensure_runtime_process_argv_o
+ *   shux_ensure_runtime_process_os_glue_o
+ *   shux_ensure_runtime_random_fill_o
+ *   shux_ensure_runtime_compress_zlib_glue_o
+ *   shux_ensure_runtime_time_os_o
+ *   shux_ensure_runtime_queue_contention_o
+ *   shux_ensure_runtime_dynlib_os_o
+ *   shux_ensure_runtime_env_os_o
+ *   shux_ensure_runtime_backtrace_platform_o
+ *   shux_ensure_runtime_log_os_o
+ *   shux_ensure_runtime_math_libm_o
+ *   shux_ensure_runtime_atomic_glue_o
+ *   shux_ensure_runtime_channel_glue_o
+ *   shux_ensure_runtime_net_udp_batch_o
+ *   shux_ensure_runtime_net_workers_o
+ *   shux_ensure_runtime_sync_os_o
+ *   shux_ensure_runtime_sync_lock_diag_tls_o
+ *   shux_ensure_runtime_thread_glue_o
+ *   shux_ensure_runtime_scheduler_glue_o
+ *   shux_ensure_runtime_http_glue_o
+ *   shux_ensure_runtime_kv_mmap_glue_o
+ *   shux_ensure_runtime_arrow_simd_glue_o
+ *   shux_ensure_runtime_sqlite_glue_o
+ *   shux_ensure_runtime_crypto_inc_glue_o
+ *   shux_ensure_runtime_ed25519_ref10_glue_o
+ * Special ensures already pure (wave169–172): panic / heap_user / test_fn_invoke / tls_mbedtls_bio.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_random_fill_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_RANDOM_FILL, shux_runtime_random_fill_o_path(argv0));
-}
 
-
-
-
-
-/**
- * 若 runtime_compress_zlib_glue.o 尚不存在则用 cc -c 从 seeds/runtime_compress_zlib_glue.from_x.c 生成。
- * 提供 deflateInit2/inflateInit2 真实函数符号（zlib.h 中为宏，无函数符号）。
+/* wave170/171/172 special ensure pure — body removed (labi_ensure_list L4 / cold twin).
+ * Hybrid decls live in ENSURE_LIST #else above; cold twin defines bodies via include.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_COMPRESS_ZLIB_GLUE, shux_runtime_compress_zlib_glue_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_heap_user.o 尚不存在则生成到 shux 同目录。
- * G-02e-14：源为 seeds/runtime_heap_user.from_x.c（G-02f-76；仍可 wrap 编译）。
- * co-emit std.heap allocator_* redirect 的 heap_alloc_c / heap_arena64_alloc_c 等符号。
- */
-/* wave170: shux_ensure_runtime_heap_user_o pure orch — body removed from mega
- * (lives in labi_ensure_list L4 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
- * Why: hybrid still had always-mega C body for special heap_user ensure (stub
- * has_defined_sym gate + direct seed compile) after panic ensure pure wave169.
- * Cap residual: resolve/access/cc/stat + has_defined_sym + unlink stub.
- * PLATFORM: SHARED orch (direct seed compile; no wrap.c). */
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
-/* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
-#else
-int shux_ensure_runtime_heap_user_o(const char *argv0);
-#endif
-
-
-
-
-/**
- * 若 runtime_time_os.o 尚不存在则用 cc -c 从 seeds/runtime_time_os.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_time_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_TIME_OS, shux_runtime_time_os_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_queue_contention.o 尚不存在则用 cc -c 从 seeds/runtime_queue_contention.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_queue_contention_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_QUEUE_CONTENTION, shux_runtime_queue_contention_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_dynlib_os.o 尚不存在则用 cc -c 从 seeds/runtime_dynlib_os.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_DYNLIB_OS, shux_runtime_dynlib_os_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_env_os.o 尚不存在则用 cc -c 从 seeds/runtime_env_os.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_env_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ENV_OS, shux_runtime_env_os_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_backtrace_platform.o 尚不存在则用 cc -c 从 seeds/runtime_backtrace_platform.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_BACKTRACE_PLATFORM, shux_runtime_backtrace_platform_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_log_os.o 尚不存在则用 cc -c 从 seeds/runtime_log_os.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_log_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_LOG_OS, shux_runtime_log_os_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_math_libm.o 尚不存在则用 cc -c 从 seeds/runtime_math_libm.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_math_libm_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_MATH_LIBM, shux_runtime_math_libm_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_atomic_glue.o 尚不存在则用 cc -c 从 seeds/runtime_atomic_glue.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ATOMIC_GLUE, shux_runtime_atomic_glue_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_channel_glue.o 尚不存在则用 cc -c 从 seeds/runtime_channel_glue.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_channel_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CHANNEL_GLUE, shux_runtime_channel_glue_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_net_udp_batch.o 尚不存在则用 cc -c 从 seeds/runtime_net_udp_batch.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_UDP_BATCH, shux_runtime_net_udp_batch_o_path(argv0));
-}
-
-
-
-
-
-/**
- * 若 runtime_net_workers.o 尚不存在则用 cc -c 从 seeds/runtime_net_workers.from_x.c 生成到 shux 同目录。
- * 参数：argv0 用于解析 compiler 目录。
- * 返回值：0 成功，-1 失败并已写 stderr。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_net_workers_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_WORKERS, shux_runtime_net_workers_o_path(argv0));
-}
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_sync_os_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_OS, shux_runtime_sync_os_o_path(argv0));
-}
-
-
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_LOCK_DIAG_TLS, shux_runtime_sync_lock_diag_tls_o_path(argv0));
-}
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_thread_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_THREAD_GLUE, shux_runtime_thread_glue_o_path(argv0));
-}
-
-
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SCHEDULER_GLUE, shux_runtime_scheduler_glue_o_path(argv0));
-}
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_http_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_HTTP_GLUE, shux_runtime_http_glue_o_path(argv0));
-}
-
-
-
-/* wave172: shux_ensure_runtime_tls_mbedtls_bio_o pure orch — body removed from mega
- * (lives in labi_ensure_list L4 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
- * Why: hybrid still had always-mega C body for special tls_mbedtls_bio ensure
- * (homebrew -I via compile_sync_ex) after test_fn_invoke pure wave171.
- * Cap residual: resolve/access/cc_one_extra/stat.
- * PLATFORM: SHARED orch; MACOS homebrew -I always best-effort. */
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
-/* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
-#else
-int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
-#endif
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_KV_MMAP_GLUE, shux_runtime_kv_mmap_glue_o_path(argv0));
-}
-
-
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ARROW_SIMD_GLUE, shux_runtime_arrow_simd_glue_o_path(argv0));
-}
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SQLITE_GLUE, shux_runtime_sqlite_glue_o_path(argv0));
-}
-
-
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CRYPTO_INC_GLUE, shux_runtime_crypto_inc_glue_o_path(argv0));
-}
-
-
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-/* G-02f-273 L4 ensure catalog thin wrap */
-int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
-  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ED25519_REF10_GLUE, shux_runtime_ed25519_ref10_glue_o_path(argv0));
-}
-
-
-
-
 
 /* wave167: shux_ensure_crt0_user_o pure orch lives in labi_freestanding_list
  * (peer freestanding_enabled + pure tables + Cap residual resolve/access/cc/stat).

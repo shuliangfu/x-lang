@@ -7,8 +7,9 @@
 //
 // R2 full: ensure catalog tables (stem/out_base/seed_base/flags/step_at) +
 //   wave173 link_abi_ensure_from_catalog pure orch
-//     (catalog tables + pure byte joins + Cap residual resolve/access/cc/one_extra/stat;
-//      thin mega wraps pass product_path from peer *_o_path — no .x fnptr ABI).
+//     (catalog tables + pure byte joins + Cap residual resolve/access/cc/one_extra/stat).
+//   wave174 catalog thin ensure wraps pure (26× shux_ensure_runtime_*_o)
+//     (peer *_o_path Cap residual + pure ensure_from_catalog; zero extra business logic).
 //   wave169 shux_ensure_runtime_panic_o pure orch
 //     (peer panic_o_path + Cap residual resolve/access/cc/stat + host #if prefer).
 //   wave170 shux_ensure_runtime_heap_user_o pure orch
@@ -22,7 +23,7 @@
 //   + has_defined_sym / unlink for heap_user stub reject (wave170);
 //   + test_fn_invoke special ensure pure (wave171; no wrap.c / no fopen Cap);
 //   + tls_mbedtls_bio special ensure pure (wave172; compile_sync_one_extra homebrew -I);
-//   + catalog thin wraps still mega (call pure ensure_from_catalog + path peers).
+//   + catalog thin wrap path peers *_o_path (static PATH_MAX / compiler_o_path_copy).
 // PLATFORM: SHARED tables / orch; LINUX x86_64 asm prefer; POSIX aarch64 arm64 seed.
 
 // Cap residual (wave169/170/171/172 special ensure pure orch): resolve / access / cc / skip-stat.
@@ -43,6 +44,33 @@ export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_heap_user_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8;
+// Cap residual path peers for wave174 catalog thin ensure wraps (mega / path pure).
+export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_process_os_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_random_fill_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_queue_contention_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_env_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_log_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_math_libm_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_channel_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_net_workers_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_http_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
+export extern "C" function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
 // Peer pure diags (labi_diag_pure L1).
 export extern "C" function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): void;
 export extern "C" function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8): void;
@@ -509,7 +537,7 @@ export function labi_ensure_catalog_step_at(
  *   shux_cc_compile_sync / shux_cc_compile_sync_one_extra (spawn/cc); asm_link_obj_skip_missing.
  * Why (wave173): hybrid still had always-mega C body for generic catalog ensure after special
  *   ensure leaves pure (wave169–172). Tables were pure; orch/spawn/cc stayed mega.
- *   Thin mega wraps remain: ensure_*(argv0) → ensure_from_catalog(argv0, idx, path(argv0)).
+ * wave174: catalog thin wraps pure (ensure_*(argv0) → path peer + ensure_from_catalog).
  * PLATFORM: SHARED orch — dual-end L2 prove IDENTICAL + product matrix.
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
@@ -1538,4 +1566,603 @@ export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
     return -1;
   }
   return 0;
+}
+
+// wave174: 26 catalog thin ensure wraps pure (peer path + ensure_from_catalog).
+/**
+ * Catalog thin ensure wrap: ensure `runtime_asm_io_stubs.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_asm_io_stubs_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 0, product_path)` (LABI_ENS_ASM_IO_STUBS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_asm_io_stubs_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 0, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_process_argv.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_process_argv_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 1, product_path)` (LABI_ENS_PROCESS_ARGV).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_process_argv_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_process_argv_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 1, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_process_os_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_process_os_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 2, product_path)` (LABI_ENS_PROCESS_OS_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_process_os_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 2, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_random_fill.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_random_fill_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 3, product_path)` (LABI_ENS_RANDOM_FILL).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_random_fill_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_random_fill_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 3, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_compress_zlib_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_compress_zlib_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 4, product_path)` (LABI_ENS_COMPRESS_ZLIB_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_compress_zlib_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 4, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_time_os.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_time_os_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 5, product_path)` (LABI_ENS_TIME_OS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_time_os_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_time_os_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 5, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_queue_contention.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_queue_contention_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 6, product_path)` (LABI_ENS_QUEUE_CONTENTION).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_queue_contention_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 6, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_dynlib_os.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_dynlib_os_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 7, product_path)` (LABI_ENS_DYNLIB_OS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_dynlib_os_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 7, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_env_os.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_env_os_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 8, product_path)` (LABI_ENS_ENV_OS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_env_os_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_env_os_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 8, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_backtrace_platform.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_backtrace_platform_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 9, product_path)` (LABI_ENS_BACKTRACE_PLATFORM).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_backtrace_platform_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 9, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_log_os.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_log_os_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 10, product_path)` (LABI_ENS_LOG_OS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_log_os_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_log_os_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 10, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_math_libm.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_math_libm_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 11, product_path)` (LABI_ENS_MATH_LIBM).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_math_libm_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_math_libm_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 11, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_atomic_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_atomic_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 12, product_path)` (LABI_ENS_ATOMIC_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_atomic_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 12, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_channel_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_channel_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 13, product_path)` (LABI_ENS_CHANNEL_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_channel_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 13, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_net_udp_batch.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_net_udp_batch_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 14, product_path)` (LABI_ENS_NET_UDP_BATCH).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_net_udp_batch_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 14, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_net_workers.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_net_workers_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 15, product_path)` (LABI_ENS_NET_WORKERS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_net_workers_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_net_workers_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 15, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_sync_os.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_sync_os_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 16, product_path)` (LABI_ENS_SYNC_OS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_sync_os_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_sync_os_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 16, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_sync_lock_diag_tls.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_sync_lock_diag_tls_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 17, product_path)` (LABI_ENS_SYNC_LOCK_DIAG_TLS).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_sync_lock_diag_tls_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 17, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_thread_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_thread_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 18, product_path)` (LABI_ENS_THREAD_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_thread_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 18, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_scheduler_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_scheduler_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 19, product_path)` (LABI_ENS_SCHEDULER_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_scheduler_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 19, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_http_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_http_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 20, product_path)` (LABI_ENS_HTTP_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_http_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_http_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 20, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_kv_mmap_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_kv_mmap_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 21, product_path)` (LABI_ENS_KV_MMAP_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_kv_mmap_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 21, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_arrow_simd_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_arrow_simd_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 22, product_path)` (LABI_ENS_ARROW_SIMD_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_arrow_simd_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 22, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_sqlite_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_sqlite_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 23, product_path)` (LABI_ENS_SQLITE_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_sqlite_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 23, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_crypto_inc_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_crypto_inc_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 24, product_path)` (LABI_ENS_CRYPTO_INC_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_crypto_inc_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 24, p);
+}
+
+/**
+ * Catalog thin ensure wrap: ensure `runtime_ed25519_ref10_glue.o` via pure catalog orch.
+ * @param argv0 *u8 — optional product host path for peer path resolve; may be null
+ * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
+ * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_ed25519_ref10_glue_o_path` then
+ *   pure `link_abi_ensure_from_catalog(argv0, 25, product_path)` (LABI_ENS_ED25519_REF10_GLUE).
+ * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
+ *   ensure_from_catalog (wave173) + path peers (wave160/161).
+ * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
+ *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
+ * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
+ * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
+ * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ */
+#[no_mangle]
+export function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_runtime_ed25519_ref10_glue_o_path(argv0);
+  }
+  return link_abi_ensure_from_catalog(argv0, 25, p);
 }

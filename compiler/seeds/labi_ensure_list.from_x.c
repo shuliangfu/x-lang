@@ -7,6 +7,7 @@
  *   labi_ensure_catalog_{stem,out_base,seed_base,flags}
  *   labi_ensure_catalog_step_at
  *   + wave173 link_abi_ensure_from_catalog pure orch
+ *   + wave174 catalog thin ensure wraps pure (26× shux_ensure_runtime_*_o)
  *   + wave169 shux_ensure_runtime_panic_o pure orch
  *   + wave170 shux_ensure_runtime_heap_user_o pure orch
  *   + wave171 shux_ensure_runtime_test_fn_invoke_o pure orch
@@ -16,7 +17,7 @@
  *   wave170 heap_user ensure：resolve/access/cc/stat + has_defined_sym + unlink stub；
  *   wave171 test_fn_invoke ensure：resolve/access/cc/stat（direct seed；无 wrap.c）；
  *   wave172 tls_mbedtls_bio ensure：resolve/access/cc_one_extra/stat（homebrew -I）；
- *   catalog thin wraps 仍 mega（调 pure ensure_from_catalog + path peers）。
+ *   wave174 catalog thin wraps：peer *_o_path Cap residual only。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -43,6 +44,33 @@ const char *shux_runtime_panic_o_path(const char *argv0);
 const char *shux_runtime_heap_user_o_path(const char *argv0);
 const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
 const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
+/* Cap residual path peers for wave174 catalog thin ensure wraps. */
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *shux_runtime_process_argv_o_path(const char *argv0);
+const char *shux_runtime_process_os_glue_o_path(const char *argv0);
+const char *shux_runtime_random_fill_o_path(const char *argv0);
+const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
+const char *shux_runtime_time_os_o_path(const char *argv0);
+const char *shux_runtime_queue_contention_o_path(const char *argv0);
+const char *shux_runtime_dynlib_os_o_path(const char *argv0);
+const char *shux_runtime_env_os_o_path(const char *argv0);
+const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
+const char *shux_runtime_log_os_o_path(const char *argv0);
+const char *shux_runtime_math_libm_o_path(const char *argv0);
+const char *shux_runtime_atomic_glue_o_path(const char *argv0);
+const char *shux_runtime_channel_glue_o_path(const char *argv0);
+const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
+const char *shux_runtime_net_workers_o_path(const char *argv0);
+const char *shux_runtime_sync_os_o_path(const char *argv0);
+const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0);
+const char *shux_runtime_thread_glue_o_path(const char *argv0);
+const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
+const char *shux_runtime_http_glue_o_path(const char *argv0);
+const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0);
+const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
+const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
+const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
+const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
 void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint);
 void link_diag_runtime_source_missing(const char *obj_name, const char *source_path);
 void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
@@ -840,6 +868,163 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   return 0;
 }
 
+/* wave174: 26 catalog thin ensure wraps pure (cold twin ≡ labi_ensure_list.x). */
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
+  const char *p = shux_runtime_asm_io_stubs_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 0, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_process_argv_o(const char *argv0) {
+  const char *p = shux_runtime_process_argv_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 1, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
+  const char *p = shux_runtime_process_os_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 2, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_random_fill_o(const char *argv0) {
+  const char *p = shux_runtime_random_fill_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 3, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
+  const char *p = shux_runtime_compress_zlib_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 4, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_time_os_o(const char *argv0) {
+  const char *p = shux_runtime_time_os_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 5, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_queue_contention_o(const char *argv0) {
+  const char *p = shux_runtime_queue_contention_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 6, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
+  const char *p = shux_runtime_dynlib_os_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 7, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_env_os_o(const char *argv0) {
+  const char *p = shux_runtime_env_os_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 8, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
+  const char *p = shux_runtime_backtrace_platform_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 9, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_log_os_o(const char *argv0) {
+  const char *p = shux_runtime_log_os_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 10, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_math_libm_o(const char *argv0) {
+  const char *p = shux_runtime_math_libm_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 11, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
+  const char *p = shux_runtime_atomic_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 12, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_channel_glue_o(const char *argv0) {
+  const char *p = shux_runtime_channel_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 13, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
+  const char *p = shux_runtime_net_udp_batch_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 14, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_net_workers_o(const char *argv0) {
+  const char *p = shux_runtime_net_workers_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 15, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_sync_os_o(const char *argv0) {
+  const char *p = shux_runtime_sync_os_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 16, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
+  const char *p = shux_runtime_sync_lock_diag_tls_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 17, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_thread_glue_o(const char *argv0) {
+  const char *p = shux_runtime_thread_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 18, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
+  const char *p = shux_runtime_scheduler_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 19, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_http_glue_o(const char *argv0) {
+  const char *p = shux_runtime_http_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 20, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
+  const char *p = shux_runtime_kv_mmap_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 21, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
+  const char *p = shux_runtime_arrow_simd_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 22, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
+  const char *p = shux_runtime_sqlite_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 23, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
+  const char *p = shux_runtime_crypto_inc_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 24, p);
+}
+
+/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
+  const char *p = shux_runtime_ed25519_ref10_glue_o_path(argv0);
+  return link_abi_ensure_from_catalog(argv0, 25, p);
+}
+
 #else
 int labi_ensure_catalog_count(void);
 const char *labi_ensure_catalog_stem(int i);
@@ -851,6 +1036,33 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
                                 const char **hint_out);
 /* wave173: link_abi_ensure_from_catalog pure orch (L4). */
 int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path);
+/* wave174: catalog thin ensure wraps pure (L4). */
+int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
+int shux_ensure_runtime_process_argv_o(const char *argv0);
+int shux_ensure_runtime_process_os_glue_o(const char *argv0);
+int shux_ensure_runtime_random_fill_o(const char *argv0);
+int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
+int shux_ensure_runtime_time_os_o(const char *argv0);
+int shux_ensure_runtime_queue_contention_o(const char *argv0);
+int shux_ensure_runtime_dynlib_os_o(const char *argv0);
+int shux_ensure_runtime_env_os_o(const char *argv0);
+int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
+int shux_ensure_runtime_log_os_o(const char *argv0);
+int shux_ensure_runtime_math_libm_o(const char *argv0);
+int shux_ensure_runtime_atomic_glue_o(const char *argv0);
+int shux_ensure_runtime_channel_glue_o(const char *argv0);
+int shux_ensure_runtime_net_udp_batch_o(const char *argv0);
+int shux_ensure_runtime_net_workers_o(const char *argv0);
+int shux_ensure_runtime_sync_os_o(const char *argv0);
+int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
+int shux_ensure_runtime_thread_glue_o(const char *argv0);
+int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
+int shux_ensure_runtime_http_glue_o(const char *argv0);
+int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0);
+int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0);
+int shux_ensure_runtime_sqlite_glue_o(const char *argv0);
+int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
 /* wave169: ensure_runtime_panic_o pure orch (L4). */
 int shux_ensure_runtime_panic_o(const char *argv0);
 /* wave170: ensure_runtime_heap_user_o pure orch (L4). */
