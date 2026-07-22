@@ -1008,8 +1008,11 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 # PLATFORM: SHARED — if -E emits illegal C (e.g. dual cfg-host os lit redefinition on
 # Darwin), cc must not hard-fail the recipe: fall through to bootstrap stub so L4
 # cold bootstrap can finish (true cold-only residual when .x path unusable).
-# Deps: link_alias (mangle + host lit for -E-extern) + host_lit (bare -E path).
-src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c seeds/cfg_eval_host_lit.from_x.c scripts/cc_inc_tu.sh
+# Deps: link_alias (mangle + host lit for -E-extern) + linux pin gen (Ubuntu gold).
+# wave98: do NOT use plain -E for product — bare -E emits dangling BSS pointer
+#   (static uint8_t* g = (uint8_t[]){}) → SEGV on complex #if (Ubuntu 金标).
+# Prefer live -E-extern; else pin seeds/cfg_eval_gen.linux.x86_64.c (same as typeck pin).
+src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c seeds/cfg_eval_gen.linux.x86_64.c seeds/cfg_eval_host_lit.from_x.c scripts/cc_inc_tu.sh
 	@set -e; \
 	$(MAKE) $(SHUX_C); \
 	rm -f src/lexer/cfg_eval_x.o; \
@@ -1036,12 +1039,11 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c se
 	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (-E-extern no -L + alias)"; \
-	elif ./$(SHUX_C) -E src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
-	  && [ -s src/lexer/cfg_eval_gen.c ] \
-	  && $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c 2>/dev/null; then \
-	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_host_lit.from_x.c src/lexer/cfg_eval_host_lit.o; \
-	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_host_lit.o; \
-	  echo "cfg_eval.o from cfg_eval.x (plain -E + host_lit)"; \
+	elif [ -s seeds/cfg_eval_gen.linux.x86_64.c ] \
+	  && $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o seeds/cfg_eval_gen.linux.x86_64.c 2>/dev/null; then \
+	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
+	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
+	  echo "cfg_eval.o from cfg_eval.x (linux pin gen + alias)"; \
 	else \
 	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.o && \
 	  cp -f src/lexer/cfg_eval_bootstrap_stub.o $@ && \
