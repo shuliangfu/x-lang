@@ -9,7 +9,8 @@
 //   wave119 labi_od_set_sym_* + link_abi_user_o_needs_std_set pure orch +
 //   wave120 labi_od_map_sym_* + link_abi_user_o_needs_std_map pure orch +
 //   wave121 labi_od_queue_api_sym_* + link_abi_user_o_needs_std_queue pure orch
-//     (product API; separate from contention labi_od_queue_sym_*).
+//     (product API; separate from contention labi_od_queue_sym_*) +
+//   wave122 labi_od_test_sym_* + link_abi_user_o_needs_std_test pure orch.
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -1030,6 +1031,98 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_queue_api_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of std.test on_demand UNDEF probes (product test.o gate).
+ * Prefix-style entries (test_runner_ etc.) rely on Cap residual strstr
+ * fallback inside shux_link_obj_needs_undef_sym (exact + substring).
+ * @return i32 — 7
+ * PLATFORM: SHARED — must match formal test.o / runner export prefixes
+ */
+#[no_mangle]
+export function labi_od_test_sym_count(): i32 {
+  return 7;
+}
+
+/**
+ * Product test on_demand UNDEF symbol or prefix at index (needs_std_test probe table).
+ * @param i i32 — index in [0, 7)
+ * @return *u8 — static C string symbol/prefix, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_std_test authority (no second hard-coded list)
+ */
+#[no_mangle]
+export function labi_od_test_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "test_call_i32_void_c";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "test_runner_";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "test_expect_";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "test_bench_";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "test_f_test_";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "test_io_";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "test_fuzz_";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.test API (on-demand chain test.o).
+ * Pure orch: fixed test UNDEF/prefix table; Cap residual shux_link_obj_needs_undef_sym.
+ * Avoids unconditional test.o on hello-class minimal links (ld duplicate risk).
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave122): hybrid still had needs_std_test body always mega C with hard-coded strings.
+ * Keep single product table+orch in L8b; prefixes intentionally retained (strstr Cap).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_test_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_test_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
