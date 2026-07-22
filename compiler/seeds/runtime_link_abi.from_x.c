@@ -2961,13 +2961,40 @@ void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_l
 void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
 #endif
 
-/* Extract .o file args from argv. Skips options (-o/-L/-I/-target/-backend/-O
- * and their value), -D<def>, --<flag>, and any arg not ending in ".o".
- * Stores up to SHUX_USER_EXTRA_O_FILES_MAX pointers (no copy; argv lifetime
- * must cover the subsequent shux_invoke_cc call). Resets state first. */
+/**
+ * Cap residual (wave189): reset CLI user-extra .o table (globals stay mega).
+ * Pure orch: shux_invoke_cc_set_user_o_files_from_argv / clear walk argv then push/reset.
+ * PLATFORM: SHARED — single authority table for cc + asm ld.
+ */
+void link_abi_user_extra_o_reset(void) {
+    g_shux_n_user_extra_o_files = 0;
+}
+
+/**
+ * Cap residual (wave189): push one CLI user-extra .o path pointer (no copy).
+ * @return 1 stored, 0 rejected (null/empty/full).
+ * PLATFORM: SHARED.
+ */
+int link_abi_user_extra_o_push(const char *p) {
+    if (!p || !p[0])
+        return 0;
+    if (g_shux_n_user_extra_o_files >= SHUX_USER_EXTRA_O_FILES_MAX)
+        return 0;
+    g_shux_user_extra_o_files[g_shux_n_user_extra_o_files++] = p;
+    return 1;
+}
+
+/**
+ * Extract .o file args from argv into user-extra table.
+ * wave189：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: option skip + .o suffix scan; Cap residual reset/push.
+ * PLATFORM: SHARED — argv lifetime covers subsequent invoke_cc/ld.
+ */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
     int i;
-    g_shux_n_user_extra_o_files = 0;
+    link_abi_user_extra_o_reset();
     if (!argv)
         return;
     for (i = 1; i < argc; i++) {
@@ -2985,18 +3012,19 @@ void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
             continue;
         }
         len = strlen(a);
-        if (len >= 2 && a[len - 2] == '.' && a[len - 1] == 'o') {
-            if (g_shux_n_user_extra_o_files < SHUX_USER_EXTRA_O_FILES_MAX) {
-                g_shux_user_extra_o_files[g_shux_n_user_extra_o_files++] = a;
-            }
-        }
+        if (len >= 2 && a[len - 2] == '.' && a[len - 1] == 'o')
+            (void)link_abi_user_extra_o_push(a);
     }
 }
 
 /* Reset user .o state. Call after shux_invoke_cc to prevent stale pointers. */
 void shux_invoke_cc_clear_user_o_files(void) {
-    g_shux_n_user_extra_o_files = 0;
+    link_abi_user_extra_o_reset();
 }
+#else
+void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
+void shux_invoke_cc_clear_user_o_files(void);
+#endif
 
 /**
  * 调用系统 cc 将多个 C 文件编译链接为可执行文件（fork/exec + 可选 strip）。
@@ -6214,8 +6242,6 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
     (void)flags;
 #endif
 }
-
-
 
 
 /**

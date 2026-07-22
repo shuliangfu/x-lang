@@ -32,6 +32,7 @@
  *     Cap residual resolve for synthetic compiler-dir/shux)
  *   + shux_rel_o_path_from_argv0 (wave185 pure realpath/cwd/argv0 ladder; Cap residual
  *     realpath_cap + getcwd + link_abi_cstr_dup + skip_missing; heap return)
+ *   + shux_invoke_cc_set/clear_user_o_files (wave189 pure argv .o scan; Cap residual reset/push)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -1285,6 +1286,43 @@ int32_t labi_path_pure_count(void) {
   return 58;
 }
 
+
+/* wave189: set/clear user_o_files pure orch (cold twin ≡ .x).
+ * Cap residual reset/push live in mega always; pure owns argv scan.
+ * PLATFORM: SHARED.
+ */
+void link_abi_user_extra_o_reset(void);
+int link_abi_user_extra_o_push(const char *p);
+
+void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
+    int i;
+    link_abi_user_extra_o_reset();
+    if (!argv)
+        return;
+    for (i = 1; i < argc; i++) {
+        const char *a = argv[i];
+        size_t len;
+        if (!a || !a[0])
+            continue;
+        if (a[0] == '-') {
+            if ((!strcmp(a, "-o") || !strcmp(a, "-L") || !strcmp(a, "-I") ||
+                 !strcmp(a, "-target") || !strcmp(a, "-backend") ||
+                 !strcmp(a, "-O") || !strcmp(a, "-opt")) && i + 1 < argc) {
+                i++;
+            }
+            continue;
+        }
+        len = strlen(a);
+        if (len >= 2 && a[len - 2] == '.' && a[len - 1] == 'o')
+            (void)link_abi_user_extra_o_push(a);
+    }
+}
+
+void shux_invoke_cc_clear_user_o_files(void) {
+    link_abi_user_extra_o_reset();
+}
+
+
 #else
 int32_t labi_suffix_eq2(uint8_t *s, int32_t n, uint8_t a0, uint8_t a1);
 int32_t labi_suffix_eq4(uint8_t *s, int32_t n, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3);
@@ -1307,6 +1345,10 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
 void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+/* wave189 */
+void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
+void shux_invoke_cc_clear_user_o_files(void);
+
 int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
 const char *shux_repo_root_from_argv0(const char *argv0);
 const char *shux_runtime_panic_o_path(const char *argv0);

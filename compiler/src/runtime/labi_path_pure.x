@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 58 public gates + count:
+// R2 full: .x owns 60 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -19,6 +19,8 @@
 //   - link_abi_asm_ld_push_minimal_runtime_objs (wave150; pure triple push_obj; Cap residual *_o_path
 //     only for empty primary path strings from thin leaves before wave183 pure)
 //   - shux_asm_ld_append_user_extra_o_files (wave151; pure CLI extra .o append; Cap residual table+access)
+//   - shux_invoke_cc_set_user_o_files_from_argv / clear (wave189; pure CLI argv .o scan;
+//     Cap residual reset/push table write)
 //   - shux_runtime_compiler_o_path_copy (wave160; pure join compiler-dir/leaf; Cap residual resolve)
 //   - shux_repo_root_from_argv0 (wave162; pure strip parent of compiler-dir / process.o walk;
 //     Cap residual resolve + rel_o_path; static 512 BSS return)
@@ -74,9 +76,11 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 // wave183: thin shux_runtime_*_o_path (incl. asm_io_stubs / process_argv) are pure exports below.
 // wave184: empty_cstr / std_io_o_path / std_compress_o_path / effective_link_argv0 pure below.
 // wave185: shux_rel_o_path_from_argv0 pure below (heap cstr_dup Cap residual).
-// Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
+// Cap residual (wave151/189): CLI user-extra .o table + host access R_OK (globals stay mega).
 export extern "C" function link_abi_user_extra_o_count(): i32;
 export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
+export extern "C" function link_abi_user_extra_o_reset(): void;
+export extern "C" function link_abi_user_extra_o_push(p: *u8): i32;
 export extern "C" function link_abi_path_readable(path: *u8): i32;
 // Cap residual (wave160): platform resolve of compiler/ dir (readlink / _NSGetExecutablePath /
 // realpath argv0). Pure owns the leaf join into caller buffer (no snprintf Cap).
@@ -2700,4 +2704,162 @@ export function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8 {
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
   return 58;
+}
+
+/**
+ * Pure helper: equality of two NUL-terminated C strings (byte-exact).
+ * @param a *u8 — left; null → 0
+ * @param b *u8 — right; null → 0
+ * @return i32 — 1 equal, 0 not
+ * PLATFORM: SHARED — pure strcmp substitute for option name match.
+ */
+function labi_user_extra_cstr_eq(a: *u8, b: *u8): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  if (b == 0 as *u8) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < 1048576) {
+    let ca: u8 = a[i];
+    let cb: u8 = b[i];
+    if (ca != cb) {
+      return 0;
+    }
+    if (ca == 0) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Pure helper: path ends with ".o" (len>=2, last two bytes '.' 'o').
+ * @param a *u8 — path; null/empty → 0
+ * @return i32 — 1 if suffix .o
+ * PLATFORM: SHARED — pure; ≡ mega len>=2 && a[len-2]=='.' && a[len-1]=='o'
+ */
+function labi_user_extra_ends_with_dot_o(a: *u8): i32 {
+  if (a == 0 as *u8) {
+    return 0;
+  }
+  if (a[0] == 0) {
+    return 0;
+  }
+  let len: i32 = 0;
+  while (len < 1048576) {
+    if (a[len] == 0) {
+      break;
+    }
+    len = len + 1;
+  }
+  if (len < 2) {
+    return 0;
+  }
+  if (a[len - 2] != 46) {
+    return 0;
+  }
+  if (a[len - 1] != 111) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Parse driver argv for user-specified .o files into the single-authority extra table.
+ * Skips options (-o/-L/-I/-target/-backend/-O/-opt and their values), -D*, --*, and
+ * non-.o positionals. Resets the table first (Cap residual reset).
+ * @param argc i32 — argv count (same as main argc)
+ * @param argv **u8 — driver argv (char**); null → reset only
+ * @return void — stores up to 32 path pointers (no copy; argv lifetime must cover link)
+ * Pure orch: option name pure eq + .o suffix pure scan; Cap residual reset/push.
+ * Cap residual: link_abi_user_extra_o_reset / link_abi_user_extra_o_push (globals mega).
+ * Why (wave189): hybrid still had always-mega C body for CLI .o table fill (writer side
+ *   of wave151 pure append_user_extra). Soft residual sibling of wave151 append.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name for rt_run_asm_backend call sites.
+ */
+#[no_mangle]
+export function shux_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: **u8): void {
+  unsafe {
+    link_abi_user_extra_o_reset();
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (argc <= 1) {
+    return;
+  }
+  let i: i32 = 1;
+  while (i < argc) {
+    let a: *u8 = argv[i];
+    if (a == 0 as *u8) {
+      i = i + 1;
+      continue;
+    }
+    if (a[0] == 0) {
+      i = i + 1;
+      continue;
+    }
+    // Options: leading '-'
+    if (a[0] == 45) {
+      // Two-token options consume next arg when present.
+      let two: i32 = 0;
+      if (labi_user_extra_cstr_eq(a, "-o") != 0) {
+        two = 1;
+      }
+      if (labi_user_extra_cstr_eq(a, "-L") != 0) {
+        two = 1;
+      }
+      if (labi_user_extra_cstr_eq(a, "-I") != 0) {
+        two = 1;
+      }
+      if (labi_user_extra_cstr_eq(a, "-target") != 0) {
+        two = 1;
+      }
+      if (labi_user_extra_cstr_eq(a, "-backend") != 0) {
+        two = 1;
+      }
+      if (labi_user_extra_cstr_eq(a, "-O") != 0) {
+        two = 1;
+      }
+      if (labi_user_extra_cstr_eq(a, "-opt") != 0) {
+        two = 1;
+      }
+      if (two != 0) {
+        if (i + 1 < argc) {
+          i = i + 1;
+        }
+      }
+      i = i + 1;
+      continue;
+    }
+    // Positional ending in ".o"
+    if (labi_user_extra_ends_with_dot_o(a) != 0) {
+      unsafe {
+        let _p: i32 = link_abi_user_extra_o_push(a);
+      }
+    }
+    i = i + 1;
+  }
+}
+
+/**
+ * Clear CLI user-extra .o table after invoke_cc / invoke_ld (prevent stale pointers).
+ * @return void
+ * Pure orch: Cap residual reset only.
+ * Cap residual: link_abi_user_extra_o_reset.
+ * Why (wave189): pair with set_from_argv pure orch (writer side of wave151 table).
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_invoke_cc_clear_user_o_files(): void {
+  unsafe {
+    link_abi_user_extra_o_reset();
+  }
 }

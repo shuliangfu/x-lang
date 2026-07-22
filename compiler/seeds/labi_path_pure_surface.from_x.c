@@ -1,7 +1,7 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (58 public gates + count; wave183 29× thin + wave184 empty/effective + wave185 rel_o)
+ * Prove: full.x vs this seed → nm IDENTICAL (58→60 public gates + count; wave183 29× thin + wave184 empty/effective + wave185 rel_o + wave189 set/clear user_o)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
@@ -16,6 +16,7 @@
  *   realpath_cap+shu_resolve_compiler_dir Cap (wave181 bootstrap_nostdlib_stubs_o_path)
  *   resolve Cap (wave184 effective_link_argv0; empty path stubs pure)
  *   realpath_cap+getcwd+cstr_dup+skip Cap (wave185 rel_o_path heap; pure orch)
+ *   reset/push Cap (wave189 set/clear user_o_files; pure argv .o scan)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -36,6 +37,8 @@ extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * pa
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
+extern void link_abi_user_extra_o_reset(void);
+extern int32_t link_abi_user_extra_o_push(uint8_t * p);
 extern uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
 extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
 extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);
@@ -83,6 +86,8 @@ extern uint8_t * shux_freestanding_io_o_path(uint8_t * argv0);
 extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
 extern void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32_t max_la);
+extern void shux_invoke_cc_set_user_o_files_from_argv(int32_t argc, uint8_t * * argv);
+extern void shux_invoke_cc_clear_user_o_files(void);
 extern int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8_t * out, int64_t out_sz);
 extern uint8_t * shux_repo_root_from_argv0(uint8_t * argv0);
 extern uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler);
@@ -217,6 +222,8 @@ extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * pa
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
+extern void link_abi_user_extra_o_reset(void);
+extern int32_t link_abi_user_extra_o_push(uint8_t * p);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
@@ -1682,4 +1689,114 @@ uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel) {
 }
 int32_t labi_path_pure_count(void) {
   return 58;
+}
+
+/* wave189: set/clear user_o_files pure orch (≡ .x -E polish) */
+int32_t labi_path_pure_labi_user_extra_cstr_eq(uint8_t * a, uint8_t * b) {
+  if ((a ==0)) {
+    return 0;
+  }
+  if ((b ==0)) {
+    return 0;
+  }
+  int32_t i = 0;
+  while ((i < 1048576)) {
+    uint8_t ca = (a)[i];
+    uint8_t cb = (b)[i];
+    if ((ca !=cb)) {
+      return 0;
+    }
+    if ((ca ==0)) {
+      return 1;
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_path_pure_labi_user_extra_ends_with_dot_o(uint8_t * a) {
+  if ((a ==0)) {
+    return 0;
+  }
+  if (((a)[0] ==0)) {
+    return 0;
+  }
+  int32_t len = 0;
+  while ((len < 1048576)) {
+    if (((a)[len] ==0)) {
+      break;
+    }
+    (void)((len = (len + 1)));
+  }
+  if ((len < 2)) {
+    return 0;
+  }
+  if (((a)[(len - 2)] !=46)) {
+    return 0;
+  }
+  if (((a)[(len - 1)] !=111)) {
+    return 0;
+  }
+  return 1;
+}
+void shux_invoke_cc_set_user_o_files_from_argv(int32_t argc, uint8_t * * argv) {
+  (void)(link_abi_user_extra_o_reset());
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab ==0)) {
+    return;
+  }
+  if ((argc <=1)) {
+    return;
+  }
+  int32_t i = 1;
+  while ((i < argc)) {
+    uint8_t * a = (argv)[i];
+    if ((a ==0)) {
+      (void)((i = (i + 1)));
+      continue;
+    }
+    if (((a)[0] ==0)) {
+      (void)((i = (i + 1)));
+      continue;
+    }
+    if (((a)[0] ==45)) {
+      int32_t two = 0;
+      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x6f")) !=0)) {
+        (void)((two = 1));
+      }
+      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x4c")) !=0)) {
+        (void)((two = 1));
+      }
+      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x49")) !=0)) {
+        (void)((two = 1));
+      }
+      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x74\x61\x72\x67\x65\x74")) !=0)) {
+        (void)((two = 1));
+      }
+      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x62\x61\x63\x6b\x65\x6e\x64")) !=0)) {
+        (void)((two = 1));
+      }
+      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x4f")) !=0)) {
+        (void)((two = 1));
+      }
+      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x6f\x70\x74")) !=0)) {
+        (void)((two = 1));
+      }
+      if ((two !=0)) {
+        if (((i + 1) < argc)) {
+          (void)((i = (i + 1)));
+        }
+      }
+      (void)((i = (i + 1)));
+      continue;
+    }
+    if ((labi_path_pure_labi_user_extra_ends_with_dot_o(a) !=0)) {
+      {
+        int32_t _p = link_abi_user_extra_o_push(a);
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+}
+void shux_invoke_cc_clear_user_o_files(void) {
+  (void)(link_abi_user_extra_o_reset());
 }
