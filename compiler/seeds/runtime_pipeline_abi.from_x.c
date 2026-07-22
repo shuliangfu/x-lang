@@ -84,6 +84,9 @@
  *   only — no same-TU weak -1; external reloc → bridge strong; cold twin under #ifndef FROM_X).
  * wave81: pure shux_preprocess / quiet / with_path thin public surface (G.7 pure
  *   raw_to_malloc_impl; product X-pipeline; cold twin keeps LEGACY fallback under #ifndef FROM_X).
+ * wave82: pure pipeline_debug_trace_named_func_bodies_impl orch (getenv + module walk +
+ *   G.7 pure body_func_match + pipe_diag_msg_append_* + diag_report; no reportf; cold twin
+ *   under #ifndef FROM_X keeps reportf). Closes soft residual always-seed body-trace leaf.
  * Cap residual still: fn-ptr / typeck_module C frontend
  *   (+ pipeline_sizeof_* / preprocess engine residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
@@ -515,6 +518,9 @@ int pipeline_debug_body_func_match(const char *filter, const char *name) {
 
 
 
+/* wave82: pure owns pipeline_debug_trace_named_func_bodies_impl under PREFER FROM_X
+ * (append+diag_report, no reportf). Cold twin keeps historical reportf format. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
     const char *filter = getenv("SHUX_DEBUG_BODY_FUNC");
     int32_t nf;
@@ -549,6 +555,7 @@ void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module
                      body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
     }
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {

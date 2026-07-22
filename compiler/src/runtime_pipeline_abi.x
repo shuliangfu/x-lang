@@ -94,6 +94,10 @@
 // wave81: pure shux_preprocess / shux_preprocess_quiet / shux_preprocess_with_path thin public
 //   surface (G.7 pure shux_preprocess_raw_to_malloc_impl; product always X-pipeline path;
 //   seed cold twin keeps LEGACY preprocess_c_fallback under #ifndef FROM_X).
+// wave82: pure pipeline_debug_trace_named_func_bodies_impl orch (getenv + module func walk +
+//   G.7 pure pipeline_debug_body_func_match + stack msg via pipe_diag_msg_append_* + diag_report;
+//   no va_list reportf — cold twin keeps reportf). Closes soft residual always-seed body-trace
+//   leaf still called from pure public thin.
 // Cap residual still: fn-ptr / typeck_module C frontend
 //   (+ pipeline_sizeof_* / preprocess engine residual).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
@@ -107,6 +111,7 @@
 //   driver_asm_fclose_file are pure export functions below.
 // wave79: shux_path_try_realpath_inplace is pure export function below.
 // wave80: shux_asm_codegen_elf_o_product_emit is pure export function below.
+// wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -247,7 +252,22 @@ export extern "C" function driver_parse_into_buf_rc(arena: *u8, module: *u8, dat
 // are pure export function below (not export-extern Cap residual).
 // wave52: shux_collect_tmp_parse_and_enqueue is pure export function below.
 // wave55: shux_load_one_direct_resolve_read_preprocess is pure export function below.
-export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
+// wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below
+//   (not export-extern always-seed). Cap residual: module/ast accessors + getenv +
+//   pure pipe_diag_msg_append_* (same TU; product does not link driver_diag_append_*) +
+//   diag_report (no reportf).
+export extern "C" function pipeline_module_num_funcs(module: *u8): i32;
+export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32, dst: *u8): void;
+export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
+export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_if_stmts(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_regions(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+// wave82: getenv for SHUX_DEBUG_BODY_FUNC gate (also used by pure pipeline_asm_debug_enabled).
+export extern "C" function getenv(name: *u8): *u8;
 
 /* See implementation. */
 
@@ -5029,12 +5049,339 @@ export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, mo
   return 0 - 1;
 }
 
-/** Exported function `pipeline_debug_trace_named_func_bodies`.
- * Implements `pipeline_debug_trace_named_func_bodies`.
- * @param phase *u8
- * @param module *u8
- * @param arena *u8
+/**
+ * Append a NUL-terminated C string into dst at offset at (wave82 body-trace msg builder).
+ * @param dst *u8 — destination buffer; null → return at unchanged
+ * @param cap i32 — buffer capacity including space for trailing NUL
+ * @param at i32 — current write offset
+ * @param src *u8 — source cstr; null → return at unchanged
+ * @return i32 — new write offset (NUL written at dst[returned] when room)
+ * G.7: product link does not export driver_diag_append_*; same-TU pipe_ helper avoids
+ * a second cross-module public append authority while matching diagnostic append semantics.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipe_diag_msg_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32 {
+  if (dst == 0 as *u8) {
+    return at;
+  }
+  if (src == 0 as *u8) {
+    return at;
+  }
+  let j: i32 = at;
+  let i: i32 = 0;
+  unsafe {
+    while (j + 1 < cap) {
+      let c: u8 = src[i];
+      if (c == 0) {
+        break;
+      }
+      dst[j] = c;
+      j = j + 1;
+      i = i + 1;
+    }
+    if (j < cap) {
+      dst[j] = 0;
+    }
+  }
+  return j;
+}
+
+/**
+ * Append a decimal i32 (optional leading '-') into dst at offset at (wave82).
+ * @param dst *u8 — destination buffer; null → return at unchanged
+ * @param cap i32 — buffer capacity
+ * @param at i32 — current write offset
+ * @param val i32 — value to append
+ * @return i32 — new write offset
+ * PLATFORM: SHARED — same digit order as driver_diag_append_i32.
+ */
+#[no_mangle]
+export function pipe_diag_msg_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
+  if (dst == 0 as *u8) {
+    return at;
+  }
+  if (at + 1 >= cap) {
+    return at;
+  }
+  let v: i32 = val;
+  unsafe {
+    if (v < 0) {
+      dst[at] = 45;
+      at = at + 1;
+      v = 0 - v;
+    }
+    // Collect up to 10 digits least-first then reverse-write.
+    let d0: i32 = 0;
+    let d1: i32 = 0;
+    let d2: i32 = 0;
+    let d3: i32 = 0;
+    let d4: i32 = 0;
+    let d5: i32 = 0;
+    let d6: i32 = 0;
+    let d7: i32 = 0;
+    let d8: i32 = 0;
+    let d9: i32 = 0;
+    let dn: i32 = 0;
+    if (v == 0) {
+      d0 = 0;
+      dn = 1;
+    } else {
+      let t: i32 = v;
+      while (t > 0) {
+        if (dn >= 10) {
+          break;
+        }
+        let dig: i32 = t % 10;
+        if (dn == 0) { d0 = dig; }
+        if (dn == 1) { d1 = dig; }
+        if (dn == 2) { d2 = dig; }
+        if (dn == 3) { d3 = dig; }
+        if (dn == 4) { d4 = dig; }
+        if (dn == 5) { d5 = dig; }
+        if (dn == 6) { d6 = dig; }
+        if (dn == 7) { d7 = dig; }
+        if (dn == 8) { d8 = dig; }
+        if (dn == 9) { d9 = dig; }
+        dn = dn + 1;
+        t = t / 10;
+      }
+    }
+    let k: i32 = dn;
+    while (k > 0) {
+      if (at + 1 >= cap) {
+        break;
+      }
+      k = k - 1;
+      let dig: i32 = 0;
+      if (k == 0) { dig = d0; }
+      if (k == 1) { dig = d1; }
+      if (k == 2) { dig = d2; }
+      if (k == 3) { dig = d3; }
+      if (k == 4) { dig = d4; }
+      if (k == 5) { dig = d5; }
+      if (k == 6) { dig = d6; }
+      if (k == 7) { dig = d7; }
+      if (k == 8) { dig = d8; }
+      if (k == 9) { dig = d9; }
+      dst[at] = (48 + dig) as u8;
+      at = at + 1;
+    }
+    if (at < cap) {
+      dst[at] = 0;
+    }
+  }
+  return at;
+}
+
+/**
+ * Append name[0..name_len) into dst at offset at (wave82).
+ * @param dst *u8 — destination buffer
+ * @param cap i32 — capacity
+ * @param at i32 — write offset
+ * @param name *u8 — name bytes; null → return at
+ * @param name_len i32 — byte count; <=0 → return at
+ * @return i32 — new write offset
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipe_diag_msg_append_name(dst: *u8, cap: i32, at: i32, name: *u8, name_len: i32): i32 {
+  if (dst == 0 as *u8) {
+    return at;
+  }
+  if (name == 0 as *u8) {
+    return at;
+  }
+  if (name_len <= 0) {
+    return at;
+  }
+  let n: i32 = 0;
+  unsafe {
+    while (n < name_len) {
+      if (at + 1 >= cap) {
+        break;
+      }
+      dst[at] = name[n];
+      at = at + 1;
+      n = n + 1;
+    }
+    if (at < cap) {
+      dst[at] = 0;
+    }
+  }
+  return at;
+}
+
+/**
+ * Pure body of SHUX_DEBUG_BODY_FUNC named-function body trace (wave82).
+ * @param phase *u8 — phase tag for note text; null → "?"
+ * @param module *u8 — AST module; null → no-op
+ * @param arena *u8 — AST arena; null → no-op
  * @return void
+ * wave82 pure Cap residual orch:
+ *   G.7 getenv SHUX_DEBUG_BODY_FUNC gate (empty/'0' → no-op);
+ *   G.7 pipeline_module_num_funcs / func_name_* / body_ref_at (ast_pool Cap residual);
+ *   G.7 pure pipeline_debug_body_func_match (comma token filter);
+ *   G.7 ast_ast_block_num_* / final_expr_ref when body_ref > 0 else -1;
+ *   G.7 pure pipe_diag_msg_append_* + diag_report fixed "note" msg (no va_list reportf;
+ *   cold twin keeps historical reportf format string).
+ * PLATFORM: SHARED — same filter/match semantics as seed cold twin.
+ */
+#[no_mangle]
+export function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (arena == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let key: u8[24] = [];
+    // "SHUX_DEBUG_BODY_FUNC"
+    key[0] = 83; key[1] = 72; key[2] = 85; key[3] = 88; key[4] = 95;
+    key[5] = 68; key[6] = 69; key[7] = 66; key[8] = 85; key[9] = 71;
+    key[10] = 95; key[11] = 66; key[12] = 79; key[13] = 68; key[14] = 89;
+    key[15] = 95; key[16] = 70; key[17] = 85; key[18] = 78; key[19] = 67;
+    key[20] = 0;
+    let filter: *u8 = getenv(&key[0]);
+    if (filter == 0 as *u8) {
+      return;
+    }
+    if (filter[0] == 0) {
+      return;
+    }
+    // '0' disables (same as pure pipeline_debug_body_func_match / seed).
+    if (filter[0] == 48) {
+      return;
+    }
+    let nf: i32 = pipeline_module_num_funcs(module);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      let raw_name: u8[64] = [];
+      let name: u8[65] = [];
+      let ni: i32 = 0;
+      while (ni < 64) {
+        raw_name[ni] = 0;
+        ni = ni + 1;
+      }
+      ni = 0;
+      while (ni < 65) {
+        name[ni] = 0;
+        ni = ni + 1;
+      }
+      let name_len: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (name_len > 0) {
+        if (name_len <= 64) {
+          pipeline_module_func_name_copy64(module, fi, &raw_name[0]);
+          let ci: i32 = 0;
+          while (ci < name_len) {
+            name[ci] = raw_name[ci];
+            ci = ci + 1;
+          }
+          name[name_len] = 0;
+          if (pipeline_debug_body_func_match(filter, &name[0]) != 0) {
+            let body_ref: i32 = pipeline_module_func_body_ref_at(module, fi);
+            let c_n: i32 = 0 - 1;
+            let l_n: i32 = 0 - 1;
+            let if_n: i32 = 0 - 1;
+            let reg_n: i32 = 0 - 1;
+            let so_n: i32 = 0 - 1;
+            let fin_n: i32 = 0 - 1;
+            if (body_ref > 0) {
+              c_n = ast_ast_block_num_consts(arena, body_ref);
+              l_n = ast_ast_block_num_lets(arena, body_ref);
+              if_n = ast_ast_block_num_if_stmts(arena, body_ref);
+              reg_n = ast_ast_block_num_regions(arena, body_ref);
+              so_n = ast_ast_block_num_stmt_order(arena, body_ref);
+              fin_n = ast_ast_block_final_expr_ref(arena, body_ref);
+            }
+            // Build: body trace: phase=… fi=… body_ref=… name=… block(c=… l=… if=… reg=… so=… fin=…)
+            let msg: u8[320] = [];
+            let at: i32 = 0;
+            let cap: i32 = 320;
+            let lit: u8[32] = [];
+            // "body trace: phase="
+            lit[0] = 98; lit[1] = 111; lit[2] = 100; lit[3] = 121; lit[4] = 32;
+            lit[5] = 116; lit[6] = 114; lit[7] = 97; lit[8] = 99; lit[9] = 101;
+            lit[10] = 58; lit[11] = 32; lit[12] = 112; lit[13] = 104; lit[14] = 97;
+            lit[15] = 115; lit[16] = 101; lit[17] = 61; lit[18] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            if (phase != 0 as *u8) {
+              if (phase[0] != 0) {
+                at = pipe_diag_msg_append_cstr(&msg[0], cap, at, phase);
+              } else {
+                lit[0] = 63; lit[1] = 0; // "?"
+                at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+              }
+            } else {
+              lit[0] = 63; lit[1] = 0;
+              at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            }
+            // " fi="
+            lit[0] = 32; lit[1] = 102; lit[2] = 105; lit[3] = 61; lit[4] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, fi);
+            // " body_ref="
+            lit[0] = 32; lit[1] = 98; lit[2] = 111; lit[3] = 100; lit[4] = 121;
+            lit[5] = 95; lit[6] = 114; lit[7] = 101; lit[8] = 102; lit[9] = 61;
+            lit[10] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, body_ref);
+            // " name="
+            lit[0] = 32; lit[1] = 110; lit[2] = 97; lit[3] = 109; lit[4] = 101;
+            lit[5] = 61; lit[6] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_name(&msg[0], cap, at, &name[0], name_len);
+            // " block(c="
+            lit[0] = 32; lit[1] = 98; lit[2] = 108; lit[3] = 111; lit[4] = 99;
+            lit[5] = 107; lit[6] = 40; lit[7] = 99; lit[8] = 61; lit[9] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, c_n);
+            // " l="
+            lit[0] = 32; lit[1] = 108; lit[2] = 61; lit[3] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, l_n);
+            // " if="
+            lit[0] = 32; lit[1] = 105; lit[2] = 102; lit[3] = 61; lit[4] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, if_n);
+            // " reg="
+            lit[0] = 32; lit[1] = 114; lit[2] = 101; lit[3] = 103; lit[4] = 61;
+            lit[5] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, reg_n);
+            // " so="
+            lit[0] = 32; lit[1] = 115; lit[2] = 111; lit[3] = 61; lit[4] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, so_n);
+            // " fin="
+            lit[0] = 32; lit[1] = 102; lit[2] = 105; lit[3] = 110; lit[4] = 61;
+            lit[5] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, fin_n);
+            // ")"
+            lit[0] = 41; lit[1] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            let note_k: u8[8] = [];
+            note_k[0] = 110; note_k[1] = 111; note_k[2] = 116; note_k[3] = 101;
+            note_k[4] = 0;
+            diag_report(0 as *u8, 0, 0, &note_k[0], &msg[0], 0 as *u8);
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+  }
+}
+
+/**
+ * Public thin: null-gate then G.7 pure pipeline_debug_trace_named_func_bodies_impl.
+ * @param phase *u8 — phase tag passed to impl; may be null
+ * @param module *u8 — AST module; null → no-op
+ * @param arena *u8 — AST arena; null → no-op
+ * @return void
+ * wave82: pure owns full body-trace orch (no always-seed _impl call).
+ * PLATFORM: SHARED — same ABI as seed cold twin under #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void {
@@ -6848,8 +7195,7 @@ export function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8,
 }
 
 // See implementation.
-
-export extern "C" function getenv(name: *u8): *u8;
+// wave82: getenv is export-extern near module/ast accessors (shared with body-trace pure).
 
 /** Exported function `pipeline_asm_debug_enabled`.
  * Implements `pipeline_asm_debug_enabled`.
