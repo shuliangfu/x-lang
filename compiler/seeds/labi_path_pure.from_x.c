@@ -27,6 +27,9 @@
  *     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS)
  *   + 29× thin shux_runtime_*_o_path (wave183 pure BSS + compiler_o_path_copy;
  *     asm_io_stubs … ed25519_ref10_glue; static 4096 BSS each)
+ *   + shux_empty_cstr / shux_std_io_o_path / shux_std_compress_o_path /
+ *     shux_asm_ld_effective_link_argv0 (wave184 pure empty durable "" + effective link orch;
+ *     Cap residual resolve for synthetic compiler-dir/shux)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -949,6 +952,8 @@ static char g_labi_arrow_simd_glue_o_path_buf[4096];
 static char g_labi_sqlite_glue_o_path_buf[4096];
 static char g_labi_crypto_inc_glue_o_path_buf[4096];
 static char g_labi_ed25519_ref10_glue_o_path_buf[4096];
+/* wave184: durable empty C string (≡ mega static char buf[1]). */
+static char g_labi_empty_cstr_buf[1];
 
 const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
   g_labi_asm_io_stubs_o_path_buf[0] = '\0';
@@ -1153,8 +1158,57 @@ const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
   return g_labi_ed25519_ref10_glue_o_path_buf;
 }
 
+/* wave184 cold twin: durable empty C string. */
+const char *shux_empty_cstr(void) {
+  g_labi_empty_cstr_buf[0] = '\0';
+  return g_labi_empty_cstr_buf;
+}
+
+/* wave184 cold twin: retired std.io path → empty. */
+const char *shux_std_io_o_path(const char *argv0) {
+  (void)argv0;
+  return shux_empty_cstr();
+}
+
+/* wave184 cold twin: retired std.compress path → empty. */
+const char *shux_std_compress_o_path(const char *argv0) {
+  (void)argv0;
+  return shux_empty_cstr();
+}
+
+/* wave184 cold twin: effective link argv0 (Cap residual resolve + pure join). */
+const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
+  char comp_dir[4096];
+  size_t dn;
+  size_t need;
+  size_t i;
+  if (link_argv0 && link_argv0[0])
+    return link_argv0;
+  if (!syn_buf || syn_sz == 0)
+    return NULL;
+  syn_buf[0] = '\0';
+  if (shu_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
+    return NULL;
+  dn = strlen(comp_dir);
+  /* "%s/shux" → dn + 1 + 4 + NUL; fail if need >= syn_sz (mega size_t). */
+  need = dn + 1 + 4;
+  if (need >= syn_sz) {
+    syn_buf[0] = '\0';
+    return NULL;
+  }
+  for (i = 0; i < dn; i++)
+    syn_buf[i] = comp_dir[i];
+  syn_buf[dn] = '/';
+  syn_buf[dn + 1] = 's';
+  syn_buf[dn + 2] = 'h';
+  syn_buf[dn + 3] = 'u';
+  syn_buf[dn + 4] = 'x';
+  syn_buf[dn + 5] = '\0';
+  return syn_buf;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 53;
+  return 57;
 }
 
 #else
@@ -1216,6 +1270,10 @@ const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
 const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
 const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
 const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+const char *shux_empty_cstr(void);
+const char *shux_std_io_o_path(const char *argv0);
+const char *shux_std_compress_o_path(const char *argv0);
+const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
 int32_t labi_path_pure_count(void);
 #endif
 

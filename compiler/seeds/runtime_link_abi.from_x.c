@@ -92,11 +92,17 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
 int shux_ensure_runtime_thread_glue_o(const char *argv0);
 int shux_ensure_runtime_time_os_o(const char *argv0);
 int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+/* wave184: pure orch in labi_path_pure L0 (hybrid FROM_X / cold twin include).
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X. PLATFORM: SHARED. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_empty_cstr(void) {
     static char buf[1];
     buf[0] = '\0';
     return buf;
 }
+#else
+const char *shux_empty_cstr(void);
+#endif
 
 
 #include <errno.h>
@@ -903,8 +909,10 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
  * argv0 缺失时构造 «compiler-dir/shux» 供 get_*_path 走 ../std/…；shux 毋须真实存在。
  * 参数：link_argv0 调用方 argv[0]；syn_buf/syn_sz 合成路径缓冲。
  * 返回值：有效 link argv0 或 NULL。
+ * wave184: pure orch in labi_path_pure L0 (hybrid FROM_X / cold twin include).
+ * Cap residual: shu_resolve_compiler_dir. PLATFORM: SHARED.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
     char comp_dir[PATH_MAX];
     int nn;
@@ -920,6 +928,9 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
         return NULL;
     return syn_buf;
 }
+#else
+const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
+#endif
 
 
 
@@ -927,7 +938,9 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
  * F-03 v2/v3：std.io 已纯 .x，无 io.o；保留 API 供 repo root 推导，返回空串。
  * 参数：argv0 可选 shux 路径。
  * 返回值：空串（调用方应改用 shux_repo_root_from_argv0 的 process.o 路径）。
+ * wave184: pure orch in labi_path_pure L0. PLATFORM: SHARED.
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_std_io_o_path(const char *argv0) {
   (void)argv0;
   {
@@ -935,12 +948,17 @@ const char *shux_std_io_o_path(const char *argv0) {
   }
   return NULL;
 }
+#else
+const char *shux_std_io_o_path(const char *argv0);
+#endif
 
 /**
  * F-04 v7 + F-06 v1：std.compress 已纯 .x，无 compress.o；保留 API 兼容，返回空串。
  * 参数：argv0 可选 shux 路径。
  * 返回值：空串（压缩库由 user .o / 生成 C 扫描按需 -lz/-lzstd/-lbrotli*）。
+ * wave184: pure orch in labi_path_pure L0. PLATFORM: SHARED.
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_std_compress_o_path(const char *argv0) {
   (void)argv0;
   {
@@ -948,6 +966,9 @@ const char *shux_std_compress_o_path(const char *argv0) {
   }
   return NULL;
 }
+#else
+const char *shux_std_compress_o_path(const char *argv0);
+#endif
 
 /**
  * Derive repo root from the product host binary path.

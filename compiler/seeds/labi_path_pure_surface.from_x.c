@@ -1,7 +1,7 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (53 public gates + count; wave183 29× thin runtime_*_o_path)
+ * Prove: full.x vs this seed → nm IDENTICAL (57 public gates + count; wave183 29× thin + wave184 empty/effective)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
@@ -14,6 +14,7 @@
  *   realpath_cap+getcwd Cap (wave164–166 crt0_user / freestanding_io / async_scheduler_o_path);
  *   path_readable+realpath_cap Cap (wave180 scheduler_o_for_task_link);
  *   realpath_cap+shu_resolve_compiler_dir Cap (wave181 bootstrap_nostdlib_stubs_o_path)
+ *   resolve Cap (wave184 effective_link_argv0; empty path stubs pure)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -112,6 +113,10 @@ extern uint8_t * shux_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_sqlite_glue_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_crypto_inc_glue_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_ed25519_ref10_glue_o_path(uint8_t * argv0);
+extern uint8_t * shux_empty_cstr(void);
+extern uint8_t * shux_std_io_o_path(uint8_t * argv0);
+extern uint8_t * shux_std_compress_o_path(uint8_t * argv0);
+extern uint8_t * shux_asm_ld_effective_link_argv0(uint8_t * link_argv0, uint8_t * syn_buf, int64_t syn_sz);
 extern int32_t labi_path_pure_count(void);
 #undef g_labi_repo_root_buf
 static uint8_t g_labi_repo_root_buf[512];
@@ -139,6 +144,8 @@ static uint8_t g_labi_sched_for_task_cwd[4096];
 static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_buf[4096];
 #undef g_labi_bootstrap_nostdlib_stubs_o_path_resolved
 static uint8_t g_labi_bootstrap_nostdlib_stubs_o_path_resolved[4096];
+#undef g_labi_empty_cstr_buf
+static uint8_t g_labi_empty_cstr_buf[1];
 #undef g_labi_asm_io_stubs_o_path_buf
 static uint8_t g_labi_asm_io_stubs_o_path_buf[4096];
 #undef g_labi_process_argv_o_path_buf
@@ -1522,6 +1529,62 @@ uint8_t * shux_runtime_ed25519_ref10_glue_o_path(uint8_t * argv0) {
   }
   return &((g_labi_ed25519_ref10_glue_o_path_buf)[0]);
 }
+uint8_t * shux_empty_cstr(void) {
+  (void)(((g_labi_empty_cstr_buf)[0] = 0));
+  return &((g_labi_empty_cstr_buf)[0]);
+}
+uint8_t * shux_std_io_o_path(uint8_t * argv0) {
+  if ((argv0 !=0)) {
+  }
+  return shux_empty_cstr();
+}
+uint8_t * shux_std_compress_o_path(uint8_t * argv0) {
+  if ((argv0 !=0)) {
+  }
+  return shux_empty_cstr();
+}
+uint8_t * shux_asm_ld_effective_link_argv0(uint8_t * link_argv0, uint8_t * syn_buf, int64_t syn_sz) {
+  if ((link_argv0 !=0)) {
+    if (((link_argv0)[0] !=0)) {
+      return link_argv0;
+    }
+  }
+  if ((syn_buf ==0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((syn_sz ==0)) {
+    return ((uint8_t *)(0));
+  }
+  (void)(((syn_buf)[0] = 0));
+  uint8_t comp_dir[4096] = {};
+  int32_t rc = 0;
+  (void)((rc = shu_resolve_compiler_dir(0, &((comp_dir)[0]), 4096)));
+  if ((rc !=0)) {
+    return ((uint8_t *)(0));
+  }
+  int32_t dn = 0;
+  while (((comp_dir)[dn] !=0)) {
+    (void)((dn = (dn + 1)));
+  }
+  int32_t ln = 4;
+  int64_t need = ((((int64_t)(dn)) + 1) + ((int64_t)(ln)));
+  if ((need >=syn_sz)) {
+    (void)(((syn_buf)[0] = 0));
+    return ((uint8_t *)(0));
+  }
+  int32_t i = 0;
+  while ((i < dn)) {
+    (void)(((syn_buf)[i] = (comp_dir)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((syn_buf)[dn] = 47));
+  (void)(((syn_buf)[(dn + 1)] = 115));
+  (void)(((syn_buf)[(dn + 2)] = 104));
+  (void)(((syn_buf)[(dn + 3)] = 117));
+  (void)(((syn_buf)[(dn + 4)] = 120));
+  (void)(((syn_buf)[(dn + 5)] = 0));
+  return syn_buf;
+}
 int32_t labi_path_pure_count(void) {
-  return 53;
+  return 57;
 }

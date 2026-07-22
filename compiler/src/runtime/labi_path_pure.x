@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 53 public gates + count:
+// R2 full: .x owns 57 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -36,7 +36,11 @@
 //     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS; LINUX freestanding)
 //   - 29× thin shux_runtime_*_o_path (wave183; pure BSS + compiler_o_path_copy peer;
 //     asm_io_stubs / process_argv / process_os_glue … ed25519_ref10_glue; static 4096 BSS each)
+//   - shux_empty_cstr / shux_std_io_o_path / shux_std_compress_o_path /
+//     shux_asm_ld_effective_link_argv0 (wave184; empty durable "" + effective link argv0 orch;
+//     Cap residual resolve for synthetic compiler-dir/shux only)
 // wave161 G.7: thin join authority = compiler_o_path_copy; wave183 closes always-mega BSS bodies.
+// wave184: empty path stubs + effective_link soft residual always-mega closed.
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -62,6 +66,7 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 // wave180: scheduler_o_for_task_link is pure export below (no longer Cap residual always-mega).
 // wave181: shux_bootstrap_nostdlib_stubs_o_path is pure export below (no longer Cap residual always-mega).
 // wave183: thin shux_runtime_*_o_path (incl. asm_io_stubs / process_argv) are pure exports below.
+// wave184: empty_cstr / std_io_o_path / std_compress_o_path / effective_link_argv0 pure below.
 // Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
 export extern "C" function link_abi_user_extra_o_count(): i32;
 export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
@@ -97,6 +102,8 @@ let g_labi_sched_for_task_cwd: u8[4096] = [];
 let g_labi_bootstrap_nostdlib_stubs_o_path_buf: u8[4096] = [];
 let g_labi_bootstrap_nostdlib_stubs_o_path_resolved: u8[4096] = [];
 // wave183: durable thin runtime_*_o_path BSS (≡ mega static PATH_MAX per leaf; 29 leaves).
+// wave184: durable empty C string (≡ mega static char buf[1] for shux_empty_cstr).
+let g_labi_empty_cstr_buf: u8[1] = [];
 let g_labi_asm_io_stubs_o_path_buf: u8[4096] = [];
 let g_labi_process_argv_o_path_buf: u8[4096] = [];
 let g_labi_process_os_glue_o_path_buf: u8[4096] = [];
@@ -2407,11 +2414,129 @@ export function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8 {
 }
 
 /**
+ * Return a durable empty C string (NUL only). Used by retired std.io / std.compress .o path APIs.
+ * @return *u8 — pointer to static 1-byte BSS always holding '\0' (never null)
+ * Pure orch: zero g_labi_empty_cstr_buf[0] then return its address (≡ mega static char buf[1]).
+ * Why (wave184): hybrid still had always-mega C body for empty_cstr (trivial BSS).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_empty_cstr(): *u8 {
+  g_labi_empty_cstr_buf[0] = 0;
+  return &g_labi_empty_cstr_buf[0];
+}
+
+/**
+ * Retired std.io product path: no io.o (std.io is pure .x). Keep API for call sites.
+ * @param argv0 *u8 — ignored; optional host path for historical signature parity
+ * @return *u8 — empty string via pure shux_empty_cstr (never null)
+ * Pure orch: ignore argv0; return durable empty C string.
+ * Why (wave184): hybrid still had always-mega C body (thin empty stub).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_std_io_o_path(argv0: *u8): *u8 {
+  // argv0 retained for ABI parity with mega / historical call sites (unused).
+  if (argv0 != 0 as *u8) {
+    // no-op: deliberately ignore path content
+  }
+  return shux_empty_cstr();
+}
+
+/**
+ * Retired std.compress product path: no compress.o (pure .x + on-demand -lz*). Keep API.
+ * @param argv0 *u8 — ignored; optional host path for historical signature parity
+ * @return *u8 — empty string via pure shux_empty_cstr (never null)
+ * Pure orch: ignore argv0; return durable empty C string.
+ * Why (wave184): hybrid still had always-mega C body (thin empty stub).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_std_compress_o_path(argv0: *u8): *u8 {
+  if (argv0 != 0 as *u8) {
+    // no-op: deliberately ignore path content
+  }
+  return shux_empty_cstr();
+}
+
+/**
+ * Effective link argv0 for asm ld path resolvers: prefer caller link_argv0; else synthesize
+ * "compiler-dir/shux" into the caller-provided buffer (file need not exist).
+ * @param link_argv0 *u8 — caller argv[0] / product host path; may be null or empty
+ * @param syn_buf *u8 — caller buffer for synthetic path; required when link_argv0 empty
+ * @param syn_sz i64 — capacity of syn_buf in bytes (incl. NUL); 0 → fail
+ * @return *u8 — link_argv0 when non-empty; else syn_buf with compiler-dir/shux; null on fail
+ * Pure orch: null/empty gates + Cap residual shu_resolve_compiler_dir(null) + pure byte join
+ *   comp_dir + "/shux" into syn_buf (no snprintf Cap). Matches mega effective_link_argv0.
+ * Cap residual: shu_resolve_compiler_dir only (PLATFORM LINUX/MACOS/WINDOWS resolve).
+ * Why (wave184): hybrid still had always-mega C body (resolve + snprintf join).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, syn_sz: i64): *u8 {
+  // Prefer real link argv0 when non-null and non-empty (≡ mega).
+  if (link_argv0 != 0 as *u8) {
+    if (link_argv0[0] != 0) {
+      return link_argv0;
+    }
+  }
+  if (syn_buf == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (syn_sz == 0) {
+    return 0 as *u8;
+  }
+  syn_buf[0] = 0;
+  // Cap residual: resolve compiler/ dir with null argv0 (self/exe / host fallbacks).
+  let comp_dir: u8[4096] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shu_resolve_compiler_dir(0 as *u8, &comp_dir[0], 4096);
+  }
+  if (rc != 0) {
+    return 0 as *u8;
+  }
+  // Pure strlen(comp_dir); leaf is fixed "shux" (len 4).
+  let dn: i32 = 0;
+  while (comp_dir[dn] != 0) {
+    dn = dn + 1;
+  }
+  let ln: i32 = 4;
+  // snprintf("%s/shux") writes dn+1+4 chars + NUL; fail if need >= syn_sz (mega size_t).
+  let need: i64 = (dn as i64) + 1 + (ln as i64);
+  if (need >= syn_sz) {
+    syn_buf[0] = 0;
+    return 0 as *u8;
+  }
+  // Byte join: comp_dir[0..dn) + '/' + "shux" + NUL.
+  let i: i32 = 0;
+  while (i < dn) {
+    syn_buf[i] = comp_dir[i];
+    i = i + 1;
+  }
+  syn_buf[dn] = 47;
+  syn_buf[dn + 1] = 115;
+  syn_buf[dn + 2] = 104;
+  syn_buf[dn + 3] = 117;
+  syn_buf[dn + 4] = 120;
+  syn_buf[dn + 5] = 0;
+  return syn_buf;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 53 (fixed catalog size for hybrid FROM_X bookkeeping; wave183 +29 thin paths).
+ * Returns: 57 (fixed catalog size for hybrid FROM_X bookkeeping; wave184 +4 empty/effective).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 53;
+  return 57;
 }
