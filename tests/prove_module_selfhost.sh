@@ -70,8 +70,9 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：nm/push/ensure + undef_sym
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ondemand_list.from_x.c 全 C 体
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list_surface.from_x.c||"
-  # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）+ wave169 ensure_runtime_panic_o pure orch；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：spawn/cc IO 在 mega ensure_from_catalog；panic ensure resolve/access/cc/stat + host linux_x86_64/posix_aarch64
+  # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）+ wave169 ensure_runtime_panic_o + wave170 ensure_runtime_heap_user_o pure orch；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：spawn/cc IO 在 mega ensure_from_catalog；
+  #   panic ensure resolve/access/cc/stat + host linux_x86_64/posix_aarch64；heap_user has_defined_sym + unlink stub
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ensure_list.from_x.c 全 C 体
   "labi_ensure_list|src/runtime/labi_ensure_list.x|seeds/labi_ensure_list_surface.from_x.c||"
   # labi_path_io R2 full：.x 吃满 3 公共门闩 + count；

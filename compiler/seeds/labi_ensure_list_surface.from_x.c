@@ -1,9 +1,10 @@
 /* seeds/labi_ensure_list_surface.from_x.c
  * G-02f labi_ensure_list R2 full surface — isomorphic with src/runtime/labi_ensure_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ensure_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave169 ensure_runtime_panic_o)
+ * Prove: full.x vs this seed → nm IDENTICAL (ensure catalog + wave169 panic + wave170 heap_user)
  * Cap residual: spawn/cc IO in mega link_abi_ensure_from_catalog;
- *   wave169 panic ensure: resolve/access/cc/stat + host linux_x86_64 / posix_aarch64
+ *   wave169 panic ensure: resolve/access/cc/stat + host linux_x86_64 / posix_aarch64;
+ *   wave170 heap_user ensure: resolve/access/cc/stat + has_defined_sym + unlink stub
  * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue
  */
 #include <stdint.h>
@@ -16,14 +17,19 @@ extern uint8_t * labi_ensure_catalog_seed_base(int32_t i);
 extern int32_t labi_ensure_catalog_flags(int32_t i);
 extern int32_t labi_ensure_catalog_step_at(int32_t i, size_t * stem_out, size_t * out_base_out, size_t * seed_base_out, int32_t * flags_out, size_t * hint_out);
 extern int32_t shux_ensure_runtime_panic_o(uint8_t * argv0);
+extern int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shux_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern int32_t link_abi_host_is_linux_x86_64(void);
 extern int32_t link_abi_host_is_posix_aarch64(void);
+extern int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
+extern int32_t unlink(uint8_t * path);
 extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
+extern uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0);
 extern void link_diag_runtime_obj_resolve_fail(uint8_t * obj_name, uint8_t * hint);
+extern void link_diag_runtime_source_missing(uint8_t * obj_name, uint8_t * source_path);
 extern void link_diag_runtime_source_missing_under(uint8_t * obj_name, uint8_t * base_dir, uint8_t * suffix);
 extern void link_diag_runtime_obj_build_status(uint8_t * obj_name, int32_t status);
 extern void link_diag_runtime_obj_missing(uint8_t * obj_name, uint8_t * out_o);
@@ -605,6 +611,142 @@ int32_t shux_ensure_runtime_panic_o(uint8_t * argv0) {
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), &((out_o)[0])));
+    return -1;
+  }
+  return 0;
+}
+int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0) {
+  uint8_t * existing = 0;
+  uint8_t * have = 0;
+  (void)((existing = shux_runtime_heap_user_o_path(argv0)));
+  (void)((have = asm_link_obj_skip_missing(existing)));
+  if ((have !=0)) {
+    int32_t has_arena = 0;
+    int32_t has_alloc = 0;
+    (void)((has_arena = shux_link_obj_has_defined_sym(existing, ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x72\x65\x6e\x61\x5f\x69\x6e\x69\x74\x5f\x63"))));
+    (void)((has_alloc = shux_link_obj_has_defined_sym(existing, ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x6c\x6c\x6f\x63\x5f\x63"))));
+    if ((has_arena !=0)) {
+      return 0;
+    }
+    if ((has_alloc !=0)) {
+      return 0;
+    }
+    (void)(unlink(existing));
+  }
+  uint8_t comp[4096] = {};
+  int32_t rc = 0;
+  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  if ((rc !=0)) {
+    (void)(link_diag_runtime_obj_resolve_fail(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f"), 0));
+    return -1;
+  }
+  int32_t dn = 0;
+  while (((comp)[dn] !=0)) {
+    (void)((dn = (dn + 1)));
+  }
+  uint8_t * leaf_o = ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f");
+  int32_t ln_o = 0;
+  while (((leaf_o)[ln_o] !=0)) {
+    (void)((ln_o = (ln_o + 1)));
+  }
+  if ((((dn + 1) + ln_o) >=4096)) {
+    return -1;
+  }
+  uint8_t out_o[4096] = {};
+  int32_t i = 0;
+  while ((i < dn)) {
+    (void)(((out_o)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((out_o)[dn] = 47));
+  int32_t k = 0;
+  while ((k <=ln_o)) {
+    (void)(((out_o)[((dn + 1) + k)] = (leaf_o)[k]));
+    (void)((k = (k + 1)));
+  }
+  uint8_t * leaf_c = ((uint8_t *)"\x73\x65\x65\x64\x73\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x66\x72\x6f\x6d\x5f\x78\x2e\x63");
+  int32_t ln_c = 0;
+  while (((leaf_c)[ln_c] !=0)) {
+    (void)((ln_c = (ln_c + 1)));
+  }
+  if ((((dn + 1) + ln_c) >=4096)) {
+    return -1;
+  }
+  uint8_t src_c[4096] = {};
+  (void)((i = 0));
+  while ((i < dn)) {
+    (void)(((src_c)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((src_c)[dn] = 47));
+  (void)((k = 0));
+  while ((k <=ln_c)) {
+    (void)(((src_c)[((dn + 1) + k)] = (leaf_c)[k]));
+    (void)((k = (k + 1)));
+  }
+  int32_t readable = 0;
+  (void)((readable = link_abi_path_readable(&((src_c)[0]))));
+  if ((readable ==0)) {
+    (void)(link_diag_runtime_source_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72"), &((src_c)[0])));
+    return -1;
+  }
+  uint8_t inc0[4096] = {};
+  (void)((i = 0));
+  while ((i <=dn)) {
+    (void)(((inc0)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  uint8_t * leaf_inc = ((uint8_t *)"\x69\x6e\x63\x6c\x75\x64\x65");
+  int32_t ln_inc = 0;
+  while (((leaf_inc)[ln_inc] !=0)) {
+    (void)((ln_inc = (ln_inc + 1)));
+  }
+  if ((((dn + 1) + ln_inc) >=4096)) {
+    return -1;
+  }
+  uint8_t inc1[4096] = {};
+  (void)((i = 0));
+  while ((i < dn)) {
+    (void)(((inc1)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((inc1)[dn] = 47));
+  (void)((k = 0));
+  while ((k <=ln_inc)) {
+    (void)(((inc1)[((dn + 1) + k)] = (leaf_inc)[k]));
+    (void)((k = (k + 1)));
+  }
+  uint8_t * leaf_src = ((uint8_t *)"\x73\x72\x63");
+  int32_t ln_src = 0;
+  while (((leaf_src)[ln_src] !=0)) {
+    (void)((ln_src = (ln_src + 1)));
+  }
+  if ((((dn + 1) + ln_src) >=4096)) {
+    return -1;
+  }
+  uint8_t inc2[4096] = {};
+  (void)((i = 0));
+  while ((i < dn)) {
+    (void)(((inc2)[i] = (comp)[i]));
+    (void)((i = (i + 1)));
+  }
+  (void)(((inc2)[dn] = 47));
+  (void)((k = 0));
+  while ((k <=ln_src)) {
+    (void)(((inc2)[((dn + 1) + k)] = (leaf_src)[k]));
+    (void)((k = (k + 1)));
+  }
+  int32_t crc = 0;
+  (void)((crc = shux_cc_compile_sync(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0)));
+  if ((crc !=0)) {
+    (void)(link_diag_runtime_obj_build_status(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f"), crc));
+    return -1;
+  }
+  uint8_t * o_path = 0;
+  (void)((o_path = shux_runtime_heap_user_o_path(argv0)));
+  (void)((have = asm_link_obj_skip_missing(o_path)));
+  if ((have ==0)) {
+    (void)(link_diag_runtime_obj_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f"), &((out_o)[0])));
     return -1;
   }
   return 0;

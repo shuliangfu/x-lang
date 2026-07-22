@@ -1905,6 +1905,8 @@ const char *labi_ensure_catalog_seed_base(int i);
 int labi_ensure_catalog_flags(int i);
 /* wave169: ensure_runtime_panic_o pure orch (L4; hybrid). */
 int shux_ensure_runtime_panic_o(const char *argv0);
+/* wave170: ensure_runtime_heap_user_o pure orch (L4; hybrid). */
+int shux_ensure_runtime_heap_user_o(const char *argv0);
 #endif
 
 /**
@@ -2106,55 +2108,18 @@ int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
  * G-02e-14：源为 seeds/runtime_heap_user.from_x.c（G-02f-76；仍可 wrap 编译）。
  * co-emit std.heap allocator_* redirect 的 heap_alloc_c / heap_arena64_alloc_c 等符号。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_ensure_runtime_heap_user_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char inc_path[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    const char *existing = shux_runtime_heap_user_o_path(argv0);
-    /*
-     * PLATFORM: SHARED — do not keep a stub/empty heap_user.o that lacks arena API.
-     * with_arena residual: ensure returned early on 944B incomplete .o → U heap_arena_init_c.
-     */
-    if (asm_link_obj_skip_missing(existing)) {
-        if (shux_link_obj_has_defined_sym(existing, "heap_arena_init_c")
-            || shux_link_obj_has_defined_sym(existing, "heap_alloc_c"))
-            return 0;
-        (void)remove(existing);
-    }
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_heap_user.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_heap_user.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(inc_path, sizeof inc_path, "%s/seeds/runtime_heap_user.from_x.c", comp) >= sizeof inc_path
-        || access(inc_path, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_heap_user", inc_path);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    /*
-     * PLATFORM: SHARED — compile seed .c directly (absolute path).
-     * Prior wrap.c include path produced empty 944B .o under ensure (wrap race/empty TU)
-     * → U heap_arena_init_c for with_arena. Same pattern as process_argv catalog ensure.
-     */
-    {
-        int rc = shux_cc_compile_sync(inc_path, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_heap_user.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_heap_user_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_heap_user.o", out_o);
-        return -1;
-    }
-    return 0;
-}
+/* wave170: shux_ensure_runtime_heap_user_o pure orch — body removed from mega
+ * (lives in labi_ensure_list L4 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * Why: hybrid still had always-mega C body for special heap_user ensure (stub
+ * has_defined_sym gate + direct seed compile) after panic ensure pure wave169.
+ * Cap residual: resolve/access/cc/stat + has_defined_sym + unlink stub.
+ * PLATFORM: SHARED orch (direct seed compile; no wrap.c). */
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+/* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
+#else
+int shux_ensure_runtime_heap_user_o(const char *argv0);
+#endif
 
 
 
