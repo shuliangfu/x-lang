@@ -235,6 +235,19 @@ g05_try_x_to_o() {
     echo '  return (uint8_t *)0;'
     echo '}'
     echo '#endif'
+    # PLATFORM: SHARED — wave84 Cap residual: function address as *u8 for pure
+    # pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr
+    # (runtime_pipeline_abi.x). .x cannot form function-pointer constants (&fn);
+    # pure thin surface owns the product names; cast residual stays in this harness
+    # (same pattern as stdout_ptr / realpath_opaque). Cold twin under seed #ifndef FROM_X.
+    echo 'extern void *pipeline_run_x_thread_fn(void *);'
+    echo 'extern void *shux_asm_codegen_elf_o_thread_fn(void *);'
+    echo 'static inline uint8_t *shux_driver_pipeline_run_x_thread_fn_ptr(void) {'
+    echo '  return (uint8_t *)(void *)pipeline_run_x_thread_fn;'
+    echo '}'
+    echo 'static inline uint8_t *shux_driver_asm_elf_o_thread_fn_ptr(void) {'
+    echo '  return (uint8_t *)(void *)shux_asm_codegen_elf_o_thread_fn;'
+    echo '}'
     # Strip -E #include + libc redecls that clash with prologue headers.
     # PLATFORM: SHARED harness — G.7 product authority for libc skip is
     # codegen_is_libc_conflicting_extern_name (codegen.x + seed). After wave30,
@@ -301,6 +314,8 @@ g05_try_x_to_o() {
         -e '/^extern uint8_t \* shux_driver_fopen_wb_opaque(/d' \
         -e '/^extern uint8_t \* shux_driver_fdopen_wb_opaque(/d' \
         -e '/^extern uint8_t \* shux_driver_realpath_opaque(/d' \
+        -e '/^extern uint8_t \* shux_driver_pipeline_run_x_thread_fn_ptr(/d' \
+        -e '/^extern uint8_t \* shux_driver_asm_elf_o_thread_fn_ptr(/d' \
         -e '/^extern int32_t mkstemp(/d' \
         -e '/^extern int mkstemp(/d' \
         -e '/^extern int32_t rename(/d' \
@@ -1552,10 +1567,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   #   wave81: pure shux_preprocess / quiet / with_path thin public surface
   #     (G.7 pure raw_to_malloc_impl; product X-pipeline; cold LEGACY under #ifndef FROM_X).
   #   wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs pack;
-  #     Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + product_emit → wave80 pure thin;
+  #     Cap-fn-ptr → wave84 pure thin + g05 &fn cast; product_emit → wave80 pure thin;
   #     G.7 driver_run_thread_on_large_stack; export-extern asm_asm_codegen_elf_o → bridge).
   #   wave56: pure pipeline_run_x large-stack _impl orch (PipelineRunSuArgs pack;
-  #     Cap-fn-ptr pipeline_run_x_thread_fn_ptr + G.7 driver_run_thread_on_large_stack).
+  #     Cap-fn-ptr → wave84 pure thin + g05 &fn cast; G.7 driver_run_thread_on_large_stack).
+  #   wave84: pure Cap-fn-ptr product surfaces (pipeline_run_x_thread_fn_ptr /
+  #     shux_asm_codegen_elf_o_thread_fn_ptr) via g05 shux_driver_*_thread_fn_ptr.
   #   wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]
   #     + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
   #   wave54: pure collect strdup thin shell (malloc + scan + byte copy + NUL).

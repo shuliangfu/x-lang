@@ -4,9 +4,9 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
-// Cap residual always-seed: pipeline_run_x_thread_fn_ptr
-//   (fn address for driver_run_thread_on_large_stack; same pattern as driver_abi wave37).
-// Cap residual always-seed (wave57): shux_asm_codegen_elf_o_thread_fn_ptr only.
+// wave84: pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr thin
+//   (G.7 g05 shux_driver_*_thread_fn_ptr function-address cast residual; product surface pure;
+//   seed cold twin under #ifndef FROM_X). Closes Cap residual always-seed Cap-fn-ptr leaf.
 // wave80: pure product_emit thin via export-extern asm_asm_codegen_elf_o (no same-TU -1 body).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
 //   (historical char**/void* truncated parse → silent drop of all later export function).
@@ -100,7 +100,10 @@
 //   leaf still called from pure public thin.
 // wave83: pure pipeline_sizeof_arena / pipeline_sizeof_module (fixed LP64 layout constants
 //   matching pipeline_glue sizeof; dual-end verified 16 / 68). Glue keeps weak cold fallback.
-// Cap residual still: fn-ptr / typeck_module C frontend (+ preprocess engine residual).
+// wave84: pure Cap-fn-ptr surface thin (pipeline_run_x_thread_fn_ptr /
+//   shux_asm_codegen_elf_o_thread_fn_ptr) via g05 function-address opaques.
+// Cap residual still: typeck_module C frontend (+ preprocess engine residual;
+//   g05 harness still holds &fn cast for Cap-fn-ptr).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -114,6 +117,7 @@
 // wave80: shux_asm_codegen_elf_o_product_emit is pure export function below.
 // wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below.
 // wave83: pipeline_sizeof_arena / pipeline_sizeof_module are pure export functions below.
+// wave84: pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr pure below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -150,9 +154,11 @@ export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void
 // Cap residual always-seed: Cap-fn-ptr for asm large-stack only (wave57/wave80).
 // PLATFORM: SHARED — must not define same-TU body for asm_asm_codegen_elf_o (weak -1 was Cap trap).
 export extern "C" function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
-export extern "C" function shux_asm_codegen_elf_o_thread_fn_ptr(): *u8;
-// Cap-fn-ptr residual: always-seed address of thin pipeline_run_x_thread_fn.
-export extern "C" function pipeline_run_x_thread_fn_ptr(): *u8;
+// wave84: Cap-fn-ptr product surfaces are pure export functions below (not export-extern always-seed).
+// G.7 g05 harness: function-address cast residual (&fn as *u8); pure thin forwards only.
+// PLATFORM: SHARED — same pattern as shux_driver_stdout_ptr / realpath_opaque.
+export extern "C" function shux_driver_pipeline_run_x_thread_fn_ptr(): *u8;
+export extern "C" function shux_driver_asm_elf_o_thread_fn_ptr(): *u8;
 // wave56 pure pipeline large-stack orch: set entry source_len + run pipeline.
 export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
 export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
@@ -7063,7 +7069,7 @@ export function pipeline_run_x_thread_fn_impl(arg: *u8): *u8 {
  * @param arg *u8 — PipelineRunSuArgs pack; null → null
  * @return *u8 — always null
  * wave56: forwards to pure pipeline_run_x_thread_fn_impl.
- * PLATFORM: SHARED — address taken by always-seed pipeline_run_x_thread_fn_ptr.
+ * PLATFORM: SHARED — address taken by pure pipeline_run_x_thread_fn_ptr (wave84 g05 cast).
  */
 #[no_mangle]
 export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
@@ -7077,6 +7083,23 @@ export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
 }
 
 /**
+ * Product Cap-fn-ptr surface: opaque *u8 address of pipeline_run_x_thread_fn.
+ * @return *u8 — function address as opaque byte pointer (never null when linked)
+ * wave84 pure thin: G.7 g05 shux_driver_pipeline_run_x_thread_fn_ptr holds &fn cast residual
+ *   (.x cannot form function-pointer constants). Product surface is pure; cold twin under
+ *   seed #ifndef FROM_X keeps the same cast for full-C cold link.
+ * PLATFORM: SHARED — closes always-seed Cap-fn-ptr leaf on pure path.
+ */
+#[no_mangle]
+export function pipeline_run_x_thread_fn_ptr(): *u8 {
+  let fn: *u8 = 0 as *u8;
+  unsafe {
+    fn = shux_driver_pipeline_run_x_thread_fn_ptr();
+  }
+  return fn;
+}
+
+/**
  * Large-stack orch: pack PipelineRunSuArgs, run thread_fn via Cap-fn-ptr, fallback current thread.
  * @param module *u8 — AST module (caller thin already null-checked)
  * @param arena *u8 — AST arena
@@ -7085,9 +7108,9 @@ export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
  * @param out_buf *u8 — codegen out buffer
  * @param ctx *u8 — PipelineDepCtx
  * @return i32 — pipeline ec; fallback path if result still sentinel -99
- * wave56 pure Cap residual:
+ * wave56 pure Cap residual; wave84 pure owns Cap-fn-ptr surface (g05 &fn cast residual):
  *   stack args[56] zeroed; set entry source_len; fill pack; result sentinel -99;
- *   Cap-fn-ptr pipeline_run_x_thread_fn_ptr + G.7 driver_run_thread_on_large_stack;
+ *   pure pipeline_run_x_thread_fn_ptr + G.7 driver_run_thread_on_large_stack;
  *   if result still -99 → direct pipeline_run_x_pipeline (pthread create failed / skipped).
  * PLATFORM: SHARED LP64.
  */
@@ -7134,7 +7157,7 @@ export function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena
  * @param arg *u8 — AsmElfLargeArgs pack; null → null
  * @return *u8 — always null
  * wave57: forwards to pure shux_asm_codegen_elf_o_thread_fn_impl.
- * PLATFORM: SHARED — address taken by always-seed shux_asm_codegen_elf_o_thread_fn_ptr.
+ * PLATFORM: SHARED — address taken by pure shux_asm_codegen_elf_o_thread_fn_ptr (wave84 g05 cast).
  */
 #[no_mangle]
 export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
@@ -7145,6 +7168,23 @@ export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
     return shux_asm_codegen_elf_o_thread_fn_impl(arg);
   }
   return 0 as *u8;
+}
+
+/**
+ * Product Cap-fn-ptr surface: opaque *u8 address of shux_asm_codegen_elf_o_thread_fn.
+ * @return *u8 — function address as opaque byte pointer (never null when linked)
+ * wave84 pure thin: G.7 g05 shux_driver_asm_elf_o_thread_fn_ptr holds &fn cast residual
+ *   (.x cannot form function-pointer constants). Product surface is pure; cold twin under
+ *   seed #ifndef FROM_X keeps the same cast for full-C cold link.
+ * PLATFORM: SHARED — closes always-seed Cap-fn-ptr leaf on pure path.
+ */
+#[no_mangle]
+export function shux_asm_codegen_elf_o_thread_fn_ptr(): *u8 {
+  let fn: *u8 = 0 as *u8;
+  unsafe {
+    fn = shux_driver_asm_elf_o_thread_fn_ptr();
+  }
+  return fn;
 }
 
 /**
@@ -7185,9 +7225,9 @@ export function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
  * @param elf_ctx *u8 — ElfCodegenCtx
  * @param out_buf *u8 — emit out buffer
  * @return i32 — emit ec; fallback path if result still sentinel -99
- * wave57 pure Cap residual orch; wave80 product_emit pure thin:
+ * wave57 pure Cap residual orch; wave80 product_emit pure thin; wave84 pure Cap-fn-ptr surface:
  *   stack args[48] zeroed; fill pack; result sentinel -99;
- *   Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr + G.7 driver_run_thread_on_large_stack;
+ *   pure shux_asm_codegen_elf_o_thread_fn_ptr (g05 &fn cast) + G.7 driver_run_thread_on_large_stack;
  *   if result still -99 → G.7 pure product_emit (pthread create failed / skipped).
  * PLATFORM: SHARED LP64.
  */

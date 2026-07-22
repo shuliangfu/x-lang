@@ -20,10 +20,10 @@
  * wave55: pure resolve_read_preprocess orch (stack resolved + FileView + pure resolve
  *   + runtime_read_file_view + pure preprocess + release + diags).
  * wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
- *   Cap-fn-ptr pipeline_run_x_thread_fn_ptr always-seed; G.7 driver_run_thread_on_large_stack;
+ *   Cap-fn-ptr → wave84 pure thin + g05 &fn cast; G.7 driver_run_thread_on_large_stack;
  *   SHUX_DEBUG_PIPE notes cold-only).
  * wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs stack pack;
- *   Cap-fn-ptr shux_asm_codegen_elf_o_thread_fn_ptr always-seed;
+ *   Cap-fn-ptr → wave84 pure thin + g05 &fn cast;
  *   product_emit → wave80 pure thin + cold twin under #ifndef FROM_X).
  * wave58: pure dep_prerun_parse_skip_typeck_impl orch (driver check_only + skip typeck/codegen
  *   + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack; cold twin
@@ -89,7 +89,11 @@
  *   under #ifndef FROM_X keeps reportf). Closes soft residual always-seed body-trace leaf.
  * wave83: pure pipeline_sizeof_arena / pipeline_sizeof_module (LP64 constants 16 / 68;
  *   glue weak cold fallback). Closes Cap residual sizeof leaf for pure path.
- * Cap residual still: fn-ptr / typeck_module C frontend (+ preprocess engine residual).
+ * wave84: pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr thin
+ *   (G.7 g05 shux_driver_*_thread_fn_ptr &fn cast residual; cold twins under #ifndef FROM_X).
+ *   Closes Cap residual always-seed Cap-fn-ptr product surface leaf.
+ * Cap residual still: typeck_module C frontend (+ preprocess engine residual;
+ *   g05 harness still holds &fn cast for Cap-fn-ptr).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
@@ -2606,12 +2610,15 @@ typedef struct {
     int result;
 } PipelineRunSuArgs;
 
-/** Always-seed Cap-fn-ptr residual: opaque address of pipeline_run_x_thread_fn.
- * wave56 pure large-stack orch binds this then driver_run_thread_on_large_stack.
+/** Cold twin Cap-fn-ptr: opaque address of pipeline_run_x_thread_fn.
+ * wave84: hybrid pure owns product surface via g05 shux_driver_pipeline_run_x_thread_fn_ptr;
+ * cold full-C keeps this cast under #ifndef FROM_X.
  * PLATFORM: SHARED — function address not expressible safely in .x. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *pipeline_run_x_thread_fn_ptr(void) {
     return (uint8_t *)(void *)pipeline_run_x_thread_fn;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
 /* G-02f-241 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
@@ -3668,12 +3675,15 @@ int32_t shux_asm_codegen_elf_o_product_emit(void *module, void *arena, void *ctx
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/** Always-seed Cap-fn-ptr residual: opaque address of shux_asm_codegen_elf_o_thread_fn.
- * wave57 pure large-stack orch binds this then driver_run_thread_on_large_stack.
+/** Cold twin Cap-fn-ptr: opaque address of shux_asm_codegen_elf_o_thread_fn.
+ * wave84: hybrid pure owns product surface via g05 shux_driver_asm_elf_o_thread_fn_ptr;
+ * cold full-C keeps this cast under #ifndef FROM_X.
  * PLATFORM: SHARED — function address not expressible safely in .x. */
+#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *shux_asm_codegen_elf_o_thread_fn_ptr(void) {
     return (uint8_t *)(void *)shux_asm_codegen_elf_o_thread_fn;
 }
+#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pthread 入口：调用 product emit 并将 ec 写入 args->result。 */
 /* G-02f-241 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
