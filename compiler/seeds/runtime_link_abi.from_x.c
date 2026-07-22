@@ -4445,7 +4445,13 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
 
 /**
  * 相对仓库根的 .o 路径解析：realpath(rel)、cwd/rel、argv0/../rel。
+ * wave185: pure orch in labi_path_pure L0 (hybrid FROM_X / cold twin include).
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: last-sep index + byte join; Cap residual realpath_cap + getcwd + strdup + skip_missing.
+ * Heap return per call (never static BSS) — multi-call independence for invoke_cc 30+ paths.
+ * PLATFORM: SHARED orch.
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
     /* 【Why 逻辑根源】返回独立堆分配内存而非静态缓冲：runtime.c 中 shux_invoke_cc 之前
      * 连续调用 30+ 次本函数（path_o/runtime_o/.../crypto_o/.../test_o）保存到局部变量，
@@ -4501,6 +4507,9 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
     }
     return strdup("");
 }
+#else
+const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
+#endif
 
 /**
  * PLATFORM: LINUX — freestanding product popen is a NULL stub (bootstrap_nostdlib_stubs).
@@ -4872,6 +4881,21 @@ const char *link_abi_realpath_cap(const char *path, char *out) {
         return NULL;
     return realpath(path, out);
 #endif
+}
+
+/**
+ * Cap residual (wave185): heap-duplicate a C string for multi-call-independent path returns.
+ * Pure orch shux_rel_o_path_from_argv0 must never return BSS/static — concurrent invoke_cc
+ * keeps 30+ pointers; static would alias all to the last call.
+ * Null s → strdup(""); never returns a pointer into caller buffers.
+ * G.7: single authority wrap of host/freestanding strdup (no .x libc strdup export —
+ * uint8_t* vs char* clashes under g05 -E string.h).
+ * PLATFORM: SHARED — malloc heap; freestanding bootstrap_nostdlib provides strdup.
+ */
+const char *link_abi_cstr_dup(const char *s) {
+    if (!s)
+        return strdup("");
+    return strdup(s);
 }
 
 /**

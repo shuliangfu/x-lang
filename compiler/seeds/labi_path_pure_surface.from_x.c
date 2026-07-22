@@ -1,7 +1,7 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (57 public gates + count; wave183 29× thin + wave184 empty/effective)
+ * Prove: full.x vs this seed → nm IDENTICAL (58 public gates + count; wave183 29× thin + wave184 empty/effective + wave185 rel_o)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
@@ -15,6 +15,7 @@
  *   path_readable+realpath_cap Cap (wave180 scheduler_o_for_task_link);
  *   realpath_cap+shu_resolve_compiler_dir Cap (wave181 bootstrap_nostdlib_stubs_o_path)
  *   resolve Cap (wave184 effective_link_argv0; empty path stubs pure)
+ *   realpath_cap+getcwd+cstr_dup+skip Cap (wave185 rel_o_path heap; pure orch)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -26,9 +27,11 @@
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
+extern uint8_t * link_abi_cstr_dup(uint8_t * s);
+/* wave185: pure body below; forward for push_obj / repo_root call sites. */
+uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
-extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
 extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * path);
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern int32_t link_abi_user_extra_o_count(void);
@@ -209,7 +212,7 @@ static void init_globals(void) {
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
-extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
+extern uint8_t * link_abi_cstr_dup(uint8_t * s);
 extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * path);
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern int32_t link_abi_user_extra_o_count(void);
@@ -1585,6 +1588,98 @@ uint8_t * shux_asm_ld_effective_link_argv0(uint8_t * link_argv0, uint8_t * syn_b
   (void)(((syn_buf)[(dn + 5)] = 0));
   return syn_buf;
 }
+uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel) {
+  uint8_t * empty = ((uint8_t *)"");
+  if ((rel ==0)) {
+    return link_abi_cstr_dup(empty);
+  }
+  if (((rel)[0] ==0)) {
+    return link_abi_cstr_dup(empty);
+  }
+  int32_t rel_len = 0;
+  while (((rel)[rel_len] !=0)) {
+    (void)((rel_len = (rel_len + 1)));
+  }
+  uint8_t resolved[4096] = {};
+  uint8_t * rp = 0;
+  (void)((rp = link_abi_realpath_cap(rel, &((resolved)[0]))));
+  if ((rp !=0)) {
+    return link_abi_cstr_dup(rp);
+  }
+  uint8_t cwd[512] = {};
+  uint8_t * gp = 0;
+  (void)((gp = getcwd(&((cwd)[0]), 510)));
+  if ((gp !=0)) {
+    int32_t L = 0;
+    while (((cwd)[L] !=0)) {
+      (void)((L = (L + 1)));
+    }
+    if (((((L + 1) + rel_len) + 1) <=512)) {
+      (void)(((cwd)[L] = 47));
+      int32_t ci = 0;
+      while ((ci <=rel_len)) {
+        (void)(((cwd)[((L + 1) + ci)] = (rel)[ci]));
+        (void)((ci = (ci + 1)));
+      }
+      (void)((rp = link_abi_realpath_cap(&((cwd)[0]), &((resolved)[0]))));
+      if ((rp !=0)) {
+        return link_abi_cstr_dup(rp);
+      }
+    }
+  }
+  if ((argv0 !=0)) {
+    if (((argv0)[0] !=0)) {
+      uint8_t buf[512] = {};
+      int32_t i = 0;
+      int32_t last_sep_i = -1;
+      while (((argv0)[i] !=0)) {
+        if (((argv0)[i] ==47)) {
+          (void)((last_sep_i = i));
+        }
+        (void)((i = (i + 1)));
+      }
+      int32_t n = 0;
+      if ((last_sep_i >=0)) {
+        if ((last_sep_i >=(512 - (3 + rel_len)))) {
+          return link_abi_cstr_dup(empty);
+        }
+        int32_t j = 0;
+        while ((j < last_sep_i)) {
+          (void)(((buf)[j] = (argv0)[j]));
+          (void)((j = (j + 1)));
+        }
+        (void)(((buf)[last_sep_i] = 0));
+        (void)((n = last_sep_i));
+      } else {
+        (void)(((buf)[0] = 46));
+        (void)(((buf)[1] = 0));
+        (void)((n = 1));
+      }
+      if ((((n + 3) + rel_len) < 512)) {
+        (void)(((buf)[n] = 47));
+        (void)(((buf)[(n + 1)] = 46));
+        (void)(((buf)[(n + 2)] = 46));
+        (void)(((buf)[(n + 3)] = 47));
+        int32_t k = 0;
+        while ((k <=rel_len)) {
+          (void)(((buf)[((n + 4) + k)] = (rel)[k]));
+          (void)((k = (k + 1)));
+        }
+        (void)((rp = link_abi_realpath_cap(&((buf)[0]), &((resolved)[0]))));
+        if ((rp !=0)) {
+          return link_abi_cstr_dup(rp);
+        }
+        uint8_t * sm = 0;
+        (void)((sm = asm_link_obj_skip_missing(&((buf)[0]))));
+        if ((sm !=0)) {
+          return link_abi_cstr_dup(&((buf)[0]));
+        }
+        return link_abi_cstr_dup(empty);
+      }
+    }
+  }
+  return link_abi_cstr_dup(empty);
+}
 int32_t labi_path_pure_count(void) {
-  return 57;
+  return 58;
 }

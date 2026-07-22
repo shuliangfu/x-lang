@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 57 public gates + count:
+// R2 full: .x owns 58 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -39,8 +39,11 @@
 //   - shux_empty_cstr / shux_std_io_o_path / shux_std_compress_o_path /
 //     shux_asm_ld_effective_link_argv0 (wave184; empty durable "" + effective link argv0 orch;
 //     Cap residual resolve for synthetic compiler-dir/shux only)
+//   - shux_rel_o_path_from_argv0 (wave185; pure realpath/cwd/argv0 ladder; Cap residual
+//     realpath_cap + getcwd + link_abi_cstr_dup + skip_missing; heap return — never BSS)
 // wave161 G.7: thin join authority = compiler_o_path_copy; wave183 closes always-mega BSS bodies.
 // wave184: empty path stubs + effective_link soft residual always-mega closed.
+// wave185: rel_o_path soft residual always-mega closed (heap cstr_dup Cap residual stays).
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -50,8 +53,11 @@ export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 export extern "C" function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8;
 // Cap residual: POSIX realpath into caller buffer; Windows / fail → null (≡ mega #if).
 export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
-// Cap residual: argv0-relative .o resolve (realpath/getcwd/strdup); stays mega / path_io.
-export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+// Cap residual (wave185): heap string copy for multi-call-independent path returns (never BSS).
+// G.7 authority = link_abi_cstr_dup (mega always; wraps host/freestanding strdup).
+// Do NOT extern libc strdup in .x — uint8_t* vs char* clashes with string.h under g05 -E.
+export extern "C" function link_abi_cstr_dup(s: *u8): *u8;
+// wave185: shux_rel_o_path_from_argv0 is pure export below (no longer Cap residual always-mega).
 // Cap residual / peer pure: SHUX_DEBUG_LD note path (labi_diag_pure authority).
 export extern "C" function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void;
 // Cap residual: invoke ensure(argv0) through a C function pointer (no .x fnptr call ABI yet).
@@ -67,6 +73,7 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 // wave181: shux_bootstrap_nostdlib_stubs_o_path is pure export below (no longer Cap residual always-mega).
 // wave183: thin shux_runtime_*_o_path (incl. asm_io_stubs / process_argv) are pure exports below.
 // wave184: empty_cstr / std_io_o_path / std_compress_o_path / effective_link_argv0 pure below.
+// wave185: shux_rel_o_path_from_argv0 pure below (heap cstr_dup Cap residual).
 // Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
 export extern "C" function link_abi_user_extra_o_count(): i32;
 export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
@@ -2532,11 +2539,165 @@ export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, 
 }
 
 /**
+ * Resolve relative .o path from rel / cwd / argv0 parent (heap return).
+ * Ladder (≡ mega): realpath(rel) → getcwd+"/"+rel → argv0-dir+"/../"+rel
+ * (realpath then skip_missing on joined buf only for argv0 step).
+ * @param argv0 *u8 — optional product host path for parent/../rel; may be null
+ * @param rel *u8 — relative path under repo (e.g. "std/string/string.o"); null/empty → heap ""
+ * @return *u8 — independent heap string per call (Cap residual strdup); never static BSS
+ * Why heap (not BSS): shux_invoke_cc saves 30+ concurrent pointers; static would alias all to last call
+ *   (crypto_o pointing at test.o → UNDEF). Caller does not free; process exit reclaims.
+ * Pure orch: pure last-sep index + byte join cwd/rel and argv0/../rel; Cap residual
+ *   link_abi_realpath_cap + getcwd + link_abi_cstr_dup + asm_link_obj_skip_missing.
+ * Cap residual: realpath_cap (POSIX; Windows null) + getcwd + cstr_dup + skip_missing (stat).
+ * Why (wave185): hybrid still had always-mega C body for multi-call heap path resolve after
+ *   wave184 empty/effective pure. Soft residual closed; Cap residual stays for heap/IO.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch POSIX '/' — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8 {
+  // Durable empty C string for cstr_dup("") Cap residual (never null arg).
+  let empty: *u8 = "";
+  if (rel == 0 as *u8) {
+    unsafe {
+      return link_abi_cstr_dup(empty);
+    }
+  }
+  if (rel[0] == 0) {
+    unsafe {
+      return link_abi_cstr_dup(empty);
+    }
+  }
+  // Pure strlen(rel); mega uses size_t rel_len.
+  let rel_len: i32 = 0;
+  while (rel[rel_len] != 0) {
+    rel_len = rel_len + 1;
+  }
+  // Step 1: realpath(rel) → cstr_dup(resolved). Cap residual realpath_cap (≡ mega realpath).
+  let resolved: u8[4096] = [];
+  let rp: *u8 = 0 as *u8;
+  unsafe {
+    rp = link_abi_realpath_cap(rel, &resolved[0]);
+  }
+  if (rp != 0 as *u8) {
+    unsafe {
+      return link_abi_cstr_dup(rp);
+    }
+  }
+  // Step 2: getcwd + "/" + rel then realpath. mega: getcwd(cwd, sizeof(cwd)-2) with cwd[512].
+  let cwd: u8[512] = [];
+  let gp: *u8 = 0 as *u8;
+  unsafe {
+    gp = getcwd(&cwd[0], 510);
+  }
+  if (gp != 0 as *u8) {
+    let L: i32 = 0;
+    while (cwd[L] != 0) {
+      L = L + 1;
+    }
+    // mega: L + 1 + rel_len + 1 <= sizeof(cwd)
+    if (L + 1 + rel_len + 1 <= 512) {
+      cwd[L] = 47;
+      let ci: i32 = 0;
+      // Copy rel including trailing NUL (mega memcpy rel_len+1).
+      while (ci <= rel_len) {
+        cwd[L + 1 + ci] = rel[ci];
+        ci = ci + 1;
+      }
+      unsafe {
+        rp = link_abi_realpath_cap(&cwd[0], &resolved[0]);
+      }
+      if (rp != 0 as *u8) {
+        unsafe {
+          return link_abi_cstr_dup(rp);
+        }
+      }
+    }
+  }
+  // Step 3: argv0 parent + "/../" + rel.
+  if (argv0 != 0 as *u8) {
+    if (argv0[0] != 0) {
+      let buf: u8[512] = [];
+      // Pure last-sep index (POSIX '/'); avoid pointer subtraction (no .x ptrdiff).
+      let i: i32 = 0;
+      let last_sep_i: i32 = -1;
+      while (argv0[i] != 0) {
+        if (argv0[i] == 47) {
+          last_sep_i = i;
+        }
+        i = i + 1;
+      }
+      let n: i32 = 0;
+      if (last_sep_i >= 0) {
+        // mega: n = last_slash - argv0; refuse if n >= sizeof(buf)-(3+rel_len).
+        if (last_sep_i >= 512 - (3 + rel_len)) {
+          unsafe {
+            return link_abi_cstr_dup(empty);
+          }
+        }
+        let j: i32 = 0;
+        while (j < last_sep_i) {
+          buf[j] = argv0[j];
+          j = j + 1;
+        }
+        buf[last_sep_i] = 0;
+        n = last_sep_i;
+      } else {
+        // No sep: use "." as dir (≡ mega).
+        buf[0] = 46;
+        buf[1] = 0;
+        n = 1;
+      }
+      // mega guard: n + 3 + rel_len < sizeof(buf) then strcat "/../" + rel.
+      // Note: mega uses 3 in the guard while strcat adds 4-char "/../"; match mega as-is.
+      if (n + 3 + rel_len < 512) {
+        // Append "/../" (4 bytes) then rel + NUL.
+        buf[n] = 47;
+        buf[n + 1] = 46;
+        buf[n + 2] = 46;
+        buf[n + 3] = 47;
+        let k: i32 = 0;
+        while (k <= rel_len) {
+          buf[n + 4 + k] = rel[k];
+          k = k + 1;
+        }
+        unsafe {
+          rp = link_abi_realpath_cap(&buf[0], &resolved[0]);
+        }
+        if (rp != 0 as *u8) {
+          unsafe {
+            return link_abi_cstr_dup(rp);
+          }
+        }
+        // realpath miss: only return joined path when skip_missing (nonempty regular file).
+        let sm: *u8 = 0 as *u8;
+        unsafe {
+          sm = asm_link_obj_skip_missing(&buf[0]);
+        }
+        if (sm != 0 as *u8) {
+          unsafe {
+            return link_abi_cstr_dup(&buf[0]);
+          }
+        }
+        unsafe {
+          return link_abi_cstr_dup(empty);
+        }
+      }
+    }
+  }
+  unsafe {
+    return link_abi_cstr_dup(empty);
+  }
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 57 (fixed catalog size for hybrid FROM_X bookkeeping; wave184 +4 empty/effective).
+ * Returns: 58 (fixed catalog size for hybrid FROM_X bookkeeping; wave185 +1 rel_o_path).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 57;
+  return 58;
 }

@@ -30,6 +30,8 @@
  *   + shux_empty_cstr / shux_std_io_o_path / shux_std_compress_o_path /
  *     shux_asm_ld_effective_link_argv0 (wave184 pure empty durable "" + effective link orch;
  *     Cap residual resolve for synthetic compiler-dir/shux)
+ *   + shux_rel_o_path_from_argv0 (wave185 pure realpath/cwd/argv0 ladder; Cap residual
+ *     realpath_cap + getcwd + link_abi_cstr_dup + skip_missing; heap return)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -46,9 +48,11 @@
 /* Cap residual used by wave116 cold twin (product hybrid: path_io + gates). */
 const char *asm_link_obj_skip_missing(const char *path);
 const char *shux_asm_ld_bank_push(void *b, const char *path);
-/* Cap residual used by wave146 argv_has_obj cold twin (mega always provides). */
+/* Cap residual used by wave146 argv_has_obj / wave185 rel_o cold twin (mega always provides). */
 const char *link_abi_realpath_cap(const char *path, char *out);
-/* Cap residual used by wave148 push_obj cold twin. */
+/* Cap residual wave185: heap cstr dup (mega always; wraps strdup). */
+const char *link_abi_cstr_dup(const char *s);
+/* wave185: shux_rel_o_path_from_argv0 pure cold twin below (forward for push_obj). */
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
 /* Cap residual used by wave149 push_glue cold twin (mega always provides). */
@@ -1207,8 +1211,78 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
   return syn_buf;
 }
 
+/* wave185 cold twin: rel_o_path pure orch (Cap residual realpath_cap + getcwd + cstr_dup + skip).
+ * Heap return per call (never static BSS) — matches mega multi-call independence invariant. */
+const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
+  char buf[512];
+  char resolved[4096];
+  char cwd[512];
+  size_t rel_len;
+  size_t L;
+  size_t i;
+  int last_sep_i;
+  int n;
+  const char *rp;
+  const char *sm;
+  buf[0] = resolved[0] = '\0';
+  if (!rel || !rel[0])
+    return link_abi_cstr_dup("");
+  rel_len = strlen(rel);
+  /* Step 1: realpath(rel). Cap residual realpath_cap (≡ mega realpath on POSIX). */
+  rp = link_abi_realpath_cap(rel, resolved);
+  if (rp)
+    return link_abi_cstr_dup(rp);
+  /* Step 2: getcwd + "/" + rel. mega: getcwd(cwd, sizeof(cwd)-2). */
+  if (getcwd(cwd, sizeof(cwd) - 2) != NULL) {
+    L = strlen(cwd);
+    if (L + 1 + rel_len + 1 <= sizeof(cwd)) {
+      cwd[L] = '/';
+      memcpy(cwd + L + 1, rel, rel_len + 1);
+      rp = link_abi_realpath_cap(cwd, resolved);
+      if (rp)
+        return link_abi_cstr_dup(rp);
+    }
+  }
+  /* Step 3: argv0 parent + "/../" + rel. Pure last-sep index (POSIX '/'). */
+  if (argv0 && argv0[0]) {
+    last_sep_i = -1;
+    for (i = 0; argv0[i]; i++) {
+      if (argv0[i] == '/')
+        last_sep_i = (int)i;
+    }
+    if (last_sep_i >= 0) {
+      n = last_sep_i;
+      /* mega: n >= sizeof(buf)-(3+rel_len) → empty. */
+      if (n >= (int)sizeof(buf) - (int)(3 + rel_len))
+        return link_abi_cstr_dup("");
+      memcpy(buf, argv0, (size_t)n);
+      buf[n] = '\0';
+    } else {
+      buf[0] = '.';
+      buf[1] = '\0';
+      n = 1;
+    }
+    /* mega guard n+3+rel_len < sizeof(buf); strcat "/../"+rel (prefix 4 bytes). */
+    if ((size_t)n + 3 + rel_len < sizeof(buf)) {
+      buf[n] = '/';
+      buf[n + 1] = '.';
+      buf[n + 2] = '.';
+      buf[n + 3] = '/';
+      memcpy(buf + n + 4, rel, rel_len + 1);
+      rp = link_abi_realpath_cap(buf, resolved);
+      if (rp)
+        return link_abi_cstr_dup(rp);
+      sm = asm_link_obj_skip_missing(buf);
+      if (sm)
+        return link_abi_cstr_dup(buf);
+      return link_abi_cstr_dup("");
+    }
+  }
+  return link_abi_cstr_dup("");
+}
+
 int32_t labi_path_pure_count(void) {
-  return 57;
+  return 58;
 }
 
 #else
@@ -1274,6 +1348,7 @@ const char *shux_empty_cstr(void);
 const char *shux_std_io_o_path(const char *argv0);
 const char *shux_std_compress_o_path(const char *argv0);
 const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
+const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
 int32_t labi_path_pure_count(void);
 #endif
 
