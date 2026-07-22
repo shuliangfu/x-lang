@@ -4,7 +4,8 @@
  * Prove: full.x vs this seed → nm IDENTICAL (brew/compress/tail/driver pure table
  *   + wave152 ld_append_brew_lib_paths pure orch
  *   + wave153 asm_ld_append_compress_libs pure orch
- *   + wave154 invoke_cc_append_compress_ld pure orch)
+ *   + wave154 invoke_cc_append_compress_ld pure orch
+ *   + wave156 shux_asm_ld_append_mach_tail_libs_impl pure orch)
  * Cap residual: host_is_apple; needs + ensure + path; push_existing; spawn/ld/cc IO mega
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
@@ -16,6 +17,7 @@ extern int32_t link_abi_host_is_apple(void);
 extern int32_t link_abi_obj_needs_zlib(uint8_t * obj_o);
 extern int32_t link_abi_obj_needs_zstd(uint8_t * obj_o);
 extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
+extern int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o);
 extern int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
 extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
 extern int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path);
@@ -346,6 +348,78 @@ void invoke_cc_append_compress_ld(uint8_t * * argv, int32_t * i, int32_t argv_ca
       uint8_t * fld = labi_ld_flag_lbrotlidec();
       (void)(((argv)[curb2] = fld));
       (void)(((i)[0] = (curb2 + 1)));
+    }
+  }
+}
+/* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch (surface pin; flags i32 layout). */
+void shux_asm_ld_append_mach_tail_libs_impl(uint8_t * compress_o, uint8_t * user_o, uint8_t * flags, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t append_lsystem) {
+  if ((flags == 0)) {
+    return;
+  }
+  uint8_t * ab = ((uint8_t *)(argv));
+  if ((ab == 0)) {
+    return;
+  }
+  if ((la == 0)) {
+    return;
+  }
+  if ((((la)[0] < 0))) {
+    return;
+  }
+  int32_t * f = ((int32_t *)(flags));
+  int32_t have_thread = (f)[2];
+  int32_t have_sync = (f)[3];
+  int32_t have_channel = (f)[4];
+  int32_t have_math = (f)[5];
+  int32_t have_compress = (f)[6];
+  int32_t have_sqlite = (f)[8];
+  int32_t need_pt = 0;
+  if ((have_thread != 0)) {
+    need_pt = 1;
+  }
+  if ((have_sync != 0)) {
+    need_pt = 1;
+  }
+  if ((have_channel != 0)) {
+    need_pt = 1;
+  }
+  if ((have_math != 0)) {
+    int32_t cur = (la)[0];
+    if ((cur <(max_la - 1))) {
+      uint8_t * fl = labi_ld_flag_lm();
+      (void)(((argv)[cur] = fl));
+      (void)(((la)[0] = (cur + 1)));
+    }
+  }
+  int32_t need_comp = have_compress;
+  if ((need_comp == 0)) {
+    (void)((need_comp = link_abi_user_o_needs_compress_libs(user_o)));
+  }
+  if ((need_comp != 0)) {
+    asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
+  }
+  if ((have_sqlite != 0)) {
+    int32_t curs = (la)[0];
+    if ((curs <(max_la - 1))) {
+      uint8_t * fs = labi_ld_flag_lsqlite3();
+      (void)(((argv)[curs] = fs));
+      (void)(((la)[0] = (curs + 1)));
+    }
+  }
+  if ((need_pt != 0)) {
+    int32_t curp = (la)[0];
+    if ((curp <(max_la - 1))) {
+      uint8_t * fp = labi_ld_flag_pthread();
+      (void)(((argv)[curp] = fp));
+      (void)(((la)[0] = (curp + 1)));
+    }
+  }
+  if ((append_lsystem != 0)) {
+    int32_t curl = (la)[0];
+    if ((curl <(max_la - 1))) {
+      uint8_t * fsys = labi_ld_flag_lSystem();
+      (void)(((argv)[curl] = fsys));
+      (void)(((la)[0] = (curl + 1)));
     }
   }
 }

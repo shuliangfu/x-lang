@@ -6,16 +6,20 @@
 // Hybrid macro SHUX_LABI_INVOKE_LD_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: .x owns brew/compress/tail/driver/entry pure tables + wave152 brew orch
-// + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch:
+// + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch
+// + wave156 mach tail_libs_impl pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
 //   - invoke_cc_append_compress_ld (wave154; pure orch; Cap residual needs+ensure+path
 //     + invoke_cc_argv_push_existing for glue realpath/skip/dedup)
+//   - shux_asm_ld_append_mach_tail_libs_impl (wave156; pure orch over flags i32 layout
+//     + pure flag_* + peer compress orch + peer needs_compress)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_push_existing (realpath/skip/dedup);
-//   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv.
-// PLATFORM: SHARED orch / MACOS consumers for brew -L paths.
+//   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
+//   unix_gcc_tail_libs_impl still always mega (next residual).
+// PLATFORM: SHARED orch / MACOS consumers for brew -L + mach tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
 // Not the same as shux_host_is_apple_aarch64 (host_lit L2; arm64 only).
@@ -25,6 +29,9 @@ export extern "C" function link_abi_host_is_apple(): i32;
 export extern "C" function link_abi_obj_needs_zlib(obj_o: *u8): i32;
 export extern "C" function link_abi_obj_needs_zstd(obj_o: *u8): i32;
 export extern "C" function link_abi_obj_needs_brotli(obj_o: *u8): i32;
+
+// Peer pure (ondemand L8b): user.o needs any compress lib (zlib|zstd|brotli aggregate).
+export extern "C" function link_abi_user_o_needs_compress_libs(user_o: *u8): i32;
 
 // Cap residual: ensure zlib macro-wrapper glue .o + resolve its path for ld argv.
 export extern "C" function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
@@ -601,6 +608,113 @@ export function invoke_cc_append_compress_ld(argv: **u8, i: *i32, argv_cap: i32,
       let fld: *u8 = labi_ld_flag_lbrotlidec();
       argv[curb2] = fld;
       i[0] = curb2 + 1;
+    }
+  }
+}
+
+/**
+ * macOS asm ld/clang: append tail -l* from ShuAsmLdStdLinkFlags (math/compress/sqlite/pthread/System).
+ * Pure orch over LP64 i32 flag layout + pure labi_ld_flag_* + peer asm_ld_append_compress_libs
+ * + peer link_abi_user_o_needs_compress_libs. Gate shux_asm_ld_append_mach_tail_libs stays L9 thin.
+ * @param compress_o *u8 — path to std/compress .o (nullable/empty → ignored by needs_*)
+ * @param user_o *u8 — path to user main .o (nullable/empty → ignored by needs_*)
+ * @param flags *u8 — ShuAsmLdStdLinkFlags* as opaque bytes; null → no-op
+ * @param argv **u8 — linker argv table (char**); null → no-op
+ * @param la *i32 — in/out argv length; null → no-op; *la < 0 → no-op
+ * @param max_la i32 — argv capacity; leave one slot for NULL terminator (max_la - 1)
+ * @param append_lsystem i32 — non-zero → also append -lSystem (clang driver path often skips)
+ * @return void — appends zero or more tail flags; compress may expand multi -l* via peer orch
+ * Flag layout (PLATFORM: SHARED LP64 int fields, declaration order ≡ runtime_link_abi.h):
+ *   0=have_io 1=have_net 2=have_thread 3=have_sync 4=have_channel
+ *   5=have_math 6=have_compress 7=have_dynlib 8=have_sqlite
+ *   9=have_elf 10=have_libc_heap 11=have_fs
+ * need_pt = have_thread || have_sync || have_channel (≡ mega).
+ * Why (wave156): hybrid still had always-mega C body for mach tail -l* over pure flag tables.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * Sibling unix_gcc_tail_libs_impl remains always mega (Linux -ldl branches; next residual).
+ * Callers: pure gate shux_asm_ld_append_mach_tail_libs (labi_gates) + product asm ld paths.
+ * PLATFORM: SHARED orch / MACOS consumers (flags semantics shared; -lSystem is Darwin).
+ * Track-L: #[no_mangle] keeps surface short name matching mega / gates Cap residual extern.
+ */
+#[no_mangle]
+export function shux_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, argv: **u8, la: *i32, max_la: i32, append_lsystem: i32): void {
+  // Guard nulls via *u8 cast (wave147/151–155: avoid **u8 null compare codegen drop).
+  if (flags == 0 as *u8) {
+    return;
+  }
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  if (la[0] < 0) {
+    return;
+  }
+  // LP64 shared: flags is contiguous i32 fields (ShuAsmLdStdLinkFlags).
+  let f: *i32 = flags as *i32;
+  let have_thread: i32 = f[2];
+  let have_sync: i32 = f[3];
+  let have_channel: i32 = f[4];
+  let have_math: i32 = f[5];
+  let have_compress: i32 = f[6];
+  let have_sqlite: i32 = f[8];
+  // need_pt ≡ mega: thread | sync | channel.
+  let need_pt: i32 = 0;
+  if (have_thread != 0) {
+    need_pt = 1;
+  }
+  if (have_sync != 0) {
+    need_pt = 1;
+  }
+  if (have_channel != 0) {
+    need_pt = 1;
+  }
+  // -lm when math std linked.
+  if (have_math != 0) {
+    let cur: i32 = la[0];
+    if (cur < max_la - 1) {
+      let fl: *u8 = labi_ld_flag_lm();
+      argv[cur] = fl;
+      la[0] = cur + 1;
+    }
+  }
+  // compress -l* when flag set or user.o UNDEF needs compress (peer pure aggregate).
+  let need_comp: i32 = have_compress;
+  if (need_comp == 0) {
+    unsafe {
+      need_comp = link_abi_user_o_needs_compress_libs(user_o);
+    }
+  }
+  if (need_comp != 0) {
+    asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
+  }
+  // -lsqlite3 when sqlite std linked.
+  if (have_sqlite != 0) {
+    let curs: i32 = la[0];
+    if (curs < max_la - 1) {
+      let fs: *u8 = labi_ld_flag_lsqlite3();
+      argv[curs] = fs;
+      la[0] = curs + 1;
+    }
+  }
+  // -pthread when thread/sync/channel.
+  if (need_pt != 0) {
+    let curp: i32 = la[0];
+    if (curp < max_la - 1) {
+      let fp: *u8 = labi_ld_flag_pthread();
+      argv[curp] = fp;
+      la[0] = curp + 1;
+    }
+  }
+  // -lSystem optional (clang as driver often pulls System; bare ld may need it).
+  if (append_lsystem != 0) {
+    let curl: i32 = la[0];
+    if (curl < max_la - 1) {
+      let fsys: *u8 = labi_ld_flag_lSystem();
+      argv[curl] = fsys;
+      la[0] = curl + 1;
     }
   }
 }

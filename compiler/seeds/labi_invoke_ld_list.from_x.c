@@ -12,20 +12,26 @@
  *   asm_ld_append_compress_libs (wave153 pure orch; Cap residual needs+ensure+path)
  *   invoke_cc_append_compress_ld (wave154 pure orch; Cap residual needs+ensure+path
  *     + invoke_cc_argv_push_existing for glue realpath/skip/dedup)
+ *   shux_asm_ld_append_mach_tail_libs_impl (wave156 pure orch; flags i32 layout
+ *     + pure flag_* + peer compress orch + peer needs_compress)
  * Cap residual: host_is_apple; needs+ensure+path Cap; invoke_cc_argv_push_existing;
- *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv.
+ *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
+ *   unix_gcc_tail_libs_impl still always mega.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
  * Prove：seeds/labi_invoke_ld_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+/* ShuAsmLdStdLinkFlags for wave156 cold twin (standalone seed cc + mega include). */
+#include "runtime_link_abi.h"
 
 /* Cap residual / peer pure always provided by mega (or other pure slices); cold twin calls them. */
 int link_abi_host_is_apple(void);
 int link_abi_obj_needs_zlib(const char *obj_o);
 int link_abi_obj_needs_zstd(const char *obj_o);
 int link_abi_obj_needs_brotli(const char *obj_o);
+int link_abi_user_o_needs_compress_libs(const char *user_o);
 int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
@@ -186,6 +192,30 @@ void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char
   }
 }
 
+/* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch (cold twin ≡ .x).
+ * Signature keeps ShuAsmLdStdLinkFlags* (mega ABI); pure .x reads same LP64 i32 layout. */
+void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o,
+    const ShuAsmLdStdLinkFlags *flags, const char **argv, int *la, int max_la, int append_lsystem) {
+  int need_pt;
+  int need_comp;
+  if (!flags || !argv || !la || *la < 0)
+    return;
+  need_pt = (flags->have_thread || flags->have_sync || flags->have_channel) ? 1 : 0;
+  if (flags->have_math && *la < max_la - 1)
+    argv[(*la)++] = labi_ld_flag_lm();
+  need_comp = flags->have_compress;
+  if (!need_comp)
+    need_comp = link_abi_user_o_needs_compress_libs(user_o);
+  if (need_comp)
+    asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
+  if (flags->have_sqlite && *la < max_la - 1)
+    argv[(*la)++] = labi_ld_flag_lsqlite3();
+  if (need_pt && *la < max_la - 1)
+    argv[(*la)++] = labi_ld_flag_pthread();
+  if (append_lsystem && *la < max_la - 1)
+    argv[(*la)++] = labi_ld_flag_lSystem();
+}
+
 #else
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
@@ -216,6 +246,8 @@ const char *labi_ld_common_tail_flag_at(int i);
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
+void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o,
+    const ShuAsmLdStdLinkFlags *flags, const char **argv, int *la, int max_la, int append_lsystem);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

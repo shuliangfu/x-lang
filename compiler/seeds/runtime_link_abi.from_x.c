@@ -2874,6 +2874,9 @@ const char *labi_ld_common_tail_flag_at(int i);
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
+/* wave156: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
+void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    const char **argv, int *la, int max_la, int append_lsystem);
 #endif
 
 /**
@@ -2909,6 +2912,13 @@ int link_abi_host_is_apple(void) {
  * .x (decl in #else). Why: hybrid still had always-mega C body for invoke_cc compress.
  * Cap residual stays: invoke_cc_argv_push_existing (realpath/skip/dedup).
  * PLATFORM: SHARED. */
+
+/* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch lives in labi_invoke_ld_list
+ * (flags i32 layout + pure flag_* + peer compress orch + peer needs_compress).
+ * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
+ * .x (decl in #else). Why: hybrid still had always-mega C body for mach tail -l*.
+ * Sibling unix_gcc_tail_libs_impl still always mega (next residual).
+ * PLATFORM: SHARED orch / MACOS consumers. */
 
 
 
@@ -6986,22 +6996,10 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
  * macOS asm ld/clang：按 std 链入标记追加 -lm、压缩库、-lsqlite3、-pthread、-lSystem。
  * G-02f-66：主体 _impl；.x 门闩 null 检查后转发。
  */
-/* G-02f-275：mach tail -l* from pure table */
-void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
-    const char **argv, int *la, int max_la, int append_lsystem) {
-    int need_pt;
-    need_pt = flags->have_thread || flags->have_sync || flags->have_channel;
-    if (flags->have_math && *la < max_la - 1)
-        argv[(*la)++] = labi_ld_flag_lm();
-    if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
-        asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
-    if (flags->have_sqlite && *la < max_la - 1)
-        argv[(*la)++] = labi_ld_flag_lsqlite3();
-    if (need_pt && *la < max_la - 1)
-        argv[(*la)++] = labi_ld_flag_pthread();
-    if (append_lsystem && *la < max_la - 1)
-        argv[(*la)++] = labi_ld_flag_lSystem();
-}
+/* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch — body removed from mega
+ * (was always-mega C over pure flag tables). Cold twin / hybrid pure always provide
+ * the symbol via labi_invoke_ld_list (flags i32 layout + pure flag_* + peer compress).
+ * PLATFORM: SHARED orch / MACOS consumers. */
 
 /* G-02f-277 L9 gates */
 #ifndef SHUX_LABI_GATES_FROM_X
