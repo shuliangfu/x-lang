@@ -19,6 +19,8 @@
  *     link_abi_generated_c_needs_{core_slice,db_kv,db_arrow} pure orch
  *   + wave139 labi_fs_gen_provides_{core_mem,std_heap}_needle_* +
  *     link_abi_generated_c_provides_{core_mem,std_heap} pure orch
+ *   + wave141 labi_fs_gen_{win32,win32_wsa}_needle_* +
+ *     link_abi_generated_c_needs_{win32,win32_wsa} pure orch
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -610,6 +612,72 @@ int link_abi_generated_c_provides_std_heap(const char *c_path) {
   return 0;
 }
 
+/* wave141: Win32 / WSA generated_c needs pure (cold twin). */
+int labi_fs_gen_win32_needle_count(void) {
+  return 9;
+}
+const char *labi_fs_gen_win32_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "GetStdHandle";
+  if (i == 1)
+    return "WriteFile";
+  if (i == 2)
+    return "CreateFileA";
+  if (i == 3)
+    return "ReadFile";
+  if (i == 4)
+    return "CloseHandle";
+  if (i == 5)
+    return "ExitProcess";
+  if (i == 6)
+    return "win32_write";
+  if (i == 7)
+    return "win32_read_file_into";
+  if (i == 8)
+    return "win32_exit_process";
+  return NULL;
+}
+int labi_fs_gen_win32_wsa_needle_count(void) {
+  return 3;
+}
+const char *labi_fs_gen_win32_wsa_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "WSAStartup";
+  if (i == 1)
+    return "WSACleanup";
+  if (i == 2)
+    return "win32_net_available";
+  return NULL;
+}
+int link_abi_generated_c_needs_win32(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_win32_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_win32_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+int link_abi_generated_c_needs_win32_wsa(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_win32_wsa_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_win32_wsa_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -675,6 +743,13 @@ int labi_fs_gen_provides_std_heap_needle_count(void);
 const char *labi_fs_gen_provides_std_heap_needle_at(int i);
 int link_abi_generated_c_provides_core_mem(const char *c_path);
 int link_abi_generated_c_provides_std_heap(const char *c_path);
+/* wave141: Win32 / WSA generated_c needs pure (L7). */
+int labi_fs_gen_win32_needle_count(void);
+const char *labi_fs_gen_win32_needle_at(int i);
+int labi_fs_gen_win32_wsa_needle_count(void);
+const char *labi_fs_gen_win32_wsa_needle_at(int i);
+int link_abi_generated_c_needs_win32(const char *c_path);
+int link_abi_generated_c_needs_win32_wsa(const char *c_path);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

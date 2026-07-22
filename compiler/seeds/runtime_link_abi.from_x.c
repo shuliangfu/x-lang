@@ -3203,60 +3203,17 @@ int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
     return 0;
 }
 
-int link_abi_generated_c_needs_win32(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "GetStdHandle") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "WriteFile") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "CreateFileA") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "ReadFile") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "CloseHandle") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "ExitProcess") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "win32_write") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "win32_read_file_into") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "win32_exit_process") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
-
-/**
- * 生成的 .c 是否引用 winsock2（F-02 v2：按需 -lws2_32，无 win32_net.inc.c）。
+/* wave141: link_abi_generated_c_needs_win32 pure orch lives in labi_freestanding_list
+ * (9 needles + pure scan; Cap residual contains_substr). Was mega body.
+ * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED orch / WINDOWS consumers — G.7 complete product surface; dual-end L2.
  */
-int link_abi_generated_c_needs_win32_wsa(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "WSAStartup") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "WSACleanup") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "win32_net_available") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+int link_abi_generated_c_needs_win32(const char *c_path);
+
+/* wave141: link_abi_generated_c_needs_win32_wsa pure orch (L7 freestanding).
+ * Why: F-02 v2 on-demand -lws2_32; no win32_net.inc.c.
+ */
+int link_abi_generated_c_needs_win32_wsa(const char *c_path);
 
 /**
  * 生成的 .c 是否引用 core.builtin 位运算（G-01：__builtin_* 内联，不再链 builtin.o）。

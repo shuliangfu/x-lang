@@ -16,6 +16,8 @@
 //     (C-path core.slice / std.db.kv / std.db.arrow on-demand .o needles).
 //   wave139 link_abi_generated_c_provides_{core_mem,std_heap} pure orch
 //     (C-path co-emit strong-def markers; skip hard-link mem.o/heap.o).
+//   wave141 link_abi_generated_c_needs_{win32,win32_wsa} pure orch
+//     (C-path Windows kernel32 / winsock2 string needles; Cap residual contains_substr).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -1481,6 +1483,179 @@ export function link_abi_generated_c_provides_std_heap(c_path: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let needle: *u8 = labi_fs_gen_provides_std_heap_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/* wave141: generated-C Windows kernel32 / winsock2 string needs pure tables + orch.
+ * Cap residual: link_abi_generated_c_contains_substr (file IO stays mega).
+ * Product: on-demand win32 stubs / -lws2_32 when generated C references these APIs.
+ * PLATFORM: SHARED tables — WINDOWS link surface (needles); hybrid L7 pure; mega cold twin. */
+
+/**
+ * Count of generated-C substr needles for Win32 kernel32 / shux win32 helpers.
+ * @return i32 — 9 needles (GetStdHandle… + win32_* helpers)
+ * PLATFORM: SHARED (table) / WINDOWS (link consumers)
+ */
+#[no_mangle]
+export function labi_fs_gen_win32_needle_count(): i32 {
+  return 9;
+}
+
+/**
+ * Needle at index for generated-C Win32 scan.
+ * @param i i32 — index in [0, 9)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_win32_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "GetStdHandle";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "WriteFile";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "CreateFileA";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "ReadFile";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "CloseHandle";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "ExitProcess";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "win32_write";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "win32_read_file_into";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "win32_exit_process";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Count of generated-C substr needles for Win32 WSA / winsock2.
+ * @return i32 — 3 needles
+ * PLATFORM: SHARED (table) / WINDOWS (link -lws2_32)
+ */
+#[no_mangle]
+export function labi_fs_gen_win32_wsa_needle_count(): i32 {
+  return 3;
+}
+
+/**
+ * Needle at index for generated-C Win32 WSA scan.
+ * @param i i32 — index in [0, 3)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_win32_wsa_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "WSAStartup";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "WSACleanup";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "win32_net_available";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether generated C needs Win32 kernel32 / shux win32 helpers.
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave141): hybrid still had needs_win32 body always mega C with hard-coded strings.
+ * PLATFORM: SHARED orch / WINDOWS consumers
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_win32(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_win32_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_win32_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether generated C needs Winsock2 (-lws2_32).
+ * Pure orch: fixed needle table; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave141): hybrid still had needs_win32_wsa body always mega C with hard-coded strings.
+ * PLATFORM: SHARED orch / WINDOWS consumers
+ */
+#[no_mangle]
+export function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_win32_wsa_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_win32_wsa_needle_at(i);
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
