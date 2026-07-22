@@ -23688,10 +23688,14 @@ int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena
   return 1;
 }
 
-/**
- * typeck.x::typeck_patch_all_body_parent_links 的 C 委托：为 module 各函数体块 patch parent 链。
+/*
+ * wave92: product pure owns pipeline_typeck_patch_all_body_parent_links_c
+ * (runtime_pipeline_abi.x thin → typeck_patch_all_body_parent_links). Keep SHUX_WEAK cold
+ * fallback for links without pure pipeline_abi / PREFER hybrid.
+ * PLATFORM: SHARED — ELF weak overridden by pure; same walk as typeck.x.
  */
-void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module, struct ast_ASTArena *arena) {
+__attribute__((weak)) void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module,
+                                                                         struct ast_ASTArena *arena) {
   int32_t i;
   int32_t br;
 
@@ -25794,8 +25798,14 @@ extern int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *
                                 int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 
-/** typeck.x::typeck_validate_struct_layouts_zero_padding 的 C 委托。 */
-int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(struct ast_Module *module, struct ast_ASTArena *arena) {
+/*
+ * wave92: product pure owns pipeline_typeck_validate_struct_layouts_zero_padding_c
+ * (runtime_pipeline_abi.x thin → typeck_validate_struct_layouts_zero_padding). Keep SHUX_WEAK
+ * cold fallback for links without pure pipeline_abi / PREFER hybrid (still glue metrics fork).
+ * PLATFORM: SHARED — ELF weak overridden by pure; cold uses typeck_validate_*_glue.
+ */
+__attribute__((weak)) int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(
+    struct ast_Module *module, struct ast_ASTArena *arena) {
   return typeck_validate_struct_layouts_zero_padding_glue(module, arena);
 }
 

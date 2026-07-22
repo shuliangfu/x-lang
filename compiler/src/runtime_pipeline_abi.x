@@ -4,13 +4,18 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave92: pure pipeline_typeck_validate_struct_layouts_zero_padding_c /
+//   pipeline_typeck_patch_all_body_parent_links_c thin → G.7 typeck.x authority
+//   (typeck_validate_struct_layouts_zero_padding / typeck_patch_all_body_parent_links);
+//   glue SHUX_WEAK cold twins keep historical metrics/patch bodies for non-PREFER links.
+//   Closes Cap residual layout validate+patch helpers under pure dep-prerun light fallback.
 // wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue SHUX_WEAK cold).
 //   Closes Cap residual set_dep_ctx leaf under wave89 pure dep-prerun orch; ast_pool enum
 //   fallback reads via get_dep_ctx (no static dual-auth g_typeck_dep_ctx).
 // wave90: pure pipeline_typeck_diag_soft_suppress_set / _get (i32 BSS; glue SHUX_WEAK cold).
 //   Closes Cap residual soft-suppress leaf under wave89 pure dep-prerun orch.
 // wave89: pure pipeline_typeck_dep_prerun_module_c orch (set_dep_ctx + soft_suppress +
-//   typeck_x_ast_library + Cap residual layout validate/patch fallback; glue SHUX_WEAK cold).
+//   typeck_x_ast_library + layout validate/patch light fallback; glue SHUX_WEAK cold).
 //   Closes Cap residual typeck dep-prerun leaf used by wave60 typeck_only orch.
 // wave88: pure preprocess_eval_condition_c orch (trim + simple → pure define_has;
 //   complex ops → Cap residual cfg_eval_expr_c; glue SHUX_WEAK cold fallback).
@@ -131,9 +136,9 @@
 //   Closes Cap residual typeck dep-prerun leaf (wave60 typeck_only no longer always-seed body).
 // wave90: pure soft_suppress set/get BSS (G.7 single flag; same-TU orch + diagnostic get).
 // wave91: pure set_dep_ctx / get_dep_ctx BSS (G.7 single ptr; same-TU orch + ast_pool get).
+// wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
 // Cap residual still: load_and_sync_direct_import_deps_c (ast_pool); cfg_eval complex #if;
-//   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast;
-//   layout validate+patch helpers under pure dep-prerun orch.
+//   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -155,6 +160,8 @@
 // wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual glue body).
 // wave90: pipeline_typeck_diag_soft_suppress_set / _get are pure export functions below.
 // wave91: pipeline_typeck_set_dep_ctx / get_dep_ctx are pure export functions below.
+// wave92: pipeline_typeck_validate_struct_layouts_zero_padding_c /
+//   pipeline_typeck_patch_all_body_parent_links_c are pure export functions below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 // wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
@@ -168,6 +175,10 @@ export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u
 // PLATFORM: SHARED — same ABI as seed cold twins; pure owns null gates and X route.
 export extern "C" function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;
 export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u8): i32;
+// wave92: G.7 typeck.x layout/parent-link authority (same symbols as typeck_x.o product).
+// PLATFORM: SHARED — light fallback under pure dep-prerun routes here (not glue metrics fork).
+export extern "C" function typeck_validate_struct_layouts_zero_padding(module: *u8, arena: *u8): i32;
+export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena: *u8): void;
 export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
 export extern "C" function free(p: *u8): void;
 // wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
@@ -270,9 +281,7 @@ export extern "C" function pipeline_load_and_sync_direct_import_deps_c(module: *
 // wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual body).
 // wave90: soft_suppress set/get pure below (not export-extern Cap residual).
 // wave91: set_dep_ctx / get_dep_ctx pure below (not export-extern Cap residual).
-// Cap residual helpers used by pure dep-prerun orch (pipeline_glue layout authority):
-export extern "C" function pipeline_typeck_validate_struct_layouts_zero_padding_c(module: *u8, arena: *u8): i32;
-export extern "C" function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena: *u8): void;
+// wave92: layout validate/patch_c pure thin below → typeck.x (not export-extern Cap residual).
 // wave58 pure skip_typeck orch: G.7 driver flags + asm_entry field accessors (runtime_driver_abi).
 // PLATFORM: SHARED — same symbols as rt_run_asm_backend pure path.
 export extern "C" function driver_check_only_get(): i32;
@@ -2560,7 +2569,7 @@ export function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_aren
  *   2) soft_suppress_set(1) — wave90 pure same-TU BSS (suppress exploratory XT001 soft diags);
  *   3) typeck_x_ast_library (G.7 typeck.x authority; same as wave87 library route);
  *   4) soft_suppress_set(0);
- *   5) tc==0 → 0; else Cap residual validate zero-padding → -7; patch body parent links → 0.
+ *   5) tc==0 → 0; else wave92 pure validate zero-padding → -7; pure patch body parent links → 0.
  * PLATFORM: SHARED — glue SHUX_WEAK cold fallback when pure not linked.
  */
 #[no_mangle]
@@ -2588,6 +2597,7 @@ export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx
     return 0;
   }
   // Full typeck failed: light fallback — validate struct layout padding then patch parent links.
+  // wave92: same-TU pure thin → typeck.x (G.7; closes Cap residual glue-layout fork on product).
   // SHUX_DEBUG_PIPE getenv/fprintf remains cold-only (seed/glue twin); pure skips notes.
   let vrc: i32 = 0;
   unsafe {
@@ -2600,6 +2610,58 @@ export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx
     pipeline_typeck_patch_all_body_parent_links_c(module, arena);
   }
   return 0;
+}
+
+/**
+ * Validate all module struct layouts for zero-padding consistency (light layout gate).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @return i32 — 0 ok; -1 null/layout metrics fail (typeck.x authority)
+ * wave92 pure Cap residual: G.7 thin → typeck_validate_struct_layouts_zero_padding
+ * (typeck.x → typeck_x.o). Historical C body in pipeline_glue called glue metrics fork
+ * (typeck_validate_struct_layouts_zero_padding_glue); product light fallback now shares
+ * the same typeck.x path as typeck_x_ast_library / typeck_x_ast_impl.
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_typeck_validate_struct_layouts_zero_padding_c(module: *u8, arena: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    // G.7 typeck.x authority — single layout-validate path (not glue metrics fork).
+    rc = typeck_validate_struct_layouts_zero_padding(module, arena);
+  }
+  return rc;
+}
+
+/**
+ * Patch parent_ref chains on every function body block in the module.
+ * @param module *u8 — AST module; null → no-op
+ * @param arena *u8 — AST arena; null → no-op
+ * @return void
+ * wave92 pure Cap residual: G.7 thin → typeck_patch_all_body_parent_links
+ * (typeck.x → typeck_x.o; walks pipeline_module_num_funcs + body_ref +
+ * pipeline_patch_block_parent_links). Historical C body in pipeline_glue inlined the
+ * same walk via ast_ast_arena_patch_block_parent_links; product uses typeck.x only.
+ * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (arena == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    // G.7 typeck.x authority — single parent-link patch path.
+    typeck_patch_all_body_parent_links(module, arena);
+  }
 }
 
 /**

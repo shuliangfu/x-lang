@@ -110,9 +110,10 @@
  *   Closes Cap residual soft-suppress leaf under pure dep-prerun orch.
  * wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue SHUX_WEAK cold).
  *   Closes Cap residual set_dep_ctx leaf; ast_pool enum fallback via get_dep_ctx.
+ * wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
+ *   Closes Cap residual layout validate+patch helpers under pure dep-prerun light fallback.
  * Cap residual still: load_and_sync_direct_import_deps_c; cfg_eval complex #if;
- *   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast;
- *   layout validate+patch helpers under pure dep-prerun.
+ *   preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).
