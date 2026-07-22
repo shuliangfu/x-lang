@@ -87,8 +87,9 @@
  * wave82: pure pipeline_debug_trace_named_func_bodies_impl orch (getenv + module walk +
  *   G.7 pure body_func_match + pipe_diag_msg_append_* + diag_report; no reportf; cold twin
  *   under #ifndef FROM_X keeps reportf). Closes soft residual always-seed body-trace leaf.
- * Cap residual still: fn-ptr / typeck_module C frontend
- *   (+ pipeline_sizeof_* / preprocess engine residual).
+ * wave83: pure pipeline_sizeof_arena / pipeline_sizeof_module (LP64 constants 16 / 68;
+ *   glue weak cold fallback). Closes Cap residual sizeof leaf for pure path.
+ * Cap residual still: fn-ptr / typeck_module C frontend (+ preprocess engine residual).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all
  *   subsequent export function; -E only externs; pure never productized until fix).

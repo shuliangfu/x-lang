@@ -98,8 +98,9 @@
 //   G.7 pure pipeline_debug_body_func_match + stack msg via pipe_diag_msg_append_* + diag_report;
 //   no va_list reportf — cold twin keeps reportf). Closes soft residual always-seed body-trace
 //   leaf still called from pure public thin.
-// Cap residual still: fn-ptr / typeck_module C frontend
-//   (+ pipeline_sizeof_* / preprocess engine residual).
+// wave83: pure pipeline_sizeof_arena / pipeline_sizeof_module (fixed LP64 layout constants
+//   matching pipeline_glue sizeof; dual-end verified 16 / 68). Glue keeps weak cold fallback.
+// Cap residual still: fn-ptr / typeck_module C frontend (+ preprocess engine residual).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -112,6 +113,7 @@
 // wave79: shux_path_try_realpath_inplace is pure export function below.
 // wave80: shux_asm_codegen_elf_o_product_emit is pure export function below.
 // wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below.
+// wave83: pipeline_sizeof_arena / pipeline_sizeof_module are pure export functions below.
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -237,10 +239,9 @@ export extern "C" function access(path: *u8, mode: i32): i32;
 /* See implementation. */
 // wave67: pipeline_dep_ctx_set_use_asm_backend is pure export function below (G.7 driver thin).
 // wave62: shux_pipeline_one_ctx_for_dep_prerun_map_impl is pure export function below.
-// Cap residual sizes (glue) + Cap-struct-return parse ok unpack (driver residual):
+// wave83: pipeline_sizeof_arena / module are pure export functions below (not Cap residual).
+// Cap-struct-return parse ok unpack (driver residual):
 // PLATFORM: SHARED — same symbols as collect tmp_parse / driver_parse_into_buf_rc pure path.
-export extern "C" function pipeline_sizeof_arena(): usize;
-export extern "C" function pipeline_sizeof_module(): usize;
 export extern "C" function driver_parse_into_buf_rc(arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32): i32;
 // wave57: shux_asm_codegen_elf_o_large_stack_impl is pure export function below.
 /* See implementation. */
@@ -3674,12 +3675,40 @@ export function driver_dep_path_registry_at(i: i32): *u8 {
 }
 
 /**
+ * LP64 byte size of struct ast_ASTArena (handle shell; pools live in sidecar).
+ * @return usize — always 16 on SHARED LP64 product hosts
+ * wave83 pure Cap residual: fixed layout constant matching pipeline_glue
+ *   sizeof(struct ast_ASTArena). Dual-end verified mac arm64 + Ubuntu x86_64 (2026-07-22).
+ * Glue keeps a weak cold fallback so full-C bootstrap without pure still links.
+ * When the C struct layout changes, update this constant and re-verify dual-end.
+ * PLATFORM: SHARED LP64 — do not invent per-OS sizes; both gold hosts are LP64.
+ */
+#[no_mangle]
+export function pipeline_sizeof_arena(): usize {
+  return 16 as usize;
+}
+
+/**
+ * LP64 byte size of struct ast_Module (thin module header).
+ * @return usize — always 68 (0x44) on SHARED LP64 product hosts
+ * wave83 pure Cap residual: fixed layout constant matching pipeline_glue
+ *   sizeof(struct ast_Module). Dual-end verified mac arm64 + Ubuntu x86_64 (2026-07-22).
+ * Historical lsp_diag stub returned 40 — that was a stale thin layout; product truth is 68.
+ * Glue keeps a weak cold fallback. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_sizeof_module(): usize {
+  return 68 as usize;
+}
+
+/**
  * Return (and lazily allocate) driver_dep arena buffer for slot i.
  * @param i i32 — slot index; OOB → null
  * @return *u8 — arena byte region (zeroed on first malloc); null on OOB/OOM
  * wave74 pure: load slot; if null, malloc(pipeline_sizeof_arena)+memset0 then store.
+ * wave83: G.7 pure pipeline_sizeof_arena (fixed LP64 constant; no glue Cap residual call).
  * Matches historical seed driver_dep_arena_buf (reuse pre-seeded pointers; no free on clear).
- * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; Cap residual pipeline_sizeof_arena glue.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function driver_dep_arena_buf(i: i32): *u8 {
@@ -3711,6 +3740,7 @@ export function driver_dep_arena_buf(i: i32): *u8 {
  * @param i i32 — slot index; OOB → null
  * @return *u8 — module byte region (zeroed on first malloc); null on OOB/OOM
  * wave74 pure: same pattern as driver_dep_arena_buf with pipeline_sizeof_module.
+ * wave83: G.7 pure pipeline_sizeof_module (fixed LP64 constant).
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -4237,7 +4267,7 @@ export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_p
  * @param dep_src_len i64 — byte length; must be in (0, INT32_MAX]
  * @return void
  * wave62 pure Cap residual orch:
- *   G.7 pipeline_sizeof_arena / pipeline_sizeof_module (glue Cap residual);
+ *   G.7 pure pipeline_sizeof_arena / pipeline_sizeof_module (wave83 LP64 constants);
  *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
  *   G.7 pure driver_parse_into_buf_rc (returns raw ok; allow 0 and -2 like historical seed);
  *   G.7 pure shux_module_num_imports / shux_module_import_path_cstr /

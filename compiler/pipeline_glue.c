@@ -551,8 +551,13 @@ int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *
 }
 #endif /* !SHUX_PARSER_EXE_PIPELINE_GLUE */
 
-size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
-size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
+/* PLATFORM: SHARED LP64 — layout truth via C sizeof for cold full-C bootstrap.
+ * wave83: product hybrid pure owns strong pipeline_sizeof_arena/module (fixed LP64
+ * constants 16/68 matching these sizeofs). Keep weak so pure.o can override without
+ * dual-strong clash; cold path without pure still links these. When struct layout
+ * changes, re-verify pure constants dual-end (mac + Ubuntu). */
+__attribute__((weak)) size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
+__attribute__((weak)) size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
 /** LSP / lsp_diag.x：PipelineDepCtx 体量大（含 4MiB×2 缓冲），一次性 calloc 后 memset 复用。 */
 size_t pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
 /** parser OneFuncResult 体量大（256×64 let 名等）；parse_block_into 堆分配 scratch，避免递归块解析栈溢出。 */
