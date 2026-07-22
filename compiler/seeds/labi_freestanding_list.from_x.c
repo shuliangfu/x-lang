@@ -22,6 +22,8 @@
  *   + wave141 labi_fs_gen_{win32,win32_wsa}_needle_* +
  *     link_abi_generated_c_needs_{win32,win32_wsa} pure orch
  *   + wave142 link_abi_generated_c_needs_{core_builtin,core_mem} pure stub0 orch
+ *   + wave143 labi_fs_gen_async_scheduler_needle_* +
+ *     shux_generated_c_needs_async_scheduler pure orch
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -692,6 +694,49 @@ int link_abi_generated_c_needs_core_mem(const char *c_path) {
   return 0;
 }
 
+/* wave143: generated-C async scheduler needs pure (cold twin).
+ * Nine substr needles ≡ historical mega shux_generated_c_needs_async_scheduler.
+ * Cap residual: link_abi_generated_c_contains_substr. PLATFORM: SHARED
+ */
+int labi_fs_gen_async_scheduler_needle_count(void) {
+  return 9;
+}
+const char *labi_fs_gen_async_scheduler_needle_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "shux_async_run_i32";
+  if (i == 1)
+    return "shux_async_cps_suspend";
+  if (i == 2)
+    return "shux_async_task_submit";
+  if (i == 3)
+    return "shux_async_run_seed_";
+  if (i == 4)
+    return "shux_async_coop_pingpong_jmp";
+  if (i == 5)
+    return "shux_async_coop_pingpong";
+  if (i == 6)
+    return "shux_async_run_drain_until_idle";
+  if (i == 7)
+    return "shux_async_queue_reset";
+  if (i == 8)
+    return "shux_async_bind_context_c";
+  return NULL;
+}
+int shux_generated_c_needs_async_scheduler(const char *c_path) {
+  int n, i;
+  if (!c_path || !c_path[0])
+    return 0;
+  n = labi_fs_gen_async_scheduler_needle_count();
+  for (i = 0; i < n; i++) {
+    const char *needle = labi_fs_gen_async_scheduler_needle_at(i);
+    if (needle && needle[0] && link_abi_generated_c_contains_substr(c_path, needle) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -767,6 +812,10 @@ int link_abi_generated_c_needs_win32_wsa(const char *c_path);
 /* wave142: core_builtin / core_mem stub0 pure (L7). */
 int link_abi_generated_c_needs_core_builtin(const char *c_path);
 int link_abi_generated_c_needs_core_mem(const char *c_path);
+/* wave143: async scheduler generated_c needs pure (L7). */
+int labi_fs_gen_async_scheduler_needle_count(void);
+const char *labi_fs_gen_async_scheduler_needle_at(int i);
+int shux_generated_c_needs_async_scheduler(const char *c_path);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

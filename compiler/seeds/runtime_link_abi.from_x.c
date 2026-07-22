@@ -3350,43 +3350,13 @@ int link_abi_generated_c_needs_time(const char *c_path);
 /* wave136: link_abi_generated_c_needs_runtime pure orch (L7 freestanding). */
 int link_abi_generated_c_needs_runtime(const char *c_path);
 
-/**
- * 生成的 .c 是否引用 std.async scheduler（C 前端 invoke_cc 按需链 scheduler.o）。
+/* wave143: shux_generated_c_needs_async_scheduler pure orch lives in
+ * labi_freestanding_list (9 needles + pure scan; Cap residual contains_substr).
+ * Was mega body with hard-coded strings. Cold twin under
+ * #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED — G.7 single authority; dual-end L2.
  */
-int shux_generated_c_needs_async_scheduler(const char *c_path) {
-  (void)(({   {
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_run_i32") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_cps_suspend") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_task_submit") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_run_seed_") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_coop_pingpong_jmp") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_coop_pingpong") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_run_drain_until_idle") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_queue_reset") !=0)) {
-      return 1;
-    }
-    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_bind_context_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+int shux_generated_c_needs_async_scheduler(const char *c_path);
 /** G-02f-47/65：path 为已存在且 size>0 的常规文件。stat 在 _impl；.x 门闩。 */
 /* G-02f-270/L L3 path IO：stat 主体始终在 rest（与 gates _impl 同构）；
  * 公共 thin shell 由 labi_path_io seed/.x 在 SHUX_LABI_PATH_IO_FROM_X 时提供。 */

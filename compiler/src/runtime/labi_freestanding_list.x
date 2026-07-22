@@ -20,6 +20,8 @@
 //     (C-path Windows kernel32 / winsock2 string needles; Cap residual contains_substr).
 //   wave142 link_abi_generated_c_needs_{core_builtin,core_mem} pure stub0 orch
 //     (G-01: always 0 — no hard-link builtin.o / mem.o; was mega-only stub0 body).
+//   wave143 shux_generated_c_needs_async_scheduler pure orch
+//     (C-path async scheduler string needles ×9; Cap residual contains_substr).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -1703,5 +1705,108 @@ export function link_abi_generated_c_needs_core_builtin(c_path: *u8): i32 {
  */
 #[no_mangle]
 export function link_abi_generated_c_needs_core_mem(c_path: *u8): i32 {
+  return 0;
+}
+
+/* wave143: generated-C std.async scheduler string needs pure table + orch.
+ * Product: C frontend invoke_cc on-demand links async_scheduler.o when generated
+ * C references scheduler entry points (run_i32 / cps_suspend / task_submit / …).
+ * Cap residual: link_abi_generated_c_contains_substr (file IO stays mega).
+ * Distinct from wave130 user.o UNDEF table (link_abi_user_o_needs_async_scheduler).
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin. */
+
+/**
+ * Count of generated-C substr needles for std.async scheduler on-demand link.
+ * @return i32 — 9 needles (run_i32 … bind_context_c)
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_async_scheduler_needle_count(): i32 {
+  return 9;
+}
+
+/**
+ * Needle at index for generated-C async scheduler scan.
+ * @param i i32 — index in [0, 9)
+ * @return *u8 — static C string needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fs_gen_async_scheduler_needle_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "shux_async_run_i32";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "shux_async_cps_suspend";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "shux_async_task_submit";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "shux_async_run_seed_";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "shux_async_coop_pingpong_jmp";
+    return p;
+  }
+  if (i == 5) {
+    let p: *u8 = "shux_async_coop_pingpong";
+    return p;
+  }
+  if (i == 6) {
+    let p: *u8 = "shux_async_run_drain_until_idle";
+    return p;
+  }
+  if (i == 7) {
+    let p: *u8 = "shux_async_queue_reset";
+    return p;
+  }
+  if (i == 8) {
+    let p: *u8 = "shux_async_bind_context_c";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether generated C needs async_scheduler.o (C frontend on-demand link).
+ * Pure orch: fixed needle table ×9; Cap residual contains_substr.
+ * @param c_path *u8 — path to generated .c; null/empty → 0
+ * @return i32 — 1 if any needle hits, else 0
+ * Why (wave143): hybrid still had needs_async_scheduler body always mega C with hard-coded strings.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_gen_async_scheduler_needle_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let needle: *u8 = labi_fs_gen_async_scheduler_needle_at(i);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = link_abi_generated_c_contains_substr(c_path, needle);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
   return 0;
 }
