@@ -2,7 +2,7 @@
  * Logic source: src/runtime/labi_path_pure.x
  * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave114–116 / wave146–147）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave114–116 / wave146–148）：公共业务符号由 full .x 提供：
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
  *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
  *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
@@ -10,6 +10,7 @@
  *   + shux_asm_ld_try_under_lib_roots (wave116 pure join; Cap residual skip+bank)
  *   + link_abi_asm_ld_argv_has_obj (wave146 pure scan; Cap residual realpath)
  *   + link_abi_asm_ld_argv_push_stable (wave147 pure bank+dedup+append; Cap residual bank_push)
+ *   + link_abi_asm_ld_push_obj (wave148 pure resolve orch; Cap residual skip/rel/bank/diag)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -28,6 +29,13 @@ const char *asm_link_obj_skip_missing(const char *path);
 const char *shux_asm_ld_bank_push(void *b, const char *path);
 /* Cap residual used by wave146 argv_has_obj cold twin (mega always provides). */
 const char *link_abi_realpath_cap(const char *path, char *out);
+/* Cap residual used by wave148 push_obj cold twin. */
+const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
+void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
+/* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
+int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
+void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
 
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
 
@@ -283,8 +291,51 @@ void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, in
   *la = cur + 1;
 }
 
+/* wave148: push_obj pure orch (cold twin ≡ .x; Cap residual skip/rel/bank/diag). */
+int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la,
+    int *flag_out) {
+  const char *p = NULL;
+  int debug_runtime_obj = 0;
+  int before;
+  if (!la || *la >= max_la - 1)
+    return 0;
+  if (rel && (strcmp(rel, "compiler/runtime_asm_io_stubs.o") == 0
+          || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
+    debug_runtime_obj = 1;
+  if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+    link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
+  if (primary && primary[0])
+    p = asm_link_obj_skip_missing(primary);
+  if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+    link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
+  if (!p && rel && rel[0])
+    p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel));
+  if (!p && bank && rel && rel[0])
+    p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
+  if (!p)
+    return 0;
+  if (bank) {
+    const char *bp = shux_asm_ld_bank_push(bank, p);
+    if (bp)
+      p = bp;
+    else
+      return 0;
+  }
+  if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+    link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
+  /* Single-authority append: wave147 push_stable bank=null after hard bank. */
+  before = *la;
+  link_abi_asm_ld_argv_push_stable(NULL, argv, la, max_la, p);
+  if (*la <= before)
+    return 0;
+  if (flag_out)
+    *flag_out = 1;
+  return 1;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 12;
+  return 13;
 }
 
 #else
@@ -300,6 +351,9 @@ void shux_asm_ld_lib_root_default(uint8_t *root_buf);
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
+int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la,
+    int *flag_out);
 int32_t labi_path_pure_count(void);
 #endif
 

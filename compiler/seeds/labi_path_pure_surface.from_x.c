@@ -1,9 +1,10 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (12 public gates + count; wave147 push_stable)
+ * Prove: full.x vs this seed → nm IDENTICAL (13 public gates + count; wave148 push_obj)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
- *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147)
+ *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147);
+ *   skip/rel/bank/diag Cap (wave148 push_obj)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -14,6 +15,8 @@
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
+extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
+extern void link_diag_ld_debug_push(uint8_t * rel, uint8_t * stage, uint8_t * path);
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1);
 extern int32_t labi_suffix_eq4(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3);
 extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
@@ -26,6 +29,7 @@ extern void shux_asm_ld_lib_root_default(uint8_t * root_buf);
 extern uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
 extern int32_t link_abi_asm_ld_argv_has_obj(uint8_t * * argv, int32_t la, uint8_t * path);
 extern void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p);
+extern int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out);
 extern int32_t labi_path_pure_count(void);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
@@ -391,6 +395,136 @@ void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t 
   (void)(((argv)[cur] = use_p));
   (void)(((la)[0] = (cur + 1)));
 }
+/* wave148: push_obj pure orch (surface pin; Cap residual skip/rel/bank/diag). */
+int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out) {
+  if ((la ==0)) {
+    return 0;
+  }
+  int32_t cur = (la)[0];
+  if ((cur >=(max_la - 1))) {
+    return 0;
+  }
+  int32_t debug_runtime_obj = 0;
+  if ((rel !=0)) {
+    uint8_t * t1 = ((uint8_t *)("compiler/runtime_asm_io_stubs.o"));
+    uint8_t * t2 = ((uint8_t *)("compiler/runtime_process_argv.o"));
+    int32_t eq1 = 1;
+    int32_t i1 = 0;
+    while ((i1 < 1048576)) {
+      uint8_t ca = (rel)[i1];
+      uint8_t cb = (t1)[i1];
+      if ((ca !=cb)) {
+        (void)((eq1 = 0));
+        break;
+      }
+      if ((ca ==0)) {
+        break;
+      }
+      (void)((i1 = (i1 + 1)));
+    }
+    if ((eq1 !=0)) {
+      (void)((debug_runtime_obj = 1));
+    }
+    if ((debug_runtime_obj ==0)) {
+      int32_t eq2 = 1;
+      int32_t i2 = 0;
+      while ((i2 < 1048576)) {
+        uint8_t ca2 = (rel)[i2];
+        uint8_t cb2 = (t2)[i2];
+        if ((ca2 !=cb2)) {
+          (void)((eq2 = 0));
+          break;
+        }
+        if ((ca2 ==0)) {
+          break;
+        }
+        (void)((i2 = (i2 + 1)));
+      }
+      if ((eq2 !=0)) {
+        (void)((debug_runtime_obj = 1));
+      }
+    }
+  }
+  if ((debug_runtime_obj !=0)) {
+    uint8_t * dbg = 0;
+    (void)((dbg = getenv(((uint8_t *)("SHUX_DEBUG_LD")))));
+    if ((dbg !=0)) {
+      uint8_t * pp = primary;
+      if ((pp ==0)) {
+        (void)((pp = ((uint8_t *)("(null)"))));
+      }
+      link_diag_ld_debug_push(rel, ((uint8_t *)("primary")), pp);
+    }
+  }
+  uint8_t * p = 0;
+  if ((primary !=0)) {
+    if (((primary)[0] !=0)) {
+      (void)((p = asm_link_obj_skip_missing(primary)));
+    }
+  }
+  if ((debug_runtime_obj !=0)) {
+    uint8_t * dbg2 = 0;
+    (void)((dbg2 = getenv(((uint8_t *)("SHUX_DEBUG_LD")))));
+    if ((dbg2 !=0)) {
+      uint8_t * ap = p;
+      if ((ap ==0)) {
+        (void)((ap = ((uint8_t *)("(null)"))));
+      }
+      link_diag_ld_debug_push(rel, ((uint8_t *)("after-primary")), ap);
+    }
+  }
+  if ((p ==0)) {
+    if ((rel !=0)) {
+      if (((rel)[0] !=0)) {
+        uint8_t * relp = 0;
+        (void)((relp = shux_rel_o_path_from_argv0(link_argv0, rel)));
+        if ((relp !=0)) {
+          (void)((p = asm_link_obj_skip_missing(relp)));
+        }
+      }
+    }
+  }
+  if ((p ==0)) {
+    if ((bank !=0)) {
+      if ((rel !=0)) {
+        if (((rel)[0] !=0)) {
+          (void)((p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank)));
+        }
+      }
+    }
+  }
+  if ((p ==0)) {
+    return 0;
+  }
+  if ((bank !=0)) {
+    uint8_t * bp = 0;
+    (void)((bp = shux_asm_ld_bank_push(bank, p)));
+    if ((bp ==0)) {
+      return 0;
+    }
+    (void)((p = bp));
+  }
+  if ((debug_runtime_obj !=0)) {
+    uint8_t * dbg3 = 0;
+    (void)((dbg3 = getenv(((uint8_t *)("SHUX_DEBUG_LD")))));
+    if ((dbg3 !=0)) {
+      uint8_t * fp = p;
+      if ((fp ==0)) {
+        (void)((fp = ((uint8_t *)("(null)"))));
+      }
+      link_diag_ld_debug_push(rel, ((uint8_t *)("final")), fp);
+    }
+  }
+  int32_t before = (la)[0];
+  link_abi_asm_ld_argv_push_stable(0, argv, la, max_la, p);
+  if (((la)[0] <=before)) {
+    return 0;
+  }
+  if ((flag_out !=0)) {
+    (void)(((flag_out)[0] = 1));
+  }
+  return 1;
+}
 int32_t labi_path_pure_count(void) {
-  return 12;
+  return 13;
 }

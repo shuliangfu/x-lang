@@ -5532,6 +5532,11 @@ void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv,
 
 
 
+/* wave148：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: capacity + resolve ladder + hard bank + has_obj/append; Cap residual skip/rel/bank/diag.
+ * PLATFORM: SHARED — G.7 single authority; dual-end L2. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out) {
@@ -5571,6 +5576,11 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
         *flag_out = 1;
     return 1;
 }
+#else
+int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, int *flag_out);
+#endif
 
 
 

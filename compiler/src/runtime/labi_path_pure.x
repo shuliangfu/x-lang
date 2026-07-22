@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 12 public gates + count:
+// R2 full: .x owns 13 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -14,6 +14,7 @@
 //   - shux_asm_ld_try_under_lib_roots (wave116; pure join root/rel; Cap residual skip+bank)
 //   - link_abi_asm_ld_argv_has_obj (wave146; pure strcmp argv scan; Cap residual realpath)
 //   - link_abi_asm_ld_argv_push_stable (wave147; pure bank+dedup+append; Cap residual bank_push)
+//   - link_abi_asm_ld_push_obj (wave148; pure resolve+bank+dedup orch; Cap residual skip/rel/bank/diag)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -23,6 +24,10 @@ export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 export extern "C" function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8;
 // Cap residual: POSIX realpath into caller buffer; Windows / fail → null (≡ mega #if).
 export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
+// Cap residual: argv0-relative .o resolve (realpath/getcwd/strdup); stays mega / path_io.
+export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+// Cap residual / peer pure: SHUX_DEBUG_LD note path (labi_diag_pure authority).
+export extern "C" function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void;
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -516,11 +521,197 @@ export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32
 }
 
 /**
+ * Resolve a product .o (primary, argv0-relative rel, or lib-roots) and append to ld argv.
+ * On-demand link path for std/runtime objects: skip missing files silently; durable bank
+ * copy when bank is set so static path buffers are not left live in argv.
+ * @param primary *u8 — preferred absolute/primary path; null/empty → skip primary probe
+ * @param link_argv0 *u8 — compiler argv0 for rel_o_path Cap residual (may be null)
+ * @param rel *u8 — relative .o under project/lib roots; null/empty → no rel/lib probe
+ * @param lib_roots **u8 — table of lib root C strings; null/low-tag handled by try_under
+ * @param n_lib_roots i32 — root count (try_under caps scan at 24)
+ * @param bank *u8 — ShuAsmLdPathBank* or null (null → keep resolved pointer as-is)
+ * @param argv **u8 — ld argv table (char**); null → fail after resolve (no append)
+ * @param la *i32 — in/out argv length; null → 0
+ * @param max_la i32 — argv capacity; need *la < max_la - 1
+ * @param flag_out *i32 — optional success flag; set to 1 when a new argv slot is taken
+ * @return i32 — 1 appended, 0 missing/full/dup/bank_push fail/null guards
+ * Pure orch: capacity + pure cstr debug-target match + resolve ladder + hard bank_push +
+ * pure has_obj dedup + append (reuses wave147 push_stable with bank=null after hard bank).
+ * Cap residual: asm_link_obj_skip_missing, shux_rel_o_path_from_argv0, shux_asm_ld_bank_push,
+ * getenv("SHUX_DEBUG_LD") + link_diag_ld_debug_push for two runtime .o rels.
+ * Pure peer: shux_asm_ld_try_under_lib_roots (wave116), link_abi_asm_ld_argv_has_obj (146),
+ * link_abi_asm_ld_argv_push_stable (147).
+ * Why (wave148): hybrid still had always-mega C body over pure resolve/dedup leaves.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * Note: bank_push fail returns 0 (stricter than push_stable soft-keep); then push_stable
+ * is called with bank=null so append path is single-authority.
+ * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32 {
+  if (la == 0 as *i32) {
+    return 0;
+  }
+  let cur: i32 = la[0];
+  if (cur >= max_la - 1) {
+    return 0;
+  }
+  // Pure: mark debug targets for SHUX_DEBUG_LD (two known runtime .o rels ≡ mega strcmp).
+  let debug_runtime_obj: i32 = 0;
+  if (rel != 0 as *u8) {
+    let t1: *u8 = "compiler/runtime_asm_io_stubs.o";
+    let t2: *u8 = "compiler/runtime_process_argv.o";
+    let eq1: i32 = 1;
+    let i1: i32 = 0;
+    while (i1 < 1048576) {
+      let ca: u8 = rel[i1];
+      let cb: u8 = t1[i1];
+      if (ca != cb) {
+        eq1 = 0;
+        break;
+      }
+      if (ca == 0) {
+        break;
+      }
+      i1 = i1 + 1;
+    }
+    if (eq1 != 0) {
+      debug_runtime_obj = 1;
+    }
+    if (debug_runtime_obj == 0) {
+      let eq2: i32 = 1;
+      let i2: i32 = 0;
+      while (i2 < 1048576) {
+        let ca2: u8 = rel[i2];
+        let cb2: u8 = t2[i2];
+        if (ca2 != cb2) {
+          eq2 = 0;
+          break;
+        }
+        if (ca2 == 0) {
+          break;
+        }
+        i2 = i2 + 1;
+      }
+      if (eq2 != 0) {
+        debug_runtime_obj = 1;
+      }
+    }
+  }
+  // Cap residual debug note: primary stage (only when env SHUX_DEBUG_LD set).
+  if (debug_runtime_obj != 0) {
+    let dbg: *u8 = 0 as *u8;
+    unsafe {
+      dbg = getenv("SHUX_DEBUG_LD");
+    }
+    if (dbg != 0 as *u8) {
+      let pp: *u8 = primary;
+      if (pp == 0 as *u8) {
+        pp = "(null)";
+      }
+      unsafe {
+        link_diag_ld_debug_push(rel, "primary", pp);
+      }
+    }
+  }
+  // Resolve ladder: primary → argv0/rel → lib roots (Cap residual skip + rel_o_path).
+  let p: *u8 = 0 as *u8;
+  if (primary != 0 as *u8) {
+    if (primary[0] != 0) {
+      unsafe {
+        p = asm_link_obj_skip_missing(primary);
+      }
+    }
+  }
+  if (debug_runtime_obj != 0) {
+    let dbg2: *u8 = 0 as *u8;
+    unsafe {
+      dbg2 = getenv("SHUX_DEBUG_LD");
+    }
+    if (dbg2 != 0 as *u8) {
+      let ap: *u8 = p;
+      if (ap == 0 as *u8) {
+        ap = "(null)";
+      }
+      unsafe {
+        link_diag_ld_debug_push(rel, "after-primary", ap);
+      }
+    }
+  }
+  if (p == 0 as *u8) {
+    if (rel != 0 as *u8) {
+      if (rel[0] != 0) {
+        let relp: *u8 = 0 as *u8;
+        unsafe {
+          relp = shux_rel_o_path_from_argv0(link_argv0, rel);
+        }
+        if (relp != 0 as *u8) {
+          unsafe {
+            p = asm_link_obj_skip_missing(relp);
+          }
+        }
+      }
+    }
+  }
+  if (p == 0 as *u8) {
+    if (bank != 0 as *u8) {
+      if (rel != 0 as *u8) {
+        if (rel[0] != 0) {
+          // Pure peer wave116 try_under (Cap residual skip+bank inside).
+          p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
+        }
+      }
+    }
+  }
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  // Hard bank_push when bank present (static path buffers must not live in argv).
+  // Differs from push_stable soft-keep: bank_push fail → 0 (≡ mega).
+  if (bank != 0 as *u8) {
+    let bp: *u8 = 0 as *u8;
+    unsafe {
+      bp = shux_asm_ld_bank_push(bank, p);
+    }
+    if (bp == 0 as *u8) {
+      return 0;
+    }
+    p = bp;
+  }
+  if (debug_runtime_obj != 0) {
+    let dbg3: *u8 = 0 as *u8;
+    unsafe {
+      dbg3 = getenv("SHUX_DEBUG_LD");
+    }
+    if (dbg3 != 0 as *u8) {
+      let fp: *u8 = p;
+      if (fp == 0 as *u8) {
+        fp = "(null)";
+      }
+      unsafe {
+        link_diag_ld_debug_push(rel, "final", fp);
+      }
+    }
+  }
+  // Single-authority append: wave147 push_stable with bank=null (already banked hard).
+  let before: i32 = la[0];
+  link_abi_asm_ld_argv_push_stable(0 as *u8, argv, la, max_la, p);
+  if (la[0] <= before) {
+    return 0;
+  }
+  if (flag_out != 0 as *i32) {
+    flag_out[0] = 1;
+  }
+  return 1;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 12 (fixed catalog size for hybrid FROM_X bookkeeping; wave147 +1).
+ * Returns: 13 (fixed catalog size for hybrid FROM_X bookkeeping; wave148 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 12;
+  return 13;
 }
