@@ -4,6 +4,10 @@
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
 //   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave97: pure load_and_sync step5 typeck merge+wpo call surface → G.7 typeck.x
+//   authority (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts);
+//   remove export-extern typeck_typeck_* double-prefix hop (link-alias still serves
+//   other TUs). Closes Cap residual typeck merge+wpo call surface under pure load_and_sync.
 // wave96: pure pipeline_parse_into_buf orch under wave94 pure load_import
 //   (G.7 pure parser_parse_into_init + driver_parse_into_buf_rc + same-TU pure
 //   debug_trace + fixup on ok==0; non-zero ok → -1; buf_len<=0 → -1). glue
@@ -17,12 +21,12 @@
 // wave94: pure pipeline_load_import_from_disk_c orch + pure
 //   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
 //   pipeline_bind_import_dep_buffers + pipeline_sync_one_dep_slot;
-//   Cap residual (wave95→pure) resolve/read/preprocess; parse + typeck merge+wpo +
-//   parser_copy_module_import_path64; glue/ast_pool SHUX_WEAK cold twins.
+//   Cap residual (wave95–96→pure) resolve/read/preprocess/parse; typeck merge+wpo
+//   (wave97→typeck.x) + parser_copy_module_import_path64; glue/ast_pool SHUX_WEAK.
 //   Closes Cap residual disk-load + dep-sync leaves under wave93 load_and_sync.
 // wave93: pure pipeline_load_and_sync_direct_import_deps_c orch + same-TU pure
 //   pipeline_try_bind_seeded_import + pipeline_dep_ctx_realign_ndep_for_entry_c;
-//   Cap residual (wave94→pure) load_import/sync; typeck merge+wpo +
+//   Cap residual (wave94→pure) load_import/sync; typeck merge+wpo (wave97→typeck.x) +
 //   parser_copy_module_import_path64; ast_pool SHUX_WEAK cold twins.
 //   Closes Cap residual load_and_sync leaf under wave60 typeck_only orch.
 // wave92: pure pipeline_typeck_validate_struct_layouts_zero_padding_c /
@@ -158,9 +162,9 @@
 // wave90: pure soft_suppress set/get BSS (G.7 single flag; same-TU orch + diagnostic get).
 // wave91: pure set_dep_ctx / get_dep_ctx BSS (G.7 single ptr; same-TU orch + ast_pool get).
 // wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
-// Cap residual still: typeck merge+wpo under wave93 pure load_and_sync;
-//   wave95–96 closed resolve/read/pp/parse leaves under wave94 pure load_import orch;
-//   cfg_eval complex #if; preprocess_x_buf pure preprocess.x cross-TU; g05 &fn cast.
+// wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7; no typeck_typeck_* hop).
+// Cap residual still: cfg_eval complex #if; preprocess_x_buf pure preprocess.x cross-TU;
+//   g05 &fn cast; parser_copy_module_import_path64 under pure load_and_sync.
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
@@ -187,6 +191,7 @@
 // wave93: pipeline_load_and_sync_direct_import_deps_c / try_bind / realign pure below.
 // wave94: load_import_from_disk_c / sync_dep_slots_from_driver_c / bind / sync_one pure below.
 // wave96: pipeline_parse_into_buf is pure export function below (not Cap residual).
+// wave97: load_and_sync step5 merge+wpo call typeck.x authority below (not Cap residual hop).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 // wave88 Cap residual complex #if: lexer/cfg_eval authority (same name as glue historically).
 export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
@@ -204,12 +209,13 @@ export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u
 // PLATFORM: SHARED — light fallback under pure dep-prerun routes here (not glue metrics fork).
 export extern "C" function typeck_validate_struct_layouts_zero_padding(module: *u8, arena: *u8): i32;
 export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena: *u8): void;
-// wave93–96 Cap residual leaves under pure load_and_sync / load_import orch.
-// PLATFORM: SHARED — strong bodies remain in glue/parser/typeck for sub-leaves;
+// wave93–97 leaves under pure load_and_sync / load_import orch.
+// PLATFORM: SHARED — strong bodies remain in glue/parser for sub-leaves;
 //   wave94 pure owns load_import_from_disk_c / sync_dep_slots_from_driver_c /
 //   bind_import_dep_buffers / sync_one_dep_slot (same-TU; not export-extern);
 //   wave95 pure owns resolve_path_x / read_file_x / preprocess_loaded_into_ctx;
-//   wave96 pure owns pipeline_parse_into_buf (same-TU; not export-extern).
+//   wave96 pure owns pipeline_parse_into_buf (same-TU; not export-extern);
+//   wave97 pure load_and_sync step5 routes merge+wpo → typeck.x (below).
 export extern "C" function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
@@ -228,8 +234,10 @@ export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i6
 export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_preprocess_len_get(ctx: *u8): i32;
-export extern "C" function typeck_typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
-export extern "C" function typeck_typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
+// wave97: G.7 typeck.x merge/wpo authority (same symbols as typeck_x.o product).
+// PLATFORM: SHARED — pure load_and_sync step5 routes here (not typeck_typeck_* hop).
+export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
+export extern "C" function typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
 export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
 export extern "C" function free(p: *u8): void;
 // wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
@@ -3034,7 +3042,9 @@ export function pipeline_dep_ctx_realign_ndep_for_entry_c(module: *u8, ctx: *u8)
  *        - ndep > n_imports: keep BFS order; rebind module/arena/path from driver slots;
  *        - else: entry re-pin + try_bind / load empty slots; bump ndep if needed;
  *   4) same-TU pure pipeline_sync_dep_slots_from_driver_c (wave94);
- *   5) if not all entry imports seeded: Cap residual typeck merge layouts + wpo unify.
+ *   5) if not all entry imports seeded: wave97 G.7 typeck.x merge layouts + wpo unify
+ *      (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts;
+ *      not typeck_typeck_* double-prefix hop).
  * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
@@ -3253,8 +3263,9 @@ export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: 
   }
   if (all_seeded == 0) {
     unsafe {
-      typeck_typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
-      typeck_typeck_wpo_unify_soa_layouts(module, ctx);
+      // wave97: G.7 typeck.x authority — single merge/wpo path (not typeck_typeck_* hop).
+      typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
+      typeck_wpo_unify_soa_layouts(module, ctx);
     }
   }
   return 0;

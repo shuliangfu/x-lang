@@ -1,5 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/223 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
+ * wave97: pure load_and_sync step5 typeck merge+wpo → G.7 typeck.x authority
+ *   (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts;
+ *   no typeck_typeck_* hop). Closes Cap residual merge call surface under pure load_and_sync.
  * wave96: pure pipeline_parse_into_buf orch (init + driver_parse_into_buf_rc +
  *   debug_trace + fixup on ok; under wave94 pure load_import). glue SHUX_WEAK cold twin.
  * wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /

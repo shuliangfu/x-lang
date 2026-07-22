@@ -6755,9 +6755,10 @@ int32_t pipeline_load_one_import_slot_c(struct ast_Module *module, struct ast_AS
  * run_x_pipeline_impl EMIT_HEAVY：同模块 pipeline_load_and_sync X CALL 在 let/assign asm emit 失败；
  * C 复刻 pipeline.x::pipeline_load_and_sync_direct_import_deps 逻辑。
  * wave93: product pure owns pipeline_load_and_sync_direct_import_deps_c
- * (runtime_pipeline_abi.x orch → pure try_bind/realign + Cap residual disk/sync/merge).
+ * (runtime_pipeline_abi.x orch → pure try_bind/realign + disk/sync; wave97 merge→typeck.x).
  * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
- * PLATFORM: SHARED — ELF weak overridden by pure; cold keeps full C body.
+ * PLATFORM: SHARED — ELF weak overridden by pure; cold keeps full C body
+ * (cold still calls typeck_typeck_* link-alias hop; pure routes typeck.x short names).
  */
 SHUX_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     struct ast_PipelineDepCtx *ctx) {
