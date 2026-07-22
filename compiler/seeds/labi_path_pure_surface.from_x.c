@@ -1,12 +1,13 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (17 public gates + count; wave160 compiler_o_path_copy)
+ * Prove: full.x vs this seed → nm IDENTICAL (18 public gates + count; wave162 repo_root)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
  *   *_o_path Cap (wave150 push_minimal); table+access Cap (wave151 append_user_extra);
- *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy)
+ *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy);
+ *   resolve+rel_o_path Cap (wave162 repo_root)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -36,6 +37,7 @@ extern void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensu
 extern void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la);
 extern void shux_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32_t max_la);
 extern int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8_t * out, int64_t out_sz);
+extern uint8_t * shux_repo_root_from_argv0(uint8_t * argv0);
 extern int32_t labi_path_pure_count(void);
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
@@ -657,6 +659,73 @@ int32_t shux_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint8
   }
   return 0;
 }
+/* wave162: repo_root pure orch (surface pin; Cap residual resolve + rel_o_path). */
+static uint8_t g_labi_repo_root_buf[512];
+uint8_t * shux_repo_root_from_argv0(uint8_t * argv0) {
+  (void)(((g_labi_repo_root_buf)[0] = 0));
+  uint8_t comp[4096];
+  int32_t rc = 0;
+  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  if ((rc == 0)) {
+    if (((comp)[0] != 0)) {
+      int32_t n = 0;
+      while (((comp)[n] != 0)) {
+        (void)((n = (n + 1)));
+      }
+      if ((n < 512)) {
+        int32_t i = 0;
+        while ((i <= n)) {
+          (void)(((g_labi_repo_root_buf)[i] = (comp)[i]));
+          (void)((i = (i + 1)));
+        }
+        uint8_t * last = 0;
+        (void)((last = shux_path_last_sep(&((g_labi_repo_root_buf)[0]))));
+        if ((last != 0)) {
+          if ((last != &((g_labi_repo_root_buf)[0]))) {
+            (void)(((last)[0] = 0));
+            return &((g_labi_repo_root_buf)[0]);
+          }
+        }
+        (void)(((g_labi_repo_root_buf)[0] = 0));
+      }
+    }
+  }
+  uint8_t * rel = ((uint8_t *)("std/process/process.o"));
+  uint8_t * proc_o = 0;
+  (void)((proc_o = shux_rel_o_path_from_argv0(argv0, rel)));
+  if ((proc_o == 0)) {
+    return &((g_labi_repo_root_buf)[0]);
+  }
+  if (((proc_o)[0] == 0)) {
+    return &((g_labi_repo_root_buf)[0]);
+  }
+  int32_t pn = 0;
+  while (((proc_o)[pn] != 0)) {
+    (void)((pn = (pn + 1)));
+  }
+  if ((pn >= 512)) {
+    return &((g_labi_repo_root_buf)[0]);
+  }
+  int32_t j = 0;
+  while ((j <= pn)) {
+    (void)(((g_labi_repo_root_buf)[j] = (proc_o)[j]));
+    (void)((j = (j + 1)));
+  }
+  int32_t k2 = 0;
+  while ((k2 < 3)) {
+    uint8_t * last2 = 0;
+    (void)((last2 = shux_path_last_sep(&((g_labi_repo_root_buf)[0]))));
+    if ((last2 == 0)) {
+      break;
+    }
+    if ((last2 == &((g_labi_repo_root_buf)[0]))) {
+      break;
+    }
+    (void)(((last2)[0] = 0));
+    (void)((k2 = (k2 + 1)));
+  }
+  return &((g_labi_repo_root_buf)[0]);
+}
 int32_t labi_path_pure_count(void) {
-  return 17;
+  return 18;
 }

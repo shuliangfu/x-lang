@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 17 public gates + count:
+// R2 full: .x owns 18 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -19,6 +19,8 @@
 //   - link_abi_asm_ld_push_minimal_runtime_objs (wave150; pure triple push_obj; Cap residual *_o_path)
 //   - shux_asm_ld_append_user_extra_o_files (wave151; pure CLI extra .o append; Cap residual table+access)
 //   - shux_runtime_compiler_o_path_copy (wave160; pure join compiler-dir/leaf; Cap residual resolve)
+//   - shux_repo_root_from_argv0 (wave162; pure strip parent of compiler-dir / process.o walk;
+//     Cap residual resolve + rel_o_path; static 512 BSS return)
 // wave161 G.7: thin mega shux_runtime_*_o_path (static PATH_MAX) route join through this gate
 //   (process_os_glue … ed25519_ref10_glue; + asm_io_stubs / process_argv already on copy).
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
@@ -49,6 +51,10 @@ export extern "C" function link_abi_path_readable(path: *u8): i32;
 // Cap residual (wave160): platform resolve of compiler/ dir (readlink / _NSGetExecutablePath /
 // realpath argv0). Pure owns the leaf join into caller buffer (no snprintf Cap).
 export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
+
+// wave162: durable repo-root return buffer (≡ mega static char buf[512]).
+// Not exported across TUs as a symbol; only returned by shux_repo_root_from_argv0.
+let g_labi_repo_root_buf: u8[512] = [];
 
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
@@ -956,11 +962,102 @@ export function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u
 }
 
 /**
+ * Derive repo root from the product host binary path.
+ * Authority (G.7): Cap residual shu_resolve_compiler_dir (compiler/) → parent = repo root;
+ * warm-tree fallback strips std/process/process.o three seps via Cap residual rel_o_path.
+ * @param argv0 *u8 — optional product host path (also resolve fallback); may be null
+ * @return *u8 — static g_labi_repo_root_buf with repo root, or empty string (never null)
+ * Pure orch: pure memcpy into BSS + pure path_last_sep strip; no snprintf.
+ * Cap residual: shu_resolve_compiler_dir (PLATFORM LINUX/MACOS/WINDOWS #if) +
+ *   shux_rel_o_path_from_argv0 (realpath/getcwd ladder for process.o warm path).
+ * Why (wave162): hybrid still had always-mega C body for repo-root derivation after
+ *   wave160/161 path residual (compiler-dir join + thin *_o_path). L4 wipe loses process.o
+ *   so primary must be compiler-dir parent (not process.o walk alone).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
+  // Match mega: start empty; return empty string pointer on total fail.
+  g_labi_repo_root_buf[0] = 0;
+  // Primary: compiler dir from self/exe or argv0 → parent is repo root.
+  let comp: u8[4096] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+  }
+  if (rc == 0) {
+    if (comp[0] != 0) {
+      // Pure strlen(comp); mega: strlen(comp) < sizeof(buf) before memcpy.
+      let n: i32 = 0;
+      while (comp[n] != 0) {
+        n = n + 1;
+      }
+      if (n < 512) {
+        let i: i32 = 0;
+        while (i <= n) {
+          g_labi_repo_root_buf[i] = comp[i];
+          i = i + 1;
+        }
+        // Strip last path component (compiler/) → repo root.
+        let last: *u8 = shux_path_last_sep(&g_labi_repo_root_buf[0]);
+        if (last != 0 as *u8) {
+          // Mega: last && last != buf — refuse strip when only one component.
+          if (last != &g_labi_repo_root_buf[0]) {
+            last[0] = 0;
+            return &g_labi_repo_root_buf[0];
+          }
+        }
+        g_labi_repo_root_buf[0] = 0;
+      }
+    }
+  }
+  // Fallback: process.o exists (warm tree) → strip std/process/process.o (3 seps).
+  let rel: *u8 = "std/process/process.o";
+  let proc_o: *u8 = 0 as *u8;
+  unsafe {
+    proc_o = shux_rel_o_path_from_argv0(argv0, rel);
+  }
+  if (proc_o == 0 as *u8) {
+    return &g_labi_repo_root_buf[0];
+  }
+  if (proc_o[0] == 0) {
+    return &g_labi_repo_root_buf[0];
+  }
+  let pn: i32 = 0;
+  while (proc_o[pn] != 0) {
+    pn = pn + 1;
+  }
+  if (pn >= 512) {
+    return &g_labi_repo_root_buf[0];
+  }
+  let j: i32 = 0;
+  while (j <= pn) {
+    g_labi_repo_root_buf[j] = proc_o[j];
+    j = j + 1;
+  }
+  let k: i32 = 0;
+  while (k < 3) {
+    let last2: *u8 = shux_path_last_sep(&g_labi_repo_root_buf[0]);
+    if (last2 == 0 as *u8) {
+      break;
+    }
+    if (last2 == &g_labi_repo_root_buf[0]) {
+      break;
+    }
+    last2[0] = 0;
+    k = k + 1;
+  }
+  return &g_labi_repo_root_buf[0];
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 17 (fixed catalog size for hybrid FROM_X bookkeeping; wave160 +1).
+ * Returns: 18 (fixed catalog size for hybrid FROM_X bookkeeping; wave162 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 17;
+  return 18;
 }

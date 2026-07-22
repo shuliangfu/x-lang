@@ -938,9 +938,14 @@ const char *shux_std_compress_o_path(const char *argv0) {
  * Fallback: legacy process.o walk when compiler_dir resolve fails but process.o
  * already exists (warm tree).
  *
+ * wave162: pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: BSS memcpy + path_last_sep strip; Cap residual resolve + rel_o_path.
+ *
  * @param argv0 optional shux path (also used by shu_resolve_compiler_dir fallback)
  * @return static buffer with repo root, or empty string
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_repo_root_from_argv0(const char *argv0) {
     static char buf[512];
     char comp[PATH_MAX];
@@ -975,6 +980,9 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
     }
     return buf;
 }
+#else
+const char *shux_repo_root_from_argv0(const char *argv0);
+#endif
 
 /**
  * 将 path 复制到 bank 下一槽（path 常为栈上 snprintf 结果）；成功返回持久指针；满则返回 NULL。
