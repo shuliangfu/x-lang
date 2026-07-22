@@ -21,6 +21,7 @@
  *   + wave132 labi_od_runtime_{time_os,random_fill,env_os}_sym_* + labi_user_needs_runtime_* pure orch
  *   + wave133 labi_od_runtime_process_argv_sym_* + labi_user_needs_runtime_process_argv pure orch
  *   + wave134 labi_od_std_task_sym_* + labi_user_needs_std_task pure orch
+ *   + wave135 labi_fk0_rel/sym_* + labi_std_fk0_user_needs_rel pure orch
  *     (PRIMARY OS + TASK_SPECIAL; null/empty user_o → 1)
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym / exports_marker / has_undef_sym 探针仍 mega（pure needs orch Cap）。
@@ -30,6 +31,7 @@
  * Prove：seeds/labi_ondemand_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+#include <string.h>
 
 /* Cap residual (mega always): nm UNDEF probe used by pure needs orch. */
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
@@ -1354,6 +1356,382 @@ int labi_user_needs_std_task(const char *user_o) {
   return 0;
 }
 
+
+/* wave135: labi_std_fk0_user_needs_rel pure cold twin (tables + orch). */
+int labi_fk0_rel_count(void) {
+  return 16;
+}
+const char *labi_fk0_rel_at(int k) {
+
+  if (k == 0)
+    return "std/string/string.o";
+  if (k == 1)
+    return "std/encoding/encoding.o";
+  if (k == 2)
+    return "std/base64/base64.o";
+  if (k == 3)
+    return "std/http/http.o";
+  if (k == 4)
+    return "std/json/json.o";
+  if (k == 5)
+    return "std/csv/csv.o";
+  if (k == 6)
+    return "std/path/path.o";
+  if (k == 7)
+    return "std/hash/hash.o";
+  if (k == 8)
+    return "std/error/error.o";
+  if (k == 9)
+    return "std/context/context.o";
+  if (k == 10)
+    return "std/vec/vec.o";
+  if (k == 11)
+    return "std/sort/sort.o";
+  if (k == 12)
+    return "std/env/env.o";
+  if (k == 13)
+    return "std/random/random.o";
+  if (k == 14)
+    return "std/time/time.o";
+  if (k == 15)
+    return "std/fs/fs.o";
+  return NULL;
+}
+
+int labi_fk0_sym_count(int k) {
+
+  if (k == 0)
+    return 11;
+  if (k == 1)
+    return 2;
+  if (k == 2)
+    return 2;
+  if (k == 3)
+    return 3;
+  if (k == 4)
+    return 2;
+  if (k == 5)
+    return 2;
+  if (k == 6)
+    return 4;
+  if (k == 7)
+    return 7;
+  if (k == 8)
+    return 4;
+  if (k == 9)
+    return 4;
+  if (k == 10)
+    return 10;
+  if (k == 11)
+    return 9;
+  if (k == 12)
+    return 10;
+  if (k == 13)
+    return 12;
+  if (k == 14)
+    return 15;
+  if (k == 15)
+    return 9;
+  return 0;
+}
+
+const char *labi_fk0_sym_at(int k, int i) {
+  if (i < 0)
+    return NULL;
+
+  if (k == 0) {
+    if (i == 0)
+      return "std_string_string_empty";
+    if (i == 1)
+      return "std_string_new";
+    if (i == 2)
+      return "std_string_len_String";
+    if (i == 3)
+      return "std_string_len_StrView";
+    if (i == 4)
+      return "std_string_is_empty_String";
+    if (i == 5)
+      return "std_string_is_empty_StrView";
+    if (i == 6)
+      return "std_string_view";
+    if (i == 7)
+      return "std_string_string_from_slice";
+    if (i == 8)
+      return "std_string_string_eq";
+    if (i == 9)
+      return "shux_string_memcmp_c";
+    if (i == 10)
+      return "shux_string_memmem_c";
+    return NULL;
+  }
+  if (k == 1) {
+    if (i == 0)
+      return "std_encoding_utf8_valid";
+    if (i == 1)
+      return "std_encoding_ascii_is_alpha";
+    return NULL;
+  }
+  if (k == 2) {
+    if (i == 0)
+      return "std_base64_encode_standard";
+    if (i == 1)
+      return "std_base64_decode_standard";
+    return NULL;
+  }
+  if (k == 3) {
+    if (i == 0)
+      return "std_http_get";
+    if (i == 1)
+      return "std_http_request";
+    if (i == 2)
+      return "std_http_client_new";
+    return NULL;
+  }
+  if (k == 4) {
+    if (i == 0)
+      return "std_json_parse";
+    if (i == 1)
+      return "std_json_stringify";
+    return NULL;
+  }
+  if (k == 5) {
+    if (i == 0)
+      return "std_csv_next_field";
+    if (i == 1)
+      return "std_csv_parse_line";
+    return NULL;
+  }
+  if (k == 6) {
+    if (i == 0)
+      return "std_path_join";
+    if (i == 1)
+      return "std_path_dirname";
+    if (i == 2)
+      return "std_path_empty_len";
+    if (i == 3)
+      return "std_path_basename";
+    return NULL;
+  }
+  if (k == 7) {
+    if (i == 0)
+      return "std_hash_sip_hash";
+    if (i == 1)
+      return "std_hash_fnv1a";
+    if (i == 2)
+      return "std_hash_start";
+    if (i == 3)
+      return "std_hash_bytes";
+    if (i == 4)
+      return "std_hash_finish";
+    if (i == 5)
+      return "std_hash_free";
+    if (i == 6)
+      return "std_hash_write_u8_ptr_u32";
+    return NULL;
+  }
+  if (k == 8) {
+    if (i == 0)
+      return "std_error_http_err_timeout";
+    if (i == 1)
+      return "std_error_ok";
+    if (i == 2)
+      return "std_error_io_err_timeout";
+    if (i == 3)
+      return "std_error_io_err_cancelled";
+    return NULL;
+  }
+  if (k == 9) {
+    if (i == 0)
+      return "std_context_background";
+    if (i == 1)
+      return "std_context_deadline_ns";
+    if (i == 2)
+      return "std_context_is_cancelled";
+    if (i == 3)
+      return "std_context_remaining_ns";
+    return NULL;
+  }
+  if (k == 10) {
+    if (i == 0)
+      return "std_vec_new_retVec_u8";
+    if (i == 1)
+      return "std_vec_new_retVec_i32";
+    if (i == 2)
+      return "std_vec_push_Vec_u8_ptr_u8";
+    if (i == 3)
+      return "std_vec_push_Vec_i32_ptr_i32";
+    if (i == 4)
+      return "std_vec_len_Vec_u8";
+    if (i == 5)
+      return "std_vec_len_Vec_i32";
+    if (i == 6)
+      return "std_vec_len_empty";
+    if (i == 7)
+      return "std_vec_vec_len_empty";
+    if (i == 8)
+      return "std_vec_new";
+    if (i == 9)
+      return "std_vec_push";
+    return NULL;
+  }
+  if (k == 11) {
+    if (i == 0)
+      return "std_sort_sort_i32_ptr_i32";
+    if (i == 1)
+      return "std_sort_sort_u8_ptr_i32";
+    if (i == 2)
+      return "std_sort_stable_i32_ptr_i32";
+    if (i == 3)
+      return "std_sort_stable_u8_ptr_i32";
+    if (i == 4)
+      return "std_sort_stable_by_key";
+    if (i == 5)
+      return "std_sort_cmp";
+    if (i == 6)
+      return "std_sort_cmp_asc_fn";
+    if (i == 7)
+      return "std_sort_cmp_desc_fn";
+    if (i == 8)
+      return "std_sort_cmp_key_fn";
+    return NULL;
+  }
+  if (k == 12) {
+    if (i == 0)
+      return "std_env_getenv";
+    if (i == 1)
+      return "std_env_getenv_exists";
+    if (i == 2)
+      return "std_env_getenv_z";
+    if (i == 3)
+      return "std_env_getenv_ptr";
+    if (i == 4)
+      return "std_env_setenv";
+    if (i == 5)
+      return "std_env_unsetenv";
+    if (i == 6)
+      return "std_env_temp_dir";
+    if (i == 7)
+      return "std_env_iter";
+    if (i == 8)
+      return "std_env_iter_count";
+    if (i == 9)
+      return "std_env_args_iter";
+    return NULL;
+  }
+  if (k == 13) {
+    if (i == 0)
+      return "std_random_next";
+    if (i == 1)
+      return "std_random_fill_bytes";
+    if (i == 2)
+      return "std_random_fill";
+    if (i == 3)
+      return "std_random_range_u32_u32";
+    if (i == 4)
+      return "std_random_flip";
+    if (i == 5)
+      return "std_random_gen";
+    if (i == 6)
+      return "std_random_rng_smoke";
+    if (i == 7)
+      return "std_random_seed";
+    if (i == 8)
+      return "random_u32_c";
+    if (i == 9)
+      return "random_u64_c";
+    if (i == 10)
+      return "random_rng_smoke_c";
+    if (i == 11)
+      return "random_fill_bytes_c";
+    return NULL;
+  }
+  if (k == 14) {
+    if (i == 0)
+      return "std_time_now_monotonic_ns";
+    if (i == 1)
+      return "std_time_now_monotonic_ms";
+    if (i == 2)
+      return "std_time_now_wall_ns";
+    if (i == 3)
+      return "std_time_sleep_ms";
+    if (i == 4)
+      return "std_time_sleep_ns";
+    if (i == 5)
+      return "std_time_duration_ns";
+    if (i == 6)
+      return "std_time_timer_start";
+    if (i == 7)
+      return "std_time_start";
+    if (i == 8)
+      return "std_time_elapsed_ns";
+    if (i == 9)
+      return "std_time_format_wall_rfc3339";
+    if (i == 10)
+      return "std_time_wall_local_offset_min";
+    if (i == 11)
+      return "std_time_format_timezone_smoke";
+    if (i == 12)
+      return "time_now_monotonic_ns_c";
+    if (i == 13)
+      return "time_sleep_ns_c";
+    if (i == 14)
+      return "time_now_wall_ns_c";
+    return NULL;
+  }
+  if (k == 15) {
+    if (i == 0)
+      return "std_fs_invalid";
+    if (i == 1)
+      return "std_fs_open";
+    if (i == 2)
+      return "std_fs_create";
+    if (i == 3)
+      return "std_fs_close";
+    if (i == 4)
+      return "std_fs_read";
+    if (i == 5)
+      return "std_fs_write";
+    if (i == 6)
+      return "std_fs_chunk_size";
+    if (i == 7)
+      return "std_fs_mmap_ro";
+    if (i == 8)
+      return "std_fs_last_error";
+    return NULL;
+  }
+  return NULL;
+}
+
+int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
+  int nk;
+  int k;
+  int kind;
+  int n;
+  int i;
+  if (!rel || !rel[0])
+    return 0;
+  if (!user_o || !user_o[0])
+    return 1;
+  nk = labi_fk0_rel_count();
+  kind = -1;
+  for (k = 0; k < nk; k++) {
+    const char *needle = labi_fk0_rel_at(k);
+    if (needle && needle[0] && strstr(rel, needle) != NULL) {
+      kind = k;
+      break;
+    }
+  }
+  if (kind < 0)
+    return 0;
+  n = labi_fk0_sym_count(kind);
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_fk0_sym_at(kind, i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -1462,6 +1840,11 @@ int labi_user_needs_runtime_process_argv(const char *user_o);
 int labi_od_std_task_sym_count(void);
 const char *labi_od_std_task_sym_at(int i);
 int labi_user_needs_std_task(const char *user_o);
+int labi_fk0_rel_count(void);
+const char *labi_fk0_rel_at(int k);
+int labi_fk0_sym_count(int k);
+const char *labi_fk0_sym_at(int k, int i);
+int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

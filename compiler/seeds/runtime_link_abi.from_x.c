@@ -5685,6 +5685,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  *   (PRIMARY OS tables; null/empty → 1).
  * wave133: labi_user_needs_runtime_process_argv pure orch (9 needles).
  * wave134: labi_user_needs_std_task pure orch (29 needles; TASK_SPECIAL bulk gate).
+ * wave135: labi_std_fk0_user_needs_rel pure orch (16 rel × 106 exact UNDEF).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -6177,177 +6178,19 @@ int labi_std_default_std_rel_count(void);
 const char *labi_std_default_std_rel_at(int j);
 #endif
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-271：列表纯 plan + 本函数 IO 解释器 */
-/* 产品冷链：fk==0 的 std/*.o 勿无条件硬链（string 等对 heap 有 U，会毒化纯 asm 测试）。
- * 仅当 user.o 有对应 UNDEF 时才推入；完整 on_demand 在 append_on_demand_user_objs。 */
-static int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
-    if (!rel || !rel[0])
-        return 0;
-    if (!user_o || !user_o[0])
-        return 1; /* 无 user 信息时保守保留旧行为 */
-    /* PLATFORM: SHARED — complete string surface (overload mangles + common APIs). */
-    if (strstr(rel, "std/string/string.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_string_string_empty")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_new")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_len_String")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_len_StrView")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_is_empty_String")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_is_empty_StrView")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_view")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_string_from_slice")
-            || shux_link_obj_needs_undef_sym(user_o, "std_string_string_eq")
-            || shux_link_obj_needs_undef_sym(user_o, "shux_string_memcmp_c")
-            || shux_link_obj_needs_undef_sym(user_o, "shux_string_memmem_c");
-    if (strstr(rel, "std/encoding/encoding.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_encoding_utf8_valid")
-            || shux_link_obj_needs_undef_sym(user_o, "std_encoding_ascii_is_alpha");
-    if (strstr(rel, "std/base64/base64.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_standard")
-            || shux_link_obj_needs_undef_sym(user_o, "std_base64_decode_standard");
-    if (strstr(rel, "std/http/http.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_http_get")
-            || shux_link_obj_needs_undef_sym(user_o, "std_http_request")
-            || shux_link_obj_needs_undef_sym(user_o, "std_http_client_new");
-    if (strstr(rel, "std/json/json.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_json_parse")
-            || shux_link_obj_needs_undef_sym(user_o, "std_json_stringify");
-    if (strstr(rel, "std/csv/csv.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_csv_next_field")
-            || shux_link_obj_needs_undef_sym(user_o, "std_csv_parse_line");
-    if (strstr(rel, "std/path/path.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_path_join")
-            || shux_link_obj_needs_undef_sym(user_o, "std_path_dirname")
-            || shux_link_obj_needs_undef_sym(user_o, "std_path_empty_len")
-            || shux_link_obj_needs_undef_sym(user_o, "std_path_basename");
-    if (strstr(rel, "std/hash/hash.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_hash_sip_hash")
-            || shux_link_obj_needs_undef_sym(user_o, "std_hash_fnv1a")
-            || shux_link_obj_needs_undef_sym(user_o, "std_hash_start")
-            || shux_link_obj_needs_undef_sym(user_o, "std_hash_bytes")
-            || shux_link_obj_needs_undef_sym(user_o, "std_hash_finish")
-            || shux_link_obj_needs_undef_sym(user_o, "std_hash_free")
-            || shux_link_obj_needs_undef_sym(user_o, "std_hash_write_u8_ptr_u32");
-    if (strstr(rel, "std/error/error.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_error_http_err_timeout")
-            || shux_link_obj_needs_undef_sym(user_o, "std_error_ok")
-            || shux_link_obj_needs_undef_sym(user_o, "std_error_io_err_timeout")
-            || shux_link_obj_needs_undef_sym(user_o, "std_error_io_err_cancelled");
-    if (strstr(rel, "std/context/context.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_context_background")
-            || shux_link_obj_needs_undef_sym(user_o, "std_context_deadline_ns")
-            || shux_link_obj_needs_undef_sym(user_o, "std_context_is_cancelled")
-            || shux_link_obj_needs_undef_sym(user_o, "std_context_remaining_ns");
-    /* PLATFORM: SHARED — vec is link_only; pull when user.o has real API UNDEFs
-     * (new/push/len family + len_empty smoke). shux_link_obj_needs_undef_sym only
-     * matches U, so C-frontend weak preamble defs (W) do not force-pull vec.o;
-     * asm user.o with U std_vec_len_empty must pull formal std/vec/vec.o (Ubuntu BLD001). */
-    if (strstr(rel, "std/vec/vec.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_vec_new_retVec_u8")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_new_retVec_i32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_push_Vec_u8_ptr_u8")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_push_Vec_i32_ptr_i32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_Vec_u8")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_Vec_i32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_len_empty")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_vec_len_empty")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_new")
-            || shux_link_obj_needs_undef_sym(user_o, "std_vec_push");
-    /*
-     * PLATFORM: SHARED — formal sort.o = mod.x (std_sort_sort_*) + sort.x impl.
-     * Old sort.x-only .o exported bare sort_* and fk0 had no probes → never pushed
-     * → Ubuntu -backend asm tests/sort BLD001. G.7: complete fk0 authority.
-     */
-    if (strstr(rel, "std/sort/sort.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_sort_sort_i32_ptr_i32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_sort_u8_ptr_i32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_stable_i32_ptr_i32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_stable_u8_ptr_i32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_stable_by_key")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_asc_fn")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_desc_fn")
-            || shux_link_obj_needs_undef_sym(user_o, "std_sort_cmp_key_fn");
-    /*
-     * PLATFORM: SHARED — formal env.o = mod.x (std_env_*); OS env_*_c in runtime_env_os.o.
-     * Old env.x-only .o exported std_env_env_* / args helpers and fk0 had no probes →
-     * never pushed → Ubuntu -backend asm tests/env BLD001 (U std_env_getenv). G.7 complete.
-     */
-    if (strstr(rel, "std/env/env.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_env_getenv")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_exists")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_z")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_getenv_ptr")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_setenv")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_unsetenv")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_temp_dir")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_iter")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_iter_count")
-            || shux_link_obj_needs_undef_sym(user_o, "std_env_args_iter");
-    /*
-     * PLATFORM: SHARED — formal random.o = mod.x surface (std_random_*); OS fill in
-     * runtime_random_fill.o. Without fk0 probes, PRIMARY gate + default-skip leaves
-     * U std_random_* on -backend asm (tests/random). G.7: complete fk0 authority;
-     * companion push of random_fill is in STD ensure block below.
-     */
-    if (strstr(rel, "std/random/random.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_random_next")
-            || shux_link_obj_needs_undef_sym(user_o, "std_random_fill_bytes")
-            || shux_link_obj_needs_undef_sym(user_o, "std_random_fill")
-            || shux_link_obj_needs_undef_sym(user_o, "std_random_range_u32_u32")
-            || shux_link_obj_needs_undef_sym(user_o, "std_random_flip")
-            || shux_link_obj_needs_undef_sym(user_o, "std_random_gen")
-            || shux_link_obj_needs_undef_sym(user_o, "std_random_rng_smoke")
-            || shux_link_obj_needs_undef_sym(user_o, "std_random_seed")
-            || shux_link_obj_needs_undef_sym(user_o, "random_u32_c")
-            || shux_link_obj_needs_undef_sym(user_o, "random_u64_c")
-            || shux_link_obj_needs_undef_sym(user_o, "random_rng_smoke_c")
-            || shux_link_obj_needs_undef_sym(user_o, "random_fill_bytes_c");
-    /*
-     * PLATFORM: SHARED — formal time.o = mod.x (std_time_*); OS time_*_c in runtime_time_os.o.
-     * fk0 had no probes → plan always skipped time.o; cold/L4 wipe then only time_os
-     * (PRIMARY) or silent skip_missing on_demand → U std_time_* (tests/time BLD001).
-     * G.7: complete fk0 authority; companion ensure of time_os is in STD ensure block.
-     */
-    if (strstr(rel, "std/time/time.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ns")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ms")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_now_wall_ns")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ms")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ns")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_duration_ns")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_timer_start")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_start")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_elapsed_ns")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_format_wall_rfc3339")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_wall_local_offset_min")
-            || shux_link_obj_needs_undef_sym(user_o, "std_time_format_timezone_smoke")
-            || shux_link_obj_needs_undef_sym(user_o, "time_now_monotonic_ns_c")
-            || shux_link_obj_needs_undef_sym(user_o, "time_sleep_ns_c")
-            || shux_link_obj_needs_undef_sym(user_o, "time_now_wall_ns_c");
-    /*
-     * PLATFORM: SHARED — formal fs.o = mod.x + posix.x (std_fs_*); asm skips std.fs co-emit.
-     * No plan entry / no probes → U std_fs_invalid (tests/fs/main) BLD001. G.7 complete fk0.
-     */
-    if (strstr(rel, "std/fs/fs.o"))
-        return shux_link_obj_needs_undef_sym(user_o, "std_fs_invalid")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_open")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_create")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_close")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_read")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_write")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_chunk_size")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_mmap_ro")
-            || shux_link_obj_needs_undef_sym(user_o, "std_fs_last_error");
-    /* 其它 fk==0：默认不硬链，避免残缺 .o 毒化纯 asm / 无 import 用户程序。
-     * 需要时由 on_demand 或上方专用探针推入。 */
-    return 0;
-}
+/* wave135: labi_std_fk0_user_needs_rel pure orch lives in labi_ondemand_list
+ * (16 rel path needles × 106 exact UNDEF; Cap strstr + undef_sym).
+ * null/empty user_o → 1; unknown rel → 0. Was static mega body (G-02f-165/271).
+ * Cold twin under #ifndef ONDEMAND_LIST_FROM_X; hybrid L8b pure .x.
+ * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.
+ */
+int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
 
 /*
  * wave132–134: labi_user_needs_runtime_{time_os,random_fill,env_os,process_argv}
  * + labi_user_needs_std_task pure orch live in labi_ondemand_list
  * (product tables + pure scan; null/empty → 1).
+ * wave135: labi_std_fk0_user_needs_rel pure (fk0 plan gate; Cap strstr).
  * Cap residual: undef_sym stays mega. Call sites need forward decls before
  * the ondemand include block. PLATFORM: SHARED.
  */
@@ -6816,7 +6659,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task pure orch (L8b pure .x / cold seed). */
+/* wave118–135 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -6884,6 +6727,11 @@ int labi_user_needs_runtime_process_argv(const char *user_o);
 int labi_od_std_task_sym_count(void);
 const char *labi_od_std_task_sym_at(int i);
 int labi_user_needs_std_task(const char *user_o);
+int labi_fk0_rel_count(void);
+const char *labi_fk0_rel_at(int k);
+int labi_fk0_sym_count(int k);
+const char *labi_fk0_sym_at(int k, int i);
+int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

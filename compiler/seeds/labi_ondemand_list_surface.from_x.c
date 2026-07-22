@@ -1,7 +1,7 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task pure)
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel pure)
  * Cap residual: nm/push/ensure + undef_sym / exports_marker / has_undef_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -96,6 +96,12 @@ extern int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o);
 extern int32_t labi_od_std_task_sym_count(void);
 extern uint8_t * labi_od_std_task_sym_at(int32_t i);
 extern int32_t labi_user_needs_std_task(uint8_t * user_o);
+extern int32_t labi_fk0_rel_count(void);
+extern uint8_t * labi_fk0_rel_at(int32_t k);
+extern int32_t labi_fk0_sym_count(int32_t k);
+extern uint8_t * labi_fk0_sym_at(int32_t k, int32_t i);
+extern int32_t labi_std_fk0_user_needs_rel(uint8_t * user_o, uint8_t * rel);
+extern uint8_t * strstr(uint8_t * hay, uint8_t * needle);
 extern uint8_t * labi_od_rel_net(void);
 extern uint8_t * labi_od_rel_thread(void);
 extern uint8_t * labi_od_rel_heap(void);
@@ -2312,6 +2318,656 @@ int32_t labi_user_needs_std_task(uint8_t * user_o) {
   }
   return 0;
 }
+int32_t labi_fk0_rel_count(void) {
+  return 16;
+}
+uint8_t * labi_fk0_rel_at(int32_t k) {
+  if ((k ==0)) {
+    uint8_t * p = ((uint8_t *)"std/string/string.o");
+    return p;
+  }
+  if ((k ==1)) {
+    uint8_t * p = ((uint8_t *)"std/encoding/encoding.o");
+    return p;
+  }
+  if ((k ==2)) {
+    uint8_t * p = ((uint8_t *)"std/base64/base64.o");
+    return p;
+  }
+  if ((k ==3)) {
+    uint8_t * p = ((uint8_t *)"std/http/http.o");
+    return p;
+  }
+  if ((k ==4)) {
+    uint8_t * p = ((uint8_t *)"std/json/json.o");
+    return p;
+  }
+  if ((k ==5)) {
+    uint8_t * p = ((uint8_t *)"std/csv/csv.o");
+    return p;
+  }
+  if ((k ==6)) {
+    uint8_t * p = ((uint8_t *)"std/path/path.o");
+    return p;
+  }
+  if ((k ==7)) {
+    uint8_t * p = ((uint8_t *)"std/hash/hash.o");
+    return p;
+  }
+  if ((k ==8)) {
+    uint8_t * p = ((uint8_t *)"std/error/error.o");
+    return p;
+  }
+  if ((k ==9)) {
+    uint8_t * p = ((uint8_t *)"std/context/context.o");
+    return p;
+  }
+  if ((k ==10)) {
+    uint8_t * p = ((uint8_t *)"std/vec/vec.o");
+    return p;
+  }
+  if ((k ==11)) {
+    uint8_t * p = ((uint8_t *)"std/sort/sort.o");
+    return p;
+  }
+  if ((k ==12)) {
+    uint8_t * p = ((uint8_t *)"std/env/env.o");
+    return p;
+  }
+  if ((k ==13)) {
+    uint8_t * p = ((uint8_t *)"std/random/random.o");
+    return p;
+  }
+  if ((k ==14)) {
+    uint8_t * p = ((uint8_t *)"std/time/time.o");
+    return p;
+  }
+  if ((k ==15)) {
+    uint8_t * p = ((uint8_t *)"std/fs/fs.o");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_fk0_sym_count(int32_t k) {
+  if ((k ==0)) {
+    return 11;
+  }
+  if ((k ==1)) {
+    return 2;
+  }
+  if ((k ==2)) {
+    return 2;
+  }
+  if ((k ==3)) {
+    return 3;
+  }
+  if ((k ==4)) {
+    return 2;
+  }
+  if ((k ==5)) {
+    return 2;
+  }
+  if ((k ==6)) {
+    return 4;
+  }
+  if ((k ==7)) {
+    return 7;
+  }
+  if ((k ==8)) {
+    return 4;
+  }
+  if ((k ==9)) {
+    return 4;
+  }
+  if ((k ==10)) {
+    return 10;
+  }
+  if ((k ==11)) {
+    return 9;
+  }
+  if ((k ==12)) {
+    return 10;
+  }
+  if ((k ==13)) {
+    return 12;
+  }
+  if ((k ==14)) {
+    return 15;
+  }
+  if ((k ==15)) {
+    return 9;
+  }
+  return 0;
+}
+uint8_t * labi_fk0_sym_at(int32_t k, int32_t i) {
+  if ((i <0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((k ==0)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_string_string_empty");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_string_new");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_string_len_String");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_string_len_StrView");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_string_is_empty_String");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_string_is_empty_StrView");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_string_view");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_string_string_from_slice");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"std_string_string_eq");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"shux_string_memcmp_c");
+      return p;
+    }
+    if ((i ==10)) {
+      uint8_t * p = ((uint8_t *)"shux_string_memmem_c");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==1)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_encoding_utf8_valid");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_encoding_ascii_is_alpha");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==2)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_base64_encode_standard");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_base64_decode_standard");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==3)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_http_get");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_http_request");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_http_client_new");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==4)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_json_parse");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_json_stringify");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==5)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_csv_next_field");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_csv_parse_line");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==6)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_path_join");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_path_dirname");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_path_empty_len");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_path_basename");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==7)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_hash_sip_hash");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_hash_fnv1a");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_hash_start");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_hash_bytes");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_hash_finish");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_hash_free");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_hash_write_u8_ptr_u32");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==8)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_error_http_err_timeout");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_error_ok");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_error_io_err_timeout");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_error_io_err_cancelled");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==9)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_context_background");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_context_deadline_ns");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_context_is_cancelled");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_context_remaining_ns");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==10)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_vec_new_retVec_u8");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_vec_new_retVec_i32");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_vec_push_Vec_u8_ptr_u8");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_vec_push_Vec_i32_ptr_i32");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_vec_len_Vec_u8");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_vec_len_Vec_i32");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_vec_len_empty");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_vec_vec_len_empty");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"std_vec_new");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"std_vec_push");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==11)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_sort_sort_i32_ptr_i32");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_sort_sort_u8_ptr_i32");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_sort_stable_i32_ptr_i32");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_sort_stable_u8_ptr_i32");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_sort_stable_by_key");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_sort_cmp");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_sort_cmp_asc_fn");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_sort_cmp_desc_fn");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"std_sort_cmp_key_fn");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==12)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_env_getenv");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_env_getenv_exists");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_env_getenv_z");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_env_getenv_ptr");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_env_setenv");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_env_unsetenv");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_env_temp_dir");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_env_iter");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"std_env_iter_count");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"std_env_args_iter");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==13)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_random_next");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_random_fill_bytes");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_random_fill");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_random_range_u32_u32");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_random_flip");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_random_gen");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_random_rng_smoke");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_random_seed");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"random_u32_c");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"random_u64_c");
+      return p;
+    }
+    if ((i ==10)) {
+      uint8_t * p = ((uint8_t *)"random_rng_smoke_c");
+      return p;
+    }
+    if ((i ==11)) {
+      uint8_t * p = ((uint8_t *)"random_fill_bytes_c");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==14)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_time_now_monotonic_ns");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_time_now_monotonic_ms");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_time_now_wall_ns");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_time_sleep_ms");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_time_sleep_ns");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_time_duration_ns");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_time_timer_start");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_time_start");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"std_time_elapsed_ns");
+      return p;
+    }
+    if ((i ==9)) {
+      uint8_t * p = ((uint8_t *)"std_time_format_wall_rfc3339");
+      return p;
+    }
+    if ((i ==10)) {
+      uint8_t * p = ((uint8_t *)"std_time_wall_local_offset_min");
+      return p;
+    }
+    if ((i ==11)) {
+      uint8_t * p = ((uint8_t *)"std_time_format_timezone_smoke");
+      return p;
+    }
+    if ((i ==12)) {
+      uint8_t * p = ((uint8_t *)"time_now_monotonic_ns_c");
+      return p;
+    }
+    if ((i ==13)) {
+      uint8_t * p = ((uint8_t *)"time_sleep_ns_c");
+      return p;
+    }
+    if ((i ==14)) {
+      uint8_t * p = ((uint8_t *)"time_now_wall_ns_c");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  if ((k ==15)) {
+    if ((i ==0)) {
+      uint8_t * p = ((uint8_t *)"std_fs_invalid");
+      return p;
+    }
+    if ((i ==1)) {
+      uint8_t * p = ((uint8_t *)"std_fs_open");
+      return p;
+    }
+    if ((i ==2)) {
+      uint8_t * p = ((uint8_t *)"std_fs_create");
+      return p;
+    }
+    if ((i ==3)) {
+      uint8_t * p = ((uint8_t *)"std_fs_close");
+      return p;
+    }
+    if ((i ==4)) {
+      uint8_t * p = ((uint8_t *)"std_fs_read");
+      return p;
+    }
+    if ((i ==5)) {
+      uint8_t * p = ((uint8_t *)"std_fs_write");
+      return p;
+    }
+    if ((i ==6)) {
+      uint8_t * p = ((uint8_t *)"std_fs_chunk_size");
+      return p;
+    }
+    if ((i ==7)) {
+      uint8_t * p = ((uint8_t *)"std_fs_mmap_ro");
+      return p;
+    }
+    if ((i ==8)) {
+      uint8_t * p = ((uint8_t *)"std_fs_last_error");
+      return p;
+    }
+    return ((uint8_t *)(0));
+  }
+  return ((uint8_t *)(0));
+}
+int32_t labi_std_fk0_user_needs_rel(uint8_t * user_o, uint8_t * rel) {
+  if ((rel ==0)) {
+    return 0;
+  }
+  if (((rel)[0] ==0)) {
+    return 0;
+  }
+  if ((user_o ==0)) {
+    return 1;
+  }
+  if (((user_o)[0] ==0)) {
+    return 1;
+  }
+  int32_t nk = labi_fk0_rel_count();
+  int32_t k = 0;
+  int32_t kind = -1;
+  while ((k < nk)) {
+    uint8_t * needle = labi_fk0_rel_at(k);
+    if ((needle !=0)) {
+      if (((needle)[0] !=0)) {
+        uint8_t * hitp = ((uint8_t *)(0));
+        (void)((hitp = strstr(rel, needle)));
+        if ((hitp !=0)) {
+          (void)((kind = k));
+          (void)((k = nk));
+        }
+      }
+    }
+    (void)((k = (k + 1)));
+  }
+  if ((kind <0)) {
+    return 0;
+  }
+  int32_t n = labi_fk0_sym_count(kind);
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_fk0_sym_at(kind, i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+
 uint8_t * labi_od_rel_net(void) {
   uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x6e\x65\x74\x2e\x6f");
   return p;

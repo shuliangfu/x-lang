@@ -25,6 +25,7 @@
 //     (PRIMARY OS bulk gates; null/empty user_o → 1 legacy hard-link) +
 //   wave133 labi_user_needs_runtime_process_argv pure orch (9 needles; single-leaf) +
 //   wave134 labi_user_needs_std_task pure orch (29 needles; TASK_SPECIAL bulk gate).
+//   wave135 labi_std_fk0_user_needs_rel pure orch (16 rel × 106 exact UNDEF; Cap strstr).
 // Cap residual: nm/push/ensure stay mega; undef_sym / marker / has_undef Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -3033,6 +3034,720 @@ export function labi_user_needs_std_task(user_o: *u8): i32 {
   return 0;
 }
 
+
+
+/* wave135: labi_std_fk0_user_needs_rel pure orch (fk==0 std plan gate).
+ * Cap residual: undef_sym (mega) + libc strstr for rel path match.
+ * null/empty user_o → 1 legacy hard-link; unknown rel → 0 (no hard-link poison).
+ * PLATFORM: SHARED — complete product surface from mega authority (G.7). */
+
+export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
+
+/**
+ * Count of fk0 rel path needles (substring match order matches mega seed).
+ * @return i32 — 16
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fk0_rel_count(): i32 {
+  return 16;
+}
+
+/**
+ * fk0 rel path needle at index (substring of plan rel path).
+ * @param k i32 — kind in [0, labi_fk0_rel_count())
+ * @return *u8 — static C string path needle, or null if out of range
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fk0_rel_at(k: i32): *u8 {
+
+  if (k == 0) {
+    let p: *u8 = "std/string/string.o";
+    return p;
+  }
+  if (k == 1) {
+    let p: *u8 = "std/encoding/encoding.o";
+    return p;
+  }
+  if (k == 2) {
+    let p: *u8 = "std/base64/base64.o";
+    return p;
+  }
+  if (k == 3) {
+    let p: *u8 = "std/http/http.o";
+    return p;
+  }
+  if (k == 4) {
+    let p: *u8 = "std/json/json.o";
+    return p;
+  }
+  if (k == 5) {
+    let p: *u8 = "std/csv/csv.o";
+    return p;
+  }
+  if (k == 6) {
+    let p: *u8 = "std/path/path.o";
+    return p;
+  }
+  if (k == 7) {
+    let p: *u8 = "std/hash/hash.o";
+    return p;
+  }
+  if (k == 8) {
+    let p: *u8 = "std/error/error.o";
+    return p;
+  }
+  if (k == 9) {
+    let p: *u8 = "std/context/context.o";
+    return p;
+  }
+  if (k == 10) {
+    let p: *u8 = "std/vec/vec.o";
+    return p;
+  }
+  if (k == 11) {
+    let p: *u8 = "std/sort/sort.o";
+    return p;
+  }
+  if (k == 12) {
+    let p: *u8 = "std/env/env.o";
+    return p;
+  }
+  if (k == 13) {
+    let p: *u8 = "std/random/random.o";
+    return p;
+  }
+  if (k == 14) {
+    let p: *u8 = "std/time/time.o";
+    return p;
+  }
+  if (k == 15) {
+    let p: *u8 = "std/fs/fs.o";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+
+/**
+ * Count of exact UNDEF needles for fk0 kind.
+ * @param k i32 — rel kind
+ * @return i32 — needle count; 0 if kind OOB
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fk0_sym_count(k: i32): i32 {
+
+  if (k == 0) {
+    return 11;
+  }
+  if (k == 1) {
+    return 2;
+  }
+  if (k == 2) {
+    return 2;
+  }
+  if (k == 3) {
+    return 3;
+  }
+  if (k == 4) {
+    return 2;
+  }
+  if (k == 5) {
+    return 2;
+  }
+  if (k == 6) {
+    return 4;
+  }
+  if (k == 7) {
+    return 7;
+  }
+  if (k == 8) {
+    return 4;
+  }
+  if (k == 9) {
+    return 4;
+  }
+  if (k == 10) {
+    return 10;
+  }
+  if (k == 11) {
+    return 9;
+  }
+  if (k == 12) {
+    return 10;
+  }
+  if (k == 13) {
+    return 12;
+  }
+  if (k == 14) {
+    return 15;
+  }
+  if (k == 15) {
+    return 9;
+  }
+  return 0;
+}
+
+
+/**
+ * Exact UNDEF needle for fk0 kind at index.
+ * @param k i32 — rel kind
+ * @param i i32 — index in [0, labi_fk0_sym_count(k))
+ * @return *u8 — static C string symbol, or null if OOB
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+
+  if (k == 0) {
+    if (i == 0) {
+      let p: *u8 = "std_string_string_empty";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_string_new";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_string_len_String";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_string_len_StrView";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_string_is_empty_String";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_string_is_empty_StrView";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_string_view";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_string_string_from_slice";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_string_string_eq";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "shux_string_memcmp_c";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "shux_string_memmem_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 1) {
+    if (i == 0) {
+      let p: *u8 = "std_encoding_utf8_valid";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_encoding_ascii_is_alpha";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 2) {
+    if (i == 0) {
+      let p: *u8 = "std_base64_encode_standard";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_base64_decode_standard";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 3) {
+    if (i == 0) {
+      let p: *u8 = "std_http_get";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_http_request";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_http_client_new";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 4) {
+    if (i == 0) {
+      let p: *u8 = "std_json_parse";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_json_stringify";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 5) {
+    if (i == 0) {
+      let p: *u8 = "std_csv_next_field";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_csv_parse_line";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 6) {
+    if (i == 0) {
+      let p: *u8 = "std_path_join";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_path_dirname";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_path_empty_len";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_path_basename";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 7) {
+    if (i == 0) {
+      let p: *u8 = "std_hash_sip_hash";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_hash_fnv1a";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_hash_start";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_hash_bytes";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_hash_finish";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_hash_free";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_hash_write_u8_ptr_u32";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 8) {
+    if (i == 0) {
+      let p: *u8 = "std_error_http_err_timeout";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_error_ok";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_error_io_err_timeout";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_error_io_err_cancelled";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 9) {
+    if (i == 0) {
+      let p: *u8 = "std_context_background";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_context_deadline_ns";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_context_is_cancelled";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_context_remaining_ns";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 10) {
+    if (i == 0) {
+      let p: *u8 = "std_vec_new_retVec_u8";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_vec_new_retVec_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_vec_push_Vec_u8_ptr_u8";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_vec_push_Vec_i32_ptr_i32";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_vec_len_Vec_u8";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_vec_len_Vec_i32";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_vec_len_empty";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_vec_vec_len_empty";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_vec_new";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_vec_push";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 11) {
+    if (i == 0) {
+      let p: *u8 = "std_sort_sort_i32_ptr_i32";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_sort_sort_u8_ptr_i32";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_sort_stable_i32_ptr_i32";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_sort_stable_u8_ptr_i32";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_sort_stable_by_key";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_sort_cmp";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_sort_cmp_asc_fn";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_sort_cmp_desc_fn";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_sort_cmp_key_fn";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 12) {
+    if (i == 0) {
+      let p: *u8 = "std_env_getenv";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_env_getenv_exists";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_env_getenv_z";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_env_getenv_ptr";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_env_setenv";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_env_unsetenv";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_env_temp_dir";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_env_iter";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_env_iter_count";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_env_args_iter";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 13) {
+    if (i == 0) {
+      let p: *u8 = "std_random_next";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_random_fill_bytes";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_random_fill";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_random_range_u32_u32";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_random_flip";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_random_gen";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_random_rng_smoke";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_random_seed";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "random_u32_c";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "random_u64_c";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "random_rng_smoke_c";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "random_fill_bytes_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 14) {
+    if (i == 0) {
+      let p: *u8 = "std_time_now_monotonic_ns";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_time_now_monotonic_ms";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_time_now_wall_ns";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_time_sleep_ms";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_time_sleep_ns";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_time_duration_ns";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_time_timer_start";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_time_start";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_time_elapsed_ns";
+      return p;
+    }
+    if (i == 9) {
+      let p: *u8 = "std_time_format_wall_rfc3339";
+      return p;
+    }
+    if (i == 10) {
+      let p: *u8 = "std_time_wall_local_offset_min";
+      return p;
+    }
+    if (i == 11) {
+      let p: *u8 = "std_time_format_timezone_smoke";
+      return p;
+    }
+    if (i == 12) {
+      let p: *u8 = "time_now_monotonic_ns_c";
+      return p;
+    }
+    if (i == 13) {
+      let p: *u8 = "time_sleep_ns_c";
+      return p;
+    }
+    if (i == 14) {
+      let p: *u8 = "time_now_wall_ns_c";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  if (k == 15) {
+    if (i == 0) {
+      let p: *u8 = "std_fs_invalid";
+      return p;
+    }
+    if (i == 1) {
+      let p: *u8 = "std_fs_open";
+      return p;
+    }
+    if (i == 2) {
+      let p: *u8 = "std_fs_create";
+      return p;
+    }
+    if (i == 3) {
+      let p: *u8 = "std_fs_close";
+      return p;
+    }
+    if (i == 4) {
+      let p: *u8 = "std_fs_read";
+      return p;
+    }
+    if (i == 5) {
+      let p: *u8 = "std_fs_write";
+      return p;
+    }
+    if (i == 6) {
+      let p: *u8 = "std_fs_chunk_size";
+      return p;
+    }
+    if (i == 7) {
+      let p: *u8 = "std_fs_mmap_ro";
+      return p;
+    }
+    if (i == 8) {
+      let p: *u8 = "std_fs_last_error";
+      return p;
+    }
+    return 0 as *u8;
+  }
+  return 0 as *u8;
+}
+
+
+/**
+ * Whether user .o needs a fk==0 std plan rel (string/encoding/.../fs formal .o).
+ * Pure orch: match rel via Cap strstr table, then scan exact UNDEF needles.
+ * null/empty user_o → 1 (legacy hard-link when call site has no user_o).
+ * null/empty or unknown rel → 0 (except user_o null path above).
+ * @param user_o *u8 — path to user .o
+ * @param rel *u8 — plan relative path (e.g. std/string/string.o)
+ * @return i32 — 1 if gate open (push/ensure that rel), else 0
+ * Why (wave135): hybrid still had labi_std_fk0_user_needs_rel body always mega C;
+ * single-leaf migrate after wave134 std_task pure (G.7 complete surface).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function labi_std_fk0_user_needs_rel(user_o: *u8, rel: *u8): i32 {
+  if (rel == 0 as *u8) {
+    return 0;
+  }
+  if (rel[0] == 0) {
+    return 0;
+  }
+  if (user_o == 0 as *u8) {
+    return 1;
+  }
+  if (user_o[0] == 0) {
+    return 1;
+  }
+  let nk: i32 = labi_fk0_rel_count();
+  let k: i32 = 0;
+  let kind: i32 = -1;
+  while (k < nk) {
+    let needle: *u8 = labi_fk0_rel_at(k);
+    if (needle != 0 as *u8) {
+      if (needle[0] != 0) {
+        let hitp: *u8 = 0 as *u8;
+        unsafe {
+          hitp = strstr(rel, needle);
+        }
+        if (hitp != 0 as *u8) {
+          kind = k;
+          // first match wins (mega sequential if order)
+          k = nk;
+        }
+      }
+    }
+    k = k + 1;
+  }
+  if (kind < 0) {
+    return 0;
+  }
+  let n: i32 = labi_fk0_sym_count(kind);
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_fk0_sym_at(kind, i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
 
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 /**
