@@ -469,51 +469,70 @@ void link_diag_runtime_obj_build_status(const char *obj_name, int status);
 
 
 
-void link_diag_errno(const char *kind, const char *op) {
+/* Cap residual always: errno capture + strerror. Message orch is pure L1 (wave113).
+ * PLATFORM: SHARED — libc errno/strerror. */
+const char *link_diag_strerror_current(void) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
+    return err ? err : "unknown error";
+}
+
+/* G-02f-165 / wave113：link_diag_errno / _path pure orch in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual strerror stays
+ * always-linked. PLATFORM: SHARED. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void link_diag_errno(const char *kind, const char *op) {
+    const char *err = link_diag_strerror_current();
     const char *resolved_kind = kind ? kind : "process error";
+    const char *resolved_op = (op && op[0]) ? op : "system call";
     const char *code = link_diag_code_for_kind(resolved_kind);
     if (code) {
         diag_reportf_with_code(NULL, 0, 0, resolved_kind, code, NULL,
                                "%s failed: %s",
-                               op ? op : "system call",
+                               resolved_op,
                                err ? err : "unknown error");
     } else {
         diag_reportf(NULL, 0, 0, resolved_kind, NULL,
                      "%s failed: %s",
-                     op ? op : "system call",
+                     resolved_op,
                      err ? err : "unknown error");
     }
 }
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
 void link_diag_errno_path(const char *kind, const char *op, const char *path) {
-    int saved_errno = errno;
-    const char *err = strerror(saved_errno);
-    const char *resolved_kind = kind ? kind : "process error";
-    const char *code = link_diag_code_for_kind(resolved_kind);
-    if (path && path[0] != '\0') {
-        if (code) {
-            diag_reportf_with_code(NULL, 0, 0, resolved_kind, code, NULL,
-                                   "%s failed for '%s': %s",
-                                   op ? op : "system call",
-                                   path,
-                                   err ? err : "unknown error");
-        } else {
-            diag_reportf(NULL, 0, 0, resolved_kind, NULL,
-                         "%s failed for '%s': %s",
-                         op ? op : "system call",
-                         path,
-                         err ? err : "unknown error");
-        }
+    const char *err;
+    const char *resolved_kind;
+    const char *resolved_op;
+    const char *code;
+    if (!path || path[0] == '\0') {
+        link_diag_errno(kind, op);
         return;
     }
-    link_diag_errno(resolved_kind, op);
+    err = link_diag_strerror_current();
+    resolved_kind = kind ? kind : "process error";
+    resolved_op = (op && op[0]) ? op : "system call";
+    code = link_diag_code_for_kind(resolved_kind);
+    if (code) {
+        diag_reportf_with_code(NULL, 0, 0, resolved_kind, code, NULL,
+                               "%s failed for '%s': %s",
+                               resolved_op,
+                               path,
+                               err ? err : "unknown error");
+    } else {
+        diag_reportf(NULL, 0, 0, resolved_kind, NULL,
+                     "%s failed for '%s': %s",
+                     resolved_op,
+                     path,
+                     err ? err : "unknown error");
+    }
 }
+#else
+void link_diag_errno(const char *kind, const char *op);
+void link_diag_errno_path(const char *kind, const char *op, const char *path);
+#endif
+
+
+
 
 
 
@@ -604,8 +623,9 @@ void link_diag_ld_debug_argv(const char *label, const char *const *argv);
 #endif
 
 /* G-02f-165 / wave111：shux_link_perror pure orch in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual errno path
- * stays always-linked (link_diag_errno / _path). PLATFORM: SHARED. */
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * wave113: pure errno/_path orch; Cap residual is link_diag_strerror_current only.
+ * PLATFORM: SHARED. */
 #ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void shux_link_perror(const char *msg) {
     char op_buf[128];

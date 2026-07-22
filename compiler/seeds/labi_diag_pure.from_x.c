@@ -5,11 +5,12 @@
  * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
  *   link_diag_code_for_kind + 7 report 消息体 + labi_diag_pure_count
  *   （栈拼装 + diag_report_with_code；无 va_list / reportf）
- * wave111：shux_link_perror pure orch（prefix + paren split；errno 仍 Cap residual）
+ * wave111：shux_link_perror pure orch（prefix + paren split）
  * wave112：tool_status / obj_build_status pure orch（append_i32 + wait Cap residual）
+ * wave113：link_diag_errno / _path pure orch（append + code_for_kind + report_with_code）
  * Cap residual（mega rest 常驻）：
  *   link_diag_ld_debug_argv_impl（char** 🔒）
- *   link_diag_errno / link_diag_errno_path（errno + strerror + reportf 🔒）
+ *   link_diag_strerror_current（errno + strerror 🔒）
  *   link_diag_wait_is_signaled / link_diag_wait_code（WIF* 🔒）
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega _impl 并存）。
@@ -25,9 +26,8 @@
 extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                   const char *msg, const char *detail);
 extern void link_diag_ld_debug_argv_impl(const char *label, const char *const *argv);
-/* Cap residual (mega always): errno + strerror + reportf. */
-extern void link_diag_errno(const char *kind, const char *op);
-extern void link_diag_errno_path(const char *kind, const char *op, const char *path);
+/* Cap residual (mega always): errno + strerror. PLATFORM: SHARED. */
+extern const char *link_diag_strerror_current(void);
 /* Cap residual (mega always): POSIX wait decode. PLATFORM: POSIX. */
 extern int link_diag_wait_is_signaled(int status);
 extern int link_diag_wait_code(int status);
@@ -194,6 +194,49 @@ void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
   link_diag_ld_debug_argv_impl(label, argv);
 }
 
+/* wave113 cold twin of pure link_diag_errno. Cap residual strerror. PLATFORM: SHARED. */
+void link_diag_errno(const char *kind, const char *op) {
+  char msg[320];
+  const char *k = kind ? kind : "process error";
+  const char *o = (op && op[0]) ? op : "system call";
+  const char *err = link_diag_strerror_current();
+  const char *code;
+  if (!err)
+    err = "unknown error";
+  code = link_diag_code_for_kind(k);
+  msg[0] = 0;
+  labi_diag_append_c(msg, 320, o);
+  labi_diag_append_c(msg, 320, " failed: ");
+  labi_diag_append_c(msg, 320, err);
+  diag_report_with_code(NULL, 0, 0, k, code, msg, NULL);
+}
+
+/* wave113 cold twin of pure link_diag_errno_path. PLATFORM: SHARED. */
+void link_diag_errno_path(const char *kind, const char *op, const char *path) {
+  char msg[384];
+  const char *k;
+  const char *o;
+  const char *err;
+  const char *code;
+  if (!path || !path[0]) {
+    link_diag_errno(kind, op);
+    return;
+  }
+  k = kind ? kind : "process error";
+  o = (op && op[0]) ? op : "system call";
+  err = link_diag_strerror_current();
+  if (!err)
+    err = "unknown error";
+  code = link_diag_code_for_kind(k);
+  msg[0] = 0;
+  labi_diag_append_c(msg, 384, o);
+  labi_diag_append_c(msg, 384, " failed for '");
+  labi_diag_append_c(msg, 384, path);
+  labi_diag_append_c(msg, 384, "': ");
+  labi_diag_append_c(msg, 384, err);
+  diag_report_with_code(NULL, 0, 0, k, code, msg, NULL);
+}
+
 /* wave112 cold twin of pure link_diag_tool_status. Cap residual wait decode. PLATFORM: SHARED. */
 void link_diag_tool_status(const char *tool, int status) {
   char msg[320];
@@ -234,7 +277,7 @@ void link_diag_runtime_obj_build_status(const char *obj_name, int status) {
 }
 
 /* wave111 cold twin of pure shux_link_perror (hybrid L1 owns body under FROM_X).
- * Cap residual: link_diag_errno / link_diag_errno_path (mega always). PLATFORM: SHARED. */
+ * wave113: calls cold twin pure-style link_diag_errno/_path. PLATFORM: SHARED. */
 void shux_link_perror(const char *msg) {
   char op_buf[128];
   char path_buf[160];
@@ -288,6 +331,8 @@ void link_diag_ld_debug_push(const char *rel, const char *stage, const char *pat
 void link_diag_ld_debug_argv(const char *label, const char *const *argv);
 void link_diag_tool_status(const char *tool, int status);
 void link_diag_runtime_obj_build_status(const char *obj_name, int status);
+void link_diag_errno(const char *kind, const char *op);
+void link_diag_errno_path(const char *kind, const char *op, const char *path);
 void shux_link_perror(const char *msg);
 int labi_diag_pure_count(void);
 #endif

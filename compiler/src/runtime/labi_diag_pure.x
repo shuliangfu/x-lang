@@ -20,9 +20,8 @@ export extern "C" function diag_report_with_code(
 /* See signature and body for contracts. */
 export extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): void;
 
-/* Cap residual (mega always): errno + strerror + va_list reportf path. */
-export extern "C" function link_diag_errno(kind: *u8, op: *u8): void;
-export extern "C" function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void;
+/* Cap residual (mega always): capture errno + strerror (libc). Message orch is pure. */
+export extern "C" function link_diag_strerror_current(): *u8;
 
 /* Cap residual (mega always): POSIX wait status macros (WIFSIGNALED / WTERMSIG /
  * WIFEXITED / WEXITSTATUS). PLATFORM: POSIX (macOS + Linux product hosts). */
@@ -466,16 +465,119 @@ export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): 
 }
 
 /**
- * Parse a classic `perror`-style link/process message and report via link_diag_errno*.
+ * Report a process/link errno failure: `"<op> failed: <strerror>"`.
+ * Pure owns kind/op defaults, `link_diag_code_for_kind`, message append, and
+ * `diag_report_with_code`. Cap residual `link_diag_strerror_current` holds
+ * errno capture + libc strerror (must run before other Cap calls that may
+ * clobber errno — pure body calls it first).
+ * Null kind → `"process error"`; null/empty op → `"system call"`.
+ * @param kind *u8 — diagnostic kind (null → process error)
+ * @param op *u8 — failed operation label
+ * @return void
+ * wave113: closes soft Cap residual "link_diag_errno body always mega reportf under hybrid".
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ */
+#[no_mangle]
+export function link_diag_errno(kind: *u8, op: *u8): void {
+  let k: *u8 = kind;
+  let o: *u8 = op;
+  let err: *u8 = 0 as *u8;
+  let code: *u8 = 0 as *u8;
+  let msg: u8[320] = [];
+  if (k == 0 as *u8) {
+    k = "process error";
+  }
+  if (o == 0 as *u8) {
+    o = "system call";
+  } else {
+    if (o[0] == 0) {
+      o = "system call";
+    }
+  }
+  unsafe {
+    err = link_diag_strerror_current();
+  }
+  if (err == 0 as *u8) {
+    err = "unknown error";
+  }
+  code = link_diag_code_for_kind(k);
+  msg[0] = 0;
+  labi_diag_append(&msg[0], 320, o);
+  labi_diag_append(&msg[0], 320, " failed: ");
+  labi_diag_append(&msg[0], 320, err);
+  unsafe {
+    diag_report_with_code(0 as *u8, 0, 0, k, code, &msg[0], 0 as *u8);
+  }
+}
+
+/**
+ * Report a process/link errno failure with path:
+ * `"<op> failed for '<path>': <strerror>"`.
+ * Null/empty path → same as `link_diag_errno(kind, op)`.
+ * Cap residual strerror same as `link_diag_errno` (called first).
+ * @param kind *u8 — diagnostic kind (null → process error)
+ * @param op *u8 — failed operation label
+ * @param path *u8 — path involved in the failure
+ * @return void
+ * wave113: closes soft Cap residual "link_diag_errno_path body always mega reportf".
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ */
+#[no_mangle]
+export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
+  let k: *u8 = kind;
+  let o: *u8 = op;
+  let p: *u8 = path;
+  let err: *u8 = 0 as *u8;
+  let code: *u8 = 0 as *u8;
+  let msg: u8[384] = [];
+  if (p == 0 as *u8) {
+    link_diag_errno(k, o);
+    return;
+  }
+  if (p[0] == 0) {
+    link_diag_errno(k, o);
+    return;
+  }
+  if (k == 0 as *u8) {
+    k = "process error";
+  }
+  if (o == 0 as *u8) {
+    o = "system call";
+  } else {
+    if (o[0] == 0) {
+      o = "system call";
+    }
+  }
+  unsafe {
+    err = link_diag_strerror_current();
+  }
+  if (err == 0 as *u8) {
+    err = "unknown error";
+  }
+  code = link_diag_code_for_kind(k);
+  msg[0] = 0;
+  labi_diag_append(&msg[0], 384, o);
+  labi_diag_append(&msg[0], 384, " failed for '");
+  labi_diag_append(&msg[0], 384, p);
+  labi_diag_append(&msg[0], 384, "': ");
+  labi_diag_append(&msg[0], 384, err);
+  unsafe {
+    diag_report_with_code(0 as *u8, 0, 0, k, code, &msg[0], 0 as *u8);
+  }
+}
+
+/**
+ * Parse a classic `perror`-style link/process message and report via pure
+ * `link_diag_errno` / `link_diag_errno_path` (wave113).
  * Accepts optional leading `shux: ` prefix. If the remaining text ends with
  * `op (path)` (last `(` / `)` with trailing NUL after `)`), splits into op + path
  * for `link_diag_errno_path`; otherwise reports the whole remaining text as op.
  * Null/empty msg → `system call` with no path.
  * @param msg *u8 — NUL-terminated diagnostic text; null treated as empty
  * @return void
- * Cap residual: `link_diag_errno` / `link_diag_errno_path` hold errno+strerror+reportf
- * (mega always). Pure owns only prefix strip + paren split + stack copies for op/path.
- * wave111: closes soft Cap residual "shux_link_perror body always mega C under hybrid".
+ * Cap residual: only `link_diag_strerror_current` under the pure errno path
+ * (errno+strerror; mega always). Pure owns prefix strip + paren split + message orch.
+ * wave111: perror body pure; wave113: errno/_path message body pure.
  * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
  */
 #[no_mangle]
@@ -497,15 +599,11 @@ export function shux_link_perror(msg: *u8): void {
   let text: *u8 = 0 as *u8;
 
   if (base == 0 as *u8) {
-    unsafe {
-      link_diag_errno(pe, sc);
-    }
+    link_diag_errno(pe, sc);
     return;
   }
   if (base[0] == 0) {
-    unsafe {
-      link_diag_errno(pe, sc);
-    }
+    link_diag_errno(pe, sc);
     return;
   }
 
@@ -568,17 +666,13 @@ export function shux_link_perror(msg: *u8): void {
       j = j + 1;
     }
     path_buf[path_len as usize] = 0;
-    unsafe {
-      link_diag_errno_path(pe, &op_buf[0], &path_buf[0]);
-    }
+    link_diag_errno_path(pe, &op_buf[0], &path_buf[0]);
     return;
   }
 
   /* Whole remaining text as op (pointer into msg after optional prefix). */
-  unsafe {
-    text = &base[start];
-    link_diag_errno(pe, text);
-  }
+  text = &base[start];
+  link_diag_errno(pe, text);
 }
 
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
