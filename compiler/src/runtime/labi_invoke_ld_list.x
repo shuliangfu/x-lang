@@ -13,7 +13,8 @@
 // + wave188 shux_ensure_formal_std_make_o pure orch
 // + wave191 labi_std_append_formal_ensure_for_rel pure orch
 // + wave192 labi_std_append_glue_for_op pure orch
-// + wave193 labi_std_append_primary_for_op + process_argv_if pure orch:
+// + wave193 labi_std_append_primary_for_op + process_argv_if pure orch
+// + wave194 labi_std_append_task_special pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -38,13 +39,16 @@
 //     for append_std plan primary leaves; Cap residual needs_* + ensure/path + push_obj)
 //   - labi_std_append_process_argv_if (wave193; pure process_argv complement when
 //     heavy std on argv without process.o; Cap residual ensure+path + push_obj)
+//   - labi_std_append_task_special (wave194; pure TASK_SPECIAL orch: needs_std_task gate +
+//     formal ensure task.o + push task/scheduler/scheduler_glue; Cap residual skip/path/bank)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
 //   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap);
 //   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
-//   needs + primary ensure/path + process_argv for wave193 primary/complement.
+//   needs + primary ensure/path + process_argv for wave193 primary/complement;
+//   task/scheduler path peers + bank_push for wave194 TASK_SPECIAL.
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -158,6 +162,17 @@ export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
 // PLATFORM: SHARED — constructor-bound argc/argv glue; never dual-link with process.o.
 export extern "C" function shux_ensure_runtime_process_argv_o(argv0: *u8): i32;
 export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
+
+// Peer pure / Cap residual for wave194 TASK_SPECIAL (task.o + scheduler.o + scheduler_glue).
+// PLATFORM: SHARED — append_std plan leaf 30; gate + formal ensure + path ladder + push.
+// G.7: compose existing needs/path/ensure/push peers; no second task plan table.
+export extern "C" function labi_user_needs_std_task(user_o: *u8): i32;
+export extern "C" function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8): *u8;
+export extern "C" function shux_std_async_scheduler_o_path(argv0: *u8): *u8;
+export extern "C" function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
+export extern "C" function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32, max_la: i32, p: *u8): void;
+export extern "C" function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -2642,6 +2657,186 @@ export function labi_std_append_process_argv_if(need: i32, link_argv0: *u8, lib_
     _p = link_abi_asm_ld_push_obj(p, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
   }
   if (_p == 0) {
+    return;
+  }
+}
+
+/**
+ * Append_std plan TASK_SPECIAL leaf (op 30): when user needs std.task, ensure+push
+ * task.o + async scheduler.o + runtime_scheduler_glue.o onto ld argv.
+ * Pure orch (≡ mega LABI_STD_OP_TASK_SPECIAL):
+ *   1) gate labi_user_needs_std_task when user_o non-empty (null/empty → always open)
+ *   2) task_rel = plan rel if non-null/non-empty else "std/task/task.o"
+ *   3) when user_o set: Cap residual repo_root + peer formal_std_make (L4 wipe recovery)
+ *   4) resolve task path: Cap residual skip_missing(rel_o_path) → peer try_under_lib_roots
+ *   5) peer pure argv_push_stable(task)
+ *   6) peer pure scheduler_o_for_task_link(task) with fallbacks:
+ *        skip_missing(std_async_scheduler_o_path) → try_under "std/async/scheduler.o"
+ *   7) push_stable(scheduler) then Cap residual ensure_scheduler_glue + resolve + push_stable
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param user_o *u8 — user .o for needs gate; null/empty → skip gate (hard-link style)
+ * @param rel *u8 — plan step rel (may be null; default std/task/task.o)
+ * @param lib_roots **u8 — -L style roots for try_under / path bank
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank*
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * Cap residual: shux_repo_root_from_argv0 + formal_std_make + skip_missing + rel_o_path +
+ *   ensure_runtime_scheduler_glue_o + path peers; peer pure scheduler rewrite / push_stable /
+ *   try_under / needs_std_task.
+ * Why (wave194): hybrid still had TASK_SPECIAL always-mega inline after wave193 primary.
+ * G.7: compose existing needs/path/ensure/push peers; no second task link table.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — dual-end L2.
+ * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
+ */
+#[no_mangle]
+export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  // Gate: only when user_o is a real path (≡ mega if user_o && user_o[0] && !needs break).
+  if (user_o != 0 as *u8) {
+    if (user_o[0] != 0) {
+      let need: i32 = 0;
+      unsafe {
+        need = labi_user_needs_std_task(user_o);
+      }
+      if (need == 0) {
+        return;
+      }
+    }
+  }
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  // Capacity gate (≡ mega if (p && la && *la < max_la - 1) before any push).
+  if (la[0] >= max_la - 1) {
+    return;
+  }
+  // task_rel = rel ? rel : "std/task/task.o"
+  let task_rel: *u8 = rel;
+  let rel_ok: i32 = 0;
+  if (rel != 0 as *u8) {
+    if (rel[0] != 0) {
+      rel_ok = 1;
+    }
+  }
+  if (rel_ok == 0) {
+    task_rel = "std/task/task.o";
+  }
+  // L4 wipe: formal ensure when user actually needs task (G.7 complete ensure authority).
+  if (user_o != 0 as *u8) {
+    if (user_o[0] != 0) {
+      let include_root: *u8 = 0 as *u8;
+      unsafe {
+        include_root = shux_repo_root_from_argv0(link_argv0);
+      }
+      if (include_root != 0 as *u8) {
+        if (include_root[0] != 0) {
+          let make_tgt: u8[4096] = [];
+          let pos: i32 = 0;
+          pos = labi_net_tls_buf_append(&make_tgt[0], 4096, pos, "../");
+          if (pos >= 0) {
+            pos = labi_net_tls_buf_append(&make_tgt[0], 4096, pos, task_rel);
+          }
+          if (pos >= 0) {
+            let _ens: i32 = 0;
+            unsafe {
+              _ens = shux_ensure_formal_std_make_o(include_root, task_rel, &make_tgt[0]);
+            }
+            if (_ens == 0) {
+              // keep ensure result live for typeck; failure still falls through to resolve.
+            }
+          }
+        }
+      }
+    }
+  }
+  // Resolve task.o: Cap residual skip(rel_o_path) → peer try_under when bank present.
+  let p: *u8 = 0 as *u8;
+  let relp: *u8 = 0 as *u8;
+  unsafe {
+    relp = shux_rel_o_path_from_argv0(link_argv0, task_rel);
+  }
+  if (relp != 0 as *u8) {
+    unsafe {
+      p = asm_link_obj_skip_missing(relp);
+    }
+  }
+  if (p == 0 as *u8) {
+    if (bank != 0 as *u8) {
+      unsafe {
+        p = shux_asm_ld_try_under_lib_roots(task_rel, lib_roots, n_lib_roots, bank);
+      }
+    }
+  }
+  if (p == 0 as *u8) {
+    return;
+  }
+  // Push task.o (bank + dedup + append; soft-keep on bank_push fail ≡ mega).
+  unsafe {
+    link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
+  }
+  // Derive scheduler.o from task path; fallbacks ≡ mega ladder.
+  let sched: *u8 = 0 as *u8;
+  unsafe {
+    sched = scheduler_o_for_task_link(p, 0 as *u8);
+  }
+  if (sched == 0 as *u8) {
+    let sp: *u8 = 0 as *u8;
+    unsafe {
+      sp = shux_std_async_scheduler_o_path(link_argv0);
+    }
+    if (sp != 0 as *u8) {
+      unsafe {
+        sched = asm_link_obj_skip_missing(sp);
+      }
+    }
+  }
+  if (sched == 0 as *u8) {
+    if (bank != 0 as *u8) {
+      unsafe {
+        sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+      }
+    }
+  }
+  if (sched == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, sched);
+  }
+  // runtime_scheduler_glue.o (only when scheduler was resolved; ≡ mega nested under sched).
+  let _eg: i32 = 0;
+  unsafe {
+    _eg = shux_ensure_runtime_scheduler_glue_o(link_argv0);
+  }
+  let rsg: *u8 = 0 as *u8;
+  let gp: *u8 = 0 as *u8;
+  unsafe {
+    gp = shux_runtime_scheduler_glue_o_path(link_argv0);
+  }
+  if (gp != 0 as *u8) {
+    unsafe {
+      rsg = asm_link_obj_skip_missing(gp);
+    }
+  }
+  if (rsg == 0 as *u8) {
+    if (bank != 0 as *u8) {
+      unsafe {
+        rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
+      }
+    }
+  }
+  if (rsg != 0 as *u8) {
+    unsafe {
+      link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rsg);
+    }
+  }
+  // keep Cap residual peer args live for typeck (lib_roots used via try_under only).
+  if (_eg != 0) {
     return;
   }
 }

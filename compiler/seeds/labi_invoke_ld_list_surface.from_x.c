@@ -13,13 +13,15 @@
  *   + wave188 shux_ensure_formal_std_make_o pure orch
  *   + wave191 labi_std_append_formal_ensure_for_rel pure orch
  *   + wave192 labi_std_append_glue_for_op pure orch
- *   + wave193 labi_std_append_primary_for_op + process_argv_if pure orch)
+ *   + wave193 labi_std_append_primary_for_op + process_argv_if pure orch
+ *   + wave194 labi_std_append_task_special pure orch)
  * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path pool;
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega;
  *   getenv / system / access / skip_missing for ensure_std_net + formal_std_make (wave187/188);
  *   repo_root + ensure_runtime_* + push_obj for wave191 formal companions;
  *   ensure_runtime_*_glue + path peers for wave192 OP_GLUE_* leaves;
- *   needs + primary ensure/path + process_argv for wave193 primary/complement
+ *   needs + primary ensure/path + process_argv for wave193 primary/complement;
+ *   task/scheduler path peers + bank for wave194 TASK_SPECIAL
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - pure contract; Ubuntu gold + mac prove.
  */
@@ -88,6 +90,14 @@ extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
 extern int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
+/* wave194 TASK_SPECIAL peers (needs_std_task + scheduler path + push_stable + glue). */
+extern int32_t labi_user_needs_std_task(uint8_t * user_o);
+extern uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler);
+extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
+extern uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
+extern void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p);
+extern int32_t shux_ensure_runtime_scheduler_glue_o(uint8_t * argv0);
+extern uint8_t * shux_runtime_scheduler_glue_o_path(uint8_t * argv0);
 /* wave188 formal make peer (exported pure). */
 extern int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_repo, uint8_t * make_target);
 
@@ -1656,6 +1666,110 @@ void labi_std_append_process_argv_if(int32_t need, uint8_t * link_argv0, uint8_t
   int32_t _p = 0;
   (void)((_p = link_abi_asm_ld_push_obj(p, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x72\x6f\x63\x65\x73\x73\x5f\x61\x72\x67\x76\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
   if ((_p ==0)) {
+    return;
+  }
+}
+void labi_std_append_task_special(uint8_t * link_argv0, uint8_t * user_o, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
+  if ((user_o !=0)) {
+    if (((user_o)[0] !=0)) {
+      int32_t need = 0;
+      (void)((need = labi_user_needs_std_task(user_o)));
+      if ((need ==0)) {
+        return;
+      }
+    }
+  }
+  if ((link_argv0 ==0)) {
+    return;
+  }
+  if ((la ==0)) {
+    return;
+  }
+  if (((la)[0] >=(max_la - 1))) {
+    return;
+  }
+  uint8_t * task_rel = rel;
+  int32_t rel_ok = 0;
+  if ((rel !=0)) {
+    if (((rel)[0] !=0)) {
+      (void)((rel_ok = 1));
+    }
+  }
+  if ((rel_ok ==0)) {
+    (void)((task_rel = ((uint8_t *)"\x73\x74\x64\x2f\x74\x61\x73\x6b\x2f\x74\x61\x73\x6b\x2e\x6f")));
+  }
+  if ((user_o !=0)) {
+    if (((user_o)[0] !=0)) {
+      uint8_t * include_root = 0;
+      (void)((include_root = shux_repo_root_from_argv0(link_argv0)));
+      if ((include_root !=0)) {
+        if (((include_root)[0] !=0)) {
+          uint8_t make_tgt[4096] = {};
+          int32_t pos = 0;
+          (void)((pos = labi_net_tls_buf_append(&((make_tgt)[0]), 4096, pos, ((uint8_t *)"\x2e\x2e\x2f"))));
+          if ((pos >=0)) {
+            (void)((pos = labi_net_tls_buf_append(&((make_tgt)[0]), 4096, pos, task_rel)));
+          }
+          if ((pos >=0)) {
+            int32_t _ens = 0;
+            (void)((_ens = shux_ensure_formal_std_make_o(include_root, task_rel, &((make_tgt)[0]))));
+            if ((_ens ==0)) {
+            }
+          }
+        }
+      }
+    }
+  }
+  uint8_t * p = 0;
+  uint8_t * relp = 0;
+  (void)((relp = shux_rel_o_path_from_argv0(link_argv0, task_rel)));
+  if ((relp !=0)) {
+    (void)((p = asm_link_obj_skip_missing(relp)));
+  }
+  if ((p ==0)) {
+    if ((bank !=0)) {
+      (void)((p = shux_asm_ld_try_under_lib_roots(task_rel, lib_roots, n_lib_roots, bank)));
+    }
+  }
+  if ((p ==0)) {
+    return;
+  }
+  (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p));
+  uint8_t * sched = 0;
+  (void)((sched = scheduler_o_for_task_link(p, 0)));
+  if ((sched ==0)) {
+    uint8_t * sp = 0;
+    (void)((sp = shux_std_async_scheduler_o_path(link_argv0)));
+    if ((sp !=0)) {
+      (void)((sched = asm_link_obj_skip_missing(sp)));
+    }
+  }
+  if ((sched ==0)) {
+    if ((bank !=0)) {
+      (void)((sched = shux_asm_ld_try_under_lib_roots(((uint8_t *)"\x73\x74\x64\x2f\x61\x73\x79\x6e\x63\x2f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x2e\x6f"), lib_roots, n_lib_roots, bank)));
+    }
+  }
+  if ((sched ==0)) {
+    return;
+  }
+  (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, sched));
+  int32_t _eg = 0;
+  (void)((_eg = shux_ensure_runtime_scheduler_glue_o(link_argv0)));
+  uint8_t * rsg = 0;
+  uint8_t * gp = 0;
+  (void)((gp = shux_runtime_scheduler_glue_o_path(link_argv0)));
+  if ((gp !=0)) {
+    (void)((rsg = asm_link_obj_skip_missing(gp)));
+  }
+  if ((rsg ==0)) {
+    if ((bank !=0)) {
+      (void)((rsg = shux_asm_ld_try_under_lib_roots(((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x73\x63\x68\x65\x64\x75\x6c\x65\x72\x5f\x67\x6c\x75\x65\x2e\x6f"), lib_roots, n_lib_roots, bank)));
+    }
+  }
+  if ((rsg !=0)) {
+    (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rsg));
+  }
+  if ((_eg !=0)) {
     return;
   }
 }

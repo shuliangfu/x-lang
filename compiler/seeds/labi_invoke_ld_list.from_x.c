@@ -31,13 +31,16 @@
  *     push_obj; append_std IO_STUBS + PRIMARY_* plan leaves)
  *   labi_std_append_process_argv_if (wave193 pure orch; Cap residual process_argv ensure+path;
  *     complement after plan loop when heavy std without process.o)
+ *   labi_std_append_task_special (wave194 pure orch; Cap residual skip/path/bank + formal ensure;
+ *     append_std TASK_SPECIAL task+scheduler+scheduler_glue)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
  *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
  *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual);
  *   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
- *   needs + primary ensure/path + process_argv for wave193 primary/complement.
+ *   needs + primary ensure/path + process_argv for wave193 primary/complement;
+ *   task/scheduler path peers + bank for wave194 TASK_SPECIAL.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -78,6 +81,15 @@ const char *shux_runtime_time_os_o_path(const char *argv0);
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out);
+/* Peer pure / Cap residual (wave194 TASK_SPECIAL). */
+int labi_user_needs_std_task(const char *user_o);
+const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
+const char *shux_std_async_scheduler_o_path(const char *argv0);
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots,
+    void *bank);
+void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
+int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
+const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
 /* wave192 glue ensure+path peers (ensure_list L4 / path_pure L0). */
 int shux_ensure_runtime_thread_glue_o(const char *argv0);
 const char *shux_runtime_thread_glue_o_path(const char *argv0);
@@ -941,6 +953,71 @@ void labi_std_append_process_argv_if(int need, const char *link_argv0,
                                  lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
 
+/* wave194: labi_std_append_task_special pure orch (cold twin ≡ .x).
+ * Cap residual skip/path + formal ensure; peer needs_std_task / scheduler / push_stable.
+ * PLATFORM: SHARED — append_std TASK_SPECIAL (task + scheduler + scheduler_glue).
+ */
+void labi_std_append_task_special(const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la) {
+  const char *task_rel;
+  const char *p;
+  const char *relp;
+  const char *sched;
+  const char *rsg;
+  const char *include_root;
+  char make_tgt[4096];
+  int pos;
+  if (user_o && user_o[0] && !labi_user_needs_std_task(user_o))
+    return;
+  if (!link_argv0 || !la || *la >= max_la - 1)
+    return;
+  task_rel = (rel && rel[0]) ? rel : "std/task/task.o";
+  if (user_o && user_o[0]) {
+    include_root = shux_repo_root_from_argv0(link_argv0);
+    if (include_root && include_root[0]) {
+      pos = 0;
+      pos = labi_net_tls_buf_append(make_tgt, 4096, pos, "../");
+      if (pos >= 0)
+        pos = labi_net_tls_buf_append(make_tgt, 4096, pos, task_rel);
+      if (pos >= 0)
+        (void)shux_ensure_formal_std_make_o(include_root, task_rel, make_tgt);
+    }
+  }
+  p = NULL;
+  relp = shux_rel_o_path_from_argv0(link_argv0, task_rel);
+  if (relp)
+    p = asm_link_obj_skip_missing(relp);
+  if (!p && bank)
+    p = shux_asm_ld_try_under_lib_roots(task_rel, lib_roots, n_lib_roots, bank);
+  if (!p)
+    return;
+  link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
+  sched = scheduler_o_for_task_link(p, NULL);
+  if (!sched) {
+    const char *sp = shux_std_async_scheduler_o_path(link_argv0);
+    if (sp)
+      sched = asm_link_obj_skip_missing(sp);
+  }
+  if (!sched && bank)
+    sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+  if (!sched)
+    return;
+  link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, sched);
+  (void)shux_ensure_runtime_scheduler_glue_o(link_argv0);
+  rsg = NULL;
+  {
+    const char *gp = shux_runtime_scheduler_glue_o_path(link_argv0);
+    if (gp)
+      rsg = asm_link_obj_skip_missing(gp);
+  }
+  if (!rsg && bank)
+    rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
+  if (rsg)
+    link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rsg);
+  (void)n_lib_roots;
+}
+
 #else
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
@@ -1014,6 +1091,10 @@ void labi_std_append_primary_for_op(int op, const char *link_argv0, const char *
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
 void labi_std_append_process_argv_if(int need, const char *link_argv0,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+/* wave194: TASK_SPECIAL pure orch (L6). */
+void labi_std_append_task_special(const char *link_argv0, const char *user_o, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
 #endif
