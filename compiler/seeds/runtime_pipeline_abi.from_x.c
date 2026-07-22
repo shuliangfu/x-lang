@@ -95,7 +95,9 @@
  * wave85: pure preprocess_define_reset / add / has (-D table BSS in pure pipeline_abi;
  *   glue strict_stubs SHUX_WEAK cold fallback). Closes Cap residual define-table leaf
  *   of preprocess engine (x_buf / if_stack still Cap residual).
- * Cap residual still: typeck_module C frontend (+ preprocess x_buf / if_stack;
+ * wave86: pure preprocess_if_stack_* (fixed i32[32] BSS; ast_pool GrowVec SHUX_WEAK
+ *   cold fallback). Closes Cap residual preprocess #if stack leaf.
+ * Cap residual still: typeck_module C frontend (+ preprocess_x_buf;
  *   g05 harness still holds &fn cast for Cap-fn-ptr).
  * Root fix wave45: .x docblock must not embed end-comment marker in prose (char star / void star
  *   was written as char star-star-slash void-star and truncated the block → silent AST drop of all

@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <shux_weak.h>
 #include "diag.h"
 
 #ifndef AST_POOL_GROW
@@ -7806,7 +7807,17 @@ void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap) {
     dst[k] = row[k];
 }
 
-/** preprocess.x：#if/#else 嵌套栈（替代 i32[32] 固定栈）。 */
+/**
+ * preprocess.x：#if/#else 嵌套栈 cold fallback（GrowVec）。
+ *
+ * wave86: product pure owns preprocess_if_stack_* via fixed i32[32] BSS in
+ * runtime_pipeline_abi.x (G.7 single authority under PREFER hybrid). This
+ * GrowVec body stays SHUX_WEAK so cold / non-hybrid links without pure still
+ * work, and pure weak/strong overrides under product L2 hybrid.
+ *
+ * PLATFORM: SHARED — ELF weak overridden by pure; PE SHUX_WEAK empty +
+ * --allow-multiple-definition (Windows hybrid not required this wave).
+ */
 static GrowVec g_preprocess_if_stack;
 static int g_preprocess_if_inited;
 
@@ -7818,20 +7829,20 @@ static void preprocess_if_stack_ensure(void) {
   g_preprocess_if_inited = 1;
 }
 
-/** 清空 #if 嵌套栈。 */
-void preprocess_if_stack_reset(void) {
+/** Clear #if nest stack (weak cold fallback; pure owns product). */
+SHUX_WEAK void preprocess_if_stack_reset(void) {
   preprocess_if_stack_ensure();
   g_preprocess_if_stack.len = 0;
 }
 
-/** 当前嵌套深度。 */
-int32_t preprocess_if_stack_len(void) {
+/** Current nest depth (weak cold fallback). */
+SHUX_WEAK int32_t preprocess_if_stack_len(void) {
   preprocess_if_stack_ensure();
   return g_preprocess_if_inited ? g_preprocess_if_stack.len : 0;
 }
 
-/** 追加一层栈状态；失败 -1。 */
-int32_t preprocess_if_stack_push(int32_t v) {
+/** Push one nest state; -1 on OOM/fail (weak cold fallback). */
+SHUX_WEAK int32_t preprocess_if_stack_push(int32_t v) {
   int32_t *slot;
   preprocess_if_stack_ensure();
   if (!g_preprocess_if_inited)
@@ -7845,15 +7856,15 @@ int32_t preprocess_if_stack_push(int32_t v) {
   return 0;
 }
 
-/** 弹出一层（#endif）。 */
-void preprocess_if_stack_pop(void) {
+/** Pop one nest level (weak cold fallback). */
+SHUX_WEAK void preprocess_if_stack_pop(void) {
   preprocess_if_stack_ensure();
   if (g_preprocess_if_stack.len > 0)
     g_preprocess_if_stack.len--;
 }
 
-/** 读 stack[i]。 */
-int32_t preprocess_if_stack_at(int32_t i) {
+/** Read stack[i] (weak cold fallback; OOB → 0). */
+SHUX_WEAK int32_t preprocess_if_stack_at(int32_t i) {
   int32_t *slot;
   if (i < 0 || !g_preprocess_if_inited || i >= g_preprocess_if_stack.len)
     return 0;
@@ -7861,8 +7872,8 @@ int32_t preprocess_if_stack_at(int32_t i) {
   return slot ? *slot : 0;
 }
 
-/** 写 stack[i]。 */
-void preprocess_if_stack_set_at(int32_t i, int32_t v) {
+/** Write stack[i] (weak cold fallback; OOB → no-op). */
+SHUX_WEAK void preprocess_if_stack_set_at(int32_t i, int32_t v) {
   int32_t *slot;
   if (i < 0 || !g_preprocess_if_inited || i >= g_preprocess_if_stack.len)
     return;

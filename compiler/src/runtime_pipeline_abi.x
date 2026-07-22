@@ -106,7 +106,10 @@
 // wave85: pure preprocess_define_reset / add / has (G.7 single -D table BSS;
 //   glue strict_stubs SHUX_WEAK cold fallback). Closes Cap residual define-table
 //   leaf of preprocess engine (x_buf / if_stack still Cap residual).
-// Cap residual still: typeck_module C frontend (+ preprocess x_buf / if_stack;
+// wave86: pure preprocess_if_stack_reset / len / push / pop / at / set_at
+//   (G.7 single fixed i32[32] BSS; ast_pool GrowVec SHUX_WEAK cold fallback).
+//   Closes Cap residual preprocess #if stack leaf (x_buf still Cap residual).
+// Cap residual still: typeck_module C frontend (+ preprocess_x_buf;
 //   g05 harness still holds &fn cast for Cap-fn-ptr).
 // PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
 
@@ -123,6 +126,7 @@
 // wave83: pipeline_sizeof_arena / pipeline_sizeof_module are pure export functions below.
 // wave84: pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr pure below.
 // wave85: preprocess_define_reset / add / has are pure export functions below.
+// wave86: preprocess_if_stack_* are pure export functions below (not Cap residual).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
@@ -193,10 +197,10 @@ export extern "C" function driver_asm_fflush_stdout(): void;
 export extern "C" function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
 export extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
 /* wave61: shux_preprocess_raw_to_malloc_impl is pure export function below.
- * wave85: define_reset/add/has pure below (G.7 single -D table). Cap residual:
- * preprocess_x_buf (preprocess.x) + if_stack (ast_pool GrowVec): */
+ * wave85: define_reset/add/has pure below (G.7 single -D table).
+ * wave86: if_stack_* pure below (G.7 fixed i32[32]; not export-extern).
+ * Cap residual: preprocess_x_buf (preprocess.x engine): */
 export extern "C" function preprocess_x_buf(src: *u8, src_len: i64, out_buf: *u8, out_cap: i32): i32;
-export extern "C" function preprocess_if_stack_len(): i32;
 // PLATFORM: SHARED — same C ABI as seed cold twin; pure orch owns malloc/copy/diag gates.
 // wave74: driver_dep_seed_slots pure orch owns tables (no seed_slots_impl body required under hybrid).
 // wave75: shux_entry_lib_name_from_path_impl / shux_cstr_typeck_lit /
@@ -1505,9 +1509,11 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  * @param ndefines i32 — define count; < 0 rejected by thin gate
  * @param emit_diag i32 — non-zero → emit PP/XP diags on failure
  * @return i32 — 0 success; -1 fail (OOM / oversized / preprocess error / unclosed #if)
- * wave61 pure Cap residual orch; wave85 pure owns -D define table:
+ * wave61 pure Cap residual orch; wave85 pure owns -D define table;
+ * wave86 pure owns #if stack:
  *   G.7 pure preprocess_define_reset / preprocess_define_add (same-TU pure BSS);
- *   G.7 Cap residual preprocess_x_buf / preprocess_if_stack_len (engine still C/.x);
+ *   G.7 pure preprocess_if_stack_len (same-TU fixed stack; no GrowVec);
+ *   G.7 Cap residual preprocess_x_buf (preprocess.x engine still C/.x);
  *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
  *   G.7 shux_ptr_slot_set / shux_size_slot_set for out slots (char** / size_t*);
  *   oversized raw → pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
@@ -3124,6 +3130,15 @@ let g_pipe_typeck_dep_arena_ptrs: u8[256] = [];
 let g_pipe_pp_defines: u8[8192] = [];
 let g_pipe_pp_ndefines: i32 = 0;
 
+// wave86 pure preprocess #if nesting stack (G.7 single authority for product if_stack).
+// PLATFORM: SHARED — fixed cap 32 i32 slots (historical fixed stack before ast_pool GrowVec).
+// Layout: g_pipe_pp_if_stack[0 .. n) live; g_pipe_pp_if_n = depth (0..32).
+// Product hybrid: pure override of ast_pool SHUX_WEAK GrowVec cold fallback
+// (pipeline_x.o / pipeline_glue_standalone.o embed the weak cold body).
+// preprocess.x thin wrappers + preprocess_x_buf call these by C link name.
+let g_pipe_pp_if_stack: i32[32] = [];
+let g_pipe_pp_if_n: i32 = 0;
+
 // wave75 pure entry_lib lit + stem BSS (G.7 single authority for -E lib_prefix).
 // PLATFORM: SHARED — same string values as seed static lits / stem_buf[128].
 // Keyword order matches seed shux_entry_lib_keyword_lit / strstr checks in name_from_path_impl.
@@ -3244,6 +3259,106 @@ export function preprocess_define_has(sym: *u8, sym_len: i32): i32 {
     i = i + 1;
   }
   return 0;
+}
+
+/**
+ * Clear the pure #if nesting stack (depth → 0; slot values left stale until overwrite).
+ * @return void
+ * wave86 pure Cap residual: G.7 single authority for product preprocess #if stack
+ * (historical always-seed body in ast_pool GrowVec g_preprocess_if_stack).
+ * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function preprocess_if_stack_reset(): void {
+  g_pipe_pp_if_n = 0;
+}
+
+/**
+ * Return current #if nesting depth (0 when empty).
+ * @return i32 — depth in 0..32
+ * wave86 pure Cap residual: matches historical preprocess_if_stack_len (GrowVec len).
+ * PLATFORM: SHARED — same non-negative depth contract as cold path.
+ */
+#[no_mangle]
+export function preprocess_if_stack_len(): i32 {
+  return g_pipe_pp_if_n;
+}
+
+/**
+ * Push one stack state value (active / skipped / else-taken codes from preprocess.x).
+ * @param v i32 — state code for this nesting level
+ * @return i32 — 0 on success; -1 if depth already at cap 32
+ * wave86 pure Cap residual: fixed-cap push (historical GrowVec grow-or-fail).
+ * PLATFORM: SHARED — cap 32 matches pre-GrowVec fixed stack; product #if nest rare > 8.
+ */
+#[no_mangle]
+export function preprocess_if_stack_push(v: i32): i32 {
+  if (g_pipe_pp_if_n >= 32) {
+    return -1;
+  }
+  unsafe {
+    let p: *i32 = &g_pipe_pp_if_stack[g_pipe_pp_if_n];
+    p[0] = v;
+  }
+  g_pipe_pp_if_n = g_pipe_pp_if_n + 1;
+  return 0;
+}
+
+/**
+ * Pop one nesting level (#endif). No-op when empty.
+ * @return void
+ * wave86 pure Cap residual: depth-- when depth > 0.
+ * PLATFORM: SHARED — same empty-safe pop as historical GrowVec path.
+ */
+#[no_mangle]
+export function preprocess_if_stack_pop(): void {
+  if (g_pipe_pp_if_n > 0) {
+    g_pipe_pp_if_n = g_pipe_pp_if_n - 1;
+  }
+}
+
+/**
+ * Read stack state at index i (0-based).
+ * @param i i32 — index; OOB or empty → 0
+ * @return i32 — stored state, or 0 when i invalid
+ * wave86 pure Cap residual: matches historical preprocess_if_stack_at OOB → 0.
+ * PLATFORM: SHARED — no grow; pure fixed table only.
+ */
+#[no_mangle]
+export function preprocess_if_stack_at(i: i32): i32 {
+  if (i < 0) {
+    return 0;
+  }
+  if (i >= g_pipe_pp_if_n) {
+    return 0;
+  }
+  unsafe {
+    let p: *i32 = &g_pipe_pp_if_stack[i];
+    return p[0];
+  }
+  return 0;
+}
+
+/**
+ * Write stack state at index i (must be in 0..depth-1).
+ * @param i i32 — index; OOB → no-op
+ * @param v i32 — new state code
+ * @return void
+ * wave86 pure Cap residual: matches historical preprocess_if_stack_set_at OOB no-op.
+ * PLATFORM: SHARED — pure fixed table only.
+ */
+#[no_mangle]
+export function preprocess_if_stack_set_at(i: i32, v: i32): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= g_pipe_pp_if_n) {
+    return;
+  }
+  unsafe {
+    let p: *i32 = &g_pipe_pp_if_stack[i];
+    p[0] = v;
+  }
 }
 
 /**
