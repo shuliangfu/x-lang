@@ -21,6 +21,8 @@
  *   + shux_freestanding_io_o_path (wave165 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd)
  *   + shux_std_async_scheduler_o_path (wave166 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd;
  *     step3 realpath(argv0)+parent+/../std/async)
+ *   + scheduler_o_for_task_link (wave180 pure task.o→scheduler.o rewrite; Cap residual
+ *     path_readable + realpath_cap; static 4096/4096 BSS)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -778,8 +780,92 @@ const char *shux_std_async_scheduler_o_path(const char *argv0) {
   return g_labi_async_scheduler_o_path_buf;
 }
 
+/* wave180: scheduler_o_for_task_link pure orch (cold twin ≡ .x;
+ * Cap residual path_readable + realpath_cap). */
+static char g_labi_sched_for_task_derived[4096];
+static char g_labi_sched_for_task_cwd[4096];
+
+const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler) {
+  int n;
+  int ci;
+  int pos;
+  int i;
+  int j;
+  int ok;
+  int new_n;
+  int si;
+  int k;
+  int readable;
+  const char *from;
+  const char *to;
+  const char *hit;
+  int from_len;
+  int to_len;
+  int delta;
+  if (explicit_scheduler && explicit_scheduler[0])
+    return explicit_scheduler;
+  if (!task_o || !task_o[0])
+    return NULL;
+  n = 0;
+  while (task_o[n] != 0)
+    n = n + 1;
+  if (n >= 4096)
+    return NULL;
+  ci = 0;
+  while (ci <= n) {
+    g_labi_sched_for_task_derived[ci] = task_o[ci];
+    ci = ci + 1;
+  }
+  from = "std/task/task.o";
+  from_len = 15;
+  to = "std/async/scheduler.o";
+  to_len = 22;
+  delta = 7;
+  pos = -1;
+  i = 0;
+  while (i + from_len <= n) {
+    if (pos < 0) {
+      j = 0;
+      ok = 1;
+      while (j < from_len) {
+        if (ok != 0) {
+          if ((uint8_t)g_labi_sched_for_task_derived[i + j] != (uint8_t)from[j])
+            ok = 0;
+        }
+        j = j + 1;
+      }
+      if (ok != 0)
+        pos = i;
+    }
+    i = i + 1;
+  }
+  if (pos >= 0) {
+    new_n = n + delta;
+    if (new_n < 4096) {
+      si = n;
+      while (si >= pos + from_len) {
+        g_labi_sched_for_task_derived[si + delta] = g_labi_sched_for_task_derived[si];
+        si = si - 1;
+      }
+      k = 0;
+      while (k < to_len) {
+        g_labi_sched_for_task_derived[pos + k] = to[k];
+        k = k + 1;
+      }
+      readable = link_abi_path_readable(g_labi_sched_for_task_derived);
+      if (readable != 0)
+        return g_labi_sched_for_task_derived;
+    }
+  }
+  g_labi_sched_for_task_cwd[0] = '\0';
+  hit = link_abi_realpath_cap("std/async/scheduler.o", g_labi_sched_for_task_cwd);
+  if (hit)
+    return hit;
+  return NULL;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 22;
+  return 23;
 }
 
 #else
@@ -810,6 +896,7 @@ const char *shux_runtime_panic_o_path(const char *argv0);
 const char *shux_crt0_user_o_path(const char *argv0);
 const char *shux_freestanding_io_o_path(const char *argv0);
 const char *shux_std_async_scheduler_o_path(const char *argv0);
+const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
 int32_t labi_path_pure_count(void);
 #endif
 

@@ -5,7 +5,7 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 22 public gates + count:
+// R2 full: .x owns 23 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
@@ -29,6 +29,8 @@
 //     Cap residual realpath_cap + getcwd; static 512/4096 BSS; freestanding syscall write)
 //   - shux_std_async_scheduler_o_path (wave166; pure cwd/argv0 path ladder for std/async/scheduler.o;
 //     Cap residual realpath_cap + getcwd; static 4096/4096 BSS; argv0 realpath then parent+/../std/async)
+//   - scheduler_o_for_task_link (wave180; pure task.o→scheduler.o path rewrite + Cap residual
+//     path_readable + realpath_cap; static 4096/4096 BSS; explicit_scheduler short-circuit)
 // wave161 G.7: thin mega shux_runtime_*_o_path (static PATH_MAX) route join through this gate
 //   (process_os_glue … ed25519_ref10_glue; + asm_io_stubs / process_argv already on copy).
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
@@ -53,6 +55,7 @@ export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0
 // wave164: shux_crt0_user_o_path is pure export below (no longer Cap residual).
 // wave165: shux_freestanding_io_o_path is pure export below (no longer Cap residual).
 // wave166: shux_std_async_scheduler_o_path is pure export below (no longer Cap residual).
+// wave180: scheduler_o_for_task_link is pure export below (no longer Cap residual always-mega).
 export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
 export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
 // Cap residual (wave151): CLI user-extra .o table + host access R_OK (globals stay mega).
@@ -83,6 +86,9 @@ let g_labi_freestanding_io_o_path_resolved: u8[4096] = [];
 //   step3 realpath(argv0) needs room for absolute host paths, so 4096/4096 not 512).
 let g_labi_async_scheduler_o_path_buf: u8[4096] = [];
 let g_labi_async_scheduler_o_path_resolved: u8[4096] = [];
+// wave180: durable task→scheduler rewrite buffers (≡ mega static derived[PATH_MAX] + cwd_buf).
+let g_labi_sched_for_task_derived: u8[4096] = [];
+let g_labi_sched_for_task_cwd: u8[4096] = [];
 /**
  * Return 1 iff s ends with the two-byte suffix (a0,a1).
  * Params: s — bytes; n — length (i32); a0/a1 — suffix bytes.
@@ -1540,11 +1546,123 @@ export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
 }
 
 /**
+ * When linking task.o, also pull scheduler.o; derive path from task_o if caller omitted it.
+ * Ladder (≡ mega scheduler_o_for_task_link):
+ *   1) non-empty explicit_scheduler → return it as-is
+ *   2) null/empty task_o → null
+ *   3) copy task_o into BSS; if it contains "std/task/task.o", rewrite to
+ *      "std/async/scheduler.o" (expand by 7 bytes) and Cap residual path_readable → return derived
+ *   4) Cap residual realpath_cap("std/async/scheduler.o") → durable cwd buf or null
+ * Pure orch: pure cstr copy + pure needle scan + pure expand-in-place rewrite;
+ * Cap residual: link_abi_path_readable (access R_OK; ≡ mega F_OK for product .o) +
+ *   link_abi_realpath_cap (POSIX realpath; Windows null).
+ * Cap residual: path_readable + realpath_cap only (no snprintf / strstr libc).
+ * Why (wave180): hybrid still had always-mega C body for task→scheduler path rewrite
+ *   (strstr + memmove + access F_OK + realpath). Soft residual after wave166 path ladder.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8): *u8 {
+  // Step 1: explicit path wins (caller already resolved scheduler.o).
+  if (explicit_scheduler != 0 as *u8) {
+    if (explicit_scheduler[0] != 0) {
+      return explicit_scheduler;
+    }
+  }
+  // Step 2: no task path → cannot derive.
+  if (task_o == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (task_o[0] == 0) {
+    return 0 as *u8;
+  }
+  // Pure strlen(task_o); mega: strlen >= PATH_MAX → null.
+  let n: i32 = 0;
+  while (task_o[n] != 0) {
+    n = n + 1;
+  }
+  if (n >= 4096) {
+    return 0 as *u8;
+  }
+  // Copy task_o including trailing NUL into durable derived buf.
+  let ci: i32 = 0;
+  while (ci <= n) {
+    g_labi_sched_for_task_derived[ci] = task_o[ci];
+    ci = ci + 1;
+  }
+  // Needle "std/task/task.o" (15) → replacement "std/async/scheduler.o" (22); expand +7.
+  let from: *u8 = "std/task/task.o";
+  let from_len: i32 = 15;
+  let to: *u8 = "std/async/scheduler.o";
+  let to_len: i32 = 22;
+  let delta: i32 = 7;
+  // Pure first-match scan (≡ mega strstr on derived).
+  let pos: i32 = -1;
+  let i: i32 = 0;
+  while (i + from_len <= n) {
+    if (pos < 0) {
+      let j: i32 = 0;
+      let ok: i32 = 1;
+      while (j < from_len) {
+        if (ok != 0) {
+          if (g_labi_sched_for_task_derived[i + j] != from[j]) {
+            ok = 0;
+          }
+        }
+        j = j + 1;
+      }
+      if (ok != 0) {
+        pos = i;
+      }
+    }
+    i = i + 1;
+  }
+  if (pos >= 0) {
+    // Expanded length including NUL must fit BSS (mega PATH_MAX; avoid tail overflow).
+    let new_n: i32 = n + delta;
+    if (new_n < 4096) {
+      // memmove tail right by delta (including NUL at index n).
+      let si: i32 = n;
+      while (si >= pos + from_len) {
+        g_labi_sched_for_task_derived[si + delta] = g_labi_sched_for_task_derived[si];
+        si = si - 1;
+      }
+      // Overlay replacement needle.
+      let k: i32 = 0;
+      while (k < to_len) {
+        g_labi_sched_for_task_derived[pos + k] = to[k];
+        k = k + 1;
+      }
+      // Cap residual: file exists and is readable (product .o; ≡ mega access F_OK).
+      let readable: i32 = 0;
+      unsafe {
+        readable = link_abi_path_readable(&g_labi_sched_for_task_derived[0]);
+      }
+      if (readable != 0) {
+        return &g_labi_sched_for_task_derived[0];
+      }
+    }
+  }
+  // Fallback: realpath cwd-relative std/async/scheduler.o (≡ mega realpath into cwd_buf).
+  g_labi_sched_for_task_cwd[0] = 0;
+  let hit: *u8 = 0 as *u8;
+  unsafe {
+    hit = link_abi_realpath_cap("std/async/scheduler.o", &g_labi_sched_for_task_cwd[0]);
+  }
+  if (hit != 0 as *u8) {
+    return hit;
+  }
+  return 0 as *u8;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 22 (fixed catalog size for hybrid FROM_X bookkeeping; wave166 +1).
+ * Returns: 23 (fixed catalog size for hybrid FROM_X bookkeeping; wave180 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 22;
+  return 23;
 }

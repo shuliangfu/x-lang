@@ -2129,7 +2129,13 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
  * task.o 链入时须同时链入 scheduler.o；若调用方未显式传入则从 task_o 路径推导。
  * 参数：见 runtime_link_abi.h。
  * 返回值：scheduler .o 路径或 NULL。
+ *
+ * wave180: pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: cstr copy + needle scan + expand rewrite; Cap residual path_readable + realpath_cap.
+ * PLATFORM: SHARED orch — product PREFER uses L0 pure; cold path keeps this body.
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler) {
     static char derived[PATH_MAX];
     static char cwd_buf[PATH_MAX];
@@ -2156,6 +2162,9 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
         return cwd_buf;
     return NULL;
 }
+#else
+const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
+#endif
 
 /**
  * 检测 .o 是否导出 marker 符号（nm 输出含 marker 子串）。

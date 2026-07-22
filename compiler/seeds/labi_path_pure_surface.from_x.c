@@ -1,9 +1,9 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (22 public gates + count; wave166 async_scheduler_o_path)
+ * Prove: full.x vs this seed → nm IDENTICAL (23 public gates + count; wave180 scheduler_o_for_task_link)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
- *   link_abi_realpath_cap Cap (wave146; also wave164–166 crt0/freestanding_io/async_scheduler realpath);
+ *   link_abi_realpath_cap Cap (wave146; also wave164–166/180 path ladders + task→sched);
  *   bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
  *   *_o_path Cap io/process (wave150 push_minimal; wave163–166 panic/crt0/freestanding_io/async pure);
@@ -11,7 +11,8 @@
  *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy);
  *   resolve+rel_o_path Cap (wave162 repo_root);
  *   realpath_if_exists+getcwd+skip Cap (wave163 panic_o_path);
- *   realpath_cap+getcwd Cap (wave164–166 crt0_user / freestanding_io / async_scheduler_o_path)
+ *   realpath_cap+getcwd Cap (wave164–166 crt0_user / freestanding_io / async_scheduler_o_path);
+ *   path_readable+realpath_cap Cap (wave180 scheduler_o_for_task_link)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -54,6 +55,8 @@ extern uint8_t * shux_crt0_user_o_path(uint8_t * argv0);
 extern uint8_t * shux_freestanding_io_o_path(uint8_t * argv0);
 /* wave166: async_scheduler_o_path pure defined below. */
 extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
+/* wave180: scheduler_o_for_task_link pure defined below. */
+extern uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
 extern int32_t link_abi_path_readable(uint8_t * path);
@@ -1047,6 +1050,86 @@ uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0) {
   }
   return &((g_labi_async_scheduler_o_path_buf)[0]);
 }
+/* wave180: scheduler_o_for_task_link pure orch (surface pin; Cap residual path_readable+realpath_cap). */
+static uint8_t g_labi_sched_for_task_derived[4096];
+static uint8_t g_labi_sched_for_task_cwd[4096];
+uint8_t * scheduler_o_for_task_link(uint8_t * task_o, uint8_t * explicit_scheduler) {
+  if ((explicit_scheduler != 0)) {
+    if (((explicit_scheduler)[0] != 0)) {
+      return explicit_scheduler;
+    }
+  }
+  if ((task_o == 0)) {
+    return 0;
+  }
+  if (((task_o)[0] == 0)) {
+    return 0;
+  }
+  int32_t n = 0;
+  while (((task_o)[n] != 0)) {
+    (void)((n = (n + 1)));
+  }
+  if ((n >= 4096)) {
+    return 0;
+  }
+  int32_t ci = 0;
+  while ((ci <= n)) {
+    (void)(((g_labi_sched_for_task_derived)[ci] = (task_o)[ci]));
+    (void)((ci = (ci + 1)));
+  }
+  uint8_t * from = ((uint8_t *)("std/task/task.o"));
+  int32_t from_len = 15;
+  uint8_t * to = ((uint8_t *)("std/async/scheduler.o"));
+  int32_t to_len = 22;
+  int32_t delta = 7;
+  int32_t pos = -1;
+  int32_t i = 0;
+  while (((i + from_len) <= n)) {
+    if ((pos < 0)) {
+      int32_t j = 0;
+      int32_t ok = 1;
+      while ((j < from_len)) {
+        if ((ok != 0)) {
+          if (((g_labi_sched_for_task_derived)[(i + j)] != (from)[j])) {
+            (void)((ok = 0));
+          }
+        }
+        (void)((j = (j + 1)));
+      }
+      if ((ok != 0)) {
+        (void)((pos = i));
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  if ((pos >= 0)) {
+    int32_t new_n = (n + delta);
+    if ((new_n < 4096)) {
+      int32_t si = n;
+      while ((si >= (pos + from_len))) {
+        (void)(((g_labi_sched_for_task_derived)[(si + delta)] = (g_labi_sched_for_task_derived)[si]));
+        (void)((si = (si - 1)));
+      }
+      int32_t k = 0;
+      while ((k < to_len)) {
+        (void)(((g_labi_sched_for_task_derived)[(pos + k)] = (to)[k]));
+        (void)((k = (k + 1)));
+      }
+      int32_t readable = 0;
+      (void)((readable = link_abi_path_readable(&((g_labi_sched_for_task_derived)[0]))));
+      if ((readable != 0)) {
+        return &((g_labi_sched_for_task_derived)[0]);
+      }
+    }
+  }
+  (void)(((g_labi_sched_for_task_cwd)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)("std/async/scheduler.o")), &((g_labi_sched_for_task_cwd)[0]))));
+  if ((hit != 0)) {
+    return hit;
+  }
+  return 0;
+}
 int32_t labi_path_pure_count(void) {
-  return 22;
+  return 23;
 }
