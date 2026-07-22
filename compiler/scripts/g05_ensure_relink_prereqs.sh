@@ -240,8 +240,9 @@ g05_try_x_to_o() {
     # (runtime_pipeline_abi.x). .x cannot form function-pointer constants (&fn);
     # pure thin surface owns the product names; cast residual stays in this harness
     # (same pattern as stdout_ptr / realpath_opaque). Cold twin under seed #ifndef FROM_X.
-    echo 'extern void *pipeline_run_x_thread_fn(void *);'
-    echo 'extern void *shux_asm_codegen_elf_o_thread_fn(void *);'
+    # Match pure .x export: *u8 arg / *u8 return (not void* — gcc conflicts with pure body).
+    echo 'extern uint8_t *pipeline_run_x_thread_fn(uint8_t *);'
+    echo 'extern uint8_t *shux_asm_codegen_elf_o_thread_fn(uint8_t *);'
     echo 'static inline uint8_t *shux_driver_pipeline_run_x_thread_fn_ptr(void) {'
     echo '  return (uint8_t *)(void *)pipeline_run_x_thread_fn;'
     echo '}'
