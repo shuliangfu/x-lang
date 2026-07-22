@@ -2,9 +2,10 @@
  * Logic source: src/runtime/labi_path_pure.x
  * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave114）：公共业务符号由 full .x 提供：
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
- *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep + count
+ *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
+ *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag) + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -150,9 +151,23 @@ uint8_t *shux_path_last_sep(uint8_t *s) {
   return ((uint8_t *)((base + ((size_t)(last)))));
 }
 
+/* wave114 cold twin: lib-root pointer usable (null / low-tag / empty). */
+int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p) {
+  if (p == ((uint8_t *)(0))) {
+    return 0;
+  }
+  if (((size_t)(p)) < ((size_t)(4096))) {
+    return 0;
+  }
+  if (p[0] == 0) {
+    return 0;
+  }
+  return 1;
+}
+
 /* Pure audit: number of L0 path-pure public gates in this slice. */
 int32_t labi_path_pure_count(void) {
-  return 7;
+  return 8;
 }
 
 #else
@@ -163,6 +178,7 @@ int32_t shux_output_is_elf_o(uint8_t *path);
 int32_t shux_output_want_exe(uint8_t *path);
 int32_t shux_path_has_sep(uint8_t *s);
 uint8_t *shux_path_last_sep(uint8_t *s);
+int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p);
 int32_t labi_path_pure_count(void);
 #endif
 

@@ -673,10 +673,16 @@ void shux_link_perror(const char *msg);
  * 参数：p 候选 lib root 字符串指针。
  * 返回值：非 0 表示可用。
  */
-/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-115 / wave114：pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Semantics: null / (uintptr_t)p < 4096 / empty → 0. PLATFORM: SHARED. */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int shux_asm_ld_lib_root_ptr_usable(const char *p) {
   return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
+#else
+int shux_asm_ld_lib_root_ptr_usable(const char *p);
+#endif
 
 
 

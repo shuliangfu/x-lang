@@ -3133,7 +3133,9 @@ export function shux_debug_hello_stage1_report(): void {
  */
 #[no_mangle]
 export function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
-  if (p == 0) { return 0; }
+  /* Authority: labi_path_pure.x (wave114 product hybrid). Keep mega semantics. */
+  if (p == 0 as *u8) { return 0; }
+  if ((p as usize) < (4096 as usize)) { return 0; }
   if (p[0] == 0) { return 0; }
   return 1;
 }

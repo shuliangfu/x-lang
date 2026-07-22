@@ -5,10 +5,11 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 7 public gates + count:
+// R2 full: .x owns 8 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
+//   - shux_asm_ld_lib_root_ptr_usable (wave114; low-tag + empty reject)
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
@@ -155,11 +156,37 @@ export function shux_path_last_sep(s: *u8): *u8 {
 }
 
 /**
+ * Return 1 iff `p` is a safe non-empty C string pointer for lib-root use.
+ * Rejects null, low-tag / non-canonical pointers ((usize)p < 4096; same guard as
+ * mega rest: getenv/environ garbage on nostdlib), and empty strings.
+ * Params: p — candidate lib-root C string.
+ * Returns: 1 usable, 0 reject.
+ * Why (wave114): product hybrid still had always-linked mega C; G.7 single
+ * authority under SHUX_LABI_PATH_PURE_FROM_X. Not the same as driver_lib_root
+ * (rt_lib_root; no low-tag) — keep link_abi symbol separate.
+ * Track-L: #[no_mangle] keeps surface short name. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
+  if (p == 0 as *u8) {
+    return 0;
+  }
+  // PLATFORM: SHARED — reject low-tag pointers (mega: (uintptr_t)p >= 4096u).
+  if ((p as usize) < (4096 as usize)) {
+    return 0;
+  }
+  if (p[0] == 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
  * Pure audit: number of L0 path-pure public gates in this slice.
- * Returns: 7 (fixed catalog size for hybrid FROM_X bookkeeping).
+ * Returns: 8 (fixed catalog size for hybrid FROM_X bookkeeping; wave114 +1).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_pure_count(): i32 {
-  return 7;
+  return 8;
 }
