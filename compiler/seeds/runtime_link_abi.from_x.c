@@ -47,6 +47,11 @@ int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *
 void ensure_std_net_o_auto_tls(const char *repo_root);
 /* PLATFORM: SHARED — formal std .o after L4 wipe (wave188 pure L6 / cold twin). */
 int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+/* wave191: formal ensure+companions pure orch for append_std OP_STD (L6 pure / cold twin). */
+int labi_std_rel_is_std_or_core(const char *rel);
+void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
 /* G-02f-68 link helpers */
 int shu_waitpid_retry(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
@@ -4356,10 +4361,17 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
  * Pure: path/SHUX/make-cmd join; Cap residual getenv+access+realpath_cap+system+skip_missing.
  * Why: hybrid still had always-mega C body for formal std make ensure (system/make orch).
  * PLATFORM: SHARED orch / host shell make. */
+/* wave191: labi_std_append_formal_ensure_for_rel pure orch — body removed from mega
+ * (append_std OP_STD formal ensure+companions; Cap residual repo_root + ensure_runtime_*).
+ * Hybrid → L6 pure; cold twin via include. PLATFORM: SHARED. */
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 /* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
 #else
 int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+int labi_std_rel_is_std_or_core(const char *rel);
+void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
 #endif
 
 /* wave187: ensure_std_net_o_auto_tls pure orch — body removed from mega
@@ -5460,55 +5472,13 @@ void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *us
                  * push_obj alone silent-skips missing files → Ubuntu asm BLD001 UNDEF
                  * (e.g. std_vec_len_empty after true-cold). G.7: complete the existing
                  * ensure authority (was only fk==9 math); do not invent a second path.
-                 * make_target is relative to compiler/ (../std/... or ../core/...).
+                 * wave191: formal ensure + companions pure orch (labi_std_append_formal_ensure_for_rel).
+                 * Why: hybrid still had always-mega inline ensure/companions after wave188/190.
+                 * PLATFORM: SHARED — G.7 single formal ensure authority; no inline second path.
                  */
-                if (user_o && user_o[0]
-                    && ((rel[0] == 's' && strncmp(rel, "std/", 4) == 0)
-                        || (rel[0] == 'c' && strncmp(rel, "core/", 5) == 0))) {
-                    const char *include_root = shux_repo_root_from_argv0(link_argv0);
-                    char make_tgt[PATH_MAX];
-                    if (include_root && include_root[0]
-                        && (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt) {
-                        (void)shux_ensure_formal_std_make_o(include_root, rel, make_tgt);
-                        /*
-                         * Formal vec/set/map .o carry U std_heap_* / core_mem_*.
-                         * Mirror invoke_cc need_vec companions (ensure + push).
-                         */
-                        if (strstr(rel, "std/vec/vec.o") || strstr(rel, "std/set/set.o")
-                            || strstr(rel, "std/map/map.o")) {
-                            (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o",
-                                                                "../std/heap/heap.o");
-                            (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o",
-                                                                "../core/mem/mem.o");
-                            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots,
-                                                     n_lib_roots, bank, argv, la, max_la, NULL);
-                            link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots,
-                                                     n_lib_roots, bank, argv, la, max_la, NULL);
-                        }
-                        /*
-                         * PLATFORM: SHARED — formal env.o U env_*_c lives in runtime_env_os.o.
-                         * PRIMARY_ENV_OS may already have pushed; companion here covers the case
-                         * where env.o is pulled via fk0 after PRIMARY was gated off incorrectly.
-                         */
-                        if (strstr(rel, "std/env/env.o")) {
-                            if (shux_ensure_runtime_env_os_o(link_argv0) == 0)
-                                link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
-                                    "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-                        }
-                        /* PLATFORM: SHARED — formal random.o U random_fill_bytes_c. */
-                        if (strstr(rel, "std/random/random.o")) {
-                            if (shux_ensure_runtime_random_fill_o(link_argv0) == 0)
-                                link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
-                                    "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-                        }
-                        /* PLATFORM: SHARED — formal time.o U time_*_c (mirrors on_demand pair). */
-                        if (strstr(rel, "std/time/time.o")) {
-                            if (shux_ensure_runtime_time_os_o(link_argv0) == 0)
-                                link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
-                                    "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-                        }
-                    }
-                }
+                if (user_o && user_o[0])
+                    labi_std_append_formal_ensure_for_rel(link_argv0, rel, lib_roots, n_lib_roots,
+                                                         bank, argv, la, max_la);
                 link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
             }
             break;

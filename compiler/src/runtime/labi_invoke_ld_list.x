@@ -10,7 +10,8 @@
 // + wave156 mach tail_libs_impl pure orch + wave157 unix gcc tail + wave158 net_tls
 // + wave179 invoke_cc_argv_push_existing pure orch
 // + wave187 ensure_std_net_o_auto_tls pure orch
-// + wave188 shux_ensure_formal_std_make_o pure orch:
+// + wave188 shux_ensure_formal_std_make_o pure orch
+// + wave191 labi_std_append_formal_ensure_for_rel pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -27,11 +28,14 @@
 //     realpath_cap+exports_marker; shell make net-o-* stays Cap residual)
 //   - shux_ensure_formal_std_make_o (wave188; pure path/SHUX/make-cmd orch; Cap residual
 //     getenv+access+realpath_cap+system+asm_link_obj_skip_missing; shell make Cap residual)
+//   - labi_std_append_formal_ensure_for_rel (wave191; pure formal ensure+companions orch for
+//     append_std OP_STD; Cap residual repo_root + ensure_runtime_* + peer push_obj)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
-//   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap).
+//   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap);
+//   runtime ensure/path peers for wave191 formal companions (env_os/random_fill/time_os).
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -78,6 +82,25 @@ export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function access(path: *u8, mode: i32): i32;
 // Cap residual (wave188): regular-file existence gate (stat wrapper; same as ensure leaves).
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
+
+// Peer pure (path_pure L0 wave162): repo root from argv0 (strip compiler-dir / process.o walk).
+// wave191 formal ensure orch uses this to pass repo_root into shux_ensure_formal_std_make_o.
+export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
+
+// Cap residual / peer pure (ensure_list L4): runtime companion ensure + path for formal
+// env.o / random.o / time.o (mirrors mega append_std OP_STD companions).
+// PLATFORM: SHARED — product path symbols; hybrid may be pure L0/L4 path ladders.
+export extern "C" function shux_ensure_runtime_env_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_env_os_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_random_fill_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_random_fill_o_path(argv0: *u8): *u8;
+export extern "C" function shux_ensure_runtime_time_os_o(argv0: *u8): i32;
+export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
+
+// Peer pure (path_pure L0 wave148): push one .o onto asm ld argv (resolve+bank+dedup).
+// wave191 companions call this after formal/runtime ensure.
+// Note: single-line signature (multi-line export decls can drop the symbol).
+export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -1868,4 +1891,239 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
     return 1;
   }
   return 0;
+}
+
+/**
+ * Return 1 iff `rel` is under formal std/ or core/ (plan OP_STD ensure target).
+ * Pure prefix check: "std/" (4) or "core/" (5). Null/empty → 0.
+ * @param rel *u8 — plan step rel path (e.g. std/vec/vec.o)
+ * @return i32 — 1 if formal ensure applies, else 0
+ * PLATFORM: SHARED — pure; used by wave191 formal ensure orch.
+ */
+#[no_mangle]
+export function labi_std_rel_is_std_or_core(rel: *u8): i32 {
+  if (rel == 0 as *u8) {
+    return 0;
+  }
+  if (rel[0] == 0) {
+    return 0;
+  }
+  // "std/"
+  if (rel[0] == 115) {
+    if (rel[1] == 116) {
+      if (rel[2] == 100) {
+        if (rel[3] == 47) {
+          return 1;
+        }
+      }
+    }
+  }
+  // "core/"
+  if (rel[0] == 99) {
+    if (rel[1] == 111) {
+      if (rel[2] == 114) {
+        if (rel[3] == 101) {
+          if (rel[4] == 47) {
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * After OP_STD gate opens and user_o is set: ensure formal std|core .o exists
+ * (L4 wipe restores via Makefile) and push companion .o when rel needs them.
+ * Pure orch:
+ *   1) reject null/non-std-core rel
+ *   2) Cap residual shux_repo_root_from_argv0 → pure make_tgt="../"+rel
+ *   3) peer pure shux_ensure_formal_std_make_o(root, rel, make_tgt)
+ *   4) companions (exact rel match ≡ mega strstr on plan exact paths):
+ *        vec/set/map → ensure+push heap.o + core/mem/mem.o
+ *        env.o → ensure+push runtime_env_os.o
+ *        random.o → ensure+push runtime_random_fill.o
+ *        time.o → ensure+push runtime_time_os.o
+ * Does NOT push `rel` itself (caller still does link_abi_asm_ld_push_obj for the plan step).
+ * @param link_argv0 *u8 — effective compiler argv0 / link root
+ * @param rel *u8 — plan OP_STD rel (std/... or core/...)
+ * @param lib_roots **u8 — -L style roots for push_obj
+ * @param n_lib_roots i32 — root count
+ * @param bank *u8 — ShuAsmLdPathBank* (opaque; path bank for durable argv strings)
+ * @param argv **u8 — ld argv table
+ * @param la *i32 — in/out argv length
+ * @param max_la i32 — argv capacity
+ * Cap residual: shux_repo_root_from_argv0; ensure_runtime_{env_os,random_fill,time_os}_o
+ *   + *_o_path; peer pure formal_std_make + link_abi_asm_ld_push_obj.
+ * Why (wave191): hybrid still had formal ensure+companions always-mega inline in
+ *   append_std_objs_for_user OP_STD (soft residual after wave188 formal_std_make pure
+ *   and wave190 fk gates pure).
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — dual-end L2; shell make inside formal_std_make Cap residual.
+ * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
+ */
+#[no_mangle]
+export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
+  if (link_argv0 == 0 as *u8) {
+    return;
+  }
+  if (rel == 0 as *u8) {
+    return;
+  }
+  if (rel[0] == 0) {
+    return;
+  }
+  let is_sc: i32 = labi_std_rel_is_std_or_core(rel);
+  if (is_sc == 0) {
+    return;
+  }
+  let include_root: *u8 = 0 as *u8;
+  unsafe {
+    include_root = shux_repo_root_from_argv0(link_argv0);
+  }
+  if (include_root == 0 as *u8) {
+    return;
+  }
+  if (include_root[0] == 0) {
+    return;
+  }
+  // make_tgt = "../" + rel (≡ mega snprintf ../%s); cap 4096 ≡ PATH_MAX product hosts.
+  let make_tgt: u8[4096] = [];
+  let pos: i32 = 0;
+  pos = labi_net_tls_buf_append(&make_tgt[0], 4096, pos, "../");
+  if (pos < 0) {
+    return;
+  }
+  pos = labi_net_tls_buf_append(&make_tgt[0], 4096, pos, rel);
+  if (pos < 0) {
+    return;
+  }
+  // Ensure the formal .o for this plan step (L4 wipe recovery).
+  let _ens: i32 = 0;
+  unsafe {
+    _ens = shux_ensure_formal_std_make_o(include_root, rel, &make_tgt[0]);
+  }
+  // Guard lib_roots / argv null via *u8 cast (wave147+ style).
+  let ab: *u8 = argv as *u8;
+  let lb: *u8 = lib_roots as *u8;
+  // Companion: formal vec/set/map .o carry U std_heap_* / core_mem_*.
+  // Exact path match (plan rels are exact; mega used strstr on those exact strings).
+  let need_heap_mem: i32 = 0;
+  let eq_vec: i32 = 0;
+  let eq_set: i32 = 0;
+  let eq_map: i32 = 0;
+  unsafe {
+    eq_vec = strcmp(rel, "std/vec/vec.o");
+    eq_set = strcmp(rel, "std/set/set.o");
+    eq_map = strcmp(rel, "std/map/map.o");
+  }
+  if (eq_vec == 0) {
+    need_heap_mem = 1;
+  }
+  if (eq_set == 0) {
+    need_heap_mem = 1;
+  }
+  if (eq_map == 0) {
+    need_heap_mem = 1;
+  }
+  if (need_heap_mem != 0) {
+    let _h: i32 = 0;
+    let _m: i32 = 0;
+    unsafe {
+      _h = shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      _m = shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+    }
+    if (ab != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _ph: i32 = 0;
+        let _pm: i32 = 0;
+        unsafe {
+          _ph = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          _pm = link_abi_asm_ld_push_obj(0 as *u8, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+  }
+  // Companion: formal env.o U env_*_c lives in runtime_env_os.o.
+  let eq_env: i32 = 0;
+  unsafe {
+    eq_env = strcmp(rel, "std/env/env.o");
+  }
+  if (eq_env == 0) {
+    let er: i32 = 0;
+    unsafe {
+      er = shux_ensure_runtime_env_os_o(link_argv0);
+    }
+    if (er == 0) {
+      if (ab != 0 as *u8) {
+        if (la != 0 as *i32) {
+          let env_p: *u8 = 0 as *u8;
+          unsafe {
+            env_p = shux_runtime_env_os_o_path(link_argv0);
+          }
+          let _pe: i32 = 0;
+          unsafe {
+            _pe = link_abi_asm_ld_push_obj(env_p, link_argv0, "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  // Companion: formal random.o U random_fill_bytes_c.
+  let eq_rnd: i32 = 0;
+  unsafe {
+    eq_rnd = strcmp(rel, "std/random/random.o");
+  }
+  if (eq_rnd == 0) {
+    let rr: i32 = 0;
+    unsafe {
+      rr = shux_ensure_runtime_random_fill_o(link_argv0);
+    }
+    if (rr == 0) {
+      if (ab != 0 as *u8) {
+        if (la != 0 as *i32) {
+          let rnd_p: *u8 = 0 as *u8;
+          unsafe {
+            rnd_p = shux_runtime_random_fill_o_path(link_argv0);
+          }
+          let _pr: i32 = 0;
+          unsafe {
+            _pr = link_abi_asm_ld_push_obj(rnd_p, link_argv0, "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  // Companion: formal time.o U time_*_c (mirrors on_demand pair).
+  let eq_tm: i32 = 0;
+  unsafe {
+    eq_tm = strcmp(rel, "std/time/time.o");
+  }
+  if (eq_tm == 0) {
+    let tr: i32 = 0;
+    unsafe {
+      tr = shux_ensure_runtime_time_os_o(link_argv0);
+    }
+    if (tr == 0) {
+      if (ab != 0 as *u8) {
+        if (la != 0 as *i32) {
+          let tm_p: *u8 = 0 as *u8;
+          unsafe {
+            tm_p = shux_runtime_time_os_o_path(link_argv0);
+          }
+          let _pt: i32 = 0;
+          unsafe {
+            _pt = link_abi_asm_ld_push_obj(tm_p, link_argv0, "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+          }
+        }
+      }
+    }
+  }
+  // keep Cap residual peer args live for typeck (bank/lib_roots used only via push_obj).
+  if (lb == 0 as *u8) {
+    if (_ens != 0) {
+      return;
+    }
+  }
 }

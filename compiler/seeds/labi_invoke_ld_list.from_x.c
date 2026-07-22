@@ -23,11 +23,14 @@
  *     realpath_cap+exports_marker; shell make net-o-* Cap residual)
  *   shux_ensure_formal_std_make_o (wave188 pure orch; Cap residual getenv+access+
  *     realpath_cap+system+asm_link_obj_skip_missing; shell make formal std Cap residual)
+ *   labi_std_append_formal_ensure_for_rel (wave191 pure orch; Cap residual repo_root +
+ *     ensure_runtime_* + peer push_obj; formal ensure companions for append_std OP_STD)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
  *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
- *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual).
+ *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual);
+ *   runtime ensure/path peers for wave191 formal companions.
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -57,6 +60,17 @@ char *getenv(const char *name);
 int system(const char *cmd);
 int access(const char *path, int mode);
 const char *asm_link_obj_skip_missing(const char *path);
+/* Peer pure / Cap residual (wave191 formal companions for append_std OP_STD). */
+const char *shux_repo_root_from_argv0(const char *argv0);
+int shux_ensure_runtime_env_os_o(const char *argv0);
+const char *shux_runtime_env_os_o_path(const char *argv0);
+int shux_ensure_runtime_random_fill_o(const char *argv0);
+const char *shux_runtime_random_fill_o_path(const char *argv0);
+int shux_ensure_runtime_time_os_o(const char *argv0);
+const char *shux_runtime_time_os_o_path(const char *argv0);
+int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, int *flag_out);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -612,6 +626,79 @@ int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_re
   return asm_link_obj_skip_missing(abs) ? 1 : 0;
 }
 
+/* wave191: labi_std_append_formal_ensure_for_rel pure orch (cold twin ≡ .x).
+ * Cap residual: repo_root + ensure_runtime_* + path; peer formal_std_make + push_obj.
+ * PLATFORM: SHARED — append_std OP_STD formal ensure+companions.
+ */
+int labi_std_rel_is_std_or_core(const char *rel) {
+  if (!rel || !rel[0])
+    return 0;
+  if (rel[0] == 's' && rel[1] == 't' && rel[2] == 'd' && rel[3] == '/')
+    return 1;
+  if (rel[0] == 'c' && rel[1] == 'o' && rel[2] == 'r' && rel[3] == 'e' && rel[4] == '/')
+    return 1;
+  return 0;
+}
+
+void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la) {
+  const char *include_root;
+  char make_tgt[4096];
+  int pos;
+  if (!link_argv0 || !rel || !rel[0])
+    return;
+  if (!labi_std_rel_is_std_or_core(rel))
+    return;
+  include_root = shux_repo_root_from_argv0(link_argv0);
+  if (!include_root || !include_root[0])
+    return;
+  pos = 0;
+  pos = labi_net_tls_buf_append(make_tgt, 4096, pos, "../");
+  if (pos < 0)
+    return;
+  pos = labi_net_tls_buf_append(make_tgt, 4096, pos, rel);
+  if (pos < 0)
+    return;
+  (void)shux_ensure_formal_std_make_o(include_root, rel, make_tgt);
+  if (strcmp(rel, "std/vec/vec.o") == 0 || strcmp(rel, "std/set/set.o") == 0
+      || strcmp(rel, "std/map/map.o") == 0) {
+    (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+    (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+    if (argv && la) {
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+      (void)link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+    }
+  }
+  if (strcmp(rel, "std/env/env.o") == 0) {
+    if (shux_ensure_runtime_env_os_o(link_argv0) == 0 && argv && la) {
+      (void)link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
+                                     "compiler/runtime_env_os.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+    }
+  }
+  if (strcmp(rel, "std/random/random.o") == 0) {
+    if (shux_ensure_runtime_random_fill_o(link_argv0) == 0 && argv && la) {
+      (void)link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
+                                     "compiler/runtime_random_fill.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+    }
+  }
+  if (strcmp(rel, "std/time/time.o") == 0) {
+    if (shux_ensure_runtime_time_os_o(link_argv0) == 0 && argv && la) {
+      (void)link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
+                                     "compiler/runtime_time_os.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+    }
+  }
+  (void)lib_roots;
+  (void)n_lib_roots;
+  (void)bank;
+  (void)max_la;
+}
+
 #else
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
@@ -671,6 +758,11 @@ int labi_formal_std_build_make_cmd(char *cmd, int cap, const char *shux_bin,
                                    const char *repo_root, const char *make_target);
 int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo,
                                   const char *make_target);
+/* wave191: formal ensure+companions pure orch for append_std OP_STD (L6). */
+int labi_std_rel_is_std_or_core(const char *rel);
+void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {
