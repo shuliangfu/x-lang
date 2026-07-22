@@ -57,6 +57,7 @@ MODULES=(
   # + wave158 invoke_cc_append_net_tls_ld pure orch（exports_marker/realpath/rel_o Cap）
   # + wave179 invoke_cc_argv_push_existing pure orch（Cap residual resolve pool）
   # + wave187 ensure_std_net_o_auto_tls pure orch（Cap residual getenv+system+realpath+exports_marker）；
+  # + wave188 shux_ensure_formal_std_make_o pure orch（Cap residual getenv+access+realpath+system+skip_missing）；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + resolve_existing_path + exports_marker/realpath/rel_o + spawn/ld/cc IO mega + getenv/system shell make
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"

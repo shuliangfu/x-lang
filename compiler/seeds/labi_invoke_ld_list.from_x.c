@@ -21,11 +21,13 @@
  *   invoke_cc_argv_push_existing (wave179 pure orch; Cap residual resolve pool)
  *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual getenv+system+
  *     realpath_cap+exports_marker; shell make net-o-* Cap residual)
+ *   shux_ensure_formal_std_make_o (wave188 pure orch; Cap residual getenv+access+
+ *     realpath_cap+system+asm_link_obj_skip_missing; shell make formal std Cap residual)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
  *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
- *   getenv / system for ensure_std_net_o_auto_tls shell make (wave187 Cap residual).
+ *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual).
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -50,9 +52,11 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
-/* Cap residual (wave187 ensure_std_net_o_auto_tls): getenv / system from libc. */
+/* Cap residual (wave187/188 ensure shell make): getenv / system / access / skip_missing. */
 char *getenv(const char *name);
 int system(const char *cmd);
+int access(const char *path, int mode);
+const char *asm_link_obj_skip_missing(const char *path);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
@@ -510,6 +514,104 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
   }
 }
 
+/* wave188: shux_ensure_formal_std_make_o pure orch (cold twin ≡ .x).
+ * Cap residual: getenv + access + realpath_cap + system + asm_link_obj_skip_missing.
+ * Pure path/SHUX/make-cmd join. PLATFORM: SHARED.
+ */
+int labi_formal_std_build_make_cmd(char *cmd, int cap, const char *shux_bin,
+                                   const char *repo_root, const char *make_target) {
+  int pos = 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "SHUX_FORMAL_STD_ENSURE=1 SHUX='");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, shux_bin);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "' make -C '");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "/compiler' '");
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, make_target);
+  if (pos < 0)
+    return 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "'");
+  if (pos < 0)
+    return 0;
+  return 1;
+}
+
+int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo,
+                                  const char *make_target) {
+  char abs[4096];
+  char cmd[768];
+  char shux_bin[4096];
+  char cand[4096];
+  const char *env_shux;
+  const char *ensuring;
+  const char *have;
+  const char *rp;
+  const char *names[3];
+  int i;
+  int ax;
+  int pos;
+  if (!repo_root || !repo_root[0] || !rel_from_repo || !rel_from_repo[0] ||
+      !make_target || !make_target[0])
+    return 0;
+  if (!labi_net_tls_join_repo_rel(abs, 4096, repo_root, rel_from_repo))
+    return 0;
+  have = asm_link_obj_skip_missing(abs);
+  if (have)
+    return 1;
+  ensuring = getenv("SHUX_FORMAL_STD_ENSURE");
+  if (ensuring && ensuring[0] && ensuring[0] != '0')
+    return 0;
+  shux_bin[0] = '\0';
+  env_shux = getenv("SHUX");
+  if (env_shux && env_shux[0] && access(env_shux, 1 /* X_OK */) == 0) {
+    rp = link_abi_realpath_cap(env_shux, shux_bin);
+    if (!rp) {
+      if (labi_net_tls_buf_append(shux_bin, 4096, 0, env_shux) < 0)
+        return 0;
+    }
+  } else {
+    names[0] = "shux_asm";
+    names[1] = "shux";
+    names[2] = "shux-c";
+    for (i = 0; i < 3; i++) {
+      pos = 0;
+      pos = labi_net_tls_buf_append(cand, 4096, pos, repo_root);
+      if (pos < 0)
+        continue;
+      pos = labi_net_tls_buf_append(cand, 4096, pos, "/compiler/");
+      if (pos < 0)
+        continue;
+      pos = labi_net_tls_buf_append(cand, 4096, pos, names[i]);
+      if (pos < 0)
+        continue;
+      ax = access(cand, 1 /* X_OK */);
+      if (ax != 0)
+        continue;
+      rp = link_abi_realpath_cap(cand, shux_bin);
+      if (!rp) {
+        if (labi_net_tls_buf_append(shux_bin, 4096, 0, cand) < 0)
+          return 0;
+      }
+      break;
+    }
+  }
+  if (!shux_bin[0])
+    return 0;
+  if (!labi_formal_std_build_make_cmd(cmd, 768, shux_bin, repo_root, make_target))
+    return 0;
+  (void)system(cmd);
+  return asm_link_obj_skip_missing(abs) ? 1 : 0;
+}
+
 #else
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
 int labi_ld_brew_lib_path_count(void);
@@ -564,6 +666,11 @@ int labi_net_tls_buf_append(char *dst, int cap, int pos, const char *src);
 int labi_net_tls_build_make_cmd(char *cmd, int cap, const char *repo_root, const char *target);
 int labi_net_tls_join_repo_rel(char *path_buf, int cap, const char *repo_root, const char *rel);
 void ensure_std_net_o_auto_tls(const char *repo_root);
+/* wave188: shux_ensure_formal_std_make_o pure orch + helper (L6). */
+int labi_formal_std_build_make_cmd(char *cmd, int cap, const char *shux_bin,
+                                   const char *repo_root, const char *make_target);
+int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo,
+                                  const char *make_target);
 #endif
 
 int labi_invoke_ld_list_slice_marker(void) {

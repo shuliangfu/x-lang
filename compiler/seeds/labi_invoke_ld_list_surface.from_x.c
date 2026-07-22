@@ -9,10 +9,11 @@
  *   + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch
  *   + wave158 invoke_cc_append_net_tls_ld pure orch
  *   + wave179 invoke_cc_argv_push_existing pure orch
- *   + wave187 ensure_std_net_o_auto_tls pure orch)
+ *   + wave187 ensure_std_net_o_auto_tls pure orch
+ *   + wave188 shux_ensure_formal_std_make_o pure orch)
  * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path pool;
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega;
- *   getenv / system for ensure_std_net_o_auto_tls shell make (wave187 Cap residual)
+ *   getenv / system / access / skip_missing for ensure_std_net + formal_std_make (wave187/188)
  * Regen: ./shux_asm -E ... src/runtime/labi_invoke_ld_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED - pure contract; Ubuntu gold + mac prove.
  */
@@ -31,11 +32,12 @@ extern uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
-/* Cap residual (wave187 ensure_std_net_o_auto_tls surface). */
+/* Cap residual (wave187/188 ensure shell make surface). */
 extern uint8_t * getenv(uint8_t * name);
 extern int32_t system(uint8_t * cmd);
 extern int32_t strcmp(uint8_t * a, uint8_t * b);
-/* wave179: pure orch invoke_cc_argv_push_existing (surface ≡ .x -E). */
+extern int32_t access(uint8_t * path, int32_t mode);
+extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path) {
   uint8_t * ab = ((uint8_t *)(argv));
   if ((ab ==0)) {
@@ -95,29 +97,29 @@ uint8_t * labi_ld_brew_lib_path_at(int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){45, 76, 47, 111, 112, 116, 47, 104, 111, 109, 101, 98, 114, 101, 119, 47, 108, 105, 98, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x4c\x2f\x6f\x70\x74\x2f\x68\x6f\x6d\x65\x62\x72\x65\x77\x2f\x6c\x69\x62");
     return p;
   }
   if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){45, 76, 47, 117, 115, 114, 47, 108, 111, 99, 97, 108, 47, 108, 105, 98, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x4c\x2f\x75\x73\x72\x2f\x6c\x6f\x63\x61\x6c\x2f\x6c\x69\x62");
     return p;
   }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_ld_flag_lz(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 122, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x7a");
   return p;
 }
 uint8_t * labi_ld_flag_lzstd(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 122, 115, 116, 100, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x7a\x73\x74\x64");
   return p;
 }
 uint8_t * labi_ld_flag_lbrotlienc(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 98, 114, 111, 116, 108, 105, 101, 110, 99, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x62\x72\x6f\x74\x6c\x69\x65\x6e\x63");
   return p;
 }
 uint8_t * labi_ld_flag_lbrotlidec(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 98, 114, 111, 116, 108, 105, 100, 101, 99, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x62\x72\x6f\x74\x6c\x69\x64\x65\x63");
   return p;
 }
 int32_t labi_ld_compress_flag_count(void) {
@@ -128,102 +130,101 @@ uint8_t * labi_ld_compress_flag_at(int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){45, 108, 122, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x7a");
     return p;
   }
   if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){45, 108, 122, 115, 116, 100, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x7a\x73\x74\x64");
     return p;
   }
   if ((i ==2)) {
-    uint8_t * p = (uint8_t[]){45, 108, 98, 114, 111, 116, 108, 105, 101, 110, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x62\x72\x6f\x74\x6c\x69\x65\x6e\x63");
     return p;
   }
   if ((i ==3)) {
-    uint8_t * p = (uint8_t[]){45, 108, 98, 114, 111, 116, 108, 105, 100, 101, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x62\x72\x6f\x74\x6c\x69\x64\x65\x63");
     return p;
   }
   return ((uint8_t *)(0));
 }
 uint8_t * labi_ld_flag_lm(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 109, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x6d");
   return p;
 }
 uint8_t * labi_ld_flag_lsqlite3(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 115, 113, 108, 105, 116, 101, 51, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x73\x71\x6c\x69\x74\x65\x33");
   return p;
 }
 uint8_t * labi_ld_flag_pthread(void) {
-  uint8_t * p = (uint8_t[]){45, 112, 116, 104, 114, 101, 97, 100, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x70\x74\x68\x72\x65\x61\x64");
   return p;
 }
 uint8_t * labi_ld_flag_lpthread(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 112, 116, 104, 114, 101, 97, 100, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x70\x74\x68\x72\x65\x61\x64");
   return p;
 }
 uint8_t * labi_ld_flag_ldl(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 100, 108, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x64\x6c");
   return p;
 }
 uint8_t * labi_ld_flag_lc(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 99, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x63");
   return p;
 }
 uint8_t * labi_ld_flag_lSystem(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 83, 121, 115, 116, 101, 109, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x53\x79\x73\x74\x65\x6d");
   return p;
 }
 uint8_t * labi_ld_flag_lws2_32(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 119, 115, 50, 95, 51, 50, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x77\x73\x32\x5f\x33\x32");
   return p;
 }
 uint8_t * labi_ld_flag_lbcrypt(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 98, 99, 114, 121, 112, 116, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x62\x63\x72\x79\x70\x74");
   return p;
 }
-/* wave158: net_tls pure flag/marker/rel catalog (surface pin). */
 uint8_t * labi_ld_flag_L_hb_openssl(void) {
-  uint8_t * p = (uint8_t[]){45, 76, 47, 111, 112, 116, 47, 104, 111, 109, 101, 98, 114, 101, 119, 47, 111, 112, 116, 47, 111, 112, 101, 110, 115, 115, 108, 47, 108, 105, 98, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x4c\x2f\x6f\x70\x74\x2f\x68\x6f\x6d\x65\x62\x72\x65\x77\x2f\x6f\x70\x74\x2f\x6f\x70\x65\x6e\x73\x73\x6c\x2f\x6c\x69\x62");
   return p;
 }
 uint8_t * labi_ld_flag_L_hb_mbedtls(void) {
-  uint8_t * p = (uint8_t[]){45, 76, 47, 111, 112, 116, 47, 104, 111, 109, 101, 98, 114, 101, 119, 47, 111, 112, 116, 47, 109, 98, 101, 100, 116, 108, 115, 47, 108, 105, 98, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x4c\x2f\x6f\x70\x74\x2f\x68\x6f\x6d\x65\x62\x72\x65\x77\x2f\x6f\x70\x74\x2f\x6d\x62\x65\x64\x74\x6c\x73\x2f\x6c\x69\x62");
   return p;
 }
 uint8_t * labi_ld_flag_lssl(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 115, 115, 108, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x73\x73\x6c");
   return p;
 }
 uint8_t * labi_ld_flag_lcrypto(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 99, 114, 121, 112, 116, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x63\x72\x79\x70\x74\x6f");
   return p;
 }
 uint8_t * labi_ld_flag_lmbedtls(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 109, 98, 101, 100, 116, 108, 115, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x6d\x62\x65\x64\x74\x6c\x73");
   return p;
 }
 uint8_t * labi_ld_flag_lmbedx509(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 109, 98, 101, 100, 120, 53, 48, 57, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x6d\x62\x65\x64\x78\x35\x30\x39");
   return p;
 }
 uint8_t * labi_ld_flag_lmbedcrypto(void) {
-  uint8_t * p = (uint8_t[]){45, 108, 109, 98, 101, 100, 99, 114, 121, 112, 116, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6c\x6d\x62\x65\x64\x63\x72\x79\x70\x74\x6f");
   return p;
 }
 uint8_t * labi_net_tls_openssl_marker(void) {
-  uint8_t * p = (uint8_t[]){115, 104, 117, 95, 110, 101, 116, 95, 116, 108, 115, 95, 111, 112, 101, 110, 115, 115, 108, 95, 109, 97, 114, 107, 101, 114, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x68\x75\x5f\x6e\x65\x74\x5f\x74\x6c\x73\x5f\x6f\x70\x65\x6e\x73\x73\x6c\x5f\x6d\x61\x72\x6b\x65\x72");
   return p;
 }
 uint8_t * labi_net_tls_mbedtls_marker(void) {
-  uint8_t * p = (uint8_t[]){115, 104, 117, 95, 110, 101, 116, 95, 116, 108, 115, 95, 109, 98, 101, 100, 116, 108, 115, 95, 109, 97, 114, 107, 101, 114, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x68\x75\x5f\x6e\x65\x74\x5f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x5f\x6d\x61\x72\x6b\x65\x72");
   return p;
 }
 uint8_t * labi_rel_tls_openssl_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 110, 101, 116, 47, 116, 108, 115, 95, 111, 112, 101, 110, 115, 115, 108, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x74\x6c\x73\x5f\x6f\x70\x65\x6e\x73\x73\x6c\x2e\x6f");
   return p;
 }
 uint8_t * labi_rel_tls_mbedtls_o(void) {
-  uint8_t * p = (uint8_t[]){115, 116, 100, 47, 110, 101, 116, 47, 116, 108, 115, 95, 109, 98, 101, 100, 116, 108, 115, 46, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x2e\x6f");
   return p;
 }
 void labi_append_openssl_ld_flags(uint8_t * * argv, int32_t * i, int32_t argv_cap) {
@@ -238,20 +239,20 @@ void labi_append_openssl_ld_flags(uint8_t * * argv, int32_t * i, int32_t argv_ca
   (void)((is_apple = link_abi_host_is_apple()));
   if ((is_apple !=0)) {
     int32_t cur = (i)[0];
-    if ((cur <(argv_cap - 1))) {
+    if ((cur < (argv_cap - 1))) {
       uint8_t * fl = labi_ld_flag_L_hb_openssl();
       (void)(((argv)[cur] = fl));
       (void)(((i)[0] = (cur + 1)));
     }
   }
   int32_t cur2 = (i)[0];
-  if ((cur2 <(argv_cap - 1))) {
+  if ((cur2 < (argv_cap - 1))) {
     uint8_t * fssl = labi_ld_flag_lssl();
     (void)(((argv)[cur2] = fssl));
     (void)(((i)[0] = (cur2 + 1)));
   }
   int32_t cur3 = (i)[0];
-  if ((cur3 <(argv_cap - 1))) {
+  if ((cur3 < (argv_cap - 1))) {
     uint8_t * fcr = labi_ld_flag_lcrypto();
     (void)(((argv)[cur3] = fcr));
     (void)(((i)[0] = (cur3 + 1)));
@@ -269,57 +270,57 @@ void labi_append_mbedtls_ld_flags(uint8_t * * argv, int32_t * i, int32_t argv_ca
   (void)((is_apple = link_abi_host_is_apple()));
   if ((is_apple !=0)) {
     int32_t cur = (i)[0];
-    if ((cur <(argv_cap - 1))) {
+    if ((cur < (argv_cap - 1))) {
       uint8_t * fl = labi_ld_flag_L_hb_mbedtls();
       (void)(((argv)[cur] = fl));
       (void)(((i)[0] = (cur + 1)));
     }
   }
   int32_t cur2 = (i)[0];
-  if ((cur2 <(argv_cap - 1))) {
+  if ((cur2 < (argv_cap - 1))) {
     uint8_t * fmb = labi_ld_flag_lmbedtls();
     (void)(((argv)[cur2] = fmb));
     (void)(((i)[0] = (cur2 + 1)));
   }
   int32_t cur3 = (i)[0];
-  if ((cur3 <(argv_cap - 1))) {
+  if ((cur3 < (argv_cap - 1))) {
     uint8_t * fx = labi_ld_flag_lmbedx509();
     (void)(((argv)[cur3] = fx));
     (void)(((i)[0] = (cur3 + 1)));
   }
   int32_t cur4 = (i)[0];
-  if ((cur4 <(argv_cap - 1))) {
+  if ((cur4 < (argv_cap - 1))) {
     uint8_t * fc = labi_ld_flag_lmbedcrypto();
     (void)(((argv)[cur4] = fc));
     (void)(((i)[0] = (cur4 + 1)));
   }
 }
 uint8_t * labi_ld_driver_clang(void) {
-  uint8_t * p = (uint8_t[]){99, 108, 97, 110, 103, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x6c\x61\x6e\x67");
   return p;
 }
 uint8_t * labi_ld_driver_ld(void) {
-  uint8_t * p = (uint8_t[]){108, 100, 0 };
+  uint8_t * p = ((uint8_t *)"\x6c\x64");
   return p;
 }
 uint8_t * labi_ld_driver_gcc(void) {
-  uint8_t * p = (uint8_t[]){103, 99, 99, 0 };
+  uint8_t * p = ((uint8_t *)"\x67\x63\x63");
   return p;
 }
 uint8_t * labi_ld_driver_cc(void) {
-  uint8_t * p = (uint8_t[]){99, 99, 0 };
+  uint8_t * p = ((uint8_t *)"\x63\x63");
   return p;
 }
 uint8_t * labi_ld_mach_entry_main(void) {
-  uint8_t * p = (uint8_t[]){95, 109, 97, 105, 110, 0 };
+  uint8_t * p = ((uint8_t *)"\x5f\x6d\x61\x69\x6e");
   return p;
 }
 uint8_t * labi_ld_flag_e(void) {
-  uint8_t * p = (uint8_t[]){45, 101, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x65");
   return p;
 }
 uint8_t * labi_ld_flag_o(void) {
-  uint8_t * p = (uint8_t[]){45, 111, 0 };
+  uint8_t * p = ((uint8_t *)"\x2d\x6f");
   return p;
 }
 int32_t labi_ld_common_tail_flag_count(void) {
@@ -330,36 +331,35 @@ uint8_t * labi_ld_common_tail_flag_at(int32_t i) {
     return ((uint8_t *)(0));
   }
   if ((i ==0)) {
-    uint8_t * p = (uint8_t[]){45, 108, 109, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x6d");
     return p;
   }
   if ((i ==1)) {
-    uint8_t * p = (uint8_t[]){45, 108, 115, 113, 108, 105, 116, 101, 51, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x73\x71\x6c\x69\x74\x65\x33");
     return p;
   }
   if ((i ==2)) {
-    uint8_t * p = (uint8_t[]){45, 112, 116, 104, 114, 101, 97, 100, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x70\x74\x68\x72\x65\x61\x64");
     return p;
   }
   if ((i ==3)) {
-    uint8_t * p = (uint8_t[]){45, 108, 112, 116, 104, 114, 101, 97, 100, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x70\x74\x68\x72\x65\x61\x64");
     return p;
   }
   if ((i ==4)) {
-    uint8_t * p = (uint8_t[]){45, 108, 100, 108, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x64\x6c");
     return p;
   }
   if ((i ==5)) {
-    uint8_t * p = (uint8_t[]){45, 108, 99, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x63");
     return p;
   }
   if ((i ==6)) {
-    uint8_t * p = (uint8_t[]){45, 108, 83, 121, 115, 116, 101, 109, 0 };
+    uint8_t * p = ((uint8_t *)"\x2d\x6c\x53\x79\x73\x74\x65\x6d");
     return p;
   }
   return ((uint8_t *)(0));
 }
-/* wave152: ld_append_brew_lib_paths pure orch (surface pin; Cap residual host_is_apple). */
 void ld_append_brew_lib_paths(uint8_t * * argv, int32_t * la, int32_t max_la) {
   int32_t apple = 0;
   (void)((apple = link_abi_host_is_apple()));
@@ -375,7 +375,7 @@ void ld_append_brew_lib_paths(uint8_t * * argv, int32_t * la, int32_t max_la) {
   }
   int32_t n = labi_ld_brew_lib_path_count();
   int32_t k = 0;
-  while ((k <n)) {
+  while ((k < n)) {
     int32_t cur = (la)[0];
     if ((cur >=(max_la - 1))) {
       break;
@@ -392,7 +392,6 @@ void ld_append_brew_lib_paths(uint8_t * * argv, int32_t * la, int32_t max_la) {
     (void)(((la)[0] = (cur + 1)));
   }
 }
-/* wave153: asm_ld_append_compress_libs pure orch (surface pin; Cap residual needs+ensure+path). */
 void asm_ld_append_compress_libs(uint8_t * compress_o, uint8_t * user_o, uint8_t * * argv, int32_t * la, int32_t max_la) {
   uint8_t * ab = ((uint8_t *)(argv));
   if ((ab ==0)) {
@@ -417,21 +416,22 @@ void asm_ld_append_compress_libs(uint8_t * compress_o, uint8_t * user_o, uint8_t
     (void)((need_br = link_abi_obj_needs_brotli(user_o)));
   }
   if ((need_z !=0)) {
-    ld_append_brew_lib_paths(argv, la, max_la);
+    (void)(ld_append_brew_lib_paths(argv, la, max_la));
     int32_t cur = (la)[0];
-    if ((cur <(max_la - 1))) {
+    if ((cur < (max_la - 1))) {
       uint8_t * fl = labi_ld_flag_lz();
       (void)(((argv)[cur] = fl));
       (void)(((la)[0] = (cur + 1)));
     }
-    int32_t _e = 0;
-    (void)((_e = shux_ensure_runtime_compress_zlib_glue_o(((uint8_t *)(0)))));
-    uint8_t * glue = ((uint8_t *)(0));
-    (void)((glue = shux_runtime_compress_zlib_glue_o_path(((uint8_t *)(0)))));
+    {
+      int32_t _e = shux_ensure_runtime_compress_zlib_glue_o(0);
+    }
+    uint8_t * glue = 0;
+    (void)((glue = shux_runtime_compress_zlib_glue_o_path(0)));
     if ((glue !=0)) {
       if (((glue)[0] !=0)) {
         int32_t cur2 = (la)[0];
-        if ((cur2 <(max_la - 1))) {
+        if ((cur2 < (max_la - 1))) {
           (void)(((argv)[cur2] = glue));
           (void)(((la)[0] = (cur2 + 1)));
         }
@@ -439,31 +439,30 @@ void asm_ld_append_compress_libs(uint8_t * compress_o, uint8_t * user_o, uint8_t
     }
   }
   if ((need_zs !=0)) {
-    ld_append_brew_lib_paths(argv, la, max_la);
+    (void)(ld_append_brew_lib_paths(argv, la, max_la));
     int32_t curz = (la)[0];
-    if ((curz <(max_la - 1))) {
+    if ((curz < (max_la - 1))) {
       uint8_t * flz = labi_ld_flag_lzstd();
       (void)(((argv)[curz] = flz));
       (void)(((la)[0] = (curz + 1)));
     }
   }
   if ((need_br !=0)) {
-    ld_append_brew_lib_paths(argv, la, max_la);
+    (void)(ld_append_brew_lib_paths(argv, la, max_la));
     int32_t curb = (la)[0];
-    if ((curb <(max_la - 1))) {
+    if ((curb < (max_la - 1))) {
       uint8_t * fle = labi_ld_flag_lbrotlienc();
       (void)(((argv)[curb] = fle));
       (void)(((la)[0] = (curb + 1)));
     }
     int32_t curb2 = (la)[0];
-    if ((curb2 <(max_la - 1))) {
+    if ((curb2 < (max_la - 1))) {
       uint8_t * fld = labi_ld_flag_lbrotlidec();
       (void)(((argv)[curb2] = fld));
       (void)(((la)[0] = (curb2 + 1)));
     }
   }
 }
-/* wave154: invoke_cc_append_compress_ld pure orch (surface pin; Cap residual push_existing). */
 void invoke_cc_append_compress_ld(uint8_t * * argv, int32_t * i, int32_t argv_cap, uint8_t * compress_o, uint8_t * user_o) {
   uint8_t * ab = ((uint8_t *)(argv));
   if ((ab ==0)) {
@@ -472,7 +471,7 @@ void invoke_cc_append_compress_ld(uint8_t * * argv, int32_t * i, int32_t argv_ca
   if ((i ==0)) {
     return;
   }
-  if ((((i)[0] >=(argv_cap - 1)))) {
+  if (((i)[0] >=(argv_cap - 1))) {
     return;
   }
   int32_t need_z = 0;
@@ -491,58 +490,57 @@ void invoke_cc_append_compress_ld(uint8_t * * argv, int32_t * i, int32_t argv_ca
     (void)((need_br = link_abi_obj_needs_brotli(user_o)));
   }
   if ((need_z !=0)) {
-    ld_append_brew_lib_paths(argv, i, argv_cap);
+    (void)(ld_append_brew_lib_paths(argv, i, argv_cap));
     int32_t cur = (i)[0];
-    if ((cur <(argv_cap - 1))) {
+    if ((cur < (argv_cap - 1))) {
       uint8_t * fl = labi_ld_flag_lz();
       (void)(((argv)[cur] = fl));
       (void)(((i)[0] = (cur + 1)));
     }
-    int32_t _e = 0;
-    (void)((_e = shux_ensure_runtime_compress_zlib_glue_o(((uint8_t *)(0)))));
-    uint8_t * glue = ((uint8_t *)(0));
-    (void)((glue = shux_runtime_compress_zlib_glue_o_path(((uint8_t *)(0)))));
-    int32_t _p = 0;
-    (void)((_p = invoke_cc_argv_push_existing(argv, i, argv_cap, glue)));
+    {
+      int32_t _e = shux_ensure_runtime_compress_zlib_glue_o(0);
+    }
+    uint8_t * glue = 0;
+    (void)((glue = shux_runtime_compress_zlib_glue_o_path(0)));
+    int32_t _p = invoke_cc_argv_push_existing(argv, i, argv_cap, glue);
   }
   if ((need_zs !=0)) {
-    ld_append_brew_lib_paths(argv, i, argv_cap);
+    (void)(ld_append_brew_lib_paths(argv, i, argv_cap));
     int32_t curz = (i)[0];
-    if ((curz <(argv_cap - 1))) {
+    if ((curz < (argv_cap - 1))) {
       uint8_t * flz = labi_ld_flag_lzstd();
       (void)(((argv)[curz] = flz));
       (void)(((i)[0] = (curz + 1)));
     }
   }
   if ((need_br !=0)) {
-    ld_append_brew_lib_paths(argv, i, argv_cap);
+    (void)(ld_append_brew_lib_paths(argv, i, argv_cap));
     int32_t curb = (i)[0];
-    if ((curb <(argv_cap - 1))) {
+    if ((curb < (argv_cap - 1))) {
       uint8_t * fle = labi_ld_flag_lbrotlienc();
       (void)(((argv)[curb] = fle));
       (void)(((i)[0] = (curb + 1)));
     }
     int32_t curb2 = (i)[0];
-    if ((curb2 <(argv_cap - 1))) {
+    if ((curb2 < (argv_cap - 1))) {
       uint8_t * fld = labi_ld_flag_lbrotlidec();
       (void)(((argv)[curb2] = fld));
       (void)(((i)[0] = (curb2 + 1)));
     }
   }
 }
-/* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch (surface pin; flags i32 layout). */
 void shux_asm_ld_append_mach_tail_libs_impl(uint8_t * compress_o, uint8_t * user_o, uint8_t * flags, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t append_lsystem) {
-  if ((flags == 0)) {
+  if ((flags ==0)) {
     return;
   }
   uint8_t * ab = ((uint8_t *)(argv));
-  if ((ab == 0)) {
+  if ((ab ==0)) {
     return;
   }
-  if ((la == 0)) {
+  if ((la ==0)) {
     return;
   }
-  if ((((la)[0] < 0))) {
+  if (((la)[0] < 0)) {
     return;
   }
   int32_t * f = ((int32_t *)(flags));
@@ -553,68 +551,67 @@ void shux_asm_ld_append_mach_tail_libs_impl(uint8_t * compress_o, uint8_t * user
   int32_t have_compress = (f)[6];
   int32_t have_sqlite = (f)[8];
   int32_t need_pt = 0;
-  if ((have_thread != 0)) {
-    need_pt = 1;
+  if ((have_thread !=0)) {
+    (void)((need_pt = 1));
   }
-  if ((have_sync != 0)) {
-    need_pt = 1;
+  if ((have_sync !=0)) {
+    (void)((need_pt = 1));
   }
-  if ((have_channel != 0)) {
-    need_pt = 1;
+  if ((have_channel !=0)) {
+    (void)((need_pt = 1));
   }
-  if ((have_math != 0)) {
+  if ((have_math !=0)) {
     int32_t cur = (la)[0];
-    if ((cur <(max_la - 1))) {
+    if ((cur < (max_la - 1))) {
       uint8_t * fl = labi_ld_flag_lm();
       (void)(((argv)[cur] = fl));
       (void)(((la)[0] = (cur + 1)));
     }
   }
   int32_t need_comp = have_compress;
-  if ((need_comp == 0)) {
+  if ((need_comp ==0)) {
     (void)((need_comp = link_abi_user_o_needs_compress_libs(user_o)));
   }
-  if ((need_comp != 0)) {
-    asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
+  if ((need_comp !=0)) {
+    (void)(asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la));
   }
-  if ((have_sqlite != 0)) {
+  if ((have_sqlite !=0)) {
     int32_t curs = (la)[0];
-    if ((curs <(max_la - 1))) {
+    if ((curs < (max_la - 1))) {
       uint8_t * fs = labi_ld_flag_lsqlite3();
       (void)(((argv)[curs] = fs));
       (void)(((la)[0] = (curs + 1)));
     }
   }
-  if ((need_pt != 0)) {
+  if ((need_pt !=0)) {
     int32_t curp = (la)[0];
-    if ((curp <(max_la - 1))) {
+    if ((curp < (max_la - 1))) {
       uint8_t * fp = labi_ld_flag_pthread();
       (void)(((argv)[curp] = fp));
       (void)(((la)[0] = (curp + 1)));
     }
   }
-  if ((append_lsystem != 0)) {
+  if ((append_lsystem !=0)) {
     int32_t curl = (la)[0];
-    if ((curl <(max_la - 1))) {
+    if ((curl < (max_la - 1))) {
       uint8_t * fsys = labi_ld_flag_lSystem();
       (void)(((argv)[curl] = fsys));
       (void)(((la)[0] = (curl + 1)));
     }
   }
 }
-/* wave157: shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch (surface pin; flags i32 layout). */
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(uint8_t * compress_o, uint8_t * user_o, uint8_t * flags, int32_t need_pt, uint8_t * * argv, int32_t * la, int32_t max_la) {
-  if ((flags == 0)) {
+  if ((flags ==0)) {
     return;
   }
   uint8_t * ab = ((uint8_t *)(argv));
-  if ((ab == 0)) {
+  if ((ab ==0)) {
     return;
   }
-  if ((la == 0)) {
+  if ((la ==0)) {
     return;
   }
-  if ((((la)[0] < 0))) {
+  if (((la)[0] < 0)) {
     return;
   }
   int32_t * f = ((int32_t *)(flags));
@@ -626,54 +623,54 @@ void shux_asm_ld_append_unix_gcc_tail_libs_impl(uint8_t * compress_o, uint8_t * 
   int32_t have_sqlite = (f)[8];
   int32_t have_libc_heap = (f)[10];
   int32_t have_fs = (f)[11];
-  if ((have_io != 0)) {
-    if ((need_pt != 0)) {
+  if ((have_io !=0)) {
+    if ((need_pt !=0)) {
       int32_t cur0 = (la)[0];
-      if ((cur0 <(max_la - 1))) {
+      if ((cur0 < (max_la - 1))) {
         uint8_t * fp0 = labi_ld_flag_pthread();
         (void)(((argv)[cur0] = fp0));
         (void)(((la)[0] = (cur0 + 1)));
       }
     }
   } else {
-    if ((need_pt != 0)) {
+    if ((need_pt !=0)) {
       int32_t cur1 = (la)[0];
-      if ((cur1 <(max_la - 1))) {
+      if ((cur1 < (max_la - 1))) {
         uint8_t * fp1 = labi_ld_flag_lpthread();
         (void)(((argv)[cur1] = fp1));
         (void)(((la)[0] = (cur1 + 1)));
       }
     }
   }
-  if ((have_math != 0)) {
+  if ((have_math !=0)) {
     int32_t curm = (la)[0];
-    if ((curm <(max_la - 1))) {
+    if ((curm < (max_la - 1))) {
       uint8_t * fm = labi_ld_flag_lm();
       (void)(((argv)[curm] = fm));
       (void)(((la)[0] = (curm + 1)));
     }
   }
   int32_t need_comp = have_compress;
-  if ((need_comp == 0)) {
+  if ((need_comp ==0)) {
     (void)((need_comp = link_abi_user_o_needs_compress_libs(user_o)));
   }
-  if ((need_comp != 0)) {
-    asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
+  if ((need_comp !=0)) {
+    (void)(asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la));
   }
-  if ((have_sqlite != 0)) {
+  if ((have_sqlite !=0)) {
     int32_t curs = (la)[0];
-    if ((curs <(max_la - 1))) {
+    if ((curs < (max_la - 1))) {
       uint8_t * fs = labi_ld_flag_lsqlite3();
       (void)(((argv)[curs] = fs));
       (void)(((la)[0] = (curs + 1)));
     }
   }
-  if ((have_dynlib != 0)) {
+  if ((have_dynlib !=0)) {
     int32_t is_linux = 0;
     (void)((is_linux = shux_host_is_linux()));
-    if ((is_linux != 0)) {
+    if ((is_linux !=0)) {
       int32_t curd = (la)[0];
-      if ((curd <(max_la - 1))) {
+      if ((curd < (max_la - 1))) {
         uint8_t * fd = labi_ld_flag_ldl();
         (void)(((argv)[curd] = fd));
         (void)(((la)[0] = (curd + 1)));
@@ -681,50 +678,50 @@ void shux_asm_ld_append_unix_gcc_tail_libs_impl(uint8_t * compress_o, uint8_t * 
     }
   }
   int32_t always_lc = 0;
-  if ((have_io != 0)) {
-    always_lc = 1;
+  if ((have_io !=0)) {
+    (void)((always_lc = 1));
   }
-  if ((have_net != 0)) {
-    always_lc = 1;
+  if ((have_net !=0)) {
+    (void)((always_lc = 1));
   }
-  if ((need_pt != 0)) {
-    always_lc = 1;
+  if ((need_pt !=0)) {
+    (void)((always_lc = 1));
   }
-  if ((always_lc != 0)) {
+  if ((always_lc !=0)) {
     int32_t curc = (la)[0];
-    if ((curc <(max_la - 1))) {
+    if ((curc < (max_la - 1))) {
       uint8_t * fc = labi_ld_flag_lc();
       (void)(((argv)[curc] = fc));
       (void)(((la)[0] = (curc + 1)));
     }
   } else {
     int32_t want_lc = 0;
-    if ((have_libc_heap != 0)) {
-      want_lc = 1;
+    if ((have_libc_heap !=0)) {
+      (void)((want_lc = 1));
     }
-    if ((have_fs != 0)) {
-      want_lc = 1;
+    if ((have_fs !=0)) {
+      (void)((want_lc = 1));
     }
-    if ((have_math != 0)) {
-      want_lc = 1;
+    if ((have_math !=0)) {
+      (void)((want_lc = 1));
     }
-    if ((have_compress != 0)) {
-      want_lc = 1;
+    if ((have_compress !=0)) {
+      (void)((want_lc = 1));
     }
-    if ((have_sqlite != 0)) {
-      want_lc = 1;
+    if ((have_sqlite !=0)) {
+      (void)((want_lc = 1));
     }
-    if ((have_dynlib != 0)) {
-      want_lc = 1;
+    if ((have_dynlib !=0)) {
+      (void)((want_lc = 1));
     }
-    if ((want_lc != 0)) {
+    if ((want_lc !=0)) {
       int32_t is_linux2 = 0;
       int32_t is_apple = 0;
       (void)((is_linux2 = shux_host_is_linux()));
       (void)((is_apple = link_abi_host_is_apple()));
-      if (((is_linux2 != 0) || (is_apple != 0))) {
+      if (((is_linux2 !=0) || (is_apple !=0))) {
         int32_t curc2 = (la)[0];
-        if ((curc2 <(max_la - 1))) {
+        if ((curc2 < (max_la - 1))) {
           uint8_t * fc2 = labi_ld_flag_lc();
           (void)(((argv)[curc2] = fc2));
           (void)(((la)[0] = (curc2 + 1)));
@@ -732,7 +729,7 @@ void shux_asm_ld_append_unix_gcc_tail_libs_impl(uint8_t * compress_o, uint8_t * 
       }
     }
   }
-}/* wave158: invoke_cc_append_net_tls_ld pure orch (surface pin; Cap residual marker/realpath/rel/push). */
+}
 int32_t invoke_cc_append_net_tls_ld(uint8_t * * argv, int32_t * i, int32_t argv_cap, uint8_t * net_o, uint8_t * repo_root) {
   uint8_t * ab = ((uint8_t *)(argv));
   if ((ab ==0)) {
@@ -741,30 +738,30 @@ int32_t invoke_cc_append_net_tls_ld(uint8_t * * argv, int32_t * i, int32_t argv_
   if ((i ==0)) {
     return 0;
   }
-  if ((((i)[0] >=(argv_cap - 1)))) {
+  if (((i)[0] >=(argv_cap - 1))) {
     return 0;
   }
   uint8_t * mk_ssl = labi_net_tls_openssl_marker();
   uint8_t * mk_mb = labi_net_tls_mbedtls_marker();
   if ((net_o !=0)) {
-    if ((((net_o)[0] !=0))) {
+    if (((net_o)[0] !=0)) {
       uint8_t * use = net_o;
-      uint8_t abs_n[4096];
-      uint8_t * rn = ((uint8_t *)(0));
+      uint8_t abs_n[4096] = {};
+      uint8_t * rn = 0;
       (void)((rn = link_abi_realpath_cap(net_o, &((abs_n)[0]))));
       if ((rn !=0)) {
-        use = rn;
+        (void)((use = rn));
       }
       int32_t hit_ssl = 0;
       (void)((hit_ssl = link_abi_obj_exports_marker(use, mk_ssl)));
       if ((hit_ssl !=0)) {
-        labi_append_openssl_ld_flags(argv, i, argv_cap);
+        (void)(labi_append_openssl_ld_flags(argv, i, argv_cap));
         return 1;
       }
       int32_t hit_mb = 0;
       (void)((hit_mb = link_abi_obj_exports_marker(use, mk_mb)));
       if ((hit_mb !=0)) {
-        labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+        (void)(labi_append_mbedtls_ld_flags(argv, i, argv_cap));
         return 1;
       }
     }
@@ -772,124 +769,120 @@ int32_t invoke_cc_append_net_tls_ld(uint8_t * * argv, int32_t * i, int32_t argv_
   if ((repo_root ==0)) {
     return 0;
   }
-  if ((((repo_root)[0] ==0))) {
+  if (((repo_root)[0] ==0)) {
     return 0;
   }
   uint8_t * rel_ssl = labi_rel_tls_openssl_o();
-  uint8_t * tls_ssl = ((uint8_t *)(0));
+  uint8_t * tls_ssl = 0;
   (void)((tls_ssl = shux_rel_o_path_from_argv0(repo_root, rel_ssl)));
   if ((tls_ssl !=0)) {
-    if ((((tls_ssl)[0] !=0))) {
+    if (((tls_ssl)[0] !=0)) {
       uint8_t * use2 = tls_ssl;
-      uint8_t abs_s[4096];
-      uint8_t * rs = ((uint8_t *)(0));
+      uint8_t abs_s[4096] = {};
+      uint8_t * rs = 0;
       (void)((rs = link_abi_realpath_cap(tls_ssl, &((abs_s)[0]))));
       if ((rs !=0)) {
-        use2 = rs;
+        (void)((use2 = rs));
       }
       int32_t hit2 = 0;
       (void)((hit2 = link_abi_obj_exports_marker(use2, mk_ssl)));
       if ((hit2 !=0)) {
-        int32_t _p = 0;
-        (void)((_p = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_ssl)));
-        labi_append_openssl_ld_flags(argv, i, argv_cap);
+        int32_t _p = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_ssl);
+        (void)(labi_append_openssl_ld_flags(argv, i, argv_cap));
         return 1;
       }
     }
   }
   uint8_t * rel_mb = labi_rel_tls_mbedtls_o();
-  uint8_t * tls_mb = ((uint8_t *)(0));
+  uint8_t * tls_mb = 0;
   (void)((tls_mb = shux_rel_o_path_from_argv0(repo_root, rel_mb)));
   if ((tls_mb !=0)) {
-    if ((((tls_mb)[0] !=0))) {
+    if (((tls_mb)[0] !=0)) {
       uint8_t * use3 = tls_mb;
-      uint8_t abs_m[4096];
-      uint8_t * rm = ((uint8_t *)(0));
+      uint8_t abs_m[4096] = {};
+      uint8_t * rm = 0;
       (void)((rm = link_abi_realpath_cap(tls_mb, &((abs_m)[0]))));
       if ((rm !=0)) {
-        use3 = rm;
+        (void)((use3 = rm));
       }
       int32_t hit3 = 0;
       (void)((hit3 = link_abi_obj_exports_marker(use3, mk_mb)));
       if ((hit3 !=0)) {
-        int32_t _p2 = 0;
-        (void)((_p2 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_mb)));
-        labi_append_mbedtls_ld_flags(argv, i, argv_cap);
+        int32_t _p2 = invoke_cc_argv_push_existing(argv, i, argv_cap, tls_mb);
+        (void)(labi_append_mbedtls_ld_flags(argv, i, argv_cap));
         return 1;
       }
     }
   }
   return 0;
 }
-/* wave187: ensure_std_net_o_auto_tls pure orch helpers + body (surface pin ≡ .x).
- * Cap residual getenv+system+realpath_cap+exports_marker; pure path/make-cmd join. */
 int32_t labi_net_tls_buf_append(uint8_t * dst, int32_t cap, int32_t pos, uint8_t * src) {
   if ((dst ==0)) {
-    return (0 -1);
+    return -1;
   }
-  if ((pos <0)) {
-    return (0 -1);
+  if ((pos < 0)) {
+    return -1;
   }
   if ((pos >=cap)) {
-    return (0 -1);
+    return -1;
   }
   int32_t i = 0;
   if ((src ==0)) {
-    (void)(((dst)[pos] = 0));
+    (void)(((dst)[((size_t)(pos))] = 0));
     return pos;
   }
-  while ((1 ==1)) {
-    uint8_t c = ((src)[i]);
+  while (1) {
+    uint8_t c = (src)[((size_t)(i))];
     if ((c ==0)) {
       break;
     }
-    if (((pos +1) >=cap)) {
-      (void)(((dst)[pos] = 0));
-      return (0 -1);
+    if (((pos + 1) >=cap)) {
+      (void)(((dst)[((size_t)(pos))] = 0));
+      return -1;
     }
-    (void)(((dst)[pos] = c));
-    pos = (pos +1);
-    i = (i +1);
+    (void)(((dst)[((size_t)(pos))] = c));
+    (void)((pos = (pos + 1)));
+    (void)((i = (i + 1)));
   }
-  (void)(((dst)[pos] = 0));
+  (void)(((dst)[((size_t)(pos))] = 0));
   return pos;
 }
 int32_t labi_net_tls_build_make_cmd(uint8_t * cmd, int32_t cap, uint8_t * repo_root, uint8_t * target) {
   int32_t pos = 0;
-  pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"make -C '"));
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"\x6d\x61\x6b\x65\x20\x2d\x43\x20\x27"))));
+  if ((pos < 0)) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root)));
+  if ((pos < 0)) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"'/compiler' "));
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"\x27\x2f\x63\x6f\x6d\x70\x69\x6c\x65\x72\x27\x20"))));
+  if ((pos < 0)) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(cmd, cap, pos, target);
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, target)));
+  if ((pos < 0)) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)" >/dev/null 2>&1"));
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"\x20\x3e\x2f\x64\x65\x76\x2f\x6e\x75\x6c\x6c\x20\x32\x3e\x26\x31"))));
+  if ((pos < 0)) {
     return 0;
   }
   return 1;
 }
 int32_t labi_net_tls_join_repo_rel(uint8_t * path_buf, int32_t cap, uint8_t * repo_root, uint8_t * rel) {
   int32_t pos = 0;
-  pos = labi_net_tls_buf_append(path_buf, cap, pos, repo_root);
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(path_buf, cap, pos, repo_root)));
+  if ((pos < 0)) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(path_buf, cap, pos, ((uint8_t *)"/"));
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(path_buf, cap, pos, ((uint8_t *)"\x2f"))));
+  if ((pos < 0)) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(path_buf, cap, pos, rel);
-  if ((pos <0)) {
+  (void)((pos = labi_net_tls_buf_append(path_buf, cap, pos, rel)));
+  if ((pos < 0)) {
     return 0;
   }
   return 1;
@@ -898,35 +891,36 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
   if ((repo_root ==0)) {
     return;
   }
-  if ((((repo_root)[0] ==0))) {
+  if (((repo_root)[0] ==0)) {
     return;
   }
-  uint8_t * mode = ((uint8_t *)(0));
-  (void)((mode = getenv(((uint8_t *)"SHUX_NET_TLS"))));
+  uint8_t * mode = 0;
+  (void)((mode = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4e\x45\x54\x5f\x54\x4c\x53"))));
   if ((mode ==0)) {
     return;
   }
-  if ((((mode)[0] ==0))) {
+  if (((mode)[0] ==0)) {
     return;
   }
-  uint8_t cmd[640];
-  uint8_t path_buf[4096];
-  uint8_t resolved[4096];
+  uint8_t cmd[640] = {};
+  uint8_t path_buf[4096] = {};
+  uint8_t resolved[4096] = {};
   uint8_t * mk_ssl = labi_net_tls_openssl_marker();
   uint8_t * mk_mb = labi_net_tls_mbedtls_marker();
   int32_t eq_stub = 0;
-  (void)((eq_stub = strcmp(mode, ((uint8_t *)"stub"))));
+  (void)((eq_stub = strcmp(mode, ((uint8_t *)"\x73\x74\x75\x62"))));
   if ((eq_stub ==0)) {
-    int32_t ok = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-stub"));
+    int32_t ok = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x73\x74\x75\x62"));
     if ((ok !=0)) {
-      int32_t _s = 0;
-      (void)((_s = system(&((cmd)[0]))));
+      {
+        int32_t _s = system(&((cmd)[0]));
+      }
     }
     return;
   }
-  int32_t j1 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"std/net/tls_openssl.o"));
+  int32_t j1 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x74\x6c\x73\x5f\x6f\x70\x65\x6e\x73\x73\x6c\x2e\x6f"));
   if ((j1 !=0)) {
-    uint8_t * rp1 = ((uint8_t *)(0));
+    uint8_t * rp1 = 0;
     (void)((rp1 = link_abi_realpath_cap(&((path_buf)[0]), &((resolved)[0]))));
     if ((rp1 !=0)) {
       int32_t hit1 = 0;
@@ -936,9 +930,9 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
       }
     }
   }
-  int32_t j2 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"std/net/tls_mbedtls.o"));
+  int32_t j2 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x2e\x6f"));
   if ((j2 !=0)) {
-    uint8_t * rp2 = ((uint8_t *)(0));
+    uint8_t * rp2 = 0;
     (void)((rp2 = link_abi_realpath_cap(&((path_buf)[0]), &((resolved)[0]))));
     if ((rp2 !=0)) {
       int32_t hit2 = 0;
@@ -949,12 +943,12 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
     }
   }
   (void)(((resolved)[0] = 0));
-  int32_t j3 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"std/net/net.o"));
+  int32_t j3 = labi_net_tls_join_repo_rel(&((path_buf)[0]), 4096, repo_root, ((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x6e\x65\x74\x2e\x6f"));
   if ((j3 !=0)) {
-    uint8_t * rp3 = ((uint8_t *)(0));
+    uint8_t * rp3 = 0;
     (void)((rp3 = link_abi_realpath_cap(&((path_buf)[0]), &((resolved)[0]))));
     if ((rp3 ==0)) {
-      (void)((rp3 = link_abi_realpath_cap(((uint8_t *)"std/net/net.o"), &((resolved)[0]))));
+      (void)((rp3 = link_abi_realpath_cap(((uint8_t *)"\x73\x74\x64\x2f\x6e\x65\x74\x2f\x6e\x65\x74\x2e\x6f"), &((resolved)[0]))));
     }
     if ((rp3 !=0)) {
       int32_t hit_s = 0;
@@ -970,40 +964,204 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
     }
   }
   int32_t eq_ssl = 0;
-  (void)((eq_ssl = strcmp(mode, ((uint8_t *)"openssl"))));
+  (void)((eq_ssl = strcmp(mode, ((uint8_t *)"\x6f\x70\x65\x6e\x73\x73\x6c"))));
   if ((eq_ssl ==0)) {
-    int32_t ok2 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-openssl"));
+    int32_t ok2 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6f\x70\x65\x6e\x73\x73\x6c"));
     if ((ok2 !=0)) {
-      int32_t _s2 = 0;
-      (void)((_s2 = system(&((cmd)[0]))));
+      {
+        int32_t _s2 = system(&((cmd)[0]));
+      }
     }
     return;
   }
   int32_t eq_mb = 0;
-  (void)((eq_mb = strcmp(mode, ((uint8_t *)"mbedtls"))));
+  (void)((eq_mb = strcmp(mode, ((uint8_t *)"\x6d\x62\x65\x64\x74\x6c\x73"))));
   if ((eq_mb ==0)) {
-    int32_t ok3 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-mbedtls"));
+    int32_t ok3 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6d\x62\x65\x64\x74\x6c\x73"));
     if ((ok3 !=0)) {
-      int32_t _s3 = 0;
-      (void)((_s3 = system(&((cmd)[0]))));
+      {
+        int32_t _s3 = system(&((cmd)[0]));
+      }
     }
     return;
   }
   int32_t eq_auto = 0;
-  (void)((eq_auto = strcmp(mode, ((uint8_t *)"auto"))));
+  (void)((eq_auto = strcmp(mode, ((uint8_t *)"\x61\x75\x74\x6f"))));
   if ((eq_auto !=0)) {
     return;
   }
-  int32_t ok4 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-openssl"));
+  int32_t ok4 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6f\x70\x65\x6e\x73\x73\x6c"));
   if ((ok4 !=0)) {
     int32_t rc = 0;
     (void)((rc = system(&((cmd)[0]))));
     if ((rc !=0)) {
-      int32_t ok5 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"net-o-mbedtls"));
+      int32_t ok5 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6d\x62\x65\x64\x74\x6c\x73"));
       if ((ok5 !=0)) {
-        int32_t _s5 = 0;
-        (void)((_s5 = system(&((cmd)[0]))));
+        {
+          int32_t _s5 = system(&((cmd)[0]));
+        }
       }
     }
   }
+}
+int32_t labi_formal_std_build_make_cmd(uint8_t * cmd, int32_t cap, uint8_t * shux_bin, uint8_t * repo_root, uint8_t * make_target) {
+  int32_t pos = 0;
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x4f\x52\x4d\x41\x4c\x5f\x53\x54\x44\x5f\x45\x4e\x53\x55\x52\x45\x3d\x31\x20\x53\x48\x55\x58\x3d\x27"))));
+  if ((pos < 0)) {
+    return 0;
+  }
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, shux_bin)));
+  if ((pos < 0)) {
+    return 0;
+  }
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"\x27\x20\x6d\x61\x6b\x65\x20\x2d\x43\x20\x27"))));
+  if ((pos < 0)) {
+    return 0;
+  }
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root)));
+  if ((pos < 0)) {
+    return 0;
+  }
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"\x2f\x63\x6f\x6d\x70\x69\x6c\x65\x72\x27\x20\x27"))));
+  if ((pos < 0)) {
+    return 0;
+  }
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, make_target)));
+  if ((pos < 0)) {
+    return 0;
+  }
+  (void)((pos = labi_net_tls_buf_append(cmd, cap, pos, ((uint8_t *)"\x27"))));
+  if ((pos < 0)) {
+    return 0;
+  }
+  return 1;
+}
+int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_repo, uint8_t * make_target) {
+  if ((repo_root ==0)) {
+    return 0;
+  }
+  if (((repo_root)[0] ==0)) {
+    return 0;
+  }
+  if ((rel_from_repo ==0)) {
+    return 0;
+  }
+  if (((rel_from_repo)[0] ==0)) {
+    return 0;
+  }
+  if ((make_target ==0)) {
+    return 0;
+  }
+  if (((make_target)[0] ==0)) {
+    return 0;
+  }
+  uint8_t abs[4096] = {};
+  int32_t j0 = labi_net_tls_join_repo_rel(&((abs)[0]), 4096, repo_root, rel_from_repo);
+  if ((j0 ==0)) {
+    return 0;
+  }
+  uint8_t * have0 = 0;
+  (void)((have0 = asm_link_obj_skip_missing(&((abs)[0]))));
+  if ((have0 !=0)) {
+    return 1;
+  }
+  uint8_t * ensuring = 0;
+  (void)((ensuring = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x4f\x52\x4d\x41\x4c\x5f\x53\x54\x44\x5f\x45\x4e\x53\x55\x52\x45"))));
+  if ((ensuring !=0)) {
+    if (((ensuring)[0] !=0)) {
+      if (((ensuring)[0] !=48)) {
+        return 0;
+      }
+    }
+  }
+  uint8_t shux_bin[4096] = {};
+  (void)(((shux_bin)[0] = 0));
+  uint8_t * env_shux = 0;
+  (void)((env_shux = getenv(((uint8_t *)"\x53\x48\x55\x58"))));
+  int32_t x_ok = 1;
+  int32_t found = 0;
+  if ((env_shux !=0)) {
+    if (((env_shux)[0] !=0)) {
+      int32_t ax = 0;
+      (void)((ax = access(env_shux, x_ok)));
+      if ((ax ==0)) {
+        uint8_t * rp = 0;
+        (void)((rp = link_abi_realpath_cap(env_shux, &((shux_bin)[0]))));
+        if ((rp ==0)) {
+          int32_t cp = labi_net_tls_buf_append(&((shux_bin)[0]), 4096, 0, env_shux);
+          if ((cp < 0)) {
+            return 0;
+          }
+        }
+        (void)((found = 1));
+      }
+    }
+  }
+  if ((found ==0)) {
+    uint8_t cand[4096] = {};
+    int32_t i = 0;
+    while ((i < 3)) {
+      uint8_t * name = 0;
+      if ((i ==0)) {
+        (void)((name = ((uint8_t *)"\x73\x68\x75\x78\x5f\x61\x73\x6d")));
+      }
+      if ((i ==1)) {
+        (void)((name = ((uint8_t *)"\x73\x68\x75\x78")));
+      }
+      if ((i ==2)) {
+        (void)((name = ((uint8_t *)"\x73\x68\x75\x78\x2d\x63")));
+      }
+      int32_t pos = 0;
+      (void)((pos = labi_net_tls_buf_append(&((cand)[0]), 4096, pos, repo_root)));
+      if ((pos < 0)) {
+        (void)((i = (i + 1)));
+        continue;
+      }
+      (void)((pos = labi_net_tls_buf_append(&((cand)[0]), 4096, pos, ((uint8_t *)"\x2f\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f"))));
+      if ((pos < 0)) {
+        (void)((i = (i + 1)));
+        continue;
+      }
+      (void)((pos = labi_net_tls_buf_append(&((cand)[0]), 4096, pos, name)));
+      if ((pos < 0)) {
+        (void)((i = (i + 1)));
+        continue;
+      }
+      int32_t ax2 = 0;
+      (void)((ax2 = access(&((cand)[0]), x_ok)));
+      if ((ax2 ==0)) {
+        uint8_t * rp2 = 0;
+        (void)((rp2 = link_abi_realpath_cap(&((cand)[0]), &((shux_bin)[0]))));
+        if ((rp2 ==0)) {
+          int32_t cp2 = labi_net_tls_buf_append(&((shux_bin)[0]), 4096, 0, &((cand)[0]));
+          if ((cp2 < 0)) {
+            return 0;
+          }
+        }
+        (void)((found = 1));
+        break;
+      }
+      (void)((i = (i + 1)));
+    }
+  }
+  if ((found ==0)) {
+    return 0;
+  }
+  if (((shux_bin)[0] ==0)) {
+    return 0;
+  }
+  uint8_t cmd[768] = {};
+  int32_t ok = labi_formal_std_build_make_cmd(&((cmd)[0]), 768, &((shux_bin)[0]), repo_root, make_target);
+  if ((ok ==0)) {
+    return 0;
+  }
+  {
+    int32_t _s = system(&((cmd)[0]));
+  }
+  uint8_t * have1 = 0;
+  (void)((have1 = asm_link_obj_skip_missing(&((abs)[0]))));
+  if ((have1 !=0)) {
+    return 1;
+  }
+  return 0;
 }

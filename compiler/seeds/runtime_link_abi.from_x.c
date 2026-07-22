@@ -45,8 +45,8 @@ const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
-/* PLATFORM: SHARED — formal std .o after L4 wipe (def near ensure_std_net_o_auto_tls). */
-static int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+/* PLATFORM: SHARED — formal std .o after L4 wipe (wave188 pure L6 / cold twin). */
+int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
 /* G-02f-68 link helpers */
 int shu_waitpid_retry(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
@@ -4322,65 +4322,17 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
 #endif
 
 
-/**
- * PLATFORM: SHARED — formal std|core .o under repo (gitignored) vanish after L4 wipe.
- * Authority = Makefile + shux_compile_std_module (G.7); link push_existing alone silent-skips.
- * If rel_from_repo is missing, run: SHUX=<product> make -C <repo>/compiler <make_target>
- * make_target is relative to compiler/ (e.g. ../std/vec/vec.o).
- * Reentrancy: make → shux_compile_std_module → same product host → need_math/vec/set/map
- * would call ensure again and fork-bomb. Export SHUX_FORMAL_STD_ENSURE=1 on the make
- * child; nested ensure only checks existence (no second make).
- * Returns 1 if object exists after ensure, 0 otherwise.
- */
-static int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target) {
-    char abs[PATH_MAX];
-    char cmd[768];
-    char shux_bin[PATH_MAX];
-    const char *env_shux;
-    const char *ensuring;
-    int nn;
-    if (!repo_root || !repo_root[0] || !rel_from_repo || !rel_from_repo[0] || !make_target || !make_target[0])
-        return 0;
-    nn = snprintf(abs, sizeof abs, "%s/%s", repo_root, rel_from_repo);
-    if (nn < 0 || (size_t)nn >= sizeof abs)
-        return 0;
-    if (asm_link_obj_skip_missing(abs))
-        return 1;
-    /* Nested ensure while compiling formal .o: do not system(make) again. */
-    ensuring = getenv("SHUX_FORMAL_STD_ENSURE");
-    if (ensuring && ensuring[0] && ensuring[0] != '0')
-        return 0;
-    env_shux = getenv("SHUX");
-    shux_bin[0] = '\0';
-    if (env_shux && env_shux[0] && access(env_shux, X_OK) == 0) {
-        if (realpath(env_shux, shux_bin) == NULL)
-            (void)snprintf(shux_bin, sizeof shux_bin, "%s", env_shux);
-    } else {
-        static const char *names[] = { "shux_asm", "shux", "shux-c", NULL };
-        int i;
-        for (i = 0; names[i]; i++) {
-            char cand[PATH_MAX];
-            nn = snprintf(cand, sizeof cand, "%s/compiler/%s", repo_root, names[i]);
-            if (nn < 0 || (size_t)nn >= sizeof cand)
-                continue;
-            if (access(cand, X_OK) == 0) {
-                if (realpath(cand, shux_bin) == NULL)
-                    (void)snprintf(shux_bin, sizeof shux_bin, "%s", cand);
-                break;
-            }
-        }
-    }
-    if (!shux_bin[0])
-        return 0;
-    /* freestanding system() = fork+execvp sh -c; PATH fixed in invoke_cc child too. */
-    nn = snprintf(cmd, sizeof cmd,
-                  "SHUX_FORMAL_STD_ENSURE=1 SHUX='%s' make -C '%s/compiler' '%s'",
-                  shux_bin, repo_root, make_target);
-    if (nn < 0 || (size_t)nn >= sizeof cmd)
-        return 0;
-    (void)system(cmd);
-    return asm_link_obj_skip_missing(abs) ? 1 : 0;
-}
+/* wave188: shux_ensure_formal_std_make_o pure orch — body removed from mega
+ * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * Pure: path/SHUX/make-cmd join; Cap residual getenv+access+realpath_cap+system+skip_missing.
+ * Why: hybrid still had always-mega C body for formal std make ensure (system/make orch).
+ * PLATFORM: SHARED orch / host shell make. */
+#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+/* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
+#else
+int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+#endif
 
 /* wave187: ensure_std_net_o_auto_tls pure orch — body removed from mega
  * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
@@ -4397,7 +4349,7 @@ void ensure_std_net_o_auto_tls(const char *repo_root);
 /* wave158: invoke_cc_append_net_tls_ld pure orch — body removed from mega
  * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
  * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
- * wave187: ensure_std_net_o_auto_tls pure sibling (Cap residual getenv+system).
+ * wave187/188: ensure_std_net + formal_std_make pure siblings (Cap residual getenv+system).
  * PLATFORM: SHARED orch / MACOS brew -L consumers. */
 
 

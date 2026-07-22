@@ -9,7 +9,8 @@
 // + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch
 // + wave156 mach tail_libs_impl pure orch + wave157 unix gcc tail + wave158 net_tls
 // + wave179 invoke_cc_argv_push_existing pure orch
-// + wave187 ensure_std_net_o_auto_tls pure orch:
+// + wave187 ensure_std_net_o_auto_tls pure orch
+// + wave188 shux_ensure_formal_std_make_o pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
@@ -24,11 +25,13 @@
 //   - invoke_cc_argv_push_existing (wave179; pure gates/dedup/append; Cap residual resolve pool)
 //   - ensure_std_net_o_auto_tls (wave187; pure mode/path orch; Cap residual getenv+system+
 //     realpath_cap+exports_marker; shell make net-o-* stays Cap residual)
+//   - shux_ensure_formal_std_make_o (wave188; pure path/SHUX/make-cmd orch; Cap residual
+//     getenv+access+realpath_cap+system+asm_link_obj_skip_missing; shell make Cap residual)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path (skip+realpath pool);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
-//   getenv / system for ensure_std_net_o_auto_tls shell make (wave187 Cap residual).
+//   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap).
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
@@ -65,11 +68,16 @@ export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 // Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
 export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 
-// Cap residual (wave187 ensure_std_net_o_auto_tls): host getenv / system shell make.
-// PLATFORM: SHARED — mode SHUX_NET_TLS + make -C compiler net-o-*.
+// Cap residual (wave187/188 ensure shell make): host getenv / system / access / skip_missing.
+// PLATFORM: SHARED — SHUX_NET_TLS net-o-* + formal std make (SHUX_FORMAL_STD_ENSURE reentrancy).
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function system(cmd: *u8): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
+// Cap residual (wave188): POSIX access(path, X_OK) for product host binary probe.
+// mode X_OK == 1 on POSIX (LINUX/MACOS product hosts).
+export extern "C" function access(path: *u8, mode: i32): i32;
+// Cap residual (wave188): regular-file existence gate (stat wrapper; same as ensure leaves).
+export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
@@ -1636,4 +1644,228 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
       }
     }
   }
+}
+
+/**
+ * Build formal-std ensure shell command into `cmd` (cap 768 ≡ mega).
+ * Format: SHUX_FORMAL_STD_ENSURE=1 SHUX='{bin}' make -C '{repo}/compiler' '{target}'
+ * Pure byte join (G.7 reuses labi_net_tls_buf_append).
+ * @param cmd *u8 — destination shell buffer
+ * @param cap i32 — capacity including trailing NUL (use 768 ≡ mega)
+ * @param shux_bin *u8 — absolute (or fallback) product host path for SHUX=
+ * @param repo_root *u8 — absolute repository root
+ * @param make_target *u8 — make target relative to compiler/ (e.g. ../std/vec/vec.o)
+ * @return i32 — 1 on success, 0 on overflow/null
+ * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL.
+ */
+#[no_mangle]
+export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, shux_bin: *u8, repo_root: *u8, make_target: *u8): i32 {
+  let pos: i32 = 0;
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "SHUX_FORMAL_STD_ENSURE=1 SHUX='");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, shux_bin);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "' make -C '");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, repo_root);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "/compiler' '");
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, make_target);
+  if (pos < 0) {
+    return 0;
+  }
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "'");
+  if (pos < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Ensure a formal std|core .o exists under the repo (gitignored after L4 wipe).
+ * If `repo_root/rel_from_repo` is missing, run:
+ *   SHUX_FORMAL_STD_ENSURE=1 SHUX='{bin}' make -C '{repo}/compiler' '{make_target}'
+ * Reentrancy: nested ensure while compiling formal .o sees SHUX_FORMAL_STD_ENSURE set
+ * and only re-checks existence (no second make / no fork-bomb).
+ * Product host binary: getenv("SHUX") if X_OK, else first of
+ *   {repo}/compiler/{shux_asm,shux,shux-c} that is X_OK; realpath preferred.
+ * @param repo_root *u8 — absolute repository root; null/empty → 0
+ * @param rel_from_repo *u8 — path under repo (e.g. std/vec/vec.o); null/empty → 0
+ * @param make_target *u8 — make target under compiler/ (e.g. ../std/vec/vec.o); null/empty → 0
+ * @return i32 — 1 if object exists after ensure, 0 otherwise
+ * Pure orch: path join + SHUX discovery loop + make-cmd join (G.7 labi_net_tls_* helpers).
+ * Cap residual: getenv; access(X_OK); link_abi_realpath_cap; system(make);
+ *   asm_link_obj_skip_missing (stat existence).
+ * Why (wave188): hybrid still had always-mega C body for formal_std_make (getenv+access+
+ *   realpath+system make orch). Soft residual sibling of wave187 ensure_std_net.
+ * Note: export signature must stay single-line (multi-line export drops the function).
+ * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
+ * Track-L: #[no_mangle] keeps surface short name for invoke_cc / on_demand call sites.
+ */
+#[no_mangle]
+export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32 {
+  if (repo_root == 0 as *u8) {
+    return 0;
+  }
+  if (repo_root[0] == 0) {
+    return 0;
+  }
+  if (rel_from_repo == 0 as *u8) {
+    return 0;
+  }
+  if (rel_from_repo[0] == 0) {
+    return 0;
+  }
+  if (make_target == 0 as *u8) {
+    return 0;
+  }
+  if (make_target[0] == 0) {
+    return 0;
+  }
+  // abs = repo_root + '/' + rel_from_repo (pure join; cap 4096 ≡ PATH_MAX product hosts).
+  let abs: u8[4096] = [];
+  let j0: i32 = labi_net_tls_join_repo_rel(&abs[0], 4096, repo_root, rel_from_repo);
+  if (j0 == 0) {
+    return 0;
+  }
+  // Already present? short-circuit (≡ mega asm_link_obj_skip_missing).
+  let have0: *u8 = 0 as *u8;
+  unsafe {
+    have0 = asm_link_obj_skip_missing(&abs[0]);
+  }
+  if (have0 != 0 as *u8) {
+    return 1;
+  }
+  // Nested ensure while compiling formal .o: do not system(make) again.
+  let ensuring: *u8 = 0 as *u8;
+  unsafe {
+    ensuring = getenv("SHUX_FORMAL_STD_ENSURE");
+  }
+  if (ensuring != 0 as *u8) {
+    if (ensuring[0] != 0) {
+      if (ensuring[0] != 48) {
+        // '0' == 48: only digit zero allows a nested make; any other non-empty → stop.
+        return 0;
+      }
+    }
+  }
+  // Resolve product host binary into shux_bin (realpath preferred; copy on fail).
+  let shux_bin: u8[4096] = [];
+  shux_bin[0] = 0;
+  let env_shux: *u8 = 0 as *u8;
+  unsafe {
+    env_shux = getenv("SHUX");
+  }
+  // POSIX X_OK == 1 on LINUX/MACOS product hosts.
+  let x_ok: i32 = 1;
+  let found: i32 = 0;
+  if (env_shux != 0 as *u8) {
+    if (env_shux[0] != 0) {
+      let ax: i32 = 0;
+      unsafe {
+        ax = access(env_shux, x_ok);
+      }
+      if (ax == 0) {
+        let rp: *u8 = 0 as *u8;
+        unsafe {
+          rp = link_abi_realpath_cap(env_shux, &shux_bin[0]);
+        }
+        if (rp == 0 as *u8) {
+          // realpath fail → copy raw SHUX path (≡ mega snprintf).
+          let cp: i32 = labi_net_tls_buf_append(&shux_bin[0], 4096, 0, env_shux);
+          if (cp < 0) {
+            return 0;
+          }
+        }
+        found = 1;
+      }
+    }
+  }
+  if (found == 0) {
+    // Fallback: {repo}/compiler/{shux_asm,shux,shux-c} first X_OK hit.
+    let cand: u8[4096] = [];
+    let i: i32 = 0;
+    while (i < 3) {
+      let name: *u8 = 0 as *u8;
+      if (i == 0) {
+        name = "shux_asm";
+      }
+      if (i == 1) {
+        name = "shux";
+      }
+      if (i == 2) {
+        name = "shux-c";
+      }
+      // cand = repo_root + "/compiler/" + name
+      let pos: i32 = 0;
+      pos = labi_net_tls_buf_append(&cand[0], 4096, pos, repo_root);
+      if (pos < 0) {
+        i = i + 1;
+        continue;
+      }
+      pos = labi_net_tls_buf_append(&cand[0], 4096, pos, "/compiler/");
+      if (pos < 0) {
+        i = i + 1;
+        continue;
+      }
+      pos = labi_net_tls_buf_append(&cand[0], 4096, pos, name);
+      if (pos < 0) {
+        i = i + 1;
+        continue;
+      }
+      let ax2: i32 = 0;
+      unsafe {
+        ax2 = access(&cand[0], x_ok);
+      }
+      if (ax2 == 0) {
+        let rp2: *u8 = 0 as *u8;
+        unsafe {
+          rp2 = link_abi_realpath_cap(&cand[0], &shux_bin[0]);
+        }
+        if (rp2 == 0 as *u8) {
+          let cp2: i32 = labi_net_tls_buf_append(&shux_bin[0], 4096, 0, &cand[0]);
+          if (cp2 < 0) {
+            return 0;
+          }
+        }
+        found = 1;
+        break;
+      }
+      i = i + 1;
+    }
+  }
+  if (found == 0) {
+    return 0;
+  }
+  if (shux_bin[0] == 0) {
+    return 0;
+  }
+  // freestanding system() = fork+execvp sh -c; PATH fixed in invoke_cc child too.
+  let cmd: u8[768] = [];
+  let ok: i32 = labi_formal_std_build_make_cmd(&cmd[0], 768, &shux_bin[0], repo_root, make_target);
+  if (ok == 0) {
+    return 0;
+  }
+  unsafe {
+    let _s: i32 = system(&cmd[0]);
+  }
+  let have1: *u8 = 0 as *u8;
+  unsafe {
+    have1 = asm_link_obj_skip_missing(&abs[0]);
+  }
+  if (have1 != 0 as *u8) {
+    return 1;
+  }
+  return 0;
 }
