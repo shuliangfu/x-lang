@@ -24,6 +24,8 @@
  *   + wave142 link_abi_generated_c_needs_{core_builtin,core_mem} pure stub0 orch
  *   + wave143 labi_fs_gen_async_scheduler_needle_* +
  *     shux_generated_c_needs_async_scheduler pure orch
+ *   + wave144 shux_freestanding_user_o_needs_{io,panic} pure orch
+ *     (io_sym / panic_sym tables + undef_sym Cap residual)
  * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -737,6 +739,34 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
   return 0;
 }
 
+/* wave144: freestanding user.o needs_io / needs_panic pure (cold twin).
+ * Tables labi_fs_io_sym_* / labi_fs_panic_sym already pure above.
+ * Cap residual: shux_link_obj_needs_undef_sym. PLATFORM: SHARED
+ */
+int shux_freestanding_user_o_needs_io(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_fs_io_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *s = labi_fs_io_sym_at(i);
+    if (s && s[0] && shux_link_obj_needs_undef_sym(user_o, s))
+      return 1;
+  }
+  return 0;
+}
+
+int shux_freestanding_user_o_needs_panic(const char *user_o) {
+  const char *s;
+  if (!user_o || !user_o[0])
+    return 0;
+  s = labi_fs_panic_sym();
+  if (!s || !s[0])
+    return 0;
+  return shux_link_obj_needs_undef_sym(user_o, s);
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -816,6 +846,9 @@ int link_abi_generated_c_needs_core_mem(const char *c_path);
 int labi_fs_gen_async_scheduler_needle_count(void);
 const char *labi_fs_gen_async_scheduler_needle_at(int i);
 int shux_generated_c_needs_async_scheduler(const char *c_path);
+/* wave144: freestanding user.o needs_io / needs_panic pure (L7). */
+int shux_freestanding_user_o_needs_io(const char *user_o);
+int shux_freestanding_user_o_needs_panic(const char *user_o);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

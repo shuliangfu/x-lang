@@ -518,6 +518,8 @@ extern int32_t link_abi_generated_c_needs_core_mem(uint8_t * c_path);
 extern int32_t labi_fs_gen_async_scheduler_needle_count(void);
 extern uint8_t * labi_fs_gen_async_scheduler_needle_at(int32_t i);
 extern int32_t shux_generated_c_needs_async_scheduler(uint8_t * c_path);
+extern int32_t shux_freestanding_user_o_needs_io(uint8_t * user_o);
+extern int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o);
 uint8_t * labi_fs_env_freestanding(void) {
   uint8_t * p = ((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x52\x45\x45\x53\x54\x41\x4e\x44\x49\x4e\x47");
   return p;
@@ -1673,6 +1675,51 @@ int32_t shux_generated_c_needs_async_scheduler(uint8_t * c_path) {
       }
     }
     (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t shux_freestanding_user_o_needs_io(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 0;
+  }
+  if (((user_o)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_fs_io_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_fs_io_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 0;
+  }
+  if (((user_o)[0] ==0)) {
+    return 0;
+  }
+  uint8_t * s = labi_fs_panic_sym();
+  if ((s ==0)) {
+    return 0;
+  }
+  if (((s)[0] ==0)) {
+    return 0;
+  }
+  int32_t hit = 0;
+  (void)((hit = shux_link_obj_needs_undef_sym(user_o, s)));
+  if ((hit !=0)) {
+    return 1;
   }
   return 0;
 }

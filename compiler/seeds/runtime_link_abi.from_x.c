@@ -5375,31 +5375,14 @@ int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int l
 
 
 
-/* G-02f-276：needs_io from pure symbol table */
-int shux_freestanding_user_o_needs_io(const char *user_o) {
-  int n;
-  int i;
-  if (!user_o || !user_o[0])
-    return 0;
-  n = labi_fs_io_sym_count();
-  for (i = 0; i < n; i++) {
-    const char *s = labi_fs_io_sym_at(i);
-    if (s && s[0] && shux_link_obj_needs_undef_sym(user_o, s))
-      return 1;
-  }
-  return 0;
-}
-
-/* G-02f-276：needs_panic from pure table */
-int shux_freestanding_user_o_needs_panic(const char *user_o) {
-  const char *s;
-  if (!user_o || !user_o[0])
-    return 0;
-  s = labi_fs_panic_sym();
-  if (!s || !s[0])
-    return 0;
-  return shux_link_obj_needs_undef_sym(user_o, s);
-}
+/* wave144: shux_freestanding_user_o_needs_{io,panic} pure orch lives in
+ * labi_freestanding_list (io_sym ×13 / panic_sym + pure scan; Cap residual
+ * undef_sym). Was mega body always over pure tables. Cold twin under
+ * #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED — G.7 single authority; dual-end L2.
+ */
+int shux_freestanding_user_o_needs_io(const char *user_o);
+int shux_freestanding_user_o_needs_panic(const char *user_o);
 
 /*
  * wave118: needs_std_net pure orch lives in labi_ondemand_list (net sym table + orch).

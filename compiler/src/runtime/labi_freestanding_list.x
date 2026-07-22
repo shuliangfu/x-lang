@@ -22,6 +22,8 @@
 //     (G-01: always 0 — no hard-link builtin.o / mem.o; was mega-only stub0 body).
 //   wave143 shux_generated_c_needs_async_scheduler pure orch
 //     (C-path async scheduler string needles ×9; Cap residual contains_substr).
+//   wave144 shux_freestanding_user_o_needs_{io,panic} pure orch
+//     (user.o UNDEF scan via labi_fs_io_sym_* / labi_fs_panic_sym; Cap residual undef_sym).
 // Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
@@ -1807,6 +1809,82 @@ export function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
       }
     }
     i = i + 1;
+  }
+  return 0;
+}
+
+/* wave144: freestanding user.o needs_io / needs_panic pure orch.
+ * Product: freestanding link path pushes freestanding_io.o / panic.o when user.o
+ * still UNDEFs shux_sys_* or shux_panic_. Tables already pure (labi_fs_io_sym_* /
+ * labi_fs_panic_sym); this wave moves the orch bodies out of always-mega C.
+ * Cap residual: shux_link_obj_needs_undef_sym (nm/pipe stays mega).
+ * PLATFORM: SHARED orch / LINUX freestanding consumers. */
+
+/**
+ * Whether freestanding user .o needs freestanding_io.o (UNDEF shux_sys_*).
+ * Pure orch: fixed UNDEF table ×13 via labi_fs_io_sym_*; Cap residual undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any io-face UNDEF hits, else 0
+ * Why (wave144): hybrid still had needs_io body always mega C over pure table.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_fs_io_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_fs_io_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Whether freestanding user .o needs panic runtime (UNDEF shux_panic_).
+ * Pure orch: single panic needle via labi_fs_panic_sym; Cap residual undef_sym.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if panic UNDEF hits, else 0
+ * Why (wave144): hybrid still had needs_panic body always mega C over pure table.
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let s: *u8 = labi_fs_panic_sym();
+  if (s == 0 as *u8) {
+    return 0;
+  }
+  if (s[0] == 0) {
+    return 0;
+  }
+  let hit: i32 = 0;
+  unsafe {
+    hit = shux_link_obj_needs_undef_sym(user_o, s);
+  }
+  if (hit != 0) {
+    return 1;
   }
   return 0;
 }
