@@ -16,6 +16,7 @@
  *   + shux_asm_ld_append_user_extra_o_files (wave151 pure CLI extra .o append; Cap residual table+access)
  *   + shux_runtime_compiler_o_path_copy (wave160 pure join compiler-dir/leaf; Cap residual resolve)
  *   + shux_repo_root_from_argv0 (wave162 pure strip parent / process.o walk; Cap residual resolve+rel)
+ *   + shux_runtime_panic_o_path (wave163 pure cwd/argv0 ladder; Cap residual realpath+getcwd+skip)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -40,6 +41,7 @@ void link_diag_ld_debug_push(const char *rel, const char *stage, const char *pat
 /* Cap residual used by wave149 push_glue cold twin (mega always provides). */
 int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0);
 /* Cap residual used by wave150 push_minimal cold twin (mega always provides). */
+/* wave163: panic_o_path is pure in this cold twin (forward decl for push_minimal). */
 const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *shux_runtime_process_argv_o_path(const char *argv0);
 const char *shux_runtime_panic_o_path(const char *argv0);
@@ -49,6 +51,9 @@ const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
 /* Cap residual used by wave160 compiler_o_path_copy / wave162 repo_root cold twin (mega always provides). */
 int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+/* Cap residual used by wave163 panic_o_path cold twin (path_io / libc). */
+const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
+char *getcwd(char *buf, size_t size);
 /* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
 const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
@@ -481,8 +486,85 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
   return g_labi_repo_root_buf;
 }
 
+/* wave163: panic_o_path pure orch (cold twin ≡ .x; Cap residual realpath+getcwd+skip). */
+static char g_labi_panic_o_path_buf[512];
+static char g_labi_panic_o_path_resolved[4096];
+
+const char *shux_runtime_panic_o_path(const char *argv0) {
+  const char *hit;
+  char cwd[512];
+  int i;
+  int last_sep_i;
+  int n;
+  int j;
+  int k;
+  const char *sm;
+  g_labi_panic_o_path_buf[0] = '\0';
+  g_labi_panic_o_path_resolved[0] = '\0';
+  hit = shux_runtime_o_realpath_if_exists("runtime_panic.o", g_labi_panic_o_path_resolved);
+  if (hit)
+    return hit;
+  hit = shux_runtime_o_realpath_if_exists("compiler/runtime_panic.o", g_labi_panic_o_path_resolved);
+  if (hit)
+    return hit;
+  if (getcwd(cwd, 488) != NULL) {
+    int L = 0;
+    while (cwd[L] != 0)
+      L = L + 1;
+    if (L + 24 < 512) {
+      const char *suf = "/compiler/runtime_panic.o";
+      int si = 0;
+      while (si <= 24) {
+        cwd[L + si] = suf[si];
+        si = si + 1;
+      }
+      hit = shux_runtime_o_realpath_if_exists(cwd, g_labi_panic_o_path_resolved);
+      if (hit)
+        return hit;
+    }
+  }
+  if (argv0 && argv0[0]) {
+    i = 0;
+    last_sep_i = -1;
+    while (argv0[i] != 0) {
+      if ((uint8_t)argv0[i] == 47)
+        last_sep_i = i;
+      i = i + 1;
+    }
+    n = 0;
+    if (last_sep_i >= 0) {
+      if (last_sep_i >= 512 - 20)
+        return g_labi_panic_o_path_buf;
+      for (j = 0; j < last_sep_i; j++)
+        g_labi_panic_o_path_buf[j] = argv0[j];
+      g_labi_panic_o_path_buf[last_sep_i] = '\0';
+      n = last_sep_i;
+    } else {
+      g_labi_panic_o_path_buf[0] = '.';
+      g_labi_panic_o_path_buf[1] = '\0';
+      n = 1;
+    }
+    if (n + 18 < 512) {
+      const char *leaf = "/runtime_panic.o";
+      k = 0;
+      while (leaf[k] != 0) {
+        g_labi_panic_o_path_buf[n + k] = leaf[k];
+        k = k + 1;
+      }
+      g_labi_panic_o_path_buf[n + k] = '\0';
+      hit = shux_runtime_o_realpath_if_exists(g_labi_panic_o_path_buf, g_labi_panic_o_path_resolved);
+      if (hit)
+        return hit;
+      sm = asm_link_obj_skip_missing(g_labi_panic_o_path_buf);
+      if (sm)
+        return g_labi_panic_o_path_buf;
+    }
+  }
+  return g_labi_panic_o_path_buf;
+}
+
 int32_t labi_path_pure_count(void) {
-  return 18;
+  return 19;
 }
 
 #else
@@ -509,6 +591,7 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
 void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
 int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
 const char *shux_repo_root_from_argv0(const char *argv0);
+const char *shux_runtime_panic_o_path(const char *argv0);
 int32_t labi_path_pure_count(void);
 #endif
 

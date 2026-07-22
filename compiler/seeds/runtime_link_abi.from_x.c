@@ -1098,7 +1098,13 @@ const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
  * runtime_panic.o 路径；优先 cwd（runtime_panic.o / compiler/runtime_panic.o），再 argv0 目录。
  * 参数：argv0 可选 shux 路径。
  * 返回值：.o 路径或空串。
+ *
+ * wave163: pure orch in labi_path_pure.x (hybrid L0);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * Pure: BSS join + last-sep index; Cap residual realpath_if_exists + getcwd + skip_missing.
+ * PLATFORM: SHARED orch POSIX; Windows sep rest stays mega cold when non-hybrid.
  */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 const char *shux_runtime_panic_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
@@ -1149,6 +1155,9 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
     }
     return buf;
 }
+#else
+const char *shux_runtime_panic_o_path(const char *argv0);
+#endif
 
 /**
  * std.async 协作调度内核（std/async/scheduler.o）；调用 coop_pingpong* 时按需链入。
@@ -1357,7 +1366,8 @@ const char *shux_runtime_process_argv_o_path(const char *argv0) {
  * shux_runtime_compiler_o_path_copy (wave160 pure orch / cold twin). Closes soft
  * residual of per-leaf resolve+snprintf when single join authority exists.
  * Cap residual stays: per-leaf static PATH_MAX buffer (return durable *const).
- * Complex path leaves (panic/async/crt0/freestanding_io/repo_root) still own cwd/
+ * Complex path leaves (async/crt0/freestanding_io) still own cwd/
+ * (wave162 repo_root pure; wave163 panic_o_path pure).
  * realpath ladders. PLATFORM: SHARED. */
 const char *shux_runtime_process_os_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];

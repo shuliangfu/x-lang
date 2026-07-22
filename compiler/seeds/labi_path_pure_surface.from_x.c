@@ -1,13 +1,15 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (18 public gates + count; wave162 repo_root)
+ * Prove: full.x vs this seed → nm IDENTICAL (19 public gates + count; wave163 panic_o_path)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
- *   *_o_path Cap (wave150 push_minimal); table+access Cap (wave151 append_user_extra);
+ *   *_o_path Cap io/process (wave150 push_minimal; wave163 panic pure);
+ *   table+access Cap (wave151 append_user_extra);
  *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy);
- *   resolve+rel_o_path Cap (wave162 repo_root)
+ *   resolve+rel_o_path Cap (wave162 repo_root);
+ *   realpath_if_exists+getcwd+skip Cap (wave163 panic_o_path)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -42,12 +44,16 @@ extern int32_t labi_path_pure_count(void);
 extern int32_t link_abi_call_ensure_argv0(uint8_t * ensure_fn, uint8_t * link_argv0);
 extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
+/* wave163: panic_o_path pure defined below (forward for push_minimal). */
 extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
+/* Cap residual (wave163 panic ladder): path_io peer + libc getcwd. */
+extern uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
+extern uint8_t * getcwd(uint8_t * buf, int32_t size);
 extern uint8_t * shux_asm_ld_bank_push(uint8_t * b, uint8_t * path);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1) {
@@ -558,7 +564,7 @@ void link_abi_asm_ld_push_glue_after_std(int32_t have_std, uint8_t * ensure_fn, 
     return;
   }
 }
-/* wave150: push_minimal_runtime_objs pure orch (surface pin; Cap residual *_o_path). */
+/* wave150: push_minimal pure orch (surface pin; Cap residual io/process *_o_path; wave163 panic pure peer). */
 void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
   uint8_t * io_p = 0;
   uint8_t * proc_p = 0;
@@ -726,6 +732,91 @@ uint8_t * shux_repo_root_from_argv0(uint8_t * argv0) {
   }
   return &((g_labi_repo_root_buf)[0]);
 }
+/* wave163: panic_o_path pure orch (surface pin; Cap residual realpath+getcwd+skip). */
+static uint8_t g_labi_panic_o_path_buf[512];
+static uint8_t g_labi_panic_o_path_resolved[4096];
+uint8_t * shux_runtime_panic_o_path(uint8_t * argv0) {
+  (void)(((g_labi_panic_o_path_buf)[0] = 0));
+  (void)(((g_labi_panic_o_path_resolved)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = shux_runtime_o_realpath_if_exists(((uint8_t *)("runtime_panic.o")), &((g_labi_panic_o_path_resolved)[0]))));
+  if ((hit != 0)) {
+    return hit;
+  }
+  (void)((hit = shux_runtime_o_realpath_if_exists(((uint8_t *)("compiler/runtime_panic.o")), &((g_labi_panic_o_path_resolved)[0]))));
+  if ((hit != 0)) {
+    return hit;
+  }
+  uint8_t cwd[512];
+  uint8_t * gp = 0;
+  (void)((gp = getcwd(&((cwd)[0]), 488)));
+  if ((gp != 0)) {
+    int32_t L = 0;
+    while (((cwd)[L] != 0)) {
+      (void)((L = (L + 1)));
+    }
+    if (((L + 24) < 512)) {
+      uint8_t * suf = ((uint8_t *)("/compiler/runtime_panic.o"));
+      int32_t si = 0;
+      while ((si <= 24)) {
+        (void)(((cwd)[(L + si)] = (suf)[si]));
+        (void)((si = (si + 1)));
+      }
+      (void)((hit = shux_runtime_o_realpath_if_exists(&((cwd)[0]), &((g_labi_panic_o_path_resolved)[0]))));
+      if ((hit != 0)) {
+        return hit;
+      }
+    }
+  }
+  if ((argv0 != 0)) {
+    if (((argv0)[0] != 0)) {
+      int32_t i = 0;
+      int32_t last_sep_i = -1;
+      while (((argv0)[i] != 0)) {
+        if (((argv0)[i] == 47)) {
+          (void)((last_sep_i = i));
+        }
+        (void)((i = (i + 1)));
+      }
+      int32_t n = 0;
+      if ((last_sep_i >= 0)) {
+        if ((last_sep_i >= 492)) {
+          return &((g_labi_panic_o_path_buf)[0]);
+        }
+        int32_t j = 0;
+        while ((j < last_sep_i)) {
+          (void)(((g_labi_panic_o_path_buf)[j] = (argv0)[j]));
+          (void)((j = (j + 1)));
+        }
+        (void)(((g_labi_panic_o_path_buf)[last_sep_i] = 0));
+        (void)((n = last_sep_i));
+      } else {
+        (void)(((g_labi_panic_o_path_buf)[0] = 46));
+        (void)(((g_labi_panic_o_path_buf)[1] = 0));
+        (void)((n = 1));
+      }
+      if (((n + 18) < 512)) {
+        uint8_t * leaf = ((uint8_t *)("/runtime_panic.o"));
+        int32_t k = 0;
+        while (((leaf)[k] != 0)) {
+          (void)(((g_labi_panic_o_path_buf)[(n + k)] = (leaf)[k]));
+          (void)((k = (k + 1)));
+        }
+        (void)(((g_labi_panic_o_path_buf)[(n + k)] = 0));
+        (void)((hit = shux_runtime_o_realpath_if_exists(&((g_labi_panic_o_path_buf)[0]), &((g_labi_panic_o_path_resolved)[0]))));
+        if ((hit != 0)) {
+          return hit;
+        }
+        uint8_t * sm = 0;
+        (void)((sm = asm_link_obj_skip_missing(&((g_labi_panic_o_path_buf)[0]))));
+        if ((sm != 0)) {
+          return &((g_labi_panic_o_path_buf)[0]);
+        }
+      }
+    }
+  }
+  return &((g_labi_panic_o_path_buf)[0]);
+}
 int32_t labi_path_pure_count(void) {
-  return 18;
+  return 19;
 }
