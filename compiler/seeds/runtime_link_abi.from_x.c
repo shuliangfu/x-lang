@@ -5755,6 +5755,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave120: needs_std_map pure orch lives in labi_ondemand_list (map sym table + orch).
  * wave121: needs_std_queue pure orch lives in labi_ondemand_list (queue_api sym table + orch).
  * wave122: needs_std_test pure orch lives in labi_ondemand_list (test sym table + orch).
+ * wave123: needs_core_mem pure orch lives in labi_ondemand_list (core_mem sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -5928,6 +5929,12 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
  * wave122: needs_std_test pure orch lives in labi_ondemand_list
  * (labi_od_test_sym_* product table + pure scan; not here).
  * Prefix probes (test_runner_ etc.) rely on Cap residual strstr in undef_sym.
+ */
+
+/**
+ * wave123: needs_core_mem pure orch lives in labi_ondemand_list
+ * (labi_od_core_mem_sym_* product table + pure scan; not here).
+ * Exact symbols only (no prefix probes).
  */
 
 /**
@@ -6161,40 +6168,11 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
   return 0;
 }
 
-int link_abi_user_o_needs_core_mem(const char *user_o) {
-  if ((user_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((user_o)[0] ==0)) {
-      return 0;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_align_up") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_align_down") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_copy") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_set") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_zero") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_move") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_compare") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/**
+ * wave123: needs_core_mem pure orch lives in labi_ondemand_list
+ * (labi_od_core_mem_sym_* product table + pure scan; not here).
+ * Exact symbols only (no prefix probes).
+ */
 
 int link_abi_user_o_needs_core_slice(const char *user_o) {
   (void)(({   {
@@ -7355,7 +7333,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–122 needs_std_net/set/map/queue/test pure orch (L8b pure .x / cold seed). */
+/* wave118–123 needs_std_net/set/map/queue/test + needs_core_mem pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7371,6 +7349,9 @@ int link_abi_user_o_needs_std_queue(const char *user_o);
 int labi_od_test_sym_count(void);
 const char *labi_od_test_sym_at(int i);
 int link_abi_user_o_needs_std_test(const char *user_o);
+int labi_od_core_mem_sym_count(void);
+const char *labi_od_core_mem_sym_at(int i);
+int link_abi_user_o_needs_core_mem(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

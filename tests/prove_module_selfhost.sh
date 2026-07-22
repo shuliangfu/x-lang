@@ -61,7 +61,7 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：IO/ensure/push 在 mega append_std_objs
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_std_list.from_x.c 全 C 体
   "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list_surface.from_x.c||"
-  # labi_ondemand_list R2 full：.x 吃满 simple/kv/arrow/time/queue + rel_* + wave118–122 needs_std_net/set/map/queue/test 纯表+orch；
+  # labi_ondemand_list R2 full：.x 吃满 simple/kv/arrow/time/queue + rel_* + wave118–123 needs_std_net/set/map/queue/test + needs_core_mem 纯表+orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：nm/push/ensure + undef_sym
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ondemand_list.from_x.c 全 C 体
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list_surface.from_x.c||"

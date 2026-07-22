@@ -2,13 +2,14 @@
  * Logic source: src/runtime/labi_ondemand_list.x
  * Hybrid: SHUX_LABI_ONDEMAND_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
- * R2 full（2026-07-14 / wave118–122）：公共业务符号由 full .x 提供：
+ * R2 full（2026-07-14 / wave118–123）：公共业务符号由 full .x 提供：
  *   simple/kv/arrow/time/queue + rel_* 纯表
  *   + labi_od_net_sym_{count,at} + link_abi_user_o_needs_std_net pure orch
  *   + labi_od_set_sym_{count,at} + link_abi_user_o_needs_std_set pure orch
  *   + labi_od_map_sym_{count,at} + link_abi_user_o_needs_std_map pure orch
  *   + labi_od_queue_api_sym_{count,at} + link_abi_user_o_needs_std_queue pure orch
  *   + labi_od_test_sym_{count,at} + link_abi_user_o_needs_std_test pure orch
+ *   + labi_od_core_mem_sym_{count,at} + link_abi_user_o_needs_core_mem pure orch
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -573,6 +574,44 @@ int link_abi_user_o_needs_std_test(const char *user_o) {
   return 0;
 }
 
+/* wave123: product core.mem exact UNDEF table + needs_core_mem pure orch.
+ * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
+int labi_od_core_mem_sym_count(void) { return 7; }
+const char *labi_od_core_mem_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "core_mem_align_up";
+  if (i == 1)
+    return "core_mem_align_down";
+  if (i == 2)
+    return "core_mem_mem_copy";
+  if (i == 3)
+    return "core_mem_mem_set";
+  if (i == 4)
+    return "core_mem_mem_zero";
+  if (i == 5)
+    return "core_mem_mem_move";
+  if (i == 6)
+    return "core_mem_mem_compare";
+  return NULL;
+}
+
+/* Pure orch: core_mem table + Cap residual undef_sym. PLATFORM: SHARED. */
+int link_abi_user_o_needs_core_mem(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_core_mem_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_core_mem_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -629,6 +668,9 @@ int link_abi_user_o_needs_std_queue(const char *user_o);
 int labi_od_test_sym_count(void);
 const char *labi_od_test_sym_at(int i);
 int link_abi_user_o_needs_std_test(const char *user_o);
+int labi_od_core_mem_sym_count(void);
+const char *labi_od_core_mem_sym_at(int i);
+int link_abi_user_o_needs_core_mem(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
