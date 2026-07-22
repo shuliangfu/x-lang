@@ -12,7 +12,8 @@
 //     (product API; separate from contention labi_od_queue_sym_*) +
 //   wave122 labi_od_test_sym_* + link_abi_user_o_needs_std_test pure orch +
 //   wave123 labi_od_core_mem_sym_* + link_abi_user_o_needs_core_mem pure orch +
-//   wave124 labi_od_core_slice_sym_* + link_abi_user_o_needs_core_slice pure orch.
+//   wave124 labi_od_core_slice_sym_* + link_abi_user_o_needs_core_slice pure orch +
+//   wave125 labi_od_page_mmap_sym_* + link_abi_user_o_needs_std_heap_page_mmap pure orch.
 // Cap residual: nm/push/ensure stay mega; undef_sym probe Cap for needs orch.
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
@@ -1301,6 +1302,89 @@ export function link_abi_user_o_needs_core_slice(user_o: *u8): i32 {
   let i: i32 = 0;
   while (i < n) {
     let sym: *u8 = labi_od_core_slice_sym_at(i);
+    if (sym != 0 as *u8) {
+      if (sym[0] != 0) {
+        let hit: i32 = 0;
+        unsafe {
+          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+        }
+        if (hit != 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Count of std.heap.page_mmap on_demand UNDEF probes (product page_mmap.o gate).
+ * Exact symbol names only (no prefix/strstr probes).
+ * @return i32 — 5
+ * PLATFORM: SHARED — must match formal std/heap/page_mmap export surface
+ */
+#[no_mangle]
+export function labi_od_page_mmap_sym_count(): i32 {
+  return 5;
+}
+
+/**
+ * Product std.heap.page_mmap on_demand UNDEF symbol at index (needs_std_heap_page_mmap probe table).
+ * @param i i32 — index in [0, 5)
+ * @return *u8 — static C string symbol, or null if out of range
+ * PLATFORM: SHARED — G.7 complete needs_std_heap_page_mmap authority (no second hard-coded list)
+ */
+#[no_mangle]
+export function labi_od_page_mmap_sym_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i == 0) {
+    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_available";
+    return p;
+  }
+  if (i == 1) {
+    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_init";
+    return p;
+  }
+  if (i == 2) {
+    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_alloc";
+    return p;
+  }
+  if (i == 3) {
+    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_deinit";
+    return p;
+  }
+  if (i == 4) {
+    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_free";
+    return p;
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Whether user .o references std.heap.page_mmap API (on-demand chain std/heap/page_mmap.o).
+ * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Freestanding mmap bump heap gate; transitive linux.o + core_mem.o covered by later on_demand.
+ * @param user_o *u8 — path to user .o; null/empty → 0
+ * @return i32 — 1 if any UNDEF hits, else 0
+ * Why (wave125): hybrid still had needs_std_heap_page_mmap body always mega C with hard-coded strings.
+ * Keep single product table+orch in L8b; exact symbols only (no prefix table).
+ * PLATFORM: SHARED — hybrid L8b pure; mega cold twin under #ifndef ONDEMAND_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  let n: i32 = labi_od_page_mmap_sym_count();
+  let i: i32 = 0;
+  while (i < n) {
+    let sym: *u8 = labi_od_page_mmap_sym_at(i);
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;

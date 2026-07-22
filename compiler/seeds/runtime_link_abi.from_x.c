@@ -5757,6 +5757,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave122: needs_std_test pure orch lives in labi_ondemand_list (test sym table + orch).
  * wave123: needs_core_mem pure orch lives in labi_ondemand_list (core_mem sym table + orch).
  * wave124: needs_core_slice pure orch lives in labi_ondemand_list (core_slice sym table + orch).
+ * wave125: needs_std_heap_page_mmap pure orch lives in labi_ondemand_list (page_mmap sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -6188,37 +6189,11 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
  */
 
 /**
- * F-no-libc NL-03：判断 user_o 是否引用 std.heap.page_mmap API（freestanding mmap bump 堆）。
- * 按需链 page_mmap.o（其传递依赖 linux.o + core_mem.o 由 on_demand 后续块覆盖）。
+ * wave125: needs_std_heap_page_mmap pure orch lives in labi_ondemand_list
+ * (labi_od_page_mmap_sym_* product table + pure scan; not here).
+ * Exact symbols only (no prefix probes).
+ * F-no-libc NL-03: freestanding mmap bump heap gate; page_mmap.o + transitive linux/core_mem.
  */
-int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
-  if ((user_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((user_o)[0] ==0)) {
-      return 0;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_available") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_init") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_alloc") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_deinit") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_free") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
 
 /**
  * F-no-libc：判断 user_o 是否引用 std.sys.linux API（Linux freestanding syscall 薄封装）。
@@ -7320,7 +7295,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–124 needs_std_net/set/map/queue/test + needs_core_mem + needs_core_slice pure orch (L8b pure .x / cold seed). */
+/* wave118–125 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7342,6 +7317,9 @@ int link_abi_user_o_needs_core_mem(const char *user_o);
 int labi_od_core_slice_sym_count(void);
 const char *labi_od_core_slice_sym_at(int i);
 int link_abi_user_o_needs_core_slice(const char *user_o);
+int labi_od_page_mmap_sym_count(void);
+const char *labi_od_page_mmap_sym_at(int i);
+int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

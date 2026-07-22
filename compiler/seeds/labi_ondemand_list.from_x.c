@@ -11,6 +11,7 @@
  *   + labi_od_test_sym_{count,at} + link_abi_user_o_needs_std_test pure orch
  *   + labi_od_core_mem_sym_{count,at} + link_abi_user_o_needs_core_mem pure orch
  *   + labi_od_core_slice_sym_{count,at} + link_abi_user_o_needs_core_slice pure orch
+ *   + labi_od_page_mmap_sym_{count,at} + link_abi_user_o_needs_std_heap_page_mmap pure orch
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -649,6 +650,40 @@ int link_abi_user_o_needs_core_slice(const char *user_o) {
   return 0;
 }
 
+/* wave125: product std.heap.page_mmap exact UNDEF table + needs_std_heap_page_mmap pure orch.
+ * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
+int labi_od_page_mmap_sym_count(void) { return 5; }
+const char *labi_od_page_mmap_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "std_heap_page_mmap_page_mmap_heap_available";
+  if (i == 1)
+    return "std_heap_page_mmap_page_mmap_heap_init";
+  if (i == 2)
+    return "std_heap_page_mmap_page_mmap_heap_alloc";
+  if (i == 3)
+    return "std_heap_page_mmap_page_mmap_heap_deinit";
+  if (i == 4)
+    return "std_heap_page_mmap_page_mmap_heap_free";
+  return NULL;
+}
+
+/* Pure orch: page_mmap table + Cap residual undef_sym. PLATFORM: SHARED. */
+int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_page_mmap_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_page_mmap_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -711,6 +746,9 @@ int link_abi_user_o_needs_core_mem(const char *user_o);
 int labi_od_core_slice_sym_count(void);
 const char *labi_od_core_slice_sym_at(int i);
 int link_abi_user_o_needs_core_slice(const char *user_o);
+int labi_od_page_mmap_sym_count(void);
+const char *labi_od_page_mmap_sym_at(int i);
+int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
