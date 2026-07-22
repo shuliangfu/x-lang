@@ -8929,6 +8929,479 @@ int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codege
 }
 
 /**
+ * PLATFORM: MACOS/DARWIN — MH_OBJECT writer for pure-asm -o .o (product g05).
+ *
+ * CG002 residual (2026-07-22 wave103): after arm64 enc fixed mega_body, Darwin
+ * still failed at macho_write=-1 because only SHUX_WEAK
+ * platform_macho_write_macho_o_to_buf stubs (experimental bridge / full_link stubs)
+ * were linked; true macho.x is not on the product hybrid chain.
+ *
+ * Authority: port of src/asm/platform/macho.x::write_macho_o_to_buf using the same
+ * PipelineElfCtxAccess + glue code_data offset as pipeline_elf_write_o_standard_to_buf_c
+ * (G.7 single layout path; do not read X code_data[] offsets).
+ *
+ * Linked via pipeline_glue / ast_pool into product; strong symbol overrides Darwin
+ * weak stubs. Safe on non-Darwin hosts (body unused unless use_macho_o).
+ */
+/* Defined later in this TU; needed before PGO section for macho write. */
+int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes);
+
+#define PIPELINE_MACHO_UNDEF_SYM_CAP 256
+
+static int32_t pipeline_macho_link_name_extra_byte(const uint8_t *name_ptr) {
+  if (!name_ptr)
+    return 0;
+  /* Already starts with '_' → no extra leading underscore. */
+  if (name_ptr[0] != 95)
+    return 1;
+  return 0;
+}
+
+static int32_t pipeline_macho_name_eq(const uint8_t *a, int32_t a_len, const uint8_t *b, int32_t b_len) {
+  if (a_len != b_len || a_len < 0)
+    return 0;
+  if (a_len == 0)
+    return 1;
+  if (!a || !b)
+    return 0;
+  return memcmp(a, b, (size_t)a_len) == 0 ? 1 : 0;
+}
+
+/**
+ * Write MH_OBJECT (Mach-O 64) into out from emit ctx.
+ * @return out length on success, -1 on failure
+ */
+int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out) {
+  PipelineElfCtxAccess *ctx;
+  uint8_t *code;
+  uint8_t *sym_pool;
+  int32_t code_len;
+  int32_t und_src_reloc[PIPELINE_MACHO_UNDEF_SYM_CAP];
+  int32_t und_lens[PIPELINE_MACHO_UNDEF_SYM_CAP];
+  int32_t nu;
+  int32_t rx;
+  int32_t strtab_size;
+  int32_t s;
+  int32_t ui;
+  int32_t symtab_ents;
+  int32_t symtab_size;
+  int32_t reloc_size;
+  int32_t lc_build_size;
+  int32_t sizeofcmds;
+  int32_t off_text;
+  int32_t off_sym;
+  int32_t off_str;
+  int32_t off_reloc;
+  int32_t cputype;
+  int32_t cpusubtype;
+  uint8_t hdr[32];
+  uint8_t seg[152];
+  uint8_t lc_bv[24];
+  uint8_t lc_sym[24];
+  uint8_t nlist0[16];
+  uint8_t z0[1];
+  uint8_t uscore[1];
+  int32_t pad;
+  int32_t z;
+  int32_t str_off;
+  int32_t uu;
+  int32_t r;
+  int32_t rel_type;
+  int32_t rel_len;
+  extern void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx);
+  extern void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx);
+
+  if (!ctx_bytes || !out)
+    return -1;
+  /* Patches already resolved on product path; re-resolve is idempotent. */
+  if (pipeline_elf_ctx_resolve_patches(ctx_bytes) != 0)
+    return -1;
+
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  code = pipeline_elf_ctx_code_data_ptr(ctx_bytes);
+  code_len = ctx->code_len;
+  sym_pool = ctx_bytes + kPipelineElfCtxSymNameDataOff;
+  nu = 0;
+  rx = 0;
+  while (rx < ctx->num_relocs) {
+    uint8_t rname[64];
+    int32_t rlen;
+    int32_t us;
+    int32_t dup;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, rx, rname);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, rx);
+    if (pipeline_elf_reloc_is_defined(ctx, ctx_bytes, rx, rname, rlen) != 0) {
+      rx = rx + 1;
+      continue;
+    }
+    dup = -1;
+    us = 0;
+    while (us < nu) {
+      uint8_t srname[64];
+      int32_t sr = und_src_reloc[us];
+      pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr, srname);
+      if (pipeline_macho_name_eq(rname, rlen, srname, und_lens[us]) != 0) {
+        dup = us;
+        break;
+      }
+      us = us + 1;
+    }
+    if (dup >= 0) {
+      rx = rx + 1;
+      continue;
+    }
+    if (nu >= PIPELINE_MACHO_UNDEF_SYM_CAP)
+      return -1;
+    if (rlen <= 0) {
+      driver_diagnostic_asm_macho_empty_reloc(rx);
+      return -1;
+    }
+    und_src_reloc[nu] = rx;
+    und_lens[nu] = rlen;
+    nu = nu + 1;
+    rx = rx + 1;
+  }
+
+  strtab_size = 1;
+  s = 0;
+  while (s < ctx->num_syms) {
+    int32_t off = pipeline_elf_sym_name_off(ctx, s);
+    int32_t extra = pipeline_macho_link_name_extra_byte(sym_pool + off);
+    strtab_size = strtab_size + ctx->syms[s].name_len + extra + 1;
+    s = s + 1;
+  }
+  ui = 0;
+  while (ui < nu) {
+    int32_t sr = und_src_reloc[ui];
+    uint8_t *und_ptr = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, sr);
+    int32_t extra = pipeline_macho_link_name_extra_byte(und_ptr);
+    strtab_size = strtab_size + und_lens[ui] + extra + 1;
+    ui = ui + 1;
+  }
+
+  /* nlist entries: NULL + defined + und */
+  symtab_ents = ctx->num_syms + nu + 1;
+  symtab_size = symtab_ents * 16;
+  reloc_size = ctx->num_relocs * 8;
+  lc_build_size = 24;
+  sizeofcmds = 152 + lc_build_size + 24;
+  off_text = 32 + sizeofcmds;
+  off_sym = (off_text + code_len + 3) & (int32_t)0xFFFFFFFCu;
+  off_str = off_sym + symtab_size;
+  off_reloc = off_str + strtab_size;
+  (void)reloc_size;
+
+  codegen_out_buf_set_len(out, 0);
+
+  /* CPU_TYPE_X86_64=0x01000007; CPU_TYPE_ARM64=0x0100000C (EM_AARCH64=183). */
+  cputype = 16777223;
+  cpusubtype = 3;
+  if (ctx->e_machine == 183) {
+    cputype = 16777228;
+    cpusubtype = 0;
+  }
+
+  memset(hdr, 0, sizeof(hdr));
+  /* MH_MAGIC_64 = 0xFEEDFACF little-endian: CF FA ED FE */
+  hdr[0] = 207;
+  hdr[1] = 250;
+  hdr[2] = 237;
+  hdr[3] = 254;
+  hdr[4] = (uint8_t)(cputype & 255);
+  hdr[5] = (uint8_t)((cputype >> 8) & 255);
+  hdr[6] = (uint8_t)((cputype >> 16) & 255);
+  hdr[7] = (uint8_t)((cputype >> 24) & 255);
+  hdr[8] = (uint8_t)(cpusubtype & 255);
+  hdr[9] = (uint8_t)((cpusubtype >> 8) & 255);
+  hdr[10] = (uint8_t)((cpusubtype >> 16) & 255);
+  hdr[11] = (uint8_t)((cpusubtype >> 24) & 255);
+  /* MH_OBJECT = 1 */
+  hdr[12] = 1;
+  /* ncmds = 3: LC_SEGMENT_64 + LC_BUILD_VERSION + LC_SYMTAB */
+  hdr[16] = 3;
+  hdr[20] = (uint8_t)(sizeofcmds & 255);
+  hdr[21] = (uint8_t)((sizeofcmds >> 8) & 255);
+  hdr[22] = (uint8_t)((sizeofcmds >> 16) & 255);
+  hdr[23] = (uint8_t)((sizeofcmds >> 24) & 255);
+  if (pipeline_elf_out_append(out, hdr, 32) != 0)
+    return -1;
+
+  memset(seg, 0, sizeof(seg));
+  /* LC_SEGMENT_64 cmd=0x19, cmdsize=152 */
+  seg[0] = 25;
+  seg[4] = 152;
+  /* segname "__TEXT" */
+  seg[8] = 95;
+  seg[9] = 95;
+  seg[10] = 84;
+  seg[11] = 69;
+  seg[12] = 88;
+  seg[13] = 84;
+  /* vmsize / filesize = code_len; fileoff = off_text */
+  seg[32] = (uint8_t)(code_len & 255);
+  seg[33] = (uint8_t)((code_len >> 8) & 255);
+  seg[34] = (uint8_t)((code_len >> 16) & 255);
+  seg[35] = (uint8_t)((code_len >> 24) & 255);
+  seg[40] = (uint8_t)(off_text & 255);
+  seg[41] = (uint8_t)((off_text >> 8) & 255);
+  seg[42] = (uint8_t)((off_text >> 16) & 255);
+  seg[43] = (uint8_t)((off_text >> 24) & 255);
+  seg[48] = (uint8_t)(code_len & 255);
+  seg[49] = (uint8_t)((code_len >> 8) & 255);
+  seg[50] = (uint8_t)((code_len >> 16) & 255);
+  seg[51] = (uint8_t)((code_len >> 24) & 255);
+  /* maxprot / initprot = rwx = 7 */
+  seg[56] = 7;
+  seg[60] = 7;
+  /* nsects = 1 */
+  seg[64] = 1;
+  /* sectname "__text" */
+  seg[72] = 95;
+  seg[73] = 95;
+  seg[74] = 116;
+  seg[75] = 101;
+  seg[76] = 120;
+  seg[77] = 116;
+  /* segname "__TEXT" for section */
+  seg[88] = 95;
+  seg[89] = 95;
+  seg[90] = 84;
+  seg[91] = 69;
+  seg[92] = 88;
+  seg[93] = 84;
+  /* section size / offset */
+  seg[112] = (uint8_t)(code_len & 255);
+  seg[113] = (uint8_t)((code_len >> 8) & 255);
+  seg[114] = (uint8_t)((code_len >> 16) & 255);
+  seg[115] = (uint8_t)((code_len >> 24) & 255);
+  seg[120] = (uint8_t)(off_text & 255);
+  seg[121] = (uint8_t)((off_text >> 8) & 255);
+  seg[122] = (uint8_t)((off_text >> 16) & 255);
+  seg[123] = (uint8_t)((off_text >> 24) & 255);
+  seg[128] = (uint8_t)(off_reloc & 255);
+  seg[129] = (uint8_t)((off_reloc >> 8) & 255);
+  seg[130] = (uint8_t)((off_reloc >> 16) & 255);
+  seg[131] = (uint8_t)((off_reloc >> 24) & 255);
+  seg[132] = (uint8_t)(ctx->num_relocs & 255);
+  seg[133] = (uint8_t)((ctx->num_relocs >> 8) & 255);
+  /* S_ATTR_SOME_INSTRUCTIONS | S_ATTR_PURE_INSTRUCTIONS */
+  seg[136] = 0;
+  seg[137] = 0;
+  seg[138] = 4;
+  seg[139] = 128;
+  if (pipeline_elf_out_append(out, seg, 152) != 0)
+    return -1;
+
+  /* LC_BUILD_VERSION: platform=macOS(1), minos/sdk=11.0.0 */
+  memset(lc_bv, 0, sizeof(lc_bv));
+  lc_bv[0] = 50; /* 0x32 */
+  lc_bv[4] = (uint8_t)(lc_build_size & 255);
+  lc_bv[5] = (uint8_t)((lc_build_size >> 8) & 255);
+  lc_bv[8] = 1;
+  {
+    int32_t ver = 720896; /* 11 << 16 */
+    lc_bv[12] = (uint8_t)(ver & 255);
+    lc_bv[13] = (uint8_t)((ver >> 8) & 255);
+    lc_bv[14] = (uint8_t)((ver >> 16) & 255);
+    lc_bv[15] = (uint8_t)((ver >> 24) & 255);
+    lc_bv[16] = (uint8_t)(ver & 255);
+    lc_bv[17] = (uint8_t)((ver >> 8) & 255);
+    lc_bv[18] = (uint8_t)((ver >> 16) & 255);
+    lc_bv[19] = (uint8_t)((ver >> 24) & 255);
+  }
+  if (pipeline_elf_out_append(out, lc_bv, lc_build_size) != 0)
+    return -1;
+
+  /* LC_SYMTAB */
+  memset(lc_sym, 0, sizeof(lc_sym));
+  lc_sym[0] = 2;
+  lc_sym[4] = 24;
+  lc_sym[8] = (uint8_t)(off_sym & 255);
+  lc_sym[9] = (uint8_t)((off_sym >> 8) & 255);
+  lc_sym[10] = (uint8_t)((off_sym >> 16) & 255);
+  lc_sym[11] = (uint8_t)((off_sym >> 24) & 255);
+  lc_sym[12] = (uint8_t)(symtab_ents & 255);
+  lc_sym[13] = (uint8_t)((symtab_ents >> 8) & 255);
+  lc_sym[16] = (uint8_t)(off_str & 255);
+  lc_sym[17] = (uint8_t)((off_str >> 8) & 255);
+  lc_sym[18] = (uint8_t)((off_str >> 16) & 255);
+  lc_sym[19] = (uint8_t)((off_str >> 24) & 255);
+  lc_sym[20] = (uint8_t)(strtab_size & 255);
+  lc_sym[21] = (uint8_t)((strtab_size >> 8) & 255);
+  if (pipeline_elf_out_append(out, lc_sym, 24) != 0)
+    return -1;
+
+  if (code_len > 0 && code && pipeline_elf_out_append(out, code, code_len) != 0)
+    return -1;
+  pad = off_sym - off_text - code_len;
+  z0[0] = 0;
+  z = 0;
+  while (z < pad) {
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    z = z + 1;
+  }
+
+  /* nlist[0] = NULL symbol */
+  memset(nlist0, 0, sizeof(nlist0));
+  if (pipeline_elf_out_append(out, nlist0, 16) != 0)
+    return -1;
+
+  str_off = 1;
+  s = 0;
+  while (s < ctx->num_syms) {
+    uint8_t ent[16];
+    int32_t off = pipeline_elf_sym_name_off(ctx, s);
+    int32_t sym_va = ctx->syms[s].offset;
+    memset(ent, 0, sizeof(ent));
+    ent[0] = (uint8_t)(str_off & 255);
+    ent[1] = (uint8_t)((str_off >> 8) & 255);
+    ent[2] = (uint8_t)((str_off >> 16) & 255);
+    ent[3] = (uint8_t)((str_off >> 24) & 255);
+    /* N_SECT|N_EXT = 0x0f, n_sect = 1 */
+    ent[4] = 15;
+    ent[5] = 1;
+    ent[8] = (uint8_t)(sym_va & 255);
+    ent[9] = (uint8_t)((sym_va >> 8) & 255);
+    ent[10] = (uint8_t)((sym_va >> 16) & 255);
+    ent[11] = (uint8_t)((sym_va >> 24) & 255);
+    if (pipeline_elf_out_append(out, ent, 16) != 0)
+      return -1;
+    str_off = str_off + ctx->syms[s].name_len + pipeline_macho_link_name_extra_byte(sym_pool + off) + 1;
+    s = s + 1;
+  }
+
+  uu = 0;
+  while (uu < nu) {
+    uint8_t entu[16];
+    int32_t sr = und_src_reloc[uu];
+    uint8_t *und_ptr = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, sr);
+    memset(entu, 0, sizeof(entu));
+    entu[0] = (uint8_t)(str_off & 255);
+    entu[1] = (uint8_t)((str_off >> 8) & 255);
+    entu[2] = (uint8_t)((str_off >> 16) & 255);
+    entu[3] = (uint8_t)((str_off >> 24) & 255);
+    /* N_UNDF | N_EXT */
+    entu[4] = 1;
+    if (pipeline_elf_out_append(out, entu, 16) != 0)
+      return -1;
+    str_off = str_off + und_lens[uu] + pipeline_macho_link_name_extra_byte(und_ptr) + 1;
+    uu = uu + 1;
+  }
+
+  /* string table: leading NUL then names (optional leading '_') */
+  if (pipeline_elf_out_append(out, z0, 1) != 0)
+    return -1;
+  uscore[0] = 95;
+  s = 0;
+  while (s < ctx->num_syms) {
+    int32_t off = pipeline_elf_sym_name_off(ctx, s);
+    uint8_t *nm = sym_pool + off;
+    int32_t nlen = ctx->syms[s].name_len;
+    if (pipeline_macho_link_name_extra_byte(nm) != 0) {
+      if (pipeline_elf_out_append(out, uscore, 1) != 0)
+        return -1;
+    }
+    if (nlen > 0 && pipeline_elf_out_append(out, nm, nlen) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    s = s + 1;
+  }
+  uu = 0;
+  while (uu < nu) {
+    int32_t sr = und_src_reloc[uu];
+    uint8_t *und_ptr = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, sr);
+    if (pipeline_macho_link_name_extra_byte(und_ptr) != 0) {
+      if (pipeline_elf_out_append(out, uscore, 1) != 0)
+        return -1;
+    }
+    if (und_lens[uu] > 0 && und_ptr && pipeline_elf_out_append(out, und_ptr, und_lens[uu]) != 0)
+      return -1;
+    if (pipeline_elf_out_append(out, z0, 1) != 0)
+      return -1;
+    uu = uu + 1;
+  }
+
+  /* relocation entries: arm64/x86_64 BRANCH26/BRANCH or UNSIGNED — product uses type 2, length 2 */
+  rel_type = 2;
+  rel_len = 2;
+  if (ctx->e_machine == 183) {
+    rel_type = 2;
+    rel_len = 2;
+  }
+  r = 0;
+  while (r < ctx->num_relocs) {
+    uint8_t ri[8];
+    int32_t sym_idx = 0;
+    int32_t found_def = 0;
+    int32_t m = 0;
+    uint8_t r_sym_buf[64];
+    int32_t rlen;
+    int32_t r_sym;
+    int32_t word2;
+    int32_t roff;
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+    while (m < ctx->num_syms) {
+      int32_t off = pipeline_elf_sym_name_off(ctx, m);
+      if (pipeline_macho_name_eq(r_sym_buf, rlen, sym_pool + off, ctx->syms[m].name_len) != 0) {
+        sym_idx = m;
+        found_def = 1;
+        break;
+      }
+      m = m + 1;
+    }
+    if (found_def == 0) {
+      int32_t uslot = -1;
+      int32_t us2 = 0;
+      while (us2 < nu) {
+        uint8_t sr2_buf[64];
+        int32_t sr2 = und_src_reloc[us2];
+        pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, sr2, sr2_buf);
+        if (pipeline_macho_name_eq(r_sym_buf, rlen, sr2_buf, und_lens[us2]) != 0) {
+          uslot = us2;
+          break;
+        }
+        us2 = us2 + 1;
+      }
+      if (uslot < 0) {
+        driver_diagnostic_asm_macho_missing_und_reloc(r);
+        return -1;
+      }
+      sym_idx = ctx->num_syms + uslot;
+    }
+    /* r_symbolnum = sym_idx+1 (skip NULL nlist); r_pcrel=1; r_length; r_extern=1; r_type */
+    r_sym = sym_idx + 1;
+    word2 = (r_sym & 16777215) | (1 << 24) | (rel_len << 25) | (1 << 27) | (rel_type << 28);
+    roff = pipeline_elf_ctx_reloc_offset_at(ctx_bytes, r);
+    ri[0] = (uint8_t)(roff & 255);
+    ri[1] = (uint8_t)((roff >> 8) & 255);
+    ri[2] = (uint8_t)((roff >> 16) & 255);
+    ri[3] = (uint8_t)((roff >> 24) & 255);
+    ri[4] = (uint8_t)(word2 & 255);
+    ri[5] = (uint8_t)((word2 >> 8) & 255);
+    ri[6] = (uint8_t)((word2 >> 16) & 255);
+    ri[7] = (uint8_t)((word2 >> 24) & 255);
+    if (pipeline_elf_out_append(out, ri, 8) != 0)
+      return -1;
+    r = r + 1;
+  }
+  return codegen_out_buf_len(out);
+}
+
+/**
+ * Product surface: Darwin user_asm_seed_bridge weak_import target.
+ * Strong body overrides seeds/asm_experimental_symbol_bridge weak -1 stub.
+ * PLATFORM: MACOS pure-asm (also linked on Linux; unused there).
+ */
+int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
+  if (!elf_ctx || !out_buf)
+    return -1;
+  return pipeline_macho_write_o_to_buf_c((uint8_t *)elf_ctx, (struct codegen_CodegenOutBuf *)out_buf);
+}
+
+/**
  * PGO-Lite：写出 .text（空）/ .text.hot / .text.unlikely 三代码段 ELF64 ET_REL .o。
  * code_data→unlikely，code_hot_data→hot；冷/热/空 rela 分表。
  */

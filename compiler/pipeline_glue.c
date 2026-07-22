@@ -244,6 +244,9 @@ int32_t pipeline_elf_ctx_append_patch(uint8_t *ctx_bytes, int32_t rel32_offset, 
                                       int32_t imm_bits);
 int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len);
 int32_t pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
+/** PLATFORM: MACOS pure-asm MH_OBJECT; strong platform_macho_write overrides Darwin weak stubs. */
+int32_t pipeline_macho_write_o_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out);
+int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf);
 /** Module mutable lit shared storage (true cross-fn); defs near register_module_top_level_lets. */
 int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
 static int32_t pipeline_asm_modlet_load_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name,
