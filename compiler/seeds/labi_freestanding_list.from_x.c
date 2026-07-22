@@ -26,17 +26,22 @@
  *     shux_generated_c_needs_async_scheduler pure orch
  *   + wave144 shux_freestanding_user_o_needs_{io,panic} pure orch
  *     (io_sym / panic_sym tables + undef_sym Cap residual)
- * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega。
+ *   + wave159 shux_link_freestanding_enabled pure orch
+ *     (peer host_is_linux + pure env name + Cap residual getenv)
+ * Cap residual：ensure/cc/spawn IO；contains_substr / undef_sym 探针仍 mega；getenv。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
  * Prove：seeds/labi_freestanding_list_surface.from_x.c（-E 同构）nm IDENTICAL。
  */
 #include <stddef.h>
+#include <stdlib.h>
 
 /* Cap residual (mega always): file scan + nm UNDEF probes used by pure needs orch. */
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
+/* Peer pure (host_lit) used by wave159 freestanding_enabled cold twin. */
+int shux_host_is_linux(void);
 
 #ifndef SHUX_LABI_FREESTANDING_LIST_FROM_X
 
@@ -767,6 +772,25 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
   return shux_link_obj_needs_undef_sym(user_o, s);
 }
 
+/* wave159: freestanding_enabled pure orch (cold twin ≡ .x).
+ * Peer host_is_linux + pure env name; Cap residual getenv. PLATFORM: SHARED orch / LINUX consumers.
+ */
+int shux_link_freestanding_enabled(int driver_freestanding) {
+  char *e;
+  if (shux_host_is_linux() == 0)
+    return 0;
+  if (driver_freestanding != 0)
+    return 1;
+  e = getenv(labi_fs_env_freestanding());
+  if (e == NULL)
+    return 0;
+  if (e[0] == 0)
+    return 0;
+  if (e[0] == 48) /* '0' */
+    return 0;
+  return 1;
+}
+
 
 #else
 const char *labi_fs_env_freestanding(void);
@@ -849,6 +873,8 @@ int shux_generated_c_needs_async_scheduler(const char *c_path);
 /* wave144: freestanding user.o needs_io / needs_panic pure (L7). */
 int shux_freestanding_user_o_needs_io(const char *user_o);
 int shux_freestanding_user_o_needs_panic(const char *user_o);
+/* wave159: freestanding_enabled pure orch (L7). */
+int shux_link_freestanding_enabled(int driver_freestanding);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {

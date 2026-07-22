@@ -520,6 +520,10 @@ extern uint8_t * labi_fs_gen_async_scheduler_needle_at(int32_t i);
 extern int32_t shux_generated_c_needs_async_scheduler(uint8_t * c_path);
 extern int32_t shux_freestanding_user_o_needs_io(uint8_t * user_o);
 extern int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o);
+/* wave159: freestanding_enabled pure orch (surface pin; Cap residual getenv + peer host_is_linux). */
+extern char * getenv(const char * name);
+extern int32_t shux_host_is_linux(void);
+extern int32_t shux_link_freestanding_enabled(int32_t driver_freestanding);
 uint8_t * labi_fs_env_freestanding(void) {
   uint8_t * p = ((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x52\x45\x45\x53\x54\x41\x4e\x44\x49\x4e\x47");
   return p;
@@ -1722,4 +1726,28 @@ int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o) {
     return 1;
   }
   return 0;
+}
+/* wave159: freestanding_enabled pure orch (surface pin; Cap residual getenv + peer host_is_linux). */
+int32_t shux_link_freestanding_enabled(int32_t driver_freestanding) {
+  int32_t is_linux = 0;
+  (void)((is_linux = shux_host_is_linux()));
+  if ((is_linux == 0)) {
+    return 0;
+  }
+  if ((driver_freestanding != 0)) {
+    return 1;
+  }
+  uint8_t * name = labi_fs_env_freestanding();
+  uint8_t * e = ((uint8_t *)(0));
+  (void)((e = ((uint8_t *)getenv((const char *)name))));
+  if ((e == 0)) {
+    return 0;
+  }
+  if (((e)[0] == 0)) {
+    return 0;
+  }
+  if (((e)[0] == 48)) {
+    return 0;
+  }
+  return 1;
 }

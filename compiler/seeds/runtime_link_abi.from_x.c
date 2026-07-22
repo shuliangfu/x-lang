@@ -1919,24 +1919,15 @@ int labi_fs_gen_provides_std_heap_needle_count(void);
 const char *labi_fs_gen_provides_std_heap_needle_at(int i);
 int link_abi_generated_c_provides_core_mem(const char *c_path);
 int link_abi_generated_c_provides_std_heap(const char *c_path);
+/* wave159: freestanding_enabled pure orch (L7; hybrid). */
+int shux_link_freestanding_enabled(int driver_freestanding);
 #endif
 
-/* G-02f-276：env name from pure table */
-int shux_link_freestanding_enabled(int driver_freestanding) {
-  char *e;
-  if (shux_host_is_linux() == 0)
-    return 0;
-  if (driver_freestanding != 0)
-    return 1;
-  e = getenv(labi_fs_env_freestanding());
-  if (e == NULL)
-    return 0;
-  if (e[0] == 0)
-    return 0;
-  if (e[0] == 48) /* '0' */
-    return 0;
-  return 1;
-}
+/* wave159: shux_link_freestanding_enabled pure orch — body removed from mega
+ * (lives in labi_freestanding_list L7 pure / cold twin via #include above).
+ * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
+ * Why: hybrid still had always-mega C body for freestanding env gate over pure env name.
+ * Cap residual: getenv; peer host_is_linux. PLATFORM: SHARED orch / LINUX consumers. */
 
 /**
  * 若 runtime_asm_io_stubs.o 尚不存在则用 cc -c 从 seeds/runtime_asm_io_stubs.from_x.c 生成到 shux 同目录，
@@ -5306,6 +5297,13 @@ int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int l
  */
 int shux_freestanding_user_o_needs_io(const char *user_o);
 int shux_freestanding_user_o_needs_panic(const char *user_o);
+
+/* wave159: shux_link_freestanding_enabled pure orch lives in
+ * labi_freestanding_list (peer host_is_linux + pure env name + Cap residual getenv).
+ * Was always-mega body. Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * PLATFORM: SHARED orch / LINUX freestanding consumers — dual-end L2.
+ */
+int shux_link_freestanding_enabled(int driver_freestanding);
 
 /*
  * wave118: needs_std_net pure orch lives in labi_ondemand_list (net sym table + orch).

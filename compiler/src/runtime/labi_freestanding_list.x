@@ -24,8 +24,15 @@
 //     (C-path async scheduler string needles ×9; Cap residual contains_substr).
 //   wave144 shux_freestanding_user_o_needs_{io,panic} pure orch
 //     (user.o UNDEF scan via labi_fs_io_sym_* / labi_fs_panic_sym; Cap residual undef_sym).
-// Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega.
+//   wave159 shux_link_freestanding_enabled pure orch
+//     (peer host_is_linux + pure env name + Cap residual getenv).
+// Cap residual: ensure/cc/spawn IO; contains_substr + undef_sym probes in mega; getenv.
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
+
+// Cap residual (wave159): host getenv for SHUX_FREESTANDING env gate.
+export extern "C" function getenv(name: *u8): *u8;
+// Peer pure (labi_host_lit L thin → Cap residual _impl #if __linux__).
+export extern "C" function shux_host_is_linux(): i32;
 
 /** Exported function `labi_fs_env_freestanding`.
  * Memory management helper `labi_fs_env_freestanding`.
@@ -1887,4 +1894,47 @@ export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
     return 1;
   }
   return 0;
+}
+
+/**
+ * Whether freestanding (nostdlib Linux ELF) link mode is active for this driver.
+ * Pure orch: peer shux_host_is_linux + pure labi_fs_env_freestanding name + Cap residual getenv.
+ * Rules (≡ historical mega): non-Linux → 0; driver_freestanding != 0 → 1; else read
+ * SHUX_FREESTANDING env — null / empty / leading '0' → 0; any other non-empty → 1.
+ * @param driver_freestanding i32 — CLI/driver freestanding flag (0 = off, nonzero = force on)
+ * @return i32 — 1 if freestanding path should run, else 0
+ * Why (wave159): hybrid still had freestanding_enabled body always mega C over pure env name.
+ * Cap residual: getenv only. PLATFORM: SHARED orch / LINUX freestanding consumers.
+ */
+#[no_mangle]
+export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
+  // Non-Linux hosts never take freestanding product path (peer host_lit pure → _impl Cap).
+  let is_linux: i32 = 0;
+  unsafe {
+    is_linux = shux_host_is_linux();
+  }
+  if (is_linux == 0) {
+    return 0;
+  }
+  // Driver flag forces freestanding when already on Linux.
+  if (driver_freestanding != 0) {
+    return 1;
+  }
+  // Cap residual: read SHUX_FREESTANDING via pure env name table.
+  let name: *u8 = labi_fs_env_freestanding();
+  let e: *u8 = 0 as *u8;
+  unsafe {
+    e = getenv(name);
+  }
+  if (e == 0 as *u8) {
+    return 0;
+  }
+  if (e[0] == 0) {
+    return 0;
+  }
+  // Leading ASCII '0' (48) disables freestanding; any other first byte enables.
+  if (e[0] == 48) {
+    return 0;
+  }
+  return 1;
 }
