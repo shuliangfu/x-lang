@@ -1,15 +1,17 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (19 public gates + count; wave163 panic_o_path)
+ * Prove: full.x vs this seed → nm IDENTICAL (20 public gates + count; wave164 crt0_user_o_path)
  * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
- *   link_abi_realpath_cap Cap (wave146); bank_push Cap (wave147);
+ *   link_abi_realpath_cap Cap (wave146; also wave164 crt0 realpath);
+ *   bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
- *   *_o_path Cap io/process (wave150 push_minimal; wave163 panic pure);
+ *   *_o_path Cap io/process (wave150 push_minimal; wave163 panic pure; wave164 crt0 pure);
  *   table+access Cap (wave151 append_user_extra);
  *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy);
  *   resolve+rel_o_path Cap (wave162 repo_root);
- *   realpath_if_exists+getcwd+skip Cap (wave163 panic_o_path)
+ *   realpath_if_exists+getcwd+skip Cap (wave163 panic_o_path);
+ *   realpath_cap+getcwd Cap (wave164 crt0_user_o_path)
  * Regen: ./shux_asm -E ... src/runtime/labi_path_pure.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -46,6 +48,8 @@ extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
 extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
 /* wave163: panic_o_path pure defined below (forward for push_minimal). */
 extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
+/* wave164: crt0_user_o_path pure defined below. */
+extern uint8_t * shux_crt0_user_o_path(uint8_t * argv0);
 extern int32_t link_abi_user_extra_o_count(void);
 extern uint8_t * link_abi_user_extra_o_at(int32_t i);
 extern int32_t link_abi_path_readable(uint8_t * path);
@@ -817,6 +821,83 @@ uint8_t * shux_runtime_panic_o_path(uint8_t * argv0) {
   }
   return &((g_labi_panic_o_path_buf)[0]);
 }
+/* wave164: crt0_user_o_path pure orch (surface pin; Cap residual realpath_cap+getcwd). */
+static uint8_t g_labi_crt0_user_o_path_buf[512];
+static uint8_t g_labi_crt0_user_o_path_resolved[4096];
+uint8_t * shux_crt0_user_o_path(uint8_t * argv0) {
+  (void)(((g_labi_crt0_user_o_path_buf)[0] = 0));
+  (void)(((g_labi_crt0_user_o_path_resolved)[0] = 0));
+  uint8_t * hit = 0;
+  (void)((hit = link_abi_realpath_cap(((uint8_t *)("compiler/crt0_user.o")), &((g_labi_crt0_user_o_path_resolved)[0]))));
+  if ((hit != 0)) {
+    return hit;
+  }
+  uint8_t cwd[512];
+  uint8_t * gp = 0;
+  (void)((gp = getcwd(&((cwd)[0]), 490)));
+  if ((gp != 0)) {
+    int32_t L = 0;
+    while (((cwd)[L] != 0)) {
+      (void)((L = (L + 1)));
+    }
+    if (((L + 21) < 512)) {
+      uint8_t * suf = ((uint8_t *)("/compiler/crt0_user.o"));
+      int32_t si = 0;
+      while ((si <= 21)) {
+        (void)(((cwd)[(L + si)] = (suf)[si]));
+        (void)((si = (si + 1)));
+      }
+      (void)((hit = link_abi_realpath_cap(&((cwd)[0]), &((g_labi_crt0_user_o_path_resolved)[0]))));
+      if ((hit != 0)) {
+        return hit;
+      }
+    }
+  }
+  if ((argv0 != 0)) {
+    if (((argv0)[0] != 0)) {
+      int32_t i = 0;
+      int32_t last_sep_i = -1;
+      while (((argv0)[i] != 0)) {
+        if (((argv0)[i] == 47)) {
+          (void)((last_sep_i = i));
+        }
+        (void)((i = (i + 1)));
+      }
+      int32_t n = 0;
+      if ((last_sep_i >= 0)) {
+        if ((last_sep_i >= 496)) {
+          return &((g_labi_crt0_user_o_path_buf)[0]);
+        }
+        int32_t j = 0;
+        while ((j < last_sep_i)) {
+          (void)(((g_labi_crt0_user_o_path_buf)[j] = (argv0)[j]));
+          (void)((j = (j + 1)));
+        }
+        (void)(((g_labi_crt0_user_o_path_buf)[last_sep_i] = 0));
+        (void)((n = last_sep_i));
+      } else {
+        (void)(((g_labi_crt0_user_o_path_buf)[0] = 46));
+        (void)(((g_labi_crt0_user_o_path_buf)[1] = 0));
+        (void)((n = 1));
+      }
+      if (((n + 14) < 512)) {
+        uint8_t * leaf = ((uint8_t *)("/crt0_user.o"));
+        int32_t k = 0;
+        while (((leaf)[k] != 0)) {
+          (void)(((g_labi_crt0_user_o_path_buf)[(n + k)] = (leaf)[k]));
+          (void)((k = (k + 1)));
+        }
+        (void)(((g_labi_crt0_user_o_path_buf)[(n + k)] = 0));
+        (void)((hit = link_abi_realpath_cap(&((g_labi_crt0_user_o_path_buf)[0]), &((g_labi_crt0_user_o_path_resolved)[0]))));
+        if ((hit != 0)) {
+          return hit;
+        }
+        return &((g_labi_crt0_user_o_path_buf)[0]);
+      }
+    }
+  }
+  return &((g_labi_crt0_user_o_path_buf)[0]);
+}
 int32_t labi_path_pure_count(void) {
-  return 19;
+  return 20;
 }
