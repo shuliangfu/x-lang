@@ -5,6 +5,15 @@
 // wave138 root fix: path globs like }/*.o or /*.x must NOT nest-open, or a
 // single closing */ only pops the accidental inner depth and swallows the
 // rest of the file (silent num_funcs truncation).
+//
+// Algorithm (SHARED, single-line and multi-line identical):
+//   Match head /* and tail */ by nesting depth (not C first-close).
+//   Path-safe nest-open so std/*.o stays body text.
+// Single-line matrix also covered by nested_block_comment_oneline.x (rv 77).
+
+/* single-line classic nest: /* inner */ still outer */
+/* single-line path glob: after std/*.o pushes */
+/* single-line dense: /*/*inner*/*/ done */
 
 /**
  * Nested open-close sequence inside doc prose: /**/

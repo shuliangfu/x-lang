@@ -1470,13 +1470,18 @@ function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
  * Skip whitespace and comments from the current lexer position.
  *
  * Line comments: `//` to end of line, and bare `#` lines (not `#[` attrs).
- * Block comments: nested `/* ... */` — each true nest-open `/*` raises depth,
- * each `*/` lowers it; the block ends only when depth returns to 0.
+ * Block comments (single-line and multi-line — one algorithm): nested `/* ... */`
+ * by head/tail depth balance (not C first-close):
+ *   - outer `/*` sets depth=1; each true nest-open `/*` does depth+1;
+ *   - each `*/` does depth-1; the block ends only when depth returns to 0.
+ * Examples (all valid on one line):
+ *   `/* xxx /* xxx */ xxx */`, `/* /* */ */`, `/**/`, dense `/*/*inner*/*/`.
+ * Unbalanced `/* /* */` alone leaves depth>0 (unclosed) — need a second `*/`.
  *
  * Nest-open is path-safe (wave138 root fix):
- * - Intentional nests still open: space/`*` before `/*`, prose `/**/`, dense `/*/*inner*/*/`.
- * - Path globs do NOT open: `src/*.x`, `std/db/{kv,arrow}/*.o`, line-start `/*.o`
- *   (prev path-like, or next byte after `/*` is `.`).
+ * - Intentional nests still open: space/`*` before `/*`, prose `/**/`, dense nests.
+ * - Path globs do NOT open: `src/*.x`, `std/*.o`, `std/db/{kv,arrow}/*.o`,
+ *   line-start `/*.o` (prev path-like, or next byte after `/*` is `.`).
  * Unmatched bare `*/` with no nested open still closes the outer block (depth 1 → 0).
  *
  * PLATFORM: SHARED — language lexical semantics; dual-host product matrix.

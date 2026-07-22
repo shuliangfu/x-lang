@@ -3188,6 +3188,7 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
   // PLATFORM: SHARED — after std/*.o pushes, complement process_argv when any linked
   // .o has U process_shux_* (string/math/… preamble weak). Skip if process.o already on line.
   // G.7: complete existing C-backend process_argv path; no second plan table.
+  /* process_argv complement after std/*.o pushes */
   let need_pav: i32 = 0;
   let have_process_o: i32 = 0;
   let have_pav: i32 = 0;

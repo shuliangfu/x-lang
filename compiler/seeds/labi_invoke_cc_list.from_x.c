@@ -1362,7 +1362,9 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
     }
   }
-  /* process_argv complement after std o pushes */
+  // process_argv complement after std/*.o pushes
+  // (C seed: // form — gcc is non-nested and -Wcomment on /* inside /* */;
+  //  Shux .x accepts the same prose as a nested path-safe block comment.)
   {
     int need_pav = 0;
     int have_process_o = 0;
