@@ -7,6 +7,7 @@
  * Authority: port of src/asm/arch/arm64_enc.x via pipeline_elf_ctx_* (G.7 single
  * elf table path; same helpers as backend_x86_64_enc_c).
  *
+ * wave109: GP spill/preserve mov x2/x9/x10–x15 (binop 7.3 / INDEX AS right).
  * PLATFORM: MACOS/DARWIN arm64 product pure-asm; also safe on other hosts (ta!=1
  * never calls these). Link into USER_ASM_LINK / g05 Darwin path so strong symbols
  * override seed_link_compat weak stubs.
@@ -550,4 +551,122 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodege
   if (imm12 > 4095)
     imm12 = 4095;
   return arm64_enc_u32_le(elf_ctx, 0xf9000020u | (((uint32_t)imm12 / 8u) << 10));
+}
+
+/*
+ * wave109: GP spill/preserve moves used by pipeline_glue binop 7.3 paths.
+ * ORR xd, xzr, xm ≡ MOV xd, xm. Encoding: 0xAA0003E0 | (rm << 16) | rd.
+ * Root CG002: weak seed_link_compat SHUX_ARM64_GLUE_STUB1 returned -1 for
+ * mov_rax_to_x9 after left-assoc ADD emit when loading INDEX/AS right.
+ * PLATFORM: MACOS/DARWIN arm64 pure-asm (ta==1); strong override of weak stubs.
+ */
+static int32_t arm64_enc_mov_xn_xm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rd, int32_t rm) {
+  if (rd < 0 || rd > 30 || rm < 0 || rm > 30)
+    return -1;
+  return arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | ((uint32_t)rm << 16) | (uint32_t)rd);
+}
+
+/** Preserve rbx across INDEX addr: x1 → x2. */
+int32_t arch_arm64_enc_enc_mov_rbx_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 2, 1);
+}
+
+int32_t arch_arm64_enc_enc_mov_x2_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 2);
+}
+
+int32_t arch_arm64_enc_enc_mov_rax_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 2, 0);
+}
+
+int32_t arch_arm64_enc_enc_mov_x2_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 2);
+}
+
+/** Preserve rax while loading rbx operand that clobbers rax (FIELD/INDEX/AS). */
+int32_t arch_arm64_enc_enc_mov_rax_to_x9(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 9, 0);
+}
+
+int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 9);
+}
+
+/** Binop 7.3 physical spill slots x10..x15 (rax/rbx save/reload). */
+int32_t arch_arm64_enc_enc_mov_rax_to_x10(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 10, 0);
+}
+int32_t arch_arm64_enc_enc_mov_x10_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 10);
+}
+int32_t arch_arm64_enc_enc_mov_rbx_to_x10(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 10, 1);
+}
+int32_t arch_arm64_enc_enc_mov_x10_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 10);
+}
+
+int32_t arch_arm64_enc_enc_mov_rax_to_x11(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 11, 0);
+}
+int32_t arch_arm64_enc_enc_mov_x11_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 11);
+}
+int32_t arch_arm64_enc_enc_mov_rbx_to_x11(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 11, 1);
+}
+int32_t arch_arm64_enc_enc_mov_x11_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 11);
+}
+
+int32_t arch_arm64_enc_enc_mov_rax_to_x12(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 12, 0);
+}
+int32_t arch_arm64_enc_enc_mov_x12_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 12);
+}
+int32_t arch_arm64_enc_enc_mov_rbx_to_x12(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 12, 1);
+}
+int32_t arch_arm64_enc_enc_mov_x12_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 12);
+}
+
+int32_t arch_arm64_enc_enc_mov_rax_to_x13(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 13, 0);
+}
+int32_t arch_arm64_enc_enc_mov_x13_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 13);
+}
+int32_t arch_arm64_enc_enc_mov_rbx_to_x13(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 13, 1);
+}
+int32_t arch_arm64_enc_enc_mov_x13_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 13);
+}
+
+int32_t arch_arm64_enc_enc_mov_rax_to_x14(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 14, 0);
+}
+int32_t arch_arm64_enc_enc_mov_x14_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 14);
+}
+int32_t arch_arm64_enc_enc_mov_rbx_to_x14(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 14, 1);
+}
+int32_t arch_arm64_enc_enc_mov_x14_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 14);
+}
+
+int32_t arch_arm64_enc_enc_mov_rax_to_x15(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 15, 0);
+}
+int32_t arch_arm64_enc_enc_mov_x15_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 0, 15);
+}
+int32_t arch_arm64_enc_enc_mov_rbx_to_x15(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 15, 1);
+}
+int32_t arch_arm64_enc_enc_mov_x15_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arm64_enc_mov_xn_xm(elf_ctx, 1, 15);
 }
