@@ -32,18 +32,22 @@
 //     (peer freestanding_enabled + io path tables + Cap residual resolve/access/cc/stat).
 //   wave175 link_abi_generated_c_contains_substr pure orch
 //     (pure null gates + Cap residual file malloc/free + Cap residual buf scan).
+//   wave176 link_abi_generated_c_contains_substr_use_line pure orch
+//     (pure null gates + Cap residual file malloc/free + Cap residual buf use_line scan).
 // Cap residual: undef_sym; getenv; resolve/access/cc/stat for ensure leaves (wave167/168);
-//   runtime_read_file_malloc / free / link_abi_buf_contains_substr (wave175).
+//   runtime_read_file_malloc / free / link_abi_buf_contains_substr (wave175);
+//   link_abi_buf_contains_substr_use_line (wave176).
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
 // Cap residual (wave159): host getenv for SHUX_FREESTANDING env gate.
 export extern "C" function getenv(name: *u8): *u8;
-// Cap residual (wave175 contains_substr pure orch): host whole-file malloc + free + buf scan.
-// Nested pure byte-scan loops over large files historically truncated later export bodies
-// in this module (codegen); keep scan Cap residual, pure owns gates/orch.
+// Cap residual (wave175/176 contains_substr pure orch): host whole-file malloc + free + buf scan.
+// Nested pure byte-scan / line-filter loops over large files historically truncated later
+// export bodies in this module (codegen); keep scan Cap residual, pure owns gates/orch.
 export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function link_abi_buf_contains_substr(data: *u8, data_len: usize, needle: *u8): i32;
+export extern "C" function link_abi_buf_contains_substr_use_line(data: *u8, data_len: usize, needle: *u8): i32;
 // Peer pure (labi_host_lit L thin → Cap residual _impl #if __linux__).
 export extern "C" function shux_host_is_linux(): i32;
 // Cap residual (wave167/168 ensure pure orch): resolve / access / cc / skip-stat.
@@ -325,7 +329,7 @@ export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8):
  * @param needle *u8 — NUL-terminated needle; null/empty → 0 (≡ mega single-needle wrap)
  * @return i32 — 1 if needle occurs anywhere in file bytes, else 0
  * Why (wave175): hybrid still had contains_substr body always mega C (any_substr + file view).
- * Not the same as link_abi_generated_c_contains_substr_use_line (line filter Cap residual).
+ * Not the same as link_abi_generated_c_contains_substr_use_line (line-filter pure orch wave176).
  * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
  */
 #[no_mangle]
@@ -353,6 +357,51 @@ export function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): 
   let hit: i32 = 0;
   unsafe {
     hit = link_abi_buf_contains_substr(data, raw_len, needle);
+  }
+  unsafe {
+    free(data);
+  }
+  return hit;
+}
+
+/**
+ * Return 1 iff generated C at c_path contains needle on a real use line
+ * (not bare extern / #define / comment / struct|typedef name / placeholder / weak attr).
+ * Pure orch: null/empty gates + Cap residual file load + Cap residual line-filter scan + free.
+ * Cap residual: runtime_read_file_malloc / free / link_abi_buf_contains_substr_use_line.
+ * @param c_path *u8 — NUL-terminated path to generated .c; null/empty → 0
+ * @param needle *u8 — NUL-terminated needle; null/empty → 0
+ * @return i32 — 1 if a non-skipped line contains needle, else 0
+ * Why (wave176): hybrid still had use_line body always mega C (file view + line filter).
+ * Line-filter scan stays Cap residual (wave175 codegen lesson: pure deep while over large
+ * buffers truncates later exports in this module). G.7 single authority orch.
+ * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
+ */
+#[no_mangle]
+export function link_abi_generated_c_contains_substr_use_line(c_path: *u8, needle: *u8): i32 {
+  if (c_path == 0 as *u8) {
+    return 0;
+  }
+  if (c_path[0] == 0) {
+    return 0;
+  }
+  if (needle == 0 as *u8) {
+    return 0;
+  }
+  if (needle[0] == 0) {
+    return 0;
+  }
+  let raw_len: usize = 0 as usize;
+  let data: *u8 = 0 as *u8;
+  unsafe {
+    data = runtime_read_file_malloc(c_path, &raw_len);
+  }
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  let hit: i32 = 0;
+  unsafe {
+    hit = link_abi_buf_contains_substr_use_line(data, raw_len, needle);
   }
   unsafe {
     free(data);

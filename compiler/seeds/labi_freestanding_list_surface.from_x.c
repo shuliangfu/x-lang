@@ -462,6 +462,8 @@ extern uint8_t * labi_fs_crt0_out_base(void);
 extern uint8_t * labi_fs_crt0_src_rel(void);
 extern uint8_t * labi_fs_io_out_base(void);
 extern uint8_t * labi_fs_io_src_rel(void);
+extern int32_t link_abi_generated_c_contains_substr(uint8_t * c_path, uint8_t * needle);
+extern int32_t link_abi_generated_c_contains_substr_use_line(uint8_t * c_path, uint8_t * needle);
 extern int32_t labi_fs_heap_c_needle_count(void);
 extern uint8_t * labi_fs_heap_c_needle_at(int32_t i);
 extern int32_t labi_fs_heap_o_sym_count(void);
@@ -520,16 +522,13 @@ extern uint8_t * labi_fs_gen_async_scheduler_needle_at(int32_t i);
 extern int32_t shux_generated_c_needs_async_scheduler(uint8_t * c_path);
 extern int32_t shux_freestanding_user_o_needs_io(uint8_t * user_o);
 extern int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o);
-/* wave159: freestanding_enabled pure orch (surface pin; Cap residual getenv + peer host_is_linux). */
-extern char * getenv(const char * name);
-extern int32_t shux_host_is_linux(void);
 extern int32_t shux_link_freestanding_enabled(int32_t driver_freestanding);
-/* wave175: contains_substr pure orch Cap residual (file malloc + buf scan). */
-extern char * runtime_read_file_malloc(uint8_t * path, size_t * out_len);
-extern void free(void * p);
+extern int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding);
+extern int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding);
+extern uint8_t * runtime_read_file_malloc(uint8_t * path, size_t * out_len);
 extern int32_t link_abi_buf_contains_substr(uint8_t * data, size_t data_len, uint8_t * needle);
-extern int32_t link_abi_generated_c_contains_substr(uint8_t * c_path, uint8_t * needle);
-/* wave167/168: ensure_crt0 / ensure_freestanding_io pure orch (surface pin; Cap residual resolve/access/cc/stat). */
+extern int32_t link_abi_buf_contains_substr_use_line(uint8_t * data, size_t data_len, uint8_t * needle);
+extern int32_t shux_host_is_linux(void);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shux_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
@@ -540,8 +539,6 @@ extern void link_diag_runtime_obj_resolve_fail(uint8_t * obj_name, uint8_t * hin
 extern void link_diag_runtime_source_missing(uint8_t * obj_name, uint8_t * source_path);
 extern void link_diag_runtime_obj_build_status(uint8_t * obj_name, int32_t status);
 extern void link_diag_runtime_obj_missing(uint8_t * obj_name, uint8_t * out_o);
-extern int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding);
-extern int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding);
 uint8_t * labi_fs_env_freestanding(void) {
   uint8_t * p = ((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x52\x45\x45\x53\x54\x41\x4e\x44\x49\x4e\x47");
   return p;
@@ -733,6 +730,30 @@ int32_t link_abi_generated_c_contains_substr(uint8_t * c_path, uint8_t * needle)
   }
   int32_t hit = 0;
   (void)((hit = link_abi_buf_contains_substr(data, raw_len, needle)));
+  (void)(free(data));
+  return hit;
+}
+int32_t link_abi_generated_c_contains_substr_use_line(uint8_t * c_path, uint8_t * needle) {
+  if ((c_path ==0)) {
+    return 0;
+  }
+  if (((c_path)[0] ==0)) {
+    return 0;
+  }
+  if ((needle ==0)) {
+    return 0;
+  }
+  if (((needle)[0] ==0)) {
+    return 0;
+  }
+  size_t raw_len = 0;
+  uint8_t * data = 0;
+  (void)((data = runtime_read_file_malloc(c_path, &(raw_len))));
+  if ((data ==0)) {
+    return 0;
+  }
+  int32_t hit = 0;
+  (void)((hit = link_abi_buf_contains_substr_use_line(data, raw_len, needle)));
   (void)(free(data));
   return hit;
 }

@@ -1847,6 +1847,8 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 /* wave175: contains_substr pure orch (L7; hybrid). */
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
+/* wave176: contains_substr_use_line pure orch (L7; hybrid). */
+int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle);
 #endif
 
 /* wave159: shux_link_freestanding_enabled pure orch — body removed from mega
@@ -2418,55 +2420,55 @@ int link_abi_buf_contains_substr(const char *data, size_t data_len, const char *
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 
 /**
- * 生成 C 是否含 needle，且命中行不是 `extern` 声明 / `#define` 宏头。
- * 【Why】rt_preamble 恒注入 `extern ... std_context_background(` 与
- * `#define std_net_net_close_socket_c`；裸 substr 会让 hello 假链 context/net。
- * 仅当某行出现真实调用/定义体时才视为 need。
+ * Cap residual (wave176): return 1 iff data[0..data_len) contains needle on a
+ * "use" line — not bare `extern` / `#define` / comment / struct|typedef name /
+ * placeholder / `__attribute__((weak))` preamble stubs.
+ * Why: rt_preamble injects `extern ... std_context_background(` and
+ * `#define std_net_*`; raw substr would false-link context/net on hello.
+ * Pure orch link_abi_generated_c_contains_substr_use_line loads the file then
+ * calls this. Nested line-filter scan stays mega (codegen truncates pure deep
+ * while over large buffers in freestanding module — same lesson as wave175).
+ * PLATFORM: SHARED — host memcmp/line walk; always mega (cold + hybrid FROM_X).
  */
-int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle) {
-    ShuxRuntimeFileView view;
+int link_abi_buf_contains_substr_use_line(const char *data, size_t data_len, const char *needle) {
     size_t needle_len;
     size_t off;
-    if (!c_path || !c_path[0] || !needle || !needle[0])
+    if (!data || !needle || !needle[0])
         return 0;
     needle_len = strlen(needle);
-    if (runtime_read_file_view(c_path, &view) != 0)
+    if (needle_len == 0 || data_len < needle_len)
         return 0;
-    if (view.length < needle_len) {
-        runtime_release_file_view(&view);
-        return 0;
-    }
-    for (off = 0; off + needle_len <= view.length; off++) {
+    for (off = 0; off + needle_len <= data_len; off++) {
         size_t line_start;
         size_t line_end;
         size_t k;
         int is_extern = 0;
         int is_define = 0;
         int is_comment = 0;
-        if (memcmp(view.data + off, needle, needle_len) != 0)
+        if (memcmp(data + off, needle, needle_len) != 0)
             continue;
         line_start = off;
-        while (line_start > 0 && view.data[line_start - 1] != '\n')
+        while (line_start > 0 && data[line_start - 1] != '\n')
             line_start--;
         line_end = off + needle_len;
-        while (line_end < view.length && view.data[line_end] != '\n')
+        while (line_end < data_len && data[line_end] != '\n')
             line_end++;
-        /* 跳过行首空白后的 extern / #define / // */
+        /* Skip leading whitespace then classify extern / #define / // / block-comment. */
         k = line_start;
-        while (k < line_end && (view.data[k] == ' ' || view.data[k] == '\t'))
+        while (k < line_end && (data[k] == ' ' || data[k] == '\t'))
             k++;
-        if (k + 6 <= line_end && memcmp(view.data + k, "extern", 6) == 0)
+        if (k + 6 <= line_end && memcmp(data + k, "extern", 6) == 0)
             is_extern = 1;
-        if (k < line_end && view.data[k] == '#') {
+        if (k < line_end && data[k] == '#') {
             size_t k2 = k + 1;
-            while (k2 < line_end && (view.data[k2] == ' ' || view.data[k2] == '\t'))
+            while (k2 < line_end && (data[k2] == ' ' || data[k2] == '\t'))
                 k2++;
-            if (k2 + 6 <= line_end && memcmp(view.data + k2, "define", 6) == 0)
+            if (k2 + 6 <= line_end && memcmp(data + k2, "define", 6) == 0)
                 is_define = 1;
         }
-        if (k + 2 <= line_end && view.data[k] == '/' && view.data[k + 1] == '/')
+        if (k + 2 <= line_end && data[k] == '/' && data[k + 1] == '/')
             is_comment = 1;
-        if (k + 2 <= line_end && view.data[k] == '/' && view.data[k + 1] == '*')
+        if (k + 2 <= line_end && data[k] == '/' && data[k + 1] == '*')
             is_comment = 1;
         /*
          * PLATFORM: SHARED — preamble type decls (struct/typedef std_net_*) are NOT real refs.
@@ -2480,18 +2482,18 @@ int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char
          */
         {
             size_t p = off;
-            while (p > line_start && (view.data[p - 1] == ' ' || view.data[p - 1] == '\t'))
+            while (p > line_start && (data[p - 1] == ' ' || data[p - 1] == '\t'))
                 p--;
-            if (p >= line_start + 7 && memcmp(view.data + p - 7, "struct ", 7) == 0)
+            if (p >= line_start + 7 && memcmp(data + p - 7, "struct ", 7) == 0)
                 is_extern = 1; /* needle is the struct name in a definition or variable decl */
-            if (p >= line_start + 8 && memcmp(view.data + p - 8, "typedef ", 8) == 0)
+            if (p >= line_start + 8 && memcmp(data + p - 8, "typedef ", 8) == 0)
                 is_extern = 1; /* needle is the typedef name */
         }
-        /* weak placeholder 体：仅当本行含 placeholder（如 std_string_placeholder）才跳过 */
+        /* Skip weak placeholder bodies only when this line contains "placeholder". */
         {
             size_t li;
             for (li = k; li + 11 <= line_end; li++) {
-                if (memcmp(view.data + li, "placeholder", 11) == 0) {
+                if (memcmp(data + li, "placeholder", 11) == 0) {
                     is_extern = 1;
                     break;
                 }
@@ -2508,20 +2510,25 @@ int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char
             size_t li;
             /* "__attribute__((weak))" is 21 chars */
             for (li = k; li + 21 <= line_end; li++) {
-                if (memcmp(view.data + li, "__attribute__((weak))", 21) == 0) {
+                if (memcmp(data + li, "__attribute__((weak))", 21) == 0) {
                     is_extern = 1;
                     break;
                 }
             }
         }
-        if (!is_extern && !is_define && !is_comment) {
-            runtime_release_file_view(&view);
+        if (!is_extern && !is_define && !is_comment)
             return 1;
-        }
     }
-    runtime_release_file_view(&view);
     return 0;
 }
+
+/* wave176: link_abi_generated_c_contains_substr_use_line pure orch lives in
+ * labi_freestanding_list (pure null gates + Cap residual file malloc/free +
+ * Cap residual buf_contains_substr_use_line). Was always-mega file-view scan.
+ * Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
+ * any_substr_use_line stays mega thin loop over this pure. PLATFORM: SHARED.
+ */
+int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle);
 
 int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const char **needles, int n_needles) {
     int i;

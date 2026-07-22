@@ -34,8 +34,11 @@
  *     (peer freestanding_enabled + io tables + Cap residual resolve/access/cc/stat)
  *   + wave175 link_abi_generated_c_contains_substr pure orch
  *     (pure null gates + Cap residual malloc/free + Cap residual buf_contains_substr)
+ *   + wave176 link_abi_generated_c_contains_substr_use_line pure orch
+ *     (pure null gates + Cap residual malloc/free + Cap residual buf use_line scan)
  * Cap residual：undef_sym；getenv；ensure 叶的 resolve/access/cc/stat（wave167/168）；
- *   file malloc/free + buf_contains_substr（wave175）。FROM_X 下本文件仅前向声明 + slice marker。
+ *   file malloc/free + buf_contains_substr（wave175）；buf_contains_substr_use_line（wave176）。
+ * FROM_X 下本文件仅前向声明 + slice marker。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
  * Prove：seeds/labi_freestanding_list_surface.from_x.c（-E 同构）nm IDENTICAL。
@@ -46,9 +49,10 @@
 
 /* Cap residual (mega/runtime always): nm UNDEF probe used by pure needs orch. */
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
-/* Cap residual (wave175): whole-file malloc + buf scan (mega / runtime_io_abi). */
+/* Cap residual (wave175/176): whole-file malloc + buf / use_line scan (mega). */
 char *runtime_read_file_malloc(const char *path, size_t *out_len);
 int link_abi_buf_contains_substr(const char *data, size_t data_len, const char *needle);
+int link_abi_buf_contains_substr_use_line(const char *data, size_t data_len, const char *needle);
 /* Peer pure (host_lit) used by wave159 freestanding_enabled cold twin. */
 int shux_host_is_linux(void);
 /* Cap residual (wave167/168 ensure cold twin; mega always provides). */
@@ -252,6 +256,25 @@ int link_abi_generated_c_contains_substr(const char *c_path, const char *needle)
   if (!data)
     return 0;
   hit = link_abi_buf_contains_substr(data, raw_len, needle);
+  free(data);
+  return hit;
+}
+
+/* wave176: pure orch contains_substr_use_line (cold twin ≡ .x).
+ * Cap residual: runtime_read_file_malloc + free + link_abi_buf_contains_substr_use_line.
+ * Pure: null/empty gates + load/scan orch. PLATFORM: SHARED — line filter in Cap residual.
+ */
+int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle) {
+  size_t raw_len;
+  char *data;
+  int hit;
+  if (!c_path || !c_path[0] || !needle || !needle[0])
+    return 0;
+  raw_len = 0;
+  data = runtime_read_file_malloc(c_path, &raw_len);
+  if (!data)
+    return 0;
+  hit = link_abi_buf_contains_substr_use_line(data, raw_len, needle);
   free(data);
   return hit;
 }
@@ -1063,6 +1086,8 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 /* wave175: contains_substr pure orch (L7). */
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
+/* wave176: contains_substr_use_line pure orch (L7). */
+int link_abi_generated_c_contains_substr_use_line(const char *c_path, const char *needle);
 #endif
 
 int labi_freestanding_list_slice_marker(void) {
