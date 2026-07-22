@@ -15,6 +15,7 @@
  *   + labi_od_sys_linux_sym_{count,at} + link_abi_user_o_needs_std_sys_linux pure orch
  *   + labi_od_sys_sym_{count,at} + link_abi_user_o_needs_std_sys pure orch
  *   + labi_od_heap_api_sym_{count,at} + link_abi_user_o_needs_std_heap_api pure orch
+ *   + labi_od_heap_user_sym_{count,at} + link_abi_user_o_needs_heap_user_syms pure orch
  * Cap residual：nm 探针 + push/ensure 仍在 mega shux_asm_ld_append_on_demand_user_objs；
  *   undef_sym 探针仍 mega（pure needs orch Cap）。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -839,6 +840,44 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o) {
   return 0;
 }
 
+/* wave129: product runtime_heap_user exact UNDEF table + needs_heap_user_syms pure orch.
+ * PLATFORM: SHARED — exact symbols only; product complete includes with_arena init/deinit. */
+int labi_od_heap_user_sym_count(void) { return 7; }
+const char *labi_od_heap_user_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if (i == 0)
+    return "heap_alloc_c";
+  if (i == 1)
+    return "heap_free_c";
+  if (i == 2)
+    return "heap_realloc_c";
+  if (i == 3)
+    return "heap_arena64_alloc_c";
+  if (i == 4)
+    return "heap_arena_init_c";
+  if (i == 5)
+    return "heap_arena64_deinit_c";
+  if (i == 6)
+    return "heap_arena64_init_c";
+  return NULL;
+}
+
+/* Pure orch: heap_user table + Cap residual undef_sym. PLATFORM: SHARED. */
+int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
+    return 0;
+  n = labi_od_heap_user_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *sym = labi_od_heap_user_sym_at(i);
+    if (sym && sym[0] && shux_link_obj_needs_undef_sym(user_o, sym) != 0)
+      return 1;
+  }
+  return 0;
+}
+
 /* Pure rel constants for needs_* driven branches (early on_demand). */
 const char *labi_od_rel_net(void) { return "std/net/net.o"; }
 const char *labi_od_rel_thread(void) { return "std/thread/thread.o"; }
@@ -913,6 +952,9 @@ int link_abi_user_o_needs_std_sys(const char *user_o);
 int labi_od_heap_api_sym_count(void);
 const char *labi_od_heap_api_sym_at(int i);
 int link_abi_user_o_needs_std_heap_api(const char *user_o);
+int labi_od_heap_user_sym_count(void);
+const char *labi_od_heap_user_sym_at(int i);
+int link_abi_user_o_needs_heap_user_syms(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);

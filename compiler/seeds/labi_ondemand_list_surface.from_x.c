@@ -1,7 +1,7 @@
 /* seeds/labi_ondemand_list_surface.from_x.c
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–128 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api pure)
+ * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–129 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms pure)
  * Cap residual: nm/push/ensure + undef_sym probes in mega
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -62,6 +62,9 @@ extern int32_t link_abi_user_o_needs_std_sys(uint8_t * user_o);
 extern int32_t labi_od_heap_api_sym_count(void);
 extern uint8_t * labi_od_heap_api_sym_at(int32_t i);
 extern int32_t link_abi_user_o_needs_std_heap_api(uint8_t * user_o);
+extern int32_t labi_od_heap_user_sym_count(void);
+extern uint8_t * labi_od_heap_user_sym_at(int32_t i);
+extern int32_t link_abi_user_o_needs_heap_user_syms(uint8_t * user_o);
 extern uint8_t * labi_od_rel_net(void);
 extern uint8_t * labi_od_rel_thread(void);
 extern uint8_t * labi_od_rel_heap(void);
@@ -1363,6 +1366,67 @@ int32_t link_abi_user_o_needs_std_heap_api(uint8_t * user_o) {
   int32_t i = 0;
   while ((i < n)) {
     uint8_t * sym = labi_od_heap_api_sym_at(i);
+    if ((sym !=0)) {
+      if (((sym)[0] !=0)) {
+        int32_t hit = 0;
+        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        if ((hit !=0)) {
+          return 1;
+        }
+      }
+    }
+    (void)((i = (i + 1)));
+  }
+  return 0;
+}
+int32_t labi_od_heap_user_sym_count(void) {
+  return 7;
+}
+uint8_t * labi_od_heap_user_sym_at(int32_t i) {
+  if ((i < 0)) {
+    return ((uint8_t *)(0));
+  }
+  if ((i ==0)) {
+    uint8_t * p = ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x6c\x6c\x6f\x63\x5f\x63");
+    return p;
+  }
+  if ((i ==1)) {
+    uint8_t * p = ((uint8_t *)"\x68\x65\x61\x70\x5f\x66\x72\x65\x65\x5f\x63");
+    return p;
+  }
+  if ((i ==2)) {
+    uint8_t * p = ((uint8_t *)"\x68\x65\x61\x70\x5f\x72\x65\x61\x6c\x6c\x6f\x63\x5f\x63");
+    return p;
+  }
+  if ((i ==3)) {
+    uint8_t * p = ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x72\x65\x6e\x61\x36\x34\x5f\x61\x6c\x6c\x6f\x63\x5f\x63");
+    return p;
+  }
+  if ((i ==4)) {
+    uint8_t * p = ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x72\x65\x6e\x61\x5f\x69\x6e\x69\x74\x5f\x63");
+    return p;
+  }
+  if ((i ==5)) {
+    uint8_t * p = ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x72\x65\x6e\x61\x36\x34\x5f\x64\x65\x69\x6e\x69\x74\x5f\x63");
+    return p;
+  }
+  if ((i ==6)) {
+    uint8_t * p = ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x72\x65\x6e\x61\x36\x34\x5f\x69\x6e\x69\x74\x5f\x63");
+    return p;
+  }
+  return ((uint8_t *)(0));
+}
+int32_t link_abi_user_o_needs_heap_user_syms(uint8_t * user_o) {
+  if ((user_o ==0)) {
+    return 0;
+  }
+  if (((user_o)[0] ==0)) {
+    return 0;
+  }
+  int32_t n = labi_od_heap_user_sym_count();
+  int32_t i = 0;
+  while ((i < n)) {
+    uint8_t * sym = labi_od_heap_user_sym_at(i);
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;

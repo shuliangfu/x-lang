@@ -5761,6 +5761,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * wave126: needs_std_sys_linux pure orch lives in labi_ondemand_list (sys_linux sym table + orch).
  * wave127: needs_std_sys pure orch lives in labi_ondemand_list (sys facade sym table + orch).
  * wave128: needs_std_heap_api pure orch lives in labi_ondemand_list (heap_api sym table + orch).
+ * wave129: needs_heap_user_syms pure orch lives in labi_ondemand_list (heap_user sym table + orch).
  * Full-seed path: bodies via #include below (!FROM_X). Hybrid FROM_X: L8b pure .x provides;
  * decls in #else of ondemand include. Cap residual: undef_sym stays mega. PLATFORM: SHARED.
  */
@@ -5773,44 +5774,13 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * Invariant: link_abi_link_needs_std_heap_import still scans user_o + argv via this orch.
  */
 
-int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
-  if ((user_o ==NULL)) {
-    return 0;
-  }
-  (void)(({   {
-    if (((user_o)[0] ==0)) {
-      return 0;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "heap_alloc_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "heap_free_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "heap_realloc_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena64_alloc_c") !=0)) {
-      return 1;
-    }
-    /*
-     * PLATFORM: SHARED — with_arena asm emit calls heap_arena_init_c / heap_arena64_deinit_c
-     * (pipeline_glue with_arena elf). G.7 complete existing heap_user probe authority.
-     */
-    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena_init_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena64_deinit_c") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena64_init_c") !=0)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/**
+ * wave129: needs_heap_user_syms pure orch lives in labi_ondemand_list
+ * (labi_od_heap_user_sym_* product table ×7 exact + pure scan; not here).
+ * Exact symbols only (no prefix probes). Product complete: alloc/free/realloc/arena64_alloc
+ * + with_arena heap_arena_init_c / heap_arena64_{init,deinit}_c (G.7 close incomplete mega.x residual).
+ * Invariant: link_abi_link_needs_heap_user_c still scans user_o + argv via this orch.
+ */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la) {
@@ -7141,7 +7111,7 @@ int labi_od_queue_sym_count(void);
 const char *labi_od_queue_sym_at(int i);
 const char *labi_od_queue_rel(void);
 const char *labi_od_queue_contention_rel(void);
-/* wave118–128 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api pure orch (L8b pure .x / cold seed). */
+/* wave118–129 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms pure orch (L8b pure .x / cold seed). */
 int labi_od_net_sym_count(void);
 const char *labi_od_net_sym_at(int i);
 int link_abi_user_o_needs_std_net(const char *user_o);
@@ -7175,6 +7145,9 @@ int link_abi_user_o_needs_std_sys(const char *user_o);
 int labi_od_heap_api_sym_count(void);
 const char *labi_od_heap_api_sym_at(int i);
 int link_abi_user_o_needs_std_heap_api(const char *user_o);
+int labi_od_heap_user_sym_count(void);
+const char *labi_od_heap_user_sym_at(int i);
+int link_abi_user_o_needs_heap_user_syms(const char *user_o);
 const char *labi_od_rel_net(void);
 const char *labi_od_rel_thread(void);
 const char *labi_od_rel_heap(void);
