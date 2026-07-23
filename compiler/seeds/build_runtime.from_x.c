@@ -25,6 +25,11 @@
 #include <unistd.h>
 #include "diag.h"
 
+/* wave250 G.7: shell via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl.
+ * PLATFORM: SHARED — build_runtime cold seed shell face; host residual via single face. */
+extern int link_abi_system(const char *cmd);
+
 #define PIPELINE_GEN_PATCH_BUF_SIZE (512 * 1024)
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
@@ -207,11 +212,12 @@ int build_append_literal(char *buf, int size, int offset, int literal_id) {
 }
 
 /**
- * 6.3 极薄原语：执行 cmd_buf（NUL 结尾）；返回 system() 的返回值或 -1。
+ * 6.3 thin primitive: run NUL-terminated cmd_buf; return link_abi_system status or -1.
+ * wave250 G.7: public pure thin link_abi_system (not raw libc system).
  */
 int build_exec_cmd(char *cmd_buf) {
   if (!cmd_buf) return -1;
-  return system(cmd_buf);
+  return link_abi_system(cmd_buf);
 }
 
 /**
@@ -302,56 +308,56 @@ int build_run_step(int step_id, const char *xlang_path) {
       cc, cflags, cc, cflags,
       cc, cflags, cc, cflags, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    return system(cmd);
+    return link_abi_system(cmd);
   case 6: {
     /* 阶段 3.2：用 -E -E-extern 生成瘦 parser_gen.c/typeck_gen.c/codegen_gen.c（仅类型+入口模块，依赖用 extern），再编成 _x.o。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c",
       xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     /* -E-extern 已生成 parser_* 符号，不再追加 ABI 包装，避免重复定义。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' parser_gen.c && %s %s -include ast.h -c parser_gen.c -o parser_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c && "
       "%s %s -c typeck_gen.c -o typeck_x.o",
       xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c && "
       "%s %s -c codegen_gen.c -o codegen_x.o",
       xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     /* 阶段 3：生成并编 ast_x.o、token_x.o、lexer_x.o，供 parser/typeck/codegen 与 pipeline 链接。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -E -E-extern src/ast/ast.x > ast_gen.c && %s %s -c ast_gen.c -o ast_x.o",
       xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c && %s %s -c token_gen.c -o token_x.o",
       xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c && %s %s -c lexer_gen.c -o lexer_x.o",
       xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     /* 6.4：preprocess.x 生成 preprocess_gen.c（codegen 对 slice 形参已生成 ->，无补丁），编成 preprocess_x.o。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c",
       xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd), "%s %s -c preprocess_gen.c -o preprocess_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    return system(cmd);
+    return link_abi_system(cmd);
   }
   case 1: {
     /* 阶段 1.1/1.2：用 xlang 生成 pipeline_gen.c，再由 build_patch_pipeline_gen_c 修正。
@@ -360,25 +366,25 @@ int build_run_step(int step_id, const char *xlang_path) {
       "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c",
       xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
+    if (link_abi_system(cmd) != 0) return -1;
     return build_patch_pipeline_gen_c() == 0 ? 0 : -1;
   }
   case 2:
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s %s -c pipeline_gen.c -o pipeline_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    return system(cmd);
+    return link_abi_system(cmd);
   case 3:
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.x > driver_gen.c",
       xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    return system(cmd);
+    return link_abi_system(cmd);
   case 4:
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s %s -c driver_gen.c -o driver_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    return system(cmd);
+    return link_abi_system(cmd);
   case 5:
     /* 阶段 3.2/3.3、6.4：链 runtime_driver.o（含 preprocess()，step 0 已带 -DXLANG_USE_X_PREPROCESS）+ preprocess_x.o
      * + 所有 C 侧 .o（仍被 runtime_driver 的部分路径引用）。
@@ -390,7 +396,7 @@ int build_run_step(int step_id, const char *xlang_path) {
       "preprocess_x.o ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o",
       cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    return system(cmd);
+    return link_abi_system(cmd);
   default:
     return -1;
   }
@@ -398,7 +404,8 @@ int build_run_step(int step_id, const char *xlang_path) {
 
 /**
  * 完全自举 asm 路径：执行 XLANG=<xlang_path> ./scripts/build_xlang_asm.sh。
- * 返回 0 成功，非 0 为 system() 的退出状态（非零即失败）。供 main / build_runner 调用。
+ * Return 0 on success, non-zero link_abi_system status on failure (main / build_runner).
+ * wave250 G.7: shell via link_abi_system (not raw libc system).
  *
  * 语义与「是否仍 cc -c pipeline_gen」以 compiler/docs/SELFHOST.md 为准（Target B-partial /
  * B-hybrid、`XLANG_ASM_LINK_TOPOLOGY`）。
@@ -413,7 +420,7 @@ int build_run_asm_build(const char *xlang_path) {
                    "XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 XLANG=%s ./scripts/build_xlang_asm.sh",
                    xlang_path ? xlang_path : "./xlang");
   if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-  return system(cmd);
+  return link_abi_system(cmd);
 }
 
 /** 执行 build.x 配置的 legacy 逐步（生成 *_gen.c 并链接 xlang）。返回 0 成功。 */
@@ -469,7 +476,7 @@ int main(int argc, char **argv) {
   if (build_use_asm_only() != 0) {
     int ar = build_run_asm_build(xlang_path);
     if (ar == 0) {
-      (void)system("cp -f xlang_asm xlang");
+      (void)link_abi_system("cp -f xlang_asm xlang");
       build_runtime_info("asm path OK; ./xlang updated from xlang_asm");
       return 0;
     }
