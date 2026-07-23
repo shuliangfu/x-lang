@@ -6,7 +6,7 @@
  *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
  *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
  *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
- *   + shux_asm_ld_lib_root_default (wave115 SHUX_LIB/"." ; Cap residual getenv)
+ *   + shux_asm_ld_lib_root_default (wave115 SHUX_LIB/"." ; Cap residual link_abi_getenv wave223)
  *   + shux_asm_ld_try_under_lib_roots (wave116 pure join; Cap residual skip+bank)
  *   + link_abi_asm_ld_argv_has_obj (wave146 pure scan; Cap residual realpath)
  *   + link_abi_asm_ld_argv_push_stable (wave147 pure bank+dedup+append; Cap residual bank_push)
@@ -48,6 +48,8 @@
 
 /* Cap residual used by wave116 cold twin (product hybrid: path_io + gates). */
 const char *asm_link_obj_skip_missing(const char *path);
+/* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
+const char *link_abi_getenv(const char *name);
 const char *shux_asm_ld_bank_push(void *b, const char *path);
 /* Cap residual used by wave146 argv_has_obj / wave185 rel_o cold twin (mega always provides). */
 const char *link_abi_realpath_cap(const char *path, char *out);
@@ -231,12 +233,12 @@ int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p) {
   return 1;
 }
 
-/* wave115 cold twin: default lib-root (SHUX_LIB or "."). Cap residual: getenv. */
+/* wave115 cold twin: default lib-root (SHUX_LIB or "."). Cap residual: link_abi_getenv (wave223). */
 void shux_asm_ld_lib_root_default(uint8_t *root_buf) {
   const char *def;
   root_buf[0] = (uint8_t)'.';
   root_buf[1] = 0;
-  def = getenv("SHUX_LIB");
+  def = link_abi_getenv("SHUX_LIB");
   if (shux_asm_ld_lib_root_ptr_usable((uint8_t *)def) == 0) {
     return;
   }
@@ -348,11 +350,12 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
   if (rel && (strcmp(rel, "compiler/runtime_asm_io_stubs.o") == 0
           || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
     debug_runtime_obj = 1;
-  if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+  /* wave223 G.7: link_abi_getenv (not raw getenv). */
+  if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
     link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
   if (primary && primary[0])
     p = asm_link_obj_skip_missing(primary);
-  if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+  if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
     link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
   if (!p && rel && rel[0])
     p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel));
@@ -367,7 +370,7 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
     else
       return 0;
   }
-  if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+  if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
     link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
   /* Single-authority append: wave147 push_stable bank=null after hard bank. */
   before = *la;

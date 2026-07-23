@@ -38,13 +38,14 @@
 //     (pure thin loop over needles[i] → pure contains_substr_use_line).
 //   wave178 link_abi_generated_c_contains_any_substr pure orch
 //     (pure thin loop over needles[i] → pure contains_substr; raw multi-needle).
-// Cap residual: undef_sym; getenv; resolve/access/cc/stat for ensure leaves (wave167/168);
-//   runtime_read_file_malloc / free / link_abi_buf_contains_substr (wave175);
-//   link_abi_buf_contains_substr_use_line (wave176).
+// Cap residual: undef_sym; link_abi_getenv (wave223 G.7; not raw getenv); resolve/access/cc/stat
+//   for ensure leaves (wave167/168); runtime_read_file_malloc / free /
+//   link_abi_buf_contains_substr (wave175); link_abi_buf_contains_substr_use_line (wave176).
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
-// Cap residual (wave159): host getenv for SHUX_FREESTANDING env gate.
-export extern "C" function getenv(name: *u8): *u8;
+// wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure L1).
+// Cap residual host getenv stays mega as link_abi_getenv_impl (SHUX_FREESTANDING gate).
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 // Cap residual (wave175/176 contains_substr pure orch): host whole-file malloc + free + buf scan.
 // Nested pure byte-scan / line-filter loops over large files historically truncated later
 // export bodies in this module (codegen); keep scan Cap residual, pure owns gates/orch.
@@ -2116,7 +2117,7 @@ export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
  * @param driver_freestanding i32 — CLI/driver freestanding flag (0 = off, nonzero = force on)
  * @return i32 — 1 if freestanding path should run, else 0
  * Why (wave159): hybrid still had freestanding_enabled body always mega C over pure env name.
- * Cap residual: getenv only. PLATFORM: SHARED orch / LINUX freestanding consumers.
+ * Cap residual: link_abi_getenv (wave223 G.7; host getenv_impl mega). PLATFORM: SHARED orch / LINUX freestanding consumers.
  */
 #[no_mangle]
 export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
@@ -2133,10 +2134,11 @@ export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
     return 1;
   }
   // Cap residual: read SHUX_FREESTANDING via pure env name table.
+  // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
   let name: *u8 = labi_fs_env_freestanding();
   let e: *u8 = 0 as *u8;
   unsafe {
-    e = getenv(name);
+    e = link_abi_getenv(name);
   }
   if (e == 0 as *u8) {
     return 0;

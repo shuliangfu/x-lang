@@ -27,7 +27,7 @@
  *   + wave144 shux_freestanding_user_o_needs_{io,panic} pure orch
  *     (io_sym / panic_sym tables + undef_sym Cap residual)
  *   + wave159 shux_link_freestanding_enabled pure orch
- *     (peer host_is_linux + pure env name + Cap residual getenv)
+ *     (peer host_is_linux + pure env name + Cap residual link_abi_getenv wave223)
  *   + wave167 shux_ensure_crt0_user_o pure orch
  *     (peer freestanding_enabled + tables + Cap residual resolve/access/cc/stat)
  *   + wave168 shux_ensure_freestanding_io_o pure orch
@@ -40,7 +40,7 @@
  *     (pure thin loop → pure contains_substr_use_line)
  *   + wave178 link_abi_generated_c_contains_any_substr pure orch
  *     (pure thin loop → pure contains_substr; raw multi-needle)
- * Cap residual：undef_sym；getenv；ensure 叶的 resolve/access/cc/stat（wave167/168）；
+ * Cap residual：undef_sym；link_abi_getenv（wave223 G.7）；ensure 叶的 resolve/access/cc/stat（wave167/168）；
  *   file malloc/free + buf_contains_substr（wave175）；buf_contains_substr_use_line（wave176）。
  * FROM_X 下本文件仅前向声明 + slice marker。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -50,6 +50,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
+const char *link_abi_getenv(const char *name);
 
 /* Cap residual (mega/runtime always): nm UNDEF probe used by pure needs orch. */
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
@@ -875,7 +878,8 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
 }
 
 /* wave159: freestanding_enabled pure orch (cold twin ≡ .x).
- * Peer host_is_linux + pure env name; Cap residual getenv. PLATFORM: SHARED orch / LINUX consumers.
+ * Peer host_is_linux + pure env name; Cap residual link_abi_getenv (wave223 G.7).
+ * PLATFORM: SHARED orch / LINUX consumers.
  */
 int shux_link_freestanding_enabled(int driver_freestanding) {
   char *e;
@@ -883,7 +887,7 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
     return 0;
   if (driver_freestanding != 0)
     return 1;
-  e = getenv(labi_fs_env_freestanding());
+  e = (char *)link_abi_getenv(labi_fs_env_freestanding());
   if (e == NULL)
     return 0;
   if (e[0] == 0)

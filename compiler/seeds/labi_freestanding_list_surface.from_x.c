@@ -531,6 +531,8 @@ extern uint8_t * runtime_read_file_malloc(uint8_t * path, size_t * out_len);
 extern int32_t link_abi_buf_contains_substr(uint8_t * data, size_t data_len, uint8_t * needle);
 extern int32_t link_abi_buf_contains_substr_use_line(uint8_t * data, size_t data_len, uint8_t * needle);
 extern int32_t shux_host_is_linux(void);
+/* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shux_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
@@ -1852,7 +1854,8 @@ int32_t shux_link_freestanding_enabled(int32_t driver_freestanding) {
   }
   uint8_t * name = labi_fs_env_freestanding();
   uint8_t * e = 0;
-  (void)((e = getenv(name)));
+  /* wave223 G.7: link_abi_getenv (not raw getenv). */
+  (void)((e = link_abi_getenv(name)));
   if ((e ==0)) {
     return 0;
   }

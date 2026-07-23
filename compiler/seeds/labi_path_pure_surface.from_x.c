@@ -2,7 +2,7 @@
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (58→60 public gates + count; wave183 29× thin + wave184 empty/effective + wave185 rel_o + wave189 set/clear user_o)
- * Cap residual: Windows #if path sep mega cold; getenv Cap; skip_missing+bank_push Cap;
+ * Cap residual: Windows #if path sep mega cold; link_abi_getenv Cap (wave223 G.7); skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
@@ -29,6 +29,8 @@ extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * link_abi_cstr_dup(uint8_t * s);
+/* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 /* wave185: pure body below; forward for push_obj / repo_root call sites. */
 uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
@@ -369,7 +371,7 @@ void shux_asm_ld_lib_root_default(uint8_t * root_buf) {
   (void)(((root_buf)[0] = 46));
   (void)(((root_buf)[1] = 0));
   uint8_t * def = 0;
-  (void)((def = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4c\x49\x42"))));
+  (void)((def = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4c\x49\x42"))));
   if ((shux_asm_ld_lib_root_ptr_usable(def) ==0)) {
     return;
   }
@@ -639,7 +641,7 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   if ((debug_runtime_obj !=0)) {
     uint8_t * dbg = 0;
-    (void)((dbg = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
+    (void)((dbg = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
     if ((dbg !=0)) {
       uint8_t * pp = primary;
       if ((pp ==0)) {
@@ -656,7 +658,7 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   if ((debug_runtime_obj !=0)) {
     uint8_t * dbg2 = 0;
-    (void)((dbg2 = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
+    (void)((dbg2 = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
     if ((dbg2 !=0)) {
       uint8_t * ap = p;
       if ((ap ==0)) {
@@ -698,7 +700,7 @@ int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_
   }
   if ((debug_runtime_obj !=0)) {
     uint8_t * dbg3 = 0;
-    (void)((dbg3 = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
+    (void)((dbg3 = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x4c\x44"))));
     if ((dbg3 !=0)) {
       uint8_t * fp = p;
       if ((fp ==0)) {

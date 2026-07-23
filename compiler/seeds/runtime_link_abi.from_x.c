@@ -870,10 +870,11 @@ int shux_asm_ld_lib_root_ptr_usable(const char *p);
  */
 /* G-02f-165 / wave115：pure orch in labi_path_pure.x (hybrid L0);
  * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
- * Semantics: "." then getenv("SHUX_LIB") if pure usable. PLATFORM: SHARED. */
+ * Semantics: "." then link_abi_getenv("SHUX_LIB") if pure usable (wave223 G.7).
+ * PLATFORM: SHARED. */
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
 void shux_asm_ld_lib_root_default(char root_buf[512]) {
-    const char *def = getenv("SHUX_LIB");
+    const char *def = link_abi_getenv("SHUX_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
     if (!shux_asm_ld_lib_root_ptr_usable(def))
@@ -4142,11 +4143,12 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
     if (rel && (strcmp(rel, "compiler/runtime_asm_io_stubs.o") == 0
             || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
         debug_runtime_obj = 1;
-    if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+    /* wave223 G.7: link_abi_getenv (not raw getenv). */
+    if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
         link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
     if (primary && primary[0])
         p = asm_link_obj_skip_missing(primary);
-    if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+    if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
         link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
     if (!p && rel && rel[0])
         p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel));
@@ -4162,7 +4164,7 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
         else
             return 0;
     }
-    if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
+    if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
         link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
     if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
         return 0;

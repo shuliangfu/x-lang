@@ -58,6 +58,8 @@ extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
 extern int32_t shux_host_is_linux(void);
 extern int32_t link_abi_host_is_apple(void);
 extern int32_t link_abi_host_is_windows(void);
+/* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
+extern uint8_t *link_abi_getenv(uint8_t *name);
 extern uint8_t * labi_ld_flag_lc(void);
 extern uint8_t * labi_ld_flag_lbcrypt(void);
 extern uint8_t * labi_ld_flag_lws2_32(void);
@@ -175,7 +177,8 @@ int32_t invoke_cc_skip_native_tuning(void) {
   int32_t i;
   for (i = 0; i < n; i++) {
     uint8_t *name = labi_invoke_cc_skip_native_env_at(i);
-    if (name && name[0] && getenv((const char *)name) != NULL)
+    /* wave223 G.7: link_abi_getenv (not raw getenv). */
+    if (name && name[0] && link_abi_getenv(name) != NULL)
       return 1;
   }
   return 0;
@@ -1530,7 +1533,8 @@ void invoke_cc_append_argv_head_flags(uint8_t **argv, int32_t *ia, int32_t argv_
     return;
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"cc");
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-std=gnu11");
-  if (getenv("SHUX_RUN_QUIET")) {
+  /* wave223 G.7: link_abi_getenv (not raw getenv). */
+  if (link_abi_getenv((uint8_t *)"SHUX_RUN_QUIET")) {
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-w");
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-Wl,-w");
   }

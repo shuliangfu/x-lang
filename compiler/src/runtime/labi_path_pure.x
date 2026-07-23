@@ -10,7 +10,7 @@
 //   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
 //   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
 //   - shux_asm_ld_lib_root_ptr_usable (wave114; low-tag + empty reject)
-//   - shux_asm_ld_lib_root_default (wave115; SHUX_LIB or "."; Cap residual: getenv)
+//   - shux_asm_ld_lib_root_default (wave115; SHUX_LIB or "."; Cap residual: link_abi_getenv wave223)
 //   - shux_asm_ld_try_under_lib_roots (wave116; pure join root/rel; Cap residual skip+bank)
 //   - link_abi_asm_ld_argv_has_obj (wave146; pure strcmp argv scan; Cap residual realpath)
 //   - link_abi_asm_ld_argv_push_stable (wave147; pure bank+dedup+append; Cap residual bank_push)
@@ -49,7 +49,9 @@
 // Cap residual (mega rest cold path Windows #if '\\'): product PREFER uses .x pure POSIX.
 // G-02f-L: lengths use i32 (aligned with rt_content.x) to avoid usize literal/sub typeck blocks on -E.
 
-export extern "C" function getenv(name: *u8): *u8;
+// wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure L1
+// hybrid → link_abi_getenv_impl host getenv). Do not call raw libc getenv from this module.
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 // Cap residual path-IO / bank (hybrid authority: labi_path_io / labi_gates / mega cold).
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 export extern "C" function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8;
@@ -318,8 +320,9 @@ export function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
  * @param root_buf *u8 — caller buffer; capacity >= 512; always left NUL-terminated
  * @return void
  * Why (wave115): product hybrid still had always-linked mega C (getenv+strncpy).
- * Pure orch: default "." then pure usable-check on getenv("SHUX_LIB") then byte copy
- * (no strncpy Cap). Cap residual: getenv extern only (same as rt_lib_root.x).
+ * Pure orch: default "." then pure usable-check on SHUX_LIB then byte copy
+ * (no strncpy Cap). Cap residual: link_abi_getenv (wave222 pure thin → host getenv_impl;
+ * wave223 G.7: this module no longer raw-getenv).
  * Differs from driver_lib_root_default by using low-tag usable (wave114).
  * Track-L: #[no_mangle] keeps surface short name. PLATFORM: SHARED.
  */
@@ -330,7 +333,7 @@ export function shux_asm_ld_lib_root_default(root_buf: *u8): void {
   root_buf[1] = 0;
   let def: *u8 = 0 as *u8;
   unsafe {
-    def = getenv("SHUX_LIB");
+    def = link_abi_getenv("SHUX_LIB");
   }
   if (shux_asm_ld_lib_root_ptr_usable(def) == 0) {
     return;
@@ -653,7 +656,7 @@ export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32
  * Pure orch: capacity + pure cstr debug-target match + resolve ladder + hard bank_push +
  * pure has_obj dedup + append (reuses wave147 push_stable with bank=null after hard bank).
  * Cap residual: asm_link_obj_skip_missing, shux_rel_o_path_from_argv0, shux_asm_ld_bank_push,
- * getenv("SHUX_DEBUG_LD") + link_diag_ld_debug_push for two runtime .o rels.
+ * link_abi_getenv("SHUX_DEBUG_LD") + link_diag_ld_debug_push for two runtime .o rels.
  * Pure peer: shux_asm_ld_try_under_lib_roots (wave116), link_abi_asm_ld_argv_has_obj (146),
  * link_abi_asm_ld_argv_push_stable (147).
  * Why (wave148): hybrid still had always-mega C body over pure resolve/dedup leaves.
@@ -715,10 +718,11 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
     }
   }
   // Cap residual debug note: primary stage (only when env SHUX_DEBUG_LD set).
+  // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
   if (debug_runtime_obj != 0) {
     let dbg: *u8 = 0 as *u8;
     unsafe {
-      dbg = getenv("SHUX_DEBUG_LD");
+      dbg = link_abi_getenv("SHUX_DEBUG_LD");
     }
     if (dbg != 0 as *u8) {
       let pp: *u8 = primary;
@@ -742,7 +746,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   if (debug_runtime_obj != 0) {
     let dbg2: *u8 = 0 as *u8;
     unsafe {
-      dbg2 = getenv("SHUX_DEBUG_LD");
+      dbg2 = link_abi_getenv("SHUX_DEBUG_LD");
     }
     if (dbg2 != 0 as *u8) {
       let ap: *u8 = p;
@@ -797,7 +801,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   if (debug_runtime_obj != 0) {
     let dbg3: *u8 = 0 as *u8;
     unsafe {
-      dbg3 = getenv("SHUX_DEBUG_LD");
+      dbg3 = link_abi_getenv("SHUX_DEBUG_LD");
     }
     if (dbg3 != 0 as *u8) {
       let fp: *u8 = p;

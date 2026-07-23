@@ -19,7 +19,8 @@
 //   - invoke_cc_append_argv_head_flags (wave206; pure argv head: quiet/O/native/NDEBUG/flto/harden/gc/-I)
 //   - invoke_cc_append_argv_tail_flags (wave207; pure argv tail: -pthread/-lc/allow-multiple/user_extra+NULL)
 //   - invoke_cc_append_minimal_cc_link_tail (wave208; pure MINIMAL_CC_LINK: Win process_argv + POSIX -lc + NULL)
-// Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
+// Cap residual: link_abi_getenv (wave222 pure thin → host getenv_impl; wave223 G.7 this
+//   module no longer raw-getenv); host_is_* #if probes; ensure/path/needs peers;
 //   contains_substr(_use_line) peers for scan; shux_spawn_sync / setenv / strip_out_x / tool_status;
 //   asm_link_obj_skip_missing; link_abi_user_extra_o_{count,at}; process_argv path (MINIMAL Windows).
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
@@ -27,7 +28,8 @@
 // wave206: durable -O{level} argv slot (≡ mega static char oopt_buf[8]; durable pointer into argv).
 let g_labi_icc_oopt_buf: u8[8] = [];
 
-export extern "C" function getenv(name: *u8): *u8;
+// wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure L1).
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 
 /* ===== wave198 Cap residual / peer pure for invoke_cc early needs ===== */
 export extern "C" function link_abi_generated_c_needs_core_builtin(c_path: *u8): i32;
@@ -245,7 +247,8 @@ export function invoke_cc_skip_native_tuning(): i32 {
       if (name[0] != 0) {
         let v: *u8 = 0 as *u8;
         unsafe {
-          v = getenv(name);
+          // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
+          v = link_abi_getenv(name);
         }
         if (v != 0 as *u8) {
           return 1;
@@ -3507,9 +3510,10 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
  * @param include_root *u8 — optional -I root; null/empty skips -I
  * @return void — mutates *ia and argv slots; writes durable -O* into g_labi_icc_oopt_buf BSS
  * Pure orch: ≡ mega argv head inside shux_invoke_cc_impl (before c_paths loop / early_needs).
- * Cap residual: getenv(SHUX_RUN_QUIET) + pure skip_native_tuning + pure harden_impl + host_is_*.
+ * Cap residual: link_abi_getenv(SHUX_RUN_QUIET) + pure skip_native_tuning + pure harden_impl + host_is_*.
  * G.7: reuses labi_icc_argv_try_push_flag + shux_append_linux_link_harden_impl (no second flag path).
  * Why (wave206): hybrid still had quiet/O/harden/gc argv head always-mega after wave205 fork-exec pure.
+ * wave223: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
  * PLATFORM: SHARED orch / LINUX -B/usr/bin + harden + --gc-sections / APPLE -dead_strip / WINDOWS no gc/harden.
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
@@ -3533,9 +3537,10 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
 
   // PLATFORM: SHARED — mute generated-C noise under `shux run` / quiet product path.
   // Mega gates on getenv non-null only (empty value still enables quiet).
+  // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
   let quiet: *u8 = 0 as *u8;
   unsafe {
-    quiet = getenv("SHUX_RUN_QUIET");
+    quiet = link_abi_getenv("SHUX_RUN_QUIET");
   }
   if (quiet != 0 as *u8) {
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-w");

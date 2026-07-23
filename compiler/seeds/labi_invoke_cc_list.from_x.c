@@ -18,7 +18,7 @@
  *   invoke_cc_append_argv_head_flags (wave206 pure argv head quiet/O/native/NDEBUG/flto/harden/gc/-I)
  *   invoke_cc_append_argv_tail_flags (wave207 pure argv tail -pthread/-lc/allow-multiple/user_extra+NULL)
  *   invoke_cc_append_minimal_cc_link_tail (wave208 pure MINIMAL_CC_LINK Win process_argv + POSIX -lc + NULL)
- * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
+ * Cap residual：link_abi_getenv（wave223 G.7；非 raw getenv）；host_is_*；needs/ensure/path/push peers；
  *   shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status；
  *   asm_link_obj_skip_missing；link_abi_user_extra_o_{count,at}；process_argv path (MINIMAL Windows)。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -31,6 +31,9 @@
 #include <string.h>
 
 #ifndef SHUX_LABI_INVOKE_CC_LIST_FROM_X
+
+/* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
+const char *link_abi_getenv(const char *name);
 
 /* Peer pure / Cap residual for wave198 early needs (provided by other labi_* / mega). */
 int link_abi_generated_c_needs_core_builtin(const char *c_path);
@@ -184,7 +187,8 @@ int invoke_cc_skip_native_tuning(void) {
   int i;
   for (i = 0; i < n; i++) {
     const char *name = labi_invoke_cc_skip_native_env_at(i);
-    if (name && name[0] && getenv(name) != NULL)
+    /* wave223 G.7: link_abi_getenv (not raw getenv). */
+    if (name && name[0] && link_abi_getenv(name) != NULL)
       return 1;
   }
   return 0;
@@ -1523,7 +1527,8 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     return;
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "cc");
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-std=gnu11");
-  if (getenv("SHUX_RUN_QUIET")) {
+  /* wave223 G.7: link_abi_getenv (not raw getenv). */
+  if (link_abi_getenv("SHUX_RUN_QUIET")) {
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-w");
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-w");
   }
