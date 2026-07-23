@@ -24,29 +24,38 @@ struct codegen_CodegenOutBuf {
   uint8_t data[8388608];
   int32_t len;
 };
-/* G-02f-442：thin+rest PREFER_X_O
- *   thin .x provides 7 #[no_mangle] wrappers (6 call *_impl in rest, 1 real .x).
+/* G-02f-442 / wave236：thin+rest PREFER_X_O
+ *   thin .x provides #[no_mangle] pure:
+ *     - seed_asm_debug_enabled / seed_asm_emit_trace_enabled (wave236 pure orch →
+ *       link_abi_getenv; no *_impl residual for these two)
+ *     - 4 thin wrappers call *_impl in rest + seed_elf_ctx_code_len real .x
  *   rest seed C (compiled with -DSHUX_USER_ASM_SEED_BRIDGE_FROM_X):
- *     - 6 functions renamed to *_impl via macros (real C implementations stay).
+ *     - 4 functions renamed to *_impl via macros (real C implementations stay).
+ *     - debug/emit_trace cold twins only under #ifndef FROM_X (pure owns hybrid).
  *     - seed_elf_ctx_code_len guarded out (real .x in thin).
  *   Forward declaration for seed_elf_ctx_code_len (always visible; from thin in rest mode). */
 extern int32_t seed_elf_ctx_code_len(const void *elf_ctx);
+/* wave236 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed twins use same face as product hybrid pure .x. */
+extern char *link_abi_getenv(const char *name);
 #ifdef SHUX_USER_ASM_SEED_BRIDGE_FROM_X
-#define seed_asm_debug_enabled               seed_asm_debug_enabled_impl
-#define seed_asm_emit_trace_enabled          seed_asm_emit_trace_enabled_impl
+/* wave236: debug/emit_trace pure orch in .x (no rest *_impl rename). */
 #define seed_elf_ctx_set_macho_leading_underscore  seed_elf_ctx_set_macho_leading_underscore_impl
 #define seed_asm_reject_empty_elf_text       seed_asm_reject_empty_elf_text_impl
 #define seed_platform_macho_write_macho_o_to_buf  seed_platform_macho_write_macho_o_to_buf_impl
 #define seed_platform_coff_write_coff_o_to_buf   seed_platform_coff_write_coff_o_to_buf_impl
 #endif
-/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-116 / wave236：逻辑源 .x（真迁）；cold seed 保留同语义 C 供无 PREFER 冷路径。
+ * wave236 G.7: SHUX_ASM_DEBUG / SHUX_ASM_EMIT_TRACE via link_abi_getenv (not raw getenv). */
+#ifndef SHUX_USER_ASM_SEED_BRIDGE_FROM_X
 int seed_asm_debug_enabled(void) {
-  return getenv("SHUX_ASM_DEBUG") != NULL;
+  return link_abi_getenv("SHUX_ASM_DEBUG") != NULL;
 }
-/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int seed_asm_emit_trace_enabled(void) {
-  return getenv("SHUX_ASM_EMIT_TRACE") != NULL;
+  return link_abi_getenv("SHUX_ASM_EMIT_TRACE") != NULL;
 }
+#endif /* SHUX_USER_ASM_SEED_BRIDGE_FROM_X */
 
 
 
