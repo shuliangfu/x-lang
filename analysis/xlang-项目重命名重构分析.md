@@ -1,13 +1,12 @@
 # Xlang → Xlang 项目重命名重构分析
 
-> **状态**：分析定稿（**尚未开工改产品码**）  
+> **状态**：**R0–R3 已闭** · 双端 tip L4 **`3698e557f`** + bstrict **129** 全绿（2026-07-23）  
 > **日期**：2026-07-23  
-> **背景 tip**：产品 `b4b116f2`（wave237）  
-> **重构前 L4 钉盘**：**`a77fc5d90`**（双端 tip L4 真冷 + bstrict **129** 全绿）  
-> **git 锚点**：annotated tag **`anchor-pre-xlang-rename`**  
+> **收口 tip**：**`3698e557f`**（R3 `shu_*`→`xlang_*`；前序路径 `7d967436f` 等）  
+> **重构前 L4 钉盘**：**`a77fc5d90`**（历史）  
+> **git 锚点**：annotated tag **`anchor-pre-xlang-rename`**（考古）  
 > **官方域名（用户确认）**：**`xlang.dev`**  
-> **自举**：本重构**整波闭合且双端 L4 验收绿之前**，**暂停** Cap residual / 自举微波；重构完成后再接 wave238。
-
+> **自举**：**冻结已解除**；可接 wave238 Cap residual（见 [自举进度.md](自举进度.md) / [当前进度.md](当前进度.md)）。
 ---
 
 ## 0. 一句话目标
@@ -412,11 +411,11 @@ $XLANG -o /tmp/hello examples/hello.x && /tmp/hello
 
 | 项 | 值 |
 |----|-----|
-| 暂停点 | wave237 已闭；原下一波 Cap residual **冻结** |
-| 钉盘 | 仍认 **`d6648bee4`** 直至 R1/R3 重命名验收升钉 |
-| 恢复自举条件 | **R3 双端 L4 + bstrict 绿**（至少 R1 完成且进度宣布「命令面已 xlang」后，**不建议**半套 xlang 名继续 Cap） |
-| 恢复后第一波 | 原 wave238 清单（resolve 池 `_impl` / seed residual getenv / system `_impl`…）在 **xlang 树**上继续 |
-| 进度文 | R0 起 `当前进度.md` / `自举进度.md` 抬头改为 Xlang，并写「重命名工程中」 |
+| 暂停点 | **已解除**（R3 双端 L4 绿） |
+| 钉盘 | **`3698e557f`**（R3 收口 tip L4 + 129） |
+| 恢复自举条件 | ✅ 已满足 |
+| 恢复后第一波 | 原 **wave238** 清单（resolve 池 `_impl` / seed residual getenv / system `_impl`…）在 **xlang** 命名上继续 |
+| 进度文 | 已更新：`当前进度.md` / `自举进度.md` 写「重命名已闭 · 可恢复自举」 |
 
 ---
 
@@ -473,4 +472,4 @@ commit N+2 chore: GitHub/path/skill/域名收尾；恢复自举前排
 
 ---
 
-*文档结束。确认 §10 分叉（或默认）后，从 R0 开工；完成 R3 验收前不恢复 Cap residual 自举微波。*
+*文档结束。R0–R3 已闭 @ `3698e557f` 双端 L4；R4 残余（GitHub 显示名等）按需。自举见进度文 wave238。*
