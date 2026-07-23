@@ -20,7 +20,9 @@
 //     FROM_X rest drops dead va_list report_x (pure XP001/XP002 cover callers) → rest T=0.
 // This TU: thin gates + pure bodies (f-339..341 + f-387 env + f-409 pipe + wave5 + wave6)
 
-export extern "C" function getenv(name: *u8): *u8;
+/* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 
 // Authority for driver_env_flag_truthy is runtime_driver_abi_thin.x (G.7 single implementation).
 // Extern declaration only here to avoid duplicate global symbols across .o files.
@@ -577,13 +579,13 @@ export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, nam
   }
 }
 
-/** Optional FIELD_ACCESS debug note when getenv("SHUX_TYPECK_PTR") is set. Prints bt_kind,
+/** Optional FIELD_ACCESS debug note when link_abi_getenv("SHUX_TYPECK_PTR") is set. Prints bt_kind,
  * inner_kind, inner_nlen, base_resolved_ref, num_struct_layouts via append+driver_diag_note.
  * No-op if env unset. No va_list. PLATFORM: SHARED — pure in thin; cold seed keeps C body. */
 #[no_mangle]
 export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32, inner_nlen: i32, base_resolved_ref: i32, num_struct_layouts: i32): void {
   unsafe {
-    if (getenv("SHUX_TYPECK_PTR") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_TYPECK_PTR") == 0 as *u8) {
       return;
     }
   }
@@ -601,14 +603,14 @@ export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32
   driver_diag_note(&msg[0]);
 }
 
-/** Optional EXPR_RETURN debug note when getenv("SHUX_TYPECK_RET") is set. Prints stage,
+/** Optional EXPR_RETURN debug note when link_abi_getenv("SHUX_TYPECK_RET") is set. Prints stage,
  * op_expr_ref, expect_ty_ref, got_ty_ref via append+driver_diag_note. No-op if env unset.
  * stage 1 = operand check fail; 2 = got vs expect mismatch. No va_list.
  * PLATFORM: SHARED — pure in thin; cold seed keeps C body. */
 #[no_mangle]
 export function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, expect_ty_ref: i32, got_ty_ref: i32): void {
   unsafe {
-    if (getenv("SHUX_TYPECK_RET") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_TYPECK_RET") == 0 as *u8) {
       return;
     }
   }
@@ -864,7 +866,7 @@ export function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void {
   }
 }
 
-// pure: same shape as seed Cap residual - getenv("SHUX_DEBUG_PARSE") non-null or parse_strict.
+// pure: same shape as seed Cap residual - link_abi_getenv("SHUX_DEBUG_PARSE") non-null or parse_strict.
 // (C: !getenv && !parse_strict -> return; any non-NULL getenv enables, including "0".)
 /** Internal function `driver_diag_parse_debug_enabled`.
  * Implements `driver_diag_parse_debug_enabled`.
@@ -872,7 +874,7 @@ export function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void {
  */
 function driver_diag_parse_debug_enabled(): i32 {
   unsafe {
-    if (getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
+    if (link_abi_getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
       return 1;
     }
   }
@@ -963,7 +965,7 @@ export function parser_diag_scan_fail(step: i32): void {
 #[no_mangle]
 export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void {
   unsafe {
-    if (getenv("SHUX_TYPECK_BLOCK") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_TYPECK_BLOCK") == 0 as *u8) {
       return;
     }
   }
@@ -998,7 +1000,7 @@ export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i
 #[no_mangle]
 export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name_len: i32): void {
   unsafe {
-    if (getenv("SHUX_TYPECK_FN") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_TYPECK_FN") == 0 as *u8) {
       return;
     }
   }
@@ -1029,7 +1031,7 @@ export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name
 #[no_mangle]
 export function driver_diagnostic_typeck_var_resolution(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void {
   unsafe {
-    if (getenv("SHUX_TYPECK_VAR") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_TYPECK_VAR") == 0 as *u8) {
       return;
     }
   }
@@ -1395,7 +1397,7 @@ export function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): v
 
 /** Parse skip note when a function cannot be committed. Gate: SHUX_DEBUG_PARSE non-NULL
  * or SHUX_PARSE_STRICT truthy (same as driver_diag_parse_debug_enabled).
- * Tag: "debug" if getenv(SHUX_DEBUG_PARSE) non-NULL else "strict" (cold seed ternary).
+ * Tag: "debug" if link_abi_getenv(SHUX_DEBUG_PARSE) non-NULL else "strict" (cold seed ternary).
  * LSP path: "parse skip at byte N (num_funcs=M) name=X [tag]"; note path uses mode=tag.
  * Assembles via append_cstr/append_i32/append_name; no va_list reportf/snprintf.
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
@@ -1407,7 +1409,7 @@ export function driver_diagnostic_parse_skip_function(byte_pos: i32, num_funcs_s
   unsafe {
     // Inline mode tag (avoid *u8-returning helper — -E may omit its body).
     let tag: *u8 = "strict";
-    if (getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
+    if (link_abi_getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
       tag = "debug";
     }
     let msg: u8[240] = [];
@@ -1466,7 +1468,7 @@ export function driver_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_
   }
   unsafe {
     let tag: *u8 = "strict";
-    if (getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
+    if (link_abi_getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
       tag = "debug";
     }
     let msg: u8[256] = [];
@@ -1508,7 +1510,7 @@ export function driver_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_
 #[no_mangle]
 export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, num_generic_params: i32, is_main: i32): void {
   unsafe {
-    if (getenv("SHUX_DEBUG_PARSE_GENERIC") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_DEBUG_PARSE_GENERIC") == 0 as *u8) {
       return;
     }
   }
@@ -1540,7 +1542,7 @@ export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
 #[no_mangle]
 export function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void {
   unsafe {
-    if (getenv("SHUX_PARSE_PARAM") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_PARSE_PARAM") == 0 as *u8) {
       return;
     }
   }
@@ -1668,7 +1670,7 @@ export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name:
 
 // ---- Cap residual pure deep-migrate wave3: binop operands + parse_commit_shape ----
 
-/** Optional binop operand debug note when getenv("SHUX_TYPECK_BINOP") is set.
+/** Optional binop operand debug note when link_abi_getenv("SHUX_TYPECK_BINOP") is set.
  * Assembles left/right refs, kinds, block refs, type refs, and type name fragments via
  * fill_expr_part (? fallback) + append_cstr/append_i32 + driver_diag_note. No va_list reportf.
  * Message text must match cold seed reportf format (field order fixed).
@@ -1676,7 +1678,7 @@ export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name:
 #[no_mangle]
 export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void {
   unsafe {
-    if (getenv("SHUX_TYPECK_BINOP") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_TYPECK_BINOP") == 0 as *u8) {
       return;
     }
   }
@@ -1712,14 +1714,14 @@ export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref:
   driver_diag_note(&msg[0]);
 }
 
-/** Optional parse-commit shape debug when getenv("SHUX_DEBUG_PARSE_COMMIT") is set.
+/** Optional parse-commit shape debug when link_abi_getenv("SHUX_DEBUG_PARSE_COMMIT") is set.
  * phase: 0=pre_fill, 1=post_block, else unknown. Prints pool vs block counts and final_expr_ref.
  * Assembles via fill_expr_part for name (? fallback) + append_* + driver_diag_note. No va_list.
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
   unsafe {
-    if (getenv("SHUX_DEBUG_PARSE_COMMIT") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_DEBUG_PARSE_COMMIT") == 0 as *u8) {
       return;
     }
   }
@@ -1780,7 +1782,7 @@ export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 
 // ---- Cap residual pure deep-migrate wave4: after_entry_parse_module + codegen_emit_func_fail ----
 
-/** Optional pipeline debug after entry parse when getenv("SHUX_DEBUG_PIPE") is set (any value;
+/** Optional pipeline debug after entry parse when link_abi_getenv("SHUX_DEBUG_PIPE") is set (any value;
  * match cold seed: non-NULL env enables, including "0"). Counts num_funcs / defined / extern via
  * pipeline_module_* APIs (G.7: do not reimplement module walk). Reads num_top_level_lets from
  * shared ast_Module layout offset 12 (i32 field index 3: after num_funcs/main/imports) — same
@@ -1790,7 +1792,7 @@ export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 #[no_mangle]
 export function driver_diagnostic_after_entry_parse_module(module: *u8): void {
   unsafe {
-    if (getenv("SHUX_DEBUG_PIPE") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_DEBUG_PIPE") == 0 as *u8) {
       return;
     }
     if (module == 0 as *u8) {

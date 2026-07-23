@@ -123,7 +123,9 @@
 //      fwrite+fflush; .x cannot host multi-line \\n usage tables).
 //
 
-export extern "C" function getenv(name: *u8): *u8;
+/* wave228 G.7: env lookup via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 /** POSIX isatty(fd): non-zero if fd is a terminal. Color policy default path.
  * PLATFORM: SHARED prototype (POSIX isatty / CRT _isatty on Windows via libc). */
 export extern "C" function isatty(fd: i32): i32;
@@ -248,15 +250,18 @@ let g_compile_phase_active: i32[3] = [0, 0, 0];
 
 // See implementation.
 // See implementation.
-// driver_env_flag_truthy: see function docblock below.
-/** Internal function `driver_env_flag_truthy`.
- * Implements `driver_env_flag_truthy`.
- * @param name *u8
- * @return i32
+// driver_env_flag_truthy: G.7 single env truthiness for SHUX_* gates / color force.
+/**
+ * Truthiness for a process env flag name (G.7 single path for driver env gates).
+ * True when the value is non-null, non-empty, and not ASCII '0'.
+ * @param name *u8 — NUL-terminated env var name; null/empty rejected as false
+ * @return i32 — 1 truthy, 0 falsy
+ * wave228 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED orch; host residual only link_abi_getenv_impl.
  */
 function driver_env_flag_truthy(name: *u8): i32 {
   unsafe {
-    let e: *u8 = getenv(name);
+    let e: *u8 = link_abi_getenv(name);
     if (e == 0 as *u8) {
       return 0;
     }
@@ -271,15 +276,17 @@ function driver_env_flag_truthy(name: *u8): i32 {
   return 0;
 }
 
-// driver_env_nonnull: see function docblock below.
-/** Internal function `driver_env_nonnull`.
- * Implements `driver_env_nonnull`.
- * @param name *u8
- * @return i32
+// driver_env_nonnull: presence-only env gate (compile phase timing, NO_COLOR, …).
+/**
+ * Whether a process env name is set (non-null pointer from env lookup).
+ * @param name *u8 — NUL-terminated env var name
+ * @return i32 — 1 if set (pointer non-null), 0 if unset
+ * wave228 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED orch; host residual only link_abi_getenv_impl.
  */
 function driver_env_nonnull(name: *u8): i32 {
   unsafe {
-    let e: *u8 = getenv(name);
+    let e: *u8 = link_abi_getenv(name);
     if (e == 0 as *u8) {
       return 0;
     }
@@ -1285,16 +1292,18 @@ export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
   }
 }
 
-// driver_stack_limit_want_bytes: see function docblock below.
-/** Exported function `driver_stack_limit_want_bytes`.
- * Implements `driver_stack_limit_want_bytes`.
- * @return i64
+/**
+ * Desired RLIMIT_STACK soft size in bytes from SHUX_STACK_LIMIT_MB (or default).
+ * Default is 512 MiB. Env must parse as u32 in [64, 8192] MiB; otherwise default.
+ * @return i64 — want bytes (> 0)
+ * wave228 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED orch; host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function driver_stack_limit_want_bytes(): i64 {
   let def: i64 = 512 as i64 * 1024 as i64 * 1024 as i64;
   unsafe {
-    let e: *u8 = getenv("SHUX_STACK_LIMIT_MB");
+    let e: *u8 = link_abi_getenv("SHUX_STACK_LIMIT_MB");
     if (e == 0 as *u8) {
       return def;
     }
@@ -3860,7 +3869,8 @@ export function driver_parsed_invoke_cc(
       return 1;
     }
     // Success: drop tmp .c unless SHUX_KEEP_C is set (dev inspection).
-    if (getenv("SHUX_KEEP_C") == 0 as *u8) {
+    // wave228 G.7: link_abi_getenv (not raw libc getenv); host residual = _impl.
+    if (link_abi_getenv("SHUX_KEEP_C") == 0 as *u8) {
       unlink(tmp_c);
     } else {
       let note: u8[512] = [];
@@ -3968,13 +3978,14 @@ export function driver_parsed_apply_preamble_skip(dep_paths: *u8, n_deps: i32): 
  * @param src_len usize — byte count passed to shux_write_path_bytes
  * Writes /tmp/shux_prep_entry.bin on success then emits a fixed-arity note
  * (no va_list diag_reportf). Silent if env unset, src null, or write fails.
- * Wave31 pure: getenv + shux_write_path_bytes + append/diag_report.
+ * Wave31 pure: env gate + shux_write_path_bytes + append/diag_report.
+ * wave228 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * PLATFORM: SHARED path text; dump path is fixed /tmp (dev only).
  */
 #[no_mangle]
 export function driver_parsed_maybe_dump_prep(input_path: *u8, src: *u8, src_len: usize): void {
   unsafe {
-    if (getenv("SHUX_DUMP_PREP") == 0 as *u8) {
+    if (link_abi_getenv("SHUX_DUMP_PREP") == 0 as *u8) {
       return;
     }
     if (src == 0 as *u8) {

@@ -24,6 +24,9 @@
 #include "runtime_diag_codes.h"
 #include "lsp/lsp_diag.h"
 #include "diag.h"
+
+/* wave228 G.7: env via public pure thin link_abi_getenv. */
+extern char *link_abi_getenv(const char *name);
 #ifdef SHUX_L2_RDD_THIN_FROM_X
 /* pure in thin: copy_bytes/note/fill/build/env_debug_pipe/parse_strict/report_prefixed/pipe_note
  * plus debug_log/parser_diag_xxx/typeck_block/fn/var/scratch +
@@ -245,7 +248,7 @@ void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t a
 int32_t driver_parse_strict_enabled(void)
 {
   (void)(({   {
-    uint8_t * e = getenv("SHUX_PARSE_STRICT");
+    uint8_t * e = link_abi_getenv("SHUX_PARSE_STRICT");
     if ((e ==((uint8_t *)(0)))) {
       return 0;
     }
@@ -274,9 +277,9 @@ void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_s
 {
     const char *tag;
     char namebuf[72];
-    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
-    tag = getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
+    tag = link_abi_getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
     if (lsp_diag_enabled) {
         char msg[240];
         char nb[72];
@@ -364,7 +367,7 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, i
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
                                       int32_t num_struct_layouts)
 {
-    if (!getenv("SHUX_TYPECK_PTR"))
+    if (!link_abi_getenv("SHUX_TYPECK_PTR"))
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "typeck ptr debug: FIELD_ACCESS bt_kind=%d inner_kind=%d inner_nlen=%d base_resolved_ref=%d num_struct_layouts=%d",
@@ -381,7 +384,7 @@ void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref)
 {
-    if (getenv("SHUX_TYPECK_RET")) {
+    if (link_abi_getenv("SHUX_TYPECK_RET")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "typeck return debug: stage=%d op_expr_ref=%d expect_ty_ref=%d got_ty_ref=%d",
                      (int)stage, (int)op_expr_ref, (int)expect_ty_ref, (int)got_ty_ref);
@@ -403,7 +406,7 @@ void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref,
 {
     char left_buf[112];
     char right_buf[112];
-    if (!getenv("SHUX_TYPECK_BINOP"))
+    if (!link_abi_getenv("SHUX_TYPECK_BINOP"))
         return;
     driver_diag_copy_bytes(left_buf, sizeof(left_buf), left_ty, left_ty_len);
     driver_diag_copy_bytes(right_buf, sizeof(right_buf), right_ty, right_ty_len);
@@ -426,7 +429,7 @@ void driver_diagnostic_parser_onefunc_param_ref(const uint8_t *func_name, int32_
 {
     char func_buf[72];
     char param_buf[72];
-    if (!getenv("SHUX_PARSE_PARAM"))
+    if (!link_abi_getenv("SHUX_PARSE_PARAM"))
         return;
     driver_diag_copy_bytes(func_buf, sizeof(func_buf), func_name, func_name_len);
     driver_diag_copy_bytes(param_buf, sizeof(param_buf), param_name, param_name_len);
@@ -860,7 +863,7 @@ uint8_t *driver_typeck_diag_scratch_found(void) { return g_type_diag_scratch_fou
 void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop,
                                           int32_t n_for, int32_t n_expr, int32_t final_ref)
 {
-    if (!getenv("SHUX_TYPECK_BLOCK"))
+    if (!link_abi_getenv("SHUX_TYPECK_BLOCK"))
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "typeck block debug: func_idx=%d block_ref=%d const=%d let=%d while=%d for=%d expr_stmt=%d final_expr=%d",
@@ -871,7 +874,7 @@ void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, i
 void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len)
 {
     char namebuf[72];
-    if (!getenv("SHUX_TYPECK_FN"))
+    if (!link_abi_getenv("SHUX_TYPECK_FN"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -884,7 +887,7 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
                                              int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref)
 {
     char namebuf[72];
-    if (!getenv("SHUX_TYPECK_VAR"))
+    if (!link_abi_getenv("SHUX_TYPECK_VAR"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -902,7 +905,7 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
 /* pure 权威：thin.x driver_diag_env_debug_pipe；冷启动保留 _impl + public；FROM_X 剔除 pure-dup（H↓）。 */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 int driver_diag_env_debug_pipe_impl(void) {
-    const char *e = getenv("SHUX_DEBUG_PIPE");
+    const char *e = link_abi_getenv("SHUX_DEBUG_PIPE");
     return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 
@@ -994,9 +997,9 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
     const char *tag;
     char namebuf[72];
     int nl = (name && name_len > 0 && name_len < 64) ? (int)name_len : 0;
-    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
-    tag = getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
+    tag = link_abi_getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
     if (nl > 0) {
         memcpy(namebuf, name, (size_t)nl);
         namebuf[nl] = '\0';
@@ -1024,7 +1027,7 @@ void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
                                           int32_t num_generic_params, int32_t is_main)
 {
     char namebuf[72];
-    if (!getenv("SHUX_DEBUG_PARSE_GENERIC"))
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE_GENERIC"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1055,7 +1058,7 @@ void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 {
     char namebuf[72];
     const char *phase_name;
-    if (!getenv("SHUX_DEBUG_PARSE_COMMIT"))
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE_COMMIT"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     phase_name = (phase == 0) ? "pre_fill" : ((phase == 1) ? "post_block" : "unknown");
@@ -1099,7 +1102,7 @@ void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 void driver_diagnostic_after_entry_parse_module(void *module)
 {
     int32_t nf, i, ndef, next;
-    if (!getenv("SHUX_DEBUG_PIPE") || !module)
+    if (!link_abi_getenv("SHUX_DEBUG_PIPE") || !module)
         return;
     nf = pipeline_module_num_funcs(module);
     ndef = 0;
@@ -1286,7 +1289,7 @@ void driver_diagnostic_asm_current_func_store_impl(const uint8_t *name, int32_t 
     }
 }
 void driver_diagnostic_asm_current_func_maybe_trace_impl(void) {
-    const char *trace = getenv("SHUX_ASM_FUNC_TRACE");
+    const char *trace = link_abi_getenv("SHUX_ASM_FUNC_TRACE");
     if (trace && trace[0] != '\0' && trace[0] != '0' && driver_diagnostic_asm_current_func_len > 0) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm trace: %.*s", driver_diagnostic_asm_current_func_len,
@@ -1372,7 +1375,7 @@ void driver_diagnostic_asm_fail_at(int32_t loc)
 #ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_debug_log(int32_t step)
 {
-    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "parse debug: step=%d", (int)step);
@@ -1380,7 +1383,7 @@ void driver_debug_log(int32_t step)
 
 void parser_diag_tok_kind(int32_t k)
 {
-    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "parse debug: r.tok.kind=%d", (int)k);
@@ -1388,7 +1391,7 @@ void parser_diag_tok_kind(int32_t k)
 
 void parser_diag_ident_len(int32_t len)
 {
-    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "parse debug: first ident_len=%d", (int)len);
@@ -1396,7 +1399,7 @@ void parser_diag_ident_len(int32_t len)
 
 void parser_diag_scan_fail(int32_t step)
 {
-    if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "library scan failed at step=%d", (int)step);

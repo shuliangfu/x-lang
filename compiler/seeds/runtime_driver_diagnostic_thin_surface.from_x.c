@@ -432,7 +432,8 @@ static void init_globals(void) {
   g_asm_last_expr_kind = -(1);
   g_asm_current_func_len = 0;
 }
-extern uint8_t * getenv(uint8_t * name);
+/* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 extern int32_t driver_env_flag_truthy(uint8_t * name);
 extern int32_t pipeline_module_num_funcs(uint8_t * module);
 extern int32_t pipeline_module_func_is_extern_at(uint8_t * module, int32_t fi);
@@ -802,7 +803,7 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, uint8_t * name, int32_
   return;
 }
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref, int32_t num_struct_layouts) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x50\x54\x52")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x50\x54\x52")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t msg[240] = {};
@@ -819,7 +820,7 @@ void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int
   (void)(driver_diag_note(&((msg)[0])));
 }
 void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x52\x45\x54")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x52\x45\x54")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t msg[200] = {};
@@ -1012,7 +1013,7 @@ void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
   return;
 }
 int32_t driver_diag_parse_debug_enabled(void) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45")) !=((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45")) !=((uint8_t *)(0)))) {
     return 1;
   }
   return driver_parse_strict_enabled();
@@ -1054,7 +1055,7 @@ void parser_diag_scan_fail(int32_t step) {
   (void)(driver_diag_note(&((msg)[0])));
 }
 void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop, int32_t n_for, int32_t n_expr, int32_t final_ref) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x42\x4c\x4f\x43\x4b")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x42\x4c\x4f\x43\x4b")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t msg[240] = {};
@@ -1077,7 +1078,7 @@ void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, i
   (void)(driver_diag_note(&((msg)[0])));
 }
 void driver_diagnostic_typeck_fn_enter(int32_t func_idx, uint8_t * name, int32_t name_len) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x46\x4e")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x46\x4e")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t msg[160] = {};
@@ -1092,7 +1093,7 @@ void driver_diagnostic_typeck_fn_enter(int32_t func_idx, uint8_t * name, int32_t
   (void)(driver_diag_note(&((msg)[0])));
 }
 void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, uint8_t * name, int32_t name_len, int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x56\x41\x52")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x56\x41\x52")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t msg[200] = {};
@@ -1282,7 +1283,7 @@ void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_s
   }
   {
     uint8_t * tag = ((uint8_t *)"\x73\x74\x72\x69\x63\x74");
-    if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45")) !=((uint8_t *)(0)))) {
+    if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45")) !=((uint8_t *)(0)))) {
       (void)((tag = ((uint8_t *)"\x64\x65\x62\x75\x67")));
     }
     uint8_t msg[240] = {};
@@ -1336,7 +1337,7 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
   }
   {
     uint8_t * tag = ((uint8_t *)"\x73\x74\x72\x69\x63\x74");
-    if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45")) !=((uint8_t *)(0)))) {
+    if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45")) !=((uint8_t *)(0)))) {
       (void)((tag = ((uint8_t *)"\x64\x65\x62\x75\x67")));
     }
     uint8_t msg[256] = {};
@@ -1374,7 +1375,7 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
   return;
 }
 void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t * name, int32_t name_len, int32_t num_generic_params, int32_t is_main) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45\x5f\x47\x45\x4e\x45\x52\x49\x43")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45\x5f\x47\x45\x4e\x45\x52\x49\x43")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t msg[240] = {};
@@ -1399,7 +1400,7 @@ void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
   (void)(driver_diag_note(&((msg)[0])));
 }
 void driver_diagnostic_parser_onefunc_param_ref(uint8_t * func_name, int32_t func_name_len, uint8_t * param_name, int32_t param_name_len, int32_t stage, int32_t param_idx, int32_t type_ref) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x50\x41\x52\x53\x45\x5f\x50\x41\x52\x41\x4d")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x50\x41\x52\x53\x45\x5f\x50\x41\x52\x41\x4d")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t msg[240] = {};
@@ -1502,7 +1503,7 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, uint8_t * 
   }
 }
 void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref, int32_t right_ref, int32_t left_kind, int32_t right_kind, int32_t left_block_ref, int32_t right_block_ref, int32_t left_ty_ref, int32_t right_ty_ref, uint8_t * left_ty, int32_t left_ty_len, uint8_t * right_ty, int32_t right_ty_len) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x42\x49\x4e\x4f\x50")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x54\x59\x50\x45\x43\x4b\x5f\x42\x49\x4e\x4f\x50")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t left_buf[112] = {};
@@ -1535,7 +1536,7 @@ void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref,
   (void)(driver_diag_note(&((msg)[0])));
 }
 void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t * name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref) {
-  if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45\x5f\x43\x4f\x4d\x4d\x49\x54")) ==((uint8_t *)(0)))) {
+  if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x41\x52\x53\x45\x5f\x43\x4f\x4d\x4d\x49\x54")) ==((uint8_t *)(0)))) {
     return;
   }
   uint8_t namebuf[72] = {};
@@ -1598,7 +1599,7 @@ void driver_diagnostic_after_entry_parse_module(uint8_t * module) {
     int32_t ntl = (((((int32_t)((m)[12])) | (((int32_t)((m)[13])) <<8)) | (((int32_t)((m)[14])) <<16)) | (((int32_t)((m)[15])) <<24));
     uint8_t msg2[120] = {};
     int32_t at2 = driver_diag_append_cstr(&((msg2)[0]), 120, 0, ((uint8_t *)"\x70\x69\x70\x65\x6c\x69\x6e\x65\x20\x64\x65\x62\x75\x67\x3a\x20\x61\x66\x74\x65\x72\x5f\x65\x6e\x74\x72\x79\x5f\x70\x61\x72\x73\x65\x20\x6e\x75\x6d\x5f\x74\x6f\x70\x5f\x6c\x65\x76\x65\x6c\x5f\x6c\x65\x74\x73\x3d"));
-    if ((getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x49\x50\x45")) ==((uint8_t *)(0)))) {
+    if ((link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x44\x45\x42\x55\x47\x5f\x50\x49\x50\x45")) ==((uint8_t *)(0)))) {
       return;
     }
     if ((module ==((uint8_t *)(0)))) {

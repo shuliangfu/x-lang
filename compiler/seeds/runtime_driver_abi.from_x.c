@@ -204,6 +204,9 @@ void driver_compile_phase_timing_clear(void);
 #endif
 #include <pthread.h>
 
+/* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern char *link_abi_getenv(const char *name);
+
 /** nostdlib 下勿用 glibc ctype 宏（会引用 __ctype_toupper_loc）；本地 ASCII 大写。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
@@ -215,7 +218,7 @@ char driver_ascii_toupper(char c) {
 /* G-02f：driver_env_flag_truthy 权威定义在 runtime_driver_abi_thin.x；
  *   PREFER_X_O fallback 时 seed 提供同语义 C 供产品 cc。 */
 int32_t driver_env_flag_truthy(const char *name) {
-    const char *e = getenv(name);
+    const char *e = link_abi_getenv(name);
     if (!e) return 0;
     if (e[0] == 0) return 0;
     if (e[0] == '0') return 0;
@@ -400,7 +403,7 @@ int32_t driver_sanitize_address_get(void) {
     if (((p)[0] !=0)) {
       return 1;
     }
-    char *e = getenv("SHUX_SANITIZE_ADDRESS");
+    char *e = link_abi_getenv("SHUX_SANITIZE_ADDRESS");
     if ((e ==((char *)(0)))) {
       return 0;
     }
@@ -545,7 +548,7 @@ void driver_x_pipeline_skip_codegen_set(int32_t v) {
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_typeck_force_c_enabled_impl(void) {
   (void)(({   {
-    char *e = getenv("SHUX_TYPECK_FORCE_C");
+    char *e = link_abi_getenv("SHUX_TYPECK_FORCE_C");
     if ((e ==((char *)(0)))) {
       return 0;
     }
@@ -646,7 +649,7 @@ void driver_pipeline_entry_source_len_store(size_t len) {
 /* wave13 pure：hybrid thin owns load+debug note (append + diag_report); cold keeps integer twin.
  * PLATFORM: SHARED — truthy SHUX_DEBUG_PIPE (non-empty and != '0') matches thin driver_env_flag_truthy. */
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void) {
-    const char *e = getenv("SHUX_DEBUG_PIPE");
+    const char *e = link_abi_getenv("SHUX_DEBUG_PIPE");
     if (e != NULL && e[0] != '\0' && e[0] != '0') {
         /* Integer twin of thin pure note text (no float; matches driver_abi_append_i64 decimal). */
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -708,7 +711,7 @@ int32_t driver_typeck_skip_large_entry(void) {
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_build_skip_typeck_impl(void) {
   (void)(({   {
-    char *e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
+    char *e = link_abi_getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
     if ((e ==((char *)(0)))) {
       return 0;
     }
@@ -736,7 +739,7 @@ int32_t driver_asm_build_skip_typeck(void) {
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_entry_emit_heavy_impl(void) {
   (void)(({   {
-    char *e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
+    char *e = link_abi_getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
     if ((e ==((char *)(0)))) {
       return 0;
     }
@@ -764,7 +767,7 @@ int32_t driver_asm_entry_emit_heavy(void) {
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_entry_module_only_from_env_impl(void) {
   (void)(({   {
-    char *e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
+    char *e = link_abi_getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
     if ((e ==((char *)(0)))) {
       return 0;
     }
@@ -792,7 +795,7 @@ int32_t driver_asm_entry_module_only_from_env(void) {
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_asm_parse_metric_only_from_env_impl(void) {
   (void)(({   {
-    char *e = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
+    char *e = link_abi_getenv("SHUX_ASM_PARSE_METRIC_ONLY");
     if ((e ==((char *)(0)))) {
       return 0;
     }
@@ -951,7 +954,7 @@ static int g_compile_phase_active[SHUX_COMPILE_PHASE_MAX];
 /* pure 权威：thin.x compile_phase_timing_enabled（getenv 非空）；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int compile_phase_timing_enabled_impl(void) {
-  return getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
+  return link_abi_getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
 }
 
 int compile_phase_timing_enabled(void) {
@@ -1091,7 +1094,7 @@ void driver_compile_phase_timing_end(int32_t phase) {
 int32_t driver_compile_phase_timing_enabled(void)
 {
   (void)(({   {
-    char *e = getenv("SHUX_COMPILE_PHASE_TIMING");
+    char *e = link_abi_getenv("SHUX_COMPILE_PHASE_TIMING");
     if ((e ==((char *)(0)))) {
       return 0;
     }
@@ -1371,7 +1374,7 @@ static int64_t driver_parse_u32_cstr(const char *s) {
 
 int64_t driver_stack_limit_want_bytes_impl(void) {
     int64_t def = (int64_t)512 * 1024 * 1024;
-    const char *e = getenv("SHUX_STACK_LIMIT_MB");
+    const char *e = link_abi_getenv("SHUX_STACK_LIMIT_MB");
     int64_t mb;
     if (!e || !e[0])
         return def;
@@ -1457,7 +1460,7 @@ void shux_driver_call_fn_void_arg(void *(*fn)(void *), void *arg) {
 /* pure 权威：thin.x driver_pipeline_no_large_stack_env；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_pipeline_no_large_stack_env_impl(void) {
-    const char *e = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
+    const char *e = link_abi_getenv("SHUX_PIPELINE_NO_LARGE_STACK");
     if (!e || !e[0] || e[0] == '0')
         return 0;
     return 1;
@@ -1496,7 +1499,7 @@ void shux_driver_run_thread_on_large_stack_pthread(void *(*fn)(void *), void *ar
     pthread_t tid;
     void *stk = NULL;
     size_t stack_sz = (size_t)256 * 1024 * 1024;
-    const char *mb_env = getenv("SHUX_STACK_LIMIT_MB");
+    const char *mb_env = link_abi_getenv("SHUX_STACK_LIMIT_MB");
     DriverLargeStackCall call = { fn, arg };
     if (fn == NULL)
         return;
@@ -1836,9 +1839,9 @@ void driver_print_usage_write(void) {
      * Forward-declare isatty to avoid pulling <unistd.h> into this TU
      * (prior note: hand-written extern write + #include <unistd.h> trips Darwin asm). */
     extern int isatty(int fd);
-    const char *no_color = getenv("NO_COLOR");
-    const char *force = getenv("CLICOLOR_FORCE");
-    const char *shux_force = getenv("SHUX_FORCE_COLOR");
+    const char *no_color = link_abi_getenv("NO_COLOR");
+    const char *force = link_abi_getenv("CLICOLOR_FORCE");
+    const char *shux_force = link_abi_getenv("SHUX_FORCE_COLOR");
     int use_color;
     if (no_color != (const char *)0) {
         use_color = 0;
@@ -3456,7 +3459,7 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
                                "cc failed, keeping generated C: %s", (const char *)(void *)tmp_c);
         return 1;
     }
-    if (!getenv("SHUX_KEEP_C"))
+    if (!link_abi_getenv("SHUX_KEEP_C"))
         unlink((const char *)(void *)tmp_c);
     else
         diag_reportf(NULL, 0, 0, "note", NULL, "kept generated C: %s", (const char *)(void *)tmp_c);
@@ -3469,7 +3472,7 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
  * PLATFORM: SHARED — mask bits match codegen.h; dump path /tmp dev-only. */
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len) {
-    if (!getenv("SHUX_DUMP_PREP") || !src)
+    if (!link_abi_getenv("SHUX_DUMP_PREP") || !src)
         return;
     if (shux_write_path_bytes("/tmp/shux_prep_entry.bin", src, src_len) == 0) {
         diag_reportf((const char *)(void *)input_path, 0, 0, "note", NULL,

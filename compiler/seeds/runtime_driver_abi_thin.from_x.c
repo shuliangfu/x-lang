@@ -443,7 +443,8 @@ static int32_t g_compile_phase_active[3] = {0, 0, 0};
 static void init_globals(void) {
   g_driver_current_dep_path = ((uint8_t *)(0));
 }
-extern uint8_t * getenv(uint8_t * name);
+/* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 extern double shux_driver_wall_clock_sec(void);
 extern void shux_driver_call_fn_void_arg(uint8_t * fn, uint8_t * arg);
 extern void shux_driver_bump_stack_limit(int64_t want_bytes);
@@ -455,7 +456,8 @@ extern int32_t driver_diag_append_i32(uint8_t * dst, int32_t cap, int32_t at, in
 extern void shux_ptr_slot_set(uint8_t * arr, int32_t i, uint8_t * p);
 int32_t driver_env_flag_truthy(uint8_t * name) {
   {
-    uint8_t * e = getenv(name);
+    /* wave228 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+    uint8_t * e = link_abi_getenv(name);
     if ((e ==((uint8_t *)(0)))) {
       return 0;
     }
@@ -471,7 +473,8 @@ int32_t driver_env_flag_truthy(uint8_t * name) {
 }
 int32_t driver_env_nonnull(uint8_t * name) {
   {
-    uint8_t * e = getenv(name);
+    /* wave228 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+    uint8_t * e = link_abi_getenv(name);
     if ((e ==((uint8_t *)(0)))) {
       return 0;
     }
@@ -1252,7 +1255,8 @@ void driver_defines_set_at(uint8_t * defines, int32_t i, uint8_t * s) {
 int64_t driver_stack_limit_want_bytes(void) {
   int64_t def = ((((int64_t)(512)) * ((int64_t)(1024))) * ((int64_t)(1024)));
   {
-    uint8_t * e = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x53\x54\x41\x43\x4b\x5f\x4c\x49\x4d\x49\x54\x5f\x4d\x42"));
+    /* wave228 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+    uint8_t * e = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x53\x54\x41\x43\x4b\x5f\x4c\x49\x4d\x49\x54\x5f\x4d\x42"));
     if ((e ==((uint8_t *)(0)))) {
       return def;
     }

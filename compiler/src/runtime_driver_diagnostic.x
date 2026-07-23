@@ -18,7 +18,9 @@
 // See implementation.
 
 export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave228 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function driver_check_only_get(): i32;
 export extern "C" function driver_check_diag_emitted_get(): i32;
 
@@ -239,7 +241,7 @@ export function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void 
 #[no_mangle]
 export function driver_parse_strict_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_PARSE_STRICT");
+    let e: *u8 = link_abi_getenv("SHUX_PARSE_STRICT");
     if (e == 0 as *u8) {
       return 0;
     }
