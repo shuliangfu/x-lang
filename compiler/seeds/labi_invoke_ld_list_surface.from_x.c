@@ -17,7 +17,8 @@
  *   + wave193 labi_std_append_primary_for_op + process_argv_if pure orch
  *   + wave194 labi_std_append_task_special pure orch
  *   + wave195 labi_std_append_op_std pure orch
- *   + wave196 xlang_asm_ld_append_std_objs_for_user plan shell pure orch)
+ *   + wave196 xlang_asm_ld_append_std_objs_for_user plan shell pure orch
+ *   + wave253/259 PRIMARY_PANIC companion user_env ensure+push (≡ .x/cold))
  * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path_impl pool only
  *   (wave255 pure owns skip_missing);
  *   exports_marker / realpath_cap / xlang_rel_o_path_from_argv0; spawn/ld/cc IO mega;
@@ -26,6 +27,7 @@
  *   repo_root + ensure_runtime_* + push_obj for wave191 formal companions;
  *   ensure_runtime_*_glue + path peers for wave192 OP_GLUE_* leaves;
  *   needs + primary ensure/path + process_argv for wave193 primary/complement;
+ *   wave253/259 user_env companion on PRIMARY_PANIC (ensure + path + push_obj);
  *   task/scheduler path peers + bank for wave194 TASK_SPECIAL;
  *   fk0/fk1–13 gate peers for wave195 OP_STD;
  *   plan table accessors (labi_std_list L8) for wave196 plan shell
@@ -102,6 +104,9 @@ extern int32_t labi_user_needs_runtime_random_fill(uint8_t * user_o);
 extern int32_t labi_user_needs_runtime_env_os(uint8_t * user_o);
 extern uint8_t * xlang_runtime_asm_io_stubs_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_panic_o_path(uint8_t * argv0);
+/* wave253/259: PRIMARY_PANIC companion user-domain face (residual declare-only / Linux .s panic). */
+extern int32_t xlang_ensure_runtime_link_abi_user_env_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_link_abi_user_env_o_path(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_process_argv_o(uint8_t * argv0);
 extern uint8_t * xlang_runtime_process_argv_o_path(uint8_t * argv0);
 /* wave194 TASK_SPECIAL peers (needs_std_task + scheduler path + push_stable + glue). */
@@ -1614,6 +1619,25 @@ void labi_std_append_primary_for_op(int32_t op, uint8_t * link_argv0, uint8_t * 
       if ((la !=0)) {
         int32_t _p = 0;
         (void)((_p = link_abi_asm_ld_push_obj(p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+      }
+    }
+    /* wave253/259: companion user-domain face for residual declare-only / Linux .s panic.
+     * Surface re-pin ≡ .x / cold twin (G.7 dual-authority close). */
+    {
+      int32_t _e = 0;
+      (void)((_e = xlang_ensure_runtime_link_abi_user_env_o(link_argv0)));
+    }
+    {
+      uint8_t * ue_p = 0;
+      (void)((ue_p = xlang_runtime_link_abi_user_env_o_path(link_argv0)));
+      uint8_t * ab2 = ((uint8_t *)(argv));
+      if ((ab2 !=0)) {
+        if ((la !=0)) {
+          int32_t _ue = 0;
+          (void)((_ue = link_abi_asm_ld_push_obj(ue_p, link_argv0,
+              ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6c\x69\x6e\x6b\x5f\x61\x62\x69\x5f\x75\x73\x65\x72\x5f\x65\x6e\x76\x2e\x6f"),
+              lib_roots, n_lib_roots, bank, argv, la, max_la, 0)));
+        }
       }
     }
     return;

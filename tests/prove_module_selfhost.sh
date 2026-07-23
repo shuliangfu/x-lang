@@ -62,6 +62,7 @@ MODULES=(
   # + wave191 labi_std_append_formal_ensure_for_rel pure orch（Cap residual repo_root + ensure_runtime_* + peer push_obj；append_std formal companions）；
   # + wave192 labi_std_append_glue_for_op pure orch（Cap residual ensure_runtime_*_glue + peer path + push_obj；append_std OP_GLUE_*）；
   # + wave193 labi_std_append_primary_for_op + process_argv_if pure orch（Cap residual needs_* + ensure/path + process_argv；append_std PRIMARY/IO_STUBS + complement）；
+  # + wave253/259 PRIMARY_PANIC companion user_env ensure+push（surface re-pin ≡ .x/cold）；
   # + wave194 labi_std_append_task_special pure orch（Cap residual skip/path/bank + formal ensure；append_std TASK_SPECIAL task+scheduler+glue）；
   # + wave195 labi_std_append_op_std pure orch（fk→flag_out map + fk0/fk1–13 gate + formal ensure + push_obj；append_std OP_STD）；
   # + wave196 xlang_asm_ld_append_std_objs_for_user plan shell pure orch（flags/local_have init + plan loop + dispatch wave190–195 leaves + process_argv complement）；

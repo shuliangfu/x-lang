@@ -2551,6 +2551,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
  * Cap residual: labi_user_needs_runtime_* (undef_sym tables) + ensure_runtime_* + path + push_obj.
  * Why (wave193): hybrid still had IO_STUBS + PRIMARY_* cases always-mega inline after wave192 glue.
  * G.7: compose existing needs+ensure+path+push; no second gate table.
+ * wave253: PRIMARY_PANIC also ensure+push runtime_link_abi_user_env.o companion face.
+ * wave259: surface re-pin PRIMARY_PANIC user_env companion (≡ this .x / cold; close lag).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch — dual-end L2.
  * Track-L: #[no_mangle] keeps surface short name for append_std call sites.
