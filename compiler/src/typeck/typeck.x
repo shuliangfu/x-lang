@@ -7195,6 +7195,18 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       if (!ast.ref_is_null(ld_tr)) {
         init_ctx = ld_tr;
       }
+      /*
+       * wave314: do not pass f64 expected when checking a bare f32 VAR init.
+       * check_expr with expected f64 stamps VAR resolved as f64 → freestanding
+       * load looks like f64 and skips cvtss2sd. Check with no expected type; let
+       * widen gate below accepts f32→f64 without stamping.
+       */
+      if (!ast.ref_is_null(ld_tr) && pipeline_expr_kind_ord_at(arena, ld_ir) == 3) {
+        let decl_k0: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
+        if (decl_k0 == 15) {
+          init_ctx = 0;
+        }
+      }
       if (check_expr(module, arena, ld_ir, init_ctx, ctx) != 0) {
         return - 1;
       }

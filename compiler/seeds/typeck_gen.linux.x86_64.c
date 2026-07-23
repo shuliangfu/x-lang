@@ -7111,6 +7111,13 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
       if (!(ast_ref_is_null(ld_tr))) {
         (void)((init_ctx = ld_tr));
       }
+      /* wave314: bare VAR into f64 let — no expected type (avoid stamp f64 on f32 VAR). */
+      if ((!(ast_ref_is_null(ld_tr)) && (pipeline_expr_kind_ord_at(arena, ld_ir) == 3))) {
+        int32_t decl_k0 = pipeline_type_kind_ord_at(arena, ld_tr);
+        if ((decl_k0 == 15)) {
+          (void)((init_ctx = 0));
+        }
+      }
       if ((typeck_check_expr(module, arena, ld_ir, init_ctx, ctx) !=0)) {
         return -1;
       }
