@@ -30,7 +30,7 @@ XLANG 当前 ABI 策略是**二元信任**：
 
 ### 1.2 痛点
 
-自举完成后，编译器自身大量使用 `extern function ...` 调用 `.x` 模块函数（如 [parser.x:29-31](file:///home/shu/shux/compiler/src/parser/parser.x#L29-L31) 的 `std_fs_open/read/close`）。这些调用**实际是 XLANG-to-XLANG**，却要付 C ABI 的 unsafe 代价：
+自举完成后，编译器自身大量使用 `extern function ...` 调用 `.x` 模块函数（如 [parser.x:29-31](file:///home/shuliangfu/worker/shu/shux/compiler/src/parser/parser.x#L29-L31) 的 `std_fs_open/read/close`）。这些调用**实际是 XLANG-to-XLANG**，却要付 C ABI 的 unsafe 代价：
 
 1. **语义浪费**：调用方与被调用方都遵循 XLANG 类型系统，却因 ABI 标记为 C 而被迫包裹 unsafe
 2. **优化屏障**：C ABI 边界阻止跨模块内联、常量折叠、指令重排
@@ -64,7 +64,7 @@ Gemini 分析方向正确，但有几处与 XLANG 实际架构不符：
 
 1. **"x-shujs 宿主环境"**：XLANG 是系统级语言，无 JS 运行时。Gemini 混淆了项目
 2. **"arena_alloc 接口"**：XLANG 已有 Arena 分配器（ASTArena 等），不是新概念
-3. **"借用检查（Borrow Checking）"**：XLANG 当前是 Linear(T) use-once move 语义（见 [typeck.x:279](file:///home/shu/shux/compiler/src/typeck/typeck.x#L279) `pipeline_typeck_linear_use_var_c`），不是 Rust 式借用检查。X ABI 应基于现有 Linear 语义扩展，而非引入全新 borrow checker
+3. **"借用检查（Borrow Checking）"**：XLANG 当前是 Linear(T) use-once move 语义（见 [typeck.x:279](file:///home/shuliangfu/worker/shu/shux/compiler/src/typeck/typeck.x#L279) `pipeline_typeck_linear_use_var_c`），不是 Rust 式借用检查。X ABI 应基于现有 Linear 语义扩展，而非引入全新 borrow checker
 4. **过度理想化**：X ABI 不能完全消除 unsafe —— 与 OS、硬件、C 库交互仍需 unsafe 层
 
 ---
@@ -115,7 +115,7 @@ X ABI 函数必须满足以下编译期可验条件：
 
 ### 3.2.2 过渡期语义降级（自举前）
 
-**关键问题**：现有 compiler 代码中少量 `extern function ...` 实际调用 C 运行时（如 [parser.x:29-31](file:///home/shu/shux/compiler/src/parser/parser.x#L29-L31) 的 `std_fs_open/read/close`）。若 P1 激活 X ABI 语义时未标注 `extern "C"`，这些调用会因契约不匹配报 typeck error，导致编译器自身无法编译 —— **bootstrap 陷阱**。
+**关键问题**：现有 compiler 代码中少量 `extern function ...` 实际调用 C 运行时（如 [parser.x:29-31](file:///home/shuliangfu/worker/shu/shux/compiler/src/parser/parser.x#L29-L31) 的 `std_fs_open/read/close`）。若 P1 激活 X ABI 语义时未标注 `extern "C"`，这些调用会因契约不匹配报 typeck error，导致编译器自身无法编译 —— **bootstrap 陷阱**。
 
 **过渡策略**：自举前 P0 阶段必须完成 `extern "C"` 标注：
 
@@ -263,13 +263,13 @@ X ABI 与 Arena 天然契合：
 
 ### 6.2 Linear(T) 语义
 
-现有 [typeck.x:279](file:///home/shu/shux/compiler/src/typeck/typeck.x#L279) `pipeline_typeck_linear_use_var_c` 已实现 use-once move 检查。X ABI 可复用：
+现有 [typeck.x:279](file:///home/shuliangfu/worker/shu/shux/compiler/src/typeck/typeck.x#L279) `pipeline_typeck_linear_use_var_c` 已实现 use-once move 检查。X ABI 可复用：
 - 传值参数 = move（调用后原变量失效）
 - 传 `*T` = 借用（调用期间原变量有效但只读）
 
 ### 6.3 WPO/LTO 优化
 
-现有 [build_asm/pipeline_wpo.o](file:///home/shu/shux/compiler/build_asm/) 已支持全程序优化。X ABI 的跨模块内联可复用 WPO 基础设施。
+现有 [build_asm/pipeline_wpo.o](file:///home/shuliangfu/worker/shu/shux/compiler/build_asm/) 已支持全程序优化。X ABI 的跨模块内联可复用 WPO 基础设施。
 
 ---
 

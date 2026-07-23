@@ -16,7 +16,7 @@
 | 嫌疑 | 验证方法 | 结论 |
 |------|---------|------|
 | `PipelineDepCtx` 栈递归 | grep `PipelineDepCtx` 栈分配点 | 仅 3 处栈分配，无递归 |
-| `grow_vec_ensure` 倍增 | 读 [ast_pool.c:137-156](file:///home/shu/shux/compiler/ast_pool.c) | 线性扩容 `nc += AST_POOL_GROW`，非倍增 |
+| `grow_vec_ensure` 倍增 | 读 [ast_pool.c:137-156](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c) | 线性扩容 `nc += AST_POOL_GROW`，非倍增 |
 | codegen 输出缓冲 | `out_buf` 实际占 34KB | 远低于 GB 级 |
 | C5 EXPR_BLOCK CTFE 改动 | xlang-x 二进制 mtime 早于改动 | 与本次改动无关 |
 | xlang-x 二进制自身膨胀 | `size compiler/xlang-x` | `__TEXT`=2.1MB, `__DATA`=141MB（含静态 BSS） |
@@ -32,12 +32,12 @@ Segment __DATA: 147734528  (~141MB)
   Section __common: 136396808 bytes  (~130MB)
 ```
 
-`__common` 段只有两个大符号（[nm -m](file:///home/shu/shux/compiler/xlang-x) 计算）：
+`__common` 段只有两个大符号（[nm -m](file:///home/shuliangfu/worker/shu/shux/compiler/xlang-x) 计算）：
 
 | 符号 | 大小 | 定义 |
 |------|------|------|
-| `_driver_arena_static` | **128 MB** | [rt_arena_buf.from_x.c:19,24](file:///home/shu/shux/compiler/seeds/rt_arena_buf.from_x.c) |
-| `_driver_module_static` | 2 MB | [rt_arena_buf.from_x.c:20,25](file:///home/shu/shux/compiler/seeds/rt_arena_buf.from_x.c) |
+| `_driver_arena_static` | **128 MB** | [rt_arena_buf.from_x.c:19,24](file:///home/shuliangfu/worker/shu/shux/compiler/seeds/rt_arena_buf.from_x.c) |
+| `_driver_module_static` | 2 MB | [rt_arena_buf.from_x.c:20,25](file:///home/shuliangfu/worker/shu/shux/compiler/seeds/rt_arena_buf.from_x.c) |
 
 ```c
 #define DRIVER_ARENA_STATIC_SIZE  (128 * 1024 * 1024)  /* 128 MiB */
@@ -56,7 +56,7 @@ uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE];
 
 ## 3. `driver_run_x_emit_c` 调用链（关键）
 
-入口 [rt_run_x_emit.from_x.c:92-466](file:///home/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)：
+入口 [rt_run_x_emit.from_x.c:92-466](file:///home/shuliangfu/worker/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)：
 
 ```c
 int driver_run_x_emit_c(void) {
@@ -83,13 +83,13 @@ int driver_run_x_emit_c(void) {
 
 但是 `pipeline_sizeof_arena()` = `sizeof(struct ast_ASTArena)` = **16 字节**！
 
-参考 [pipeline_glue.c:554](file:///home/shu/shux/compiler/pipeline_glue.c)：
+参考 [pipeline_glue.c:554](file:///home/shuliangfu/worker/shu/shux/compiler/pipeline_glue.c)：
 ```c
 size_t pipeline_sizeof_arena(void)  { return sizeof(struct ast_ASTArena); }
 size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
 ```
 
-参考 [codegen_gen.c:547-552](file:///home/shu/shux/compiler/codegen_gen.c)：
+参考 [codegen_gen.c:547-552](file:///home/shuliangfu/worker/shu/shux/compiler/codegen_gen.c)：
 ```c
 struct ast_ASTArena {
     int32_t num_types;
@@ -106,7 +106,7 @@ sidecar 池（由 `g_arena_sc[]` 静态数组管理，绑定到 arena 指针作 
 
 ### 4.1 池架构
 
-[ast_pool.c:184-209](file:///home/shu/shux/compiler/ast_pool.c)：
+[ast_pool.c:184-209](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c)：
 
 ```c
 typedef struct {
@@ -140,7 +140,7 @@ static ArenaSidecar g_arena_sc[MAX_ARENA_SIDECARS];   /* L310 */
 
 ### 4.2 init 时的预分配
 
-[ast_pool.c:411-465](file:///home/shu/shux/compiler/ast_pool.c) `arena_sidecar_get(a, create=1)`：
+[ast_pool.c:411-465](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c) `arena_sidecar_get(a, create=1)`：
 
 ```c
 if (!grow_vec_init(&sc->types, sizeof(struct ast_Type),  AST_POOL_GROW)) return NULL;
@@ -149,7 +149,7 @@ if (!grow_vec_init(&sc->blocks, sizeof(struct ast_Block), AST_POOL_GROW)) return
 ... (共 18 个 GrowVec)
 ```
 
-[ast_pool.c:111-123](file:///home/shu/shux/compiler/ast_pool.c)：
+[ast_pool.c:111-123](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c)：
 ```c
 static int grow_vec_init(GrowVec *v, size_t elem_sz, int32_t initial_cap) {
     if (initial_cap <= 0) initial_cap = AST_POOL_GROW;  /* 4096 */
@@ -158,7 +158,7 @@ static int grow_vec_init(GrowVec *v, size_t elem_sz, int32_t initial_cap) {
 }
 ```
 
-[ast_pool.c:14-15](file:///home/shu/shux/compiler/ast_pool.c)：
+[ast_pool.c:14-15](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c)：
 ```c
 #define AST_POOL_GROW 4096
 ```
@@ -185,7 +185,7 @@ $ grep -n "arena_sidecar_free\|grow_vec_free.*arena_sc\|grow_vec_free.*g_arena" 
 # 零命中（仅 onefunc_sidecar_free 存在，见 §5）
 ```
 
-`ast_pool_arena_reset`（[ast_pool.c:1057-1087](file:///home/shu/shux/compiler/ast_pool.c)）只重置
+`ast_pool_arena_reset`（[ast_pool.c:1057-1087](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c)）只重置
 `sc->types.len = 0`、`sc->exprs.len = 0` 等 — **不动 `data` 指针和 `cap`**：
 
 ```c
@@ -200,7 +200,7 @@ void ast_pool_arena_reset(struct ast_ASTArena *a) {
 
 ### 4.5 dep 循环 → ArenaSidecar × N → 累积爆炸
 
-[rt_run_x_emit.from_x.c:256-269](file:///home/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)：
+[rt_run_x_emit.from_x.c:256-269](file:///home/shuliangfu/worker/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)：
 
 ```c
 for (int i = 0; i < n_deps; i++) {
@@ -212,12 +212,12 @@ for (int i = 0; i < n_deps; i++) {
 ```
 
 每个 `dep_arenas[i]` 是**新指针**（虽然只有 16 字节），调用
-`parser_parse_into_init(module, arena)`（[L164](file:///home/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)）
+`parser_parse_into_init(module, arena)`（[L164](file:///home/shuliangfu/worker/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)）
 后会触发 `arena_sidecar_get(arena, create=1)` — **新分配一个 ArenaSidecar 槽**
 （4.3 MB 初始分配）。
 
 主 emit 完成前不能释放 dep 的 arena（因为 typeck 要访问 `typeck_dep_module_ptrs[]`/
-`typeck_dep_arena_ptrs[]`，[L395-398](file:///home/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)）。
+`typeck_dep_arena_ptrs[]`，[L395-398](file:///home/shuliangfu/worker/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)）。
 
 ### 4.6 估算与实测对齐
 
@@ -238,7 +238,7 @@ for (int i = 0; i < n_deps; i++) {
 
 ## 5. `g_onefunc_sc[1024]` OneFuncSidecar
 
-[ast_pool.c:237-272](file:///home/shu/shux/compiler/ast_pool.c)：
+[ast_pool.c:237-272](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c)：
 
 ```c
 typedef struct {
@@ -263,8 +263,8 @@ typedef struct {
 static OneFuncSidecar g_onefunc_sc[MAX_ONEFUNC_SIDECARS];
 ```
 
-**OneFuncSidecar 有 free 路径**（[ast_pool.c:589-622](file:///home/shu/shux/compiler/ast_pool.c)）
-和 release API `ast_pool_onefunc_release`（[L1125](file:///home/shu/shux/compiler/ast_pool.c)），
+**OneFuncSidecar 有 free 路径**（[ast_pool.c:589-622](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c)）
+和 release API `ast_pool_onefunc_release`（[L1125](file:///home/shuliangfu/worker/shu/shux/compiler/ast_pool.c)），
 parser 多处调用（parser.x:8732, 9860, 9880, 9900, 10630, 10641, 10682）。
 
 → **OneFuncSidecar 不是主要泄漏源**，但若某条 parse 失败路径漏 `ast_pool_onefunc_release`，
@@ -294,7 +294,7 @@ dep-arena-per-instance 架构。
 新增 `ast_pool_arena_release(struct ast_ASTArena *a)` 和
 `ast_pool_module_release(struct ast_Module *m)`，调用 18 个 / 11 个 `grow_vec_free`。
 
-`driver_run_x_emit_c` 在主 emit 完成后（[L455-456](file:///home/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)）
+`driver_run_x_emit_c` 在主 emit 完成后（[L455-456](file:///home/shuliangfu/worker/shu/shux/compiler/seeds/rt_run_x_emit.from_x.c)）
 循环调用：
 
 ```c

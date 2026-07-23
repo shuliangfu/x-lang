@@ -166,12 +166,3 @@ XLANG_WEAK int32_t process_args_count_c(void) {
 XLANG_WEAK uint8_t *process_arg_c(int32_t i) {
     return process_xlang_argv_get(i);
 }
-
-/**
- * PLATFORM: SHARED — cold-start dual export.
- * Pin bootstrap binaries historically emit process_shux_* in -E preambles until
- * seeds/bootstrap_xlangc.* are replaced by a product built with process_xlang-only
- * preamble. Authority remains process_xlang_*; these are zero-logic aliases.
- */
-int32_t process_shux_argc_get(void) { return process_xlang_argc_get(); }
-uint8_t *process_shux_argv_get(int32_t i) { return process_xlang_argv_get(i); }
