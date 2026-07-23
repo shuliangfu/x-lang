@@ -1686,9 +1686,88 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
       }
     }
     parser_asm_arena_expr_set_c(arena, ref, e);
-    out->ok = 1;
-    out->expr_ref = ref;
-    out->next_lex = r.next_lex;
+    /* wave282: C-style adjacent string-literal concat (G.7 ≡ parser.x / parser_gen).
+     * Soft residual: 2nd+ TOKEN_STRING after primary STRING was left unconsumed or
+     * dropped as bare expr-stmt; only first literal entered the AST.
+     * Peek/consume only TOKEN_STRING; leave non-string for parent via next_lex. */
+    {
+      struct parser_asm_lexer_result nr;
+      struct parser_asm_lexer nlex = r.next_lex;
+      out->ok = 1;
+      out->expr_ref = ref;
+      out->next_lex = r.next_lex;
+      for (;;) {
+        int32_t wi_adj;
+        int32_t nlen_adj;
+        size_t q0_adj;
+        int32_t ri_adj;
+        lexer_next_into(&nr, nlex, source);
+        if (nr.tok.kind != (int32_t)TOKEN_STRING)
+          break;
+        e = parser_asm_arena_expr_get_c(arena, ref);
+        wi_adj = e.var_name_len;
+        if (wi_adj < 0)
+          wi_adj = 0;
+        if (wi_adj > 63)
+          wi_adj = 63;
+        nlen_adj = nr.tok.ident_len;
+        if (nlen_adj > 63)
+          nlen_adj = 63;
+        if (nlen_adj < 0)
+          nlen_adj = 0;
+        q0_adj = nr.token_start;
+        ri_adj = 0;
+        while (ri_adj < nlen_adj && wi_adj < 63) {
+          uint8_t c2 = 0;
+          if (q0_adj + (size_t)ri_adj < source->length)
+            c2 = source->data[q0_adj + (size_t)ri_adj];
+          if (c2 == 92 && (ri_adj + 1) < nlen_adj) {
+            uint8_t n2 = 0;
+            if (q0_adj + (size_t)(ri_adj + 1) < source->length)
+              n2 = source->data[q0_adj + (size_t)(ri_adj + 1)];
+            if (n2 == 110) { e.var_name[wi_adj++] = 10; ri_adj += 2; continue; }
+            if (n2 == 116) { e.var_name[wi_adj++] = 9; ri_adj += 2; continue; }
+            if (n2 == 114) { e.var_name[wi_adj++] = 13; ri_adj += 2; continue; }
+            if (n2 == 48) { e.var_name[wi_adj++] = 0; ri_adj += 2; continue; }
+            if (n2 == 92 || n2 == 34) { e.var_name[wi_adj++] = n2; ri_adj += 2; continue; }
+            if (n2 == 120 && (ri_adj + 3) < nlen_adj) {
+              uint8_t h1b = 0;
+              uint8_t h2b = 0;
+              int32_t v1b = -1;
+              int32_t v2b = -1;
+              if (q0_adj + (size_t)(ri_adj + 2) < source->length)
+                h1b = source->data[q0_adj + (size_t)(ri_adj + 2)];
+              if (q0_adj + (size_t)(ri_adj + 3) < source->length)
+                h2b = source->data[q0_adj + (size_t)(ri_adj + 3)];
+              if (h1b >= 48 && h1b <= 57) v1b = (int32_t)h1b - 48;
+              if (h1b >= 97 && h1b <= 102) v1b = (int32_t)h1b - 97 + 10;
+              if (h1b >= 65 && h1b <= 70) v1b = (int32_t)h1b - 65 + 10;
+              if (h2b >= 48 && h2b <= 57) v2b = (int32_t)h2b - 48;
+              if (h2b >= 97 && h2b <= 102) v2b = (int32_t)h2b - 97 + 10;
+              if (h2b >= 65 && h2b <= 70) v2b = (int32_t)h2b - 65 + 10;
+              if (v1b >= 0 && v2b >= 0) {
+                e.var_name[wi_adj++] = (uint8_t)((v1b * 16) + v2b);
+                ri_adj += 4;
+                continue;
+              }
+            }
+            e.var_name[wi_adj++] = n2;
+            ri_adj += 2;
+            continue;
+          }
+          e.var_name[wi_adj++] = c2;
+          ri_adj++;
+        }
+        e.var_name_len = wi_adj;
+        while (wi_adj < 64) {
+          e.var_name[wi_adj] = 0;
+          wi_adj++;
+        }
+        parser_asm_arena_expr_set_c(arena, ref, e);
+        nlex = nr.next_lex;
+        out->next_lex = nlex;
+      }
+    }
     return;
   }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));

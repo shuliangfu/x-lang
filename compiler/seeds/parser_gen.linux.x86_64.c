@@ -3345,6 +3345,120 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           }
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
           (void)(lexer_next_into(&(r), lex, source));
+          /* wave282: C-style adjacent string-literal concat (G.7 ≡ parser.x / primary_slice).
+           * Soft residual: 2nd+ TOKEN_STRING after let-init was bare expr-stmt and dropped. */
+          while (((((r.tok).kind) ==130) && (str_ref !=0))) {
+            struct ast_Expr se_adj = ast_ast_arena_expr_get(arena, str_ref);
+            int32_t wi_adj = (se_adj.var_name_len);
+            int32_t nlen_adj = ((r.tok).ident_len);
+            size_t q0_adj = (r.token_start);
+            int32_t ri_adj = 0;
+            if ((wi_adj < 0)) {
+              (void)((wi_adj = 0));
+            }
+            if ((wi_adj > 63)) {
+              (void)((wi_adj = 63));
+            }
+            if ((nlen_adj > 63)) {
+              (void)((nlen_adj = 63));
+            }
+            if ((nlen_adj < 0)) {
+              (void)((nlen_adj = 0));
+            }
+            while (((ri_adj < nlen_adj) && (wi_adj < 63))) {
+              uint8_t c2 = 0;
+              if (((q0_adj + ((size_t)(ri_adj))) < (source->length))) {
+                (void)((c2 = (source)->data[(q0_adj + ((size_t)(ri_adj)))]));
+              }
+              if (((c2 ==92) && ((ri_adj + 1) < nlen_adj))) {
+                uint8_t n2 = 0;
+                if (((q0_adj + ((size_t)((ri_adj + 1)))) < (source->length))) {
+                  (void)((n2 = (source)->data[(q0_adj + ((size_t)((ri_adj + 1))))]));
+                }
+                if ((n2 ==110)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 10));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if ((n2 ==116)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 9));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if ((n2 ==114)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 13));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if ((n2 ==48)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 0));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if (((n2 ==92) || (n2 ==34))) {
+                  (void)((((se_adj.var_name))[wi_adj] = n2));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if (((n2 ==120) && ((ri_adj + 3) < nlen_adj))) {
+                  uint8_t h1b = 0;
+                  uint8_t h2b = 0;
+                  int32_t v1b = -1;
+                  int32_t v2b = -1;
+                  if (((q0_adj + ((size_t)((ri_adj + 2)))) < (source->length))) {
+                    (void)((h1b = (source)->data[(q0_adj + ((size_t)((ri_adj + 2))))]));
+                  }
+                  if (((q0_adj + ((size_t)((ri_adj + 3)))) < (source->length))) {
+                    (void)((h2b = (source)->data[(q0_adj + ((size_t)((ri_adj + 3))))]));
+                  }
+                  if (((h1b >= 48) && (h1b <= 57))) {
+                    (void)((v1b = (((int32_t)(h1b)) - 48)));
+                  }
+                  if (((h1b >= 97) && (h1b <= 102))) {
+                    (void)((v1b = ((((int32_t)(h1b)) - 97) + 10)));
+                  }
+                  if (((h1b >= 65) && (h1b <= 70))) {
+                    (void)((v1b = ((((int32_t)(h1b)) - 65) + 10)));
+                  }
+                  if (((h2b >= 48) && (h2b <= 57))) {
+                    (void)((v2b = (((int32_t)(h2b)) - 48)));
+                  }
+                  if (((h2b >= 97) && (h2b <= 102))) {
+                    (void)((v2b = ((((int32_t)(h2b)) - 97) + 10)));
+                  }
+                  if (((h2b >= 65) && (h2b <= 70))) {
+                    (void)((v2b = ((((int32_t)(h2b)) - 65) + 10)));
+                  }
+                  if (((v1b >= 0) && (v2b >= 0))) {
+                    (void)((((se_adj.var_name))[wi_adj] = ((uint8_t)(((v1b * 16) + v2b)))));
+                    (void)((wi_adj = (wi_adj + 1)));
+                    (void)((ri_adj = (ri_adj + 4)));
+                    continue;
+                  }
+                }
+                (void)((((se_adj.var_name))[wi_adj] = n2));
+                (void)((wi_adj = (wi_adj + 1)));
+                (void)((ri_adj = (ri_adj + 2)));
+                continue;
+              }
+              (void)((((se_adj.var_name))[wi_adj] = c2));
+              (void)((wi_adj = (wi_adj + 1)));
+              (void)((ri_adj = (ri_adj + 1)));
+            }
+            (void)(((se_adj.var_name_len) = wi_adj));
+            while ((wi_adj < 64)) {
+              (void)((((se_adj.var_name))[wi_adj] = 0));
+              (void)((wi_adj = (wi_adj + 1)));
+            }
+            (void)(ast_ast_arena_expr_set(arena, str_ref, se_adj));
+            (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+            (void)(lexer_next_into(&(r), lex, source));
+          }
           (void)(parser_rewind_lex_for_following_stmt_into(&(lex), lex, r));
           if ((((r.tok).kind) ==95)) {
             struct lexer_LexerResult after_semi_str = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };

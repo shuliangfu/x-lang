@@ -3289,6 +3289,43 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
                   (void)((ri = (ri + 2)));
                   continue;
                 }
+                /* wave281: \xHH → one semantic byte (G.7 ≡ parser.x / primary_slice). */
+                if (((n ==120) && ((ri + 3) < nlen))) {
+                  uint8_t h1 = 0;
+                  uint8_t h2 = 0;
+                  int32_t v1 = -1;
+                  int32_t v2 = -1;
+                  if (((q0 + ((size_t)((ri + 2)))) < (source->length))) {
+                    (void)((h1 = (source)->data[(q0 + ((size_t)((ri + 2))))]));
+                  }
+                  if (((q0 + ((size_t)((ri + 3)))) < (source->length))) {
+                    (void)((h2 = (source)->data[(q0 + ((size_t)((ri + 3))))]));
+                  }
+                  if (((h1 >= 48) && (h1 <= 57))) {
+                    (void)((v1 = (((int32_t)(h1)) - 48)));
+                  }
+                  if (((h1 >= 97) && (h1 <= 102))) {
+                    (void)((v1 = ((((int32_t)(h1)) - 97) + 10)));
+                  }
+                  if (((h1 >= 65) && (h1 <= 70))) {
+                    (void)((v1 = ((((int32_t)(h1)) - 65) + 10)));
+                  }
+                  if (((h2 >= 48) && (h2 <= 57))) {
+                    (void)((v2 = (((int32_t)(h2)) - 48)));
+                  }
+                  if (((h2 >= 97) && (h2 <= 102))) {
+                    (void)((v2 = ((((int32_t)(h2)) - 97) + 10)));
+                  }
+                  if (((h2 >= 65) && (h2 <= 70))) {
+                    (void)((v2 = ((((int32_t)(h2)) - 65) + 10)));
+                  }
+                  if (((v1 >= 0) && (v2 >= 0))) {
+                    (void)((((se.var_name))[wi] = ((uint8_t)(((v1 * 16) + v2)))));
+                    (void)((wi = (wi + 1)));
+                    (void)((ri = (ri + 4)));
+                    continue;
+                  }
+                }
                 (void)((((se.var_name))[wi] = n));
                 (void)((wi = (wi + 1)));
                 (void)((ri = (ri + 2)));
@@ -3308,6 +3345,120 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
           }
           (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
           (void)(lexer_next_into(&(r), lex, source));
+          /* wave282: C-style adjacent string-literal concat (G.7 ≡ parser.x / primary_slice).
+           * Soft residual: 2nd+ TOKEN_STRING after let-init was bare expr-stmt and dropped. */
+          while (((((r.tok).kind) ==130) && (str_ref !=0))) {
+            struct ast_Expr se_adj = ast_ast_arena_expr_get(arena, str_ref);
+            int32_t wi_adj = (se_adj.var_name_len);
+            int32_t nlen_adj = ((r.tok).ident_len);
+            size_t q0_adj = (r.token_start);
+            int32_t ri_adj = 0;
+            if ((wi_adj < 0)) {
+              (void)((wi_adj = 0));
+            }
+            if ((wi_adj > 63)) {
+              (void)((wi_adj = 63));
+            }
+            if ((nlen_adj > 63)) {
+              (void)((nlen_adj = 63));
+            }
+            if ((nlen_adj < 0)) {
+              (void)((nlen_adj = 0));
+            }
+            while (((ri_adj < nlen_adj) && (wi_adj < 63))) {
+              uint8_t c2 = 0;
+              if (((q0_adj + ((size_t)(ri_adj))) < (source->length))) {
+                (void)((c2 = (source)->data[(q0_adj + ((size_t)(ri_adj)))]));
+              }
+              if (((c2 ==92) && ((ri_adj + 1) < nlen_adj))) {
+                uint8_t n2 = 0;
+                if (((q0_adj + ((size_t)((ri_adj + 1)))) < (source->length))) {
+                  (void)((n2 = (source)->data[(q0_adj + ((size_t)((ri_adj + 1))))]));
+                }
+                if ((n2 ==110)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 10));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if ((n2 ==116)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 9));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if ((n2 ==114)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 13));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if ((n2 ==48)) {
+                  (void)((((se_adj.var_name))[wi_adj] = 0));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if (((n2 ==92) || (n2 ==34))) {
+                  (void)((((se_adj.var_name))[wi_adj] = n2));
+                  (void)((wi_adj = (wi_adj + 1)));
+                  (void)((ri_adj = (ri_adj + 2)));
+                  continue;
+                }
+                if (((n2 ==120) && ((ri_adj + 3) < nlen_adj))) {
+                  uint8_t h1b = 0;
+                  uint8_t h2b = 0;
+                  int32_t v1b = -1;
+                  int32_t v2b = -1;
+                  if (((q0_adj + ((size_t)((ri_adj + 2)))) < (source->length))) {
+                    (void)((h1b = (source)->data[(q0_adj + ((size_t)((ri_adj + 2))))]));
+                  }
+                  if (((q0_adj + ((size_t)((ri_adj + 3)))) < (source->length))) {
+                    (void)((h2b = (source)->data[(q0_adj + ((size_t)((ri_adj + 3))))]));
+                  }
+                  if (((h1b >= 48) && (h1b <= 57))) {
+                    (void)((v1b = (((int32_t)(h1b)) - 48)));
+                  }
+                  if (((h1b >= 97) && (h1b <= 102))) {
+                    (void)((v1b = ((((int32_t)(h1b)) - 97) + 10)));
+                  }
+                  if (((h1b >= 65) && (h1b <= 70))) {
+                    (void)((v1b = ((((int32_t)(h1b)) - 65) + 10)));
+                  }
+                  if (((h2b >= 48) && (h2b <= 57))) {
+                    (void)((v2b = (((int32_t)(h2b)) - 48)));
+                  }
+                  if (((h2b >= 97) && (h2b <= 102))) {
+                    (void)((v2b = ((((int32_t)(h2b)) - 97) + 10)));
+                  }
+                  if (((h2b >= 65) && (h2b <= 70))) {
+                    (void)((v2b = ((((int32_t)(h2b)) - 65) + 10)));
+                  }
+                  if (((v1b >= 0) && (v2b >= 0))) {
+                    (void)((((se_adj.var_name))[wi_adj] = ((uint8_t)(((v1b * 16) + v2b)))));
+                    (void)((wi_adj = (wi_adj + 1)));
+                    (void)((ri_adj = (ri_adj + 4)));
+                    continue;
+                  }
+                }
+                (void)((((se_adj.var_name))[wi_adj] = n2));
+                (void)((wi_adj = (wi_adj + 1)));
+                (void)((ri_adj = (ri_adj + 2)));
+                continue;
+              }
+              (void)((((se_adj.var_name))[wi_adj] = c2));
+              (void)((wi_adj = (wi_adj + 1)));
+              (void)((ri_adj = (ri_adj + 1)));
+            }
+            (void)(((se_adj.var_name_len) = wi_adj));
+            while ((wi_adj < 64)) {
+              (void)((((se_adj.var_name))[wi_adj] = 0));
+              (void)((wi_adj = (wi_adj + 1)));
+            }
+            (void)(ast_ast_arena_expr_set(arena, str_ref, se_adj));
+            (void)(parser_lex_from_result_ptr_into(&(lex), &(r)));
+            (void)(lexer_next_into(&(r), lex, source));
+          }
           (void)(parser_rewind_lex_for_following_stmt_into(&(lex), lex, r));
           if ((((r.tok).kind) ==95)) {
             struct lexer_LexerResult after_semi_str = (struct lexer_LexerResult){ .next_lex = (r.next_lex), .tok = (struct token_Token){ .kind = 0, .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
@@ -3814,6 +3965,8 @@ extern void lexer_invalid_digit_sep_reset(void);
 extern int32_t lexer_invalid_digit_sep_pending(void);
 extern void lexer_invalid_type_suffix_reset(void);
 extern int32_t lexer_invalid_type_suffix_pending(void);
+extern void lexer_invalid_escape_reset(void);
+extern int32_t lexer_invalid_escape_pending(void);
 struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parser_ParseIntoResult r) {
   if (lexer_unclosed_block_comment_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
@@ -3835,6 +3988,10 @@ struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parse
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   }
   if (lexer_invalid_type_suffix_pending() != 0) {
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  }
+  /* wave281: invalid string escape hard fail (not silent keep). */
+  if (lexer_invalid_escape_pending() != 0) {
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   }
   if (lexer_incomplete_bin_pending() != 0)
@@ -3867,6 +4024,9 @@ struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(
   if (lexer_invalid_digit_sep_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if (lexer_invalid_type_suffix_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  /* wave281: invalid string escape hard fail (not silent keep). */
+  if (lexer_invalid_escape_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if ((fail_tok ==((int32_t)(130)))) {
     return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
@@ -5798,6 +5958,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     lexer_incomplete_oct_reset();
     lexer_invalid_digit_sep_reset();
     lexer_invalid_type_suffix_reset();
+    lexer_invalid_escape_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7304,6 +7465,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     lexer_incomplete_oct_reset();
     lexer_invalid_digit_sep_reset();
     lexer_invalid_type_suffix_reset();
+    lexer_invalid_escape_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };

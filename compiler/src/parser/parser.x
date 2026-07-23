@@ -3572,6 +3572,86 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         }
         lex_from_result_ptr_into(&lex, &r);
         lexer.lexer_next_into(&r, lex, source);
+        /**
+         * wave282: C-style adjacent string-literal concatenation at parse time.
+         * Soft residual: 2nd+ TOKEN_STRING after let-init STRING was left as a bare
+         * expr-stmt and silently dropped (only the first literal entered the AST).
+         * Append-decode each following TOKEN_STRING into the same EXPR_STRING_LIT
+         * (var_name cap 63, same truncate rule as a single literal).
+         * PLATFORM: SHARED — G.7 ≡ parser_gen seed + primary_slice.
+         */
+        while (r.tok.kind == token.TokenKind.TOKEN_STRING && str_ref != 0) {
+          let se_adj: Expr = ast.ast_arena_expr_get(arena, str_ref);
+          let wi_adj: i32 = se_adj.var_name_len;
+          if (wi_adj < 0) {
+            wi_adj = 0;
+          }
+          if (wi_adj > 63) {
+            wi_adj = 63;
+          }
+          let nlen_adj: i32 = r.tok.ident_len;
+          if (nlen_adj > 63) {
+            nlen_adj = 63;
+          }
+          if (nlen_adj < 0) {
+            nlen_adj = 0;
+          }
+          let q0_adj: usize = r.token_start;
+          let ri_adj: i32 = 0;
+          while (ri_adj < nlen_adj && wi_adj < 63) {
+            let c2: u8 = 0;
+            if (q0_adj + (ri_adj as usize) < source.length) {
+              c2 = source[q0_adj + (ri_adj as usize)];
+            }
+            if (c2 == 92 && (ri_adj + 1) < nlen_adj) {
+              let n2: u8 = 0;
+              if (q0_adj + ((ri_adj + 1) as usize) < source.length) {
+                n2 = source[q0_adj + ((ri_adj + 1) as usize)];
+              }
+              if (n2 == 110) { se_adj.var_name[wi_adj] = 10; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
+              if (n2 == 116) { se_adj.var_name[wi_adj] = 9; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
+              if (n2 == 114) { se_adj.var_name[wi_adj] = 13; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
+              if (n2 == 48) { se_adj.var_name[wi_adj] = 0; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
+              if (n2 == 92 || n2 == 34) { se_adj.var_name[wi_adj] = n2; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue; }
+              if (n2 == 120 && (ri_adj + 3) < nlen_adj) {
+                let h1b: u8 = 0;
+                let h2b: u8 = 0;
+                if (q0_adj + ((ri_adj + 2) as usize) < source.length) {
+                  h1b = source[q0_adj + ((ri_adj + 2) as usize)];
+                }
+                if (q0_adj + ((ri_adj + 3) as usize) < source.length) {
+                  h2b = source[q0_adj + ((ri_adj + 3) as usize)];
+                }
+                let v1b: i32 = -1;
+                let v2b: i32 = -1;
+                if (h1b >= 48 && h1b <= 57) { v1b = (h1b as i32) - 48; }
+                if (h1b >= 97 && h1b <= 102) { v1b = (h1b as i32) - 97 + 10; }
+                if (h1b >= 65 && h1b <= 70) { v1b = (h1b as i32) - 65 + 10; }
+                if (h2b >= 48 && h2b <= 57) { v2b = (h2b as i32) - 48; }
+                if (h2b >= 97 && h2b <= 102) { v2b = (h2b as i32) - 97 + 10; }
+                if (h2b >= 65 && h2b <= 70) { v2b = (h2b as i32) - 65 + 10; }
+                if (v1b >= 0 && v2b >= 0) {
+                  se_adj.var_name[wi_adj] = ((v1b * 16) + v2b) as u8;
+                  wi_adj = wi_adj + 1;
+                  ri_adj = ri_adj + 4;
+                  continue;
+                }
+              }
+              se_adj.var_name[wi_adj] = n2; wi_adj = wi_adj + 1; ri_adj = ri_adj + 2; continue;
+            }
+            se_adj.var_name[wi_adj] = c2;
+            wi_adj = wi_adj + 1;
+            ri_adj = ri_adj + 1;
+          }
+          se_adj.var_name_len = wi_adj;
+          while (wi_adj < 64) {
+            se_adj.var_name[wi_adj] = 0;
+            wi_adj = wi_adj + 1;
+          }
+          ast.ast_arena_expr_set(arena, str_ref, se_adj);
+          lex_from_result_ptr_into(&lex, &r);
+          lexer.lexer_next_into(&r, lex, source);
+        }
         parser_rewind_lex_for_following_stmt_into(&lex, lex, r);
         if (r.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
           let after_semi_str: LexerResult = LexerResult {
