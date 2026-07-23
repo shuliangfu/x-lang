@@ -2487,6 +2487,42 @@ export function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
+/**
+ * Scalar f32 multiply (mulss); thin u32 LE twin of full seed.
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `*` (wave294 Cap residual pure).
+ * Encoding mirror of addss with mulss opcode F3 0F 59 C1
+ * (u32 le 0xc1590ff3 = 3243839475; addss is 0xc1580ff3 = 3243773939).
+ */
+#[no_mangle]
+export function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    /* movd xmm0,eax: 66 0f 6e c0 → 3228438374 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) != 0) {
+      return 0 - 1;
+    }
+    /* movd xmm1,ebx: 66 0f 6e cb → 3412987750 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3412987750) != 0) {
+      return 0 - 1;
+    }
+    /* mulss xmm0,xmm1: f3 0f 59 c1 → 3243839475 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3243839475) != 0) {
+      return 0 - 1;
+    }
+    /* movd eax,xmm0: 66 0f 7e c0 → 3229486950 */
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * Implements `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * @param elf_ctx *u8

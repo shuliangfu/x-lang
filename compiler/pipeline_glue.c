@@ -1338,6 +1338,8 @@ extern int32_t pipeline_block_find_var_decl_block_ref(struct ast_ASTArena *arena
                                                       int32_t vlen);
 extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f32 bits in eax/rbx → product bits in eax (mulss); freestanding f32 `*` (wave294). */
+extern int32_t backend_enc_mulss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -12462,7 +12464,13 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
   return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
 }
 
-/** f64 MUL → mulsd; else integer imul. G.7: single path with addsd/subsd family. */
+/**
+ * f64 MUL → mulsd; f32 MUL → mulss; else integer imul.
+ * PLATFORM: SHARED cast/arith semantics / LINUX+MACOS x86_64 emit.
+ * wave294 Cap residual pure: freestanding f32 `*` used imul on IEEE bits → run=0
+ * (mac host-gcc hid). G.7: complete next to addss path + mulsd family.
+ * Mixed f32*f64 leave-off (needs promote); both sides same scalar class required.
+ */
 static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
@@ -12470,6 +12478,9 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
   if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta);
+  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
+    return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
   return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
 }
 
@@ -12543,10 +12554,15 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
                                                    int32_t ta) {
   int32_t lit_imm;
   int32_t vr;
-  /** Integer lit fast path only when neither side is scalar f64 (else mulsd needs full IEEE bits). */
+  /**
+   * Integer lit fast path only when neither side is scalar f32/f64
+   * (else mulss/mulsd need full IEEE bits in GPRs).
+   */
   if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm) &&
       !(glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) ||
-        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))) {
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) ||
+        glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) ||
+        glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
@@ -12555,7 +12571,9 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
   }
   if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm) &&
       !(glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) ||
-        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))) {
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) ||
+        glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) ||
+        glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)

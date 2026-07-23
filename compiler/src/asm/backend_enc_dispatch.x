@@ -2316,6 +2316,36 @@ export function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
+/**
+ * Scalar f32 multiply: IEEE bits in eax/rbx low 32 → product bits in eax (mulss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `*` (wave294 Cap residual pure).
+ * G.7: complete authority next to addss / mulsd (not integer imul on float bits).
+ */
+#[no_mangle]
+export function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, ebx — 66 0f 6e cb */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 203;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* mulss xmm0, xmm1 — f3 0f 59 c1 */
+    a[0] = 243; a[1] = 15; a[2] = 89; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * Implements `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * @param elf_ctx *u8

@@ -128,6 +128,7 @@ extern int32_t backend_enc_sub_imm_from_rbx_index_arch(uint8_t * elf_ctx, int32_
 extern int32_t backend_enc_load_rbp_to_rbx_arch(uint8_t * elf_ctx, int32_t offset, int32_t ta);
 extern int32_t backend_enc_load_rbp_lane_to_rbx_arch(uint8_t * elf_ctx, int32_t offset, int32_t esz, int32_t ta);
 extern int32_t backend_enc_addss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
@@ -2154,6 +2155,28 @@ int32_t backend_enc_addss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
       return (0 - 1);
     }
     if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1051193357) !=0)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, -1065480346);
+  }
+  return (0 - 1);
+}
+/* wave294: f32 MUL freestanding (mulss); thin surface twin. */
+int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1066528922) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -881979546) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1051127821) !=0)) {
       return (0 - 1);
     }
     return backend_enc_append_u32_le_c_impl(elf_ctx, -1065480346);
