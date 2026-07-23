@@ -4381,44 +4381,11 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
       }
       (void)((rt_after = expr_type_ref(arena, right_ref)));
     }
+    /* wave308: assign RHS bare EXPR_LIT — G.7 reuse typeck_coerce_init_lit_to_decl
+     * (full i64; drop i32 int_val gate). PLATFORM: SHARED */
     if ((rhs_kind ==ord_lit)) {
       if (!(type_refs_equal(arena, lt, rt_after))) {
-        (void)((int_val = pipeline_expr_int_val_at(arena, right_ref)));
-        if ((((lt_kind ==ord_u8) && (int_val >=0)) && (int_val <=255))) {
-          (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-        } else {
-          if ((((expr_kind ==ord_assign) && (lt_kind ==ord_ptr)) && (int_val ==0))) {
-            (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-          } else {
-            if (((expr_kind ==ord_assign) && (lt_kind ==ord_u32))) {
-              (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-            } else {
-              if ((((expr_kind ==ord_assign) && (int_val >=0)) && ((lt_kind ==ord_usize) || (lt_kind ==ord_u64)))) {
-                (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-              } else {
-                if (((expr_kind ==ord_assign) && (lt_kind ==ord_i64))) {
-                  (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-                } else {
-                  if (((expr_kind ==ord_assign) && (lt_kind ==ord_isize))) {
-                    (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-                  } else {
-                    if (((expr_kind ==ord_assign) && (lt_kind ==ord_named))) {
-                      uint8_t nm16[64] = {};
-                      int32_t nlen16 = pipeline_type_named_name_into(arena, lt, &((nm16)[0]));
-                      if (((((((nlen16 ==3) && ((nm16)[0] ==117)) && ((nm16)[1] ==49)) && ((nm16)[2] ==54)) && (int_val >=0)) && (int_val <=65535))) {
-                        (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-                      } else {
-                        if (((((((nlen16 ==3) && ((nm16)[0] ==105)) && ((nm16)[1] ==49)) && ((nm16)[2] ==54)) && (int_val >=-(32768))) && (int_val <=32767))) {
-                          (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+        (void)(typeck_coerce_init_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind));
       }
     }
   }

@@ -5263,36 +5263,16 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
         rt_after = expr_type_ref(arena, right_ref);
       }
+      /*
+       * wave308: assign RHS bare EXPR_LIT — reuse typeck_coerce_init_lit_to_decl
+       * (G.7 single authority; same full-i64 path as let-init / wave307).
+       * Prior hand path used pipeline_expr_int_val_at (i32 truncate) +
+       * `int_val >= 0` for u64/usize, so `a = u64max` / `a = i64max` failed.
+       * PLATFORM: SHARED — typeck lit assign coerce.
+       */
       if (rhs_kind == ord_lit) {
         if (!type_refs_equal(arena, lt, rt_after)) {
-          int_val = pipeline_expr_int_val_at(arena, right_ref);
-          if (lt_kind == ord_u8 && int_val >= 0 && int_val <= 255) {
-            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-          } else if (expr_kind == ord_assign && lt_kind == ord_ptr && int_val == 0) {
-            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-          } else if (expr_kind == ord_assign && lt_kind == ord_u32) {
-            /* See implementation. */
-            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-          } else if (expr_kind == ord_assign && int_val >= 0 &&
-          (lt_kind == ord_usize || lt_kind == ord_u64)) {
-            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-          } else if (expr_kind == ord_assign && lt_kind == ord_i64) {
-            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-          } else if (expr_kind == ord_assign && lt_kind == ord_isize) {
-            /* See implementation. */
-            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-          } else if (expr_kind == ord_assign && lt_kind == ord_named) {
-            /* See implementation. */
-            let nm16: u8[64] = [];
-            let nlen16: i32 = pipeline_type_named_name_into(arena, lt, &nm16[0]);
-            if (nlen16 == 3 && nm16[0] == 117 && nm16[1] == 49 && nm16[2] == 54
-                && int_val >= 0 && int_val <= 65535) {
-              pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-            } else if (nlen16 == 3 && nm16[0] == 105 && nm16[1] == 49 && nm16[2] == 54
-                && int_val >= -32768 && int_val <= 32767) {
-              pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-            }
-          }
+          typeck_coerce_init_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind);
         }
       }
     }

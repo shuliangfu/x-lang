@@ -25493,6 +25493,10 @@ int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast
 /**
  * 整型字面量是否可收窄到具名标量 i16/u16（CORE-013）。
  */
+/* Forward decl: body later with typeck coerce family (wave308 assign reuses it). */
+int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
+                                                  int32_t decl_kind, int32_t init_kind);
+
 static int32_t pipeline_typeck_lit_fits_named_i16_u16_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t int_val) {
   uint8_t nm[64];
   int32_t nlen;
@@ -25569,26 +25573,21 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   if (!ast_ref_is_null(lt) && lt > 0) {
     rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
     if (rhs_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
-      /* 始终按 lhs 收窄整型字面量（含已 resolved 为 i32 的 0），对齐 let 初值。 */
+      /*
+       * wave308 Cap residual pure: assign RHS bare EXPR_LIT reuses let-init
+       * coerce (pipeline_typeck_coerce_init_lit_to_decl_c / full i64).
+       * Prior path used pipeline_expr_int_val_at (i32) + int_val >= 0 for
+       * u64/usize → rejected u64max / i64max bit patterns. G.7 single authority.
+       * Named i16/u16 still use lit_fits helper (coerce_c omits TYPE_NAMED ranges).
+       * PLATFORM: SHARED — typeck lit assign coerce.
+       */
       lt_kind = pipeline_type_kind_ord_at(arena, lt);
-      int_val = pipeline_expr_int_val_at(arena, right_ref);
-      if (lt_kind == (int32_t)ast_TypeKind_TYPE_U8 && int_val >= 0 && int_val <= 255)
-        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN && lt_kind == (int32_t)ast_TypeKind_TYPE_PTR &&
-               int_val == 0)
-        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN &&
-               (lt_kind == (int32_t)ast_TypeKind_TYPE_ISIZE || lt_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
-                lt_kind == (int32_t)ast_TypeKind_TYPE_I32))
-        /* isize/i64/i32：任意 i32 字面量（含负值）可赋给更宽/同宽有符号整型 */
-        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN && int_val >= 0 &&
-               (lt_kind == (int32_t)ast_TypeKind_TYPE_USIZE || lt_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-                lt_kind == (int32_t)ast_TypeKind_TYPE_U64))
-        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
-      else if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN &&
-               pipeline_typeck_lit_fits_named_i16_u16_c(arena, lt, int_val))
-        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      if (pipeline_typeck_coerce_init_lit_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind) == 0 &&
+          expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
+        int_val = pipeline_expr_int_val_at(arena, right_ref);
+        if (pipeline_typeck_lit_fits_named_i16_u16_c(arena, lt, int_val))
+          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      }
       (void)rt_after;
     }
   }
