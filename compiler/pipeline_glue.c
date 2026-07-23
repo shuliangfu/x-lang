@@ -1346,6 +1346,8 @@ extern int32_t backend_enc_divsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx 
 extern int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f64 bits in rax → truncated i32 in eax (cvttsd2si); freestanding `as i32` (wave291). */
+extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
@@ -2138,6 +2140,26 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
       return -1;
     return backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx, ta);
+  }
+  /**
+   * f64 → i32：cvttsd2si (wave291 Cap residual pure).
+   * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+   * Root: prior path re-emitted IEEE f64 bits in rax; process exit uses eax (low 32),
+   * which is 0 for many finite doubles (6.0, 42.0, 1.5+2.5, …) → freestanding run=0
+   * while mac host-gcc -o hid the gap. G.7: complete EXPR_AS authority next to f32 path.
+   * Detect: TYPE_F64 resolved, FLOAT_LIT, or scalar-f64 binop/var (glue f64 authority).
+   */
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 0) {
+    int32_t src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    int32_t src_kind = src_tr > 0 ? pipeline_type_kind_ord_at(arena, src_tr) : -1;
+    int32_t op_ko = pipeline_expr_kind_ord_at(arena, op);
+    /* kind 15 = TYPE_F64; kind 1 = EXPR_FLOAT_LIT (same as glue_emit_float_lit path). */
+    if (src_kind == 15 || (src_kind <= 0 && op_ko == 1) ||
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+        return -1;
+      return backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx, ta);
+    }
   }
   /** i32 → f32：cvtsi2ss（return v.len as f32 等；勿把整型 3 当 f32 位型 0x3 返回）。 */
   if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14) {

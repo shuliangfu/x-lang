@@ -2510,6 +2510,35 @@ export function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i
   return 0 - 1;
 }
 
+/**
+ * Truncate f64 bits in rax to i32 in eax (cvttsd2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f64 `as i32` (wave291 Cap residual).
+ */
+#[no_mangle]
+export function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    /* movq xmm0,rax: 66 48 0f 6e + c0 (same lead as cvtsd2ss). */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 1846495334) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c_impl(elf_ctx, 192) != 0) {
+      return 0 - 1;
+    }
+    /* cvttsd2si eax,xmm0: f2 0f 2c c0 → u32 le 0xc02c0ff2 = 3224113138 */
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3224113138);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * Implements `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * @param elf_ctx *u8
