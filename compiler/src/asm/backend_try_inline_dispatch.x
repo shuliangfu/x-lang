@@ -11,7 +11,10 @@
 // PLATFORM: SHARED — all export extern "C" hoisted before first use so -E emits
 // short-name prototypes matching call sites (late mid-file externs caused type-mangle
 // decls vs short calls → undeclared + cc fail). Product ABI = short pipeline_* names.
-export extern "C" function getenv(name: *u8): *u8;
+/* wave232 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid full.x path owns WPO mono env gates. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, er: i32): i32;
 export extern "C" function asm_ctx_scope_block_ref_at(asm_ctx: *u8): i32;
 export extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, br: i32, vname: *u8, vlen: i32): i32;
@@ -1759,15 +1762,16 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
   return 0;
 }
 
-// try_call_wpo_mono_symbol_elf: see function docblock below.
-/** Exported function `try_call_wpo_mono_symbol_elf`.
- * Implements `try_call_wpo_mono_symbol_elf`.
- * @param arena *u8
- * @param elf_ctx *u8
- * @param expr_ref i32
- * @param ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Try WPO mono symbol emit for a 2-arg call when SHUX_WPO_MONO is set.
+ * wave232 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @param arena *u8 — AST arena; null → return 0
+ * @param elf_ctx *u8 — ELF/codegen context; null → return 0
+ * @param expr_ref i32 — call expr ref; must be > 0
+ * @param ctx *u8 — AsmFuncCtx; null → return 0
+ * @param ta i32 — target arch token
+ * @return i32 — 1 if mono path handled, 0 if skipped, -1 on encode failure
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl
  */
 #[no_mangle]
 export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -1780,7 +1784,8 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
     kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
     kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
-    if (getenv(&kmono[0]) == 0) { return 0; }
+    // wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv).
+    if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
     let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
     if (mod_ref == 0) { return 0; }
@@ -1932,9 +1937,16 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
 
 // See implementation.
 
-/** Function `try_call_wpo_mono_vector_lane_of_binop_call_elf`.
- * Purpose: implements `try_call_wpo_mono_vector_lane_of_binop_call_elf`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
+/**
+ * Try WPO mono vector-lane-of-binop call emit when SHUX_WPO_MONO is set.
+ * wave232 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @param arena *u8 — AST arena; null → return 0
+ * @param elf_ctx *u8 — ELF/codegen context; null → return 0
+ * @param expr_ref i32 — outer call expr ref; must be > 0
+ * @param ctx *u8 — AsmFuncCtx; null → return 0
+ * @param ta i32 — target arch token
+ * @return i32 — 1 if mono path handled, 0 if skipped, -1 on encode failure
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl
  */
 #[no_mangle]
 export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
@@ -1949,7 +1961,8 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
     kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
     kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
     kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
-    if (getenv(&kmono[0]) == 0) { return 0; }
+    // wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv).
+    if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
     let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
     if (mod_ref == 0) { return 0; }

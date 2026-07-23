@@ -101,10 +101,15 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
 #endif
 
 
+/* wave232 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure).
+ * Cap residual host getenv stays only link_abi_getenv_impl. Cold twin of backend_try_inline_dispatch.x. */
+extern char *link_abi_getenv(const char *name);
+
 static void backend_try_inline_debugf(const char *fmt, ...) {
   char buf[256];
   va_list ap;
-  if (!getenv("SHUX_ASM_DEBUG"))
+  /* wave232 G.7: SHUX_ASM_DEBUG via link_abi_getenv (not raw getenv). */
+  if (!link_abi_getenv("SHUX_ASM_DEBUG"))
     return;
   va_start(ap, fmt);
   (void)vsnprintf(buf, sizeof buf, fmt ? fmt : "asm try-inline debug", ap);
@@ -1944,7 +1949,8 @@ int32_t try_call_wpo_mono_symbol_elf_impl(struct ast_ASTArena *arena, struct pla
   int sym_len;
   uint8_t cname[64];
   int32_t clen;
-  if (!getenv("SHUX_WPO_MONO"))
+  /* wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv). */
+  if (!link_abi_getenv("SHUX_WPO_MONO"))
     return 0;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;
@@ -2028,7 +2034,8 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena
   int sym_len;
   uint8_t outer_name[64];
   int32_t olen;
-  if (!getenv("SHUX_WPO_MONO"))
+  /* wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv). */
+  if (!link_abi_getenv("SHUX_WPO_MONO"))
     return 0;
   if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
     return 0;

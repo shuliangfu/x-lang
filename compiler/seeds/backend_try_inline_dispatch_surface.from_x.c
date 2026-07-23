@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+/* wave232 G.7: env via public pure thin link_abi_getenv (not raw libc getenv). */
+extern char *link_abi_getenv(const char *name);
 extern int32_t backend_try_inline_dispatch_x_doc_anchor(void);
 extern int32_t glue_module_func_index_by_name(uint8_t * mod, uint8_t * name, int32_t nlen);
 extern int32_t glue_const_scalar_binop_eval_i32(int32_t ko, int32_t a, int32_t b, int32_t * out);
@@ -2066,7 +2068,8 @@ int32_t try_call_wpo_mono_symbol_elf(uint8_t * arena, uint8_t * elf_ctx, int32_t
     (void)(((kmono)[11] = 78));
     (void)(((kmono)[12] = 79));
     (void)(((kmono)[13] = 0));
-    if ((getenv(&((kmono)[0])) ==0)) {
+    /* wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv). */
+    if ((link_abi_getenv((const char *)&((kmono)[0])) ==0)) {
       return 0;
     }
     if ((pipeline_expr_kind_ord_at(arena, expr_ref) !=48)) {
@@ -2323,7 +2326,8 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(uint8_t * arena, uint8_t
     (void)(((kmono)[11] = 78));
     (void)(((kmono)[12] = 79));
     (void)(((kmono)[13] = 0));
-    if ((getenv(&((kmono)[0])) ==0)) {
+    /* wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv). */
+    if ((link_abi_getenv((const char *)&((kmono)[0])) ==0)) {
       return 0;
     }
     if ((pipeline_expr_kind_ord_at(arena, expr_ref) !=48)) {
