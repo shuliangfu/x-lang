@@ -1489,6 +1489,8 @@ extern int32_t backend_enc_index_scratch_mul_secondary_arch(struct platform_elf_
 extern int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val);
 extern int32_t backend_enc_rbx_index_mul_secondary_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_neg_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/* wave290 Cap residual: EXPR_BITNOT ELF emit needs notl/mvn (mirror NEG/LOGNOT). */
+extern int32_t backend_enc_not_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_test_eax_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_test_rbx_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_setz_movzbl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -1957,6 +1959,33 @@ static int32_t pipeline_asm_emit_lognot_elf_impl(struct ast_ASTArena *arena,
   if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
     return -1;
   return backend_enc_setz_movzbl_eax_arch(elf_ctx, ta);
+}
+
+/**
+ * EXPR_BITNOT: emit unary operand into eax/w0, then bitwise complement.
+ *
+ * wave290 Cap residual root fix:
+ *   pipeline_asm_emit_expr_elf_rec dispatched NEG (ko==22) and LOGNOT (ko==24)
+ *   but dropped BITNOT (ko==23) into backend_emit_expr_elf_slow, which did not
+ *   write eax for `~x`. Ubuntu freestanding -o then returned garbage (e.g. 232
+ *   for `return (~3)`); -E C path already emitted `~(3)`. CTFE fold of pure
+ *   lit BITNOT still works via const_folded_valid (mac path); this impl covers
+ *   non-folded / runtime operands and closes the ELF dispatch hole.
+ *
+ * Authority: single ELF emit path here; encoder is backend_enc_not_eax_arch
+ * (x86_64 notl %eax / arm64 mvn / riscv not — already product-linked).
+ * PLATFORM: SHARED dispatch; arch encoding via ta.
+ */
+static int32_t pipeline_asm_emit_bitnot_elf_impl(struct ast_ASTArena *arena,
+                                                 struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                 struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  int32_t op;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op == 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+    return -1;
+  return backend_enc_not_eax_arch(elf_ctx, ta);
 }
 
 /** C ASTExprKind 与 X ast_ExprKind 在序 54 碰撞：C AWAIT=54，X EXPR_AS=54；X EXPR_AWAIT=55。 */
@@ -11432,6 +11461,8 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     out_rc = pipeline_asm_emit_continue_elf_impl(arena, elf_ctx, ctx, ta);
   else if (ko == 22)
     out_rc = pipeline_asm_emit_neg_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 23)
+    out_rc = pipeline_asm_emit_bitnot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == 24)
     out_rc = pipeline_asm_emit_lognot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   else if (glue_expr_is_await_at_c(arena, expr_ref))
@@ -11751,6 +11782,12 @@ int32_t pipeline_asm_emit_neg_elf_c(struct ast_ASTArena *arena, struct platform_
 int32_t pipeline_asm_emit_lognot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_lognot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+/** EXPR_BITNOT ELF 发射（X emit_expr_elf 单行委托；wave290 Cap residual）。 */
+int32_t pipeline_asm_emit_bitnot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+  return pipeline_asm_emit_bitnot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
 /** EXPR_AS ELF 发射（X emit_expr_elf 单行委托）。 */
