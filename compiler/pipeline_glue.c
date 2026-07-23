@@ -17735,10 +17735,34 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
               if (let_ty2 > 0 && pipeline_type_kind_ord_at(arena, let_ty2) == GLUE_TYPE_KIND_F32_ORD) {
                 if (backend_enc_store_eax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot), ta) != 0)
                   return -1;
-              } else if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty2,
-                                                             backend_asm_ctx_slot_offset(ctx, slot), ta,
-                                                             init_ref) != 0) {
-                return -1;
+              } else {
+                /**
+                 * wave315: true freestanding let path is pipeline_asm_emit_block_body_sync_elf
+                 * (nso>0). wave314 only hooked block_inits (nso==0) + stmt_order_let_const
+                 * sibling — hot path stored rax without cvtss2sd → f32 bits zero-extended as
+                 * f64 (Ubuntu run=0; mac often const-folds the probe).
+                 * G.7: reuse glue_maybe_promote_f32_to_f64_rax_elf_c + float_promote_src;
+                 * prefer same-block VAR decl type over stamped resolved.
+                 * PLATFORM: SHARED type gate / LINUX+MACOS x86_64|arm64 encode via arch helper.
+                 */
+                int32_t src_ty = glue_float_promote_src_ty_ref_c(arena, init_ref);
+                if (pipeline_expr_kind_ord_at(arena, init_ref) == GLUE_EXPR_KIND_VAR) {
+                  uint8_t vn[64];
+                  int32_t vl = pipeline_expr_var_name_len(arena, init_ref);
+                  if (vl > 0 && vl <= 63) {
+                    int32_t bt;
+                    pipeline_expr_var_name_into(arena, init_ref, vn);
+                    bt = pipeline_block_resolve_var_type_ref(arena, block_ref, vn, vl);
+                    if (bt > 0)
+                      src_ty = bt;
+                  }
+                }
+                if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, let_ty2, src_ty, ta) != 0)
+                  return -1;
+                if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty2,
+                                                         backend_asm_ctx_slot_offset(ctx, slot), ta,
+                                                         init_ref) != 0)
+                  return -1;
               }
             }
             glue_binop_var_slot_cache_kill_def_at_slot(backend_asm_ctx_slot_offset(ctx, slot));
