@@ -2136,7 +2136,17 @@ static int32_t glue_emit_float_lit_to_rax_elf_c(struct ast_ASTArena *arena,
   return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
 }
 
-/** EXPR_AS：整数 cast 暂与操作数同路径；f32 目标 + 浮点字面量须发 32-bit 位型（勿 f64 movabs 截断为 0）。 */
+/**
+ * EXPR_AS ELF emit (integer cast reuses operand path; float lit special-cased).
+ *
+ * f32 target + FLOAT_LIT: must emit 32-bit IEEE bits (not f64 movabs low-32).
+ * wave300 Cap residual pure: pass force_ty_ref=tgt (TYPE_F32). Prior force_ty=0
+ * used the lit's own resolved type (usually f64 for bare `7.0`), so mov_imm64
+ * left full f64 bits in rax; freestanding mulss then consumed only the low 32
+ * → `b * 7.0 as f32` run=0 while `let c:f32=7.0` (force_ty on let) stayed green.
+ * G.7: complete glue_emit_float_lit authority next to let/assign force_ty sites
+ * (no new encoder). PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+ */
 static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t op;
@@ -2149,7 +2159,7 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
   tgt = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
   if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14 &&
       pipeline_expr_kind_ord_at(arena, op) == 1)
-    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, 0, 0);
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, tgt, 0);
   /** f32 → i32：cvttss2si（SoA 列扫描 return s as i32 等）。 */
   if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 0 &&
       pipeline_type_kind_ord_at(arena, pipeline_expr_resolved_type_ref(arena, op)) == 14) {
