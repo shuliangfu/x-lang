@@ -1350,6 +1350,8 @@ extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** i32 in eax → f64 bits in rax (cvtsi2sd); freestanding `as f64` (wave292). */
+extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                   int32_t ta);
 extern int32_t backend_enc_sub_rbx_rax_then_mov_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -2170,6 +2172,27 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
+      }
+    }
+  }
+  /**
+   * i32 → f64：cvtsi2sd (wave292 Cap residual pure).
+   * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+   * Root: prior EXPR_AS f64 target fell through to re-emit integer bits in rax;
+   * freestanding then mulsd/addsd treated denormal bit-patterns → run=0
+   * (e.g. `let a:i32=6; (a as f64)*7.0 as i32` → 0). G.7: complete next to
+   * i32→f32 cvtsi2ss. Detect: TYPE_F64 target + integer source kinds.
+   */
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 15) {
+    int32_t src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    if (src_tr > 0) {
+      int32_t src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+      /* 0=i32, 2=u8, 3=u32, 5=i64, 6=usize, 7=isize — same family as i32→f32 (+u8/i64). */
+      if (src_kind == 0 || src_kind == 2 || src_kind == 3 || src_kind == 5
+          || src_kind == 6 || src_kind == 7 || src_kind == 13) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        return backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
       }
     }
   }

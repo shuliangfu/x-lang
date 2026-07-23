@@ -2403,6 +2403,30 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
   return 0 - 1;
 }
 
+/**
+ * Convert i32 in eax to f64 bits in rax (cvtsi2sd).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f64` from i32 (wave292).
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* cvtsi2sd xmm0, eax — f2 0f 2a c0 */
+    let a: u8[4] = [];
+    a[0] = 242; a[1] = 15; a[2] = 42; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movq rax, xmm0 — 66 48 0f 7e c0 (must include 66 + REX.W). */
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 126; q[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_mov_eax_to_xmm_arg_reg_arch`.
  * Implements `backend_enc_mov_eax_to_xmm_arg_reg_arch`.
  * @param elf_ctx *u8
