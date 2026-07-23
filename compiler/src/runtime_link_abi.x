@@ -92,6 +92,8 @@ export extern "C" function link_abi_asm_ld_argv_push_stable_impl(bank: *u8, argv
 export extern "C" function link_abi_asm_ld_push_obj_impl(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flag_out: *i32): i32;
 
 export extern "C" function shux_cc_compile_sync_impl(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32;
+/* Cap residual (wave219): host spawn; public pure thin is labi_diag_pure L1.
+ * argv typed *u8 (opaque char** width) — export **u8 drops body in product codegen. */
 export extern "C" function shux_spawn_sync_impl(prog: *u8, argv: *u8): i32;
 export extern "C" function shux_link_perror_impl(msg: *u8): void;
 export extern "C" function ld_append_brew_lib_paths_impl(argv: *u8, la: *i32, max_la: i32): void;
@@ -3037,14 +3039,26 @@ export function shux_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8,
   return 0 - 1;
 }
 
-/** Exported function `shux_spawn_sync`.
- * Implements `shux_spawn_sync`.
- * @param prog *u8
- * @param argv *u8
- * @return i32
+/**
+ * Synchronous spawn (wave219 pure thin mirror of labi_diag_pure L1 authority).
+ * Product hybrid public is labi_diag_pure.x; this mega .x mirror keeps cold regen
+ * path aligned. Cap residual shux_spawn_sync_impl stays mega always.
+ * @param prog *u8 — program name; null/empty → -1
+ * @param argv *u8 — opaque NULL-terminated argv vector (char** width); null → -1
+ * @return i32 — 0 success; non-zero failure
+ * PLATFORM: SHARED orch / POSIX fork residual / WINDOWS _spawnvp residual.
  */
 #[no_mangle]
 export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
+  if (prog == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (prog[0] == 0) {
+    return 0 - 1;
+  }
+  if (argv == 0 as *u8) {
+    return 0 - 1;
+  }
   unsafe {
     return shux_spawn_sync_impl(prog, argv);
   }

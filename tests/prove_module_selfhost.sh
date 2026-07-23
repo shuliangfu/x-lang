@@ -102,7 +102,9 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_host_lit.from_x.c 全 C 体
   "labi_host_lit|src/runtime/labi_host_lit.x|seeds/labi_host_lit_surface.from_x.c||"
   # labi_diag_pure R2 full：.x 吃满 code_for_kind + 7 report 消息体 + count；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv char** 在 mega rest
+  # + wave216 waitpid pure thin + wave217 strerror/wait decode pure thin
+  # + wave219 spawn_sync pure thin（null/empty gates；Cap residual fork/exec/_spawnvp _impl）
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv + wait/strerror/spawn _impl 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
   "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure_surface.from_x.c||"
   # diagnostic R2 thin + Cap residual pure deep-migrate: thin.x gates + fixed-msg/pipe orch + assemble pure + getenv

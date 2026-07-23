@@ -341,13 +341,13 @@ int shux_cc_compile_sync_one_extra(const char *src, const char *out_o,
 
 
 /**
- * 同步执行子进程：POSIX 上 fork+execvp+waitpid，Windows 上 _spawnvp(_P_WAIT,...)。
- * 参数：prog 程序名（PATH 查找）；argv 参数数组，须以 NULL 结尾。
- * 返回值：0 成功（exit 0），非 0 失败（exit code 或 -1）。
- * 设计目的：shux_asm_invoke_ld_platform 中 6 处 fork+execvp+waitpid 统一封装。
+ * Cap residual (wave219): synchronous spawn body.
+ * Pure orch (labi_diag_pure L1) owns public thin null/empty gates; _impl is always mega.
+ * POSIX: fork+execvp+waitpid (via public shu_waitpid_retry); Windows: _spawnvp(_P_WAIT).
+ * G.7 single spawn authority for invoke_cc / ld / strip (no second fork path).
+ * PLATFORM: SHARED residual / POSIX fork / WINDOWS _spawnvp.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_spawn_sync(const char *prog, const char *const *argv) {
+int shux_spawn_sync_impl(const char *prog, const char *const *argv) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
         intptr_t rc = _spawnvp(_P_WAIT, prog, (const char *const *)argv);
@@ -375,6 +375,21 @@ int shux_spawn_sync(const char *prog, const char *const *argv) {
     return 0;
 #endif
 }
+
+/* wave219: shux_spawn_sync pure orch lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * Pure: null/empty prog + null argv gates; Cap residual shux_spawn_sync_impl always mega.
+ * Why: hybrid still had spawn_sync body always mega C (fork/exec/wait or _spawnvp).
+ * PLATFORM: SHARED orch / POSIX fork residual / WINDOWS _spawnvp residual. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+int shux_spawn_sync(const char *prog, const char *const *argv) {
+    if (!prog || !prog[0] || !argv)
+        return -1;
+    return shux_spawn_sync_impl(prog, argv);
+}
+#else
+int shux_spawn_sync(const char *prog, const char *const *argv);
+#endif
 
 /**
  * Cap residual (wave205): best-effort `strip -x out_path` after successful cc link.

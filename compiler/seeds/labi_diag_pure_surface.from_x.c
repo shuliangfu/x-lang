@@ -1,13 +1,14 @@
 /* seeds/labi_diag_pure_surface.from_x.c
  * G-02f labi_diag_pure R2 full surface — isomorphic with src/runtime/labi_diag_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_diag_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + reports + count + wave111/112/113/216/217)
+ * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + reports + count + wave111/112/113/216/217/219)
  * Cap residual: link_diag_ld_debug_argv → mega _impl (char**);
  *   link_diag_strerror_current_impl (errno+strerror; wave217);
  *   link_diag_wait_*_impl (WIF*; wave217);
  *   shu_waitpid_retry_impl (waitpid+EINTR+strerror; wave216);
+ *   shux_spawn_sync_impl (fork/exec/wait or _spawnvp; wave219);
  *   wave111 perror; wave112 tool/obj status; wave113 errno/_path pure orch;
- *   wave217 strerror_current + wait_* pure thin
+ *   wave217 strerror_current + wait_* pure thin; wave219 spawn_sync pure thin
  * Regen: ./shux -E ... src/runtime/labi_diag_pure.x | filter DBG + polish prologue
  * Track-L (2026-07-16): labi_diag_append keeps short name; .x has #[no_mangle] (was module mangle).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -488,6 +489,9 @@ extern uint8_t * link_diag_strerror_current_impl(void);
 extern int32_t link_diag_wait_is_signaled_impl(int32_t status);
 extern int32_t link_diag_wait_code_impl(int32_t status);
 extern int32_t shu_waitpid_retry_impl(int64_t pid, int32_t * status_out);
+/* Cap residual mega always _impl (wave219); pure public thin defined below.
+ * argv as uint8_t* matches product .x *u8 opaque char** width (export **u8 drops body). */
+extern int32_t shux_spawn_sync_impl(uint8_t * prog, uint8_t * argv);
 /* Public pure thin (defined later in this TU; used by errno/tool/obj orch above). */
 uint8_t * link_diag_strerror_current(void);
 int32_t link_diag_wait_is_signaled(int32_t status);
@@ -962,6 +966,22 @@ int32_t link_diag_wait_code(int32_t status) {
 int32_t shu_waitpid_retry(int64_t pid, int32_t * status_out) {
   {
     return shu_waitpid_retry_impl(pid, status_out);
+  }
+  return (0 - 1);
+}
+/* wave219: shux_spawn_sync pure thin (surface pin ≡ .x; null/empty gates + Cap residual). */
+int32_t shux_spawn_sync(uint8_t * prog, uint8_t * argv) {
+  if ((prog == 0)) {
+    return (0 - 1);
+  }
+  if (((prog)[0] == 0)) {
+    return (0 - 1);
+  }
+  if ((argv == 0)) {
+    return (0 - 1);
+  }
+  {
+    return shux_spawn_sync_impl(prog, argv);
   }
   return (0 - 1);
 }

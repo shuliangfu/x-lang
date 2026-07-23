@@ -33,6 +33,13 @@ export extern "C" function link_diag_wait_code_impl(status: i32): i32;
 /* Cap residual (wave216): waitpid + EINTR retry + strerror report (mega always). */
 export extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
 
+/* Cap residual (wave219): host spawn body (POSIX fork+execvp+waitpid / Windows _spawnvp).
+ * Public pure thin owns null/empty gates under hybrid L1. argv is NULL-terminated
+ * vector; typed as *u8 (opaque pointer) so product codegen emits the export body
+ * (export fn with **u8 params currently drops the body — G.7 keep *u8 ABI-width).
+ * PLATFORM: SHARED residual contract / POSIX fork / WINDOWS _spawnvp. */
+export extern "C" function shux_spawn_sync_impl(prog: *u8, argv: *u8): i32;
+
 /** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
@@ -755,10 +762,44 @@ export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
   return 0 - 1;
 }
 
+/**
+ * Synchronously run prog with argv (PATH lookup); wait for exit 0.
+ * Thin pure public: null/empty prog or null argv → -1 without residual.
+ * Cap residual `shux_spawn_sync_impl` holds fork+execvp+waitpid (POSIX) or
+ * `_spawnvp` (Windows). Uses public `shu_waitpid_retry` inside residual.
+ * @param prog *u8 — program name for PATH lookup; null/empty rejected at pure gate
+ * @param argv *u8 — opaque pointer to NULL-terminated argv vector (C char** width);
+ *   typed *u8 so product codegen emits the body (see export-extern note above)
+ * @return i32 — 0 on child exit 0; non-zero failure (-1 or child status)
+ * Pure orch: ≡ mega public thin before Cap residual spawn body (wave219).
+ * Why (wave219): hybrid still had shux_spawn_sync body always mega C
+ * (fork/exec/wait or _spawnvp); G.7 single public authority under L1 hybrid.
+ * Cap residual: shux_spawn_sync_impl (mega always).
+ * PLATFORM: SHARED orch; residual is POSIX fork/exec or WINDOWS _spawnvp.
+ * Track-L: #[no_mangle] keeps short surface name for invoke_cc / ld / strip callers.
+ */
+#[no_mangle]
+export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
+  if (prog == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (prog[0] == 0) {
+    return 0 - 1;
+  }
+  if (argv == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return shux_spawn_sync_impl(prog, argv);
+  }
+  return 0 - 1;
+}
+
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
  * wave111: shux_link_perror is extra pure orch (not counted in the original 9).
  * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9).
- * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra. */
+ * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra.
+ * wave219: shux_spawn_sync pure thin is extra (not counted in the original 9). */
 #[no_mangle]
 export function labi_diag_pure_count(): i32 {
   return 9;

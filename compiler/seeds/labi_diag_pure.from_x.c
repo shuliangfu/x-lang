@@ -10,11 +10,13 @@
  * wave113：link_diag_errno / _path pure orch（append + code_for_kind + report_with_code）
  * wave216：shu_waitpid_retry pure thin（Cap residual waitpid+EINTR+strerror _impl）
  * wave217：strerror_current + wait_is_signaled + wait_code pure thin（_impl Cap residual）
+ * wave219：shux_spawn_sync pure thin（Cap residual fork/exec/wait 或 _spawnvp _impl）
  * Cap residual（mega rest 常驻）：
  *   link_diag_ld_debug_argv_impl（char** 🔒）
  *   link_diag_strerror_current_impl（errno + strerror 🔒；wave217）
  *   link_diag_wait_is_signaled_impl / link_diag_wait_code_impl（WIF* 🔒；wave217）
  *   shu_waitpid_retry_impl（waitpid+EINTR+strerror 🔒；wave216）
+ *   shux_spawn_sync_impl（fork+execvp+wait / _spawnvp 🔒；wave219）
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega _impl 并存）。
  *
@@ -37,6 +39,9 @@ extern int link_diag_wait_code_impl(int status);
 /* Cap residual (wave216): waitpid + EINTR + strerror. PLATFORM: POSIX.
  * Signature uses int64_t to match pure .x i64 / surface pin (pid_t on host). */
 extern int shu_waitpid_retry_impl(int64_t pid, int *status_out);
+/* Cap residual (wave219): host spawn. PLATFORM: POSIX fork / WINDOWS _spawnvp.
+ * argv is NULL-terminated; pure owns null/empty gates. */
+extern int shux_spawn_sync_impl(const char *prog, const char *const *argv);
 /* Public pure thin (defined later under cold #ifndef; used by errno/tool orch). */
 const char *link_diag_strerror_current(void);
 int link_diag_wait_is_signaled(int status);
@@ -342,6 +347,18 @@ int shu_waitpid_retry(int64_t pid, int *status_out) {
   return shu_waitpid_retry_impl(pid, status_out);
 }
 
+/* wave219 cold twin of pure shux_spawn_sync (null/empty gates + Cap residual spawn).
+ * PLATFORM: SHARED orch / POSIX fork residual / WINDOWS _spawnvp residual. */
+int shux_spawn_sync(const char *prog, const char *const *argv) {
+  if (prog == NULL)
+    return -1;
+  if (prog[0] == 0)
+    return -1;
+  if (argv == NULL)
+    return -1;
+  return shux_spawn_sync_impl(prog, argv);
+}
+
 int labi_diag_pure_count(void) {
   return 9;
 }
@@ -366,6 +383,7 @@ const char *link_diag_strerror_current(void);
 int link_diag_wait_is_signaled(int status);
 int link_diag_wait_code(int status);
 int shu_waitpid_retry(int64_t pid, int *status_out);
+int shux_spawn_sync(const char *prog, const char *const *argv);
 int labi_diag_pure_count(void);
 #endif
 

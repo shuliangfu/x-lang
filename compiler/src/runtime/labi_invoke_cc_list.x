@@ -130,7 +130,9 @@ export extern "C" function link_abi_link_needs_std_heap_import(user_o: *u8, argv
 export extern "C" function labi_od_rel_page_mmap(): *u8;
 
 /* ===== wave205 Cap residual / peer pure for fork-exec shell + strip ===== */
-/* Authority spawn: POSIX fork+execvp+wait / Windows _spawnvp (G.7 complete; no second fork path). */
+/* Authority spawn public (wave219 pure thin under labi_diag_pure L1 hybrid;
+ * Cap residual shux_spawn_sync_impl = fork/exec/wait or _spawnvp always mega).
+ * G.7 complete; no second fork path in invoke_cc pure. */
 export extern "C" function shux_spawn_sync(prog: *u8, argv: **u8): i32;
 /* Freestanding / empty PATH: set before spawn so gcc/ld resolve (was child-only setenv). */
 export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
@@ -3839,7 +3841,8 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * @param argv **u8 — full cc argv ending with null; argv[0] rewritten per candidate; null → -1
  * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed (diag emitted)
  * Pure orch: ≡ mega post-argv fork/exec/wait shell (wave205).
- * Cap residual: setenv(PATH) + host_is_* + shux_spawn_sync + link_diag_tool_status.
+ * Cap residual: setenv(PATH) + host_is_* + shux_spawn_sync (public pure thin wave219
+ * → _impl mega) + link_diag_tool_status.
  * Candidate order ≡ historical mega child exec chain:
  *   WINDOWS: gcc only (MinGW; no bare `cc`)
  *   LINUX: gcc, cc, /usr/bin/gcc, /usr/bin/cc, /usr/local/bin/gcc, /usr/local/bin/cc
