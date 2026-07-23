@@ -19,7 +19,12 @@
 export extern "C" function main_entry(argc: i32, argv: *u8): i32;
 export extern "C" function xlang_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
 export extern "C" function xlang_link_obj_has_defined_sym_impl(o_path: *u8, sym: *u8): i32;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave241 G.7: dual-anchor env via public pure thin link_abi_getenv (wave222 → _impl host
+ * getenv); not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * Product hybrid authority remains labi_* pure modules; this file is the cold/.x dual
+ * anchor and must match pure semantics (link_abi_getenv, not bare getenv).
+ * PLATFORM: SHARED orch / host getenv residual via single face. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function xlang_host_is_linux(): i32;
 export extern "C" function xlang_host_is_apple_aarch64(): i32;
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
@@ -185,22 +190,25 @@ export function xlang_freestanding_user_o_needs_io(user_o: *u8): i32 {
   return 0;
 }
 
-/** Exported function `invoke_cc_skip_native_tuning`.
- * Implements `invoke_cc_skip_native_tuning`.
- * @return i32
+/**
+ * Skip -march=native / aggressive LTO when CI or musl-like env is set.
+ * Dual-anchor mirror of labi_invoke_cc_list pure orch (wave223 G.7).
+ * @return i32 — nonzero → skip native tuning
+ * wave241: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function invoke_cc_skip_native_tuning(): i32 {
   unsafe {
-    let a: *u8 = getenv("CI");
+    let a: *u8 = link_abi_getenv("CI");
     if (a != 0 as *u8) {
       return 1;
     }
-    let b: *u8 = getenv("XLANG_CI_DOCKER");
+    let b: *u8 = link_abi_getenv("XLANG_CI_DOCKER");
     if (b != 0 as *u8) {
       return 1;
     }
-    let c: *u8 = getenv("XLANG_NO_MARCH_NATIVE");
+    let c: *u8 = link_abi_getenv("XLANG_NO_MARCH_NATIVE");
     if (c != 0 as *u8) {
       return 1;
     }
@@ -209,8 +217,16 @@ export function invoke_cc_skip_native_tuning(): i32 {
   return 0;
 }
 
-/* See implementation. */
-
+/**
+ * Whether freestanding link path is active.
+ * Dual-anchor mirror of labi_freestanding_list pure orch (wave159 / wave223 G.7).
+ * Rules: non-Linux → 0; driver_freestanding != 0 → 1; else XLANG_FREESTANDING
+ * null / empty / leading '0' → 0; any other non-empty → 1.
+ * @param driver_freestanding i32 — CLI/driver freestanding flag
+ * @return i32 — 1 if freestanding path should run, else 0
+ * wave241: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
+ * PLATFORM: SHARED orch / LINUX freestanding consumers.
+ */
 #[no_mangle]
 export function xlang_link_freestanding_enabled(driver_freestanding: i32): i32 {
   unsafe {
@@ -220,14 +236,14 @@ export function xlang_link_freestanding_enabled(driver_freestanding: i32): i32 {
     if (driver_freestanding != 0) {
       return 1;
     }
-    let e: *u8 = getenv("XLANG_FREESTANDING");
+    let e: *u8 = link_abi_getenv("XLANG_FREESTANDING");
     if (e == 0 as *u8) {
       return 0;
     }
     if (e[0] == 0) {
       return 0;
     }
-    /* See implementation. */
+    /* Leading ASCII '0' (48) disables freestanding. */
     if (e[0] == 48) {
       return 0;
     }
@@ -2869,18 +2885,20 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
 
 /**
  * Write default lib-root into root_buf (XLANG_LIB or ".").
- * @param root_buf *u8 — capacity >= 512
- * Authority: labi_path_pure.x (wave115 product hybrid). Anchor body matches pure.
+ * @param root_buf *u8 — capacity >= 512; always left NUL-terminated
+ * Authority: labi_path_pure.x (wave115 product hybrid). Dual-anchor body matches pure.
+ * wave241: raw getenv closed — public pure thin link_abi_getenv owns env lookup
+ * (align with mega cold twin wave223 + pure labi_path_pure).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function xlang_asm_ld_lib_root_default(root_buf: *u8): void {
-  /* Anchor mirror of labi_path_pure pure orch (not product hybrid path). */
+  /* Dual-anchor mirror of labi_path_pure pure orch (not product hybrid path). */
   root_buf[0] = 46;
   root_buf[1] = 0;
   let def: *u8 = 0 as *u8;
   unsafe {
-    def = getenv("XLANG_LIB");
+    def = link_abi_getenv("XLANG_LIB");
   }
   if (xlang_asm_ld_lib_root_ptr_usable(def) == 0) {
     return;
