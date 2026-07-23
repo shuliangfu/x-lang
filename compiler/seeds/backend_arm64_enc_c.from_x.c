@@ -252,18 +252,38 @@ int32_t arch_arm64_enc_enc_jge(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8
 
 /* ---- remaining stubs upgraded to minimal real bodies for product CG002 ---- */
 
+/**
+ * Load a full 64-bit immediate into x0 via MOVZ/MOVK.
+ *
+ * PLATFORM: MACOS|ARM64 — freestanding product encoder (g05 links
+ * backend_arm64_enc_c.o). wave306 Cap residual: prior only wrote three
+ * halfwords (lo[15:0], lo[31:16], hi[15:0]) and dropped hi[31:16], so
+ * 0x7fffffffffffffff became 0x0000ffffffffffff and i64max/neg probes failed
+ * on arm64 SE. Align with arch/arm64_enc.x enc_mov_imm64_to_rax (four parts).
+ * @param elf_ctx ElfCodegenCtx* — append target
+ * @param lo i32 — low 32 bits of the immediate
+ * @param hi i32 — high 32 bits of the immediate
+ * @return 0 on success, -1 on null/append failure
+ */
 int32_t arch_arm64_enc_enc_mov_imm64_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lo, int32_t hi) {
-  /* MOVZ x0,#lo ; MOVK x0,#hi,lsl#16 — enough for low 32 + next 16 */
-  uint32_t l = (uint32_t)lo & 65535u;
-  uint32_t h = (uint32_t)lo >> 16;
-  uint32_t hh = (uint32_t)hi & 65535u;
+  /* MOVZ x0,#lo0 ; MOVK lsl#16 ; MOVK lsl#32 ; MOVK lsl#48 — full 64 bits */
+  uint32_t lo0 = (uint32_t)lo & 65535u;
+  uint32_t lo1 = ((uint32_t)lo >> 16) & 65535u;
+  uint32_t hi0 = (uint32_t)hi & 65535u;
+  uint32_t hi1 = ((uint32_t)hi >> 16) & 65535u;
   if (!elf_ctx)
     return -1;
-  if (arm64_enc_u32_le(elf_ctx, 0xd2800000u | (l << 5)) != 0)
+  /* MOVZ x0, #lo0 */
+  if (arm64_enc_u32_le(elf_ctx, 0xd2800000u | (lo0 << 5)) != 0)
     return -1;
-  if (h != 0 && arm64_enc_u32_le(elf_ctx, 0xf2a00000u | (h << 5)) != 0)
+  /* MOVK x0, #lo1, LSL #16 */
+  if (lo1 != 0 && arm64_enc_u32_le(elf_ctx, 0xf2a00000u | (lo1 << 5)) != 0)
     return -1;
-  if (hh != 0 && arm64_enc_u32_le(elf_ctx, 0xf2c00000u | (hh << 5)) != 0)
+  /* MOVK x0, #hi0, LSL #32 */
+  if (hi0 != 0 && arm64_enc_u32_le(elf_ctx, 0xf2c00000u | (hi0 << 5)) != 0)
+    return -1;
+  /* MOVK x0, #hi1, LSL #48 — was missing (wave306) */
+  if (hi1 != 0 && arm64_enc_u32_le(elf_ctx, 0xf2e00000u | (hi1 << 5)) != 0)
     return -1;
   return 0;
 }
@@ -424,11 +444,34 @@ int32_t arch_arm64_enc_enc_shl_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx
 }
 
 int32_t arch_arm64_enc_enc_shr_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  /* lsr w0, w0, w2 */
   return arm64_enc_u32_le(elf_ctx, 0x1ac22400u);
 }
 
 int32_t arch_arm64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  /* asr w0, w0, w2 */
   return arm64_enc_u32_le(elf_ctx, 0x1ac22800u);
+}
+
+/**
+ * wave306 Cap residual: 64-bit shift forms for is_64bit i64/u64 paths.
+ * Prior dispatch routed shr/shl/sar_cl_rax → *_eax (32-bit), so freestanding
+ * `let a: i64 = …; a >> 56` used `lsr w0` and dropped high bits (mac SE).
+ * PLATFORM: MACOS|ARM64 — sf=1 variants of LSL/LSR/ASR (register).
+ */
+int32_t arch_arm64_enc_enc_shl_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  /* lsl x0, x0, x2 */
+  return arm64_enc_u32_le(elf_ctx, 0x9ac22000u);
+}
+
+int32_t arch_arm64_enc_enc_shr_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  /* lsr x0, x0, x2 */
+  return arm64_enc_u32_le(elf_ctx, 0x9ac22400u);
+}
+
+int32_t arch_arm64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  /* asr x0, x0, x2 */
+  return arm64_enc_u32_le(elf_ctx, 0x9ac22800u);
 }
 
 int32_t arch_arm64_enc_enc_lea_rbp_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {

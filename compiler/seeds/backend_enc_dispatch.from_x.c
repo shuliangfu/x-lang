@@ -390,6 +390,9 @@ extern int32_t arch_arm64_enc_enc_rax_plus_rbx_scale4(struct platform_elf_ElfCod
 extern int32_t arch_arm64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_ret_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
 extern int32_t arch_arm64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_shl_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_shr_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_arm64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_shl_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_arm64_enc_enc_shr_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -1560,8 +1563,9 @@ int32_t backend_enc_sar_cl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_shl_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* wave306: arm64 64-bit lsl x0 */
   if (ta == 1)
-    return arch_arm64_enc_enc_shl_cl_eax(elf_ctx);
+    return arch_arm64_enc_enc_shl_cl_rax(elf_ctx);
   if (ta == 2)
     return arch_riscv64_enc_enc_shl_cl_eax(elf_ctx);
   return arch_x86_64_enc_enc_shl_cl_rax(elf_ctx);
@@ -1575,8 +1579,9 @@ int32_t backend_enc_shl_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_shr_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* wave306: arm64 uses 64-bit lsr x0 (not 32-bit eax alias). */
   if (ta == 1)
-    return arch_arm64_enc_enc_shr_cl_eax(elf_ctx);
+    return arch_arm64_enc_enc_shr_cl_rax(elf_ctx);
   if (ta == 2)
     return arch_riscv64_enc_enc_shr_cl_eax(elf_ctx);
   return arch_x86_64_enc_enc_shr_cl_rax(elf_ctx);
@@ -1590,8 +1595,9 @@ int32_t backend_enc_shr_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_sar_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* wave306: arm64 64-bit asr x0 */
   if (ta == 1)
-    return arch_arm64_enc_enc_sar_cl_eax(elf_ctx);
+    return arch_arm64_enc_enc_sar_cl_rax(elf_ctx);
   if (ta == 2)
     return arch_riscv64_enc_enc_sar_cl_eax(elf_ctx);
   return arch_x86_64_enc_enc_sar_cl_rax(elf_ctx);

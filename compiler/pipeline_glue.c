@@ -1923,6 +1923,8 @@ static int32_t glue_binop_operand_is_scalar_f32_elf_c(struct ast_ASTArena *arena
                                                        int32_t expr_ref);
 static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                        int32_t expr_ref);
+static int32_t glue_var_decl_type_ref_elf_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                           int32_t var_expr_ref);
 static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    struct backend_AsmFuncCtx *ctx, int32_t left_ref,
@@ -1932,15 +1934,19 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
  * EXPR_NEG: emit unary operand, then negate.
  *
  * PLATFORM: LINUX+MACOS x86_64 — scalar f32/f64 flip the IEEE sign bit (btc).
- * Integer path keeps enc_neg_eax (32-bit). A 32-bit `neg %eax` on f64 zero-extends
- * RAX and destroys the magnitude (e.g. bits of 2.0 become 0.0), so `-2.0` and
- * ordered compares against unary-negated float lits were wrong. f32 is checked
- * before f64 so FLOAT_LIT with resolved f32 does not take the f64 default.
- * PLATFORM: SHARED type classification; only x86_64 (ta==0) emits btc.
+ * Integer path: 32-bit enc_neg_eax by default; 64-bit integer types / large INT
+ * lits use REX.W `neg %rax` (x86) / `neg x0,x0` (arm64). A 32-bit `neg %eax`
+ * zero-extends RAX and destroys high bits — freestanding
+ * `let a: i64 = -9223372036854775807` loaded max via mov_imm64 then `neg %eax`
+ * → 1 (wave306 SE residual). f32 is checked before f64 so FLOAT_LIT with
+ * resolved f32 does not take the f64 default.
+ * PLATFORM: SHARED type classification; x86_64 (ta==0) btc / REX.W neg; arm64
+ * (ta==1) 64-bit neg via bit31 of the ALU opcode.
  */
 static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t op;
+  int32_t use_i64_neg = 0;
   op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   if (op == 0)
     return -1;
@@ -1955,6 +1961,41 @@ static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct
   if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
     static const uint8_t btc_rax_63[5] = {0x48, 0x0f, 0xba, 0xf8, 0x3f};
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)btc_rax_63, 5);
+  }
+  /*
+   * wave306 Cap residual pure: 64-bit integer unary minus.
+   * Prefer resolved type on NEG / operand / var decl; also large INT lit
+   * (outside i32) already in RAX via mov_imm64 — must negate full width.
+   */
+  {
+    int32_t tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    int32_t kind_ord = -1;
+    if (tr <= 0)
+      tr = pipeline_expr_resolved_type_ref(arena, op);
+    if (tr <= 0 && ctx)
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, op);
+    if (tr > 0)
+      kind_ord = pipeline_type_kind_ord_at(arena, tr);
+    /* TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9 */
+    if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9)
+      use_i64_neg = 1;
+    if (!use_i64_neg && pipeline_expr_kind_ord_at(arena, op) == 0) {
+      int64_t v64 = pipeline_expr_int64_val_at(arena, op);
+      if (v64 < (int64_t)INT32_MIN || v64 > (int64_t)INT32_MAX)
+        use_i64_neg = 1;
+    }
+  }
+  if (use_i64_neg) {
+    if (ta == 0) {
+      /* REX.W neg %rax — 48 F7 D8 */
+      static const uint8_t neg_rax[3] = {0x48, 0xf7, 0xd8};
+      return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)neg_rax, 3);
+    }
+    if (ta == 1) {
+      /* neg x0, x0 — sf=1 form of sub x0, xzr, x0 (0xcb0003e0) */
+      static const uint8_t neg_x0[4] = {0xe0, 0x03, 0x00, 0xcb};
+      return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)neg_x0, 4);
+    }
   }
   return backend_enc_neg_eax_arch(elf_ctx, ta);
 }
@@ -13641,28 +13682,47 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
    * PLATFORM: SHARED — env gates for WPO-S2 harness only.
    */
   if (e->const_folded_valid != 0 && ko != (int32_t)ast_ExprKind_EXPR_VAR) {
+    int32_t cfold_imm = e->const_folded_val;
+    int32_t cfold_use_imm32 = 1;
     if (ko == (int32_t)ast_ExprKind_EXPR_CALL) {
       const char *wpo_mono = link_abi_getenv("XLANG_WPO_MONO");
       const char *wpo_nofold = link_abi_getenv("XLANG_WPO_NO_FOLD");
       if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
-        /* fall through to CALL emit / mono path */;
-      else
-        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, e->const_folded_val, ta);
-    } else {
-      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, e->const_folded_val, ta);
+        cfold_use_imm32 = 0; /* fall through to CALL emit / mono path */
+    }
+    if (cfold_use_imm32) {
+      /*
+       * wave306: const_folded_val is i32. Non-negative → mov_imm32 (zero-extend OK).
+       * Negative → mov_imm64 with sign-extended hi so i64 slots keep 0xff.. high bits
+       * (same residual as bare EXPR_LIT -1 via mov_imm32).
+       */
+      if (cfold_imm >= 0)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
+      {
+        int64_t v64 = (int64_t)cfold_imm; /* sign-extend i32 → i64 */
+        uint64_t u = (uint64_t)v64;
+        int32_t lo = (int32_t)(u & 0xffffffffu);
+        int32_t hi = (int32_t)(u >> 32);
+        return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+      }
     }
   }
   /**
    * wave305 Cap residual pure: EXPR_LIT / BOOL_LIT may hold full i64 (lexer +
    * parser_alloc_int_lit). Prior always mov_imm32 → freestanding truncated
-   * values outside signed int32 (same soft residual as i32 sidecar). When the
-   * value does not fit in i32, load via mov_imm64 lo/hi (existing encoder).
+   * values outside signed int32 (same soft residual as i32 sidecar).
+   * wave306: negative values that fit i32 still must use mov_imm64 — mov_imm32
+   * writes eax and zero-extends RAX, so `let a: i64 = -1` became 0xffffffff
+   * not 0xffffffffffffffff (high bits 0; `a >> 32` freestanding run=0).
+   * Non-negative values in 0..INT32_MAX keep mov_imm32. Outside that range or
+   * any negative → mov_imm64 lo/hi (existing encoder; arm64 seed must emit all
+   * four halfwords — see arch_arm64_enc_enc_mov_imm64_to_rax).
    * BOOL_LIT stays 0/1 so still takes the imm32 path.
-   * PLATFORM: SHARED cast path / LINUX+MACOS x86_64 emit.
+   * PLATFORM: SHARED cast path / LINUX+MACOS x86_64+arm64 emit.
    */
   if (ko == 0 || ko == 2) {
     int64_t v64 = pipeline_expr_int64_val_at(arena, expr_ref);
-    if (v64 >= (int64_t)INT32_MIN && v64 <= (int64_t)INT32_MAX)
+    if (ko == 2 || (v64 >= 0 && v64 <= (int64_t)INT32_MAX))
       return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)v64, ta);
     {
       uint64_t u = (uint64_t)v64;

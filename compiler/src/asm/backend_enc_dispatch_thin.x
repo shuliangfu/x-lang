@@ -627,6 +627,9 @@ export extern "C" function arch_arm64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_shl_cl_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_shr_cl_eax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_shl_cl_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_shr_cl_rax(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_sar_cl_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_sub_rbx_rax_then_mov(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
@@ -785,8 +788,9 @@ export function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i3
  */
 #[no_mangle]
 export function backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  /* wave306: arm64 64-bit lsl x0 (not 32-bit eax alias). */
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_shl_cl_eax(elf_ctx); }
+    unsafe { return arch_arm64_enc_enc_shl_cl_rax(elf_ctx); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_shl_cl_eax(elf_ctx); }
@@ -803,8 +807,9 @@ export function backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  /* wave306: arm64 64-bit lsr x0 for i64/u64 is_64bit path. */
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_shr_cl_eax(elf_ctx); }
+    unsafe { return arch_arm64_enc_enc_shr_cl_rax(elf_ctx); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_shr_cl_eax(elf_ctx); }
@@ -821,8 +826,9 @@ export function backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  /* wave306: arm64 64-bit asr x0 for signed i64 is_64bit path. */
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_sar_cl_eax(elf_ctx); }
+    unsafe { return arch_arm64_enc_enc_sar_cl_rax(elf_ctx); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_sar_cl_eax(elf_ctx); }
