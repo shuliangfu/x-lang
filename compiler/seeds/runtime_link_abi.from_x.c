@@ -2395,12 +2395,13 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
 #endif
 
 /**
- * 检测 .o 是否导出 marker 符号（nm 输出含 marker 子串）。
- * 参数：obj_o 目标 .o；marker 符号名子串。
- * 返回值：1 命中，0 否。
+ * Cap residual (wave211): host nm/popen export-marker probe body.
+ * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
+ * Params: obj_o / marker — caller pure already rejected null/empty (defense in depth here too).
+ * Returns: 1 if any nm line contains marker substring, else 0.
+ * PLATFORM: SHARED — host realpath (POSIX) + popen nm; Windows hybrid via tools.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int link_abi_obj_exports_marker(const char *obj_o, const char *marker) {
+int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker) {
     char cmd[PATH_MAX + 96];
     FILE *fp;
     char line[512];
@@ -2426,6 +2427,16 @@ int link_abi_obj_exports_marker(const char *obj_o, const char *marker) {
     pclose(fp);
     return 0;
 }
+
+/* wave211: link_abi_obj_exports_marker pure orch lives in labi_ondemand_list.x (hybrid L8b);
+ * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
+ * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
+ * Pure: null/empty gates; Cap residual link_abi_obj_exports_marker_impl (nm/popen) always mega.
+ * Why: hybrid still had exports_marker body always mega C (gates+nm).
+ * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
+#ifdef SHUX_LABI_ONDEMAND_LIST_FROM_X
+int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
+#endif
 
 
 
@@ -2480,7 +2491,7 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym);
 /*
  * wave131: compress family pure orch lives in labi_ondemand_list
  * (zlib/zstd/brotli marker + UNDEF/prefix tables + needs_compress_libs).
- * Cap residual: link_abi_obj_exports_marker stay mega; has_undef_sym pure thin (wave210; _impl Cap).
+ * Cap residual: exports_marker pure thin (wave211; _impl Cap); has_undef_sym pure thin (wave210; _impl Cap).
  * Cold twin: #include labi_ondemand_list.from_x.c (below); hybrid FROM_X → L8b pure.
  * Forward decls: call sites below need symbols before the ondemand include block.
  * PLATFORM: SHARED.

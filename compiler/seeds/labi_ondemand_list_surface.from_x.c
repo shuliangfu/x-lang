@@ -2,9 +2,9 @@
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs + wave135 fk0 + wave140 provides + wave145 link_needs + wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs fk1–13 plan gates + wave197 append_on_demand_user_objs shell + helpers)
- * Cap residual: ensure/skip/path + freestanding_get + needs_undef / exports_marker /
- *   has_undef_impl (wave210) / has_defined_sym probes in mega
- * Prove: full.x vs this seed → nm IDENTICAL (+ wave210 has_undef_sym pure thin)
+ * Cap residual: ensure/skip/path + freestanding_get + needs_undef /
+ *   has_undef_impl (wave210) / exports_marker_impl (wave211) / has_defined_sym probes in mega
+ * Prove: full.x vs this seed → nm IDENTICAL (+ wave210 has_undef + wave211 exports_marker pure thin)
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -137,9 +137,30 @@ extern int32_t link_abi_link_needs_std_heap_import(uint8_t * user_o, uint8_t * *
 extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
 extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
 extern int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
-extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
+/* Cap residual (wave211): nm/popen marker body; pure owns null/empty gates. */
+extern int32_t link_abi_obj_exports_marker_impl(uint8_t * obj_o, uint8_t * marker);
 /* Cap residual (wave210): nm/popen UNDEF body; pure owns null/empty gates. */
 extern int32_t link_abi_obj_has_undef_sym_impl(uint8_t * obj_o, uint8_t * sym);
+
+/* wave211: link_abi_obj_exports_marker pure orch (surface pin ≡ .x). */
+int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker) {
+  if ((obj_o == ((uint8_t *)(0)))) {
+    return 0;
+  }
+  if (((obj_o)[0] == 0)) {
+    return 0;
+  }
+  if ((marker == ((uint8_t *)(0)))) {
+    return 0;
+  }
+  if (((marker)[0] == 0)) {
+    return 0;
+  }
+  {
+    return link_abi_obj_exports_marker_impl(obj_o, marker);
+  }
+  return 0;
+}
 
 /* wave210: link_abi_obj_has_undef_sym pure orch (surface pin ≡ .x). */
 int32_t link_abi_obj_has_undef_sym(uint8_t * obj_o, uint8_t * sym) {

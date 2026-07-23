@@ -38,8 +38,11 @@
 //      Cap residual ensure/skip/path + freestanding_get + undef_sym).
 //   wave210 link_abi_obj_has_undef_sym pure thin orch
 //     (null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl = nm/popen).
-// Cap residual: ensure/skip/path Cap inside shell peers; needs_undef / marker /
-//   has_undef_impl / has_defined Cap (wave210 pure owns has_undef public gates).
+//   wave211 link_abi_obj_exports_marker pure thin orch
+//     (null/empty gates; Cap residual link_abi_obj_exports_marker_impl = nm/popen strstr).
+// Cap residual: ensure/skip/path Cap inside shell peers; needs_undef /
+//   has_undef_impl / exports_marker_impl / has_defined Cap
+//   (wave210–211 pure own has_undef + exports_marker public gates).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
@@ -68,14 +71,46 @@ export extern "C" function link_abi_ld_argv_entry_is_obj(s: *u8): i32;
 export extern "C" function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 
 /**
- * Cap residual: nm export-marker probe (popen nm + strstr line).
- * Used by compress pure orch (zlib/zstd/brotli package markers).
- * @param obj_o *u8 — path to .o; null/empty → 0
- * @param marker *u8 — marker substring; null/empty → 0
+ * Cap residual (wave211): host nm/popen export-marker probe body.
+ * Pure orch owns null/empty gates; _impl is always mega (realpath + nm + strstr marker).
+ * @param obj_o *u8 — path to .o (caller already rejected null/empty)
+ * @param marker *u8 — marker substring (caller already rejected null/empty)
  * @return i32 — 1 if any nm line contains marker
  * PLATFORM: SHARED — always mega C (popen/nm Cap)
  */
-export extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
+export extern "C" function link_abi_obj_exports_marker_impl(obj_o: *u8, marker: *u8): i32;
+
+/**
+ * Return 1 iff .o nm output contains marker substring; null/empty → 0 without residual.
+ * @param obj_o *u8 — path to .o; null/empty rejected at pure gate
+ * @param marker *u8 — marker substring; null/empty rejected at pure gate
+ * @return i32 — 1 if any nm line contains marker, else 0
+ * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (wave211).
+ * Cap residual: link_abi_obj_exports_marker_impl (realpath + `nm` + strstr marker).
+ * Why (wave211): hybrid still had exports_marker body always mega C (gates+nm).
+ * Used by compress pure orch (zlib/zstd/brotli package markers) and net TLS ensure.
+ * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
+ */
+#[no_mangle]
+export function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  if (obj_o[0] == 0) {
+    return 0;
+  }
+  if (marker == 0 as *u8) {
+    return 0;
+  }
+  if (marker[0] == 0) {
+    return 0;
+  }
+  unsafe {
+    return link_abi_obj_exports_marker_impl(obj_o, marker);
+  }
+  return 0;
+}
 
 /**
  * Cap residual (wave210): host nm/popen UNDEF substring probe body.
