@@ -3806,6 +3806,10 @@ extern void lexer_incomplete_hex_reset(void);
 extern int32_t lexer_incomplete_hex_pending(void);
 extern void lexer_incomplete_exp_reset(void);
 extern int32_t lexer_incomplete_exp_pending(void);
+extern void lexer_incomplete_bin_reset(void);
+extern int32_t lexer_incomplete_bin_pending(void);
+extern void lexer_incomplete_oct_reset(void);
+extern int32_t lexer_incomplete_oct_pending(void);
 struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parser_ParseIntoResult r) {
   if (lexer_unclosed_block_comment_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
@@ -3816,6 +3820,16 @@ struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parse
   if (lexer_incomplete_hex_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if (lexer_incomplete_exp_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  if (lexer_incomplete_bin_pending() != 0) {
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  }
+  if (lexer_incomplete_oct_pending() != 0) {
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  }
+  if (lexer_incomplete_bin_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  if (lexer_incomplete_oct_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   return r;
 }
@@ -5760,6 +5774,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     lexer_illegal_char_reset();
     lexer_incomplete_hex_reset();
     lexer_incomplete_exp_reset();
+    lexer_incomplete_bin_reset();
+    lexer_incomplete_oct_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7262,6 +7278,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     lexer_illegal_char_reset();
     lexer_incomplete_hex_reset();
     lexer_incomplete_exp_reset();
+    lexer_incomplete_bin_reset();
+    lexer_incomplete_oct_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };

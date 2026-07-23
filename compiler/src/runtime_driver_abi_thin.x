@@ -5163,6 +5163,26 @@ export extern "C" function lexer_incomplete_exp_reset(): void;
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_incomplete_exp_pending(): i32;
+/**
+ * wave276: reset sticky incomplete-binary state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_bin_reset(): void;
+/**
+ * wave276: non-zero if lexer saw `0b`/`0B` with zero binary digits.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_bin_pending(): i32;
+/**
+ * wave276: reset sticky incomplete-octal state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_oct_reset(): void;
+/**
+ * wave276: non-zero if lexer saw `0o`/`0O` with zero octal digits.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_oct_pending(): i32;
 
 #[no_mangle]
 export function driver_parse_into_buf_rc(
@@ -5180,13 +5200,15 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
-  // wave269–wave274: clear sticky L001/L002/L003/L004/L005 state for this entry.
+  // wave269–wave276: clear sticky L001–L007 state for this entry.
   unsafe {
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
     lexer_illegal_char_reset();
     lexer_incomplete_hex_reset();
     lexer_incomplete_exp_reset();
+    lexer_incomplete_bin_reset();
+    lexer_incomplete_oct_reset();
   }
   let rc: i32 = 0;
   unsafe {
@@ -5194,7 +5216,8 @@ export function driver_parse_into_buf_rc(
   }
   // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted),
   // string lex hit EOF without closer (L002), illegal/unknown byte (L003),
-  // incomplete hex literal (L004), or incomplete float exponent (L005).
+  // incomplete hex (L004), incomplete float exp (L005), incomplete binary (L006),
+  // or incomplete octal (L007).
   unsafe {
     if (lexer_unclosed_block_comment_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
@@ -5221,6 +5244,18 @@ export function driver_parse_into_buf_rc(
       return -1;
     }
     if (lexer_incomplete_exp_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_incomplete_bin_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_incomplete_oct_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
         out_main_idx[0] = -1;
       }

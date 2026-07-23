@@ -240,6 +240,13 @@ int is_hex_digit(uint8_t c) {
   }
   return 0;
 }
+static int is_bin_digit(uint8_t c) {
+  return c == 48 || c == 49;
+}
+static int is_oct_digit(uint8_t c) {
+  return c >= 48 && c <= 55;
+}
+
 int32_t hex_digit_value(uint8_t c) {
   if (((c >=48) && (c <=57))) {
     return ((int32_t)((c - 48)));
@@ -1067,6 +1074,17 @@ static int32_t g_lexer_incomplete_exp = 0;
 static int32_t g_lexer_incomplete_exp_line = 0;
 static int32_t g_lexer_incomplete_exp_col = 0;
 static int32_t g_lexer_incomplete_exp_reported = 0;
+/* wave276 Cap residual: sticky incomplete binary state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_bin = 0;
+static int32_t g_lexer_incomplete_bin_line = 0;
+static int32_t g_lexer_incomplete_bin_col = 0;
+static int32_t g_lexer_incomplete_bin_reported = 0;
+/* wave276 Cap residual: sticky incomplete octal state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_oct = 0;
+static int32_t g_lexer_incomplete_oct_line = 0;
+static int32_t g_lexer_incomplete_oct_col = 0;
+static int32_t g_lexer_incomplete_oct_reported = 0;
+
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
   g_lexer_unclosed_line = 0;
@@ -1113,6 +1131,72 @@ void lexer_incomplete_exp_reset(void) {
 int32_t lexer_incomplete_exp_pending(void) {
   return g_lexer_incomplete_exp;
 }
+void lexer_incomplete_bin_reset(void) {
+  g_lexer_incomplete_bin = 0;
+  g_lexer_incomplete_bin_line = 0;
+  g_lexer_incomplete_bin_col = 0;
+  g_lexer_incomplete_bin_reported = 0;
+}
+int32_t lexer_incomplete_bin_pending(void) {
+  return g_lexer_incomplete_bin;
+}
+void lexer_incomplete_oct_reset(void) {
+  g_lexer_incomplete_oct = 0;
+  g_lexer_incomplete_oct_line = 0;
+  g_lexer_incomplete_oct_col = 0;
+  g_lexer_incomplete_oct_reported = 0;
+}
+int32_t lexer_incomplete_oct_pending(void) {
+  return g_lexer_incomplete_oct;
+}
+static void lexer_note_incomplete_bin(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_bin == 0) {
+    g_lexer_incomplete_bin = 1;
+    g_lexer_incomplete_bin_line = line;
+    g_lexer_incomplete_bin_col = col;
+  }
+  if (g_lexer_incomplete_bin_reported != 0)
+    return;
+  g_lexer_incomplete_bin_reported = 1;
+  {
+    char kind[16]; char code[8]; char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '6'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'b'; msg[12] = 'i'; msg[13] = 'n'; msg[14] = 'a';
+    msg[15] = 'r'; msg[16] = 'y'; msg[17] = ' '; msg[18] = 'l'; msg[19] = 'i';
+    msg[20] = 't'; msg[21] = 'e'; msg[22] = 'r'; msg[23] = 'a'; msg[24] = 'l';
+    msg[25] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_bin_line, g_lexer_incomplete_bin_col, kind, code, msg, NULL);
+  }
+}
+static void lexer_note_incomplete_oct(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_oct == 0) {
+    g_lexer_incomplete_oct = 1;
+    g_lexer_incomplete_oct_line = line;
+    g_lexer_incomplete_oct_col = col;
+  }
+  if (g_lexer_incomplete_oct_reported != 0)
+    return;
+  g_lexer_incomplete_oct_reported = 1;
+  {
+    char kind[16]; char code[8]; char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '7'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'o'; msg[12] = 'c'; msg[13] = 't'; msg[14] = 'a';
+    msg[15] = 'l'; msg[16] = ' '; msg[17] = 'l'; msg[18] = 'i'; msg[19] = 't';
+    msg[20] = 'e'; msg[21] = 'r'; msg[22] = 'a'; msg[23] = 'l'; msg[24] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_oct_line, g_lexer_incomplete_oct_col, kind, code, msg, NULL);
+  }
+}
+
 static void lexer_note_incomplete_exp(int32_t line, int32_t col) {
   if (g_lexer_incomplete_exp == 0) {
     g_lexer_incomplete_exp = 1;
@@ -1515,7 +1599,58 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       (void)(((out->token_start) = start));
       return;
     }
-    (void)((ival = ((ival * 10) + (c - 48))));
+    
+    /* wave276: binary 0b/0B (≥1 bin digit → TOKEN_INT; else L006). */
+    if (c == 48 && ((l.pos) < (data.length)) && (((data).data[(l.pos)] == 98) || ((data).data[(l.pos)] == 66))) {
+      (void)((l = advance_one(l, (data).data[(l.pos)])));
+      uint64_t bval = ((uint64_t)(0));
+      int32_t bin_digits = 0;
+      while ((((l.pos) < (data.length)) && is_bin_digit((data).data[(l.pos)]))) {
+        uint8_t bd = (data).data[(l.pos)];
+        (void)((bval = ((bval * 2) + ((uint64_t)(bd - 48)))));
+        (void)((l = advance_one(l, bd)));
+        bin_digits = bin_digits + 1;
+      }
+      if (bin_digits == 0) {
+        lexer_note_incomplete_bin(line0, col0);
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      struct token_Token tok_b = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(bval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_b));
+      (void)(((out->token_start) = start));
+      return;
+    }
+    /* wave276: octal 0o/0O (≥1 oct digit → TOKEN_INT; else L007). */
+    if (c == 48 && ((l.pos) < (data.length)) && (((data).data[(l.pos)] == 111) || ((data).data[(l.pos)] == 79))) {
+      (void)((l = advance_one(l, (data).data[(l.pos)])));
+      uint64_t oval = ((uint64_t)(0));
+      int32_t oct_digits = 0;
+      while ((((l.pos) < (data.length)) && is_oct_digit((data).data[(l.pos)]))) {
+        uint8_t od = (data).data[(l.pos)];
+        (void)((oval = ((oval * 8) + ((uint64_t)(od - 48)))));
+        (void)((l = advance_one(l, od)));
+        oct_digits = oct_digits + 1;
+      }
+      if (oct_digits == 0) {
+        lexer_note_incomplete_oct(line0, col0);
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      struct token_Token tok_o = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(oval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_o));
+      (void)(((out->token_start) = start));
+      return;
+    }
+(void)((ival = ((ival * 10) + (c - 48))));
     while ((((l.pos) < (data.length)) && is_digit((data).data[(l.pos)]))) {
       uint8_t d = (data).data[(l.pos)];
       (void)((l = advance_one(l, d)));

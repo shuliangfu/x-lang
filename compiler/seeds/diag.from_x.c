@@ -104,6 +104,12 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"L005", "lexer error", "Lexer found an incomplete float exponent.",
      "Used when a float exponent introducer `e` or `E` (optionally followed by `+` or `-`) is not followed by at least one decimal digit. "
      "Typical action: complete the exponent (e.g. `1e0`, `1.5e+2`) or remove the incomplete exponent suffix."},
+    {"L006", "lexer error", "Lexer found an incomplete binary literal.",
+     "Used when a binary integer introducer `0b` or `0B` is not followed by at least one binary digit (0 or 1). "
+     "Typical action: complete the literal (e.g. `0b0`, `0b1010`) or remove the incomplete `0b` prefix."},
+    {"L007", "lexer error", "Lexer found an incomplete octal literal.",
+     "Used when an octal integer introducer `0o` or `0O` is not followed by at least one octal digit (0-7). "
+     "Typical action: complete the literal (e.g. `0o0`, `0o52`) or remove the incomplete `0o` prefix."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

@@ -125,6 +125,30 @@ let g_lexer_incomplete_exp_col: i32 = 0;
 let g_lexer_incomplete_exp_reported: i32 = 0;
 
 /**
+ * wave276 Cap residual: sticky incomplete binary-literal state for the current parse.
+ * Set when `0b`/`0B` is followed by zero binary digits (e.g. `0b;`, `0b2` after the prefix).
+ * Prior behavior lexed INT(0)+IDENT → soft XP003 parse-skip / no hard L00x.
+ * Cleared by lexer_incomplete_bin_reset at each product parse entry.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_incomplete_bin: i32 = 0;
+let g_lexer_incomplete_bin_line: i32 = 0;
+let g_lexer_incomplete_bin_col: i32 = 0;
+let g_lexer_incomplete_bin_reported: i32 = 0;
+
+/**
+ * wave276 Cap residual: sticky incomplete octal-literal state for the current parse.
+ * Set when `0o`/`0O` is followed by zero octal digits (e.g. `0o;`, `0o9` after the prefix).
+ * Prior behavior lexed INT(0)+IDENT → soft XP003 parse-skip / no hard L00x.
+ * Cleared by lexer_incomplete_oct_reset at each product parse entry.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_incomplete_oct: i32 = 0;
+let g_lexer_incomplete_oct_line: i32 = 0;
+let g_lexer_incomplete_oct_col: i32 = 0;
+let g_lexer_incomplete_oct_reported: i32 = 0;
+
+/**
  * Clear unclosed block-comment sticky state (call once per parse entry).
  * @return void
  * PLATFORM: SHARED
@@ -227,6 +251,48 @@ export function lexer_incomplete_exp_reset(): void {
  */
 export function lexer_incomplete_exp_pending(): i32 {
   return g_lexer_incomplete_exp;
+}
+
+/**
+ * Clear incomplete-binary sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_bin_reset(): void {
+  g_lexer_incomplete_bin = 0;
+  g_lexer_incomplete_bin_line = 0;
+  g_lexer_incomplete_bin_col = 0;
+  g_lexer_incomplete_bin_reported = 0;
+}
+
+/**
+ * Whether lex saw `0b`/`0B` with zero following binary digits.
+ * @return i32 — 1 if pending hard fail, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_bin_pending(): i32 {
+  return g_lexer_incomplete_bin;
+}
+
+/**
+ * Clear incomplete-octal sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_oct_reset(): void {
+  g_lexer_incomplete_oct = 0;
+  g_lexer_incomplete_oct_line = 0;
+  g_lexer_incomplete_oct_col = 0;
+  g_lexer_incomplete_oct_reported = 0;
+}
+
+/**
+ * Whether lex saw `0o`/`0O` with zero following octal digits.
+ * @return i32 — 1 if pending hard fail, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_oct_pending(): i32 {
+  return g_lexer_incomplete_oct;
 }
 
 /**
@@ -603,6 +669,161 @@ function lexer_note_incomplete_exp(line: i32, col: i32): void {
   }
 }
 
+/**
+ * Record and report L006 once for an incomplete binary literal (`0b` / `0B` with no digits).
+ * @param line i32 — 1-based line of the leading `0`
+ * @param col i32 — 1-based column of the leading `0`
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_incomplete_bin(line: i32, col: i32): void {
+  if (g_lexer_incomplete_bin == 0) {
+    g_lexer_incomplete_bin = 1;
+    g_lexer_incomplete_bin_line = line;
+    g_lexer_incomplete_bin_col = col;
+  }
+  if (g_lexer_incomplete_bin_reported != 0) {
+    return;
+  }
+  g_lexer_incomplete_bin_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L006"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 54;
+  code[4] = 0;
+  // msg = "incomplete binary literal"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 110;
+  msg[2] = 99;
+  msg[3] = 111;
+  msg[4] = 109;
+  msg[5] = 112;
+  msg[6] = 108;
+  msg[7] = 101;
+  msg[8] = 116;
+  msg[9] = 101;
+  msg[10] = 32;
+  msg[11] = 98;
+  msg[12] = 105;
+  msg[13] = 110;
+  msg[14] = 97;
+  msg[15] = 114;
+  msg[16] = 121;
+  msg[17] = 32;
+  msg[18] = 108;
+  msg[19] = 105;
+  msg[20] = 116;
+  msg[21] = 101;
+  msg[22] = 114;
+  msg[23] = 97;
+  msg[24] = 108;
+  msg[25] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_incomplete_bin_line,
+      g_lexer_incomplete_bin_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L007 once for an incomplete octal literal (`0o` / `0O` with no digits).
+ * @param line i32 — 1-based line of the leading `0`
+ * @param col i32 — 1-based column of the leading `0`
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_incomplete_oct(line: i32, col: i32): void {
+  if (g_lexer_incomplete_oct == 0) {
+    g_lexer_incomplete_oct = 1;
+    g_lexer_incomplete_oct_line = line;
+    g_lexer_incomplete_oct_col = col;
+  }
+  if (g_lexer_incomplete_oct_reported != 0) {
+    return;
+  }
+  g_lexer_incomplete_oct_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L007"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 55;
+  code[4] = 0;
+  // msg = "incomplete octal literal"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 110;
+  msg[2] = 99;
+  msg[3] = 111;
+  msg[4] = 109;
+  msg[5] = 112;
+  msg[6] = 108;
+  msg[7] = 101;
+  msg[8] = 116;
+  msg[9] = 101;
+  msg[10] = 32;
+  msg[11] = 111;
+  msg[12] = 99;
+  msg[13] = 116;
+  msg[14] = 97;
+  msg[15] = 108;
+  msg[16] = 32;
+  msg[17] = 108;
+  msg[18] = 105;
+  msg[19] = 116;
+  msg[20] = 101;
+  msg[21] = 114;
+  msg[22] = 97;
+  msg[23] = 108;
+  msg[24] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_incomplete_oct_line,
+      g_lexer_incomplete_oct_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
 /** Exported function `lexer_init`.
  * Implements `lexer_init`.
  * @return Lexer
@@ -645,6 +866,26 @@ export function is_hex_digit(c: u8): bool {
   if (c >= 97 && c <= 102) { return true; }
   if (c >= 65 && c <= 70) { return true; }
   return false;
+}
+
+/**
+ * wave276 Cap residual: binary digit test for `0b`/`0B` integer literals.
+ * @param c u8 — source byte
+ * @return bool — true when c is '0' or '1'
+ * PLATFORM: SHARED
+ */
+export function is_bin_digit(c: u8): bool {
+  return c == 48 || c == 49;
+}
+
+/**
+ * wave276 Cap residual: octal digit test for `0o`/`0O` integer literals.
+ * @param c u8 — source byte
+ * @return bool — true when c is in '0'..'7'
+ * PLATFORM: SHARED
+ */
+export function is_oct_digit(c: u8): bool {
+  return c >= 48 && c <= 55;
 }
 
 /** Exported function `hex_digit_value`.
@@ -2459,6 +2700,62 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       out.token_start = start;
       return;
     }
+    // wave276 Cap residual: `0b`/`0B` binary integer (mirror hex L004 path).
+    // Prior: INT(0)+IDENT → soft XP003 parse-skip. Zero bin digits → sticky L006.
+    if (c == 48 && l.pos < data.length && (data[l.pos] == 98 || data[l.pos] == 66)) {
+      l = advance_one(l, data[l.pos]);
+      let bval: u64 = (0 as u64);
+      let bin_digits: i32 = 0;
+      while (l.pos < data.length && is_bin_digit(data[l.pos])) {
+        let bd: u8 = data[l.pos];
+        bval = bval * 2 + ((bd - 48) as u64);
+        l = advance_one(l, bd);
+        bin_digits = bin_digits + 1;
+      }
+      if (bin_digits == 0) {
+        lexer_note_incomplete_bin(line0, col0);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof);
+        out.token_start = start;
+        return;
+      }
+      let tok_b: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: bval as i64,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      write_next_lex_into(out, l);
+      write_tok_into(out, tok_b);
+      out.token_start = start;
+      return;
+    }
+    // wave276 Cap residual: `0o`/`0O` octal integer (mirror hex L004 path).
+    // Prior: INT(0)+IDENT → soft XP003 parse-skip. Zero oct digits → sticky L007.
+    if (c == 48 && l.pos < data.length && (data[l.pos] == 111 || data[l.pos] == 79)) {
+      l = advance_one(l, data[l.pos]);
+      let oval: u64 = (0 as u64);
+      let oct_digits: i32 = 0;
+      while (l.pos < data.length && is_oct_digit(data[l.pos])) {
+        let od: u8 = data[l.pos];
+        oval = oval * 8 + ((od - 48) as u64);
+        l = advance_one(l, od);
+        oct_digits = oct_digits + 1;
+      }
+      if (oct_digits == 0) {
+        lexer_note_incomplete_oct(line0, col0);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof);
+        out.token_start = start;
+        return;
+      }
+      let tok_o: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: oval as i64,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      write_next_lex_into(out, l);
+      write_tok_into(out, tok_o);
+      out.token_start = start;
+      return;
+    }
     ival = ival * 10 + (c - 48);
     while (l.pos < data.length && is_digit(data[l.pos])) {
       let d: u8 = data[l.pos];
@@ -3018,6 +3315,48 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       let tok: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok, token_start: start };
+    }
+    // wave276 Cap residual: G.7 mirror product path binary `0b`/`0B` + L006.
+    if (c == 48 && l.pos < data.length && (data[l.pos] == 98 || data[l.pos] == 66)) {
+      l = advance_one(l, data[l.pos]);
+      let bval: u64 = (0 as u64);
+      let bin_digits: i32 = 0;
+      while (l.pos < data.length && is_bin_digit(data[l.pos])) {
+        let bd: u8 = data[l.pos];
+        bval = bval * 2 + ((bd - 48) as u64);
+        l = advance_one(l, bd);
+        bin_digits = bin_digits + 1;
+      }
+      if (bin_digits == 0) {
+        lexer_note_incomplete_bin(line0, col0);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
+      }
+      let tok_b: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: bval as i64,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      return LexerResult { next_lex: l, tok: tok_b, token_start: start };
+    }
+    // wave276 Cap residual: G.7 mirror product path octal `0o`/`0O` + L007.
+    if (c == 48 && l.pos < data.length && (data[l.pos] == 111 || data[l.pos] == 79)) {
+      l = advance_one(l, data[l.pos]);
+      let oval: u64 = (0 as u64);
+      let oct_digits: i32 = 0;
+      while (l.pos < data.length && is_oct_digit(data[l.pos])) {
+        let od: u8 = data[l.pos];
+        oval = oval * 8 + ((od - 48) as u64);
+        l = advance_one(l, od);
+        oct_digits = oct_digits + 1;
+      }
+      if (oct_digits == 0) {
+        lexer_note_incomplete_oct(line0, col0);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
+      }
+      let tok_o: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: oval as i64,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      return LexerResult { next_lex: l, tok: tok_o, token_start: start };
     }
     ival = ival * 10 + (c - 48);
     while (l.pos < data.length && is_digit(data[l.pos])) {
