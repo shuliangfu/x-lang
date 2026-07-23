@@ -35,8 +35,22 @@ extern int32_t preprocess_x(struct xlang_slice_uint8_t source, struct xlang_slic
 extern int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out_buf, int32_t out_cap);
 static int32_t g_pp_kind;
 static int32_t g_pp_sym_len;
+/* wave265: 512→4096; wave266: non-directive stream when full (≡ preprocess.x). */
 static uint8_t g_pp_line_buf[4096];
 static uint8_t g_pp_cond[256];
+
+/* PLATFORM: SHARED — wave266: optional whitespace then '#'. */
+static int pp_line_looks_like_directive(uint8_t *line_buf, int32_t line_len) {
+  int32_t p = 0;
+  while (p < line_len) {
+    uint8_t c = line_buf[p];
+    if (c != 32 && c != 9) {
+      return c == 35;
+    }
+    ++p;
+  }
+  return 0;
+}
 static void init_globals(void) {
   g_pp_kind = 0;
   g_pp_sym_len = 0;
@@ -438,61 +452,135 @@ void parse_directive_into(uint8_t * line_buf, int32_t line_len, uint8_t * cond) 
     return;
   }
 }
+/* PLATFORM: SHARED — ≡ preprocess.x wave265/266 (stream non-directive overflow). */
 int32_t preprocess_x(struct xlang_slice_uint8_t source, struct xlang_slice_uint8_t out_buf) {
   if (((out_buf.length) <=0)) {
     return -(1);
   }
   int32_t _r = pp_reset_i32();
+  (void)_r;
   int32_t out_len = 0;
   int32_t line_len = 0;
+  int32_t line_stream = 0;
   int32_t pos = 0;
   while ((pos < (source.length))) {
     uint8_t ch = (source).data[pos];
     if ((ch ==10)) {
-      int32_t kind = g_pp_kind;
-      (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
-      if ((kind !=0)) {
-        int32_t cond_val = 0;
-        if (pp_kind_needs_cond(kind)) {
-          (void)((cond_val = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
+      if (line_stream != 0) {
+        if (preprocess_line_keeping()) {
+          if ((out_len >=(out_buf.length))) return -(1);
+          (void)(((out_buf).data[out_len] = 10));
+          (void)((out_len = (out_len + 1)));
         }
-        int32_t ar = preprocess_apply_directive_kind(kind, cond_val);
-        if ((ar !=0)) {
-          return ar;
-        }
-        if ((out_len >=(out_buf.length))) {
-          return -(1);
-        }
-        (void)(((out_buf).data[out_len] = 10));
-        (void)((out_len = (out_len + 1)));
+        line_stream = 0;
+        line_len = 0;
+        (void)((pos = (pos + 1)));
       } else {
-        int keeping = preprocess_line_keeping();
-        if (keeping) {
-          int32_t i = 0;
-          while ((i < line_len)) {
-            if ((out_len >=(out_buf.length))) {
-              return -(1);
-            }
-            (void)(((out_buf).data[out_len] = (g_pp_line_buf)[i]));
-            (void)((out_len = (out_len + 1)));
-            (void)((i = (i + 1)));
+        (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
+        int32_t kind = g_pp_kind;
+        if ((kind !=0)) {
+          int32_t cond_val = 0;
+          if (pp_kind_needs_cond(kind)) {
+            (void)((cond_val = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
           }
+          int32_t ar = preprocess_apply_directive_kind(kind, cond_val);
+          if ((ar !=0)) {
+            return ar;
+          }
+          if ((out_len >=(out_buf.length))) {
+            return -(1);
+          }
+          (void)(((out_buf).data[out_len] = 10));
+          (void)((out_len = (out_len + 1)));
+        } else {
+          int keeping = preprocess_line_keeping();
+          if (keeping) {
+            int32_t i = 0;
+            while ((i < line_len)) {
+              if ((out_len >=(out_buf.length))) {
+                return -(1);
+              }
+              (void)(((out_buf).data[out_len] = (g_pp_line_buf)[i]));
+              (void)((out_len = (out_len + 1)));
+              (void)((i = (i + 1)));
+            }
+          }
+          if ((out_len >=(out_buf.length))) {
+            return -(1);
+          }
+          (void)(((out_buf).data[out_len] = 10));
+          (void)((out_len = (out_len + 1)));
         }
-        if ((out_len >=(out_buf.length))) {
-          return -(1);
-        }
-        (void)(((out_buf).data[out_len] = 10));
+        (void)((line_len = 0));
+        (void)((pos = (pos + 1)));
+      }
+    } else if (line_stream != 0) {
+      if (preprocess_line_keeping()) {
+        if ((out_len >=(out_buf.length))) return -(1);
+        (void)(((out_buf).data[out_len] = ch));
         (void)((out_len = (out_len + 1)));
       }
-      (void)((line_len = 0));
+      (void)((pos = (pos + 1)));
+    } else if ((line_len < 4095)) {
+      (void)(((g_pp_line_buf)[line_len] = ch));
+      (void)((line_len = (line_len + 1)));
+      (void)((pos = (pos + 1)));
+    } else if (pp_line_looks_like_directive(g_pp_line_buf, line_len)) {
       (void)((pos = (pos + 1)));
     } else {
-      if ((line_len < 4095)) {
-        (void)(((g_pp_line_buf)[line_len] = ch));
-        (void)((line_len = (line_len + 1)));
+      if (preprocess_line_keeping()) {
+        int32_t j = 0;
+        while ((j < line_len)) {
+          if ((out_len >=(out_buf.length))) return -(1);
+          (void)(((out_buf).data[out_len] = (g_pp_line_buf)[j]));
+          (void)((out_len = (out_len + 1)));
+          (void)((j = (j + 1)));
+        }
+        if ((out_len >=(out_buf.length))) return -(1);
+        (void)(((out_buf).data[out_len] = ch));
+        (void)((out_len = (out_len + 1)));
       }
+      line_len = 0;
+      line_stream = 1;
       (void)((pos = (pos + 1)));
     }
+  }
+  if (line_stream != 0) {
+    if (preprocess_line_keeping()) {
+      if ((out_len >=(out_buf.length))) return -(1);
+      (void)(((out_buf).data[out_len] = 10));
+      (void)((out_len = (out_len + 1)));
+    }
+    line_stream = 0;
+    line_len = 0;
+  } else if ((line_len > 0)) {
+    (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
+    int32_t kind_eof = g_pp_kind;
+    if ((kind_eof !=0)) {
+      int32_t cond_val_eof = 0;
+      if (pp_kind_needs_cond(kind_eof)) {
+        (void)((cond_val_eof = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
+      }
+      int32_t ar_eof = preprocess_apply_directive_kind(kind_eof, cond_val_eof);
+      if ((ar_eof !=0)) return ar_eof;
+      if ((out_len >=(out_buf.length))) return -(1);
+      (void)(((out_buf).data[out_len] = 10));
+      (void)((out_len = (out_len + 1)));
+    } else {
+      if (preprocess_line_keeping()) {
+        int32_t i_eof = 0;
+        while ((i_eof < line_len)) {
+          if ((out_len >=(out_buf.length))) return -(1);
+          (void)(((out_buf).data[out_len] = (g_pp_line_buf)[i_eof]));
+          (void)((out_len = (out_len + 1)));
+          (void)((i_eof = (i_eof + 1)));
+        }
+      }
+      if ((out_len >=(out_buf.length))) return -(1);
+      (void)(((out_buf).data[out_len] = 10));
+      (void)((out_len = (out_len + 1)));
+    }
+    line_len = 0;
   }
   if ((pp_if_stack_len() !=0)) {
     return -(1);
@@ -504,59 +592,132 @@ int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out
     return -(1);
   }
   int32_t _r = pp_reset_i32();
+  (void)_r;
   int32_t out_len = 0;
   int32_t line_len = 0;
+  int32_t line_stream = 0;
   int32_t pos = 0;
   while ((pos < source_len)) {
-    uint8_t ch = (source_buf)[pos];
     if ((pos >=4194304)) {
       break;
     }
+    uint8_t ch = (source_buf)[pos];
     if ((ch ==10)) {
-      int32_t kind = g_pp_kind;
-      (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
-      if ((kind !=0)) {
-        int32_t cond_val = 0;
-        if (pp_kind_needs_cond(kind)) {
-          (void)((cond_val = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
+      if (line_stream != 0) {
+        if (preprocess_line_keeping()) {
+          if ((out_len >=out_cap)) return -(1);
+          (void)(((out_buf)[out_len] = 10));
+          (void)((out_len = (out_len + 1)));
         }
-        int32_t ar = preprocess_apply_directive_kind(kind, cond_val);
-        if ((ar !=0)) {
-          return ar;
-        }
-        if ((out_len >=out_cap)) {
-          return -(1);
-        }
-        (void)(((out_buf)[out_len] = 10));
-        (void)((out_len = (out_len + 1)));
+        line_stream = 0;
+        line_len = 0;
+        (void)((pos = (pos + 1)));
       } else {
-        int keeping = preprocess_line_keeping();
-        if (keeping) {
-          int32_t i = 0;
-          while ((i < line_len)) {
-            if ((out_len >=out_cap)) {
-              return -(1);
-            }
-            (void)(((out_buf)[out_len] = (g_pp_line_buf)[i]));
-            (void)((out_len = (out_len + 1)));
-            (void)((i = (i + 1)));
+        (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
+        int32_t kind = g_pp_kind;
+        if ((kind !=0)) {
+          int32_t cond_val = 0;
+          if (pp_kind_needs_cond(kind)) {
+            (void)((cond_val = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
           }
+          int32_t ar = preprocess_apply_directive_kind(kind, cond_val);
+          if ((ar !=0)) {
+            return ar;
+          }
+          if ((out_len >=out_cap)) {
+            return -(1);
+          }
+          (void)(((out_buf)[out_len] = 10));
+          (void)((out_len = (out_len + 1)));
+        } else {
+          int keeping = preprocess_line_keeping();
+          if (keeping) {
+            int32_t i = 0;
+            while ((i < line_len)) {
+              if ((out_len >=out_cap)) {
+                return -(1);
+              }
+              (void)(((out_buf)[out_len] = (g_pp_line_buf)[i]));
+              (void)((out_len = (out_len + 1)));
+              (void)((i = (i + 1)));
+            }
+          }
+          if ((out_len >=out_cap)) {
+            return -(1);
+          }
+          (void)(((out_buf)[out_len] = 10));
+          (void)((out_len = (out_len + 1)));
         }
-        if ((out_len >=out_cap)) {
-          return -(1);
-        }
-        (void)(((out_buf)[out_len] = 10));
+        (void)((line_len = 0));
+        (void)((pos = (pos + 1)));
+      }
+    } else if (line_stream != 0) {
+      if (preprocess_line_keeping()) {
+        if ((out_len >=out_cap)) return -(1);
+        (void)(((out_buf)[out_len] = ch));
         (void)((out_len = (out_len + 1)));
       }
-      (void)((line_len = 0));
+      (void)((pos = (pos + 1)));
+    } else if ((line_len < 4095)) {
+      (void)(((g_pp_line_buf)[line_len] = ch));
+      (void)((line_len = (line_len + 1)));
+      (void)((pos = (pos + 1)));
+    } else if (pp_line_looks_like_directive(g_pp_line_buf, line_len)) {
       (void)((pos = (pos + 1)));
     } else {
-      if ((line_len < 4095)) {
-        (void)(((g_pp_line_buf)[line_len] = ch));
-        (void)((line_len = (line_len + 1)));
+      if (preprocess_line_keeping()) {
+        int32_t j = 0;
+        while ((j < line_len)) {
+          if ((out_len >=out_cap)) return -(1);
+          (void)(((out_buf)[out_len] = (g_pp_line_buf)[j]));
+          (void)((out_len = (out_len + 1)));
+          (void)((j = (j + 1)));
+        }
+        if ((out_len >=out_cap)) return -(1);
+        (void)(((out_buf)[out_len] = ch));
+        (void)((out_len = (out_len + 1)));
       }
+      line_len = 0;
+      line_stream = 1;
       (void)((pos = (pos + 1)));
     }
+  }
+  if (line_stream != 0) {
+    if (preprocess_line_keeping()) {
+      if ((out_len >=out_cap)) return -(1);
+      (void)(((out_buf)[out_len] = 10));
+      (void)((out_len = (out_len + 1)));
+    }
+    line_stream = 0;
+    line_len = 0;
+  } else if ((line_len > 0)) {
+    (void)(parse_directive_into(g_pp_line_buf, line_len, g_pp_cond));
+    int32_t kind_eof_b = g_pp_kind;
+    if ((kind_eof_b !=0)) {
+      int32_t cond_val_eof_b = 0;
+      if (pp_kind_needs_cond(kind_eof_b)) {
+        (void)((cond_val_eof_b = pp_eval_condition(&((g_pp_cond)[0]), g_pp_sym_len)));
+      }
+      int32_t ar_eof_b = preprocess_apply_directive_kind(kind_eof_b, cond_val_eof_b);
+      if ((ar_eof_b !=0)) return ar_eof_b;
+      if ((out_len >=out_cap)) return -(1);
+      (void)(((out_buf)[out_len] = 10));
+      (void)((out_len = (out_len + 1)));
+    } else {
+      if (preprocess_line_keeping()) {
+        int32_t i_eof_b = 0;
+        while ((i_eof_b < line_len)) {
+          if ((out_len >=out_cap)) return -(1);
+          (void)(((out_buf)[out_len] = (g_pp_line_buf)[i_eof_b]));
+          (void)((out_len = (out_len + 1)));
+          (void)((i_eof_b = (i_eof_b + 1)));
+        }
+      }
+      if ((out_len >=out_cap)) return -(1);
+      (void)(((out_buf)[out_len] = 10));
+      (void)((out_len = (out_len + 1)));
+    }
+    line_len = 0;
   }
   if ((pp_if_stack_len() !=0)) {
     return -(1);
