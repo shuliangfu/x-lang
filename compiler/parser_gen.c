@@ -3792,7 +3792,18 @@ int32_t parser_diag_fail_at_token_kind_buf(uint8_t * data, int32_t len) {
   }
   return 0;
 }
+/* wave269: L001 unclosed block comment sticky pending (lexer.x). */
+extern void lexer_unclosed_block_comment_reset(void);
+extern int32_t lexer_unclosed_block_comment_pending(void);
+struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parser_ParseIntoResult r) {
+  if (lexer_unclosed_block_comment_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  return r;
+}
 struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(int32_t fail_tok) {
+  /* wave269: unclosed block comment at EOF is hard fail (not empty-module success). */
+  if (lexer_unclosed_block_comment_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if ((fail_tok ==((int32_t)(130)))) {
     return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
   }
@@ -5713,6 +5724,8 @@ void parser_parse_into_try_skip_allow_into_buf(struct parser_TrySkipAllowResult 
 }
 struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, struct ast_Module * module, struct xlang_slice_uint8_t * source) {
   {
+    /* wave269: clear L001 sticky before scanning this source buffer. */
+    lexer_unclosed_block_comment_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -5965,7 +5978,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
         }
         int32_t out_idx_storage[1] = {};
         (void)(((out_idx_storage)[0] = main_idx));
-        return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] };
+        return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
       }
       struct lexer_Lexer lex_at_function = lexer_init();
       (void)((lex_at_function = current_tok_lex));
@@ -6961,7 +6974,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     }
     int32_t out_idx_storage[1] = {};
     (void)(((out_idx_storage)[0] = main_idx));
-    return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] };
+    return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
   }
 }
 extern void parser_parse_one_top_level_let_into_glue(struct ast_ASTArena * arena, struct ast_Module * module, struct lexer_Lexer lex, struct xlang_slice_uint8_t * source, int is_const, struct parser_TopLevelLetResult * out);
@@ -7209,6 +7222,8 @@ struct parser_TrySkipAllowResult parser_parse_into_try_skip_allow_from_buf(struc
 }
 struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len) {
   {
+    /* wave269: clear L001 sticky before scanning this source buffer. */
+    lexer_unclosed_block_comment_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7486,7 +7501,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
         }
         int32_t out_idx_storage[1] = {};
         (void)(((out_idx_storage)[0] = main_idx));
-        return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] };
+        return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
       }
       struct lexer_Lexer lex_at_function_buf = lexer_init();
       (void)((lex_at_function_buf = current_tok_lex_buf));
@@ -8337,7 +8352,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     int32_t out_idx = main_idx;
     int32_t out_idx_storage[1] = {};
     (void)(((out_idx_storage)[0] = out_idx));
-    return (struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] };
+    return parser_parse_into_apply_unclosed_gate((struct parser_ParseIntoResult){ .ok = 0, .main_idx = (out_idx_storage)[0] });
   }
 }
 extern void parser_parse_into_set_main_index_glue(struct ast_Module * module, int32_t main_idx);

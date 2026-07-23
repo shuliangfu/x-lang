@@ -4408,6 +4408,22 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
   return 0;  // unreachable — typeck after unsafe block
 }
 
+/**
+ * wave269: if lexer saw unclosed block comment (L001 sticky), force parse fail.
+ * Product -o paths call parser_parse_into_buf directly (not only driver_parse_into_buf_rc).
+ * @param r ParseIntoResult — candidate result from parse_into / parse_into_buf
+ * @return ParseIntoResult — ok=-1 when L001 pending; else r unchanged
+ * PLATFORM: SHARED
+ */
+export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoResult {
+  unsafe {
+    if (lexer.lexer_unclosed_block_comment_pending() != 0) {
+      return ParseIntoResult { ok: -1, main_idx: -1 }
+    }
+  }
+  return r;
+}
+
 /** Exported function `parse_into_result_empty_module_or_fail_tok`.
  * Implements `parse_into_result_empty_module_or_fail_tok`.
  * @param fail_tok i32
@@ -4416,6 +4432,10 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
 export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+  // wave269: unclosed /* ... at EOF is hard fail (not empty-module success).
+  if (lexer.lexer_unclosed_block_comment_pending() != 0) {
+    return ParseIntoResult { ok: -1, main_idx: -1 }
+  }
   if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
     return ParseIntoResult { ok: -2, main_idx: -1 }
   }
@@ -7471,6 +7491,8 @@ export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+  // wave269: clear L001 sticky before scanning this source buffer.
+  lexer.lexer_unclosed_block_comment_reset();
   /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
@@ -7746,7 +7768,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       let out_idx_storage: i32[1] = [];
       out_idx_storage[0] = main_idx;
-      return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
+      // wave269: L001 sticky may still be set when funcs existed before unclosed /*.
+      return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
     }
     /*
      * See implementation.
@@ -8779,7 +8802,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   /* See implementation. */
   let out_idx_storage: i32[1] = [];
   out_idx_storage[0] = main_idx;
-  return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
+  return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
   }
 }
 
@@ -9569,6 +9592,8 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+  // wave269: clear L001 sticky before scanning this source buffer.
+  lexer.lexer_unclosed_block_comment_reset();
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };
@@ -9865,7 +9890,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       let out_idx_storage: i32[1] = [];
       out_idx_storage[0] = main_idx;
-      return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
+      return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
     }
     /*
      * See implementation.
@@ -10755,7 +10780,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   let out_idx: i32 = main_idx;
   let out_idx_storage: i32[1] = [];
   out_idx_storage[0] = out_idx;
-  return ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] }
+  return parse_into_apply_unclosed_gate(ParseIntoResult { ok: 0, main_idx: out_idx_storage[0] })
   }
 }
 

@@ -67,6 +67,10 @@ struct lexer_Lexer { size_t pos; int32_t line; int32_t col; };
 struct lexer_LexerResult { struct lexer_Lexer next_lex; struct token_Token tok; size_t token_start; };
 extern int32_t cfg_eval_expr_c(uint8_t * restrict start, int32_t len);
 extern struct xlang_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * restrict data, int32_t len);
+/* wave269: L001 unclosed block comment hard diag */
+extern void diag_report_with_code(const char *file, int32_t line, int32_t col,
+                                  const char *kind, const char *code,
+                                  const char *msg, const char *detail);
 struct lexer_Lexer lexer_init();
 struct lexer_Lexer lexer_advance_one(struct lexer_Lexer lex, uint8_t c);
 int lexer_is_alpha(uint8_t c);
@@ -754,7 +758,8 @@ XLANG_LIB_WEAK int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * restr
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x. */
+/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x.
+ * wave269: EOF depth>0 → L001 unclosed block comment hard diag + sticky pending. */
 static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
   if (prev >= 65 && prev <= 90)
     return 1;
@@ -766,6 +771,47 @@ static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
       || prev == 34 || prev == 39)
     return 1;
   return 0;
+}
+/* wave269 Cap residual: sticky unclosed block-comment state (≡ lexer.x). */
+static int32_t g_lexer_unclosed_bc = 0;
+static int32_t g_lexer_unclosed_line = 0;
+static int32_t g_lexer_unclosed_col = 0;
+static int32_t g_lexer_unclosed_reported = 0;
+void lexer_unclosed_block_comment_reset(void) {
+  g_lexer_unclosed_bc = 0;
+  g_lexer_unclosed_line = 0;
+  g_lexer_unclosed_col = 0;
+  g_lexer_unclosed_reported = 0;
+}
+int32_t lexer_unclosed_block_comment_pending(void) {
+  return g_lexer_unclosed_bc;
+}
+static void lexer_note_unclosed_block_comment(int32_t line, int32_t col) {
+  if (g_lexer_unclosed_bc == 0) {
+    g_lexer_unclosed_bc = 1;
+    g_lexer_unclosed_line = line;
+    g_lexer_unclosed_col = col;
+  }
+  if (g_lexer_unclosed_reported != 0)
+    return;
+  g_lexer_unclosed_reported = 1;
+  /* kind="lexer error" code="L001" msg="unclosed block comment" */
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '1'; code[4] = 0;
+    msg[0] = 'u'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'l'; msg[4] = 'o';
+    msg[5] = 's'; msg[6] = 'e'; msg[7] = 'd'; msg[8] = ' '; msg[9] = 'b';
+    msg[10] = 'l'; msg[11] = 'o'; msg[12] = 'c'; msg[13] = 'k'; msg[14] = ' ';
+    msg[15] = 'c'; msg[16] = 'o'; msg[17] = 'm'; msg[18] = 'm'; msg[19] = 'e';
+    msg[20] = 'n'; msg[21] = 't'; msg[22] = 0;
+    diag_report_with_code(NULL, g_lexer_unclosed_line, g_lexer_unclosed_col,
+                          kind, code, msg, NULL);
+  }
 }
 XLANG_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data) {
   struct lexer_Lexer l = lex;
@@ -779,6 +825,8 @@ XLANG_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexe
         (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
       }
     } else if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
+      int32_t open_line = (l).line;
+      int32_t open_col = (l).col;
       (l = (lexer_advance_one(l, 47)));
       (l = (lexer_advance_one(l, 42)));
       depth = 1;
@@ -819,6 +867,9 @@ XLANG_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexe
           (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
         }
       }
+      /* wave269: EOF with depth > 0 → L001 hard diag + sticky pending. */
+      if (depth > 0)
+        lexer_note_unclosed_block_comment(open_line, open_col);
       depth = 0;
     } else if (c == 35) {
       if ((l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 91) {

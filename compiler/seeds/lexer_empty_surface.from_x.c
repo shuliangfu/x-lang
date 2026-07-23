@@ -68,6 +68,12 @@ extern int32_t lexer_try_send_attr_into(struct LexerResult * out, struct Lexer l
 extern int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
 extern struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_uint8_t data);
 extern struct Lexer skip_whitespace_and_comments_buf(struct Lexer lex, uint8_t * data, int32_t len);
+/* wave269: L001 unclosed block comment hard diag */
+extern void diag_report_with_code(const char *file, int32_t line, int32_t col,
+                                  const char *kind, const char *code,
+                                  const char *msg, const char *detail);
+extern void lexer_unclosed_block_comment_reset(void);
+extern int32_t lexer_unclosed_block_comment_pending(void);
 extern struct LexerResult lexer_next(struct Lexer lex, struct xlang_slice_uint8_t data);
 extern void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f);
 extern void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
@@ -948,7 +954,8 @@ int32_t lexer_try_sync_attr_into(struct LexerResult * out, struct Lexer l, struc
   (void)(((out->token_start) = ((size_t)(0))));
   return 1;
 }
-/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x. */
+/* PLATFORM: SHARED — nested block comments; path-safe nest-open; lockstep with lexer.x.
+ * wave269: EOF depth>0 → L001 unclosed block comment hard diag + sticky pending. */
 static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
   if (prev >= 65 && prev <= 90)
     return 1;
@@ -960,6 +967,46 @@ static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
       || prev == 34 || prev == 39)
     return 1;
   return 0;
+}
+/* wave269 Cap residual: sticky unclosed block-comment state (≡ lexer.x). */
+static int32_t g_lexer_unclosed_bc = 0;
+static int32_t g_lexer_unclosed_line = 0;
+static int32_t g_lexer_unclosed_col = 0;
+static int32_t g_lexer_unclosed_reported = 0;
+void lexer_unclosed_block_comment_reset(void) {
+  g_lexer_unclosed_bc = 0;
+  g_lexer_unclosed_line = 0;
+  g_lexer_unclosed_col = 0;
+  g_lexer_unclosed_reported = 0;
+}
+int32_t lexer_unclosed_block_comment_pending(void) {
+  return g_lexer_unclosed_bc;
+}
+static void lexer_note_unclosed_block_comment(int32_t line, int32_t col) {
+  if (g_lexer_unclosed_bc == 0) {
+    g_lexer_unclosed_bc = 1;
+    g_lexer_unclosed_line = line;
+    g_lexer_unclosed_col = col;
+  }
+  if (g_lexer_unclosed_reported != 0)
+    return;
+  g_lexer_unclosed_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '1'; code[4] = 0;
+    msg[0] = 'u'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'l'; msg[4] = 'o';
+    msg[5] = 's'; msg[6] = 'e'; msg[7] = 'd'; msg[8] = ' '; msg[9] = 'b';
+    msg[10] = 'l'; msg[11] = 'o'; msg[12] = 'c'; msg[13] = 'k'; msg[14] = ' ';
+    msg[15] = 'c'; msg[16] = 'o'; msg[17] = 'm'; msg[18] = 'm'; msg[19] = 'e';
+    msg[20] = 'n'; msg[21] = 't'; msg[22] = 0;
+    diag_report_with_code(NULL, g_lexer_unclosed_line, g_lexer_unclosed_col,
+                          kind, code, msg, NULL);
+  }
 }
 struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_uint8_t data) {
   struct Lexer l = lex;
@@ -975,6 +1022,8 @@ struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_u
         }
       } else {
         if ((((c ==47) && (((l.pos) + 1) < (data.length))) && ((data).data[((l.pos) + 1)] ==42))) {
+          int32_t open_line = l.line;
+          int32_t open_col = l.col;
           (void)((l = advance_one(l, 47)));
           (void)((l = advance_one(l, 42)));
           depth = 1;
@@ -1003,6 +1052,8 @@ struct Lexer skip_whitespace_and_comments(struct Lexer lex, struct xlang_slice_u
               (void)((l = advance_one(l, (data).data[(l.pos)])));
             }
           }
+          if (depth > 0)
+            lexer_note_unclosed_block_comment(open_line, open_col);
           depth = 0;
         } else {
           if ((c ==35)) {

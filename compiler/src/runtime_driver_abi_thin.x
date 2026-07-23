@@ -5113,6 +5113,17 @@ export function driver_parser_diag_fail_tok_kind(src: *u8, len: usize): i32 {
  * unpacks parser_ParseIntoResult (ok + main_idx). Cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — struct return stays seed residual.
  */
+/**
+ * wave269: reset sticky unclosed block-comment state before each product parse.
+ * PLATFORM: SHARED — G.7 single product parse entry.
+ */
+export extern "C" function lexer_unclosed_block_comment_reset(): void;
+/**
+ * wave269: non-zero if lexer saw EOF with block-comment nesting depth > 0.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_unclosed_block_comment_pending(): i32;
+
 #[no_mangle]
 export function driver_parse_into_buf_rc(
   arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32
@@ -5129,10 +5140,24 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
+  // wave269: clear sticky L001 state for this entry (nested import parse too).
   unsafe {
-    return xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+    lexer_unclosed_block_comment_reset();
   }
-  return -1;
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+  }
+  // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted).
+  unsafe {
+    if (lexer_unclosed_block_comment_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+  }
+  return rc;
 }
 
 // ---- Wave39 Cap residual pure: stdio stdout + asm fwrite + x_emit fwrite_stdout ----

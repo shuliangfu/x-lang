@@ -89,6 +89,9 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"PP002", "preprocess error", "Preprocessor failed before producing a usable source buffer.",
      "Used for directive errors or generic preprocess failures that are not covered by a more specific code. "
      "Typical action: inspect the reported source file and nearby conditional compilation directives."},
+    {"L001", "lexer error", "Lexer found an unclosed block comment.",
+     "Used when a nested `/* ... */` block comment reaches end-of-file with nesting depth still greater than zero. "
+     "Typical action: add the matching `*/` closers for every true nest-open `/*` (path globs like `src/*.x` do not nest-open)."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

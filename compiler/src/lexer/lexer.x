@@ -47,6 +47,128 @@ allow(padding) struct LexerResult {
 */
 export extern function lexer_parser_slice_from_buf(data: *u8, len: i32): u8[];
 
+/**
+ * Fixed-message diagnostic sink for hard lexer errors (no va_list).
+ * PLATFORM: SHARED — same surface as pipeline/preprocess diags.
+ * @param file *u8 — path or null (uses diag context when null)
+ * @param line i32 — 1-based source line of the diagnostic caret
+ * @param col i32 — 1-based source column of the diagnostic caret
+ * @param kind *u8 — NUL kind string (e.g. "lexer error")
+ * @param code *u8 — NUL code string (e.g. "L001")
+ * @param msg *u8 — NUL primary message
+ * @param detail *u8 — optional detail or null
+ * @return void
+ */
+export extern "C" function diag_report_with_code(
+  file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+
+/**
+ * wave269 Cap residual: sticky unclosed block-comment state for the current parse.
+ * Set when skip_whitespace hits EOF with nesting depth > 0; cleared by
+ * lexer_unclosed_block_comment_reset at each product parse entry.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_unclosed_bc: i32 = 0;
+let g_lexer_unclosed_line: i32 = 0;
+let g_lexer_unclosed_col: i32 = 0;
+let g_lexer_unclosed_reported: i32 = 0;
+
+/**
+ * Clear unclosed block-comment sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_unclosed_block_comment_reset(): void {
+  g_lexer_unclosed_bc = 0;
+  g_lexer_unclosed_line = 0;
+  g_lexer_unclosed_col = 0;
+  g_lexer_unclosed_reported = 0;
+}
+
+/**
+ * Whether the last skip saw an unclosed block comment (EOF with depth > 0).
+ * @return i32 — 1 if pending hard fail, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_unclosed_block_comment_pending(): i32 {
+  return g_lexer_unclosed_bc;
+}
+
+/**
+ * Record and report L001 once for an unclosed nested block comment at EOF.
+ * @param line i32 — 1-based line of the outermost opening slash-star
+ * @param col i32 — 1-based column of the outermost opening slash-star
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_unclosed_block_comment(line: i32, col: i32): void {
+  if (g_lexer_unclosed_bc == 0) {
+    g_lexer_unclosed_bc = 1;
+    g_lexer_unclosed_line = line;
+    g_lexer_unclosed_col = col;
+  }
+  if (g_lexer_unclosed_reported != 0) {
+    return;
+  }
+  g_lexer_unclosed_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L001"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 49;
+  code[4] = 0;
+  // msg = "unclosed block comment"
+  let msg: u8[32] = [];
+  msg[0] = 117;
+  msg[1] = 110;
+  msg[2] = 99;
+  msg[3] = 108;
+  msg[4] = 111;
+  msg[5] = 115;
+  msg[6] = 101;
+  msg[7] = 100;
+  msg[8] = 32;
+  msg[9] = 98;
+  msg[10] = 108;
+  msg[11] = 111;
+  msg[12] = 99;
+  msg[13] = 107;
+  msg[14] = 32;
+  msg[15] = 99;
+  msg[16] = 111;
+  msg[17] = 109;
+  msg[18] = 109;
+  msg[19] = 101;
+  msg[20] = 110;
+  msg[21] = 116;
+  msg[22] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_unclosed_line,
+      g_lexer_unclosed_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
 /** Exported function `lexer_init`.
  * Implements `lexer_init`.
  * @return Lexer
@@ -1484,6 +1606,9 @@ function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
  *   line-start `/*.o` (prev path-like, or next byte after `/*` is `.`).
  * Unmatched bare `*/` with no nested open still closes the outer block (depth 1 → 0).
  *
+ * wave269: EOF with nesting depth > 0 is a hard diagnostic (L001 unclosed block
+ * comment) at the outermost open site; sticky flag forces product parse fail.
+ *
  * PLATFORM: SHARED — language lexical semantics; dual-host product matrix.
  *
  * @param lex Lexer — current position / line / col
@@ -1505,6 +1630,9 @@ export function skip_whitespace_and_comments(lex: Lexer, data: u8[]): Lexer {
       }
     } else if (c == 47 && l.pos + 1 < data.length && data[l.pos + 1] == 42) {
       // Block comment /* ... */ with nesting (depth counter).
+      // Capture open caret before consuming the slash-star pair.
+      let open_line: i32 = l.line;
+      let open_col: i32 = l.col;
       l = advance_one(l, 47);
       l = advance_one(l, 42);
       depth = 1;
@@ -1543,9 +1671,11 @@ export function skip_whitespace_and_comments(lex: Lexer, data: u8[]): Lexer {
           l = advance_one(l, data[l.pos]);
         }
       }
-      // EOF with depth > 0: unclosed block comment; body already swallowed to EOF.
-      // Parser sees missing following decls (fail). Prefer path-safe nest so this
-      // is rare; dedicated unclosed diag is a follow-up if needed.
+      // EOF with depth > 0: unclosed block comment (body swallowed to EOF).
+      // Hard diag L001 + sticky flag → product parse entry returns fail.
+      if (depth > 0) {
+        lexer_note_unclosed_block_comment(open_line, open_col);
+      }
       depth = 0;
     } else if (c == 35) {
       // Bare # line comment; leave #[cfg]/attrs to the token scanner.
