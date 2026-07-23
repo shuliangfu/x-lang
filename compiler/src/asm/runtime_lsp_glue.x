@@ -1730,26 +1730,32 @@ export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
 #[no_mangle]
 export function lsp_hash_source(src: *u8, len: i32): u32 {
   if (src == 0) { return 0; }
+  // 0x9e3779b97f4a7c15 built from u32 halves (typeck: no decimal > i64 max).
+  // wave257: same construction as lsp_fmt_pure_thin (G.7 dual-authority align).
+  let golden_hi: u64 = 2654435769 as u64;
+  let golden_lo: u64 = 2135587861 as u64;
+  let two32: u64 = 4294967296 as u64;
+  let golden: u64 = golden_hi * two32 + golden_lo;
   let h: u64 = len as u64;
   let i: i32 = 0;
   while (i + 8 <= len) {
-    let x: u64 = 0;
+    let x: u64 = 0 as u64;
     let k: i32 = 0;
     while (k < 8) {
       let b: u64 = src[i + k] as u64;
       // little-endian pack
-      let shift: u64 = 1;
+      let shift: u64 = 1 as u64;
       let s: i32 = 0;
-      while (s < k) { shift = shift * 256; s = s + 1; }
+      while (s < k) { shift = shift * (256 as u64); s = s + 1; }
       x = x + b * shift;
       k = k + 1;
     }
-    h = h * 11400714819323198485 + x; // 0x9e3779b97f4a7c15
+    h = h * golden + x;
     i = i + 8;
   }
   while (i < len) {
-    h = h * 11400714819323198485 + (src[i] as u64);
+    h = h * golden + (src[i] as u64);
     i = i + 1;
   }
-  return (h ^ (h / 4294967296)) as u32;
+  return (h ^ (h / two32)) as u32;
 }

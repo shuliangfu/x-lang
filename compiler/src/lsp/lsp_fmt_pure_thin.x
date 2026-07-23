@@ -1,23 +1,25 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-423/424/425/426/427：L2 hybrid thin — lsp_fmt 19 functions.
-// PREFER_X_O: thin.o + seed-rest (-DXLANG_L2_LSP_FMT_THIN_FROM_X) ld -r -> runtime_lsp_glue.o
-// See implementation.
+// G-02f-423/424/425/426/427 + wave257: L2 hybrid thin — lsp_fmt pure leaves.
+// PREFER_X_O: thin.o + seed-rest (-DXLANG_L2_LSP_FMT_THIN_FROM_X) ld -r -> lsp_diag.o
+// (product path: src/lsp/lsp_diag.o from runtime_lsp_glue seed rest + this thin).
 //
-// See implementation.
+// Thin provides every symbol the seed stubs under XLANG_L2_LSP_FMT_THIN_FROM_X:
+//   lsp_char_in_range / lsp_fmt_is_inline_ws / lsp_fmt_is_src_ws / lsp_store_i32
+//   lsp_match_bytes_at
 //   lsp_fmt_is_atom_tail / lsp_fmt_is_atom_head / lsp_fmt_unary_lhs
 //   lsp_fmt_last_out / lsp_fmt_prev_src
-// See implementation.
 //   lsp_fmt_src_ws_before / lsp_fmt_src_ws_after
 //   lsp_fmt_space_before / lsp_fmt_space_after
 //   lsp_json_escape_ident
-// See implementation.
 //   col_in_ident_span / lsp_find_key_after / lsp_parse_bool_after
 //   lsp_line_has_block_comment_end / lsp_line_is_block_comment
-// See implementation.
 //   lsp_load_i32_at / lsp_load_ptr_at / func_name_covers
-// See implementation.
+//   lsp_hash_source
+// PLATFORM: SHARED — layout loads assume LE host (mac arm64 + Ubuntu x86_64).
+// wave257: close soft residual "PREFER=1 hybrid thin missing 3 seed-stubbed symbols"
+//          (func_name_covers / lsp_hash_source / lsp_line_is_block_comment).
 // lsp_char_in_range: see function docblock below.
 
 /** Exported function `lsp_char_in_range`.
@@ -439,4 +441,132 @@ export function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): 
   return 0;
 }
 
-/** See implementation for details. */
+/**
+ * True when the line content starts a C-style block comment open (slash-star)
+ * or continues one (leading star while in_block is set).
+ * Seed-stubbed under XLANG_L2_LSP_FMT_THIN_FROM_X — must live in this thin.
+ * @param doc *u8 — document bytes; null → 0
+ * @param content_start i32 — first content byte offset of the line
+ * @param content_len i32 — content length in bytes
+ * @param in_block i32 — non-zero if a prior open block comment is still open
+ * @return i32 — 1 if block-comment line, else 0
+ * PLATFORM: SHARED — pure byte checks; no host I/O
+ */
+#[no_mangle]
+export function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
+  if (doc == 0) { return 0; }
+  if (content_len >= 2) {
+    if (doc[content_start] == 47) { // '/'
+      if (doc[content_start + 1] == 42) { return 1; } // '*'
+    }
+  }
+  if (in_block != 0) {
+    if (content_len >= 1) {
+      if (doc[content_start] == 42) { return 1; }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Load a little-endian i32 at byte offset from an opaque struct base.
+ * Used by func_name_covers for ASTFunc.line / ASTFunc.col (line@0, col@4).
+ * @param p *u8 — base pointer; caller guarantees valid span
+ * @param off i32 — byte offset from base
+ * @return i32 — LE 32-bit value
+ * PLATFORM: SHARED — LE hosts only (product mac arm64 + Ubuntu x86_64)
+ */
+export function lsp_load_i32_at(p: *u8, off: i32): i32 {
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * (m * m);
+  a = a + (p[off + 3] as i32) * (m * m * m);
+  return a;
+}
+
+/**
+ * Load a little-endian pointer-width value at byte offset from an opaque struct base.
+ * Used by func_name_covers for ASTFunc.name (name@+8 on 64-bit).
+ * @param p *u8 — base pointer; null → null
+ * @param off i32 — byte offset from base
+ * @return *u8 — reconstructed pointer (or null)
+ * PLATFORM: SHARED — LE 64-bit pointer pack (product mac arm64 + Ubuntu x86_64)
+ */
+export function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
+  if (p == 0) { return 0 as *u8; }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m2;
+  a = a + (p[off + 3] as usize) * (m2 * m);
+  a = a + (p[off + 4] as usize) * m4;
+  a = a + (p[off + 5] as usize) * (m4 * m);
+  a = a + (p[off + 6] as usize) * (m4 * m2);
+  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
+
+/**
+ * True when the cursor (line,col) falls inside the function name span of ASTFunc f.
+ * Layout (G-02f-133 / ast.h): line@0, col@4, name@+8. Seed-stubbed under THIN_FROM_X.
+ * @param f *u8 — opaque ASTFunc*; null → 0
+ * @param line i32 — 1-based cursor line
+ * @param col i32 — 1-based cursor column
+ * @return i32 — 1 if name span covers the cursor, else 0
+ * PLATFORM: SHARED — layout contract with compiler/include/ast.h ASTFunc
+ */
+#[no_mangle]
+export function func_name_covers(f: *u8, line: i32, col: i32): i32 {
+  if (f == 0) { return 0; }
+  let name: *u8 = lsp_load_ptr_at(f, 8);
+  if (name == 0) { return 0; }
+  let sl: i32 = lsp_load_i32_at(f, 0);
+  let sc: i32 = lsp_load_i32_at(f, 4);
+  return col_in_ident_span(line, col, sl, sc, name);
+}
+
+/**
+ * Fast 32-bit source hash: 64-bit state + 8-byte LE block mix, fold to 32 bits.
+ * Used by document cache invalidation; seed-stubbed under THIN_FROM_X.
+ * Golden ratio constant 0x9e3779b97f4a7c15 is built from two u32 halves so typeck
+ * never sees a decimal literal above i64 max (11400714819323198485).
+ * @param src *u8 — source bytes; null → 0
+ * @param len i32 — byte length (may be 0)
+ * @return u32 — hash (h ^ (h >> 32)) of mix with golden ratio constant
+ * PLATFORM: SHARED — LE pack of 8-byte blocks (matches seed memcpy path on LE hosts)
+ */
+#[no_mangle]
+export function lsp_hash_source(src: *u8, len: i32): u32 {
+  if (src == 0) { return 0; }
+  // 0x9e3779b97f4a7c15 = (0x9e3779b9 << 32) | 0x7f4a7c15
+  let golden_hi: u64 = 2654435769 as u64;
+  let golden_lo: u64 = 2135587861 as u64;
+  let two32: u64 = 4294967296 as u64;
+  let golden: u64 = golden_hi * two32 + golden_lo;
+  let h: u64 = len as u64;
+  let i: i32 = 0;
+  while (i + 8 <= len) {
+    let x: u64 = 0 as u64;
+    let k: i32 = 0;
+    while (k < 8) {
+      let b: u64 = src[i + k] as u64;
+      // little-endian pack of the 8-byte window
+      let shift: u64 = 1 as u64;
+      let s: i32 = 0;
+      while (s < k) { shift = shift * (256 as u64); s = s + 1; }
+      x = x + b * shift;
+      k = k + 1;
+    }
+    h = h * golden + x;
+    i = i + 8;
+  }
+  while (i < len) {
+    h = h * golden + (src[i] as u64);
+    i = i + 1;
+  }
+  return (h ^ (h / two32)) as u32;
+}
+

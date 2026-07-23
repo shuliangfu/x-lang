@@ -2981,7 +2981,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-15 / G-02f-423：lsp_diag + USER_ASM seed bridges
-  # 默认整 seed；PREFER_X_O=1 时 thin.x（5 pure leaf）+ seed-rest（-DXLANG_L2_LSP_FMT_THIN_FROM_X）ld -r
+  # 默认整 seed；PREFER_X_O=1 时 thin.x（lsp_fmt pure leaves，含 wave257 补齐的
+  # func_name_covers / lsp_hash_source / lsp_line_is_block_comment）+ seed-rest
+  # (-DXLANG_L2_LSP_FMT_THIN_FROM_X) ld -r → src/lsp/lsp_diag.o
   _lspg=seeds/runtime_lsp_glue.from_x.c
   _lspg_thin_x=src/lsp/lsp_fmt_pure_thin.x
   if [ -f "$_lspg" ]; then
