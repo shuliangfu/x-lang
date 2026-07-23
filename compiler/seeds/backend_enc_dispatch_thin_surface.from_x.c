@@ -133,6 +133,7 @@ extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, i
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_store_eax_to_rbp_arch(uint8_t * elf_ctx, int32_t offset, int32_t ta);
@@ -2239,6 +2240,29 @@ int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta) {
   {
     /* f2 0f 2a c0 = 0xc02a0ff2 = 3223982066u; 66 48 0f 7e = 2114930790u */
     if ((backend_enc_append_u32_le_c_impl(elf_ctx, 3223982066) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 2114930790) !=0)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u8_c_impl(elf_ctx, 192);
+  }
+  return (0 - 1);
+}
+/* wave293: f32→f64 freestanding cast (cvtss2sd). */
+int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    /* movd: 0xc06e0f66=3228438374; cvtss2sd: 0xc05a0ff3=3227127795; movq first4=2114930790 */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 3227127795) !=0)) {
       return (0 - 1);
     }
     if ((backend_enc_append_u32_le_c_impl(elf_ctx, 2114930790) !=0)) {

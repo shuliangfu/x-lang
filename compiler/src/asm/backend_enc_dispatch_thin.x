@@ -2621,6 +2621,40 @@ export function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i
   return 0 - 1;
 }
 
+/**
+ * Convert f32 bits in eax to f64 bits in rax (cvtss2sd).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `as f64` (wave293 Cap residual).
+ */
+#[no_mangle]
+export function backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    /* movd xmm0,eax: 66 0f 6e c0 → u32 le 0xc06e0f66 = 3228438374 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) != 0) {
+      return 0 - 1;
+    }
+    /* cvtss2sd xmm0,xmm0: f3 0f 5a c0 → u32 le 0xc05a0ff3 = 3227127795
+     * (cvtsd2ss is f2… = 3227127794; keep exact decimal). */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3227127795) != 0) {
+      return 0 - 1;
+    }
+    /* movq rax,xmm0: 66 48 0f 7e + c0 → first4 = 2114930790 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 2114930790) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c_impl(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
 // movd xmmK, eax：66 0F 6E /r ；modrm = C0 | (k<<3)
 /** Exported function `backend_enc_mov_eax_to_xmm_arg_reg_arch`.
  * Implements `backend_enc_mov_eax_to_xmm_arg_reg_arch`.

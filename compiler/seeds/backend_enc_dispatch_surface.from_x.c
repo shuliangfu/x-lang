@@ -136,6 +136,7 @@ extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, i
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
 extern int32_t arch_arm64_enc_enc_cmp_w0_imm12(uint8_t * elf_ctx, int32_t imm12);
@@ -1727,6 +1728,44 @@ int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta) {
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
       return (0 - 1);
     }
+    (void)(((q)[0] = 102));
+    (void)(((q)[1] = 72));
+    (void)(((q)[2] = 15));
+    (void)(((q)[3] = 126));
+    (void)(((q)[4] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((q)[0]), 5);
+  }
+  return (0 - 1);
+}
+/* wave293: f32→f64 freestanding cast (cvtss2sd). */
+int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    uint8_t b[4] = {};
+    uint8_t q[5] = {};
+    /* movd xmm0,eax — 66 0f 6e c0 */
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* cvtss2sd xmm0,xmm0 — f3 0f 5a c0 */
+    (void)(((b)[0] = 243));
+    (void)(((b)[1] = 15));
+    (void)(((b)[2] = 90));
+    (void)(((b)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((b)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* movq rax,xmm0 — 66 48 0f 7e c0 */
     (void)(((q)[0] = 102));
     (void)(((q)[1] = 72));
     (void)(((q)[2] = 15));

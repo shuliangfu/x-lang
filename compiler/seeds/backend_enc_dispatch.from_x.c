@@ -146,6 +146,7 @@ int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCode
 int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
 int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
@@ -864,6 +865,30 @@ int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx
   if (ta != 0 || !elf_ctx)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvtsi2sd_xmm0_eax, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
+}
+#endif
+
+/**
+ * x86：eax 中 f32 位型扩展为 f64 位型写回 rax（cvtss2sd）。
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `let y: f64 = x as f64` (wave293).
+ * Root: without this, EXPR_AS f32→f64 re-emitted f32 bits; cvttsd2si/mulsd treated
+ * those bits as IEEE f64 → freestanding run=0 (mac host-gcc hid). G.7 next to cvtsd2ss.
+ * Encoding: movd xmm0,eax (66 0F 6E C0) ; cvtss2sd xmm0,xmm0 (F3 0F 5A C0) ;
+ *           movq rax,xmm0 (66 REX.W 0F 7E C0).
+ */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
+  static const uint8_t cvtss2sd_xmm0_xmm0[4] = {0xf3, 0x0f, 0x5a, 0xc0};
+  static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvtss2sd_xmm0_xmm0, 4) != 0)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
 }

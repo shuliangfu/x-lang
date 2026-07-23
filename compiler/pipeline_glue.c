@@ -1352,6 +1352,8 @@ extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_E
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** i32 in eax → f64 bits in rax (cvtsi2sd); freestanding `as f64` (wave292). */
 extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f32 bits in eax → f64 bits in rax (cvtss2sd); freestanding `as f64` (wave293). */
+extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                   int32_t ta);
 extern int32_t backend_enc_sub_rbx_rax_then_mov_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -2173,6 +2175,19 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
           return -1;
         return backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
       }
+      /**
+       * f64 → f32：cvtsd2ss (wave293 Cap residual pure).
+       * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+       * Root: prior EXPR_AS f32 target re-emitted f64 bits then low-32 movd + cvttss2si
+       * → freestanding `(x:f64 as f32) as i32` run=0 (mac host-gcc hid). G.7: complete
+       * EXPR_AS authority next to existing backend_enc_cvtsd2ss (ABI/var path).
+       * Detect: TYPE_F32 target + f64 source (kind 15 / FLOAT_LIT / scalar-f64).
+       */
+      if (src_kind == 15 || glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+      }
     }
   }
   /**
@@ -2193,6 +2208,18 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
+      }
+      /**
+       * f32 → f64：cvtss2sd (wave293 Cap residual pure).
+       * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+       * Root: prior path re-emitted f32 bits then cvttsd2si / mulsd treated those bits
+       * as IEEE f64 → freestanding `(x:f32 as f64)` run=0. G.7: new encoder next to
+       * cvtsd2ss / cvtsi2sd family.
+       */
+      if (src_kind == 14) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
       }
     }
   }
