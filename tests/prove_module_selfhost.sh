@@ -93,8 +93,8 @@ MODULES=(
   #   tls_mbedtls_bio ensure resolve/access/cc_one_extra/stat（homebrew -I）；thin wrap path peers *_o_path
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ensure_list.from_x.c 全 C 体
   "labi_ensure_list|src/runtime/labi_ensure_list.x|seeds/labi_ensure_list_surface.from_x.c||"
-  # labi_path_io R2 full：.x 吃满 3 公共门闩 + count；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：stat/realpath _impl 在 mega rest
+  # labi_path_io R2 full：.x 吃满 4 公共门闩 + count（wave209 + path_readable）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：stat/realpath/access _impl 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_io.from_x.c 全 C 体
   "labi_path_io|src/runtime/labi_path_io.x|seeds/labi_path_io_surface.from_x.c||"
   # labi_host_lit R2 full：.x 吃满 2 公共门闩 + count；

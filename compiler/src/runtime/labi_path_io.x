@@ -5,14 +5,17 @@
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_io.from_x.c.
 // Hybrid macro SHUX_LABI_PATH_IO_FROM_X (FROM_X rest business H=0, marker only).
 //
-// R2 full: .x owns 3 public gates + count:
+// R2 full: .x owns 4 public gates + count:
 //   - shux_path_is_nonempty_regular_file → _impl (stat Cap residual mega rest)
 //   - asm_link_obj_skip_missing: composes nonempty check
 //   - shux_runtime_o_realpath_if_exists → _impl (realpath+skip Cap residual)
-// No struct stat layout; no libc realpath prototype here (avoids *u8 vs char* clash).
+//   - link_abi_path_readable → _impl (access R_OK Cap residual; wave209)
+// No struct stat layout; no libc realpath/access prototype here (avoids *u8 vs char* clash).
 
 export extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
 export extern "C" function shux_runtime_o_realpath_if_exists_impl(path: *u8, resolved: *u8): *u8;
+/* Cap residual (wave209): host access(path, R_OK) only; pure owns null/empty gates. */
+export extern "C" function link_abi_path_readable_impl(path: *u8): i32;
 
 /**
  * Return 1 iff path names a non-empty regular file (stat residual).
@@ -83,11 +86,37 @@ export function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8
 }
 
 /**
+ * Return 1 iff path is readable (host access R_OK); null/empty → 0 without residual.
+ * @param path *u8 — NUL-terminated path; null/empty rejected at pure gate
+ * @return i32 — 1 readable, 0 otherwise
+ * Pure orch: ≡ mega null/empty gates before Cap residual access (wave209).
+ * Cap residual: link_abi_path_readable_impl (host access R_OK; mega always).
+ * Why (wave209): hybrid still had path_readable body always mega C (gates+access).
+ * Preserves append_user_extra / ensure / freestanding skip-unreadable semantics
+ * (not nonempty-regular-file; R_OK only).
+ * PLATFORM: SHARED orch; residual access is POSIX/host (Windows hybrid via compat).
+ * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
+ */
+#[no_mangle]
+export function link_abi_path_readable(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (path[0] == 0) {
+    return 0;
+  }
+  unsafe {
+    return link_abi_path_readable_impl(path);
+  }
+  return 0;
+}
+
+/**
  * Pure audit: number of L3 thin path-IO gates in this slice.
- * Returns: 3 (fixed catalog size for hybrid FROM_X bookkeeping).
+ * Returns: 4 (nonempty + skip_missing + realpath_if_exists + path_readable; wave209).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_path_io_count(): i32 {
-  return 3;
+  return 4;
 }

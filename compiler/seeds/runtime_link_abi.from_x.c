@@ -43,6 +43,7 @@ void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_l
 int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
+int link_abi_path_readable_impl(const char *path);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
 /* PLATFORM: SHARED — formal std .o after L4 wipe (wave188 pure L6 / cold twin). */
@@ -3097,15 +3098,30 @@ const char *link_abi_user_extra_o_at(int i) {
 }
 
 /**
- * Cap residual (wave151): host access(path, R_OK) == 0 → 1; null/empty → 0.
- * Preserves mega append_user_extra skip semantics (not nonempty-regular-file).
- * PLATFORM: SHARED — host libc access.
+ * Cap residual (wave151 / wave209): host access(path, R_OK) == 0 → 1.
+ * Pure orch (wave209 labi_path_io L3) owns null/empty gates; _impl is always mega.
+ * PLATFORM: SHARED — host libc access (POSIX; Windows hybrid via compat).
  */
-int link_abi_path_readable(const char *path) {
+int link_abi_path_readable_impl(const char *path) {
     if (!path || !path[0])
         return 0;
     return access(path, R_OK) == 0 ? 1 : 0;
 }
+
+/* wave209: link_abi_path_readable pure orch lives in labi_path_io.x (hybrid L3);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_IO_FROM_X.
+ * Pure: null/empty gates; Cap residual link_abi_path_readable_impl (access R_OK).
+ * Why: hybrid still had path_readable body always mega C (gates+access).
+ * PLATFORM: SHARED orch. */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
+int link_abi_path_readable(const char *path) {
+    if (!path || !path[0])
+        return 0;
+    return link_abi_path_readable_impl(path);
+}
+#else
+int link_abi_path_readable(const char *path);
+#endif
 
 /**
  * Append CLI user .o paths (g_shux_user_extra_o_files) onto an asm ld argv.
