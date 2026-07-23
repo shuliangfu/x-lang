@@ -668,6 +668,51 @@ export function is_digit(c: u8): bool {
   return c >= 48 && c <= 57;
 }
 
+/**
+ * wave275 Cap residual: after integer digits, whether `data[pos]` (a `.`) continues a float
+ * literal with C-style empty fraction (`1.`, `1.e2`, `1.E-3`) rather than field access
+ * (`1.foo`) or a following second dot (`1..`).
+ *
+ * Prior behavior required a digit immediately after `.`, so `1.e2` lexed as INT + DOT + IDENT
+ * and product codegen emitted host C source `1.e2` (accidental float) or `1.e` (host cc error
+ * "exponent has no digits") instead of a proper TOKEN_FLOAT / L005 incomplete-exp hard fail.
+ *
+ * @param data u8[] — full source buffer
+ * @param pos usize — index of the candidate `.`
+ * @return i32 — 1 if float continues at this `.`, else 0 (leave `.` for field/range)
+ * PLATFORM: SHARED — language lexical contract; mac + Ubuntu product matrix.
+ */
+export function lexer_dot_continues_float(data: u8[], pos: usize): i32 {
+  if (pos >= data.length) {
+    return 0;
+  }
+  if (data[pos] != 46) {
+    return 0;
+  }
+  // `1.` at EOF → trailing-dot float (C-style).
+  if (pos + 1 >= data.length) {
+    return 1;
+  }
+  let n: u8 = data[pos + 1];
+  // `1..` — do not swallow the first dot into a float.
+  if (n == 46) {
+    return 0;
+  }
+  if (is_digit(n)) {
+    return 1;
+  }
+  // Scientific with empty fraction: `1.e2` / `1.E+10` (then L005 if zero exp digits).
+  if (n == 101 || n == 69) {
+    return 1;
+  }
+  // Ident field after int: `1.foo` — keep INT + DOT for suffix field-access chain.
+  if (is_alpha(n) || n == 95) {
+    return 0;
+  }
+  // Delimiter (`)`, `;`, op, whitespace) after `.` → `1.` float.
+  return 1;
+}
+
 /** Exported function `is_alnum_underscore`.
  * Query helper `is_alnum_underscore`.
  * @param c u8
@@ -2420,8 +2465,10 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       l = advance_one(l, d);
       ival = ival * 10 + (d - 48);
     }
-    if (l.pos < data.length && data[l.pos] == 46 && l.pos + 1 < data.length && is_digit(data[l.pos
-    + 1])) {
+    // wave275 Cap residual: C-style empty fraction after `.` (`1.`, `1.e2`) → TOKEN_FLOAT.
+    // Prior: required digit after `.` so `1.e2` became INT+DOT+IDENT and codegen leaked host C
+    // float text (silent wrong / host "exponent has no digits"). Field `1.foo` and `1..` stay INT.
+    if (l.pos < data.length && data[l.pos] == 46 && lexer_dot_continues_float(data, l.pos) != 0) {
       l = advance_one(l, 46);
       let fval: f64 = (ival as f64);
       let frac: f64 = 0.1;
@@ -2432,6 +2479,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         frac = frac * 0.1;
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF (not silent exp=0 float).
+      // wave275: also covers empty-frac scientific `1.e` / `1.e+` (was host-cc soft residual).
       if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
           float_val: 0.0, ident: 0, ident_len: 0 };
@@ -2977,8 +3025,8 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       l = advance_one(l, d);
       ival = ival * 10 + (d - 48);
     }
-    if (l.pos < data.length && data[l.pos] == 46 && l.pos + 1 < data.length && is_digit(data[l.pos
-    + 1])) {
+    // wave275 Cap residual: G.7 mirror product path empty-fraction float (`1.`, `1.e2`).
+    if (l.pos < data.length && data[l.pos] == 46 && lexer_dot_continues_float(data, l.pos) != 0) {
       l = advance_one(l, 46);
       let fval: f64 = (ival as f64);
       let frac: f64 = 0.1;
@@ -2989,6 +3037,7 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         frac = frac * 0.1;
       }
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF.
+      // wave275: empty-frac scientific `1.e` also L005.
       if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
           float_val: 0.0, ident: 0, ident_len: 0 };

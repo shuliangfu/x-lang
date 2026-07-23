@@ -100,6 +100,7 @@ struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, st
 struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
 int32_t lexer_apply_optional_exponent(struct lexer_Lexer l, struct xlang_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f);
+int32_t lexer_dot_continues_float(struct xlang_slice_uint8_t * data, size_t pos);
 void lexer_next_body_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
 void lexer_write_next_lex_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l);
 void lexer_write_tok_into(struct lexer_LexerResult * restrict out, struct token_Token t);
@@ -1090,6 +1091,28 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex,
  }
   return lexer_next_body(l, data);
 }
+
+/* wave275 Cap residual: empty-fraction float after `.` (≡ lexer.x lexer_dot_continues_float).
+ * PLATFORM: SHARED — seed pin twin of product lexer.x. */
+XLANG_LIB_WEAK int32_t lexer_dot_continues_float(struct xlang_slice_uint8_t * data, size_t pos) {
+  uint8_t n;
+  if (!data || pos >= (size_t)(data)->length)
+    return 0;
+  if (((pos < 0 || (size_t)(pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[pos])) != 46)
+    return 0;
+  if (pos + 1 >= (size_t)(data)->length)
+    return 1;
+  n = ((pos + 1 < 0 || (size_t)(pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[pos + 1]));
+  if (n == 46)
+    return 0;
+  if (lexer_is_digit(n))
+    return 1;
+  if (n == 101 || n == 69)
+    return 1;
+  if (lexer_is_alpha(n) || n == 95)
+    return 0;
+  return 1;
+}
 XLANG_LIB_WEAK int32_t lexer_apply_optional_exponent(struct lexer_Lexer l, struct xlang_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f) {
   struct lexer_Lexer lex = l;
   double cur = fval;
@@ -1238,7 +1261,7 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
     (l = (lexer_advance_one(l, d)));
     (ival = (ival * 10 + (d - 48)));
   }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   (l = (lexer_advance_one(l, 46)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && lexer_dot_continues_float(data, (l).pos) != 0) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
   while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
@@ -1701,7 +1724,7 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
     (l = (lexer_advance_one(l, d)));
     (ival = (ival * 10 + (d - 48)));
   }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   (l = (lexer_advance_one(l, 46)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && lexer_dot_continues_float(data, (l).pos) != 0) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
   while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {

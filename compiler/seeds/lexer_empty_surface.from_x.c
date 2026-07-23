@@ -47,6 +47,7 @@ extern int is_alpha(uint8_t c);
 extern int is_hex_digit(uint8_t c);
 extern int32_t hex_digit_value(uint8_t c);
 extern int is_digit(uint8_t c);
+extern int32_t lexer_dot_continues_float(struct xlang_slice_uint8_t data, size_t pos);
 extern int is_alnum_underscore(uint8_t c);
 extern int match_keyword(struct xlang_slice_uint8_t data, size_t start, int32_t len, struct xlang_slice_uint8_t keyword);
 extern int match_keyword_buf(uint8_t * data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t keyword);
@@ -250,6 +251,20 @@ int32_t hex_digit_value(uint8_t c) {
     return ((int32_t)(((c - 65) + 10)));
   }
   return 0;
+}
+
+/* wave275 Cap residual: empty-fraction float (≡ lexer.x). PLATFORM: SHARED surface twin. */
+int32_t lexer_dot_continues_float(struct xlang_slice_uint8_t data, size_t pos) {
+  uint8_t n;
+  if (pos >= data.length) return 0;
+  if ((data).data[pos] != 46) return 0;
+  if (pos + 1 >= data.length) return 1;
+  n = (data).data[pos + 1];
+  if (n == 46) return 0;
+  if (is_digit(n)) return 1;
+  if (n == 101 || n == 69) return 1;
+  if (is_alpha(n) || n == 95) return 0;
+  return 1;
 }
 int is_digit(uint8_t c) {
   return ((c >=48) && (c <=57));
@@ -1506,7 +1521,7 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       (void)((l = advance_one(l, d)));
       (void)((ival = ((ival * 10) + (d - 48))));
     }
-    if ((((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==46)) && (((l.pos) + 1) < (data.length))) && is_digit((data).data[((l.pos) + 1)]))) {
+    if (((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==46)) && (lexer_dot_continues_float(data, l.pos) != 0))) {
       double fval = ((double)(ival));
       double frac = 0.0;
       struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
