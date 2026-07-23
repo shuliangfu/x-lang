@@ -228,16 +228,37 @@ int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r
 
 /**
  * lex_at_token_from_result 内部：从 LexerResult 构造指向当前 token 起点的 Lexer。
+ *
+ * PLATFORM: SHARED — wave280 Cap residual pure leaf.
+ * Root cause: lexer.x TOKEN_STRING sets token_start to the first content byte
+ * *after* the opening quote (so primary/let-init can copy raw content). Callers
+ * that re-enter parse_expr via lex_at_token_from_result (return expr, bare
+ * expr-stmt, etc.) must start at the opening quote, otherwise:
+ *   - lex pos lands inside the literal (e.g. `h` of `"hi"`)
+ *   - primary builds IDENT / partial junk
+ *   - the closing `"` is re-scanned as a new string to EOF → false L002
+ *   (or, if a later `"` exists, a silent wrong spanning string — false green)
+ * Fix: for TOKEN_STRING, back up one byte from content token_start to the `"`.
+ * tok.line/col already name the opening quote (lexer line0/col0).
  */
 static struct parser_asm_lexer parser_asm_lex_at_token_from_result_inner(struct parser_asm_lexer_result r) {
   struct parser_asm_lexer lex;
   size_t p;
   p = r.token_start;
   if (p == 0) {
-    if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0)
+    if (r.tok.kind == (int32_t)TOKEN_STRING) {
+      /* content len + opening + closing quotes; next_lex is past closer. */
+      int32_t run = r.tok.ident_len + 2;
+      if (run < 2)
+        run = 2;
+      p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, run);
+    } else if (r.tok.kind == (int32_t)TOKEN_IDENT && r.tok.ident_len > 0)
       p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, r.tok.ident_len);
     else
       p = parser_asm_lexer_pos_before_run_c(r.next_lex.pos, parser_asm_lexer_token_run_len_c(r.tok));
+  } else if (r.tok.kind == (int32_t)TOKEN_STRING) {
+    /* token_start = first content byte; re-lex needs the opening quote. */
+    p = p - (size_t)1;
   }
   lex.pos = p;
   lex.line = r.tok.line;
