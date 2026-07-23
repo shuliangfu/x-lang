@@ -25101,7 +25101,8 @@ int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, 
  * 较小整数向较宽整数隐式拓宽（对齐 typeck.c typeck_integer_widen_ok）。
  */
 static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
-  /* 与 typeck.x::typeck_integer_widen_ok 单权威一致（含 i32→isize）。 */
+  /* G.7 mirror typeck.x::typeck_integer_widen_ok (wave309–312).
+   * PLATFORM: SHARED — first-class integer family only; NAMED i8/i16/u16 leave-off. */
   if (dest_kind == src_kind) {
     if (dest_kind == (int32_t)ast_TypeKind_TYPE_I32 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
         dest_kind == (int32_t)ast_TypeKind_TYPE_U8 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
@@ -25111,16 +25112,28 @@ static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src
     return 0;
   }
   if (src_kind == (int32_t)ast_TypeKind_TYPE_U8)
+    /* wave312: +i64 +isize (prior: u32/u64/usize/i32). */
     return dest_kind == (int32_t)ast_TypeKind_TYPE_U32 || dest_kind == (int32_t)ast_TypeKind_TYPE_U64 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_I32;
+           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_I32 ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
   if (src_kind == (int32_t)ast_TypeKind_TYPE_I32)
     /* wave311: i32→u64 (true widen; was hole vs usize) + i32→u8 (low-byte narrow).
-     * i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。
-     * PLATFORM: SHARED — G.7 mirror typeck.x::typeck_integer_widen_ok. */
+     * i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。 */
     return dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
            dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
            dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_U8;
-  if (src_kind == (int32_t)ast_TypeKind_TYPE_U32 && dest_kind == (int32_t)ast_TypeKind_TYPE_U64)
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_U32)
+    /* wave312: u32→u64 (prior) + u32→i64/usize/isize. */
+    return dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
+  /* wave312: LP64 pointer-width ↔ fixed 64-bit (same bits; ILP32 true widen). */
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_USIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_U64)
+    return 1;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_U64 && dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE)
+    return 1;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_ISIZE && dest_kind == (int32_t)ast_TypeKind_TYPE_I64)
+    return 1;
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_I64 && dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE)
     return 1;
   return 0;
 }

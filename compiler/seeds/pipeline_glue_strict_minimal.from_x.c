@@ -988,13 +988,20 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
      */
     if ((pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7) &&
         (ak == 0 || ak == 2 || ak == 3 || ak == 4 || ak == 5 || ak == 6 || ak == 7)) {
-      /* i32→i64/u32/u64/usize/isize/u8; u8→wider; same-kind. Mirror typeck_integer_widen_ok (wave311). */
+      /* Mirror typeck_integer_widen_ok (wave311–312). Kinds: i32=0 u8=2 u32=3 u64=4 i64=5 usize=6 isize=7. */
       if (pk == ak)
         return 100;
-      if (ak == 2 && (pk == 3 || pk == 4 || pk == 6 || pk == 0))
+      /* u8 → u32/u64/usize/i32/i64/isize */
+      if (ak == 2 && (pk == 3 || pk == 4 || pk == 6 || pk == 0 || pk == 5 || pk == 7))
         return 100;
-      /* ak i32=0: dest i64=5,u32=3,u64=4,usize=6,isize=7,u8=2 */
+      /* i32 → i64/u32/u64/usize/isize/u8 */
       if (ak == 0 && (pk == 5 || pk == 3 || pk == 4 || pk == 6 || pk == 7 || pk == 2))
+        return 100;
+      /* u32 → u64/i64/usize/isize */
+      if (ak == 3 && (pk == 4 || pk == 5 || pk == 6 || pk == 7))
+        return 100;
+      /* usize↔u64, isize↔i64 (LP64 same-width) */
+      if ((ak == 6 && pk == 4) || (ak == 4 && pk == 6) || (ak == 7 && pk == 5) || (ak == 5 && pk == 7))
         return 100;
     }
     /* TYPE_ARRAY=10 → TYPE_PTR=9：buf:u8[N] 传 *u8 时须计为可赋，否则全部 overload 评分失败回退首同名(i32)。 */

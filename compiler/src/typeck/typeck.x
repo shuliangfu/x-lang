@@ -3765,6 +3765,10 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
  * wave311 Cap residual: i32→u64 (true widen; prior hole vs i32→usize on LP64)
  * and i32→u8 (narrow store of low 8 bits — leave-off residual for var init/
  * assign/return; lit coerce already green). Call single-candidate was lax.
+ * wave312 Cap residual: complete first-class integer family —
+ *   u8→i64/isize; u32→i64/usize/isize (plus prior u32→u64);
+ *   isize↔i64 and usize↔u64 (LP64 same-width store / true widen on ILP32).
+ * NAMED i8/i16/u16 still leave-off (no TypeKind; need name-based ref path).
  * PLATFORM: SHARED — seed typeck_gen + empty_surface + glue + strict_minimal same commit.
  */
 export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
@@ -3784,7 +3788,9 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
     return false;
   }
   if (src_kind == ord_u8) {
-    if (dest_kind == ord_u32 || dest_kind == ord_u64 || dest_kind == ord_usize || dest_kind == ord_i32) {
+    /* u8 → all wider first-class integers (wave312: +i64 +isize). */
+    if (dest_kind == ord_u32 || dest_kind == ord_u64 || dest_kind == ord_usize ||
+    dest_kind == ord_i32 || dest_kind == ord_i64 || dest_kind == ord_isize) {
       return true;
     }
     return false;
@@ -3797,7 +3803,25 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
     }
     return false;
   }
-  if (src_kind == ord_u32 && dest_kind == ord_u64) {
+  if (src_kind == ord_u32) {
+    /* wave312: u32→u64 (prior) + u32→i64/usize/isize true widen. */
+    if (dest_kind == ord_u64 || dest_kind == ord_i64 || dest_kind == ord_usize ||
+    dest_kind == ord_isize) {
+      return true;
+    }
+    return false;
+  }
+  /* wave312: LP64 pointer-width ↔ fixed 64-bit (same bits; ILP32 true widen). */
+  if (src_kind == ord_usize && dest_kind == ord_u64) {
+    return true;
+  }
+  if (src_kind == ord_u64 && dest_kind == ord_usize) {
+    return true;
+  }
+  if (src_kind == ord_isize && dest_kind == ord_i64) {
+    return true;
+  }
+  if (src_kind == ord_i64 && dest_kind == ord_isize) {
     return true;
   }
   return false;
