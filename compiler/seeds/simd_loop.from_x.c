@@ -41,6 +41,10 @@
 #include <stdint.h>
 #include <string.h>
 
+/* wave229 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure).
+ * Cap residual host getenv stays only link_abi_getenv_impl. Cold twin of simd_loop.x. */
+const char *link_abi_getenv(const char *name);
+
 #ifdef SHUX_L2_SIMD_LOOP_THIN_FROM_X
 struct ast_ASTArena;
 int32_t glue_f32_slot_rbp_disp32(int32_t off);
@@ -533,7 +537,8 @@ int32_t glue_emit_full_const_peel_c_impl(struct platform_elf_ElfCodegenCtx *elf_
         int32_t chunk_off_d = off_d - start * esz;
         if (glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta,
                                               feats) != 0) {
-            strict_env = getenv("SHUX_SIMD_HW_STRICT");
+            /* wave229 G.7: link_abi_getenv (not raw getenv). */
+            strict_env = link_abi_getenv("SHUX_SIMD_HW_STRICT");
             if (strict_env && strict_env[0] != '0')
                 return -1;
             return 0;
@@ -814,7 +819,8 @@ int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct pl
     if (backend_enc_jge_arch(elf_ctx, epi_merge, merge_len, ta) != 0)
         return -1;
     if (simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta) != 0) {
-        strict_env = getenv("SHUX_SIMD_HW_STRICT");
+        /* wave229 G.7: link_abi_getenv (not raw getenv). */
+        strict_env = link_abi_getenv("SHUX_SIMD_HW_STRICT");
         if (strict_env && strict_env[0] != '0')
             return -1;
         return 0;
@@ -916,7 +922,8 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(struct ast_ASTArena *are
 
     if (!arena || !elf_ctx || !ctx || block_ref <= 0)
         return 0;
-    hw_env = getenv("SHUX_SIMD_HW");
+    /* wave229 G.7: link_abi_getenv (not raw getenv). */
+    hw_env = link_abi_getenv("SHUX_SIMD_HW");
     if (hw_env && hw_env[0] == '0')
         return 0;
     cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
@@ -1002,7 +1009,8 @@ int32_t glue_try_simd_peel_index_add_while_elf_c_impl(struct ast_ASTArena *arena
 
     if (!arena || !elf_ctx || !ctx || block_ref <= 0)
         return 0;
-    hw_env = getenv("SHUX_SIMD_HW");
+    /* wave229 G.7: link_abi_getenv (not raw getenv). */
+    hw_env = link_abi_getenv("SHUX_SIMD_HW");
     if (hw_env && hw_env[0] == '0')
         return 0;
     cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
