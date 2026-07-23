@@ -13847,9 +13847,15 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
     }
     return;
   }
+  /*
+   * wave287 Cap residual: do NOT CTFE-fold EXPR_FLOAT_LIT into const_folded_val.
+   * Root cause: const_folded_val is i32; folding (int32_t)float_val truncated fractions
+   * (1.5→1) and emit consumed fold via format_int → soft residual wrong C (`double a = 1`
+   * instead of 1.5; (1.5*2.0) as i32 → 2). Product C emit uses pipeline_codegen_emit_float_lit_c
+   * on float_val when const_folded_valid=0. PLATFORM: SHARED — single authority here.
+   */
   if (kd == ast_ExprKind_EXPR_FLOAT_LIT) {
-    e->const_folded_val = (int32_t)e->float_val;
-    e->const_folded_valid = 1;
+    e->const_folded_valid = 0;
     return;
   }
   if (kd == ast_ExprKind_EXPR_VAR) {

@@ -4993,9 +4993,12 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     /**
      * PLATFORM: SHARED — consume typeck CTFE (const_folded_*). Authority is typeck fold,
      * not emit-side optim; C path mirrors asm mov-imm when typeck folded the tree.
-     * Skip VAR: pool field may be stale; VAR names resolve via const/let slots.
+     * Skip VAR (ord 3): pool field may be stale; VAR names resolve via const/let slots.
+     * Skip FLOAT_LIT (ord 1): wave287 — i32 fold truncates fractions; emit via
+     * pipeline_codegen_emit_float_lit_c on float_val (seed codegen twin same commit).
      */
-    if (e.const_folded_valid != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) != 3) {
+    if (e.const_folded_valid != 0 && pipeline_expr_kind_ord_at(arena, expr_ref) != 3
+    && pipeline_expr_kind_ord_at(arena, expr_ref) != 1) {
       if (format_int(out, e.const_folded_val as i64) != 0) {
         return -1;
       }

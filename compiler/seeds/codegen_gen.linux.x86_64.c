@@ -5638,8 +5638,10 @@ int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct codegen_CodegenOut
     if (((expr_ref <=0) || (expr_ref > (arena->num_exprs)))) {
       return 0;
     }
-    /* PLATFORM: SHARED — consume typeck CTFE (const_folded_*); not emit optim expand. Skip VAR. */
-    if (((e.const_folded_valid) != 0) && (pipeline_expr_kind_ord_at(arena, expr_ref) != 3)) {
+    /* PLATFORM: SHARED — consume typeck CTFE (const_folded_*); not emit optim expand.
+     * Skip VAR (ord 3). wave287: also skip FLOAT_LIT (ord 1) — i32 fold truncates fractions. */
+    if ((((e.const_folded_valid) != 0) && (pipeline_expr_kind_ord_at(arena, expr_ref) != 3))
+        && (pipeline_expr_kind_ord_at(arena, expr_ref) != 1)) {
       if ((codegen_format_int(out, (int64_t)(e.const_folded_val)) != 0)) {
         return -1;
       }
