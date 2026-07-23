@@ -58,6 +58,9 @@ int xlang_ensure_runtime_time_os_o(const char *argv0);
 const char *xlang_runtime_time_os_o_path(const char *argv0);
 int xlang_ensure_runtime_panic_o(const char *argv0);
 const char *xlang_runtime_panic_o_path(const char *argv0);
+/* wave288 L4: residual face companion (never g05 host bag). */
+int xlang_ensure_runtime_link_abi_user_env_o(const char *argv0);
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
 int xlang_host_is_linux(void);
 int link_abi_host_is_apple(void);
 int link_abi_host_is_windows(void);
@@ -851,6 +854,16 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
     }
   }
+  /* wave288 L4 G.7: residual face companion — process/env/panic U link_abi_getenv.
+   * PLATFORM: SHARED — ≡ PRIMARY_PANIC user_env on asm ld; invoke_cc was lagging. */
+  if (need_process || need_env || need_panic || need_runtime) {
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      const char *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
+    }
+  }
 
   if (need_net && invoke_cc_argv_push_existing(argv, ia, argv_cap, net_o)) {
     (void)invoke_cc_append_net_tls_ld(argv, ia, argv_cap, net_o, include_root);
@@ -990,6 +1003,13 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
       if (rlo && rlo[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rlo);
     }
+    /* wave288 L4: log_os residual U link_abi_getenv → user_env face. */
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      const char *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
+    }
   }
   if (need_atomic && invoke_cc_argv_push_existing(argv, ia, argv_cap, atomic_o)) {
     (void)xlang_ensure_runtime_atomic_glue_o(NULL);
@@ -1015,6 +1035,13 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
       const char *rbp = xlang_runtime_backtrace_platform_o_path(NULL);
       if (rbp && rbp[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rbp);
+    }
+    /* wave288 L4: backtrace residual U link_abi_getenv → user_env face. */
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      const char *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
     }
     if (xlang_host_is_linux()) {
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-rdynamic");
@@ -1306,6 +1333,13 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
       const char *rhg = xlang_runtime_http_glue_o_path(NULL);
       if (rhg && rhg[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rhg);
+    }
+    /* wave288 L4: http_glue residual U link_abi_getenv → user_env face. */
+    (void)xlang_ensure_runtime_link_abi_user_env_o(NULL);
+    {
+      const char *rue = xlang_runtime_link_abi_user_env_o_path(NULL);
+      if (rue && rue[0])
+        (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
     }
     if (link_abi_host_is_windows())
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lws2_32());

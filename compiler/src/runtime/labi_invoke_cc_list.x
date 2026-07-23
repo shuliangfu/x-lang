@@ -56,6 +56,9 @@ export extern "C" function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
 export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_ensure_runtime_panic_o(argv0: *u8): i32;
 export extern "C" function xlang_runtime_panic_o_path(argv0: *u8): *u8;
+/* wave288 L4: residual face companion (wave253 user-domain getenv). Never g05 host bag. */
+export extern "C" function xlang_ensure_runtime_link_abi_user_env_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_link_abi_user_env_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_host_is_linux(): i32;
 export extern "C" function link_abi_host_is_apple(): i32;
 export extern "C" function link_abi_host_is_windows(): i32;
@@ -2007,6 +2010,20 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
       }
     }
   }
+  // wave288 L4 G.7: residual declare-only face (process/env/panic path) needs user_env.o.
+  // process.o / env_os / panic companions U link_abi_getenv; Linux panic .s has no face.
+  // PLATFORM: SHARED — companion of PRIMARY_PANIC on asm ld (wave253/259); invoke_cc was lagging.
+  if (need_process != 0 || need_env != 0 || need_panic != 0 || need_runtime != 0) {
+    unsafe {
+      let _eue: i32 = xlang_ensure_runtime_link_abi_user_env_o(0 as *u8);
+      let rue: *u8 = xlang_runtime_link_abi_user_env_o_path(0 as *u8);
+      if (rue != 0 as *u8) {
+        if (rue[0] != 0) {
+          let _pue: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rue);
+        }
+      }
+    }
+  }
 
   // net.o + tls ld + udp_batch + workers; force need_thread; Linux asm_io_stubs; Win ws2_32.
   if (need_net != 0) {
@@ -2297,6 +2314,14 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
             let _plo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rlo);
           }
         }
+        // wave288 L4: log_os residual declares U link_abi_getenv → user_env face.
+        let _eue_log: i32 = xlang_ensure_runtime_link_abi_user_env_o(0 as *u8);
+        let rue_log: *u8 = xlang_runtime_link_abi_user_env_o_path(0 as *u8);
+        if (rue_log != 0 as *u8) {
+          if (rue_log[0] != 0) {
+            let _pue_log: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rue_log);
+          }
+        }
       }
     }
   }
@@ -2343,6 +2368,14 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
       if (rbp != 0 as *u8) {
         if (rbp[0] != 0) {
           let _pbp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rbp);
+        }
+      }
+      // wave288 L4: backtrace residual declares U link_abi_getenv → user_env face.
+      let _eue_bt: i32 = xlang_ensure_runtime_link_abi_user_env_o(0 as *u8);
+      let rue_bt: *u8 = xlang_runtime_link_abi_user_env_o_path(0 as *u8);
+      if (rue_bt != 0 as *u8) {
+        if (rue_bt[0] != 0) {
+          let _pue_bt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rue_bt);
         }
       }
     }
@@ -3025,6 +3058,14 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
         if (rhg != 0 as *u8) {
           if (rhg[0] != 0) {
             let _phg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rhg);
+          }
+        }
+        // wave288 L4: http_glue residual declares U link_abi_getenv → user_env face.
+        let _eue_http: i32 = xlang_ensure_runtime_link_abi_user_env_o(0 as *u8);
+        let rue_http: *u8 = xlang_runtime_link_abi_user_env_o_path(0 as *u8);
+        if (rue_http != 0 as *u8) {
+          if (rue_http[0] != 0) {
+            let _pue_http: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rue_http);
           }
         }
       }
