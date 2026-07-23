@@ -114,6 +114,11 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "Used when `_` appears in a numeric literal without a following valid digit for that radix "
      "(trailing `_`, consecutive `__`, or `_` before a non-digit). "
      "Typical action: remove the underscore or place it only between digits (e.g. `1_000`, `0x2_A`)."},
+    {"L009", "lexer error", "Lexer found an invalid type suffix on a numeric literal.",
+     "Used when a complete integer or float literal is immediately followed by alphabetic characters "
+     "(for example `42u32`, `0x2Ai64`, `1.5f32`, or `42foo`). The language has no C/Rust-style type "
+     "suffixes on numerics; use context type coerce (e.g. `let n: u32 = 42`) or `as T`. "
+     "Typical action: remove the suffix or rewrite with `as` / annotated `let`."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

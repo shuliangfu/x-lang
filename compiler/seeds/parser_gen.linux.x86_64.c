@@ -3812,6 +3812,8 @@ extern void lexer_incomplete_oct_reset(void);
 extern int32_t lexer_incomplete_oct_pending(void);
 extern void lexer_invalid_digit_sep_reset(void);
 extern int32_t lexer_invalid_digit_sep_pending(void);
+extern void lexer_invalid_type_suffix_reset(void);
+extern int32_t lexer_invalid_type_suffix_pending(void);
 struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parser_ParseIntoResult r) {
   if (lexer_unclosed_block_comment_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
@@ -3830,6 +3832,9 @@ struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parse
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   }
   if (lexer_invalid_digit_sep_pending() != 0) {
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  }
+  if (lexer_invalid_type_suffix_pending() != 0) {
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   }
   if (lexer_incomplete_bin_pending() != 0)
@@ -3860,6 +3865,8 @@ struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   /* wave278: invalid digit separator hard fail (not soft XP003). */
   if (lexer_invalid_digit_sep_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  if (lexer_invalid_type_suffix_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if ((fail_tok ==((int32_t)(130)))) {
     return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
@@ -5790,6 +5797,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     lexer_incomplete_bin_reset();
     lexer_incomplete_oct_reset();
     lexer_invalid_digit_sep_reset();
+    lexer_invalid_type_suffix_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7295,6 +7303,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     lexer_incomplete_bin_reset();
     lexer_incomplete_oct_reset();
     lexer_invalid_digit_sep_reset();
+    lexer_invalid_type_suffix_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };

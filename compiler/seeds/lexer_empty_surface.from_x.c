@@ -1117,6 +1117,12 @@ static int32_t g_lexer_invalid_digit_sep_line = 0;
 static int32_t g_lexer_invalid_digit_sep_col = 0;
 static int32_t g_lexer_invalid_digit_sep_reported = 0;
 
+/* wave279: invalid type suffix sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_invalid_type_suffix = 0;
+static int32_t g_lexer_invalid_type_suffix_line = 0;
+static int32_t g_lexer_invalid_type_suffix_col = 0;
+static int32_t g_lexer_invalid_type_suffix_reported = 0;
+
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
   g_lexer_unclosed_line = 0;
@@ -1191,6 +1197,17 @@ void lexer_invalid_digit_sep_reset(void) {
 int32_t lexer_invalid_digit_sep_pending(void) {
   return g_lexer_invalid_digit_sep;
 }
+
+/* wave279 Cap residual: clear invalid type-suffix sticky (≡ lexer.x). */
+void lexer_invalid_type_suffix_reset(void) {
+  g_lexer_invalid_type_suffix = 0;
+  g_lexer_invalid_type_suffix_line = 0;
+  g_lexer_invalid_type_suffix_col = 0;
+  g_lexer_invalid_type_suffix_reported = 0;
+}
+int32_t lexer_invalid_type_suffix_pending(void) {
+  return g_lexer_invalid_type_suffix;
+}
 static void lexer_note_incomplete_bin(int32_t line, int32_t col) {
   if (g_lexer_incomplete_bin == 0) {
     g_lexer_incomplete_bin = 1;
@@ -1254,6 +1271,26 @@ static void lexer_note_invalid_digit_sep(int32_t line, int32_t col) {
     char code[] = "L008";
     char msg[] = "invalid digit separator";
     diag_report_with_code(NULL, g_lexer_invalid_digit_sep_line, g_lexer_invalid_digit_sep_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
+/* wave279 Cap residual: L009 invalid type suffix (G.7 ≡ lexer.x). */
+static void lexer_note_invalid_type_suffix(int32_t line, int32_t col) {
+  if (g_lexer_invalid_type_suffix == 0) {
+    g_lexer_invalid_type_suffix = 1;
+    g_lexer_invalid_type_suffix_line = line;
+    g_lexer_invalid_type_suffix_col = col;
+  }
+  if (g_lexer_invalid_type_suffix_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_type_suffix_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L009";
+    char msg[] = "invalid type suffix";
+    diag_report_with_code(NULL, g_lexer_invalid_type_suffix_line, g_lexer_invalid_type_suffix_col,
                           (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
   }
 }
@@ -1685,6 +1722,15 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
         (void)(((out->token_start) = start));
         return;
       }
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
       struct token_Token tok = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(hval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok));
@@ -1724,6 +1770,15 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
         struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
         (void)(write_next_lex_into(out, l));
         (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
         (void)(((out->token_start) = start));
         return;
       }
@@ -1768,6 +1823,15 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
         (void)(((out->token_start) = start));
         return;
       }
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
       struct token_Token tok_o = (struct Token){ .kind = 80, .line = line0, .col = col0, .int_val = ((int64_t)(oval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok_o));
@@ -1799,6 +1863,15 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
     if (((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==46)) && (lexer_dot_continues_float(data, l.pos) != 0))) {
       double fval = ((double)(ival));
       double frac = 0.0;
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
       struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
       (void)((l = advance_one(l, 46)));
       /* wave277: `_` float fraction digit separators (≡ lexer.x). */
@@ -1896,9 +1969,27 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
         }
       }
       double fval = (((double)(ival)) * scale);
+      /* wave279: alphabetic type suffix → sticky L009. */
+      if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof_sfx));
+        (void)(((out->token_start) = start));
+        return;
+      }
       struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok));
+      (void)(((out->token_start) = start));
+      return;
+    }
+    /* wave279: alphabetic type suffix → sticky L009. */
+    if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_eof_sfx));
       (void)(((out->token_start) = start));
       return;
     }
@@ -1944,6 +2035,15 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
         (void)(((out->token_start) = start));
         return;
       }
+    /* wave279: alphabetic type suffix → sticky L009. */
+    if (((l.pos) < (data.length)) && is_alpha((data).data[(l.pos)])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      struct token_Token tok_eof_sfx = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+      (void)(write_next_lex_into(out, l));
+      (void)(write_tok_into(out, tok_eof_sfx));
+      (void)(((out->token_start) = start));
+      return;
+    }
     struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
     (void)(write_next_lex_into(out, l));
     (void)(write_tok_into(out, tok));

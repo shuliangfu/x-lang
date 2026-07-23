@@ -161,6 +161,19 @@ let g_lexer_invalid_digit_sep_line: i32 = 0;
 let g_lexer_invalid_digit_sep_col: i32 = 0;
 let g_lexer_invalid_digit_sep_reported: i32 = 0;
 
+/**
+ * wave279 Cap residual: sticky invalid/unsupported type-suffix state for the current parse.
+ * Set when a complete numeric literal (INT/FLOAT, any radix) is immediately followed by
+ * an alphabetic character (`42u32`, `0x2Ai64`, `1.5f32`, `42foo`). Language surface has
+ * no C/Rust-style type suffixes — use context coerce or `as T`. Prior soft residual:
+ * INT+IDENT → XP003 parse-skip. Cleared by lexer_invalid_type_suffix_reset at each entry.
+ * PLATFORM: SHARED
+ */
+let g_lexer_invalid_type_suffix: i32 = 0;
+let g_lexer_invalid_type_suffix_line: i32 = 0;
+let g_lexer_invalid_type_suffix_col: i32 = 0;
+let g_lexer_invalid_type_suffix_reported: i32 = 0;
+
 
 /**
  * Clear unclosed block-comment sticky state (call once per parse entry).
@@ -328,6 +341,27 @@ export function lexer_invalid_digit_sep_reset(): void {
  */
 export function lexer_invalid_digit_sep_pending(): i32 {
   return g_lexer_invalid_digit_sep;
+}
+
+/**
+ * Clear invalid-type-suffix sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED — wave279 Cap residual pure
+ */
+export function lexer_invalid_type_suffix_reset(): void {
+  g_lexer_invalid_type_suffix = 0;
+  g_lexer_invalid_type_suffix_line = 0;
+  g_lexer_invalid_type_suffix_col = 0;
+  g_lexer_invalid_type_suffix_reported = 0;
+}
+
+/**
+ * Non-zero if lexer saw an alphabetic type suffix glued to a numeric literal this parse.
+ * @return i32 — 1 when sticky L009 pending, else 0
+ * PLATFORM: SHARED — wave279 Cap residual pure
+ */
+export function lexer_invalid_type_suffix_pending(): i32 {
+  return g_lexer_invalid_type_suffix;
 }
 
 /**
@@ -932,6 +966,81 @@ function lexer_note_invalid_digit_sep(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_invalid_digit_sep_line,
       g_lexer_invalid_digit_sep_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L009 once for an unsupported type suffix glued to a numeric literal.
+ * Covers `42u32`, `0x2Ai64`, `1.5f32`, and arbitrary `42foo` after a complete INT/FLOAT.
+ * Language has no type suffixes (use `as T` or context coerce). Prior soft residual:
+ * INT+IDENT → XP003 parse-skip.
+ * @param line i32 — 1-based line of the first alphabetic suffix character
+ * @param col i32 — 1-based column of the first alphabetic suffix character
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_invalid_type_suffix(line: i32, col: i32): void {
+  if (g_lexer_invalid_type_suffix == 0) {
+    g_lexer_invalid_type_suffix = 1;
+    g_lexer_invalid_type_suffix_line = line;
+    g_lexer_invalid_type_suffix_col = col;
+  }
+  if (g_lexer_invalid_type_suffix_reported != 0) {
+    return;
+  }
+  g_lexer_invalid_type_suffix_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L009"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 57;
+  code[4] = 0;
+  // msg = "invalid type suffix"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 110;
+  msg[2] = 118;
+  msg[3] = 97;
+  msg[4] = 108;
+  msg[5] = 105;
+  msg[6] = 100;
+  msg[7] = 32;
+  msg[8] = 116;
+  msg[9] = 121;
+  msg[10] = 112;
+  msg[11] = 101;
+  msg[12] = 32;
+  msg[13] = 115;
+  msg[14] = 117;
+  msg[15] = 102;
+  msg[16] = 102;
+  msg[17] = 105;
+  msg[18] = 120;
+  msg[19] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_invalid_type_suffix_line,
+      g_lexer_invalid_type_suffix_col,
       &kind[0],
       &code[0],
       &msg[0],
@@ -2890,6 +2999,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         out.token_start = start;
         return;
       }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sfx);
+        out.token_start = start;
+        return;
+      }
       let tok: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
@@ -2935,6 +3054,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         out.token_start = start;
         return;
       }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sfx);
+        out.token_start = start;
+        return;
+      }
       let tok_b: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: bval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
@@ -2977,6 +3106,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           float_val: 0.0, ident: 0, ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
+        out.token_start = start;
+        return;
+      }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sfx);
         out.token_start = start;
         return;
       }
@@ -3050,6 +3189,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         out.token_start = start;
         return;
       }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sfx);
+        out.token_start = start;
+        return;
+      }
       let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
         float_val: fval, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
@@ -3118,10 +3267,30 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         }
       }
       let fval: f64 = (ival as f64) * scale;
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof_sfx);
+        out.token_start = start;
+        return;
+      }
       let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
         float_val: fval, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
+      out.token_start = start;
+      return;
+    }
+    // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+    if (l.pos < data.length && is_alpha(data[l.pos])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      write_next_lex_into(out, l);
+      write_tok_into(out, tok_eof_sfx);
       out.token_start = start;
       return;
     }
@@ -3169,6 +3338,16 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         float_val: 0.0, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof);
+      out.token_start = start;
+      return;
+    }
+    // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+    if (l.pos < data.length && is_alpha(data[l.pos])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      write_next_lex_into(out, l);
+      write_tok_into(out, tok_eof_sfx);
       out.token_start = start;
       return;
     }
@@ -3625,6 +3804,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
           float_val: 0.0, ident: 0, ident_len: 0 };
         return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
       }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sfx, token_start: start };
+      }
       let tok: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok, token_start: start };
@@ -3660,6 +3846,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
           float_val: 0.0, ident: 0, ident_len: 0 };
         return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
       }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sfx, token_start: start };
+      }
       let tok_b: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: bval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok_b, token_start: start };
@@ -3694,6 +3887,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
           float_val: 0.0, ident: 0, ident_len: 0 };
         return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
+      }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sfx, token_start: start };
       }
       let tok_o: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: oval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };
@@ -3750,6 +3950,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
           float_val: 0.0, ident: 0, ident_len: 0 };
         return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
+      }
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sfx, token_start: start };
       }
       let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
         float_val: fval, ident: 0, ident_len: 0 };
@@ -3810,9 +4017,23 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         }
       }
       let fval: f64 = (ival as f64) * scale;
+      // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+      if (l.pos < data.length && is_alpha(data[l.pos])) {
+        lexer_note_invalid_type_suffix(l.line, l.col);
+        let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof_sfx, token_start: start };
+      }
       let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
         float_val: fval, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok, token_start: start };
+    }
+    // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+    if (l.pos < data.length && is_alpha(data[l.pos])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      return LexerResult { next_lex: l, tok: tok_eof_sfx, token_start: start };
     }
     let tok: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: ival,
       float_val: 0.0, ident: 0, ident_len: 0 };
@@ -3849,6 +4070,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
         float_val: 0.0, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
+    }
+    // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
+    if (l.pos < data.length && is_alpha(data[l.pos])) {
+      lexer_note_invalid_type_suffix(l.line, l.col);
+      let tok_eof_sfx: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      return LexerResult { next_lex: l, tok: tok_eof_sfx, token_start: start };
     }
     let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
       float_val: fval, ident: 0, ident_len: 0 };
