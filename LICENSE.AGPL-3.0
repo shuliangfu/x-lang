@@ -6,7 +6,7 @@ text as published by the Free Software Foundation. It applies to the
 X language components listed as AGPL-3.0-or-later in the repository root
 LICENSE and NOTICE files (primarily the compiler / toolchain).
 
-Project: https://github.com/shuliangfu/shux
+Project: https://github.com/shuliangfu/xlang
 Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 SPDX-License-Identifier: AGPL-3.0-or-later
 

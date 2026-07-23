@@ -25,7 +25,7 @@ arch="$(uname -m 2>/dev/null)"
 os="$(uname -s 2>/dev/null)"
 if [ "$os" = "Darwin" ] && [ "$arch" = "arm64" ]; then
   echo "diff: SKIP on macOS arm64 (CG002 asm code_len=0 limitation)"
-  echo "      请在 Linux x86_64 上运行：ssh ubuntu-server && cd ~/worker/shu/shux && ./tests/bench/diff/run_diff.sh"
+  echo "      请在 Linux x86_64 上运行：ssh ubuntu-server && cd ~/worker/shu/xlang && ./tests/bench/diff/run_diff.sh"
   exit 0
 fi
 
