@@ -29158,22 +29158,25 @@ int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *are
     return 0;
   /* 【Why 根源】i8/i16 无独立 TypeKind（存为 TYPE_NAMED name="i8"/"i16"），binop/NEG 初值（如 -1 解析为
    * EXPR_NEG(lit(1))）需按 name 放行 signed 窄整型，否则 let y:i16=-1 报 type mismatch。
-   * 【Invariant】仅放行 i8/i16（signed）；u8/u16（unsigned）不走此路径，保持与 lit 路径一致拒绝负数。
+   * wave309 Cap residual: TYPE_ISIZE + EXPR_NEG/binop (let a:isize=-1 / 1-2).
+   * wave310 Cap residual: TYPE_U8 + NAMED u16 bit-pattern wrap for EXPR_NEG/binop
+   * (`let a:u8=-1` / `1-2` / assign; product already accepts u32/u64/usize=-1).
+   * Prior invariant rejected unsigned narrow NEG; lit path still range-gates bare EXPR_LIT.
    * 【Asm/Perf】与 i32 路径对齐，不做编译期范围检查（i32 路径同样不做）。
-   * wave309 Cap residual: TYPE_ISIZE + EXPR_NEG/binop (let a:isize=-1 / 1-2). Prior gate had
-   * U64/USIZE but omitted ISIZE; widen i32→isize is the dual path (typeck_integer_widen_ok).
-   * PLATFORM: SHARED — typeck.x thin-wraps this C authority. */
+   * PLATFORM: SHARED — typeck.x thin-wraps this C authority; assign reuses same call (wave310). */
   if (decl_kind != (int32_t)ast_TypeKind_TYPE_I32 && decl_kind != (int32_t)ast_TypeKind_TYPE_I64 &&
+      decl_kind != (int32_t)ast_TypeKind_TYPE_U8 && decl_kind != (int32_t)ast_TypeKind_TYPE_U32 &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_U64 && decl_kind != (int32_t)ast_TypeKind_TYPE_USIZE &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_ISIZE &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_NAMED)
     return 0;
-  /* TYPE_NAMED 仅允许 i8("i8"=[105,56]) / i16("i16"=[105,49,54])，拒绝 u8/u16 及用户自定义类型 */
+  /* TYPE_NAMED: i8/i16 (signed narrow) + u16 (unsigned narrow; TYPE_U8 is builtin kind=2). */
   if (decl_kind == (int32_t)ast_TypeKind_TYPE_NAMED) {
     uint8_t nm[64] = { 0 };
     int32_t nlen = pipeline_type_named_name_into(arena, decl_ty_ref, nm);
-    if (!((nlen == 2 && nm[0] == 105 && nm[1] == 56) ||
-          (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54)))
+    if (!((nlen == 2 && nm[0] == 105 && nm[1] == 56) ||                 /* "i8" */
+          (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) ||   /* "i16" */
+          (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54)))    /* "u16" */
       return 0;
   }
   if (init_kind != (int32_t)ast_ExprKind_EXPR_ADD && init_kind != (int32_t)ast_ExprKind_EXPR_SUB &&

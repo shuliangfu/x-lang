@@ -5282,11 +5282,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * (G.7 single authority; same full-i64 path as let-init / wave307).
        * Prior hand path used pipeline_expr_int_val_at (i32 truncate) +
        * `int_val >= 0` for u64/usize, so `a = u64max` / `a = i64max` failed.
-       * PLATFORM: SHARED — typeck lit assign coerce.
+       * wave310: assign RHS EXPR_NEG / int binop — reuse typeck_coerce_init_int_binop_to_decl
+       * (closes `a:u8=-1` / `a:u16=-1` / `a:u64=-1` assign + `1-2`; let-init already had int_binop).
+       * PLATFORM: SHARED — typeck lit/binop assign coerce.
        */
-      if (rhs_kind == ord_lit) {
-        if (!type_refs_equal(arena, lt, rt_after)) {
+      if (!type_refs_equal(arena, lt, rt_after)) {
+        if (rhs_kind == ord_lit) {
           typeck_coerce_init_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind);
+        } else {
+          typeck_coerce_init_int_binop_to_decl(arena, right_ref, lt, lt_kind, rhs_kind);
         }
       }
     }

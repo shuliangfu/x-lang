@@ -4384,10 +4384,14 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
       (void)((rt_after = expr_type_ref(arena, right_ref)));
     }
     /* wave308: assign RHS bare EXPR_LIT — G.7 reuse typeck_coerce_init_lit_to_decl
-     * (full i64; drop i32 int_val gate). PLATFORM: SHARED */
-    if ((rhs_kind ==ord_lit)) {
-      if (!(type_refs_equal(arena, lt, rt_after))) {
+     * (full i64; drop i32 int_val gate).
+     * wave310: assign RHS EXPR_NEG/int binop — G.7 reuse typeck_coerce_init_int_binop_to_decl
+     * (u8/u16/u64 =-1 assign; 1-2). PLATFORM: SHARED */
+    if (!(type_refs_equal(arena, lt, rt_after))) {
+      if ((rhs_kind ==ord_lit)) {
         (void)(typeck_coerce_init_lit_to_decl(arena, right_ref, lt, lt_kind, rhs_kind));
+      } else {
+        (void)(typeck_coerce_init_int_binop_to_decl(arena, right_ref, lt, lt_kind, rhs_kind));
       }
     }
   }
