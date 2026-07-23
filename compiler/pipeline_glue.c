@@ -25496,6 +25496,9 @@ int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast
 /* Forward decl: body later with typeck coerce family (wave308 assign reuses it). */
 int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
                                                   int32_t decl_kind, int32_t init_kind);
+/* wave310: assign mega path reuses int_binop coerce (body later). */
+int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
+                                                        int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 
 static int32_t pipeline_typeck_lit_fits_named_i16_u16_c(struct ast_ASTArena *arena, int32_t ty_ref, int32_t int_val) {
   uint8_t nm[64];
@@ -25572,16 +25575,16 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   rt_after = pipeline_typeck_expr_type_ref_c(arena, right_ref);
   if (!ast_ref_is_null(lt) && lt > 0) {
     rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
+    lt_kind = pipeline_type_kind_ord_at(arena, lt);
+    /*
+     * wave308: assign RHS bare EXPR_LIT — G.7 reuse coerce_init_lit (full i64).
+     * wave310: assign RHS EXPR_NEG / int binop — G.7 reuse coerce_init_int_binop
+     * (product mega path calls this C assign, not typeck.x typeck_check_expr_assign;
+     * typeck.x mirror alone left Ubuntu assign `u8=-1` / `u64 a=-1` found i32).
+     * Named i16/u16 still use lit_fits helper when lit coerce misses TYPE_NAMED.
+     * PLATFORM: SHARED — typeck lit/binop assign coerce.
+     */
     if (rhs_kind == (int32_t)ast_ExprKind_EXPR_LIT) {
-      /*
-       * wave308 Cap residual pure: assign RHS bare EXPR_LIT reuses let-init
-       * coerce (pipeline_typeck_coerce_init_lit_to_decl_c / full i64).
-       * Prior path used pipeline_expr_int_val_at (i32) + int_val >= 0 for
-       * u64/usize → rejected u64max / i64max bit patterns. G.7 single authority.
-       * Named i16/u16 still use lit_fits helper (coerce_c omits TYPE_NAMED ranges).
-       * PLATFORM: SHARED — typeck lit assign coerce.
-       */
-      lt_kind = pipeline_type_kind_ord_at(arena, lt);
       if (pipeline_typeck_coerce_init_lit_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind) == 0 &&
           expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
         int_val = pipeline_expr_int_val_at(arena, right_ref);
@@ -25589,6 +25592,8 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
       }
       (void)rt_after;
+    } else if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt_after)) {
+      (void)pipeline_typeck_coerce_init_int_binop_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind);
     }
   }
   rt = pipeline_typeck_expr_type_ref_c(arena, right_ref);
@@ -25647,8 +25652,12 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           rt = lt;
         } else {
+          /* wave310: prefer G.7 int_binop coerce (covers U8/U16/NEG); keep
+           * prior hard set as fallback for ADD/SUB/MUL/DIV on wide ints. */
           rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
-          if ((lt_kind == (int32_t)ast_TypeKind_TYPE_I32 || lt_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
+          if (pipeline_typeck_coerce_init_int_binop_to_decl_c(arena, right_ref, lt, lt_kind, rhs_kind) != 0) {
+            rt = lt;
+          } else if ((lt_kind == (int32_t)ast_TypeKind_TYPE_I32 || lt_kind == (int32_t)ast_TypeKind_TYPE_I64 ||
                lt_kind == (int32_t)ast_TypeKind_TYPE_U64 || lt_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
                lt_kind == (int32_t)ast_TypeKind_TYPE_ISIZE) &&
               (rhs_kind == (int32_t)ast_ExprKind_EXPR_ADD || rhs_kind == (int32_t)ast_ExprKind_EXPR_SUB ||
