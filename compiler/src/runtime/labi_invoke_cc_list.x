@@ -3237,7 +3237,7 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       break;
     }
     if (e[0] == 45) {
-      // Skip ld flags (-*)
+      /* Skip ld flags whose first byte is ASCII '-' (0x2d / 45). */
       continue;
     }
     unsafe {
