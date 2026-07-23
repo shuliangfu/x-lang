@@ -4390,7 +4390,8 @@ int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind) {
     return 0;
   }
   if ((src_kind ==ord_i32)) {
-    if (((((dest_kind ==ord_i64) || (dest_kind ==ord_u32)) || (dest_kind ==ord_usize)) || (dest_kind ==ord_isize))) {
+    /* wave311: i32→u64 true widen + i32→u8 low-byte narrow; G.7 mirror typeck.x. */
+    if ((((((dest_kind ==ord_i64) || (dest_kind ==ord_u32)) || (dest_kind ==ord_u64)) || (dest_kind ==ord_usize)) || (dest_kind ==ord_isize)) || (dest_kind ==ord_u8)) {
       return 1;
     }
     return 0;

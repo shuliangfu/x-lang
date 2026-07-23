@@ -3762,7 +3762,10 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
  * wave309 Cap residual: add TYPE_ISIZE identity + i32→isize (symmetric with
  * i32→usize; matches pipeline_typeck_integer_widen_ok_c — G.7 dual-authority).
  * Prior omit left `let a:isize = -1` / `a = -1` as found i32 (EXPR_NEG/binop).
- * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit.
+ * wave311 Cap residual: i32→u64 (true widen; prior hole vs i32→usize on LP64)
+ * and i32→u8 (narrow store of low 8 bits — leave-off residual for var init/
+ * assign/return; lit coerce already green). Call single-candidate was lax.
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface + glue + strict_minimal same commit.
  */
 export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
   let ord_i32: i32 = 0;
@@ -3787,9 +3790,9 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
     return false;
   }
   if (src_kind == ord_i32) {
-    /* i32→isize: pointer-width signed; symmetric with i32→usize (glue already had this). */
-    if (dest_kind == ord_i64 || dest_kind == ord_u32 || dest_kind == ord_usize ||
-    dest_kind == ord_isize) {
+    /* i32→isize/u64: pointer-width / fixed 64-bit; i32→u8: low-byte narrow store. */
+    if (dest_kind == ord_i64 || dest_kind == ord_u32 || dest_kind == ord_u64 ||
+    dest_kind == ord_usize || dest_kind == ord_isize || dest_kind == ord_u8) {
       return true;
     }
     return false;

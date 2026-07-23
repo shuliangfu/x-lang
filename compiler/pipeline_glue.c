@@ -25114,9 +25114,12 @@ static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src
     return dest_kind == (int32_t)ast_TypeKind_TYPE_U32 || dest_kind == (int32_t)ast_TypeKind_TYPE_U64 ||
            dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_I32;
   if (src_kind == (int32_t)ast_TypeKind_TYPE_I32)
-    /* i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。 */
+    /* wave311: i32→u64 (true widen; was hole vs usize) + i32→u8 (low-byte narrow).
+     * i32→isize：与 typeck.x / i32→usize 对称（指针宽度有符号整型）。
+     * PLATFORM: SHARED — G.7 mirror typeck.x::typeck_integer_widen_ok. */
     return dest_kind == (int32_t)ast_TypeKind_TYPE_I64 || dest_kind == (int32_t)ast_TypeKind_TYPE_U32 ||
-           dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE;
+           dest_kind == (int32_t)ast_TypeKind_TYPE_U64 || dest_kind == (int32_t)ast_TypeKind_TYPE_USIZE ||
+           dest_kind == (int32_t)ast_TypeKind_TYPE_ISIZE || dest_kind == (int32_t)ast_TypeKind_TYPE_U8;
   if (src_kind == (int32_t)ast_TypeKind_TYPE_U32 && dest_kind == (int32_t)ast_TypeKind_TYPE_U64)
     return 1;
   return 0;
