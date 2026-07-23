@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+/* seeds/runtime.from_x.c — wave243 G.7 residual getenv→link_abi_getenv; G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
@@ -45,6 +45,10 @@
 
 #include "win32_compat.h"
 
+/* wave243 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face. */
+extern char *link_abi_getenv(const char *name);
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #define XLANG_TMP_PREFIX "/tmp/xlang_"
@@ -53,8 +57,8 @@
 #include <stdio.h>
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 const char * xlang_get_tmp_prefix(void) {
-    const char *tmp = getenv("TEMP");
-    if (!tmp || !tmp[0]) tmp = getenv("TMP");
+    const char *tmp = link_abi_getenv("TEMP");
+    if (!tmp || !tmp[0]) tmp = link_abi_getenv("TMP");
     if (!tmp || !tmp[0]) tmp = ".";
     static char buf[260];
     size_t L = strlen(tmp);
@@ -338,8 +342,8 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
  */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-301 R10 → rt_entry hybrid */
-/* wave242 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
-extern char *link_abi_getenv(const char *name);
+/* wave242/243 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+/* (declaration at file top for Windows TEMP/TMP + cold mega residual call sites) */
 #ifndef XLANG_RT_ENTRY_FROM_X
 int xlang_smoke_diag_enabled(void) {
   const char *e;
@@ -1479,7 +1483,7 @@ int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
  * 参数：argc、argv 为标准 C 程序参数；argv[0] 为程序名，后续为可选 -L/-target/-o 及其参数与一个输入 .x 路径。
  * 返回值：0 表示成功（含无参数时打印用法）；1 表示读文件失败、解析/typeck 失败、codegen 或 cc 失败。
  * 错误与边界：无输入文件时打印用法并返回 0；-o 指定但无 main 时返回 1；import 数量超过 32 时仅处理前 32 个。
- * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 getenv("XLANG_LIB")；多文件时可能多次解析同一 import 的 .x。
+ * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 link_abi_getenv("XLANG_LIB")；多文件时可能多次解析同一 import 的 .x。
  */
 #define MAX_DEFINES 64
 #define MAX_LIB_ROOTS 16
@@ -1677,13 +1681,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
     }
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("XLANG_LIB");
+        lib_roots_arr[0] = link_abi_getenv("XLANG_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
-    if (!opt_level) opt_level = getenv("XLANG_OPT");
+    if (!opt_level) opt_level = link_abi_getenv("XLANG_OPT");
     if (!opt_level || !*opt_level) opt_level = "2";
-    if (!use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0)
+    if (!use_lto && link_abi_getenv("XLANG_LTO") && strcmp(link_abi_getenv("XLANG_LTO"), "1") == 0)
         use_lto = 1;
 
     if (!input_path) {
@@ -2127,7 +2131,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("XLANG_ASM_ENTRY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: ec=%d num_funcs=%d out_asm_len=%zu",
                          ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -2297,7 +2301,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
 
     /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（XLANG_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
     {
-        const char *wpo_out = getenv("XLANG_WPO_DUMP_CALLGRAPH");
+        const char *wpo_out = link_abi_getenv("XLANG_WPO_DUMP_CALLGRAPH");
         if (wpo_out && wpo_out[0]) {
             FILE *wf = (strcmp(wpo_out, "-") == 0) ? stdout : fopen(wpo_out, "w");
             if (wf) {
@@ -2561,7 +2565,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     if (cc_ok != 0)
                         diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                      "cc failed, keeping generated C: %s", tmp_lib_c);
-                    else if (!getenv("XLANG_KEEP_C"))
+                    else if (!link_abi_getenv("XLANG_KEEP_C"))
                         unlink(tmp_lib_c);
                     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
                     ast_module_free(mod);
@@ -2791,7 +2795,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (getenv("XLANG_DEBUG_C")) {
+        if (link_abi_getenv("XLANG_DEBUG_C")) {
             FILE *dc = fopen(tmp_c, "r");
             if (dc) {
                 { char _dbg[256]; snprintf(_dbg, sizeof(_dbg), "%sxlang_debug.c", XLANG_TMP_PREFIX); FILE *_df = fopen(_dbg, "w"); if (_df) { int ch; while ((ch = getc(dc)) != EOF) putc(ch, _df); fclose(_df); } }
@@ -2859,7 +2863,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             driver_unlink_failed_output(out_path);
             diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                          "cc failed, keeping generated C: %s", tmp_c);
-        } else if (getenv("XLANG_KEEP_C")) {
+        } else if (link_abi_getenv("XLANG_KEEP_C")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "kept generated C: %s", tmp_c);
         } else {
@@ -2936,9 +2940,9 @@ int run_compiler_x_path(int argc, char **argv) {
         if (strcmp(argv[i], "-x") == 0) continue;
         if (!input_path) input_path = argv[i];
     }
-    if (!use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0) use_lto = 1;
+    if (!use_lto && link_abi_getenv("XLANG_LTO") && strcmp(link_abi_getenv("XLANG_LTO"), "1") == 0) use_lto = 1;
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("XLANG_LIB");
+        lib_roots_arr[0] = link_abi_getenv("XLANG_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
@@ -3311,7 +3315,7 @@ int run_compiler_x_path(int argc, char **argv) {
                 driver_unlink_failed_output(out_path);
                 diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "cc failed, keeping generated C: %s", tmp_c);
-            } else if (!getenv("XLANG_KEEP_C")) {
+            } else if (!link_abi_getenv("XLANG_KEEP_C")) {
                 unlink(tmp_c);
             } else {
                 diag_reportf(NULL, 0, 0, "note", NULL,
@@ -3927,7 +3931,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
                      driver_get_module_num_funcs(module), src_len);
@@ -4257,7 +4261,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
              */
             int ec_loop;
             if (asm_smoke_only) {
-                if (getenv("XLANG_ASM_DEBUG"))
+                if (link_abi_getenv("XLANG_ASM_DEBUG"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
                                  dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
@@ -4337,19 +4341,19 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         /* === XLANG_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
         const char *entry_name = input_path ? strrchr(input_path, '/') : NULL;
         entry_name = entry_name ? entry_name + 1 : input_path;
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: entry=%s n_deps=%d",
                          entry_name ? entry_name : "?", n_deps);
         }
         /* 1. 预检：当前文件长度 */
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: src_len=%zu entry_funcs=%d",
                          src_len, driver_get_module_num_funcs(module));
         }
         /* 2. 调 pipeline_run_x_pipeline */
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_report(NULL, 0, 0, "note",
                         "asm entry debug: BEFORE pipeline_run_x_pipeline", NULL);
         }
@@ -4359,7 +4363,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
          * 再 skip pipeline 内 .x typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
          */
         if (!driver_asm_build_skip_typeck()) {
-            const char *skip_c_precheck = getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
+            const char *skip_c_precheck = link_abi_getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
             if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
                 if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
                     free(out_buf);
@@ -4412,7 +4416,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: AFTER pipeline_run_x_pipeline ec=%d funcs=%d out_len=%zu",
                          ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -4424,7 +4428,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     pctx->use_asm_backend = 1;
-    if (getenv("XLANG_ASM_DEBUG")) {
+    if (link_abi_getenv("XLANG_ASM_DEBUG")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
                      ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -4514,7 +4518,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
             int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-            if (getenv("XLANG_ASM_DEBUG")) {
+            if (link_abi_getenv("XLANG_ASM_DEBUG")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
                              (int)elf_ec, (size_t)out_buf->len);
@@ -5281,7 +5285,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         if (cc_ok != 0)
                             diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                          "cc failed, keeping generated C: %s", tmp_lib_c);
-                        else if (!getenv("XLANG_KEEP_C"))
+                        else if (!link_abi_getenv("XLANG_KEEP_C"))
                             unlink(tmp_lib_c);
                         while (n_all--) {
                             free(all_dep_paths[n_all]);
@@ -5471,7 +5475,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                     driver_unlink_failed_output(out_path);
                     diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                  "cc failed, keeping generated C: %s", tmp_c);
-                } else if (!getenv("XLANG_KEEP_C"))
+                } else if (!link_abi_getenv("XLANG_KEEP_C"))
                     unlink(tmp_c);
                 while (n_all--) {
                     free(all_dep_paths[n_all]);
@@ -5490,7 +5494,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 勿在此拒掉（否则 -E asm.x / build_seed_asm_host 无法冷启动 partial）。
      */
 #endif /* !XLANG_NO_C_FRONTEND */
-    if (getenv("XLANG_DUMP_PREP")) {
+    if (link_abi_getenv("XLANG_DUMP_PREP")) {
         if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len) == 0) {
             diag_reportf(input_path, 0, 0, "note", NULL,
                          "dumped prep entry (%zu bytes) to /tmp/xlang_prep_entry.bin", src_len);
@@ -5553,7 +5557,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d src_len=%zu",
                      driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
@@ -5574,7 +5578,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (getenv("XLANG_DEBUG_PIPE")) {
+        if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: n_deps=%d", n_deps);
             for (int dj = 0; dj < n_deps; dj++)
@@ -5742,7 +5746,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 隐式 padding 校验会变成空操作（tests/run-struct.sh padding_no_allow）。
      * import 已解析完毕；清零后 pipeline 从同一预处理源码重建 module/arena。
      */
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
     /* preserve pre-parsed module/arena; do NOT re-zero (entry_already_parsed=1) */
@@ -5776,7 +5780,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before pipeline_run entry=%s src_len=%zu",
                      input_path ? input_path : "?", (size_t)src_slice.length);
@@ -5850,7 +5854,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
 #endif
     int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_x_pipeline_skip_typeck_set(0);
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: after pipeline_run ec=%d", ec);
     driver_dep_seeded_clear_all();
@@ -5861,7 +5865,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
                      input_path, ec, (int)out_buf->len);
-        if (getenv("XLANG_DEBUG_PIPE") && out_buf->len > 0) {
+        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->len > 0) {
             size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
@@ -6013,7 +6017,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 driver_unlink_failed_output(out_path);
                 diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "cc failed, keeping generated C: %s", tmp_c);
-            } else if (!getenv("XLANG_KEEP_C")) {
+            } else if (!link_abi_getenv("XLANG_KEEP_C")) {
                 unlink(tmp_c);
             } else {
                 diag_reportf(NULL, 0, 0, "note", NULL,
@@ -6060,7 +6064,7 @@ int driver_lib_root_ptr_usable(const char *p) {
  * 参数：root_buf 输出缓冲（至少 512 字节）。
  */
 void driver_lib_root_default(char root_buf[512]) {
-    const char *def = getenv("XLANG_LIB");
+    const char *def = link_abi_getenv("XLANG_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
     if (!driver_lib_root_ptr_usable(def))
@@ -6249,7 +6253,7 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     p.target = target && target[0] ? (const char *)target : NULL;
     p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level : "2";
     p.use_lto = use_lto != 0;
-    if (!p.use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0)
+    if (!p.use_lto && link_abi_getenv("XLANG_LTO") && strcmp(link_abi_getenv("XLANG_LTO"), "1") == 0)
         p.use_lto = 1;
     /* check 走本进程 C typeck，避免子进程 xlang-c 与双 -L 导致 core.* import 误解析。
      * build_xlang_asm 单模块 -o（XLANG_ASM_ENTRY_MODULE_ONLY）：须走 asm，勿 exec xlang-c（其不支持 -backend asm）。
@@ -7053,9 +7057,9 @@ void driver_print_usage_c(void) {
      * Forward-declare isatty so the body stays identical to driver_print_usage_write
      * in runtime_driver_abi.from_x.c (AGENTS.md §4 — no dual authority drift). */
     extern int isatty(int fd);
-    const char *no_color = getenv("NO_COLOR");
-    const char *force = getenv("CLICOLOR_FORCE");
-    const char *xlang_force = getenv("XLANG_FORCE_COLOR");
+    const char *no_color = link_abi_getenv("NO_COLOR");
+    const char *force = link_abi_getenv("CLICOLOR_FORCE");
+    const char *xlang_force = link_abi_getenv("XLANG_FORCE_COLOR");
     int use_color;
     if (no_color != (const char *)0) {
         use_color = 0;
@@ -7827,14 +7831,14 @@ int driver_run_x_emit_c(void) {
                 ec_dep = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_src, dep_len);
             } else {
-                if (getenv("XLANG_DEBUG_PIPE"))
+                if (link_abi_getenv("XLANG_DEBUG_PIPE"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "pipeline debug: dep prerun begin j=%d path=%s",
                                  j, dep_paths[j] ? dep_paths[j] : "?");
                 ec_dep = xlang_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                                                               (const uint8_t *)dep_src, dep_len,
                                                               (void *)dep_out, (void *)one_ctx);
-                if (getenv("XLANG_DEBUG_PIPE"))
+                if (link_abi_getenv("XLANG_DEBUG_PIPE"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "pipeline debug: dep prerun end j=%d path=%s rc=%d",
                                  j, dep_paths[j] ? dep_paths[j] : "?", ec_dep);
