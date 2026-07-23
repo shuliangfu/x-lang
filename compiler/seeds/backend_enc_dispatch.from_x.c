@@ -154,8 +154,12 @@ int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(struct platform_elf_ElfCode
 int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** u64 in rax → f32 bits in eax (unsigned seq); freestanding `as f32` when >2^63-1 (wave304). */
+int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** u64 in rax → f64 bits in rax (unsigned seq); freestanding `as f64` when >2^63-1 (wave304). */
+int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
@@ -1060,6 +1064,72 @@ int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(struct platform_elf_ElfCodegenCtx
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvtsi2sd_xmm0_rax, 5) != 0)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
+}
+#endif
+
+/**
+ * x86：rax 中 u64 无符号转为 f64 位型写回 rax（gcc/clang unsigned convert sequence）。
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `let b: f64 = a as f64` from u64/usize (wave304).
+ * Root: REX.W cvtsi2sd is signed; high bit set → negative double → freestanding run=0.
+ * Algorithm (matches gcc -O2 uint64_t→double):
+ *   test rax,rax; jns .Lfit;
+ *   mov rdx,rax; shr rdx,1; and eax,1; or rdx,rax;
+ *   cvtsi2sd xmm0,rdx; addsd xmm0,xmm0; movq rax,xmm0; jmp .Ldone;
+ *   .Lfit: cvtsi2sd xmm0,rax; movq rax,xmm0;
+ * Fixed rel8 offsets: jns +28, jmp +10 (no labels / no second path).
+ * G.7 next to signed backend_enc_cvtsi2sd_rax_from_i64_arch.
+ */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* test; jns; high; jmp; fit — total 43 bytes; jns rel8=0x1c; jmp rel8=0x0a */
+  static const uint8_t seq[43] = {
+      0x48, 0x85, 0xc0,                   /* test rax,rax */
+      0x79, 0x1c,                         /* jns +28 → .Lfit */
+      0x48, 0x89, 0xc2,                   /* mov rdx,rax */
+      0x48, 0xd1, 0xea,                   /* shr rdx,1 */
+      0x83, 0xe0, 0x01,                   /* and eax,1 */
+      0x48, 0x09, 0xc2,                   /* or rdx,rax */
+      0xf2, 0x48, 0x0f, 0x2a, 0xc2,       /* cvtsi2sd xmm0,rdx */
+      0xf2, 0x0f, 0x58, 0xc0,             /* addsd xmm0,xmm0 */
+      0x66, 0x48, 0x0f, 0x7e, 0xc0,       /* movq rax,xmm0 */
+      0xeb, 0x0a,                         /* jmp +10 → .Ldone */
+      0xf2, 0x48, 0x0f, 0x2a, 0xc0,       /* .Lfit: cvtsi2sd xmm0,rax */
+      0x66, 0x48, 0x0f, 0x7e, 0xc0        /* movq rax,xmm0 */
+  };
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)seq, 43);
+}
+#endif
+
+/**
+ * x86：rax 中 u64 无符号转为 f32 位型写回 eax（unsigned convert sequence）。
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `let b: f32 = a as f32` from u64/usize (wave304).
+ * Same algorithm as u64→f64 with cvtsi2ss/addss/movd. jns +27, jmp +9.
+ * G.7 next to signed backend_enc_cvtsi2ss_eax_from_i64_arch.
+ */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  /* test; jns; high; jmp; fit — total 41 bytes; jns rel8=0x1b; jmp rel8=0x09 */
+  static const uint8_t seq[41] = {
+      0x48, 0x85, 0xc0,                   /* test rax,rax */
+      0x79, 0x1b,                         /* jns +27 → .Lfit */
+      0x48, 0x89, 0xc2,                   /* mov rdx,rax */
+      0x48, 0xd1, 0xea,                   /* shr rdx,1 */
+      0x83, 0xe0, 0x01,                   /* and eax,1 */
+      0x48, 0x09, 0xc2,                   /* or rdx,rax */
+      0xf3, 0x48, 0x0f, 0x2a, 0xc2,       /* cvtsi2ss xmm0,rdx */
+      0xf3, 0x0f, 0x58, 0xc0,             /* addss xmm0,xmm0 */
+      0x66, 0x0f, 0x7e, 0xc0,             /* movd eax,xmm0 */
+      0xeb, 0x09,                         /* jmp +9 → .Ldone */
+      0xf3, 0x48, 0x0f, 0x2a, 0xc0,       /* .Lfit: cvtsi2ss xmm0,rax */
+      0x66, 0x0f, 0x7e, 0xc0              /* movd eax,xmm0 */
+  };
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)seq, 41);
 }
 #endif
 

@@ -2581,7 +2581,7 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
  * @return i32 — 0 ok, -1 unsupported arch / null ctx
  * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f32` from u64/i64 (wave299 Cap residual).
  * Encoding: cvtsi2ss xmm0,rax (F3 48 0F 2A C0) ; movd eax,xmm0 (66 0F 7E C0).
- * Note: ISA is signed convert; unsigned >2^63-1 leave-off for a dedicated sequence.
+ * Note: signed convert; unsigned >2^63-1 uses backend_enc_cvtsi2ss_eax_from_u64_arch (wave304).
  */
 #[no_mangle]
 export function backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
@@ -2631,7 +2631,7 @@ export function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i
  * @return i32 — 0 ok, -1 unsupported arch / null ctx
  * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f64` from u64/i64 (wave295 Cap residual).
  * Encoding: cvtsi2sd xmm0,rax (F2 48 0F 2A C0) ; movq rax,xmm0 (66 REX.W 0F 7E C0).
- * Note: ISA is signed convert; unsigned >2^63-1 leave-off for a dedicated sequence.
+ * Note: signed convert; unsigned >2^63-1 uses backend_enc_cvtsi2sd_rax_from_u64_arch (wave304).
  */
 #[no_mangle]
 export function backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
@@ -2646,6 +2646,77 @@ export function backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx: *u8, ta: i32): i
     let q: u8[5] = [];
     q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 126; q[4] = 192;
     return pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert full-range u64 in rax to f64 bits in rax (unsigned convert sequence).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f64` from u64/usize (wave304 Cap residual).
+ * Root: signed REX.W cvtsi2sd makes values >2^63-1 negative → freestanding run=0.
+ * Algorithm (gcc/clang): if high bit clear, signed convert; else (v>>1)|(v&1) convert + add.
+ * Fixed rel8: jns +28, jmp +10. G.7 next to signed i64 form.
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let s: u8[43] = [];
+    /* test rax,rax */
+    s[0] = 72; s[1] = 133; s[2] = 192;
+    /* jns +28 */
+    s[3] = 121; s[4] = 28;
+    /* mov rdx,rax; shr rdx,1; and eax,1; or rdx,rax */
+    s[5] = 72; s[6] = 137; s[7] = 194;
+    s[8] = 72; s[9] = 209; s[10] = 234;
+    s[11] = 131; s[12] = 224; s[13] = 1;
+    s[14] = 72; s[15] = 9; s[16] = 194;
+    /* cvtsi2sd xmm0,rdx; addsd xmm0,xmm0; movq rax,xmm0 */
+    s[17] = 242; s[18] = 72; s[19] = 15; s[20] = 42; s[21] = 194;
+    s[22] = 242; s[23] = 15; s[24] = 88; s[25] = 192;
+    s[26] = 102; s[27] = 72; s[28] = 15; s[29] = 126; s[30] = 192;
+    /* jmp +10 */
+    s[31] = 235; s[32] = 10;
+    /* fit: cvtsi2sd xmm0,rax; movq rax,xmm0 */
+    s[33] = 242; s[34] = 72; s[35] = 15; s[36] = 42; s[37] = 192;
+    s[38] = 102; s[39] = 72; s[40] = 15; s[41] = 126; s[42] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &s[0], 43);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert full-range u64 in rax to f32 bits in eax (unsigned convert sequence).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f32` from u64/usize (wave304 Cap residual).
+ * Same algorithm as u64→f64 with cvtsi2ss/addss/movd. jns +27, jmp +9.
+ * G.7 next to signed backend_enc_cvtsi2ss_eax_from_i64_arch.
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let s: u8[41] = [];
+    s[0] = 72; s[1] = 133; s[2] = 192;
+    s[3] = 121; s[4] = 27;
+    s[5] = 72; s[6] = 137; s[7] = 194;
+    s[8] = 72; s[9] = 209; s[10] = 234;
+    s[11] = 131; s[12] = 224; s[13] = 1;
+    s[14] = 72; s[15] = 9; s[16] = 194;
+    s[17] = 243; s[18] = 72; s[19] = 15; s[20] = 42; s[21] = 194;
+    s[22] = 243; s[23] = 15; s[24] = 88; s[25] = 192;
+    s[26] = 102; s[27] = 15; s[28] = 126; s[29] = 192;
+    s[30] = 235; s[31] = 9;
+    s[32] = 243; s[33] = 72; s[34] = 15; s[35] = 42; s[36] = 192;
+    s[37] = 102; s[38] = 15; s[39] = 126; s[40] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &s[0], 41);
   }
   return 0 - 1;
 }

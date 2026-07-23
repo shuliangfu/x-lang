@@ -141,6 +141,8 @@ extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t
 extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
 extern int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(uint8_t * elf_ctx, int32_t k, int32_t ta);
@@ -2441,6 +2443,53 @@ int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(uint8_t * elf_ctx, int32_t ta) {
   }
   return (0 - 1);
 }
+/* wave304: u64→f64 unsigned freestanding cast sequence. */
+int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(uint8_t * elf_ctx, int32_t ta) {
+  static const uint8_t seq[43] = {
+      0x48, 0x85, 0xc0, 0x79, 0x1c,
+      0x48, 0x89, 0xc2, 0x48, 0xd1, 0xea, 0x83, 0xe0, 0x01, 0x48, 0x09, 0xc2,
+      0xf2, 0x48, 0x0f, 0x2a, 0xc2, 0xf2, 0x0f, 0x58, 0xc0,
+      0x66, 0x48, 0x0f, 0x7e, 0xc0, 0xeb, 0x0a,
+      0xf2, 0x48, 0x0f, 0x2a, 0xc0, 0x66, 0x48, 0x0f, 0x7e, 0xc0
+  };
+  int32_t i;
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  for (i = 0; i < 43; i++) {
+    if ((backend_enc_append_u8_c_impl(elf_ctx, (int32_t)seq[i]) !=0)) {
+      return (0 - 1);
+    }
+  }
+  return 0;
+}
+/* wave304: u64→f32 unsigned freestanding cast sequence. */
+int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(uint8_t * elf_ctx, int32_t ta) {
+  static const uint8_t seq[41] = {
+      0x48, 0x85, 0xc0, 0x79, 0x1b,
+      0x48, 0x89, 0xc2, 0x48, 0xd1, 0xea, 0x83, 0xe0, 0x01, 0x48, 0x09, 0xc2,
+      0xf3, 0x48, 0x0f, 0x2a, 0xc2, 0xf3, 0x0f, 0x58, 0xc0,
+      0x66, 0x0f, 0x7e, 0xc0, 0xeb, 0x09,
+      0xf3, 0x48, 0x0f, 0x2a, 0xc0, 0x66, 0x0f, 0x7e, 0xc0
+  };
+  int32_t i;
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  for (i = 0; i < 41; i++) {
+    if ((backend_enc_append_u8_c_impl(elf_ctx, (int32_t)seq[i]) !=0)) {
+      return (0 - 1);
+    }
+  }
+  return 0;
+}
+
 /* wave293: f32→f64 freestanding cast (cvtss2sd). */
 int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta) {
   if ((ta !=0)) {

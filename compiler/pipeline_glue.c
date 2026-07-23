@@ -1364,10 +1364,14 @@ extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_E
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** i64/u64 in rax → f32 bits in eax (REX.W cvtsi2ss); freestanding `as f32` (wave299). */
 extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** u64 in rax → f32 bits in eax (unsigned convert seq); freestanding `as f32` when >2^63-1 (wave304). */
+extern int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** i32 in eax → f64 bits in rax (cvtsi2sd); freestanding `as f64` (wave292). */
 extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** i64/u64 in rax → f64 bits in rax (REX.W cvtsi2sd); freestanding `as f64` (wave295). */
 extern int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** u64 in rax → f64 bits in rax (unsigned convert seq); freestanding `as f64` when >2^63-1 (wave304). */
+extern int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** f32 bits in eax → f64 bits in rax (cvtss2sd); freestanding `as f64` (wave293). */
 extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
@@ -2215,20 +2219,40 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
     int32_t src_tr = pipeline_expr_resolved_type_ref(arena, op);
     if (src_tr > 0) {
       int32_t src_kind = pipeline_type_kind_ord_at(arena, src_tr);
-      if (src_kind == 0 || src_kind == 2 || src_kind == 3 || src_kind == 8) {
+      /* Signed/narrow → f32 (eax cvtsi2ss). kind 3=u32 handled below (unsigned). */
+      if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
       }
       /**
-       * u64/i64/usize/isize → f32：REX.W cvtsi2ss (wave299 Cap residual pure).
-       * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
-       * Root: TYPE_F32 path only handled i32/u32; 64-bit kinds re-emitted integer bits
-       * or used 32-bit cvtsi2ss xmm0,eax → freestanding run=0 (mac host-gcc hid).
-       * G.7: complete EXPR_AS→f32 next to i32 cvtsi2ss / wave295 i64→f64.
-       * Note: ISA signed convert; values >2^63-1 leave-off for unsigned sequence.
+       * u32 → f32：zext eax→rax + REX.W cvtsi2ss (wave304 Cap residual pure).
+       * PLATFORM: SHARED cast / LINUX+MACOS x86_64.
+       * Root: 32-bit cvtsi2ss treats eax as signed i32 → u32>2^31-1 → negative f32 (run=0).
+       * G.7: complete unsigned class next to u64 unsigned seq; mov eax,eax zero-extends.
        */
-      if (src_kind == 4 || src_kind == 5 || src_kind == 6 || src_kind == 7) {
+      if (src_kind == 3) {
+        static const uint8_t mov_eax_eax[2] = {0x89, 0xc0};
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)mov_eax_eax, 2) != 0)
+          return -1;
+        return backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
+      }
+      /**
+       * u64/usize → f32：unsigned convert sequence (wave304 Cap residual pure).
+       * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+       * Root: REX.W cvtsi2ss is signed; values >2^63-1 → negative f32 (freestanding run=0).
+       * G.7: new backend_enc_cvtsi2ss_eax_from_u64_arch (gcc/clang algorithm) next to
+       * signed i64 form (wave299). i64/isize keep signed path.
+       */
+      if (src_kind == 4 || src_kind == 6) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        return backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx, ta);
+      }
+      /* i64/isize → f32：signed REX.W cvtsi2ss (wave299). */
+      if (src_kind == 5 || src_kind == 7) {
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
@@ -2249,30 +2273,46 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
     }
   }
   /**
-   * integer → f64：cvtsi2sd (wave292 i32 family; wave295 64-bit REX.W).
+   * integer → f64：cvtsi2sd (wave292 i32; wave295 REX.W signed; wave304 unsigned u64/u32).
    * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
    * Root (wave292): EXPR_AS f64 re-emitted integer bits → freestanding denormal mulsd → run=0.
-   * Root (wave295): TYPE_U64 kind=4 was missing entirely; 64-bit kinds (u64/i64/usize/isize)
-   * need REX.W cvtsi2sd xmm0,rax (F2 48 0F 2A C0), not 32-bit eax form.
-   * G.7: complete EXPR_AS → f64 authority next to i32 cvtsi2sd / f32 cvtss2sd.
-   * Note: ISA form is signed i64→f64; freestanding probes use values in i64 range
-   * (unsigned >2^63-1 leave-off for a separate unsigned convert sequence).
+   * Root (wave295): TYPE_U64 kind=4 was missing; 64-bit kinds need REX.W cvtsi2sd.
+   * Root (wave304): signed cvtsi2sd makes u64>2^63-1 and u32>2^31-1 negative → run=0.
+   * G.7: complete EXPR_AS → f64 authority (signed vs unsigned split by TypeKind).
    */
   if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 15) {
     int32_t src_tr = pipeline_expr_resolved_type_ref(arena, op);
     if (src_tr > 0) {
       int32_t src_kind = pipeline_type_kind_ord_at(arena, src_tr);
-      /* 4=u64, 5=i64, 6=usize, 7=isize — full 64-bit in rax → REX.W cvtsi2sd. */
-      if (src_kind == 4 || src_kind == 5 || src_kind == 6 || src_kind == 7) {
+      /* 4=u64, 6=usize — unsigned convert sequence (wave304). */
+      if (src_kind == 4 || src_kind == 6) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        return backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx, ta);
+      }
+      /* 5=i64, 7=isize — signed REX.W cvtsi2sd (wave295). */
+      if (src_kind == 5 || src_kind == 7) {
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
       }
-      /*
-       * 32-bit-class integer → f64 (eax form). wave302: kind 13 was mislabeled named-int
-       * (VECTOR); TYPE_NAMED=8 covers i8/i16/u16. Keep 0/2/3 + 8 (G.7 complete with f32 path).
+      /**
+       * u32 → f64：zext + REX.W signed convert (wave304).
+       * 32-bit cvtsi2sd treats eax as signed → u32>2^31-1 negative (run=0).
        */
-      if (src_kind == 0 || src_kind == 2 || src_kind == 3 || src_kind == 8) {
+      if (src_kind == 3) {
+        static const uint8_t mov_eax_eax[2] = {0x89, 0xc0};
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)mov_eax_eax, 2) != 0)
+          return -1;
+        return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+      }
+      /*
+       * 32-bit-class signed/narrow → f64 (eax form). wave302: TYPE_NAMED=8 for i8/i16/u16.
+       * Keep 0/2 + 8 (u32 split out above).
+       */
+      if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
