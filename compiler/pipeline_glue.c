@@ -25206,6 +25206,22 @@ static int32_t pipeline_typeck_integer_widen_ok_refs_c(struct ast_ASTArena *aren
 }
 
 /**
+ * wave314 Cap residual pure: f32→f64 IEEE float widen.
+ * G.7 ≡ typeck.x::typeck_float_widen_ok. PLATFORM: SHARED
+ * TypeKind: TYPE_F32=14, TYPE_F64=15. Narrow f64→f32 requires explicit `as`.
+ */
+static int32_t pipeline_typeck_float_widen_ok_c(int32_t dest_kind, int32_t src_kind) {
+  if (dest_kind == src_kind) {
+    if (dest_kind == (int32_t)ast_TypeKind_TYPE_F32 || dest_kind == (int32_t)ast_TypeKind_TYPE_F64)
+      return 1;
+    return 0;
+  }
+  if (src_kind == (int32_t)ast_TypeKind_TYPE_F32 && dest_kind == (int32_t)ast_TypeKind_TYPE_F64)
+    return 1;
+  return 0;
+}
+
+/**
  * typeck.x::typeck_return_operand_matches 的 C 委托：return 操作数与期望返回类型是否匹配。
  */
 int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
@@ -25227,6 +25243,9 @@ int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int
   got_kind = pipeline_type_kind_ord_at(arena, got);
   /* wave313: refs path so NAMED i8/i16/u16 return widen participates. */
   if (pipeline_typeck_integer_widen_ok_refs_c(arena, expect_ref, got))
+    return 1;
+  /* wave314: f32→f64 float widen on return. */
+  if (pipeline_typeck_float_widen_ok_c(expect_kind, got_kind))
     return 1;
   /** M-4：return Linear(T) 等同返回内层 T（layout 相同；move 已在 VAR 路径标记）。 */
   if (got_kind == (int32_t)ast_TypeKind_TYPE_LINEAR) {
@@ -25285,9 +25304,13 @@ void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int
   expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
   got_kind = pipeline_type_kind_ord_at(arena, got_ref);
   /* wave313: refs path covers NAMED i8/i16/u16. */
-  if (!pipeline_typeck_integer_widen_ok_refs_c(arena, expect_ref, got_ref))
+  if (pipeline_typeck_integer_widen_ok_refs_c(arena, expect_ref, got_ref)) {
+    pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
     return;
-  pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
+  }
+  /* wave314: stamp f32→f64 onto return operand. */
+  if (pipeline_typeck_float_widen_ok_c(expect_kind, got_kind))
+    pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
 }
 
 /** EXPR_RETURN 诊断与 scratch 缓冲（runtime.c）。 */
@@ -25494,7 +25517,8 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
       if (got > 0 && return_type_ref > 0) {
         ek_ret = pipeline_type_kind_ord_at(arena, return_type_ref);
         gk_ret = pipeline_type_kind_ord_at(arena, got);
-        if (pipeline_typeck_integer_widen_ok_refs_c(arena, return_type_ref, got)) {
+        if (pipeline_typeck_integer_widen_ok_refs_c(arena, return_type_ref, got) ||
+            pipeline_typeck_float_widen_ok_c(ek_ret, gk_ret)) {
           pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
           return 0;
         }
@@ -25776,12 +25800,16 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   }
   if (!ast_ref_is_null(lt) && !ast_ref_is_null(rt)) {
     if (!pipeline_typeck_type_refs_equal_c(arena, lt, rt)) {
-      /* 整型隐式拓宽：i32→isize/i64/usize… + NAMED i8/i16/u16（typeck_integer_widen_ok_refs） */
+      /* 整型隐式拓宽：i32→isize/i64/usize… + NAMED i8/i16/u16（typeck_integer_widen_ok_refs）
+       * wave314: + f32→f64 float widen (typeck_float_widen_ok). */
       if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN) {
         int32_t rt_kind_w;
         lt_kind = pipeline_type_kind_ord_at(arena, lt);
         rt_kind_w = pipeline_type_kind_ord_at(arena, rt);
         if (pipeline_typeck_integer_widen_ok_refs_c(arena, lt, rt)) {
+          pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+          rt = lt;
+        } else if (pipeline_typeck_float_widen_ok_c(lt_kind, rt_kind_w)) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
           rt = lt;
         } else {
@@ -28237,6 +28265,9 @@ static int32_t pipeline_typeck_call_arg_assignable_c(struct ast_ASTArena *arena,
     arg_kind_ord = pipeline_type_kind_ord_at(arena, arg_ty);
     /* wave313: refs path so NAMED i8/i16/u16 call-arg widen scores green. */
     if (pipeline_typeck_integer_widen_ok_refs_c(arena, param_ref, arg_ty))
+      return 1;
+    /* wave314: f32→f64 call-arg widen. */
+    if (pipeline_typeck_float_widen_ok_c(param_kind, arg_kind_ord))
       return 1;
     /** M-3：slice 元素相同即可匹配 overload（域在 CALL 后单独查）。 */
     if (param_kind == (int32_t)ast_TypeKind_TYPE_SLICE && arg_kind_ord == (int32_t)ast_TypeKind_TYPE_SLICE) {

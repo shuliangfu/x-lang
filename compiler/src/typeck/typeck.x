@@ -2808,6 +2808,10 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       if (typeck_integer_widen_ok_refs(caller_arena, param_ty, arg_ty)) {
         return 100;
       }
+      /* wave314: f32→f64 IEEE promotion scores as widen (not exact). */
+      if (typeck_float_widen_ok(pk, ak)) {
+        return 100;
+      }
       /* See implementation. */
       if (ak == 10 && pk == 9) {
         let ae: i32 = pipeline_type_elem_ref_at(caller_arena, arg_ty);
@@ -3963,6 +3967,31 @@ export function typeck_integer_widen_ok_refs(arena: *ASTArena, dest_ref: i32, sr
 }
 
 /**
+ * Float widen gate (wave314 Cap residual pure).
+ * @param dest_kind i32 — TypeKind ordinal of expected/declared type
+ * @param src_kind i32 — TypeKind ordinal of found/rhs type
+ * @return bool — true if same float kind or f32→f64 IEEE promotion
+ * Only true widen f32→f64 is implicit. Narrow f64→f32 requires explicit `as`.
+ * TypeKind: TYPE_F32=14, TYPE_F64=15 (ast.x enum order).
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface + glue same commit.
+ */
+export function typeck_float_widen_ok(dest_kind: i32, src_kind: i32): bool {
+  let ord_f32: i32 = 14;
+  let ord_f64: i32 = 15;
+  if (dest_kind == src_kind) {
+    if (dest_kind == ord_f32 || dest_kind == ord_f64) {
+      return true;
+    }
+    return false;
+  }
+  /* IEEE true widen only (host C promotes float→double the same way). */
+  if (src_kind == ord_f32 && dest_kind == ord_f64) {
+    return true;
+  }
+  return false;
+}
+
+/**
 * See implementation.
 * See implementation.
 */
@@ -3994,6 +4023,10 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
     got_kind = pipeline_type_kind_ord_at(arena, got);
     /* wave313: name-based refs so NAMED i8/i16/u16 widen participates on return. */
     if (typeck_integer_widen_ok_refs(arena, expect_ref, got)) {
+      return true;
+    }
+    /* wave314: f32→f64 float widen on return. */
+    if (typeck_float_widen_ok(expect_kind, got_kind)) {
       return true;
     }
     /* See implementation. */
@@ -4859,10 +4892,14 @@ export function typeck_ret_coerce_integral_widen(arena: *ASTArena, op_ref: i32, 
     expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
     got_kind = pipeline_type_kind_ord_at(arena, got_ref);
     /* wave313: refs path covers NAMED i8/i16/u16 as well as first-class. */
-    if (!typeck_integer_widen_ok_refs(arena, expect_ref, got_ref)) {
+    if (typeck_integer_widen_ok_refs(arena, expect_ref, got_ref)) {
+      pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
       return;
     }
-    pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
+    /* wave314: stamp f32→f64 (and float identity) onto return operand. */
+    if (typeck_float_widen_ok(expect_kind, got_kind)) {
+      pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
+    }
   }
 }
 
@@ -5207,6 +5244,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         got_kind = pipeline_type_kind_ord_at(arena, ty_t);
         if (typeck_integer_widen_ok_refs(arena, return_type_ref, ty_t)) {
           resolved = return_type_ref;
+        } else if (typeck_float_widen_ok(expect_kind, got_kind)) {
+          /* wave314: ternary arms f32 under f64 expect. */
+          resolved = return_type_ref;
         } else if (expect_kind == ord_u8 && got_kind == ord_i32) {
           /* See implementation. */
           then_k = pipeline_expr_kind_ord_at(arena, then_ref);
@@ -5247,6 +5287,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
         got_kind = pipeline_type_kind_ord_at(arena, resolved);
         if (typeck_integer_widen_ok_refs(arena, return_type_ref, resolved)) {
+          resolved = return_type_ref;
+        } else if (typeck_float_widen_ok(expect_kind, got_kind)) {
+          /* wave314: if-expr result f32 under f64 expect. */
           resolved = return_type_ref;
         }
       }
@@ -5463,6 +5506,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       let rt_kind_assign: i32 = pipeline_type_kind_ord_at(arena, rt);
       /* wave313: refs path so NAMED i8/i16/u16 assign widen is accepted. */
       if (typeck_integer_widen_ok_refs(arena, lt, rt)) {
+        pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+        rt = lt;
+      } else if (typeck_float_widen_ok(lt_kind, rt_kind_assign)) {
+        /* wave314: f32→f64 assign widen. */
         pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         rt = lt;
       }
@@ -5694,7 +5741,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         if (!ast.ref_is_null(got) && got > 0 && !ast.ref_is_null(return_type_ref)) {
           expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
           got_kind = pipeline_type_kind_ord_at(arena, got);
-          if (typeck_integer_widen_ok_refs(arena, return_type_ref, got)) {
+          if (typeck_integer_widen_ok_refs(arena, return_type_ref, got) ||
+              typeck_float_widen_ok(expect_kind, got_kind)) {
             pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
             if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0) {
               return - 1;
@@ -7161,6 +7209,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
         if (typeck_integer_widen_ok_refs(arena, ld_tr, init_ty)) {
           pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr);
           init_ty = ld_tr;
+        } else {
+          /* wave314: f32→f64 let-init widen. */
+          let decl_k: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
+          let init_k: i32 = pipeline_type_kind_ord_at(arena, init_ty);
+          if (typeck_float_widen_ok(decl_k, init_k)) {
+            pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr);
+            init_ty = ld_tr;
+          }
         }
       }
       if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)
@@ -7328,7 +7384,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
       if (!ast.ref_is_null(fin_got) && fin_got > 0) {
         ek_fin = pipeline_type_kind_ord_at(arena, return_type_ref);
         gk_fin = pipeline_type_kind_ord_at(arena, fin_got);
-        if (typeck_integer_widen_ok_refs(arena, return_type_ref, fin_got)) {
+        if (typeck_integer_widen_ok_refs(arena, return_type_ref, fin_got) ||
+            typeck_float_widen_ok(ek_fin, gk_fin)) {
           pipeline_expr_set_resolved_type_ref(arena, fin_op, return_type_ref);
           return 0;
         }
