@@ -81,12 +81,12 @@ void labi_std_append_op_std(const char *link_argv0, const char *user_o, const ch
 /* G-02f-68 / wave216: pure thin public (L1) + Cap residual _impl always. */
 int xlang_waitpid_retry(pid_t pid, int *status_out);
 int xlang_waitpid_retry_impl(pid_t pid, int *status_out);
-/* Cap residual always (wave215): skip_missing + multi-slot realpath pool body. */
+/* Cap residual always (wave215/255): multi-slot realpath pool body only. */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
 int xlang_asm_user_o_has_undef_syms(const char *o_path);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
-/* Cap residual (wave179): skip_missing + realpath multi-slot pool for pure push_existing. */
+/* wave215/255 pure public: null/empty + skip_missing + Cap residual pool. */
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 /* wave179: pure orch in L6 (cold twin include / hybrid FROM_X pure .x). */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
@@ -2455,39 +2455,39 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 
 
 /**
- * Cap residual (wave179 / wave215): resolve path body for invoke_cc argv push.
- * skip_missing then (POSIX) realpath into multi-slot static pool so multiple
- * pushes keep durable pointers (single static slot would overwrite earlier argv).
- * Windows: skip realpath; return skip_missing path as-is.
- * Pure orch (wave215 labi_invoke_ld_list L6) owns null/empty gates; _impl is always mega.
+ * Cap residual (wave179 / wave215 / wave255): multi-slot realpath pool only.
+ * Pure orch (wave215/255 labi_invoke_ld_list L6) owns null/empty + skip_missing;
+ * _impl is always mega (static pool + host realpath).
+ * (POSIX) realpath into multi-slot static pool so multiple pushes keep durable
+ * pointers (single static slot would overwrite earlier argv).
+ * Windows: skip realpath; return validated path as-is.
  * Pure push_existing owns capacity/dedup/append and calls the public resolve face.
+ * Why (wave255): soft residual skip_missing still lived inside always-mega _impl.
  * PLATFORM: SHARED residual / POSIX realpath pool / WINDOWS no realpath.
  */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path) {
     static char abs_pool[INVOKE_CC_ABS_POOL_SZ][PATH_MAX];
     static int abs_pool_i;
-    const char *use;
     if (!path || !path[0])
-        return NULL;
-    use = asm_link_obj_skip_missing(path);
-    if (!use)
         return NULL;
 #if !defined(_WIN32) && !defined(_WIN64)
     {
         char *slot = abs_pool[abs_pool_i % INVOKE_CC_ABS_POOL_SZ];
         abs_pool_i++;
-        if (realpath(use, slot) != NULL)
-            use = slot;
+        if (realpath(path, slot) != NULL)
+            return slot;
     }
 #endif
-    return use;
+    /* Windows or realpath fail: return caller's durable path pointer as-is. */
+    return path;
 }
 
-/* wave215: invoke_cc_argv_resolve_existing_path pure orch lives in labi_invoke_ld_list.x
+/* wave215/255: invoke_cc_argv_resolve_existing_path pure orch lives in labi_invoke_ld_list.x
  * (hybrid L6); mega cold twin via #include labi_invoke_ld_list.from_x.c under
- * #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X. Pure: null/empty gates; Cap residual _impl
- * (skip+pool) always mega above. Why: hybrid still had resolve_existing body always
- * mega C (gates+skip+pool). PLATFORM: SHARED orch. */
+ * #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X. Pure: null/empty + skip_missing; Cap residual
+ * _impl (pool only) always mega above. Why wave215: hybrid still had resolve_existing
+ * body always mega C (gates+skip+pool). Why wave255: skip_missing moved to pure.
+ * PLATFORM: SHARED orch. */
 #ifdef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 #endif
@@ -2769,7 +2769,7 @@ int link_abi_host_is_posix_aarch64(void) {
  * (needs + ensure + path Cap + pure push_existing / Cap residual resolve for glue).
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for invoke_cc compress.
- * Cap residual stays: invoke_cc_argv_resolve_existing_path (skip+realpath pool; wave179).
+ * Cap residual stays: invoke_cc_argv_resolve_existing_path (pure skip + pool residual; wave179/255).
  * PLATFORM: SHARED. */
 
 /* wave156: xlang_asm_ld_append_mach_tail_libs_impl pure orch lives in labi_invoke_ld_list

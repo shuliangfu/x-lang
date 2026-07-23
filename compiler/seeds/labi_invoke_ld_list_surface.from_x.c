@@ -18,7 +18,8 @@
  *   + wave194 labi_std_append_task_special pure orch
  *   + wave195 labi_std_append_op_std pure orch
  *   + wave196 xlang_asm_ld_append_std_objs_for_user plan shell pure orch)
- * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path_impl pool;
+ * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path_impl pool only
+ *   (wave255 pure owns skip_missing);
  *   exports_marker / realpath_cap / xlang_rel_o_path_from_argv0; spawn/ld/cc IO mega;
  *   link_abi_getenv / link_abi_system / path_executable / skip_missing for ensure_std_net + formal_std_make
  *     (wave187/188 Cap residual; wave221 X_OK pure; wave222 getenv pure; wave224 system pure);
@@ -42,7 +43,8 @@ extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
 extern int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o);
 extern int32_t xlang_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
 extern uint8_t * xlang_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
-/* Cap residual (wave215): skip_missing + multi-slot realpath pool body; pure owns null/empty gates. */
+/* Cap residual (wave215/255): multi-slot realpath pool body only;
+ * pure owns null/empty + skip_missing (wave255). */
 extern uint8_t * invoke_cc_argv_resolve_existing_path_impl(uint8_t * path);
 extern uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
@@ -119,16 +121,22 @@ extern int32_t labi_std_fk_user_needs(uint8_t * user_o, int32_t fk);
 extern int32_t labi_std_plan_count(void);
 extern int32_t labi_std_plan_step_at(int32_t i, int32_t * op_out, size_t * rel_out, int32_t * flag_kind_out);
 
-/* wave215: invoke_cc_argv_resolve_existing_path pure thin orch (surface pin ≡ .x). */
+/* wave215/255: invoke_cc_argv_resolve_existing_path pure thin orch (surface pin ≡ .x).
+ * Pure: null/empty + skip_missing; Cap residual _impl = multi-slot realpath pool only. */
 uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path) {
+  uint8_t * use;
   if ((path ==((uint8_t *)(0)))) {
     return ((uint8_t *)(0));
   }
   if (((path)[0] ==0)) {
     return ((uint8_t *)(0));
   }
+  use = asm_link_obj_skip_missing(path);
+  if ((use ==((uint8_t *)(0)))) {
+    return ((uint8_t *)(0));
+  }
   {
-    return invoke_cc_argv_resolve_existing_path_impl(path);
+    return invoke_cc_argv_resolve_existing_path_impl(use);
   }
   return ((uint8_t *)(0));
 }

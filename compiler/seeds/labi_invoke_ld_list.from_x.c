@@ -19,8 +19,8 @@
  *   invoke_cc_append_net_tls_ld (wave158 pure orch; Cap residual exports_marker +
  *     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
  *   invoke_cc_argv_push_existing (wave179 pure orch; Cap residual resolve pool)
- *   invoke_cc_argv_resolve_existing_path (wave215 pure thin; Cap residual
- *     resolve_existing_path_impl = skip_missing + multi-slot realpath pool)
+ *   invoke_cc_argv_resolve_existing_path (wave215/255 pure thin; Cap residual
+ *     resolve_existing_path_impl = multi-slot realpath pool only; pure owns skip_missing)
  *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual link_abi_getenv+link_abi_system+
  *     realpath_cap+exports_marker; shell make net-o-* Cap residual; wave222 getenv pure; wave224 system pure)
  *   xlang_ensure_formal_std_make_o (wave188 pure orch; Cap residual link_abi_getenv+
@@ -40,7 +40,8 @@
  *   xlang_asm_ld_append_std_objs_for_user (wave196 pure orch; plan shell init+loop+
  *     dispatch wave190–195 leaves + process_argv complement)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
- *   invoke_cc_argv_resolve_existing_path_impl (skip+realpath pool; wave215 pure owns public gates);
+ *   invoke_cc_argv_resolve_existing_path_impl (realpath pool only; wave215/255 pure owns
+ *     null/empty + skip_missing);
  *   exports_marker / realpath_cap / xlang_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
  *   link_abi_getenv / link_abi_system / path_executable for ensure_std_net + formal_std_make
@@ -69,10 +70,12 @@ int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
 int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0);
-/* Cap residual always (wave215): skip_missing + multi-slot realpath pool body (mega). */
+/* Cap residual always (wave215/255): multi-slot realpath pool body only (mega). */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
-/* wave215 pure thin public (cold twin under #ifndef; hybrid FROM_X → L6 pure .x). */
+/* wave215/255 pure thin public (cold twin under #ifndef; hybrid FROM_X → L6 pure .x). */
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
+/* Peer pure path_io: skip_missing used by cold twin resolve orch (wave255). */
+const char *asm_link_obj_skip_missing(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
 const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
@@ -83,7 +86,7 @@ const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
 const char *link_abi_getenv(const char *name);
 int link_abi_system(const char *cmd);
 int link_abi_path_executable(const char *path);
-const char *asm_link_obj_skip_missing(const char *path);
+/* asm_link_obj_skip_missing declared above resolve pure (wave255). */
 /* Peer pure / Cap residual (wave191 formal companions + wave192 OP_GLUE_* leaves). */
 const char *xlang_repo_root_from_argv0(const char *argv0);
 int xlang_ensure_runtime_env_os_o(const char *argv0);
@@ -147,17 +150,22 @@ const char *xlang_runtime_process_argv_o_path(const char *argv0);
 
 #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 
-/* wave215: pure thin invoke_cc_argv_resolve_existing_path (cold twin ≡ .x).
- * Cap residual _impl = skip_missing + multi-slot realpath pool (always mega).
+/* wave215/255: pure thin invoke_cc_argv_resolve_existing_path (cold twin ≡ .x).
+ * Pure: null/empty + asm_link_obj_skip_missing; Cap residual _impl = multi-slot
+ * realpath pool only (always mega). wave255 moved skip_missing out of _impl.
  * PLATFORM: SHARED — included into mega cold path under same ifndef; hybrid FROM_X
  * uses L6 pure .x public and skips this body.
  */
 const char *invoke_cc_argv_resolve_existing_path(const char *path) {
+  const char *use;
   if (path == NULL)
     return NULL;
   if (path[0] == 0)
     return NULL;
-  return invoke_cc_argv_resolve_existing_path_impl(path);
+  use = asm_link_obj_skip_missing(path);
+  if (!use)
+    return NULL;
+  return invoke_cc_argv_resolve_existing_path_impl(use);
 }
 
 /* wave179: pure orch invoke_cc_argv_push_existing (cold twin ≡ .x).

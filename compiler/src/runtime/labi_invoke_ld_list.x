@@ -29,8 +29,8 @@
 //   - invoke_cc_append_net_tls_ld (wave158; pure orch; Cap residual exports_marker +
 //     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
 //   - invoke_cc_argv_push_existing (wave179; pure gates/dedup/append; Cap residual resolve pool)
-//   - invoke_cc_argv_resolve_existing_path (wave215; pure null/empty gates; Cap residual
-//     resolve_existing_path_impl = skip_missing + multi-slot realpath pool)
+//   - invoke_cc_argv_resolve_existing_path (wave215/255; pure null/empty + skip_missing;
+//     Cap residual resolve_existing_path_impl = multi-slot realpath pool only)
 //   - ensure_std_net_o_auto_tls (wave187; pure mode/path orch; Cap residual
 //     link_abi_getenv+link_abi_system+realpath_cap+exports_marker; wave222/224 pure faces)
 //   - xlang_ensure_formal_std_make_o (wave188; pure path/XLANG/make-cmd orch; Cap residual
@@ -52,8 +52,8 @@
 //     plan_count/step_at loop + dispatch to wave190–195 leaf pure + process_argv complement;
 //     Cap residual stays inside leaf peers / plan table L8)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
-//   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path_impl (skip+realpath pool;
-//   wave215 pure owns public resolve null/empty gates);
+//   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path_impl (realpath pool only;
+//   wave215/255 pure owns null/empty + skip_missing);
 //   exports_marker / realpath_cap / xlang_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
 //   link_abi_getenv / link_abi_system / path_executable for ensure_std_net + formal_std_make
@@ -85,9 +85,13 @@ export extern "C" function link_abi_user_o_needs_compress_libs(user_o: *u8): i32
 export extern "C" function xlang_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
 export extern "C" function xlang_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
 
-// Cap residual (wave179 / wave215): skip_missing + POSIX realpath multi-slot pool body.
-// Pure orch owns null/empty gates; _impl is always mega (static pool + host realpath).
-// PLATFORM: SHARED residual; Windows skips realpath (returns skip_missing path).
+// Peer pure (labi_path_io L3): regular-file existence gate before resolve pool residual.
+// Declared early so wave255 resolve pure orch can call it above other ensure peers.
+export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
+
+// Cap residual (wave179 / wave215 / wave255): multi-slot POSIX realpath pool body only.
+// Pure orch owns null/empty + skip_missing; _impl is always mega (static pool + host realpath).
+// PLATFORM: SHARED residual; Windows skips realpath (returns validated path as-is).
 export extern "C" function invoke_cc_argv_resolve_existing_path_impl(path: *u8): *u8;
 
 /**
@@ -96,22 +100,34 @@ export extern "C" function invoke_cc_argv_resolve_existing_path_impl(path: *u8):
  * call this public face (G.7 single authority).
  * @param path *u8 — candidate path; null/empty rejected at pure gate
  * @return *u8 — durable path pointer (pool slot or skip_missing path), or null if missing
- * Pure orch: ≡ mega null/empty gates before Cap residual skip+pool (wave215).
- * Cap residual: invoke_cc_argv_resolve_existing_path_impl (skip_missing + multi-slot realpath).
+ * Pure orch (wave215/255): null/empty gates + peer pure asm_link_obj_skip_missing
+ *   before Cap residual multi-slot realpath pool.
+ * Cap residual: invoke_cc_argv_resolve_existing_path_impl (pool + host realpath only;
+ *   wave255 moved skip_missing out of _impl into pure).
  * Why (wave215): hybrid still had resolve_existing body always mega C (gates+skip+pool).
+ * Why (wave255): soft residual skip_missing still lived inside always-mega _impl.
  * PLATFORM: SHARED orch; residual realpath pool is host (POSIX; Windows no realpath).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
 #[no_mangle]
 export function invoke_cc_argv_resolve_existing_path(path: *u8): *u8 {
+  let use: *u8 = 0 as *u8;
   if (path == 0 as *u8) {
     return 0 as *u8;
   }
   if (path[0] == 0) {
     return 0 as *u8;
   }
+  // Peer pure (labi_path_io L3): skip missing / non-regular before pool residual.
+  // export extern "C" peer requires unsafe (same as ensure formal short-circuit).
   unsafe {
-    return invoke_cc_argv_resolve_existing_path_impl(path);
+    use = asm_link_obj_skip_missing(path);
+  }
+  if (use == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return invoke_cc_argv_resolve_existing_path_impl(use);
   }
   return 0 as *u8;
 }
@@ -137,8 +153,7 @@ export extern "C" function strcmp(a: *u8, b: *u8): i32;
 // wave221: product host binary X_OK probe is public pure thin link_abi_path_executable
 // (labi_path_io L3 hybrid); Cap residual access X_OK stays mega as _impl.
 export extern "C" function link_abi_path_executable(path: *u8): i32;
-// Cap residual (wave188): regular-file existence gate (stat wrapper; same as ensure leaves).
-export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
+// asm_link_obj_skip_missing declared above resolve pure (wave255); ensure leaves reuse it.
 
 // Peer pure (path_pure L0 wave162): repo root from argv0 (strip compiler-dir / process.o walk).
 // wave191 formal ensure orch uses this to pass repo_root into xlang_ensure_formal_std_make_o.
@@ -233,15 +248,15 @@ export extern "C" function labi_std_plan_step_at(i: i32, op_out: *i32, rel_out: 
 
 /**
  * Push an existing .o path onto invoke_cc argv when the file is present.
- * Pure orch: null/capacity gates + Cap residual resolve (skip_missing + realpath pool)
+ * Pure orch: null/capacity gates + Cap residual resolve (public pure skip + pool residual)
  * + pure cstr-eq dedup over argv[0..*ia) + pure append of the durable path pointer.
  * @param argv **u8 — cc linker argv table (char**); null → 0
  * @param ia *i32 — in/out argv length; null → 0
  * @param max_ia i32 — argv capacity; need *ia < max_ia - 1 (room for NUL terminator)
  * @param path *u8 — candidate .o path; null/empty → 0
  * @return i32 — 1 if appended, 0 if skipped (missing / capacity / duplicate)
- * Cap residual: invoke_cc_argv_resolve_existing_path public → _impl (wave215 pure thin gates;
- *   residual skip + multi-slot realpath pool stays mega always).
+ * Cap residual: invoke_cc_argv_resolve_existing_path public → _impl (wave215/255 pure
+ *   null/empty + skip_missing; residual multi-slot realpath pool stays mega always).
  * Why (wave179): hybrid still had always-mega C body for push_existing (pool + dedup + append).
  * Dedup matches mega strcmp on the resolved-or-original use pointer (EXC-002 ld duplicate).
  * Note: null-check argv via cast to *u8 (do not write argv == 0 as **u8).
@@ -270,7 +285,7 @@ export function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, 
   if (cur >= max_ia - 1) {
     return 0;
   }
-  // Cap residual: skip missing + realpath into multi-slot pool (durable ptr for argv).
+  // Public resolve: pure skip_missing + Cap residual multi-slot realpath pool (wave215/255).
   let use: *u8 = 0 as *u8;
   unsafe {
     use = invoke_cc_argv_resolve_existing_path(path);
