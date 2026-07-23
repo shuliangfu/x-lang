@@ -18,6 +18,7 @@
 
 export extern "C" function main_entry(argc: i32, argv: *u8): i32;
 export extern "C" function shux_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
+export extern "C" function shux_link_obj_has_defined_sym_impl(o_path: *u8, sym: *u8): i32;
 export extern "C" function getenv(name: *u8): *u8;
 export extern "C" function shux_host_is_linux(): i32;
 export extern "C" function shux_host_is_apple_aarch64(): i32;
@@ -2669,13 +2670,37 @@ export function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
   return 0;
 }
 
-/* See implementation. */
-
-
-
-
-
-
+/**
+ * Return 1 iff .o defines (T/t) the given exact symbol; null/empty → 0 without residual.
+ * @param o_path *u8 — path to .o; null/empty rejected at pure gate
+ * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
+ * @return i32 — 1 if defined hit, else 0
+ * Authority (G.7 / wave213): product pure orch is labi_ondemand_list.x
+ * `shux_link_obj_has_defined_sym` (same gates + Cap residual _impl). This mega .x twin
+ * stays isomorphic for logical-source fold; product hybrid uses L8b pure.
+ * Cap residual: shux_link_obj_has_defined_sym_impl (nm T/t + optional leading _).
+ * PLATFORM: SHARED orch; residual nm/popen is host.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32 {
+  if (o_path == 0 as *u8) {
+    return 0;
+  }
+  if (o_path[0] == 0) {
+    return 0;
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym[0] == 0) {
+    return 0;
+  }
+  unsafe {
+    return shux_link_obj_has_defined_sym_impl(o_path, sym);
+  }
+  return 0;
+}
 
 #[no_mangle]
 export function link_diag_tool_status(tool: *u8, status: i32): void {

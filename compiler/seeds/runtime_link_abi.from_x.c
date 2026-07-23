@@ -3649,10 +3649,16 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym);
 #endif
 
 /**
- * 扫描 .o 是否已定义（T/t）给定符号。用于 co-emit 后避免再链 mem.o。
- * Darwin: `nm` → `0000 T _sym`；ELF: `0000 T sym`。
+ * Cap residual (wave213): host nm/popen defined (T/t) probe body.
+ * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
+ * Params: o_path / sym - caller pure already rejected null/empty (defense in depth here too).
+ * Returns: 1 if nm shows T/t definition for bare sym (optional leading underscore), else 0.
+ *
+ * Why: co-emit after user.o may already define core_mem_* or std_heap_* strongs;
+ * skip hard-link mem.o/heap.o. Darwin nm: "0000 T _sym"; ELF: "0000 T sym".
+ * PLATFORM: SHARED residual; host nm/popen.
  */
-int shux_link_obj_has_defined_sym(const char *o_path, const char *sym) {
+int shux_link_obj_has_defined_sym_impl(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
     char line[512];
@@ -3669,7 +3675,7 @@ int shux_link_obj_has_defined_sym(const char *o_path, const char *sym) {
         char *p = line;
         char *type_p;
         size_t rest;
-        /* 跳过地址列 */
+        /* Skip address column (hex digits / spaces). */
         while (*p == ' ' || *p == '\t' || (*p >= '0' && *p <= '9') ||
                (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))
             p++;
@@ -3698,8 +3704,18 @@ int shux_link_obj_has_defined_sym(const char *o_path, const char *sym) {
     return 0;
 }
 
+/* wave213: shux_link_obj_has_defined_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
+ * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
+ * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
+ * Pure: null/empty gates; Cap residual shux_link_obj_has_defined_sym_impl (nm T/t) always mega.
+ * Why: hybrid still had has_defined_sym body always mega C (gates+nm).
+ * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
+#ifdef SHUX_LABI_ONDEMAND_LIST_FROM_X
+int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
+#endif
+
 /* wave140: link_abi_user_o_provides_core_mem pure orch lives in labi_ondemand_list
- * (2 defined-sym needles + pure scan; Cap residual has_defined_sym). Was mega body.
+ * (2 defined-sym needles + pure scan; Cap residual has_defined_sym pure thin wave213; _impl Cap).
  * Cold twin under #ifndef ONDEMAND_LIST_FROM_X; hybrid L8b pure .x.
  * Why: co-emit core_mem_* strong defs in user.o; hard-link mem.o → duplicate.
  * PLATFORM: SHARED — G.7 complete product surface; dual-end L2.

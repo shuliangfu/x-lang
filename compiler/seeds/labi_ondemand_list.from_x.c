@@ -32,10 +32,10 @@
  *   + wave197 shux_asm_ld_append_on_demand_user_objs pure orch
  *     (product on_demand shell; Cap residual ensure/skip/path + freestanding_get + undef_sym)
  * Cap residual：ensure/skip/path Cap inside shell peers；
- *   has_defined_sym 探针仍 mega；
  *   wave210：has_undef_sym pure thin orch（null/empty）；_impl = nm/popen 常驻 mega；
  *   wave211：exports_marker pure thin orch（null/empty）；_impl = nm/popen strstr 常驻 mega；
- *   wave212：needs_undef_sym pure thin orch（null/empty）；_impl = nm/popen(+ELF) 常驻 mega。
+ *   wave212：needs_undef_sym pure thin orch（null/empty）；_impl = nm/popen(+ELF) 常驻 mega；
+ *   wave213：has_defined_sym pure thin orch（null/empty）；_impl = nm/popen T/t 常驻 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -49,8 +49,8 @@
 
 /* Cap residual (wave212): nm/popen(+ELF) UNDEF body; pure owns null/empty gates. */
 int shux_link_obj_needs_undef_sym_impl(const char *user_o, const char *sym);
-/* Cap residual (mega always): nm defined T/t probe used by pure provides orch. */
-int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
+/* Cap residual (wave213): nm/popen defined T/t body; pure owns null/empty gates. */
+int shux_link_obj_has_defined_sym_impl(const char *o_path, const char *sym);
 /* Cap residual (wave211): nm/popen marker body; pure owns null/empty gates. */
 int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker);
 /* Cap residual (wave210): nm/popen UNDEF body; pure owns null/empty gates. */
@@ -101,6 +101,14 @@ int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym) {
   if (!user_o || !user_o[0] || !sym || !sym[0])
     return 0;
   return shux_link_obj_needs_undef_sym_impl(user_o, sym);
+}
+
+/* wave213: has_defined_sym pure orch cold twin (null/empty gates + Cap residual nm T/t).
+ * PLATFORM: SHARED orch; residual shux_link_obj_has_defined_sym_impl always mega. */
+int shux_link_obj_has_defined_sym(const char *o_path, const char *sym) {
+  if (!o_path || !o_path[0] || !sym || !sym[0])
+    return 0;
+  return shux_link_obj_has_defined_sym_impl(o_path, sym);
 }
 
 /* wave211: exports_marker pure orch cold twin (null/empty gates + Cap residual nm).

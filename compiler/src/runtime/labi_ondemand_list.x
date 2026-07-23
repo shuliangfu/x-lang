@@ -42,9 +42,11 @@
 //     (null/empty gates; Cap residual link_abi_obj_exports_marker_impl = nm/popen strstr).
 //   wave212 shux_link_obj_needs_undef_sym pure thin orch
 //     (null/empty gates; Cap residual shux_link_obj_needs_undef_sym_impl = nm/popen + ELF).
+//   wave213 shux_link_obj_has_defined_sym pure thin orch
+//     (null/empty gates; Cap residual shux_link_obj_has_defined_sym_impl = nm/popen T/t).
 // Cap residual: ensure/skip/path Cap inside shell peers; needs_undef_impl /
-//   has_undef_impl / exports_marker_impl / has_defined Cap
-//   (wave210–212 pure own has_undef + exports_marker + needs_undef public gates).
+//   has_undef_impl / exports_marker_impl / has_defined_impl Cap
+//   (wave210–213 pure own has_undef + exports_marker + needs_undef + has_defined public gates).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
@@ -103,13 +105,46 @@ export function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
 export extern "C" function link_abi_ld_argv_entry_is_obj(s: *u8): i32;
 
 /**
- * Cap residual: nm defined (T/t) probe used by pure provides orch (mega always).
- * @param o_path *u8 — path to .o; null/empty → 0
- * @param sym *u8 — exact symbol name (no leading underscore); null/empty → 0
- * @return i32 — 1 if nm shows T/t definition for sym (Darwin underscore stripped)
- * PLATFORM: SHARED — always mega C (popen/nm Cap); wave140 user_o_provides_* orch
+ * Cap residual (wave213): host nm/popen defined (T/t) probe body.
+ * Pure orch owns null/empty gates; _impl is always mega (nm line parse; strip optional _).
+ * @param o_path *u8 — path to .o (caller already rejected null/empty)
+ * @param sym *u8 — exact bare symbol name, no leading underscore (caller rejected null/empty)
+ * @return i32 — 1 if nm shows T/t definition for sym, else 0
+ * PLATFORM: SHARED residual; host nm/popen (POSIX; Windows hybrid via tools)
  */
-export extern "C" function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
+export extern "C" function shux_link_obj_has_defined_sym_impl(o_path: *u8, sym: *u8): i32;
+
+/**
+ * Return 1 iff .o defines (T/t) the given exact symbol; null/empty → 0 without residual.
+ * @param o_path *u8 — path to .o; null/empty rejected at pure gate
+ * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
+ * @return i32 — 1 if defined hit, else 0
+ * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (wave213).
+ * Cap residual: shux_link_obj_has_defined_sym_impl (`nm` + skip addr + T/t + optional _).
+ * Why (wave213): hybrid still had has_defined_sym body always mega C (gates+nm).
+ * Used by wave140 user_o_provides_* orch and wave170 heap_user ensure stub reject.
+ * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
+ */
+#[no_mangle]
+export function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32 {
+  if (o_path == 0 as *u8) {
+    return 0;
+  }
+  if (o_path[0] == 0) {
+    return 0;
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym[0] == 0) {
+    return 0;
+  }
+  unsafe {
+    return shux_link_obj_has_defined_sym_impl(o_path, sym);
+  }
+  return 0;
+}
 
 /**
  * Cap residual (wave211): host nm/popen export-marker probe body.
