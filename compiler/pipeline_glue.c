@@ -17131,9 +17131,30 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
         return -1;
       /* wave314: f32 init → f64 let slot needs cvtss2sd before store. */
       {
+        int32_t dty = type_ref > 0 ? type_ref : pipeline_block_let_type_ref(arena, block_ref, i);
         int32_t src_ty = glue_float_promote_src_ty_ref_c(arena, init_ref);
-        if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, type_ref, src_ty, ta) != 0)
+        int32_t sk;
+        int32_t dk;
+        /* Prefer type from this block's let table for VAR init (scope globals may lag). */
+        if (pipeline_expr_kind_ord_at(arena, init_ref) == GLUE_EXPR_KIND_VAR) {
+          uint8_t vn[64];
+          int32_t vl = pipeline_expr_var_name_len(arena, init_ref);
+          int32_t bt = 0;
+          if (vl > 0 && vl <= 63) {
+            pipeline_expr_var_name_into(arena, init_ref, vn);
+            bt = pipeline_block_resolve_var_type_ref(arena, block_ref, vn, vl);
+            if (bt > 0)
+              src_ty = bt;
+          }
+        }
+        sk = (src_ty > 0) ? pipeline_type_kind_ord_at(arena, src_ty) : -1;
+        dk = (dty > 0) ? pipeline_type_kind_ord_at(arena, dty) : -1;
+        if (sk == GLUE_TYPE_KIND_F32_ORD && dk == GLUE_TYPE_KIND_F64_ORD) {
+          if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+            return -1;
+        } else if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, dty, src_ty, ta) != 0) {
           return -1;
+        }
       }
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot), ta) != 0)
         return -1;
@@ -20483,8 +20504,27 @@ static int32_t glue_emit_block_stmt_order_let_const_elf(struct ast_ASTArena *are
           } else {
             /* wave314: f32→f64 let-init promote before 64-bit store. */
             int32_t src_ty = glue_float_promote_src_ty_ref_c(arena, init_ref);
-            if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, let_ty, src_ty, ta) != 0)
+            int32_t sk;
+            int32_t dk;
+            if (pipeline_expr_kind_ord_at(arena, init_ref) == GLUE_EXPR_KIND_VAR) {
+              uint8_t vn[64];
+              int32_t vl = pipeline_expr_var_name_len(arena, init_ref);
+              int32_t bt = 0;
+              if (vl > 0 && vl <= 63) {
+                pipeline_expr_var_name_into(arena, init_ref, vn);
+                bt = pipeline_block_resolve_var_type_ref(arena, block_ref, vn, vl);
+                if (bt > 0)
+                  src_ty = bt;
+              }
+            }
+            sk = (src_ty > 0) ? pipeline_type_kind_ord_at(arena, src_ty) : -1;
+            dk = (let_ty > 0) ? pipeline_type_kind_ord_at(arena, let_ty) : -1;
+            if (sk == GLUE_TYPE_KIND_F32_ORD && dk == GLUE_TYPE_KIND_F64_ORD) {
+              if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+                return -1;
+            } else if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, let_ty, src_ty, ta) != 0) {
               return -1;
+            }
             if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty,
                                                      backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref) != 0)
               return -1;
