@@ -37,7 +37,7 @@ MODULES=(
   "token|src/lexer/token.x|token_gen.c||"
   # lsp_diag_pipeline_sizes：三枚 sizeof 门闩；产品 sizes_nostub PREFER_X_O；本条锁 nm / 扩 N
   "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
-  # labi_path_pure R2 full：.x 吃满公共门闩 + count（wave116 try_under + wave146–151 + wave160 compiler_o_path_copy + wave162 repo_root + wave163–166 path ladders + wave180 scheduler_o_for_task_link + wave181 bootstrap_nostdlib_stubs_o_path + wave183 29× thin runtime_*_o_path BSS + wave184 empty_cstr/std_io/compress/effective_link + wave185 rel_o_path） + wave189 set/clear user_o_files + wave253/258 user_env path + push_minimal companion；
+  # labi_path_pure R2 full：.x 吃满公共门闩 + count（wave116 try_under + wave146–151 + wave160 compiler_o_path_copy + wave162 repo_root + wave163–166 path ladders + wave180 scheduler_o_for_task_link + wave181 bootstrap_nostdlib_stubs_o_path + wave183 29× thin runtime_*_o_path BSS + wave184 empty_cstr/std_io/compress/effective_link + wave185 rel_o_path） + wave189 set/clear user_o_files + wave253/258 user_env path + push_minimal companion + wave262 private helper short names (no_mangle)；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径；bank_push/rel/skip Cap；resolve Cap（wave160/184）；resolve+rel Cap（wave162）；realpath+getcwd+skip Cap（wave163）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_pure.from_x.c 全 C 体
   "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure_surface.from_x.c||"
@@ -68,6 +68,7 @@ MODULES=(
   # + wave195 labi_std_append_op_std pure orch（fk→flag_out map + fk0/fk1–13 gate + formal ensure + push_obj；append_std OP_STD）；
   # + wave196 xlang_asm_ld_append_std_objs_for_user plan shell pure orch（flags/local_have init + plan loop + dispatch wave190–195 leaves + process_argv complement）；
   # + wave215/255 invoke_cc_argv_resolve_existing_path pure（null/empty+skip_missing；_impl realpath pool only）；
+  # + wave262 private helper short names（labi_std_glue_push_if / op_std_flag_out / glue_have_for_op / need_process_argv no_mangle）；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + resolve_existing_path_impl (pool only wave255) + exports_marker/realpath/rel_o + spawn/ld/cc IO mega + getenv/system shell make
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"

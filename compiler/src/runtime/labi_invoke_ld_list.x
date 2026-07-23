@@ -2302,7 +2302,9 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
  * @param la *i32 — in/out argv length
  * @param max_la i32 — argv capacity
  * PLATFORM: SHARED — pure thin; used only by labi_std_append_glue_for_op.
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_std_glue_push_if(have: i32, er: i32, primary: *u8, link_argv0: *u8, glue_rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32): void {
   if (have == 0) {
     return;
@@ -2969,7 +2971,9 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
  * Why (wave195): hybrid still had fk→flag_out pointer map always-mega inline.
  * PLATFORM: SHARED pure; dual-end L2.
  * Track-L: not exported (internal helper for labi_std_append_op_std only).
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_std_op_std_flag_out(fk: i32, flags: *u8, local_have: *i32): *i32 {
   // Locals bank (process/crypto/log/atomic/backtrace/http).
   if (local_have != 0 as *i32) {
@@ -3126,7 +3130,9 @@ export function labi_std_append_op_std(link_argv0: *u8, user_o: *u8, rel: *u8, f
  *   18 sqlite→f[8]; 19 dynlib→f[7]; 20 http→local[5].
  * PLATFORM: SHARED pure; dual-end L2.
  * Track-L: not exported (internal helper for plan shell only).
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_std_glue_have_for_op(op: i32, flags: *u8, local_have: *i32): i32 {
   if (local_have != 0 as *i32) {
     if (op == 12) {
@@ -3178,7 +3184,9 @@ function labi_std_glue_have_for_op(op: i32, flags: *u8, local_have: *i32): i32 {
  * @return i32 — 1 when process_argv should be ensured+pushed
  * PLATFORM: SHARED pure; dual-end L2.
  * Track-L: not exported (internal helper for plan shell only).
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_std_need_process_argv(flags: *u8, local_have: *i32): i32 {
   if (local_have == 0 as *i32) {
     return 0;

@@ -2743,7 +2743,9 @@ export function labi_path_pure_count(): i32 {
  * @param b *u8 — right; null → 0
  * @return i32 — 1 equal, 0 not
  * PLATFORM: SHARED — pure strcmp substitute for option name match.
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_user_extra_cstr_eq(a: *u8, b: *u8): i32 {
   if (a == 0 as *u8) {
     return 0;
@@ -2771,7 +2773,9 @@ function labi_user_extra_cstr_eq(a: *u8, b: *u8): i32 {
  * @param a *u8 — path; null/empty → 0
  * @return i32 — 1 if suffix .o
  * PLATFORM: SHARED — pure; ≡ mega len>=2 && a[len-2]=='.' && a[len-1]=='o'
+ * Track-L: #[no_mangle] keeps short surface name (wave262; not module_prefix double name).
  */
+#[no_mangle]
 function labi_user_extra_ends_with_dot_o(a: *u8): i32 {
   if (a == 0 as *u8) {
     return 0;

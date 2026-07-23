@@ -1,7 +1,8 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (wave183 29× thin + wave184 empty/effective + wave185 rel_o + wave189 set/clear user_o + wave253/258 user_env path + push_minimal companion)
+ * Prove: full.x vs this seed → nm IDENTICAL (wave183 29× thin + wave184 empty/effective + wave185 rel_o + wave189 set/clear user_o + wave253/258 user_env path + push_minimal companion
+ *   + wave262 private helper short names: labi_user_extra_cstr_eq / ends_with_dot_o)
  * Cap residual: Windows #if path sep mega cold; link_abi_getenv Cap (wave223 G.7); skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
@@ -1716,7 +1717,7 @@ int32_t labi_path_pure_count(void) {
 }
 
 /* wave189: set/clear user_o_files pure orch (≡ .x -E polish) */
-int32_t labi_path_pure_labi_user_extra_cstr_eq(uint8_t * a, uint8_t * b) {
+int32_t labi_user_extra_cstr_eq(uint8_t * a, uint8_t * b) {
   if ((a ==0)) {
     return 0;
   }
@@ -1737,7 +1738,7 @@ int32_t labi_path_pure_labi_user_extra_cstr_eq(uint8_t * a, uint8_t * b) {
   }
   return 0;
 }
-int32_t labi_path_pure_labi_user_extra_ends_with_dot_o(uint8_t * a) {
+int32_t labi_user_extra_ends_with_dot_o(uint8_t * a) {
   if ((a ==0)) {
     return 0;
   }
@@ -1784,25 +1785,25 @@ void xlang_invoke_cc_set_user_o_files_from_argv(int32_t argc, uint8_t * * argv) 
     }
     if (((a)[0] ==45)) {
       int32_t two = 0;
-      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x6f")) !=0)) {
+      if ((labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x6f")) !=0)) {
         (void)((two = 1));
       }
-      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x4c")) !=0)) {
+      if ((labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x4c")) !=0)) {
         (void)((two = 1));
       }
-      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x49")) !=0)) {
+      if ((labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x49")) !=0)) {
         (void)((two = 1));
       }
-      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x74\x61\x72\x67\x65\x74")) !=0)) {
+      if ((labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x74\x61\x72\x67\x65\x74")) !=0)) {
         (void)((two = 1));
       }
-      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x62\x61\x63\x6b\x65\x6e\x64")) !=0)) {
+      if ((labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x62\x61\x63\x6b\x65\x6e\x64")) !=0)) {
         (void)((two = 1));
       }
-      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x4f")) !=0)) {
+      if ((labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x4f")) !=0)) {
         (void)((two = 1));
       }
-      if ((labi_path_pure_labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x6f\x70\x74")) !=0)) {
+      if ((labi_user_extra_cstr_eq(a, ((uint8_t *)"\x2d\x6f\x70\x74")) !=0)) {
         (void)((two = 1));
       }
       if ((two !=0)) {
@@ -1813,7 +1814,7 @@ void xlang_invoke_cc_set_user_o_files_from_argv(int32_t argc, uint8_t * * argv) 
       (void)((i = (i + 1)));
       continue;
     }
-    if ((labi_path_pure_labi_user_extra_ends_with_dot_o(a) !=0)) {
+    if ((labi_user_extra_ends_with_dot_o(a) !=0)) {
       {
         int32_t _p = link_abi_user_extra_o_push(a);
       }
