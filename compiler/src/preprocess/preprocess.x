@@ -39,7 +39,8 @@ let g_pp_sym_len: i32 = 0;
 
 /* See implementation. */
 /* wave265: line-oriented buffer 512→4096 (silent truncate at 511 → P001).
- * wave266: non-directive overflow streams; cap still 4096 for directive parse. */
+ * wave266: non-directive overflow streams; cap still 4096 for directive parse.
+ * wave267: known directive on buffer-full → early apply + drain (no silent drop). */
 let g_pp_line_buf: u8[4096] = [];
 let g_pp_cond: u8[256] = [];
 
@@ -527,34 +528,6 @@ export function parse_directive_into(line_buf: u8[4096], line_len: i32, cond: u8
 }
 
 /**
- * True if line_buf[0..line_len) is optional whitespace then '#'.
- * When the 4096-byte line buffer is full, directive-like lines still drop
- * excess (directives are short; soft residual only for absurd # lines).
- * All other lines enter non-directive stream pass-through (wave266).
- *
- * @param line_buf u8[4096] — filled line prefix
- * @param line_len i32 — bytes valid in line_buf; may be 0
- * @return bool — true if prefix looks like a preprocessor directive line
- * PLATFORM: SHARED — used by preprocess_x / preprocess_x_buf only
- */
-export function pp_line_looks_like_directive(line_buf: u8[4096], line_len: i32): bool {
-  let pos: i32 = 0;
-  while (pos < line_len) {
-    let c: u8 = line_buf[pos];
-    if (c != 32) {
-      if (c != 9) {
-        if (c == 35) {
-          return true;
-        }
-        return false;
-      }
-    }
-    pos = pos + 1;
-  }
-  return false;
-}
-
-/**
  * Run preprocess over a full source slice into out_buf.
  * Returns output length, or -1 on buffer overflow / unclosed #if.
  *
@@ -565,7 +538,15 @@ export function pp_line_looks_like_directive(line_buf: u8[4096], line_len: i32):
  * wave266 Cap residual: when a non-directive line exceeds 4095 bytes, the
  * filled prefix is flushed (if keeping) and the rest of the line streams
  * byte-by-byte into out_buf until LF — no silent drop for product source.
- * Directive-looking lines (ws* '#') still drop overflow past 4095.
+ *
+ * wave267 Cap residual: when the buffer fills on a *known* directive
+ * (#if/#elseif/#else/#endif), parse+apply immediately from the 4095-byte
+ * prefix, emit the directive LF, then drain (skip) the rest of the line
+ * until LF — no re-parse, no silent condition loss for realistic # lines.
+ * Non-directive / unknown `#` prefixes use the same body stream as wave266.
+ *
+ * line_stream modes: 0 = buffering; 1 = body tail stream (emit if keeping);
+ * 2 = directive overflow drain (skip until LF; LF already emitted on apply).
  *
  * PLATFORM: SHARED — line-oriented #if/#else/#endif. After the scan loop,
  * any partial last line (source not ending in LF) is flushed so a trailing
@@ -583,106 +564,135 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
   let _r: i32 = pp_reset_i32();
   let out_len: i32 = 0;
   let line_len: i32 = 0;
-  /* 0 = buffering into g_pp_line_buf; 1 = non-directive tail streaming (wave266). */
+  /* 0 = buffering; 1 = body stream (wave266); 2 = directive drain (wave267). */
   let line_stream: i32 = 0;
   let pos: i32 = 0;
   while (pos < source.length) {
     let ch: u8 = source[pos];
     if (ch == 10) {
-      if (line_stream != 0) {
-        /* Already emitted body; only trailing LF if keeping. */
-        let keeping_st: bool = preprocess_line_keeping();
-        if (keeping_st) {
-          if (out_len >= out_buf.length) {
-            return -1;
-          }
-          out_buf[out_len] = 10;
-          out_len = out_len + 1;
-        }
+      if (line_stream == 2) {
+        /* Directive already applied + LF emitted; drain ends at this LF. */
         line_stream = 0;
         line_len = 0;
         pos = pos + 1;
       } else {
-        parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
-        let kind: i32 = g_pp_kind;
-        if (kind != 0) {
-          let cond_val: i32 = 0;
-          if (pp_kind_needs_cond(kind)) {
-            cond_val = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
-          }
-          let ar: i32 = preprocess_apply_directive_kind(kind, cond_val);
-          if (ar != 0) {
-            return ar;
-          }
-          if (out_len >= out_buf.length) {
-            return -1;
-          }
-          out_buf[out_len] = 10;
-          out_len = out_len + 1;
-        } else {
-          let keeping: bool = preprocess_line_keeping();
-          if (keeping) {
-            let i: i32 = 0;
-            while (i < line_len) {
-              if (out_len >= out_buf.length) {
-                return -1;
-              }
-              out_buf[out_len] = g_pp_line_buf[i];
-              out_len = out_len + 1;
-              i = i + 1;
+        if (line_stream == 1) {
+          /* Body stream: trailing LF if keeping. */
+          let keeping_st: bool = preprocess_line_keeping();
+          if (keeping_st) {
+            if (out_len >= out_buf.length) {
+              return -1;
             }
+            out_buf[out_len] = 10;
+            out_len = out_len + 1;
           }
-          if (out_len >= out_buf.length) {
-            return -1;
-          }
-          out_buf[out_len] = 10;
-          out_len = out_len + 1;
-        }
-        line_len = 0;
-        pos = pos + 1;
-      }
-    } else {
-      if (line_stream != 0) {
-        /* Non-directive overflow tail: stream one byte if keeping. */
-        let keeping_tail: bool = preprocess_line_keeping();
-        if (keeping_tail) {
-          if (out_len >= out_buf.length) {
-            return -1;
-          }
-          out_buf[out_len] = ch;
-          out_len = out_len + 1;
-        }
-        pos = pos + 1;
-      } else {
-        if (line_len < 4095) {
-          g_pp_line_buf[line_len] = ch;
-          line_len = line_len + 1;
+          line_stream = 0;
+          line_len = 0;
           pos = pos + 1;
         } else {
-          /* Buffer full: stream non-directives; drop excess only for '#' lines. */
-          if (pp_line_looks_like_directive(g_pp_line_buf, line_len)) {
-            pos = pos + 1;
+          parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+          let kind: i32 = g_pp_kind;
+          if (kind != 0) {
+            let cond_val: i32 = 0;
+            if (pp_kind_needs_cond(kind)) {
+              cond_val = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+            }
+            let ar: i32 = preprocess_apply_directive_kind(kind, cond_val);
+            if (ar != 0) {
+              return ar;
+            }
+            if (out_len >= out_buf.length) {
+              return -1;
+            }
+            out_buf[out_len] = 10;
+            out_len = out_len + 1;
           } else {
-            let keeping_ov: bool = preprocess_line_keeping();
-            if (keeping_ov) {
-              let j: i32 = 0;
-              while (j < line_len) {
+            let keeping: bool = preprocess_line_keeping();
+            if (keeping) {
+              let i: i32 = 0;
+              while (i < line_len) {
                 if (out_len >= out_buf.length) {
                   return -1;
                 }
-                out_buf[out_len] = g_pp_line_buf[j];
+                out_buf[out_len] = g_pp_line_buf[i];
                 out_len = out_len + 1;
-                j = j + 1;
+                i = i + 1;
+              }
+            }
+            if (out_len >= out_buf.length) {
+              return -1;
+            }
+            out_buf[out_len] = 10;
+            out_len = out_len + 1;
+          }
+          line_len = 0;
+          pos = pos + 1;
+        }
+      }
+    } else {
+      if (line_stream == 2) {
+        /* Directive overflow drain: skip until LF. */
+        pos = pos + 1;
+      } else {
+        if (line_stream == 1) {
+          /* Body overflow tail: stream one byte if keeping. */
+          let keeping_tail: bool = preprocess_line_keeping();
+          if (keeping_tail) {
+            if (out_len >= out_buf.length) {
+              return -1;
+            }
+            out_buf[out_len] = ch;
+            out_len = out_len + 1;
+          }
+          pos = pos + 1;
+        } else {
+          if (line_len < 4095) {
+            g_pp_line_buf[line_len] = ch;
+            line_len = line_len + 1;
+            pos = pos + 1;
+          } else {
+            /* Buffer full: early-apply known directives; else body-stream. */
+            parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+            let kind_ov: i32 = g_pp_kind;
+            if (kind_ov != 0) {
+              let cond_val_ov: i32 = 0;
+              if (pp_kind_needs_cond(kind_ov)) {
+                cond_val_ov = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+              }
+              let ar_ov: i32 = preprocess_apply_directive_kind(kind_ov, cond_val_ov);
+              if (ar_ov != 0) {
+                return ar_ov;
               }
               if (out_len >= out_buf.length) {
                 return -1;
               }
-              out_buf[out_len] = ch;
+              out_buf[out_len] = 10;
               out_len = out_len + 1;
+              line_len = 0;
+              line_stream = 2;
+              pos = pos + 1;
+            } else {
+              let keeping_ov: bool = preprocess_line_keeping();
+              if (keeping_ov) {
+                let j: i32 = 0;
+                while (j < line_len) {
+                  if (out_len >= out_buf.length) {
+                    return -1;
+                  }
+                  out_buf[out_len] = g_pp_line_buf[j];
+                  out_len = out_len + 1;
+                  j = j + 1;
+                }
+                if (out_len >= out_buf.length) {
+                  return -1;
+                }
+                out_buf[out_len] = ch;
+                out_len = out_len + 1;
+              }
+              line_len = 0;
+              line_stream = 1;
+              pos = pos + 1;
             }
-            line_len = 0;
-            line_stream = 1;
-            pos = pos + 1;
           }
         }
       }
@@ -690,56 +700,62 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
   }
   /* PLATFORM: SHARED — flush last line when source omits trailing LF (POSIX text files may).
    * Same emit path as LF branch so #if directives and kept text stay consistent. */
-  if (line_stream != 0) {
-    /* Streamed body already in out; synthetic LF mirrors normal no-trailing-LF flush. */
-    let keeping_st_eof: bool = preprocess_line_keeping();
-    if (keeping_st_eof) {
-      if (out_len >= out_buf.length) {
-        return -1;
-      }
-      out_buf[out_len] = 10;
-      out_len = out_len + 1;
-    }
+  if (line_stream == 2) {
+    /* Applied + LF already emitted; no synthetic second LF. */
     line_stream = 0;
     line_len = 0;
   } else {
-    if (line_len > 0) {
-      parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
-      let kind_eof: i32 = g_pp_kind;
-      if (kind_eof != 0) {
-        let cond_val_eof: i32 = 0;
-        if (pp_kind_needs_cond(kind_eof)) {
-          cond_val_eof = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
-        }
-        let ar_eof: i32 = preprocess_apply_directive_kind(kind_eof, cond_val_eof);
-        if (ar_eof != 0) {
-          return ar_eof;
-        }
-        if (out_len >= out_buf.length) {
-          return -1;
-        }
-        out_buf[out_len] = 10;
-        out_len = out_len + 1;
-      } else {
-        let keeping_eof: bool = preprocess_line_keeping();
-        if (keeping_eof) {
-          let i_eof: i32 = 0;
-          while (i_eof < line_len) {
-            if (out_len >= out_buf.length) {
-              return -1;
-            }
-            out_buf[out_len] = g_pp_line_buf[i_eof];
-            out_len = out_len + 1;
-            i_eof = i_eof + 1;
-          }
-        }
+    if (line_stream == 1) {
+      /* Streamed body already in out; synthetic LF mirrors normal no-trailing-LF flush. */
+      let keeping_st_eof: bool = preprocess_line_keeping();
+      if (keeping_st_eof) {
         if (out_len >= out_buf.length) {
           return -1;
         }
         out_buf[out_len] = 10;
         out_len = out_len + 1;
       }
+      line_stream = 0;
       line_len = 0;
+    } else {
+      if (line_len > 0) {
+        parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+        let kind_eof: i32 = g_pp_kind;
+        if (kind_eof != 0) {
+          let cond_val_eof: i32 = 0;
+          if (pp_kind_needs_cond(kind_eof)) {
+            cond_val_eof = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+          }
+          let ar_eof: i32 = preprocess_apply_directive_kind(kind_eof, cond_val_eof);
+          if (ar_eof != 0) {
+            return ar_eof;
+          }
+          if (out_len >= out_buf.length) {
+            return -1;
+          }
+          out_buf[out_len] = 10;
+          out_len = out_len + 1;
+        } else {
+          let keeping_eof: bool = preprocess_line_keeping();
+          if (keeping_eof) {
+            let i_eof: i32 = 0;
+            while (i_eof < line_len) {
+              if (out_len >= out_buf.length) {
+                return -1;
+              }
+              out_buf[out_len] = g_pp_line_buf[i_eof];
+              out_len = out_len + 1;
+              i_eof = i_eof + 1;
+            }
+          }
+          if (out_len >= out_buf.length) {
+            return -1;
+          }
+          out_buf[out_len] = 10;
+          out_len = out_len + 1;
+        }
+        line_len = 0;
+      }
     }
   }
   if (pp_if_stack_len() != 0) {
@@ -765,7 +781,7 @@ export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out
   let _r: i32 = pp_reset_i32();
   let out_len: i32 = 0;
   let line_len: i32 = 0;
-  /* 0 = buffering; 1 = non-directive tail streaming (wave266; mirror preprocess_x). */
+  /* 0 = buffering; 1 = body stream; 2 = directive drain (mirror preprocess_x / wave267). */
   let line_stream: i32 = 0;
   let pos: i32 = 0;
   while (pos < source_len) {
@@ -774,152 +790,184 @@ export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out
     }
     let ch: u8 = source_buf[pos];
     if (ch == 10) {
-      if (line_stream != 0) {
-        let keeping_st_b: bool = preprocess_line_keeping();
-        if (keeping_st_b) {
-          if (out_len >= out_cap) {
-            return -1;
-          }
-          out_buf[out_len] = 10;
-          out_len = out_len + 1;
-        }
+      if (line_stream == 2) {
         line_stream = 0;
         line_len = 0;
         pos = pos + 1;
       } else {
-        parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
-        let kind: i32 = g_pp_kind;
-        if (kind != 0) {
-          let cond_val: i32 = 0;
-          if (pp_kind_needs_cond(kind)) {
-            cond_val = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
-          }
-          let ar: i32 = preprocess_apply_directive_kind(kind, cond_val);
-          if (ar != 0) {
-            return ar;
-          }
-          if (out_len >= out_cap) {
-            return -1;
-          }
-          out_buf[out_len] = 10;
-          out_len = out_len + 1;
-        } else {
-          let keeping: bool = preprocess_line_keeping();
-          if (keeping) {
-            let i: i32 = 0;
-            while (i < line_len) {
-              if (out_len >= out_cap) {
-                return -1;
-              }
-              out_buf[out_len] = g_pp_line_buf[i];
-              out_len = out_len + 1;
-              i = i + 1;
+        if (line_stream == 1) {
+          let keeping_st_b: bool = preprocess_line_keeping();
+          if (keeping_st_b) {
+            if (out_len >= out_cap) {
+              return -1;
             }
+            out_buf[out_len] = 10;
+            out_len = out_len + 1;
           }
-          if (out_len >= out_cap) {
-            return -1;
-          }
-          out_buf[out_len] = 10;
-          out_len = out_len + 1;
-        }
-        line_len = 0;
-        pos = pos + 1;
-      }
-    } else {
-      if (line_stream != 0) {
-        let keeping_tail_b: bool = preprocess_line_keeping();
-        if (keeping_tail_b) {
-          if (out_len >= out_cap) {
-            return -1;
-          }
-          out_buf[out_len] = ch;
-          out_len = out_len + 1;
-        }
-        pos = pos + 1;
-      } else {
-        if (line_len < 4095) {
-          g_pp_line_buf[line_len] = ch;
-          line_len = line_len + 1;
+          line_stream = 0;
+          line_len = 0;
           pos = pos + 1;
         } else {
-          if (pp_line_looks_like_directive(g_pp_line_buf, line_len)) {
-            pos = pos + 1;
+          parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+          let kind: i32 = g_pp_kind;
+          if (kind != 0) {
+            let cond_val: i32 = 0;
+            if (pp_kind_needs_cond(kind)) {
+              cond_val = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+            }
+            let ar: i32 = preprocess_apply_directive_kind(kind, cond_val);
+            if (ar != 0) {
+              return ar;
+            }
+            if (out_len >= out_cap) {
+              return -1;
+            }
+            out_buf[out_len] = 10;
+            out_len = out_len + 1;
           } else {
-            let keeping_ov_b: bool = preprocess_line_keeping();
-            if (keeping_ov_b) {
-              let j_b: i32 = 0;
-              while (j_b < line_len) {
+            let keeping: bool = preprocess_line_keeping();
+            if (keeping) {
+              let i: i32 = 0;
+              while (i < line_len) {
                 if (out_len >= out_cap) {
                   return -1;
                 }
-                out_buf[out_len] = g_pp_line_buf[j_b];
+                out_buf[out_len] = g_pp_line_buf[i];
                 out_len = out_len + 1;
-                j_b = j_b + 1;
+                i = i + 1;
+              }
+            }
+            if (out_len >= out_cap) {
+              return -1;
+            }
+            out_buf[out_len] = 10;
+            out_len = out_len + 1;
+          }
+          line_len = 0;
+          pos = pos + 1;
+        }
+      }
+    } else {
+      if (line_stream == 2) {
+        pos = pos + 1;
+      } else {
+        if (line_stream == 1) {
+          let keeping_tail_b: bool = preprocess_line_keeping();
+          if (keeping_tail_b) {
+            if (out_len >= out_cap) {
+              return -1;
+            }
+            out_buf[out_len] = ch;
+            out_len = out_len + 1;
+          }
+          pos = pos + 1;
+        } else {
+          if (line_len < 4095) {
+            g_pp_line_buf[line_len] = ch;
+            line_len = line_len + 1;
+            pos = pos + 1;
+          } else {
+            parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+            let kind_ov_b: i32 = g_pp_kind;
+            if (kind_ov_b != 0) {
+              let cond_val_ov_b: i32 = 0;
+              if (pp_kind_needs_cond(kind_ov_b)) {
+                cond_val_ov_b = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+              }
+              let ar_ov_b: i32 = preprocess_apply_directive_kind(kind_ov_b, cond_val_ov_b);
+              if (ar_ov_b != 0) {
+                return ar_ov_b;
               }
               if (out_len >= out_cap) {
                 return -1;
               }
-              out_buf[out_len] = ch;
+              out_buf[out_len] = 10;
               out_len = out_len + 1;
+              line_len = 0;
+              line_stream = 2;
+              pos = pos + 1;
+            } else {
+              let keeping_ov_b: bool = preprocess_line_keeping();
+              if (keeping_ov_b) {
+                let j_b: i32 = 0;
+                while (j_b < line_len) {
+                  if (out_len >= out_cap) {
+                    return -1;
+                  }
+                  out_buf[out_len] = g_pp_line_buf[j_b];
+                  out_len = out_len + 1;
+                  j_b = j_b + 1;
+                }
+                if (out_len >= out_cap) {
+                  return -1;
+                }
+                out_buf[out_len] = ch;
+                out_len = out_len + 1;
+              }
+              line_len = 0;
+              line_stream = 1;
+              pos = pos + 1;
             }
-            line_len = 0;
-            line_stream = 1;
-            pos = pos + 1;
           }
         }
       }
     }
   }
   /* PLATFORM: SHARED — flush last line when buffer omits trailing LF (mirror preprocess_x). */
-  if (line_stream != 0) {
-    let keeping_st_eof_b: bool = preprocess_line_keeping();
-    if (keeping_st_eof_b) {
-      if (out_len >= out_cap) {
-        return -1;
-      }
-      out_buf[out_len] = 10;
-      out_len = out_len + 1;
-    }
+  if (line_stream == 2) {
     line_stream = 0;
     line_len = 0;
   } else {
-    if (line_len > 0) {
-      parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
-      let kind_eof_b: i32 = g_pp_kind;
-      if (kind_eof_b != 0) {
-        let cond_val_eof_b: i32 = 0;
-        if (pp_kind_needs_cond(kind_eof_b)) {
-          cond_val_eof_b = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
-        }
-        let ar_eof_b: i32 = preprocess_apply_directive_kind(kind_eof_b, cond_val_eof_b);
-        if (ar_eof_b != 0) {
-          return ar_eof_b;
-        }
-        if (out_len >= out_cap) {
-          return -1;
-        }
-        out_buf[out_len] = 10;
-        out_len = out_len + 1;
-      } else {
-        let keeping_eof_b: bool = preprocess_line_keeping();
-        if (keeping_eof_b) {
-          let i_eof_b: i32 = 0;
-          while (i_eof_b < line_len) {
-            if (out_len >= out_cap) {
-              return -1;
-            }
-            out_buf[out_len] = g_pp_line_buf[i_eof_b];
-            out_len = out_len + 1;
-            i_eof_b = i_eof_b + 1;
-          }
-        }
+    if (line_stream == 1) {
+      let keeping_st_eof_b: bool = preprocess_line_keeping();
+      if (keeping_st_eof_b) {
         if (out_len >= out_cap) {
           return -1;
         }
         out_buf[out_len] = 10;
         out_len = out_len + 1;
       }
+      line_stream = 0;
       line_len = 0;
+    } else {
+      if (line_len > 0) {
+        parse_directive_into(g_pp_line_buf, line_len, g_pp_cond);
+        let kind_eof_b: i32 = g_pp_kind;
+        if (kind_eof_b != 0) {
+          let cond_val_eof_b: i32 = 0;
+          if (pp_kind_needs_cond(kind_eof_b)) {
+            cond_val_eof_b = pp_eval_condition(&g_pp_cond[0], g_pp_sym_len);
+          }
+          let ar_eof_b: i32 = preprocess_apply_directive_kind(kind_eof_b, cond_val_eof_b);
+          if (ar_eof_b != 0) {
+            return ar_eof_b;
+          }
+          if (out_len >= out_cap) {
+            return -1;
+          }
+          out_buf[out_len] = 10;
+          out_len = out_len + 1;
+        } else {
+          let keeping_eof_b: bool = preprocess_line_keeping();
+          if (keeping_eof_b) {
+            let i_eof_b: i32 = 0;
+            while (i_eof_b < line_len) {
+              if (out_len >= out_cap) {
+                return -1;
+              }
+              out_buf[out_len] = g_pp_line_buf[i_eof_b];
+              out_len = out_len + 1;
+              i_eof_b = i_eof_b + 1;
+            }
+          }
+          if (out_len >= out_cap) {
+            return -1;
+          }
+          out_buf[out_len] = 10;
+          out_len = out_len + 1;
+        }
+        line_len = 0;
+      }
     }
   }
   if (pp_if_stack_len() != 0) {

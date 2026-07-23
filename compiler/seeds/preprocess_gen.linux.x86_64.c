@@ -1,6 +1,7 @@
 /* generated from preprocess */
 /* wave265: line_buf 512→4096 (silent truncate at 511 caused P001 on long source lines). */
-/* wave266: non-directive overflow streams byte-by-byte; '#' lines still drop past 4095. */
+/* wave266: non-directive overflow streams byte-by-byte. */
+/* wave267: known directive on buffer-full → early apply + drain (no silent drop). */
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -199,20 +200,8 @@ void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * ou
  } else (__tmp = 0) ; __tmp; }));
   return;
 }
-/* PLATFORM: SHARED — wave266: true if line prefix is optional whitespace then '#'. */
-static int preprocess_pp_line_looks_like_directive(uint8_t line_buf[4096], int32_t line_len) {
-  int32_t p = 0;
-  while (p < line_len) {
-    uint8_t c = (p < 0 || p >= 4096) ? 0 : line_buf[p];
-    if (c != 32 && c != 9) {
-      return c == 35;
-    }
-    ++p;
-  }
-  return 0;
-}
-
-/* PLATFORM: SHARED — product preprocess main path; ≡ preprocess.x (wave265 cap + wave266 stream). */
+/* PLATFORM: SHARED — product preprocess main path; ≡ preprocess.x
+ * (wave265 cap + wave266 body stream + wave267 directive early-apply/drain). */
 int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uint8_t * out_buf) {
   if ((out_buf)->length <= 0) {
     return (-1);
@@ -220,13 +209,19 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
   (void)(preprocess_if_stack_reset());
   int32_t out_len = 0;
   int32_t line_len = 0;
-  int32_t line_stream = 0; /* 0 buffering; 1 non-directive overflow stream */
+  /* 0 buffering; 1 body stream; 2 directive drain (wave267). */
+  int32_t line_stream = 0;
   uint8_t line_buf[4096] = { 0 };
   int32_t pos = 0;
   while ((size_t)pos < (source)->length) {
     uint8_t ch = (source)->data[pos];
     if (ch == 10) {
-      if (line_stream != 0) {
+      if (line_stream == 2) {
+        /* Directive already applied + LF emitted; drain ends here. */
+        line_stream = 0;
+        line_len = 0;
+        ++pos;
+      } else if (line_stream == 1) {
         if (preprocess_line_keeping()) {
           if (out_len >= (int32_t)(out_buf)->length) return (-1);
           (out_buf)->data[out_len] = 10;
@@ -269,7 +264,10 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
         line_len = 0;
         ++pos;
       }
-    } else if (line_stream != 0) {
+    } else if (line_stream == 2) {
+      /* Directive overflow drain: skip until LF. */
+      ++pos;
+    } else if (line_stream == 1) {
       if (preprocess_line_keeping()) {
         if (out_len >= (int32_t)(out_buf)->length) return (-1);
         (out_buf)->data[out_len] = ch;
@@ -280,30 +278,51 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
       line_buf[line_len] = ch;
       ++line_len;
       ++pos;
-    } else if (preprocess_pp_line_looks_like_directive(line_buf, line_len)) {
-      /* Directive overflow: still drop past 4095 (soft residual for absurd # lines). */
-      ++pos;
     } else {
-      /* Non-directive: flush prefix + this byte, then stream rest of line. */
-      if (preprocess_line_keeping()) {
-        int32_t j = 0;
-        while (j < line_len) {
-          if (out_len >= (int32_t)(out_buf)->length) return (-1);
-          (out_buf)->data[out_len] = line_buf[j];
-          ++out_len;
-          ++j;
+      /* Buffer full: early-apply known directives; else body-stream (wave267). */
+      uint8_t cond_ov[256] = { 0 };
+      struct preprocess_ParseDirectiveResult res_ov = { .kind = 0, .sym_len = 0 };
+      (void)(preprocess_parse_directive_into((&(res_ov)), line_buf, line_len, cond_ov));
+      int32_t kind_ov = (res_ov).kind;
+      if (kind_ov != 0) {
+        int32_t cond_val_ov = 0;
+        if (kind_ov == 1 || kind_ov == 4) {
+          cond_val_ov = preprocess_eval_condition_c((&((cond_ov)[0])), (res_ov).sym_len);
+        }
+        {
+          int32_t ar_ov = preprocess_apply_directive_kind(kind_ov, cond_val_ov);
+          if (ar_ov != 0) return ar_ov;
         }
         if (out_len >= (int32_t)(out_buf)->length) return (-1);
-        (out_buf)->data[out_len] = ch;
+        (out_buf)->data[out_len] = 10;
         ++out_len;
+        line_len = 0;
+        line_stream = 2;
+        ++pos;
+      } else {
+        if (preprocess_line_keeping()) {
+          int32_t j = 0;
+          while (j < line_len) {
+            if (out_len >= (int32_t)(out_buf)->length) return (-1);
+            (out_buf)->data[out_len] = line_buf[j];
+            ++out_len;
+            ++j;
+          }
+          if (out_len >= (int32_t)(out_buf)->length) return (-1);
+          (out_buf)->data[out_len] = ch;
+          ++out_len;
+        }
+        line_len = 0;
+        line_stream = 1;
+        ++pos;
       }
-      line_len = 0;
-      line_stream = 1;
-      ++pos;
     }
   }
   /* PLATFORM: SHARED — flush last line when source omits trailing LF. */
-  if (line_stream != 0) {
+  if (line_stream == 2) {
+    line_stream = 0;
+    line_len = 0;
+  } else if (line_stream == 1) {
     if (preprocess_line_keeping()) {
       if (out_len >= (int32_t)(out_buf)->length) return (-1);
       (out_buf)->data[out_len] = 10;
@@ -350,6 +369,7 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
   return out_len;
 }
 
+/* PLATFORM: SHARED — buf+len entry; ≡ preprocess_x (wave267). */
 int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
   if (out_cap <= 0) {
     return (-1);
@@ -357,13 +377,18 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
   (void)(preprocess_if_stack_reset());
   int32_t out_len = 0;
   int32_t line_len = 0;
+  /* 0 buffering; 1 body stream; 2 directive drain. */
   int32_t line_stream = 0;
   uint8_t line_buf[4096] = { 0 };
   int32_t pos = 0;
   while (pos < source_len && pos < 4194304) {
     uint8_t ch = source_buf[pos];
     if (ch == 10) {
-      if (line_stream != 0) {
+      if (line_stream == 2) {
+        line_stream = 0;
+        line_len = 0;
+        ++pos;
+      } else if (line_stream == 1) {
         if (preprocess_line_keeping()) {
           if (out_len >= out_cap) return (-1);
           out_buf[out_len] = 10;
@@ -406,7 +431,9 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
         line_len = 0;
         ++pos;
       }
-    } else if (line_stream != 0) {
+    } else if (line_stream == 2) {
+      ++pos;
+    } else if (line_stream == 1) {
       if (preprocess_line_keeping()) {
         if (out_len >= out_cap) return (-1);
         out_buf[out_len] = ch;
@@ -417,27 +444,49 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
       line_buf[line_len] = ch;
       ++line_len;
       ++pos;
-    } else if (preprocess_pp_line_looks_like_directive(line_buf, line_len)) {
-      ++pos;
     } else {
-      if (preprocess_line_keeping()) {
-        int32_t j = 0;
-        while (j < line_len) {
-          if (out_len >= out_cap) return (-1);
-          out_buf[out_len] = line_buf[j];
-          ++out_len;
-          ++j;
+      uint8_t cond_ov_b[256] = { 0 };
+      struct preprocess_ParseDirectiveResult res_ov_b = { .kind = 0, .sym_len = 0 };
+      (void)(preprocess_parse_directive_into((&(res_ov_b)), line_buf, line_len, cond_ov_b));
+      int32_t kind_ov_b = (res_ov_b).kind;
+      if (kind_ov_b != 0) {
+        int32_t cond_val_ov_b = 0;
+        if (kind_ov_b == 1 || kind_ov_b == 4) {
+          cond_val_ov_b = preprocess_eval_condition_c((&((cond_ov_b)[0])), (res_ov_b).sym_len);
+        }
+        {
+          int32_t ar_ov_b = preprocess_apply_directive_kind(kind_ov_b, cond_val_ov_b);
+          if (ar_ov_b != 0) return ar_ov_b;
         }
         if (out_len >= out_cap) return (-1);
-        out_buf[out_len] = ch;
+        out_buf[out_len] = 10;
         ++out_len;
+        line_len = 0;
+        line_stream = 2;
+        ++pos;
+      } else {
+        if (preprocess_line_keeping()) {
+          int32_t j = 0;
+          while (j < line_len) {
+            if (out_len >= out_cap) return (-1);
+            out_buf[out_len] = line_buf[j];
+            ++out_len;
+            ++j;
+          }
+          if (out_len >= out_cap) return (-1);
+          out_buf[out_len] = ch;
+          ++out_len;
+        }
+        line_len = 0;
+        line_stream = 1;
+        ++pos;
       }
-      line_len = 0;
-      line_stream = 1;
-      ++pos;
     }
   }
-  if (line_stream != 0) {
+  if (line_stream == 2) {
+    line_stream = 0;
+    line_len = 0;
+  } else if (line_stream == 1) {
     if (preprocess_line_keeping()) {
       if (out_len >= out_cap) return (-1);
       out_buf[out_len] = 10;
