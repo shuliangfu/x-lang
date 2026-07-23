@@ -28,6 +28,11 @@ void diag_json_set_state(int v);
 #include <stdlib.h>
 #include <string.h>
 
+/* wave233 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid diag rest uses same face as diag.x full path. */
+extern char *link_abi_getenv(const char *name);
+
 #if !defined(_WIN32)
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -165,9 +170,11 @@ int diag_should_color_impl(void)
 #endif
 {
 #if defined(_WIN32)
+    /* PLATFORM: WINDOWS — no ANSI color path for host stderr in this twin. */
     return 0;
 #else
-    if (getenv("SHUX_NO_COLOR"))
+    /* wave233 G.7: SHUX_NO_COLOR via link_abi_getenv (not raw getenv). */
+    if (link_abi_getenv("SHUX_NO_COLOR"))
         return 0;
     return isatty(fileno(stderr)) ? 1 : 0;
 #endif
@@ -1133,7 +1140,8 @@ int diag_json_enabled_impl(void)
 #endif
 {
     if (g_diag_json == -2) {
-        const char *e = getenv("SHUX_DIAG_JSON");
+        /* wave233 G.7: SHUX_DIAG_JSON via link_abi_getenv (not raw getenv). */
+        const char *e = link_abi_getenv("SHUX_DIAG_JSON");
         g_diag_json = (e && e[0] && e[0] != '0') ? 1 : 0;
     }
     return g_diag_json == 1 ? 1 : 0;

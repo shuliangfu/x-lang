@@ -29,7 +29,10 @@ export extern "C" function diag_entry_code(code: *u8): *u8;
 export extern "C" function diag_entry_kind(code: *u8): *u8;
 export extern "C" function diag_entry_summary(code: *u8): *u8;
 export extern "C" function diag_entry_details(code: *u8): *u8;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave233 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid diag thin → seed _impl uses same face. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function isatty(fd: i32): i32;
 export extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 export extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
@@ -618,21 +621,24 @@ export function diag_set_json_mode(enable: i32): void {
   }
 }
 
-/** Exported function `diag_json_enabled`.
- * Implements `diag_json_enabled`.
- * @return i32
+/**
+ * Whether JSON diagnostics are enabled (cached state or SHUX_DIAG_JSON).
+ * wave233 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @return i32 — 1 if JSON mode on, 0 otherwise
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl
  */
 #[no_mangle]
 export function diag_json_enabled(): i32 {
   unsafe {
     let s: i32 = diag_json_get_state();
-    // -2 = unset
+    // -2 = unset: resolve once from SHUX_DIAG_JSON (truthy non-empty, not leading '0')
     if (s == 0 - 2) {
       let k: u8[16] = [];
       // SHUX_DIAG_JSON
       k[0]=83;k[1]=72;k[2]=85;k[3]=88;k[4]=95;k[5]=68;k[6]=73;k[7]=65;k[8]=71;k[9]=95;
       k[10]=74;k[11]=83;k[12]=79;k[13]=78;k[14]=0;
-      let e: *u8 = getenv(&k[0]);
+      // wave233 G.7: SHUX_DIAG_JSON via link_abi_getenv (not raw getenv).
+      let e: *u8 = link_abi_getenv(&k[0]);
       let v: i32 = 0;
       if (e != 0) {
         if (e[0] != 0) {
@@ -650,6 +656,13 @@ export function diag_json_enabled(): i32 {
 
 /* ---- G-02f-96 / G-02f-153 / G-02f-154：color ---- */
 
+/**
+ * Whether stderr diagnostics should use ANSI color.
+ * Off when SHUX_NO_COLOR is set (any value); else isatty(2).
+ * wave233 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @return i32 — 1 if color ok, 0 otherwise
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl; WIN32 seed twin returns 0
+ */
 #[no_mangle]
 export function diag_should_color(): i32 {
   unsafe {
@@ -657,8 +670,8 @@ export function diag_should_color(): i32 {
     // SHUX_NO_COLOR
     k[0]=83;k[1]=72;k[2]=85;k[3]=88;k[4]=95;k[5]=78;k[6]=79;k[7]=95;
     k[8]=67;k[9]=79;k[10]=76;k[11]=79;k[12]=82;k[13]=0;
-    if (getenv(&k[0]) != 0) { return 0; }
-    // See implementation.
+    // wave233 G.7: SHUX_NO_COLOR via link_abi_getenv (not raw getenv).
+    if (link_abi_getenv(&k[0]) != 0) { return 0; }
     if (isatty(2) != 0) { return 1; }
   }
   return 0;
