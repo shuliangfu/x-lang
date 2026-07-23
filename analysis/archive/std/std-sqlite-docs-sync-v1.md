@@ -42,7 +42,7 @@
 
 manifest：`tests/baseline/std-sqlite-docs-sync-manifest.tsv`
 
-报告：`shux: [SHUX_STD154_SQLITE_DOCS]`
+报告：`xlang: [XLANG_STD154_SQLITE_DOCS]`
 
 ---
 

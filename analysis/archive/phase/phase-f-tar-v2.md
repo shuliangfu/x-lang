@@ -13,11 +13,11 @@
 ## 门禁
 
 ```bash
-SHUX_F_TAR_V2_FAIL=1 ./tests/run-f-tar-v2-gate.sh
+XLANG_F_TAR_V2_FAIL=1 ./tests/run-f-tar-v2-gate.sh
 ./tests/run-std-tar-ustar-gate.sh
 ./tests/run-std-tar-extended-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 
 ## 下一项

@@ -3,7 +3,7 @@
 #
 # 用法：
 #   ./tests/run-perf-syscall-batch.sh
-#   SHUX=./compiler/shux-c ./tests/run-perf-syscall-batch.sh
+#   XLANG=./compiler/xlang-c ./tests/run-perf-syscall-batch.sh
 set -e
 cd "$(dirname "$0")/.."
 
@@ -14,50 +14,50 @@ source tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
 
-BASELINE="${SHUX_SYSCALL_BATCH_BASELINE:-tests/baseline/syscall-batch-perf.tsv}"
+BASELINE="${XLANG_SYSCALL_BATCH_BASELINE:-tests/baseline/syscall-batch-perf.tsv}"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-FAIL_FLAG="${SHUX_SYSCALL_BATCH_FAIL:-0}"
-REQUIRE_STRACE="${SHUX_SYSCALL_BATCH_REQUIRE_STRACE:-0}"
-BENCH_MB="${SHUX_IO_BENCH_MB:-16}"
+FAIL_FLAG="${XLANG_SYSCALL_BATCH_FAIL:-0}"
+REQUIRE_STRACE="${XLANG_SYSCALL_BATCH_REQUIRE_STRACE:-0}"
+BENCH_MB="${XLANG_IO_BENCH_MB:-16}"
 BENCH_FILE="tests/bench/.io_mmap_bench_tmp"
 BENCH_BYTES=$((BENCH_MB * 1048576))
 EXPECT_ZC_RC=$((BENCH_BYTES & 255))
-SINK_BIN="/tmp/shux_syscall_batch_sink"
+SINK_BIN="/tmp/xlang_syscall_batch_sink"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux_asm; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if dod_native_exe "$abs"; then
-      SHUX_BIN="$abs"
+      XLANG_BIN="$abs"
       break
     fi
   done
-  SHUX_BIN="${SHUX_BIN:-./compiler/shux-c}"
+  XLANG_BIN="${XLANG_BIN:-./compiler/xlang-c}"
 else
-  case "$SHUX_BIN" in /*) ;; *) SHUX_BIN="$(pwd)/$SHUX_BIN" ;; esac
+  case "$XLANG_BIN" in /*) ;; *) XLANG_BIN="$(pwd)/$XLANG_BIN" ;; esac
 fi
 
-LINK_SHUX="$SHUX_BIN"
-for cand in ./compiler/shux-c ./compiler/shux; do
+LINK_XLANG="$XLANG_BIN"
+for cand in ./compiler/xlang-c ./compiler/xlang; do
   case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
   if dod_native_exe "$abs"; then
-    LINK_SHUX="$abs"
+    LINK_XLANG="$abs"
     break
   fi
 done
 
 echo "=== PERF-008: syscall batch strace bench (baseline=${BASELINE}) ==="
 
-if ! dod_native_exe "$LINK_SHUX"; then
-  echo "syscall-batch perf SKIP: ${LINK_SHUX} build not native"
+if ! dod_native_exe "$LINK_XLANG"; then
+  echo "syscall-batch perf SKIP: ${LINK_XLANG} build not native"
   exit 0
 fi
 
 if ! perf_sb_strace_probe_ok; then
   if [ "$REQUIRE_STRACE" = "1" ]; then
-    echo "syscall-batch perf FAIL: strace unavailable (SHUX_SYSCALL_BATCH_REQUIRE_STRACE=1)" >&2
+    echo "syscall-batch perf FAIL: strace unavailable (XLANG_SYSCALL_BATCH_REQUIRE_STRACE=1)" >&2
     exit 1
   fi
   echo "syscall-batch perf SKIP: need Linux + working strace"
@@ -88,11 +88,11 @@ while IFS=$'\t' read -r case_id bench_src expect_exit needs_sink _rest; do
   case "$case_id" in \#*) continue ;; esac
   CASE_TOTAL=$((CASE_TOTAL + 1))
   CASE_IDX=$((CASE_IDX + 1))
-  exe="${OUT_DIR}/shux_syscall_batch_${case_id}"
+  exe="${OUT_DIR}/xlang_syscall_batch_${case_id}"
   rm -f "$exe"
 
   echo "── measure ${case_id} ──"
-  if ! SHUX="$LINK_SHUX" "$LINK_SHUX" -L . "$bench_src" -o "$exe"; then
+  if ! XLANG="$LINK_XLANG" "$LINK_XLANG" -L . "$bench_src" -o "$exe"; then
     echo "syscall-batch FAIL: compile $bench_src" >&2
     HARD_FAIL=1
     continue

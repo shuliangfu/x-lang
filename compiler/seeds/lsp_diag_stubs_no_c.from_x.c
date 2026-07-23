@@ -5,7 +5,7 @@
 /**
  * lsp_diag_stubs_no_c.c — E-02 默认：替代 lsp_diag.c 的 LSP 收集器 / 文档缓冲 / JSON 壳桩
  *
- * bootstrap-driver-seed / build_shux_asm 默认链本 TU（`LSP_DIAG_LINK_O`），不链 lsp_diag.c。
+ * bootstrap-driver-seed / build_xlang_asm 默认链本 TU（`LSP_DIAG_LINK_O`），不链 lsp_diag.c。
  * 不依赖 parser/lexer/typeck/ast C API；诊断 JSON 由 lsp_diag_x.o + lsp_diag_x_alias.c 提供。
  */
 #include <stdlib.h>
@@ -84,7 +84,7 @@ void lsp_diag_clear(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-22 thin+rest：_impl 实现；thin（src/lsp/lsp_diag_stubs_no_c.x）提供 public wrapper */
 
-#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+#ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
 /* rest→.x 迁移：_impl 由 src/lsp/lsp_diag_stubs_no_c.x 提供（PREFER_X_O 路径） */
 void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     size_t n = 0;
@@ -104,7 +104,7 @@ void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
 extern void lsp_diag_copy_text_impl(char *dst, int cap, const char *src);
 #endif
 
-#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+#ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void lsp_diag_copy_text(char *dst, int cap, const char *src) {
     lsp_diag_copy_text_impl(dst, cap, src);
@@ -149,7 +149,7 @@ void lsp_diag_collect_end(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-22 thin+rest：_impl 实现；thin 提供 public wrapper */
 
-#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+#ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
 /* rest→.x 迁移：_impl 由 src/lsp/lsp_diag_stubs_no_c.x 提供（PREFER_X_O 路径） */
 int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     int k = 0;
@@ -175,7 +175,7 @@ int json_escape_str_impl(const char *msg, char *out, int out_cap) {
 extern int json_escape_str_impl(const char *msg, char *out, int out_cap);
 #endif
 
-#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+#ifndef XLANG_LSP_DIAG_STUBS_NO_C_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int json_escape_str(const char *msg, char *out, int out_cap) {
     return json_escape_str_impl(msg, out, out_cap);
@@ -265,7 +265,7 @@ int lsp_get_document_len(void) { return s_doc_len; }
 void lsp_debug_u32(uint32_t n) { (void)n; }
 void lsp_debug_ptr(uint8_t *p) { (void)p; }
 
-/* ====== SHUX_NO_C_FRONTEND 下不可用的高级 LSP 功能桩 ====== */
+/* ====== XLANG_NO_C_FRONTEND 下不可用的高级 LSP 功能桩 ====== */
 int lsp_build_definition_response(int id_val, const uint8_t *source, int source_len, int line_0, int col_0, uint8_t *out_buf, int out_cap) {
     (void)id_val; (void)source; (void)source_len; (void)line_0; (void)col_0;
     if (out_buf && out_cap > 2) { out_buf[0] = 'n'; out_buf[1] = 'u'; out_buf[2] = 'l'; out_buf[3] = 'l'; return 4; }
@@ -292,7 +292,7 @@ int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
 }
 
 /**
- * shux fmt 单文件：NO_C seed 无 lsp_diag.c 时透传源码（不做 LSP 规则格式化）。
+ * xlang fmt 单文件：NO_C seed 无 lsp_diag.c 时透传源码（不做 LSP 规则格式化）。
  * 参数：doc 输入；doc_len 长度；out_buf 输出缓冲；out_cap 容量。
  * 返回值：写入字节数；失败 -1。
  */
@@ -331,7 +331,7 @@ void lsp_diag_report_typeck(int line, int col, const char *fmt, ...) {
     diag_report_with_code(NULL, line, col, "typeck error", "T001", buf, buf);
 }
 
-/** shux check 收集诊断后以人类可读格式打印 stderr（与 lsp_diag.c 一致，bootstrap NO_C 链须可用）。 */
+/** xlang check 收集诊断后以人类可读格式打印 stderr（与 lsp_diag.c 一致，bootstrap NO_C 链须可用）。 */
 int lsp_diag_print_stderr_human(const char *path) {
     int i;
     int n = 0;

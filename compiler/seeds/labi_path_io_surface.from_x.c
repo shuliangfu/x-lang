@@ -4,7 +4,7 @@
  * Prove: full.x vs this seed → nm IDENTICAL (6 public gates + count; wave221 path_executable)
  * Cap residual: nonempty/realpath_if/path_readable/realpath_cap/path_executable → mega _impl
  *   (stat / realpath+skip / access R_OK / POSIX realpath|Windows null / access X_OK)
- * Regen: ./shux -E ... src/runtime/labi_path_io.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/labi_path_io.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -20,19 +20,19 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-extern int32_t shux_path_is_nonempty_regular_file(uint8_t * path);
+extern int32_t xlang_path_is_nonempty_regular_file(uint8_t * path);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
-extern uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
+extern uint8_t * xlang_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern int32_t link_abi_path_executable(uint8_t * path);
 extern int32_t labi_path_io_count(void);
-extern int32_t shux_path_is_nonempty_regular_file_impl(uint8_t * path);
-extern uint8_t * shux_runtime_o_realpath_if_exists_impl(uint8_t * path, uint8_t * resolved);
+extern int32_t xlang_path_is_nonempty_regular_file_impl(uint8_t * path);
+extern uint8_t * xlang_runtime_o_realpath_if_exists_impl(uint8_t * path, uint8_t * resolved);
 extern int32_t link_abi_path_readable_impl(uint8_t * path);
 extern uint8_t * link_abi_realpath_cap_impl(uint8_t * path, uint8_t * out);
 extern int32_t link_abi_path_executable_impl(uint8_t * path);
-int32_t shux_path_is_nonempty_regular_file(uint8_t * path) {
+int32_t xlang_path_is_nonempty_regular_file(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
     return 0;
   }
@@ -40,7 +40,7 @@ int32_t shux_path_is_nonempty_regular_file(uint8_t * path) {
     return 0;
   }
   {
-    return shux_path_is_nonempty_regular_file_impl(path);
+    return xlang_path_is_nonempty_regular_file_impl(path);
   }
   return 0;
 }
@@ -51,12 +51,12 @@ uint8_t * asm_link_obj_skip_missing(uint8_t * path) {
   if (((path)[0] ==0)) {
     return ((uint8_t *)(0));
   }
-  if ((shux_path_is_nonempty_regular_file(path) ==0)) {
+  if ((xlang_path_is_nonempty_regular_file(path) ==0)) {
     return ((uint8_t *)(0));
   }
   return path;
 }
-uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved) {
+uint8_t * xlang_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved) {
   if ((path ==((uint8_t *)(0)))) {
     return ((uint8_t *)(0));
   }
@@ -67,7 +67,7 @@ uint8_t * shux_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved) 
     return ((uint8_t *)(0));
   }
   {
-    return shux_runtime_o_realpath_if_exists_impl(path, resolved);
+    return xlang_runtime_o_realpath_if_exists_impl(path, resolved);
   }
   return ((uint8_t *)(0));
 }

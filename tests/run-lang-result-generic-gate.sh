@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_LANG010_DOC:-analysis/lang-result-generic-v1.md}"
-MANIFEST="${SHUX_LANG010_TSV:-tests/baseline/lang-result-generic.tsv}"
+DOC="${XLANG_LANG010_DOC:-analysis/lang-result-generic-v1.md}"
+MANIFEST="${XLANG_LANG010_TSV:-tests/baseline/lang-result-generic.tsv}"
 SMOKE1="tests/lang-result-generic/result_three.x"
 SMOKE2="tests/lang-result-generic/with_core_import.x"
 MIN_GOLDEN=2
@@ -59,36 +59,36 @@ stdlib_cm_native_shu() {
   esac
 }
 
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   echo "=== LANG-010: typeck + smoke ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   TC_OK=0
   for x in "$SMOKE1" "$SMOKE2"; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "lang-result-generic gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
       lang_result_generic_emit_report "fail" 0 0 0
       exit 1
     fi
     TC_OK=$((TC_OK + 1))
   done
   TYPECK_OK=1
-  exe="/tmp/shux_lang010_$$"
+  exe="/tmp/xlang_lang010_$$"
   set +e
   run_ec=0
   for x in "$SMOKE1" "$SMOKE2"; do
-    link_log=$("$SHUX_BIN" -L . "$x" -o "$exe" 2>&1)
+    link_log=$("$XLANG_BIN" -L . "$x" -o "$exe" 2>&1)
     link_ec=$?
     if [ "$link_ec" -ne 0 ]; then
-      if echo "$link_log" | grep -qE "library 'zstd' not found|shux_panic_"; then
+      if echo "$link_log" | grep -qE "library 'zstd' not found|xlang_panic_"; then
         echo "lang-result-generic gate SKIP runnable link (typeck passed)" >&2
         SKIP=1
         break
@@ -117,7 +117,7 @@ if [ -n "$SHUX_BIN" ]; then
     GOLDEN_OK=0
   fi
 else
-  echo "lang-result-generic gate SKIP smoke (no native shux-c)" >&2
+  echo "lang-result-generic gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 lang_result_generic_emit_report "ok" "$GOLDEN_OK" "$TYPECK_OK" "$SKIP"

@@ -28,7 +28,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`shu_udp_batch_set_addr_port_impl`、`shu_udp_batch_poll_readable_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_NET_UDP_BATCH_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_NET_UDP_BATCH_FROM_X`
 - 前向声明：`shu_udp_batch_set_addr_port`、`shu_udp_batch_poll_readable`（rest 模式下供 4 个 weak API 函数调用，符号由 thin.o 提供）
 - 内部调用更新：无（4 个 weak API 函数调用 thin wrapper 符号，rest 模式下为 U 由 thin.o 解析）
 

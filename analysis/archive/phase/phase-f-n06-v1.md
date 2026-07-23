@@ -28,7 +28,7 @@
 | 项 | 说明 |
 |----|------|
 | F-01 存量 | baseline **4** total（std **0** + core 4；F-ZC ✅） |
-| 编译器 bootstrap | Makefile 已不 `cc -c` heap/fs/io；`build_shux_asm.sh` track 待 F-07 清字符串 |
+| 编译器 bootstrap | Makefile 已不 `cc -c` heap/fs/io；`build_xlang_asm.sh` track 待 F-07 清字符串 |
 | hosted 程序 | 仍链 libc + std C 实现 |
 | 全量迁移 | 非 bootstrap 模块（crypto/db/compress 等）可延后 |
 
@@ -36,10 +36,10 @@
 
 ```bash
 # NL-06 专 gate（任意平台 manifest OK）
-SHUX_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh
+XLANG_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh
 
 # 全链聚合（含 NL-06 track）
-SHUX_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
+XLANG_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 ```
 
 ## 延后（NL-06 v2+ / NL-07 v2）

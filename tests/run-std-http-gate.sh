@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
-MANIFEST="${SHUX_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
-MOD_X="${SHUX_STD_HTTP_MOD:-std/http/mod.x}"
-HTTP_C="${SHUX_STD_HTTP_C:-compiler/seeds/runtime_http_glue.from_x.c}"
+DOC="${XLANG_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
+MANIFEST="${XLANG_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
+MOD_X="${XLANG_STD_HTTP_MOD:-std/http/mod.x}"
+HTTP_C="${XLANG_STD_HTTP_C:-compiler/seeds/runtime_http_glue.from_x.c}"
 MIN_APIS=2
 
 # shellcheck source=tests/lib/perf-http.sh
@@ -33,12 +33,12 @@ std_http_has_api() {
 }
 
 std_http_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="$3"
-  local exe="/tmp/shux_std_http_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  local exe="/tmp/xlang_std_http_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -151,29 +151,29 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-http manifest OK (apis=${API_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
-  if std_http_run_smoke "$SHUX_BIN" tests/http/main.x main; then
+  if std_http_run_smoke "$XLANG_BIN" tests/http/main.x main; then
     echo "std-http smoke OK main"
   else
     echo "std-http gate FAIL: main smoke" >&2
     exit 1
   fi
 else
-  echo "std-http gate SKIP smoke (no native shux)" >&2
+  echo "std-http gate SKIP smoke (no native xlang)" >&2
 fi
 
 echo "std-http gate OK"

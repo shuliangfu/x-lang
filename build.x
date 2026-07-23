@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// build.x — Shux project build strategy (what to build, in what order, which
-// products). Written in Shux; intended as the single build-policy source so
+// build.x — Xlang project build strategy (what to build, in what order, which
+// products). Written in Xlang; intended as the single build-policy source so
 // the toolchain can retire Makefile-centric workflows over time.
-// Entry: `shux build` / `build_tool` / `shux-build.sh`.
+// Entry: `xlang build` / `build_tool` / `xlang-build.sh`.
 // Bootstrap layers, Target B, and acceptance gates: compiler/docs/SELFHOST.md
 // (complements src/asm/README.md Goal 2).
 //
@@ -38,7 +38,7 @@
 // See implementation.
 // See implementation.
 // See implementation.
-// compiler/shux_asm。
+// compiler/xlang_asm。
 // See implementation.
 // See implementation.
 // See implementation.
@@ -63,7 +63,7 @@
 // See implementation.
 //
 // See implementation.
-//       ./build_tool ./shux
+//       ./build_tool ./xlang
 // See implementation.
 // See implementation.
 // See implementation.
@@ -89,15 +89,15 @@
 // ========================================================================
 //
 // See implementation.
-//       cd compiler && ./build_tool ./shux
+//       cd compiler && ./build_tool ./xlang
 // See implementation.
 //
 // See implementation.
-//       ./build_tool /path/to/shux
+//       ./build_tool /path/to/xlang
 //
 // See implementation.
-// scripts/build_shux_asm.sh）：
-//       ./build_tool ./shux asm
+// scripts/build_xlang_asm.sh）：
+//       ./build_tool ./xlang asm
 //
 // See implementation.
 // See implementation.

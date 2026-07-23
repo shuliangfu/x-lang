@@ -6,24 +6,24 @@
 #   nolibc_n07_run_bootstrap_link_smoke || exit 1
 #
 # 环境：
-#   SHUX_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=1 — 额外链入 runtime_panic.o
+#   XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC=1 — 额外链入 runtime_panic.o
 
 # 在 Linux x86_64 上编译并链入 crt0 + freestanding_io + bootstrap 桩 + smoke main_entry。
 nolibc_n07_run_bootstrap_link_smoke() {
   local cc="${CC:-cc}"
   local compiler_dir="${1:-compiler}"
   local smoke_c="${2:-tests/fixtures/nolibc-n07-bootstrap-smoke.c}"
-  local out_bin="${3:-/tmp/shux_n07_bootstrap_smoke}"
+  local out_bin="${3:-/tmp/xlang_n07_bootstrap_smoke}"
   local build_dir
   local rc=0
-  local with_panic="${SHUX_NOLIBC_N07_LINK_SMOKE_WITH_PANIC:-1}"
+  local with_panic="${XLANG_NOLIBC_N07_LINK_SMOKE_WITH_PANIC:-1}"
 
   if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
     echo "nolibc-n07-link-smoke: SKIP (need Linux x86_64)" >&2
     return 0
   fi
 
-  build_dir="$(mktemp -d /tmp/shux_n07_smoke.XXXXXX)"
+  build_dir="$(mktemp -d /tmp/xlang_n07_smoke.XXXXXX)"
   # shellcheck disable=SC2064
   trap "rm -rf '$build_dir'" RETURN
 

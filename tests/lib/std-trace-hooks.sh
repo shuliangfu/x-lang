@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-trace-hooks.sh — STD-118 manifest 与烟测辅助（F-trace v2：纯 trace.x）
 
-STD_TRACE_HOOKS_PREFIX="${SHUX_STD118_TRACE_HOOKS_PREFIX:-shux: [SHUX_STD118_TRACE_HOOKS]}"
+STD_TRACE_HOOKS_PREFIX="${XLANG_STD118_TRACE_HOOKS_PREFIX:-xlang: [XLANG_STD118_TRACE_HOOKS]}"
 
 # 遍历 manifest；symbol 在 trace.x。
 std_trace_hooks_symbols_ok() {
@@ -34,11 +34,11 @@ std_trace_hooks_symbols_ok() {
 }
 
 std_trace_hooks_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_trace_hooks_$$"
-  local log="/tmp/shux_std_trace_hooks_compile_$$.log"
-  if ! "$shux" -L . "$src" -o "$exe" >"$log" 2>&1; then
+  local exe="/tmp/xlang_std_trace_hooks_$$"
+  local log="/tmp/xlang_std_trace_hooks_compile_$$.log"
+  if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
     echo "std-trace-hooks FAIL: compile $src" >&2
     tail -12 "$log" >&2 || true
     rm -f "$log" "$exe"
@@ -62,7 +62,7 @@ std_trace_hooks_run_c_smoke() {
   local trace_o="$1"
   local time_o="$2"
   local random_o="$3"
-  local out="/tmp/shux_std_trace_hooks_c_$$"
+  local out="/tmp/xlang_std_trace_hooks_c_$$"
   make -C compiler runtime_time_os.o runtime_random_fill.o >/dev/null 2>&1 || true
   cc -std=c11 -O1 -o "$out" tests/std-trace/hooks_smoke_ok.c "$trace_o" "$time_o" compiler/runtime_time_os.o "$random_o" compiler/runtime_random_fill.o 2>/dev/null || return 1
   set +e

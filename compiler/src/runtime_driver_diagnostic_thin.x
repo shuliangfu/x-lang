@@ -6,7 +6,7 @@
 //  + binop + commit_shape wave3 + after_entry_module + emit_func_fail wave4):
 // runtime_driver_diagnostic R2 thin.
 // Product PREFER_X_O: g05_try_x_to_o -> thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
-//   (-DSHUX_L2_RDD_THIN_FROM_X) ld -r -> src/runtime_driver_diagnostic.o
+//   (-DXLANG_L2_RDD_THIN_FROM_X) ld -r -> src/runtime_driver_diagnostic.o
 // prove IDENTICAL: thin.x <-> seeds/runtime_driver_diagnostic_thin_surface.from_x.c
 // Pure bodies: fixed-msg typeck + pipe orch + assemble pure + append_* + env pure
 //   + parse_fail (XP001) + codegen_fail note + typeck_func_fail (XT001)
@@ -249,7 +249,7 @@ export function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_le
 
 // ---- Cap residual pure deep-migrate: fixed-msg typeck + pipe orch (body; FROM_X no pure-dup _impl) ----
 export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
-// pure: SHUX_DEBUG_PIPE truthy (getenv non-empty and != '0'); FROM_X no pure-dup _impl
+// pure: XLANG_DEBUG_PIPE truthy (getenv non-empty and != '0'); FROM_X no pure-dup _impl
 
 /** Exported function `driver_diag_env_debug_pipe`.
  * Implements `driver_diag_env_debug_pipe`.
@@ -259,7 +259,7 @@ export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8)
 export function driver_diag_env_debug_pipe(): i32 {
   // PLATFORM: SHARED - LANG-007 S0: is_extern calls require unsafe (align tests/unsafe U4).
   unsafe {
-    return driver_env_flag_truthy("SHUX_DEBUG_PIPE");
+    return driver_env_flag_truthy("XLANG_DEBUG_PIPE");
   }
 }
 
@@ -476,7 +476,7 @@ export function parser_is_ident_allow(ident: *u8, len: i32): i32 {
 
 // ---- Cap residual pure deep-migrate: assemble pure (return/assign/call/struct/asm note + fill/build) ----
 // Same authority as full.x G-02f-175..179; append_* pure; scratch expect/found small BSS pure
-// pure: SHUX_PARSE_STRICT truthy + report_prefixed + pipe_note; FROM_X no pure-dup _impl
+// pure: XLANG_PARSE_STRICT truthy + report_prefixed + pipe_note; FROM_X no pure-dup _impl
 // pure (prior): parse_fail XP001 / codegen_fail note / typeck_func_fail XT001 /
 //   typeck_ptr_field + typeck_ret_fail debug notes (no va_list / snprintf)
 // pure (this wave): parse_skip / parse_commit_fail XP002 / parse_func_generic /
@@ -579,13 +579,13 @@ export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, nam
   }
 }
 
-/** Optional FIELD_ACCESS debug note when link_abi_getenv("SHUX_TYPECK_PTR") is set. Prints bt_kind,
+/** Optional FIELD_ACCESS debug note when link_abi_getenv("XLANG_TYPECK_PTR") is set. Prints bt_kind,
  * inner_kind, inner_nlen, base_resolved_ref, num_struct_layouts via append+driver_diag_note.
  * No-op if env unset. No va_list. PLATFORM: SHARED — pure in thin; cold seed keeps C body. */
 #[no_mangle]
 export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32, inner_nlen: i32, base_resolved_ref: i32, num_struct_layouts: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_TYPECK_PTR") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_TYPECK_PTR") == 0 as *u8) {
       return;
     }
   }
@@ -603,14 +603,14 @@ export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32
   driver_diag_note(&msg[0]);
 }
 
-/** Optional EXPR_RETURN debug note when link_abi_getenv("SHUX_TYPECK_RET") is set. Prints stage,
+/** Optional EXPR_RETURN debug note when link_abi_getenv("XLANG_TYPECK_RET") is set. Prints stage,
  * op_expr_ref, expect_ty_ref, got_ty_ref via append+driver_diag_note. No-op if env unset.
  * stage 1 = operand check fail; 2 = got vs expect mismatch. No va_list.
  * PLATFORM: SHARED — pure in thin; cold seed keeps C body. */
 #[no_mangle]
 export function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, expect_ty_ref: i32, got_ty_ref: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_TYPECK_RET") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_TYPECK_RET") == 0 as *u8) {
       return;
     }
   }
@@ -638,7 +638,7 @@ let g_type_diag_scratch_found: u8[96] = [];
 export function driver_parse_strict_enabled(): i32 {
   // PLATFORM: SHARED - LANG-007 S0: extern call boundary (see analysis doc sec 0.25).
   unsafe {
-    return driver_env_flag_truthy("SHUX_PARSE_STRICT");
+    return driver_env_flag_truthy("XLANG_PARSE_STRICT");
   }
 }
 
@@ -695,14 +695,14 @@ export function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): v
   }
 }
 
-/** If SHUX_ASM_FUNC_TRACE is truthy and a current func name is stored, emit a note.
+/** If XLANG_ASM_FUNC_TRACE is truthy and a current func name is stored, emit a note.
  * Uses driver_env_flag_truthy (G.7 abi authority) + append+note (no va_list reportf).
  * PLATFORM: SHARED — pure in thin. */
 #[no_mangle]
 export function driver_diagnostic_asm_current_func_maybe_trace(): void {
   // PLATFORM: SHARED — LANG-007 S0: extern driver_env_flag_truthy requires unsafe.
   unsafe {
-    if (driver_env_flag_truthy("SHUX_ASM_FUNC_TRACE") == 0) {
+    if (driver_env_flag_truthy("XLANG_ASM_FUNC_TRACE") == 0) {
       return;
     }
   }
@@ -722,7 +722,7 @@ export function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): voi
   driver_diagnostic_asm_current_func_maybe_trace();
 }
 
-/** Note which function failed during asm codegen (SHUX_ASM_DEBUG paths).
+/** Note which function failed during asm codegen (XLANG_ASM_DEBUG paths).
  * Assembles fixed prefix + stored name via append; no va_list. PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_diagnostic_asm_print_current_func(): void {
@@ -866,7 +866,7 @@ export function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void {
   }
 }
 
-// pure: same shape as seed Cap residual - link_abi_getenv("SHUX_DEBUG_PARSE") non-null or parse_strict.
+// pure: same shape as seed Cap residual - link_abi_getenv("XLANG_DEBUG_PARSE") non-null or parse_strict.
 // (C: !getenv && !parse_strict -> return; any non-NULL getenv enables, including "0".)
 /** Internal function `driver_diag_parse_debug_enabled`.
  * Implements `driver_diag_parse_debug_enabled`.
@@ -874,7 +874,7 @@ export function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void {
  */
 function driver_diag_parse_debug_enabled(): i32 {
   unsafe {
-    if (link_abi_getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
+    if (link_abi_getenv("XLANG_DEBUG_PARSE") != 0 as *u8) {
       return 1;
     }
   }
@@ -949,7 +949,7 @@ export function parser_diag_scan_fail(step: i32): void {
   driver_diag_note(&msg[0]);
 }
 
-// pure: SHUX_TYPECK_BLOCK set -> block count note (append+note, no va_list)
+// pure: XLANG_TYPECK_BLOCK set -> block count note (append+note, no va_list)
 /** Exported function `driver_diagnostic_typeck_block_enter`.
  * Implements `driver_diagnostic_typeck_block_enter`.
  * @param func_idx i32
@@ -965,7 +965,7 @@ export function parser_diag_scan_fail(step: i32): void {
 #[no_mangle]
 export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_TYPECK_BLOCK") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_TYPECK_BLOCK") == 0 as *u8) {
       return;
     }
   }
@@ -989,7 +989,7 @@ export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i
   driver_diag_note(&msg[0]);
 }
 
-// pure: SHUX_TYPECK_FN set -> function-enter note
+// pure: XLANG_TYPECK_FN set -> function-enter note
 /** Exported function `driver_diagnostic_typeck_fn_enter`.
  * Implements `driver_diagnostic_typeck_fn_enter`.
  * @param func_idx i32
@@ -1000,7 +1000,7 @@ export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i
 #[no_mangle]
 export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name_len: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_TYPECK_FN") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_TYPECK_FN") == 0 as *u8) {
       return;
     }
   }
@@ -1016,7 +1016,7 @@ export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name
   driver_diag_note(&msg[0]);
 }
 
-// pure: SHUX_TYPECK_VAR set -> VAR resolution source note
+// pure: XLANG_TYPECK_VAR set -> VAR resolution source note
 /** Exported function `driver_diagnostic_typeck_var_resolution`.
  * Implements `driver_diagnostic_typeck_var_resolution`.
  * @param expr_ref i32
@@ -1031,7 +1031,7 @@ export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name
 #[no_mangle]
 export function driver_diagnostic_typeck_var_resolution(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_TYPECK_VAR") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_TYPECK_VAR") == 0 as *u8) {
       return;
     }
   }
@@ -1395,9 +1395,9 @@ export function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): v
 
 // ---- Cap residual pure deep-migrate: skip / commit_fail / generic / param / import / warn / hint (wave2) ----
 
-/** Parse skip note when a function cannot be committed. Gate: SHUX_DEBUG_PARSE non-NULL
- * or SHUX_PARSE_STRICT truthy (same as driver_diag_parse_debug_enabled).
- * Tag: "debug" if link_abi_getenv(SHUX_DEBUG_PARSE) non-NULL else "strict" (cold seed ternary).
+/** Parse skip note when a function cannot be committed. Gate: XLANG_DEBUG_PARSE non-NULL
+ * or XLANG_PARSE_STRICT truthy (same as driver_diag_parse_debug_enabled).
+ * Tag: "debug" if link_abi_getenv(XLANG_DEBUG_PARSE) non-NULL else "strict" (cold seed ternary).
  * LSP path: "parse skip at byte N (num_funcs=M) name=X [tag]"; note path uses mode=tag.
  * Assembles via append_cstr/append_i32/append_name; no va_list reportf/snprintf.
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
@@ -1409,7 +1409,7 @@ export function driver_diagnostic_parse_skip_function(byte_pos: i32, num_funcs_s
   unsafe {
     // Inline mode tag (avoid *u8-returning helper — -E may omit its body).
     let tag: *u8 = "strict";
-    if (link_abi_getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
+    if (link_abi_getenv("XLANG_DEBUG_PARSE") != 0 as *u8) {
       tag = "debug";
     }
     let msg: u8[240] = [];
@@ -1468,7 +1468,7 @@ export function driver_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_
   }
   unsafe {
     let tag: *u8 = "strict";
-    if (link_abi_getenv("SHUX_DEBUG_PARSE") != 0 as *u8) {
+    if (link_abi_getenv("XLANG_DEBUG_PARSE") != 0 as *u8) {
       tag = "debug";
     }
     let msg: u8[256] = [];
@@ -1504,13 +1504,13 @@ export function driver_diagnostic_parse_commit_fail(byte_pos: i32, num_funcs_so_
   }
 }
 
-/** Generic-param debug note for parse_into commit path. Gate: SHUX_DEBUG_PARSE_GENERIC
+/** Generic-param debug note for parse_into commit path. Gate: XLANG_DEBUG_PARSE_GENERIC
  * non-NULL (any value). Message: "parse generic debug: byte=N num_funcs=M generic=G is_main=I name=X".
  * PLATFORM: SHARED — pure in thin; cold C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, num_generic_params: i32, is_main: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_DEBUG_PARSE_GENERIC") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_DEBUG_PARSE_GENERIC") == 0 as *u8) {
       return;
     }
   }
@@ -1536,13 +1536,13 @@ export function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
   driver_diag_note(&msg[0]);
 }
 
-/** OneFunc param type_ref debug. Gate: SHUX_PARSE_PARAM non-NULL.
+/** OneFunc param type_ref debug. Gate: XLANG_PARSE_PARAM non-NULL.
  * Message: "parser param debug: func=F stage=S param_idx=I param=P type_ref=T".
  * PLATFORM: SHARED — pure in thin; cold C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_PARSE_PARAM") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_PARSE_PARAM") == 0 as *u8) {
       return;
     }
   }
@@ -1670,7 +1670,7 @@ export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name:
 
 // ---- Cap residual pure deep-migrate wave3: binop operands + parse_commit_shape ----
 
-/** Optional binop operand debug note when link_abi_getenv("SHUX_TYPECK_BINOP") is set.
+/** Optional binop operand debug note when link_abi_getenv("XLANG_TYPECK_BINOP") is set.
  * Assembles left/right refs, kinds, block refs, type refs, and type name fragments via
  * fill_expr_part (? fallback) + append_cstr/append_i32 + driver_diag_note. No va_list reportf.
  * Message text must match cold seed reportf format (field order fixed).
@@ -1678,7 +1678,7 @@ export function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name:
 #[no_mangle]
 export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_TYPECK_BINOP") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_TYPECK_BINOP") == 0 as *u8) {
       return;
     }
   }
@@ -1714,14 +1714,14 @@ export function driver_diagnostic_typeck_binop_operands(expr_ref: i32, left_ref:
   driver_diag_note(&msg[0]);
 }
 
-/** Optional parse-commit shape debug when link_abi_getenv("SHUX_DEBUG_PARSE_COMMIT") is set.
+/** Optional parse-commit shape debug when link_abi_getenv("XLANG_DEBUG_PARSE_COMMIT") is set.
  * phase: 0=pre_fill, 1=post_block, else unknown. Prints pool vs block counts and final_expr_ref.
  * Assembles via fill_expr_part for name (? fallback) + append_* + driver_diag_note. No va_list.
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void {
   unsafe {
-    if (link_abi_getenv("SHUX_DEBUG_PARSE_COMMIT") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_DEBUG_PARSE_COMMIT") == 0 as *u8) {
       return;
     }
   }
@@ -1782,7 +1782,7 @@ export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 
 // ---- Cap residual pure deep-migrate wave4: after_entry_parse_module + codegen_emit_func_fail ----
 
-/** Optional pipeline debug after entry parse when link_abi_getenv("SHUX_DEBUG_PIPE") is set (any value;
+/** Optional pipeline debug after entry parse when link_abi_getenv("XLANG_DEBUG_PIPE") is set (any value;
  * match cold seed: non-NULL env enables, including "0"). Counts num_funcs / defined / extern via
  * pipeline_module_* APIs (G.7: do not reimplement module walk). Reads num_top_level_lets from
  * shared ast_Module layout offset 12 (i32 field index 3: after num_funcs/main/imports) — same
@@ -1792,7 +1792,7 @@ export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
 #[no_mangle]
 export function driver_diagnostic_after_entry_parse_module(module: *u8): void {
   unsafe {
-    if (link_abi_getenv("SHUX_DEBUG_PIPE") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_DEBUG_PIPE") == 0 as *u8) {
       return;
     }
     if (module == 0 as *u8) {

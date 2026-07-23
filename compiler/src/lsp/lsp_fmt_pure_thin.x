@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-423/424/425/426/427：L2 hybrid thin — lsp_fmt 19 functions.
-// PREFER_X_O: thin.o + seed-rest (-DSHUX_L2_LSP_FMT_THIN_FROM_X) ld -r -> runtime_lsp_glue.o
+// PREFER_X_O: thin.o + seed-rest (-DXLANG_L2_LSP_FMT_THIN_FROM_X) ld -r -> runtime_lsp_glue.o
 // See implementation.
 //
 // See implementation.

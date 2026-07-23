@@ -10,13 +10,13 @@
 | 目标 | 含义 |
 |------|------|
 | **完全不依赖 C（业务逻辑）** | 词法、语法、类型检查、代码生成、构建编排等全部由 .x 实现；C 仅提供「最小运行时」（如 malloc/abort/文件 IO / pipeline 原语），或最终仅保留程序入口与 CRT。 |
-| **不再需要 Makefile** | 从「宿主编译器」到「新 shux」的完整构建由 **build.x → build_tool** 或等价 .x 流程完成，不调用 `make`；可选保留 Makefile 仅作兜底或最终删除。 |
+| **不再需要 Makefile** | 从「宿主编译器」到「新 xlang」的完整构建由 **build.x → build_tool** 或等价 .x 流程完成，不调用 `make`；可选保留 Makefile 仅作兜底或最终删除。 |
 
 ---
 
 ## 二、当前状态简要
 
-- **构建**：build_tool（build.x）可完成 0～6 步全流程，step 1 用 shux 生成 pipeline_gen.c（不依赖 make）；Makefile 保留为兜底。
+- **构建**：build_tool（build.x）可完成 0～6 步全流程，step 1 用 xlang 生成 pipeline_gen.c（不依赖 make）；Makefile 保留为兜底。
 - **前端**：parser/typeck/codegen/lexer/ast 已由 .x 产出（ast_x.o、token_x.o、lexer_x.o、parser_x.o、typeck_x.o、codegen_x.o）并参与链接，-x 路径下业务逻辑在 .x 中。
 - **仍依赖 C 的原因**：main.x、build.x、typeck.x、pipeline.x 通过 **extern** 调用 runtime.c、build_runtime.c；codegen.x 通过 **extern** 调用 codegen.c 中大量 `codegen_x_*`（控制流与表达式生成）（见**第七节**）。因此**尚不能删除** runtime.c、build_runtime.c、codegen.c；要实现「**全部逻辑完整迁到 .x**、完全自举、可删除 C 文件」需完成**第八节阶段 6**（含 6.0 codegen 完全迁 .x）。
 
@@ -28,12 +28,12 @@
 
 | 层次 | 含义 | 当前状态 | 何时达成 |
 |------|------|----------|----------|
-| **业务逻辑不依赖 C** | 词法、语法、类型检查、代码生成、驱动、pipeline、构建、预处理等**全部在 .x 实现**；C 只提供「最小运行时」（argv 取参、exec、文件 IO、malloc、CRT）。 | **已达成**（6.0～6.4 ✅）。main.x / build.x / pipeline.x / preprocess.x 等已承载业务；仍通过 **extern** 调用的只有：`driver_get_argv_i`、`run_compiler_x_path`（-o 等复杂路径）、`pipeline_run_x_pipeline_impl`（实现来自 pipeline.x→C 生成）、build 的 exec/patch、libc 的 open/read/write。 | 现在。自举已是「用 build_tool + 上一代 shux 产出新 shux，运行逻辑在 .x」。 |
+| **业务逻辑不依赖 C** | 词法、语法、类型检查、代码生成、驱动、pipeline、构建、预处理等**全部在 .x 实现**；C 只提供「最小运行时」（argv 取参、exec、文件 IO、malloc、CRT）。 | **已达成**（6.0～6.4 ✅）。main.x / build.x / pipeline.x / preprocess.x 等已承载业务；仍通过 **extern** 调用的只有：`driver_get_argv_i`、`run_compiler_x_path`（-o 等复杂路径）、`pipeline_run_x_pipeline_impl`（实现来自 pipeline.x→C 生成）、build 的 exec/patch、libc 的 open/read/write。 | 现在。自举已是「用 build_tool + 上一代 xlang 产出新 xlang，运行逻辑在 .x」。 |
 | **C 仅极薄层 / 可删除 C 文件** | 把上述 extern 对应的 C 实现**收口到极薄 shim**（或极少数无法用 .x 表达的如 argv），其余 C 文件可删除或仅剩 main+CRT。 | 未做（6.5 暂不执行）。当前仍保留 runtime.c、build_runtime.c、main.c、preprocess.c 等完整文件。 | **做完 6.5 即可**：在 6.0～6.4 验收通过后，执行「删除/最小化 C 文件」，只保留 main 调 main_entry、driver_get_argv_i、build_exec_cmd/build_patch、以及 libc。时间上可安排在 6.0～6.4 稳定后 1～2 个迭代。 |
 
 **结论**：
 
-- **「完全自举」**：已经实现。构建用 build_tool + shux，新 shux 的编译与驱动逻辑在 .x，不依赖我们自己的 C 业务代码。
+- **「完全自举」**：已经实现。构建用 build_tool + xlang，新 xlang 的编译与驱动逻辑在 .x，不依赖我们自己的 C 业务代码。
 - **「不再依赖 C（业务逻辑）」**：已实现。剩余 C 均为最小运行时或无法在 .x 中表达的边界（argv、exec、生成出的 pipeline_gen.c）。
 - **「什么时候才能不再依赖 C」**：若指「业务逻辑不依赖 C」→ **现在**。若指「C 只保留极薄层、可删 C 文件」→ **做完 6.5**（建议 6.0～6.4 稳定后执行，约 1～2 个迭代）。若指「零 C 源码、连 main 都没有」→ 需换后端（.x 直接出机器码或 LLVM IR）或接受长期保留「main + CRT + 极薄 shim」，路线图当前不以此为必达目标。
 
@@ -49,9 +49,9 @@
 
 | 序号 | 内容 | 验收 | 状态 |
 |------|------|------|------|
-| 1.1 | build_run_step(1) 不再调用 `make pipeline_gen.c` | step 1 改为：用 shux 生成 pipeline_gen.c（命令与 Makefile 中 bootstrap-pipeline + pipeline_gen.c 的 sed 修正等价），不执行 make | ✅ |
+| 1.1 | build_run_step(1) 不再调用 `make pipeline_gen.c` | step 1 改为：用 xlang 生成 pipeline_gen.c（命令与 Makefile 中 bootstrap-pipeline + pipeline_gen.c 的 sed 修正等价），不执行 make | ✅ |
 | 1.2 | pipeline_gen.c 的修正逻辑迁入 build_runtime 或 .x 可配置 | 包装/重命名、(data,len) 包装、size getters、debug_module_funcs、parser_get_module_import_path 等修正在 build_tool 内完成，不依赖 Makefile 规则 | ✅ |
-| 1.3 | 全流程仅用 build_tool：`cd compiler && ./build_tool ./shuxc` 产出 shux，且无需 make | 删除或注释 Makefile 后，仅靠「已有 shux + build_tool」能完成一次完整构建 | ✅ |
+| 1.3 | 全流程仅用 build_tool：`cd compiler && ./build_tool ./xlangc` 产出 xlang，且无需 make | 删除或注释 Makefile 后，仅靠「已有 xlang + build_tool」能完成一次完整构建 | ✅ |
 
 **阶段 1 完成标志**：不再需要执行任何 `make` 即可完成编译器构建。
 
@@ -61,9 +61,9 @@
 
 | 序号 | 内容 | 验收 | 状态 |
 |------|------|------|------|
-| 2.1 | -x -E 支持 -L 与多库根 | driver 解析 -x -E 时接受前面出现的 -L path，并传入 pipeline/resolve，使「shux -L .. -L src/lexer ... -x -E src/pipeline/pipeline.x」能解析 import | ✅ |
-| 2.2 | 用 -x -E 生成 pipeline_gen.c | build_tool 的「生成 pipeline_gen.c」步骤优先调用 `shux -x -E -L ... src/pipeline/pipeline.x`；若失败则回退到 C 前端 `shux ... pipeline.x -E`，保证构建可完成 | ✅ |
-| 2.3 | 上述生成的 pipeline_gen.c 经现有修正后能正常编出 pipeline_x.o，且 bootstrap/build_tool 全流程通过 | 与当前 Makefile 构建产出的 shux 行为一致（如 run-all 或 return-value 42） | ✅ |
+| 2.1 | -x -E 支持 -L 与多库根 | driver 解析 -x -E 时接受前面出现的 -L path，并传入 pipeline/resolve，使「xlang -L .. -L src/lexer ... -x -E src/pipeline/pipeline.x」能解析 import | ✅ |
+| 2.2 | 用 -x -E 生成 pipeline_gen.c | build_tool 的「生成 pipeline_gen.c」步骤优先调用 `xlang -x -E -L ... src/pipeline/pipeline.x`；若失败则回退到 C 前端 `xlang ... pipeline.x -E`，保证构建可完成 | ✅ |
+| 2.3 | 上述生成的 pipeline_gen.c 经现有修正后能正常编出 pipeline_x.o，且 bootstrap/build_tool 全流程通过 | 与当前 Makefile 构建产出的 xlang 行为一致（如 run-all 或 return-value 42） | ✅ |
 
 **阶段 2 完成标志**：生成 pipeline_gen.c 时优先使用 .x 流水线（-x -E）；当前若 .x 解析 pipeline.x 失败则自动回退 C -E，全流程通过。
 
@@ -75,7 +75,7 @@
 
 | 序号 | 内容 | 验收 | 状态 |
 |------|------|------|------|
-| 3.1 | shuxc 支持「-E 仅展开入口、import 用 extern」或等价机制 | 生成「瘦」pipeline_gen.c（只含 pipeline 自身 + extern parse_into/typeck_x_ast/codegen_x_ast 等），不内联 parser/typeck/codegen | ✅ |
+| 3.1 | xlangc 支持「-E 仅展开入口、import 用 extern」或等价机制 | 生成「瘦」pipeline_gen.c（只含 pipeline 自身 + extern parse_into/typeck_x_ast/codegen_x_ast 等），不内联 parser/typeck/codegen | ✅ |
 | 3.2 | build_tool 链入 parser_x.o、typeck_x.o、codegen_x.o，不再链 parser.o、typeck.o、codegen.o | 链接命令用 parser_x.o 等；step 0 不再编 parser/typeck/codegen 的 C，或仅保留 lexer/ast/preprocess/runtime/main 等 C | ✅ |
 | 3.3 | 全构建通过且测试套件与当前一致 | run-all 或 bootstrap-verify 等价验收通过 | ✅ |
 
@@ -83,7 +83,7 @@
 
 **3.1 已实现**：新增 `-E-extern` 与 `codegen_emit_dep_types_only()`，`run_compiler_c` 在 `emit_c_only && emit_extern_imports` 时仅输出依赖类型 + 入口模块（extern 由 codegen 生成）。`build_patch_pipeline_gen_c` 在瘦 pipeline_gen.c 缺 `parser_parse_into` 声明时会补上。
 
-**3.2/3.3 部分就绪、暂未启用**：已实现 `run_compiler_x_path`（runtime.c）、main.x 改调 `run_compiler_x_path`、build_tool 的 step 6（生成并编 parser_x/typeck_x/codegen_x）及 `build_patch_parser_export`（parser_* ABI 包装）。当前仍用 C 的 parser/typeck/codegen 与完整 -E 生成自包含 pipeline_gen.c，原因：parser_x.o/typeck_x.o/codegen_x.o 由 `shux -E` 生成时带齐 ast/lexer/main，链接会重复符号。待实现「-E 库模式」（仅导出 parser_*/typeck_*/codegen_*、无 main/ast/lexer 内联）后，可切 step 0 不编 C parser/typeck/codegen、step 5 链 _x.o 并加 -DSHUX_USE_X_FRONTEND。
+**3.2/3.3 部分就绪、暂未启用**：已实现 `run_compiler_x_path`（runtime.c）、main.x 改调 `run_compiler_x_path`、build_tool 的 step 6（生成并编 parser_x/typeck_x/codegen_x）及 `build_patch_parser_export`（parser_* ABI 包装）。当前仍用 C 的 parser/typeck/codegen 与完整 -E 生成自包含 pipeline_gen.c，原因：parser_x.o/typeck_x.o/codegen_x.o 由 `xlang -E` 生成时带齐 ast/lexer/main，链接会重复符号。待实现「-E 库模式」（仅导出 parser_*/typeck_*/codegen_*、无 main/ast/lexer 内联）后，可切 step 0 不编 C parser/typeck/codegen、step 5 链 _x.o 并加 -DXLANG_USE_X_FRONTEND。
 
 ---
 
@@ -107,13 +107,13 @@
 
 | 序号 | 内容 | 验收 | 状态 |
 |------|------|------|------|
-| 5.1 | 文档标明「唯一构建方式：build_tool」 | README 或 自举开发时序表 写明：构建仅需 `cd compiler && ./build_tool ./shuxc`（或等价），不再需要 make | ✅ |
+| 5.1 | 文档标明「唯一构建方式：build_tool」 | README 或 自举开发时序表 写明：构建仅需 `cd compiler && ./build_tool ./xlangc`（或等价），不再需要 make | ✅ |
 | 5.2 | Makefile 改为可选/兜底或删除 | 若保留 Makefile，仅作「无 build_tool 时的兜底」并注明；或完全删除 Makefile | ✅ |
-| 5.3 | 自举验证不依赖 make | `bootstrap-verify` 等价流程由 build_tool 或 .x 脚本完成（如两代 shux 均由 build_tool 产出并跑 run-all） | ✅ |
+| 5.3 | 自举验证不依赖 make | `bootstrap-verify` 等价流程由 build_tool 或 .x 脚本完成（如两代 xlang 均由 build_tool 产出并跑 run-all） | ✅ |
 
 **阶段 5 完成标志**：日常与自举均不依赖 Makefile，实现「不再需要 Makefile」。
 
-**5.2 说明**：compiler/Makefile 顶部已注明「兜底/可选」，仅用于从零构建得到 shux/build_tool 或执行 test、bootstrap-verify 等目标。
+**5.2 说明**：compiler/Makefile 顶部已注明「兜底/可选」，仅用于从零构建得到 xlang/build_tool 或执行 test、bootstrap-verify 等目标。
 
 ---
 
@@ -146,7 +146,7 @@
 ## 六、说明
 
 - **打勾**：完成一项即将该项「状态」列的 ⬜ 改为 ✅，建议同时提交当次改动。
-- **遇阻**：若某步依赖「shux 尚不支持的能力」（如 -x -E 支持 -L），先在该步下注明，再在 C 或 shux 中做最小扩展后继续。
+- **遇阻**：若某步依赖「xlang 尚不支持的能力」（如 -x -E 支持 -L），先在该步下注明，再在 C 或 xlang 中做最小扩展后继续。
 - **验收**：每步「验收」列给出可验证标准，便于 CI 或人工检查。
 
 ---
@@ -181,17 +181,17 @@
 | 6.0 | **codegen 完全迁 .x** | codegen.x 内实现所有 `codegen_x_*` 的等价逻辑（emit、block、match、if_expr、for/while、call、index、field_access、struct_lit、array_lit 等）；.x 与 -E 生成的 pipeline 内联**不再 extern** codegen.c 的符号；逻辑全部在 .x，不依赖 C 业务代码 | ✅（codegen.x 已无 extern 调 C；STRUCT_LIT/ARRAY_LIT/ENUM_VARIANT 等均在 .x 内 emit_expr 实现） |
 | 6.1 | **pipeline 原语迁 .x** | `pipeline_resolve_path`、`pipeline_read_file`、`pipeline_set_dep`、`get_dep_*` 等**在 .x 内用 std.fs + .x 自己的 dep 存储实现**；pipeline.x / typeck.x **不再 extern** 这些符号；仅允许 extern malloc/free 与 std.fs（open/read/close）等最小运行时 | ✅（resolve_path_x/read_file_x 纯 .x+std.fs；preprocess_x_buf 在 preprocess.x；ctx 用固定数组；**仅保留 1 个 C 桥接** pipeline_parse_into_buf：因 .x 暂无 (buf,len)→u8[] 语法） |
 | 6.2 | **driver 入口迁 .x** | `run_compiler_x_path`、`driver_argv_parse_x_emit_c`、`driver_run_x_emit_c` 的**全部逻辑在 main.x（或 driver.x）中实现**；.x 不再通过 extern 调 runtime.c 的上述函数；C 仅保留「调用 main_entry」的 main 桩（不删 C 文件，仅收口） | ✅（main.x 实现 driver_argv_parse_x、driver_run_x_emit_x；-x -E 解析与执行全在 .x；仅 extern driver_get_argv_i、run_compiler_x_path、pipeline_run_x_pipeline） |
-| 6.3 | **build_tool 原语迁 .x** | `build_get_shux_path`、`build_run_step` 的「拼命令、调 shux/cc、写 pipeline_gen.c」等**逻辑在 build.x 中实现**；.x 不再 extern build_runtime.c；可基于 std.fs + 新 std.process（或极薄 C：exec/spawn）在 .x 内完成子进程与文件读写 | ✅（build.x 实现 entry/run_all_steps/run_step，拼命令用 build_append_literal、执行用 build_exec_cmd、修正用 build_patch_after_step；C 仅保留上述极薄原语 + patch 实现） |
+| 6.3 | **build_tool 原语迁 .x** | `build_get_xlang_path`、`build_run_step` 的「拼命令、调 xlang/cc、写 pipeline_gen.c」等**逻辑在 build.x 中实现**；.x 不再 extern build_runtime.c；可基于 std.fs + 新 std.process（或极薄 C：exec/spawn）在 .x 内完成子进程与文件读写 | ✅（build.x 实现 entry/run_all_steps/run_step，拼命令用 build_append_literal、执行用 build_exec_cmd、修正用 build_patch_after_step；C 仅保留上述极薄原语 + patch 实现） |
 | 6.4 | **preprocess 迁 .x** | 预处理**逻辑全部在 preprocess.x**，无 extern 读/写字节；链入 preprocess_x.o，runtime 在 ndefines==0 时调 .x 实现 | ✅（preprocess.x 已无 C 依赖；preprocess.c 仅作 ndefines>0 回退，不删文件） |
 | 6.5 | **删除/最小化 C 文件（暂不执行）** | 仅在 6.0～6.4 全部完成且验收通过后**再考虑**；不执行删除 runtime.c、build_runtime.c、codegen.c、preprocess.c，仅保留「main 调 main_entry + CRT」等极薄 C 时再动 | 🔶 暂不执行（先完成 6.0～6.4，.x 逻辑全部写好后再议） |
 
-**阶段 6 完成标志（不含 6.5）**：**语法、控制流、代码生成、驱动、pipeline、构建、预处理**等业务逻辑**全部在 .x 中实现**，**.x 不依赖我们自己的 C 业务代码**（仅允许最小运行时如 libc/open/read/close、malloc/free）。**完全自举**：用「build_tool + 上一代 shux」产出新一代 shux，新一代 shux 的运行逻辑由 .x 承担。**6.5 暂不执行**：不删除 C 文件，仅在做完 6.0～6.4 并确认 .x 自洽后再考虑是否删除/最小化 C。
+**阶段 6 完成标志（不含 6.5）**：**语法、控制流、代码生成、驱动、pipeline、构建、预处理**等业务逻辑**全部在 .x 中实现**，**.x 不依赖我们自己的 C 业务代码**（仅允许最小运行时如 libc/open/read/close、malloc/free）。**完全自举**：用「build_tool + 上一代 xlang」产出新一代 xlang，新一代 xlang 的运行逻辑由 .x 承担。**6.5 暂不执行**：不删除 C 文件，仅在做完 6.0～6.4 并确认 .x 自洽后再考虑是否删除/最小化 C。
 
 **说明**：  
 - **6.0 codegen 完全迁 .x**：codegen.x **已不 extern** codegen.c，整条 -x 路径只调 codegen_x_ast；emit_expr/emit_block 等均在 .x 内用 ast.x 自写。未覆盖的仅剩 STRUCT_LIT/ARRAY_LIT/EXPR_ENUM_VARIANT 等少量分支，补全即可达标。  
 - **6.1 pipeline 原语**：**无需模块级 var**。做法：定义「dep 上下文」结构体（如 `PipelineDepCtx { dep_modules, dep_arenas, ndep }`），由调用方分配并传入 `run_x_pipeline(..., ctx)` 与 `typeck_x_ast(module, arena, ctx)`，.x 内用 ctx 读写 dep，不再调用 get_dep_*/pipeline_set_dep 等 extern。resolve_path/read_file 在 .x 内用 std.fs（open/read/close）+ 自写路径拼接实现。  
 - **6.2 driver**：run_compiler_x_path、driver_argv_parse_x_emit_c、driver_run_x_emit_c 的**实现逻辑迁到 main.x**，C 只留 main 调 main_entry，不删 runtime.c 文件直至 6.5 明确执行。  
-- **6.3 build_tool**：build_get_shux_path、build_run_step 的**实现逻辑迁到 build.x**（拼命令、调子进程、写文件），不依赖 build_runtime.c 业务逻辑；不删 build_runtime.c 直至 6.5。  
+- **6.3 build_tool**：build_get_xlang_path、build_run_step 的**实现逻辑迁到 build.x**（拼命令、调子进程、写文件），不依赖 build_runtime.c 业务逻辑；不删 build_runtime.c 直至 6.5。  
 - **6.4 preprocess**：已达成；preprocess.x 无 extern，逻辑全在 .x。  
 - **6.5**：**暂不执行删除文件**；仅当 6.0～6.4 全部写好并验收后，再讨论是否删除或最小化 C 文件。  
 - std/fs 与 tests/ffi 的 open/read/write/close/putchar 依赖 **libc**，视为最小运行时，不阻碍「.x 全部写自己逻辑」；若需零 C 源码可再议入口与 CRT。
@@ -232,8 +232,8 @@
 
 1. **先做 LLVM IR 后端**（2～3 人月可出可用版本）  
    - 在 codegen 层增加「后端选择」：现有 C 输出保留；新增「LLVM IR」路径：AST → 生成 .ll 或内存中的 IR → 调 llc 生成 .o → 调 ld 链接。  
-   - 验收：`shux -backend llvm file.x -o a.out` 不调 cc，仅用 llc + ld，产出可执行文件且行为与 C 后端一致。  
-   - 完成后即可实现「零 C 源码」：宿主编译器只需能跑 .x，新 shux 用 LLVM 后端即可不再依赖系统 C 编译器。
+   - 验收：`xlang -backend llvm file.x -o a.out` 不调 cc，仅用 llc + ld，产出可执行文件且行为与 C 后端一致。  
+   - 完成后即可实现「零 C 源码」：宿主编译器只需能跑 .x，新 xlang 用 LLVM 后端即可不再依赖系统 C 编译器。
 
 2. **直接机器码**：在 LLVM 后端稳定、且确有「不依赖 LLVM」需求时再立项；或作为独立长期目标（如 9.2 量级）。
 
@@ -249,7 +249,7 @@
 | **多架构/可移植** | 优：LLVM 支持 x86/ARM/RISC-V/WebAssembly 等，加目标主要是前端传 triple。 | 差：每多一个架构都要写一套指令编码与 ABI，工作量成倍增加。 |
 | **调试与生态** | 优：可输出 .ll 文本、用 opt/llc 调试；与 LLVM 生态（sanitizer、profile）兼容。 | 中：需自备反汇编/调试信息；和现有工具链的集成要自己做。 |
 | **可控性/可预测性** | 中：行为由 LLVM 版本与选项决定；定制或「极小二进制」要摸清 LLVM 选项。 | 高：每条指令、每个段完全可控，适合对体积/行为有极端要求的场景（如 bootloader、嵌入式）。 |
-| **自举与分发** | 中：自举时需宿主机有 LLVM，或把 llc 打进发布包（体积大）。 | 优：不依赖 LLVM，发布一个 shux 即可；适合「单二进制」或嵌入式分发。 |
+| **自举与分发** | 中：自举时需宿主机有 LLVM，或把 llc 打进发布包（体积大）。 | 优：不依赖 LLVM，发布一个 xlang 即可；适合「单二进制」或嵌入式分发。 |
 
 **简要结论**：
 

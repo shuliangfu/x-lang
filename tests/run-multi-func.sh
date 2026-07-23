@@ -4,14 +4,14 @@
 
 set -e
 cd "$(dirname "$0")/.."
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
-"$RUN_SHUX" build tests/multi-func/main.x -o /tmp/shux_multi_func 2>&1
+"$RUN_XLANG" build tests/multi-func/main.x -o /tmp/xlang_multi_func 2>&1
 exitcode=0
-/tmp/shux_multi_func >/dev/null 2>&1 || exitcode=$?
+/tmp/xlang_multi_func >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 3 ]; then
     echo "expected exit code 3 (add(1,2)), got $exitcode"
     exit 1

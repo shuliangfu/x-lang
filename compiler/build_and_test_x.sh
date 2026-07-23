@@ -2,7 +2,7 @@
 set -e
 cd "$(dirname "$0")"
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
-CFLAGS_DRIVER="$CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS"
+CFLAGS_DRIVER="$CFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_FRONTEND -DXLANG_USE_X_PREPROCESS"
 
 echo "=== 0. Bootstrap ==="
 SRCS="src/main.c src/runtime.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/asm/runtime_lsp_glue.c"
@@ -12,23 +12,23 @@ for src in $SRCS; do
   OBJS="$OBJS $obj"
   cc $CFLAGS -c -o "$obj" "$src"
 done
-cc $CFLAGS -o shux $OBJS
-cc $CFLAGS -o shux-c $OBJS
+cc $CFLAGS -o xlang $OBJS
+cc $CFLAGS -o xlang-c $OBJS
 
-echo "=== 1. Relink shux with fixed runtime ==="
+echo "=== 1. Relink xlang with fixed runtime ==="
 cc $CFLAGS -c src/runtime.c -o src/runtime.o
-cc $CFLAGS -o shux src/main.o src/runtime.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/lsp/lsp_diag.o
+cc $CFLAGS -o xlang src/main.o src/runtime.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/lsp/lsp_diag.o
 
 echo "=== 2. Generate all _gen.c ==="
-./shux build -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c
-./shux build -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c
-./shux build -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c
-./shux build -E -E-extern src/ast/ast.x > ast_gen.c
-./shux build -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c
-./shux build -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c
-./shux build -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c
-./shux build -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c
-./shux build -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.x -E -E-extern > driver_gen.c
+./xlang build -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c
+./xlang build -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c
+./xlang build -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c
+./xlang build -E -E-extern src/ast/ast.x > ast_gen.c
+./xlang build -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c
+./xlang build -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c
+./xlang build -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c
+./xlang build -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c
+./xlang build -L .. -L . -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.x -E -E-extern > driver_gen.c
 
 echo "=== 3. Fix generated C ==="
 sed -i '' '52d' parser_gen.c 2>/dev/null || true
@@ -57,8 +57,8 @@ cc $CFLAGS -c src/asm/runtime_lexer_glue.c -o src/lexer/lexer.o
 cc $CFLAGS -c src/asm/runtime_ast_glue.c -o src/ast/ast.o
 cc $CFLAGS -c src/asm/runtime_lsp_glue.c -o src/lsp/lsp_diag.o
 
-echo "=== 7. Link shux_x ==="
-cc $CFLAGS_DRIVER -o shux_x \
+echo "=== 7. Link xlang_x ==="
+cc $CFLAGS_DRIVER -o xlang_x \
   src/main.o runtime_driver.o \
   preprocess_x.o std_fs_shim.o \
   ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o \
@@ -68,6 +68,6 @@ cc $CFLAGS_DRIVER -o shux_x \
   shu_x_stubs.o
 
 echo "=== 8. Quick smoke test ==="
-./shux_x -x -E ../tests/x-pipeline/hello.x 2>&1 || true
-echo "shux_x built successfully: $(ls -lh shux_x | awk '{print $5}')"
+./xlang_x -x -E ../tests/x-pipeline/hello.x 2>&1 || true
+echo "xlang_x built successfully: $(ls -lh xlang_x | awk '{print $5}')"
 echo "Ready for full test suite."

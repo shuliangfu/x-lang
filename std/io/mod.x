@@ -447,7 +447,7 @@ export function writev(fd: i32, buffers: *Buffer, n: i32): i32 {
  * @return i32
  */
 export function register_buffers(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, nr: u32): i32 {
-  return core.shux_io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3, nr);
+  return core.xlang_io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3, nr);
 }
 /** Exported function `register_buffers`.
  * Registration helper `register_buffers`.
@@ -468,7 +468,7 @@ export function register_buffers(bufs: *Buffer, nr: u32): i32 {
  * @return i32
  */
 export function read_fixed_fd(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
-  return core.shux_io_read_fixed(from_fd(fd, 0), buf_index, offset, len, timeout_ms);
+  return core.xlang_io_read_fixed(from_fd(fd, 0), buf_index, offset, len, timeout_ms);
 }
 /** Exported function `write_fixed_fd`.
  * Write path helper `write_fixed_fd`.
@@ -480,7 +480,7 @@ export function read_fixed_fd(fd: i32, buf_index: u32, offset: usize, len: usize
  * @return i32
  */
 export function write_fixed_fd(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
-  return core.shux_io_write_fixed(from_fd(fd, 0), buf_index, offset, len, timeout_ms);
+  return core.xlang_io_write_fixed(from_fd(fd, 0), buf_index, offset, len, timeout_ms);
 }
 // ─── ZC-1 Provided Buffers：IORING_OP_PROVIDE_BUFFERS + buffer ring（Linux 5.19+）───
 // See implementation.
@@ -491,14 +491,14 @@ export function write_fixed_fd(fd: i32, buf_index: u32, offset: usize, len: usiz
  * @return i32
  */
 export function register_provided(nr: u32, bufsz: u32): i32 {
-  return core.shux_io_register_provided_buffers(nr, bufsz);
+  return core.xlang_io_register_provided_buffers(nr, bufsz);
 }
 /** Exported function `unregister_provided`.
  * Registration helper `unregister_provided`.
  * @return void
  */
 export function unregister_provided(): void {
-  core.shux_io_unregister_provided_buffers();
+  core.xlang_io_unregister_provided_buffers();
 }
 /** Exported function `provided_buffer_ptr`.
  * Implements `provided_buffer_ptr`.
@@ -506,14 +506,14 @@ export function unregister_provided(): void {
  * @return *u8
  */
 export function provided_buffer_ptr(bid: u32): *u8 {
-  return core.shux_io_provided_buffer_ptr(bid);
+  return core.xlang_io_provided_buffer_ptr(bid);
 }
 /** Exported function `provided_buffer_size`.
  * Implements `provided_buffer_size`.
  * @return u32
  */
 export function provided_buffer_size(): u32 {
-  return core.shux_io_provided_buffer_size();
+  return core.xlang_io_provided_buffer_size();
 }
 /** Exported function `read_provided_fd`.
  * Read path helper `read_provided_fd`.
@@ -524,7 +524,7 @@ export function provided_buffer_size(): u32 {
  * @return i32
  */
 export function read_provided_fd(fd: i32, timeout_ms: u32, out_bid: *u32, out_len: *u32): i32 {
-  return core.shux_io_read_provided(from_fd(fd, 0), timeout_ms, out_bid, out_len);
+  return core.xlang_io_read_provided(from_fd(fd, 0), timeout_ms, out_bid, out_len);
 }
 /** Exported function `read_batch_provided_fd`.
  * Read path helper `read_batch_provided_fd`.
@@ -536,7 +536,7 @@ export function read_provided_fd(fd: i32, timeout_ms: u32, out_bid: *u32, out_le
  * @return i32
  */
 export function read_batch_provided_fd(fd: i32, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
-  return core.shux_io_read_batch_provided(from_fd(fd, 0), n, timeout_ms, out_bids, out_lens);
+  return core.xlang_io_read_batch_provided(from_fd(fd, 0), n, timeout_ms, out_bids, out_lens);
 }
 // wait_readable: see function docblock below.
 /** Exported function `wait_readable`.
@@ -547,7 +547,7 @@ export function read_batch_provided_fd(fd: i32, n: i32, timeout_ms: u32, out_bid
  * @return i32
  */
 export function wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
-  return core.shux_io_wait_readable(fds, n, timeout_ms);
+  return core.xlang_io_wait_readable(fds, n, timeout_ms);
 }
 // See implementation.
 // See implementation.
@@ -560,14 +560,14 @@ export const IO_ASYNC_NOT_READY: i32 = -2;
  * @return i32
  */
 export function read_async(handle: usize, ptr: *u8, len: usize): i32 {
-  return core.shux_io_submit_read_async(ptr, len, handle);
+  return core.xlang_io_submit_read_async(ptr, len, handle);
 }
 /** Exported function `complete_read`.
  * Read path helper `complete_read`.
  * @return i32
  */
 export function complete_read(): i32 {
-  return core.shux_io_complete_read_async();
+  return core.xlang_io_complete_read_async();
 }
 /** Exported function `complete_read`.
  * Read path helper `complete_read`.
@@ -575,7 +575,7 @@ export function complete_read(): i32 {
  * @return i32
  */
 export function complete_read(slot: i32): i32 {
-  return core.shux_io_complete_read_async_slot(slot);
+  return core.xlang_io_complete_read_async_slot(slot);
 }
 /** Exported function `write_async`.
  * Write path helper `write_async`.
@@ -585,14 +585,14 @@ export function complete_read(slot: i32): i32 {
  * @return i32
  */
 export function write_async(handle: usize, ptr: *u8, len: usize): i32 {
-  return core.shux_io_submit_write_async(ptr, len, handle);
+  return core.xlang_io_submit_write_async(ptr, len, handle);
 }
 /** Exported function `complete_write`.
  * Write path helper `complete_write`.
  * @return i32
  */
 export function complete_write(): i32 {
-  return core.shux_io_complete_write_async();
+  return core.xlang_io_complete_write_async();
 }
 /** Exported function `complete_write`.
  * Write path helper `complete_write`.
@@ -600,7 +600,7 @@ export function complete_write(): i32 {
  * @return i32
  */
 export function complete_write(slot: i32): i32 {
-  return core.shux_io_complete_write_async_slot(slot);
+  return core.xlang_io_complete_write_async_slot(slot);
 }
 /** Exported function `poll_completions`.
  * Implements `poll_completions`.
@@ -608,14 +608,14 @@ export function complete_write(slot: i32): i32 {
  * @return u32
  */
 export function poll_completions(timeout_ms: u32): u32 {
-  return core.shux_io_poll_async_completions(timeout_ms);
+  return core.xlang_io_poll_async_completions(timeout_ms);
 }
 /** Exported function `uring_ok`.
  * Implements `uring_ok`.
  * @return i32
  */
 export function uring_ok(): i32 {
-  return core.shux_io_uring_is_available_c();
+  return core.xlang_io_uring_is_available_c();
 }
 // read_slice: see function docblock below.
 /** Exported function `read_slice`.

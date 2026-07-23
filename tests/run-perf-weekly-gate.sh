@@ -3,17 +3,17 @@
 #
 # 四支柱 + STD 扩展：
 #   1) SIMD — std-simd-autovec-strategy + 可选 shuffle/select perf
-#   2) IO   — perf-io-zig（无 native shux 时 SKIP）
-#   3) NET  — perf-net-zc manifest + perf-net-zig（无 shux 时 SKIP）
+#   2) IO   — perf-io-zig（无 native xlang 时 SKIP）
+#   3) NET  — perf-net-zc manifest + perf-net-zig（无 xlang 时 SKIP）
 #   4) DB   — perf-sqlite manifest + stub/loop 烟测
 #
 # 用法：./tests/run-perf-weekly-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_PERF_WEEKLY_DOC:-analysis/perf-weekly-v1.md}"
-MANIFEST="${SHUX_PERF_WEEKLY_TSV:-tests/baseline/perf-weekly.tsv}"
-PREFIX="shux: [SHUX_PERF_WEEKLY]"
+DOC="${XLANG_PERF_WEEKLY_DOC:-analysis/perf-weekly-v1.md}"
+MANIFEST="${XLANG_PERF_WEEKLY_TSV:-tests/baseline/perf-weekly.tsv}"
+PREFIX="xlang: [XLANG_PERF_WEEKLY]"
 
 echo "=== PERF-169: weekly perf manifest ==="
 for f in "$DOC" "$MANIFEST"; do
@@ -69,11 +69,11 @@ echo "=== PERF-169: pillar SIMD ==="
 chmod +x tests/run-std-simd-autovec-strategy-gate.sh
 ./tests/run-std-simd-autovec-strategy-gate.sh
 SIMD_OK=1
-if [ -x ./compiler/shux_asm ] || [ -x ./compiler/shux_asm.strict ]; then
+if [ -x ./compiler/xlang_asm ] || [ -x ./compiler/xlang_asm.strict ]; then
   chmod +x tests/run-perf-simd-shuffle-select.sh 2>/dev/null || true
   if [ -f tests/run-perf-simd-shuffle-select.sh ]; then
     set +e
-    SHUX_SIMD_SS_FAIL=0 ./tests/run-perf-simd-shuffle-select.sh >/tmp/perf_weekly_simd.log 2>&1
+    XLANG_SIMD_SS_FAIL=0 ./tests/run-perf-simd-shuffle-select.sh >/tmp/perf_weekly_simd.log 2>&1
     simd_ec=$?
     set -e
     if [ "$simd_ec" -eq 0 ]; then
@@ -97,7 +97,7 @@ if [ "$io_ec" -eq 0 ]; then
 elif grep -q 'SKIP' /tmp/perf_weekly_io.log 2>/dev/null; then
   IO_OK=1
   SKIP=$((SKIP + 1))
-  echo "perf-weekly IO SKIP (no native shux)"
+  echo "perf-weekly IO SKIP (no native xlang)"
 else
   echo "perf-weekly IO FAIL" >&2
   tail -8 /tmp/perf_weekly_io.log >&2 || true
@@ -117,7 +117,7 @@ if [ "$net_ec" -eq 0 ]; then
 elif grep -q 'SKIP' /tmp/perf_weekly_net.log 2>/dev/null; then
   NET_OK=1
   SKIP=$((SKIP + 1))
-  echo "perf-weekly NET SKIP (no native shux)"
+  echo "perf-weekly NET SKIP (no native xlang)"
 else
   echo "perf-weekly NET FAIL" >&2
   tail -8 /tmp/perf_weekly_net.log >&2 || true

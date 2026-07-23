@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-void shux_panic_(int has_msg, int msg_val);
+void xlang_panic_(int has_msg, int msg_val);
 extern void copy_bytes(uint8_t * dest, uint8_t * src, size_t n);
 extern int32_t lsp_diag_run_pipeline_on_buf(uint8_t * mut_buf, int32_t sl);
 extern int32_t lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap);

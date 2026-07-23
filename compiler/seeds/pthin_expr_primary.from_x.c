@@ -1,6 +1,6 @@
 /* seeds/pthin_expr_primary.from_x.c — G-02f-282 P2 parser thin P4 primary
  * Logic source: src/asm/pthin_expr_primary.x
- * Hybrid: SHUX_PTHIN_EXPR_PRIMARY_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_EXPR_PRIMARY_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Bodies: finish_struct_lit_slice.inc + primary_slice.inc
  * (primary calls static parse_struct_lit_fields — same TU required)
@@ -182,8 +182,8 @@ static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_
   int trace_ty;
   int trace_hit;
   memcpy(&e, &ae, sizeof(e));
-  trace_name = getenv("SHUX_TRACE_EXPR_NAME");
-  trace_type = getenv("SHUX_TRACE_TYPE_REF");
+  trace_name = getenv("XLANG_TRACE_EXPR_NAME");
+  trace_type = getenv("XLANG_TRACE_TYPE_REF");
   trace_ty = 0;
   trace_hit = 0;
   if (trace_name && *trace_name && e.var_name_len > 0) {

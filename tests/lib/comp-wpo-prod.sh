@@ -6,16 +6,16 @@
 #   comp_wpo_prod_hook_runnable HOOK_SCRIPT
 #   comp_wpo_prod_emit_report status prod_ok prod_skip skip
 
-COMP015_PREFIX="${SHUX_COMP015_PREFIX:-shux: [SHUX_COMP015_WPO_PROD]}"
+COMP015_PREFIX="${XLANG_COMP015_PREFIX:-xlang: [XLANG_COMP015_WPO_PROD]}"
 
-# Linux 且存在本机可执行的 shux_asm（bind-mount 的 Mach-O 不算）。
+# Linux 且存在本机可执行的 xlang_asm（bind-mount 的 Mach-O 不算）。
 comp_wpo_prod_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
   # shellcheck source=tests/lib/comp-wpo.sh
   . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)/tests/lib/comp-wpo.sh"
-  comp_wpo_native_exe ./compiler/shux_asm \
-    || comp_wpo_native_exe ./compiler/shux_asm.experimental \
-    || comp_wpo_native_exe ./compiler/shux_asm.strict
+  comp_wpo_native_exe ./compiler/xlang_asm \
+    || comp_wpo_native_exe ./compiler/xlang_asm.experimental \
+    || comp_wpo_native_exe ./compiler/xlang_asm.strict
 }
 
 # 判断 prod hook 在本机是否应尝试 runnable（非 Darwin N/A 类）。

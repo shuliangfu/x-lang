@@ -1,7 +1,7 @@
 /* G-02f-339..341 / R2 thin + Cap residual pure deep-migrate
  * (wave2..wave6: skip/warn + binop/shape + module/emit + asm BSS + rest close):
  * PREFER hybrid thin from src/runtime_driver_diagnostic_thin.x -E;
- * rest SHUX_L2_RDD_THIN_FROM_X: no thin public bodies; pure-dup fixed-msg/pipe orch/assemble/
+ * rest XLANG_L2_RDD_THIN_FROM_X: no thin public bodies; pure-dup fixed-msg/pipe orch/assemble/
  * env_debug_pipe/parse_strict_enabled/report_prefixed/pipe_note/
  * debug_log/parser_diag_xxx/typeck_block/fn/var/scratch +
  * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail +
@@ -14,7 +14,7 @@
  * lsp_diag_get_enabled authority moved to runtime_lsp_glue (G.7 with flag owner).
  * FROM_X rest T=0 (empty TU of public business symbols).
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
- * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
+ * Regen: ./xlang-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs, fail, no-ops, parse pure + report_prefixed/pipe_note +
  *   debug_log/parser_diag + typeck debug/scratch + residual pure (incl. skip/warn/binop/shape/module).
@@ -27,7 +27,7 @@
 
 /* wave228 G.7: env via public pure thin link_abi_getenv. */
 extern char *link_abi_getenv(const char *name);
-#ifdef SHUX_L2_RDD_THIN_FROM_X
+#ifdef XLANG_L2_RDD_THIN_FROM_X
 /* pure in thin: copy_bytes/note/fill/build/env_debug_pipe/parse_strict/report_prefixed/pipe_note
  * plus debug_log/parser_diag_xxx/typeck_block/fn/var/scratch +
  * parse_fail/codegen_fail/typeck_func_fail/ptr_field/ret_fail +
@@ -55,7 +55,7 @@ void driver_diag_build_expected_found(char *msg, int32_t msg_cap, const char *pr
 #include <string.h>
 
 /* G-02f-73 diagnostic gates */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind);
@@ -161,7 +161,7 @@ extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
  * diagnostic no longer defines getter or _impl (cold + FROM_X). */
 
 /* pure 权威：thin.x driver_diag_report_prefixed；冷启动保留全 C 体；FROM_X 无 pure-dup _impl（H↓）。 */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg)
 {
     if (lsp_diag_enabled) {
@@ -177,7 +177,7 @@ void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg)
 
 /* wave6: va_list report_x is cold-seed only. Under FROM_X, pure thin XP001/XP002 cover
  * the only historical callers; no external UNDEF references. PLATFORM: SHARED cold path. */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diag_report_x_pipeline_code_impl(const char *code, const char *fmt, va_list ap) {
     char buf[256];
 
@@ -203,7 +203,7 @@ void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) 
 #endif
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diag_copy_bytes；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len)
 {
     int n = 0;
@@ -227,7 +227,7 @@ int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32
 
 /* pure authority: thin.x driver_diagnostic_parse_fail (append_i32 + XP001);
  * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types)
 {
     driver_diag_report_x_pipeline_code("XP001",
@@ -241,14 +241,14 @@ void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t a
 
 /**
  * 非 0 时 parse_into_buf 在单函数 impl/buf 均失败时返回 -2，不再静默 skip（与 parse_into slice 路径对齐）。
- * 环境变量 SHUX_PARSE_STRICT=1。
+ * 环境变量 XLANG_PARSE_STRICT=1。
  * pure 权威：thin.x driver_parse_strict_enabled；冷启动保留 public 体；FROM_X 剔除 pure-dup（H↓）。
  */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 int32_t driver_parse_strict_enabled(void)
 {
   (void)(({   {
-    uint8_t * e = link_abi_getenv("SHUX_PARSE_STRICT");
+    uint8_t * e = link_abi_getenv("XLANG_PARSE_STRICT");
     if ((e ==((uint8_t *)(0)))) {
       return 0;
     }
@@ -266,20 +266,20 @@ int32_t driver_parse_strict_enabled(void)
 #endif
 
 /**
- * parse_into_buf 跳过无法解析的 function 时打印诊断（SHUX_DEBUG_PARSE=1 或 SHUX_PARSE_STRICT=1）。
+ * parse_into_buf 跳过无法解析的 function 时打印诊断（XLANG_DEBUG_PARSE=1 或 XLANG_PARSE_STRICT=1）。
  * byte_pos 为源缓冲字节偏移；name 可为 NULL。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_parse_skip_function; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
                                            const uint8_t *name)
 {
     const char *tag;
     char namebuf[72];
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
-    tag = link_abi_getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
+    tag = link_abi_getenv("XLANG_DEBUG_PARSE") ? "debug" : "strict";
     if (lsp_diag_enabled) {
         char msg[240];
         char nb[72];
@@ -308,7 +308,7 @@ void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_s
  * .x 流水线中 typeck_x_ast / typeck_x_ast_library 失败时打印一行 stderr。
  * 与 C 路径 lsp_diag_report_typeck 在 !lsp_diag_enabled 时的前缀一致，供 run-typeck.sh、check-7.2 等识别（.x typeck 当前不向 stderr 逐条报原因）。
  */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_fail(void) {
   (void)(({   {
     int32_t _a = driver_check_only_get();
@@ -324,7 +324,7 @@ void driver_diagnostic_typeck_fail(void) {
  * pure authority: thin.x driver_diagnostic_typeck_func_fail (append + XT001);
  * cold keeps C body; FROM_X no pure-dup _impl (H↓).
  */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 extern int32_t pipeline_typeck_diag_soft_suppress_get(void);
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind)
 {
@@ -360,14 +360,14 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, i
 
 
 
-/** FIELD_ACCESS base type debug; SHUX_TYPECK_PTR=1 enables note.
+/** FIELD_ACCESS base type debug; XLANG_TYPECK_PTR=1 enables note.
  * pure authority: thin.x driver_diagnostic_typeck_ptr_field (append+note);
  * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
                                       int32_t num_struct_layouts)
 {
-    if (!link_abi_getenv("SHUX_TYPECK_PTR"))
+    if (!link_abi_getenv("XLANG_TYPECK_PTR"))
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "typeck ptr debug: FIELD_ACCESS bt_kind=%d inner_kind=%d inner_nlen=%d base_resolved_ref=%d num_struct_layouts=%d",
@@ -378,13 +378,13 @@ void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int
 
 
 
-/** EXPR_RETURN fail debug; SHUX_TYPECK_RET=1 prints refs. stage 1=operand check -1; 2=got vs expect mismatch.
+/** EXPR_RETURN fail debug; XLANG_TYPECK_RET=1 prints refs. stage 1=operand check -1; 2=got vs expect mismatch.
  * pure authority: thin.x driver_diagnostic_typeck_ret_fail (append+note);
  * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref)
 {
-    if (link_abi_getenv("SHUX_TYPECK_RET")) {
+    if (link_abi_getenv("XLANG_TYPECK_RET")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "typeck return debug: stage=%d op_expr_ref=%d expect_ty_ref=%d got_ty_ref=%d",
                      (int)stage, (int)op_expr_ref, (int)expect_ty_ref, (int)got_ty_ref);
@@ -396,7 +396,7 @@ void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32
 /* pure authority: thin.x driver_diagnostic_typeck_binop_operands; cold keeps C body;
  * FROM_X no pure-dup _impl (H↓ / rest T↓). */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref, int32_t right_ref,
                                              int32_t left_kind, int32_t right_kind,
                                              int32_t left_block_ref, int32_t right_block_ref,
@@ -406,7 +406,7 @@ void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref,
 {
     char left_buf[112];
     char right_buf[112];
-    if (!link_abi_getenv("SHUX_TYPECK_BINOP"))
+    if (!link_abi_getenv("XLANG_TYPECK_BINOP"))
         return;
     driver_diag_copy_bytes(left_buf, sizeof(left_buf), left_ty, left_ty_len);
     driver_diag_copy_bytes(right_buf, sizeof(right_buf), right_ty, right_ty_len);
@@ -422,14 +422,14 @@ void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref,
 
 
 /* pure authority: thin.x driver_diagnostic_parser_onefunc_param_ref; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parser_onefunc_param_ref(const uint8_t *func_name, int32_t func_name_len,
                                                 const uint8_t *param_name, int32_t param_name_len,
                                                 int32_t stage, int32_t param_idx, int32_t type_ref)
 {
     char func_buf[72];
     char param_buf[72];
-    if (!link_abi_getenv("SHUX_PARSE_PARAM"))
+    if (!link_abi_getenv("XLANG_PARSE_PARAM"))
         return;
     driver_diag_copy_bytes(func_buf, sizeof(func_buf), func_name, func_name_len);
     driver_diag_copy_bytes(param_buf, sizeof(param_buf), param_name, param_name_len);
@@ -447,7 +447,7 @@ void driver_diagnostic_parser_onefunc_param_ref(const uint8_t *func_name, int32_
 /** .x typeck：`return expr` 表达式类型与函数返回类型不符；行文与 assignment type mismatch 对齐。 */
 /* G-02f-176：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_typeck_return_mismatch；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col,
                                                const uint8_t *expect_buf, int32_t expect_len,
                                                const uint8_t *found_buf, int32_t found_len)
@@ -488,7 +488,7 @@ void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col,
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_return_unresolved；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_return_unresolved(int32_t line, int32_t col,
                                                 const uint8_t *expr_buf, int32_t expr_len)
 {
@@ -514,7 +514,7 @@ void driver_diagnostic_typeck_return_unresolved(int32_t line, int32_t col,
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_return_subexpr；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_return_subexpr(int32_t line, int32_t col,
                                              const uint8_t *expr_buf, int32_t expr_len)
 {
@@ -542,7 +542,7 @@ void driver_diagnostic_typeck_return_subexpr(int32_t line, int32_t col,
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_call_not_generic；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col,
                                                const uint8_t *name, int32_t name_len)
 {
@@ -559,7 +559,7 @@ void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col,
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_call_wrong_num_type_args；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col,
                                                        const uint8_t *name, int32_t name_len,
                                                        int32_t expect_n, int32_t got_n)
@@ -576,7 +576,7 @@ void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_call_requires_type_args；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col,
                                                       const uint8_t *name, int32_t name_len)
 {
@@ -595,11 +595,11 @@ void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col,
 
 /**
  * .x 流水线 typeck：赋值 / 复合赋值左右类型不符时打印一行 stderr，与 typeck.c 经 lsp_diag_report_typeck 的措辞一致，
- * 以便 run-typeck、负例与 shux-c 对齐（含 "assignment type mismatch: expected …, found …"）。
+ * 以便 run-typeck、负例与 xlang-c 对齐（含 "assignment type mismatch: expected …, found …"）。
  */
 /** .x typeck：break/continue 不在循环内时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 /* pure 权威：thin.x driver_diagnostic_typeck_break_continue_outside；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break)
 {
   if ((is_break !=0)) {
@@ -618,7 +618,7 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -630,7 +630,7 @@ void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col)
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_while_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -642,7 +642,7 @@ void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_for_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_for_condition_not_bool(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -655,7 +655,7 @@ void driver_diagnostic_typeck_for_condition_not_bool(int32_t line, int32_t col)
 
 /** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
 /* pure 权威：thin.x driver_diagnostic_typeck_deref_outside_unsafe；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -668,7 +668,7 @@ void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col)
 
 /** LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。 */
 /* pure 权威：thin.x driver_diagnostic_typeck_extern_call_outside_unsafe；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -681,7 +681,7 @@ void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t c
 
 /** .x typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
 /* pure 权威：thin.x driver_diagnostic_typeck_linear_addr_of；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -695,7 +695,7 @@ void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col)
 /** .x typeck：import 顶层 const 裸名访问时打印，与 typeck.c TYPECK_ERR 措辞对齐。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_typeck_import_const_must_be_qualified; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32_t col, const uint8_t *name,
                                                              int32_t name_len, const uint8_t *binding,
                                                              int32_t binding_len)
@@ -726,7 +726,7 @@ void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32
 /** .x typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
 /* pure 权威：thin.x driver_diagnostic_typeck_enum_no_variant；冷启动全 C；FROM_X 无 pure-dup _impl */
 /* pure 权威：thin.x driver_diagnostic_typeck_struct_padding_before；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -739,7 +739,7 @@ void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col)
 
 /** .x typeck：下标基类型非数组/切片/指针时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 /* pure 权威：thin.x driver_diagnostic_typeck_subscript_base；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -752,7 +752,7 @@ void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col)
 
 /** ERR-01：`?` 要求 enclosing function 返回与 operand 同型的 Result（run-typeck result_try_bad.x）。 */
 /* pure 权威：thin.x driver_diagnostic_typeck_try_propagate_bad_enclosing；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col)
 {
   (void)(({   {
@@ -765,7 +765,7 @@ void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t 
 
 /** .x typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
 /* G-02f-178：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len)
 {
@@ -783,7 +783,7 @@ void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_struct_padding_trailing；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int32_t sname_len, int32_t gap)
 {
     lsp_diag_report_typeck(0, 0,
@@ -797,7 +797,7 @@ void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int3
 
 
 /* pure 权威：thin.x driver_diagnostic_typeck_struct_field_bad_size；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_struct_field_bad_size(const uint8_t *sname, int32_t sname_len, const uint8_t *fname,
                                                     int32_t fname_len)
 {
@@ -809,7 +809,7 @@ void driver_diagnostic_typeck_struct_field_bad_size(const uint8_t *sname, int32_
 
 /* G-02f-176：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_typeck_assign_mismatch；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_t line, int32_t col,
                                                const uint8_t *expect_buf, int32_t expect_len,
                                                const uint8_t *found_buf, int32_t found_len)
@@ -851,7 +851,7 @@ void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_t line,
 
 /* pure 权威：thin.x scratch expect/found BSS + typeck_block/fn/var debug（append+note）；
  * 冷启动保留 C 体；FROM_X 无 pure-dup _impl（H↓）。 */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 /** 非重入也没关系：赋值诊断双缓冲（.x check_expr_impl 格式化 expected/found 类型名）；单线程流水线专用。 */
 static uint8_t g_type_diag_scratch_expect[96];
 static uint8_t g_type_diag_scratch_found[96];
@@ -859,22 +859,22 @@ static uint8_t g_type_diag_scratch_found[96];
 uint8_t *driver_typeck_diag_scratch_expect(void) { return g_type_diag_scratch_expect; }
 uint8_t *driver_typeck_diag_scratch_found(void) { return g_type_diag_scratch_found; }
 
-/** 诊断：check_block_impl 入口打印块计数；SHUX_TYPECK_BLOCK=1（常与 SHUX_TYPECK_FN 同用）。 */
+/** 诊断：check_block_impl 入口打印块计数；XLANG_TYPECK_BLOCK=1（常与 XLANG_TYPECK_FN 同用）。 */
 void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop,
                                           int32_t n_for, int32_t n_expr, int32_t final_ref)
 {
-    if (!link_abi_getenv("SHUX_TYPECK_BLOCK"))
+    if (!link_abi_getenv("XLANG_TYPECK_BLOCK"))
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "typeck block debug: func_idx=%d block_ref=%d const=%d let=%d while=%d for=%d expr_stmt=%d final_expr=%d",
                  (int)func_idx, (int)block_ref, (int)n_const, (int)n_let, (int)n_loop, (int)n_for, (int)n_expr, (int)final_ref);
 }
 
-/** 诊断：typeck_x_ast_impl 逐函数入口；SHUX_TYPECK_FN=1 时打印 func_idx 与名称。 */
+/** 诊断：typeck_x_ast_impl 逐函数入口；XLANG_TYPECK_FN=1 时打印 func_idx 与名称。 */
 void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len)
 {
     char namebuf[72];
-    if (!link_abi_getenv("SHUX_TYPECK_FN"))
+    if (!link_abi_getenv("XLANG_TYPECK_FN"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -882,12 +882,12 @@ void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, in
                  (int)func_idx, namebuf[0] ? namebuf : "(unknown)");
 }
 
-/** 诊断：EXPR_VAR 解析来源；SHUX_TYPECK_VAR=1 时打印。source 1=block, 2=param, 3=top-level。 */
+/** 诊断：EXPR_VAR 解析来源；XLANG_TYPECK_VAR=1 时打印。source 1=block, 2=param, 3=top-level。 */
 void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *name, int32_t name_len,
                                              int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref)
 {
     char namebuf[72];
-    if (!link_abi_getenv("SHUX_TYPECK_VAR"))
+    if (!link_abi_getenv("XLANG_TYPECK_VAR"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -901,11 +901,11 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
 
 
 /** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
-/** 供 .x 探测 SHUX_DEBUG_PIPE（G-02f-164）。 */
+/** 供 .x 探测 XLANG_DEBUG_PIPE（G-02f-164）。 */
 /* pure 权威：thin.x driver_diag_env_debug_pipe；冷启动保留 _impl + public；FROM_X 剔除 pure-dup（H↓）。 */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 int driver_diag_env_debug_pipe_impl(void) {
-    const char *e = link_abi_getenv("SHUX_DEBUG_PIPE");
+    const char *e = link_abi_getenv("XLANG_DEBUG_PIPE");
     return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 
@@ -916,7 +916,7 @@ int driver_diag_env_debug_pipe(void) {
 /** pure 权威：thin.x driver_diag_pipe_note（append+note，无 va_list）；
  * 冷启动保留 reportf 体；FROM_X 无 pure-dup _impl（H↓）。
  * kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker。 */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diag_pipe_note_impl(int32_t kind, int32_t a, int32_t b) {
     if (kind == 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -938,7 +938,7 @@ void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
 
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_before_codegen；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len)
 {
     if (driver_diag_env_debug_pipe())
@@ -949,7 +949,7 @@ void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len)
 
 
 /** 诊断：pipeline 入口 ctx.entry_already_parsed。由 pipeline.x 调用。需要时取消注释 fprintf。 */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_entry_already(int32_t v) {
   (void)(0);
 }
@@ -958,7 +958,7 @@ void driver_diagnostic_entry_already(int32_t v) {
 /** 诊断：解析前 source_len。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_source_len；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_source_len(int32_t len)
 {
     if (driver_diag_env_debug_pipe())
@@ -971,7 +971,7 @@ void driver_diagnostic_source_len(int32_t len)
 /** 诊断：entry 解析后 module.num_funcs，便于确认是否未解析（0）。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_after_entry_parse；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_entry_parse(int32_t num_funcs)
 {
     if (driver_diag_env_debug_pipe())
@@ -985,21 +985,21 @@ extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
 
 /**
- * 诊断：parse_into_buf commit 失败（arena/侧车池满等）；SHUX_DEBUG_PARSE=1 或 SHUX_PARSE_STRICT=1。
+ * 诊断：parse_into_buf commit 失败（arena/侧车池满等）；XLANG_DEBUG_PARSE=1 或 XLANG_PARSE_STRICT=1。
  * 大模块 typeck 单函数 commit 失败时不应整文件 abort，由 seed parse 改 skip+continue。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_parse_commit_fail; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
                                          const uint8_t *name)
 {
     const char *tag;
     char namebuf[72];
     int nl = (name && name_len > 0 && name_len < 64) ? (int)name_len : 0;
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
-    tag = link_abi_getenv("SHUX_DEBUG_PARSE") ? "debug" : "strict";
+    tag = link_abi_getenv("XLANG_DEBUG_PARSE") ? "debug" : "strict";
     if (nl > 0) {
         memcpy(namebuf, name, (size_t)nl);
         namebuf[nl] = '\0';
@@ -1018,16 +1018,16 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
 
 /**
  * 诊断：parse_into/parse_into_buf 在提交函数槽前打印 generic 计数，定位 OneFuncResult 到 module.funcs 的污染链。
- * 环境变量 SHUX_DEBUG_PARSE_GENERIC=1。
+ * 环境变量 XLANG_DEBUG_PARSE_GENERIC=1。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_parse_func_generic; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t num_generic_params, int32_t is_main)
 {
     char namebuf[72];
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE_GENERIC"))
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE_GENERIC"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1043,12 +1043,12 @@ void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
 
 /**
  * 诊断：函数体提交前后打印 OneFunc sidecar 与 Block 形状，定位污染发生在 fill 之前还是 body_ref 绑定之后。
- * 环境变量 SHUX_DEBUG_PARSE_COMMIT=1。
+ * 环境变量 XLANG_DEBUG_PARSE_COMMIT=1。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_parse_commit_shape; cold keeps C body;
  * FROM_X no pure-dup _impl (H↓ / rest T↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t phase, int32_t block_ref, int32_t pool_num_consts,
                                           int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
@@ -1058,7 +1058,7 @@ void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 {
     char namebuf[72];
     const char *phase_name;
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE_COMMIT"))
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE_COMMIT"))
         return;
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
     phase_name = (phase == 0) ? "pre_fill" : ((phase == 1) ? "post_block" : "unknown");
@@ -1074,7 +1074,7 @@ void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 /* pure authority: thin.x parser_diagnostic_parse_commit_shape (zero-logic alias of driver_*);
  * cold keeps C forward; FROM_X no pure-dup _impl. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t phase, int32_t block_ref, int32_t pool_num_consts,
                                           int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
@@ -1098,11 +1098,11 @@ void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
  * cold keeps C body; FROM_X no pure-dup _impl (H↓ / rest T↓ wave4).
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_entry_parse_module(void *module)
 {
     int32_t nf, i, ndef, next;
-    if (!link_abi_getenv("SHUX_DEBUG_PIPE") || !module)
+    if (!link_abi_getenv("XLANG_DEBUG_PIPE") || !module)
         return;
     nf = pipeline_module_num_funcs(module);
     ndef = 0;
@@ -1135,10 +1135,10 @@ void driver_diagnostic_after_entry_parse_module(void *module)
 
 
 
-/** 诊断：pipeline/typeck 阶段 marker；SHUX_DEBUG_PIPE=1 时打印（1=merge 后，2=typeck library 入口，3=validate 后）。 */
+/** 诊断：pipeline/typeck 阶段 marker；XLANG_DEBUG_PIPE=1 时打印（1=merge 后，2=typeck library 入口，3=validate 后）。 */
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_pipe_marker；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_pipe_marker(int32_t id)
 {
     if (driver_diag_env_debug_pipe())
@@ -1149,7 +1149,7 @@ void driver_diagnostic_pipe_marker(int32_t id)
 
 
 /** 每个 dep codegen 后打印 j 与 out_buf.len，确认 buffer 是否递增。需要时取消注释 fprintf。 */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
   (void)(0);
 }
@@ -1158,7 +1158,7 @@ void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
 /** codegen fail note: which dep (is_dep!=0) or entry module (is_dep==0).
  * pure authority: thin.x driver_diagnostic_codegen_fail (append+note);
  * cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep)
 {
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1174,7 +1174,7 @@ void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep)
  * pure authority: thin.x driver_diagnostic_codegen_emit_func_fail (pipeline name API + append+CG003);
  * cold keeps C body; FROM_X no pure-dup _impl (H↓ / rest T↓ wave4). */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index)
 {
     extern int32_t pipeline_module_func_name_len_at(void *m, int32_t fi);
@@ -1190,7 +1190,7 @@ void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index)
         for (k = 0; k < nl && k < 72; k++)
             namebuf[out_i++] = (char)pipeline_module_func_name_byte_at(module, func_index, k);
         namebuf[out_i] = '\0';
-        diag_reportf_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG003, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG003, NULL,
                                "failed to emit function '%s' (idx=%d)",
                                out_i > 0 ? namebuf : "?", (int)func_index);
     }
@@ -1203,7 +1203,7 @@ void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index)
 /** asm 后端：不支持的 ExprKind 时由 backend.x 调用，便于定位 rc=-6；kind 为 ast_ExprKind 枚举值。 */
 /* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_asm_unsupported_expr；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_unsupported_expr(int32_t kind)
 {
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1218,7 +1218,7 @@ void driver_diagnostic_asm_unsupported_expr(int32_t kind)
 /** asm 后端：elf_resolve_patches 找不到补丁目标标签。 */
 /* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_asm_elf_unresolved_patch；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t len)
 {
     char namebuf[65];
@@ -1236,7 +1236,7 @@ void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t len
 /** asm 后端：Mach-O 写出时 reloc 符号名为空。 */
 /* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_asm_macho_empty_reloc；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx)
 {
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1251,7 +1251,7 @@ void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx)
 /** asm 后端：Mach-O 写出时外部 reloc 未命中 und 池（常与 macho_leading_underscore 未置 1 有关）。 */
 /* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* pure 权威：thin.x driver_diagnostic_asm_macho_missing_und_reloc；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx)
 {
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1265,7 +1265,7 @@ void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx)
 
 /* pure authority wave5: thin.x module BSS + store/set/trace/print/var/fail_at (append+note).
  * Cold keeps C static BSS + reportf bodies; FROM_X rest no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 /** asm 后端：记录当前正在 emit 的 ExprKind 序数，供 fail_at 时打印。 */
 static int driver_diagnostic_asm_last_expr_kind = -1;
 void driver_diagnostic_asm_last_expr_kind_set_impl(int32_t k) {
@@ -1289,7 +1289,7 @@ void driver_diagnostic_asm_current_func_store_impl(const uint8_t *name, int32_t 
     }
 }
 void driver_diagnostic_asm_current_func_maybe_trace_impl(void) {
-    const char *trace = link_abi_getenv("SHUX_ASM_FUNC_TRACE");
+    const char *trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
     if (trace && trace[0] != '\0' && trace[0] != '0' && driver_diagnostic_asm_current_func_len > 0) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm trace: %.*s", driver_diagnostic_asm_current_func_len,
@@ -1307,7 +1307,7 @@ void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len) {
     driver_diagnostic_asm_current_func_maybe_trace_impl();
 }
 
-/** backend_asm_codegen_ast_to_elf 返回 -1 时打印当前函数名（SHUX_ASM_DEBUG）。 */
+/** backend_asm_codegen_ast_to_elf 返回 -1 时打印当前函数名（XLANG_ASM_DEBUG）。 */
 void driver_diagnostic_asm_print_current_func(void)
 {
     if (driver_diagnostic_asm_current_func_len > 0)
@@ -1372,10 +1372,10 @@ void driver_diagnostic_asm_fail_at(int32_t loc)
 
 /* pure 权威：thin.x driver_debug_log / parser_diag_*（append+note，无 va_list）；
  * 冷启动保留 reportf 体；FROM_X 无 pure-dup _impl（H↓）。 */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_debug_log(int32_t step)
 {
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "parse debug: step=%d", (int)step);
@@ -1383,7 +1383,7 @@ void driver_debug_log(int32_t step)
 
 void parser_diag_tok_kind(int32_t k)
 {
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "parse debug: r.tok.kind=%d", (int)k);
@@ -1391,7 +1391,7 @@ void parser_diag_tok_kind(int32_t k)
 
 void parser_diag_ident_len(int32_t len)
 {
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "parse debug: first ident_len=%d", (int)len);
@@ -1399,7 +1399,7 @@ void parser_diag_ident_len(int32_t len)
 
 void parser_diag_scan_fail(int32_t step)
 {
-    if (!link_abi_getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
+    if (!link_abi_getenv("XLANG_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "library scan failed at step=%d", (int)step);
@@ -1408,7 +1408,7 @@ void parser_diag_scan_fail(int32_t step)
 
 
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 int parser_is_ident_allow(const uint8_t *ident, int len) {
   if (!ident || len != 5) return 0;
   return (ident[0] == 'a' && ident[1] == 'l' && ident[2] == 'l' && ident[3] == 'o' && ident[4] == 'w') ? 1 : 0;
@@ -1418,10 +1418,10 @@ int parser_is_ident_allow(const uint8_t *ident, int len) {
 
 
 /** DOD-CL -pad-fields：相邻 atomic-sized 与普通字段同 cache line 且无 align(64) 分隔。
- * 须在 #if SHUX_USE_X_PIPELINE 外：C 前端 typeck.o（shux-c）也调用。 */
+ * 须在 #if XLANG_USE_X_PIPELINE 外：C 前端 typeck.o（xlang-c）也调用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_warn_pad_fields_same_cache_line; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
                                                        int32_t f0_len, const uint8_t *f1, int32_t f1_len)
 {
@@ -1446,7 +1446,7 @@ void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int
 /** DOD-CL-S2 -hot-reorder：热标量字段宜置大字段之前；C 前端 typeck.o 亦调用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_warn_hot_reorder_field; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t sname_len, const uint8_t *hot,
                                               int32_t hot_len, const uint8_t *cold, int32_t cold_len)
 {
@@ -1467,10 +1467,10 @@ void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t snam
 
 
 
-/** L6-unused-hint：未使用的 let/const/import 绑定（SHUX_UNUSED_HINT=1；info 层，默认不阻断 check）。 */
+/** L6-unused-hint：未使用的 let/const/import 绑定（XLANG_UNUSED_HINT=1；info 层，默认不阻断 check）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* pure authority: thin.x driver_diagnostic_hint_unused_binding; cold keeps C body; FROM_X no pure-dup _impl (H↓). */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len)
 {
     char msg[160];
@@ -1488,7 +1488,7 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint
 
 /* G-02f-341：.x helpers 供 thin 门闩 _impl */
 /* pure 权威：thin.x driver_diag_note；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diag_note(const char *msg)
 {
     diag_report(NULL, 0, 0, "note", msg ? msg : "", NULL);
@@ -1497,7 +1497,7 @@ void driver_diag_note(const char *msg)
 
 
 /* pure 权威：thin.x driver_diag_fill_expr_part；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diag_fill_expr_part(char *dst, int32_t cap, const uint8_t *expr_buf, int32_t expr_len)
 {
     int el = 0;
@@ -1517,7 +1517,7 @@ void driver_diag_fill_expr_part(char *dst, int32_t cap, const uint8_t *expr_buf,
 
 
 /* pure 权威：thin.x driver_diag_build_expected_found；冷启动全 C；FROM_X 无 pure-dup _impl */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diag_build_expected_found(char *msg, int32_t msg_cap, const char *pref, const char *epart, const char *fpart)
 {
     size_t at = 0;
@@ -1537,7 +1537,7 @@ void driver_diag_build_expected_found(char *msg, int32_t msg_cap, const char *pr
 
 
 /* pure authority: thin.x runtime_driver_diagnostic_slice_marker; cold keeps C; FROM_X no pure-dup. */
-#ifndef SHUX_L2_RDD_THIN_FROM_X
+#ifndef XLANG_L2_RDD_THIN_FROM_X
 int runtime_driver_diagnostic_slice_marker(void) {
     return 1;
 }

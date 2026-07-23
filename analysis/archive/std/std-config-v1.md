@@ -36,7 +36,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CONFIG] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_CONFIG] status=ok c_smoke=1 x=1 skip=0
 std-config gate OK
 ```
 

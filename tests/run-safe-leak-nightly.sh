@@ -3,17 +3,17 @@
 #
 # 用法：./tests/run-safe-leak-nightly.sh
 # 环境：
-#   SHUX_LEAK_PROBE=1 — 额外运行 leak_probe.c 校验探测器
-#   SHUX_LEAK_FAIL_ON_LEAK=1 — 任一用例泄漏则 exit 1（CI 默认）
+#   XLANG_LEAK_PROBE=1 — 额外运行 leak_probe.c 校验探测器
+#   XLANG_LEAK_FAIL_ON_LEAK=1 — 任一用例泄漏则 exit 1（CI 默认）
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHUX_LEAK_MANIFEST:-tests/baseline/safe-leak-nightly.tsv}"
+MANIFEST="${XLANG_LEAK_MANIFEST:-tests/baseline/safe-leak-nightly.tsv}"
 # shellcheck source=tests/lib/safe-leak.sh
 . tests/lib/safe-leak.sh
 
-[ "${SHUX_LEAK_FAIL_ON_LEAK:-1}" = "1" ] && FAIL_ON_LEAK=1 || FAIL_ON_LEAK=0
-[ "${SHUX_LEAK_PROBE:-0}" = "1" ] && RUN_PROBE=1 || RUN_PROBE=0
+[ "${XLANG_LEAK_FAIL_ON_LEAK:-1}" = "1" ] && FAIL_ON_LEAK=1 || FAIL_ON_LEAK=0
+[ "${XLANG_LEAK_PROBE:-0}" = "1" ] && RUN_PROBE=1 || RUN_PROBE=0
 
 native_shu() {
   local f="$1"
@@ -25,11 +25,11 @@ native_shu() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
@@ -49,8 +49,8 @@ if ! safe_leak_asan_ok; then
   exit 0
 fi
 
-if [ -z "$SHUX_BIN" ] || ! native_shu "$SHUX_BIN"; then
-  echo "safe-leak-nightly SKIP: no native shux" >&2
+if [ -z "$XLANG_BIN" ] || ! native_shu "$XLANG_BIN"; then
+  echo "safe-leak-nightly SKIP: no native xlang" >&2
   safe_leak_emit_report skip 0 0 0
   exit 0
 fi
@@ -67,7 +67,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in
     case_*)
-      if safe_leak_run_x "$SHUX_BIN" "$src" "$item_id"; then
+      if safe_leak_run_x "$XLANG_BIN" "$src" "$item_id"; then
         echo "safe-leak-nightly OK $item_id"
         OK=$((OK + 1))
       else

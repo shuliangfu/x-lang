@@ -1,9 +1,9 @@
 #!/bin/sh
-# A3: Cross-architecture kernel target gate — verify shux-c C output
+# A3: Cross-architecture kernel target gate — verify xlang-c C output
 # cross-compiles to x86, arm64, riscv64 via zig cc.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SHUX_C="$SCRIPT_DIR/../../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../../compiler/xlang-c"
 WORKDIR="${TMPDIR:-/tmp}"
 PASS=0
 FAIL=0
@@ -16,7 +16,7 @@ function kmain(): i32 { return 42; }
 function main(): i32 { return kmain(); }
 XEOF
 
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/cross_arch.x" > "$WORKDIR/cross_arch.c" 2>/dev/null
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/cross_arch.x" > "$WORKDIR/cross_arch.c" 2>/dev/null
 
 # Test x86 (32-bit)
 echo "  Check: x86 (i386) compilation"

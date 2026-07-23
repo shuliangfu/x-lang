@@ -1,11 +1,11 @@
-Shux — layered open-source licenses
+Xlang — layered open-source licenses
 ===================================
 
 Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 Project: https://github.com/shuliangfu/shux
 Contact: admin@shuliangfu.com
 
-Shux uses a **layered licensing** model: the language runtime and standard
+Xlang uses a **layered licensing** model: the language runtime and standard
 library are under a permissive license so end-user programs are not forced
 into copyleft; the compiler and toolchain remain under a strong copyleft
 license (with optional commercial terms).
@@ -62,10 +62,10 @@ SPDX for Layer B sources:
 
   SPDX-License-Identifier: Apache-2.0
 
-Intent: programs you write in Shux that link or depend on core/std may be
+Intent: programs you write in Xlang that link or depend on core/std may be
 distributed under terms you choose for **your** code, subject only to Apache-2.0
 obligations for any Apache-licensed portions you redistribute (copyright
-notices, NOTICE retention where applicable, etc.). Using the Shux **compiler**
+notices, NOTICE retention where applicable, etc.). Using the Xlang **compiler**
 to build your program does not, by itself, place your program under AGPL.
 
 ================================================================================
@@ -73,7 +73,7 @@ to build your program does not, by itself, place your program under AGPL.
 ================================================================================
 
   - editors/vscode/            Apache-2.0  (see editors/vscode/LICENSE)
-  - editors/tree-sitter-shux/  Apache-2.0  (see that directory)
+  - editors/tree-sitter-xlang/  Apache-2.0  (see that directory)
   - editors/vim/               Apache-2.0  (same default as language surface
                                            unless a file says otherwise)
 
@@ -94,9 +94,9 @@ Compiler-internal fixtures that live **under** compiler/ remain Layer A (AGPL).
   - Object code / binaries you produce from **your** sources are yours to
     license, except you must comply with licenses of any libraries you link
     (including Apache-2.0 core/std if redistributed, and any system libraries).
-  - The AGPL applies to the Shux **compiler/toolchain** as a program (and to
+  - The AGPL applies to the Xlang **compiler/toolchain** as a program (and to
     modified versions you convey), not automatically to every program merely
-    compiled with an unmodified Shux toolchain.
+    compiled with an unmodified Xlang toolchain.
 
 This section is a project policy statement; it does not amend the AGPL or
 Apache license texts themselves.
@@ -105,10 +105,10 @@ Apache license texts themselves.
 6. How to choose (practical)
 ================================================================================
 
-  - Writing apps / libraries in Shux, shipping products that use core/std
+  - Writing apps / libraries in Xlang, shipping products that use core/std
       → Layer B (Apache-2.0). Keep notices when you redistribute those parts.
 
-  - Modifying, embedding, or redistributing the Shux **compiler** / toolchain
+  - Modifying, embedding, or redistributing the Xlang **compiler** / toolchain
       → Layer A (AGPL-3.0-or-later), or contact us for commercial terms.
 
   - VS Code / Cursor extension

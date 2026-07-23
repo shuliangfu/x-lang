@@ -3,14 +3,14 @@
 #
 # 1) exc-error-code-layer-v1.md + manifest
 # 2) std/error 符号与 fs_last_error 侧车
-# 3) native shux：tests/exc/code_layer.x exit 0
+# 3) native xlang：tests/exc/code_layer.x exit 0
 #
 # 用法：./tests/run-exc-error-code-layer-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_EXC_CODE_LAYER_DOC:-analysis/exc-error-code-layer-v1.md}"
-MATRIX="${SHUX_EXC_CODE_LAYER_TSV:-tests/baseline/exc-error-code-layer.tsv}"
+DOC="${XLANG_EXC_CODE_LAYER_DOC:-analysis/exc-error-code-layer-v1.md}"
+MATRIX="${XLANG_EXC_CODE_LAYER_TSV:-tests/baseline/exc-error-code-layer.tsv}"
 MIN_ITEMS=12
 
 native_shu() {
@@ -94,18 +94,18 @@ fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "exc-error-code-layer gate SKIP smoke (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "exc-error-code-layer gate SKIP smoke (no native xlang)" >&2
   echo "exc-error-code-layer gate OK"
   exit 0
 fi
@@ -115,10 +115,10 @@ if [ -z "$SMOKE" ] || [ ! -f "$SMOKE" ]; then
   exit 1
 fi
 
-OUT=/tmp/shux_exc_code_layer
-echo "=== EXC-003: layer smoke (SHUX=$SHUX_BIN) ==="
-if ! "$SHUX_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shux_exc_code_layer_compile.log 2>&1; then
-  cat /tmp/shux_exc_code_layer_compile.log >&2
+OUT=/tmp/xlang_exc_code_layer
+echo "=== EXC-003: layer smoke (XLANG=$XLANG_BIN) ==="
+if ! "$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_exc_code_layer_compile.log 2>&1; then
+  cat /tmp/xlang_exc_code_layer_compile.log >&2
   exit 1
 fi
 EC=0

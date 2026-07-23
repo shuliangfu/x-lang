@@ -8,7 +8,7 @@
 // Cap residual (seed C always, G.7 single authority): driver_preamble_fputs (opaque FILE*).
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 //
-// Heap for def-name table (analyze_block_linear): avoid u8[4096] stack on shux -E.
+// Heap for def-name table (analyze_block_linear): avoid u8[4096] stack on xlang -E.
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
@@ -1224,7 +1224,7 @@ export function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i
 /** Linear liveness scan over stmt_order: at each await, add defs still referenced after.
  * prefix is a char** view (64-byte name rows via async_live_load_def_name).
  * Stack discipline: heap-allocate the 64×64 def-name table (malloc 4096) — a
- * `u8[4096]` local flaked Ubuntu `shux -E` (SIGSEGV), same class as async_asm_pool.
+ * `u8[4096]` local flaked Ubuntu `xlang -E` (SIGSEGV), same class as async_asm_pool.
  * PLATFORM: SHARED — pure liveness walk; Cap residual layout/emit stay in seed C.
  * @param b AST block (opaque)
  * @param prefix param-name table (opaque rows)
@@ -1235,7 +1235,7 @@ export function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i
 export function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: *u8): void {
   if (b == 0) { return; }
   if (frame == 0) { return; }
-  // 64 names × 64 bytes; heap avoids large stack frame on shux -E (Ubuntu gold).
+  // 64 names × 64 bytes; heap avoids large stack frame on xlang -E (Ubuntu gold).
   let def_names: *u8 = 0 as *u8;
   unsafe { def_names = malloc(4096 as usize); }
   if (def_names == 0) { return; }
@@ -1406,7 +1406,7 @@ export function frame_build_tag(f: *u8, out: *u8, cap: i32): void {
   }
   let m: u8[64] = [];
   frame_mangle_ident(name, &m[0], 64);
-  let pref: *u8 = "__shux_async_frame_";
+  let pref: *u8 = "__xlang_async_frame_";
   let j: i32 = 0;
   let i: i32 = 0;
   while (j + 1 < cap) {
@@ -2089,7 +2089,7 @@ export function async_liveness_fputs_i32_dec(out: *u8, v: i32): void {
   }
 }
 
-/** Emit `typedef struct __shux_async_frame_* { ... }` and CPS/IO RT decls before the func.
+/** Emit `typedef struct __xlang_async_frame_* { ... }` and CPS/IO RT decls before the func.
  * No-op when f/layout/out null or layout.num_awaits <= 0.
  * @param f ASTFunc* as *u8
  * @param layout AsyncFrameLayout* as *u8
@@ -2102,46 +2102,46 @@ export function async_liveness_emit_frame_typedef(f: *u8, layout: *u8, out: *u8)
   if (out == 0) { return; }
   // num_awaits @4100
   if (async_live_load_i32(layout, 4100) <= 0) { return; }
-  // frame_tag @4108; empty → default "__shux_async_frame_fn" (seed fprintf fallback).
+  // frame_tag @4108; empty → default "__xlang_async_frame_fn" (seed fprintf fallback).
   let tag: *u8 = layout + 4108;
   if (layout[4108] == 0) {
-    tag = "__shux_async_frame_fn";
+    tag = "__xlang_async_frame_fn";
   }
   // String literal cap ~63 bytes in current -E; split long RT decls (G.9: host product cold
   // path still uses seed fprintf; pure .x must still emit complete text for hybrid).
   unsafe {
-    driver_preamble_fputs("#ifndef SHUX_ASYNC_CPS_RT_DECL\n", out);
-    driver_preamble_fputs("#define SHUX_ASYNC_CPS_RT_DECL\n", out);
-    driver_preamble_fputs("extern int shux_async_cps_suspend(", out);
+    driver_preamble_fputs("#ifndef XLANG_ASYNC_CPS_RT_DECL\n", out);
+    driver_preamble_fputs("#define XLANG_ASYNC_CPS_RT_DECL\n", out);
+    driver_preamble_fputs("extern int xlang_async_cps_suspend(", out);
     driver_preamble_fputs("int32_t *phase, int32_t next_phase);\n", out);
-    driver_preamble_fputs("extern int shux_async_cps_suspend_io(", out);
+    driver_preamble_fputs("extern int xlang_async_cps_suspend_io(", out);
     driver_preamble_fputs("int32_t *phase, int32_t next_phase);\n", out);
-    driver_preamble_fputs("extern int shux_io_submit_read_async(", out);
+    driver_preamble_fputs("extern int xlang_io_submit_read_async(", out);
     driver_preamble_fputs("uint8_t *ptr, size_t len, size_t handle);\n", out);
-    driver_preamble_fputs("extern int32_t shux_io_complete_read_async(void);\n", out);
-    driver_preamble_fputs("extern int32_t shux_io_complete_read_async_slot(int slot);\n", out);
-    driver_preamble_fputs("extern int shux_io_submit_write_async(", out);
+    driver_preamble_fputs("extern int32_t xlang_io_complete_read_async(void);\n", out);
+    driver_preamble_fputs("extern int32_t xlang_io_complete_read_async_slot(int slot);\n", out);
+    driver_preamble_fputs("extern int xlang_io_submit_write_async(", out);
     driver_preamble_fputs("const uint8_t *ptr, size_t len, size_t handle);\n", out);
-    driver_preamble_fputs("extern int32_t shux_io_complete_write_async(void);\n", out);
-    driver_preamble_fputs("extern int32_t shux_io_complete_write_async_slot(int slot);\n", out);
-    driver_preamble_fputs("extern void shux_async_run_seed_reset(void);\n", out);
-    driver_preamble_fputs("extern void shux_async_run_seed_push_i32(int32_t v);\n", out);
-    driver_preamble_fputs("extern void shux_async_run_seed_push_u32(uint32_t v);\n", out);
-    driver_preamble_fputs("extern void shux_async_run_seed_push_i64(int64_t v);\n", out);
-    driver_preamble_fputs("extern void shux_async_run_seed_push_usize(size_t v);\n", out);
-    driver_preamble_fputs("extern void shux_async_run_seed_set_i32(int32_t v);\n", out);
-    driver_preamble_fputs("extern int shux_async_run_seed_valid(void);\n", out);
-    driver_preamble_fputs("extern int32_t shux_async_run_seed_take_i32(void);\n", out);
-    driver_preamble_fputs("extern uint32_t shux_async_run_seed_take_u32(void);\n", out);
-    driver_preamble_fputs("extern int64_t shux_async_run_seed_take_i64(void);\n", out);
-    driver_preamble_fputs("extern size_t shux_async_run_seed_take_usize(void);\n", out);
-    driver_preamble_fputs("extern int shux_async_task_submit(int32_t (*fn)(void));\n", out);
-    driver_preamble_fputs("extern int32_t shux_async_run_drain_until_idle(void);\n", out);
-    driver_preamble_fputs("extern void shux_async_queue_reset(void);\n", out);
-    driver_preamble_fputs("extern unsigned shux_io_poll_async_completions(", out);
+    driver_preamble_fputs("extern int32_t xlang_io_complete_write_async(void);\n", out);
+    driver_preamble_fputs("extern int32_t xlang_io_complete_write_async_slot(int slot);\n", out);
+    driver_preamble_fputs("extern void xlang_async_run_seed_reset(void);\n", out);
+    driver_preamble_fputs("extern void xlang_async_run_seed_push_i32(int32_t v);\n", out);
+    driver_preamble_fputs("extern void xlang_async_run_seed_push_u32(uint32_t v);\n", out);
+    driver_preamble_fputs("extern void xlang_async_run_seed_push_i64(int64_t v);\n", out);
+    driver_preamble_fputs("extern void xlang_async_run_seed_push_usize(size_t v);\n", out);
+    driver_preamble_fputs("extern void xlang_async_run_seed_set_i32(int32_t v);\n", out);
+    driver_preamble_fputs("extern int xlang_async_run_seed_valid(void);\n", out);
+    driver_preamble_fputs("extern int32_t xlang_async_run_seed_take_i32(void);\n", out);
+    driver_preamble_fputs("extern uint32_t xlang_async_run_seed_take_u32(void);\n", out);
+    driver_preamble_fputs("extern int64_t xlang_async_run_seed_take_i64(void);\n", out);
+    driver_preamble_fputs("extern size_t xlang_async_run_seed_take_usize(void);\n", out);
+    driver_preamble_fputs("extern int xlang_async_task_submit(int32_t (*fn)(void));\n", out);
+    driver_preamble_fputs("extern int32_t xlang_async_run_drain_until_idle(void);\n", out);
+    driver_preamble_fputs("extern void xlang_async_queue_reset(void);\n", out);
+    driver_preamble_fputs("extern unsigned xlang_io_poll_async_completions(", out);
     driver_preamble_fputs("unsigned timeout_ms);\n", out);
-    driver_preamble_fputs("#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)\n", out);
-    driver_preamble_fputs("#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)\n", out);
+    driver_preamble_fputs("#define XLANG_ASYNC_SUSPENDED ((int32_t)0x41535700)\n", out);
+    driver_preamble_fputs("#define XLANG_IO_ASYNC_NOT_READY ((int32_t)-2)\n", out);
     driver_preamble_fputs("#endif\n", out);
     driver_preamble_fputs("typedef struct ", out);
     driver_preamble_fputs(tag, out);
@@ -2179,7 +2179,7 @@ export function async_liveness_emit_frame_typedef(f: *u8, layout: *u8, out: *u8)
   }
 }
 
-/** Emit `static <tag> __shux_frame;` at function body start (sync stub frame local).
+/** Emit `static <tag> __xlang_frame;` at function body start (sync stub frame local).
  * No-op when f/layout/out null or layout.num_awaits <= 0.
  * PLATFORM: SHARED — Cap residual pure; seed C under #ifndef FROM_X. */
 #[no_mangle]
@@ -2191,16 +2191,16 @@ export function async_liveness_emit_frame_local(f: *u8, layout: *u8, out: *u8): 
   // frame_tag @4108; empty → default (same as seed).
   let tag: *u8 = layout + 4108;
   if (layout[4108] == 0) {
-    tag = "__shux_async_frame_fn";
+    tag = "__xlang_async_frame_fn";
   }
   unsafe {
     driver_preamble_fputs("  static ", out);
     driver_preamble_fputs(tag, out);
-    driver_preamble_fputs(" __shux_frame;\n", out);
+    driver_preamble_fputs(" __xlang_frame;\n", out);
   }
 }
 
-/** Emit SHUX_ASYNC_FRAME layout comment for grep gates (slots/bytes/awaits/vars/tag).
+/** Emit XLANG_ASYNC_FRAME layout comment for grep gates (slots/bytes/awaits/vars/tag).
  * No-op only when f/layout/out is null (unlike typedef, allows num_awaits==0).
  * PLATFORM: SHARED — Cap residual pure; seed C under #ifndef FROM_X. */
 #[no_mangle]
@@ -2223,7 +2223,7 @@ export function async_liveness_emit_codegen_comment(f: *u8, layout: *u8, out: *u
   let has_rd: i32 = async_live_load_i32(layout, 4188);
   let has_wr: i32 = async_live_load_i32(layout, 4192);
   unsafe {
-    driver_preamble_fputs("  /* SHUX_ASYNC_FRAME func=", out);
+    driver_preamble_fputs("  /* XLANG_ASYNC_FRAME func=", out);
     driver_preamble_fputs(fn, out);
     driver_preamble_fputs(" slots=", out);
   }

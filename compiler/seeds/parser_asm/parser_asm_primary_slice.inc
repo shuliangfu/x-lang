@@ -197,7 +197,7 @@ static int32_t parser_asm_alloc_float_lit_c(void *arena, double fval) {
 }
 
 static int parser_asm_suffix_debug_enabled(void) {
-  const char *v = getenv("SHUX_PARSER_ASM_DEBUG");
+  const char *v = getenv("XLANG_PARSER_ASM_DEBUG");
   return v && *v && *v != '0';
 }
 

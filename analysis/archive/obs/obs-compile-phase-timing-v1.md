@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`PERF-004`、`SHUX_DEBUG_PIPE`、`pipeline.x`
+> 关联：`PERF-004`、`XLANG_DEBUG_PIPE`、`pipeline.x`
 
 ---
 
@@ -23,9 +23,9 @@
 
 | 变量 | 值 | 行为 |
 |------|-----|------|
-| `SHUX_COMPILE_PHASE_TIMING` | 任意非空 | 启用阶段计时并在流水线结束（或失败退出前）打印汇总 |
+| `XLANG_COMPILE_PHASE_TIMING` | 任意非空 | 启用阶段计时并在流水线结束（或失败退出前）打印汇总 |
 
-与 `SHUX_DEBUG_PIPE` 独立；可同时开启。
+与 `XLANG_DEBUG_PIPE` 独立；可同时开启。
 
 ---
 
@@ -37,7 +37,7 @@
 | 1 | `typeck` | `run_x_pipeline_typecheck_entry` |
 | 2 | `codegen` | `run_x_pipeline_codegen_deps` + `run_x_pipeline_codegen_entry` |
 
-`shux check`（check-only）在 typeck 通过后打印；`codegen_ms=0.000`。
+`xlang check`（check-only）在 typeck 通过后打印；`codegen_ms=0.000`。
 
 ---
 
@@ -46,7 +46,7 @@
 单行 stderr（毫秒，三位小数）：
 
 ```text
-shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.000 total_ms=15.555
+xlang: [XLANG_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.000 total_ms=15.555
 ```
 
 实现：`compiler/src/runtime_driver_abi.c`（`driver_compile_phase_timing_*`）  
@@ -68,15 +68,15 @@ shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.0
 
 1. RFC + manifest 存在  
 2. `runtime_driver_abi.c` / `pipeline.x` 含必需符号与 env 名  
-3. 有 native `shux` 时：`SHUX_COMPILE_PHASE_TIMING=1 check` 烟测 grep 汇总行  
+3. 有 native `xlang` 时：`XLANG_COMPILE_PHASE_TIMING=1 check` 烟测 grep 汇总行  
 
 ---
 
 ## 7. 用法示例
 
 ```bash
-SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c check tests/bench/loop_i32.x
-SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c tests/bench/loop_i32.x -o /tmp/loop_i32
+XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c check tests/bench/loop_i32.x
+XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c tests/bench/loop_i32.x -o /tmp/loop_i32
 ```
 
 ---

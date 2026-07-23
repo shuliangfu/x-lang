@@ -1,7 +1,7 @@
 /**
  * build_runner_gen.c — pinned C for build_runner.x (G-05)
  *
- * Why pinned: shux -x -E currently drops entry(argc,argv) parameters into
+ * Why pinned: xlang -x -E currently drops entry(argc,argv) parameters into
  * invalid static init_globals. Semantics match build_runner.x; regenerate when
  * -x -E emits a correct entry() (or restore -E-extern C-frontend seed).
  */
@@ -14,7 +14,7 @@ extern int32_t build_run_asm_build(uint8_t *shu_path);
 extern int32_t build_get_step_count(void);
 extern int32_t build_get_step_at(int32_t i);
 extern int32_t build_use_asm_only(void);
-extern int32_t build_copy_shux_asm(void);
+extern int32_t build_copy_xlang_asm(void);
 
 int32_t build_run_legacy_steps(uint8_t *shu_path) {
   int32_t n = build_get_step_count();
@@ -80,7 +80,7 @@ int32_t entry(int32_t argc, uint8_t *argv) {
   }
   if (build_use_asm_only() != 0) {
     if (build_run_asm_build(shu_buf) == 0) {
-      if (build_copy_shux_asm() != 0) {
+      if (build_copy_xlang_asm() != 0) {
         return 1;
       }
       return 0;

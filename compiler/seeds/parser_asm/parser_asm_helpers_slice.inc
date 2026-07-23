@@ -1,5 +1,5 @@
 /* parser_asm_helpers_slice.inc — G-02f-328 P19 thin helpers
- * Hybrid: SHUX_PTHIN_HELPERS_FROM_X via seeds/pthin_helpers.from_x.c
+ * Hybrid: XLANG_PTHIN_HELPERS_FROM_X via seeds/pthin_helpers.from_x.c
  * import_path/label/struct_field, lex rewind/advance/peek, align_lex, first_token_kind
  * (lexer_init + expr zeros stay in thin rest for shared foundation)
  */

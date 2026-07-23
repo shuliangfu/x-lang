@@ -1,18 +1,18 @@
 
 /* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/96/97/223 true .x + C tail).
  * wave110: pure ImportEntry storage (pipeline_module_import_* + storage_release) in .x
- *   product hybrid; Cap ast_pool SHUX_WEAK cold twins. Structure debt close.
+ *   product hybrid; Cap ast_pool XLANG_WEAK cold twins. Structure debt close.
  * wave97: pure load_and_sync step5 typeck merge+wpo → G.7 typeck.x authority
  *   (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts;
  *   no typeck_typeck_* hop). Closes Cap residual merge call surface under pure load_and_sync.
  * wave96: pure pipeline_parse_into_buf orch (init + driver_parse_into_buf_rc +
- *   debug_trace + fixup on ok; under wave94 pure load_import). glue SHUX_WEAK cold twin.
+ *   debug_trace + fixup on ok; under wave94 pure load_import). glue XLANG_WEAK cold twin.
  * wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /
  *   pipeline_preprocess_loaded_into_ctx orch (under wave94 pure load_import);
  *   Cap residual try_one/try_entry + path/loaded accessors + preprocess_x_buf;
- *   parse_into_buf wave96→pure. glue/ast_pool SHUX_WEAK cold twins.
+ *   parse_into_buf wave96→pure. glue/ast_pool XLANG_WEAK cold twins.
  * wave45 R2 hybrid (2026-07-21): product PREFER g05_try_x_to_o full .x pure (~115) +
- *   this seed as rest under -DSHUX_RUNTIME_PIPELINE_ABI_FROM_X (no pure-dup public bodies).
+ *   this seed as rest under -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X (no pure-dup public bodies).
  * wave46: pure residual helpers (ptr/size slots, i32_store, module import cstr,
  *   collect_to_load_has, preprocess directive diag) — cold twins under FROM_X.
  * wave47: pure collect seed_to_load + enqueue_module_imports.
@@ -22,7 +22,7 @@
  *   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue).
  * wave50: pure collect deps/paths transitive_impl orch (stack to_load + process_one loop).
  * wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
- *   Cap residual then pure (wave55) shux_load_one_direct_resolve_read_preprocess;
+ *   Cap residual then pure (wave55) xlang_load_one_direct_resolve_read_preprocess;
  *   G.7 paths_tmp reuses same resolve_read (no dual resolve/read/preprocess bodies).
  * wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
  * wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + resolve_read
@@ -32,7 +32,7 @@
  *   + runtime_read_file_view + pure preprocess + release + diags).
  * wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
  *   Cap-fn-ptr → wave84 pure thin + g05 &fn cast; G.7 driver_run_thread_on_large_stack;
- *   SHUX_DEBUG_PIPE notes cold-only).
+ *   XLANG_DEBUG_PIPE notes cold-only).
  * wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs stack pack;
  *   Cap-fn-ptr → wave84 pure thin + g05 &fn cast;
  *   product_emit → wave80 pure thin + cold twin under #ifndef FROM_X).
@@ -40,10 +40,10 @@
  *   + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack; cold twin
  *   under #ifndef FROM_X).
  * wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
- *   pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only; cold twin
+ *   pipeline_parse_set_main_from_buf_c; XLANG_ASM_DEBUG notes cold-only; cold twin
  *   under #ifndef FROM_X).
  * wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
- *   typeck_dep_prerun_module; SHUX_DEBUG_PIPE notes cold-only; cold twin under
+ *   typeck_dep_prerun_module; XLANG_DEBUG_PIPE notes cold-only; cold twin under
  *   #ifndef FROM_X).
  * wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
  *   + owned dup; Cap residual preprocess_* engine; pure diag helpers; oversized reportf
@@ -74,7 +74,7 @@
  * wave71: pure pipeline_rf_stage_prep_clear/set/take (pure BSS ptr+size cells via G.7
  *   ptr/size slots; cold twins + seed stage statics under #ifndef FROM_X).
  * wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (pure BSS
- *   buf+len+cap; ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP; cold twins under #ifndef FROM_X).
+ *   buf+len+cap; ensure floor XLANG_PIPELINE_IMPORT_BUF_CAP; cold twins under #ifndef FROM_X).
  * wave73: pure pipeline_diag_emitted_flag_slot (pure BSS sticky i32; cold twin under
  *   #ifndef FROM_X).
  * wave74: pure driver_dep_* table BSS orch (arena/module/path_registry/seeded 32 slots;
@@ -82,50 +82,50 @@
  * wave75: pure entry_lib authority (typeck_lit / keyword_lit / name_from_path_impl + thin gate;
  *   pure BSS stem_buf + keyword lits; G.7 single path matches C keyword-before-std order;
  *   cold twins under #ifndef FROM_X).
- * wave76: pure shux_cstr_offset (G.7 &s[off] ≡ s+off; closes Cap residual pointer arith leaf;
+ * wave76: pure xlang_cstr_offset (G.7 &s[off] ≡ s+off; closes Cap residual pointer arith leaf;
  *   cold twin under #ifndef FROM_X).
  * wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
- *   (G.7 shux_ptr_slot_*; product hybrid writers only via accessors; cold twins under #ifndef FROM_X).
- * wave78: pure shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null) + shux_fputs_stdout
+ *   (G.7 xlang_ptr_slot_*; product hybrid writers only via accessors; cold twins under #ifndef FROM_X).
+ * wave78: pure shu_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null) + xlang_fputs_stdout
  *   (G.7 g05 stdout_ptr + fputs_opaque) + driver_asm_fp_is_stdout + driver_asm_fclose_file
  *   (G.7 g05 stdout compare + fclose_opaque); cold twins under #ifndef FROM_X.
- * wave79: pure shux_path_try_realpath_inplace (G.7 g05 realpath_opaque + stack 1024 +
+ * wave79: pure xlang_path_try_realpath_inplace (G.7 g05 realpath_opaque + stack 1024 +
  *   pipe_cstr_copy; fail leave path; cold twin under #ifndef FROM_X).
- * wave80: pure shux_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o
+ * wave80: pure xlang_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o
  *   only — no same-TU weak -1; external reloc → bridge strong; cold twin under #ifndef FROM_X).
- * wave81: pure shux_preprocess / quiet / with_path thin public surface (G.7 pure
+ * wave81: pure xlang_preprocess / quiet / with_path thin public surface (G.7 pure
  *   raw_to_malloc_impl; product X-pipeline; cold twin keeps LEGACY fallback under #ifndef FROM_X).
  * wave82: pure pipeline_debug_trace_named_func_bodies_impl orch (getenv + module walk +
  *   G.7 pure body_func_match + pipe_diag_msg_append_* + diag_report; no reportf; cold twin
  *   under #ifndef FROM_X keeps reportf). Closes soft residual always-seed body-trace leaf.
  * wave83: pure pipeline_sizeof_arena / pipeline_sizeof_module (LP64 constants 16 / 68;
  *   glue weak cold fallback). Closes Cap residual sizeof leaf for pure path.
- * wave84: pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr thin
- *   (G.7 g05 shux_driver_*_thread_fn_ptr &fn cast residual; cold twins under #ifndef FROM_X).
+ * wave84: pure pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr thin
+ *   (G.7 g05 xlang_driver_*_thread_fn_ptr &fn cast residual; cold twins under #ifndef FROM_X).
  *   Closes Cap residual always-seed Cap-fn-ptr product surface leaf.
  * wave85: pure preprocess_define_reset / add / has (-D table BSS in pure pipeline_abi;
- *   glue strict_stubs SHUX_WEAK cold fallback). Closes Cap residual define-table leaf
+ *   glue strict_stubs XLANG_WEAK cold fallback). Closes Cap residual define-table leaf
  *   of preprocess engine (x_buf / if_stack still Cap residual).
- * wave86: pure preprocess_if_stack_* (fixed i32[32] BSS; ast_pool GrowVec SHUX_WEAK
+ * wave86: pure preprocess_if_stack_* (fixed i32[32] BSS; ast_pool GrowVec XLANG_WEAK
  *   cold fallback). Closes Cap residual preprocess #if stack leaf.
  * wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
  *   (G.7 single typeck authority; C typeck_module deleted). Closes Cap residual
  *   typeck_module C frontend leaf. Cold twin under #ifndef FROM_X matches pure route.
  * wave88: pure preprocess_eval_condition_c (trim + pure define_has simple path;
- *   Cap residual cfg_eval_expr_c complex; glue strict_stubs SHUX_WEAK cold fallback).
+ *   Cap residual cfg_eval_expr_c complex; glue strict_stubs XLANG_WEAK cold fallback).
  *   Closes Cap residual preprocess #if condition-eval leaf.
  * wave89: pure pipeline_typeck_dep_prerun_module_c (set_dep_ctx + soft_suppress +
- *   typeck_x_ast_library + Cap residual layout validate/patch; glue SHUX_WEAK cold).
+ *   typeck_x_ast_library + Cap residual layout validate/patch; glue XLANG_WEAK cold).
  *   Closes Cap residual typeck dep-prerun leaf used by wave60 typeck_only orch.
- * wave90: pure pipeline_typeck_diag_soft_suppress_set / _get (i32 BSS; glue SHUX_WEAK cold).
+ * wave90: pure pipeline_typeck_diag_soft_suppress_set / _get (i32 BSS; glue XLANG_WEAK cold).
  *   Closes Cap residual soft-suppress leaf under pure dep-prerun orch.
- * wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue SHUX_WEAK cold).
+ * wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue XLANG_WEAK cold).
  *   Closes Cap residual set_dep_ctx leaf; ast_pool enum fallback via get_dep_ctx.
- * wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
+ * wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue XLANG_WEAK cold).
  * wave94: pure load_import_from_disk_c + sync_dep_slots_from_driver_c orch +
  *   bind_import_dep_buffers + sync_one_dep_slot (Cap residual resolve/read/pp/parse).
  * wave93: pure load_and_sync_direct_import_deps_c orch + try_bind + realign
- *   (ast_pool SHUX_WEAK cold; Cap residual disk load / sync / typeck merge+wpo).
+ *   (ast_pool XLANG_WEAK cold; Cap residual disk load / sync / typeck merge+wpo).
  *   Closes Cap residual layout validate+patch helpers under pure dep-prerun light fallback.
  * wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7).
  * wave98: product cfg_eval complex #if → cfg_eval.x (-E+alias), not bootstrap stub
@@ -139,9 +139,9 @@
  *   subsequent export function; -E only externs; pure never productized until fix).
  * Cold/fallback without PREFER: full C bodies (no FROM_X). PLATFORM: SHARED.
  * Regen: g05_try_x_to_o src/runtime_pipeline_abi.x (product) / host-cc this file (cold).
- * G-02f pure gates remain under #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X for cold twins.
+ * G-02f pure gates remain under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X for cold twins.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_driver_abi.h"
@@ -182,52 +182,52 @@ void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths,
 
 /* G-02f-62 helper protos */
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena);
-int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
+int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n);
-int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps);
-int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+int xlang_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps);
 
 /* G-02f-61 / G-02f-240 helper protos */
-int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+int32_t xlang_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
-int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+int32_t xlang_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
-int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
+int xlang_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n);
-int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n);
 
 /* G-02f-60 helper protos */
 void pipeline_set_entry_dir(const char *path);
 void pipeline_set_dep_slots(void *arenas[32], void *modules[32]);
-void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+void xlang_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots);
-void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
+void xlang_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n);
-void shux_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCtx *ctx, char **import_paths, int n);
-void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+void xlang_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCtx *ctx, char **import_paths, int n);
+void xlang_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len);
 
 /* G-02f-59 helper protos */
-int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx);
-void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_roots, const char *entry_dir,
+void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size);
 
 /* G-02f-58 helper protos */
-int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+int xlang_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx);
-int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
+int xlang_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
 
 /* G-02f-57 / G-02f-239 helper protos */
-int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+int xlang_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx);
-int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+int xlang_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx);
 
 /* G-02f-56 helper protos */
@@ -236,8 +236,8 @@ int32_t pipeline_read_file(void);
 int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module);
 
 /* G-02f-33 forward slots (defs near storage) */
-int shux_cstr_ends_with_dot_x(const char *s);
-int shux_asm_out_buf_is_object_magic(const unsigned char *data);
+int xlang_cstr_ends_with_dot_x(const char *s);
+int xlang_asm_out_buf_is_object_magic(const unsigned char *data);
 int32_t *pipeline_diag_emitted_flag_slot(void);
 int32_t *typeck_ndep_slot(void);
 void typeck_ndep_store(int32_t n);
@@ -249,51 +249,51 @@ void pipeline_diag_preprocess_unclosed_if(const char *path_diag);
 void pipeline_diag_preprocess_fail(const char *path_diag);
 void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code);
 void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path);
-void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+void xlang_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                                         void **dep_ar, char **import_paths, int n);
 void *pipeline_run_x_thread_fn(void *arg);
 int pipeline_asm_debug_enabled(void);
 void pipeline_diag_merge_dep_missing(const char *import_path);
-void *shux_asm_codegen_elf_o_thread_fn(void *arg);
+void *xlang_asm_codegen_elf_o_thread_fn(void *arg);
 
 /* wave46–57: pure-migrated helpers live in .x under FROM_X; residual rest still calls them.
  * PLATFORM: SHARED — prototypes only when cold twin bodies are #ifndef'd out. */
-#ifdef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t shux_module_num_imports(void *module);
-void shux_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap);
-void shux_ptr_slot_set(void **arr, int32_t i, void *p);
-void *shux_ptr_slot_get(void **arr, int32_t i);
-void shux_i32_store(int32_t *p, int32_t v);
-size_t shux_size_slot_get(size_t *arr, int32_t i);
-void shux_size_slot_set(size_t *arr, int32_t i, size_t v);
-int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
+#ifdef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int32_t xlang_module_num_imports(void *module);
+void xlang_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap);
+void xlang_ptr_slot_set(void **arr, int32_t i, void *p);
+void *xlang_ptr_slot_get(void **arr, int32_t i);
+void xlang_i32_store(int32_t *p, int32_t v);
+size_t xlang_size_slot_get(size_t *arr, int32_t i);
+void xlang_size_slot_set(size_t *arr, int32_t i, size_t v);
+int xlang_collect_to_load_has(char *to_load[], int to_load_n, const char *path);
 /* wave54 pure strdup thin shell — pure orch / cold twins call this under hybrid. */
-char *shux_collect_strdup(const char *s);
+char *xlang_collect_strdup(const char *s);
 /* wave55 pure resolve_read orch — pure load_one / paths_tmp call under hybrid. */
-int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
+int xlang_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char *import_key, const char **defines, int ndefines, char **out_prep,
     size_t *out_prep_len);
 /* wave56 pure pipeline large-stack _impl — thin pure wrappers call under hybrid. */
 void *pipeline_run_x_thread_fn_impl(void *arg);
-int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data,
+int xlang_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data,
     size_t source_len, void *out_buf, void *ctx);
 /* wave57 pure asm elf_o large-stack _impl — thin pure wrappers call under hybrid. */
-void *shux_asm_codegen_elf_o_thread_fn_impl(void *arg);
-int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+void *xlang_asm_codegen_elf_o_thread_fn_impl(void *arg);
+int32_t xlang_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
 /* wave58 pure dep_prerun_parse_skip_typeck_impl — thin pure gate calls under hybrid. */
-int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src,
+int xlang_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src,
     size_t len, void *dep_out, void *one_ctx);
 /* wave59 pure dep_prerun_parse_only_impl — thin pure gate calls under hybrid. */
-int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
+int xlang_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
 /* wave60 pure dep_prerun_typeck_only_impl — thin pure gate calls under hybrid. */
-int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx);
 /* wave61 pure preprocess_raw_to_malloc_impl — thin pure gate + load_one paths call under hybrid. */
-int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag);
 /* wave62 pure one_ctx map_impl — thin pure one_ctx_for_dep_prerun + seed _impl call under hybrid. */
-void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
     void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src, size_t dep_src_len);
 /* wave63 pure typeck entry/sidecar/for_ctx_impl — thin pure gates call under hybrid. */
 int32_t typeck_module_entry_only(void *module);
@@ -324,61 +324,61 @@ void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx);
 void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char *entry_dir);
 void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_t v);
 /* wave47 pure collect queue helpers. */
-int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
-void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
+int xlang_collect_seed_to_load(void *module, char *to_load[], int *to_load_n);
+void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n,
     char *dep_paths[], int n_loaded);
 /* wave52 pure tmp_parse orch — pure paths_tmp + pure process_one call it. */
-void shux_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
+void xlang_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
     char *prep, size_t prep_len, const char *debug_path, char *to_load[], int *to_load_n, char *dep_paths[],
     int n_loaded);
 /* wave53 pure paths_tmp orch — pure paths_process_one calls it. */
-int shux_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+int xlang_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, void **tmp_arena, void **tmp_module,
     size_t arena_sz, size_t module_sz, char *to_load[], int *to_load_n, char *dep_paths[], int n_loaded);
 /* wave48 pure process_one orch — pure transitive_impl + Cap residual may call. */
-int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+int xlang_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
     size_t arena_sz, size_t module_sz);
 /* wave49 pure paths_process_one orch — pure paths transitive_impl calls it. */
-int shux_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+int xlang_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n, char *to_load[],
     int *to_load_n, void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz);
 /* wave50 pure transitive_impl orch — thin pure wrappers still call these. */
-int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps);
-int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+int xlang_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps);
 /* wave51 pure load_one orch + fail_cleanup — cold layout_impl / pure process_one call these. */
-int shux_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
+int xlang_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
     const char *import_key, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int32_t mi);
-void shux_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi);
+void xlang_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi);
 /* wave78 pure soft residual — pure emit/fclose_asm_out / free_loaded_imports call under hybrid. */
 void shu_lsp_ptr_slot_clear(void **arr, int32_t i);
-void shux_fputs_stdout(const char *s);
+void xlang_fputs_stdout(const char *s);
 int driver_asm_fp_is_stdout(FILE *fp);
 void driver_asm_fclose_file(FILE *fp);
 /* wave79 pure OS residual — always-seed resolve_*_impl / pure resolve_file call under hybrid. */
-void shux_path_try_realpath_inplace(char *path, size_t path_size);
+void xlang_path_try_realpath_inplace(char *path, size_t path_size);
 /* pipeline_diag_preprocess_directive_code already declared above */
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-33 / wave73: hybrid pure owns flag BSS + slot; cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — same sticky int as pure g_pipe_diag_emitted_flag. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 static int pipeline_diag_emitted_flag;
 
 int32_t *pipeline_diag_emitted_flag_slot(void) {
     return (int32_t *)&pipeline_diag_emitted_flag;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 static int pipeline_last_import_open_valid;
 static char pipeline_last_import_open_import[65];
 static char pipeline_last_import_open_resolved[PATH_MAX];
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_emitted_reset(void) {
   (void)(({   {
     int32_t * p = pipeline_diag_emitted_flag_slot();
@@ -386,9 +386,9 @@ void pipeline_diag_emitted_reset(void) {
   }
  }));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_emitted_note(void) {
   (void)(({   {
     int32_t * p = pipeline_diag_emitted_flag_slot();
@@ -396,9 +396,9 @@ void pipeline_diag_emitted_note(void) {
   }
  }));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_diag_emitted_get(void) {
   (void)(({   {
     int32_t * p = pipeline_diag_emitted_flag_slot();
@@ -410,11 +410,11 @@ int32_t pipeline_diag_emitted_get(void) {
  }));
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 /* G-02f-227：逻辑源 .x（真迁）；seed 保留 printf 细文案 + 去重表 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
     const char *import_key = import_path ? import_path : "?";
     const char *resolved_key = resolved_path ? resolved_path : "?";
@@ -428,34 +428,34 @@ void pipeline_diag_import_open_fail_once(const char *import_path, const char *re
     snprintf(pipeline_last_import_open_resolved, sizeof(pipeline_last_import_open_resolved), "%s", resolved_key);
     pipeline_last_import_open_valid = 1;
     pipeline_diag_emitted_note();
-    diag_reportf_with_code(resolved_path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP001, NULL,
+    diag_reportf_with_code(resolved_path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP001, NULL,
                  "cannot open import '%s' (tried %s)",
                  import_key,
                  resolved_key);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（含 printf 细文案） */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
     pipeline_diag_emitted_note();
-    diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
+    diag_report_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_preprocess_fail(const char *path_diag) {
     pipeline_diag_emitted_note();
-    diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+    diag_reportf_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                  ".x preprocess failed for '%s'",
                  path_diag ? path_diag : "?");
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave46 Cap residual pure: directive code map in .x; cold twin below. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* 指令级失败码（preprocess_x_buf 负返回值）→ 历史 C 文案。 */
 void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code) {
     const char *msg = NULL;
@@ -476,51 +476,51 @@ void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code
         return;
     }
     pipeline_diag_emitted_note();
-    diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, msg, NULL);
+    diag_report_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, msg, NULL);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
     pipeline_diag_emitted_note();
-    diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
+    diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_IMPORT_IMP002, NULL,
                  "preprocess failed for import '%s' (%s)",
                  import_path ? import_path : "?",
                  resolved_path ? resolved_path : "?");
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
     pipeline_diag_emitted_note();
-    diag_reportf_with_code(path_diag, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005, NULL,
+    diag_reportf_with_code(path_diag, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005, NULL,
                  "%s allocation failed during .x preprocess",
                  what ? what : "buffer");
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_diag_merge_dep_missing(const char *import_path) {
     pipeline_diag_emitted_note();
-    diag_reportf_with_code(import_path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
+    diag_reportf_with_code(import_path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP004, NULL,
                  "direct import '%s' was not found in the resolved dependency closure",
                  import_path ? import_path : "?");
     diag_report(NULL, 0, 0, "note",
                 "dependency closure construction failed before merge_deps completed", NULL);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* wave235 G.7: SHUX_ASM_DEBUG via link_abi_getenv (not raw getenv). */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+/* wave235 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv). */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int pipeline_asm_debug_enabled(void) {
-  return link_abi_getenv("SHUX_ASM_DEBUG") != NULL;
+  return link_abi_getenv("XLANG_ASM_DEBUG") != NULL;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
@@ -535,7 +535,7 @@ extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int pipeline_debug_body_func_match(const char *filter, const char *name) {
     const char *p;
     size_t name_len;
@@ -563,17 +563,17 @@ int pipeline_debug_body_func_match(const char *filter, const char *name) {
     }
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 
 /* wave82: pure owns pipeline_debug_trace_named_func_bodies_impl under PREFER FROM_X
  * (append+diag_report, no reportf). Cold twin keeps historical reportf format.
- * wave235 G.7: SHUX_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv). */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+ * wave235 G.7: XLANG_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv). */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
-    const char *filter = link_abi_getenv("SHUX_DEBUG_BODY_FUNC");
+    const char *filter = link_abi_getenv("XLANG_DEBUG_BODY_FUNC");
     int32_t nf;
     int32_t fi;
     if (!filter || !filter[0] || filter[0] == '0' || !module || !arena)
@@ -606,9 +606,9 @@ void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module
                      body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
     }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {
   if (module == NULL) {
     return;
@@ -620,74 +620,74 @@ void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, voi
     pipeline_debug_trace_named_func_bodies_impl(phase, module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_pre_reset(void *module, void *arena) {
   {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_reset", module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_post_reset(void *module, void *arena) {
   {
     pipeline_debug_trace_named_func_bodies("x_mega_post_reset", module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_post_params(void *module, void *arena) {
   {
     pipeline_debug_trace_named_func_bodies("x_mega_post_params", module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_post_frame(void *module, void *arena) {
   {
     pipeline_debug_trace_named_func_bodies("x_mega_post_frame", module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_post_locals(void *module, void *arena) {
   {
     pipeline_debug_trace_named_func_bodies("x_mega_post_locals", module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_pre_emit(void *module, void *arena) {
   {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_emit", module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-240 / wave61：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Pure orch: scratch + define table + preprocess_x_buf + owned dup; Cap residual
  * preprocess_* engine; pure pipeline_diag_preprocess_* (oversized reportf cold-only).
  * PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag) {
     int di;
     if (out_src)
         *out_src = NULL;
     if (out_src_len)
         *out_src_len = 0;
-    if (raw_len > (size_t)SHUX_PIPELINE_CTX_BUF_SIZE) {
+    if (raw_len > (size_t)XLANG_PIPELINE_CTX_BUF_SIZE) {
         if (emit_diag) {
-            diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+            diag_reportf_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                          "entry file too large for .x preprocessor (%zu > %d): '%s'",
                          raw_len,
-                         SHUX_PIPELINE_CTX_BUF_SIZE,
+                         XLANG_PIPELINE_CTX_BUF_SIZE,
                          path_diag ? path_diag : "?");
         }
         return -1;
     }
-    uint8_t *scratch = (uint8_t *)malloc((size_t)SHUX_PIPELINE_CTX_BUF_SIZE);
+    uint8_t *scratch = (uint8_t *)malloc((size_t)XLANG_PIPELINE_CTX_BUF_SIZE);
     if (!scratch) {
         if (emit_diag)
             pipeline_diag_preprocess_alloc_fail(path_diag, "scratch buffer");
@@ -697,7 +697,7 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
     for (di = 0; di < ndefines; di++)
         if (defines && defines[di])
             preprocess_define_add(defines[di]);
-    int32_t n = preprocess_x_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)SHUX_PIPELINE_CTX_BUF_SIZE);
+    int32_t n = preprocess_x_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)XLANG_PIPELINE_CTX_BUF_SIZE);
     if (n < 0) {
         free(scratch);
         if (emit_diag) {
@@ -735,25 +735,25 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
 }
 
 /* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
-int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
+int xlang_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
     const char *path_diag, const char **defines, int ndefines) {
   if (raw == NULL && raw_len > 0)
     return -1;
   if (ndefines < 0)
     return -1;
   {
-    return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
+    return xlang_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 /* G-02f-33 / wave77: hybrid pure owns typeck_ndep + typeck_dep_* table BSS + slot/get/set_impl /
  * ptrs_base; cold twins under #ifndef FROM_X keep naked C globals for cold run seed naked
  * writers. PLATFORM: SHARED LP64 — 32 void* + int ndep. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c get_dep_* / pipeline_set_dep；cold path）。 */
 void *typeck_dep_module_ptrs[32];
 void *typeck_dep_arena_ptrs[32];
@@ -811,7 +811,7 @@ void typeck_dep_module_set(int32_t i, void *mod) {
 void typeck_dep_arena_set(int32_t i, void *arena) {
     typeck_dep_arena_set_impl(i, arena);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
@@ -821,7 +821,7 @@ void typeck_dep_arena_set(int32_t i, void *arena) {
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_typeck_dep_sidecar_clear(void) {
     int i;
     typeck_ndep = 0;
@@ -830,12 +830,12 @@ void driver_typeck_dep_sidecar_clear(void) {
         typeck_dep_module_ptrs[i] = NULL;
     }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 /** 按 dep 下标取 module 指针；越界返回 NULL。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void *get_dep_module(int32_t i) {
   if ((i < 0)) {
     return ((void *)(0));
@@ -851,10 +851,10 @@ void *get_dep_module(int32_t i) {
  }));
   return ((void *)(0));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 按 dep 下标取 arena 指针；越界返回 NULL。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void *get_dep_arena(int32_t i) {
   if ((i < 0)) {
     return ((void *)(0));
@@ -870,10 +870,10 @@ void *get_dep_arena(int32_t i) {
  }));
   return ((void *)(0));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 当前 dep 数量。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t get_ndep(void) {
   (void)(({   {
     int32_t * p = typeck_ndep_slot();
@@ -883,24 +883,24 @@ int32_t get_ndep(void) {
  }));
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_gen.c 别名：与 get_dep_module 相同。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void *typeck_get_dep_module(int32_t i) {
   return get_dep_module(i);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_gen.c 别名：与 get_dep_arena 相同。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void *typeck_get_dep_arena(int32_t i) {
   return get_dep_arena(i);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 写入单 dep 槽（pipeline.x 编排 import 加载时调用）。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_set_dep(int32_t i, void *mod, void *arena) {
   if ((i < 0)) {
     return;
@@ -914,17 +914,17 @@ void pipeline_set_dep(int32_t i, void *mod, void *arena) {
   }
  }));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 设置 dep 数量上限 32。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_set_ndep(int32_t n) {
   (void)(({   {
     (void)(typeck_ndep_store(n));
   }
  }));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 对原始 .x 做 preprocess.x 条件编译扫描，写入新分配缓冲 NUL 结尾字符串。
@@ -939,7 +939,7 @@ void pipeline_set_ndep(int32_t n) {
  * 副作用：写入 path，保证 NUL 结尾（path_size>0 时）。
  */
 /* G-02f-229：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void shux_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size) {
+void xlang_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size) {
     const char *r = lib_root && lib_root[0] ? lib_root : ".";
     size_t off = (size_t)snprintf(path, path_size, "%s/", r);
     for (const char *s = import_path ? import_path : ""; *s && off + 1 < path_size; s++) {
@@ -953,8 +953,8 @@ void shux_import_path_to_file_path_impl(const char *lib_root, const char *import
 }
 
 /* G-02f-229：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
     return;
   }
@@ -962,17 +962,17 @@ void shux_import_path_to_file_path(const char *lib_root, const char *import_path
     return;
   }
   {
-    shux_import_path_to_file_path_impl(lib_root, import_path, path, path_size);
+    xlang_import_path_to_file_path_impl(lib_root, import_path, path, path_size);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 从入口 .x 路径得到所在目录；无目录时写入 "."。
  * 参数：见 runtime_pipeline_abi.h。
  */
 /* G-02f-229：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void shux_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t size) {
+void xlang_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t size) {
     const char *last = strrchr(input_path, '/');
     if (!last) {
         (void)snprintf(entry_dir, size, ".");
@@ -986,8 +986,8 @@ void shux_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t siz
 }
 
 /* G-02f-229：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
   if (entry_dir == NULL) {
     return;
   }
@@ -999,10 +999,10 @@ void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
     return;
   }
   {
-    shux_get_entry_dir_impl(input_path, entry_dir, size);
+    xlang_get_entry_dir_impl(input_path, entry_dir, size);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 判断 import 是否为文件路径（相对/绝对/.x），而非逻辑模块名 std.io。
@@ -1010,8 +1010,8 @@ void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
  */
 
 /* G-02f-63：真逻辑来自 .x（逐字节扫 / 魔数比较；无 _impl）。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_cstr_ends_with_dot_x(const char *s) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_cstr_ends_with_dot_x(const char *s) {
     size_t n;
     if (s == NULL) {
         return 0;
@@ -1031,10 +1031,10 @@ int shux_cstr_ends_with_dot_x(const char *s) {
     }
     return 1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_asm_out_buf_is_object_magic(const unsigned char *data) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_asm_out_buf_is_object_magic(const unsigned char *data) {
     unsigned char b0;
     unsigned char b1;
     unsigned char b2;
@@ -1078,10 +1078,10 @@ int shux_asm_out_buf_is_object_magic(const unsigned char *data) {
     }
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_import_path_is_file_path(const char *import_path) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_import_path_is_file_path(const char *import_path) {
   if (import_path == NULL) {
     return 0;
   }
@@ -1098,24 +1098,24 @@ int shux_import_path_is_file_path(const char *import_path) {
     if (strchr(import_path, '/') != NULL) {
       return 1;
     }
-    if (shux_cstr_ends_with_dot_x(import_path) != 0) {
+    if (xlang_cstr_ends_with_dot_x(import_path) != 0) {
       return 1;
     }
     return 0;
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 将相对/绝对文件路径解析为可打开的 .x 路径（相对 entry_dir）。
  * 参数：见 runtime_pipeline_abi.h。
  */
-/* wave79: hybrid pure owns shux_path_try_realpath_inplace (g05 realpath_opaque + stack 1024 +
+/* wave79: hybrid pure owns xlang_path_try_realpath_inplace (g05 realpath_opaque + stack 1024 +
  * pipe_cstr_copy); cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — POSIX/APPLE realpath+snprintf; non-POSIX no-op (same as pure harness null). */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_path_try_realpath_inplace(char *path, size_t path_size) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_path_try_realpath_inplace(char *path, size_t path_size) {
     if (!path || path_size == 0)
         return;
 #if defined(_POSIX_VERSION) || defined(__APPLE__)
@@ -1128,10 +1128,10 @@ void shux_path_try_realpath_inplace(char *path, size_t path_size) {
     (void)path_size;
 #endif
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-231：逻辑源 .x（join pure）；seed 保留同语义 C 供产品 cc */
-void shux_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
+void xlang_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
     char tmp[1024];
     if (import_path[0] == '/') {
         (void)snprintf(tmp, sizeof(tmp), "%s", import_path);
@@ -1141,12 +1141,12 @@ void shux_resolve_file_import_path_impl(const char *entry_dir, const char *impor
         (void)snprintf(tmp, sizeof(tmp), "%s", import_path);
     }
     (void)snprintf(path, path_size, "%s", tmp);
-    shux_path_try_realpath_inplace(path, path_size);
+    xlang_path_try_realpath_inplace(path, path_size);
 }
 
 /* G-02f-231：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
     return;
   }
@@ -1158,32 +1158,32 @@ void shux_resolve_file_import_path(const char *entry_dir, const char *import_pat
     return;
   }
   {
-    shux_resolve_file_import_path_impl(entry_dir, import_path, path, path_size);
+    xlang_resolve_file_import_path_impl(entry_dir, import_path, path, path_size);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/* wave76: hybrid pure owns shux_cstr_offset (&s[off]); cold twin under #ifndef FROM_X.
+/* wave76: hybrid pure owns xlang_cstr_offset (&s[off]); cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — same null / negative-off / s+off semantics as pure. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-const char *shux_cstr_offset(const char *s, int32_t off) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+const char *xlang_cstr_offset(const char *s, int32_t off) {
     if (!s)
         return NULL;
     if (off < 0)
         return s;
     return s + off;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 在 lib_roots 与 entry_dir 下解析 import 到可读 .x 路径。
  * 参数：见 runtime_pipeline_abi.h；未找到时 path 仍写入最后一次尝试路径。
  */
 /* G-02f-232：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_roots, const char *entry_dir,
+void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size) {
-    if (shux_import_path_is_file_path(import_path)) {
-        shux_resolve_file_import_path(entry_dir, import_path, path, path_size);
+    if (xlang_import_path_is_file_path(import_path)) {
+        xlang_resolve_file_import_path(entry_dir, import_path, path, path_size);
         if (access(path, R_OK) == 0)
             return;
         if (import_path[0] != '/') {
@@ -1194,7 +1194,7 @@ void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_
     }
     for (int r = 0; r < n_lib_roots; r++) {
         const char *lib_root = lib_roots[r] && lib_roots[r][0] ? lib_roots[r] : ".";
-        shux_import_path_to_file_path(lib_root, import_path, path, path_size);
+        xlang_import_path_to_file_path(lib_root, import_path, path, path_size);
         if (access(path, R_OK) == 0)
             return;
         /* 单段 import（如 preprocess）：再试 lib_root/import/import.x */
@@ -1214,7 +1214,7 @@ void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_
                 (void)snprintf(path + off, path_size - off, "/mod.x");
             if (access(path, R_OK) == 0)
                 return;
-            shux_import_path_to_file_path(lib_root, import_path, path, path_size);
+            xlang_import_path_to_file_path(lib_root, import_path, path, path_size);
             if (access(path, R_OK) == 0)
                 return;
         }
@@ -1251,8 +1251,8 @@ void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_
 }
 
 /* G-02f-232：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
     return;
@@ -1265,36 +1265,36 @@ void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots
     return;
   }
   {
-    shux_resolve_import_file_path_multi_impl(lib_roots, n_lib_roots, entry_dir, import_path, path, path_size);
+    xlang_resolve_import_file_path_multi_impl(lib_roots, n_lib_roots, entry_dir, import_path, path, path_size);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-34 / wave74: hybrid pure owns driver_dep table BSS + slot/set/at/buf;
- * cold twins under #ifndef FROM_X. PLATFORM: SHARED LP64 — SHUX_DRIVER_DEP_SLOT_MAX=32. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+ * cold twins under #ifndef FROM_X. PLATFORM: SHARED LP64 — XLANG_DRIVER_DEP_SLOT_MAX=32. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /** pipeline dep 全局槽：arena/module 指针、import 路径注册表、seeded 标记。 */
-static void *driver_dep_arena_ptrs[SHUX_DRIVER_DEP_SLOT_MAX];
-static void *driver_dep_module_ptrs[SHUX_DRIVER_DEP_SLOT_MAX];
-static const char *driver_dep_path_registry[SHUX_DRIVER_DEP_SLOT_MAX];
-static int driver_dep_seeded[SHUX_DRIVER_DEP_SLOT_MAX];
+static void *driver_dep_arena_ptrs[XLANG_DRIVER_DEP_SLOT_MAX];
+static void *driver_dep_module_ptrs[XLANG_DRIVER_DEP_SLOT_MAX];
+static const char *driver_dep_path_registry[XLANG_DRIVER_DEP_SLOT_MAX];
+static int driver_dep_seeded[XLANG_DRIVER_DEP_SLOT_MAX];
 
 /* G-02f-34: per-slot storage for .x dep_seeded get/set */
 int32_t *driver_dep_seeded_slot(int32_t i) {
     if (i < 0)
         i = 0;
-    if (i >= SHUX_DRIVER_DEP_SLOT_MAX)
-        i = SHUX_DRIVER_DEP_SLOT_MAX - 1;
+    if (i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        i = XLANG_DRIVER_DEP_SLOT_MAX - 1;
     return (int32_t *)&driver_dep_seeded[i];
 }
 
 /* G-02f-224：path registry 读槽（供 .x scan 真迁） */
 const char *driver_dep_path_registry_at(int32_t i) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return NULL;
     return driver_dep_path_registry[i];
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
@@ -1307,50 +1307,50 @@ extern size_t pipeline_sizeof_module(void);
 
 /* G-02f-42: driver dep pointer/path slots for .x publish_slot */
 /* wave74: pure owns BSS write under hybrid; cold twin under #ifndef FROM_X. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_arena_ptr_set_impl(int32_t i, void *arena) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return;
     driver_dep_arena_ptrs[i] = arena;
 }
 void driver_dep_module_ptr_set_impl(int32_t i, void *module) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return;
     driver_dep_module_ptrs[i] = module;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_arena_ptr_set(int32_t i, void *arena) {
     driver_dep_arena_ptr_set_impl(i, arena);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_module_ptr_set(int32_t i, void *module) {
     driver_dep_module_ptr_set_impl(i, module);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 
 /* G-02f-224 / wave74：pure path_registry_set under hybrid; cold twin stores non-null only. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_path_registry_set(int32_t i, const char *path) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return;
     if (!path)
         return;
     driver_dep_path_registry[i] = path;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t driver_dep_seeded_get(int32_t i) {
   if ((i < 0)) {
     return 0;
@@ -1368,13 +1368,13 @@ int32_t driver_dep_seeded_get(int32_t i) {
  }));
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 设置 dep 槽 seeded 标志（run_compiler_x_path 预填后调用）。
  * 参数：i 槽下标；v 非 0 表示 seeded。
  */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_seeded_set(int32_t i, int32_t v) {
   if ((i < 0)) {
     return;
@@ -1388,25 +1388,25 @@ void driver_dep_seeded_set(int32_t i, int32_t v) {
   }
  }));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 批量预填 dep 槽指针并标记 seeded；entry pipeline 复用不重载。
  * 参数：arenas/modules 各 32 槽；n 有效 dep 数。
  */
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
     int j;
-    for (j = 0; j < SHUX_DRIVER_DEP_SLOT_MAX && j < n; j++) {
+    for (j = 0; j < XLANG_DRIVER_DEP_SLOT_MAX && j < n; j++) {
         driver_dep_arena_ptrs[j] = arenas ? arenas[j] : NULL;
         driver_dep_module_ptrs[j] = modules ? modules[j] : NULL;
         driver_dep_seeded[j] = 1;
     }
-    for (; j < SHUX_DRIVER_DEP_SLOT_MAX; j++)
+    for (; j < XLANG_DRIVER_DEP_SLOT_MAX; j++)
         driver_dep_seeded[j] = 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
@@ -1414,7 +1414,7 @@ void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
  * 单槽发布：dep 预跑 parse 完成后供 pipeline_load 按 import 路径绑定。
  * 参数：import_path 逻辑路径指针须存活至 clear_all（通常 dep_paths[j]）。
  */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *import_path) {
   if ((i < 0)) {
     return;
@@ -1430,26 +1430,26 @@ void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *i
   }
  }));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 按 import 逻辑路径查 dep 预跑全局槽。
  * 返回值：槽下标 0..31，未 publish 返回 -1。
  */
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t driver_dep_slot_for_path_scan(const char *path) {
     int i;
-    for (i = 0; i < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
+    for (i = 0; i < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
         if (driver_dep_path_registry[i] && strcmp(driver_dep_path_registry[i], path) == 0)
             return i;
     }
     return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t driver_dep_slot_for_path(const char *path) {
   if (path == NULL) {
     return -1;
@@ -1459,16 +1459,16 @@ int32_t driver_dep_slot_for_path(const char *path) {
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * entry pipeline 返回后清除 seeded 与槽指针；并同步清 runtime.c typeck dep 侧车。
  */
 /* G-02f-230 / wave74：pure clear_slots under hybrid; cold twin direct-writes static tables. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_seeded_clear_slots_impl(void) {
     int i;
-    for (i = 0; i < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
+    for (i = 0; i < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
         driver_dep_seeded[i] = 0;
         driver_dep_path_registry[i] = NULL;
         driver_dep_arena_ptrs[i] = NULL;
@@ -1480,26 +1480,26 @@ void driver_dep_seeded_clear_slots_impl(void) {
 void driver_dep_seeded_clear_slots(void) {
     driver_dep_seeded_clear_slots_impl();
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_dep_seeded_clear_all(void) {
   {
     driver_dep_seeded_clear_slots_impl();
     driver_typeck_dep_sidecar_clear();
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 获取 dep i 的 arena 缓冲；首访 malloc+清零，seeded 槽复用预填指针。
  * 返回值：arena 字节区或 NULL（i 越界 / OOM）。
  * wave74: pure owns under hybrid; cold twin below.
  */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *driver_dep_arena_buf(int32_t i) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return NULL;
     if (driver_dep_arena_ptrs[i] == NULL) {
         size_t sz = pipeline_sizeof_arena();
@@ -1516,7 +1516,7 @@ uint8_t *driver_dep_arena_buf(int32_t i) {
  * 返回值：module 字节区或 NULL。
  */
 uint8_t *driver_dep_module_buf(int32_t i) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
         return NULL;
     if (driver_dep_module_ptrs[i] == NULL) {
         size_t sz = pipeline_sizeof_module();
@@ -1527,10 +1527,10 @@ uint8_t *driver_dep_module_buf(int32_t i) {
     }
     return (uint8_t *)driver_dep_module_ptrs[i];
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** typeck.x 导出名：转发 driver_dep_module_buf。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *typeck_driver_dep_module_buf(int32_t i) {
   (void)(({   {
     uint8_t * r = driver_dep_module_buf(i);
@@ -1539,8 +1539,8 @@ uint8_t *typeck_driver_dep_module_buf(int32_t i) {
  }));
   return ((void *)(0));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *typeck_driver_dep_arena_buf(int32_t i) {
   (void)(({   {
     uint8_t * r = driver_dep_arena_buf(i);
@@ -1549,14 +1549,14 @@ uint8_t *typeck_driver_dep_arena_buf(int32_t i) {
  }));
   return ((void *)(0));
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** typeck.x 导出名：转发 driver_dep_seeded_get。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t typeck_driver_dep_seeded_get(int32_t i) {
   return driver_dep_seeded_get(i);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * 在已加载 import 列表中查找下标。
@@ -1568,32 +1568,32 @@ int32_t typeck_driver_dep_seeded_get(int32_t i) {
 
 
 /* G-02f-54 helper protos */
-int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag);
 void driver_dep_seed_slots_impl(void *arenas[32], void *modules[32], int32_t n);
-const char *shux_entry_lib_name_from_path_impl(const char *input_path);
-const char *shux_cstr_typeck_lit(void);
+const char *xlang_entry_lib_name_from_path_impl(const char *input_path);
+const char *xlang_cstr_typeck_lit(void);
 
 /* G-02f-53 helper protos */
-void shux_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size);
-void shux_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size);
+void xlang_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size);
+void xlang_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size);
 int32_t driver_dep_slot_for_path_scan(const char *path);
 
 /* G-02f-52 helper protos */
 void driver_typeck_dep_sidecar_clear_impl(void);
 void driver_dep_seeded_clear_slots_impl(void);
-void shux_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t size);
+void xlang_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t size);
 void driver_asm_fclose_asm_out_impl(FILE *fp);
 
 /* G-02f-51 helper protos (defs later near dep_prerun) */
-const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots);
-int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all);
-int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out);
-void shux_emit_pipeline_glue_include_impl(void);
-int shux_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size);
+const char *xlang_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots);
+int xlang_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all);
+int xlang_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out);
+void xlang_emit_pipeline_glue_include_impl(void);
+int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size);
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_find_loaded_import_index(const char *import_path, char **all_paths, int n_all) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_find_loaded_import_index(const char *import_path, char **all_paths, int n_all) {
   if (import_path == NULL) {
     return -1;
   }
@@ -1604,11 +1604,11 @@ int shux_find_loaded_import_index(const char *import_path, char **all_paths, int
     return -1;
   }
   {
-    return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
+    return xlang_find_loaded_import_index_scan(import_path, all_paths, n_all);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * dep 预跑 resolve import 时用 lib root（-L）优先于主文件 entry_dir。
@@ -1617,17 +1617,17 @@ int shux_find_loaded_import_index(const char *import_path, char **all_paths, int
  */
 
 /* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+const char *xlang_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
     if (lib_roots && n_lib_roots > 0 && lib_roots[0] && lib_roots[0][0])
         return lib_roots[0];
     return main_entry_dir;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all) {
     int i;
     for (i = 0; i < n_all; i++) {
         if (all_paths[i] && strcmp(all_paths[i], import_path) == 0)
@@ -1635,12 +1635,12 @@ int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths
     }
     return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out) {
     int j;
     for (j = 0; j < n_out; j++) {
         if (out_paths[j] && strcmp(out_paths[j], path) == 0)
@@ -1648,25 +1648,25 @@ int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], i
     }
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
-/* wave78: hybrid pure owns shux_fputs_stdout (g05 stdout_ptr + fputs_opaque); cold twin under
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
+/* wave78: hybrid pure owns xlang_fputs_stdout (g05 stdout_ptr + fputs_opaque); cold twin under
  * #ifndef FROM_X. PLATFORM: SHARED — same null-skip + fputs(stdout) semantics as pure. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_fputs_stdout(const char *s) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_fputs_stdout(const char *s) {
     if (s)
         fputs(s, stdout);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_emit_pipeline_glue_include(void) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_emit_pipeline_glue_include(void) {
     fputs("\n#include \"pipeline_glue.c\"\n", stdout);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
-int shux_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size) {
+int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size) {
     const char *slash;
     if (!path || !dep_dir || dep_dir_size == 0)
         return -1;
@@ -1684,25 +1684,25 @@ int shux_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t d
     }
     return 0;
 }
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+const char *xlang_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
   {
     if (n_lib_roots <= 0) {
       return main_entry_dir;
     }
-    return shux_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
+    return xlang_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
   }
   return main_entry_dir;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * From entry .x path derive -E C lib_prefix (keywords / std_ / core_ / basename).
  * wave75: hybrid pure owns full body + typeck_lit + keyword_lit; cold twins under #ifndef.
  * PLATFORM: SHARED — same order as pure (keywords before std/stem).
  */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+const char *xlang_entry_lib_name_from_path_impl(const char *input_path) {
     static char stem_buf[128];
     const char *base;
     const char *dot;
@@ -1832,12 +1832,12 @@ const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
     return "typeck";
 }
 
-const char *shux_cstr_typeck_lit(void) {
+const char *xlang_cstr_typeck_lit(void) {
     return "typeck";
 }
 
 /* G-02f-226 / wave75 cold twin: entry_lib keyword lits (0=main..9=ast; else typeck). */
-const char *shux_entry_lib_keyword_lit(int32_t k) {
+const char *xlang_entry_lib_keyword_lit(int32_t k) {
     if (k == 0) return "main";
     if (k == 1) return "build";
     if (k == 2) return "pipeline";
@@ -1852,16 +1852,16 @@ const char *shux_entry_lib_keyword_lit(int32_t k) {
 }
 
 /* G-02f-226 / wave75 cold twin: thin gate → pure-matched impl. */
-const char *shux_entry_lib_name_from_path(const char *input_path) {
+const char *xlang_entry_lib_name_from_path(const char *input_path) {
   if (input_path == NULL) {
-    return shux_cstr_typeck_lit();
+    return xlang_cstr_typeck_lit();
   }
   {
-    return shux_entry_lib_name_from_path_impl(input_path);
+    return xlang_entry_lib_name_from_path_impl(input_path);
   }
   return NULL;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** -E 且入口为 pipeline.x 时输出 pipeline_glue.c include 行。 */
 
@@ -1872,33 +1872,33 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
  */
 /* wave78: hybrid pure owns driver_asm_fp_is_stdout + driver_asm_fclose_file (g05 opaque);
  * cold twins under #ifndef FROM_X. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int driver_asm_fp_is_stdout(FILE *fp) {
     return fp == stdout ? 1 : 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* 产品链与 runtime_driver_abi 同链；driver_abi 为权威定义。弱化避免 Darwin ld 双 T。 */
-SHUX_WEAK void driver_asm_fflush_stdout(void) {
+XLANG_WEAK void driver_asm_fflush_stdout(void) {
     fflush(stdout);
 }
 
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_asm_fclose_file(FILE *fp) {
     if (fp)
         fclose(fp);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void driver_asm_fclose_asm_out(FILE *fp) {
     if (!fp || fp == stdout)
         fflush(stdout);
     else
         fclose(fp);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
@@ -1907,8 +1907,8 @@ void driver_asm_fclose_asm_out(FILE *fp) {
  * 参数：data/len 为 codegen out_buf 内容。
  * 返回值：非 0 表示已是对象文件字节。
  */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_asm_out_buf_is_object(const unsigned char *data, size_t len) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_asm_out_buf_is_object(const unsigned char *data, size_t len) {
   if (data == NULL) {
     return 0;
   }
@@ -1916,11 +1916,11 @@ int shux_asm_out_buf_is_object(const unsigned char *data, size_t len) {
     return 0;
   }
   {
-    return shux_asm_out_buf_is_object_magic(data);
+    return xlang_asm_out_buf_is_object_magic(data);
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** ast.x pipeline_dep_ctx_* 与 lib_root sidecar（由 ast_pool.c 提供）。 */
 extern void ast_pipeline_dep_ctx_reset(struct ast_PipelineDepCtx *ctx);
@@ -1941,7 +1941,7 @@ extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
  */
 /* G-02f-230 / wave67：hybrid pure owns path_bufs_reset; cold twin under #ifndef FROM_X.
  * Pure orch: LP64 offsetof + LE store (loaded_len i64 + three i32 cells). PLATFORM: SHARED LP64. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx) {
     if (!ctx)
         return;
@@ -1964,10 +1964,10 @@ void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char 
     ctx->entry_dir_buf[el] = '\0';
     ctx->entry_dir_len = (int32_t)el;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+void xlang_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots) {
     if (!ctx)
         return;
@@ -1985,17 +1985,17 @@ void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, co
 }
 
 /* G-02f-230：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots) {
   if (ctx == NULL) {
     return;
   }
   {
-    shux_pipeline_fill_ctx_path_buffers_impl(ctx, entry_dir, lib_roots, n_lib_roots);
+    xlang_pipeline_fill_ctx_path_buffers_impl(ctx, entry_dir, lib_roots, n_lib_roots);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /**
@@ -2003,7 +2003,7 @@ void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const c
  * 参数：dep_mods/dep_ar/import_paths 长度 n；ctx 输出 sidecar。
  */
 /* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
+void xlang_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n) {
     int i;
     if (!ctx)
@@ -2021,21 +2021,21 @@ void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void
 }
 
 /* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n) {
   if (ctx == NULL) {
     return;
   }
   {
-    shux_pipeline_pctx_seed_dep_slots_impl(ctx, dep_mods, dep_ar, import_paths, n);
+    xlang_pipeline_pctx_seed_dep_slots_impl(ctx, dep_mods, dep_ar, import_paths, n);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void shux_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
+void xlang_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
     int i;
     if (!ctx)
         return;
@@ -2050,24 +2050,24 @@ void shux_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCt
 }
 
 /* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
   if (ctx == NULL) {
     return;
   }
   {
-    shux_pipeline_pctx_seed_dep_import_paths_only_impl(ctx, import_paths, n);
+    xlang_pipeline_pctx_seed_dep_import_paths_only_impl(ctx, import_paths, n);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /**
  * 更新 dep 槽 module/arena/path，不调用 ast_pipeline_dep_ctx_reset（保留 lib_root 等路径缓冲）。
  */
 /* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                                          void **dep_ars, char **import_paths, int n) {
     int i;
     if (!ctx)
@@ -2082,7 +2082,7 @@ void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx
     }
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
@@ -2093,7 +2093,7 @@ struct parser_ParseIntoResult {
     int32_t main_idx;
 };
 extern void parser_parse_into_init(void *module, void *arena);
-extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source);
+extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct xlang_slice_uint8_t *source);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
 
@@ -2104,18 +2104,18 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
 /* G-02f-233：字段写 helper（.x 早退编排调用） */
 /* G-02f-233 / wave67：hybrid pure owns set_use_asm_backend thin → G.7
  * driver_pipeline_dep_ctx_set_use_asm; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_t v) {
     if (!ctx)
         return;
     ctx->use_asm_backend = v;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-233 / wave62：hybrid pure owns map_impl; cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — same control flow as pure orch (ok 0|-2 accept; else full slots). */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
     int32_t n_imp;
@@ -2130,20 +2130,20 @@ void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ct
     if (!tmp_arena || !tmp_module) {
         free(tmp_arena);
         free(tmp_module);
-        shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+        xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
         return;
     }
     memset(tmp_arena, 0, pipeline_sizeof_arena());
     memset(tmp_module, 0, pipeline_sizeof_module());
     parser_parse_into_init(tmp_module, tmp_arena);
     {
-        struct shux_slice_uint8_t dep_slice = { (uint8_t *)dep_src, dep_src_len };
+        struct xlang_slice_uint8_t dep_slice = { (uint8_t *)dep_src, dep_src_len };
         struct parser_ParseIntoResult pr = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
         n_imp = parser_get_module_num_imports(tmp_module);
     if (pr.ok != 0 && pr.ok != -2) {
             free(tmp_arena);
             free(tmp_module);
-            shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+            xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
             return;
         }
         if (n_imp <= 0) {
@@ -2166,7 +2166,7 @@ void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ct
             k++;
         }
         path_c[k] = '\0';
-        g = shux_find_loaded_import_index(path_c, dep_paths, ndep);
+        g = xlang_find_loaded_import_index(path_c, dep_paths, ndep);
         if (g < 0)
             continue;
         ast_pipeline_dep_ctx_set_module(ctx, mapped, (struct ast_Module *)dep_mods[g]);
@@ -2181,10 +2181,10 @@ void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ct
     free(tmp_module);
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-233：逻辑源 .x（早退 pure）；seed 保留同语义全路径 C 供产品 cc */
-void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+void xlang_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
     (void)j;
@@ -2196,30 +2196,30 @@ void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, i
         return;
     }
     if (!dep_src || dep_src_len == 0 || dep_src_len > (size_t)INT32_MAX) {
-        shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+        xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
         return;
     }
-    shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+    xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
 }
 
 /* G-02f-233：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
   if (ctx == NULL) {
     return;
   }
   {
-    shux_pipeline_one_ctx_for_dep_prerun_impl(ctx, j, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+    xlang_pipeline_one_ctx_for_dep_prerun_impl(ctx, j, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /** asm 用户程序：std.io/fs/net dep 跳过 .x typeck（符号由并列 .o 提供）。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
   if (dep_path == NULL) {
     return 0;
   }
@@ -2234,11 +2234,11 @@ int shux_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** std.net dep：须 co-emit listen/accept_many，seed typeck 对 stream_* 假阳性。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_asm_user_std_net_dep_path(const char *dep_path) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_asm_user_std_net_dep_path(const char *dep_path) {
   if (dep_path == NULL) {
     return 0;
   }
@@ -2253,11 +2253,11 @@ int shux_asm_user_std_net_dep_path(const char *dep_path) {
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** std.io.driver：co-emit submit_* 包装；seed typeck 对 register 假阳性。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_asm_user_std_io_driver_dep_path(const char *dep_path) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_asm_user_std_io_driver_dep_path(const char *dep_path) {
   if (dep_path == NULL) {
     return 0;
   }
@@ -2272,30 +2272,30 @@ int shux_asm_user_std_io_driver_dep_path(const char *dep_path) {
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** dep 预跑 parse+skip typeck 路径（std.net / std.io.driver）。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
   {
-    if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
+    if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
       return 1;
     }
-    if (shux_asm_user_std_io_driver_dep_path(dep_path) != 0) {
+    if (xlang_asm_user_std_io_driver_dep_path(dep_path) != 0) {
       return 1;
     }
     return 0;
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline.x 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
 /* wave68: hybrid pure owns entry_dir BSS; cold-only statics under #ifndef FROM_X. */
 /* wave69: hybrid pure owns resolved_path BSS; cold-only static under #ifndef FROM_X. */
 /* wave70: hybrid pure owns dep arena/module slot tables; cold-only statics under #ifndef FROM_X. */
 /* wave72: hybrid pure owns loaded_import BSS; cold-only statics under #ifndef FROM_X. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
 static char pipeline_resolved_path_buf[512];
@@ -2304,7 +2304,7 @@ static void *pipeline_dep_module_slots[32];
 static char *pipeline_loaded_import_buf;
 static size_t pipeline_loaded_import_len;
 static size_t pipeline_loaded_import_cap;
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_run_x_pipeline 由 pipeline_x.o / pipeline_gen.c 提供。 */
 extern int pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len,
@@ -2325,7 +2325,7 @@ extern int32_t pipeline_module_num_funcs(void *module);
 /** 设置 pipeline resolve/read 用的 entry 目录。 */
 /* G-02f-231 / wave68：hybrid pure owns entry_dir_copy / set_dot / get (pure BSS);
  * cold twins under #ifndef FROM_X share seed static buf + pointer. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_entry_dir_copy(const char *path) {
     if (!path)
         return;
@@ -2346,14 +2346,14 @@ void pipeline_set_entry_dir(const char *path) {
         pipeline_entry_dir_set_dot();
     }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 
 /* G-02f-226 / wave70：hybrid pure owns dep_arena/module_slot_set/at (pure BSS 32×LP64);
  * cold twins under #ifndef FROM_X share seed static tables. PLATFORM: SHARED LP64. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_dep_arena_slot_set(int32_t i, void *p) {
     if (i < 0 || i >= 32)
         return;
@@ -2374,37 +2374,37 @@ void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
         pipeline_dep_module_slots[i] = modules ? modules[i] : NULL;
     }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 
 /* G-02f-231 / wave68：hybrid pure owns entry_dir_get; cold twin under #ifndef FROM_X.
  * Cold uses seed static pointer cell (may point at buf or "." lit). PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 const char *pipeline_entry_dir_get(void) {
     return pipeline_entry_dir ? pipeline_entry_dir : ".";
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-237 / wave69：hybrid pure owns resolved_path_buf_slot (pure BSS 512);
  * cold twin under #ifndef FROM_X. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 char *pipeline_resolved_path_buf_slot(void) {
     return pipeline_resolved_path_buf;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
 /* G-02f-237 / wave65：hybrid pure owns into_static; cold twin under #ifndef FROM_X.
  * Pure orch: G.7 pure multi + pure entry_dir_get (wave68) / pure resolved_path_buf_slot (wave69).
  * PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_resolve_path_into_static(const char *path_c) {
     const char *lib_roots[1] = { "." };
     if (!path_c)
         return;
-    shux_resolve_import_file_path_multi(lib_roots, 1, pipeline_entry_dir, path_c, pipeline_resolved_path_buf,
+    xlang_resolve_import_file_path_multi(lib_roots, 1, pipeline_entry_dir, path_c, pipeline_resolved_path_buf,
         sizeof(pipeline_resolved_path_buf));
 }
 
@@ -2433,12 +2433,12 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
 /* G-02f-238 / wave66：stage 暂存 prep BSS（pure stage_prep / commit_prep). */
 /* wave71: hybrid pure owns stage prep BSS + clear/set/take; cold-only statics under #ifndef FROM_X. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 static char *pipeline_rf_stage_prep;
 static size_t pipeline_rf_stage_prep_len;
 
@@ -2472,18 +2472,18 @@ int32_t pipeline_rf_stage_prep_take(char **out_prep, size_t *out_len) {
         return -1;
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave66 / wave72: ensure loaded_import BSS, copy prep, set len, free prep.
- * Same ensure policy as historical commit_prep (cap floor SHUX_PIPELINE_IMPORT_BUF_CAP).
+ * Same ensure policy as historical commit_prep (cap floor XLANG_PIPELINE_IMPORT_BUF_CAP).
  * hybrid pure owns commit under FROM_X; cold twin under #ifndef. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len) {
     if (!prep)
         return -1;
     if (prep_len > pipeline_loaded_import_cap || !pipeline_loaded_import_buf) {
         free(pipeline_loaded_import_buf);
-        pipeline_loaded_import_cap = prep_len < SHUX_PIPELINE_IMPORT_BUF_CAP ? SHUX_PIPELINE_IMPORT_BUF_CAP
+        pipeline_loaded_import_cap = prep_len < XLANG_PIPELINE_IMPORT_BUF_CAP ? XLANG_PIPELINE_IMPORT_BUF_CAP
                                                                              : prep_len + 65536;
         pipeline_loaded_import_buf = (char *)malloc(pipeline_loaded_import_cap);
         if (!pipeline_loaded_import_buf) {
@@ -2496,14 +2496,14 @@ int32_t pipeline_loaded_import_commit_from_owned(char *prep, size_t prep_len) {
     free(prep);
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-238 / wave66：hybrid pure owns stage_prep; cold twin under #ifndef FROM_X.
  * Pure orch: pure clear/set (wave71) + pure resolved_path_buf_slot (wave69) + runtime_read_file_view
- *   + G.7 pure shux_preprocess_raw_to_malloc + pure diags. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+ *   + G.7 pure xlang_preprocess_raw_to_malloc + pure diags. PLATFORM: SHARED. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_read_file_stage_prep(void) {
-    ShuxRuntimeFileView raw_view;
+    XlangRuntimeFileView raw_view;
     char *prep = NULL;
     size_t prep_len = 0;
 
@@ -2513,7 +2513,7 @@ int32_t pipeline_read_file_stage_prep(void) {
         pipeline_diag_import_open_fail_once(NULL, pipeline_resolved_path_buf);
         return -1;
     }
-    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+    if (xlang_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
             pipeline_resolved_path_buf, NULL, 0) != 0) {
         runtime_release_file_view(&raw_view);
         return -1;
@@ -2546,13 +2546,13 @@ int32_t pipeline_read_file(void) {
         return -1;
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 /** 取 dep arena 槽指针。 */
 /* G-02f-226 / wave70：hybrid pure owns slot_at; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void *pipeline_dep_arena_slot_at(int32_t i) {
     if (i < 0 || i >= 32)
         return NULL;
@@ -2591,11 +2591,11 @@ void *pipeline_get_dep_module_slot(int32_t i) {
   }
   return NULL;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 将 loaded import 缓冲 parse 进 module。 */
 /* G-02f-239 / wave72：loaded 缓冲访问 — hybrid pure owns data/len_get; cold twins under #ifndef. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *pipeline_loaded_import_data(void) {
     return pipeline_loaded_import_buf ? (uint8_t *)pipeline_loaded_import_buf : NULL;
 }
@@ -2603,15 +2603,15 @@ uint8_t *pipeline_loaded_import_data(void) {
 size_t pipeline_loaded_import_len_get(void) {
     return pipeline_loaded_import_len;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-239 / wave64：hybrid pure owns pipeline_parse_into_bytes; cold twin under #ifndef FROM_X.
  * Pure orch: parser_parse_into_init + driver_parse_into_buf_rc; non-zero ok → -1.
  * wave72 pure: pipeline_loaded_import_data / len_get (BSS) for loaded_import public.
  * PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len) {
-    struct shux_slice_uint8_t slice;
+    struct xlang_slice_uint8_t slice;
     struct parser_ParseIntoResult pr;
     if (!arena || !module || !data)
         return -1;
@@ -2643,7 +2643,7 @@ int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_run_x_pipeline 大栈线程参数。 */
 typedef struct {
@@ -2659,27 +2659,27 @@ typedef struct {
 /** Cold twin Cap-fn-ptr: opaque address of pipeline_run_x_thread_fn.
  * wave84/wave100: hybrid pure owns product surface via (fn as *u8) language residual;
  * cold full-C keeps this cast under #ifndef FROM_X (≡ pure C emit).
- * PLATFORM: SHARED — pure path no longer needs g05 shux_driver_* harness. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+ * PLATFORM: SHARED — pure path no longer needs g05 xlang_driver_* harness. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 uint8_t *pipeline_run_x_thread_fn_ptr(void) {
     return (uint8_t *)(void *)pipeline_run_x_thread_fn;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
 /* G-02f-241 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
- * SHUX_DEBUG_PIPE notes only in cold twin (pure skips). */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+ * XLANG_DEBUG_PIPE notes only in cold twin (pure skips). */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void *pipeline_run_x_thread_fn_impl(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     if (!a)
         return NULL;
     driver_set_pipeline_entry_source_len(a->source_len);
-    if (link_abi_getenv("SHUX_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipeline thread start len=%zu", a->source_len);
     a->result = pipeline_run_x_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
-    if (link_abi_getenv("SHUX_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipeline thread done ec=%d", a->result);
     return NULL;
@@ -2690,15 +2690,15 @@ void *pipeline_run_x_thread_fn(void *arg) {
         return NULL;
     return pipeline_run_x_thread_fn_impl(arg);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 
 /** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
 /* G-02f-239 / wave56：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     PipelineRunSuArgs args;
     driver_set_pipeline_entry_source_len(source_len);
@@ -2715,13 +2715,13 @@ int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, con
     return args.result;
 }
 
-int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+int xlang_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     if (!module || !arena || !source_data || source_len == 0)
         return -1;
-    return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
+    return xlang_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
@@ -2729,8 +2729,8 @@ int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const ui
 /* G-02f-239 / wave58：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Pure orch uses G.7 driver_pipeline_dep_ctx_* asm_entry accessors (no C field).
  * PLATFORM: SHARED — same flag order as pure orch. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     int saved = driver_check_only_get();
     int saved_entry_only = 0;
@@ -2743,7 +2743,7 @@ int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_are
     }
     driver_x_pipeline_skip_typeck_set(1);
     driver_x_pipeline_skip_codegen_set(1);
-    ec = shux_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    ec = xlang_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
     driver_x_pipeline_skip_codegen_set(0);
     driver_x_pipeline_skip_typeck_set(0);
     if (pctx)
@@ -2753,22 +2753,22 @@ int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_are
 }
 
 /* G-02f-239：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
-int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+int xlang_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     if (!dep_mod || !dep_arena || !src || len == 0)
         return -1;
-    return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    return xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 /** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 X run_x_pipeline_impl（大模块 ctx 易丢）。 */
 /* G-02f-typeck_only / wave60：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Pure orch calls pipeline_parse_set_main_from_buf_c + load_and_sync + typeck_dep_prerun;
- * SHUX_DEBUG_PIPE notes live on cold twin only. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+ * XLANG_DEBUG_PIPE notes live on cold twin only. PLATFORM: SHARED. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
     int32_t len_i32;
     int32_t parse_rc;
@@ -2784,7 +2784,7 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     parse_rc = pipeline_parse_set_main_from_buf_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                     (uint8_t *)src, len_i32);
     if (parse_rc != 0) {
-        if (link_abi_getenv("SHUX_DEBUG_PIPE"))
+        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: dep prerun parse rc=%d", (int)parse_rc);
         return -2;
@@ -2792,13 +2792,13 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     load_rc = pipeline_load_and_sync_direct_import_deps_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                           (struct ast_PipelineDepCtx *)one_ctx);
     if (load_rc != 0) {
-        if (link_abi_getenv("SHUX_DEBUG_PIPE"))
+        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: dep prerun load rc=%d ndep=%d",
                          (int)load_rc, (int)pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)one_ctx));
         return load_rc;
     }
-    if (link_abi_getenv("SHUX_DEBUG_PIPE")) {
+    if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
         uint8_t dep_path_buf[64];
         memset(dep_path_buf, 0, sizeof(dep_path_buf));
         pipeline_dep_ctx_import_path_copy64((struct ast_PipelineDepCtx *)one_ctx, 0, dep_path_buf);
@@ -2808,7 +2808,7 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     }
     tc_rc = pipeline_typeck_dep_prerun_module_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                               (struct ast_PipelineDepCtx *)one_ctx);
-    if (link_abi_getenv("SHUX_DEBUG_PIPE") && tc_rc != 0)
+    if (link_abi_getenv("XLANG_DEBUG_PIPE") && tc_rc != 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: dep prerun typeck rc=%d funcs=%d main=%d ctx=%p",
                      (int)tc_rc, (int)pipeline_module_num_funcs(dep_mod),
@@ -2816,7 +2816,7 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     return tc_rc;
 }
 
-int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+int xlang_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
   if (dep_mod == NULL) {
     return -1;
@@ -2834,23 +2834,23 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
     return -1;
   }
   {
-    return shux_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    return xlang_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-parse_only / wave59：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
  * Must use pipeline_parse_set_main_from_buf_c (parse_into_with_init_buf); bare
  * parser_parse_into under-parses large std modules. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /**
  * dep 预跑：仅 parse，不做全量 typeck。
  * 须走 pipeline_parse_set_main_from_buf_c（parse_into_with_init_buf）；直调 parser_parse_into 的 slice
  * 路径对大库模块（如 std/string/mod.x）常 ok=-2 且仅 ~2 func，co-emit 缺 std_string_* 符号。
- * SHUX_ASM_DEBUG notes live on cold twin only (pure orch omits diag noise).
+ * XLANG_ASM_DEBUG notes live on cold twin only (pure orch omits diag noise).
  */
-int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
+int xlang_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
     int32_t parse_rc;
     if (!dep_mod || !dep_arena || !src || len == 0)
         return -1;
@@ -2870,7 +2870,7 @@ int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, con
     return (parse_rc == 0) ? 0 : -1;
 }
 
-int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
+int xlang_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
   if (dep_mod == NULL) {
     return -1;
   }
@@ -2884,28 +2884,28 @@ int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const ui
     return -1;
   }
   {
-    return shux_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
+    return xlang_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** asm 单模块 -o：dep 预跑走 typeck_only。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     (void)driver_asm_entry_module_only_from_env;
-    return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    return xlang_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** ast.x 模块释放；LSP import 列表清理用。 */
 extern void ast_module_free(struct ast_Module *mod);
 
 /** 从绝对/相对源文件 path 提取所在目录写入 dep_dir；供 load_one_import 递归 import 切换 dep_dir。 */
 /* G-02f-223：逻辑源 .x（真迁 pure）；seed 仍可走 _impl 同语义 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_import_dep_dir_from_path(const char *path, char *dep_dir, size_t dep_dir_size) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_import_dep_dir_from_path(const char *path, char *dep_dir, size_t dep_dir_size) {
   if (path == NULL) {
     return -1;
   }
@@ -2916,15 +2916,15 @@ int shux_import_dep_dir_from_path(const char *path, char *dep_dir, size_t dep_di
     return -1;
   }
   {
-    return shux_import_dep_dir_from_path_impl(path, dep_dir, dep_dir_size);
+    return xlang_import_dep_dir_from_path_impl(path, dep_dir, dep_dir_size);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 判断 import 路径是否已在 out_paths[0..n_out) 中（asm dep merge 去重）。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_merge_deps_path_already_out(const char *path, char *out_paths[], int n_out) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_merge_deps_path_already_out(const char *path, char *out_paths[], int n_out) {
   if (path == NULL) {
     return 0;
   }
@@ -2935,41 +2935,41 @@ int shux_merge_deps_path_already_out(const char *path, char *out_paths[], int n_
     return 0;
   }
   {
-    return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
+    return xlang_merge_deps_path_already_out_scan(path, out_paths, n_out);
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** parser.x：读 module import 路径与 parse_into（dep 传递闭包收集用）。 */
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
 
 /**
- * build_shux_asm（ENTRY_MODULE_ONLY + SKIP_TYPECK）：仅读入口 direct import 源码（不递归传递闭包），
- * 供 parse-only 填 dep struct layout；避免 shux_collect_deps_transitive 耗时/失败。
+ * build_xlang_asm（ENTRY_MODULE_ONLY + SKIP_TYPECK）：仅读入口 direct import 源码（不递归传递闭包），
+ * 供 parse-only 填 dep struct layout；避免 xlang_collect_deps_transitive 耗时/失败。
  * 返回 0 成功；失败时释放已写入 dep_sources/dep_paths 并返回 1。
  */
 /* wave46 pure in .x; cold twin for non-PREFER product. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-236：module import 计数（.x 编排） */
-int32_t shux_module_num_imports(void *module) {
+int32_t xlang_module_num_imports(void *module) {
     if (!module)
         return 0;
     return parser_get_module_num_imports(module);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave55 pure in .x; cold twin for non-PREFER product.
  * wave51 Cap residual always-seed → wave55 pure orch (stack PATH + FileView + pure resolve/preprocess).
  * Pure load_one orch stores dep slots; paths_tmp reuses this (G.7).
- * PLATFORM: SHARED — PATH_MAX stack + ShuxRuntimeFileView cold twin only. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
+ * PLATFORM: SHARED — PATH_MAX stack + XlangRuntimeFileView cold twin only. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char *import_key, const char **defines, int ndefines, char **out_prep,
     size_t *out_prep_len) {
     char resolved[PATH_MAX];
-    ShuxRuntimeFileView raw_view;
+    XlangRuntimeFileView raw_view;
     size_t prep_len = 0;
     char *prep = NULL;
 
@@ -2979,13 +2979,13 @@ int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int
         *out_prep_len = 0;
     if (!import_key || !out_prep || !out_prep_len)
         return 1;
-    shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, import_key, resolved,
+    xlang_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, import_key, resolved,
         sizeof(resolved));
     if (runtime_read_file_view(resolved, &raw_view) != 0) {
         pipeline_diag_import_open_fail_once(import_key, resolved);
         return 1;
     }
-    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+    if (xlang_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
             resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
         runtime_release_file_view(&raw_view);
         return 1;
@@ -2999,13 +2999,13 @@ int shux_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int
     *out_prep_len = prep_len;
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave51 pure in .x; cold twin for non-PREFER product.
  * G-02f-236：单项 Cap residual resolve/read/preprocess + store dep 槽 mi；0 成功，1 失败。
- * Cold uses libc strdup (same as historical); pure orch uses Cap residual shux_collect_strdup. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
+ * Cold uses libc strdup (same as historical); pure orch uses Cap residual xlang_collect_strdup. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
     const char *import_key, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int32_t mi) {
     size_t prep_len = 0;
@@ -3013,7 +3013,7 @@ int shux_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, 
 
     if (!import_key || mi < 0)
         return 1;
-    if (shux_load_one_direct_resolve_read_preprocess(lib_roots_arr, n_lib_roots, entry_dir, import_key, defines,
+    if (xlang_load_one_direct_resolve_read_preprocess(lib_roots_arr, n_lib_roots, entry_dir, import_key, defines,
             ndefines, &prep, &prep_len) != 0)
         return 1;
     if (dep_sources)
@@ -3031,12 +3031,12 @@ int shux_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, 
     }
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave51 pure in .x; cold twin for non-PREFER product.
  * G-02f-236：失败时释放 0..mi-1 已写 dep_sources/dep_paths */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi) {
     while (mi > 0) {
         mi--;
         if (dep_sources && dep_sources[mi]) {
@@ -3049,20 +3049,20 @@ void shux_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32
         }
     }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-236：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（cold only under non-FROM_X） */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n) {
-    int32_t n_imports = shux_module_num_imports(module);
+    int32_t n_imports = xlang_module_num_imports(module);
     int mi = 0;
 
     *out_n = 0;
     if (n_imports <= 0)
         return 0;
-    for (int i = 0; i < n_imports && i < SHUX_DRIVER_DEP_SLOT_MAX && mi < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
+    for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
         uint8_t path_buf[64];
         char path_c[65];
         size_t k = 0;
@@ -3073,9 +3073,9 @@ int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_
             k++;
         }
         path_c[k] = '\0';
-        if (shux_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir, path_c, defines, ndefines,
+        if (xlang_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir, path_c, defines, ndefines,
                 dep_sources, dep_lens, dep_paths, mi) != 0) {
-            shux_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
+            xlang_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
             *out_n = 0;
             return 1;
         }
@@ -3084,11 +3084,11 @@ int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_
     *out_n = mi;
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-236：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n) {
   if (module == NULL) {
@@ -3098,41 +3098,41 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
     return -1;
   }
   {
-    return shux_load_direct_imports_for_asm_layout_impl(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, out_n);
+    return xlang_load_direct_imports_for_asm_layout_impl(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, out_n);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /**
- * 将 shux_collect_deps_transitive 得到的 closure（调用方已对 triple 数组做过反转）合并为 pipeline/asm_elf dep 列表。
+ * 将 xlang_collect_deps_transitive 得到的 closure（调用方已对 triple 数组做过反转）合并为 pipeline/asm_elf dep 列表。
  * 前 n_imports 项与入口 module import 槽对齐；传递依赖按 closure 顺序追加并路径去重。
  */
 /* wave46 pure in .x; cold twin for non-PREFER product. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-235：size_t 槽读写（.x merge deps pure） */
-size_t shux_size_slot_get(size_t *arr, int32_t i) {
+size_t xlang_size_slot_get(size_t *arr, int32_t i) {
     if (!arr || i < 0)
         return 0;
     return arr[i];
 }
 
-void shux_size_slot_set(size_t *arr, int32_t i, size_t v) {
+void xlang_size_slot_set(size_t *arr, int32_t i, size_t v) {
     if (!arr || i < 0)
         return;
     arr[i] = v;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-235：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
+int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
-    unsigned char used[SHUX_DRIVER_DEP_SLOT_MAX];
+    unsigned char used[XLANG_DRIVER_DEP_SLOT_MAX];
     int mi = 0;
 
     memset(used, 0, sizeof used);
-    for (int i = 0; i < n_imports && i < SHUX_DRIVER_DEP_SLOT_MAX && mi < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
+    for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
         uint8_t path_buf[64];
         char path_c[65];
         size_t k = 0;
@@ -3162,9 +3162,9 @@ int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports,
         used[found] = 1;
         mi++;
     }
-    for (int kj = 0; kj < n_closure && mi < SHUX_DRIVER_DEP_SLOT_MAX; kj++) {
+    for (int kj = 0; kj < n_closure && mi < XLANG_DRIVER_DEP_SLOT_MAX; kj++) {
         if (!used[kj]) {
-            if (cpaths[kj] && shux_merge_deps_path_already_out(cpaths[kj], out_paths, mi)) {
+            if (cpaths[kj] && xlang_merge_deps_path_already_out(cpaths[kj], out_paths, mi)) {
                 used[kj] = 1;
                 continue;
             }
@@ -3179,8 +3179,8 @@ int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports,
 }
 
 /* G-02f-235：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
   if (module == NULL) {
     return -1;
@@ -3189,17 +3189,17 @@ int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char
     return -1;
   }
   {
-    return shux_merge_direct_then_transitive_deps_impl(module, n_imports, cls, clens, cpaths, n_closure, out_src, out_lens, out_paths, out_n);
+    return xlang_merge_direct_then_transitive_deps_impl(module, n_imports, cls, clens, cpaths, n_closure, out_src, out_lens, out_paths, out_n);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* wave46 pure in .x; cold twins for non-PREFER product. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-234：import path 拷到 C 字符串（供 .x merge pure） */
-void shux_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap) {
+void xlang_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap) {
     uint8_t path_buf[64];
     int32_t k = 0;
     if (!buf || cap <= 0)
@@ -3215,33 +3215,33 @@ void shux_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32
     buf[k] = 0;
 }
 
-void shux_ptr_slot_set(void **arr, int32_t i, void *p) {
+void xlang_ptr_slot_set(void **arr, int32_t i, void *p) {
     if (!arr || i < 0)
         return;
     arr[i] = p;
 }
 
 /* G.7 expand set authority: load pointer array slot i (argv/paths). PLATFORM: SHARED. */
-void *shux_ptr_slot_get(void **arr, int32_t i) {
+void *xlang_ptr_slot_get(void **arr, int32_t i) {
     if (!arr || i < 0)
         return NULL;
     return arr[i];
 }
 
-void shux_i32_store(int32_t *p, int32_t v) {
+void xlang_i32_store(int32_t *p, int32_t v) {
     if (p)
         *p = v;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n) {
-    unsigned char used[SHUX_DRIVER_DEP_SLOT_MAX];
+    unsigned char used[XLANG_DRIVER_DEP_SLOT_MAX];
     int mi = 0;
 
     memset(used, 0, sizeof used);
-    for (int i = 0; i < n_imports && i < SHUX_DRIVER_DEP_SLOT_MAX && mi < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
+    for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
         uint8_t path_buf[64];
         char path_c[65];
         size_t k = 0;
@@ -3266,13 +3266,13 @@ int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imp
             return 1;
         }
         out_paths[mi] = cpaths[found];
-        if (found >= 0 && found < SHUX_DRIVER_DEP_SLOT_MAX)
+        if (found >= 0 && found < XLANG_DRIVER_DEP_SLOT_MAX)
             used[found] = 1;
         mi++;
     }
-    for (int kj = 0; kj < n_closure && mi < SHUX_DRIVER_DEP_SLOT_MAX; kj++) {
+    for (int kj = 0; kj < n_closure && mi < XLANG_DRIVER_DEP_SLOT_MAX; kj++) {
         if (!used[kj]) {
-            if (cpaths[kj] && shux_merge_deps_path_already_out(cpaths[kj], out_paths, mi)) {
+            if (cpaths[kj] && xlang_merge_deps_path_already_out(cpaths[kj], out_paths, mi)) {
                 used[kj] = 1;
                 continue;
             }
@@ -3285,8 +3285,8 @@ int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imp
 }
 
 /* G-02f-234：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n) {
   if (module == NULL) {
     return -1;
@@ -3295,11 +3295,11 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
     return -1;
   }
   {
-    return shux_merge_direct_then_transitive_dep_paths_impl(module, n_imports, cpaths, n_closure, out_paths, out_n);
+    return xlang_merge_direct_then_transitive_dep_paths_impl(module, n_imports, cpaths, n_closure, out_paths, out_n);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /**
@@ -3308,26 +3308,26 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
  */
 /* wave54 pure in .x; cold twin for non-PREFER product (wraps libc strdup).
  * PLATFORM: SHARED — null s → null; free() still releases ownership. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-char *shux_collect_strdup(const char *s) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+char *xlang_collect_strdup(const char *s) {
     if (!s)
         return NULL;
     return strdup(s);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave47 pure in .x; cold twin for non-PREFER product. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-238：入口 import → to_load 队列（strdup）；0 成功，1 OOM（已清队列） */
-int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
+int xlang_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     int32_t n_imports;
     int j;
 
     if (!to_load || !to_load_n)
         return 1;
     *to_load_n = 0;
-    n_imports = shux_module_num_imports(module);
-    for (j = 0; j < n_imports && j < SHUX_DRIVER_DEP_SLOT_MAX && *to_load_n < SHUX_DRIVER_DEP_SLOT_MAX; j++) {
+    n_imports = xlang_module_num_imports(module);
+    for (j = 0; j < n_imports && j < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; j++) {
         uint8_t path_buf[64];
         char path_c[65];
         size_t k = 0;
@@ -3338,7 +3338,7 @@ int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
             k++;
         }
         path_c[k] = '\0';
-        to_load[*to_load_n] = shux_collect_strdup(path_c);
+        to_load[*to_load_n] = xlang_collect_strdup(path_c);
         if (!to_load[*to_load_n]) {
             while (*to_load_n > 0) {
                 (*to_load_n)--;
@@ -3351,12 +3351,12 @@ int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
     }
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave46 pure in .x; cold twin for non-PREFER product. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-238：to_load 是否已有 path */
-int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
+int xlang_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
     int t;
     if (!to_load || !path)
         return 0;
@@ -3366,12 +3366,12 @@ int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
     }
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave47 pure in .x; cold twin for non-PREFER product. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 /* G-02f-239：从已 parse 的 tmp_module 入队子 import（未 loaded / 未在 to_load） */
-void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n, char *dep_paths[],
+void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n, char *dep_paths[],
     int n_loaded) {
     int n_imp;
     int jj;
@@ -3380,7 +3380,7 @@ void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int 
     n_imp = parser_get_module_num_imports(tmp_module);
     if (n_imp <= 0)
         return;
-    for (jj = 0; jj < n_imp && jj < SHUX_DRIVER_DEP_SLOT_MAX && *to_load_n < SHUX_DRIVER_DEP_SLOT_MAX; jj++) {
+    for (jj = 0; jj < n_imp && jj < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; jj++) {
         uint8_t sub_buf[64];
         char sub_c[65];
         size_t kk = 0;
@@ -3391,24 +3391,24 @@ void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int 
             kk++;
         }
         sub_c[kk] = '\0';
-        if (shux_find_loaded_import_index(sub_c, dep_paths, n_loaded) >= 0)
+        if (xlang_find_loaded_import_index(sub_c, dep_paths, n_loaded) >= 0)
             continue;
-        if (shux_collect_to_load_has(to_load, *to_load_n, sub_c))
+        if (xlang_collect_to_load_has(to_load, *to_load_n, sub_c))
             continue;
-        to_load[*to_load_n] = shux_collect_strdup(sub_c);
+        to_load[*to_load_n] = xlang_collect_strdup(sub_c);
         if (!to_load[*to_load_n])
             continue;
         (*to_load_n)++;
     }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave52 pure in .x; cold twin for non-PREFER product.
  * wave48 Cap residual was always-seed; now pure orch + cold twin under #ifndef FROM_X.
  * Ensure tmp arena/module, parse prep bytes, enqueue sub-imports.
- * PLATFORM: SHARED — cold keeps SHUX_DEBUG_PIPE note; pure skips debug-only note. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
+ * PLATFORM: SHARED — cold keeps XLANG_DEBUG_PIPE note; pure skips debug-only note. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
     char *prep, size_t prep_len, const char *debug_path, char *to_load[], int *to_load_n, char *dep_paths[],
     int n_loaded) {
     if (!tmp_arena || !tmp_module || !prep)
@@ -3425,23 +3425,23 @@ void shux_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, siz
             int pr_rc;
             pr_rc = pipeline_parse_into_bytes(*tmp_arena, *tmp_module, (uint8_t *)prep, prep_len);
             n_imp = parser_get_module_num_imports(*tmp_module);
-            if (link_abi_getenv("SHUX_DEBUG_PIPE")) {
+            if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
                              debug_path ? debug_path : "?", pr_rc == 0 ? 1 : 0, n_imp);
             }
             (void)n_imp;
-            shux_collect_enqueue_module_imports(*tmp_module, to_load, to_load_n, dep_paths, n_loaded);
+            xlang_collect_enqueue_module_imports(*tmp_module, to_load, to_load_n, dep_paths, n_loaded);
         }
     }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave48 pure in .x; cold twin for non-PREFER product.
  * G-02f-241：处理 to_load 一项（owned path_c）；0 继续，1 失败。*n 递增；可更新 tmp_* / to_load
  * Cold body uses Cap residual load_one + tmp_parse_and_enqueue (same as pure orch). */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
     size_t arena_sz, size_t module_sz) {
@@ -3449,13 +3449,13 @@ int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int 
 
     if (!path_c || !n || !to_load || !to_load_n || !tmp_arena || !tmp_module)
         return 1;
-    if (shux_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
+    if (xlang_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
         free(path_c);
         return 0;
     }
     mi = *n;
     /* G.7: resolve+read+preprocess+store slot is Cap residual load_one_direct_import_at. */
-    if (shux_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, defines, ndefines,
+    if (xlang_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, defines, ndefines,
             dep_sources, dep_lens, dep_paths, mi) != 0) {
         free(path_c);
         return 1;
@@ -3464,30 +3464,30 @@ int shux_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int 
     if (!dep_paths[mi])
         return 1;
     (*n) = mi + 1;
-    shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, dep_sources[mi], dep_lens[mi],
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, dep_sources[mi], dep_lens[mi],
         dep_paths[mi], to_load, to_load_n, dep_paths, *n);
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave50 pure in .x; cold twin for non-PREFER product.
  * G-02f-237：seed queue + process_one drain + free leftovers / fail partial deps.
  * Cold body mirrors pure orch (stack to_load + tmp cells via locals). */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
     int n = 0;
-    char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
+    char *to_load[XLANG_DRIVER_DEP_SLOT_MAX];
     int to_load_n = 0;
     void *tmp_arena = NULL;
     void *tmp_module = NULL;
 
-    if (shux_collect_seed_to_load(module, to_load, &to_load_n) != 0)
+    if (xlang_collect_seed_to_load(module, to_load, &to_load_n) != 0)
         goto fail_to_load;
-    while (to_load_n > 0 && n < SHUX_DRIVER_DEP_SLOT_MAX) {
+    while (to_load_n > 0 && n < XLANG_DRIVER_DEP_SLOT_MAX) {
         char *path_c = to_load[--to_load_n];
-        if (shux_collect_deps_process_one(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines,
+        if (xlang_collect_deps_process_one(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines,
                 dep_sources, dep_lens, dep_paths, &n, to_load, &to_load_n, &tmp_arena, &tmp_module, arena_sz,
                 module_sz) != 0)
             goto fail_to_load;
@@ -3518,11 +3518,11 @@ fail_to_load:
     }
     return 1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
   if (module == NULL) {
@@ -3531,27 +3531,27 @@ int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz
   if (n_deps == NULL) {
     return -1;
   }
-  if (shux_module_num_imports(module) <= 0) {
+  if (xlang_module_num_imports(module) <= 0) {
     *n_deps = 0;
     return 0;
   }
   {
-    return shux_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
+    return xlang_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* wave53 pure in .x; cold twin for non-PREFER product.
  * ensure tmp; Cap residual resolve/read/preprocess path_c; G.7 pure tmp_parse; free prep.
  * Pure paths_process_one orch calls this after registering owned dep_paths key.
  * If tmp malloc fails: no-op success (path already registered; same as historical body).
- * wave51/wave55: G.7 reuses pure shux_load_one_direct_resolve_read_preprocess (no dual FILE/PATH_MAX body).
+ * wave51/wave55: G.7 reuses pure xlang_load_one_direct_resolve_read_preprocess (no dual FILE/PATH_MAX body).
  * wave52: G.7 pure tmp_parse_and_enqueue (FROM_X weak pure; cold twin under #ifndef).
  * PLATFORM: SHARED — Cap residual resolve/read/preprocess + G.7 tmp_parse_and_enqueue. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, void **tmp_arena, void **tmp_module,
     size_t arena_sz, size_t module_sz, char *to_load[], int *to_load_n, char *dep_paths[], int n_loaded) {
     size_t prep_len = 0;
@@ -3566,21 +3566,21 @@ int shux_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_
     /* Historical: if tmp unavailable, path stays registered and we skip parse. */
     if (!*tmp_arena || !*tmp_module)
         return 0;
-    if (shux_load_one_direct_resolve_read_preprocess(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, defines,
+    if (xlang_load_one_direct_resolve_read_preprocess(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, defines,
             ndefines, &prep, &prep_len) != 0)
         return 1;
-    shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load,
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load,
         to_load_n, dep_paths, n_loaded);
     free(prep);
     return 0;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave49 pure in .x; cold twin for non-PREFER product.
  * G-02f-241：paths-only process one（owned path_c）；0 继续，1 失败
  * Cold body mirrors pure orch: strdup key + Cap residual resolve/parse. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n, char *to_load[],
     int *to_load_n, void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz) {
     int mi;
@@ -3589,41 +3589,41 @@ int shux_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int
 
     if (!path_c || !n || !to_load || !to_load_n || !tmp_arena || !tmp_module)
         return 1;
-    if (shux_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
+    if (xlang_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
         free(path_c);
         return 0;
     }
     mi = *n;
-    key = shux_collect_strdup(path_c);
+    key = xlang_collect_strdup(path_c);
     if (!key) {
         free(path_c);
         return 1;
     }
     dep_paths[mi] = key;
     (*n) = mi + 1;
-    rc = shux_collect_paths_tmp_resolve_parse_enqueue(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
+    rc = xlang_collect_paths_tmp_resolve_parse_enqueue(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
         ndefines, tmp_arena, tmp_module, arena_sz, module_sz, to_load, to_load_n, dep_paths, *n);
     free(path_c);
     return rc;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave50 pure in .x; cold twin for non-PREFER product.
  * paths-only transitive: same orch as deps_transitive_impl without sources/lens. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
     int n = 0;
-    char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
+    char *to_load[XLANG_DRIVER_DEP_SLOT_MAX];
     int to_load_n = 0;
     void *tmp_arena = NULL;
     void *tmp_module = NULL;
 
-    if (shux_collect_seed_to_load(module, to_load, &to_load_n) != 0)
+    if (xlang_collect_seed_to_load(module, to_load, &to_load_n) != 0)
         goto fail_to_load;
-    while (to_load_n > 0 && n < SHUX_DRIVER_DEP_SLOT_MAX) {
+    while (to_load_n > 0 && n < XLANG_DRIVER_DEP_SLOT_MAX) {
         char *path_c = to_load[--to_load_n];
-        if (shux_collect_paths_process_one(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines,
+        if (xlang_collect_paths_process_one(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines,
                 dep_paths, &n, to_load, &to_load_n, &tmp_arena, &tmp_module, arena_sz, module_sz) != 0)
             goto fail_to_load;
     }
@@ -3652,11 +3652,11 @@ fail_to_load:
     }
     return 1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int xlang_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
   if (module == NULL) {
     return -1;
@@ -3664,16 +3664,16 @@ int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t modu
   if (n_deps == NULL) {
     return -1;
   }
-  if (shux_module_num_imports(module) <= 0) {
+  if (xlang_module_num_imports(module) <= 0) {
     *n_deps = 0;
     return 0;
   }
   {
-    return shux_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_paths, n_deps);
+    return xlang_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_paths, n_deps);
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（ast_pool.c / pipeline_glue.c）。 */
@@ -3683,8 +3683,8 @@ extern void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *arena);
 extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
 
 /** asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型。 */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
   {
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
@@ -3694,7 +3694,7 @@ void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pct
     pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /** pthread 大栈 emit 参数包。 */
@@ -3705,7 +3705,7 @@ typedef struct {
     struct platform_elf_ElfCodegenCtx *elf_ctx;
     void *out_buf;
     int32_t result;
-} ShuxAsmCodegenElfLargeArgs;
+} XlangAsmCodegenElfLargeArgs;
 
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx,
     void *out_buf);
@@ -3714,50 +3714,50 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
  * Forwards to strong asm_asm_codegen_elf_o (user_asm_seed_bridge at final link).
  * Cold full-C TU has no pure weak -1 stub — direct call is safe.
  * PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t shux_asm_codegen_elf_o_product_emit(void *module, void *arena, void *ctx,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int32_t xlang_asm_codegen_elf_o_product_emit(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/** Cold twin Cap-fn-ptr: opaque address of shux_asm_codegen_elf_o_thread_fn.
+/** Cold twin Cap-fn-ptr: opaque address of xlang_asm_codegen_elf_o_thread_fn.
  * wave84/wave100: hybrid pure owns product surface via (fn as *u8) language residual;
  * cold full-C keeps this cast under #ifndef FROM_X (≡ pure C emit).
- * PLATFORM: SHARED — pure path no longer needs g05 shux_driver_* harness. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-uint8_t *shux_asm_codegen_elf_o_thread_fn_ptr(void) {
-    return (uint8_t *)(void *)shux_asm_codegen_elf_o_thread_fn;
+ * PLATFORM: SHARED — pure path no longer needs g05 xlang_driver_* harness. */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+uint8_t *xlang_asm_codegen_elf_o_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)xlang_asm_codegen_elf_o_thread_fn;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pthread 入口：调用 product emit 并将 ec 写入 args->result。 */
 /* G-02f-241 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-void *shux_asm_codegen_elf_o_thread_fn_impl(void *arg) {
-    ShuxAsmCodegenElfLargeArgs *a = (ShuxAsmCodegenElfLargeArgs *)arg;
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void *xlang_asm_codegen_elf_o_thread_fn_impl(void *arg) {
+    XlangAsmCodegenElfLargeArgs *a = (XlangAsmCodegenElfLargeArgs *)arg;
     if (!a)
         return NULL;
     a->result = asm_asm_codegen_elf_o(a->module, a->arena, a->ctx, a->elf_ctx, a->out_buf);
     return NULL;
 }
 
-void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
+void *xlang_asm_codegen_elf_o_thread_fn(void *arg) {
     if (!arg)
         return NULL;
-    return shux_asm_codegen_elf_o_thread_fn_impl(arg);
+    return xlang_asm_codegen_elf_o_thread_fn_impl(arg);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
 /* G-02f-240 / wave57：hybrid pure owns _impl; cold twin under #ifndef FROM_X. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int32_t xlang_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
-    ShuxAsmCodegenElfLargeArgs args;
+    XlangAsmCodegenElfLargeArgs args;
 
     args.module = module;
     args.arena = arena;
@@ -3765,20 +3765,20 @@ int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void 
     args.elf_ctx = elf_ctx;
     args.out_buf = out_buf;
     args.result = -99;
-    driver_run_thread_on_large_stack(shux_asm_codegen_elf_o_thread_fn, &args);
+    driver_run_thread_on_large_stack(xlang_asm_codegen_elf_o_thread_fn, &args);
     if (args.result == -99)
         return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
     return args.result;
 }
 
 /* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
-int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+int32_t xlang_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     if (!module || !arena || !out_buf)
         return -1;
-    return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
+    return xlang_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
@@ -3792,11 +3792,11 @@ extern int32_t pipeline_module_main_func_index(void *module);
  * Historical C typeck surfaces + product force_c for_ctx.
  * wave87: for_ctx_impl routes to typeck_x_ast / typeck_x_ast_library (G.7 single authority).
  * entry_only / with_sidecar fail-closed (-1): X frontend needs arena+ctx via for_ctx.
- * SHUX_NO_C_FRONTEND: still export symbols for pipeline_asm_typecheck_alias link.
+ * XLANG_NO_C_FRONTEND: still export symbols for pipeline_asm_typecheck_alias link.
  * G-02f-242 / wave63 / wave87: hybrid pure owns bodies; cold twins under #ifndef FROM_X.
  * PLATFORM: SHARED.
  */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int32_t typeck_module_entry_only(void *module) {
     if (!module)
         return -1;
@@ -3838,18 +3838,18 @@ int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void
   }
   return -1;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 释放 shu_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths（不含 entry 模块本身）。 */
-/* wave78: hybrid pure owns shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null); cold twin under
+/* wave78: hybrid pure owns shu_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null); cold twin under
  * #ifndef FROM_X. PLATFORM: SHARED. */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void shu_lsp_ptr_slot_clear(void **arr, int32_t i) {
     if (!arr || i < 0)
         return;
     arr[i] = NULL;
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all) {
     int i;
@@ -3867,7 +3867,7 @@ void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths,
 }
 
 /* G-02f-227：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
   if (all_dep_mods == NULL) {
     return;
@@ -3882,20 +3882,20 @@ void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_de
     shu_lsp_free_loaded_imports_impl((void **)all_dep_mods, all_dep_paths, n_all);
   }
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
  * Public preprocess surface (wave81: hybrid pure owns; cold twin under #ifndef FROM_X).
- * Product pure thin → G.7 shux_preprocess_raw_to_malloc_impl; cold keeps LEGACY
- * preprocess_c_fallback when !SHUX_USE_X_PIPELINE || SHUX_LEGACY_PREPROCESS_C.
+ * Product pure thin → G.7 xlang_preprocess_raw_to_malloc_impl; cold keeps LEGACY
+ * preprocess_c_fallback when !XLANG_USE_X_PIPELINE || XLANG_LEGACY_PREPROCESS_C.
  * PLATFORM: SHARED.
  */
-#ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
-char *shux_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
-    return shux_preprocess_quiet(source, source_len, defines, ndefines, out_length);
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+char *xlang_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
+    return xlang_preprocess_quiet(source, source_len, defines, ndefines, out_length);
 }
 
-char *shux_preprocess_with_path(const char *source, size_t source_len, const char *path_diag,
+char *xlang_preprocess_with_path(const char *source, size_t source_len, const char *path_diag,
     const char **defines, int ndefines, size_t *out_length) {
     size_t slen;
 
@@ -3903,13 +3903,13 @@ char *shux_preprocess_with_path(const char *source, size_t source_len, const cha
         *out_length = 0;
     if (!source)
         return NULL;
-#if defined(SHUX_USE_X_PIPELINE) && !defined(SHUX_LEGACY_PREPROCESS_C)
+#if defined(XLANG_USE_X_PIPELINE) && !defined(XLANG_LEGACY_PREPROCESS_C)
     slen = source_len ? source_len : strlen(source);
     {
         char *out = NULL;
         size_t olen = 0;
 
-        if (shux_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, path_diag,
+        if (xlang_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, path_diag,
                 ndefines > 0 ? defines : NULL, ndefines, 1) != 0)
             return NULL;
         if (out_length)
@@ -3921,20 +3921,20 @@ char *shux_preprocess_with_path(const char *source, size_t source_len, const cha
 #endif
 }
 
-char *shux_preprocess_quiet(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
+char *xlang_preprocess_quiet(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
     size_t slen;
 
     if (out_length)
         *out_length = 0;
     if (!source)
         return NULL;
-#if defined(SHUX_USE_X_PIPELINE) && !defined(SHUX_LEGACY_PREPROCESS_C)
+#if defined(XLANG_USE_X_PIPELINE) && !defined(XLANG_LEGACY_PREPROCESS_C)
     slen = source_len ? source_len : strlen(source);
     {
         char *out = NULL;
         size_t olen = 0;
 
-        if (shux_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, NULL,
+        if (xlang_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, NULL,
                 ndefines > 0 ? defines : NULL, ndefines, 0) != 0)
             return NULL;
         if (out_length)
@@ -3945,7 +3945,7 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
     return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
 #endif
 }
-#endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* Why: The previous `#ifdef _WIN32` block here provided empty/failure stubs
  *      for parser_parse_into_init / parser_parse_into / parser_get_module_* /
@@ -3960,13 +3960,13 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
  *      as macOS/Linux (parser_x.o, typeck_x.o, codegen_x.o, …), so all these
  *      symbols are provided by their authoritative implementations. The stubs
  *      became a duplicate authority that silently broke the parser:
- *      SHUX_WEAK is empty on PE/MinGW, so the stubs compiled as STRONG defs;
+ *      XLANG_WEAK is empty on PE/MinGW, so the stubs compiled as STRONG defs;
  *      runtime_pipeline_abi.o is ordered BEFORE parser_x.o in DRIVER_SEED_OBJS,
  *      so with --allow-multiple-definition the empty `parser_parse_into_init`
  *      (a no-op that skips ast_ast_arena_init / ast_pool_module_reset /
  *      parser_onefunc_result_layout_prime) won over parser_x.o's real impl,
  *      leaving the module uninitialised → driver_first_parse num_funcs=0
- *      → silent parser failure on every `shux -c/-E/build/run` invocation.
+ *      → silent parser failure on every `xlang -c/-E/build/run` invocation.
  *
  *      Removing the block restores single-authority resolution: the extern
  *      declarations earlier in this file (L1814 etc.) reference the real
@@ -3986,7 +3986,7 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
  *            asm_asm_codegen_elf_o, pipeline_parse_set_main_from_buf_c) MUST
  *            be provided as a strong definition by some .o in
  *            DRIVER_SEED_OBJS / BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS. Verified
- *            on macOS via `nm shux` (all 10 symbols present as T).
+ *            on macOS via `nm xlang` (all 10 symbols present as T).
  * PLATFORM: SHARED — block removal is a no-op on macOS/Linux (block was
  *           already skipped via `#ifdef _WIN32`); on Windows it eliminates
  *           the duplicate authority so the real impls from parser_x.o etc.

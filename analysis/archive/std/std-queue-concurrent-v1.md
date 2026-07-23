@@ -58,7 +58,7 @@ v1 **无阻塞 pop**；需阻塞等待请用 `std.channel`。
 ```
 
 ```
-shux: [SHUX_STD_QUEUE_CONCURRENT] status=ok sync=1 main=1 smoke=1 skip=0
+xlang: [XLANG_STD_QUEUE_CONCURRENT] status=ok sync=1 main=1 smoke=1 skip=0
 ```
 
 ---

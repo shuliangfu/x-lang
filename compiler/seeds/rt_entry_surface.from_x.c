@@ -2,7 +2,7 @@
  * G-02f rt_entry R2 full surface — isomorphic with src/runtime/rt_entry.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_entry.x) + rest seed marker under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (6 public entry symbols + helpers)
- * Regen: ./shux -E ... src/runtime/rt_entry.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_entry.x | filter DBG + polish prologue
  * Cap residual: driver_stdio_* / driver_entry_*_slot in driver_abi
  */
 #include <stddef.h>
@@ -32,7 +32,7 @@ extern int32_t rt_entry_explain_list(void);
 extern int32_t rt_entry_explain_unknown(uint8_t * code);
 extern int32_t rt_entry_explain_known(uint8_t * code);
 extern int32_t runtime_try_handle_explain_cli(int32_t argc, uint8_t * * argv);
-extern int32_t shux_smoke_diag_enabled(void);
+extern int32_t xlang_smoke_diag_enabled(void);
 extern void rt_entry_smoke_write_body(uint8_t * name, int32_t main_final_lit, int32_t has_main_body);
 extern void rt_entry_smoke_diag_body(uint8_t * name, int32_t main_final_lit, int32_t has_main_body);
 extern void driver_emit_legacy_smoke_summary_stdout(uint8_t * main_name, int32_t main_final_lit, int32_t has_main_body);
@@ -259,7 +259,7 @@ int32_t rt_entry_explain_usage_err(void) {
   (void)((kind = (uint8_t[]){117, 115, 97, 103, 101, 32, 101, 114, 114, 111, 114, 0 }));
   (void)((dcode = (uint8_t[]){65, 82, 71, 48, 48, 49, 0 }));
   (void)(((msg)[0] = 0));
-  (void)(rt_entry_append(msg, 256, (uint8_t[]){45, 45, 101, 120, 112, 108, 97, 105, 110, 32, 114, 101, 113, 117, 105, 114, 101, 115, 32, 97, 32, 100, 105, 97, 103, 110, 111, 115, 116, 105, 99, 32, 99, 111, 100, 101, 32, 40, 101, 120, 97, 109, 112, 108, 101, 58, 32, 115, 104, 117, 120, 32, 45, 45, 101, 120, 112, 108, 97, 105, 110, 32, 80, 0 }));
+  (void)(rt_entry_append(msg, 256, (uint8_t[]){45, 45, 101, 120, 112, 108, 97, 105, 110, 32, 114, 101, 113, 117, 105, 114, 101, 115, 32, 97, 32, 100, 105, 97, 103, 110, 111, 115, 116, 105, 99, 32, 99, 111, 100, 101, 32, 40, 101, 120, 97, 109, 112, 108, 101, 58, 32, 120, 108, 97, 110, 103, 32, 45, 45, 101, 120, 112, 108, 97, 105, 110, 32, 80, 0 }));
   {
     (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, dcode, msg, ((uint8_t *)(0))));
   }
@@ -314,7 +314,7 @@ int32_t rt_entry_explain_unknown(uint8_t * code) {
     }
   }
   (void)(((msg)[0] = 0));
-  (void)(rt_entry_append(msg, 256, (uint8_t[]){117, 115, 101, 32, 96, 115, 104, 117, 120, 32, 45, 45, 101, 120, 112, 108, 97, 105, 110, 32, 80, 48, 48, 49, 96, 32, 111, 114, 32, 96, 115, 104, 117, 120, 32, 101, 120, 112, 108, 97, 105, 110, 32, 80, 48, 48, 49, 96, 59, 32, 117, 115, 101, 32, 96, 45, 45, 108, 105, 115, 116, 96, 32, 0 }));
+  (void)(rt_entry_append(msg, 256, (uint8_t[]){117, 115, 101, 32, 96, 120, 108, 97, 110, 103, 32, 45, 45, 101, 120, 112, 108, 97, 105, 110, 32, 80, 48, 48, 49, 96, 32, 111, 114, 32, 96, 120, 108, 97, 110, 103, 32, 101, 120, 112, 108, 97, 105, 110, 32, 80, 48, 48, 49, 96, 59, 32, 117, 115, 101, 32, 96, 45, 45, 108, 105, 115, 116, 96, 32, 0 }));
   (void)((kind = (uint8_t[]){110, 111, 116, 101, 0 }));
   {
     (void)(diag_report_with_code(((uint8_t *)(0)), 0, 0, kind, ((uint8_t *)(0)), msg, ((uint8_t *)(0))));
@@ -415,7 +415,7 @@ int32_t runtime_try_handle_explain_cli(int32_t argc, uint8_t * * argv) {
   }
   return rt_entry_explain_known(code);
 }
-int32_t shux_smoke_diag_enabled(void) {
+int32_t xlang_smoke_diag_enabled(void) {
   uint8_t * e = ((uint8_t *)(0));
   {
     if ((diag_json_enabled() !=0)) {
@@ -511,7 +511,7 @@ void driver_emit_legacy_smoke_summary_stdout(uint8_t * main_name, int32_t main_f
     (void)((name = (uint8_t[]){63, 0 }));
   }
   (void)(rt_entry_smoke_write_body(name, main_final_lit, has_main_body));
-  if ((shux_smoke_diag_enabled() ==0)) {
+  if ((xlang_smoke_diag_enabled() ==0)) {
     return;
   }
   (void)(rt_entry_smoke_diag_body(name, main_final_lit, has_main_body));
@@ -554,7 +554,7 @@ int32_t driver_build_build_x(void) {
   }
   {
     /* wave226 G.7: public pure thin link_abi_system (not raw libc system). */
-    (void)((rc = link_abi_system((uint8_t[]){99, 100, 32, 99, 111, 109, 112, 105, 108, 101, 114, 32, 38, 38, 32, 46, 47, 98, 117, 105, 108, 100, 95, 116, 111, 111, 108, 32, 46, 47, 115, 104, 117, 120, 32, 50, 62, 38, 49, 0 })));
+    (void)((rc = link_abi_system((uint8_t[]){99, 100, 32, 99, 111, 109, 112, 105, 108, 101, 114, 32, 38, 38, 32, 46, 47, 98, 117, 105, 108, 100, 95, 116, 111, 111, 108, 32, 46, 47, 120, 108, 97, 110, 103, 32, 50, 62, 38, 49, 0 })));
   }
   if ((rc !=0)) {
     (void)((kind = (uint8_t[]){98, 117, 105, 108, 100, 32, 101, 114, 114, 111, 114, 0 }));

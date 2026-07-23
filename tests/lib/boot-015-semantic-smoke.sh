@@ -6,31 +6,31 @@
 #   boot015_link_run_one SHU tests/vec/main.x OUT_PATH
 #   boot015_emit_report status check_ok link_ok skip
 
-BOOT015_PREFIX="${SHUX_BOOT015_PREFIX:-shux: [SHUX_BOOT015]}"
+BOOT015_PREFIX="${XLANG_BOOT015_PREFIX:-xlang: [XLANG_BOOT015]}"
 
-# 对单个 .x 跑 shux check；失败返回 1。
+# 对单个 .x 跑 xlang check；失败返回 1。
 boot015_check_one() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   if [ ! -f "$src" ]; then
     return 1
   fi
-  if "$shux" check -L . "$src" >/dev/null 2>&1; then
+  if "$xlang" check -L . "$src" >/dev/null 2>&1; then
     return 0
   fi
-  "$shux" check -L . "$src" 2>&1 | tail -5 >&2 || true
+  "$xlang" check -L . "$src" 2>&1 | tail -5 >&2 || true
   return 1
 }
 
 # 尝试 -o 链接并运行；成功返回 0，链接失败返回 2，运行失败返回 1。
 boot015_link_run_one() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local out="$3"
   if [ ! -f "$src" ]; then
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$out" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$out" >/dev/null 2>&1; then
     return 2
   fi
   local ex=0

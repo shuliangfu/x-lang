@@ -1,5 +1,5 @@
 /**
- * Shux CodeActionProvider — 灯泡提示
+ * Xlang CodeActionProvider — 灯泡提示
  *
  * 对常见 parse/typeck 错误提供修复建议入口：
  * - parse error: 缺少分号 → 插入 `;`
@@ -12,7 +12,7 @@
 import * as vscode from 'vscode';
 import { t } from './i18n';
 
-export class ShuxCodeActionProvider implements vscode.CodeActionProvider {
+export class XlangCodeActionProvider implements vscode.CodeActionProvider {
   public provideCodeActions(
     document: vscode.TextDocument,
     range: vscode.Range | vscode.Selection,
@@ -23,7 +23,7 @@ export class ShuxCodeActionProvider implements vscode.CodeActionProvider {
 
     // 基于诊断生成修复建议
     for (const diag of context.diagnostics) {
-      if (diag.source !== 'shux' && diag.source !== 'x') {
+      if (diag.source !== 'xlang' && diag.source !== 'x') {
         continue;
       }
 

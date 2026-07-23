@@ -19,7 +19,7 @@ make -C compiler ../std/db/kv/kv.o   # ld -r(kv_mmap_glue.o + kv_main.o)
 ## 门禁
 
 ```bash
-SHUX_F05_DB_KV_V2_FAIL=1 ./tests/run-f05-std-db-kv-v2-gate.sh
+XLANG_F05_DB_KV_V2_FAIL=1 ./tests/run-f05-std-db-kv-v2-gate.sh
 ./tests/run-std-db-kv-arrow-gate.sh
 ```
 

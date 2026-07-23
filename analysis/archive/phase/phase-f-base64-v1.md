@@ -7,7 +7,7 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `base64.c`（567 行） | `base64.x`（块 + STD-109 流） |
-| `base64.o` | `cc -c base64.c` | `shux -backend asm base64.x` |
+| `base64.o` | `cc -c base64.c` | `xlang -backend asm base64.x` |
 | 解码表 | 静态 256 字节表 | 字符分类函数（无 lazy init） |
 | 存量 | std 89 `.c` | std **88** `.c` |
 
@@ -26,7 +26,7 @@ make -C compiler ../std/base64/base64.o
 ## 门禁
 
 ```bash
-SHUX_F_BASE64_V1_FAIL=1 ./tests/run-f-base64-v1-gate.sh
+XLANG_F_BASE64_V1_FAIL=1 ./tests/run-f-base64-v1-gate.sh
 ./tests/run-base64.sh
 ./tests/run-std-base64-stream-gate.sh
 ```

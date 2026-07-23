@@ -2,8 +2,8 @@
 # S5：compiler self WPO __text 门禁（call graph dead% + 多库 asm D/B proxy）。
 # 用法：
 #   ./tests/run-perf-wpo-dce-compiler-self-text.sh
-#   SHUX=./compiler/shux_asm SHUX_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
-#   SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
+#   XLANG=./compiler/xlang_asm XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
+#   XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
@@ -11,22 +11,22 @@ cd "$(dirname "$0")/.."
 
 text_bytes() { wpo_ab_text_bytes "$@"; }
 
-SHUX_ASM="${SHUX:-./compiler/shux_asm}"
-case "$SHUX_ASM" in
-  /*) SHUX_ASM_ABS="$SHUX_ASM" ;;
-  *) SHUX_ASM_ABS="$(pwd)/$SHUX_ASM" ;;
+XLANG_ASM="${XLANG:-./compiler/xlang_asm}"
+case "$XLANG_ASM" in
+  /*) XLANG_ASM_ABS="$XLANG_ASM" ;;
+  *) XLANG_ASM_ABS="$(pwd)/$XLANG_ASM" ;;
 esac
-SHUX_C="./compiler/shux-c"
-BASELINE="${SHUX_WPO_COMPILER_SELF_TEXT_BASELINE:-tests/baseline/wpo-dce-compiler-self-text.tsv}"
-GRAPH="/tmp/shux_wpo_compiler_self_text.json"
+XLANG_C="./compiler/xlang-c"
+BASELINE="${XLANG_WPO_COMPILER_SELF_TEXT_BASELINE:-tests/baseline/wpo-dce-compiler-self-text.tsv}"
+GRAPH="/tmp/xlang_wpo_compiler_self_text.json"
 FAIL_REGRESS=0
 UPDATE_BASELINE=0
-TRY_MAIN_ASM="${SHUX_WPO_TRY_MAIN_ASM:-1}"
-MAIN_TIMEOUT="${SHUX_WPO_MAIN_ASM_TIMEOUT:-180}"
-[ "${SHUX_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT:-0}" = "1" ] && FAIL_REGRESS=1
-[ "${SHUX_PERF_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
+TRY_MAIN_ASM="${XLANG_WPO_TRY_MAIN_ASM:-1}"
+MAIN_TIMEOUT="${XLANG_WPO_MAIN_ASM_TIMEOUT:-180}"
+[ "${XLANG_PERF_FAIL_ON_WPO_COMPILER_SELF_TEXT:-0}" = "1" ] && FAIL_REGRESS=1
+[ "${XLANG_PERF_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
 
-make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
+make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
 
 MIN_GRAPH_PCT=$(awk -F'\t' '$1=="min_dead_pct_graph" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_MULTI_BYTES=$(awk -F'\t' '$1=="dead_multi_min_text_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
@@ -88,7 +88,7 @@ echo "=== wpo compiler self __text (graph + asm proxy) ==="
 
 # ── 1) main.x 全程序 call graph dead export %（C WPO，与 run-wpo-compiler-self 同语义）──
 rm -f "$GRAPH"
-SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" "$SHUX_C" check compiler/src/main.x >/dev/null
+XLANG_WPO_DUMP_CALLGRAPH="$GRAPH" "$XLANG_C" check compiler/src/main.x >/dev/null
 [ -s "$GRAPH" ] || { echo "wpo compiler self text: graph missing"; exit 1; }
 perl compiler/scripts/wpo_dce.pl "$GRAPH" --min-dead-pct "$MIN_GRAPH_PCT" | tee /tmp/wpo_compiler_self_text_graph.log
 grep -q 'wpo_dce OK' /tmp/wpo_compiler_self_text_graph.log
@@ -96,25 +96,25 @@ grep -q 'wpo_dce OK' /tmp/wpo_compiler_self_text_graph.log
 GRAPH_DEAD_PCT=$(grep '^wpo_dce:' /tmp/wpo_compiler_self_text_graph.log | sed -n 's/.*(\([0-9.]*\)%).*/\1/p')
 echo "compiler self graph: dead_export_pct=${GRAPH_DEAD_PCT:-?}% (min=${MIN_GRAPH_PCT}%)"
 
-# ── 2) asm __text A/B：多库 proxy（需 shux_asm）──
+# ── 2) asm __text A/B：多库 proxy（需 xlang_asm）──
 
 compile_ab() {
   local src="$1"
   local off_o="$2"
   local on_o="$3"
   rm -f "$off_o" "$on_o"
-  SHUX_ASM_WPO_DCE=0 "$SHUX_ASM_ABS" -backend asm -o "$off_o" "$src" >/dev/null 2>&1 || return 1
-  SHUX_ASM_WPO_DCE=1 "$SHUX_ASM_ABS" -backend asm -o "$on_o" "$src" >/dev/null 2>&1 || return 1
+  XLANG_ASM_WPO_DCE=0 "$XLANG_ASM_ABS" -backend asm -o "$off_o" "$src" >/dev/null 2>&1 || return 1
+  XLANG_ASM_WPO_DCE=1 "$XLANG_ASM_ABS" -backend asm -o "$on_o" "$src" >/dev/null 2>&1 || return 1
   [ -s "$off_o" ] && [ -s "$on_o" ]
 }
 
-MULTI_OFF="/tmp/shux_wpo_compiler_self_multi_off.o"
-MULTI_ON="/tmp/shux_wpo_compiler_self_multi_on.o"
+MULTI_OFF="/tmp/xlang_wpo_compiler_self_multi_off.o"
+MULTI_ON="/tmp/xlang_wpo_compiler_self_multi_on.o"
 MULTI_SAVE=0
 MULTI_PCT=0
 
-if [ ! -x "$SHUX_ASM_ABS" ]; then
-  echo "wpo compiler self text: asm proxy SKIP (no shux_asm)"
+if [ ! -x "$XLANG_ASM_ABS" ]; then
+  echo "wpo compiler self text: asm proxy SKIP (no xlang_asm)"
 else
   if compile_ab tests/wpo/dead_multi_user.x "$MULTI_OFF" "$MULTI_ON"; then
     OFF=$(text_bytes "$MULTI_OFF") || { echo "cannot read multi off .text"; exit 1; }
@@ -142,17 +142,17 @@ else
   fi
 fi
 
-# ── 3) 可选：main.x 单 TU asm __text A/B（与 build_shux_asm rebuild_main_o 同模式；失败仅 WARN）──
-MAIN_OFF="/tmp/shux_wpo_main_off.o"
-MAIN_ON="/tmp/shux_wpo_main_on.o"
+# ── 3) 可选：main.x 单 TU asm __text A/B（与 build_xlang_asm rebuild_main_o 同模式；失败仅 WARN）──
+MAIN_OFF="/tmp/xlang_wpo_main_off.o"
+MAIN_ON="/tmp/xlang_wpo_main_on.o"
 MAIN_SAVE=""
 MAIN_PCT=""
-DRIVER_OFF="/tmp/shux_wpo_driver_off.o"
-DRIVER_ON="/tmp/shux_wpo_driver_on.o"
+DRIVER_OFF="/tmp/xlang_wpo_driver_off.o"
+DRIVER_ON="/tmp/xlang_wpo_driver_on.o"
 DRIVER_SAVE=""
 DRIVER_PCT=""
-PIPE_OFF="/tmp/shux_wpo_pipe_off.o"
-PIPE_ON="/tmp/shux_wpo_pipe_on.o"
+PIPE_OFF="/tmp/xlang_wpo_pipe_off.o"
+PIPE_ON="/tmp/xlang_wpo_pipe_on.o"
 PIPE_SAVE=""
 PIPE_PCT=""
 BUILD_ASM_DIR="compiler/build_asm"
@@ -163,35 +163,35 @@ compile_main_x_ab() {
   local off_o="$1"
   local on_o="$2"
   local emit_heavy="${3:-0}"
-  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/main.x" "$emit_heavy" "$MAIN_TIMEOUT"
+  wpo_ab_compile_entry_pair "$XLANG_ASM_ABS" "$off_o" "$on_o" "src/main.x" "$emit_heavy" "$MAIN_TIMEOUT"
 }
 
 # driver/compile.x EMIT_HEAVY A/B（与 run-s3-driver-emit-heavy 同模式）。
 compile_driver_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/driver/compile.x" 1 "$MAIN_TIMEOUT"
+  wpo_ab_compile_entry_pair "$XLANG_ASM_ABS" "$off_o" "$on_o" "src/driver/compile.x" 1 "$MAIN_TIMEOUT"
 }
 
 # pipeline.x EMIT_HEAVY A/B（run_x_pipeline_impl root + reach DCE）。
 compile_pipeline_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/pipeline/pipeline.x" 1 "$MAIN_TIMEOUT"
+  wpo_ab_compile_entry_pair "$XLANG_ASM_ABS" "$off_o" "$on_o" "src/pipeline/pipeline.x" 1 "$MAIN_TIMEOUT"
 }
 
 # typeck.x EMIT_HEAVY A/B（typeck_x_ast root + reach DCE）。
 compile_typeck_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/typeck/typeck.x" 1 "$MAIN_TIMEOUT"
+  wpo_ab_compile_entry_pair "$XLANG_ASM_ABS" "$off_o" "$on_o" "src/typeck/typeck.x" 1 "$MAIN_TIMEOUT"
 }
 
 # backend.x EMIT_HEAVY A/B（asm_codegen_ast root + reach DCE）。
 compile_backend_x_ab() {
   local off_o="$1"
   local on_o="$2"
-  wpo_ab_compile_entry_pair "$SHUX_ASM_ABS" "$off_o" "$on_o" "src/asm/backend.x" 1 "$MAIN_TIMEOUT"
+  wpo_ab_compile_entry_pair "$XLANG_ASM_ABS" "$off_o" "$on_o" "src/asm/backend.x" 1 "$MAIN_TIMEOUT"
 }
 
 MOFF=0
@@ -204,12 +204,12 @@ TOFF=0
 TON=0
 BOFF=0
 BON=0
-TCK_OFF="/tmp/shux_wpo_tck_off.o"
-TCK_ON="/tmp/shux_wpo_tck_on.o"
-BE_OFF="/tmp/shux_wpo_be_off.o"
-BE_ON="/tmp/shux_wpo_be_on.o"
+TCK_OFF="/tmp/xlang_wpo_tck_off.o"
+TCK_ON="/tmp/xlang_wpo_tck_on.o"
+BE_OFF="/tmp/xlang_wpo_be_off.o"
+BE_ON="/tmp/xlang_wpo_be_on.o"
 
-if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
+if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$XLANG_ASM_ABS" ]; then
   echo "wpo compiler self text: trying main.x asm A/B (ENTRY_ONLY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   main_fast=""
   # max_on 权威：wpo-main-o.tsv（via wpo_ab_try_main_fast）；勿硬编码 768。
@@ -237,7 +237,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
 fi
 
 # ── 3b) 可选：driver/compile.x EMIT_HEAVY asm A/B ──
-if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
+if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$XLANG_ASM_ABS" ]; then
   echo "wpo compiler self text: trying driver/compile.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   drv_fast=""
   drv_fast=$(wpo_ab_try_driver_fast "$BUILD_ASM_DIR/driver_compile.o" "$BASELINE" 768) || drv_fast=""
@@ -260,7 +260,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
 fi
 
 # ── 3c) 可选：pipeline.x EMIT_HEAVY asm A/B ──
-if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
+if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$XLANG_ASM_ABS" ]; then
   echo "wpo compiler self text: trying pipeline.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   pipe_tree="$BUILD_ASM_DIR/pipeline_wpo.o"
   [ -f "$pipe_tree" ] || pipe_tree="$BUILD_ASM_DIR/pipeline.o"
@@ -286,7 +286,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
 fi
 
 # ── 3d) 可选：typeck.x EMIT_HEAVY asm A/B ──
-if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
+if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$XLANG_ASM_ABS" ]; then
   echo "wpo compiler self text: trying typeck.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   tck_tree="$BUILD_ASM_DIR/typeck_wpo.o"
   [ -f "$tck_tree" ] || tck_tree="$BUILD_ASM_DIR/typeck.o"
@@ -312,7 +312,7 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
 fi
 
 # ── 3e) 可选：backend.x EMIT_HEAVY asm A/B ──
-if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
+if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$XLANG_ASM_ABS" ]; then
   echo "wpo compiler self text: trying backend.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   be_tree="$BUILD_ASM_DIR/backend_wpo.o"
   [ -f "$be_tree" ] || be_tree="$BUILD_ASM_DIR/backend.o"
@@ -374,9 +374,9 @@ fi
 
 if [ "$UPDATE_BASELINE" = 1 ] && [ "$MULTI_SAVE" -gt 0 ]; then
   cat > "$BASELINE" <<EOF
-# WPO compiler self __text proxy：dead_multi_user 三库 dead export A/B 相对 SHUX_ASM_WPO_DCE=0 的节省
+# WPO compiler self __text proxy：dead_multi_user 三库 dead export A/B 相对 XLANG_ASM_WPO_DCE=0 的节省
 # main.x call graph dead% 下限（与 run-wpo-compiler-self.sh 一致）
-# 更新：SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
+# 更新：XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
 min_dead_pct_graph	${MIN_GRAPH_PCT}
 dead_multi_min_text_save_bytes	$((MULTI_SAVE > 16 ? MULTI_SAVE - 16 : MULTI_SAVE))
 dead_multi_min_text_save_pct	$((MULTI_PCT > 3 ? MULTI_PCT - 3 : MULTI_PCT))

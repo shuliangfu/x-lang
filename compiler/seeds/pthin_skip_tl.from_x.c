@@ -1,6 +1,6 @@
 /* seeds/pthin_skip_tl.from_x.c — G-02f-321 P2 parser thin skip top-level
  * Logic source: src/asm/pthin_skip_tl.x
- * Hybrid: SHUX_PTHIN_SKIP_TL_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_SKIP_TL_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~1.4k)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register

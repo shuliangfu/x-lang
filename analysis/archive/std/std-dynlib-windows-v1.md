@@ -63,7 +63,7 @@
 
 - manifest：`tests/baseline/std-dynlib-windows.tsv`
 - 烟测：`tests/dynlib/open_sym_close.x`；回归：`tests/run-dynlib.sh`
-- 报告：`shux: [SHUX_STD_DYNLIB_WIN] status=ok`
+- 报告：`xlang: [XLANG_STD_DYNLIB_WIN] status=ok`
 
 ---
 

@@ -9,12 +9,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
-MANIFEST="${SHUX_ZC_SEMANTICS_TSV:-tests/baseline/zc-semantics.tsv}"
+DOC="${XLANG_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
+MANIFEST="${XLANG_ZC_SEMANTICS_TSV:-tests/baseline/zc-semantics.tsv}"
 MIN_SEC=7
 MIN_ZC=5
 RUN_HOOKS=0
-[ "${SHUX_ZC_SEMANTICS_RUN_HOOKS:-0}" = "1" ] && RUN_HOOKS=1
+[ "${XLANG_ZC_SEMANTICS_RUN_HOOKS:-0}" = "1" ] && RUN_HOOKS=1
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
@@ -139,16 +139,16 @@ done
 echo "zc-semantics manifest OK (sections=${SEC}, zc_tiers=${ZC})"
 
 if [ "$RUN_HOOKS" -eq 0 ]; then
-  SHUX_BIN="${SHUX:-}"
-  if [ -z "$SHUX_BIN" ]; then
-    for cand in ./compiler/shux-c ./compiler/shux; do
+  XLANG_BIN="${XLANG:-}"
+  if [ -z "$XLANG_BIN" ]; then
+    for cand in ./compiler/xlang-c ./compiler/xlang; do
       if native_shu "$cand"; then
-        SHUX_BIN="$cand"
+        XLANG_BIN="$cand"
         break
       fi
     done
   fi
-  if [ -n "$SHUX_BIN" ]; then
+  if [ -n "$XLANG_BIN" ]; then
     RUN_HOOKS=1
   fi
 fi
@@ -156,14 +156,14 @@ fi
 if [ "$RUN_HOOKS" -eq 1 ] && [ -n "$HOOK" ]; then
   echo "=== ZC-006: linked hook $HOOK ==="
   chmod +x "$HOOK" 2>/dev/null || true
-  if SHUX="${SHUX:-}" "$HOOK"; then
+  if XLANG="${XLANG:-}" "$HOOK"; then
     echo "zc-semantics hook OK"
   else
     echo "zc-semantics gate FAIL: hook $(basename "$HOOK")" >&2
     exit 1
   fi
 else
-  echo "zc-semantics gate SKIP hook (no native shux; SHUX_ZC_SEMANTICS_RUN_HOOKS=1 to force)" >&2
+  echo "zc-semantics gate SKIP hook (no native xlang; XLANG_ZC_SEMANTICS_RUN_HOOKS=1 to force)" >&2
 fi
 
 echo "zc-semantics gate OK"

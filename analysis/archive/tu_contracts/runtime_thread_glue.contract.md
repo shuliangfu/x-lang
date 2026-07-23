@@ -30,7 +30,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`shu_cpu_zero_impl`、`shu_cpu_set_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_THREAD_GLUE_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_THREAD_GLUE_FROM_X`
 - 前向声明：2 个 thin wrapper（`shu_cpu_zero` / `shu_cpu_set`），rest 模式下供 rest 函数调用
 - 内部调用更新：`thread_set_affinity_self_c` / `thread_set_affinity_c` 调用 `shu_cpu_zero` + `shu_cpu_set`（在 `#elif defined(__linux__)` 块内）
 - 类型擦除：.x 侧 `shu_cpu_zero`/`shu_cpu_set` 参数为 `*u8`（cpu_set_t 是 Linux 特有类型，.x 无法表达）；seed 侧前向声明与定义用 `cpu_set_t *`，C 链接器只看符号名不看类型，ABI 兼容（均为 64 位指针）

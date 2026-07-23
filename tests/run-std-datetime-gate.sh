@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_DATETIME_DOC:-analysis/std-datetime-v1.md}"
-MANIFEST="${SHUX_STD_DATETIME_MANIFEST:-tests/baseline/std-datetime-manifest.tsv}"
-VECTORS="${SHUX_STD_DATETIME_VECTORS:-tests/baseline/std-datetime-vectors.tsv}"
+DOC="${XLANG_STD_DATETIME_DOC:-analysis/std-datetime-v1.md}"
+MANIFEST="${XLANG_STD_DATETIME_MANIFEST:-tests/baseline/std-datetime-manifest.tsv}"
+VECTORS="${XLANG_STD_DATETIME_VECTORS:-tests/baseline/std-datetime-vectors.tsv}"
 MOD_X="std/datetime/mod.x"
 DT_X="std/datetime/datetime.x"
 LIB="tests/lib/std-datetime.sh"
@@ -64,7 +64,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-datetime manifest OK"
 
-if [ "${SHUX_STD_DATETIME_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_DATETIME_MANIFEST_ONLY:-0}" = "1" ]; then
   std_datetime_emit_report "ok" 0 0 1
   echo "std-datetime gate OK (manifest only)"
   exit 0
@@ -77,12 +77,12 @@ SKIP=0
 echo "=== STD-074: datetime c smoke ==="
 make -C compiler ../std/datetime/datetime.o ../std/time/time.o runtime_time_os.o >/dev/null 2>&1
 if nm std/time/time.o 2>/dev/null | grep -qF 'time_now_wall_sec_c'; then
-  if cc -std=c11 -O1 -o /tmp/shux_dt_smoke \
+  if cc -std=c11 -O1 -o /tmp/xlang_dt_smoke \
     "$SMOKE_C" std/datetime/datetime.o std/time/time.o compiler/runtime_time_os.o 2>/dev/null; then
-    if /tmp/shux_dt_smoke >/dev/null 2>&1; then
+    if /tmp/xlang_dt_smoke >/dev/null 2>&1; then
       C_OK=1
     fi
-    rm -f /tmp/shux_dt_smoke
+    rm -f /tmp/xlang_dt_smoke
   fi
   if [ "$C_OK" -eq 0 ]; then
     std_datetime_emit_report "fail" 0 0 0
@@ -90,29 +90,29 @@ if nm std/time/time.o 2>/dev/null | grep -qF 'time_now_wall_sec_c'; then
     exit 1
   fi
 else
-  echo "std-datetime gate SKIP c smoke (time.o missing time_now_wall_sec_c; need shux-c)" >&2
+  echo "std-datetime gate SKIP c smoke (time.o missing time_now_wall_sec_c; need xlang-c)" >&2
   SKIP=1
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-074: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-074: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-datetime gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_datetime_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_datetime_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+  if std_datetime_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
     X_OK=1
   else
     std_datetime_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-datetime gate SKIP .x smoke (no shux)" >&2
+  echo "std-datetime gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

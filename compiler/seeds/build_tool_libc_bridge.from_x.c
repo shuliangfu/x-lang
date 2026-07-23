@@ -8,7 +8,7 @@
  * .x 侧以 *u8 传命令行；若直接在 .x 中 extern system/fopen 等，Darwin 上
  * 与 stdlib 头文件类型冲突。本 TU 提供 build_exec_system 等 C 签名包装。
  *
- * 另：build_run_asm_build / build_copy_shux_asm 放在此 C 侧实现——当前 -x -E
+ * 另：build_run_asm_build / build_copy_xlang_asm 放在此 C 侧实现——当前 -x -E
  * 对 build_runtime_x.x 中该函数会截断（丢 copy_path/suffix），导致 build_tool 卡死或恒失败。
  */
 #include <stdint.h>
@@ -47,19 +47,19 @@ int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
 /**
  * 对齐 Makefile 日常发布路径（G-05 产物一致性）：
  *
- * 唯一出口：`scripts/g05_build_shux_asm.sh`
- * - 默认：脚本内 `make shux_asm`（= relink-shux + cp shux→shux_asm）
- * - SHUX_BUILD_TOOL_FULL=1：脚本内 `make bootstrap-driver-bstrict`
+ * 唯一出口：`scripts/g05_build_xlang_asm.sh`
+ * - 默认：脚本内 `make xlang_asm`（= relink-xlang + cp xlang→xlang_asm）
+ * - XLANG_BUILD_TOOL_FULL=1：脚本内 `make bootstrap-driver-bstrict`
  *
- * 勿只跑 build_shux_asm.sh（会留下未 refresh 的 strict 大二进制）。
- * shu_path 保留参数以兼容 build_runner；宿主路径由脚本/Makefile 使用 ./shux。
+ * 勿只跑 build_xlang_asm.sh（会留下未 refresh 的 strict 大二进制）。
+ * shu_path 保留参数以兼容 build_runner；宿主路径由脚本/Makefile 使用 ./xlang。
  */
 int32_t build_run_asm_build(uint8_t *shu_path) {
   char cmd[512];
   int n;
   (void)shu_path;
   /* FULL 由脚本读环境；此处只调单点出口，便于日后无 make 实现。 */
-  n = snprintf(cmd, sizeof(cmd), "sh scripts/g05_build_shux_asm.sh");
+  n = snprintf(cmd, sizeof(cmd), "sh scripts/g05_build_xlang_asm.sh");
   if (n < 0 || (size_t)n >= sizeof(cmd)) {
     return -1;
   }
@@ -70,14 +70,14 @@ int32_t build_run_asm_build(uint8_t *shu_path) {
 }
 
 /**
- * make shux_asm 已同步 shux 与 shux_asm；保留 cp 作幂等兜底
- * （显式 ./build_tool ./shux asm 后 runner 仍会调用）。
+ * make xlang_asm 已同步 xlang 与 xlang_asm；保留 cp 作幂等兜底
+ * （显式 ./build_tool ./xlang asm 后 runner 仍会调用）。
  */
-int32_t build_copy_shux_asm(void) {
-  if (build_exec_system("cp -f shux shux_asm 2>/dev/null; true") != 0) {
+int32_t build_copy_xlang_asm(void) {
+  if (build_exec_system("cp -f xlang xlang_asm 2>/dev/null; true") != 0) {
     return 0;
   }
-  /* Prefer gold: shux is primary after make shux_asm */
-  (void)build_exec_system("test -f shux && test -f shux_asm && cp -f shux shux_asm");
+  /* Prefer gold: xlang is primary after make xlang_asm */
+  (void)build_exec_system("test -f xlang && test -f xlang_asm && cp -f xlang xlang_asm");
   return 0;
 }

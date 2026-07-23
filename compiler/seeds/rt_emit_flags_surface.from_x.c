@@ -2,7 +2,7 @@
  * G-02f rt_emit_flags R2 full surface — isomorphic with src/runtime/rt_emit_flags.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_emit_flags.x) + rest seed empty under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (3 public: has_emit + set_use_lto + set_print_target_cpu)
- * Regen: ./shux -E ... src/runtime/rt_emit_flags.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_emit_flags.x | filter DBG + polish prologue
  * Track-L (2026-07-16): helpers rt_argv_is_minus_E / rt_argv_is_minus_E_extern /
  * rt_scan_argv_emit keep short names; .x has #[no_mangle] (was module-prefix mangle).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.

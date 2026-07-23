@@ -1,0 +1,35 @@
+{
+  "iconDefinitions": {
+    "file-sx": {
+      "iconPath": "./x-128.png"
+    },
+    "file-sx-main": {
+      "iconPath": "./x-128.png"
+    },
+    "file-sx-test": {
+      "iconPath": "./x-128.png"
+    },
+    "file-sx-compiler": {
+      "iconPath": "./x-128.png"
+    },
+    "folder-xlang": {
+      "iconPath": "./x-128.png"
+    },
+    "folder-xlang-src": {
+      "iconPath": "./x-128.png"
+    }
+  },
+  "fileExtensions": {
+    "x": "file-sx"
+  },
+  "fileNames": {
+    "main.x": "file-sx-main",
+    "mod.x": "file-sx-compiler"
+  },
+  "folderNames": {
+    "compiler": "folder-xlang",
+    "src": "folder-xlang-src",
+    "xlang": "folder-xlang",
+    ".x": "folder-xlang-src"
+  }
+}

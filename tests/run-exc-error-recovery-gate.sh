@@ -3,14 +3,14 @@
 #
 # 1) analysis/exc-error-recovery-v1.md + exc-error-recovery-cases.tsv
 # 2) 符号/章节 manifest 校验
-# 3) native shux：tests/lib/exc-error-recovery.sh 全量 runnable
+# 3) native xlang：tests/lib/exc-error-recovery.sh 全量 runnable
 #
 # 用法：./tests/run-exc-error-recovery-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_EXC_ERROR_RECOVERY_DOC:-analysis/exc-error-recovery-v1.md}"
-MATRIX="${SHUX_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.tsv}"
+DOC="${XLANG_EXC_ERROR_RECOVERY_DOC:-analysis/exc-error-recovery-v1.md}"
+MATRIX="${XLANG_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.tsv}"
 RUNNER="tests/lib/exc-error-recovery.sh"
 MIN_CASES=30
 
@@ -107,24 +107,24 @@ echo "exc-error-recovery manifest OK (cases=${FOUND})"
 
 chmod +x "$RUNNER" 2>/dev/null || true
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "exc-error-recovery gate SKIP bench (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "exc-error-recovery gate SKIP bench (no native xlang)" >&2
   echo "exc-error-recovery gate OK"
   exit 0
 fi
 
-echo "=== EXC-006: runnable report (SHUX=$SHUX_BIN) ==="
-if SHUX="$SHUX_BIN" "$RUNNER"; then
+echo "=== EXC-006: runnable report (XLANG=$XLANG_BIN) ==="
+if XLANG="$XLANG_BIN" "$RUNNER"; then
   echo "exc-error-recovery gate OK"
 else
   echo "exc-error-recovery gate FAIL: runner" >&2

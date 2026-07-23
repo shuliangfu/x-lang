@@ -103,15 +103,15 @@ allow(padding) struct PosixStatBuf {
 /* See implementation. */
 
 /* See implementation. */
-extern "C" function shux_sys_read(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function shux_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
-extern "C" function shux_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
-extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
+extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function xlang_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function xlang_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function xlang_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function close(fd: i32): i32;
-extern "C" function shux_sys_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern "C" function shux_sys_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+extern "C" function xlang_sys_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+extern "C" function xlang_sys_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
 extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 extern "C" function munmap(addr: *u8, len: usize): i32;
 extern "C" function fstat(fd: i32, st: *PosixStatBuf): i32;
@@ -121,8 +121,8 @@ extern "C" function fchmod(fd: i32, mode: u32): i32;
 extern "C" function chmod(path: *u8, mode: u32): i32;
 extern "C" function mkdir(path: *u8, mode: u32): i32;
 /* See implementation. */
-extern "C" function shux_fs_unlink(path: *u8): i32;
-extern "C" function shux_fs_rmdir(path: *u8): i32;
+extern "C" function xlang_fs_unlink(path: *u8): i32;
+extern "C" function xlang_fs_rmdir(path: *u8): i32;
 extern "C" function umask(mask: u32): u32;
 extern "C" function opendir(name: *u8): *u8;
 extern "C" function readdir(dirp: *u8): *u8;
@@ -168,7 +168,7 @@ export function fs_libc_close(fd: i32): i32 {
  * @return isize
  */
 export function fs_libc_read(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return shux_sys_read(fd, buf, count); }
+  unsafe { return xlang_sys_read(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_write`.
@@ -179,7 +179,7 @@ export function fs_libc_read(fd: i32, buf: *u8, count: usize): isize {
  * @return isize
  */
 export function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return shux_sys_write(fd, buf, count); }
+  unsafe { return xlang_sys_write(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_pread`.
@@ -191,7 +191,7 @@ export function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
  * @return isize
  */
 export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return shux_sys_pread(fd, buf, count, offset); }
+  unsafe { return xlang_sys_pread(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_pwrite`.
@@ -203,7 +203,7 @@ export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isi
  * @return isize
  */
 export function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return shux_sys_pwrite(fd, buf, count, offset); }
+  unsafe { return xlang_sys_pwrite(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_mmap`.
@@ -295,7 +295,7 @@ export function fs_libc_mkdir(path: *u8, mode: u32): i32 {
  * @return i32
  */
 export function fs_libc_unlink(path: *u8): i32 {
-  unsafe { return shux_fs_unlink(path); }
+  unsafe { return xlang_fs_unlink(path); }
   return 0; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_rmdir`.
@@ -304,7 +304,7 @@ export function fs_libc_unlink(path: *u8): i32 {
  * @return i32
  */
 export function fs_libc_rmdir(path: *u8): i32 {
-  unsafe { return shux_fs_rmdir(path); }
+  unsafe { return xlang_fs_rmdir(path); }
   return 0; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_umask`.
@@ -324,7 +324,7 @@ export function fs_libc_umask(mask: u32): u32 {
  * @return isize
  */
 export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return shux_sys_readv(fd, iov as *u8, iovcnt); }
+  unsafe { return xlang_sys_readv(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_writev`.
@@ -335,7 +335,7 @@ export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
  * @return isize
  */
 export function fs_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return shux_sys_writev(fd, iov as *u8, iovcnt); }
+  unsafe { return xlang_sys_writev(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_opendir`.
@@ -462,7 +462,7 @@ export function fs_libc_madvise(addr: *u8, len: usize, advice: i32): i32 {
  * @return i32
  */
 export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
-  unsafe { return shux_sys_poll(fds as *u8, nfds as i32, timeout); }
+  unsafe { return xlang_sys_poll(fds as *u8, nfds as i32, timeout); }
   return 0; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_posix_fadvise`.

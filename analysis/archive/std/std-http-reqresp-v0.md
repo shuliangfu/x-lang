@@ -115,5 +115,5 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 ```
 
 ```
-shux: [SHUX_STD_HTTP_REQRESP] status=ok smoke=1 skip=0
+xlang: [XLANG_STD_HTTP_REQRESP] status=ok smoke=1 skip=0
 ```

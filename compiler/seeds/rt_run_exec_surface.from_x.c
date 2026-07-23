@@ -1,6 +1,6 @@
 /* seeds/rt_run_exec_surface.from_x.c — polished -E of src/runtime/rt_run_exec.x
  * R2 full：8 公共符号；Cap residual driver_print_usage_write / driver_exec_compiled_body in driver_abi
- * 勿手写第二套语义；由 shux -E 产物抛光。
+ * 勿手写第二套语义；由 xlang -E 产物抛光。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -37,7 +37,7 @@ extern int32_t driver_get_argv_i(int32_t argc, uint8_t * * argv, int32_t i, uint
 extern void runtime_diag_errno_path(uint8_t * file, uint8_t * kind, uint8_t * op, uint8_t * path);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern void shu_target_cpu_print(uint8_t * out, uint32_t features);
-extern uint8_t * shux_repo_root_from_argv0(uint8_t * argv0);
+extern uint8_t * xlang_repo_root_from_argv0(uint8_t * argv0);
 extern uint8_t * driver_stdio_stdout(void);
 extern void driver_print_usage_write(void);
 extern int32_t driver_exec_compiled_body(int32_t argc, uint8_t * argv_opaque);
@@ -251,7 +251,7 @@ void driver_print_usage_c(void) {
 int32_t runtime_test_status_to_rc(uint8_t * script, int32_t st) {
   if ((st ==(0 - 1))) {
     {
-      (void)(runtime_diag_errno_path(script, ((uint8_t *)((uint8_t[]){112, 114, 111, 99, 101, 115, 115, 32, 101, 114, 114, 111, 114, 0 })), ((uint8_t *)((uint8_t[]){115, 121, 115, 116, 101, 109, 40, 115, 104, 117, 120, 32, 116, 101, 115, 116, 41, 0 })), script));
+      (void)(runtime_diag_errno_path(script, ((uint8_t *)((uint8_t[]){112, 114, 111, 99, 101, 115, 115, 32, 101, 114, 114, 111, 114, 0 })), ((uint8_t *)((uint8_t[]){115, 121, 115, 116, 101, 109, 40, 120, 108, 97, 110, 103, 32, 116, 101, 115, 116, 41, 0 })), script));
     }
     return 1;
   }
@@ -343,7 +343,7 @@ int32_t driver_run_test(int32_t argc, uint8_t * * argv) {
     }
   }
   {
-    (void)((root = shux_repo_root_from_argv0(a0)));
+    (void)((root = xlang_repo_root_from_argv0(a0)));
   }
   (void)((rel = ((uint8_t *)((uint8_t[]){116, 101, 115, 116, 115, 47, 114, 117, 110, 45, 97, 108, 108, 46, 115, 104, 0 }))));
   if ((argc >=2)) {

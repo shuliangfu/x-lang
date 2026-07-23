@@ -46,7 +46,7 @@ C_OK=0
 X_OK=0
 SKIP=0
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/config/config.o
   ensure_std_c_o ../std/env/env.o
@@ -56,16 +56,16 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   PROC_O="$(cd compiler && pwd)/../std/process/process.o"
   std_config_yaml_run_c_smoke "$CFG_O" "$ENV_O" "$PROC_O" && C_OK=1 || exit 1
 else
-  echo "std-config-yaml gate SKIP c smoke (need shux-c for config.x merge)" >&2
+  echo "std-config-yaml gate SKIP c smoke (need xlang-c for config.x merge)" >&2
   SKIP=1
 fi
 
-if [ -x ./compiler/shux-c ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_config_yaml_run_x_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_config_yaml_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else
-  echo "std-config-yaml gate SKIP .x smoke (no shux)" >&2
+  echo "std-config-yaml gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

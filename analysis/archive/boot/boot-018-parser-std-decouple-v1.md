@@ -53,7 +53,7 @@
 manifest：`tests/baseline/boot-018-parser-std-decouple.tsv`
 
 ```
-shux: [SHUX_BOOT018] status=ok mega7_stub=7 std_independent=1 parser_portable=1
+xlang: [XLANG_BOOT018] status=ok mega7_stub=7 std_independent=1 parser_portable=1
 ```
 
 ---

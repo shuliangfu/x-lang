@@ -65,7 +65,7 @@ let addr: Ipv4Addr = u32_to_ipv4(addr_u32);
 ```
 
 ```
-shux: [SHUX_STD_NET_DNS] status=ok resolve=1 main=1 skip=0
+xlang: [XLANG_STD_NET_DNS] status=ok resolve=1 main=1 skip=0
 ```
 
 C 实现：`net_resolve_ipv4_ex_c`、`net_resolve_ipv6_ex_c`（`std/net/net.c`）。

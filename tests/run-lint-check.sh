@@ -20,18 +20,18 @@ native_shu() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ] || ! native_shu "$SHUX_BIN"; then
-  echo "lint-check SKIP (no native shux)" >&2
+if [ -z "$XLANG_BIN" ] || ! native_shu "$XLANG_BIN"; then
+  echo "lint-check SKIP (no native xlang)" >&2
   echo "lint-check OK"
   exit 0
 fi
@@ -44,19 +44,19 @@ PAD=tests/lint/lint_warn_pad.x
 REORDER=tests/lint/lint_warn_reorder.x
 UNUSED=tests/lint/lint_unused_hint.x
 
-tool_lint_expect_check_silent "$SHUX_BIN" "$CLEAN"
+tool_lint_expect_check_silent "$XLANG_BIN" "$CLEAN"
 echo "lint-check OK: clean silent"
 
-tool_lint_expect_check_error "$SHUX_BIN" "$ERR"
+tool_lint_expect_check_error "$XLANG_BIN" "$ERR"
 echo "lint-check OK: error tier"
 
-tool_lint_expect_warn_pad "$SHUX_BIN" "$PAD"
+tool_lint_expect_warn_pad "$XLANG_BIN" "$PAD"
 echo "lint-check OK: warn pad-fields"
 
-tool_lint_expect_warn_reorder "$SHUX_BIN" "$REORDER"
+tool_lint_expect_warn_reorder "$XLANG_BIN" "$REORDER"
 echo "lint-check OK: warn hot-reorder"
 
-tool_lint_expect_info_unused "$SHUX_BIN" "$UNUSED"
+tool_lint_expect_info_unused "$XLANG_BIN" "$UNUSED"
 echo "lint-check OK: info unused-hint"
 
 echo "lint-check OK"

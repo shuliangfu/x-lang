@@ -2,7 +2,7 @@
  * R2 pure surface + Cap residual pure wave1–5 — isomorphic with src/async/async_cps_codegen.x
  * Product cold path: cc seeds/async_cps_codegen.from_x.c (no FROM_X) for full C + Cap residual.
  * Product PREFER (g05/Makefile): g05_try_x_to_o(async_cps_codegen.x) + rest
- *   (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X, marker) ld -r → src/async/async_cps_codegen.o.
+ *   (-DXLANG_ASYNC_CPS_CODEGEN_FROM_X, marker) ld -r → src/async/async_cps_codegen.o.
  * R2: .x eats pure name gates + thin walk/hoist + await expr classifiers (expr_is_*) +
  *   module/sched resolve + func_uses_void_entry + walk _impl (run-async LE walk) +
  *   FILE* emit end/phase_reset/after_await(_io)/sched_wrapper + begin/param_statics/hoist_impl
@@ -10,8 +10,8 @@
  *   FROM_X omits pure C bodies (incl. walk _impl + wave4–5 emit).
  * Cap residual (G.7 single authority): driver_preamble_fputs (opaque FILE*; runtime_driver_abi).
  * Prove: full.x vs this seed → nm IDENTICAL (pure surface)
- * Regen: ./shux -E ... src/async/async_cps_codegen.x | filter DBG + polish prologue
- * NOTE: use ./shux (not shux-x). Thin wrappers pass (e,target)/(b,target) ABI matching C.
+ * Regen: ./xlang -E ... src/async/async_cps_codegen.x | filter DBG + polish prologue
+ * NOTE: use ./xlang (not xlang-x). Thin wrappers pass (e,target)/(b,target) ABI matching C.
  * PLATFORM: SHARED — async CPS pure helpers; mac + Ubuntu prove.
  */
 #include <stddef.h>
@@ -1066,11 +1066,11 @@ int32_t async_cps_codegen_after_await_impl(uint8_t * ctx, uint8_t * out, uint8_t
   return 0;
 }
 int32_t async_cps_codegen_after_await(uint8_t * ctx, uint8_t * out, uint8_t * pad) {
-  uint8_t sn[24] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95, 115, 117, 115, 112, 101, 110, 100, 0, 0};
+  uint8_t sn[25] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95, 115, 117, 115, 112, 101, 110, 100, 0, 0};
   return async_cps_codegen_after_await_impl(ctx, out, pad, &((sn)[0]));
 }
 int32_t async_cps_codegen_after_await_io(uint8_t * ctx, uint8_t * out, uint8_t * pad) {
-  uint8_t sn[27] = {115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95, 115, 117, 115, 112, 101, 110, 100, 95, 105, 111, 0, 0};
+  uint8_t sn[28] = {120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95, 115, 117, 115, 112, 101, 110, 100, 95, 105, 111, 0, 0};
   return async_cps_codegen_after_await_impl(ctx, out, pad, &((sn)[0]));
 }
 void async_cps_codegen_emit_sched_wrapper(uint8_t * f, uint8_t * c_fname, uint8_t * out) {

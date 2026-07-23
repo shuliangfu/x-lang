@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TYPE_FFI_DOC:-analysis/type-ffi-bridge-v1.md}"
-MANIFEST="${SHUX_TYPE_FFI_MANIFEST:-tests/baseline/type-ffi-bridge.tsv}"
-MAP="${SHUX_TYPE_FFI_MAP:-tests/baseline/type-ffi-bridge-map.tsv}"
+DOC="${XLANG_TYPE_FFI_DOC:-analysis/type-ffi-bridge-v1.md}"
+MANIFEST="${XLANG_TYPE_FFI_MANIFEST:-tests/baseline/type-ffi-bridge.tsv}"
+MAP="${XLANG_TYPE_FFI_MAP:-tests/baseline/type-ffi-bridge-map.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 MIN_MAPPINGS=12

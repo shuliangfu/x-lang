@@ -7,8 +7,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STBL_TIER_S_DOC:-analysis/stbl-tier-s-registry-v1.md}"
-REGISTRY="${SHUX_STBL_TIER_S_TSV:-tests/baseline/stbl-tier-s-registry.tsv}"
+DOC="${XLANG_STBL_TIER_S_DOC:-analysis/stbl-tier-s-registry-v1.md}"
+REGISTRY="${XLANG_STBL_TIER_S_TSV:-tests/baseline/stbl-tier-s-registry.tsv}"
 LIB="tests/lib/stbl-tier-s-registry.sh"
 MIN_MOD=25
 

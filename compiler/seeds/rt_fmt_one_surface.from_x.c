@@ -2,7 +2,7 @@
  * G-02f rt_fmt_one R2 full surface — isomorphic with src/runtime/rt_fmt_one.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_fmt_one.x) + rest seed empty under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (driver_fmt_one_file + path helpers)
- * Regen: ./shux -E ... src/runtime/rt_fmt_one.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_fmt_one.x | filter DBG + polish prologue
  * Track-L (2026-07-16): path helpers keep short names; .x has #[no_mangle] (was module mangle)
  */
 #include <stddef.h>
@@ -25,7 +25,7 @@ extern int32_t driver_fmt_one_file(uint8_t * path, int32_t path_len);
 extern uint8_t * runtime_read_file_malloc(uint8_t * path, size_t * out_len);
 extern int32_t shu_format_x_document(uint8_t * doc, int32_t doc_len, uint8_t * out_buf, int32_t out_cap);
 extern int32_t driver_fmt_check_only_get(void);
-extern int32_t shux_write_path_bytes(uint8_t * path, uint8_t * data, size_t len);
+extern int32_t xlang_write_path_bytes(uint8_t * path, uint8_t * data, size_t len);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 int32_t rt_fmt_path_copy_nul(uint8_t * path, int32_t path_len, uint8_t * path_buf) {
   int32_t i = 0;
@@ -218,7 +218,7 @@ int32_t driver_fmt_one_file(uint8_t * path, int32_t path_len) {
   if ((changed !=0)) {
     int32_t wr = 0;
     {
-      (void)((wr = shux_write_path_bytes(&((path_buf)[0]), out, ((size_t)(fmt_len)))));
+      (void)((wr = xlang_write_path_bytes(&((path_buf)[0]), out, ((size_t)(fmt_len)))));
     }
     if ((wr !=0)) {
       {

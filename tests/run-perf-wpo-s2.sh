@@ -1,46 +1,46 @@
 #!/usr/bin/env bash
 # WPO-S2 bench：常量实参 call fold 相对保留 call 的加速比（NEXT §4.1 WPO-S2）
 # 用法：./tests/run-perf-wpo-s2.sh [--bench]
-# 门禁：SHUX_PERF_FAIL_ON_WPO_S2_REGRESSION=1 — fold median ≤ no_fold × baseline ratio
-# 更新：SHUX_PERF_UPDATE_WPO_S2_BASELINE=1 ./tests/run-perf-wpo-s2.sh --bench
+# 门禁：XLANG_PERF_FAIL_ON_WPO_S2_REGRESSION=1 — fold median ≤ no_fold × baseline ratio
+# 更新：XLANG_PERF_UPDATE_WPO_S2_BASELINE=1 ./tests/run-perf-wpo-s2.sh --bench
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-main-disasm.sh
 . tests/lib/wpo-main-disasm.sh
 
-SHUX=${SHUX:-./compiler/shux_asm}
-# 已有可执行 shux_asm 时勿 make all（会触发 bootstrap 且可能破坏刚 build 的产物）
-if [ ! -x "$SHUX" ]; then
-  make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler shux-c
+XLANG=${XLANG:-./compiler/xlang_asm}
+# 已有可执行 xlang_asm 时勿 make all（会触发 bootstrap 且可能破坏刚 build 的产物）
+if [ ! -x "$XLANG" ]; then
+  make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler xlang-c
 fi
 SRC="tests/bench/wpo_scale_loop.x"
 SRC_VEC="tests/bench/wpo_vec_lane0_loop.x"
-# 热循环次数：默认 10M；CI 可 SHUX_WPO_S2_LIMIT=1000000 缩短门禁（fold/no-fold 同 limit，ratio 仍可比）
+# 热循环次数：默认 10M；CI 可 XLANG_WPO_S2_LIMIT=1000000 缩短门禁（fold/no-fold 同 limit，ratio 仍可比）
 # compile-only（Mac Docker Rosetta）：未显式 limit 时用 1000，避免 4×bench 耗时过长
-if [ "${SHUX_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
-  WPO_S2_LIMIT="${SHUX_WPO_S2_LIMIT:-1000}"
+if [ "${XLANG_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
+  WPO_S2_LIMIT="${XLANG_WPO_S2_LIMIT:-1000}"
 else
-  WPO_S2_LIMIT="${SHUX_WPO_S2_LIMIT:-10000000}"
+  WPO_S2_LIMIT="${XLANG_WPO_S2_LIMIT:-10000000}"
 fi
-BENCH_SCALE="/tmp/shux_wpo_scale_loop_bench.x"
-BENCH_VEC="/tmp/shux_wpo_vec_lane0_loop_bench.x"
-OUT_FOLD="/tmp/shux_wpo_scale_fold"
-OUT_CALL="/tmp/shux_wpo_scale_call"
-OUT_VEC_FOLD="/tmp/shux_wpo_vec_lane0_fold"
-OUT_VEC_CALL="/tmp/shux_wpo_vec_lane0_call"
-BASELINE="${SHUX_WPO_S2_BASELINE:-tests/baseline/wpo-s2-perf.tsv}"
-# CI / Docker 默认 1 轮，避免 4×10M×3 次 median 耗时过长；本地可 SHUX_WPO_S2_RUNS=3
-RUNS="${SHUX_WPO_S2_RUNS:-$([ "${CI:-0}" = "1" ] && echo 1 || echo 3)}"
+BENCH_SCALE="/tmp/xlang_wpo_scale_loop_bench.x"
+BENCH_VEC="/tmp/xlang_wpo_vec_lane0_loop_bench.x"
+OUT_FOLD="/tmp/xlang_wpo_scale_fold"
+OUT_CALL="/tmp/xlang_wpo_scale_call"
+OUT_VEC_FOLD="/tmp/xlang_wpo_vec_lane0_fold"
+OUT_VEC_CALL="/tmp/xlang_wpo_vec_lane0_call"
+BASELINE="${XLANG_WPO_S2_BASELINE:-tests/baseline/wpo-s2-perf.tsv}"
+# CI / Docker 默认 1 轮，避免 4×10M×3 次 median 耗时过长；本地可 XLANG_WPO_S2_RUNS=3
+RUNS="${XLANG_WPO_S2_RUNS:-$([ "${CI:-0}" = "1" ] && echo 1 || echo 3)}"
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-[ "${SHUX_PERF_FAIL_ON_WPO_S2_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
+[ "${XLANG_PERF_FAIL_ON_WPO_S2_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
 
-if [ ! -x "$SHUX" ]; then
-  if [ -n "${SHUX_CI_NO_SKIP:-}" ]; then
-    echo "run-perf-wpo-s2 FAIL: need executable $SHUX build for WPO-S2 asm fold bench" >&2
+if [ ! -x "$XLANG" ]; then
+  if [ -n "${XLANG_CI_NO_SKIP:-}" ]; then
+    echo "run-perf-wpo-s2 FAIL: need executable $XLANG build for WPO-S2 asm fold bench" >&2
     exit 1
   fi
-  echo "run-perf-wpo-s2: skip (need $SHUX build for WPO-S2 asm fold bench)"
+  echo "run-perf-wpo-s2: skip (need $XLANG build for WPO-S2 asm fold bench)"
   exit 0
 fi
 
@@ -52,7 +52,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
 fi
 
 if wpo_host_asm_run_na; then
-  echo "run-perf-wpo-s2: N/A on Linux ARM64 (refresh shux_asm asm stub; x86_64 covers)"
+  echo "run-perf-wpo-s2: N/A on Linux ARM64 (refresh xlang_asm asm stub; x86_64 covers)"
   echo "wpo-s2 perf OK (Linux ARM64 N/A)"
   exit 0
 fi
@@ -120,7 +120,7 @@ wpo_s2_run_expect() {
   local exe="$1"
   local expect="$2"
   local label="$3"
-  if [ "${SHUX_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
+  if [ "${XLANG_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
     return 0
   fi
   local EX=0
@@ -132,7 +132,7 @@ wpo_s2_run_expect() {
 }
 
 # 烟测：fold 版 _main 不应 bl 泛型 _scale
-if ! "$SHUX" "$BENCH_SCALE" -o "$OUT_FOLD"; then
+if ! "$XLANG" "$BENCH_SCALE" -o "$OUT_FOLD"; then
   echo "run-perf-wpo-s2: fold build failed ($BENCH_SCALE)"
   exit 1
 fi
@@ -142,14 +142,14 @@ if ! wpo_main_no_calls_pat "$OUT_FOLD" '_scale([^_a-zA-Z0-9]|$)|[[:space:]]_scal
   exit 1
 fi
 
-if ! SHUX_WPO_NO_FOLD=1 "$SHUX" "$BENCH_SCALE" -o "$OUT_CALL"; then
+if ! XLANG_WPO_NO_FOLD=1 "$XLANG" "$BENCH_SCALE" -o "$OUT_CALL"; then
   echo "run-perf-wpo-s2: no-fold build failed ($BENCH_SCALE)"
   exit 1
 fi
 wpo_s2_run_expect "$OUT_CALL" 0 "no-fold binary"
 
 # WPO-S2 vec 特化 bench：lane0(vec_add4([const],[const])) 热循环
-if ! "$SHUX" "$BENCH_VEC" -o "$OUT_VEC_FOLD"; then
+if ! "$XLANG" "$BENCH_VEC" -o "$OUT_VEC_FOLD"; then
   echo "run-perf-wpo-s2: vec fold build failed ($BENCH_VEC)"
   exit 1
 fi
@@ -159,15 +159,15 @@ if ! wpo_main_no_calls_pat "$OUT_VEC_FOLD" 'vec_add4|lane0'; then
   exit 1
 fi
 
-if ! SHUX_WPO_NO_FOLD=1 "$SHUX" "$BENCH_VEC" -o "$OUT_VEC_CALL"; then
+if ! XLANG_WPO_NO_FOLD=1 "$XLANG" "$BENCH_VEC" -o "$OUT_VEC_CALL"; then
   echo "run-perf-wpo-s2: vec no-fold build failed ($BENCH_VEC)"
   exit 1
 fi
 wpo_s2_run_expect "$OUT_VEC_CALL" 0 "vec no-fold binary"
 
 # CI 快速门禁：仅 compile/disasm，跳过 bench 执行与 median 计时（Mac Docker Rosetta）
-if [ "${SHUX_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
-  echo "wpo-s2 perf OK (compile-only; set SHUX_WPO_S2_COMPILE_ONLY=0 for timing ratio gate)"
+if [ "${XLANG_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
+  echo "wpo-s2 perf OK (compile-only; set XLANG_WPO_S2_COMPILE_ONLY=0 for timing ratio gate)"
   exit 0
 fi
 
@@ -198,7 +198,7 @@ VEC_RATIO_CAP=$(baseline_ratio wpo_vec_lane0_fold_max_ratio)
 VEC_RATIO_CAP=${VEC_RATIO_CAP:-0.92}
 check_fold_ratio "$VEC_FOLD_MED" "$VEC_CALL_MED" "$VEC_RATIO_CAP" "vec_lane0" || exit 1
 
-if [ "${SHUX_PERF_UPDATE_WPO_S2_BASELINE:-0}" = "1" ] && [ "$FOLD_MED" != "nan" ] && [ "$CALL_MED" != "nan" ] && [ "$CALL_MED" != "0" ]; then
+if [ "${XLANG_PERF_UPDATE_WPO_S2_BASELINE:-0}" = "1" ] && [ "$FOLD_MED" != "nan" ] && [ "$CALL_MED" != "nan" ] && [ "$CALL_MED" != "0" ]; then
   new_ratio=$(python3 - "$FOLD_MED" "$CALL_MED" <<'PY'
 import sys
 fold, call = float(sys.argv[1]), float(sys.argv[2])
@@ -215,7 +215,7 @@ PY
   mkdir -p "$(dirname "$BASELINE")"
   {
     echo "# WPO-S2 bench：fold median ≤ no_fold × ratio（scale + vec lane0 热循环）"
-    echo "# 更新：SHUX_PERF_UPDATE_WPO_S2_BASELINE=1 ./tests/run-perf-wpo-s2.sh --bench"
+    echo "# 更新：XLANG_PERF_UPDATE_WPO_S2_BASELINE=1 ./tests/run-perf-wpo-s2.sh --bench"
     echo "wpo_scale_fold_max_ratio	${new_ratio}"
     echo "wpo_vec_lane0_fold_max_ratio	${new_vec_ratio}"
   } >"$BASELINE"

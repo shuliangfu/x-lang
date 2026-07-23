@@ -1,10 +1,10 @@
 /* seeds/backend_try_inline_dispatch_surface.from_x.c
  * R2 full surface — isomorphic with src/asm/backend_try_inline_dispatch.x
  * Product PREFER_X_O: g05_try_x_to_o(backend_try_inline_dispatch.x) + hybrid rest
- *   seeds/backend_try_inline_dispatch.from_x.c (-DSHUX_BACKEND_TRY_INLINE_DISPATCH_FROM_X) ld -r
+ *   seeds/backend_try_inline_dispatch.from_x.c (-DXLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X) ld -r
  * R2: full.x 吃满 try_inline/glue 公共业务；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... src/asm/backend_try_inline_dispatch.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/asm/backend_try_inline_dispatch.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -2068,7 +2068,7 @@ int32_t try_call_wpo_mono_symbol_elf(uint8_t * arena, uint8_t * elf_ctx, int32_t
     (void)(((kmono)[11] = 78));
     (void)(((kmono)[12] = 79));
     (void)(((kmono)[13] = 0));
-    /* wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv). */
+    /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
     if ((link_abi_getenv((const char *)&((kmono)[0])) ==0)) {
       return 0;
     }
@@ -2326,7 +2326,7 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(uint8_t * arena, uint8_t
     (void)(((kmono)[11] = 78));
     (void)(((kmono)[12] = 79));
     (void)(((kmono)[13] = 0));
-    /* wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv). */
+    /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
     if ((link_abi_getenv((const char *)&((kmono)[0])) ==0)) {
       return 0;
     }

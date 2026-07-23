@@ -3,11 +3,11 @@
 #
 # 用法：
 #   ./tests/run-eng-security-audit.sh
-#   SHUX_SEC_AUDIT_PROBE=1 ./tests/run-eng-security-audit.sh
+#   XLANG_SEC_AUDIT_PROBE=1 ./tests/run-eng-security-audit.sh
 set -e
 cd "$(dirname "$0")/.."
 
-INVENTORY="${SHUX_SEC_INVENTORY:-tests/templates/eng-security-audit-inventory.txt}"
+INVENTORY="${XLANG_SEC_INVENTORY:-tests/templates/eng-security-audit-inventory.txt}"
 
 # shellcheck source=tests/lib/eng-security-audit.sh
 . tests/lib/eng-security-audit.sh

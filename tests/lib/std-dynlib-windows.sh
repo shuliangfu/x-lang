@@ -5,7 +5,7 @@
 #   std_dynlib_win_manifest_ok DOC DYNLIB_C MOD_X TSV
 #   std_dynlib_win_emit_report status check_ok run_ok skip
 
-STD_DYNLIB_WIN_PREFIX="${SHUX_STD_DYNLIB_WIN_PREFIX:-shux: [SHUX_STD_DYNLIB_WIN]}"
+STD_DYNLIB_WIN_PREFIX="${XLANG_STD_DYNLIB_WIN_PREFIX:-xlang: [XLANG_STD_DYNLIB_WIN]}"
 
 # 校验 manifest：C 符号、.x API、RFC 节；echo 缺失数。
 std_dynlib_win_manifest_ok() {

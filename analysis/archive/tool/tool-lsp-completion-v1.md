@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 补全分层 C1–C6 |
 | 2 | 打开 `tests/baseline/tool-lsp-completion.tsv` |
 | 3 | `./tests/run-tool-lsp-completion-gate.sh` |
-| 4 | 本地：`./tests/run-lsp-completion.sh`（须 native `shux --lsp`） |
+| 4 | 本地：`./tests/run-lsp-completion.sh`（须 native `xlang --lsp`） |
 
 ---
 

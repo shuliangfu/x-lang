@@ -10,7 +10,7 @@
 
 | 文件 | 作用 | 去掉条件 |
 |------|------|----------|
-| src/main.c | 入口 main() 转调 main_entry | 已有 main.x；用 SHUX_USE_X_DRIVER 时已走 driver，main.c 仅剩薄包装 |
+| src/main.c | 入口 main() 转调 main_entry | 已有 main.x；用 XLANG_USE_X_DRIVER 时已走 driver，main.c 仅剩薄包装 |
 | src/runtime.c | run_compiler_c、pipeline 桥接、-E 流程 | 逻辑逐步迁 runtime_driver + .x，剩极薄 C 或全迁 .x |
 | src/preprocess.c | 预处理 | 有 preprocess.x 则生成 preprocess_gen.c 替代，链入时不再链 preprocess.o |
 | src/lexer/lexer.c | 词法 | 有 lexer.x 且构建链 lexer_x.o 替代 lexer.o |

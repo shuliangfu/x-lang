@@ -17,9 +17,9 @@
 /**
  * Async runtime C ABI wrappers.
  *
- * All `shux_async_*` / `shux_io_poll_async_*` functions below are thin
- * wrappers over the SHUX async runtime C implementation (see seeds).
- * They are exposed to SHUX via `extern "C"` declarations.
+ * All `xlang_async_*` / `xlang_io_poll_async_*` functions below are thin
+ * wrappers over the XLANG async runtime C implementation (see seeds).
+ * They are exposed to XLANG via `extern "C"` declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches the C runtime
  * (cooperative scheduler + CPS suspend/resume + work-stealing worker
@@ -28,26 +28,26 @@
  * on all targets (macOS arm64 / Ubuntu x86_64 / Windows MSYS2/MinGW).
  *
  * Categories:
- *   - shux_async_coop_*       : cooperative ping-pong benchmarks
+ *   - xlang_async_coop_*       : cooperative ping-pong benchmarks
  *                               (jmp-based + direct)
- *   - shux_async_cps_*        : CPS suspend/resume with phase tracking
- *   - shux_async_run_*        : task runner + seed stack (push/set/
+ *   - xlang_async_cps_*        : CPS suspend/resume with phase tracking
+ *   - xlang_async_run_*        : task runner + seed stack (push/set/
  *                               take i32/u32/i64/usize + drain_until_
  *                               idle + seed_reset)
- *   - shux_async_task_*       : task submission (default + targeted
+ *   - xlang_async_task_*       : task submission (default + targeted
  *                               worker + context-bound)
- *   - shux_async_scheduler_*  : scheduler drain + pending count
- *   - shux_async_worker_*     : per-worker drain/count/pending
- *   - shux_async_queue_*      : queue reset
- *   - shux_async_io_*         : io waiters wake/pending
- *   - shux_io_poll_async_*    : io completion polling with timeout
- *   - shux_async_*_context_*  : context bind/unbind/current
- *   - shux_async_spawn_*      : spawn i32 task + ctx smoke test
+ *   - xlang_async_scheduler_*  : scheduler drain + pending count
+ *   - xlang_async_worker_*     : per-worker drain/count/pending
+ *   - xlang_async_queue_*      : queue reset
+ *   - xlang_async_io_*         : io waiters wake/pending
+ *   - xlang_io_poll_async_*    : io completion polling with timeout
+ *   - xlang_async_*_context_*  : context bind/unbind/current
+ *   - xlang_async_spawn_*      : spawn i32 task + ctx smoke test
  *
  * Error codes: i32 returns; 0 = OK, negative = error
- *   (SHUX_ASYNC_ERR_CTX_ABORT = -3 for context abort).
+ *   (XLANG_ASYNC_ERR_CTX_ABORT = -3 for context abort).
  *
- * Unsafe contract: callers must wrap `shux_async_*_c` / `shux_io_poll_*
+ * Unsafe contract: callers must wrap `xlang_async_*_c` / `xlang_io_poll_*
  * ` calls in `unsafe { }` blocks. P0a semantic downgrade currently
  * allows unwrapped calls; P1 typeck enforcement (post-bootstrap) will
  * reject unwrapped calls.
@@ -80,58 +80,58 @@ export function submit_write_sync(handle: usize, ptr: *u8, len: usize, timeout_m
 }
 
 // See implementation.
-extern "C" function shux_async_coop_pingpong(rounds: i64): i64;
-extern "C" function shux_async_coop_pingpong_jmp(rounds: i64): i64;
+extern "C" function xlang_async_coop_pingpong(rounds: i64): i64;
+extern "C" function xlang_async_coop_pingpong_jmp(rounds: i64): i64;
 
 // See implementation.
-extern "C" function shux_async_cps_suspend(phase: *i32, next_phase: i32): i32;
+extern "C" function xlang_async_cps_suspend(phase: *i32, next_phase: i32): i32;
 /* See implementation. */
-extern "C" function shux_async_cps_suspend_io(phase: *i32, next_phase: i32): i32;
-extern "C" function shux_async_run_i32(fn: *u8): i32;
+extern "C" function xlang_async_cps_suspend_io(phase: *i32, next_phase: i32): i32;
+extern "C" function xlang_async_run_i32(fn: *u8): i32;
 /* See implementation. */
-extern "C" function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
+extern "C" function xlang_async_spawn_i32(fn: *u8, seed: i32): i32;
 /* See implementation. */
-extern "C" function shux_async_run_drain_until_idle(): i32;
+extern "C" function xlang_async_run_drain_until_idle(): i32;
 /* See implementation. */
-extern "C" function shux_async_run_seed_reset(): void;
-extern "C" function shux_async_run_seed_push_i32(v: i32): void;
-extern "C" function shux_async_run_seed_push_u32(v: u32): void;
-extern "C" function shux_async_run_seed_push_i64(v: i64): void;
-extern "C" function shux_async_run_seed_push_usize(v: usize): void;
+extern "C" function xlang_async_run_seed_reset(): void;
+extern "C" function xlang_async_run_seed_push_i32(v: i32): void;
+extern "C" function xlang_async_run_seed_push_u32(v: u32): void;
+extern "C" function xlang_async_run_seed_push_i64(v: i64): void;
+extern "C" function xlang_async_run_seed_push_usize(v: usize): void;
 /* See implementation. */
-extern "C" function shux_async_run_seed_set_i32(v: i32): void;
-extern "C" function shux_async_run_seed_valid(): i32;
-extern "C" function shux_async_run_seed_take_i32(): i32;
-extern "C" function shux_async_run_seed_take_u32(): u32;
-extern "C" function shux_async_run_seed_take_i64(): i64;
-extern "C" function shux_async_run_seed_take_usize(): usize;
+extern "C" function xlang_async_run_seed_set_i32(v: i32): void;
+extern "C" function xlang_async_run_seed_valid(): i32;
+extern "C" function xlang_async_run_seed_take_i32(): i32;
+extern "C" function xlang_async_run_seed_take_u32(): u32;
+extern "C" function xlang_async_run_seed_take_i64(): i64;
+extern "C" function xlang_async_run_seed_take_usize(): usize;
 
 // See implementation.
 // See implementation.
-extern "C" function shux_async_task_submit(fn: *u8): i32;
+extern "C" function xlang_async_task_submit(fn: *u8): i32;
 /* See implementation. */
-extern "C" function shux_async_task_submit_to(worker_id: u32, fn: *u8): i32;
-extern "C" function shux_async_scheduler_drain(): i32;
+extern "C" function xlang_async_task_submit_to(worker_id: u32, fn: *u8): i32;
+extern "C" function xlang_async_scheduler_drain(): i32;
 /* See implementation. */
-extern "C" function shux_async_worker_drain(worker_id: u32): i32;
-extern "C" function shux_async_worker_count(): u32;
-extern "C" function shux_async_worker_pending(worker_id: u32): u32;
-extern "C" function shux_async_queue_reset(): void;
-extern "C" function shux_async_scheduler_pending(): u32;
-extern "C" function shux_async_io_wake_all(): void;
-extern "C" function shux_async_io_waiters_pending(): u32;
+extern "C" function xlang_async_worker_drain(worker_id: u32): i32;
+extern "C" function xlang_async_worker_count(): u32;
+extern "C" function xlang_async_worker_pending(worker_id: u32): u32;
+extern "C" function xlang_async_queue_reset(): void;
+extern "C" function xlang_async_scheduler_pending(): u32;
+extern "C" function xlang_async_io_wake_all(): void;
+extern "C" function xlang_async_io_waiters_pending(): u32;
 /* See implementation. */
-extern "C" function shux_io_poll_async_completions(timeout_ms: u32): u32;
+extern "C" function xlang_io_poll_async_completions(timeout_ms: u32): u32;
 
 // See implementation.
-extern "C" function shux_async_bind_context_c(ctx_handle: i64): void;
-extern "C" function shux_async_unbind_context_c(): void;
-extern "C" function shux_async_current_context_c(): i64;
-extern "C" function shux_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32;
-extern "C" function shux_async_spawn_ctx_smoke_c(): i32;
+extern "C" function xlang_async_bind_context_c(ctx_handle: i64): void;
+extern "C" function xlang_async_unbind_context_c(): void;
+extern "C" function xlang_async_current_context_c(): i64;
+extern "C" function xlang_async_task_submit_with_ctx(fn: *u8, ctx_handle: i64): i32;
+extern "C" function xlang_async_spawn_ctx_smoke_c(): i32;
 
 /* See implementation. */
-export const SHUX_ASYNC_ERR_CTX_ABORT: i32 = -3;
+export const XLANG_ASYNC_ERR_CTX_ABORT: i32 = -3;
 
 /* See implementation. */
 allow(padding) struct AsyncRuntime {
@@ -143,7 +143,7 @@ allow(padding) struct AsyncRuntime {
  * @return i32
  */
 export function err_ctx_abort(): i32 {
-  return SHUX_ASYNC_ERR_CTX_ABORT;
+  return XLANG_ASYNC_ERR_CTX_ABORT;
 }
 
 /** Exported function `bind_ctx`.
@@ -152,7 +152,7 @@ export function err_ctx_abort(): i32 {
  * @return void
  */
 export function bind_ctx(ctx: Context): void {
-  unsafe { shux_async_bind_context_c(ctx.handle); }
+  unsafe { xlang_async_bind_context_c(ctx.handle); }
 }
 
 /** Exported function `unbind_ctx`.
@@ -160,7 +160,7 @@ export function bind_ctx(ctx: Context): void {
  * @return void
  */
 export function unbind_ctx(): void {
-  unsafe { shux_async_unbind_context_c(); }
+  unsafe { xlang_async_unbind_context_c(); }
 }
 
 /** Exported function `current_ctx`.
@@ -169,7 +169,7 @@ export function unbind_ctx(): void {
  */
 export function current_ctx(): Context {
   let _rc: Context = 0;
-  unsafe { _rc = Context { handle: shux_async_current_context_c() }; }
+  unsafe { _rc = Context { handle: xlang_async_current_context_c() }; }
   return _rc;
 }
 
@@ -190,7 +190,7 @@ export function runtime(ctx: Context): AsyncRuntime {
 export function runtime_reset(rt: *AsyncRuntime): void {
   scheduler_reset();
   if (rt != 0 && rt.ctx_handle != 0) {
-    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
+    unsafe { xlang_async_bind_context_c(rt.ctx_handle); }
   }
 }
 
@@ -201,10 +201,10 @@ export function runtime_reset(rt: *AsyncRuntime): void {
  */
 export function drain(rt: *AsyncRuntime): i32 {
   if (rt != 0 && rt.ctx_handle != 0) {
-    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
+    unsafe { xlang_async_bind_context_c(rt.ctx_handle); }
   }
   unsafe {
-    return shux_async_run_drain_until_idle();
+    return xlang_async_run_drain_until_idle();
   }
 }
 
@@ -215,7 +215,7 @@ export function drain(rt: *AsyncRuntime): i32 {
  */
 export function submit(fn: *u8): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_task_submit(fn); }
+  unsafe { _rc = xlang_async_task_submit(fn); }
   return _rc;
 }
 
@@ -227,7 +227,7 @@ export function submit(fn: *u8): i32 {
  */
 export function submit(fn: *u8, seed: i32): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_spawn_i32(fn, seed); }
+  unsafe { _rc = xlang_async_spawn_i32(fn, seed); }
   return _rc;
 }
 
@@ -239,7 +239,7 @@ export function submit(fn: *u8, seed: i32): i32 {
  */
 export function submit_ctx(fn: *u8, ctx: Context): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_task_submit_with_ctx(fn, ctx.handle); }
+  unsafe { _rc = xlang_async_task_submit_with_ctx(fn, ctx.handle); }
   return _rc;
 }
 
@@ -249,7 +249,7 @@ export function submit_ctx(fn: *u8, ctx: Context): i32 {
  */
 export function spawn_ctx_smoke(): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_spawn_ctx_smoke_c(); }
+  unsafe { _rc = xlang_async_spawn_ctx_smoke_c(); }
   return _rc;
 }
 
@@ -258,7 +258,7 @@ export function spawn_ctx_smoke(): i32 {
  * @return void
  */
 export function scheduler_reset(): void {
-  unsafe { shux_async_queue_reset(); }
+  unsafe { xlang_async_queue_reset(); }
 }
 
 /** Exported function `drain_idle`.
@@ -267,7 +267,7 @@ export function scheduler_reset(): void {
  */
 export function drain_idle(): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_run_drain_until_idle(); }
+  unsafe { _rc = xlang_async_run_drain_until_idle(); }
   return _rc;
 }
 
@@ -279,7 +279,7 @@ export function drain_idle(): i32 {
  */
 export function cps_suspend_io(phase: *i32, next_phase: i32): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_cps_suspend_io(phase, next_phase); }
+  unsafe { _rc = xlang_async_cps_suspend_io(phase, next_phase); }
   return _rc;
 }
 
@@ -290,7 +290,7 @@ export function cps_suspend_io(phase: *i32, next_phase: i32): i32 {
  */
 export function poll_completions(timeout_ms: u32): u32 {
   let _rc: u32 = 0;
-  unsafe { _rc = shux_io_poll_async_completions(timeout_ms); }
+  unsafe { _rc = xlang_io_poll_async_completions(timeout_ms); }
   return _rc;
 }
 
@@ -535,7 +535,7 @@ export function fs_write_async(rt: *AsyncRuntime, fd: i32, ptr: *u8, len: usize,
   return await_write_fd(rt, fd, ptr, len, max_rounds);
 }
 
-extern "C" function shux_async_net_fs_smoke_c(): i32;
+extern "C" function xlang_async_net_fs_smoke_c(): i32;
 
 /** Exported function `net_fs_async_smoke`.
  * Implements `net_fs_async_smoke`.
@@ -543,7 +543,7 @@ extern "C" function shux_async_net_fs_smoke_c(): i32;
  */
 export function net_fs_async_smoke(): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_net_fs_smoke_c(); }
+  unsafe { _rc = xlang_async_net_fs_smoke_c(); }
   return _rc;
 }
 
@@ -553,12 +553,12 @@ export function net_fs_async_smoke(): i32 {
  */
 export function waiters(): u32 {
   let _rc: u32 = 0;
-  unsafe { _rc = shux_async_io_waiters_pending(); }
+  unsafe { _rc = xlang_async_io_waiters_pending(); }
   return _rc;
 }
 
 /* See implementation. */
-export const SHUX_ASYNC_SUSPENDED: i32 = 0x41535700;
+export const XLANG_ASYNC_SUSPENDED: i32 = 0x41535700;
 
 /* See implementation. */
 export const POLL_PENDING: i32 = 0;
@@ -570,13 +570,13 @@ allow(padding) struct Future {
   handle: i64;
 }
 
-extern "C" function shux_async_future_create_c(): i64;
-extern "C" function shux_async_future_poll_c(handle: i64): i32;
-extern "C" function shux_async_future_complete_c(handle: i64, value: i32): void;
-extern "C" function shux_async_future_take_c(handle: i64, out: *i32): i32;
-extern "C" function shux_async_future_reset_c(): void;
-extern "C" function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32;
-extern "C" function shux_async_future_smoke_c(): i32;
+extern "C" function xlang_async_future_create_c(): i64;
+extern "C" function xlang_async_future_poll_c(handle: i64): i32;
+extern "C" function xlang_async_future_complete_c(handle: i64, value: i32): void;
+extern "C" function xlang_async_future_take_c(handle: i64, out: *i32): i32;
+extern "C" function xlang_async_future_reset_c(): void;
+extern "C" function xlang_async_future_wait_c(handle: i64, max_rounds: i32): i32;
+extern "C" function xlang_async_future_smoke_c(): i32;
 
 /** Exported function `future_new`.
  * Implements `future_new`.
@@ -584,7 +584,7 @@ extern "C" function shux_async_future_smoke_c(): i32;
  */
 export function future_new(): Future {
   let _rc: Future = 0;
-  unsafe { _rc = Future { handle: shux_async_future_create_c() }; }
+  unsafe { _rc = Future { handle: xlang_async_future_create_c() }; }
   return _rc;
 }
 
@@ -595,7 +595,7 @@ export function future_poll(fut: *Future): i32 {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return -1; }
   unsafe {
-    return shux_async_future_poll_c(fut.handle);
+    return xlang_async_future_poll_c(fut.handle);
   }
 }
 
@@ -608,7 +608,7 @@ export function future_poll(fut: *Future): i32 {
 export function future_complete(fut: *Future, value: i32): void {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return; }
-  unsafe { shux_async_future_complete_c(fut.handle, value); }
+  unsafe { xlang_async_future_complete_c(fut.handle, value); }
 }
 
 /**
@@ -618,7 +618,7 @@ export function future_take(fut: *Future, out: *i32): i32 {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero || out == 0) { return -1; }
   unsafe {
-    return shux_async_future_take_c(fut.handle, out);
+    return xlang_async_future_take_c(fut.handle, out);
   }
 }
 
@@ -627,7 +627,7 @@ export function future_take(fut: *Future, out: *i32): i32 {
  * @return void
  */
 export function future_reset(): void {
-  unsafe { shux_async_future_reset_c(); }
+  unsafe { xlang_async_future_reset_c(); }
 }
 
 /** Exported function `future_smoke`.
@@ -636,7 +636,7 @@ export function future_reset(): void {
  */
 export function future_smoke(): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_async_future_smoke_c(); }
+  unsafe { _rc = xlang_async_future_smoke_c(); }
   return _rc;
 }
 
@@ -648,7 +648,7 @@ export function future_wait(fut: *Future, max_rounds: i32): i32 {
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return -1; }
   unsafe {
-    return shux_async_future_wait_c(fut.handle, max_rounds);
+    return xlang_async_future_wait_c(fut.handle, max_rounds);
   }
 }
 
@@ -660,7 +660,7 @@ export function runtime_wait_future(rt: *AsyncRuntime, fut: *Future, max_rounds:
   let zero: i64 = 0;
   if (fut == 0 || fut.handle == zero) { return -1; }
   if (rt != 0 && rt.ctx_handle != zero) {
-    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
+    unsafe { xlang_async_bind_context_c(rt.ctx_handle); }
   }
   return future_wait(fut, max_rounds);
 }
@@ -678,7 +678,7 @@ export function poll_loop(max_rounds: i32): i32 {
     sum = sum + drained;
     let pend: u32 = 0;
     unsafe {
-      pend = shux_async_scheduler_pending();
+      pend = xlang_async_scheduler_pending();
     }
     if (pend == 0 && waiters() == 0) {
       break;
@@ -697,7 +697,7 @@ export function poll_loop_ctx(rt: *AsyncRuntime, max_rounds: i32): i32 {
   let sum: i32 = 0;
   let zero: i64 = 0;
   if (rt != 0 && rt.ctx_handle != zero) {
-    unsafe { shux_async_bind_context_c(rt.ctx_handle); }
+    unsafe { xlang_async_bind_context_c(rt.ctx_handle); }
   }
   let ctx: Context = current_ctx();
   while (round < max_rounds) {
@@ -715,7 +715,7 @@ export function poll_loop_ctx(rt: *AsyncRuntime, max_rounds: i32): i32 {
     sum = sum + drained;
     let pend: u32 = 0;
     unsafe {
-      pend = shux_async_scheduler_pending();
+      pend = xlang_async_scheduler_pending();
     }
     if (pend == 0 && waiters() == 0) {
       break;
@@ -732,7 +732,7 @@ export function poll_loop_ctx(rt: *AsyncRuntime, max_rounds: i32): i32 {
  */
 export function coop_pingpong(rounds: i64): i64 {
   let _rc: i64 = 0;
-  unsafe { _rc = shux_async_coop_pingpong(rounds); }
+  unsafe { _rc = xlang_async_coop_pingpong(rounds); }
   return _rc;
 }
 
@@ -743,7 +743,7 @@ export function coop_pingpong(rounds: i64): i64 {
  */
 export function coop_pingpong_jmp(rounds: i64): i64 {
   let _rc: i64 = 0;
-  unsafe { _rc = shux_async_coop_pingpong_jmp(rounds); }
+  unsafe { _rc = xlang_async_coop_pingpong_jmp(rounds); }
   return _rc;
 }
 

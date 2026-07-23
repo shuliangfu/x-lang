@@ -1,6 +1,6 @@
 /* seeds/rt_fs_open.from_x.c — G-02f-308 P2 runtime rest (path open)
  * Logic source: src/runtime/rt_fs_open.x
- * Hybrid: SHUX_RT_FS_OPEN_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_FS_OPEN_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：driver_fs_open_read_path / driver_fs_open_write
  * 均由 .x 提供；FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifndef SHUX_RT_FS_OPEN_FROM_X
+#ifndef XLANG_RT_FS_OPEN_FROM_X
 /** path[0..path_len-1] 打开只读；失败 -1。 */
 int driver_fs_open_read_path(const uint8_t *path, int path_len) {
   if (!path || path_len <= 0 || path_len >= 512)

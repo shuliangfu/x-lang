@@ -2,7 +2,7 @@
 # F-url v1：std.url 去 C（url.c → url.x + url_glue.c inet 胶层）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_URL_V1_FAIL:-0}
+FAIL=${XLANG_F_URL_V1_FAIL:-0}
 DOC="analysis/phase-f-url-v1.md"
 MANIFEST="tests/baseline/f-url-v1-closure.tsv"
 die() { echo "f-url-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -21,10 +21,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'url.x' compiler/Makefile || die "Makefile missing url.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/url/url.o >/dev/null 2>&1 || die "make url.o failed"
 else
-  echo "f-url-v1 SKIP url.o build (no shux-c)" >&2
+  echo "f-url-v1 SKIP url.o build (no xlang-c)" >&2
 fi
 for sub in run-std-url-gate.sh run-std-url-ipv6-host-gate.sh; do
   [ -f "tests/$sub" ] || continue

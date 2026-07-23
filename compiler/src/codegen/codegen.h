@@ -7,8 +7,8 @@
  * 重要约定：阶段 4 方案 B，入口模块生成 Hello World 的 printf 且 return 使用 main 体表达式的值（当前仅整数字面量）；库模块仅生成注释行（阶段 7.3）。阶段 8.1 DCE：可选传入 is_func_used/is_mono_used 仅生成被引用的函数与单态化实例。
  */
 
-#ifndef SHUX_CODEGEN_H
-#define SHUX_CODEGEN_H
+#ifndef XLANG_CODEGEN_H
+#define XLANG_CODEGEN_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -71,7 +71,7 @@ void codegen_compute_used(struct ASTModule *entry, struct ASTModule **dep_mods, 
 struct ASTFunc *codegen_entry_root_func(struct ASTModule *entry);
 
 /**
- * WPO v0（S5 前置）：全程序 call graph 可达性；`SHUX_WPO_DCE=1` 时 runtime 用于跨模块 dead export 剔除。
+ * WPO v0（S5 前置）：全程序 call graph 可达性；`XLANG_WPO_DCE=1` 时 runtime 用于跨模块 dead export 剔除。
  */
 #define CODEGEN_WPO_REACH_MAX_FUNCS 4096
 typedef struct CodegenWpoReach {
@@ -99,7 +99,7 @@ void codegen_compute_used_types(struct ASTModule *entry, struct ASTModule **dep_
 /**
  * 阶段 3.1（完全脱离 C 路线图）：仅输出依赖模块的类型定义（enum/struct，带 import 前缀），不输出函数体。
  * 供 -E-extern 生成「瘦」pipeline_gen.c 时先输出 ast/parser/typeck/codegen 等类型，再输出入口模块（extern + 本体）。
- * emitted_type_names：与入口模块共享去重表，避免 shux_slice_* 等跨阶段重复定义（C-04 v3）。
+ * emitted_type_names：与入口模块共享去重表，避免 xlang_slice_* 等跨阶段重复定义（C-04 v3）。
  */
 int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out,
     char (*emitted_type_names)[CODEGEN_EMITTED_TYPE_NAME_MAX], int *n_emitted_inout, int max_emitted);
@@ -118,7 +118,7 @@ void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const char **
 /**
  * WPO-S1/S2：从 entry + 全部传递依赖模块构建 call graph 并输出 JSON（version 2）。
  * 节点=函数、边=静态 CALL/METHOD_CALL；call_sites 含全整型常量实参 profile（WPO-S2 特化前置）。
- * 由 runtime 在 typeck 通过后、SHUX_WPO_DUMP_CALLGRAPH 指向路径（或 "-"=stdout）时调用。
+ * 由 runtime 在 typeck 通过后、XLANG_WPO_DUMP_CALLGRAPH 指向路径（或 "-"=stdout）时调用。
  */
 void codegen_dump_wpo_callgraph_json(FILE *out,
     struct ASTModule *entry, const char *entry_path,
@@ -158,8 +158,8 @@ int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, ch
 extern int codegen_fmt_json_helpers_needed;
 void codegen_emit_fmt_json_helpers_once(FILE *out);
 
-/** CORE-009：emit shux_builtin_* static inline 包装器（clz/ctz/popcount/bswap/rotl/rotr）。
+/** CORE-009：emit xlang_builtin_* static inline 包装器（clz/ctz/popcount/bswap/rotl/rotr）。
  * 在每个生成 C 翻译单元 includes 之后调用一次，避免调用点经 builtin_intrinsic_name 重映射后无声明。 */
 void codegen_emit_builtin_inline_decls(FILE *out);
 
-#endif /* SHUX_CODEGEN_H */
+#endif /* XLANG_CODEGEN_H */

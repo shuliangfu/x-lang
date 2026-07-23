@@ -29,7 +29,7 @@ export function driver_lib_root_ptr_usable(p: *u8): i32 {
 }
 
 /**
- * Write default lib-root into root_buf: prefer SHUX_LIB when usable, else ".".
+ * Write default lib-root into root_buf: prefer XLANG_LIB when usable, else ".".
  * @param root_buf *u8 — destination buffer; capacity >= 512; always NUL-terminated
  * @return void
  * wave227 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
@@ -41,7 +41,7 @@ export function driver_lib_root_default(root_buf: *u8): void {
   root_buf[1] = 0;
   let def: *u8 = 0 as *u8;
   unsafe {
-    def = link_abi_getenv("SHUX_LIB");
+    def = link_abi_getenv("XLANG_LIB");
   }
   if (driver_lib_root_ptr_usable(def) == 0) {
     return;

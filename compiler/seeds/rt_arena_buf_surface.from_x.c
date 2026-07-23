@@ -1,9 +1,9 @@
 /* seeds/rt_arena_buf_surface.from_x.c — polished -E of src/runtime/rt_arena_buf.x
  * R2 full：2 公共符号 driver_arena_buf / driver_module_buf；
  * Cap residual 槽 API 在 driver_abi（driver_arena_static_slot 等）。
- * 勿手写第二套语义；由 shux -E 产物抛光。
+ * 勿手写第二套语义；由 xlang -E 产物抛光。
  * Product PREFER_X_O: g05_try_x_to_o(rt_arena_buf.x) + hybrid rest seed
- *   seeds/rt_arena_buf.from_x.c (-DSHUX_RT_ARENA_BUF_FROM_X) ld -r into runtime_driver_no_c
+ *   seeds/rt_arena_buf.from_x.c (-DXLANG_RT_ARENA_BUF_FROM_X) ld -r into runtime_driver_no_c
  * Hybrid rest seed: FROM_X 业务 H=0（BSS+marker）；冷启动全 C 体
  */
 #include <stddef.h>

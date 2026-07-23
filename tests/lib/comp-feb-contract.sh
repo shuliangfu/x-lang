@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
-BOUNDARY="${SHUX_FEB_CONTRACT_BOUNDARY:-$ROOT/tests/baseline/comp-feb-contract-boundary.tsv}"
+BOUNDARY="${XLANG_FEB_CONTRACT_BOUNDARY:-$ROOT/tests/baseline/comp-feb-contract-boundary.tsv}"
 
 # 在源码文件中查找符号定义或声明（function / extern function）。
 comp_feb_contract_symbol_present() {

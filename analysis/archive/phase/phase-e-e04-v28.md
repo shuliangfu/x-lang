@@ -7,10 +7,10 @@
 | 符号 | 目标 TU | 说明 |
 |------|---------|------|
 | `struct ast_PipelineDepCtx` | pipeline_abi.h | 与 ast.x 布局一致 |
-| `shux_pipeline_fill_ctx_path_buffers` | pipeline_abi | entry_dir / lib_root sidecar |
-| `shux_pipeline_pctx_seed_dep_slots` | pipeline_abi | dep 槽写入 ctx |
-| `shux_pipeline_one_ctx_for_dep_prerun` | pipeline_abi | 单 dep 预跑 ctx 重置 |
-| `shux_asm_user_*` | pipeline_abi | asm 用户 std dep 路径判定 |
+| `xlang_pipeline_fill_ctx_path_buffers` | pipeline_abi | entry_dir / lib_root sidecar |
+| `xlang_pipeline_pctx_seed_dep_slots` | pipeline_abi | dep 槽写入 ctx |
+| `xlang_pipeline_one_ctx_for_dep_prerun` | pipeline_abi | 单 dep 预跑 ctx 重置 |
+| `xlang_asm_user_*` | pipeline_abi | asm 用户 std dep 路径判定 |
 | `driver_pipeline_fail_code` | driver_abi | pipeline rc 诊断 |
 | `driver_print_x_smoke_summary` | driver_abi | parse/typeck 烟测 stderr |
 | `driver_peek_source_file` | driver_abi | 源文件前缀探测 |
@@ -24,7 +24,7 @@
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_pipeline_abi.o src/runtime_driver_abi.o src/runtime_driver_no_c.o
 wc -l compiler/src/runtime.c compiler/src/runtime_pipeline_abi.c compiler/src/runtime_driver_abi.c
 ```

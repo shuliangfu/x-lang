@@ -1,8 +1,8 @@
 # COMP-010 编译产物体积归因 v1
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1）** — 与 `run-size-shux-asm-gate.sh`（B-SIZE advisory）、`ENG-002` 对齐  
-> 关联：`COMP-009`（FE/BE 契约）、`PERF-004`（dogfood）、`tests/baseline/shux-asm-size.tsv`
+> 状态：**定版（v1）** — 与 `run-size-xlang-asm-gate.sh`（B-SIZE advisory）、`ENG-002` 对齐  
+> 关联：`COMP-009`（FE/BE 契约）、`PERF-004`（dogfood）、`tests/baseline/xlang-asm-size.tsv`
 
 ---
 
@@ -23,18 +23,18 @@
 
 | 层级 | 度量 | 说明 | 工具 |
 |------|------|------|------|
-| **A1-exec** | 可执行文件 `file_bytes` | `shux_asm` / `shux-c` / 用户样例 binary | `comp_size_attrib_file_bytes` |
+| **A1-exec** | 可执行文件 `file_bytes` | `xlang_asm` / `xlang-c` / 用户样例 binary | `comp_size_attrib_file_bytes` |
 | **A2-object** | `.o` 文件体积 | `build_asm/*.o` 逐项 | matrix `kind=object` |
 | **A3-text** | 代码段 `text_bytes` | Mach-O `__text` / ELF `.text` | `comp_size_attrib_o_text_bytes` |
-| **A4-strip** | strip 前后 delta | B-SIZE advisory 对标 | `run-size-shux-asm-gate.sh` |
+| **A4-strip** | strip 前后 delta | B-SIZE advisory 对标 | `run-size-xlang-asm-gate.sh` |
 | **A5-rollup** | 分类汇总 + Top 占比 | `build_asm` 合计 / 最大 .o | `comp_size_attrib_rollup` |
-| **A6-baseline** | 与 TSV 基线 diff | `shux-asm-size.tsv` | `SHUX_PERF_UPDATE_SIZE_BASELINE` |
+| **A6-baseline** | 与 TSV 基线 diff | `xlang-asm-size.tsv` | `XLANG_PERF_UPDATE_SIZE_BASELINE` |
 
 **attribution 原则**：
 
 1. **每次构建可复现**：输出机器可读 TSV（`artifact_id` · `file_bytes` · `text_bytes` · `pct`）。
 2. **缺失 SKIP**：`build_asm` 未生成时不 fail（Darwin / 未跑 bootstrap 时常见）。
-3. **advisory 体积**：超 8MiB 仅 WARN（`SHUX_SIZE_FAIL=0`，ENG-002）；归因工具本身不 block CI。
+3. **advisory 体积**：超 8MiB 仅 WARN（`XLANG_SIZE_FAIL=0`，ENG-002）；归因工具本身不 block CI。
 4. **段级优先**：自举 .o 以 `text_bytes` 排序，比裸 `file_bytes` 更能反映 codegen 膨胀。
 
 ---
@@ -45,8 +45,8 @@
 
 | artifact_id | kind | 路径 | policy |
 |-------------|------|------|--------|
-| `art_shux_asm` | exec | `compiler/shux_asm` | optional |
-| `art_shu_c` | exec | `compiler/shux-c` | required |
+| `art_xlang_asm` | exec | `compiler/xlang_asm` | optional |
+| `art_shu_c` | exec | `compiler/xlang-c` | required |
 | `art_pipeline_o` | object | `compiler/build_asm/pipeline.o` | optional |
 | `art_parser_o` | object | `compiler/build_asm/parser.o` | optional |
 | `art_typeck_o` | object | `compiler/build_asm/typeck.o` | optional |
@@ -79,7 +79,7 @@ comp-size-attrib: distribution total=27345678B artifacts=5 top=art_shu_c:45.2%
 | case_id | 脚本 | 期望 |
 |---------|------|------|
 | `case_attrib_smoke` | `run-comp-size-attrib.sh` | ≥1 artifact；stdout `comp-size-attrib OK` |
-| `case_bsize` | `run-size-shux-asm-gate.sh` | advisory ≤8MiB 或 SKIP |
+| `case_bsize` | `run-size-xlang-asm-gate.sh` | advisory ≤8MiB 或 SKIP |
 | `case_hello` | `run-size-baseline.sh` | hello 样例体积行 |
 
 ---
@@ -97,7 +97,7 @@ comp-size-attrib: distribution total=27345678B artifacts=5 top=art_shu_c:45.2%
 ```bash
 ./tests/run-comp-size-attrib-gate.sh   # runnable：manifest + attribution smoke
 ./tests/run-comp-size-attrib.sh        # 生成本地 distribution report
-./tests/run-size-shux-asm-gate.sh       # B-SIZE advisory 联动
+./tests/run-size-xlang-asm-gate.sh       # B-SIZE advisory 联动
 ```
 
 **gate report**：stdout 须含 `comp-size-attrib gate OK`；失败打印 `comp-size-attrib FAIL:` 行。

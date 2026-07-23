@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-23： .x —  TU（ strict  -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER）。
-// ：./shux-c -E → seeds/pipeline_bootstrap_orchestration.from_x.c → pipeline_bootstrap_orchestration.o
+// ：./xlang-c -E → seeds/pipeline_bootstrap_orchestration.from_x.c → pipeline_bootstrap_orchestration.o
 // weak pipeline_run_x_pipeline_impl  seed （ weak ）。
 
 /** Function `pipeline_bootstrap_orchestration_placeholder`.

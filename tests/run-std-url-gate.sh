@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_URL_DOC:-analysis/std-url-v1.md}"
-MANIFEST="${SHUX_STD_URL_MANIFEST:-tests/baseline/std-url-manifest.tsv}"
-VECTORS="${SHUX_STD_URL_VECTORS:-tests/baseline/std-url-vectors.tsv}"
+DOC="${XLANG_STD_URL_DOC:-analysis/std-url-v1.md}"
+MANIFEST="${XLANG_STD_URL_MANIFEST:-tests/baseline/std-url-manifest.tsv}"
+VECTORS="${XLANG_STD_URL_VECTORS:-tests/baseline/std-url-vectors.tsv}"
 MOD_X="std/url/mod.x"
 URL_X="std/url/url.x"
 LIB="tests/lib/std-url.sh"
@@ -64,7 +64,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-url manifest OK"
 
-if [ "${SHUX_STD_URL_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_URL_MANIFEST_ONLY:-0}" = "1" ]; then
   std_url_emit_report "ok" 0 0 1
   echo "std-url gate OK (manifest only)"
   exit 0
@@ -75,17 +75,17 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-076: url c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/url/url.o >/dev/null 2>&1
-  if cc -std=c11 -O1 -o /tmp/shux_url_smoke \
+  if cc -std=c11 -O1 -o /tmp/xlang_url_smoke \
     "$SMOKE_C" std/url/url.o 2>/dev/null; then
-    if /tmp/shux_url_smoke >/dev/null 2>&1; then
+    if /tmp/xlang_url_smoke >/dev/null 2>&1; then
       C_OK=1
     fi
-    rm -f /tmp/shux_url_smoke
+    rm -f /tmp/xlang_url_smoke
   fi
 else
-  echo "std-url gate SKIP c smoke (need shux-c for url.x merge)" >&2
+  echo "std-url gate SKIP c smoke (need xlang-c for url.x merge)" >&2
   SKIP=1
 fi
 if [ "$C_OK" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
@@ -94,25 +94,25 @@ if [ "$C_OK" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
   exit 1
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-076: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-076: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-url gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_url_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_url_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+  if std_url_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then
     X_OK=1
   else
     std_url_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-url gate SKIP .x smoke (no shux)" >&2
+  echo "std-url gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

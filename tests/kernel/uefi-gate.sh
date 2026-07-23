@@ -46,7 +46,7 @@ echo "  UEFI boot path requirements:"
 echo "    - UEFI application: PE32+ with EFI subsystem (not ELF)"
 echo "    - UEFI protocol headers: EFI_SYSTEM_TABLE, EFI_BOOT_SERVICES, etc."
 echo "    - QEMU: -drive if=pflash,format=raw,file=edk2-x86_64-code.fd"
-echo "    - shux-c generates C; zig cc -target x86_64-windows-gnu for PE32+"
+echo "    - xlang-c generates C; zig cc -target x86_64-windows-gnu for PE32+"
 echo "    - Full UEFI app: future work (needs EFI headers + efi_main entry)"
 
 echo ""

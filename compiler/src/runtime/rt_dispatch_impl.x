@@ -76,12 +76,12 @@ export extern "C" function driver_dispatch_run_compiler_parsed(
   target: *u8, opt_level: *u8, use_lto: i32, argc: i32, argv: *u8): i32;
 export extern "C" function driver_dispatch_opt_default(): *u8;
 
-/** Allocate a heap C string "SHUX_LTO\0" (byte-built; no string-literal dependency).
+/** Allocate a heap C string "XLANG_LTO\0" (byte-built; no string-literal dependency).
  * Returns malloc'd pointer or null on OOM. Caller must free when done.
- * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_env_shux_lto).
+ * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_env_xlang_lto).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
-export function rt_di_env_shux_lto(): *u8 {
+export function rt_di_env_xlang_lto(): *u8 {
   let p: *u8 = 0 as *u8;
   unsafe {
     p = malloc(16 as usize);
@@ -141,8 +141,8 @@ export function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * Effective LTO enable: explicit use_lto, or SHUX_LTO equal to "1".
- * Frees the temporary env-name buffer from rt_di_env_shux_lto after lookup.
+ * Effective LTO enable: explicit use_lto, or XLANG_LTO equal to "1".
+ * Frees the temporary env-name buffer from rt_di_env_xlang_lto after lookup.
  * @param use_lto i32 — explicit CLI/driver LTO flag; non-zero forces enable
  * @return i32 — 1 LTO on, 0 off
  * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_effective_use_lto).
@@ -156,7 +156,7 @@ export function rt_di_effective_use_lto(use_lto: i32): i32 {
   if (use_lto != 0) {
     return 1;
   }
-  env_name = rt_di_env_shux_lto();
+  env_name = rt_di_env_xlang_lto();
   if (env_name == 0 as *u8) {
     return 0;
   }

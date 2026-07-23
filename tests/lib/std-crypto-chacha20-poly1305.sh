@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-crypto-chacha20-poly1305.sh — STD-113 manifest 与烟测辅助
 
-STD_CRYPTO_CHACHA_PREFIX="${SHUX_STD113_CRYPTO_CHACHA_PREFIX:-shux: [SHUX_STD113_CRYPTO_CHACHA]}"
+STD_CRYPTO_CHACHA_PREFIX="${XLANG_STD113_CRYPTO_CHACHA_PREFIX:-xlang: [XLANG_STD113_CRYPTO_CHACHA]}"
 # shellcheck source=tests/lib/std-crypto.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
@@ -42,10 +42,10 @@ std_crypto_chacha_symbols_ok() {
 }
 
 std_crypto_chacha_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_crypto_chacha_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_crypto_chacha_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-crypto-chacha FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -61,7 +61,7 @@ std_crypto_chacha_run_smoke() {
 std_crypto_chacha_run_c_smoke() {
   local crypto_o="$1"
   local src="tests/std-crypto/chacha_smoke_ok.c"
-  local out="/tmp/shux_std_crypto_chacha_c_$$"
+  local out="/tmp/xlang_std_crypto_chacha_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

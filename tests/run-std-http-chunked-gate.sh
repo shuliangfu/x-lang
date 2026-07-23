@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_HTTP_CHUNKED_DOC:-analysis/std-http-chunked-v1.md}"
-MANIFEST="${SHUX_STD_HTTP_CHUNKED_TSV:-tests/baseline/std-http-chunked.tsv}"
+DOC="${XLANG_STD_HTTP_CHUNKED_DOC:-analysis/std-http-chunked-v1.md}"
+MANIFEST="${XLANG_STD_HTTP_CHUNKED_TSV:-tests/baseline/std-http-chunked.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 CHUNKED_INC="compiler/seeds/http/http_chunked.inc"
@@ -83,35 +83,35 @@ CHUNKED_OK=0
 KEEPALIVE_OK=0
 TYPECK_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-033: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-033: typeck + smoke (XLANG=$XLANG_BIN) ==="
   if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
     export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   for x in "$SMOKE" "$BENCH"; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-http-chunked gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
       std_http_chunked_emit_report "fail" 0 0 0 0
       exit 1
     fi
   done
   TYPECK_OK=1
-  exe="/tmp/shux_std_http_chunked_$$"
+  exe="/tmp/xlang_std_http_chunked_$$"
   set +e
-  link_log=$("$SHUX_BIN" -L . "$SMOKE" -o "$exe" 2>&1)
+  link_log=$("$XLANG_BIN" -L . "$SMOKE" -o "$exe" 2>&1)
   link_ec=$?
   set -e
   if [ "$link_ec" -eq 0 ]; then
@@ -129,7 +129,7 @@ if [ -n "$SHUX_BIN" ]; then
       std_http_chunked_emit_report "fail" 0 0 "$TYPECK_OK" 0
       exit 1
     fi
-  elif echo "$link_log" | grep -qE "library 'zstd' not found|shux_panic_"; then
+  elif echo "$link_log" | grep -qE "library 'zstd' not found|xlang_panic_"; then
     echo "std-http-chunked gate SKIP runnable link (typeck passed)" >&2
     SKIP=1
   else
@@ -139,7 +139,7 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
 else
-  echo "std-http-chunked gate SKIP smoke (no native shux-c)" >&2
+  echo "std-http-chunked gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 std_http_chunked_emit_report "ok" "$CHUNKED_OK" "$KEEPALIVE_OK" "$TYPECK_OK" "$SKIP"

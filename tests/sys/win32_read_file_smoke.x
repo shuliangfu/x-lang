@@ -6,11 +6,11 @@ const sys = import("std.sys");
  * @return i32
  */
 function main(): i32 {
-  /* "shux_win32_read_gate.txt\0" — relative path resolved from CWD.
+  /* "xlang_win32_read_gate.txt\0" — relative path resolved from CWD.
    * Why: Win32 CreateFileA does not recognize MSYS2 /tmp/ mapping; absolute
    *      /tmp/ path fails with ERROR_PATH_NOT_FOUND. The gate script writes
    *      this file to CWD before exec, so relative path works on Windows.
-   * Invariant: gate script must write shux_win32_read_gate.txt to the
+   * Invariant: gate script must write xlang_win32_read_gate.txt to the
    *            working directory before invoking this binary. */
   let path: u8[30] = [
     115, 104, 117, 120, 95, 119, 105, 110, 51, 50, 95, 114, 101, 97, 100, 95,

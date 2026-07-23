@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD137_DOC:-analysis/std-sqlite-blob-stream-v1.md}"
-MANIFEST="${SHUX_STD137_TSV:-tests/baseline/std-sqlite-blob-stream.tsv}"
-VECTORS="${SHUX_STD137_VECTORS:-tests/baseline/std-sqlite-blob-stream-vectors.tsv}"
+DOC="${XLANG_STD137_DOC:-analysis/std-sqlite-blob-stream-v1.md}"
+MANIFEST="${XLANG_STD137_TSV:-tests/baseline/std-sqlite-blob-stream.tsv}"
+VECTORS="${XLANG_STD137_VECTORS:-tests/baseline/std-sqlite-blob-stream-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-blob-stream.sh"
@@ -74,9 +74,9 @@ echo "std-sqlite-blob-stream manifest OK"
 
 echo "=== STD-137: parent STD-069 manifest ==="
 chmod +x tests/run-std-sqlite-row-col-blob-gate.sh
-SHUX_STD069_MANIFEST_ONLY=1 ./tests/run-std-sqlite-row-col-blob-gate.sh
+XLANG_STD069_MANIFEST_ONLY=1 ./tests/run-std-sqlite-row-col-blob-gate.sh
 
-if [ "${SHUX_STD137_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD137_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_blob_stream_emit_report "ok" 0 0 1
   echo "std-sqlite-blob-stream gate OK (manifest only)"
   exit 0
@@ -100,7 +100,7 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHUX_BIN=""
+  XLANG_BIN=""
   stdlib_cm_native_shu() {
     local f="$1"
     [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -112,18 +112,18 @@ if std_sqlite_probe_libs; then
       *) return 0 ;;
     esac
   }
-  if stdlib_cm_native_shu ./compiler/shux-c; then
-    SHUX_BIN=./compiler/shux-c
-  elif stdlib_cm_native_shu ./compiler/shux; then
-    SHUX_BIN=./compiler/shux
+  if stdlib_cm_native_shu ./compiler/xlang-c; then
+    XLANG_BIN=./compiler/xlang-c
+  elif stdlib_cm_native_shu ./compiler/xlang; then
+    XLANG_BIN=./compiler/xlang
   fi
 
-  if [ -n "$SHUX_BIN" ]; then
-    echo "=== STD-137: .x blob stream smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if [ -n "$XLANG_BIN" ]; then
+    echo "=== STD-137: .x blob stream smoke (XLANG=$XLANG_BIN) ==="
+    if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
       echo "std-sqlite-blob-stream gate SKIP .x smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "blobstream"; then
+    elif std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "blobstream"; then
       STREAM_X=1
       SKIP=0
     else
@@ -131,7 +131,7 @@ if std_sqlite_probe_libs; then
       SKIP=1
     fi
   else
-    echo "std-sqlite-blob-stream gate SKIP .x smoke (no native shux)" >&2
+    echo "std-sqlite-blob-stream gate SKIP .x smoke (no native xlang)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o

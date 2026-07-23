@@ -54,7 +54,7 @@
     ],
     "only_x": ["runtime_thread_glue_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_RUNTIME_THREAD_GLUE_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_THREAD_GLUE_FROM_X",
   "impl_residuals": [
     "shu_cpu_zero_impl",
     "shu_cpu_set_impl"

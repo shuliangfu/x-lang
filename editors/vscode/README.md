@@ -1,10 +1,10 @@
-# Shux Language
+# Xlang Language
 
-A complete development experience extension for `.x` (Shux) language in VS Code, Cursor, and Trae IDE.
+A complete development experience extension for `.x` (Xlang) language in VS Code, Cursor, and Trae IDE.
 
 **Version**: `0.1.0` · **Engine**: VS Code / Cursor / Trae `^1.75.0` · **License**: Apache-2.0
 
-> The extension UI itself supports 14 languages via `shux.locale` (auto / en / zh-cn / zh-tw / ja / ko / de / fr / es / ru / pt-br / it / tr / pl). This README is provided in English only to avoid dual-authority drift.
+> The extension UI itself supports 14 languages via `xlang.locale` (auto / en / zh-cn / zh-tw / ja / ko / de / fr / es / ru / pt-br / it / tr / pl). This README is provided in English only to avoid dual-authority drift.
 
 ---
 
@@ -28,15 +28,15 @@ A complete development experience extension for `.x` (Shux) language in VS Code,
 ## Quick Start
 
 1. **Install the extension** — from `.vsix`, or run in debug mode (see [Development & Packaging](#development--packaging)).
-2. **Open the project root** — `File → Open Folder`, select the shux repository root (containing `compiler/`, `core/`, `std/`).
+2. **Open the project root** — `File → Open Folder`, select the xlang repository root (containing `compiler/`, `core/`, `std/`).
    LSP requires a workspace folder; opening a single file still enables syntax highlighting and snippets, but diagnostics, navigation, and completion won't start.
-3. **Prepare the `shux` compiler** — if `compiler/shux` already exists and supports `--lsp`, skip this step; otherwise run in the repo root:
+3. **Prepare the `xlang` compiler** — if `compiler/xlang` already exists and supports `--lsp`, skip this step; otherwise run in the repo root:
    ```bash
    make -C compiler bootstrap-driver-seed
    ```
-   Verify `compiler/shux` exists and supports `--lsp` (the `shux-c` seed compiler does **not** support LSP).
-4. **Open any `.x` file** — the extension auto-starts `shux --lsp`; parse/typeck diagnostics appear in the Problems panel.
-5. **Build** — `Ctrl+Shift+B` (Mac: `Cmd+Shift+B`) runs `shux build`.
+   Verify `compiler/xlang` exists and supports `--lsp` (the `xlang-c` seed compiler does **not** support LSP).
+4. **Open any `.x` file** — the extension auto-starts `xlang --lsp`; parse/typeck diagnostics appear in the Problems panel.
+5. **Build** — `Ctrl+Shift+B` (Mac: `Cmd+Shift+B`) runs `xlang build`.
 
 ### Recommended Workspace Settings
 
@@ -44,8 +44,8 @@ Override defaults in `.vscode/settings.json` (for multi-repo or non-standard lay
 
 ```json
 {
-  "shux.serverPath": "compiler/shux",
-  "shux.compiler.libRoots": [".", "compiler/src", "core", "std"]
+  "xlang.serverPath": "compiler/xlang",
+  "xlang.compiler.libRoots": [".", "compiler/src", "core", "std"]
 }
 ```
 
@@ -55,31 +55,31 @@ See [Configuration](#configuration) for all 32 settings.
 
 ## Features
 
-Capabilities fall into two categories: **Extension Built-in** (no LSP required) and **Language Server (LSP)** (`shux --lsp`, requires workspace + executable `shux`).
+Capabilities fall into two categories: **Extension Built-in** (no LSP required) and **Language Server (LSP)** (`xlang --lsp`, requires workspace + executable `xlang`).
 
 ### Extension Built-in
 
 | Category | Capability |
 |----------|-----------|
 | **Editor Basics** | Syntax highlighting (including `region`/`with_arena`/`export`/`packed`/`soa`/`align`/`type`/`run`/`spawn`/`unsafe` keywords, `#[no_mangle]`/`#[cfg(...)]`/`#[repr(C)]`/`#[soa]`/`#[alloc]` attributes, `extern "C"`/`extern "X"` ABI annotations, `T[]<label>` lifetime tags, `i8`/`i16`/`u16` narrow ints); 36 snippets; auto-closing brackets/quotes; `//` / `#` / `/* */` comments; indentation rules via `language-configuration.json` |
-| **Real-time Indent** | Lightweight alignment on typing `{` / `}` / Enter / `:` (`shux.features.formatOnType`, coexists with LSP formatting) |
+| **Real-time Indent** | Lightweight alignment on typing `{` / `}` / Enter / `:` (`xlang.features.formatOnType`, coexists with LSP formatting) |
 | **Smart Selection** | `Ctrl+Shift+→` (Mac same) progressive expansion: word → line → `{}` block → entire document |
 | **Semantic Folding** | Function bodies, structs, enums, traits, impls, comment blocks fold independently; `region`/`with_arena`/`unsafe` blocks tagged as Region kind |
-| **Import Navigation** | `import lexer;` and other module paths are Ctrl+Click navigable to corresponding `.x` files (depends on `shux.compiler.libRoots`) |
+| **Import Navigation** | `import lexer;` and other module paths are Ctrl+Click navigable to corresponding `.x` files (depends on `xlang.compiler.libRoots`) |
 | **CodeLens** | `▶ Run` above `main`; struct/enum field/variant counts; trait method counts; optional `fn` / `extern fn` labels; recognizes `export`/`packed`/`soa`/`align(N)`/`extern "C"` prefixes |
-| **Status Bar** | Bottom-right `Shux · fn N · st N · en N · tr N · im N · ty N` symbol counts; `○` indicator when LSP disconnected; `· ✗ N · ⚠ N` diagnostics appended when errors/warnings exist |
+| **Status Bar** | Bottom-right `Xlang · fn N · st N · en N · tr N · im N · ty N` symbol counts; `○` indicator when LSP disconnected; `· ✗ N · ⚠ N` diagnostics appended when errors/warnings exist |
 | **Global Symbol Search** | `Ctrl+T` searches all `.x` files in workspace for top-level function/struct/enum/trait/impl/type declarations (extension-side local implementation, no LSP dependency) |
 | **Document Highlight** | Same-identifier highlighting (Read/Write semantic distinction, highlights all references when cursor is on a variable) |
 | **Code Action** | Lightbulb: missing semicolon/bracket QuickFix, comment selection Refactor |
-| **Build Tasks** | `shux build` / `build (current file)` / `run` / `check`, output auto-parsed into Problems panel |
+| **Build Tasks** | `xlang build` / `build (current file)` / `run` / `check`, output auto-parsed into Problems panel |
 | **Format Triggers** | Format on save / paste (`[x]` language defaults enabled); `maxLineLength` passed to LSP formatter |
-| **i18n** | 14 UI languages: auto/en/zh-cn/zh-tw/ja/ko/de/fr/es/ru/pt-br/it/tr/pl, `shux.locale` overrides VS Code `--locale` |
-| **File Icons** | `.x` files, `main.x`, `mod.x`, `compiler/`/`src/` folders have dedicated icons (Shux Icons theme) |
+| **i18n** | 14 UI languages: auto/en/zh-cn/zh-tw/ja/ko/de/fr/es/ru/pt-br/it/tr/pl, `xlang.locale` overrides VS Code `--locale` |
+| **File Icons** | `.x` files, `main.x`, `mod.x`, `compiler/`/`src/` folders have dedicated icons (Xlang Icons theme) |
 | **Walkthrough** | 4-step first-run guide: open project → build compiler → open .x file → run file |
 
 ### Language Server (LSP)
 
-Provided by `shux --lsp`; the extension pulls `textDocument/diagnostic` on edit/tab-switch via Pull diagnostics:
+Provided by `xlang --lsp`; the extension pulls `textDocument/diagnostic` on edit/tab-switch via Pull diagnostics:
 
 | Capability | Description |
 |-----------|-------------|
@@ -89,7 +89,7 @@ Provided by `shux --lsp`; the extension pulls `textDocument/diagnostic` on edit/
 | **Hover** | Function signatures, struct fields, type information |
 | **Completion** | Keywords, current-file and cross-module symbols, types, paths |
 | **Signature Help** | Parameter list after `func(`, `,` switches active parameter |
-| **Formatting** | `Shift+Option+F` / on save / on paste (`shux.format.*` controls style, including `maxLineLength`) |
+| **Formatting** | `Shift+Option+F` / on save / on paste (`xlang.format.*` controls style, including `maxLineLength`) |
 | **Rename** | `F2` or right-click Rename Symbol, cross-file rename |
 | **Semantic Highlighting** | Semantic-level highlighting (variables/calls/structs overlaid on syntax highlighting, `[x]` default on) |
 | **Document Symbol** | Top-level functions, structs, enums (outline; jump targets are placeholders pending LSP enhancement) |
@@ -109,30 +109,30 @@ Provided by `shux --lsp`; the extension pulls `textDocument/diagnostic` on edit/
 
 ## Configuration
 
-Open settings with `Ctrl+,` (Mac: `Cmd+,`) and search **Shux**. There are **32** settings across 7 groups: Language / LSP Server / Formatting / Feature Toggles / Compiler / Build / Workspace Symbol.
+Open settings with `Ctrl+,` (Mac: `Cmd+,`) and search **Xlang**. There are **32** settings across 7 groups: Language / LSP Server / Formatting / Feature Toggles / Compiler / Build / Workspace Symbol.
 
 ### Language
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `shux.locale` | UI language: `auto` (follow VS Code `--locale`) / `en` / `zh-cn` / `zh-tw` / `ja` / `ko` / `de` / `fr` / `es` / `ru` / `pt-br` / `it` / `tr` / `pl` | `auto` |
+| `xlang.locale` | UI language: `auto` (follow VS Code `--locale`) / `en` / `zh-cn` / `zh-tw` / `ja` / `ko` / `de` / `fr` / `es` / `ru` / `pt-br` / `it` / `tr` / `pl` | `auto` |
 
 ### LSP Server
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `shux.serverPath` | `shux` executable path. Supports absolute path, relative workspace path (e.g. `compiler/shux`), or `shux` (PATH lookup; auto-uses `compiler/shux` if present in workspace) | `compiler/shux` |
-| `shux.server.trace` | LSP communication log: `off` / `messages` / `verbose`, output to **Shux** channel | `off` |
-| `shux.server.restartOnCrash` | Auto-restart language server process on crash | `true` |
+| `xlang.serverPath` | `xlang` executable path. Supports absolute path, relative workspace path (e.g. `compiler/xlang`), or `xlang` (PATH lookup; auto-uses `compiler/xlang` if present in workspace) | `compiler/xlang` |
+| `xlang.server.trace` | LSP communication log: `off` / `messages` / `verbose`, output to **Xlang** channel | `off` |
+| `xlang.server.restartOnCrash` | Auto-restart language server process on crash | `true` |
 
 ### Formatting
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `shux.format.enabled` | Enable LSP formatting (when disabled, Format Document is inactive for `.x`) | `true` |
-| `shux.format.tabSize` | Indent spaces (1–16) | `2` |
-| `shux.format.insertSpaces` | Use spaces instead of tabs | `true` |
-| `shux.format.maxLineLength` | Line width limit, passed to LSP formatter (20–512) | `100` |
+| `xlang.format.enabled` | Enable LSP formatting (when disabled, Format Document is inactive for `.x`) | `true` |
+| `xlang.format.tabSize` | Indent spaces (1–16) | `2` |
+| `xlang.format.insertSpaces` | Use spaces instead of tabs | `true` |
+| `xlang.format.maxLineLength` | Line width limit, passed to LSP formatter (20–512) | `100` |
 
 `[x]` language defaults: `editor.defaultFormatter` = this extension, `editor.formatOnSave` / `editor.formatOnPaste` = `true`.
 
@@ -140,47 +140,47 @@ Open settings with `Ctrl+,` (Mac: `Cmd+,`) and search **Shux**. There are **32**
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `shux.features.folding` | Semantic code folding | `true` |
-| `shux.features.codeLens` | CodeLens (▶ Run, struct/enum/trait counts) | `true` |
-| `shux.features.codeLensFunctionLabels` | Show `fn` / `extern fn` labels above `function` / `extern function` lines | `false` |
-| `shux.features.codeLensRunButton` | `▶ Run` button above `function main` (constrained by `codeLens` master switch) | `true` |
-| `shux.features.codeLensStructInfo` | struct/enum/trait/impl/type field/variant/method counts (constrained by `codeLens` master switch) | `true` |
-| `shux.features.formatOnType` | Real-time indent on typing (OnTypeFormatting, not full formatting) | `true` |
-| `shux.features.documentLinks` | Clickable import path navigation | `true` |
-| `shux.features.statusBar` | Status bar symbol statistics | `true` |
-| `shux.features.statusBarDiagnostics` | Status bar error/warning counts for current file (constrained by `statusBar` master switch) | `true` |
-| `shux.features.statusBarLspStatus` | Status bar LSP connection indicator (constrained by `statusBar` master switch) | `true` |
-| `shux.features.selectionRange` | Smart selection expansion | `true` |
-| `shux.features.documentHighlight` | Same-identifier highlighting (Read/Write semantic distinction) | `true` |
-| `shux.features.codeAction` | Lightbulb suggestions (QuickFix + Refactor) | `true` |
-| `shux.features.workspaceSymbol` | Global symbol search (Ctrl+T/Cmd+T), scans workspace `.x` top-level declarations | `true` |
+| `xlang.features.folding` | Semantic code folding | `true` |
+| `xlang.features.codeLens` | CodeLens (▶ Run, struct/enum/trait counts) | `true` |
+| `xlang.features.codeLensFunctionLabels` | Show `fn` / `extern fn` labels above `function` / `extern function` lines | `false` |
+| `xlang.features.codeLensRunButton` | `▶ Run` button above `function main` (constrained by `codeLens` master switch) | `true` |
+| `xlang.features.codeLensStructInfo` | struct/enum/trait/impl/type field/variant/method counts (constrained by `codeLens` master switch) | `true` |
+| `xlang.features.formatOnType` | Real-time indent on typing (OnTypeFormatting, not full formatting) | `true` |
+| `xlang.features.documentLinks` | Clickable import path navigation | `true` |
+| `xlang.features.statusBar` | Status bar symbol statistics | `true` |
+| `xlang.features.statusBarDiagnostics` | Status bar error/warning counts for current file (constrained by `statusBar` master switch) | `true` |
+| `xlang.features.statusBarLspStatus` | Status bar LSP connection indicator (constrained by `statusBar` master switch) | `true` |
+| `xlang.features.selectionRange` | Smart selection expansion | `true` |
+| `xlang.features.documentHighlight` | Same-identifier highlighting (Read/Write semantic distinction) | `true` |
+| `xlang.features.codeAction` | Lightbulb suggestions (QuickFix + Refactor) | `true` |
+| `xlang.features.workspaceSymbol` | Global symbol search (Ctrl+T/Cmd+T), scans workspace `.x` top-level declarations | `true` |
 
 ### Compiler
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `shux.compiler.diagnosticLevel` | LSP minimum diagnostic level: `off` / `error` / `warning` / `info` | `warning` |
-| `shux.compiler.extraArgs` | Extra args passed to `shux --lsp` (string array), e.g. `["--verbose"]` | `[]` |
-| `shux.compiler.targetDir` | Compiler output directory (relative to workspace root), passed as `--target-dir` | `""` |
-| `shux.compiler.libRoots` | Import resolution library root directories, aligned with `shux -L` layout; used for import navigation and cross-module symbol indexing | `[".", "compiler/src", "core", "std"]` |
-| `shux.compiler.envJson` | Environment variables passed to `shux` process (**object**), e.g. `{ "SHUX_PATH": "/opt/shux" }` | `{}` |
+| `xlang.compiler.diagnosticLevel` | LSP minimum diagnostic level: `off` / `error` / `warning` / `info` | `warning` |
+| `xlang.compiler.extraArgs` | Extra args passed to `xlang --lsp` (string array), e.g. `["--verbose"]` | `[]` |
+| `xlang.compiler.targetDir` | Compiler output directory (relative to workspace root), passed as `--target-dir` | `""` |
+| `xlang.compiler.libRoots` | Import resolution library root directories, aligned with `xlang -L` layout; used for import navigation and cross-module symbol indexing | `[".", "compiler/src", "core", "std"]` |
+| `xlang.compiler.envJson` | Environment variables passed to `xlang` process (**object**), e.g. `{ "XLANG_PATH": "/opt/xlang" }` | `{}` |
 
 ### Build
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `shux.build.optimizationLevel` | `shux build` optimization level (via `-O<level>`): `0` / `1` / `2` / `3` | `"0"` |
-| `shux.build.debugInfo` | Generate debug info (`-g`), for debuggers and crash stack traces | `false` |
-| `shux.build.outputName` | Override output binary name (`-o <name>`). Empty uses compiler default | `""` |
+| `xlang.build.optimizationLevel` | `xlang build` optimization level (via `-O<level>`): `0` / `1` / `2` / `3` | `"0"` |
+| `xlang.build.debugInfo` | Generate debug info (`-g`), for debuggers and crash stack traces | `false` |
+| `xlang.build.outputName` | Override output binary name (`-o <name>`). Empty uses compiler default | `""` |
 
-Only applies to **Shux: Build Current .x File** and **Shux: Build Project** tasks; `run` tasks don't pass `-o` (to avoid overwriting temporary output).
+Only applies to **Xlang: Build Current .x File** and **Xlang: Build Project** tasks; `run` tasks don't pass `-o` (to avoid overwriting temporary output).
 
 ### Workspace Symbol
 
 | Setting | Description | Default |
 |---------|-------------|---------|
-| `shux.workspaceSymbol.maxFiles` | Max `.x` files to scan for global symbol search (100–50000) | `2000` |
-| `shux.workspaceSymbol.excludePatterns` | Extra exclude glob patterns (merged with defaults: `node_modules`/`.git`/`out`/`dist`/`target`/`build`) | `[]` |
+| `xlang.workspaceSymbol.maxFiles` | Max `.x` files to scan for global symbol search (100–50000) | `2000` |
+| `xlang.workspaceSymbol.excludePatterns` | Extra exclude glob patterns (merged with defaults: `node_modules`/`.git`/`out`/`dist`/`target`/`build`) | `[]` |
 
 After changing `serverPath`, `libRoots`, `diagnosticLevel`, `targetDir`, `envJson`, or `extraArgs`, the extension prompts to **restart the language server**; `server.trace` updates live without restart.
 
@@ -188,32 +188,32 @@ After changing `serverPath`, `libRoots`, `diagnosticLevel`, `targetDir`, `envJso
 
 ## Commands
 
-Search **Shux** in Command Palette (`Ctrl+Shift+P` / Mac: `Cmd+Shift+P`):
+Search **Xlang** in Command Palette (`Ctrl+Shift+P` / Mac: `Cmd+Shift+P`):
 
 | Command | Description |
 |---------|-------------|
-| **Shux: Restart Language Server** | Stop and restart `shux --lsp` |
-| **Shux: Show Language Server Output** | Open the **Shux** output channel (startup logs, LSP trace) |
-| **Shux: Open Settings (Workspace settings.json)** | Open workspace `.vscode/settings.json`; falls back to Settings UI if no workspace |
-| **Shux: Run Current .x File** | Execute `shux run` on current file (same as CodeLens ▶ Run) |
-| **Shux: Build Current .x File** | Execute `shux build` on current file (Build task group) |
-| **Shux: Check Current .x File** | Execute `shux check` on current file (Test task group) |
-| **Shux: Build Project** | Execute `shux build` (project-level build) |
-| **Shux: Format Document** | Trigger LSP formatting on current `.x` file |
-| **Shux: Refresh CodeLens** | Force-refresh CodeLens for current `.x` |
+| **Xlang: Restart Language Server** | Stop and restart `xlang --lsp` |
+| **Xlang: Show Language Server Output** | Open the **Xlang** output channel (startup logs, LSP trace) |
+| **Xlang: Open Settings (Workspace settings.json)** | Open workspace `.vscode/settings.json`; falls back to Settings UI if no workspace |
+| **Xlang: Run Current .x File** | Execute `xlang run` on current file (same as CodeLens ▶ Run) |
+| **Xlang: Build Current .x File** | Execute `xlang build` on current file (Build task group) |
+| **Xlang: Check Current .x File** | Execute `xlang check` on current file (Test task group) |
+| **Xlang: Build Project** | Execute `xlang build` (project-level build) |
+| **Xlang: Format Document** | Trigger LSP formatting on current `.x` file |
+| **Xlang: Refresh CodeLens** | Force-refresh CodeLens for current `.x` |
 
 ---
 
 ## Build Tasks & Error Navigation
 
-`Ctrl+Shift+B` runs **shux build** by default. The task panel (`Tasks: Run Task`) also provides:
+`Ctrl+Shift+B` runs **xlang build** by default. The task panel (`Tasks: Run Task`) also provides:
 
 | Task | Description |
 |------|-------------|
-| **shux build** | Project-level build |
-| **shux build (current file)** | `shux build <current file>` |
-| **shux run (current file)** | Run current file |
-| **shux check (current file)** | Type/syntax check current file |
+| **xlang build** | Project-level build |
+| **xlang build (current file)** | `xlang build <current file>` |
+| **xlang run (current file)** | Run current file |
+| **xlang check (current file)** | Type/syntax check current file |
 
 Compiler output is parsed via Problem Matcher, supporting formats like:
 
@@ -232,15 +232,15 @@ Click Problems panel entries to jump to the corresponding line/column.
 | Manual format | ✅ On | `Shift+Option+F` (Mac) / `Shift+Alt+F` (Win/Linux) or right-click → Format Document |
 | Format on save | ✅ On | Search `[x]` in settings → `Editor: Format On Save` |
 | Format on paste | ✅ On | Search `[x]` in settings → `Editor: Format On Paste` |
-| Indent on type | ✅ On | `shux.features.formatOnType` (not full formatting; only indent alignment on `{`/`}`/Enter; can be disabled) |
+| Indent on type | ✅ On | `xlang.features.formatOnType` (not full formatting; only indent alignment on `{`/`}`/Enter; can be disabled) |
 
-Line width limit is controlled by `shux.format.maxLineLength` (default 100); the extension passes it to the LSP formatter automatically.
+Line width limit is controlled by `xlang.format.maxLineLength` (default 100); the extension passes it to the LSP formatter automatically.
 
 ---
 
 ## Internationalization (i18n)
 
-The extension UI supports 14 languages via `shux.locale`:
+The extension UI supports 14 languages via `xlang.locale`:
 
 | Value | Language |
 |-------|----------|
@@ -259,15 +259,15 @@ The extension UI supports 14 languages via `shux.locale`:
 | `tr` | Turkish |
 | `pl` | Polish |
 
-When `shux.locale` is set to a non-`auto` value, the extension manually loads the corresponding language bundle, which takes precedence over VS Code `--locale`. No window reload required — the extension auto-reloads language bundles on change.
+When `xlang.locale` is set to a non-`auto` value, the extension manually loads the corresponding language bundle, which takes precedence over VS Code `--locale`. No window reload required — the extension auto-reloads language bundles on change.
 
 ---
 
 ## File Icon Theme
 
-The extension provides the **Shux Icons** icon theme, with dedicated icons for `.x` files, `main.x`, `mod.x`, and `compiler/`/`src/` folders.
+The extension provides the **Xlang Icons** icon theme, with dedicated icons for `.x` files, `main.x`, `mod.x`, and `compiler/`/`src/` folders.
 
-Enable: `Ctrl+Shift+P` → **Preferences: File Icon Theme** → select **Shux Icons**.
+Enable: `Ctrl+Shift+P` → **Preferences: File Icon Theme** → select **Xlang Icons**.
 
 ---
 
@@ -307,14 +307,14 @@ Enable: `Ctrl+Shift+P` → **Preferences: File Icon Theme** → select **Shux Ic
 
 | Symptom | Fix |
 |---------|-----|
-| No diagnostics / completion / navigation | Confirm **Open Folder** was used to open project root; check **Shux** output channel for startup errors |
-| `Current shux does not support --lsp` | `shux.serverPath` points to `shux-c`; change to bootstrap-built `compiler/shux` |
-| `compiler/shux not found` | Run `make -C compiler bootstrap-driver-seed` in repo root |
-| Import Ctrl+Click fails | Check `shux.compiler.libRoots` includes the module's directory; restart language server after changes |
-| LSP crashes frequently | Set `shux.server.trace` to `verbose`, reproduce, then check output; temporarily disable `shux.server.restartOnCrash` for debugging |
-| Config changes not taking effect | Server-related settings require **Shux: Restart Language Server**; the extension prompts when needed |
-| UI language doesn't switch | Set `shux.locale` to target language (not `auto`); extension auto-reloads language bundle |
-| Icons not showing | `Ctrl+Shift+P` → **Preferences: File Icon Theme** → select **Shux Icons** |
+| No diagnostics / completion / navigation | Confirm **Open Folder** was used to open project root; check **Xlang** output channel for startup errors |
+| `Current xlang does not support --lsp` | `xlang.serverPath` points to `xlang-c`; change to bootstrap-built `compiler/xlang` |
+| `compiler/xlang not found` | Run `make -C compiler bootstrap-driver-seed` in repo root |
+| Import Ctrl+Click fails | Check `xlang.compiler.libRoots` includes the module's directory; restart language server after changes |
+| LSP crashes frequently | Set `xlang.server.trace` to `verbose`, reproduce, then check output; temporarily disable `xlang.server.restartOnCrash` for debugging |
+| Config changes not taking effect | Server-related settings require **Xlang: Restart Language Server**; the extension prompts when needed |
+| UI language doesn't switch | Set `xlang.locale` to target language (not `auto`); extension auto-reloads language bundle |
+| Icons not showing | `Ctrl+Shift+P` → **Preferences: File Icon Theme** → select **Xlang Icons** |
 
 ---
 
@@ -339,14 +339,14 @@ npm run compile          # outputs out/extension.js
 2. Go to **Run and Debug** (`Ctrl+Shift+D`)
 3. Select **Launch Extension** and press `F5`
 4. A new Extension Development Host window opens
-5. Open the shux repository root in the new window to test
+5. Open the xlang repository root in the new window to test
 
 ### Package VSIX
 
 ```bash
 cd editors/vscode
 npm run compile
-npx vsce package          # generates vscode-shux-<version>.vsix
+npx vsce package          # generates vscode-xlang-<version>.vsix
 ```
 
 If `node` is not in PATH, use the full path: `/usr/local/bin/node npm run compile`.
@@ -354,7 +354,7 @@ If `node` is not in PATH, use the full path: `/usr/local/bin/node npm run compil
 ### Install VSIX
 
 1. `Ctrl+Shift+P` (Mac: `Cmd+Shift+P`) → **Extensions: Install from VSIX...**
-2. Select `vscode-shux-<version>.vsix`
+2. Select `vscode-xlang-<version>.vsix`
 3. **Developer: Reload Window** to reload
 
 ### Project Structure
@@ -375,7 +375,7 @@ editors/vscode/
 │   ├── selection.ts          # Smart selection range provider
 │   ├── documentHighlight.ts  # Same-identifier highlight provider
 │   ├── codeAction.ts         # CodeAction (QuickFix + Refactor) provider
-│   ├── shuxPath.ts           # shux executable path resolution
+│   ├── xlangPath.ts           # xlang executable path resolution
 │   ├── configSettings.ts     # Config readers (envJson/extraArgs/libRoots)
 │   └── importResolve.ts      # Import path resolution
 ├── syntaxes/
@@ -384,7 +384,7 @@ editors/vscode/
 ├── snippets/
 │   └── x.json                # 36 code snippets
 ├── fileicons/
-│   └── shux-icon-theme.json  # Shux Icons theme
+│   └── xlang-icon-theme.json  # Xlang Icons theme
 ├── package.json              # Extension manifest (32 configurations)
 ├── package.nls.json          # English config descriptions
 ├── package.nls.zh-cn.json    # Chinese config descriptions
@@ -397,7 +397,7 @@ editors/vscode/
 1. Fork the repository and create a feature branch
 2. Make changes following the existing code style
 3. Run `npm run compile` to verify no TypeScript errors
-4. Test with `F5` (Launch Extension) in a real shux workspace
+4. Test with `F5` (Launch Extension) in a real xlang workspace
 5. Submit a pull request with a clear description of changes
 
 ---
@@ -405,13 +405,13 @@ editors/vscode/
 ## Requirements
 
 - VS Code / Cursor / Trae IDE `^1.75.0`
-- A runnable `shux` binary (in PATH or via `shux.serverPath`; must support `--lsp`) for LSP and build tasks
-- Recommended: open the shux monorepo or your Shux project root as a **folder** (not individual files)
+- A runnable `xlang` binary (in PATH or via `xlang.serverPath`; must support `--lsp`) for LSP and build tasks
+- Recommended: open the xlang monorepo or your Xlang project root as a **folder** (not individual files)
 
 ---
 
 ## Links
 
-- **Repository**: <https://github.com/shuliangfu/shux>
+- **Repository**: <https://github.com/shuliangfu/xlang>
 - **License**: Apache-2.0
 - **Roadmap**: See [完善功能.md](./完善功能.md) for feature completion status and LSP enhancement plans (post-bootstrap)

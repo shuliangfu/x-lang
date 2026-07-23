@@ -5,7 +5,7 @@
 #   std_mve_symbols_ok MAP_X VEC_X HEAP_X TSV
 #   std_mve_emit_report status map_ok vec_ok skip
 
-STD_MVE_PREFIX="${SHUX_STD_MAP_VEC_EXTEND_PREFIX:-shux: [SHUX_STD_MAP_VEC_EXTEND]}"
+STD_MVE_PREFIX="${XLANG_STD_MAP_VEC_EXTEND_PREFIX:-xlang: [XLANG_STD_MAP_VEC_EXTEND]}"
 
 # 校验 manifest symbol 锚点；echo 缺失数，成功返回 0。
 std_mve_symbols_ok() {

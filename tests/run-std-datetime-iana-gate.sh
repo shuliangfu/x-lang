@@ -36,27 +36,27 @@ ensure_std_c_o ../std/datetime/datetime.o
 ensure_std_c_o ../std/time/time.o
 DT_O="$(cd compiler && pwd)/../std/datetime/datetime.o"
 TIME_O="$(cd compiler && pwd)/../std/time/time.o"
-OUT="/tmp/shux_std_dt_iana_c_$$"
+OUT="/tmp/xlang_std_dt_iana_c_$$"
 if nm std/time/time.o 2>/dev/null | grep -qF 'time_now_wall_sec_c'; then
-  cat > /tmp/shux_std_dt_iana_c_main.c <<'EOF'
+  cat > /tmp/xlang_std_dt_iana_c_main.c <<'EOF'
 #include <stdint.h>
 extern int32_t datetime_iana_dst_smoke_c(void);
 int main(void) { return datetime_iana_dst_smoke_c() != 0; }
 EOF
   make -C compiler runtime_time_os.o >/dev/null 2>&1 || true
-  cc -std=c11 -O1 -o "$OUT" /tmp/shux_std_dt_iana_c_main.c "$DT_O" "$TIME_O" compiler/runtime_time_os.o
+  cc -std=c11 -O1 -o "$OUT" /tmp/xlang_std_dt_iana_c_main.c "$DT_O" "$TIME_O" compiler/runtime_time_os.o
   "$OUT" || { echo "std-datetime-iana FAIL: C smoke" >&2; rm -f "$OUT"; exit 1; }
-  rm -f "$OUT" /tmp/shux_std_dt_iana_c_main.c
+  rm -f "$OUT" /tmp/xlang_std_dt_iana_c_main.c
 else
-  echo "std-datetime-iana gate SKIP c smoke (time.o missing time_now_wall_sec_c; need shux-c)" >&2
+  echo "std-datetime-iana gate SKIP c smoke (time.o missing time_now_wall_sec_c; need xlang-c)" >&2
 fi
 
-if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . tests/lib/bootstrap-link-shux.sh
-  EXE="/tmp/shux_std_dt_iana_x_$$"
-  $RUN_SHUX build -L . "$SMOKE_X" -o "$EXE" >/dev/null
+if [ -x ./compiler/xlang-c ]; then
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . tests/lib/bootstrap-link-xlang.sh
+  EXE="/tmp/xlang_std_dt_iana_x_$$"
+  $RUN_XLANG build -L . "$SMOKE_X" -o "$EXE" >/dev/null
   "$EXE" || { echo "std-datetime-iana FAIL: x smoke" >&2; rm -f "$EXE"; exit 1; }
   rm -f "$EXE"
 fi

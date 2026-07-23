@@ -52,18 +52,18 @@ native_shu() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "std-net-api gate SKIP smoke (no native shux; manifest OK only)"
+if [ -z "$XLANG_BIN" ]; then
+  echo "std-net-api gate SKIP smoke (no native xlang; manifest OK only)"
   echo "std-net-api gate OK (manifest)"
   exit 0
 fi
@@ -82,7 +82,7 @@ fi
 
 echo "=== STD-002: std.net smoke (run-net.sh) ==="
 chmod +x tests/run-net.sh
-if SHUX="$SHUX_BIN" ./tests/run-net.sh; then
+if XLANG="$XLANG_BIN" ./tests/run-net.sh; then
   echo "std-net-api gate OK"
   exit 0
 fi

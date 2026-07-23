@@ -3,19 +3,19 @@
 //
 // G-02f-270 / P2 link_abi L3: path liveness thin shell → R2 full.
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_io.from_x.c.
-// Hybrid macro SHUX_LABI_PATH_IO_FROM_X (FROM_X rest business H=0, marker only).
+// Hybrid macro XLANG_LABI_PATH_IO_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: .x owns 6 public gates + count:
-//   - shux_path_is_nonempty_regular_file → _impl (stat Cap residual mega rest)
+//   - xlang_path_is_nonempty_regular_file → _impl (stat Cap residual mega rest)
 //   - asm_link_obj_skip_missing: composes nonempty check
-//   - shux_runtime_o_realpath_if_exists → _impl (realpath+skip Cap residual)
+//   - xlang_runtime_o_realpath_if_exists → _impl (realpath+skip Cap residual)
 //   - link_abi_path_readable → _impl (access R_OK Cap residual; wave209)
 //   - link_abi_realpath_cap → _impl (POSIX realpath / Windows null; wave218)
 //   - link_abi_path_executable → _impl (access X_OK Cap residual; wave221)
 // No struct stat layout; no libc realpath/access prototype here (avoids *u8 vs char* clash).
 
-export extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
-export extern "C" function shux_runtime_o_realpath_if_exists_impl(path: *u8, resolved: *u8): *u8;
+export extern "C" function xlang_path_is_nonempty_regular_file_impl(path: *u8): i32;
+export extern "C" function xlang_runtime_o_realpath_if_exists_impl(path: *u8, resolved: *u8): *u8;
 /* Cap residual (wave209): host access(path, R_OK) only; pure owns null/empty gates. */
 export extern "C" function link_abi_path_readable_impl(path: *u8): i32;
 /* Cap residual (wave218): host realpath(path, out) on POSIX; Windows always null. */
@@ -32,7 +32,7 @@ export extern "C" function link_abi_path_executable_impl(path: *u8): i32;
  * PLATFORM: residual does stat (POSIX/host).
  */
 #[no_mangle]
-export function shux_path_is_nonempty_regular_file(path: *u8): i32 {
+export function xlang_path_is_nonempty_regular_file(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
@@ -40,7 +40,7 @@ export function shux_path_is_nonempty_regular_file(path: *u8): i32 {
     return 0;
   }
   unsafe {
-    return shux_path_is_nonempty_regular_file_impl(path);
+    return xlang_path_is_nonempty_regular_file_impl(path);
   }
   return 0;
 }
@@ -49,7 +49,7 @@ export function shux_path_is_nonempty_regular_file(path: *u8): i32 {
  * Return path if it is a nonempty regular file; else null (skip missing link objs).
  * Params: path — candidate object path.
  * Returns: path on success, null if missing/empty/null.
- * Contracts: composes shux_path_is_nonempty_regular_file; no realpath.
+ * Contracts: composes xlang_path_is_nonempty_regular_file; no realpath.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
@@ -60,7 +60,7 @@ export function asm_link_obj_skip_missing(path: *u8): *u8 {
   if (path[0] == 0) {
     return 0 as *u8;
   }
-  if (shux_path_is_nonempty_regular_file(path) == 0) {
+  if (xlang_path_is_nonempty_regular_file(path) == 0) {
     return 0 as *u8;
   }
   return path;
@@ -75,7 +75,7 @@ export function asm_link_obj_skip_missing(path: *u8): *u8 {
  * PLATFORM: residual realpath (host libc).
  */
 #[no_mangle]
-export function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8 {
+export function xlang_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8 {
   if (path == 0 as *u8) {
     return 0 as *u8;
   }
@@ -86,7 +86,7 @@ export function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8
     return 0 as *u8;
   }
   unsafe {
-    return shux_runtime_o_realpath_if_exists_impl(path, resolved);
+    return xlang_runtime_o_realpath_if_exists_impl(path, resolved);
   }
   return 0 as *u8;
 }
@@ -155,7 +155,7 @@ export function link_abi_realpath_cap(path: *u8, out: *u8): *u8 {
  * Cap residual: link_abi_path_executable_impl (host access X_OK; mega always).
  * Why (wave221): formal_std ensure still used raw access(path, X_OK) under hybrid;
  * G.7 single public authority under L3 hybrid (sibling of path_readable R_OK).
- * Product host binary probe (SHUX env / compiler/{shux_asm,shux,shux-c}) uses this face.
+ * Product host binary probe (XLANG env / compiler/{xlang_asm,xlang,xlang-c}) uses this face.
  * PLATFORM: SHARED orch; residual access is POSIX/host (Windows hybrid via compat).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */

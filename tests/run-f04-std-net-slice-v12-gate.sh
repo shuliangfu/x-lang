@@ -2,11 +2,11 @@
 # F-04 v12：std.net socket/UDP 基础去 C 门禁。
 #
 # 用法：./tests/run-f04-std-net-slice-v12-gate.sh
-# 环境：SHUX_F04_NET_SLICE_V12_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_SLICE_V12_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_SLICE_V12_FAIL:-0}
+FAIL=${XLANG_F04_NET_SLICE_V12_FAIL:-0}
 DOC="analysis/phase-f-f04-v12.md"
 NET_C="std/net/net.c"
 
@@ -44,7 +44,7 @@ grep -q 'udp.x' compiler/Makefile || die "Makefile missing udp.x"
 if [ -f tests/run-f04-std-net-slice-v11-gate.sh ]; then
   echo "=== F-04 v12: delegate v11 gate ==="
   chmod +x tests/run-f04-std-net-slice-v11-gate.sh
-  if ! SHUX_F04_NET_SLICE_V11_FAIL="$FAIL" tests/run-f04-std-net-slice-v11-gate.sh; then
+  if ! XLANG_F04_NET_SLICE_V11_FAIL="$FAIL" tests/run-f04-std-net-slice-v11-gate.sh; then
     die "v11 sub-gate failed"
   fi
 fi

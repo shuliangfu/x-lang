@@ -50,7 +50,7 @@ export const CFG_LIT_NO: u8[3] = [110, 111, 0];
 export const CFG_LIT_OFF: u8[4] = [111, 102, 102, 0];
 /* See implementation. */
 export const CFG_LIT_N9090: u8[5] = [57, 48, 57, 48, 0];
-export const CFG_LIT_SHUX_CFG_DEBUG: u8[15] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
+export const CFG_LIT_XLANG_CFG_DEBUG: u8[15] = [83, 72, 85, 88, 95, 67, 70, 71, 95, 100, 101, 98, 117, 103, 0];
 export const CFG_LIT_ALPHA: u8[6] = [97, 108, 112, 104, 97, 0];
 export const CFG_LIT_BETA: u8[5] = [98, 101, 116, 97, 0];
 export const CFG_LIT_CLI: u8[4] = [99, 108, 105, 0];
@@ -1469,7 +1469,7 @@ export function config_smoke_c(): i32 {
   if (config_get_bool_c(base, &CFG_LIT_DEBUG[0], 5, &dbg) != CFG_OK || dbg != 1) { return 7; }
   if (config_get_source_c(base, &CFG_LIT_DEBUG[0], 5, &kind, &label[0], 64) != CFG_OK) { return 71; }
   if (kind != CFG_SRC_ENV) { return 72; }
-  unsafe { if (strcmp(&label[0], &CFG_LIT_SHUX_CFG_DEBUG[0]) != 0) { return 73; } }
+  unsafe { if (strcmp(&label[0], &CFG_LIT_XLANG_CFG_DEBUG[0]) != 0) { return 73; } }
   if (config_get_source_c(base, &CFG_LIT_PORT[0], 4, &kind, &label[0], 64) != CFG_OK) { return 74; }
   if (kind != CFG_SRC_TOML) { return 75; }
   if (config_set_string_c(overlay, &CFG_LIT_PORT[0], 4, &CFG_LIT_N9090[0], 4) != CFG_OK) { return 8; }

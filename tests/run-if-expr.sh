@@ -3,26 +3,26 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux-c}
+XLANG=${XLANG:-./compiler/xlang-c}
 
 # if 1<2 { 10 } else { 20 } -> 10
-$SHUX build tests/if-expr/simple.x -o /tmp/shux_if_simple 2>&1
-exitcode=0; /tmp/shux_if_simple >/dev/null 2>&1 || exitcode=$?
+$XLANG build tests/if-expr/simple.x -o /tmp/xlang_if_simple 2>&1
+exitcode=0; /tmp/xlang_if_simple >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 10 ] && { echo "expected 10 (simple), got $exitcode"; exit 1; }
 
 # let x = if 0 { 1 } else { 2 }; x -> 2
-$SHUX build tests/if-expr/with_else.x -o /tmp/shux_if_else 2>&1
-exitcode=0; /tmp/shux_if_else >/dev/null 2>&1 || exitcode=$?
+$XLANG build tests/if-expr/with_else.x -o /tmp/xlang_if_else 2>&1
+exitcode=0; /tmp/xlang_if_else >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 2 ] && { echo "expected 2 (with_else), got $exitcode"; exit 1; }
 
 # if 1 { 42 } (无 else) -> 42
-$SHUX build tests/if-expr/no_else.x -o /tmp/shux_if_no_else 2>&1
-exitcode=0; /tmp/shux_if_no_else >/dev/null 2>&1 || exitcode=$?
+$XLANG build tests/if-expr/no_else.x -o /tmp/xlang_if_no_else 2>&1
+exitcode=0; /tmp/xlang_if_no_else >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 42 ] && { echo "expected 42 (no_else), got $exitcode"; exit 1; }
 
 # else if 链：if 0 { 1 } else if 0 { 2 } else { 3 } -> 3
-$SHUX build tests/if-expr/else_if.x -o /tmp/shux_if_else_if 2>&1
-exitcode=0; /tmp/shux_if_else_if >/dev/null 2>&1 || exitcode=$?
+$XLANG build tests/if-expr/else_if.x -o /tmp/xlang_if_else_if 2>&1
+exitcode=0; /tmp/xlang_if_else_if >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 3 ] && { echo "expected 3 (else_if), got $exitcode"; exit 1; }
 
 echo "if-expr test OK"

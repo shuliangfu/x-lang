@@ -6,18 +6,18 @@
 #include <string.h>
 #include <math.h>
 extern int getpid(void);
-static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {
-  const char *_ev = getenv("SHUX_CRASH_EVIDENCE");
+static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
+  const char *_ev = getenv("XLANG_CRASH_EVIDENCE");
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
-  fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
-  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/shux-crash-%d.txt", _dir, _pid);
+  fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
+  const char *_dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
     FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
-      fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] bundle=%s\n", _p); } } }
-static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-static inline void shux_panic_(int has_msg, int msg_val) {
-  shux_crash_evidence_collect_inline(has_msg, msg_val);
+      fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] bundle=%s\n", _p); } } }
+static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void xlang_panic_(int has_msg, int msg_val) {
+  xlang_crash_evidence_collect_inline(has_msg, msg_val);
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
@@ -238,7 +238,7 @@ int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, 
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((ty).kind == ast_TypeKind_TYPE_NAMED && (ty).name_len > 0 && (ty).name_len <= 64 && out_cap > (ty).name_len) {   int32_t i = 0;
   while (i < (ty).name_len && k < out_cap) {
-    ((out_buf)[k] = ((i < 0 || (i) >= 64 ? (shux_panic_(1, 0), ((ty).name)[0]) : ((ty).name)[i])));
+    ((out_buf)[k] = ((i < 0 || (i) >= 64 ? (xlang_panic_(1, 0), ((ty).name)[0]) : ((ty).name)[i])));
     ++k;
     ++i;
   }
@@ -310,8 +310,8 @@ int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t lin
  } else (__tmp = 0) ; __tmp; }));
   int32_t oi = 0;
   while (oi < out_n) {
-    ((out_lines)[oi] = ((oi < 0 || (oi) >= 512 ? (shux_panic_(1, 0), (tmp_lines)[0]) : (tmp_lines)[oi]) - 1));
-    ((out_cols)[oi] = ((oi < 0 || (oi) >= 512 ? (shux_panic_(1, 0), (tmp_cols)[0]) : (tmp_cols)[oi]) - 1));
+    ((out_lines)[oi] = ((oi < 0 || (oi) >= 512 ? (xlang_panic_(1, 0), (tmp_lines)[0]) : (tmp_lines)[oi]) - 1));
+    ((out_cols)[oi] = ((oi < 0 || (oi) >= 512 ? (xlang_panic_(1, 0), (tmp_cols)[0]) : (tmp_cols)[oi]) - 1));
     ++oi;
   }
   return out_n;
@@ -546,27 +546,27 @@ int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * do
   uint8_t prefix[64] = { 0 };
   int32_t pi = 0;
   ((prefix)[0] = (123));
-  ((1 < 0 || (1) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[1] = 34, 0)));
-  ((2 < 0 || (2) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[2] = 106, 0)));
-  ((3 < 0 || (3) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[3] = 115, 0)));
-  ((4 < 0 || (4) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[4] = 111, 0)));
-  ((5 < 0 || (5) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[5] = 110, 0)));
-  ((6 < 0 || (6) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[6] = 114, 0)));
-  ((7 < 0 || (7) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[7] = 112, 0)));
-  ((8 < 0 || (8) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[8] = 99, 0)));
-  ((9 < 0 || (9) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[9] = 34, 0)));
-  ((10 < 0 || (10) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[10] = 58, 0)));
-  ((11 < 0 || (11) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[11] = 34, 0)));
-  ((12 < 0 || (12) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[12] = 50, 0)));
-  ((13 < 0 || (13) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[13] = 46, 0)));
-  ((14 < 0 || (14) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[14] = 48, 0)));
-  ((15 < 0 || (15) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[15] = 34, 0)));
-  ((16 < 0 || (16) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[16] = 44, 0)));
-  ((17 < 0 || (17) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[17] = 34, 0)));
-  ((18 < 0 || (18) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[18] = 105, 0)));
-  ((19 < 0 || (19) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[19] = 100, 0)));
-  ((20 < 0 || (20) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[20] = 34, 0)));
-  ((21 < 0 || (21) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[21] = 58, 0)));
+  ((1 < 0 || (1) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[1] = 34, 0)));
+  ((2 < 0 || (2) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[2] = 106, 0)));
+  ((3 < 0 || (3) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[3] = 115, 0)));
+  ((4 < 0 || (4) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[4] = 111, 0)));
+  ((5 < 0 || (5) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[5] = 110, 0)));
+  ((6 < 0 || (6) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[6] = 114, 0)));
+  ((7 < 0 || (7) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[7] = 112, 0)));
+  ((8 < 0 || (8) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[8] = 99, 0)));
+  ((9 < 0 || (9) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[9] = 34, 0)));
+  ((10 < 0 || (10) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[10] = 58, 0)));
+  ((11 < 0 || (11) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[11] = 34, 0)));
+  ((12 < 0 || (12) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[12] = 50, 0)));
+  ((13 < 0 || (13) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[13] = 46, 0)));
+  ((14 < 0 || (14) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[14] = 48, 0)));
+  ((15 < 0 || (15) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[15] = 34, 0)));
+  ((16 < 0 || (16) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[16] = 44, 0)));
+  ((17 < 0 || (17) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[17] = 34, 0)));
+  ((18 < 0 || (18) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[18] = 105, 0)));
+  ((19 < 0 || (19) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[19] = 100, 0)));
+  ((20 < 0 || (20) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[20] = 34, 0)));
+  ((21 < 0 || (21) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[21] = 58, 0)));
   (pi = (22));
   uint8_t id_str[12] = { 0 };
   int32_t id_len = 0;
@@ -576,64 +576,64 @@ int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * do
  } else {   int32_t ds[12] = { 0 };
   int32_t dn = 0;
   while (tmp > 0) {
-    ((dn < 0 || (dn) >= 12 ? (shux_panic_(1, 0), 0) : ((ds)[dn] = (10 == 0 ? (shux_panic_(1, 0), tmp) : (tmp % 10)), 0)));
-    (tmp = ((10 == 0 ? (shux_panic_(1, 0), tmp) : (tmp / 10))));
+    ((dn < 0 || (dn) >= 12 ? (xlang_panic_(1, 0), 0) : ((ds)[dn] = (10 == 0 ? (xlang_panic_(1, 0), tmp) : (tmp % 10)), 0)));
+    (tmp = ((10 == 0 ? (xlang_panic_(1, 0), tmp) : (tmp / 10))));
     ++dn;
   }
   int32_t di = dn - 1;
   while (di >= 0) {
-    ((id_len < 0 || (id_len) >= 12 ? (shux_panic_(1, 0), 0) : ((id_str)[id_len] = ((uint8_t)((di < 0 || (di) >= 12 ? (shux_panic_(1, 0), (ds)[0]) : (ds)[di]) + 48)), 0)));
+    ((id_len < 0 || (id_len) >= 12 ? (xlang_panic_(1, 0), 0) : ((id_str)[id_len] = ((uint8_t)((di < 0 || (di) >= 12 ? (xlang_panic_(1, 0), (ds)[0]) : (ds)[di]) + 48)), 0)));
     ++id_len;
     (di = (di - 1));
   }
  } ; __tmp; }));
   int32_t ji = 0;
   while (ji < id_len && pi < 64) {
-    ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = (ji < 0 || (ji) >= 12 ? (shux_panic_(1, 0), (id_str)[0]) : (id_str)[ji]), 0)));
+    ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = (ji < 0 || (ji) >= 12 ? (xlang_panic_(1, 0), (id_str)[0]) : (id_str)[ji]), 0)));
     ++pi;
     ++ji;
   }
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 44, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 44, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 114, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 114, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 101, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 101, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 115, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 115, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 117, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 117, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 108, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 108, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 116, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 116, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 58, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 58, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 123, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 123, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 100, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 100, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 97, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 97, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 116, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 116, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 97, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 97, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 34, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 58, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 58, 0)));
   ++pi;
-  ((pi < 0 || (pi) >= 64 ? (shux_panic_(1, 0), 0) : ((prefix)[pi] = 91, 0)));
+  ((pi < 0 || (pi) >= 64 ? (xlang_panic_(1, 0), 0) : ((prefix)[pi] = 91, 0)));
   ++pi;
   int32_t pj = 0;
   while (pj < pi) {
-    ((json_ptr)[pj] = ((pj < 0 || (pj) >= 64 ? (shux_panic_(1, 0), (prefix)[0]) : (prefix)[pj])));
+    ((json_ptr)[pj] = ((pj < 0 || (pj) >= 64 ? (xlang_panic_(1, 0), (prefix)[0]) : (prefix)[pj])));
     ++pj;
   }
   int32_t ti = 0;
@@ -655,14 +655,14 @@ int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * do
   (dn = (1));
  } else {   int32_t v2 = val;
   while (v2 > 0) {
-    ((dn < 0 || (dn) >= 12 ? (shux_panic_(1, 0), 0) : ((digits)[dn] = (10 == 0 ? (shux_panic_(1, 0), v2) : (v2 % 10)), 0)));
-    (v2 = ((10 == 0 ? (shux_panic_(1, 0), v2) : (v2 / 10))));
+    ((dn < 0 || (dn) >= 12 ? (xlang_panic_(1, 0), 0) : ((digits)[dn] = (10 == 0 ? (xlang_panic_(1, 0), v2) : (v2 % 10)), 0)));
+    (v2 = ((10 == 0 ? (xlang_panic_(1, 0), v2) : (v2 / 10))));
     ++dn;
   }
  } ; __tmp; }));
     int32_t di = dn - 1;
     while (di >= 0 && pj < json_cap) {
-      ((json_ptr)[pj] = (((uint8_t)((di < 0 || (di) >= 12 ? (shux_panic_(1, 0), (digits)[0]) : (digits)[di]) + 48))));
+      ((json_ptr)[pj] = (((uint8_t)((di < 0 || (di) >= 12 ? (xlang_panic_(1, 0), (digits)[0]) : (digits)[di]) + 48))));
       ++pj;
       (di = (di - 1));
     }

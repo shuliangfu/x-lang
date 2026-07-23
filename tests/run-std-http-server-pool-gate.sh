@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD107_DOC:-analysis/std-http-server-pool-v1.md}"
-MANIFEST="${SHUX_STD107_TSV:-tests/baseline/std-http-server-pool.tsv}"
-VECTORS="${SHUX_STD107_VECTORS:-tests/baseline/std-http-server-pool-vectors.tsv}"
+DOC="${XLANG_STD107_DOC:-analysis/std-http-server-pool-v1.md}"
+MANIFEST="${XLANG_STD107_TSV:-tests/baseline/std-http-server-pool.tsv}"
+VECTORS="${XLANG_STD107_VECTORS:-tests/baseline/std-http-server-pool-vectors.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 POOL_INC="compiler/seeds/http/http_server_pool.inc"
@@ -84,7 +84,7 @@ fi
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
+XLANG_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -96,21 +96,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-107: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-107: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-http-server-pool gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_http_server_pool_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_http_server_pool_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "sp"; then
+  if std_http_server_pool_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "sp"; then
     X_OK=1
   else
     std_http_server_pool_emit_report "fail" "$C_OK" 0 0

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD112_DOC:-analysis/std-heap-allocator-v1.md}"
-MANIFEST="${SHUX_STD112_TSV:-tests/baseline/std-heap-allocator.tsv}"
+DOC="${XLANG_STD112_DOC:-analysis/std-heap-allocator-v1.md}"
+MANIFEST="${XLANG_STD112_TSV:-tests/baseline/std-heap-allocator.tsv}"
 HEAP_X="std/heap/mod.x"
 VEC_X="std/vec/mod.x"
 LIB="tests/lib/std-heap-allocator.sh"
@@ -64,19 +64,19 @@ echo "std-heap-allocator manifest OK"
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-112: .x smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-112: .x smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-heap-allocator gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_heap_alloc_emit_report "fail" 0 0
     exit 1
   fi
-  if std_heap_alloc_run_smoke "$SHUX_BIN" "$SMOKE_X" "vec"; then
+  if std_heap_alloc_run_smoke "$XLANG_BIN" "$SMOKE_X" "vec"; then
     X_OK=1
   else
     std_heap_alloc_emit_report "fail" 0 0

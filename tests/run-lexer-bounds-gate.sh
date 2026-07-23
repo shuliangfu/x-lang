@@ -10,8 +10,8 @@ cd "$(dirname "$0")/.."
 DOC="analysis/安全与性能.md"
 MANIFEST="tests/baseline/lexer-bounds.tsv"
 LEXER_GLUE="compiler/seeds/runtime_lexer_glue.from_x.c"
-LONG_IDENT="/tmp/shux_lexer_long_ident_$$.x"
-LONG_NUM="/tmp/shux_lexer_long_num_$$.x"
+LONG_IDENT="/tmp/xlang_lexer_long_ident_$$.x"
+LONG_NUM="/tmp/xlang_lexer_long_num_$$.x"
 
 echo "=== P1-3: lexer bounds manifest ==="
 for f in "$DOC" "$MANIFEST" "$LEXER_GLUE"; do
@@ -26,12 +26,12 @@ if ! grep -qF 'str_buf[512]' "$LEXER_GLUE" 2>/dev/null; then
 fi
 echo "lexer-bounds manifest OK"
 
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-SHUX_BIN="${SHUX:-${RUN_SHUX:-./compiler/shux-c}}"
-if [ ! -x "$SHUX_BIN" ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  SHUX_BIN=./compiler/shux-c
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+XLANG_BIN="${XLANG:-${RUN_XLANG:-./compiler/xlang-c}}"
+if [ ! -x "$XLANG_BIN" ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  XLANG_BIN=./compiler/xlang-c
 fi
 
 # 有界标识符：产品 let.name[64] 上限；用 60 字验证 bounded lex + typeck（非栈溢出）。
@@ -53,7 +53,7 @@ print("}")
 PY
 
 for src in "$LONG_IDENT" "$LONG_NUM"; do
-  if ! "$SHUX_BIN" check -L . "$src" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$src" >/dev/null 2>&1; then
     echo "lexer-bounds gate FAIL: typeck $src (long token)" >&2
     rm -f "$LONG_IDENT" "$LONG_NUM"
     exit 1

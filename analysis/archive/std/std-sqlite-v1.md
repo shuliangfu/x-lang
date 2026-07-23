@@ -27,7 +27,7 @@
 | `changes` | `sqlite3_changes`（影响行数） |
 | `backend_name` | `"sqlite3"`（stub 为 `"stub"`） |
 
-**编译开关**：`make -C compiler db-o-sqlite`（`-DSHUX_DB_USE_SQLITE3`）；默认 `db.o` 为 stub，STD-010 typeck 仍可用。
+**编译开关**：`make -C compiler db-o-sqlite`（`-DXLANG_DB_USE_SQLITE3`）；默认 `db.o` 为 stub，STD-010 typeck 仍可用。
 
 **链接**：`runtime.c` 链入 `std/db/db.o` 时追加 `-lsqlite3`。
 
@@ -57,7 +57,7 @@
 | 3 | `INSERT INTO t(k) VALUES (42)` | `DB_OK`，`changes == 1` |
 | 4 | `close` | `DB_OK` |
 
-烟测：`tests/std-db/exec_roundtrip_ok.c`（C）、`exec_roundtrip.x`（有 native shux + sqlite 时）。
+烟测：`tests/std-db/exec_roundtrip_ok.c`（C）、`exec_roundtrip.x`（有 native xlang + sqlite 时）。
 
 ---
 

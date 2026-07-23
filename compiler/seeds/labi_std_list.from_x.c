@@ -1,13 +1,13 @@
 /* seeds/labi_std_list.from_x.c — G-02f-271 P2 link_abi L8 std list pure → R2 full
  * Logic source: src/runtime/labi_std_list.x
- * Hybrid: SHUX_LABI_STD_LIST_FROM_X + ld -r into runtime_link_abi.o
+ * Hybrid: XLANG_LABI_STD_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
  * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
  *   labi_std_plan_count
  *   labi_std_plan_step_at
  *   labi_std_default_std_rel_count
  *   labi_std_default_std_rel_at
- * Cap residual：IO/ensure/push 仍在 mega shux_asm_ld_append_std_objs。
+ * Cap residual：IO/ensure/push 仍在 mega xlang_asm_ld_append_std_objs。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -15,7 +15,7 @@
  */
 #include <stddef.h>
 
-#ifndef SHUX_LABI_STD_LIST_FROM_X
+#ifndef XLANG_LABI_STD_LIST_FROM_X
 
 /* Ops — keep in sync with mega interpreter in runtime_link_abi.from_x.c
  * STD=1 IO_STUBS=2 PRIMARY_PANIC=3 TIME_OS=4 RANDOM_FILL=5 ENV_OS=6

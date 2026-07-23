@@ -7,20 +7,20 @@
 | 文件 | 说明 |
 |------|------|
 | `std/db/sqlite/sqlite.x` | open/close/exec/事务/游标/stmt 缓存/连接池/全量烟测 |
-| `std/db/sqlite/sqlite_glue.c` | `shu_sqlite3_*_c` FFI；`-DSHUX_DB_USE_SQLITE3` 或 stub |
+| `std/db/sqlite/sqlite_glue.c` | `shu_sqlite3_*_c` FFI；`-DXLANG_DB_USE_SQLITE3` 或 stub |
 | ~~`std/db/sqlite/sqlite.c`~~ | 已删除 |
 
 ## 构建
 
 ```bash
-make -C compiler ../std/db/sqlite/sqlite.o   # ld -r(sqlite_glue.o + sqlite_main.o), -DSHUX_DB_USE_SQLITE3
+make -C compiler ../std/db/sqlite/sqlite.o   # ld -r(sqlite_glue.o + sqlite_main.o), -DXLANG_DB_USE_SQLITE3
 make -C compiler sqlite-o-stub               # glue 无 SQLITE3；运行时 DB_NOT_IMPL
 ```
 
 ## 门禁
 
 ```bash
-SHUX_F05_DB_SQLITE_V3_FAIL=1 ./tests/run-f05-std-db-sqlite-v3-gate.sh
+XLANG_F05_DB_SQLITE_V3_FAIL=1 ./tests/run-f05-std-db-sqlite-v3-gate.sh
 ./tests/run-std-sqlite-gate.sh
 ./tests/run-std-sqlite-stub-gate.sh
 ```

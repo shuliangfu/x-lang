@@ -30,7 +30,7 @@
 ### 战略约束（继承 Phase 3）
 
 - P0 项须 gate 绿方可标 ✅。
-- Linux-only runnable（shux_asm / build_asm）在 Darwin manifest 绿 + SKIP。
+- Linux-only runnable（xlang_asm / build_asm）在 Darwin manifest 绿 + SKIP。
 - 对外路线图季度条目由 DOC-010 维护，本 RFC 仅内部 wave2 定版。
 
 ---
@@ -66,7 +66,7 @@
 ```
 
 ```
-shux: [SHUX_PLAN002_PHASE3_W2] status=ok tasks=4 sections=5 done=4
+xlang: [XLANG_PLAN002_PHASE3_W2] status=ok tasks=4 sections=5 done=4
 ```
 
 - **tasks**：manifest 登记 task 数（**4**）

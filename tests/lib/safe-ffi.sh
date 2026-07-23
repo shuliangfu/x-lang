@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   safe_ffi_contract_count [manifest_tsv]
-#   safe_ffi_run_case SHUX_BIN src expect_rc [tag]
+#   safe_ffi_run_case XLANG_BIN src expect_rc [tag]
 
 # 统计 manifest 中 case 行数（case_id 以 case_ 开头）。
 safe_ffi_contract_count() {
@@ -13,17 +13,17 @@ safe_ffi_contract_count() {
 
 # 编译并运行单个契约 .x；校验退出码。
 safe_ffi_run_case() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local expect="${3:-0}"
   local tag="${4:-case}"
-  local exe="/tmp/shux_safe_ffi_${tag}_$$"
+  local exe="/tmp/xlang_safe_ffi_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "safe-ffi FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -backend c -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shux" -backend c -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$xlang" -backend c -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$xlang" -backend c -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

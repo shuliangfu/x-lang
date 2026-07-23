@@ -7,15 +7,15 @@
 | 项 | v1 | v2 |
 |----|----|-----|
 | decode 实现 | `schema_glue.c`（677 行） | **`schema.x`** |
-| `schema.o` | `ld -r` glue + x | **纯 shux → schema.o** |
+| `schema.o` | `ld -r` glue + x | **纯 xlang → schema.o** |
 | JSON/CSV 依赖 | glue 链 json.o/csv.o | `extern json_*` / `parse_row` |
 
 ## 门禁
 
 ```bash
-SHUX_F_SCHEMA_V2_FAIL=1 ./tests/run-f-schema-v2-gate.sh
+XLANG_F_SCHEMA_V2_FAIL=1 ./tests/run-f-schema-v2-gate.sh
 ./tests/run-std-schema-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

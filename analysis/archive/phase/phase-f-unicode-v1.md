@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_UNICODE_V1_FAIL=1 ./tests/run-f-unicode-v1-gate.sh
+XLANG_F_UNICODE_V1_FAIL=1 ./tests/run-f-unicode-v1-gate.sh
 ./tests/run-std-unicode-nfc-gate.sh
 ./tests/run-std-unicode-grapheme-case-gate.sh
 ```

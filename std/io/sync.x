@@ -53,11 +53,11 @@ let io_fixed_nr: u32 = 0;
  * See implementation.
  * See implementation.
  */
-extern "C" function shux_sys_read(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function shux_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
-extern "C" function shux_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
-extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
+extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function xlang_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function xlang_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
+extern "C" function xlang_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 
 /** Exported function `io_libc_read`.
  * Read path helper `io_libc_read`.
@@ -67,7 +67,7 @@ extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
  * @return isize
  */
 export function io_libc_read(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return shux_sys_read(fd, buf, count); }
+  unsafe { return xlang_sys_read(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `io_libc_write`.
@@ -78,7 +78,7 @@ export function io_libc_read(fd: i32, buf: *u8, count: usize): isize {
  * @return isize
  */
 export function io_libc_write(fd: i32, buf: *u8, count: usize): isize {
-  unsafe { return shux_sys_write(fd, buf, count); }
+  unsafe { return xlang_sys_write(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `io_libc_readv`.
@@ -89,7 +89,7 @@ export function io_libc_write(fd: i32, buf: *u8, count: usize): isize {
  * @return isize
  */
 export function io_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return shux_sys_readv(fd, iov as *u8, iovcnt); }
+  unsafe { return xlang_sys_readv(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `io_libc_writev`.
@@ -100,7 +100,7 @@ export function io_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
  * @return isize
  */
 export function io_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return shux_sys_writev(fd, iov as *u8, iovcnt); }
+  unsafe { return xlang_sys_writev(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `io_libc_poll`.
@@ -111,7 +111,7 @@ export function io_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
  * @return i32
  */
 export function io_libc_poll(fds: *PollFd, nfds: i32, timeout: i32): i32 {
-  unsafe { return shux_sys_poll(fds as *u8, nfds, timeout); }
+  unsafe { return xlang_sys_poll(fds as *u8, nfds, timeout); }
   return 0; // unreachable — typeck workaround
 }
 

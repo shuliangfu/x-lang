@@ -1,4 +1,4 @@
-# STD-017 std.heap SHUX_HEAP_TRACE 调试钩子 v1
+# STD-017 std.heap XLANG_HEAP_TRACE 调试钩子 v1
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
@@ -10,7 +10,7 @@
 
 | ID | 交付 |
 |----|------|
-| STD-017 | `SHUX_HEAP_TRACE=1` 时统计 alloc/free/realloc 次数与累计请求字节 |
+| STD-017 | `XLANG_HEAP_TRACE=1` 时统计 alloc/free/realloc 次数与累计请求字节 |
 
 默认关闭；零开销路径为惰性 `getenv` + 分支，未设置时计数器不递增。
 
@@ -32,7 +32,7 @@
 
 | 变量 | 语义 |
 |------|------|
-| `SHUX_HEAP_TRACE` | 非空且非 `0` 启用统计 |
+| `XLANG_HEAP_TRACE` | 非空且非 `0` 启用统计 |
 
 ---
 
@@ -41,7 +41,7 @@
 | 场景 | 期望 |
 |------|------|
 | 未设置 env | `trace_on()==0`；alloc 后 stats 仍为 0 |
-| `SHUX_HEAP_TRACE=1` | alloc(32)+free → alloc_count≥1, free_count≥1, bytes≥32 |
+| `XLANG_HEAP_TRACE=1` | alloc(32)+free → alloc_count≥1, free_count≥1, bytes≥32 |
 | `trace_reset()` | 计数归零 |
 
 ---
@@ -50,7 +50,7 @@
 
 - manifest：`tests/baseline/std-heap-trace.tsv`
 - 烟测：`tests/heap/trace_stats.x`
-- 报告：`shux: [SHUX_STD_HEAP_TRACE] status=ok`
+- 报告：`xlang: [XLANG_STD_HEAP_TRACE] status=ok`
 
 ---
 

@@ -1,6 +1,6 @@
 # 阶段 E 软删除 v1（编译器去 C/H — 文件保留、链路与调用停用）
 
-> **E-soft v1**：C/H **不物理删除**；默认 **B-strict / bootstrap-driver-seed** 构建与运行路径**不再链入、不再调用**已登记模块；冷启动 / 考古路径可用 `SHUX_LEGACY_C_FRONTEND=1` 或 `shux-c` 恢复。
+> **E-soft v1**：C/H **不物理删除**；默认 **B-strict / bootstrap-driver-seed** 构建与运行路径**不再链入、不再调用**已登记模块；冷启动 / 考古路径可用 `XLANG_LEGACY_C_FRONTEND=1` 或 `xlang-c` 恢复。
 
 ## 原则
 
@@ -33,7 +33,7 @@
 | E | 路径 | 替代 | 说明 |
 |---|------|------|------|
 | E-01 | `lsp_io_extern.h` / `lsp_gen_extern.h` | `lsp_codegen_extern.c` 内嵌块 | 文件已不存在；C-04 `-E-extern` 自带 extern |
-| E-02 | `lsp_diag.c` | `lsp_diag_stubs_no_c.o` + `lsp_diag_x.o` | `LSP_DIAG_LINK_O`；`SHUX_LEGACY_LSP_DIAG_C=1` 考古 |
+| E-02 | `lsp_diag.c` | `lsp_diag_stubs_no_c.o` + `lsp_diag_x.o` | `LSP_DIAG_LINK_O`；`XLANG_LEGACY_LSP_DIAG_C=1` 考古 |
 | E-03 | `parser.c` / `typeck.c` / `codegen.c` / `preprocess.c` / `lexer.c` / `ast.c` | `*_x.o` + bridge | C-06 + E-03 v2 默认 seed 不链 C 辅助 TU |
 
 ## 仍 active（v1 不阻塞，后续 E-04 软退役）
@@ -43,53 +43,53 @@
 | `runtime.c` / `runtime_driver*.o` | E-04 v6：compress/net TLS 链辅助拆 runtime_link_abi.c；invoke_cc/ld 主体仍 active |
 | `main.c` | 极薄入口；E-04 |
 | asm 桥接 / stub `.c` | backend `extern *_c` 仍活跃；E-03 v4+ |
-| `lsp_diag.c` | 仅 `SHUX_LEGACY_LSP_DIAG_C=1` / `shux-c` OBJS_CORE |
-| `preprocess.c` / `lexer.c` / `ast.c` | 仅 LEGACY 开关 / `shux-c` OBJS |
+| `lsp_diag.c` | 仅 `XLANG_LEGACY_LSP_DIAG_C=1` / `xlang-c` OBJS_CORE |
+| `preprocess.c` / `lexer.c` / `ast.c` | 仅 LEGACY 开关 / `xlang-c` OBJS |
 | `include/*.h` / `src/**/*.h` | E-05 v2：C 前端头 soft_retired；runtime NO_C 不 include |
 
 ## 复现
 
 ```bash
 # E-soft 聚合（任意平台 manifest OK）
-SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
+XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 
 # E-01 专 gate
-SHUX_E01_FAIL=1 ./tests/run-e01-extern-h-soft-gate.sh
+XLANG_E01_FAIL=1 ./tests/run-e01-extern-h-soft-gate.sh
 
 # E-02 lsp_diag.c 软退役（默认 stubs）
-SHUX_E02_FAIL=1 ./tests/run-e02-lsp-diag-soft-gate.sh
+XLANG_E02_FAIL=1 ./tests/run-e02-lsp-diag-soft-gate.sh
 
 # E-03 v2 preprocess.c 软退役（默认不链 preprocess_for_driver.o）
-SHUX_E03_PREPROCESS_FAIL=1 ./tests/run-e03-preprocess-soft-gate.sh
+XLANG_E03_PREPROCESS_FAIL=1 ./tests/run-e03-preprocess-soft-gate.sh
 
 # E-03 v2 lexer/ast 软退役（默认不链 lexer.o / ast_seed.o）
-SHUX_E03_LEXER_AST_FAIL=1 ./tests/run-e03-lexer-ast-soft-gate.sh
+XLANG_E03_LEXER_AST_FAIL=1 ./tests/run-e03-lexer-ast-soft-gate.sh
 
 # E-03 v3 冷启动 track（OBJS_CORE / asm SEED 对照默认 bootstrap）
-SHUX_E03_V3_FAIL=1 ./tests/run-e03-v3-coldstart-track-gate.sh
+XLANG_E03_V3_FAIL=1 ./tests/run-e03-v3-coldstart-track-gate.sh
 
 # E-04 v1/v2 runtime 路径 + ABI 薄壳
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 
 # E-06 v1 B-strict 禁 cc -c 编译器前端 .c
-SHUX_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
+XLANG_E06_FAIL=1 ./tests/run-e06-no-compiler-frontend-cc-gate.sh
 
 # E-05 v1/v2 头文件 inventory
-SHUX_E05_FAIL=1 ./tests/run-e05-include-soft-gate.sh
+XLANG_E05_FAIL=1 ./tests/run-e05-include-soft-gate.sh
 ```
 
 ## v2 闭合（✅ gate 全绿，2026-06-20）
 
-- **E-01～E-06** 子 gate + `run-e-soft-retire-gate.sh` 在 `SHUX_*_FAIL=1` 下全部通过。
+- **E-01～E-06** 子 gate + `run-e-soft-retire-gate.sh` 在 `XLANG_*_FAIL=1` 下全部通过。
 - 详见 **`analysis/phase-e-soft-v2-closure.md`**（闭合标准 / 非 E 范围 / 下一阶段 F）。
 
 ```bash
-SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
+XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 ```
 
 ## 延后（阶段 F / 可选维护，非 E 阻塞）
 
 - **阶段 F**：std/core 去 C、`runtime` 按需链 `.x` 产物（完全自举终局）
 - E-02 v2：definition/hover 全 `.x`，OBJS_CORE 去 `lsp_diag.o`
-- E-03 v4 / E-03 v5：`OBJS_CORE` / SEED 改默认 X 拓扑（`shux-c` 冷启动另议）
+- E-03 v4 / E-03 v5：`OBJS_CORE` / SEED 改默认 X 拓扑（`xlang-c` 冷启动另议）
 - E-04 v36+：**不再作为 E 项**；runtime 主体拆分属维护性，gate 已在 v35 满足

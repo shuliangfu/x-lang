@@ -1,10 +1,10 @@
 /* Generated from src/runtime_io_abi.x (G-02f-29/44/57..59 true .x + C tail).
- * G-02f-334：PREFER_X_O hybrid 时 thin 由 .x→-E；rest 用 SHUX_L2_RIO_THIN_FROM_X
- *   + SHUX_RUNTIME_IO_ABI_FROM_X（省略已真迁 _impl；仅 slice_marker）。
+ * G-02f-334：PREFER_X_O hybrid 时 thin 由 .x→-E；rest 用 XLANG_L2_RIO_THIN_FROM_X
+ *   + XLANG_RUNTIME_IO_ABI_FROM_X（省略已真迁 _impl；仅 slice_marker）。
  * Cap residual pure (2026-07-21)：4 平台 _impl 真迁 .x
  *   （flags_impl / write_path_bytes_impl / release_file_view_impl / read_file_view_impl）。
  * Cold seed 仍保留 mmap/fstat C 体（无 FROM_X）。
- * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
+ * Regen: ./xlang-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
  * .x covers: std.fs/posix + path/file_view 门闩 + Cap residual pure _impl。
  */
 #include "win32_compat.h"
@@ -38,9 +38,9 @@
 #ifndef _O_BINARY
 #define _O_BINARY 0x8000
 #endif
-#define SHUX_O_BINARY _O_BINARY
+#define XLANG_O_BINARY _O_BINARY
 #else
-#define SHUX_O_BINARY 0
+#define XLANG_O_BINARY 0
 #endif
 
 /**
@@ -50,11 +50,11 @@
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int shux_read_fd_into_buf(int fd, void *buf, size_t cap)
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int xlang_read_fd_into_buf(int fd, void *buf, size_t cap)
 #else
-int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap)
+int xlang_read_fd_into_buf_impl(int fd, void *buf, size_t cap)
 #endif
 {
     size_t off;
@@ -73,17 +73,17 @@ int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap)
     }
     return (int)off;
 }
-#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_IO_ABI_FROM_X */
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-334：hybrid 时作 _impl */
 /* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out)
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int xlang_runtime_file_view_read_malloc(int fd, size_t size, XlangRuntimeFileView *out)
 #else
-int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFileView *out)
+int xlang_runtime_file_view_read_malloc_impl(int fd, size_t size, XlangRuntimeFileView *out)
 #endif
 {
     size_t off;
@@ -119,33 +119,33 @@ int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFile
     out->needs_munmap = 0;
     return 0;
 }
-#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_IO_ABI_FROM_X */
 
 
 /* G-02f-59 io helper protos（hybrid 时 flags 由 thin 调 flags_impl） */
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int32_t shux_fs_open_write_flags(void);
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int32_t xlang_fs_open_write_flags(void);
 #else
-int32_t shux_fs_open_write_flags_impl(void);
+int32_t xlang_fs_open_write_flags_impl(void);
 #endif
 /* G-02f-58 helper protos */
-int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out);
+int runtime_read_file_view_impl(const char *path, XlangRuntimeFileView *out);
 char *runtime_read_file_malloc_impl(const char *path, size_t *out_len);
 int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap);
 
 /* G-02f-57 helper protos */
-int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap);
-int shux_write_path_bytes_impl(const char *path, const void *data, size_t len);
-void runtime_release_file_view_impl(ShuxRuntimeFileView *view);
+int xlang_read_file_into_path_impl(const char *path, void *buf, size_t cap);
+int xlang_write_path_bytes_impl(const char *path, const void *data, size_t len);
+void runtime_release_file_view_impl(XlangRuntimeFileView *view);
 
 /* G-02f-rest：5 个 pure _impl 已在 .x；FROM_X 时 seed 仅声明供 cold 互调。
  * Cap residual pure (2026-07-21)：4 平台 _impl 亦真迁 .x（flags/write/release/read_view）。
  * Cold (no FROM_X) 仍保留下方 C 体（mmap/fstat 路径）。 */
-int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap);
-int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFileView *out);
+int xlang_read_fd_into_buf_impl(int fd, void *buf, size_t cap);
+int xlang_runtime_file_view_read_malloc_impl(int fd, size_t size, XlangRuntimeFileView *out);
 
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
-int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
+int runtime_read_file_view_impl(const char *path, XlangRuntimeFileView *out) {
     int fd;
     int fd_fallback;
     struct stat st;
@@ -155,7 +155,7 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     if (!path || !out)
         return -1;
     memset(out, 0, sizeof(*out));
-    fd = open(path, O_RDONLY | SHUX_O_BINARY, 0);
+    fd = open(path, O_RDONLY | XLANG_O_BINARY, 0);
     if (fd < 0)
         return -1;
     if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
@@ -172,13 +172,13 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     mapped = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     if (mapped == MAP_FAILED) {
-        fd_fallback = open(path, O_RDONLY | SHUX_O_BINARY, 0);
+        fd_fallback = open(path, O_RDONLY | XLANG_O_BINARY, 0);
         if (fd_fallback < 0)
             return -1;
-#ifdef SHUX_L2_RIO_THIN_FROM_X
-        return shux_runtime_file_view_read_malloc_impl(fd_fallback, size, out);
+#ifdef XLANG_L2_RIO_THIN_FROM_X
+        return xlang_runtime_file_view_read_malloc_impl(fd_fallback, size, out);
 #else
-        return shux_runtime_file_view_read_malloc(fd_fallback, size, out);
+        return xlang_runtime_file_view_read_malloc(fd_fallback, size, out);
 #endif
     }
     out->data = (const char *)mapped;
@@ -187,10 +187,10 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     out->needs_munmap = 1;
     return 0;
 }
-#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* !XLANG_RUNTIME_IO_ABI_FROM_X */
 
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int runtime_read_file_view(const char *path, XlangRuntimeFileView *out) {
   if (path == NULL) {
     return -1;
   }
@@ -204,8 +204,8 @@ int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
 }
 #endif
 
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
-void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
+void runtime_release_file_view_impl(XlangRuntimeFileView *view) {
     if (view->needs_munmap && view->data && view->length > 0)
         munmap((void *)view->data, view->length);
     if (view->needs_free && view->data)
@@ -215,10 +215,10 @@ void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
     view->needs_free = 0;
     view->needs_munmap = 0;
 }
-#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* !XLANG_RUNTIME_IO_ABI_FROM_X */
 
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-void runtime_release_file_view(ShuxRuntimeFileView *view) {
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+void runtime_release_file_view(XlangRuntimeFileView *view) {
   if (view == NULL) {
     return;
   }
@@ -233,12 +233,12 @@ void runtime_release_file_view(ShuxRuntimeFileView *view) {
  * 参数：见 runtime_io_abi.h。
  */
 /* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
 char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
-    ShuxRuntimeFileView view;
+    XlangRuntimeFileView view;
     char *buf;
 
-#ifdef SHUX_L2_RIO_THIN_FROM_X
+#ifdef XLANG_L2_RIO_THIN_FROM_X
     if (runtime_read_file_view_impl(path, &view) != 0)
 #else
     if (runtime_read_file_view(path, &view) != 0)
@@ -246,7 +246,7 @@ char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
         return NULL;
     buf = (char *)malloc(view.length + 1);
     if (!buf) {
-#ifdef SHUX_L2_RIO_THIN_FROM_X
+#ifdef XLANG_L2_RIO_THIN_FROM_X
         runtime_release_file_view_impl(&view);
 #else
         runtime_release_file_view(&view);
@@ -258,16 +258,16 @@ char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
     buf[view.length] = '\0';
     if (out_len)
         *out_len = view.length;
-#ifdef SHUX_L2_RIO_THIN_FROM_X
+#ifdef XLANG_L2_RIO_THIN_FROM_X
     runtime_release_file_view_impl(&view);
 #else
     runtime_release_file_view(&view);
 #endif
     return buf;
 }
-#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_IO_ABI_FROM_X */
 
-#ifndef SHUX_L2_RIO_THIN_FROM_X
+#ifndef XLANG_L2_RIO_THIN_FROM_X
 char *runtime_read_file_malloc(const char *path, size_t *out_len) {
   if (path == NULL) {
     return NULL;
@@ -284,28 +284,28 @@ char *runtime_read_file_malloc(const char *path, size_t *out_len) {
  * 参数：见 runtime_io_abi.h。
  */
 /* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
-int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
+int xlang_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
     int fd;
     int n;
 
     if (cap > (size_t)INT32_MAX)
         return -1;
-    fd = open(path, O_RDONLY | SHUX_O_BINARY, 0);
+    fd = open(path, O_RDONLY | XLANG_O_BINARY, 0);
     if (fd < 0)
         return -1;
-#ifdef SHUX_L2_RIO_THIN_FROM_X
-    n = shux_read_fd_into_buf_impl(fd, buf, cap);
+#ifdef XLANG_L2_RIO_THIN_FROM_X
+    n = xlang_read_fd_into_buf_impl(fd, buf, cap);
 #else
-    n = shux_read_fd_into_buf(fd, buf, cap);
+    n = xlang_read_fd_into_buf(fd, buf, cap);
 #endif
     close(fd);
     return n;
 }
-#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_IO_ABI_FROM_X */
 
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int xlang_read_file_into_path(const char *path, void *buf, size_t cap) {
   if (path == NULL) {
     return -1;
   }
@@ -316,7 +316,7 @@ int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
     return -1;
   }
   {
-    return shux_read_file_into_path_impl(path, buf, cap);
+    return xlang_read_file_into_path_impl(path, buf, cap);
   }
   return -1;
 }
@@ -327,13 +327,13 @@ int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
  * 参数：见 runtime_io_abi.h。
  * Cap residual pure：.x 真迁；FROM_X 时由 .x 提供。
  */
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
-int shux_write_path_bytes_impl(const char *path, const void *data, size_t len) {
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
+int xlang_write_path_bytes_impl(const char *path, const void *data, size_t len) {
     int fd;
     size_t off;
     ssize_t n;
 
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY, (mode_t)0644);
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | XLANG_O_BINARY, (mode_t)0644);
     if (fd < 0)
         return -1;
     off = 0;
@@ -350,10 +350,10 @@ int shux_write_path_bytes_impl(const char *path, const void *data, size_t len) {
     close(fd);
     return off == len ? 0 : -1;
 }
-#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* !XLANG_RUNTIME_IO_ABI_FROM_X */
 
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int shux_write_path_bytes(const char *path, const void *data, size_t len) {
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int xlang_write_path_bytes(const char *path, const void *data, size_t len) {
   if (path == NULL) {
     return -1;
   }
@@ -361,7 +361,7 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
     return -1;
   }
   {
-    return shux_write_path_bytes_impl(path, data, len);
+    return xlang_write_path_bytes_impl(path, data, len);
   }
   return -1;
 }
@@ -376,26 +376,26 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-334：hybrid 时作 flags_impl（.x thin 门闩调 _impl） */
 /* Cap residual pure：flags_impl 真迁 .x；FROM_X 时整段跳过 */
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int32_t shux_fs_open_write_flags(void)
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int32_t xlang_fs_open_write_flags(void)
 #else
-int32_t shux_fs_open_write_flags_impl(void)
+int32_t xlang_fs_open_write_flags_impl(void)
 #endif
 {
-    return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY);
+    return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | XLANG_O_BINARY);
 }
-#endif /* !SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* !XLANG_RUNTIME_IO_ABI_FROM_X */
 
 /* G-02f-120：逻辑源 .x（真迁）；hybrid 时 mode 由 .x thin 提供 */
-#ifndef SHUX_L2_RIO_THIN_FROM_X
-int32_t shux_fs_open_write_mode(void) {
+#ifndef XLANG_L2_RIO_THIN_FROM_X
+int32_t xlang_fs_open_write_mode(void) {
     return (int32_t)0644;
 }
 #endif
 
 /* G-02f-334：std.fs / posix 公共门闩由 .x thin；默认 seed 保留 */
-#ifndef SHUX_L2_RIO_THIN_FROM_X
+#ifndef XLANG_L2_RIO_THIN_FROM_X
 
 int32_t std_fs_fs_open_read(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
@@ -414,8 +414,8 @@ int32_t std_fs_fs_open_write(uint8_t * path) {
     return (0 - 1);
   }
   (void)(({   {
-    int32_t fl = shux_fs_open_write_flags();
-    int32_t md = shux_fs_open_write_mode();
+    int32_t fl = xlang_fs_open_write_flags();
+    int32_t md = xlang_fs_open_write_mode();
     int32_t r = open(path, fl, md);
     return r;
   }
@@ -476,20 +476,20 @@ ssize_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count) {
   return std_fs_fs_read(fd, buf, count);
 }
 
-#endif /* !SHUX_L2_RIO_THIN_FROM_X */
+#endif /* !XLANG_L2_RIO_THIN_FROM_X */
 
 /**
  * std.sys.os_read_file_into 的 C 链接符号（-E-extern import 名）。
  * 成功返回读入字节数；失败 -1。
  */
 /* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
-#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
+#ifndef XLANG_RUNTIME_IO_ABI_FROM_X
 int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap) {
   int32_t fd;
   int32_t total;
   if (!path || !buf || cap <= 0)
     return -1;
-  fd = (int32_t)open((const char *)path, O_RDONLY | SHUX_O_BINARY, 0);
+  fd = (int32_t)open((const char *)path, O_RDONLY | XLANG_O_BINARY, 0);
   if (fd < 0)
     return -1;
   total = 0;
@@ -507,9 +507,9 @@ int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap)
   close(fd);
   return total;
 }
-#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
+#endif /* XLANG_RUNTIME_IO_ABI_FROM_X */
 
-#ifndef SHUX_L2_RIO_THIN_FROM_X
+#ifndef XLANG_L2_RIO_THIN_FROM_X
 int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
   if (path == NULL) {
     return -1;

@@ -2,11 +2,11 @@
  * R2 full surface — isomorphic with src/asm/async_asm_pool.x
  * Product path unbundled (2026-07-21): src/async/async_asm_pool.o is a standalone
  *   TU (not #included into pipeline_glue). Cold = full seed; PREFER = .x + rest marker.
- * Hybrid/PREFER path: g05_try_x_to_o(async_asm_pool.x) + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X).
+ * Hybrid/PREFER path: g05_try_x_to_o(async_asm_pool.x) + rest (-DXLANG_ASYNC_ASM_POOL_FROM_X).
  * R2: full.x eats helpers + build_layout; FROM_X rest business H=0 (only slice_marker in seed rest).
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... src/asm/async_asm_pool.x | filter DBG + polish prologue
- * NOTE: use ./shux (not shux-x) so non-#[no_mangle] keep short names where applicable.
+ * Regen: ./xlang -E ... src/asm/async_asm_pool.x | filter DBG + polish prologue
+ * NOTE: use ./xlang (not xlang-x) so non-#[no_mangle] keep short names where applicable.
  * Stack: build_layout caches let indices only (no u8[4096]) — Ubuntu -E stability.
  * PLATFORM: SHARED — pool API symbol contract; Ubuntu gold + mac prove.
  */

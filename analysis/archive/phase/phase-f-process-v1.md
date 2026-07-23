@@ -28,7 +28,7 @@ make -C compiler ../std/process/process.o
 ## 门禁
 
 ```bash
-SHUX_F_PROCESS_V1_FAIL=1 ./tests/run-f-process-v1-gate.sh
+XLANG_F_PROCESS_V1_FAIL=1 ./tests/run-f-process-v1-gate.sh
 ./tests/run-std-process-xplat-gate.sh
 ```
 

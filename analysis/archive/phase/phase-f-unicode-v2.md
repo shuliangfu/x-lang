@@ -7,16 +7,16 @@
 | 项 | v1 | v2 |
 |----|----|-----|
 | 算法实现 | `unicode_glue.c`（288 行） | **`unicode.x`** |
-| `unicode.o` | `ld -r` glue + x | **纯 shux → unicode.o** |
+| `unicode.o` | `ld -r` glue + x | **纯 xlang → unicode.o** |
 | 依赖 | libc ctype.h/string.h | 内联 ASCII 查表 + `extern memcpy` |
 
 ## 门禁
 
 ```bash
-SHUX_F_UNICODE_V2_FAIL=1 ./tests/run-f-unicode-v2-gate.sh
+XLANG_F_UNICODE_V2_FAIL=1 ./tests/run-f-unicode-v2-gate.sh
 ./tests/run-std-unicode-nfc-gate.sh
 ./tests/run-std-unicode-grapheme-case-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

@@ -13,7 +13,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_ASYNC_V1_FAIL=1 ./tests/run-f-async-v1-gate.sh
+XLANG_F_ASYNC_V1_FAIL=1 ./tests/run-f-async-v1-gate.sh
 ./tests/run-std-async-future-gate.sh
 ./tests/run-std-async-io-cps-gate.sh
 ./tests/run-std-async-context-gate.sh

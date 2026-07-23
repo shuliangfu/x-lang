@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_CORE_BUILTIN_DOC:-analysis/core-builtin-bitops-v1.md}"
-MANIFEST="${SHUX_CORE_BUILTIN_TSV:-tests/baseline/core-builtin-bitops.tsv}"
+DOC="${XLANG_CORE_BUILTIN_DOC:-analysis/core-builtin-bitops-v1.md}"
+MANIFEST="${XLANG_CORE_BUILTIN_TSV:-tests/baseline/core-builtin-bitops.tsv}"
 CODEGEN="compiler/src/codegen/codegen.c"
 BUILTIN_X="core/builtin/mod.x"
 LIB="tests/lib/core-builtin-bitops.sh"
 EMIT_X="tests/builtin/main.x"
 MIN_MAP=3
-PREFIX="shux: [SHUX_CORE_BUILTIN_BITOPS]"
+PREFIX="xlang: [XLANG_CORE_BUILTIN_BITOPS]"
 
 # shellcheck source=tests/lib/core-builtin-bitops.sh
 . tests/lib/core-builtin-bitops.sh
@@ -61,7 +61,7 @@ stdlib_cm_native_shu() {
 }
 resolve_emit_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -71,10 +71,10 @@ resolve_emit_shu() {
 }
 
 EMIT_TOTAL=3
-if SHUX_BIN="$(resolve_emit_shu 2>/dev/null)"; then
-  echo "=== CORE-009: SHUX_DEBUG_C emit (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  found="$(core_builtin_emit_ok "$SHUX_BIN" "$EMIT_X" "$MANIFEST" || true)"
+if XLANG_BIN="$(resolve_emit_shu 2>/dev/null)"; then
+  echo "=== CORE-009: XLANG_DEBUG_C emit (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  found="$(core_builtin_emit_ok "$XLANG_BIN" "$EMIT_X" "$MANIFEST" || true)"
   if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
     core_builtin_emit_report "fail" "${found:-0}" "$EMIT_TOTAL"
     echo "core-builtin-bitops gate FAIL: emit ${found:-0}/${EMIT_TOTAL}" >&2
@@ -85,7 +85,7 @@ if SHUX_BIN="$(resolve_emit_shu 2>/dev/null)"; then
   chmod +x tests/run-builtin.sh
   ./tests/run-builtin.sh
 else
-  echo "core-builtin-bitops gate SKIP runnable (no shux)" >&2
+  echo "core-builtin-bitops gate SKIP runnable (no xlang)" >&2
 fi
 
 echo "core-builtin-bitops gate OK"

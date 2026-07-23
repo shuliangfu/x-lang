@@ -62,7 +62,7 @@
 ```
 
 ```
-shux: [SHUX_STD062_REGEX_PERF] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1.12 host=Darwin/arm64
+xlang: [XLANG_STD062_REGEX_PERF] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1.12 host=Darwin/arm64
 ```
 
 无 `cc` 时 manifest 仍须绿；perf runnable **SKIP**。

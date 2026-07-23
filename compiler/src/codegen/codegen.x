@@ -455,10 +455,10 @@ export function codegen_emit_async_run_seed_push_name(out: *CodegenOutBuf, arena
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let push_i32: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 51, 50];
-    let push_u32: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 51, 50];
-    let push_i64: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 54, 52];
-    let push_usize: u8[30] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 115, 105, 122, 101];
+    let push_i32: u8[29] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 51, 50];
+    let push_u32: u8[29] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 51, 50];
+    let push_i64: u8[29] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 54, 52];
+    let push_usize: u8[31] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 115, 105, 122, 101];
     let kind_ord: i32 = TypeKind.TYPE_I32 as i32;
     if (arena != 0 as *ASTArena && !ast.ref_is_null(type_ref)) {
       kind_ord = pipeline_type_kind_ord_at(arena, type_ref);
@@ -487,7 +487,7 @@ export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Modu
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let sched_prefix: u8[17] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
+    let sched_prefix: u8[18] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
     let fn_name: u8[64] = [];
     let fn_len: i32 = 0;
     if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
@@ -519,7 +519,7 @@ export function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Modu
  * @return i32
  */
 export function codegen_emit_async_sched_call_by_name(out: *CodegenOutBuf, fn_name: *u8, fn_len: i32): i32 {
-  let sched_prefix: u8[17] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
+  let sched_prefix: u8[18] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
   if (out == 0 as *CodegenOutBuf || fn_name == 0 as *u8 || fn_len <= 0) {
     return -1;
   }
@@ -546,7 +546,7 @@ export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module:
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let submit_name: u8[22] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
+    let submit_name: u8[23] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
     let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
     let fn_name: u8[64] = [];
     let fn_len: i32 = 0;
@@ -587,7 +587,7 @@ export function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module:
  * @return i32
  */
 export function codegen_emit_async_task_submit_call_by_symbol(out: *CodegenOutBuf, prefix: *u8, prefix_len: i32, fn_name: *u8, fn_len: i32): i32 {
-  let submit_name: u8[22] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
+  let submit_name: u8[23] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
   let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
   if (out == 0 as *CodegenOutBuf || fn_name == 0 as *u8 || fn_len <= 0) {
     return -1;
@@ -626,7 +626,7 @@ export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *C
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+    let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
     let comma: u8[3] = [44, 32, 0];
     let dep_path: u8[64] = [];
     let prefix_buf: u8[128] = [];
@@ -761,7 +761,7 @@ export function codegen_emit_async_method_call_run(arena: *ASTArena, out: *Codeg
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+    let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
     let comma: u8[3] = [44, 32, 0];
     let ai: i32 = 0;
     if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
@@ -1356,7 +1356,7 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
 /**
  * Skip emitting std.io.core bodies that duplicate runtime/io.o strong symbols.
  *
- * Purpose: when product C co-emits std.io.core, do not redefine shux_io_read_fixed
+ * Purpose: when product C co-emits std.io.core, do not redefine xlang_io_read_fixed
  * (and siblings) that product preamble already provides as weak stubs / io.o.
  *
  * Parameters:
@@ -1366,23 +1366,23 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
  *
  * Returns 1 to skip emit, 0 to emit.
  *
- * Contract: match tables use full "shux_io_*" (with 'x'), never historic "shu_io_*".
+ * Contract: match tables use full "xlang_io_*" (with 'x'), never historic "shu_io_*".
  * Batch names are checked before short submit_read/write prefixes.
  * PLATFORM: SHARED — link-name contract; Cap force + pin product matrix.
  */
 export function codegen_should_skip_emit_std_io_core_io_dup(dep_path: *u8, name: *u8, name_len: i32): i32 {
   let path_core: u8[11] = [115, 116, 100, 46, 105, 111, 46, 99, 111, 114, 101];
-  /* shux_io_read_fixed — 18 (preamble weak returns -1; avoid redef with weak). */
-  let n_rf: u8[18] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
-  /* shux_io_write_fixed — 19 */
-  let n_wf: u8[19] = [115, 104, 117, 120, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
+  /* xlang_io_read_fixed — 18 (preamble weak returns -1; avoid redef with weak). */
+  let n_rf: u8[19] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 102, 105, 120, 101, 100];
+  /* xlang_io_write_fixed — 19 */
+  let n_wf: u8[20] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 119, 114, 105, 116, 101, 95, 102, 105, 120, 101, 100];
   /*
    * See implementation.
    * See implementation.
    * See implementation.
    * See implementation.
    * See implementation.
-   * Do NOT skip shux_io_submit_write either (no weak; Cap force hello residual).
+   * Do NOT skip xlang_io_submit_write either (no weak; Cap force hello residual).
    * PLATFORM: SHARED — product C path; Cap force + pin seed.
    */
   let di: i32 = 0;
@@ -1783,9 +1783,9 @@ export function codegen_emit_io_driver_buf_call_name(out: *CodegenOutBuf, name: 
   let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
   let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
   /* See implementation. */
-  let sym_reg: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
-  let sym_rd: u8[23] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
-  let sym_wr: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
+  let sym_reg: u8[21] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
+  let sym_rd: u8[24] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
+  let sym_wr: u8[25] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
   if (name == 0 as *u8 || name_len <= 0) {
     return 0;
   }
@@ -1826,9 +1826,9 @@ export function codegen_try_emit_std_io_driver_buf_body(out: *CodegenOutBuf, mod
     let reg8: u8[8] = [114, 101, 103, 105, 115, 116, 101, 114];
     let rd11: u8[11] = [115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100];
     let wr12: u8[12] = [115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101];
-    let sym_reg: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
-    let sym_rd: u8[23] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
-    let sym_wr: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
+    let sym_reg: u8[21] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 103, 105, 115, 116, 101, 114, 95, 98, 117, 102];
+    let sym_rd: u8[24] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 98, 117, 102];
+    let sym_wr: u8[25] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 119, 114, 105, 116, 101, 95, 98, 117, 102];
     let ret_kw: u8[8] = [32, 32, 114, 101, 116, 117, 114, 110];
     let close_b: u8[3] = [10, 125, 0];
     if (codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len) == 0) {
@@ -2061,7 +2061,7 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (append_byte(out, 41) != 0) {
       return -1;
     }
-    /* is_method is assigned but not read; SHUX has no unused-warning, so no
+    /* is_method is assigned but not read; XLANG has no unused-warning, so no
      * `(void)is_method;` C-style cast needed (such syntax hangs the parser). */
     return 1;
   }
@@ -2070,7 +2070,7 @@ expr_ref: i32, ctx: *PipelineDepCtx): i32 {
 /**
  * Emit one call argument under seed/glue slice ABI (PLATFORM: SHARED).
  *
- * Why: TYPE_SLICE params lower as `struct shux_slice_* *`. Locals stay by-value
+ * Why: TYPE_SLICE params lower as `struct xlang_slice_* *`. Locals stay by-value
  * structs, so call sites must pass `&local` (seed: `&(slice)`). Slice params are
  * already pointers — pass through. ADDR_OF is left unchanged.
  *
@@ -2229,7 +2229,7 @@ export function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i
           if (!ast.ref_is_null(param_ty_ref) && param_ty_ref > 0 && param_ty_ref <= arena.num_types) {
             let pty: Type = ast.ast_arena_type_get(arena, param_ty_ref);
             /* PLATFORM: SHARED — C ABI: *T and u8[] (TYPE_SLICE) params are pointers.
-             * Seed/glue pass slices as struct shux_slice_* *; field access must use ->. */
+             * Seed/glue pass slices as struct xlang_slice_* *; field access must use ->. */
             if (pty.kind == TypeKind.TYPE_PTR || pty.kind == TypeKind.TYPE_SLICE) {
               return 1;
             }
@@ -3739,7 +3739,7 @@ export function codegen_lookup_struct_field_type_ref(
 ): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    /* arena unused (layout lives on Module); SHUX has no unused-warning, so no
+    /* arena unused (layout lives on Module); XLANG has no unused-warning, so no
      * `(void)(arena);` C-style cast needed (such syntax hangs the parser). */
     if (struct_name == 0 as *u8 || struct_name_len <= 0 || field_name == 0 as *u8 || field_name_len <= 0) {
       return 0;
@@ -5371,10 +5371,10 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let op_ref: i32 = e.unary_operand_ref;
       let op_ty_ref: i32 = 0;
       let open: u8[4] = [40, 123, 32, 0];
-      let tmp_name: u8[15] = [95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0];
+      let tmp_name: u8[16] = [95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 0];
       let assign_mid: u8[5] = [32, 61, 32, 0, 0];
-      let if_open: u8[37] = [59, 32, 105, 102, 32, 40, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 41, 46, 101, 114, 114, 32, 33, 61, 32, 48, 41, 32, 123, 32, 114, 101];
-      let turn_mid: u8[39] = [116, 117, 114, 110, 32, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 59, 32, 125, 32, 40, 95, 95, 115, 104, 117, 120, 95, 116, 114, 121, 95, 116, 109, 112, 0];
+      let if_open: u8[38] = [59, 32, 105, 102, 32, 40, 40, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 41, 46, 101, 114, 114, 32, 33, 61, 32, 48, 41, 32, 123, 32, 114, 101];
+      let turn_mid: u8[41] = [116, 117, 114, 110, 32, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 59, 32, 125, 32, 40, 95, 95, 120, 108, 97, 110, 103, 95, 116, 114, 121, 95, 116, 109, 112, 0];
       let value_tail: u8[7] = [41, 46, 118, 97, 108, 117, 101];
       let close_tail: u8[4] = [59, 32, 125, 41];
       if (ast.ref_is_null(op_ref) || op_ref <= 0 || op_ref > arena.num_exprs) {
@@ -5431,7 +5431,7 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
       let num_params: i32 = 0;
       let ai: i32 = 0;
       let op_is_call: i32 = 0;
-      let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+      let reset_name: u8[26] = [120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
       let comma: u8[3] = [44, 32, 0];
       if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
         return -1;
@@ -6883,8 +6883,8 @@ export function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, 
     }
     /* See implementation. */
     if (e.kind == ExprKind.EXPR_PANIC) {
-      let p: u8[22] = [115, 104, 117, 120, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-      if (emit_bytes_22(out, p, 12) != 0) {
+      let p: u8[23] = [120, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      if (emit_bytes_22(out, p, 13) != 0) {
         return -1;
       }
       if (ast.ref_is_null(e.unary_operand_ref)) {
@@ -9930,7 +9930,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         }
         /* PLATFORM: SHARED — lower TYPE_SLICE params as pointers (seed/glue ABI).
          * Why: Cap by-value slice + pointer glue → SIGSEGV (string bytes as ptr).
-         * Emit: `struct shux_slice_T * name` so field access uses -> and calls pass &local. */
+         * Emit: `struct xlang_slice_T * name` so field access uses -> and calls pass &local. */
         if (pipeline_type_kind_ord_at(arena, pipeline_module_func_param_type_ref_at(module, fi, p)) == (TypeKind.TYPE_SLICE as i32)) {
           if (append_byte(out, 32) != 0) {
             return -1;
@@ -10158,7 +10158,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
  * Return 1 if `name` is a libc symbol that must NOT be re-declared by
  * `emit_func_extern_declaration`.
  *
- * Why: SHUX maps `*u8` → `uint8_t *` (and integers → `int32_t`), while system
+ * Why: XLANG maps `*u8` → `uint8_t *` (and integers → `int32_t`), while system
  * headers use `char *` / `void *` / `int` / `size_t`. Re-emitting those externs
  * conflicts with `#include <stdlib.h>` / `<string.h>` / unistd (g05 historically
  * sed-deleted the bad redecls). Authority for "skip emit" is this single
@@ -10211,7 +10211,7 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   if (name_len == 7 && name[0] == 114 && name[1] == 101 && name[2] == 97 && name[3] == 108 && name[4] == 108 && name[5] == 111 && name[6] == 99) {
     return 1;
   }
-  /* posix_memalign 14 — stdlib/POSIX prototype; skip SHUX redecl */
+  /* posix_memalign 14 — stdlib/POSIX prototype; skip XLANG redecl */
   if (name_len == 14 && name[0] == 112 && name[1] == 111 && name[2] == 115 && name[3] == 105 && name[4] == 120 && name[5] == 95 && name[6] == 109 && name[7] == 101 && name[8] == 109 && name[9] == 97 && name[10] == 108 && name[11] == 105 && name[12] == 103 && name[13] == 110) {
     return 1;
   }
@@ -10317,7 +10317,7 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
   }
   /* opendir/closedir/readdir: DO NOT skip — std.fs models DIR* as *u8 opaque;
    * system dirent.h DIR* prototypes are incompatible (return/arg type). Emit
-   * SHUX extern uint8_t *opendir(...) instead of including dirent.h.
+   * XLANG extern uint8_t *opendir(...) instead of including dirent.h.
    * PLATFORM: POSIX opaque DIR. */
   /* access 6 */
   if (name_len == 6 && name[0] == 97 && name[1] == 99 && name[2] == 99 && name[3] == 101 && name[4] == 115 && name[5] == 115) {
@@ -10576,8 +10576,8 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (append_byte(out, 32) != 0) {
       return -1;
     }
-    /* Why extern: external-link symbols need bare names (shux_sys_mmap), not dep-prefixed
-       (std_sys_linux_shux_sys_mmap fails to link). Type emit still uses prefix_len for dep
+    /* Why extern: external-link symbols need bare names (xlang_sys_mmap), not dep-prefixed
+       (std_sys_linux_xlang_sys_mmap fails to link). Type emit still uses prefix_len for dep
        custom type params. Invariant: name_prefix_len only affects function-name emit. */
     let name_prefix_len: i32 = prefix_len;
     if (pipeline_module_func_is_extern_at(module, fi) != 0) {
@@ -11445,7 +11445,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
     return 0;
   }
   // PLATFORM: SHARED — Cap-T001 whole-body unsafe close. Extra matching `}` required so
-  // product parser does not parse-skip this mega function (SHUX_DEBUG_PARSE: skip at
+  // product parser does not parse-skip this mega function (XLANG_DEBUG_PARSE: skip at
   // codegen_x_ast entry → residual body mis-ingested as top-level lets / fake init_globals).
   }
 }
@@ -11465,7 +11465,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
  *   Cap still skipped bare "placeholder" so multi-dep co-emit of core.types
  *   emitted every size_of body but dropped placeholder → si -o UNDEF.
  * Invariant: only asm_codegen_ast_seed_mega / to_elf mega remain name-skips
- *   unless SHUX_EMIT_SEED_MEGA is set; do not re-add placeholder skip.
+ *   unless XLANG_EMIT_SEED_MEGA is set; do not re-add placeholder skip.
  * PLATFORM: SHARED — Cap force stdlib-import / core.* co-emit link.
  * Note: never write star-slash inside this block comment (truncates C emit).
  */
@@ -11478,7 +11478,7 @@ function codegen_should_skip_emit_func_by_name(name: *u8, name_len: i32): i32 {
       return 0;
     }
     // placeholder and string_new skip removed (seed-aligned; real core/std exports).
-    // bootstrap -E: seed_mega bodies are huge; SHUX_EMIT_SEED_MEGA=1 still tries emit.
+    // bootstrap -E: seed_mega bodies are huge; XLANG_EMIT_SEED_MEGA=1 still tries emit.
     if (pipeline_codegen_emit_seed_mega_enabled() == 0) {
       if (name_len == 25 && codegen_name_bytes_prefix_eq(name, name_len, &asm_seed_mega[0], 25) != 0) {
         return 1;
@@ -11520,21 +11520,21 @@ function codegen_force_param_i32(prefix: *u8, prefix_len: i32, name: *u8, name_l
 /**
  * Skip std.io.core ABI bridge names supplied by runtime preamble / io backend.
  *
- * Purpose: do not emit C bodies for shux_io_read_ptr(_len), register*, wait_readable
+ * Purpose: do not emit C bodies for xlang_io_read_ptr(_len), register*, wait_readable
  * when the C backend already maps them via preamble macros/weak stubs.
  *
  * Parameters:
- *   name / name_len — bare identifier; must use full "shux_io_*" spelling (with 'x').
+ *   name / name_len — bare identifier; must use full "xlang_io_*" spelling (with 'x').
  *
  * Returns 1 to skip, 0 to emit.
  * read_ptr_len allows name_len >= 20 (prefix match); others require exact length.
  * PLATFORM: SHARED — Cap force hello co-emit must not redefine preamble bridges.
  */
 function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): i32 {
-  /* shux_io_read_ptr_len — 20 */
-  let shux_rpl20: u8[20] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
-  /* shux_io_read_ptr — 16 */
-  let shux_rp16: u8[16] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
+  /* xlang_io_read_ptr_len — 20 */
+  let xlang_rpl20: u8[21] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 108, 101, 110];
+  /* xlang_io_read_ptr — 16 */
+  let xlang_rp16: u8[17] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114];
   /*
    * See implementation.
    * See implementation.
@@ -11546,20 +11546,20 @@ function codegen_should_skip_emit_func_core_read_ptr(name: *u8, name_len: i32): 
   if (name == 0 as *u8) {
     return 0;
   }
-  if (name_len >= 20 && codegen_name_bytes_prefix_eq(name, name_len, &shux_rpl20[0], 20) != 0) {
+  if (name_len >= 20 && codegen_name_bytes_prefix_eq(name, name_len, &xlang_rpl20[0], 20) != 0) {
     return 1;
   }
-  if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &shux_rp16[0], 16) != 0) {
+  if (name_len == 16 && codegen_name_bytes_prefix_eq(name, name_len, &xlang_rp16[0], 16) != 0) {
     return 1;
   }
-  /* shux_io_read_ptr_backend — 24 (preamble weak stub) */
-  let shux_rpb24: u8[24] = [115, 104, 117, 120, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100];
-  if ((name_len == 24 || name_len == 25) && codegen_name_bytes_prefix_eq(name, name_len, &shux_rpb24[0], 24) != 0) {
+  /* xlang_io_read_ptr_backend — 24 (preamble weak stub) */
+  let xlang_rpb24: u8[25] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 114, 101, 97, 100, 95, 112, 116, 114, 95, 98, 97, 99, 107, 101, 110, 100];
+  if ((name_len == 24 || name_len == 25) && codegen_name_bytes_prefix_eq(name, name_len, &xlang_rpb24[0], 24) != 0) {
     return 1;
   }
-  /* shux_io_submit_read_async — 25 (preamble weak stub) */
-  let shux_sra25: u8[25] = [115, 104, 117, 120, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 97, 115, 121, 110, 99];
-  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &shux_sra25[0], 25) != 0) {
+  /* xlang_io_submit_read_async — 25 (preamble weak stub) */
+  let xlang_sra25: u8[26] = [120, 108, 97, 110, 103, 95, 105, 111, 95, 115, 117, 98, 109, 105, 116, 95, 114, 101, 97, 100, 95, 97, 115, 121, 110, 99];
+  if ((name_len == 25 || name_len == 26) && codegen_name_bytes_prefix_eq(name, name_len, &xlang_sra25[0], 25) != 0) {
     return 1;
   }
   return 0;

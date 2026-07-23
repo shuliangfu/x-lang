@@ -17,8 +17,8 @@
 /**
  * HTTP C ABI wrappers.
  *
- * All `http_*` / `http2_*` functions below are thin wrappers over the SHUX
- * HTTP/1.x + HTTP/2 C implementation (see seeds). They are exposed to SHUX
+ * All `http_*` / `http2_*` functions below are thin wrappers over the XLANG
+ * HTTP/1.x + HTTP/2 C implementation (see seeds). They are exposed to XLANG
  * via `extern "C"` declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches the C runtime

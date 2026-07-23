@@ -498,7 +498,7 @@ let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
 let HTTP_TAG: u8[5] = [72, 84, 84, 80, 0];
 let HTML_TAG: u8[5] = [104, 116, 109, 108, 0];
 let HTML_TAG_U: u8[5] = [72, 84, 77, 76, 0];
-let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
+let ENV_XLANG_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
 
 /**
  * See implementation.
@@ -518,7 +518,7 @@ export function net_tls_openssl_smoke_c(): i32 {
   if (name == 0 || name[0] != 111) {
     return 1;
   }
-  unsafe { port_env = getenv(&ENV_SHUX_TLS_PORT[0]); }
+  unsafe { port_env = getenv(&ENV_XLANG_TLS_PORT[0]); }
   port = 0;
   if (port_env != 0) {
     unsafe { port = atoi(port_env); }

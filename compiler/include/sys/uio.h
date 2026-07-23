@@ -2,7 +2,7 @@
  * Why: MinGW does not provide <sys/uio.h>. Generated C files (parser_gen.c,
  *      codegen_gen.c, typeck_gen.c, seeds/runtime_driver_abi_thin.from_x.c,
  *      seeds/fmt_check_cmd_thin.from_x.c, etc.) include <sys/uio.h> for
- *      struct iovec / readv / writev used by shux_sys_readv / shux_sys_writev
+ *      struct iovec / readv / writev used by xlang_sys_readv / xlang_sys_writev
  *      inline helpers. Without this shim, Windows MSYS/MinGW compilation
  *      fails at `#include <sys/uio.h>` with "No such file or directory".
  * On macOS/Linux the system <sys/uio.h> is used via #include_next.
@@ -11,8 +11,8 @@
  *            short reads/writes (return on first partial I/O).
  * PLATFORM: WINDOWS | MSYS | MINGW (provides struct iovec/readv/writev);
  *           POSIX (delegates to system header via #include_next). */
-#ifndef SHUX_SYS_UIO_H
-#define SHUX_SYS_UIO_H
+#ifndef XLANG_SYS_UIO_H
+#define XLANG_SYS_UIO_H
 
 #if defined(_WIN32) || defined(_WIN64)
 
@@ -65,4 +65,4 @@ static inline ssize_t writev(int fd, const struct iovec *iov, int iovcnt) {
 #include_next <sys/uio.h>
 #endif
 
-#endif /* SHUX_SYS_UIO_H */
+#endif /* XLANG_SYS_UIO_H */

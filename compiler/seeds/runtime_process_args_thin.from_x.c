@@ -9,17 +9,17 @@
  * 用户 import("std.process") 的 std_process_* API 由 co-emit mod.x 提供，不进 process.o。
  *
  * 【Invariant】符号名 process_args_count_c / process_arg_c；实现只转发 argv 胶层。
- * 待 -x -E 库模块全量 emit 恢复后，可改回 shux_compile_std_module process.x 并删本文件。
+ * 待 -x -E 库模块全量 emit 恢复后，可改回 xlang_compile_std_module process.x 并删本文件。
  */
 #include <stdint.h>
 
-extern int32_t process_shux_argc_get(void);
-extern uint8_t *process_shux_argv_get(int32_t i);
+extern int32_t process_xlang_argc_get(void);
+extern uint8_t *process_xlang_argv_get(int32_t i);
 
 int32_t process_args_count_c(void) {
-    return process_shux_argc_get();
+    return process_xlang_argc_get();
 }
 
 uint8_t *process_arg_c(int32_t i) {
-    return process_shux_argv_get(i);
+    return process_xlang_argv_get(i);
 }

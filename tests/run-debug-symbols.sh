@@ -8,13 +8,13 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/tool-debug-symbols.sh
 . tests/lib/tool-debug-symbols.sh
 
-SHUX="${SHUX:-./compiler/shux}"
+XLANG="${XLANG:-./compiler/xlang}"
 SRC=tests/debug/symbols_marker.x
-EXE="/tmp/shux_debug_symbols_$$"
+EXE="/tmp/xlang_debug_symbols_$$"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-if ! "$SHUX" -O 0 -L . "$SRC" -o "$EXE" 2>&1; then
+if ! "$XLANG" -O 0 -L . "$SRC" -o "$EXE" 2>&1; then
   echo "run-debug-symbols FAIL: compile $SRC" >&2
   rm -f "$EXE"
   exit 1

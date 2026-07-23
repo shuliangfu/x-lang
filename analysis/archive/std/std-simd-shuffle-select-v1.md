@@ -24,7 +24,7 @@
 | **编译器内联** | `vec4f_shuffle` / `vec8i_shuffle` → x86 `pshufd`/`vpshufd`；arm64 `ld1`/`ins`/`st1`；`vec*_select` → x86 `cmpgt*`/`and`/`or` 或 arm64 `cmgt`/`fcmgt`/`bit` |
 | **.x 回退** | `std/simd/mod.x` lane-scalar：`v[mask[i]]`、三元 `mask[i]!=0 ? a[i]:b[i]` |
 
-环境变量 `SHUX_SIMD_HW=0` 可强制走 lane-scalar emit（仍可由编译器内联 .x 体）。
+环境变量 `XLANG_SIMD_HW=0` 可强制走 lane-scalar emit（仍可由编译器内联 .x 体）。
 
 ---
 
@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD_SIMD_SHUFFLE_SELECT] status=ok shuffle=1 select=1 s4=1 skip=0
+xlang: [XLANG_STD_SIMD_SHUFFLE_SELECT] status=ok shuffle=1 select=1 s4=1 skip=0
 ```
 
 联动：`tests/run-simd-s4-gate.sh`（编译 + x86 objdump 探针）。

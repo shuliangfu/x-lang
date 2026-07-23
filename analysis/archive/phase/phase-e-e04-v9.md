@@ -1,18 +1,18 @@
 # 阶段 E-04 v9（runtime_panic / async scheduler .o 路径迁入 runtime_link_abi）
 
-> **E-04 v9**：自 `runtime.c` 迁入 **`shux_runtime_panic_o_path`** 与 **`shux_std_async_scheduler_o_path`**；invoke_cc / asm_invoke_ld 与 ensure_runtime_panic_o 共用 link ABI TU。
+> **E-04 v9**：自 `runtime.c` 迁入 **`xlang_runtime_panic_o_path`** 与 **`xlang_std_async_scheduler_o_path`**；invoke_cc / asm_invoke_ld 与 ensure_runtime_panic_o 共用 link ABI TU。
 
 ## v9 完成（✅）
 
 | 符号 | 说明 |
 |------|------|
-| `shux_runtime_panic_o_path` | compiler/runtime_panic.o 路径解析 |
-| `shux_std_async_scheduler_o_path` | std/async/scheduler.o 路径解析 |
+| `xlang_runtime_panic_o_path` | compiler/runtime_panic.o 路径解析 |
+| `xlang_std_async_scheduler_o_path` | std/async/scheduler.o 路径解析 |
 
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 ```
 

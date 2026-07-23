@@ -2,8 +2,8 @@
  * G-02f labi_std_list R2 full surface — isomorphic with src/runtime/labi_std_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_std_list.x) + mega rest under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (59-step std ld plan pure table)
- * Cap residual: IO/ensure/push in mega shux_asm_ld_append_std_objs
- * Regen: ./shux -E ... src/runtime/labi_std_list.x | tail -n +8 (skip extern decls)
+ * Cap residual: IO/ensure/push in mega xlang_asm_ld_append_std_objs
+ * Regen: ./xlang -E ... src/runtime/labi_std_list.x | tail -n +8 (skip extern decls)
  */
 #include <stdint.h>
 #include <stddef.h>

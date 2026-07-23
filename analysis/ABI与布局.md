@@ -34,7 +34,7 @@
 
 - **布局**：固定为两字段：(1) 指向元素类型的指针；(2) 长度（usize）。
 - **64 位**：16 字节（8 + 8），对齐 8；**32 位**：8 字节（4 + 4），对齐 4。
-- **C 侧命名**：codegen 生成 `struct shux_slice_<elem> { elem* data; size_t len; }`；第一成员为指针、第二成员为长度，与《内存契约》Slice 固定 (ptr, len) 一致。
+- **C 侧命名**：codegen 生成 `struct xlang_slice_<elem> { elem* data; size_t len; }`；第一成员为指针、第二成员为长度，与《内存契约》Slice 固定 (ptr, len) 一致。
 - **详细规则**：见《内存契约》第三节（Slice 固定 (ptr, len)）。
 
 ---

@@ -21,30 +21,30 @@
   },
   "symbols": {
     "x": [
-      "shux_process_argv_bind_from_crt",
+      "xlang_process_argv_bind_from_crt",
       "runtime_process_argv_x_doc_anchor"
     ],
     "seed_impl": [
-      "shux_process_argv_bind_from_crt_impl"
+      "xlang_process_argv_bind_from_crt_impl"
     ],
     "seed_rest": [
-      "process_shux_argc_get",
-      "process_shux_argv_get",
+      "process_xlang_argc_get",
+      "process_xlang_argv_get",
       "process_args_count_c",
       "process_arg_c"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_PROCESS_ARGV_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_PROCESS_ARGV_FROM_X",
   "impl_residuals": [
-    "shux_process_argv_bind_from_crt_impl"
+    "xlang_process_argv_bind_from_crt_impl"
   ],
   "direct_symbols": [],
   "forward_decls": [
-    "shux_process_argv_bind_from_crt"
+    "xlang_process_argv_bind_from_crt"
   ],
   "internal_call_rewrites": [],
   "known_limitations": [
-    "签名修复：.x 中 shux_process_argv_bind_from_crt 原为 (argc: i32, argv: *u8)，seed 为 (void)，已修复 .x 为无参数",
+    "签名修复：.x 中 xlang_process_argv_bind_from_crt 原为 (argc: i32, argv: *u8)，seed 为 (void)，已修复 .x 为无参数",
     "平台条件：_impl 含 #if defined(__APPLE__)（_NSGetArgc/_NSGetArgv）和 #elif defined(__linux__)（/proc/self/cmdline），是语言限制",
     "weak 函数：process_args_count_c/process_arg_c 为 weak fallback"
   ],

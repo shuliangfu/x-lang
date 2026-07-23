@@ -5,7 +5,7 @@
  * Cap residual: ensure/skip/path + freestanding_get + needs_undef_impl (wave212) /
  *   has_undef_impl (wave210) / exports_marker_impl (wave211) / has_defined_impl (wave213)
  * Prove: full.x vs this seed → nm IDENTICAL (+ wave210–213 pure thin)
- * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
+ * Regen: ./xlang_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
@@ -135,17 +135,17 @@ extern int32_t link_abi_user_o_provides_std_heap(uint8_t * user_o);
 extern int32_t link_abi_link_needs_heap_user_c(uint8_t * user_o, uint8_t * * argv, int32_t la);
 extern int32_t link_abi_link_needs_std_heap_import(uint8_t * user_o, uint8_t * * argv, int32_t la);
 /* Cap residual (wave212): nm/popen(+ELF) UNDEF body; pure owns null/empty gates. */
-extern int32_t shux_link_obj_needs_undef_sym_impl(uint8_t * user_o, uint8_t * sym);
+extern int32_t xlang_link_obj_needs_undef_sym_impl(uint8_t * user_o, uint8_t * sym);
 extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
 /* Cap residual (wave213): nm/popen defined T/t body; pure owns null/empty gates. */
-extern int32_t shux_link_obj_has_defined_sym_impl(uint8_t * o_path, uint8_t * sym);
+extern int32_t xlang_link_obj_has_defined_sym_impl(uint8_t * o_path, uint8_t * sym);
 /* Cap residual (wave211): nm/popen marker body; pure owns null/empty gates. */
 extern int32_t link_abi_obj_exports_marker_impl(uint8_t * obj_o, uint8_t * marker);
 /* Cap residual (wave210): nm/popen UNDEF body; pure owns null/empty gates. */
 extern int32_t link_abi_obj_has_undef_sym_impl(uint8_t * obj_o, uint8_t * sym);
 
-/* wave212: shux_link_obj_needs_undef_sym pure orch (surface pin ≡ .x). */
-int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym) {
+/* wave212: xlang_link_obj_needs_undef_sym pure orch (surface pin ≡ .x). */
+int32_t xlang_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym) {
   if ((user_o == ((uint8_t *)(0)))) {
     return 0;
   }
@@ -159,13 +159,13 @@ int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym) {
     return 0;
   }
   {
-    return shux_link_obj_needs_undef_sym_impl(user_o, sym);
+    return xlang_link_obj_needs_undef_sym_impl(user_o, sym);
   }
   return 0;
 }
 
-/* wave213: shux_link_obj_has_defined_sym pure orch (surface pin ≡ .x). */
-int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym) {
+/* wave213: xlang_link_obj_has_defined_sym pure orch (surface pin ≡ .x). */
+int32_t xlang_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym) {
   if ((o_path == ((uint8_t *)(0)))) {
     return 0;
   }
@@ -179,7 +179,7 @@ int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym) {
     return 0;
   }
   {
-    return shux_link_obj_has_defined_sym_impl(o_path, sym);
+    return xlang_link_obj_has_defined_sym_impl(o_path, sym);
   }
   return 0;
 }
@@ -227,32 +227,32 @@ int32_t link_abi_obj_has_undef_sym(uint8_t * obj_o, uint8_t * sym) {
 /* wave197 Cap residual / peer pure externs for on_demand shell surface */
 extern int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out);
 extern void link_abi_asm_ld_argv_push_stable(uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * p);
-extern uint8_t * shux_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
+extern uint8_t * xlang_asm_ld_try_under_lib_roots(uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
-extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
-extern uint8_t * shux_repo_root_from_argv0(uint8_t * argv0);
-extern int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_repo, uint8_t * make_target);
+extern uint8_t * xlang_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
+extern uint8_t * xlang_repo_root_from_argv0(uint8_t * argv0);
+extern int32_t xlang_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_repo, uint8_t * make_target);
 extern int32_t driver_freestanding_get(void);
-extern int32_t shux_ensure_runtime_thread_glue_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_thread_glue_o_path(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_net_udp_batch_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_net_udp_batch_o_path(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_net_workers_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_net_workers_o_path(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_test_fn_invoke_o_path(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_time_os_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_time_os_o_path(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_queue_contention_o(uint8_t * argv0);
-extern uint8_t * shux_runtime_queue_contention_o_path(uint8_t * argv0);
-extern uint8_t * shux_std_async_scheduler_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_scheduler_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_thread_glue_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_thread_glue_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_net_udp_batch_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_net_udp_batch_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_net_workers_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_net_workers_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_test_fn_invoke_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_heap_user_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_heap_user_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_process_argv_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_process_argv_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_time_os_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_time_os_o_path(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_queue_contention_o(uint8_t * argv0);
+extern uint8_t * xlang_runtime_queue_contention_o_path(uint8_t * argv0);
+extern uint8_t * xlang_std_async_scheduler_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
 int32_t labi_od_simple_group_count(void) {
   return 10;
 }
@@ -784,7 +784,7 @@ int32_t link_abi_user_o_needs_std_net(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -897,7 +897,7 @@ int32_t link_abi_user_o_needs_std_set(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -966,7 +966,7 @@ int32_t link_abi_user_o_needs_std_map(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1047,7 +1047,7 @@ int32_t link_abi_user_o_needs_std_queue(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1108,7 +1108,7 @@ int32_t link_abi_user_o_needs_std_test(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1169,7 +1169,7 @@ int32_t link_abi_user_o_needs_core_mem(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1226,7 +1226,7 @@ int32_t link_abi_user_o_needs_core_slice(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1279,7 +1279,7 @@ int32_t link_abi_user_o_needs_std_heap_page_mmap(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1340,7 +1340,7 @@ int32_t link_abi_user_o_needs_std_sys_linux(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1405,7 +1405,7 @@ int32_t link_abi_user_o_needs_std_sys(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1538,7 +1538,7 @@ int32_t link_abi_user_o_needs_std_heap_api(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1599,7 +1599,7 @@ int32_t link_abi_user_o_needs_heap_user_syms(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -1772,7 +1772,7 @@ int32_t link_abi_user_o_needs_async_scheduler(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -2030,7 +2030,7 @@ int32_t labi_user_needs_runtime_time_os(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -2111,7 +2111,7 @@ int32_t labi_user_needs_runtime_random_fill(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -2220,7 +2220,7 @@ int32_t labi_user_needs_runtime_env_os(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -2289,7 +2289,7 @@ int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -2438,7 +2438,7 @@ int32_t labi_user_needs_std_task(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -3087,7 +3087,7 @@ int32_t labi_std_fk0_user_needs_rel(uint8_t * user_o, uint8_t * rel) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -3497,7 +3497,7 @@ int32_t labi_std_fk_user_needs(uint8_t * user_o, int32_t fk) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_needs_undef_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_needs_undef_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -3610,7 +3610,7 @@ int32_t link_abi_user_o_provides_core_mem(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_has_defined_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_has_defined_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -3651,7 +3651,7 @@ int32_t link_abi_user_o_provides_std_heap(uint8_t * user_o) {
     if ((sym !=0)) {
       if (((sym)[0] !=0)) {
         int32_t hit = 0;
-        (void)((hit = shux_link_obj_has_defined_sym(user_o, sym)));
+        (void)((hit = xlang_link_obj_has_defined_sym(user_o, sym)));
         if ((hit !=0)) {
           return 1;
         }
@@ -3791,7 +3791,7 @@ int32_t labi_ondemand_list_labi_od_user_needs_simple_group(uint8_t * user_o, int
     if ((s !=0)) {
       if (((s)[0] !=0)) {
         int32_t u = 0;
-        (void)((u = shux_link_obj_needs_undef_sym(user_o, s)));
+        (void)((u = xlang_link_obj_needs_undef_sym(user_o, s)));
         if ((u !=0)) {
           return 1;
         }
@@ -3829,7 +3829,7 @@ int32_t labi_ondemand_list_labi_od_user_needs_table_which(uint8_t * user_o, int3
     if ((s !=0)) {
       if (((s)[0] !=0)) {
         int32_t u = 0;
-        (void)((u = shux_link_obj_needs_undef_sym(user_o, s)));
+        (void)((u = xlang_link_obj_needs_undef_sym(user_o, s)));
         if ((u !=0)) {
           return 1;
         }
@@ -3864,13 +3864,13 @@ uint8_t * labi_ondemand_list_labi_od_resolve_or_try(uint8_t * primary, uint8_t *
   if ((p ==0)) {
     if ((bank !=0)) {
       if ((rel !=0)) {
-        (void)((p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank)));
+        (void)((p = xlang_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank)));
       }
     }
   }
   return p;
 }
-void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user_o, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * flags) {
+void xlang_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user_o, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, uint8_t * flags) {
   if ((user_o ==0)) {
     return;
   }
@@ -3912,21 +3912,21 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
         int32_t er = 0;
         uint8_t * tp = 0;
         uint8_t * trel = labi_od_rel_thread_glue();
-        (void)((er = shux_ensure_runtime_thread_glue_o(link_argv0)));
-        (void)((tp = shux_runtime_thread_glue_o_path(link_argv0)));
+        (void)((er = xlang_ensure_runtime_thread_glue_o(link_argv0)));
+        (void)((tp = xlang_runtime_thread_glue_o_path(link_argv0)));
         (void)(labi_ondemand_list_labi_od_glue_push_if(er, tp, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la));
       }
       int32_t er_u = 0;
       uint8_t * up = 0;
       uint8_t * urel = labi_od_rel_net_udp_batch();
-      (void)((er_u = shux_ensure_runtime_net_udp_batch_o(link_argv0)));
-      (void)((up = shux_runtime_net_udp_batch_o_path(link_argv0)));
+      (void)((er_u = xlang_ensure_runtime_net_udp_batch_o(link_argv0)));
+      (void)((up = xlang_runtime_net_udp_batch_o_path(link_argv0)));
       (void)(labi_ondemand_list_labi_od_glue_push_if(er_u, up, link_argv0, urel, lib_roots, n_lib_roots, bank, argv, la, max_la));
       int32_t er_w = 0;
       uint8_t * wp = 0;
       uint8_t * wrel = labi_od_rel_net_workers();
-      (void)((er_w = shux_ensure_runtime_net_workers_o(link_argv0)));
-      (void)((wp = shux_runtime_net_workers_o_path(link_argv0)));
+      (void)((er_w = xlang_ensure_runtime_net_workers_o(link_argv0)));
+      (void)((wp = xlang_runtime_net_workers_o_path(link_argv0)));
       (void)(labi_ondemand_list_labi_od_glue_push_if(er_w, wp, link_argv0, wrel, lib_roots, n_lib_roots, bank, argv, la, max_la));
     }
   }
@@ -3951,14 +3951,14 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   int32_t need_set = link_abi_user_o_needs_std_set(user_o);
   if ((need_set !=0)) {
     uint8_t * root = 0;
-    (void)((root = shux_repo_root_from_argv0(link_argv0)));
+    (void)((root = xlang_repo_root_from_argv0(link_argv0)));
     if ((root !=0)) {
       if (((root)[0] !=0)) {
         {
-          int32_t _e1 = shux_ensure_formal_std_make_o(root, ((uint8_t *)"\x73\x74\x64\x2f\x73\x65\x74\x2f\x73\x65\x74\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x73\x65\x74\x2f\x73\x65\x74\x2e\x6f"));
-          int32_t _e2 = shux_ensure_formal_std_make_o(root, ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"));
-          int32_t _e3 = shux_ensure_formal_std_make_o(root, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"));
-          int32_t _e4 = shux_ensure_formal_std_make_o(root, ((uint8_t *)"\x73\x74\x64\x2f\x68\x61\x73\x68\x2f\x68\x61\x73\x68\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x61\x73\x68\x2f\x68\x61\x73\x68\x2e\x6f"));
+          int32_t _e1 = xlang_ensure_formal_std_make_o(root, ((uint8_t *)"\x73\x74\x64\x2f\x73\x65\x74\x2f\x73\x65\x74\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x73\x65\x74\x2f\x73\x65\x74\x2e\x6f"));
+          int32_t _e2 = xlang_ensure_formal_std_make_o(root, ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"));
+          int32_t _e3 = xlang_ensure_formal_std_make_o(root, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"));
+          int32_t _e4 = xlang_ensure_formal_std_make_o(root, ((uint8_t *)"\x73\x74\x64\x2f\x68\x61\x73\x68\x2f\x68\x61\x73\x68\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x61\x73\x68\x2f\x68\x61\x73\x68\x2e\x6f"));
         }
       }
     }
@@ -3975,13 +3975,13 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   int32_t need_map = link_abi_user_o_needs_std_map(user_o);
   if ((need_map !=0)) {
     uint8_t * rootm = 0;
-    (void)((rootm = shux_repo_root_from_argv0(link_argv0)));
+    (void)((rootm = xlang_repo_root_from_argv0(link_argv0)));
     if ((rootm !=0)) {
       if (((rootm)[0] !=0)) {
         {
-          int32_t _m1 = shux_ensure_formal_std_make_o(rootm, ((uint8_t *)"\x73\x74\x64\x2f\x6d\x61\x70\x2f\x6d\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x6d\x61\x70\x2f\x6d\x61\x70\x2e\x6f"));
-          int32_t _m2 = shux_ensure_formal_std_make_o(rootm, ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"));
-          int32_t _m3 = shux_ensure_formal_std_make_o(rootm, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"));
+          int32_t _m1 = xlang_ensure_formal_std_make_o(rootm, ((uint8_t *)"\x73\x74\x64\x2f\x6d\x61\x70\x2f\x6d\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x6d\x61\x70\x2f\x6d\x61\x70\x2e\x6f"));
+          int32_t _m2 = xlang_ensure_formal_std_make_o(rootm, ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"));
+          int32_t _m3 = xlang_ensure_formal_std_make_o(rootm, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"));
         }
       }
     }
@@ -3997,7 +3997,7 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   int32_t need_as = link_abi_user_o_needs_async_scheduler(user_o);
   if ((need_as !=0)) {
     uint8_t * spath = 0;
-    (void)((spath = shux_std_async_scheduler_o_path(link_argv0)));
+    (void)((spath = xlang_std_async_scheduler_o_path(link_argv0)));
     uint8_t * p_as = labi_ondemand_list_labi_od_resolve_or_try(spath, labi_od_rel_async_scheduler(), lib_roots, n_lib_roots, bank);
     if ((p_as !=0)) {
       if (((la)[0] < (max_la - 1))) {
@@ -4005,7 +4005,7 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
       }
       if (((la)[0] < (max_la - 1))) {
         uint8_t * gpath = 0;
-        (void)((gpath = shux_runtime_scheduler_glue_o_path(link_argv0)));
+        (void)((gpath = xlang_runtime_scheduler_glue_o_path(link_argv0)));
         uint8_t * p_sg = labi_ondemand_list_labi_od_resolve_or_try(gpath, labi_od_rel_scheduler_glue(), lib_roots, n_lib_roots, bank);
         if ((p_sg !=0)) {
           (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_sg));
@@ -4017,7 +4017,7 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   if ((need_cm !=0)) {
     uint8_t * crel = labi_od_rel_core_mem();
     uint8_t * cprim = 0;
-    (void)((cprim = shux_rel_o_path_from_argv0(link_argv0, crel)));
+    (void)((cprim = xlang_rel_o_path_from_argv0(link_argv0, crel)));
     uint8_t * p_cm = labi_ondemand_list_labi_od_resolve_or_try(cprim, crel, lib_roots, n_lib_roots, bank);
     if ((p_cm !=0)) {
       (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_cm));
@@ -4099,7 +4099,7 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   if ((need_cs !=0)) {
     uint8_t * csrel = labi_od_rel_core_slice();
     uint8_t * csprim = 0;
-    (void)((csprim = shux_rel_o_path_from_argv0(link_argv0, csrel)));
+    (void)((csprim = xlang_rel_o_path_from_argv0(link_argv0, csrel)));
     uint8_t * p_cs = labi_ondemand_list_labi_od_resolve_or_try(csprim, csrel, lib_roots, n_lib_roots, bank);
     if ((p_cs !=0)) {
       (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_cs));
@@ -4109,13 +4109,13 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   if ((labi_ondemand_list_labi_od_user_needs_table_which(user_o, n_kv, 0) !=0)) {
     uint8_t * kvrel = labi_od_kv_rel();
     uint8_t * kvprim = 0;
-    (void)((kvprim = shux_rel_o_path_from_argv0(link_argv0, kvrel)));
+    (void)((kvprim = xlang_rel_o_path_from_argv0(link_argv0, kvrel)));
     uint8_t * p_kv = labi_ondemand_list_labi_od_resolve_or_try(kvprim, kvrel, lib_roots, n_lib_roots, bank);
     if ((p_kv !=0)) {
       (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_kv));
       if (((la)[0] < (max_la - 1))) {
         uint8_t * kvp = 0;
-        (void)((kvp = shux_runtime_kv_mmap_glue_o_path(link_argv0)));
+        (void)((kvp = xlang_runtime_kv_mmap_glue_o_path(link_argv0)));
         uint8_t * p_kg = labi_ondemand_list_labi_od_resolve_or_try(kvp, labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
         if ((p_kg !=0)) {
           (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_kg));
@@ -4127,13 +4127,13 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   if ((labi_ondemand_list_labi_od_user_needs_table_which(user_o, n_ar, 1) !=0)) {
     uint8_t * arrel = labi_od_arrow_rel();
     uint8_t * arprim = 0;
-    (void)((arprim = shux_rel_o_path_from_argv0(link_argv0, arrel)));
+    (void)((arprim = xlang_rel_o_path_from_argv0(link_argv0, arrel)));
     uint8_t * p_ar = labi_ondemand_list_labi_od_resolve_or_try(arprim, arrel, lib_roots, n_lib_roots, bank);
     if ((p_ar !=0)) {
       (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ar));
       if (((la)[0] < (max_la - 1))) {
         uint8_t * arp = 0;
-        (void)((arp = shux_runtime_arrow_simd_glue_o_path(link_argv0)));
+        (void)((arp = xlang_runtime_arrow_simd_glue_o_path(link_argv0)));
         uint8_t * p_ag = labi_ondemand_list_labi_od_resolve_or_try(arp, labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
         if ((p_ag !=0)) {
           (void)(link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p_ag));
@@ -4152,8 +4152,8 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
       int32_t er_t = 0;
       uint8_t * tp = 0;
       uint8_t * tfrel = labi_od_rel_test_fn_invoke();
-      (void)((er_t = shux_ensure_runtime_test_fn_invoke_o(link_argv0)));
-      (void)((tp = shux_runtime_test_fn_invoke_o_path(link_argv0)));
+      (void)((er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0)));
+      (void)((tp = xlang_runtime_test_fn_invoke_o_path(link_argv0)));
       (void)(labi_ondemand_list_labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la));
     }
   }
@@ -4162,14 +4162,14 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
     int32_t need_hu = link_abi_link_needs_heap_user_c(user_o, argv, la_hu);
     if ((need_hu !=0)) {
       int32_t er_hu = 0;
-      (void)((er_hu = shux_ensure_runtime_heap_user_o(link_argv0)));
+      (void)((er_hu = xlang_ensure_runtime_heap_user_o(link_argv0)));
       if ((er_hu !=0)) {
         return;
       }
       uint8_t * hup = 0;
       uint8_t * hurel = labi_od_rel_heap_user();
       {
-        (void)((hup = shux_runtime_heap_user_o_path(link_argv0)));
+        (void)((hup = xlang_runtime_heap_user_o_path(link_argv0)));
         int32_t _hu = link_abi_asm_ld_push_obj(hup, link_argv0, hurel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
       }
       if ((flags !=0)) {
@@ -4188,11 +4188,11 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
         if ((labi_ondemand_list_labi_od_user_needs_simple_group(user_o, sg) !=0)) {
           if ((sg ==1)) {
             uint8_t * rt = 0;
-            (void)((rt = shux_repo_root_from_argv0(link_argv0)));
+            (void)((rt = xlang_repo_root_from_argv0(link_argv0)));
             if ((rt !=0)) {
               if (((rt)[0] !=0)) {
                 {
-                  int32_t _fe = shux_ensure_formal_std_make_o(rt, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x74\x79\x70\x65\x73\x2f\x74\x79\x70\x65\x73\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x74\x79\x70\x65\x73\x2f\x74\x79\x70\x65\x73\x2e\x6f"));
+                  int32_t _fe = xlang_ensure_formal_std_make_o(rt, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x74\x79\x70\x65\x73\x2f\x74\x79\x70\x65\x73\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x74\x79\x70\x65\x73\x2f\x74\x79\x70\x65\x73\x2e\x6f"));
                 }
                 (void)((pushed_core_formal = 1));
               }
@@ -4200,11 +4200,11 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
           }
           if ((sg ==6)) {
             uint8_t * rt6 = 0;
-            (void)((rt6 = shux_repo_root_from_argv0(link_argv0)));
+            (void)((rt6 = xlang_repo_root_from_argv0(link_argv0)));
             if ((rt6 !=0)) {
               if (((rt6)[0] !=0)) {
                 {
-                  int32_t _fe6 = shux_ensure_formal_std_make_o(rt6, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6f\x70\x74\x69\x6f\x6e\x2f\x6f\x70\x74\x69\x6f\x6e\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6f\x70\x74\x69\x6f\x6e\x2f\x6f\x70\x74\x69\x6f\x6e\x2e\x6f"));
+                  int32_t _fe6 = xlang_ensure_formal_std_make_o(rt6, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6f\x70\x74\x69\x6f\x6e\x2f\x6f\x70\x74\x69\x6f\x6e\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6f\x70\x74\x69\x6f\x6e\x2f\x6f\x70\x74\x69\x6f\x6e\x2e\x6f"));
                 }
                 (void)((pushed_core_formal = 1));
               }
@@ -4212,11 +4212,11 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
           }
           if ((sg ==7)) {
             uint8_t * rt7 = 0;
-            (void)((rt7 = shux_repo_root_from_argv0(link_argv0)));
+            (void)((rt7 = xlang_repo_root_from_argv0(link_argv0)));
             if ((rt7 !=0)) {
               if (((rt7)[0] !=0)) {
                 {
-                  int32_t _fe7 = shux_ensure_formal_std_make_o(rt7, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x72\x65\x73\x75\x6c\x74\x2f\x72\x65\x73\x75\x6c\x74\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x72\x65\x73\x75\x6c\x74\x2f\x72\x65\x73\x75\x6c\x74\x2e\x6f"));
+                  int32_t _fe7 = xlang_ensure_formal_std_make_o(rt7, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x72\x65\x73\x75\x6c\x74\x2f\x72\x65\x73\x75\x6c\x74\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x72\x65\x73\x75\x6c\x74\x2f\x72\x65\x73\x75\x6c\x74\x2e\x6f"));
                 }
                 (void)((pushed_core_formal = 1));
               }
@@ -4224,11 +4224,11 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
           }
           if ((sg ==8)) {
             uint8_t * rt8 = 0;
-            (void)((rt8 = shux_repo_root_from_argv0(link_argv0)));
+            (void)((rt8 = xlang_repo_root_from_argv0(link_argv0)));
             if ((rt8 !=0)) {
               if (((rt8)[0] !=0)) {
                 {
-                  int32_t _fe8 = shux_ensure_formal_std_make_o(rt8, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x64\x65\x62\x75\x67\x2f\x64\x65\x62\x75\x67\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x64\x65\x62\x75\x67\x2f\x64\x65\x62\x75\x67\x2e\x6f"));
+                  int32_t _fe8 = xlang_ensure_formal_std_make_o(rt8, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x64\x65\x62\x75\x67\x2f\x64\x65\x62\x75\x67\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x64\x65\x62\x75\x67\x2f\x64\x65\x62\x75\x67\x2e\x6f"));
                 }
                 (void)((pushed_core_formal = 1));
               }
@@ -4236,11 +4236,11 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
           }
           if ((sg ==9)) {
             uint8_t * rt9 = 0;
-            (void)((rt9 = shux_repo_root_from_argv0(link_argv0)));
+            (void)((rt9 = xlang_repo_root_from_argv0(link_argv0)));
             if ((rt9 !=0)) {
               if (((rt9)[0] !=0)) {
                 {
-                  int32_t _fe9 = shux_ensure_formal_std_make_o(rt9, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x6d\x6f\x64\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x6d\x6f\x64\x2e\x6f"));
+                  int32_t _fe9 = xlang_ensure_formal_std_make_o(rt9, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x6d\x6f\x64\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x6d\x6f\x64\x2e\x6f"));
                 }
                 (void)((pushed_core_formal = 1));
               }
@@ -4251,11 +4251,11 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
           }
           if ((sg ==9)) {
             uint8_t * rtg = 0;
-            (void)((rtg = shux_repo_root_from_argv0(link_argv0)));
+            (void)((rtg = xlang_repo_root_from_argv0(link_argv0)));
             if ((rtg !=0)) {
               if (((rtg)[0] !=0)) {
                 {
-                  int32_t _feg = shux_ensure_formal_std_make_o(rtg, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x73\x6c\x69\x63\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x73\x6c\x69\x63\x65\x2e\x6f"));
+                  int32_t _feg = xlang_ensure_formal_std_make_o(rtg, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x73\x6c\x69\x63\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x73\x6c\x69\x63\x65\x2f\x73\x6c\x69\x63\x65\x2e\x6f"));
                 }
               }
             }
@@ -4272,8 +4272,8 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   if ((pushed_core_formal !=0)) {
     uint8_t * pav = 0;
     {
-      int32_t _ep = shux_ensure_runtime_process_argv_o(link_argv0);
-      (void)((pav = shux_runtime_process_argv_o_path(link_argv0)));
+      int32_t _ep = xlang_ensure_runtime_process_argv_o(link_argv0);
+      (void)((pav = xlang_runtime_process_argv_o_path(link_argv0)));
       int32_t _pp = link_abi_asm_ld_push_obj(pav, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x72\x6f\x63\x65\x73\x73\x5f\x61\x72\x67\x76\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
     }
   }
@@ -4299,8 +4299,8 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
         }
         int32_t u1 = 0;
         int32_t u2 = 0;
-        (void)((u1 = shux_link_obj_needs_undef_sym(e2, ((uint8_t *)"\x70\x72\x6f\x63\x65\x73\x73\x5f\x73\x68\x75\x78\x5f\x61\x72\x67\x63\x5f\x67\x65\x74"))));
-        (void)((u2 = shux_link_obj_needs_undef_sym(e2, ((uint8_t *)"\x70\x72\x6f\x63\x65\x73\x73\x5f\x73\x68\x75\x78\x5f\x61\x72\x67\x76\x5f\x67\x65\x74"))));
+        (void)((u1 = xlang_link_obj_needs_undef_sym(e2, ((uint8_t *)"\x70\x72\x6f\x63\x65\x73\x73\x5f\x73\x68\x75\x78\x5f\x61\x72\x67\x63\x5f\x67\x65\x74"))));
+        (void)((u2 = xlang_link_obj_needs_undef_sym(e2, ((uint8_t *)"\x70\x72\x6f\x63\x65\x73\x73\x5f\x73\x68\x75\x78\x5f\x61\x72\x67\x76\x5f\x67\x65\x74"))));
         if ((u1 !=0)) {
           (void)((need_pav = 1));
         }
@@ -4315,8 +4315,8 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
     if ((have_process_o ==0)) {
       uint8_t * pav2 = 0;
       {
-        int32_t _ep2 = shux_ensure_runtime_process_argv_o(link_argv0);
-        (void)((pav2 = shux_runtime_process_argv_o_path(link_argv0)));
+        int32_t _ep2 = xlang_ensure_runtime_process_argv_o(link_argv0);
+        (void)((pav2 = xlang_runtime_process_argv_o_path(link_argv0)));
         int32_t _pp2 = link_abi_asm_ld_push_obj(pav2, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x72\x6f\x63\x65\x73\x73\x5f\x61\x72\x67\x76\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
       }
     }
@@ -4324,19 +4324,19 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   int32_t n_tm = labi_od_time_sym_count();
   if ((labi_ondemand_list_labi_od_user_needs_table_which(user_o, n_tm, 2) !=0)) {
     uint8_t * rtt = 0;
-    (void)((rtt = shux_repo_root_from_argv0(link_argv0)));
+    (void)((rtt = xlang_repo_root_from_argv0(link_argv0)));
     if ((rtt !=0)) {
       if (((rtt)[0] !=0)) {
         {
-          int32_t _te = shux_ensure_formal_std_make_o(rtt, ((uint8_t *)"\x73\x74\x64\x2f\x74\x69\x6d\x65\x2f\x74\x69\x6d\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x74\x69\x6d\x65\x2f\x74\x69\x6d\x65\x2e\x6f"));
+          int32_t _te = xlang_ensure_formal_std_make_o(rtt, ((uint8_t *)"\x73\x74\x64\x2f\x74\x69\x6d\x65\x2f\x74\x69\x6d\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x74\x69\x6d\x65\x2f\x74\x69\x6d\x65\x2e\x6f"));
         }
       }
     }
     int32_t er_to = 0;
     uint8_t * top = 0;
     uint8_t * torel = labi_od_time_os_rel();
-    (void)((er_to = shux_ensure_runtime_time_os_o(link_argv0)));
-    (void)((top = shux_runtime_time_os_o_path(link_argv0)));
+    (void)((er_to = xlang_ensure_runtime_time_os_o(link_argv0)));
+    (void)((top = xlang_runtime_time_os_o_path(link_argv0)));
     if ((er_to ==0)) {
       {
         int32_t _to = link_abi_asm_ld_push_obj(top, link_argv0, torel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
@@ -4352,13 +4352,13 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
   int32_t need_qc = labi_ondemand_list_labi_od_user_needs_table_which(user_o, n_qc, 3);
   if (((need_qp !=0) || (need_qc !=0))) {
     uint8_t * rq = 0;
-    (void)((rq = shux_repo_root_from_argv0(link_argv0)));
+    (void)((rq = xlang_repo_root_from_argv0(link_argv0)));
     if ((rq !=0)) {
       if (((rq)[0] !=0)) {
         {
-          int32_t _q1 = shux_ensure_formal_std_make_o(rq, ((uint8_t *)"\x73\x74\x64\x2f\x71\x75\x65\x75\x65\x2f\x71\x75\x65\x75\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x71\x75\x65\x75\x65\x2f\x71\x75\x65\x75\x65\x2e\x6f"));
-          int32_t _q2 = shux_ensure_formal_std_make_o(rq, ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"));
-          int32_t _q3 = shux_ensure_formal_std_make_o(rq, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"));
+          int32_t _q1 = xlang_ensure_formal_std_make_o(rq, ((uint8_t *)"\x73\x74\x64\x2f\x71\x75\x65\x75\x65\x2f\x71\x75\x65\x75\x65\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x71\x75\x65\x75\x65\x2f\x71\x75\x65\x75\x65\x2e\x6f"));
+          int32_t _q2 = xlang_ensure_formal_std_make_o(rq, ((uint8_t *)"\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x73\x74\x64\x2f\x68\x65\x61\x70\x2f\x68\x65\x61\x70\x2e\x6f"));
+          int32_t _q3 = xlang_ensure_formal_std_make_o(rq, ((uint8_t *)"\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"), ((uint8_t *)"\x2e\x2e\x2f\x63\x6f\x72\x65\x2f\x6d\x65\x6d\x2f\x6d\x65\x6d\x2e\x6f"));
         }
       }
     }
@@ -4366,8 +4366,8 @@ void shux_asm_ld_append_on_demand_user_objs(uint8_t * link_argv0, uint8_t * user
       uint8_t * qcp = 0;
       uint8_t * qcrel = labi_od_queue_contention_rel();
       {
-        int32_t _eq = shux_ensure_runtime_queue_contention_o(link_argv0);
-        (void)((qcp = shux_runtime_queue_contention_o_path(link_argv0)));
+        int32_t _eq = xlang_ensure_runtime_queue_contention_o(link_argv0);
+        (void)((qcp = xlang_runtime_queue_contention_o_path(link_argv0)));
         int32_t _qc = link_abi_asm_ld_push_obj(qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
       }
     }

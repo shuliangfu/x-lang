@@ -2,7 +2,7 @@
 # F-elf v2：std.elf 逻辑下沉（解析/写入/烟测 → elf.x；F-ZC 纯 .x 无 io glue）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_ELF_V2_FAIL:-0}
+FAIL=${XLANG_F_ELF_V2_FAIL:-0}
 DOC="analysis/phase-f-elf-v2.md"
 MANIFEST="tests/baseline/f-elf-v2-closure.tsv"
 die() { echo "f-elf-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -28,10 +28,10 @@ grep -q 'elf_f_zero_c_marker_c' std/elf/elf.x || die "elf.x missing zero-c marke
 grep -q 'elf_read_fixture_c' std/elf/elf.x || die "elf.x missing read_fixture"
 grep -q 'fs_open_read_c' std/elf/elf.x || die "elf.x missing fs fixture IO"
 grep -q 'elf.x' compiler/Makefile || die "Makefile missing elf.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/elf/elf.o >/dev/null 2>&1 || die "make elf.o failed"
 else
-  echo "f-elf-v2 SKIP elf.o build (no shux-c)" >&2
+  echo "f-elf-v2 SKIP elf.o build (no xlang-c)" >&2
 fi
 for sub in run-std-elf-parse-gate.sh run-std-elf-deep-gate.sh; do
   chmod +x "tests/$sub"

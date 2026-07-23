@@ -38,4 +38,4 @@
 - manifest：`tests/baseline/std-heap-allocator.tsv`
 - 烟测：`tests/heap/allocator_vec.x`
 - gate：`tests/run-std-heap-allocator-gate.sh`
-- 报告：`shux: [SHUX_STD112_HEAP_ALLOC] status=ok`
+- 报告：`xlang: [XLANG_STD112_HEAP_ALLOC] status=ok`

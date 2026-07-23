@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-stub.sh — STD-139 manifest 与 stub 烟测辅助
 
-STD_DB_STUB_PREFIX="${SHUX_STD139_PREFIX:-shux: [SHUX_STD139_DB_STUB]}"
+STD_DB_STUB_PREFIX="${XLANG_STD139_PREFIX:-xlang: [XLANG_STD139_DB_STUB]}"
 
 # 复用 STD-057 SQLite 探测。
 std_sqlite_stub_source_sqlite() {
@@ -67,7 +67,7 @@ std_sqlite_stub_symbols_ok() {
 std_sqlite_stub_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/stub_behavior_ok.c"
-  local out="/tmp/shux_std_sqlite_stub_$$"
+  local out="/tmp/xlang_std_sqlite_stub_$$"
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if ! make -C compiler sqlite-o-stub >/dev/null 2>&1; then
@@ -79,7 +79,7 @@ std_sqlite_stub_run_c_smoke() {
     return 1
   fi
   if ! std_sqlite_o_has_x_symbols "$sqlite_o"; then
-    echo "std-sqlite-stub SKIP c smoke (sqlite.o missing .x symbols; need shux-c)" >&2
+    echo "std-sqlite-stub SKIP c smoke (sqlite.o missing .x symbols; need xlang-c)" >&2
     make -C compiler ../std/db/sqlite/sqlite.o >/dev/null 2>&1 || true
     return 2
   fi

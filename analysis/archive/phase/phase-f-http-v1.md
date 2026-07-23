@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_HTTP_V1_FAIL=1 ./tests/run-f-http-v1-gate.sh
+XLANG_F_HTTP_V1_FAIL=1 ./tests/run-f-http-v1-gate.sh
 ./tests/run-std-http-gate.sh
 ./tests/run-std-http-chunked-gate.sh
 ./tests/run-std-http-methods-gate.sh

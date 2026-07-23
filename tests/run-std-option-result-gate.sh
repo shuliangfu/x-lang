@@ -3,9 +3,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_OPTION_RESULT_DOC:-analysis/std-option-result-v1.md}"
-OPT_MANIFEST="${SHUX_STD_OPTION_MANIFEST:-tests/baseline/std-option-manifest.tsv}"
-RES_MANIFEST="${SHUX_STD_RESULT_MANIFEST:-tests/baseline/std-result-manifest.tsv}"
+DOC="${XLANG_STD_OPTION_RESULT_DOC:-analysis/std-option-result-v1.md}"
+OPT_MANIFEST="${XLANG_STD_OPTION_MANIFEST:-tests/baseline/std-option-manifest.tsv}"
+RES_MANIFEST="${XLANG_STD_RESULT_MANIFEST:-tests/baseline/std-result-manifest.tsv}"
 OPT_X="std/option/mod.x"
 RES_X="std/result/mod.x"
 LIB="tests/lib/std-option-result.sh"
@@ -46,15 +46,15 @@ echo "std-option-result manifest OK"
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-080/081: typeck + API rename grep (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-080/081: typeck + API rename grep (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-option-result gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_option_result_emit_report "fail" 0 0
     exit 1
   fi

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_CORE_TYPES_I16_U16_DOC:-analysis/core-types-i16-u16-v1.md}"
-MANIFEST="${SHUX_CORE_TYPES_I16_U16_TSV:-tests/baseline/core-types-i16-u16.tsv}"
+DOC="${XLANG_CORE_TYPES_I16_U16_DOC:-analysis/core-types-i16-u16-v1.md}"
+MANIFEST="${XLANG_CORE_TYPES_I16_U16_TSV:-tests/baseline/core-types-i16-u16.tsv}"
 TYPES_X="core/types/mod.x"
 TYPECK="compiler/src/typeck/typeck.c"
 CODEGEN="compiler/src/codegen/codegen.c"
@@ -97,28 +97,28 @@ echo "core-types-i16-u16 manifest OK (symbols=${SYM_N})"
 
 SKIP=1
 CHECK_OK=0
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
-    && "$SHUX_BIN" check -L . "$SCALAR" >/dev/null 2>&1; then
+  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1 \
+    && "$XLANG_BIN" check -L . "$SCALAR" >/dev/null 2>&1; then
     CHECK_OK=1
     SKIP=0
   else
-    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     core_types_i16_u16_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "core-types-i16-u16 gate SKIP typeck (no native shux)" >&2
+  echo "core-types-i16-u16 gate SKIP typeck (no native xlang)" >&2
 fi
 
 core_types_i16_u16_emit_report "ok" "$CHECK_OK" "$SKIP"

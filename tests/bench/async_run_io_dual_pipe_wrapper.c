@@ -5,7 +5,7 @@
  *
  * 编译：cc -std=c11 -Wall -Wextra -o async_run_io_dual_pipe_wrapper \
  *   tests/bench/async_run_io_dual_pipe_wrapper.c
- * 用法：SHUX_ASYNC_YIELD=1 ./async_run_io_dual_pipe_wrapper /tmp/shux_async_run_io_dual_pipe
+ * 用法：XLANG_ASYNC_YIELD=1 ./async_run_io_dual_pipe_wrapper /tmp/xlang_async_run_io_dual_pipe
  */
 #include <errno.h>
 #include <stdio.h>
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         return 3;
     }
 
-    setenv("SHUX_ASYNC_YIELD", "1", 1);
+    setenv("XLANG_ASYNC_YIELD", "1", 1);
     execv(exe, argv + 1);
     fprintf(stderr, "async_run_io_dual_pipe_wrapper: execv %s: %s\n", exe, strerror(errno));
     return 4;

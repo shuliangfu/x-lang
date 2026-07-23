@@ -8,7 +8,7 @@ typeck_x_ast	typeck_x_ast	T0	done	compiler/src/typeck/typeck.x	check_typeck	模�
 typeck_wpo_unify_soa_layouts	typeck_wpo_unify_soa_layouts	T2	done	compiler/src/typeck/typeck.x	run-typeck-wpo-optin-smoke.sh	WPO 跨模块 SoA layout 统一
 typeck_inline_u8_64	typeck_inline_u8_64_array_field_type_ref	T2	done	compiler/src/typeck/typeck.x		u8[64] 字段类型 inline 快路径
 typeck_soa_size_glue	typeck_soa_array_storage_size_glue	T2	done	compiler/pipeline_typeck_soa.c		SoA 数组 storage size C glue
-hot_reorder_layout	pipeline_typeck_hot_reorder_warn_layout	T2	done	compiler/pipeline_glue.c		SHUX_HOT_REORDER 热字段重排 hint
+hot_reorder_layout	pipeline_typeck_hot_reorder_warn_layout	T2	done	compiler/pipeline_glue.c		XLANG_HOT_REORDER 热字段重排 hint
 typeck_x_type_size	typeck_x_type_size	T2	monitor	compiler/src/typeck/typeck.x		递归 type size；dogfood 监控
 typeck_resolve_dep	typeck_resolve_scan_dep_with_apply	T2	planned	compiler/src/typeck/typeck.x		dep call resolve 扫描
 find_named_type_ref	find_or_alloc_named_type_ref	T3	monitor	compiler/src/typeck/typeck.x		命名类型 ref 分配

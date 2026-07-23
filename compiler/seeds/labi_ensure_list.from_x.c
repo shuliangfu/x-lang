@@ -1,19 +1,19 @@
 /* seeds/labi_ensure_list.from_x.c — G-02f-273 P2 link_abi L4 ensure list pure → R2 full
  * Logic source: src/runtime/labi_ensure_list.x
- * Hybrid: SHUX_LABI_ENSURE_LIST_FROM_X + ld -r into runtime_link_abi.o
+ * Hybrid: XLANG_LABI_ENSURE_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
  * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
  *   labi_ensure_catalog_count
  *   labi_ensure_catalog_{stem,out_base,seed_base,flags}
  *   labi_ensure_catalog_step_at
  *   + wave173 link_abi_ensure_from_catalog pure orch
- *   + wave174 catalog thin ensure wraps pure (26× shux_ensure_runtime_*_o)
- *   + wave169 shux_ensure_runtime_panic_o pure orch
- *   + wave170 shux_ensure_runtime_heap_user_o pure orch
- *   + wave171 shux_ensure_runtime_test_fn_invoke_o pure orch
- *   + wave172 shux_ensure_runtime_tls_mbedtls_bio_o pure orch
- *   + wave182 shux_ensure_bootstrap_nostdlib_stubs_o pure orch
- *   + wave186 shux_asm_ld_prepare_for_exe_link pure orch
+ *   + wave174 catalog thin ensure wraps pure (26× xlang_ensure_runtime_*_o)
+ *   + wave169 xlang_ensure_runtime_panic_o pure orch
+ *   + wave170 xlang_ensure_runtime_heap_user_o pure orch
+ *   + wave171 xlang_ensure_runtime_test_fn_invoke_o pure orch
+ *   + wave172 xlang_ensure_runtime_tls_mbedtls_bio_o pure orch
+ *   + wave182 xlang_ensure_bootstrap_nostdlib_stubs_o pure orch
+ *   + wave186 xlang_asm_ld_prepare_for_exe_link pure orch
  * Cap residual：resolve/access/cc/stat (+ one_extra for catalog PIE/SQLITE/HTTP -I pack / -fno-builtin)；
  *   wave169 panic ensure：resolve/access/cc/stat + host linux_x86_64 / posix_aarch64；
  *   wave170 heap_user ensure：resolve/access/cc/stat + has_defined_sym + unlink stub；
@@ -29,67 +29,67 @@
  */
 #include <stddef.h>
 
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+#ifndef XLANG_LABI_ENSURE_LIST_FROM_X
 
 /* Cap residual peers used by wave173 catalog ensure + wave169/170/171/172 special ensure pure orch (cold twin). */
 int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 int link_abi_path_readable(const char *path);
-int shux_cc_compile_sync(const char *src, const char *out_o, const char *inc0, const char *inc1,
+int xlang_cc_compile_sync(const char *src, const char *out_o, const char *inc0, const char *inc1,
                          const char *inc2, int from_asm_s);
-int shux_cc_compile_sync_one_extra(const char *src, const char *out_o, const char *inc0,
+int xlang_cc_compile_sync_one_extra(const char *src, const char *out_o, const char *inc0,
                                    const char *inc1, const char *inc2, int from_asm_s,
                                    const char *extra0);
 const char *asm_link_obj_skip_missing(const char *path);
 int link_abi_host_is_linux_x86_64(void);
 int link_abi_host_is_posix_aarch64(void);
-int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
+int xlang_link_obj_has_defined_sym(const char *o_path, const char *sym);
 int unlink(const char *path);
-const char *shux_runtime_panic_o_path(const char *argv0);
-const char *shux_runtime_heap_user_o_path(const char *argv0);
-const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
-const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
+const char *xlang_runtime_panic_o_path(const char *argv0);
+const char *xlang_runtime_heap_user_o_path(const char *argv0);
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
+const char *xlang_runtime_tls_mbedtls_bio_o_path(const char *argv0);
 /* Peer pure path ladder (wave181 bootstrap_nostdlib_stubs_o_path) for wave182 ensure. */
-const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
+const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0);
 /* Cap residual / peer pure (wave186 prepare_for_exe_link cold twin). */
-int shux_link_freestanding_enabled(int driver_freestanding);
-int shux_freestanding_user_o_needs_panic(const char *user_o);
-int shux_freestanding_user_o_needs_io(const char *user_o);
-int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
-int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
+int xlang_link_freestanding_enabled(int driver_freestanding);
+int xlang_freestanding_user_o_needs_panic(const char *user_o);
+int xlang_freestanding_user_o_needs_io(const char *user_o);
+int xlang_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
+int xlang_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 int labi_user_needs_runtime_process_argv(const char *user_o);
 int labi_user_needs_runtime_random_fill(const char *user_o);
 int labi_user_needs_runtime_time_os(const char *user_o);
 int labi_user_needs_runtime_env_os(const char *user_o);
 void link_diag_freestanding_unsupported(void);
-void shux_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
+void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
                                     const char *msg, int v1, int v2, int v3);
 /* Cap residual path peers for wave174 catalog thin ensure wraps. */
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
-const char *shux_runtime_process_argv_o_path(const char *argv0);
-const char *shux_runtime_process_os_glue_o_path(const char *argv0);
-const char *shux_runtime_random_fill_o_path(const char *argv0);
-const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
-const char *shux_runtime_time_os_o_path(const char *argv0);
-const char *shux_runtime_queue_contention_o_path(const char *argv0);
-const char *shux_runtime_dynlib_os_o_path(const char *argv0);
-const char *shux_runtime_env_os_o_path(const char *argv0);
-const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
-const char *shux_runtime_log_os_o_path(const char *argv0);
-const char *shux_runtime_math_libm_o_path(const char *argv0);
-const char *shux_runtime_atomic_glue_o_path(const char *argv0);
-const char *shux_runtime_channel_glue_o_path(const char *argv0);
-const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
-const char *shux_runtime_net_workers_o_path(const char *argv0);
-const char *shux_runtime_sync_os_o_path(const char *argv0);
-const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0);
-const char *shux_runtime_thread_glue_o_path(const char *argv0);
-const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
-const char *shux_runtime_http_glue_o_path(const char *argv0);
-const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0);
-const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
-const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
-const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
-const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *xlang_runtime_process_argv_o_path(const char *argv0);
+const char *xlang_runtime_process_os_glue_o_path(const char *argv0);
+const char *xlang_runtime_random_fill_o_path(const char *argv0);
+const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0);
+const char *xlang_runtime_time_os_o_path(const char *argv0);
+const char *xlang_runtime_queue_contention_o_path(const char *argv0);
+const char *xlang_runtime_dynlib_os_o_path(const char *argv0);
+const char *xlang_runtime_env_os_o_path(const char *argv0);
+const char *xlang_runtime_backtrace_platform_o_path(const char *argv0);
+const char *xlang_runtime_log_os_o_path(const char *argv0);
+const char *xlang_runtime_math_libm_o_path(const char *argv0);
+const char *xlang_runtime_atomic_glue_o_path(const char *argv0);
+const char *xlang_runtime_channel_glue_o_path(const char *argv0);
+const char *xlang_runtime_net_udp_batch_o_path(const char *argv0);
+const char *xlang_runtime_net_workers_o_path(const char *argv0);
+const char *xlang_runtime_sync_os_o_path(const char *argv0);
+const char *xlang_runtime_sync_lock_diag_tls_o_path(const char *argv0);
+const char *xlang_runtime_thread_glue_o_path(const char *argv0);
+const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
+const char *xlang_runtime_http_glue_o_path(const char *argv0);
+const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
+const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
+const char *xlang_runtime_sqlite_glue_o_path(const char *argv0);
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
 void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint);
 void link_diag_runtime_source_missing(const char *obj_name, const char *source_path);
 void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
@@ -97,7 +97,7 @@ void link_diag_runtime_source_missing_under(const char *obj_name, const char *ba
 void link_diag_runtime_obj_build_status(const char *obj_name, int status);
 void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o);
 
-/* flags: 0=NONE, 1=PIE (-fPIE), 2=SQLITE (-DSHUX_DB_USE_SQLITE3), 3=HTTP_SEEDS */
+/* flags: 0=NONE, 1=PIE (-fPIE), 2=SQLITE (-DXLANG_DB_USE_SQLITE3), 3=HTTP_SEEDS */
 
 int labi_ensure_catalog_count(void) {
   return 26;
@@ -421,9 +421,9 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   for (k = 0; k <= ln_src; k++)
     inc2[dn + 1 + k] = leaf_src[k];
   if (flags == 1) {
-    crc = shux_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, "-fPIE");
+    crc = xlang_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, "-fPIE");
   } else if (flags == 2) {
-    crc = shux_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, "-DSHUX_DB_USE_SQLITE3");
+    crc = xlang_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, "-DXLANG_DB_USE_SQLITE3");
   } else if (flags == 3) {
     char http_inc[4096];
     char flag_I[4096];
@@ -446,9 +446,9 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
     flag_I[1] = 'I';
     for (k = 0; k <= ln_http_abs; k++)
       flag_I[2 + k] = http_inc[k];
-    crc = shux_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, flag_I);
+    crc = xlang_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, flag_I);
   } else {
-    crc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+    crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
   }
   if (crc != 0) {
     link_diag_runtime_obj_build_status(out_base, crc);
@@ -466,7 +466,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
  * Peer panic_o_path; Cap residual resolve/access/cc/stat + host linux_x86_64 / posix_aarch64.
  * Pure byte join (no snprintf). PLATFORM: SHARED orch; LINUX x86_64 asm; POSIX aarch64 seed.
  */
-int shux_ensure_runtime_panic_o(const char *argv0) {
+int xlang_ensure_runtime_panic_o(const char *argv0) {
   char comp[4096];
   char out_o[4096];
   char src_s[4096];
@@ -480,7 +480,7 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
   const char *src = NULL;
   const char *leaf_o = "runtime_panic.o";
   int dn, ln_o, i, k, rc, crc, from_asm_s = 0;
-  o_path = shux_runtime_panic_o_path(argv0);
+  o_path = xlang_runtime_panic_o_path(argv0);
   have = asm_link_obj_skip_missing(o_path);
   if (have != NULL)
     return 0;
@@ -580,12 +580,12 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
     for (k = 0; k <= ln_src; k++)
       inc2[dn + 1 + k] = leaf_src[k];
   }
-  crc = shux_cc_compile_sync(src, out_o, inc0, inc1, inc2, from_asm_s);
+  crc = xlang_cc_compile_sync(src, out_o, inc0, inc1, inc2, from_asm_s);
   if (crc != 0) {
     link_diag_runtime_obj_build_status("runtime_panic.o", crc);
     return -1;
   }
-  o_path = shux_runtime_panic_o_path(argv0);
+  o_path = xlang_runtime_panic_o_path(argv0);
   have = asm_link_obj_skip_missing(o_path);
   if (have == NULL) {
     link_diag_runtime_obj_missing("runtime_panic.o", out_o);
@@ -598,7 +598,7 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
  * Peer heap_user_o_path; Cap residual has_defined_sym/unlink stub + resolve/access/cc/stat.
  * Pure byte join (no snprintf). PLATFORM: SHARED orch (direct seed compile).
  */
-int shux_ensure_runtime_heap_user_o(const char *argv0) {
+int xlang_ensure_runtime_heap_user_o(const char *argv0) {
   char comp[4096];
   char out_o[4096];
   char src_c[4096];
@@ -611,11 +611,11 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
   const char *leaf_o = "runtime_heap_user.o";
   const char *leaf_c = "seeds/runtime_heap_user.from_x.c";
   int dn, ln_o, ln_c, i, k, rc, crc;
-  existing = shux_runtime_heap_user_o_path(argv0);
+  existing = xlang_runtime_heap_user_o_path(argv0);
   have = asm_link_obj_skip_missing(existing);
   if (have != NULL) {
-    if (shux_link_obj_has_defined_sym(existing, "heap_arena_init_c") != 0
-        || shux_link_obj_has_defined_sym(existing, "heap_alloc_c") != 0)
+    if (xlang_link_obj_has_defined_sym(existing, "heap_arena_init_c") != 0
+        || xlang_link_obj_has_defined_sym(existing, "heap_alloc_c") != 0)
       return 0;
     (void)unlink(existing);
   }
@@ -679,12 +679,12 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
     for (k = 0; k <= ln_src; k++)
       inc2[dn + 1 + k] = leaf_src[k];
   }
-  crc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+  crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
   if (crc != 0) {
     link_diag_runtime_obj_build_status("runtime_heap_user.o", crc);
     return -1;
   }
-  o_path = shux_runtime_heap_user_o_path(argv0);
+  o_path = xlang_runtime_heap_user_o_path(argv0);
   have = asm_link_obj_skip_missing(o_path);
   if (have == NULL) {
     link_diag_runtime_obj_missing("runtime_heap_user.o", out_o);
@@ -698,7 +698,7 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
  * Pure byte join (no snprintf). Direct seed compile (no wrap.c).
  * PLATFORM: SHARED orch.
  */
-int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
+int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   char comp[4096];
   char out_o[4096];
   char src_c[4096];
@@ -711,7 +711,7 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   const char *leaf_o = "runtime_test_fn_invoke.o";
   const char *leaf_c = "seeds/runtime_test_fn_invoke.from_x.c";
   int dn, ln_o, ln_c, i, k, rc, crc;
-  existing = shux_runtime_test_fn_invoke_o_path(argv0);
+  existing = xlang_runtime_test_fn_invoke_o_path(argv0);
   have = asm_link_obj_skip_missing(existing);
   if (have != NULL)
     return 0;
@@ -776,12 +776,12 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     for (k = 0; k <= ln_src; k++)
       inc2[dn + 1 + k] = leaf_src[k];
   }
-  crc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+  crc = xlang_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
   if (crc != 0) {
     link_diag_runtime_obj_build_status("runtime_test_fn_invoke.o", crc);
     return -1;
   }
-  o_path = shux_runtime_test_fn_invoke_o_path(argv0);
+  o_path = xlang_runtime_test_fn_invoke_o_path(argv0);
   have = asm_link_obj_skip_missing(o_path);
   if (have == NULL) {
     link_diag_runtime_obj_missing("runtime_test_fn_invoke.o", out_o);
@@ -795,7 +795,7 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
  * Pure byte join (no snprintf). Direct seed compile + homebrew -I (≡ mega).
  * PLATFORM: SHARED orch; MACOS homebrew -I always best-effort.
  */
-int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
+int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   char comp[4096];
   char out_o[4096];
   char src_c[4096];
@@ -809,7 +809,7 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   const char *leaf_c = "seeds/runtime_tls_mbedtls_bio.from_x.c";
   const char *flag_I = "-I/opt/homebrew/opt/mbedtls/include";
   int dn, ln_o, ln_c, i, k, rc, crc;
-  existing = shux_runtime_tls_mbedtls_bio_o_path(argv0);
+  existing = xlang_runtime_tls_mbedtls_bio_o_path(argv0);
   have = asm_link_obj_skip_missing(existing);
   if (have != NULL)
     return 0;
@@ -873,12 +873,12 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     for (k = 0; k <= ln_src; k++)
       inc2[dn + 1 + k] = leaf_src[k];
   }
-  crc = shux_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, flag_I);
+  crc = xlang_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, flag_I);
   if (crc != 0) {
     link_diag_runtime_obj_build_status("runtime_tls_mbedtls_bio.o", crc);
     return -1;
   }
-  o_path = shux_runtime_tls_mbedtls_bio_o_path(argv0);
+  o_path = xlang_runtime_tls_mbedtls_bio_o_path(argv0);
   have = asm_link_obj_skip_missing(o_path);
   if (have == NULL) {
     link_diag_runtime_obj_missing("runtime_tls_mbedtls_bio.o", out_o);
@@ -892,7 +892,7 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
  * Pure byte join (no snprintf). Direct seed compile + -fno-builtin (≡ mega system -fno-builtin).
  * PLATFORM: SHARED orch / LINUX freestanding consumers primary.
  */
-int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
+int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
   char comp[4096];
   char out_o[4096];
   char src_c[4096];
@@ -906,7 +906,7 @@ int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
   const char *leaf_c = "seeds/bootstrap_nostdlib_stubs.from_x.c";
   const char *flag_nb = "-fno-builtin";
   int dn, ln_o, ln_c, i, k, rc, crc, readable;
-  existing = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+  existing = xlang_bootstrap_nostdlib_stubs_o_path(argv0);
   if (existing != NULL && existing[0] != 0) {
     have = asm_link_obj_skip_missing(existing);
     if (have != NULL)
@@ -973,12 +973,12 @@ int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
     for (k = 0; k <= ln_src; k++)
       inc2[dn + 1 + k] = leaf_src[k];
   }
-  crc = shux_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, flag_nb);
+  crc = xlang_cc_compile_sync_one_extra(src_c, out_o, inc0, inc1, inc2, 0, flag_nb);
   if (crc != 0) {
     link_diag_runtime_obj_build_status("bootstrap_nostdlib_stubs.o", crc);
     return -1;
   }
-  o_path = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+  o_path = xlang_bootstrap_nostdlib_stubs_o_path(argv0);
   have = asm_link_obj_skip_missing(o_path);
   if (have == NULL) {
     link_diag_runtime_obj_missing("bootstrap_nostdlib_stubs.o", out_o);
@@ -989,223 +989,223 @@ int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
 
 /* wave174: 26 catalog thin ensure wraps pure (cold twin ≡ labi_ensure_list.x). */
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
-  const char *p = shux_runtime_asm_io_stubs_o_path(argv0);
+int xlang_ensure_runtime_asm_io_stubs_o(const char *argv0) {
+  const char *p = xlang_runtime_asm_io_stubs_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 0, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_process_argv_o(const char *argv0) {
-  const char *p = shux_runtime_process_argv_o_path(argv0);
+int xlang_ensure_runtime_process_argv_o(const char *argv0) {
+  const char *p = xlang_runtime_process_argv_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 1, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
-  const char *p = shux_runtime_process_os_glue_o_path(argv0);
+int xlang_ensure_runtime_process_os_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_process_os_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 2, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_random_fill_o(const char *argv0) {
-  const char *p = shux_runtime_random_fill_o_path(argv0);
+int xlang_ensure_runtime_random_fill_o(const char *argv0) {
+  const char *p = xlang_runtime_random_fill_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 3, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
-  const char *p = shux_runtime_compress_zlib_glue_o_path(argv0);
+int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_compress_zlib_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 4, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_time_os_o(const char *argv0) {
-  const char *p = shux_runtime_time_os_o_path(argv0);
+int xlang_ensure_runtime_time_os_o(const char *argv0) {
+  const char *p = xlang_runtime_time_os_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 5, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_queue_contention_o(const char *argv0) {
-  const char *p = shux_runtime_queue_contention_o_path(argv0);
+int xlang_ensure_runtime_queue_contention_o(const char *argv0) {
+  const char *p = xlang_runtime_queue_contention_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 6, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
-  const char *p = shux_runtime_dynlib_os_o_path(argv0);
+int xlang_ensure_runtime_dynlib_os_o(const char *argv0) {
+  const char *p = xlang_runtime_dynlib_os_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 7, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_env_os_o(const char *argv0) {
-  const char *p = shux_runtime_env_os_o_path(argv0);
+int xlang_ensure_runtime_env_os_o(const char *argv0) {
+  const char *p = xlang_runtime_env_os_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 8, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
-  const char *p = shux_runtime_backtrace_platform_o_path(argv0);
+int xlang_ensure_runtime_backtrace_platform_o(const char *argv0) {
+  const char *p = xlang_runtime_backtrace_platform_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 9, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_log_os_o(const char *argv0) {
-  const char *p = shux_runtime_log_os_o_path(argv0);
+int xlang_ensure_runtime_log_os_o(const char *argv0) {
+  const char *p = xlang_runtime_log_os_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 10, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_math_libm_o(const char *argv0) {
-  const char *p = shux_runtime_math_libm_o_path(argv0);
+int xlang_ensure_runtime_math_libm_o(const char *argv0) {
+  const char *p = xlang_runtime_math_libm_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 11, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
-  const char *p = shux_runtime_atomic_glue_o_path(argv0);
+int xlang_ensure_runtime_atomic_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_atomic_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 12, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_channel_glue_o(const char *argv0) {
-  const char *p = shux_runtime_channel_glue_o_path(argv0);
+int xlang_ensure_runtime_channel_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_channel_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 13, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
-  const char *p = shux_runtime_net_udp_batch_o_path(argv0);
+int xlang_ensure_runtime_net_udp_batch_o(const char *argv0) {
+  const char *p = xlang_runtime_net_udp_batch_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 14, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_net_workers_o(const char *argv0) {
-  const char *p = shux_runtime_net_workers_o_path(argv0);
+int xlang_ensure_runtime_net_workers_o(const char *argv0) {
+  const char *p = xlang_runtime_net_workers_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 15, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_sync_os_o(const char *argv0) {
-  const char *p = shux_runtime_sync_os_o_path(argv0);
+int xlang_ensure_runtime_sync_os_o(const char *argv0) {
+  const char *p = xlang_runtime_sync_os_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 16, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
-  const char *p = shux_runtime_sync_lock_diag_tls_o_path(argv0);
+int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
+  const char *p = xlang_runtime_sync_lock_diag_tls_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 17, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_thread_glue_o(const char *argv0) {
-  const char *p = shux_runtime_thread_glue_o_path(argv0);
+int xlang_ensure_runtime_thread_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_thread_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 18, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
-  const char *p = shux_runtime_scheduler_glue_o_path(argv0);
+int xlang_ensure_runtime_scheduler_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_scheduler_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 19, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_http_glue_o(const char *argv0) {
-  const char *p = shux_runtime_http_glue_o_path(argv0);
+int xlang_ensure_runtime_http_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_http_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 20, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
-  const char *p = shux_runtime_kv_mmap_glue_o_path(argv0);
+int xlang_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_kv_mmap_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 21, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
-  const char *p = shux_runtime_arrow_simd_glue_o_path(argv0);
+int xlang_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_arrow_simd_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 22, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
-  const char *p = shux_runtime_sqlite_glue_o_path(argv0);
+int xlang_ensure_runtime_sqlite_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_sqlite_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 23, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
-  const char *p = shux_runtime_crypto_inc_glue_o_path(argv0);
+int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_crypto_inc_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 24, p);
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
-int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
-  const char *p = shux_runtime_ed25519_ref10_glue_o_path(argv0);
+int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
+  const char *p = xlang_runtime_ed25519_ref10_glue_o_path(argv0);
   return link_abi_ensure_from_catalog(argv0, 25, p);
 }
 
-/* wave186: shux_asm_ld_prepare_for_exe_link pure orch (cold twin ≡ .x).
+/* wave186: xlang_asm_ld_prepare_for_exe_link pure orch (cold twin ≡ .x).
  * Peer freestanding_enabled/needs + peer ensure_* + peer user_needs;
  * Cap residual debug report + freestanding_unsupported.
  * freestanding_enabled already 0 on non-Linux (≡ mega #if __linux__ branches).
  * PLATFORM: SHARED orch / LINUX freestanding consumers.
  */
-int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
+int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
                                      int driver_freestanding, int use_macho_o,
                                      int use_coff_o) {
   int fs;
   int need;
   int rc;
-  shux_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_enter",
+  xlang_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_enter",
                                  "prepare_for_exe_link_enter", driver_freestanding,
                                  use_macho_o, use_coff_o);
   if (!link_eff || !user_o)
     return -1;
-  fs = shux_link_freestanding_enabled(driver_freestanding);
+  fs = xlang_link_freestanding_enabled(driver_freestanding);
   if (fs != 0) {
-    need = shux_freestanding_user_o_needs_panic(user_o);
+    need = xlang_freestanding_user_o_needs_panic(user_o);
     if (need != 0) {
-      rc = shux_ensure_runtime_panic_o(link_eff);
+      rc = xlang_ensure_runtime_panic_o(link_eff);
       if (rc != 0)
         return -1;
     }
   } else {
-    rc = shux_ensure_runtime_panic_o(link_eff);
+    rc = xlang_ensure_runtime_panic_o(link_eff);
     if (rc != 0)
       return -1;
   }
   if (fs == 0) {
-    rc = shux_ensure_runtime_asm_io_stubs_o(link_eff);
+    rc = xlang_ensure_runtime_asm_io_stubs_o(link_eff);
     if (rc != 0)
       return -1;
     if (labi_user_needs_runtime_process_argv(user_o)) {
-      rc = shux_ensure_runtime_process_argv_o(link_eff);
+      rc = xlang_ensure_runtime_process_argv_o(link_eff);
       if (rc != 0)
         return -1;
     }
     if (labi_user_needs_runtime_random_fill(user_o)) {
-      rc = shux_ensure_runtime_random_fill_o(link_eff);
+      rc = xlang_ensure_runtime_random_fill_o(link_eff);
       if (rc != 0)
         return -1;
     }
     if (labi_user_needs_runtime_time_os(user_o)) {
-      rc = shux_ensure_runtime_time_os_o(link_eff);
+      rc = xlang_ensure_runtime_time_os_o(link_eff);
       if (rc != 0)
         return -1;
     }
     if (labi_user_needs_runtime_env_os(user_o)) {
-      rc = shux_ensure_runtime_env_os_o(link_eff);
+      rc = xlang_ensure_runtime_env_os_o(link_eff);
       if (rc != 0)
         return -1;
     }
   }
-  rc = shux_ensure_crt0_user_o(link_eff, driver_freestanding);
+  rc = xlang_ensure_crt0_user_o(link_eff, driver_freestanding);
   if (rc != 0)
     return -1;
   if (fs != 0) {
-    need = shux_freestanding_user_o_needs_io(user_o);
+    need = xlang_freestanding_user_o_needs_io(user_o);
     if (need != 0) {
-      rc = shux_ensure_freestanding_io_o(link_eff, driver_freestanding);
+      rc = xlang_ensure_freestanding_io_o(link_eff, driver_freestanding);
       if (rc != 0)
         return -1;
     }
@@ -1214,7 +1214,7 @@ int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
     link_diag_freestanding_unsupported();
     return -1;
   }
-  shux_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_exit",
+  xlang_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_exit",
                                  "prepare_for_exe_link_exit", 0, 0, 0);
   return 0;
 }
@@ -1231,44 +1231,44 @@ int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_b
 /* wave173: link_abi_ensure_from_catalog pure orch (L4). */
 int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path);
 /* wave174: catalog thin ensure wraps pure (L4). */
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
-int shux_ensure_runtime_process_argv_o(const char *argv0);
-int shux_ensure_runtime_process_os_glue_o(const char *argv0);
-int shux_ensure_runtime_random_fill_o(const char *argv0);
-int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
-int shux_ensure_runtime_time_os_o(const char *argv0);
-int shux_ensure_runtime_queue_contention_o(const char *argv0);
-int shux_ensure_runtime_dynlib_os_o(const char *argv0);
-int shux_ensure_runtime_env_os_o(const char *argv0);
-int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
-int shux_ensure_runtime_log_os_o(const char *argv0);
-int shux_ensure_runtime_math_libm_o(const char *argv0);
-int shux_ensure_runtime_atomic_glue_o(const char *argv0);
-int shux_ensure_runtime_channel_glue_o(const char *argv0);
-int shux_ensure_runtime_net_udp_batch_o(const char *argv0);
-int shux_ensure_runtime_net_workers_o(const char *argv0);
-int shux_ensure_runtime_sync_os_o(const char *argv0);
-int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
-int shux_ensure_runtime_thread_glue_o(const char *argv0);
-int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
-int shux_ensure_runtime_http_glue_o(const char *argv0);
-int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0);
-int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0);
-int shux_ensure_runtime_sqlite_glue_o(const char *argv0);
-int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0);
-int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
+int xlang_ensure_runtime_asm_io_stubs_o(const char *argv0);
+int xlang_ensure_runtime_process_argv_o(const char *argv0);
+int xlang_ensure_runtime_process_os_glue_o(const char *argv0);
+int xlang_ensure_runtime_random_fill_o(const char *argv0);
+int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0);
+int xlang_ensure_runtime_time_os_o(const char *argv0);
+int xlang_ensure_runtime_queue_contention_o(const char *argv0);
+int xlang_ensure_runtime_dynlib_os_o(const char *argv0);
+int xlang_ensure_runtime_env_os_o(const char *argv0);
+int xlang_ensure_runtime_backtrace_platform_o(const char *argv0);
+int xlang_ensure_runtime_log_os_o(const char *argv0);
+int xlang_ensure_runtime_math_libm_o(const char *argv0);
+int xlang_ensure_runtime_atomic_glue_o(const char *argv0);
+int xlang_ensure_runtime_channel_glue_o(const char *argv0);
+int xlang_ensure_runtime_net_udp_batch_o(const char *argv0);
+int xlang_ensure_runtime_net_workers_o(const char *argv0);
+int xlang_ensure_runtime_sync_os_o(const char *argv0);
+int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
+int xlang_ensure_runtime_thread_glue_o(const char *argv0);
+int xlang_ensure_runtime_scheduler_glue_o(const char *argv0);
+int xlang_ensure_runtime_http_glue_o(const char *argv0);
+int xlang_ensure_runtime_kv_mmap_glue_o(const char *argv0);
+int xlang_ensure_runtime_arrow_simd_glue_o(const char *argv0);
+int xlang_ensure_runtime_sqlite_glue_o(const char *argv0);
+int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
 /* wave169: ensure_runtime_panic_o pure orch (L4). */
-int shux_ensure_runtime_panic_o(const char *argv0);
+int xlang_ensure_runtime_panic_o(const char *argv0);
 /* wave170: ensure_runtime_heap_user_o pure orch (L4). */
-int shux_ensure_runtime_heap_user_o(const char *argv0);
+int xlang_ensure_runtime_heap_user_o(const char *argv0);
 /* wave171: ensure_runtime_test_fn_invoke_o pure orch (L4). */
-int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
+int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0);
 /* wave172: ensure_runtime_tls_mbedtls_bio_o pure orch (L4). */
-int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
 /* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (L4). */
-int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
+int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
 /* wave186: prepare_for_exe_link pure orch (L4). */
-int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
+int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
                                      int driver_freestanding, int use_macho_o,
                                      int use_coff_o);
 #endif

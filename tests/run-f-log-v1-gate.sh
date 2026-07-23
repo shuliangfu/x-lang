@@ -2,7 +2,7 @@
 # F-log v1：std.log 去 C（log.c → log.x + seeds/runtime_log_os.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_LOG_V1_FAIL:-0}
+FAIL=${XLANG_F_LOG_V1_FAIL:-0}
 DOC="analysis/phase-f-log-v1.md"
 MANIFEST="tests/baseline/f-log-v1-closure.tsv"
 die() { echo "f-log-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -23,10 +23,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'runtime_log_os' compiler/Makefile || die "Makefile missing runtime_log_os"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/log/log.o >/dev/null 2>&1 || die "make log.o failed"
 else
-  echo "f-log-v1 SKIP log.o build (no shux-c)" >&2
+  echo "f-log-v1 SKIP log.o build (no xlang-c)" >&2
 fi
 for sub in run-std-log-multi-sink-gate.sh run-std-log-rotate-async-gate.sh; do
   [ -f "tests/$sub" ] || continue

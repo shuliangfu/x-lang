@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-atomic-widen.sh — STD-146 manifest 与烟测辅助
 
-STD146_PREFIX="${SHUX_STD146_ATOMIC_WIDEN_PREFIX:-shux: [SHUX_STD146_ATOMIC_WIDEN]}"
+STD146_PREFIX="${XLANG_STD146_ATOMIC_WIDEN_PREFIX:-xlang: [XLANG_STD146_ATOMIC_WIDEN]}"
 
 # 校验 manifest；echo 缺失数。
 std_atomic_widen_symbols_ok() {
@@ -54,18 +54,18 @@ std_atomic_widen_symbols_ok() {
 
 # 编译并运行 widen 烟测（需链接 atomic.o + runtime_atomic_glue.o）。
 std_atomic_widen_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local atomic_o="$3"
   local atomic_rt_o="${4:-}"
-  local exe="/tmp/shux_std_atomic_widen_$$"
+  local exe="/tmp/xlang_std_atomic_widen_$$"
   local extra=()
   if [ -n "$atomic_rt_o" ] && [ -f "$atomic_rt_o" ]; then
     extra=("$atomic_rt_o")
   fi
-  if ! "$shux" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" >/dev/null 2>&1; then
     echo "std-atomic-widen FAIL: compile $src" >&2
-    "$shux" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" -o "$exe" "$atomic_o" "${extra[@]}" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

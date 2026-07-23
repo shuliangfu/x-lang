@@ -582,8 +582,8 @@ export function closedir_win(d: *u8): void {
 }
 
 /**
- * Whether `shux check` should fail on warning-level diagnostics.
- * Truthy when SHUX_LINT_CI_FAIL_ON is "warn" or "warning".
+ * Whether `xlang check` should fail on warning-level diagnostics.
+ * Truthy when XLANG_LINT_CI_FAIL_ON is "warn" or "warning".
  * wave234 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @return i32 — 1 if warnings are fatal, 0 otherwise
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl
@@ -591,8 +591,8 @@ export function closedir_win(d: *u8): void {
 #[no_mangle]
 export function check_lint_fail_on_warnings(): i32 {
   unsafe {
-    // wave234 G.7: SHUX_LINT_CI_FAIL_ON via link_abi_getenv (not raw getenv).
-    let v: *u8 = link_abi_getenv("SHUX_LINT_CI_FAIL_ON");
+    // wave234 G.7: XLANG_LINT_CI_FAIL_ON via link_abi_getenv (not raw getenv).
+    let v: *u8 = link_abi_getenv("XLANG_LINT_CI_FAIL_ON");
     if (v == 0) {
       return 0;
     }
@@ -621,15 +621,15 @@ export function check_lint_fail_on_warnings(): i32 {
   return 0;
 }
 
-// shux_path_is_absolute: see function docblock below.
+// xlang_path_is_absolute: see function docblock below.
 
-/** Exported function `shux_path_is_absolute`.
- * Implements `shux_path_is_absolute`.
+/** Exported function `xlang_path_is_absolute`.
+ * Implements `xlang_path_is_absolute`.
  * @param path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_path_is_absolute(path: *u8): i32 {
+export function xlang_path_is_absolute(path: *u8): i32 {
   if (path == 0) {
     return 0;
   }

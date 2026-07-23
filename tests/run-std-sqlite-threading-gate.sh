@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD138_DOC:-analysis/std-sqlite-threading-v1.md}"
-MANIFEST="${SHUX_STD138_TSV:-tests/baseline/std-sqlite-threading.tsv}"
+DOC="${XLANG_STD138_DOC:-analysis/std-sqlite-threading-v1.md}"
+MANIFEST="${XLANG_STD138_TSV:-tests/baseline/std-sqlite-threading.tsv}"
 README="std/db/sqlite/README.md"
 
-STD_DB_THREADING_PREFIX="${SHUX_STD138_PREFIX:-shux: [SHUX_STD138_DB_THREADING]}"
+STD_DB_THREADING_PREFIX="${XLANG_STD138_PREFIX:-xlang: [XLANG_STD138_DB_THREADING]}"
 
 echo "=== STD-138: sqlite threading manifest ==="
 for f in "$DOC" "$MANIFEST" "$README" analysis/std-sqlite-pool-v1.md; do

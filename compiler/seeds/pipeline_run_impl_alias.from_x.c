@@ -28,9 +28,9 @@ int32_t pipeline_run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTAr
 /*
  * strict 链：build_asm/parser.o 自举 parse 时跳过大函数（parse_into_buf 等未进 module），
  * 须由 parser_bootstrap_partial.o（自 pipeline_x.o 部分链接）提供 parser_parse_into_buf。
- * X 编排 + pipeline_glue_standalone 已提供 parse_into_init；设 SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0 跳过。
+ * X 编排 + pipeline_glue_standalone 已提供 parse_into_init；设 XLANG_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0 跳过。
  */
-#if !defined(SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES) || SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES
+#if !defined(XLANG_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES) || XLANG_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES
 struct parser_ParseIntoResult {
   int32_t ok;
   int32_t main_idx;
@@ -50,4 +50,4 @@ extern void parser_parse_into_init(void *arena, void *module);
 void parse_into_init(void *module, void *arena) {
   parser_parse_into_init(arena, module);
 }
-#endif /* SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES */
+#endif /* XLANG_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES */

@@ -3,13 +3,13 @@
 ## 1. 阅读路径
 
 本文档描述 std.simd 模块中 Vec4f shuffle 与 Vec8i select 的 lane-scalar 实装方案。
-SHUX_SIMD_HW 检测硬件 SIMD 可用性；不可用时退化为标量 lane 循环。
+XLANG_SIMD_HW 检测硬件 SIMD 可用性；不可用时退化为标量 lane 循环。
 
 ## 2. 双层实现
 
 每个 SIMD 操作提供两条路径：
 - lane-scalar：逐 lane 标量循环（v[mask[0]], v[mask[1]], ...），不依赖硬件 SIMD
-- HW path：当 SHUX_SIMD_HW 可用时走原生 SIMD 指令
+- HW path：当 XLANG_SIMD_HW 可用时走原生 SIMD 指令
 
 ## 3. API 语义
 

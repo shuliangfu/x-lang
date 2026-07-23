@@ -47,10 +47,10 @@ sym_miss="$(std_fs_dirmeta_symbols_ok "$MOD_X" "$FS_IMPL" "$MANIFEST" || true)"
 C_OK=0
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_fs_dirmeta_run_x_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_fs_dirmeta_run_x_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
   C_OK=1
 else
   SKIP=1

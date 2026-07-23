@@ -3,15 +3,15 @@
 #
 # 1) std-time-precision-v1.md + manifest
 # 2) mod.x 13 API + time.c 平台实现
-# 3) native shux：precision_smoke + main 烟测
+# 3) native xlang：precision_smoke + main 烟测
 #
 # 用法：./tests/run-std-time-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
-MANIFEST="${SHUX_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
-MOD_X="${SHUX_STD_TIME_MOD:-std/time/mod.x}"
+DOC="${XLANG_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
+MANIFEST="${XLANG_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
+MOD_X="${XLANG_STD_TIME_MOD:-std/time/mod.x}"
 TIME_RUNTIME="compiler/seeds/runtime_time_os.from_x.c"
 TIME_X="std/time/time.x"
 MIN_APIS=13
@@ -126,18 +126,18 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-time manifest OK (apis=${API_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-  echo "=== STD-005: std.time smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+  echo "=== STD-005: std.time smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
@@ -145,7 +145,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   FAIL=0
   for smoke in tests/time/main.x tests/time/precision_smoke.x; do
     tag="$(basename "$smoke" .x)"
-    if std_time_run_smoke "$SHUX_BIN" "$smoke" "$tag"; then
+    if std_time_run_smoke "$XLANG_BIN" "$smoke" "$tag"; then
       echo "std-time smoke OK $tag"
     else
       FAIL=$((FAIL + 1))
@@ -156,7 +156,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
     exit 1
   fi
 else
-  echo "std-time gate SKIP smoke (no native shux)" >&2
+  echo "std-time gate SKIP smoke (no native xlang)" >&2
 fi
 
 echo "std-time gate OK"

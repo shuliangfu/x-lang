@@ -28,7 +28,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`net_ensure_wsa_impl`, `net_wsa_ctor_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_NET_SOCK_FAST_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_NET_SOCK_FAST_FROM_X`
 - constructor 属性：`net_wsa_ctor_impl` 保留 `__attribute__((constructor(65534)))`，main 前自动执行
 
 ## 5. 验证状态

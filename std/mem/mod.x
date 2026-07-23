@@ -37,10 +37,10 @@ export struct Buffer {
   len: usize
   handle: usize
 }
-/** IO pre-register: after import("std.io.core"), call shux_io_register; shared with std.io.driver.
+/** IO pre-register: after import("std.io.core"), call xlang_io_register; shared with std.io.driver.
 */
 export function register_buffer(buf: Buffer): i32 {
-  return core.shux_io_register(buf.ptr, buf.len, buf.handle);
+  return core.xlang_io_register(buf.ptr, buf.len, buf.handle);
 }
 // See implementation.
 /** Exported function `copy`.

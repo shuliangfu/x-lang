@@ -10,4 +10,4 @@
 
 `csv.x` 提供 RFC 4180 解析/写回/流式 smoke；用户 `import("std.csv")` 即可。
 
-**测试**：`SHUX=./compiler/shux-c ./tests/run-csv.sh` 或 `SHUX=./compiler/shux ./tests/run-csv.sh`（2026-05-27 seed 重链后全绿）。
+**测试**：`XLANG=./compiler/xlang-c ./tests/run-csv.sh` 或 `XLANG=./compiler/xlang ./tests/run-csv.sh`（2026-05-27 seed 重链后全绿）。

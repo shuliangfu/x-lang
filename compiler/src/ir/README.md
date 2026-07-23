@@ -1,8 +1,8 @@
-# ir/ — SHUX IR（Semantic IR v4.0 Architecture Freeze）
+# ir/ — XLANG IR（Semantic IR v4.0 Architecture Freeze）
 
 > **架构状态**：Architecture Freeze（v4.0 起）。总架构不再修改，仅允许实现级调整。
 > **设计文档**：[analysis/IR核心设计.md](../../../analysis/IR核心设计.md)
-> **核心定位**：Semantic IR——把 SHUX 语言语义（Linear / Region / X ABI）直接编码进 IR，并通过 Contract 在 lowering 和优化过程中持续验证。
+> **核心定位**：Semantic IR——把 XLANG 语言语义（Linear / Region / X ABI）直接编码进 IR，并通过 Contract 在 lowering 和优化过程中持续验证。
 
 ## 五层 IR 架构
 

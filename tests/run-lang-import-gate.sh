@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MATRIX="${SHUX_LANG_IMPORT_TSV:-tests/baseline/lang-import-crossplatform.tsv}"
+MATRIX="${XLANG_LANG_IMPORT_TSV:-tests/baseline/lang-import-crossplatform.tsv}"
 
 native_shu() {
   local f="$1"
@@ -42,25 +42,25 @@ make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
   || make -C compiler ../std/async/scheduler.o
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "lang-import gate SKIP bench (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "lang-import gate SKIP bench (no native xlang)" >&2
   exit 0
 fi
 
-# 链接优先 shux-c（与 run-stdlib-import 一致，跨平台稳定）。
-LINK_SHUX="$SHUX_BIN"
-if [ -x ./compiler/shux-c ] && native_shu ./compiler/shux-c; then
-  LINK_SHUX=./compiler/shux-c
+# 链接优先 xlang-c（与 run-stdlib-import 一致，跨平台稳定）。
+LINK_XLANG="$XLANG_BIN"
+if [ -x ./compiler/xlang-c ] && native_shu ./compiler/xlang-c; then
+  LINK_XLANG=./compiler/xlang-c
 fi
 
 run_x_case() {
@@ -75,9 +75,9 @@ run_x_case() {
     echo "lang-import FAIL: missing ${script}" >&2
     return 1
   fi
-  local out="/tmp/shux_lang_import_${script%.x}"
-  if ! "$LINK_SHUX" -L . "$src" -o "$out" >/tmp/shux_lang_import_compile.log 2>&1; then
-    cat /tmp/shux_lang_import_compile.log >&2
+  local out="/tmp/xlang_lang_import_${script%.x}"
+  if ! "$LINK_XLANG" -L . "$src" -o "$out" >/tmp/xlang_lang_import_compile.log 2>&1; then
+    cat /tmp/xlang_lang_import_compile.log >&2
     return 1
   fi
   local ec=0
@@ -90,7 +90,7 @@ run_x_case() {
 }
 
 FAILS=0
-echo "=== LANG-002: import smoke (CHECK/LINK via $(basename "$LINK_SHUX")) ==="
+echo "=== LANG-002: import smoke (CHECK/LINK via $(basename "$LINK_XLANG")) ==="
 
 while IFS=$'\t' read -r case_id script policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -102,7 +102,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      if SHUX="$SHUX_BIN" "$hook"; then
+      if XLANG="$XLANG_BIN" "$hook"; then
         echo "lang-import OK $case_id"
       else
         echo "lang-import FAIL $case_id ($script)" >&2

@@ -6,8 +6,8 @@
 #   2) win32 / ffi.x 实现层 grep 确认 unsafe 包裹（硬门槛）
 #   3) 可选 typeck：默认 SKIP 单文件 check（G-02a 后 -backend c 已退役；
 #      若干 sys 模块仍有 pre-existing typeck 债如 implicit tail return）。
-#      设 SHUX_G_FFI5_TYPECK=1 时尝试 check -L .（失败仅计数，不硬红除非
-#      SHUX_G_FFI5_TYPECK_STRICT=1）。
+#      设 XLANG_G_FFI5_TYPECK=1 时尝试 check -L .（失败仅计数，不硬红除非
+#      XLANG_G_FFI5_TYPECK_STRICT=1）。
 #
 # 用法：./tests/run-g-ffi-5-std-wrap-gate.sh
 set -e
@@ -73,17 +73,17 @@ done
 echo "g-ffi-5 grep OK (win32 + ffi + sys)"
 
 # ── optional typeck ──
-if [ "${SHUX_G_FFI5_TYPECK:-0}" = "1" ]; then
-  SHUX_BIN=""
-  if [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
-    SHUX_BIN="${SHUX}"
-  elif [ -x ./compiler/shux ]; then
-    SHUX_BIN=./compiler/shux
-  elif [ -x ./compiler/shux_asm ]; then
-    SHUX_BIN=./compiler/shux_asm
+if [ "${XLANG_G_FFI5_TYPECK:-0}" = "1" ]; then
+  XLANG_BIN=""
+  if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ]; then
+    XLANG_BIN="${XLANG}"
+  elif [ -x ./compiler/xlang ]; then
+    XLANG_BIN=./compiler/xlang
+  elif [ -x ./compiler/xlang_asm ]; then
+    XLANG_BIN=./compiler/xlang_asm
   fi
-  if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-    echo "=== G-FFI-5: optional typeck (SHUX=$SHUX_BIN) ==="
+  if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+    echo "=== G-FFI-5: optional typeck (XLANG=$XLANG_BIN) ==="
     CHECK_SRCS=(
       std/ffi/mod.x
       std/sys/mod.x
@@ -95,24 +95,24 @@ if [ "${SHUX_G_FFI5_TYPECK:-0}" = "1" ]; then
     )
     TFAIL=0
     for src in "${CHECK_SRCS[@]}"; do
-      if "$SHUX_BIN" check -L . "$src" >/tmp/shux_gffi5_check.log 2>&1; then
+      if "$XLANG_BIN" check -L . "$src" >/tmp/xlang_gffi5_check.log 2>&1; then
         echo "g-ffi-5 check OK $src"
       else
-        echo "g-ffi-5 check WARN $src (pre-existing typeck debt; see /tmp/shux_gffi5_check.log)" >&2
+        echo "g-ffi-5 check WARN $src (pre-existing typeck debt; see /tmp/xlang_gffi5_check.log)" >&2
         TFAIL=$((TFAIL + 1))
       fi
     done
-    if [ "$TFAIL" -gt 0 ] && [ "${SHUX_G_FFI5_TYPECK_STRICT:-0}" = "1" ]; then
+    if [ "$TFAIL" -gt 0 ] && [ "${XLANG_G_FFI5_TYPECK_STRICT:-0}" = "1" ]; then
       echo "g-ffi-5 FAIL: typeck strict $TFAIL failure(s)" >&2
       FAILS=$((FAILS + TFAIL))
     else
       echo "g-ffi-5 typeck soft: $TFAIL warn(s) (set TYPECK_STRICT=1 to hard-fail)"
     fi
   else
-    echo "g-ffi-5 typeck SKIP (no native shux)"
+    echo "g-ffi-5 typeck SKIP (no native xlang)"
   fi
 else
-  echo "g-ffi-5 typeck SKIP (default; set SHUX_G_FFI5_TYPECK=1 to enable soft checks)"
+  echo "g-ffi-5 typeck SKIP (default; set XLANG_G_FFI5_TYPECK=1 to enable soft checks)"
 fi
 
 if [ "$FAILS" -gt 0 ]; then

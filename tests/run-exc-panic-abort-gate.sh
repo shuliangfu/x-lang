@@ -9,7 +9,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_EXC_PANIC_ABORT_TSV:-tests/baseline/exc-panic-abort.tsv}"
+MATRIX="${XLANG_EXC_PANIC_ABORT_TSV:-tests/baseline/exc-panic-abort.tsv}"
 
 native_shu() {
   local f="$1"
@@ -39,18 +39,18 @@ echo "exc-panic-abort manifest OK"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "exc-panic-abort gate SKIP bench (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "exc-panic-abort gate SKIP bench (no native xlang)" >&2
   exit 0
 fi
 
@@ -58,13 +58,13 @@ run_x_case() {
   local script="$1"
   local want_ec="$2"
   local src="tests/exc/${script}"
-  local out="/tmp/shux_exc_${script%.x}"
+  local out="/tmp/xlang_exc_${script%.x}"
   if [ ! -f "$src" ]; then
     echo "exc FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_exc_compile.log 2>&1; then
-    cat /tmp/shux_exc_compile.log >&2
+  if ! "$XLANG_BIN" -L . "$src" -o "$out" >/tmp/xlang_exc_compile.log 2>&1; then
+    cat /tmp/xlang_exc_compile.log >&2
     return 1
   fi
   local ec=0
@@ -77,7 +77,7 @@ run_x_case() {
 }
 
 FAILS=0
-echo "=== EXC-002: boundary smoke (SHUX=$SHUX_BIN) ==="
+echo "=== EXC-002: boundary smoke (XLANG=$XLANG_BIN) ==="
 
 while IFS=$'\t' read -r case_id script policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -99,7 +99,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
       if [ ! -x "$hook" ]; then
         chmod +x "$hook" 2>/dev/null || true
       fi
-      if SHUX="$SHUX_BIN" "$hook"; then
+      if XLANG="$XLANG_BIN" "$hook"; then
         echo "exc OK $case_id ($script)"
       else
         echo "exc FAIL $case_id ($script)" >&2

@@ -27,7 +27,7 @@ void shu_cpu_set(unsigned int cpu, cpu_set_t *set);
 void shu_cpu_zero_impl(cpu_set_t *set) {
     memset(set, 0, sizeof(cpu_set_t));
 }
-#ifndef SHUX_RUNTIME_THREAD_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void shu_cpu_zero(cpu_set_t *set) {
     shu_cpu_zero_impl(set);
@@ -43,7 +43,7 @@ void shu_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
         ((unsigned long *)set)[idx] |= (unsigned long)1 << bit;
     }
 }
-#ifndef SHUX_RUNTIME_THREAD_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
     shu_cpu_set_impl(cpu, set);
@@ -57,11 +57,11 @@ void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
 #include <stdlib.h>
 /* Windows：用 CreateThread + WaitForSingleObject；thread_id 存 HANDLE。 */
 typedef HANDLE shu_thread_t;
-#define SHUX_THREAD_ID_INVALID ((int64_t)(uintptr_t)NULL)
+#define XLANG_THREAD_ID_INVALID ((int64_t)(uintptr_t)NULL)
 #else
 #include <pthread.h>
 typedef pthread_t shu_thread_t;
-#define SHUX_THREAD_ID_INVALID ((int64_t)0)
+#define XLANG_THREAD_ID_INVALID ((int64_t)0)
 #if defined(__APPLE__)
 #include <sys/qos.h>
 #endif
@@ -88,26 +88,26 @@ static DWORD WINAPI thread_wrap(LPVOID arg) {
 #endif
 
 /**
- * 创建新线程；entry 为 C 函数 void* (*)(void*)，arg 传入；成功返回 thread_id（用于 join），失败返回 SHUX_THREAD_ID_INVALID（约定为 0 或 -1）。
+ * 创建新线程；entry 为 C 函数 void* (*)(void*)，arg 传入；成功返回 thread_id（用于 join），失败返回 XLANG_THREAD_ID_INVALID（约定为 0 或 -1）。
  * 调用方保证 entry 非 NULL。
  */
 int64_t thread_create_c(void *entry, void *arg) {
-    if (entry == NULL) return SHUX_THREAD_ID_INVALID;
+    if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
         struct shu_thread_params *params = (struct shu_thread_params *)malloc(sizeof(struct shu_thread_params));
-        if (!params) return SHUX_THREAD_ID_INVALID;
+        if (!params) return XLANG_THREAD_ID_INVALID;
         params->entry = (void *(*)(void *))entry;
         params->arg = arg;
         HANDLE h = CreateThread(NULL, 0, thread_wrap, params, 0, NULL);
-        if (h == NULL) { free(params); return SHUX_THREAD_ID_INVALID; }
+        if (h == NULL) { free(params); return XLANG_THREAD_ID_INVALID; }
         return (int64_t)(uintptr_t)h;
     }
 #else
     {
         pthread_t tid;
         if (pthread_create(&tid, NULL, (void *(*)(void *))entry, arg) != 0)
-            return SHUX_THREAD_ID_INVALID;
+            return XLANG_THREAD_ID_INVALID;
         return (int64_t)(uintptr_t)tid;
     }
 #endif
@@ -115,18 +115,18 @@ int64_t thread_create_c(void *entry, void *arg) {
 
 /**
  * 创建新线程并指定栈大小；stack_size 为 0 表示使用默认栈大小。
- * 多 worker 时可用较小栈（如 262144）省内存。成功返回 thread_id，失败返回 SHUX_THREAD_ID_INVALID。
+ * 多 worker 时可用较小栈（如 262144）省内存。成功返回 thread_id，失败返回 XLANG_THREAD_ID_INVALID。
  */
 int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
-    if (entry == NULL) return SHUX_THREAD_ID_INVALID;
+    if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
         struct shu_thread_params *params = (struct shu_thread_params *)malloc(sizeof(struct shu_thread_params));
-        if (!params) return SHUX_THREAD_ID_INVALID;
+        if (!params) return XLANG_THREAD_ID_INVALID;
         params->entry = (void *(*)(void *))entry;
         params->arg = arg;
         HANDLE h = CreateThread(NULL, (SIZE_T)stack_size, thread_wrap, params, 0, NULL);
-        if (h == NULL) { free(params); return SHUX_THREAD_ID_INVALID; }
+        if (h == NULL) { free(params); return XLANG_THREAD_ID_INVALID; }
         return (int64_t)(uintptr_t)h;
     }
 #else
@@ -134,18 +134,18 @@ int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
         pthread_t tid;
         if (stack_size == 0) {
             if (pthread_create(&tid, NULL, (void *(*)(void *))entry, arg) != 0)
-                return SHUX_THREAD_ID_INVALID;
+                return XLANG_THREAD_ID_INVALID;
             return (int64_t)(uintptr_t)tid;
         }
         pthread_attr_t attr;
-        if (pthread_attr_init(&attr) != 0) return SHUX_THREAD_ID_INVALID;
+        if (pthread_attr_init(&attr) != 0) return XLANG_THREAD_ID_INVALID;
         if (pthread_attr_setstacksize(&attr, stack_size) != 0) {
             pthread_attr_destroy(&attr);
-            return SHUX_THREAD_ID_INVALID;
+            return XLANG_THREAD_ID_INVALID;
         }
         int ret = pthread_create(&tid, &attr, (void *(*)(void *))entry, arg);
         pthread_attr_destroy(&attr);
-        if (ret != 0) return SHUX_THREAD_ID_INVALID;
+        if (ret != 0) return XLANG_THREAD_ID_INVALID;
         return (int64_t)(uintptr_t)tid;
     }
 #endif
@@ -153,7 +153,7 @@ int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
 
 /** 等待线程结束；thread_id 为 thread_create_c 返回值。返回 0 成功，-1 失败（如已 join 或无效 id）。 */
 int32_t thread_join_c(int64_t thread_id) {
-    if (thread_id == SHUX_THREAD_ID_INVALID) return -1;
+    if (thread_id == XLANG_THREAD_ID_INVALID) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
         HANDLE h = (HANDLE)(uintptr_t)thread_id;
@@ -202,7 +202,7 @@ int32_t thread_set_affinity_self_c(int32_t cpu_index) {
  * 成功返回 0，失败返回 -1（如无效 thread_id 或平台不支持）。
  */
 int32_t thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
-    if (thread_id == SHUX_THREAD_ID_INVALID || cpu_index < 0) return -1;
+    if (thread_id == XLANG_THREAD_ID_INVALID || cpu_index < 0) return -1;
 #if defined(_WIN32) || defined(_WIN64)
     {
         DWORD_PTR mask = (DWORD_PTR)(1ULL << (unsigned)cpu_index);

@@ -3,10 +3,10 @@
 
 set -e
 cd "$(dirname "$0")/.."
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 # 使用本机目标三元组（clang 接受 -target）
 case "$(uname -s)" in
     Darwin)  triple="$(uname -m)-apple-darwin" ;;
@@ -14,7 +14,7 @@ case "$(uname -s)" in
     *)       triple="" ;;
 esac
 if [ -n "$triple" ]; then
-    $SHUX build -target "$triple" examples/hello.x -o /tmp/shux_target_hello 2>&1
-    /tmp/shux_target_hello | grep -q "Hello World" || { echo "expected Hello World"; exit 1; }
+    $XLANG build -target "$triple" examples/hello.x -o /tmp/xlang_target_hello 2>&1
+    /tmp/xlang_target_hello | grep -q "Hello World" || { echo "expected Hello World"; exit 1; }
 fi
 echo "target test OK"

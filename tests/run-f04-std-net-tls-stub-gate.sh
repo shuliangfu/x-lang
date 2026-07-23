@@ -2,11 +2,11 @@
 # F-04 v1：std.net TLS stub 去 C 门禁（tls_stub.x + 无 tls_stub.inc.c）。
 #
 # 用法：./tests/run-f04-std-net-tls-stub-gate.sh
-# 环境：SHUX_F04_NET_TLS_STUB_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_TLS_STUB_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_TLS_STUB_FAIL:-0}
+FAIL=${XLANG_F04_NET_TLS_STUB_FAIL:-0}
 DOC="analysis/phase-f-f04-v1.md"
 TLS_STUB="std/net/tls_stub.x"
 NET_MOD="std/net/mod.x"
@@ -65,7 +65,7 @@ fi
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-04 v1: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

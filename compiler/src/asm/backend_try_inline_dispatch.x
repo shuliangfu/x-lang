@@ -1763,7 +1763,7 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
 }
 
 /**
- * Try WPO mono symbol emit for a 2-arg call when SHUX_WPO_MONO is set.
+ * Try WPO mono symbol emit for a 2-arg call when XLANG_WPO_MONO is set.
  * wave232 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @param arena *u8 — AST arena; null → return 0
  * @param elf_ctx *u8 — ELF/codegen context; null → return 0
@@ -1784,7 +1784,7 @@ export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref:
     kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
     kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
     kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
-    // wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv).
+    // wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv).
     if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
     let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
@@ -1938,7 +1938,7 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
 // See implementation.
 
 /**
- * Try WPO mono vector-lane-of-binop call emit when SHUX_WPO_MONO is set.
+ * Try WPO mono vector-lane-of-binop call emit when XLANG_WPO_MONO is set.
  * wave232 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @param arena *u8 — AST arena; null → return 0
  * @param elf_ctx *u8 — ELF/codegen context; null → return 0
@@ -1961,7 +1961,7 @@ export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
     kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
     kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
     kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
-    // wave232 G.7: SHUX_WPO_MONO via link_abi_getenv (not raw getenv).
+    // wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv).
     if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
     if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
     let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);

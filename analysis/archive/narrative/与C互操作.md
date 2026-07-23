@@ -42,7 +42,7 @@
 
 ### 3.2 从 C 调用 .x：导出符号名与约定
 
-- 编译器生成 C 代码时，对需暴露给 C 的函数使用**稳定、可约定的符号名**（如 `shux_<module>_<name>` 或用户可配置的 prefix）。
+- 编译器生成 C 代码时，对需暴露给 C 的函数使用**稳定、可约定的符号名**（如 `xlang_<module>_<name>` 或用户可配置的 prefix）。
 - 若需与 C 头文件一一对应，可在文档或工具中约定：由 .x 侧声明 `export "C"` 或类似属性，生成未修饰的 C 符号名（与 C 头中的声明一致）。
 
 ---
@@ -93,10 +93,10 @@ C 侧声明与 .x 导出符号一致，例如：
 
 ```c
 // C 头文件
-long shux_std_io_print_i32(int x);
+long xlang_std_io_print_i32(int x);
 ```
 
-.x 中对应函数在 codegen 时生成名为 `shux_std_io_print_i32` 的 C 函数，调用约定与 C 一致。
+.x 中对应函数在 codegen 时生成名为 `xlang_std_io_print_i32` 的 C 函数，调用约定与 C 一致。
 
 ---
 

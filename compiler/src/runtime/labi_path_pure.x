@@ -3,45 +3,45 @@
 //
 // G-02f-267/429 / P2 link_abi L0: pure path strings (no stat) → R2 full.
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_path_pure.from_x.c.
-// Hybrid macro SHUX_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
+// Hybrid macro XLANG_LABI_PATH_PURE_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: .x owns 60 public gates + count:
 //   - labi_suffix_eq2 / labi_suffix_eq4
-//   - link_abi_ld_argv_entry_is_obj / shux_output_is_elf_o / shux_output_want_exe
-//   - shux_path_has_sep / shux_path_last_sep (POSIX '/' only)
-//   - shux_asm_ld_lib_root_ptr_usable (wave114; low-tag + empty reject)
-//   - shux_asm_ld_lib_root_default (wave115; SHUX_LIB or "."; Cap residual: link_abi_getenv wave223)
-//   - shux_asm_ld_try_under_lib_roots (wave116; pure join root/rel; Cap residual skip+bank)
+//   - link_abi_ld_argv_entry_is_obj / xlang_output_is_elf_o / xlang_output_want_exe
+//   - xlang_path_has_sep / xlang_path_last_sep (POSIX '/' only)
+//   - xlang_asm_ld_lib_root_ptr_usable (wave114; low-tag + empty reject)
+//   - xlang_asm_ld_lib_root_default (wave115; XLANG_LIB or "."; Cap residual: link_abi_getenv wave223)
+//   - xlang_asm_ld_try_under_lib_roots (wave116; pure join root/rel; Cap residual skip+bank)
 //   - link_abi_asm_ld_argv_has_obj (wave146; pure strcmp argv scan; Cap residual realpath)
 //   - link_abi_asm_ld_argv_push_stable (wave147; pure bank+dedup+append; Cap residual bank_push)
 //   - link_abi_asm_ld_push_obj (wave148; pure resolve+bank+dedup orch; Cap residual skip/rel/bank/diag)
 //   - link_abi_asm_ld_push_glue_after_std (wave149; pure have_std+ensure orch; Cap residual call_ensure)
 //   - link_abi_asm_ld_push_minimal_runtime_objs (wave150; pure triple push_obj; Cap residual *_o_path
 //     only for empty primary path strings from thin leaves before wave183 pure)
-//   - shux_asm_ld_append_user_extra_o_files (wave151; pure CLI extra .o append; Cap residual table+access)
-//   - shux_invoke_cc_set_user_o_files_from_argv / clear (wave189; pure CLI argv .o scan;
+//   - xlang_asm_ld_append_user_extra_o_files (wave151; pure CLI extra .o append; Cap residual table+access)
+//   - xlang_invoke_cc_set_user_o_files_from_argv / clear (wave189; pure CLI argv .o scan;
 //     Cap residual reset/push table write)
-//   - shux_runtime_compiler_o_path_copy (wave160; pure join compiler-dir/leaf; Cap residual resolve)
-//   - shux_repo_root_from_argv0 (wave162; pure strip parent of compiler-dir / process.o walk;
+//   - xlang_runtime_compiler_o_path_copy (wave160; pure join compiler-dir/leaf; Cap residual resolve)
+//   - xlang_repo_root_from_argv0 (wave162; pure strip parent of compiler-dir / process.o walk;
 //     Cap residual resolve + rel_o_path; static 512 BSS return)
-//   - shux_runtime_panic_o_path (wave163; pure cwd/argv0 path ladder for runtime_panic.o;
+//   - xlang_runtime_panic_o_path (wave163; pure cwd/argv0 path ladder for runtime_panic.o;
 //     Cap residual realpath_if_exists + getcwd + skip_missing; static 512/4096 BSS)
-//   - shux_crt0_user_o_path (wave164; pure cwd/argv0 path ladder for crt0_user.o;
+//   - xlang_crt0_user_o_path (wave164; pure cwd/argv0 path ladder for crt0_user.o;
 //     Cap residual realpath_cap + getcwd; static 512/4096 BSS; freestanding entry)
-//   - shux_freestanding_io_o_path (wave165; pure cwd/argv0 path ladder for freestanding_io.o;
+//   - xlang_freestanding_io_o_path (wave165; pure cwd/argv0 path ladder for freestanding_io.o;
 //     Cap residual realpath_cap + getcwd; static 512/4096 BSS; freestanding syscall write)
-//   - shux_std_async_scheduler_o_path (wave166; pure cwd/argv0 path ladder for std/async/scheduler.o;
+//   - xlang_std_async_scheduler_o_path (wave166; pure cwd/argv0 path ladder for std/async/scheduler.o;
 //     Cap residual realpath_cap + getcwd; static 4096/4096 BSS; argv0 realpath then parent+/../std/async)
 //   - scheduler_o_for_task_link (wave180; pure task.o→scheduler.o path rewrite + Cap residual
 //     path_readable + realpath_cap; static 4096/4096 BSS; explicit_scheduler short-circuit)
-//   - shux_bootstrap_nostdlib_stubs_o_path (wave181; pure cwd realpath + compiler-dir/leaf join;
+//   - xlang_bootstrap_nostdlib_stubs_o_path (wave181; pure cwd realpath + compiler-dir/leaf join;
 //     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS; LINUX freestanding)
-//   - 29× thin shux_runtime_*_o_path (wave183; pure BSS + compiler_o_path_copy peer;
+//   - 29× thin xlang_runtime_*_o_path (wave183; pure BSS + compiler_o_path_copy peer;
 //     asm_io_stubs / process_argv / process_os_glue … ed25519_ref10_glue; static 4096 BSS each)
-//   - shux_empty_cstr / shux_std_io_o_path / shux_std_compress_o_path /
-//     shux_asm_ld_effective_link_argv0 (wave184; empty durable "" + effective link argv0 orch;
-//     Cap residual resolve for synthetic compiler-dir/shux only)
-//   - shux_rel_o_path_from_argv0 (wave185; pure realpath/cwd/argv0 ladder; Cap residual
+//   - xlang_empty_cstr / xlang_std_io_o_path / xlang_std_compress_o_path /
+//     xlang_asm_ld_effective_link_argv0 (wave184; empty durable "" + effective link argv0 orch;
+//     Cap residual resolve for synthetic compiler-dir/xlang only)
+//   - xlang_rel_o_path_from_argv0 (wave185; pure realpath/cwd/argv0 ladder; Cap residual
 //     realpath_cap + getcwd + link_abi_cstr_dup + skip_missing; heap return — never BSS)
 // wave161 G.7: thin join authority = compiler_o_path_copy; wave183 closes always-mega BSS bodies.
 // wave184: empty path stubs + effective_link soft residual always-mega closed.
@@ -54,30 +54,30 @@
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 // Cap residual path-IO / bank (hybrid authority: labi_path_io / labi_gates / mega cold).
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
-export extern "C" function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8;
+export extern "C" function xlang_asm_ld_bank_push(b: *u8, path: *u8): *u8;
 // Cap residual: POSIX realpath into caller buffer; Windows / fail → null (≡ mega #if).
 export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 // Cap residual (wave185): heap string copy for multi-call-independent path returns (never BSS).
 // G.7 authority = link_abi_cstr_dup (mega always; wraps host/freestanding strdup).
 // Do NOT extern libc strdup in .x — uint8_t* vs char* clashes with string.h under g05 -E.
 export extern "C" function link_abi_cstr_dup(s: *u8): *u8;
-// wave185: shux_rel_o_path_from_argv0 is pure export below (no longer Cap residual always-mega).
-// Cap residual / peer pure: SHUX_DEBUG_LD note path (labi_diag_pure authority).
+// wave185: xlang_rel_o_path_from_argv0 is pure export below (no longer Cap residual always-mega).
+// Cap residual / peer pure: XLANG_DEBUG_LD note path (labi_diag_pure authority).
 export extern "C" function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void;
 // Cap residual: invoke ensure(argv0) through a C function pointer (no .x fnptr call ABI yet).
 // ensure_fn is raw pointer bits of int (*)(const char*); null → 0 (skip ensure).
 export extern "C" function link_abi_call_ensure_argv0(ensure_fn: *u8, link_argv0: *u8): i32;
 // Cap residual: compiler-dir / cwd primary paths for nostdlib minimal runtime .o (static buf).
 // Empty string on fail — push_obj treats primary[0]==0 as missing (falls back to rel).
-// wave163: shux_runtime_panic_o_path is pure export below (no longer Cap residual).
-// wave164: shux_crt0_user_o_path is pure export below (no longer Cap residual).
-// wave165: shux_freestanding_io_o_path is pure export below (no longer Cap residual).
-// wave166: shux_std_async_scheduler_o_path is pure export below (no longer Cap residual).
+// wave163: xlang_runtime_panic_o_path is pure export below (no longer Cap residual).
+// wave164: xlang_crt0_user_o_path is pure export below (no longer Cap residual).
+// wave165: xlang_freestanding_io_o_path is pure export below (no longer Cap residual).
+// wave166: xlang_std_async_scheduler_o_path is pure export below (no longer Cap residual).
 // wave180: scheduler_o_for_task_link is pure export below (no longer Cap residual always-mega).
-// wave181: shux_bootstrap_nostdlib_stubs_o_path is pure export below (no longer Cap residual always-mega).
-// wave183: thin shux_runtime_*_o_path (incl. asm_io_stubs / process_argv) are pure exports below.
+// wave181: xlang_bootstrap_nostdlib_stubs_o_path is pure export below (no longer Cap residual always-mega).
+// wave183: thin xlang_runtime_*_o_path (incl. asm_io_stubs / process_argv) are pure exports below.
 // wave184: empty_cstr / std_io_o_path / std_compress_o_path / effective_link_argv0 pure below.
-// wave185: shux_rel_o_path_from_argv0 pure below (heap cstr_dup Cap residual).
+// wave185: xlang_rel_o_path_from_argv0 pure below (heap cstr_dup Cap residual).
 // Cap residual (wave151/189): CLI user-extra .o table + host access R_OK (globals stay mega).
 export extern "C" function link_abi_user_extra_o_count(): i32;
 export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
@@ -89,11 +89,11 @@ export extern "C" function link_abi_path_readable(path: *u8): i32;
 export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 // Cap residual (wave163 panic ladder): path_io peer pure realpath+skip; host getcwd.
 // realpath_if_exists lives in labi_path_io (hybrid L3); getcwd is libc Cap.
-export extern "C" function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8;
+export extern "C" function xlang_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8;
 export extern "C" function getcwd(buf: *u8, size: i32): *u8;
 
 // wave162: durable repo-root return buffer (≡ mega static char buf[512]).
-// Not exported across TUs as a symbol; only returned by shux_repo_root_from_argv0.
+// Not exported across TUs as a symbol; only returned by xlang_repo_root_from_argv0.
 let g_labi_repo_root_buf: u8[512] = [];
 // wave163: durable panic .o path buffers (≡ mega static buf[512] + resolved[PATH_MAX]).
 let g_labi_panic_o_path_buf: u8[512] = [];
@@ -115,7 +115,7 @@ let g_labi_sched_for_task_cwd: u8[4096] = [];
 let g_labi_bootstrap_nostdlib_stubs_o_path_buf: u8[4096] = [];
 let g_labi_bootstrap_nostdlib_stubs_o_path_resolved: u8[4096] = [];
 // wave183: durable thin runtime_*_o_path BSS (≡ mega static PATH_MAX per leaf; 29 leaves).
-// wave184: durable empty C string (≡ mega static char buf[1] for shux_empty_cstr).
+// wave184: durable empty C string (≡ mega static char buf[1] for xlang_empty_cstr).
 let g_labi_empty_cstr_buf: u8[1] = [];
 let g_labi_asm_io_stubs_o_path_buf: u8[4096] = [];
 let g_labi_process_argv_o_path_buf: u8[4096] = [];
@@ -202,7 +202,7 @@ export function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_output_is_elf_o(path: *u8): i32 {
+export function xlang_output_is_elf_o(path: *u8): i32 {
   let n: i32 = 0;
   if (path == 0 as *u8) { return 0; }
   while (path[n] != 0) { n = n + 1; }
@@ -217,12 +217,12 @@ export function shux_output_is_elf_o(path: *u8): i32 {
  * Params: path — NUL-terminated; null or empty → 0.
  * Returns: 0 for object/asm suffixes; 1 otherwise (want exe).
  * Why: C original used nested strlen/if; .x flattens via labi_suffix_eq2/eq4
- * (complements shux_output_is_elf_o; also rejects .s).
+ * (complements xlang_output_is_elf_o; also rejects .s).
  * Invariants: path null/empty → 0; suffixes .o/.O/.s/.obj → 0; else → 1.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_output_want_exe(path: *u8): i32 {
+export function xlang_output_want_exe(path: *u8): i32 {
   let n: i32 = 0;
   if (path == 0 as *u8) { return 0; }
   if (path[0] == 0) { return 0; }
@@ -243,7 +243,7 @@ export function shux_output_want_exe(path: *u8): i32 {
  * PLATFORM: POSIX product path (Windows residual in mega rest cold path).
  */
 #[no_mangle]
-export function shux_path_has_sep(s: *u8): i32 {
+export function xlang_path_has_sep(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
@@ -267,7 +267,7 @@ export function shux_path_has_sep(s: *u8): i32 {
  * PLATFORM: POSIX product path.
  */
 #[no_mangle]
-export function shux_path_last_sep(s: *u8): *u8 {
+export function xlang_path_last_sep(s: *u8): *u8 {
   if (s == 0 as *u8) {
     return 0 as *u8;
   }
@@ -295,12 +295,12 @@ export function shux_path_last_sep(s: *u8): *u8 {
  * Params: p — candidate lib-root C string.
  * Returns: 1 usable, 0 reject.
  * Why (wave114): product hybrid still had always-linked mega C; G.7 single
- * authority under SHUX_LABI_PATH_PURE_FROM_X. Not the same as driver_lib_root
+ * authority under XLANG_LABI_PATH_PURE_FROM_X. Not the same as driver_lib_root
  * (rt_lib_root; no low-tag) — keep link_abi symbol separate.
  * Track-L: #[no_mangle] keeps surface short name. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
+export function xlang_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
   if (p == 0 as *u8) {
     return 0;
   }
@@ -315,27 +315,27 @@ export function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
 }
 
 /**
- * Write default lib-root into root_buf (at least 512 bytes): env SHUX_LIB if usable,
+ * Write default lib-root into root_buf (at least 512 bytes): env XLANG_LIB if usable,
  * else ".".
  * @param root_buf *u8 — caller buffer; capacity >= 512; always left NUL-terminated
  * @return void
  * Why (wave115): product hybrid still had always-linked mega C (getenv+strncpy).
- * Pure orch: default "." then pure usable-check on SHUX_LIB then byte copy
+ * Pure orch: default "." then pure usable-check on XLANG_LIB then byte copy
  * (no strncpy Cap). Cap residual: link_abi_getenv (wave222 pure thin → host getenv_impl;
  * wave223 G.7: this module no longer raw-getenv).
  * Differs from driver_lib_root_default by using low-tag usable (wave114).
  * Track-L: #[no_mangle] keeps surface short name. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_asm_ld_lib_root_default(root_buf: *u8): void {
+export function xlang_asm_ld_lib_root_default(root_buf: *u8): void {
   // Default to "." before env probe (mega: root_buf[0]='.'; root_buf[1]=0).
   root_buf[0] = 46;
   root_buf[1] = 0;
   let def: *u8 = 0 as *u8;
   unsafe {
-    def = link_abi_getenv("SHUX_LIB");
+    def = link_abi_getenv("XLANG_LIB");
   }
-  if (shux_asm_ld_lib_root_ptr_usable(def) == 0) {
+  if (xlang_asm_ld_lib_root_ptr_usable(def) == 0) {
     return;
   }
   // Copy at most 511 bytes + force trailing NUL at index 511 (mega strncpy).
@@ -361,14 +361,14 @@ export function shux_asm_ld_lib_root_default(root_buf: *u8): void {
  * @return *u8 — bank slot pointer on hit, else null
  * Pure orch: low-tag usable on rel/root; strip trailing `/`; byte join into 4096
  * stack (no snprintf Cap). Cap residual: asm_link_obj_skip_missing (stat) +
- * shux_asm_ld_bank_push (path bank copy). Why (wave116): product hybrid still
+ * xlang_asm_ld_bank_push (path bank copy). Why (wave116): product hybrid still
  * had always-linked mega C (snprintf join + skip + bank). PLATFORM: SHARED.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8 {
+export function xlang_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8 {
   // Match mega: reject null / low-tag rel and empty rel.
-  if (shux_asm_ld_lib_root_ptr_usable(rel) == 0) {
+  if (xlang_asm_ld_lib_root_ptr_usable(rel) == 0) {
     return 0 as *u8;
   }
   if (bank == 0 as *u8) {
@@ -401,7 +401,7 @@ export function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib
     }
     let root: *u8 = lib_roots[i];
     // nostdlib: roots may be low-tag garbage; reuse pure usable guard.
-    if (shux_asm_ld_lib_root_ptr_usable(root) == 0) {
+    if (xlang_asm_ld_lib_root_ptr_usable(root) == 0) {
       i = i + 1;
       continue;
     }
@@ -454,7 +454,7 @@ export function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib
     }
     let pushed: *u8 = 0 as *u8;
     unsafe {
-      pushed = shux_asm_ld_bank_push(bank, &tmp[0]);
+      pushed = xlang_asm_ld_bank_push(bank, &tmp[0]);
     }
     return pushed;
   }
@@ -592,7 +592,7 @@ export function link_abi_asm_ld_argv_has_obj(argv: **u8, la: i32, path: *u8): i3
  * @param p *u8 — resolved object path; null/empty → no-op
  * @return void
  * Pure orch: null/capacity guards + pure has_obj dedup + argv append. Cap residual:
- * shux_asm_ld_bank_push (durable path copy into bank).
+ * xlang_asm_ld_bank_push (durable path copy into bank).
  * Why (wave147): hybrid still had always-mega C body over pure has_obj leaf.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * Note: la length uses la[0] (*i32 index form; same as labi_gates).
@@ -619,7 +619,7 @@ export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32
   if (bank != 0 as *u8) {
     let bp: *u8 = 0 as *u8;
     unsafe {
-      bp = shux_asm_ld_bank_push(bank, p);
+      bp = xlang_asm_ld_bank_push(bank, p);
     }
     if (bp != 0 as *u8) {
       use_p = bp;
@@ -655,9 +655,9 @@ export function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32
  * @return i32 — 1 appended, 0 missing/full/dup/bank_push fail/null guards
  * Pure orch: capacity + pure cstr debug-target match + resolve ladder + hard bank_push +
  * pure has_obj dedup + append (reuses wave147 push_stable with bank=null after hard bank).
- * Cap residual: asm_link_obj_skip_missing, shux_rel_o_path_from_argv0, shux_asm_ld_bank_push,
- * link_abi_getenv("SHUX_DEBUG_LD") + link_diag_ld_debug_push for two runtime .o rels.
- * Pure peer: shux_asm_ld_try_under_lib_roots (wave116), link_abi_asm_ld_argv_has_obj (146),
+ * Cap residual: asm_link_obj_skip_missing, xlang_rel_o_path_from_argv0, xlang_asm_ld_bank_push,
+ * link_abi_getenv("XLANG_DEBUG_LD") + link_diag_ld_debug_push for two runtime .o rels.
+ * Pure peer: xlang_asm_ld_try_under_lib_roots (wave116), link_abi_asm_ld_argv_has_obj (146),
  * link_abi_asm_ld_argv_push_stable (147).
  * Why (wave148): hybrid still had always-mega C body over pure resolve/dedup leaves.
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -675,7 +675,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   if (cur >= max_la - 1) {
     return 0;
   }
-  // Pure: mark debug targets for SHUX_DEBUG_LD (two known runtime .o rels ≡ mega strcmp).
+  // Pure: mark debug targets for XLANG_DEBUG_LD (two known runtime .o rels ≡ mega strcmp).
   let debug_runtime_obj: i32 = 0;
   if (rel != 0 as *u8) {
     let t1: *u8 = "compiler/runtime_asm_io_stubs.o";
@@ -717,12 +717,12 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
       }
     }
   }
-  // Cap residual debug note: primary stage (only when env SHUX_DEBUG_LD set).
+  // Cap residual debug note: primary stage (only when env XLANG_DEBUG_LD set).
   // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
   if (debug_runtime_obj != 0) {
     let dbg: *u8 = 0 as *u8;
     unsafe {
-      dbg = link_abi_getenv("SHUX_DEBUG_LD");
+      dbg = link_abi_getenv("XLANG_DEBUG_LD");
     }
     if (dbg != 0 as *u8) {
       let pp: *u8 = primary;
@@ -746,7 +746,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   if (debug_runtime_obj != 0) {
     let dbg2: *u8 = 0 as *u8;
     unsafe {
-      dbg2 = link_abi_getenv("SHUX_DEBUG_LD");
+      dbg2 = link_abi_getenv("XLANG_DEBUG_LD");
     }
     if (dbg2 != 0 as *u8) {
       let ap: *u8 = p;
@@ -763,7 +763,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
       if (rel[0] != 0) {
         let relp: *u8 = 0 as *u8;
         unsafe {
-          relp = shux_rel_o_path_from_argv0(link_argv0, rel);
+          relp = xlang_rel_o_path_from_argv0(link_argv0, rel);
         }
         if (relp != 0 as *u8) {
           unsafe {
@@ -778,7 +778,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
       if (rel != 0 as *u8) {
         if (rel[0] != 0) {
           // Pure peer wave116 try_under (Cap residual skip+bank inside).
-          p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
+          p = xlang_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
         }
       }
     }
@@ -791,7 +791,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   if (bank != 0 as *u8) {
     let bp: *u8 = 0 as *u8;
     unsafe {
-      bp = shux_asm_ld_bank_push(bank, p);
+      bp = xlang_asm_ld_bank_push(bank, p);
     }
     if (bp == 0 as *u8) {
       return 0;
@@ -801,7 +801,7 @@ export function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8
   if (debug_runtime_obj != 0) {
     let dbg3: *u8 = 0 as *u8;
     unsafe {
-      dbg3 = link_abi_getenv("SHUX_DEBUG_LD");
+      dbg3 = link_abi_getenv("XLANG_DEBUG_LD");
     }
     if (dbg3 != 0 as *u8) {
       let fp: *u8 = p;
@@ -878,7 +878,7 @@ export function link_abi_asm_ld_push_glue_after_std(have_std: i32, ensure_fn: *u
  * @return *u8 — static g_labi_panic_o_path_resolved (realpath hit) or
  *   g_labi_panic_o_path_buf (argv0 join / empty); never null
  * Pure orch: pure byte join + pure last-sep index strip; Cap residual
- *   shux_runtime_o_realpath_if_exists (path_io peer) + getcwd + asm_link_obj_skip_missing.
+ *   xlang_runtime_o_realpath_if_exists (path_io peer) + getcwd + asm_link_obj_skip_missing.
  * Cap residual: getcwd (libc); realpath_if_exists_impl under path_io; skip via path_io pure.
  * Why (wave163): hybrid still had always-mega C body for complex panic path ladder after
  *   wave160–162 path residual (compiler-dir join / thin *_o_path / repo_root). First complex
@@ -889,21 +889,21 @@ export function link_abi_asm_ld_push_glue_after_std(have_std: i32, ensure_fn: *u
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_panic_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_panic_o_path(argv0: *u8): *u8 {
   // Match mega: clear both durable buffers; return empty buf on total fail.
   g_labi_panic_o_path_buf[0] = 0;
   g_labi_panic_o_path_resolved[0] = 0;
   let hit: *u8 = 0 as *u8;
-  // Step 1: cwd is compiler/ — bare runtime_panic.o next to shux_asm.
+  // Step 1: cwd is compiler/ — bare runtime_panic.o next to xlang_asm.
   unsafe {
-    hit = shux_runtime_o_realpath_if_exists("runtime_panic.o", &g_labi_panic_o_path_resolved[0]);
+    hit = xlang_runtime_o_realpath_if_exists("runtime_panic.o", &g_labi_panic_o_path_resolved[0]);
   }
   if (hit != 0 as *u8) {
     return hit;
   }
   // Step 2: cwd is repo root — compiler/runtime_panic.o.
   unsafe {
-    hit = shux_runtime_o_realpath_if_exists("compiler/runtime_panic.o", &g_labi_panic_o_path_resolved[0]);
+    hit = xlang_runtime_o_realpath_if_exists("compiler/runtime_panic.o", &g_labi_panic_o_path_resolved[0]);
   }
   if (hit != 0 as *u8) {
     return hit;
@@ -930,7 +930,7 @@ export function shux_runtime_panic_o_path(argv0: *u8): *u8 {
         si = si + 1;
       }
       unsafe {
-        hit = shux_runtime_o_realpath_if_exists(&cwd[0], &g_labi_panic_o_path_resolved[0]);
+        hit = xlang_runtime_o_realpath_if_exists(&cwd[0], &g_labi_panic_o_path_resolved[0]);
       }
       if (hit != 0 as *u8) {
         return hit;
@@ -978,7 +978,7 @@ export function shux_runtime_panic_o_path(argv0: *u8): *u8 {
         }
         g_labi_panic_o_path_buf[n + k] = 0;
         unsafe {
-          hit = shux_runtime_o_realpath_if_exists(&g_labi_panic_o_path_buf[0], &g_labi_panic_o_path_resolved[0]);
+          hit = xlang_runtime_o_realpath_if_exists(&g_labi_panic_o_path_buf[0], &g_labi_panic_o_path_resolved[0]);
         }
         if (hit != 0 as *u8) {
           return hit;
@@ -1016,7 +1016,7 @@ export function shux_runtime_panic_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_crt0_user_o_path(argv0: *u8): *u8 {
+export function xlang_crt0_user_o_path(argv0: *u8): *u8 {
   // Match mega: clear both durable buffers; return empty buf on total fail.
   g_labi_crt0_user_o_path_buf[0] = 0;
   g_labi_crt0_user_o_path_resolved[0] = 0;
@@ -1129,7 +1129,7 @@ export function shux_crt0_user_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_freestanding_io_o_path(argv0: *u8): *u8 {
+export function xlang_freestanding_io_o_path(argv0: *u8): *u8 {
   // Match mega: clear both durable buffers; return empty buf on total fail.
   g_labi_freestanding_io_o_path_buf[0] = 0;
   g_labi_freestanding_io_o_path_resolved[0] = 0;
@@ -1243,7 +1243,7 @@ export function shux_freestanding_io_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_std_async_scheduler_o_path(argv0: *u8): *u8 {
+export function xlang_std_async_scheduler_o_path(argv0: *u8): *u8 {
   // Match mega: clear both durable buffers; return empty buf on total fail.
   g_labi_async_scheduler_o_path_buf[0] = 0;
   g_labi_async_scheduler_o_path_resolved[0] = 0;
@@ -1342,7 +1342,7 @@ export function shux_std_async_scheduler_o_path(argv0: *u8): *u8 {
  * @return void — always attempts three push_obj; each may no-op if resolve fails
  * Pure orch: Cap residual *_o_path primary (io/process) + pure peer panic_o_path (wave163)
  *   + pure peer push_obj ×3 (wave148).
- * Peer pure (wave183): shux_runtime_asm_io_stubs_o_path / process_argv_o_path
+ * Peer pure (wave183): xlang_runtime_asm_io_stubs_o_path / process_argv_o_path
  *   (compiler-dir / cwd resolve; static buffers; empty → primary unused).
  * Why (wave150): hybrid still had always-mega C body over pure push_obj leaves.
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -1357,10 +1357,10 @@ export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_r
   // Cap residual: preferred primary next to compiler binary (static buf per helper).
   // wave163: panic primary is pure peer in this module (no Cap residual).
   unsafe {
-    io_p = shux_runtime_asm_io_stubs_o_path(link_argv0);
-    proc_p = shux_runtime_process_argv_o_path(link_argv0);
+    io_p = xlang_runtime_asm_io_stubs_o_path(link_argv0);
+    proc_p = xlang_runtime_process_argv_o_path(link_argv0);
   }
-  panic_p = shux_runtime_panic_o_path(link_argv0);
+  panic_p = xlang_runtime_panic_o_path(link_argv0);
   // Single-authority resolve+append ×3: pure peer wave148 push_obj (flag_out null).
   // Each result discarded: mega helper is void (missing .o is silent skip).
   let _io: i32 = link_abi_asm_ld_push_obj(io_p, link_argv0, "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
@@ -1379,7 +1379,7 @@ export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_r
 
 /**
  * Append CLI user-specified extra .o paths onto an asm ld argv.
- * Same single-authority table as invoke_cc (`g_shux_user_extra_o_files`); call after
+ * Same single-authority table as invoke_cc (`g_xlang_user_extra_o_files`); call after
  * std/on_demand appends and before argv NULL terminator on every asm ld branch.
  * @param argv **u8 — ld argv table (char**); null → no-op
  * @param la *i32 — in/out argv length; null → no-op
@@ -1394,7 +1394,7 @@ export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_r
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max_la: i32): void {
+export function xlang_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max_la: i32): void {
   // Guard argv null via *u8 cast (same as wave147 push_stable; avoid **u8 null compare drop).
   let ab: *u8 = argv as *u8;
   if (ab == 0 as *u8) {
@@ -1441,7 +1441,7 @@ export function shux_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max_
 
 /**
  * Join `compiler_dir/leaf` into caller buffer after Cap residual resolve.
- * Authority for all thin `shux_runtime_*_o_path` leaves that need compiler-dir
+ * Authority for all thin `xlang_runtime_*_o_path` leaves that need compiler-dir
  * primary paths (wave161 G.7: process_os_glue … ed25519 + asm_io_stubs /
  * process_argv all route join here; wave183 pure owns static BSS return buffers).
  * @param argv0 *u8 — optional product host path; may be null (resolve uses self/exe)
@@ -1459,7 +1459,7 @@ export function shux_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max_
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u8, out_sz: i64): i32 {
+export function xlang_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u8, out_sz: i64): i32 {
   // Match mega: reject null out, zero size, null/empty leaf.
   if (out == 0 as *u8) {
     return -1;
@@ -1521,7 +1521,7 @@ export function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u
  * @return *u8 — static g_labi_repo_root_buf with repo root, or empty string (never null)
  * Pure orch: pure memcpy into BSS + pure path_last_sep strip; no snprintf.
  * Cap residual: shu_resolve_compiler_dir (PLATFORM LINUX/MACOS/WINDOWS #if) +
- *   shux_rel_o_path_from_argv0 (realpath/getcwd ladder for process.o warm path).
+ *   xlang_rel_o_path_from_argv0 (realpath/getcwd ladder for process.o warm path).
  * Why (wave162): hybrid still had always-mega C body for repo-root derivation after
  *   wave160/161 path residual (compiler-dir join + thin *_o_path). L4 wipe loses process.o
  *   so primary must be compiler-dir parent (not process.o walk alone).
@@ -1530,7 +1530,7 @@ export function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
+export function xlang_repo_root_from_argv0(argv0: *u8): *u8 {
   // Match mega: start empty; return empty string pointer on total fail.
   g_labi_repo_root_buf[0] = 0;
   // Primary: compiler dir from self/exe or argv0 → parent is repo root.
@@ -1553,7 +1553,7 @@ export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
           i = i + 1;
         }
         // Strip last path component (compiler/) → repo root.
-        let last: *u8 = shux_path_last_sep(&g_labi_repo_root_buf[0]);
+        let last: *u8 = xlang_path_last_sep(&g_labi_repo_root_buf[0]);
         if (last != 0 as *u8) {
           // Mega: last && last != buf — refuse strip when only one component.
           if (last != &g_labi_repo_root_buf[0]) {
@@ -1569,7 +1569,7 @@ export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
   let rel: *u8 = "std/process/process.o";
   let proc_o: *u8 = 0 as *u8;
   unsafe {
-    proc_o = shux_rel_o_path_from_argv0(argv0, rel);
+    proc_o = xlang_rel_o_path_from_argv0(argv0, rel);
   }
   if (proc_o == 0 as *u8) {
     return &g_labi_repo_root_buf[0];
@@ -1591,7 +1591,7 @@ export function shux_repo_root_from_argv0(argv0: *u8): *u8 {
   }
   let k: i32 = 0;
   while (k < 3) {
-    let last2: *u8 = shux_path_last_sep(&g_labi_repo_root_buf[0]);
+    let last2: *u8 = xlang_path_last_sep(&g_labi_repo_root_buf[0]);
     if (last2 == 0 as *u8) {
       break;
     }
@@ -1718,7 +1718,7 @@ export function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8):
 
 /**
  * Resolve path of bootstrap_nostdlib_stubs.o (mmap bump malloc/free face for freestanding).
- * Ladder (≡ mega shux_bootstrap_nostdlib_stubs_o_path):
+ * Ladder (≡ mega xlang_bootstrap_nostdlib_stubs_o_path):
  *   1) realpath cwd-relative `compiler/src/asm/bootstrap_nostdlib_stubs.o`
  *   2) Cap residual shu_resolve_compiler_dir + pure join `comp/src/asm/bootstrap_nostdlib_stubs.o`
  *      then realpath; if realpath fails still return joined buf (≡ mega)
@@ -1735,7 +1735,7 @@ export function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8):
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8 {
+export function xlang_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8 {
   // Match mega: clear both durable buffers; return empty buf on total fail.
   g_labi_bootstrap_nostdlib_stubs_o_path_buf[0] = 0;
   g_labi_bootstrap_nostdlib_stubs_o_path_resolved[0] = 0;
@@ -1794,7 +1794,7 @@ export function shux_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_asm_io_stubs.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1803,9 +1803,9 @@ export function shux_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
   g_labi_asm_io_stubs_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", &g_labi_asm_io_stubs_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", &g_labi_asm_io_stubs_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_asm_io_stubs_o_path_buf[0] = 0;
   }
@@ -1816,7 +1816,7 @@ export function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_process_argv.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1825,9 +1825,9 @@ export function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_process_argv_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_process_argv_o_path(argv0: *u8): *u8 {
   g_labi_process_argv_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", &g_labi_process_argv_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", &g_labi_process_argv_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_process_argv_o_path_buf[0] = 0;
   }
@@ -1838,7 +1838,7 @@ export function shux_runtime_process_argv_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_process_os_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1847,9 +1847,9 @@ export function shux_runtime_process_argv_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_process_os_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_process_os_glue_o_path(argv0: *u8): *u8 {
   g_labi_process_os_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", &g_labi_process_os_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", &g_labi_process_os_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_process_os_glue_o_path_buf[0] = 0;
   }
@@ -1860,7 +1860,7 @@ export function shux_runtime_process_os_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_test_fn_invoke.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1869,9 +1869,9 @@ export function shux_runtime_process_os_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8 {
   g_labi_test_fn_invoke_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", &g_labi_test_fn_invoke_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", &g_labi_test_fn_invoke_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_test_fn_invoke_o_path_buf[0] = 0;
   }
@@ -1882,7 +1882,7 @@ export function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_random_fill.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1891,9 +1891,9 @@ export function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_random_fill_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_random_fill_o_path(argv0: *u8): *u8 {
   g_labi_random_fill_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", &g_labi_random_fill_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", &g_labi_random_fill_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_random_fill_o_path_buf[0] = 0;
   }
@@ -1904,7 +1904,7 @@ export function shux_runtime_random_fill_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_compress_zlib_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1913,9 +1913,9 @@ export function shux_runtime_random_fill_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8 {
   g_labi_compress_zlib_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", &g_labi_compress_zlib_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", &g_labi_compress_zlib_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_compress_zlib_glue_o_path_buf[0] = 0;
   }
@@ -1926,7 +1926,7 @@ export function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_heap_user.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1935,9 +1935,9 @@ export function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_heap_user_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_heap_user_o_path(argv0: *u8): *u8 {
   g_labi_heap_user_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", &g_labi_heap_user_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", &g_labi_heap_user_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_heap_user_o_path_buf[0] = 0;
   }
@@ -1948,7 +1948,7 @@ export function shux_runtime_heap_user_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_time_os.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1957,9 +1957,9 @@ export function shux_runtime_heap_user_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_time_os_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_time_os_o_path(argv0: *u8): *u8 {
   g_labi_time_os_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", &g_labi_time_os_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", &g_labi_time_os_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_time_os_o_path_buf[0] = 0;
   }
@@ -1970,7 +1970,7 @@ export function shux_runtime_time_os_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_queue_contention.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -1979,9 +1979,9 @@ export function shux_runtime_time_os_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_queue_contention_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8 {
   g_labi_queue_contention_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", &g_labi_queue_contention_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", &g_labi_queue_contention_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_queue_contention_o_path_buf[0] = 0;
   }
@@ -1992,7 +1992,7 @@ export function shux_runtime_queue_contention_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_dynlib_os.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2001,9 +2001,9 @@ export function shux_runtime_queue_contention_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_dynlib_os_o_path(argv0: *u8): *u8 {
   g_labi_dynlib_os_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", &g_labi_dynlib_os_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", &g_labi_dynlib_os_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_dynlib_os_o_path_buf[0] = 0;
   }
@@ -2014,7 +2014,7 @@ export function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_env_os.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2023,9 +2023,9 @@ export function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_env_os_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_env_os_o_path(argv0: *u8): *u8 {
   g_labi_env_os_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", &g_labi_env_os_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", &g_labi_env_os_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_env_os_o_path_buf[0] = 0;
   }
@@ -2036,7 +2036,7 @@ export function shux_runtime_env_os_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_backtrace_platform.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2045,9 +2045,9 @@ export function shux_runtime_env_os_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_backtrace_platform_o_path(argv0: *u8): *u8 {
   g_labi_backtrace_platform_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", &g_labi_backtrace_platform_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", &g_labi_backtrace_platform_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_backtrace_platform_o_path_buf[0] = 0;
   }
@@ -2058,7 +2058,7 @@ export function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_log_os.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2067,9 +2067,9 @@ export function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_log_os_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_log_os_o_path(argv0: *u8): *u8 {
   g_labi_log_os_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", &g_labi_log_os_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", &g_labi_log_os_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_log_os_o_path_buf[0] = 0;
   }
@@ -2080,7 +2080,7 @@ export function shux_runtime_log_os_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_math_libm.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2089,9 +2089,9 @@ export function shux_runtime_log_os_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_math_libm_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_math_libm_o_path(argv0: *u8): *u8 {
   g_labi_math_libm_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", &g_labi_math_libm_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", &g_labi_math_libm_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_math_libm_o_path_buf[0] = 0;
   }
@@ -2102,7 +2102,7 @@ export function shux_runtime_math_libm_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_atomic_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2111,9 +2111,9 @@ export function shux_runtime_math_libm_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8 {
   g_labi_atomic_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", &g_labi_atomic_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", &g_labi_atomic_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_atomic_glue_o_path_buf[0] = 0;
   }
@@ -2124,7 +2124,7 @@ export function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_channel_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2133,9 +2133,9 @@ export function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_channel_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_channel_glue_o_path(argv0: *u8): *u8 {
   g_labi_channel_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", &g_labi_channel_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", &g_labi_channel_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_channel_glue_o_path_buf[0] = 0;
   }
@@ -2146,7 +2146,7 @@ export function shux_runtime_channel_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_net_udp_batch.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2155,9 +2155,9 @@ export function shux_runtime_channel_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_net_udp_batch_o_path(argv0: *u8): *u8 {
   g_labi_net_udp_batch_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", &g_labi_net_udp_batch_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", &g_labi_net_udp_batch_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_net_udp_batch_o_path_buf[0] = 0;
   }
@@ -2168,7 +2168,7 @@ export function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_net_workers.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2177,9 +2177,9 @@ export function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_net_workers_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_net_workers_o_path(argv0: *u8): *u8 {
   g_labi_net_workers_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", &g_labi_net_workers_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", &g_labi_net_workers_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_net_workers_o_path_buf[0] = 0;
   }
@@ -2190,7 +2190,7 @@ export function shux_runtime_net_workers_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_sync_os.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2199,9 +2199,9 @@ export function shux_runtime_net_workers_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_sync_os_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_sync_os_o_path(argv0: *u8): *u8 {
   g_labi_sync_os_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", &g_labi_sync_os_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", &g_labi_sync_os_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_sync_os_o_path_buf[0] = 0;
   }
@@ -2212,7 +2212,7 @@ export function shux_runtime_sync_os_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_sync_lock_diag_tls.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2221,9 +2221,9 @@ export function shux_runtime_sync_os_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8 {
   g_labi_sync_lock_diag_tls_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", &g_labi_sync_lock_diag_tls_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", &g_labi_sync_lock_diag_tls_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_sync_lock_diag_tls_o_path_buf[0] = 0;
   }
@@ -2234,7 +2234,7 @@ export function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_thread_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2243,9 +2243,9 @@ export function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_thread_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8 {
   g_labi_thread_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", &g_labi_thread_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", &g_labi_thread_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_thread_glue_o_path_buf[0] = 0;
   }
@@ -2256,7 +2256,7 @@ export function shux_runtime_thread_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_scheduler_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2265,9 +2265,9 @@ export function shux_runtime_thread_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8 {
   g_labi_scheduler_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", &g_labi_scheduler_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", &g_labi_scheduler_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_scheduler_glue_o_path_buf[0] = 0;
   }
@@ -2278,7 +2278,7 @@ export function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_http_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2287,9 +2287,9 @@ export function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_http_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_http_glue_o_path(argv0: *u8): *u8 {
   g_labi_http_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", &g_labi_http_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", &g_labi_http_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_http_glue_o_path_buf[0] = 0;
   }
@@ -2300,7 +2300,7 @@ export function shux_runtime_http_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_tls_mbedtls_bio.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2309,9 +2309,9 @@ export function shux_runtime_http_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8 {
   g_labi_tls_mbedtls_bio_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", &g_labi_tls_mbedtls_bio_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", &g_labi_tls_mbedtls_bio_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_tls_mbedtls_bio_o_path_buf[0] = 0;
   }
@@ -2322,7 +2322,7 @@ export function shux_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_kv_mmap_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2331,9 +2331,9 @@ export function shux_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8 {
   g_labi_kv_mmap_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", &g_labi_kv_mmap_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", &g_labi_kv_mmap_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_kv_mmap_glue_o_path_buf[0] = 0;
   }
@@ -2344,7 +2344,7 @@ export function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_arrow_simd_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2353,9 +2353,9 @@ export function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8 {
   g_labi_arrow_simd_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", &g_labi_arrow_simd_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", &g_labi_arrow_simd_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_arrow_simd_glue_o_path_buf[0] = 0;
   }
@@ -2366,7 +2366,7 @@ export function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_sqlite_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2375,9 +2375,9 @@ export function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_sqlite_glue_o_path(argv0: *u8): *u8 {
   g_labi_sqlite_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", &g_labi_sqlite_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", &g_labi_sqlite_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_sqlite_glue_o_path_buf[0] = 0;
   }
@@ -2388,7 +2388,7 @@ export function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_crypto_inc_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2397,9 +2397,9 @@ export function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8 {
   g_labi_crypto_inc_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", &g_labi_crypto_inc_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", &g_labi_crypto_inc_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_crypto_inc_glue_o_path_buf[0] = 0;
   }
@@ -2410,7 +2410,7 @@ export function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8 {
  * Thin durable path for compiler/runtime_ed25519_ref10_glue.o (wave183 pure BSS + compiler_o_path_copy).
  * @param argv0 *u8 — optional product host path; may be null
  * @return *u8 — static BSS path or empty string (never null)
- * Pure orch: Cap residual via pure peer shux_runtime_compiler_o_path_copy (wave160);
+ * Pure orch: Cap residual via pure peer xlang_runtime_compiler_o_path_copy (wave160);
  *   on fail clear BSS[0]. Matches mega static PATH_MAX + compiler_o_path_copy leaf join.
  * Why (wave183): hybrid still had always-mega C body for thin runtime_*_o_path BSS leaves
  *   after wave161 G.7 join convergence (resolve+snprintf already removed).
@@ -2419,9 +2419,9 @@ export function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8 {
   g_labi_ed25519_ref10_glue_o_path_buf[0] = 0;
-  let rc: i32 = shux_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", &g_labi_ed25519_ref10_glue_o_path_buf[0], 4096);
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", &g_labi_ed25519_ref10_glue_o_path_buf[0], 4096);
   if (rc != 0) {
     g_labi_ed25519_ref10_glue_o_path_buf[0] = 0;
   }
@@ -2438,7 +2438,7 @@ export function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_empty_cstr(): *u8 {
+export function xlang_empty_cstr(): *u8 {
   g_labi_empty_cstr_buf[0] = 0;
   return &g_labi_empty_cstr_buf[0];
 }
@@ -2446,7 +2446,7 @@ export function shux_empty_cstr(): *u8 {
 /**
  * Retired std.io product path: no io.o (std.io is pure .x). Keep API for call sites.
  * @param argv0 *u8 — ignored; optional host path for historical signature parity
- * @return *u8 — empty string via pure shux_empty_cstr (never null)
+ * @return *u8 — empty string via pure xlang_empty_cstr (never null)
  * Pure orch: ignore argv0; return durable empty C string.
  * Why (wave184): hybrid still had always-mega C body (thin empty stub).
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -2454,18 +2454,18 @@ export function shux_empty_cstr(): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_std_io_o_path(argv0: *u8): *u8 {
+export function xlang_std_io_o_path(argv0: *u8): *u8 {
   // argv0 retained for ABI parity with mega / historical call sites (unused).
   if (argv0 != 0 as *u8) {
     // no-op: deliberately ignore path content
   }
-  return shux_empty_cstr();
+  return xlang_empty_cstr();
 }
 
 /**
  * Retired std.compress product path: no compress.o (pure .x + on-demand -lz*). Keep API.
  * @param argv0 *u8 — ignored; optional host path for historical signature parity
- * @return *u8 — empty string via pure shux_empty_cstr (never null)
+ * @return *u8 — empty string via pure xlang_empty_cstr (never null)
  * Pure orch: ignore argv0; return durable empty C string.
  * Why (wave184): hybrid still had always-mega C body (thin empty stub).
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -2473,22 +2473,22 @@ export function shux_std_io_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_std_compress_o_path(argv0: *u8): *u8 {
+export function xlang_std_compress_o_path(argv0: *u8): *u8 {
   if (argv0 != 0 as *u8) {
     // no-op: deliberately ignore path content
   }
-  return shux_empty_cstr();
+  return xlang_empty_cstr();
 }
 
 /**
  * Effective link argv0 for asm ld path resolvers: prefer caller link_argv0; else synthesize
- * "compiler-dir/shux" into the caller-provided buffer (file need not exist).
+ * "compiler-dir/xlang" into the caller-provided buffer (file need not exist).
  * @param link_argv0 *u8 — caller argv[0] / product host path; may be null or empty
  * @param syn_buf *u8 — caller buffer for synthetic path; required when link_argv0 empty
  * @param syn_sz i64 — capacity of syn_buf in bytes (incl. NUL); 0 → fail
- * @return *u8 — link_argv0 when non-empty; else syn_buf with compiler-dir/shux; null on fail
+ * @return *u8 — link_argv0 when non-empty; else syn_buf with compiler-dir/xlang; null on fail
  * Pure orch: null/empty gates + Cap residual shu_resolve_compiler_dir(null) + pure byte join
- *   comp_dir + "/shux" into syn_buf (no snprintf Cap). Matches mega effective_link_argv0.
+ *   comp_dir + "/xlang" into syn_buf (no snprintf Cap). Matches mega effective_link_argv0.
  * Cap residual: shu_resolve_compiler_dir only (PLATFORM LINUX/MACOS/WINDOWS resolve).
  * Why (wave184): hybrid still had always-mega C body (resolve + snprintf join).
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -2496,7 +2496,7 @@ export function shux_std_compress_o_path(argv0: *u8): *u8 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, syn_sz: i64): *u8 {
+export function xlang_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, syn_sz: i64): *u8 {
   // Prefer real link argv0 when non-null and non-empty (≡ mega).
   if (link_argv0 != 0 as *u8) {
     if (link_argv0[0] != 0) {
@@ -2519,19 +2519,19 @@ export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, 
   if (rc != 0) {
     return 0 as *u8;
   }
-  // Pure strlen(comp_dir); leaf is fixed "shux" (len 4).
+  // Pure strlen(comp_dir); leaf is fixed "xlang" (len 4).
   let dn: i32 = 0;
   while (comp_dir[dn] != 0) {
     dn = dn + 1;
   }
   let ln: i32 = 4;
-  // snprintf("%s/shux") writes dn+1+4 chars + NUL; fail if need >= syn_sz (mega size_t).
+  // snprintf("%s/xlang") writes dn+1+4 chars + NUL; fail if need >= syn_sz (mega size_t).
   let need: i64 = (dn as i64) + 1 + (ln as i64);
   if (need >= syn_sz) {
     syn_buf[0] = 0;
     return 0 as *u8;
   }
-  // Byte join: comp_dir[0..dn) + '/' + "shux" + NUL.
+  // Byte join: comp_dir[0..dn) + '/' + "xlang" + NUL.
   let i: i32 = 0;
   while (i < dn) {
     syn_buf[i] = comp_dir[i];
@@ -2553,7 +2553,7 @@ export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, 
  * @param argv0 *u8 — optional product host path for parent/../rel; may be null
  * @param rel *u8 — relative path under repo (e.g. "std/string/string.o"); null/empty → heap ""
  * @return *u8 — independent heap string per call (Cap residual strdup); never static BSS
- * Why heap (not BSS): shux_invoke_cc saves 30+ concurrent pointers; static would alias all to last call
+ * Why heap (not BSS): xlang_invoke_cc saves 30+ concurrent pointers; static would alias all to last call
  *   (crypto_o pointing at test.o → UNDEF). Caller does not free; process exit reclaims.
  * Pure orch: pure last-sep index + byte join cwd/rel and argv0/../rel; Cap residual
  *   link_abi_realpath_cap + getcwd + link_abi_cstr_dup + asm_link_obj_skip_missing.
@@ -2565,7 +2565,7 @@ export function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, 
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8 {
+export function xlang_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8 {
   // Durable empty C string for cstr_dup("") Cap residual (never null arg).
   let empty: *u8 = "";
   if (rel == 0 as *u8) {
@@ -2787,7 +2787,7 @@ function labi_user_extra_ends_with_dot_o(a: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for rt_run_asm_backend call sites.
  */
 #[no_mangle]
-export function shux_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: **u8): void {
+export function xlang_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: **u8): void {
   unsafe {
     link_abi_user_extra_o_reset();
   }
@@ -2862,7 +2862,7 @@ export function shux_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: **u8)
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_invoke_cc_clear_user_o_files(): void {
+export function xlang_invoke_cc_clear_user_o_files(): void {
   unsafe {
     link_abi_user_extra_o_reset();
   }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-ffi-struct-callback.sh — STD-151 manifest 与烟测辅助
 
-STD151_PREFIX="${SHUX_STD151_FFI_STRUCT_CALLBACK_PREFIX:-shux: [SHUX_STD151_FFI_STRUCT_CALLBACK]}"
+STD151_PREFIX="${XLANG_STD151_FFI_STRUCT_CALLBACK_PREFIX:-xlang: [XLANG_STD151_FFI_STRUCT_CALLBACK]}"
 
 std_ffi_struct_callback_symbols_ok() {
   local mod_x="$1"
@@ -63,7 +63,7 @@ std_ffi_struct_callback_symbols_ok() {
 std_ffi_struct_callback_run_c_smoke() {
   local ffi_impl="$1"
   local src="tests/std-ffi/struct_callback_ok.c"
-  local out="/tmp/shux_ffi_struct_cb_c_$$"
+  local out="/tmp/xlang_ffi_struct_cb_c_$$"
   local ffi_o
   ffi_o="$(dirname "$ffi_impl")/ffi.o"
   if [ ! -f "$ffi_o" ]; then
@@ -87,13 +87,13 @@ std_ffi_struct_callback_run_c_smoke() {
 }
 
 std_ffi_struct_callback_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local ffi_o="$3"
-  local exe="/tmp/shux_ffi_struct_cb_x_$$"
-  if ! "$shux" -L . "$src" -o "$exe" "$ffi_o" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_ffi_struct_cb_x_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" "$ffi_o" >/dev/null 2>&1; then
     echo "std-ffi-struct-callback FAIL: compile $src" >&2
-    "$shux" -L . "$src" -o "$exe" "$ffi_o" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" -o "$exe" "$ffi_o" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

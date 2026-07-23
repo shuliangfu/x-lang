@@ -3,14 +3,14 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX="${SHUX:-./compiler/shux}"
+XLANG="${XLANG:-./compiler/xlang}"
 
 run_case() {
   local name="$1"
   local x="$2"
   local expect="$3"
-  local exe="/tmp/shux_boundary_$$"
-  if ! $SHUX build -L . -L std/base64 -L std/json -L std/csv "$x" -o "$exe" 2>&1; then
+  local exe="/tmp/xlang_boundary_$$"
+  if ! $XLANG build -L . -L std/base64 -L std/json -L std/csv "$x" -o "$exe" 2>&1; then
     echo "boundary $name: compile failed"
     rm -f "$exe"
     exit 1

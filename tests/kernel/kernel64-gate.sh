@@ -4,7 +4,7 @@
 # T2 (QEMU 64-bit boot) requires mixed 32/64-bit linking (future work).
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SHUX_C="$SCRIPT_DIR/../../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../../compiler/xlang-c"
 WORKDIR="${TMPDIR:-/tmp}"
 PASS=0
 FAIL=0
@@ -16,14 +16,14 @@ X_FILE="$SCRIPT_DIR/kernel64_check.x"
 C_FILE="$WORKDIR/kernel64_check.c"
 OBJ_FILE="$WORKDIR/kernel64_check.o"
 ELF_FILE="$WORKDIR/kernel64_check.elf"
-STUBS_O="$WORKDIR/shux_freestanding_stubs64.o"
+STUBS_O="$WORKDIR/xlang_freestanding_stubs64.o"
 
 # Build 64-bit stubs
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
     zig cc -target x86_64-linux-gnu -ffreestanding -fno-sanitize=all -c -o "$STUBS_O" "$SCRIPT_DIR/freestanding_stubs.c"
 
-# 1. shux-c -E
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$X_FILE" > "$C_FILE"
+# 1. xlang-c -E
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$X_FILE" > "$C_FILE"
 
 # 2. zig cc: compile as x86_64 with -mcmodel=kernel -mno-red-zone
 echo "  Check: compilation with -mcmodel=kernel -mno-red-zone"

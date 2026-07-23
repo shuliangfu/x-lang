@@ -5,13 +5,13 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q 2>/dev/null || make -C compiler
 ensure_std_c_o ../std/csv/csv.o
-SHUX="${SHUX:-./compiler/shux}"
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-LINK_SHUX="$RUN_SHUX"
+XLANG="${XLANG:-./compiler/xlang}"
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+LINK_XLANG="$RUN_XLANG"
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-exe="/tmp/shux_csv_$$"
-if ! $LINK_SHUX build -L . tests/csv/main.x -o "$exe" 2>&1; then echo "csv test: compile failed"; rm -f "$exe"; exit 1; fi
+exe="/tmp/xlang_csv_$$"
+if ! $LINK_XLANG build -L . tests/csv/main.x -o "$exe" 2>&1; then echo "csv test: compile failed"; rm -f "$exe"; exit 1; fi
 set +e
 $exe 2>/dev/null
 exitcode=$?

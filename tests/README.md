@@ -1,4 +1,4 @@
-# Shux 测试说明
+# Xlang 测试说明
 
 本目录包含编译器与运行行为的测试，按功能分子目录；每个子目录下为 `.x` 源码，根目录下 `run-*.sh` 为对应测试脚本。
 
@@ -8,14 +8,14 @@
 
 **执行方式：**
 
-- **推荐（分轨全量）**：`./tests/run-all-c.sh`（全量用 C 版编译器 shux-c）、`./tests/run-all-x.sh`（全量用 .x 流水线编译器 shux_x）。CI 两条都跑，见 `.github/workflows/ci.yml`。
-- **通用脚本**：`./tests/run-all.sh` 跑全部 run-*.sh；通过环境变量 `SHUX=compiler/shux-c` 或 `SHUX=compiler/shux_x` 指定用哪支编译器，不设则用当前 `compiler/shux`。
-- **从零与 build_tool**：`make -C compiler build-tool` / `first-time` 仅用 **shux-c** 对 `../build.x` 做 `-E`（与 `lsp_*_gen` 同源，避免 Makefile 规则环）；仓库根 `./build.sh` 与 Makefile 一致（`-E` + `cc`，勿用 `shux ../build.x -o build_tool`）。`make -C compiler all` 默认同时产出 **shux** 与 **shux-c**。
+- **推荐（分轨全量）**：`./tests/run-all-c.sh`（全量用 C 版编译器 xlang-c）、`./tests/run-all-x.sh`（全量用 .x 流水线编译器 xlang_x）。CI 两条都跑，见 `.github/workflows/ci.yml`。
+- **通用脚本**：`./tests/run-all.sh` 跑全部 run-*.sh；通过环境变量 `XLANG=compiler/xlang-c` 或 `XLANG=compiler/xlang_x` 指定用哪支编译器，不设则用当前 `compiler/xlang`。
+- **从零与 build_tool**：`make -C compiler build-tool` / `first-time` 仅用 **xlang-c** 对 `../build.x` 做 `-E`（与 `lsp_*_gen` 同源，避免 Makefile 规则环）；仓库根 `./build.sh` 与 Makefile 一致（`-E` + `cc`，勿用 `xlang ../build.x -o build_tool`）。`make -C compiler all` 默认同时产出 **xlang** 与 **xlang-c**。
 - 编译器目录：`make -C compiler test` = `test_c`（委托 `./tests/run-all-c.sh`）+ `test_x`（`run-all-x.sh`）；`make test_c` 与 `run-all-c.sh` **等价**，勿再假定 Makefile 内联脚本列表。
 
 **不纳入回归的脚本**：`run-size-baseline.sh`、`run-perf-baseline.sh` 为可选体积/性能基线，需时单独执行。
 
-**CI 多端测试**：push/PR 时在 **Linux**（ubuntu-22.04、ubuntu-latest）、**Linux ARM64**、**macOS**（macos-14、macos-latest）、**Windows**（MSYS2）、**Docker**（Alpine、Debian bookworm-slim）上先构建 shux + shux_x，再依次执行 `./tests/run-all-c.sh` 与 `./tests/run-all-x.sh`，见 `.github/workflows/ci.yml`。
+**CI 多端测试**：push/PR 时在 **Linux**（ubuntu-22.04、ubuntu-latest）、**Linux ARM64**、**macOS**（macos-14、macos-latest）、**Windows**（MSYS2）、**Docker**（Alpine、Debian bookworm-slim）上先构建 xlang + xlang_x，再依次执行 `./tests/run-all-c.sh` 与 `./tests/run-all-x.sh`，见 `.github/workflows/ci.yml`。
 
 ## 二、测试脚本与覆盖范围
 
@@ -62,7 +62,7 @@
 | `run-x-pipeline.sh` | .x 流水线（-x -E 生成 C）；无 pipeline 时 SKIP | 正例 / SKIP |
 | `run-x-multi-file.sh` | 多文件 .x 流水线；无 pipeline 时 SKIP | 正例 / SKIP |
 | `run-asm.sh` | -backend asm 出汇编、.text/main/ret、可选 as+ld；无 asm 时 SKIP | 正例 / SKIP |
-| `run-without-c.sh` | 用 asm 路径构建 shux_asm 再跑全量测试（无 C 运行时）；无 asm 时 SKIP | 正例 / SKIP |
+| `run-without-c.sh` | 用 asm 路径构建 xlang_asm 再跑全量测试（无 C 运行时）；无 asm 时 SKIP | 正例 / SKIP |
 | `run-vector.sh` | 向量 i32x4/u32x4/i32x16、0 与字面量初始化、逐分量加 | 正例（失败即 exit 1，不再 CI SKIP） |
 | `run-fmt.sh` | core.fmt 格式化 | 正例（失败即 exit 1） |
 | `run-debug.sh` | 调试/打印相关 | 正例（失败即 exit 1） |
@@ -82,9 +82,9 @@
 | `run-ub.sh` | 未定义行为收窄：除零、越界等应 panic | 正例 + 负例 |
 | `run-pool-limits.sh` | 侧车 grow 池边界：>16 形参、>64 实参、>96 stmt、>256 函数、>32 #if 深度、>24 局部、6/8 层嵌套 loop、>8 import select | 边界 |
 | `run-abi-layout.sh` | ABI/布局断言（layout_abi.c），与 analysis/ABI与布局.md 一致 | 正例 |
-| `run-lsp.sh` | LSP（shux --lsp）：initialize、didOpen、diagnostics、**textDocument/formatting**、shutdown/exit，校验 JSON-RPC 响应含 capabilities（含 documentFormattingProvider）、result 数组及格式化结果 newText | 正例 |
+| `run-lsp.sh` | LSP（xlang --lsp）：initialize、didOpen、diagnostics、**textDocument/formatting**、shutdown/exit，校验 JSON-RPC 响应含 capabilities（含 documentFormattingProvider）、result 数组及格式化结果 newText | 正例 |
 
-**说明**：`make test`（在 `compiler/` 下执行）或 `./tests/run-all.sh` 会依次执行上表全部脚本，与自举回归套件一致。`run-asm.sh`、`run-without-c.sh` 需支持 `-backend asm` 的 shux（`make -C compiler bootstrap-driver`）；若当前构建无 asm 则 SKIP 且不视为失败。`run-lsp.sh` 会按需执行 `make -C compiler bootstrap-driver-seed` 以得到带 LSP 的 shux，再发送 JSON-RPC 消息（含格式化请求）并校验响应。`run-lexer.sh`、`run-typeck.sh` 在存在 `compiler/shux-c` 时使用 shux-c，以保证无 `-o` 时输出 token/typeck OK 的语义一致。
+**说明**：`make test`（在 `compiler/` 下执行）或 `./tests/run-all.sh` 会依次执行上表全部脚本，与自举回归套件一致。`run-asm.sh`、`run-without-c.sh` 需支持 `-backend asm` 的 xlang（`make -C compiler bootstrap-driver`）；若当前构建无 asm 则 SKIP 且不视为失败。`run-lsp.sh` 会按需执行 `make -C compiler bootstrap-driver-seed` 以得到带 LSP 的 xlang，再发送 JSON-RPC 消息（含格式化请求）并校验响应。`run-lexer.sh`、`run-typeck.sh` 在存在 `compiler/xlang-c` 时使用 xlang-c，以保证无 `-o` 时输出 token/typeck OK 的语义一致。
 
 ## 三、边界与负向测试
 
@@ -128,7 +128,7 @@ make test
 | 项 | 说明 |
 |------|------|
 | **FFI（extern function）** | `tests/run-ffi.sh` 已纳入 **run-all**（`tests/ffi/main.x`：cstr_len / cstring_new / cstring_free）。扩展覆盖时在 `tests/ffi/` 增例并加长脚本即可。 |
-| **return 操作数 vs 函数返回类型** | **`compiler/shux_x`** 或 **`shux-x`**：**`-x`** 跑 `tests/typeck/return_operand_type_mismatch.x` 须报 **typeck error**（`run-typeck.sh`）；入口与流水线统一走 `preprocess.x`。宿主 **shux-c** 仍可能与 C typeck 宽松行为不完全一致。 |
+| **return 操作数 vs 函数返回类型** | **`compiler/xlang_x`** 或 **`xlang-x`**：**`-x`** 跑 `tests/typeck/return_operand_type_mismatch.x` 须报 **typeck error**（`run-typeck.sh`）；入口与流水线统一走 `preprocess.x`。宿主 **xlang-c** 仍可能与 C typeck 宽松行为不完全一致。 |
 | **memory-contract / packed** | `run-struct.sh` 已含 `memory-contract/packed_struct.x` 正例；padding 负例同脚本。 |
 | **体积/性能基线** | run-size-baseline.sh、run-perf-baseline.sh 有意不纳入 run-all，需时单独执行。 |
 
@@ -149,13 +149,13 @@ make test
 | 类型 | 脚本 | 说明 |
 |------|------|------|
 | **CI 必跑** | run-all.sh 中除 run-asm、run-without-c 外的全部 run-*.sh | 在 GitHub Actions 多平台（Linux/macOS/Windows/Docker）上执行；失败则 CI 失败（部分脚本在 CI 下失败时由 run() 打印 SKIP 保绿，见 run-all.sh）。 |
-| **CI 可选（限时）** | `linux-asm-smoke` job：见 `.github/workflows/ci.yml` — `make bootstrap-driver` + `SHUX_CI_FORCE_ASM=1 ./tests/run-asm.sh`（仅 ubuntu-latest）；与主矩阵并行，不影响其它平台。**失败**时表示 Linux 上 asm 烟测退化，需在本地复现。 |
-| **CI 不跑（默认可 SKIP）** | run-asm.sh（主矩阵内） | 各平台 `run-all` 中仍 SKIP（需 `SHUX_CI_FORCE_ASM=1`）；与上项专用 job 分工。 |
-| **CI 可选（条件 SKIP）** | run-without-c.sh | 需支持 `-backend asm` 的 shux；CI 默认不构建 `bootstrap-driver` 时通常 SKIP。 |
+| **CI 可选（限时）** | `linux-asm-smoke` job：见 `.github/workflows/ci.yml` — `make bootstrap-driver` + `XLANG_CI_FORCE_ASM=1 ./tests/run-asm.sh`（仅 ubuntu-latest）；与主矩阵并行，不影响其它平台。**失败**时表示 Linux 上 asm 烟测退化，需在本地复现。 |
+| **CI 不跑（默认可 SKIP）** | run-asm.sh（主矩阵内） | 各平台 `run-all` 中仍 SKIP（需 `XLANG_CI_FORCE_ASM=1`）；与上项专用 job 分工。 |
+| **CI 可选（条件 SKIP）** | run-without-c.sh | 需支持 `-backend asm` 的 xlang；CI 默认不构建 `bootstrap-driver` 时通常 SKIP。 |
 
 **本地全量验证（含 asm）**：
 
-1. 构建支持 asm 的 shux：`make -C compiler bootstrap-driver`
+1. 构建支持 asm 的 xlang：`make -C compiler bootstrap-driver`
 2. 跑全量测试：`./tests/run-all.sh`（此时 run-without-c 会真正执行；run-asm.sh 在非 CI 环境下会执行，不再主动 SKIP）
 3. 若仅验证 asm 后端：`./tests/run-asm.sh`；验证无 C 运行时路径：`./tests/run-without-c.sh`
 
@@ -163,15 +163,15 @@ make test
 
 ### 6.2 完全脱离 C 的验证（run-without-c）
 
-- **适用场景**：验证「用 asm 后端构建出的 shux_asm」能否在不依赖 C 运行时逻辑的前提下通过全量测试（仅链接最少 C 桩）；为日后完全脱离 C/Makefile 的路线提供回归保障。
-- **验证方式**：先 `make -C compiler bootstrap-driver` 得到支持 `-backend asm` 的 shux，再在仓库根执行 `./tests/run-without-c.sh`。脚本会使用 `build_tool` 以 asm 路径编出 `compiler/shux_asm`，并用 `SHUX=compiler/shux_asm ./tests/run-all.sh` 跑全量测试；通过即表示脱离 C 的构建路径可用。CI 下不跑此脚本（见 §6.1）。
+- **适用场景**：验证「用 asm 后端构建出的 xlang_asm」能否在不依赖 C 运行时逻辑的前提下通过全量测试（仅链接最少 C 桩）；为日后完全脱离 C/Makefile 的路线提供回归保障。
+- **验证方式**：先 `make -C compiler bootstrap-driver` 得到支持 `-backend asm` 的 xlang，再在仓库根执行 `./tests/run-without-c.sh`。脚本会使用 `build_tool` 以 asm 路径编出 `compiler/xlang_asm`，并用 `XLANG=compiler/xlang_asm ./tests/run-all.sh` 跑全量测试；通过即表示脱离 C 的构建路径可用。CI 下不跑此脚本（见 §6.1）。
 
 ### 6.3 run-x-pipeline 与 -x -E 超时
 
-- **现象**：Linux/macOS CI 在「shux_x built」之后执行 `run-x-pipeline.sh` 时可能长时间无输出甚至卡住；有时卡在 **make shux-x-pipeline**（编译巨大的 pipeline_gen.c）而非 -x -E 本身。
-- **原因**：① **macOS 无 `timeout` 命令**，脚本若不用可移植超时则会无限等待；② **make bootstrap-pipeline / shux-x-pipeline** 无超时，编译 pipeline_gen.c 可耗时数分钟；③ **shux_x -x -E** 会进入 `pipeline_run_x_pipeline_impl`（`compiler/pipeline_gen.c`），内部 typeck/codegen 在部分环境下可能死循环或极慢。
+- **现象**：Linux/macOS CI 在「xlang_x built」之后执行 `run-x-pipeline.sh` 时可能长时间无输出甚至卡住；有时卡在 **make xlang-x-pipeline**（编译巨大的 pipeline_gen.c）而非 -x -E 本身。
+- **原因**：① **macOS 无 `timeout` 命令**，脚本若不用可移植超时则会无限等待；② **make bootstrap-pipeline / xlang-x-pipeline** 无超时，编译 pipeline_gen.c 可耗时数分钟；③ **xlang_x -x -E** 会进入 `pipeline_run_x_pipeline_impl`（`compiler/pipeline_gen.c`），内部 typeck/codegen 在部分环境下可能死循环或极慢。
 - **根因（已通过诊断确认）**：run-x-multi-file 时最后一条诊断为 `pipeline: impl start`、无 `pipeline: after parse` → 卡在 **parser**（`pipeline_parse_into_with_init` / `parser_parse_into`）解析 **foo.x** 阶段，需在 compiler 生成的 parser 码（pipeline_gen.c 中 `parser_parse_into`）或 src/parser 中查死循环/平台分支。  
 - **处理**：  
   - **CI**：run-all.sh 会执行 run-x-pipeline.sh、run-x-multi-file.sh（通过 run()）；若失败则打印 SKIP 并继续，保证 run-all 不因单脚本失败而红。  
-  - **非 CI**：两脚本对「make bootstrap-pipeline + shux-x-pipeline」整段施加 **120 秒**可移植超时，对 **shux_x -x -E** 施加 **60 秒**超时；任一步超时则 SKIP 并 exit 0。  
+  - **非 CI**：两脚本对「make bootstrap-pipeline + xlang-x-pipeline」整段施加 **120 秒**可移植超时，对 **xlang_x -x -E** 施加 **60 秒**超时；任一步超时则 SKIP 并 exit 0。  
   - **run-vector.sh**：CI 下若向量测试失败则 SKIP 并 exit 0（会先打印失败原因），保证 run-all 通过；本地失败仍 exit 1，便于从根上修。

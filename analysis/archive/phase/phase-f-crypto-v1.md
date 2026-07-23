@@ -15,7 +15,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_CRYPTO_V1_FAIL=1 ./tests/run-f-crypto-v1-gate.sh
+XLANG_F_CRYPTO_V1_FAIL=1 ./tests/run-f-crypto-v1-gate.sh
 ./tests/run-f04-std-crypto-closure-gate.sh
 ./tests/run-std-crypto-gate.sh
 ```

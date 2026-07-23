@@ -48,27 +48,27 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-codec-buffer-reuse registry OK"
 
-# F-04 v7+：codec 烟测经 shux 按需 -lz，不再 ensure compress.o
+# F-04 v7+：codec 烟测经 xlang 按需 -lz，不再 ensure compress.o
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-codec-buffer-reuse gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_codec_buffer_reuse_emit_report "fail" 0 0
     exit 1
   fi
-  if std_codec_buffer_reuse_run_smoke "$SHUX_BIN" "$SMOKE_X"; then
+  if std_codec_buffer_reuse_run_smoke "$XLANG_BIN" "$SMOKE_X"; then
     X_OK=1
   else
     std_codec_buffer_reuse_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-codec-buffer-reuse gate SKIP .x smoke (no shux)" >&2
+  echo "std-codec-buffer-reuse gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

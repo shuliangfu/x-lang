@@ -12,7 +12,7 @@ def main() -> int:
         "struct ast_ASTArena * arena, int32_t base_ref, "
         "struct ast_Module * mod, int32_t func_index);\n"
     )
-    if "codegen_field_access_base_param_type_known" not in t.split("SHUX_LIB_WEAK")[0]:
+    if "codegen_field_access_base_param_type_known" not in t.split("XLANG_LIB_WEAK")[0]:
         anchor = (
             "int32_t codegen_field_access_base_is_slice_param_name("
             "struct ast_ASTArena * arena, int32_t base_ref);\n"
@@ -23,7 +23,7 @@ def main() -> int:
         t = t.replace(anchor, proto + anchor, 1)
         print("added prototype")
 
-    new_fn = r'''SHUX_LIB_WEAK int32_t codegen_field_access_base_param_type_known(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index) {
+    new_fn = r'''XLANG_LIB_WEAK int32_t codegen_field_access_base_param_type_known(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index) {
   if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) {
     return 0;
   }
@@ -63,11 +63,11 @@ def main() -> int:
 }
 '''
 
-    j = t.find("SHUX_LIB_WEAK int32_t codegen_field_access_base_is_slice_param_name")
+    j = t.find("XLANG_LIB_WEAK int32_t codegen_field_access_base_is_slice_param_name")
     if j < 0:
         print("slice fn not found", file=sys.stderr)
         return 1
-    if "SHUX_LIB_WEAK int32_t codegen_field_access_base_param_type_known" not in t:
+    if "XLANG_LIB_WEAK int32_t codegen_field_access_base_param_type_known" not in t:
         t = t[:j] + new_fn + t[j:]
         print("inserted param_type_known fn")
     else:

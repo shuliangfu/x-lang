@@ -2,7 +2,7 @@
 # F-http v1：std.http 去 C（http.c → http.x + http_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_HTTP_V1_FAIL:-0}
+FAIL=${XLANG_F_HTTP_V1_FAIL:-0}
 DOC="analysis/phase-f-http-v1.md"
 MANIFEST="tests/baseline/f-http-v1-closure.tsv"
 die() { echo "f-http-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -24,10 +24,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'http.x' compiler/Makefile || die "Makefile missing http.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/http/http.o >/dev/null 2>&1 || die "make http.o failed"
 else
-  echo "f-http-v1 SKIP http.o build (no shux-c)" >&2
+  echo "f-http-v1 SKIP http.o build (no xlang-c)" >&2
 fi
 for sub in run-std-http-gate.sh run-std-http-chunked-gate.sh run-std-http-methods-gate.sh \
   run-std-http-server-pool-gate.sh run-std-http-reqresp-gate.sh run-std-http-https-gate.sh \

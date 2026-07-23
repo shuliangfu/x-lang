@@ -23,12 +23,12 @@
 
 | 项 | 值 |
 |----|-----|
-| Zig 版本 | **0.13.0**（`SHUX_CI_ZIG_VERSION` / `ci_install_zig_tarball`） |
-| 允许版本 | 0.13.x、0.14.x（WARN）；`SHUX_ZIG_BASELINE_STRICT=1` 仅允许 pin 主次版本 |
+| Zig 版本 | **0.13.0**（`XLANG_CI_ZIG_VERSION` / `ci_install_zig_tarball`） |
+| 允许版本 | 0.13.x、0.14.x（WARN）；`XLANG_ZIG_BASELINE_STRICT=1` 仅允许 pin 主次版本 |
 | 优化 | `-O2` → 回退 `-O ReleaseFast` |
 | 运行次数 | **3** 次取 real 中位数（`meta runs=3`） |
 | 编译命令 | `zig build-exe … -femit-bin=…` |
-| Shu 对照编译 | `./compiler/shux-c -O2`（`run-perf-baseline.sh`） |
+| Shu 对照编译 | `./compiler/xlang-c -O2`（`run-perf-baseline.sh`） |
 
 **注意**：Zig **0.16+** 移除 `-O2` 且 `tests/bench/*.zig` 面向 0.13 API；录制/严格对标须用 **0.13.0**。
 
@@ -69,7 +69,7 @@
 ### 4.1 安装 pin 版 Zig（本地）
 
 ```bash
-SHUX_CI_ZIG_VERSION=0.13.0 ./tests/run-ci-full-suite.sh   # 或 ci_install_zig_tarball 逻辑
+XLANG_CI_ZIG_VERSION=0.13.0 ./tests/run-ci-full-suite.sh   # 或 ci_install_zig_tarball 逻辑
 export PATH="$PWD/.ci-zig/zig-linux-x86_64-0.13.0:$PATH"
 zig version   # 0.13.0
 ```
@@ -78,13 +78,13 @@ zig version   # 0.13.0
 
 ```bash
 ./tests/run-zig-baseline-gate.sh
-SHUX_ZIG_BASELINE_STRICT=1 ./tests/run-zig-baseline-gate.sh
+XLANG_ZIG_BASELINE_STRICT=1 ./tests/run-zig-baseline-gate.sh
 ```
 
 ### 4.3 录制 reference median（Linux x86_64 推荐）
 
 ```bash
-SHUX_ZIG_BASELINE_RECORD=1 ./tests/run-zig-baseline-gate.sh --record
+XLANG_ZIG_BASELINE_RECORD=1 ./tests/run-zig-baseline-gate.sh --record
 # 更新 zig-perf.tsv 第 5 列后 commit
 ```
 
@@ -92,8 +92,8 @@ SHUX_ZIG_BASELINE_RECORD=1 ./tests/run-zig-baseline-gate.sh --record
 
 | 脚本 | Zig 对照 |
 |------|----------|
-| `run-perf-baseline.sh --bench` | P0 microbench；`SHUX_PERF_FAIL_ON_ZIG=1` |
-| `run-perf-io.sh --bench` | IO；`SHUX_PERF_FAIL_ON_IO_ZIG=1` |
+| `run-perf-baseline.sh --bench` | P0 microbench；`XLANG_PERF_FAIL_ON_ZIG=1` |
+| `run-perf-io.sh --bench` | IO；`XLANG_PERF_FAIL_ON_IO_ZIG=1` |
 | `run-perf-net.sh --bench` | 仅 Shu 回归（net-perf.tsv） |
 
 三者均应 `source tests/lib/zig-baseline.sh` 并使用 `zig_build_exe_o2`。

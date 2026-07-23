@@ -5,7 +5,7 @@
 #   std_pps_symbols_ok PROC_X TSV
 #   std_pps_emit_report status pipe_ok win_ok skip
 
-STD_PPS_PREFIX="${SHUX_STD_PROCESS_PIPE_SPAWN_PREFIX:-shux: [SHUX_STD_PROCESS_PIPE_SPAWN]}"
+STD_PPS_PREFIX="${XLANG_STD_PROCESS_PIPE_SPAWN_PREFIX:-xlang: [XLANG_STD_PROCESS_PIPE_SPAWN]}"
 
 # 校验 manifest symbol/file；echo 缺失数，成功返回 0。
 std_pps_symbols_ok() {

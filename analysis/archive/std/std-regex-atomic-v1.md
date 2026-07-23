@@ -37,6 +37,6 @@
 ```
 
 ```
-shux: [SHUX_STD124_REGEX_ATOMIC] status=ok c=1 x=1 skip=0
+xlang: [XLANG_STD124_REGEX_ATOMIC] status=ok c=1 x=1 skip=0
 std-regex-atomic gate OK
 ```

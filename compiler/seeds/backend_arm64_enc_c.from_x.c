@@ -2,7 +2,7 @@
  * CG002 root fix (2026-07-22): strong arm64 ELF enc bodies for product hybrid.
  *
  * History: product Darwin pure-asm failed at mega_body enc_label with code_len=0.
- * Root cause: only SHUX_WEAK arch_arm64_enc_* stubs in seed_link_compat (return -1)
+ * Root cause: only XLANG_WEAK arch_arm64_enc_* stubs in seed_link_compat (return -1)
  * were linked; no real arm64 enc object (unlike backend_x86_64_enc_c for x86_64).
  * Authority: port of src/asm/arch/arm64_enc.x via pipeline_elf_ctx_* (G.7 single
  * elf table path; same helpers as backend_x86_64_enc_c).
@@ -556,7 +556,7 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodege
 /*
  * wave109: GP spill/preserve moves used by pipeline_glue binop 7.3 paths.
  * ORR xd, xzr, xm ≡ MOV xd, xm. Encoding: 0xAA0003E0 | (rm << 16) | rd.
- * Root CG002: weak seed_link_compat SHUX_ARM64_GLUE_STUB1 returned -1 for
+ * Root CG002: weak seed_link_compat XLANG_ARM64_GLUE_STUB1 returned -1 for
  * mov_rax_to_x9 after left-assoc ADD emit when loading INDEX/AS right.
  * PLATFORM: MACOS/DARWIN arm64 pure-asm (ta==1); strong override of weak stubs.
  */

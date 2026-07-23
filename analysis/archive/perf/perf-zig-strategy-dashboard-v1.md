@@ -13,7 +13,7 @@
 | **战略可见** | P0 microbench + 关键 IO/NET case 的 Shu vs Zig 一目了然 |
 | **月度趋势** | `zig-strategy-history.tsv` 按月（monthly）记录 `ahead_pct` |
 | **趋势图** | runner 输出 ASCII sparkline（▁▂▃▄▅▆▇█） |
-| **可 grep** | `shux: [SHUX_ZIG_STRATEGY]` 报告行 |
+| **可 grep** | `xlang: [XLANG_ZIG_STRATEGY]` 报告行 |
 
 验收（NEXT PERF-011）：**月度更新并有趋势图** → v1 以 history TSV + sparkline + `--record` 工作流为可执行交付。
 
@@ -31,11 +31,11 @@
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `SHUX_ZIG_STRATEGY_RECORD` | `0` | `1` 时 `--record` 写入 history |
-| `SHUX_ZIG_STRATEGY_FAIL` | `0` | `1` 时任一 P0 case behind 硬失败 |
-| `SHUX_ZIG_STRATEGY_PREFIX` | `shux: [SHUX_ZIG_STRATEGY]` | 报告前缀 |
-| `SHUX_ZIG_STRATEGY_CASES` | `tests/baseline/zig-strategy-cases.tsv` | case 表 |
-| `SHUX_ZIG_STRATEGY_HISTORY` | `tests/baseline/zig-strategy-history.tsv` | 历史表 |
+| `XLANG_ZIG_STRATEGY_RECORD` | `0` | `1` 时 `--record` 写入 history |
+| `XLANG_ZIG_STRATEGY_FAIL` | `0` | `1` 时任一 P0 case behind 硬失败 |
+| `XLANG_ZIG_STRATEGY_PREFIX` | `xlang: [XLANG_ZIG_STRATEGY]` | 报告前缀 |
+| `XLANG_ZIG_STRATEGY_CASES` | `tests/baseline/zig-strategy-cases.tsv` | case 表 |
+| `XLANG_ZIG_STRATEGY_HISTORY` | `tests/baseline/zig-strategy-history.tsv` | 历史表 |
 
 ---
 
@@ -55,7 +55,7 @@
 ## 4. 报告行
 
 ```text
-shux: [SHUX_ZIG_STRATEGY] case=loop_i32 shu_sec=0.0079 zig_sec=0.0101 ahead_pct=21.8 target_pct=0 status=ahead trend=▃▅█
+xlang: [XLANG_ZIG_STRATEGY] case=loop_i32 shu_sec=0.0079 zig_sec=0.0101 ahead_pct=21.8 target_pct=0 status=ahead trend=▃▅█
 ```
 
 实现：`zsd_report_emit()` in `tests/lib/zig-strategy-dashboard.sh`。

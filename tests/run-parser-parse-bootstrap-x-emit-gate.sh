@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# x PARSE_BOOTSTRAP_EMIT 轨道门禁：全量 parser.x 真 emit parse_into* 在 seed/shux_asm 上仍 139（已知）。
+# x PARSE_BOOTSTRAP_EMIT 轨道门禁：全量 parser.x 真 emit parse_into* 在 seed/xlang_asm 上仍 139（已知）。
 # C seed TU（parser_asm_parse_bootstrap_obj.inc）为默认路径；本门禁记录 x 探测结果，防回归为「静默成功但无 .o」。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-x-emit-gate.sh
-#   SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL=1 ./tests/run-parser-parse-bootstrap-x-emit-gate.sh
-#   SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK=1 SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL=1 ...  # 修通 x emit 后硬门禁
+#   XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL=1 ./tests/run-parser-parse-bootstrap-x-emit-gate.sh
+#   XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK=1 XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL=1 ...  # 修通 x emit 后硬门禁
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL:-${SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL:-0}}
-EXPECT_OK=${SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK:-${SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK:-0}}
+FAIL=${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL:-${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL:-0}}
+EXPECT_OK=${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK:-${XLANG_PARSER_PARSE_BOOTSTRAP_X_EMIT_EXPECT_OK:-0}}
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
@@ -17,25 +17,25 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-SHUX_SEED="compiler/shux"
-if [ ! -x "$SHUX_SEED" ]; then
-  echo "parser-parse-bootstrap-x-emit-gate: SKIP (no $SHUX_SEED)"
+XLANG_SEED="compiler/xlang"
+if [ ! -x "$XLANG_SEED" ]; then
+  echo "parser-parse-bootstrap-x-emit-gate: SKIP (no $XLANG_SEED)"
   exit 0
 fi
 
-OUT="/tmp/shux_parser_boot_x_emit.$$.o"
-LOG="/tmp/shux_parser_boot_x_emit.log"
+OUT="/tmp/xlang_parser_boot_x_emit.$$.o"
+LOG="/tmp/xlang_parser_boot_x_emit.log"
 rm -f "$OUT" "$LOG" 2>/dev/null || true
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-echo "parser-parse-bootstrap-x-emit-gate: probe SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT on seed ./shux ..."
+echo "parser-parse-bootstrap-x-emit-gate: probe XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT on seed ./xlang ..."
 set +e
 (
   cd compiler
-  env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
-    SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-    ./shux build -backend asm -o "$OUT" $LIBROOT src/parser/parser.x
+  env -u XLANG_ASM_START_FUNC XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
+    XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_WPO_DCE=0 \
+    ./xlang build -backend asm -o "$OUT" $LIBROOT src/parser/parser.x
 ) > "$LOG" 2>&1
 EC=$?
 set -e
@@ -78,16 +78,16 @@ if [ "$EC" -eq 0 ] && [ "$HAS_SYM" = "1" ] && [ "$HAS_SYM_SZ" -gt 4096 ]; then
 fi
 
 # MINIMAL 白名单轨道：parse_into_init 可编，parse_into_buf 仍桩化（见 bisect-gate）。
-MIN_OUT="/tmp/shux_parser_boot_x_emit_min.$$.o"
-MIN_LOG="/tmp/shux_parser_boot_x_emit_min.log"
+MIN_OUT="/tmp/xlang_parser_boot_x_emit_min.$$.o"
+MIN_LOG="/tmp/xlang_parser_boot_x_emit_min.log"
 rm -f "$MIN_OUT" "$MIN_LOG" 2>/dev/null || true
 set +e
 (
   cd compiler
-  env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
-    SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1 \
-    SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-    ./shux build -backend asm -o "$MIN_OUT" $LIBROOT src/parser/parser.x
+  env -u XLANG_ASM_START_FUNC XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
+    XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1 \
+    XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 XLANG_ASM_WPO_DCE=0 \
+    ./xlang build -backend asm -o "$MIN_OUT" $LIBROOT src/parser/parser.x
 ) > "$MIN_LOG" 2>&1
 MIN_EC=$?
 set -e

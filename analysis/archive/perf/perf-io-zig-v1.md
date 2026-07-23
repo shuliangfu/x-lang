@@ -30,7 +30,7 @@
 | `zero_copy_sendfile` | 零拷贝 | 16MiB file→socket | `.x` | `.c` / `.zig` |
 | `zero_copy_splice` | 零拷贝 | Linux splice | `.x` | — |
 
-环境变量：`SHUX_IO_BENCH_MB=16`（默认）、`SHUX_PERF_BASELINE_RUNS=3`。
+环境变量：`XLANG_IO_BENCH_MB=16`（默认）、`XLANG_PERF_BASELINE_RUNS=3`。
 
 ---
 
@@ -41,18 +41,18 @@
 ```bash
 ./tests/run-perf-io-zig-gate.sh
 # 等价：
-SHUX_PERF_FAIL_ON_IO_ZIG=1 SHUX_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench
+XLANG_PERF_FAIL_ON_IO_ZIG=1 XLANG_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io.sh --bench
 ```
 
 | 检查 | 条件 |
 |------|------|
 | **≥ Zig** | 每个有 `.zig` 的 case：`Shu_median ≤ Zig_median` |
 | **Shu 回归** | `Shu_median ≤ io-perf.tsv` 上限 |
-| **Zig 不可用** | 跳过 Zig 列（WARN）；`SHUX_PERF_IO_ZIG_REQUIRED=1` 时 FAIL |
+| **Zig 不可用** | 跳过 Zig 列（WARN）；`XLANG_PERF_IO_ZIG_REQUIRED=1` 时 FAIL |
 
 ### 3.2 CI 集成
 
-- `run-io-unified-gate.sh --perf`：Linux 可设 `SHUX_PERF_FAIL_ON_IO_ZIG=1`
+- `run-io-unified-gate.sh --perf`：Linux 可设 `XLANG_PERF_FAIL_ON_IO_ZIG=1`
 - `run-ci-full-suite.sh`：full perf 路径
 
 ---
@@ -67,7 +67,7 @@ SHUX_PERF_FAIL_ON_IO_ZIG=1 SHUX_PERF_FAIL_ON_IO_REGRESSION=1 ./tests/run-perf-io
 更新 Shu 上限：
 
 ```bash
-SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench
+XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-io.sh --bench
 ```
 
 ---

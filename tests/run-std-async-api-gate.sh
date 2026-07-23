@@ -58,28 +58,28 @@ native_shu() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "std-async-api gate SKIP bench (no native shux; manifest OK only)"
+if [ -z "$XLANG_BIN" ]; then
+  echo "std-async-api gate SKIP bench (no native xlang; manifest OK only)"
   echo "std-async-api gate OK (manifest)"
   exit 0
 fi
 
 echo "=== STD-004: std.async smoke (run-async.sh) ==="
 chmod +x tests/run-async.sh
-SHUX="$SHUX_BIN" ./tests/run-async.sh
+XLANG="$XLANG_BIN" ./tests/run-async.sh
 
 echo "=== STD-004: async 1M task stress ==="
 chmod +x tests/run-std-async-1m-gate.sh
-SHUX="$SHUX_BIN" ./tests/run-std-async-1m-gate.sh
+XLANG="$XLANG_BIN" ./tests/run-std-async-1m-gate.sh
 
 echo "std-async-api gate OK"

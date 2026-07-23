@@ -1,16 +1,16 @@
-# run-all L5：seed / shux_asm / shux-c 白名单矩阵
+# run-all L5：seed / xlang_asm / xlang-c 白名单矩阵
 
-`tests/run-all.sh` 在 `SHUX_RUN_ALL_BOOTSTRAP_SHUX` 或 `SHUX_BSTRICT_RUN_ALL` 下，**白名单内**脚本用 `SHU`（seed 或 `shux_asm`），其余仍用 `shux-c`。
+`tests/run-all.sh` 在 `XLANG_RUN_ALL_BOOTSTRAP_XLANG` 或 `XLANG_BSTRICT_RUN_ALL` 下，**白名单内**脚本用 `SHU`（seed 或 `xlang_asm`），其余仍用 `xlang-c`。
 
 **L5 真 parity（2026-05-27）**：不设上述 env，全脚本均用 seed：
 
 ```bash
-CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # all tests OK (~87s)
+CI=1 XLANG=./compiler/xlang XLANG_LINK_XLANG=./compiler/xlang ./tests/run-all.sh   # all tests OK (~87s)
 ```
 
-验收：本地 `SHUX=./compiler/shux_asm SHUX_SKIP_SUBSCRIPT_MAKE=1 SHUX_SKIP_PARSE_SMOKE=1 ./tests/<script>.sh`。
+验收：本地 `XLANG=./compiler/xlang_asm XLANG_SKIP_SUBSCRIPT_MAKE=1 XLANG_SKIP_PARSE_SMOKE=1 ./tests/<script>.sh`。
 
-| 脚本 | seed | shux_asm | shux-c | 白名单（run-all） | 备注 |
+| 脚本 | seed | xlang_asm | xlang-c | 白名单（run-all） | 备注 |
 |------|:----:|:-------:|:-----:|:-----------------:|------|
 | run-lexer.sh | ✅ | ✅ | — | ✅ | typeck 子集 |
 | run-typeck.sh | ✅ | ✅ | — | ✅ | |
@@ -32,7 +32,7 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | run-if-expr.sh | ✅ | ✅ | ✅ | ✅ | X parse_if_expr_into + let=if 勿吞 return |
 | run-enum-asm.sh | ✅ | ✅ | — | ✅ | enum 变体登记 + asm tag；minimal/simple（无 return match） |
 | run-enum.sh | ✅ | ✅ | ✅ | ✅ | return match / enum tag |
-| run-dual-chain-struct-return.sh | ✅ | ✅ | — | ✅ | struct/packed/return 双链 seed + shux_asm |
+| run-dual-chain-struct-return.sh | ✅ | ✅ | — | ✅ | struct/packed/return 双链 seed + xlang_asm |
 | run-fmt-cmd.sh | ✅ | ✅ | — | ✅ | |
 | run-test-cmd.sh | ✅ | ✅ | — | ✅ | |
 | run-bool.sh | ✅ | ✅ | — | ✅ | |
@@ -79,7 +79,7 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | run-binary-expr.sh | ✅ | — | ✅ | ✅ | bool 算术→i32（2026-05-27） |
 | run-csv.sh | ✅ | ✅ | ✅ | ✅ | ensure_std_c_o csv.o |
 
-| run-io.sh | ✅ | ✅ | — | ✅ | F1：bstrict + run-all 白名单（M7 shux 下含 read_ptr 全绿） |
+| run-io.sh | ✅ | ✅ | — | ✅ | F1：bstrict + run-all 白名单（M7 xlang 下含 read_ptr 全绿） |
 | run-http.sh | ✅ | ✅ | — | ✅ | F2：ensure_std_c_o http.o |
 | run-tar.sh | ✅ | ✅ | — | ✅ | F2：ensure_std_c_o tar.o |
 | run-json.sh | ✅ | ✅ | ✅ | ✅ | F2：ensure_std_c_o json.o |
@@ -100,7 +100,7 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | run-io-driver.sh | ✅ | ✅ | — | ✅ | std.io.driver |
 | run-multi-file-generic.sh | ✅ | ✅ | — | ✅ | 多文件 generic |
 | run-fmt-std.sh | ✅ | ✅ | — | ✅ | F6：std.fmt 全量；修复 main.x 注释折行 |
-| run-ub.sh | ✅ | ✅ | — | ✅ | F6：asm 整数除/模除零 → shux_panic_(1,0) |
+| run-ub.sh | ✅ | ✅ | — | ✅ | F6：asm 整数除/模除零 → xlang_panic_(1,0) |
 | run-pool-limits.sh | ✅ | ✅ | — | ✅ | F6：grow 池边界（嵌套 while / many_locals / many_funcs 等） |
 
 **L5 本轮**：run-all 白名单 **110 项**；`run-all-bstrict.sh` **110 项**（含 `run-std` / `run-target` / `run-types-gate`）。
@@ -113,17 +113,17 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | `run-asm-call-inline.sh` | struct mk/field/sum + `inc_while` + vec add/sub/mul/div；**11 例**；`_main` 无用户 `bl`（div 允许 panic） | 见上 |
 | `run-asm-binop-cfg-merge.sh` 等 | 7.3 spill / φ / cfg 汇合 | 73-gate 子集 |
 
-验收：`SHUX=./compiler/shux_asm ./tests/run-asm-73-gate.sh`；改 `pipeline_glue.c` / `ast_pool_bootstrap_glue.c` 后须 `touch ast_pool.c && make -C compiler relink-shux` 并 `cp shux shux_asm`。
+验收：`XLANG=./compiler/xlang_asm ./tests/run-asm-73-gate.sh`；改 `pipeline_glue.c` / `ast_pool_bootstrap_glue.c` 后须 `touch ast_pool.c && make -C compiler relink-xlang` 并 `cp xlang xlang_asm`。
 
-### F6：永久 shux-c 脚本
+### F6：永久 xlang-c 脚本
 
-`SHUX_BSTRICT_RUN_ALL=1` 下 **无** 永久 shux-c 脚本（`run-pool-limits.sh` 已于 2026-05 迁入 shux_asm 白名单）。
+`XLANG_BSTRICT_RUN_ALL=1` 下 **无** 永久 xlang-c 脚本（`run-pool-limits.sh` 已于 2026-05 迁入 xlang_asm 白名单）。
 
-验收：`SHUX_BSTRICT_RUN_ALL=1 SHUX=./compiler/shux_asm CI=1 ./tests/run-all.sh` — 白名单全绿。
+验收：`XLANG_BSTRICT_RUN_ALL=1 XLANG=./compiler/xlang_asm CI=1 ./tests/run-all.sh` — 白名单全绿。
 
 **固定命令**：
 
 ```bash
 ./tests/run-all-bstrict.sh
-SHUX_BSTRICT_RUN_ALL=1 SHUX=./compiler/shux_asm CI=1 ./tests/run-all.sh   # 白名单走 shux_asm，非白名单 SKIP
+XLANG_BSTRICT_RUN_ALL=1 XLANG=./compiler/xlang_asm CI=1 ./tests/run-all.sh   # 白名单走 xlang_asm，非白名单 SKIP
 ```

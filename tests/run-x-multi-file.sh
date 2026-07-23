@@ -18,49 +18,49 @@ run_timeout() {
   fi
 }
 
-# 显式构建 shux_x（不再 2>/dev/null 吞错），便于 CI 看到 bootstrap-pipeline / shux-x-pipeline 失败原因
+# 显式构建 xlang_x（不再 2>/dev/null 吞错），便于 CI 看到 bootstrap-pipeline / xlang-x-pipeline 失败原因
 make_ret=0
-run_timeout 120 bash -c 'make -C compiler bootstrap-pipeline && make -C compiler shux-x-pipeline' || make_ret=$?
+run_timeout 120 bash -c 'make -C compiler bootstrap-pipeline && make -C compiler xlang-x-pipeline' || make_ret=$?
 if [ "$make_ret" -eq 124 ]; then
-  echo "run-x-multi-file SKIP (make shux-x-pipeline timed out after 120s)"
+  echo "run-x-multi-file SKIP (make xlang-x-pipeline timed out after 120s)"
   exit 0
 fi
 if [ "$make_ret" -ne 0 ]; then
-  echo "run-x-multi-file: make bootstrap-pipeline or shux-x-pipeline failed (exit $make_ret); shux_x may be missing"
+  echo "run-x-multi-file: make bootstrap-pipeline or xlang-x-pipeline failed (exit $make_ret); xlang_x may be missing"
 fi
-if [ -x compiler/shux_x ]; then
-  X_SHUX=compiler/shux_x
-  echo "run-x-multi-file: using compiler/shux_x (-x -E supported)"
-elif [ -x compiler/shux ]; then
-  X_SHUX=compiler/shux
-  echo "run-x-multi-file: using compiler/shux (shux_x not built; -x -E may not be supported)"
+if [ -x compiler/xlang_x ]; then
+  X_XLANG=compiler/xlang_x
+  echo "run-x-multi-file: using compiler/xlang_x (-x -E supported)"
+elif [ -x compiler/xlang ]; then
+  X_XLANG=compiler/xlang
+  echo "run-x-multi-file: using compiler/xlang (xlang_x not built; -x -E may not be supported)"
 else
-  echo "compiler/shux_x or compiler/shux not found"
+  echo "compiler/xlang_x or compiler/xlang not found"
   exit 1
 fi
-# 自举两代对比（SHUX=shu_stage1/2）时 -x -E 多文件路径尚有 bug(139)，暂跳过以免阻塞 check-7.2
-if [ -n "${SHUX:-}" ]; then echo "run-x-multi-file SKIP (SHUX set, -x -E multi-file known issue)"; exit 0; fi
+# 自举两代对比（XLANG=shu_stage1/2）时 -x -E 多文件路径尚有 bug(139)，暂跳过以免阻塞 check-7.2
+if [ -n "${XLANG:-}" ]; then echo "run-x-multi-file SKIP (XLANG set, -x -E multi-file known issue)"; exit 0; fi
 
 # 标准输出进 $out，stderr 进 $err，失败时打印 stderr 以便 CI 看到 -x -E 诊断（如 out_buf.len、前 16 字节 hex）
 out=$(mktemp)
 err=$(mktemp)
 ec=0
-run_timeout 60 "$X_SHUX" -x -E tests/multi-file/main.x > "$out" 2>"$err" || ec=$?
+run_timeout 60 "$X_XLANG" -x -E tests/multi-file/main.x > "$out" 2>"$err" || ec=$?
 [ "$ec" -eq 142 ] && ec=124
 _show_stderr() { echo "--- stderr ---"; cat "$err" 2>/dev/null || true; rm -f "$err"; }
 if [ "$ec" -eq 124 ]; then
   rm -f "$out"
   _show_stderr
-  echo "run-x-multi-file SKIP (shux_x -x -E timed out after 60s)"
+  echo "run-x-multi-file SKIP (xlang_x -x -E timed out after 60s)"
   exit 0
 fi
 if [ "$ec" -ne 0 ]; then
-  if [ "$X_SHUX" = "compiler/shux" ]; then
+  if [ "$X_XLANG" = "compiler/xlang" ]; then
     rm -f "$out" "$err"
-    echo "run-x-multi-file SKIP (shux does not support -x -E; use build_tool for full shux)"
+    echo "run-x-multi-file SKIP (xlang does not support -x -E; use build_tool for full xlang)"
     exit 0
   fi
-  echo "run-x-multi-file: $X_SHUX -x -E tests/multi-file/main.x failed (exit $ec)"
+  echo "run-x-multi-file: $X_XLANG -x -E tests/multi-file/main.x failed (exit $ec)"
   cat "$out" 2>/dev/null || true
   _show_stderr
   rm -f "$out"

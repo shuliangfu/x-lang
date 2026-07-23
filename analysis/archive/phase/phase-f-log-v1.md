@@ -7,14 +7,14 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `log.c`（386 行） | `log.x` + `runtime_log_os.c` |
-| `log.o` | `cc -c log.c` | 纯 `shux -backend asm log.x` |
+| `log.o` | `cc -c log.c` | 纯 `xlang -backend asm log.x` |
 | OS 胶层 | `std/log/log_os_glue.c` | `compiler/runtime_log_os.o`（与 log.o 同链） |
 | 存量 | std 83 `.c` | std **54** `.c`（log_os_glue 已迁出 std） |
 
 ## 门禁
 
 ```bash
-SHUX_F_LOG_V1_FAIL=1 ./tests/run-f-log-v1-gate.sh
+XLANG_F_LOG_V1_FAIL=1 ./tests/run-f-log-v1-gate.sh
 ./tests/run-std-log-multi-sink-gate.sh
 ./tests/run-std-log-rotate-async-gate.sh
 ```

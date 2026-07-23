@@ -3,8 +3,8 @@
  * Product PREFER_X_O: g05_try_x_to_o(target_cpu_pure.x) + mega rest under FROM_X
  * Prove: full.x vs this seed -> nm IDENTICAL (12 public business funcs + BSS)
  * Cap residual: shu_target_cpu_print (FILE star / fprintf) + OS detect (sysctl / proc / #if) in mega rest
- * Regen: ./shux -E ... src/driver/target_cpu_pure.x | filter DBG + polish prologue
- * NOTE: must use ./shux (not shux-x); shux-x adds driver_ prefix to non-#[no_mangle] funcs.
+ * Regen: ./xlang -E ... src/driver/target_cpu_pure.x | filter DBG + polish prologue
+ * NOTE: must use ./xlang (not xlang-x); xlang-x adds driver_ prefix to non-#[no_mangle] funcs.
  */
 #include <stdint.h>
 #include <stddef.h>

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // See implementation.
-// PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
+// PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
 
@@ -343,10 +343,10 @@ export function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
   return 0;
 }
 
-// ---- G-02f-371：import_segment_at / binding_call_sym / std_string_shux redirect → seed impl ----
+// ---- G-02f-371：import_segment_at / binding_call_sym / std_string_xlang redirect → seed impl ----
 export extern "C" function glue_asm_import_segment_at_impl(module: *u8, imp_ix: i32, want_seg: i32, ostr: *i32, olen: *i32): i32;
 export extern "C" function glue_asm_build_import_binding_call_sym_impl(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32;
-export extern "C" function glue_try_std_string_shux_redirect_sym_local_impl(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32;
+export extern "C" function glue_try_std_string_xlang_redirect_sym_local_impl(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32;
 
 /** Exported function `glue_asm_import_segment_at`.
  * Implements `glue_asm_import_segment_at`.
@@ -382,8 +382,8 @@ export function glue_asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, f
   return 0 - 1;
 }
 
-/** Exported function `glue_try_std_string_shux_redirect_sym_local`.
- * Implements `glue_try_std_string_shux_redirect_sym_local`.
+/** Exported function `glue_try_std_string_xlang_redirect_sym_local`.
+ * Implements `glue_try_std_string_xlang_redirect_sym_local`.
  * @param name *u8
  * @param name_len i32
  * @param sym_out *u8
@@ -391,9 +391,9 @@ export function glue_asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, f
  * @return i32
  */
 #[no_mangle]
-export function glue_try_std_string_shux_redirect_sym_local(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32 {
+export function glue_try_std_string_xlang_redirect_sym_local(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32 {
   unsafe {
-    return glue_try_std_string_shux_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+    return glue_try_std_string_xlang_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
   }
   return 0;
 }

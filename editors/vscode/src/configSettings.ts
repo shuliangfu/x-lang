@@ -1,5 +1,5 @@
 /**
- * 读取 shux.compiler.* 配置：优先 settings.json 中的数组/对象，兼容旧版 JSON 字符串。
+ * 读取 xlang.compiler.* 配置：优先 settings.json 中的数组/对象，兼容旧版 JSON 字符串。
  */
 
 import * as vscode from 'vscode';
@@ -33,7 +33,7 @@ export function readStringArraySetting(
         return parsed as string[];
       }
     } catch {
-      outputChannel?.appendLine(t('[Shux] {0} is not a valid JSON array, using default.', label));
+      outputChannel?.appendLine(t('[Xlang] {0} is not a valid JSON array, using default.', label));
     }
   }
   return fallback;
@@ -73,13 +73,13 @@ export function readEnvJsonSetting(
         return out;
       }
     } catch {
-      outputChannel?.appendLine(t('[Shux] compiler.envJson is not valid JSON, ignored.'));
+      outputChannel?.appendLine(t('[Xlang] compiler.envJson is not valid JSON, ignored.'));
     }
   }
   return {};
 }
 
-/** 读取 shux.compiler.libRoots。 */
+/** 读取 xlang.compiler.libRoots。 */
 export function readLibRootsSetting(
   config: vscode.WorkspaceConfiguration,
   outputChannel?: vscode.OutputChannel
@@ -87,7 +87,7 @@ export function readLibRootsSetting(
   return readStringArraySetting(config, 'compiler.libRoots', DEFAULT_LIB_ROOTS, 'compiler.libRoots', outputChannel);
 }
 
-/** 读取 shux.compiler.extraArgs。 */
+/** 读取 xlang.compiler.extraArgs。 */
 export function readExtraArgsSetting(
   config: vscode.WorkspaceConfiguration,
   outputChannel?: vscode.OutputChannel

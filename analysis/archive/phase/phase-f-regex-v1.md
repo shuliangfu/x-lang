@@ -8,13 +8,13 @@
 | 项 | 前 | v1 | v2 |
 |----|----|-----|-----|
 | 实现 | `regex.c` | `regex.x` + glue/inc | **`regex.x` 纯 .x** |
-| `regex.o` | `cc -c` | `ld -r` | **纯 shux** |
+| `regex.o` | `cc -c` | `ld -r` | **纯 xlang** |
 
 ## 门禁
 
 ```bash
-SHUX_F_REGEX_V1_FAIL=1 ./tests/run-f-regex-v1-gate.sh
-SHUX_F_REGEX_V2_FAIL=1 ./tests/run-f-regex-v2-gate.sh
+XLANG_F_REGEX_V1_FAIL=1 ./tests/run-f-regex-v1-gate.sh
+XLANG_F_REGEX_V2_FAIL=1 ./tests/run-f-regex-v2-gate.sh
 ./tests/run-std-regex-gate.sh
 ```
 

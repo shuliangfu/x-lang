@@ -34,7 +34,7 @@
 
 1. **无额外堆分配**：抽象包装不得在热路径引入 malloc。
 2. **无隐式深拷贝**：`T[]` slice 赋值共享 `(ptr,len)`，不复制元素（ZC-3）。
-3. **性能回归**：P0 microbench 须 **≤ SHUX_PERF_C_O3_RATIO × C -O3**（`run-bcmp-gate.sh`）。
+3. **性能回归**：P0 microbench 须 **≤ XLANG_PERF_C_O3_RATIO × C -O3**（`run-bcmp-gate.sh`）。
 
 ---
 

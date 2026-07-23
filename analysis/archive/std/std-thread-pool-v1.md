@@ -58,10 +58,10 @@
 ```
 
 ```
-shux: [SHUX_STD_THREAD_POOL] status=ok pool=1 name=1 main=1 skip=0
+xlang: [XLANG_STD_THREAD_POOL] status=ok pool=1 name=1 main=1 skip=0
 ```
 
-烟测：`pool_roundtrip.x` — 2 worker × 8 submit + drain + stop；`thread_set_name_self("shux-main")`。
+烟测：`pool_roundtrip.x` — 2 worker × 8 submit + drain + stop；`thread_set_name_self("xlang-main")`。
 
 回归：`tests/thread/main.x`（spawn/join）。
 

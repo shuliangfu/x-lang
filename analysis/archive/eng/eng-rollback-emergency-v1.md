@@ -13,7 +13,7 @@
 | **30 分钟内可回滚** | 从判定坏版本到恢复 smoke 绿，流程有 SLA 分阶段 |
 | **三类回滚路径** | tag 工具链 / main revert / baseline 数值 |
 | **可演练** | `run-eng-rollback-drill.sh` 干跑不改动仓库 |
-| **可 grep** | 演练输出前缀 `shux: [SHUX_ROLLBACK_DRILL]` |
+| **可 grep** | 演练输出前缀 `xlang: [XLANG_ROLLBACK_DRILL]` |
 
 验收（NEXT ENG-006）：**30 分钟内可回滚** → RFC + playbook + drill + gate。
 
@@ -92,7 +92,7 @@ git checkout origin/main -- tests/baseline/perf-baseline-registry.tsv
 
 ```bash
 ./tests/run-eng-rollback-drill.sh
-SHUX_ROLLBACK_TARGET_TAG=v0.1.0-beta.1 ./tests/run-eng-rollback-drill.sh
+XLANG_ROLLBACK_TARGET_TAG=v0.1.0-beta.1 ./tests/run-eng-rollback-drill.sh
 ```
 
 输出含 SLA 分阶段与 hook 脚本存在性检查。

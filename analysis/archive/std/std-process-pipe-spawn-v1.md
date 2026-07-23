@@ -58,7 +58,7 @@
 
 - manifest：`tests/baseline/std-process-pipe-spawn.tsv`
 - 门禁：`tests/run-std-process-pipe-spawn-gate.sh`
-- 报告：`shux: [SHUX_STD_PROCESS_PIPE_SPAWN] status=ok`
+- 报告：`xlang: [XLANG_STD_PROCESS_PIPE_SPAWN] status=ok`
 - CI：`tests/run-portable-suite.sh`
 
 ---

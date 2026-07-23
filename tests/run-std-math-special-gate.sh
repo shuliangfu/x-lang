@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD115_DOC:-analysis/std-math-special-v1.md}"
-MANIFEST="${SHUX_STD115_TSV:-tests/baseline/std-math-special.tsv}"
-VECTORS="${SHUX_STD115_VECTORS:-tests/baseline/std-math-special-vectors.tsv}"
+DOC="${XLANG_STD115_DOC:-analysis/std-math-special-v1.md}"
+MANIFEST="${XLANG_STD115_TSV:-tests/baseline/std-math-special.tsv}"
+VECTORS="${XLANG_STD115_VECTORS:-tests/baseline/std-math-special-vectors.tsv}"
 MOD_X="std/math/mod.x"
-MATH_RUNTIME="${SHUX_STD_MATH_IMPL:-compiler/seeds/runtime_math_libm.from_x.c}"
+MATH_RUNTIME="${XLANG_STD_MATH_IMPL:-compiler/seeds/runtime_math_libm.from_x.c}"
 MATH_X="std/math/math.x"
 LIB="tests/lib/std-math-special.sh"
 SMOKE_X="tests/std-math/special_funcs.x"
@@ -73,7 +73,7 @@ echo "std-math-special manifest OK"
 C_OK=0
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/math/math.o
@@ -86,19 +86,19 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     exit 1
   fi
 else
-  echo "std-math-special gate SKIP c smoke (no shux-c; manifest OK)" >&2
+  echo "std-math-special gate SKIP c smoke (no xlang-c; manifest OK)" >&2
   SKIP=1
 fi
 
-if [ -x ./compiler/shux-c ]; then
-  echo "=== STD-115: .x smoke (SHUX=./compiler/shux-c) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -x ./compiler/xlang-c ]; then
+  echo "=== STD-115: .x smoke (XLANG=./compiler/xlang-c) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-math-special gate FAIL: typeck $SMOKE_X" >&2
     std_math_special_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_math_special_run_x_smoke ./compiler/shux-c "$SMOKE_X"; then
+  if std_math_special_run_x_smoke ./compiler/xlang-c "$SMOKE_X"; then
     X_OK=1
   else
     std_math_special_emit_report "fail" "$C_OK" 0 0

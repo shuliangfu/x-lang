@@ -2,7 +2,7 @@
 # F-runtime v1：std.runtime 去 C（runtime.c → runtime.x）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_RUNTIME_V1_FAIL:-0}
+FAIL=${XLANG_F_RUNTIME_V1_FAIL:-0}
 DOC="analysis/phase-f-runtime-v1.md"
 MANIFEST="tests/baseline/f-runtime-v1-closure.tsv"
 die() { echo "f-runtime-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -21,10 +21,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'runtime.x' compiler/Makefile || die "Makefile missing runtime.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/runtime/runtime.o >/dev/null 2>&1 || die "make runtime.o failed"
 else
-  echo "f-runtime-v1 SKIP runtime.o build (no shux-c)" >&2
+  echo "f-runtime-v1 SKIP runtime.o build (no xlang-c)" >&2
 fi
 if [ -f tests/run-std-runtime-panic-hook-gate.sh ]; then
   chmod +x tests/run-std-runtime-panic-hook-gate.sh

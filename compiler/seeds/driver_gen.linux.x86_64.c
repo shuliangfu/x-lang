@@ -10,37 +10,37 @@
 #undef ntohl
 #undef ntohs
 #ifdef _WIN32
-#define SHUX_LIB_WEAK
+#define XLANG_LIB_WEAK
 #else
-#define SHUX_LIB_WEAK __attribute__((weak))
+#define XLANG_LIB_WEAK __attribute__((weak))
 #endif
-#ifndef SHUX_BUILTIN_INLINE_DECLS_GUARD
-#define SHUX_BUILTIN_INLINE_DECLS_GUARD
-/* CORE-009 shux_builtin_* static inline wrappers (clz/ctz/popcount/bswap/rotl/rotr) */
-static inline int shux_builtin_clz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_clz(x); }
-static inline int shux_builtin_ctz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_ctz(x); }
-static inline int shux_builtin_popcount_u32(uint32_t x) { return __builtin_popcount(x); }
-static inline uint32_t shux_builtin_bswap_u32(uint32_t x) { return __builtin_bswap32(x); }
-static inline uint32_t shux_builtin_rotl_u32(uint32_t x, uint32_t c) {
+#ifndef XLANG_BUILTIN_INLINE_DECLS_GUARD
+#define XLANG_BUILTIN_INLINE_DECLS_GUARD
+/* CORE-009 xlang_builtin_* static inline wrappers (clz/ctz/popcount/bswap/rotl/rotr) */
+static inline int xlang_builtin_clz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_clz(x); }
+static inline int xlang_builtin_ctz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_ctz(x); }
+static inline int xlang_builtin_popcount_u32(uint32_t x) { return __builtin_popcount(x); }
+static inline uint32_t xlang_builtin_bswap_u32(uint32_t x) { return __builtin_bswap32(x); }
+static inline uint32_t xlang_builtin_rotl_u32(uint32_t x, uint32_t c) {
   c &= 31; return c == 0 ? x : (x << c) | (x >> (32 - c));
 }
-static inline uint32_t shux_builtin_rotr_u32(uint32_t x, uint32_t c) {
+static inline uint32_t xlang_builtin_rotr_u32(uint32_t x, uint32_t c) {
   c &= 31; return c == 0 ? x : (x >> c) | (x << (32 - c));
 }
 #endif
 extern int getpid(void);
-static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {
-  const char *_ev = getenv("SHUX_CRASH_EVIDENCE");
+static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
+  const char *_ev = getenv("XLANG_CRASH_EVIDENCE");
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
   fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
-  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/shux-crash-%d.txt", _dir, _pid);
+  const char *_dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
     FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
       fprintf(stderr, "note: crash evidence: bundle=%s\n", _p); } } }
-static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-static inline void shux_panic_(int has_msg, int msg_val) {
-  shux_crash_evidence_collect_inline(has_msg, msg_val);
+static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void xlang_panic_(int has_msg, int msg_val) {
+  xlang_crash_evidence_collect_inline(has_msg, msg_val);
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
@@ -114,7 +114,7 @@ extern int32_t driver_emit_lib_root_len(uint8_t * state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t * state, int32_t i, uint8_t * dst, int32_t cap);
 extern int32_t driver_get_argv_i(int32_t argc, uint8_t * argv, int32_t i, uint8_t * buf, int32_t max);
 extern uint8_t * driver_argv_drop_subcommand(int32_t argc, uint8_t * argv);
-/* shux run / bare shux file.x: append `-o <temp>` when no -o so the product
+/* xlang run / bare xlang file.x: append `-o <temp>` when no -o so the product
    is built in /tmp and exec'd (no a.out, no generated C to stdout). */
 extern uint8_t * driver_argv_ensure_run_o(int32_t argc, uint8_t * argv, int32_t * out_argc);
 extern int32_t driver_build_build_x();
@@ -164,22 +164,22 @@ int32_t main_run_compiler_x_path_impl(int32_t argc, uint8_t * argv);
 int32_t main_cmd_build(int32_t argc, uint8_t * argv);
 int32_t main_cmd_run(int32_t argc, uint8_t * argv);
 int32_t main_entry(int32_t argc, uint8_t * argv);
-SHUX_LIB_WEAK uint8_t * main_driver_emit_state_key(struct main_DriverXEmitState * state) {
+XLANG_LIB_WEAK uint8_t * main_driver_emit_state_key(struct main_DriverXEmitState * state) {
   return ((uint8_t *)(state));
 }
-SHUX_LIB_WEAK int32_t main_driver_emit_try_append_lib_from_argv(int32_t argc, uint8_t * argv, int32_t arg_i, struct main_DriverXEmitState * state) {
+XLANG_LIB_WEAK int32_t main_driver_emit_try_append_lib_from_argv(int32_t argc, uint8_t * argv, int32_t arg_i, struct main_DriverXEmitState * state) {
   uint8_t tmp[256] = { 0 };
   int32_t llen = driver_get_argv_i(argc, argv, arg_i, (&((tmp)[0])), 256);
   if (llen >= 0 && driver_emit_append_lib_root(main_driver_emit_state_key(state), (&((tmp)[0])), llen) >= 0) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK void main_driver_emit_ensure_default_lib_root(struct main_DriverXEmitState * state) {
+XLANG_LIB_WEAK void main_driver_emit_ensure_default_lib_root(struct main_DriverXEmitState * state) {
   (void)(({ int32_t __tmp = 0; if (driver_emit_lib_root_count(main_driver_emit_state_key(state)) == 0) {   uint8_t dot[1] = { 46 };
   (void)(driver_emit_append_lib_root(main_driver_emit_state_key(state), (&((dot)[0])), 1));
  } else (__tmp = 0) ; __tmp; }));
 }
-SHUX_LIB_WEAK void main_driver_emit_copy_lib_roots_to_ctx(struct main_DriverXEmitState * state, struct ast_PipelineDepCtx * ctx) {
+XLANG_LIB_WEAK void main_driver_emit_copy_lib_roots_to_ctx(struct main_DriverXEmitState * state, struct ast_PipelineDepCtx * ctx) {
   int32_t k = 0;
   int32_t n = driver_emit_lib_root_count(main_driver_emit_state_key(state));
   uint8_t tmp[256] = { 0 };
@@ -191,10 +191,10 @@ SHUX_LIB_WEAK void main_driver_emit_copy_lib_roots_to_ctx(struct main_DriverXEmi
     ++k;
   }
 }
-SHUX_LIB_WEAK struct main_DriverXEmitState main_driver_emit_state_default() {
+XLANG_LIB_WEAK struct main_DriverXEmitState main_driver_emit_state_default() {
   return ({ struct main_DriverXEmitState _t = { 0 }; _t.path_len = 0; _t.emit_extern_imports = 0; _t.use_asm_backend = 1; _t.target_arch = 0; _t; });
 }
-SHUX_LIB_WEAK struct ast_PipelineDepCtx main_pipeline_dep_ctx_for_emit(int32_t use_asm, int32_t target) {
+XLANG_LIB_WEAK struct ast_PipelineDepCtx main_pipeline_dep_ctx_for_emit(int32_t use_asm, int32_t target) {
   struct ast_PipelineDepCtx ctx = ({ struct ast_PipelineDepCtx _t = { 0 }; _t.ndep = 0; _t.entry_dir_len = 0; _t.num_lib_roots = 0; _t; });
   ((ctx).use_asm_backend = (use_asm));
   ((ctx).target_arch = (target));
@@ -202,66 +202,66 @@ SHUX_LIB_WEAK struct ast_PipelineDepCtx main_pipeline_dep_ctx_for_emit(int32_t u
   ((ctx).current_func_single_empty_param_index = ((-1)));
   return ctx;
 }
-SHUX_LIB_WEAK int32_t main_run_compiler_c_impl(int32_t argc, uint8_t * argv) {
+XLANG_LIB_WEAK int32_t main_run_compiler_c_impl(int32_t argc, uint8_t * argv) {
   return driver_run_compiler_full(argc, argv);
 }
-SHUX_LIB_WEAK int32_t main_eq_minus_L(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_minus_L(uint8_t * buf, int32_t len) {
   if (len < 2) {   return 0;
  }
   if ((buf)[0] == 45 && (buf)[1] == 76) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_eq_minus_x(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_minus_x(uint8_t * buf, int32_t len) {
   if (len < 3) {   return 0;
  }
   if ((buf)[0] == 45 && (buf)[1] == 115 && (buf)[2] == 120) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_eq_minus_E(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_minus_E(uint8_t * buf, int32_t len) {
   if (len < 2) {   return 0;
  }
   if ((buf)[0] == 45 && (buf)[1] == 69) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_eq_minus_E_extern(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_minus_E_extern(uint8_t * buf, int32_t len) {
   if (len < 9) {   return 0;
  }
   if ((buf)[0] == 45 && (buf)[1] == 69 && (buf)[2] == 45 && (buf)[3] == 101 && (buf)[4] == 120 && (buf)[5] == 116 && (buf)[6] == 101 && (buf)[7] == 114 && (buf)[8] == 110) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_eq_minus_backend(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_minus_backend(uint8_t * buf, int32_t len) {
   if (len < 8) {   return 0;
  }
   if ((buf)[0] == 45 && (buf)[1] == 98 && (buf)[2] == 97 && (buf)[3] == 99 && (buf)[4] == 107 && (buf)[5] == 101 && (buf)[6] == 110 && (buf)[7] == 100) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_eq_asm(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_asm(uint8_t * buf, int32_t len) {
   if (len < 3) {   return 0;
  }
   if ((buf)[0] == 97 && (buf)[1] == 115 && (buf)[2] == 109) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_eq_minus_lsp(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_minus_lsp(uint8_t * buf, int32_t len) {
   if (len < 5) {   return 0;
  }
   if ((buf)[0] == 45 && (buf)[1] == 45 && (buf)[2] == 108 && (buf)[3] == 115 && (buf)[4] == 112) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_eq_minus_target(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_eq_minus_target(uint8_t * buf, int32_t len) {
   if (len < 7) {   return 0;
  }
   if ((buf)[0] == 45 && (buf)[1] == 116 && (buf)[2] == 97 && (buf)[3] == 114 && (buf)[4] == 103 && (buf)[5] == 101 && (buf)[6] == 116) {   return 1;
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_str_eq(uint8_t * a, int32_t a_len, uint8_t * b, int32_t b_len) {
+XLANG_LIB_WEAK int32_t main_str_eq(uint8_t * a, int32_t a_len, uint8_t * b, int32_t b_len) {
   if (a_len != b_len) {   return 0;
  }
   int32_t i = 0;
@@ -272,7 +272,7 @@ SHUX_LIB_WEAK int32_t main_str_eq(uint8_t * a, int32_t a_len, uint8_t * b, int32
   }
   return 1;
 }
-SHUX_LIB_WEAK int32_t main_target_contains_arm(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_target_contains_arm(uint8_t * buf, int32_t len) {
   int32_t start = 0;
   while (start + 7 <= len) {
     if ((buf)[start] == 97 && (buf)[start + 1] == 97 && (buf)[start + 2] == 114 && (buf)[start + 3] == 99 && (buf)[start + 4] == 104 && (buf)[start + 5] == 54 && (buf)[start + 6] == 52) {   return 1;
@@ -287,7 +287,7 @@ SHUX_LIB_WEAK int32_t main_target_contains_arm(uint8_t * buf, int32_t len) {
   }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_target_contains_riscv(uint8_t * buf, int32_t len) {
+XLANG_LIB_WEAK int32_t main_target_contains_riscv(uint8_t * buf, int32_t len) {
   int32_t start = 0;
   while (start + 7 <= len) {
     if ((buf)[start] == 114 && (buf)[start + 1] == 105 && (buf)[start + 2] == 115 && (buf)[start + 3] == 99 && (buf)[start + 4] == 118 && (buf)[start + 5] == 54 && (buf)[start + 6] == 52) {   return 1;
@@ -296,7 +296,7 @@ SHUX_LIB_WEAK int32_t main_target_contains_riscv(uint8_t * buf, int32_t len) {
   }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_driver_argv_parse_x_path(int32_t argc, uint8_t * argv, struct main_DriverXEmitState * state) {
+XLANG_LIB_WEAK int32_t main_driver_argv_parse_x_path(int32_t argc, uint8_t * argv, struct main_DriverXEmitState * state) {
   ((state)->path_len = (0));
   (void)(driver_emit_lib_root_reset(main_driver_emit_state_key(state)));
   ((state)->emit_extern_imports = (0));
@@ -335,7 +335,7 @@ SHUX_LIB_WEAK int32_t main_driver_argv_parse_x_path(int32_t argc, uint8_t * argv
   i += 2;
   continue;
  }
-    if (len == 2 && (arg_buf)[0] == 45 && (1 < 0 || (1) >= 512 ? (shux_panic_(1, 0), (arg_buf)[0]) : (arg_buf)[1]) == 111) {   if (i + 1 < argc) {   int32_t olen = driver_get_argv_i(argc, argv, i + 1, (state)->out_path_buf, 512);
+    if (len == 2 && (arg_buf)[0] == 45 && (1 < 0 || (1) >= 512 ? (xlang_panic_(1, 0), (arg_buf)[0]) : (arg_buf)[1]) == 111) {   if (i + 1 < argc) {   int32_t olen = driver_get_argv_i(argc, argv, i + 1, (state)->out_path_buf, 512);
   if (olen >= 0) {   ((state)->out_path_len = (olen));
  }
   i += 2;
@@ -344,7 +344,7 @@ SHUX_LIB_WEAK int32_t main_driver_argv_parse_x_path(int32_t argc, uint8_t * argv
  }
   continue;
  }
-    if (len == 2 && (arg_buf)[0] == 45 && (1 < 0 || (1) >= 512 ? (shux_panic_(1, 0), (arg_buf)[0]) : (arg_buf)[1]) == 79) {   ++i;
+    if (len == 2 && (arg_buf)[0] == 45 && (1 < 0 || (1) >= 512 ? (xlang_panic_(1, 0), (arg_buf)[0]) : (arg_buf)[1]) == 79) {   ++i;
   if (i < argc) {   ++i;
  }
   continue;
@@ -360,7 +360,7 @@ SHUX_LIB_WEAK int32_t main_driver_argv_parse_x_path(int32_t argc, uint8_t * argv
  }
     if ((state)->path_len == 0 && len > 0) {   int32_t k = 0;
   while (k < len && k < 512) {
-    ((k < 0 || (k) >= 512 ? (shux_panic_(1, 0), 0) : (((state)->path_buf)[k] = (k < 0 || (k) >= 512 ? (shux_panic_(1, 0), (arg_buf)[0]) : (arg_buf)[k]), 0)));
+    ((k < 0 || (k) >= 512 ? (xlang_panic_(1, 0), 0) : (((state)->path_buf)[k] = (k < 0 || (k) >= 512 ? (xlang_panic_(1, 0), (arg_buf)[0]) : (arg_buf)[k]), 0)));
     ++k;
   }
   ((state)->path_len = (len));
@@ -374,7 +374,7 @@ SHUX_LIB_WEAK int32_t main_driver_argv_parse_x_path(int32_t argc, uint8_t * argv
   (void)(main_driver_emit_ensure_default_lib_root(state));
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_driver_argv_parse_x(int32_t argc, uint8_t * argv, struct main_DriverXEmitState * state) {
+XLANG_LIB_WEAK int32_t main_driver_argv_parse_x(int32_t argc, uint8_t * argv, struct main_DriverXEmitState * state) {
   ((state)->path_len = (0));
   (void)(driver_emit_lib_root_reset(main_driver_emit_state_key(state)));
   ((state)->emit_extern_imports = (0));
@@ -438,8 +438,8 @@ SHUX_LIB_WEAK int32_t main_driver_argv_parse_x(int32_t argc, uint8_t * argv, str
   }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_driver_run_x_emit_x(struct main_DriverXEmitState * state) {
-  if ((state)->path_len >= 0 && (state)->path_len < 511) {   (((state)->path_len < 0 || ((state)->path_len) >= 512 ? (shux_panic_(1, 0), 0) : (((state)->path_buf)[(state)->path_len] = ((uint8_t)(0)), 0)));
+XLANG_LIB_WEAK int32_t main_driver_run_x_emit_x(struct main_DriverXEmitState * state) {
+  if ((state)->path_len >= 0 && (state)->path_len < 511) {   (((state)->path_len < 0 || ((state)->path_len) >= 512 ? (xlang_panic_(1, 0), 0) : (((state)->path_buf)[(state)->path_len] = ((uint8_t)(0)), 0)));
  }
   uint8_t loaded_buf[4194304] = { 0 };
   int32_t cap_i = 4194304;
@@ -456,19 +456,19 @@ SHUX_LIB_WEAK int32_t main_driver_run_x_emit_x(struct main_DriverXEmitState * st
   int32_t last_slash = -1;
   int32_t k = 0;
   while (k < (state)->path_len && k < 512) {
-    if ((k < 0 || (k) >= 512 ? (shux_panic_(1, 0), ((state)->path_buf)[0]) : ((state)->path_buf)[k]) == 47) {   (last_slash = (k));
+    if ((k < 0 || (k) >= 512 ? (xlang_panic_(1, 0), ((state)->path_buf)[0]) : ((state)->path_buf)[k]) == 47) {   (last_slash = (k));
  }
     ++k;
   }
   if (last_slash >= 0) {   (k = (0));
   while (k < last_slash && k < 511) {
-    ((k < 0 || (k) >= 512 ? (shux_panic_(1, 0), 0) : (((ctx).entry_dir_buf)[k] = (k < 0 || (k) >= 512 ? (shux_panic_(1, 0), ((state)->path_buf)[0]) : ((state)->path_buf)[k]), 0)));
+    ((k < 0 || (k) >= 512 ? (xlang_panic_(1, 0), 0) : (((ctx).entry_dir_buf)[k] = (k < 0 || (k) >= 512 ? (xlang_panic_(1, 0), ((state)->path_buf)[0]) : ((state)->path_buf)[k]), 0)));
     ++k;
   }
-  ((k < 0 || (k) >= 512 ? (shux_panic_(1, 0), 0) : (((ctx).entry_dir_buf)[k] = 0, 0)));
+  ((k < 0 || (k) >= 512 ? (xlang_panic_(1, 0), 0) : (((ctx).entry_dir_buf)[k] = 0, 0)));
   ((ctx).entry_dir_len = (k));
  } else {   (((ctx).entry_dir_buf)[0] = (46));
-  ((1 < 0 || (1) >= 512 ? (shux_panic_(1, 0), 0) : (((ctx).entry_dir_buf)[1] = 0, 0)));
+  ((1 < 0 || (1) >= 512 ? (xlang_panic_(1, 0), 0) : (((ctx).entry_dir_buf)[1] = 0, 0)));
   ((ctx).entry_dir_len = (1));
  }
   ((ctx).num_lib_roots = (0));
@@ -504,7 +504,7 @@ SHUX_LIB_WEAK int32_t main_driver_run_x_emit_x(struct main_DriverXEmitState * st
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_run_compiler_x_path_impl(int32_t argc, uint8_t * argv) {
+XLANG_LIB_WEAK int32_t main_run_compiler_x_path_impl(int32_t argc, uint8_t * argv) {
   struct main_DriverXEmitState state = main_driver_emit_state_default();
   int32_t r = main_driver_argv_parse_x_path(argc, argv, (&(state)));
   if (r == 1) {   return main_run_compiler_c_impl(argc, argv);
@@ -517,7 +517,7 @@ SHUX_LIB_WEAK int32_t main_run_compiler_x_path_impl(int32_t argc, uint8_t * argv
  }
   return main_driver_run_x_emit_x((&(state)));
 }
-SHUX_LIB_WEAK int32_t main_cmd_build(int32_t argc, uint8_t * argv) {
+XLANG_LIB_WEAK int32_t main_cmd_build(int32_t argc, uint8_t * argv) {
   if (argc < 2) {   return driver_build_build_x();
  }
   return main_run_compiler_x_path_impl(argc, argv);
@@ -526,7 +526,7 @@ SHUX_LIB_WEAK int32_t main_cmd_build(int32_t argc, uint8_t * argv) {
  * form for output path), 0 otherwise. Used by main_cmd_run to distinguish
  * compile-only invocations from in-memory compile-and-run. PLATFORM: SHARED.
  * Contract: argc >= 1; argv may be null only when argc < 1 (returns 0). */
-SHUX_LIB_WEAK int32_t main_argv_has_o_flag(int32_t argc, uint8_t * argv) {
+XLANG_LIB_WEAK int32_t main_argv_has_o_flag(int32_t argc, uint8_t * argv) {
   int32_t i = 1;
   uint8_t buf[8] = { 0 };
   while (i < argc) {
@@ -538,32 +538,32 @@ SHUX_LIB_WEAK int32_t main_argv_has_o_flag(int32_t argc, uint8_t * argv) {
   }
   return 0;
 }
-SHUX_LIB_WEAK int32_t main_cmd_run(int32_t argc, uint8_t * argv) {
+XLANG_LIB_WEAK int32_t main_cmd_run(int32_t argc, uint8_t * argv) {
   if (argc < 2) {   return 1;
  }
   /* Detect an explicit user-supplied -o before driver_argv_ensure_run_o runs.
    * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
    * present, so run_argv alone cannot tell whether the user asked for
    * compile-only. When -o is explicit, skip the exec path so the compiled
-   * program's exit code does not leak through shux's own exit status. */
+   * program's exit code does not leak through xlang's own exit status. */
   int32_t has_explicit_o = main_argv_has_o_flag(argc, argv);
   int32_t run_argc = argc;
   uint8_t * run_argv = driver_argv_ensure_run_o(argc, argv, &run_argc);
   if (has_explicit_o != 0) {
-    /* Compile-only: do not set SHUX_RUN_QUIET (let cc warnings surface, since
+    /* Compile-only: do not set XLANG_RUN_QUIET (let cc warnings surface, since
      * the user explicitly requested an output path) and do not exec. */
     return main_run_compiler_x_path_impl(run_argc, run_argv);
   }
-  /* mute generated-C warning noise so `shux run`/bare `shux file.x` prints
-     only the program output; cc errors still surface (SHUX_RUN_QUIET only
-     adds -w / -Wl,-w in shux_invoke_cc_impl). */
-  (void)setenv("SHUX_RUN_QUIET", "1", 1);
+  /* mute generated-C warning noise so `xlang run`/bare `xlang file.x` prints
+     only the program output; cc errors still surface (XLANG_RUN_QUIET only
+     adds -w / -Wl,-w in xlang_invoke_cc_impl). */
+  (void)setenv("XLANG_RUN_QUIET", "1", 1);
   int32_t rc = main_run_compiler_x_path_impl(run_argc, run_argv);
   if (rc == 0) {   return driver_exec_compiled(run_argc, run_argv);
  }
   return rc;
 }
-SHUX_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
+XLANG_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
   uint8_t arg_buf[64] = { 0 };
   int32_t i = 1;
   while (i < argc) {
@@ -589,7 +589,7 @@ SHUX_LIB_WEAK int32_t main_entry(int32_t argc, uint8_t * argv) {
   if (main_str_eq((&((arg_buf)[0])), alen, (&((w_test)[0])), 4) != 0) {   return driver_cmd_test(argc - 1, driver_argv_drop_subcommand(argc, argv));
  }
   /* Bare path (ends with .x or contains / or \\): run semantics; with -o compile-only.
-   * PLATFORM: SHARED — matches main.x entry(); do not print usage for historical `shux file.x -o`. */
+   * PLATFORM: SHARED — matches main.x entry(); do not print usage for historical `xlang file.x -o`. */
   {
     int32_t looks = 0;
     if (alen >= 2 && (arg_buf)[alen - 2] == 46 && (arg_buf)[alen - 1] == 120) {

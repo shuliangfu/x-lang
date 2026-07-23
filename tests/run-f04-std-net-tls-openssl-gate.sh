@@ -2,11 +2,11 @@
 # F-04 v8：std.net OpenSSL TLS 去 C 门禁（tls_openssl.x + 无 tls_openssl.inc.c）。
 #
 # 用法：./tests/run-f04-std-net-tls-openssl-gate.sh
-# 环境：SHUX_F04_NET_TLS_OPENSSL_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_TLS_OPENSSL_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_TLS_OPENSSL_FAIL:-0}
+FAIL=${XLANG_F04_NET_TLS_OPENSSL_FAIL:-0}
 DOC="analysis/phase-f-f04-v8.md"
 TLS_X="std/net/tls_openssl.x"
 NET_C="std/net/net.c"
@@ -28,8 +28,8 @@ grep -q 'net_tls_openssl_smoke_c' "$TLS_X" || die "tls_openssl.x missing smoke"
 if grep -q 'tls_openssl.inc.c' "$NET_C" 2>/dev/null; then
   die "net.c still references tls_openssl.inc.c"
 fi
-if grep -q 'SHUX_NET_USE_OPENSSL' "$NET_C" 2>/dev/null; then
-  die "net.c still defines SHUX_NET_USE_OPENSSL include path"
+if grep -q 'XLANG_NET_USE_OPENSSL' "$NET_C" 2>/dev/null; then
+  die "net.c still defines XLANG_NET_USE_OPENSSL include path"
 fi
 grep -q 'tls_openssl.x' compiler/Makefile || die "Makefile missing tls_openssl.x build"
 grep -q 'invoke_cc_append_net_tls_ld.*repo_root' compiler/seeds/runtime_link_abi.from_x.c \
@@ -46,7 +46,7 @@ fi
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-04 v8: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

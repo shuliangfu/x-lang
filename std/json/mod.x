@@ -19,7 +19,7 @@
  *
  * All `json_*_c` functions below are thin wrappers over the JSON
  * parser / serializer C implementation (see seeds). They are exposed
- * to SHUX via `extern "C"` declarations.
+ * to XLANG via `extern "C"` declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches the C runtime
  * (RFC 8259 grammar-driven recursive descent + cursor model + append

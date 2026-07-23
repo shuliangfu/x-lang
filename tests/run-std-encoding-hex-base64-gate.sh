@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_ENCODING_HEX_B64_DOC:-analysis/std-encoding-hex-base64-v1.md}"
-MANIFEST="${SHUX_STD_ENCODING_HEX_B64_TSV:-tests/baseline/std-encoding-hex-base64.tsv}"
+DOC="${XLANG_STD_ENCODING_HEX_B64_DOC:-analysis/std-encoding-hex-base64-v1.md}"
+MANIFEST="${XLANG_STD_ENCODING_HEX_B64_TSV:-tests/baseline/std-encoding-hex-base64.tsv}"
 MOD_X="std/encoding/mod.x"
-ENCODING_X="${SHUX_STD_ENCODING_IMPL:-std/encoding/encoding.x}"
+ENCODING_X="${XLANG_STD_ENCODING_IMPL:-std/encoding/encoding.x}"
 LIB="tests/lib/std-encoding-hex-base64.sh"
 SMOKE_X="tests/encoding/hex_base64_string.x"
 MAIN_X="tests/encoding/main.x"
@@ -89,36 +89,36 @@ HEX_OK=0
 B64_OK=0
 MAIN_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-040: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-040: typeck + smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/encoding/encoding.o
   ensure_std_c_o ../std/base64/base64.o
   ensure_std_c_o ../std/string/string.o
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-encoding-hex-b64 gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -12 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -12 >&2 || true
     std_encoding_hex_b64_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_encoding_hex_b64_run_smoke "$SHUX_BIN" "$SMOKE_X" "hex_b64"; then
+  if std_encoding_hex_b64_run_smoke "$XLANG_BIN" "$SMOKE_X" "hex_b64"; then
     HEX_OK=1
     B64_OK=1
   else
     std_encoding_hex_b64_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_encoding_hex_b64_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
+  if std_encoding_hex_b64_run_smoke "$XLANG_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_encoding_hex_b64_emit_report "fail" "$HEX_OK" "$B64_OK" 0 0
@@ -126,7 +126,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-encoding-hex-b64 gate SKIP smoke (no native shux)" >&2
+  echo "std-encoding-hex-b64 gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_encoding_hex_b64_emit_report "ok" "$HEX_OK" "$B64_OK" "$MAIN_OK" "$SKIP"

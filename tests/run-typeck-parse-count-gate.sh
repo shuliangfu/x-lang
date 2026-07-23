@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # A-11 track/CI：asm pipeline 编 typeck.x 时 after_entry_parse num_defined 须 ≥ min（146 为全量 defined）。
 # 用法：./tests/run-typeck-parse-count-gate.sh
-# 环境：SHUX_TYPECK_PARSE_COUNT_FAIL=1 低于 MIN 时硬失败
-#       SHUX_TYPECK_PARSE_COUNT_MIN / TARGET 覆盖 baseline
+# 环境：XLANG_TYPECK_PARSE_COUNT_FAIL=1 低于 MIN 时硬失败
+#       XLANG_TYPECK_PARSE_COUNT_MIN / TARGET 覆盖 baseline
 set -e
 cd "$(dirname "$0")/.."
 
-BASELINE="${SHUX_TYPECK_PARSE_COUNT_TSV:-tests/baseline/typeck-parse-count.tsv}"
-FAIL=${SHUX_TYPECK_PARSE_COUNT_FAIL:-0}
-MIN_FUNCS=${SHUX_TYPECK_PARSE_COUNT_MIN:-$(awk -F'\t' '$1=="min_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)}
-TARGET_FUNCS=${SHUX_TYPECK_PARSE_COUNT_TARGET:-$(awk -F'\t' '$1=="target_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)}
+BASELINE="${XLANG_TYPECK_PARSE_COUNT_TSV:-tests/baseline/typeck-parse-count.tsv}"
+FAIL=${XLANG_TYPECK_PARSE_COUNT_FAIL:-0}
+MIN_FUNCS=${XLANG_TYPECK_PARSE_COUNT_MIN:-$(awk -F'\t' '$1=="min_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)}
+TARGET_FUNCS=${XLANG_TYPECK_PARSE_COUNT_TARGET:-$(awk -F'\t' '$1=="target_funcs" && $1 !~ /^#/ { print $2; exit }' "$BASELINE" 2>/dev/null)}
 MIN_FUNCS=${MIN_FUNCS:-80}
 TARGET_FUNCS=${TARGET_FUNCS:-146}
-SHUX="${SHUX:-./compiler/shux_asm}"
+XLANG="${XLANG:-./compiler/xlang_asm}"
 TYPECK_X="compiler/src/typeck/typeck.x"
-OUT="/tmp/shux_typeck_parse_count.$$.o"
-LOG="/tmp/shux_typeck_parse_count.$$.log"
+OUT="/tmp/xlang_typeck_parse_count.$$.o"
+LOG="/tmp/xlang_typeck_parse_count.$$.log"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
@@ -23,11 +23,11 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-if [ ! -x "$SHUX" ]; then
-  SHUX="./compiler/shux"
+if [ ! -x "$XLANG" ]; then
+  XLANG="./compiler/xlang"
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "typeck-parse-count-gate: SKIP (no compiler shux/shux_asm)"
+if [ ! -x "$XLANG" ]; then
+  echo "typeck-parse-count-gate: SKIP (no compiler xlang/xlang_asm)"
   exit 0
 fi
 
@@ -38,12 +38,12 @@ rm -f "$OUT" "$LOG" 2>/dev/null || true
 
 typeck_parse_count_compile() {
   local comp="$1"
-  # shux 在非 TTY stdout 下 parse 可能挂起；tee 保留 LOG。
+  # xlang 在非 TTY stdout 下 parse 可能挂起；tee 保留 LOG。
   (
     cd compiler
-    env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-      SHUX_ASM_PARSE_METRIC_ONLY=1 \
-      SHUX_DEBUG_PIPE=1 \
+    env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+      XLANG_ASM_PARSE_METRIC_ONLY=1 \
+      XLANG_DEBUG_PIPE=1 \
       "../$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.x
   ) 2>&1 | tee "$LOG" | cat >/dev/null
 }
@@ -65,26 +65,26 @@ typeck_parse_count_try_chunked() {
 }
 
 compile_ok=0
-if typeck_parse_count_compile "$SHUX"; then
+if typeck_parse_count_compile "$XLANG"; then
   compile_ok=1
-elif [ "$SHUX" != "./compiler/shux" ] && [ -x "./compiler/shux" ]; then
-  echo "typeck-parse-count-gate: WARN $SHUX build failed; fallback ./compiler/shux (seed parse metric, nostdlib shux_asm typeck OOM)" >&2
-  if typeck_parse_count_compile "./compiler/shux"; then
+elif [ "$XLANG" != "./compiler/xlang" ] && [ -x "./compiler/xlang" ]; then
+  echo "typeck-parse-count-gate: WARN $XLANG build failed; fallback ./compiler/xlang (seed parse metric, nostdlib xlang_asm typeck OOM)" >&2
+  if typeck_parse_count_compile "./compiler/xlang"; then
     compile_ok=1
   fi
 fi
 
 if [ "$compile_ok" -eq 0 ]; then
-  echo "typeck-parse-count-gate: WARN full-file parse failed; trying chunked parse (SHUX_TYPECK_PARSE_CHUNK_FUNCS=${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-10})" >&2
-  if ! typeck_parse_count_try_chunked "$SHUX"; then
-    if [ "$SHUX" != "./compiler/shux" ] && [ -x "./compiler/shux" ]; then
-      typeck_parse_count_try_chunked "./compiler/shux" || true
+  echo "typeck-parse-count-gate: WARN full-file parse failed; trying chunked parse (XLANG_TYPECK_PARSE_CHUNK_FUNCS=${XLANG_TYPECK_PARSE_CHUNK_FUNCS:-10})" >&2
+  if ! typeck_parse_count_try_chunked "$XLANG"; then
+    if [ "$XLANG" != "./compiler/xlang" ] && [ -x "./compiler/xlang" ]; then
+      typeck_parse_count_try_chunked "./compiler/xlang" || true
     fi
   fi
 fi
 
-# gold/Codespace：shux 非 TTY stdout 下 parse 指标偶发 SIGTERM；源码 function 计数作临时回退。
-if [ "$compile_ok" -eq 0 ] && [ "${SHUX_TYPECK_PARSE_COUNT_SOURCE_FALLBACK:-0}" = "1" ]; then
+# gold/Codespace：xlang 非 TTY stdout 下 parse 指标偶发 SIGTERM；源码 function 计数作临时回退。
+if [ "$compile_ok" -eq 0 ] && [ "${XLANG_TYPECK_PARSE_COUNT_SOURCE_FALLBACK:-0}" = "1" ]; then
   if [ "$src_count" -ge "$TARGET_FUNCS" ] 2>/dev/null; then
     metric="$src_count"
     ndef="$src_count"
@@ -119,10 +119,10 @@ if [ -z "$nf" ] && [ -z "$ndef" ] && [ -z "${metric:-}" ]; then
   exit 0
 fi
 
-if [ "${SHUX_TYPECK_PARSE_COUNT_UPDATE:-0}" = "1" ]; then
+if [ "${XLANG_TYPECK_PARSE_COUNT_UPDATE:-0}" = "1" ]; then
   {
     echo "# typeck.x asm ENTRY_MODULE_ONLY parse 指标（A-11）"
-    echo "# 更新：SHUX_TYPECK_PARSE_COUNT_UPDATE=1 ./tests/run-typeck-parse-count-gate.sh"
+    echo "# 更新：XLANG_TYPECK_PARSE_COUNT_UPDATE=1 ./tests/run-typeck-parse-count-gate.sh"
     printf 'min_funcs\t%s\n' "$metric"
     printf 'target_funcs\t%s\n' "$metric"
     printf 'min_defined\t%s\n' "$metric"

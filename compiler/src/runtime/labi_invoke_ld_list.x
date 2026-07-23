@@ -3,28 +3,28 @@
 //
 // link_abi L6 invoke_ld pure tables + orch (G.9 English; body is authoritative).
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_invoke_ld_list.from_x.c.
-// Hybrid macro SHUX_LABI_INVOKE_LD_LIST_FROM_X (FROM_X rest business H=0, marker only).
+// Hybrid macro XLANG_LABI_INVOKE_LD_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: .x owns brew/compress/tail/driver/entry pure tables + wave152 brew orch
 // + wave153 asm compress-libs orch + wave154 invoke_cc compress-ld orch
 // + wave156 mach tail_libs_impl pure orch + wave157 unix gcc tail + wave158 net_tls
 // + wave179 invoke_cc_argv_push_existing pure orch
 // + wave187 ensure_std_net_o_auto_tls pure orch
-// + wave188 shux_ensure_formal_std_make_o pure orch
+// + wave188 xlang_ensure_formal_std_make_o pure orch
 // + wave191 labi_std_append_formal_ensure_for_rel pure orch
 // + wave192 labi_std_append_glue_for_op pure orch
 // + wave193 labi_std_append_primary_for_op + process_argv_if pure orch
 // + wave194 labi_std_append_task_special pure orch
 // + wave195 labi_std_append_op_std pure orch
-// + wave196 shux_asm_ld_append_std_objs_for_user plan loop shell pure orch:
+// + wave196 xlang_asm_ld_append_std_objs_for_user plan loop shell pure orch:
 //   - labi_ld_brew_lib_path_{count,at} + labi_ld_flag_* / drivers / common_tail
 //   - ld_append_brew_lib_paths (wave152; pure table scan; Cap residual host_is_apple)
 //   - asm_ld_append_compress_libs (wave153; pure orch; Cap residual needs+ensure+path)
 //   - invoke_cc_append_compress_ld (wave154; pure orch; Cap residual needs+ensure+path
 //     + pure push_existing for glue realpath/skip/dedup)
-//   - shux_asm_ld_append_mach_tail_libs_impl (wave156; pure orch over flags i32 layout
+//   - xlang_asm_ld_append_mach_tail_libs_impl (wave156; pure orch over flags i32 layout
 //     + pure flag_* + peer compress orch + peer needs_compress)
-//   - shux_asm_ld_append_unix_gcc_tail_libs_impl (wave157; pure orch; peer host_is_linux
+//   - xlang_asm_ld_append_unix_gcc_tail_libs_impl (wave157; pure orch; peer host_is_linux
 //     + host_is_apple for -ldl / else -lc gates)
 //   - invoke_cc_append_net_tls_ld (wave158; pure orch; Cap residual exports_marker +
 //     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
@@ -33,7 +33,7 @@
 //     resolve_existing_path_impl = skip_missing + multi-slot realpath pool)
 //   - ensure_std_net_o_auto_tls (wave187; pure mode/path orch; Cap residual
 //     link_abi_getenv+link_abi_system+realpath_cap+exports_marker; wave222/224 pure faces)
-//   - shux_ensure_formal_std_make_o (wave188; pure path/SHUX/make-cmd orch; Cap residual
+//   - xlang_ensure_formal_std_make_o (wave188; pure path/XLANG/make-cmd orch; Cap residual
 //     link_abi_getenv+path_executable+realpath_cap+link_abi_system+skip_missing;
 //     wave221 X_OK / wave222 getenv / wave224 system pure faces)
 //   - labi_std_append_formal_ensure_for_rel (wave191; pure formal ensure+companions orch for
@@ -48,13 +48,13 @@
 //     formal ensure task.o + push task/scheduler/scheduler_glue; Cap residual skip/path/bank)
 //   - labi_std_append_op_std (wave195; pure OP_STD orch: fk→flag_out map + fk0/fk1–13 gate +
 //     formal ensure + push_obj; Cap residual undef_sym inside fk gate peers)
-//   - shux_asm_ld_append_std_objs_for_user (wave196; pure plan shell: flags/local_have init +
+//   - xlang_asm_ld_append_std_objs_for_user (wave196; pure plan shell: flags/local_have init +
 //     plan_count/step_at loop + dispatch to wave190–195 leaf pure + process_argv complement;
 //     Cap residual stays inside leaf peers / plan table L8)
 // Cap residual (mega): link_abi_host_is_apple; obj_needs_* Cap (marker/has_undef);
 //   ensure/path for zlib glue; invoke_cc_argv_resolve_existing_path_impl (skip+realpath pool;
 //   wave215 pure owns public resolve null/empty gates);
-//   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
+//   exports_marker / realpath_cap / xlang_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
 //   link_abi_getenv / link_abi_system / path_executable for ensure_std_net + formal_std_make
 //     (wave187/188 Cap; wave221 X_OK pure; wave222 getenv pure; wave224 system pure);
@@ -66,12 +66,12 @@
 // PLATFORM: SHARED orch / MACOS brew+mach / LINUX unix gcc tail -l*.
 
 // Cap residual: compile-time #if __APPLE__ (all arch: aarch64 + x86_64).
-// Not the same as shux_host_is_apple_aarch64 (host_lit L2; arm64 only).
+// Not the same as xlang_host_is_apple_aarch64 (host_lit L2; arm64 only).
 export extern "C" function link_abi_host_is_apple(): i32;
 
 // Peer pure (host_lit L2 thin → Cap residual _impl #if __linux__).
 // Used by wave157 unix gcc tail for -ldl and (with host_is_apple) else-branch -lc.
-export extern "C" function shux_host_is_linux(): i32;
+export extern "C" function xlang_host_is_linux(): i32;
 
 // Cap residual / peer pure (ondemand L8b): .o depends on zlib/zstd/brotli.
 export extern "C" function link_abi_obj_needs_zlib(obj_o: *u8): i32;
@@ -82,8 +82,8 @@ export extern "C" function link_abi_obj_needs_brotli(obj_o: *u8): i32;
 export extern "C" function link_abi_user_o_needs_compress_libs(user_o: *u8): i32;
 
 // Cap residual: ensure zlib macro-wrapper glue .o + resolve its path for ld argv.
-export extern "C" function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
 
 // Cap residual (wave179 / wave215): skip_missing + POSIX realpath multi-slot pool body.
 // Pure orch owns null/empty gates; _impl is always mega (static pool + host realpath).
@@ -123,10 +123,10 @@ export extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8):
 export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 
 // Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
-export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+export extern "C" function xlang_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 
 // Cap residual (wave187/188 ensure shell make): host shell make / skip_missing.
-// PLATFORM: SHARED — SHUX_NET_TLS net-o-* + formal std make (SHUX_FORMAL_STD_ENSURE reentrancy).
+// PLATFORM: SHARED — XLANG_NET_TLS net-o-* + formal std make (XLANG_FORMAL_STD_ENSURE reentrancy).
 // wave222: env lookup is public pure thin link_abi_getenv (labi_diag_pure L1 hybrid);
 // Cap residual host getenv stays mega as link_abi_getenv_impl.
 // wave224: shell make is public pure thin link_abi_system (labi_diag_pure L1 hybrid);
@@ -141,18 +141,18 @@ export extern "C" function link_abi_path_executable(path: *u8): i32;
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 
 // Peer pure (path_pure L0 wave162): repo root from argv0 (strip compiler-dir / process.o walk).
-// wave191 formal ensure orch uses this to pass repo_root into shux_ensure_formal_std_make_o.
-export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
+// wave191 formal ensure orch uses this to pass repo_root into xlang_ensure_formal_std_make_o.
+export extern "C" function xlang_repo_root_from_argv0(argv0: *u8): *u8;
 
 // Cap residual / peer pure (ensure_list L4): runtime companion ensure + path for formal
 // env.o / random.o / time.o (mirrors mega append_std OP_STD companions).
 // PLATFORM: SHARED — product path symbols; hybrid may be pure L0/L4 path ladders.
-export extern "C" function shux_ensure_runtime_env_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_env_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_random_fill_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_random_fill_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_time_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_env_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_env_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_random_fill_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_random_fill_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
 
 // Peer pure (path_pure L0 wave148): push one .o onto asm ld argv (resolve+bank+dedup).
 // wave191 companions + wave192 glue leaves call this after ensure.
@@ -163,32 +163,32 @@ export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u
 // ensure + path for append_std plan leaves (wave192).
 // PLATFORM: SHARED — product symbols; hybrid may resolve via pure L0/L4 path ladders.
 // G.7: compose ensure+path+push_obj (≡ push_glue_after_std without C fnptr); no second gate.
-export extern "C" function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_sync_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_sync_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_log_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_log_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_channel_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_math_libm_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_math_libm_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_http_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_http_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_log_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_log_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_channel_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_channel_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_backtrace_platform_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_math_libm_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_math_libm_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_sqlite_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_dynlib_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_dynlib_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_http_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_http_glue_o_path(argv0: *u8): *u8;
 
 // Peer pure (ondemand L8b wave132–133): bulk PRIMARY OS gates for append_std plan.
 // null/empty user_o → 1 (always need; matches mega hard-link when no user filter).
@@ -199,24 +199,24 @@ export extern "C" function labi_user_needs_runtime_env_os(user_o: *u8): i32;
 
 // Peer pure (path_pure L0): primary runtime path ladders for IO_STUBS / PANIC leaves.
 // PLATFORM: SHARED — product path symbols used by append_std PRIMARY plan steps.
-export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_panic_o_path(argv0: *u8): *u8;
 
 // Cap residual / peer pure: process_argv ensure+path for wave193 complement.
 // PLATFORM: SHARED — constructor-bound argc/argv glue; never dual-link with process.o.
-export extern "C" function shux_ensure_runtime_process_argv_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
 
 // Peer pure / Cap residual for wave194 TASK_SPECIAL (task.o + scheduler.o + scheduler_glue).
 // PLATFORM: SHARED — append_std plan leaf 30; gate + formal ensure + path ladder + push.
 // G.7: compose existing needs/path/ensure/push peers; no second task plan table.
 export extern "C" function labi_user_needs_std_task(user_o: *u8): i32;
 export extern "C" function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8): *u8;
-export extern "C" function shux_std_async_scheduler_o_path(argv0: *u8): *u8;
-export extern "C" function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
+export extern "C" function xlang_std_async_scheduler_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
 export extern "C" function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32, max_la: i32, p: *u8): void;
-export extern "C" function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
 
 // Peer pure (ondemand L8b wave135/190): OP_STD plan gates for fk0 (rel×sym) and fk 1–13.
 // Cap residual undef_sym / strstr stays inside those orchs; pure OP_STD only composes.
@@ -923,7 +923,7 @@ export function ld_append_brew_lib_paths(argv: **u8, la: *i32, max_la: i32): voi
  * @param max_la i32 — argv capacity; leave one slot for NULL terminator (max_la - 1)
  * @return void — appends only when a needs_* hits and capacity remains
  * Pure orch: needs_* Cap/peer + brew pure + flag pure + ensure/path Cap residual.
- * Cap residual: shux_ensure_runtime_compress_zlib_glue_o + shux_runtime_compress_zlib_glue_o_path;
+ * Cap residual: xlang_ensure_runtime_compress_zlib_glue_o + xlang_runtime_compress_zlib_glue_o_path;
  *   needs_* Cap (marker/has_undef) live under ondemand hybrid pure.
  * Why (wave153): hybrid still had always-mega C body for asm compress -l* append.
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -969,11 +969,11 @@ export function asm_ld_append_compress_libs(compress_o: *u8, user_o: *u8, argv: 
     }
     // Cap residual: build/ensure glue then resolve path (argv0 null ≡ mega NULL).
     unsafe {
-      let _e: i32 = shux_ensure_runtime_compress_zlib_glue_o(0 as *u8);
+      let _e: i32 = xlang_ensure_runtime_compress_zlib_glue_o(0 as *u8);
     }
     let glue: *u8 = 0 as *u8;
     unsafe {
-      glue = shux_runtime_compress_zlib_glue_o_path(0 as *u8);
+      glue = xlang_runtime_compress_zlib_glue_o_path(0 as *u8);
     }
     if (glue != 0 as *u8) {
       if (glue[0] != 0) {
@@ -1071,11 +1071,11 @@ export function invoke_cc_append_compress_ld(argv: **u8, i: *i32, argv_cap: i32,
     }
     // Cap residual: build/ensure glue then push path (argv0 null ≡ mega NULL).
     unsafe {
-      let _e: i32 = shux_ensure_runtime_compress_zlib_glue_o(0 as *u8);
+      let _e: i32 = xlang_ensure_runtime_compress_zlib_glue_o(0 as *u8);
     }
     let glue: *u8 = 0 as *u8;
     unsafe {
-      glue = shux_runtime_compress_zlib_glue_o_path(0 as *u8);
+      glue = xlang_runtime_compress_zlib_glue_o_path(0 as *u8);
     }
     // Pure peer wave179: skip-missing / realpath / dedup (asm path stores path bytes directly).
     let _p: i32 = invoke_cc_argv_push_existing(argv, i, argv_cap, glue);
@@ -1109,7 +1109,7 @@ export function invoke_cc_append_compress_ld(argv: **u8, i: *i32, argv_cap: i32,
 /**
  * macOS asm ld/clang: append tail -l* from ShuAsmLdStdLinkFlags (math/compress/sqlite/pthread/System).
  * Pure orch over LP64 i32 flag layout + pure labi_ld_flag_* + peer asm_ld_append_compress_libs
- * + peer link_abi_user_o_needs_compress_libs. Gate shux_asm_ld_append_mach_tail_libs stays L9 thin.
+ * + peer link_abi_user_o_needs_compress_libs. Gate xlang_asm_ld_append_mach_tail_libs stays L9 thin.
  * @param compress_o *u8 — path to std/compress .o (nullable/empty → ignored by needs_*)
  * @param user_o *u8 — path to user main .o (nullable/empty → ignored by needs_*)
  * @param flags *u8 — ShuAsmLdStdLinkFlags* as opaque bytes; null → no-op
@@ -1125,12 +1125,12 @@ export function invoke_cc_append_compress_ld(argv: **u8, i: *i32, argv_cap: i32,
  * need_pt = have_thread || have_sync || have_channel (≡ mega).
  * Why (wave156): hybrid still had always-mega C body for mach tail -l* over pure flag tables.
  * Note: export signature must stay single-line (multi-line export drops the function).
- * Callers: pure gate shux_asm_ld_append_mach_tail_libs (labi_gates) + product asm ld paths.
+ * Callers: pure gate xlang_asm_ld_append_mach_tail_libs (labi_gates) + product asm ld paths.
  * PLATFORM: SHARED orch / MACOS consumers (flags semantics shared; -lSystem is Darwin).
  * Track-L: #[no_mangle] keeps surface short name matching mega / gates Cap residual extern.
  */
 #[no_mangle]
-export function shux_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, argv: **u8, la: *i32, max_la: i32, append_lsystem: i32): void {
+export function xlang_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, argv: **u8, la: *i32, max_la: i32, append_lsystem: i32): void {
   // Guard nulls via *u8 cast (wave147/151–155: avoid **u8 null compare codegen drop).
   if (flags == 0 as *u8) {
     return;
@@ -1215,8 +1215,8 @@ export function shux_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o: 
 /**
  * Linux/Unix gcc or bare ld: append tail -l* from ShuAsmLdStdLinkFlags + need_pt.
  * Pure orch over LP64 i32 flag layout + pure labi_ld_flag_* + peer compress orch
- * + peer needs_compress + peer shux_host_is_linux + Cap residual host_is_apple.
- * Gate shux_asm_ld_append_unix_gcc_tail_libs stays L9 thin.
+ * + peer needs_compress + peer xlang_host_is_linux + Cap residual host_is_apple.
+ * Gate xlang_asm_ld_append_unix_gcc_tail_libs stays L9 thin.
  * @param compress_o *u8 — path to std/compress .o (nullable/empty → ignored by needs_*)
  * @param user_o *u8 — path to user main .o (nullable/empty → ignored by needs_*)
  * @param flags *u8 — ShuAsmLdStdLinkFlags* as opaque bytes; null → no-op
@@ -1236,12 +1236,12 @@ export function shux_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o: 
  *   heap|fs|math|compress|sqlite|dynlib (mega #if linux||apple in final else).
  * Why (wave157): hybrid still had always-mega C body for unix gcc tail -l* over pure tables.
  * Note: export signature must stay single-line (multi-line export drops the function).
- * Callers: pure gate shux_asm_ld_append_unix_gcc_tail_libs (labi_gates) + product asm ld paths.
+ * Callers: pure gate xlang_asm_ld_append_unix_gcc_tail_libs (labi_gates) + product asm ld paths.
  * PLATFORM: SHARED orch / LINUX primary consumers (Unix gcc/ld; -ldl Linux-only).
  * Track-L: #[no_mangle] keeps surface short name matching mega / gates Cap residual extern.
  */
 #[no_mangle]
-export function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: **u8, la: *i32, max_la: i32): void {
+export function xlang_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: **u8, la: *i32, max_la: i32): void {
   // Guard nulls via *u8 cast (wave147/151–156: avoid **u8 null compare codegen drop).
   if (flags == 0 as *u8) {
     return;
@@ -1318,7 +1318,7 @@ export function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user
   if (have_dynlib != 0) {
     let is_linux: i32 = 0;
     unsafe {
-      is_linux = shux_host_is_linux();
+      is_linux = xlang_host_is_linux();
     }
     if (is_linux != 0) {
       let curd: i32 = la[0];
@@ -1372,7 +1372,7 @@ export function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user
       let is_linux2: i32 = 0;
       let is_apple: i32 = 0;
       unsafe {
-        is_linux2 = shux_host_is_linux();
+        is_linux2 = xlang_host_is_linux();
         is_apple = link_abi_host_is_apple();
       }
       if (is_linux2 != 0 || is_apple != 0) {
@@ -1398,7 +1398,7 @@ export function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user
  * @return i32 — 1 if TLS libs were appended, 0 otherwise
  * Pure orch: pure marker/rel/flag catalogs + peer labi_append_{openssl,mbedtls}_ld_flags.
  * Cap residual: link_abi_obj_exports_marker; link_abi_realpath_cap (POSIX; Windows null ≡ mega);
- *   shux_rel_o_path_from_argv0; invoke_cc_argv_push_existing (tls_*.o only, not net_o).
+ *   xlang_rel_o_path_from_argv0; invoke_cc_argv_push_existing (tls_*.o only, not net_o).
  * Why (wave158): hybrid still had always-mega C body for net_tls -L/-l append.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * Sibling ensure_std_net_o_auto_tls pure at wave187 (Cap residual getenv+system still).
@@ -1462,7 +1462,7 @@ export function invoke_cc_append_net_tls_ld(argv: **u8, i: *i32, argv_cap: i32, 
   let rel_ssl: *u8 = labi_rel_tls_openssl_o();
   let tls_ssl: *u8 = 0 as *u8;
   unsafe {
-    tls_ssl = shux_rel_o_path_from_argv0(repo_root, rel_ssl);
+    tls_ssl = xlang_rel_o_path_from_argv0(repo_root, rel_ssl);
   }
   if (tls_ssl != 0 as *u8) {
     if (tls_ssl[0] != 0) {
@@ -1490,7 +1490,7 @@ export function invoke_cc_append_net_tls_ld(argv: **u8, i: *i32, argv_cap: i32, 
   let rel_mb: *u8 = labi_rel_tls_mbedtls_o();
   let tls_mb: *u8 = 0 as *u8;
   unsafe {
-    tls_mb = shux_rel_o_path_from_argv0(repo_root, rel_mb);
+    tls_mb = xlang_rel_o_path_from_argv0(repo_root, rel_mb);
   }
   if (tls_mb != 0 as *u8) {
     if (tls_mb[0] != 0) {
@@ -1626,15 +1626,15 @@ export function labi_net_tls_join_repo_rel(path_buf: *u8, cap: i32, repo_root: *
 }
 
 /**
- * If SHUX_NET_TLS is set and net/tls objects still lack real TLS markers, run
+ * If XLANG_NET_TLS is set and net/tls objects still lack real TLS markers, run
  * `make -C <repo>/compiler net-o-{stub,openssl,mbedtls}` (system shell Cap residual).
  * F-04 v8: OpenSSL/mbedTLS markers live in std/net/tls_*.o (not compiled into net.o).
  * Modes: stub | openssl | mbedtls | auto (default when mode string is "auto").
- * Empty/unset SHUX_NET_TLS → no-op (≡ mega).
+ * Empty/unset XLANG_NET_TLS → no-op (≡ mega).
  * @param repo_root *u8 — absolute repository root; null/empty → no-op
  * @return void — best-effort make; marker short-circuit when already built
  * Pure orch: mode strcmp + pure path join + pure make-cmd join.
- * Cap residual: link_abi_getenv (SHUX_NET_TLS pure thin → _impl; wave222);
+ * Cap residual: link_abi_getenv (XLANG_NET_TLS pure thin → _impl; wave222);
  *   link_abi_system (make shell pure thin → _impl; wave224); link_abi_realpath_cap;
  *   link_abi_obj_exports_marker (nm/marker probe).
  * Why (wave187): hybrid still had always-mega C body for auto TLS ensure orch
@@ -1656,7 +1656,7 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
   // wave222: mode from env via public pure thin getenv (not raw libc getenv).
   let mode: *u8 = 0 as *u8;
   unsafe {
-    mode = link_abi_getenv("SHUX_NET_TLS");
+    mode = link_abi_getenv("XLANG_NET_TLS");
   }
   if (mode == 0 as *u8) {
     return;
@@ -1807,24 +1807,24 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
 
 /**
  * Build formal-std ensure shell command into `cmd` (cap 768 ≡ mega).
- * Format: SHUX_FORMAL_STD_ENSURE=1 SHUX='{bin}' make -C '{repo}/compiler' '{target}'
+ * Format: XLANG_FORMAL_STD_ENSURE=1 XLANG='{bin}' make -C '{repo}/compiler' '{target}'
  * Pure byte join (G.7 reuses labi_net_tls_buf_append).
  * @param cmd *u8 — destination shell buffer
  * @param cap i32 — capacity including trailing NUL (use 768 ≡ mega)
- * @param shux_bin *u8 — absolute (or fallback) product host path for SHUX=
+ * @param xlang_bin *u8 — absolute (or fallback) product host path for XLANG=
  * @param repo_root *u8 — absolute repository root
  * @param make_target *u8 — make target relative to compiler/ (e.g. ../std/vec/vec.o)
  * @return i32 — 1 on success, 0 on overflow/null
  * Track-L: #[no_mangle] keeps surface short name for prove IDENTICAL.
  */
 #[no_mangle]
-export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, shux_bin: *u8, repo_root: *u8, make_target: *u8): i32 {
+export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, xlang_bin: *u8, repo_root: *u8, make_target: *u8): i32 {
   let pos: i32 = 0;
-  pos = labi_net_tls_buf_append(cmd, cap, pos, "SHUX_FORMAL_STD_ENSURE=1 SHUX='");
+  pos = labi_net_tls_buf_append(cmd, cap, pos, "XLANG_FORMAL_STD_ENSURE=1 XLANG='");
   if (pos < 0) {
     return 0;
   }
-  pos = labi_net_tls_buf_append(cmd, cap, pos, shux_bin);
+  pos = labi_net_tls_buf_append(cmd, cap, pos, xlang_bin);
   if (pos < 0) {
     return 0;
   }
@@ -1854,16 +1854,16 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, shux_bin: *u8
 /**
  * Ensure a formal std|core .o exists under the repo (gitignored after L4 wipe).
  * If `repo_root/rel_from_repo` is missing, run:
- *   SHUX_FORMAL_STD_ENSURE=1 SHUX='{bin}' make -C '{repo}/compiler' '{make_target}'
- * Reentrancy: nested ensure while compiling formal .o sees SHUX_FORMAL_STD_ENSURE set
+ *   XLANG_FORMAL_STD_ENSURE=1 XLANG='{bin}' make -C '{repo}/compiler' '{make_target}'
+ * Reentrancy: nested ensure while compiling formal .o sees XLANG_FORMAL_STD_ENSURE set
  * and only re-checks existence (no second make / no fork-bomb).
- * Product host binary: getenv("SHUX") if X_OK, else first of
- *   {repo}/compiler/{shux_asm,shux,shux-c} that is X_OK; realpath preferred.
+ * Product host binary: getenv("XLANG") if X_OK, else first of
+ *   {repo}/compiler/{xlang_asm,xlang,xlang-c} that is X_OK; realpath preferred.
  * @param repo_root *u8 — absolute repository root; null/empty → 0
  * @param rel_from_repo *u8 — path under repo (e.g. std/vec/vec.o); null/empty → 0
  * @param make_target *u8 — make target under compiler/ (e.g. ../std/vec/vec.o); null/empty → 0
  * @return i32 — 1 if object exists after ensure, 0 otherwise
- * Pure orch: path join + SHUX discovery loop + make-cmd join (G.7 labi_net_tls_* helpers).
+ * Pure orch: path join + XLANG discovery loop + make-cmd join (G.7 labi_net_tls_* helpers).
  * Cap residual: link_abi_getenv (pure thin → _impl; wave222); link_abi_path_executable
  *   (X_OK pure thin → _impl; wave221); link_abi_realpath_cap;
  *   link_abi_system (make shell pure thin → _impl; wave224);
@@ -1878,7 +1878,7 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, shux_bin: *u8
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc / on_demand call sites.
  */
 #[no_mangle]
-export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32 {
+export function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32 {
   if (repo_root == 0 as *u8) {
     return 0;
   }
@@ -1914,7 +1914,7 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
   // Nested ensure while compiling formal .o: do not system(make) again.
   let ensuring: *u8 = 0 as *u8;
   unsafe {
-    ensuring = link_abi_getenv("SHUX_FORMAL_STD_ENSURE");
+    ensuring = link_abi_getenv("XLANG_FORMAL_STD_ENSURE");
   }
   if (ensuring != 0 as *u8) {
     if (ensuring[0] != 0) {
@@ -1924,29 +1924,29 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
       }
     }
   }
-  // Resolve product host binary into shux_bin (realpath preferred; copy on fail).
-  let shux_bin: u8[4096] = [];
-  shux_bin[0] = 0;
-  let env_shux: *u8 = 0 as *u8;
+  // Resolve product host binary into xlang_bin (realpath preferred; copy on fail).
+  let xlang_bin: u8[4096] = [];
+  xlang_bin[0] = 0;
+  let env_xlang: *u8 = 0 as *u8;
   unsafe {
-    env_shux = link_abi_getenv("SHUX");
+    env_xlang = link_abi_getenv("XLANG");
   }
   // wave221: X_OK via public pure thin path_executable (not raw access mode).
   let found: i32 = 0;
-  if (env_shux != 0 as *u8) {
-    if (env_shux[0] != 0) {
+  if (env_xlang != 0 as *u8) {
+    if (env_xlang[0] != 0) {
       let ax: i32 = 0;
       unsafe {
-        ax = link_abi_path_executable(env_shux);
+        ax = link_abi_path_executable(env_xlang);
       }
       if (ax != 0) {
         let rp: *u8 = 0 as *u8;
         unsafe {
-          rp = link_abi_realpath_cap(env_shux, &shux_bin[0]);
+          rp = link_abi_realpath_cap(env_xlang, &xlang_bin[0]);
         }
         if (rp == 0 as *u8) {
-          // realpath fail → copy raw SHUX path (≡ mega snprintf).
-          let cp: i32 = labi_net_tls_buf_append(&shux_bin[0], 4096, 0, env_shux);
+          // realpath fail → copy raw XLANG path (≡ mega snprintf).
+          let cp: i32 = labi_net_tls_buf_append(&xlang_bin[0], 4096, 0, env_xlang);
           if (cp < 0) {
             return 0;
           }
@@ -1956,19 +1956,19 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
     }
   }
   if (found == 0) {
-    // Fallback: {repo}/compiler/{shux_asm,shux,shux-c} first X_OK hit.
+    // Fallback: {repo}/compiler/{xlang_asm,xlang,xlang-c} first X_OK hit.
     let cand: u8[4096] = [];
     let i: i32 = 0;
     while (i < 3) {
       let name: *u8 = 0 as *u8;
       if (i == 0) {
-        name = "shux_asm";
+        name = "xlang_asm";
       }
       if (i == 1) {
-        name = "shux";
+        name = "xlang";
       }
       if (i == 2) {
-        name = "shux-c";
+        name = "xlang-c";
       }
       // cand = repo_root + "/compiler/" + name
       let pos: i32 = 0;
@@ -1994,10 +1994,10 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
       if (ax2 != 0) {
         let rp2: *u8 = 0 as *u8;
         unsafe {
-          rp2 = link_abi_realpath_cap(&cand[0], &shux_bin[0]);
+          rp2 = link_abi_realpath_cap(&cand[0], &xlang_bin[0]);
         }
         if (rp2 == 0 as *u8) {
-          let cp2: i32 = labi_net_tls_buf_append(&shux_bin[0], 4096, 0, &cand[0]);
+          let cp2: i32 = labi_net_tls_buf_append(&xlang_bin[0], 4096, 0, &cand[0]);
           if (cp2 < 0) {
             return 0;
           }
@@ -2011,13 +2011,13 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
   if (found == 0) {
     return 0;
   }
-  if (shux_bin[0] == 0) {
+  if (xlang_bin[0] == 0) {
     return 0;
   }
   // freestanding host system residual = fork+execvp sh -c; PATH fixed in invoke_cc child too.
   // wave224 G.7: public pure thin link_abi_system (not raw libc system).
   let cmd: u8[768] = [];
-  let ok: i32 = labi_formal_std_build_make_cmd(&cmd[0], 768, &shux_bin[0], repo_root, make_target);
+  let ok: i32 = labi_formal_std_build_make_cmd(&cmd[0], 768, &xlang_bin[0], repo_root, make_target);
   if (ok == 0) {
     return 0;
   }
@@ -2079,8 +2079,8 @@ export function labi_std_rel_is_std_or_core(rel: *u8): i32 {
  * (L4 wipe restores via Makefile) and push companion .o when rel needs them.
  * Pure orch:
  *   1) reject null/non-std-core rel
- *   2) Cap residual shux_repo_root_from_argv0 → pure make_tgt="../"+rel
- *   3) peer pure shux_ensure_formal_std_make_o(root, rel, make_tgt)
+ *   2) Cap residual xlang_repo_root_from_argv0 → pure make_tgt="../"+rel
+ *   3) peer pure xlang_ensure_formal_std_make_o(root, rel, make_tgt)
  *   4) companions (exact rel match ≡ mega strstr on plan exact paths):
  *        vec/set/map → ensure+push heap.o + core/mem/mem.o
  *        env.o → ensure+push runtime_env_os.o
@@ -2095,7 +2095,7 @@ export function labi_std_rel_is_std_or_core(rel: *u8): i32 {
  * @param argv **u8 — ld argv table
  * @param la *i32 — in/out argv length
  * @param max_la i32 — argv capacity
- * Cap residual: shux_repo_root_from_argv0; ensure_runtime_{env_os,random_fill,time_os}_o
+ * Cap residual: xlang_repo_root_from_argv0; ensure_runtime_{env_os,random_fill,time_os}_o
  *   + *_o_path; peer pure formal_std_make + link_abi_asm_ld_push_obj.
  * Why (wave191): hybrid still had formal ensure+companions always-mega inline in
  *   append_std_objs_for_user OP_STD (soft residual after wave188 formal_std_make pure
@@ -2121,7 +2121,7 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   }
   let include_root: *u8 = 0 as *u8;
   unsafe {
-    include_root = shux_repo_root_from_argv0(link_argv0);
+    include_root = xlang_repo_root_from_argv0(link_argv0);
   }
   if (include_root == 0 as *u8) {
     return;
@@ -2143,7 +2143,7 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   // Ensure the formal .o for this plan step (L4 wipe recovery).
   let _ens: i32 = 0;
   unsafe {
-    _ens = shux_ensure_formal_std_make_o(include_root, rel, &make_tgt[0]);
+    _ens = xlang_ensure_formal_std_make_o(include_root, rel, &make_tgt[0]);
   }
   // Guard lib_roots / argv null via *u8 cast (wave147+ style).
   let ab: *u8 = argv as *u8;
@@ -2172,8 +2172,8 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
     let _h: i32 = 0;
     let _m: i32 = 0;
     unsafe {
-      _h = shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-      _m = shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+      _h = xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      _m = xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
     }
     if (ab != 0 as *u8) {
       if (la != 0 as *i32) {
@@ -2194,14 +2194,14 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   if (eq_env == 0) {
     let er: i32 = 0;
     unsafe {
-      er = shux_ensure_runtime_env_os_o(link_argv0);
+      er = xlang_ensure_runtime_env_os_o(link_argv0);
     }
     if (er == 0) {
       if (ab != 0 as *u8) {
         if (la != 0 as *i32) {
           let env_p: *u8 = 0 as *u8;
           unsafe {
-            env_p = shux_runtime_env_os_o_path(link_argv0);
+            env_p = xlang_runtime_env_os_o_path(link_argv0);
           }
           let _pe: i32 = 0;
           unsafe {
@@ -2219,14 +2219,14 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   if (eq_rnd == 0) {
     let rr: i32 = 0;
     unsafe {
-      rr = shux_ensure_runtime_random_fill_o(link_argv0);
+      rr = xlang_ensure_runtime_random_fill_o(link_argv0);
     }
     if (rr == 0) {
       if (ab != 0 as *u8) {
         if (la != 0 as *i32) {
           let rnd_p: *u8 = 0 as *u8;
           unsafe {
-            rnd_p = shux_runtime_random_fill_o_path(link_argv0);
+            rnd_p = xlang_runtime_random_fill_o_path(link_argv0);
           }
           let _pr: i32 = 0;
           unsafe {
@@ -2244,14 +2244,14 @@ export function labi_std_append_formal_ensure_for_rel(link_argv0: *u8, rel: *u8,
   if (eq_tm == 0) {
     let tr: i32 = 0;
     unsafe {
-      tr = shux_ensure_runtime_time_os_o(link_argv0);
+      tr = xlang_ensure_runtime_time_os_o(link_argv0);
     }
     if (tr == 0) {
       if (ab != 0 as *u8) {
         if (la != 0 as *i32) {
           let tm_p: *u8 = 0 as *u8;
           unsafe {
-            tm_p = shux_runtime_time_os_o_path(link_argv0);
+            tm_p = xlang_runtime_time_os_o_path(link_argv0);
           }
           let _pt: i32 = 0;
           unsafe {
@@ -2360,8 +2360,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_thread_glue_o(link_argv0);
-      p = shux_runtime_thread_glue_o_path(link_argv0);
+      er = xlang_ensure_runtime_thread_glue_o(link_argv0);
+      p = xlang_runtime_thread_glue_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2373,10 +2373,10 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er2: i32 = 0;
     let p2: *u8 = 0 as *u8;
     unsafe {
-      er1 = shux_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
-      p1 = shux_runtime_sync_lock_diag_tls_o_path(link_argv0);
-      er2 = shux_ensure_runtime_sync_os_o(link_argv0);
-      p2 = shux_runtime_sync_os_o_path(link_argv0);
+      er1 = xlang_ensure_runtime_sync_lock_diag_tls_o(link_argv0);
+      p1 = xlang_runtime_sync_lock_diag_tls_o_path(link_argv0);
+      er2 = xlang_ensure_runtime_sync_os_o(link_argv0);
+      p2 = xlang_runtime_sync_os_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er1, p1, link_argv0, "compiler/runtime_sync_lock_diag_tls.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     labi_std_glue_push_if(1, er2, p2, link_argv0, "compiler/runtime_sync_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
@@ -2389,10 +2389,10 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er2: i32 = 0;
     let p2: *u8 = 0 as *u8;
     unsafe {
-      er1 = shux_ensure_runtime_ed25519_ref10_glue_o(link_argv0);
-      p1 = shux_runtime_ed25519_ref10_glue_o_path(link_argv0);
-      er2 = shux_ensure_runtime_crypto_inc_glue_o(link_argv0);
-      p2 = shux_runtime_crypto_inc_glue_o_path(link_argv0);
+      er1 = xlang_ensure_runtime_ed25519_ref10_glue_o(link_argv0);
+      p1 = xlang_runtime_ed25519_ref10_glue_o_path(link_argv0);
+      er2 = xlang_ensure_runtime_crypto_inc_glue_o(link_argv0);
+      p2 = xlang_runtime_crypto_inc_glue_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er1, p1, link_argv0, "compiler/runtime_ed25519_ref10_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     labi_std_glue_push_if(1, er2, p2, link_argv0, "compiler/runtime_crypto_inc_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
@@ -2406,8 +2406,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_log_os_o(link_argv0);
-      p = shux_runtime_log_os_o_path(link_argv0);
+      er = xlang_ensure_runtime_log_os_o(link_argv0);
+      p = xlang_runtime_log_os_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2420,8 +2420,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_atomic_glue_o(link_argv0);
-      p = shux_runtime_atomic_glue_o_path(link_argv0);
+      er = xlang_ensure_runtime_atomic_glue_o(link_argv0);
+      p = xlang_runtime_atomic_glue_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2434,8 +2434,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_channel_glue_o(link_argv0);
-      p = shux_runtime_channel_glue_o_path(link_argv0);
+      er = xlang_ensure_runtime_channel_glue_o(link_argv0);
+      p = xlang_runtime_channel_glue_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2448,8 +2448,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_backtrace_platform_o(link_argv0);
-      p = shux_runtime_backtrace_platform_o_path(link_argv0);
+      er = xlang_ensure_runtime_backtrace_platform_o(link_argv0);
+      p = xlang_runtime_backtrace_platform_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2462,8 +2462,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_math_libm_o(link_argv0);
-      p = shux_runtime_math_libm_o_path(link_argv0);
+      er = xlang_ensure_runtime_math_libm_o(link_argv0);
+      p = xlang_runtime_math_libm_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2476,8 +2476,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_sqlite_glue_o(link_argv0);
-      p = shux_runtime_sqlite_glue_o_path(link_argv0);
+      er = xlang_ensure_runtime_sqlite_glue_o(link_argv0);
+      p = xlang_runtime_sqlite_glue_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2490,8 +2490,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_dynlib_os_o(link_argv0);
-      p = shux_runtime_dynlib_os_o_path(link_argv0);
+      er = xlang_ensure_runtime_dynlib_os_o(link_argv0);
+      p = xlang_runtime_dynlib_os_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2504,8 +2504,8 @@ export function labi_std_append_glue_for_op(op: i32, have: i32, link_argv0: *u8,
     let er: i32 = 0;
     let p: *u8 = 0 as *u8;
     unsafe {
-      er = shux_ensure_runtime_http_glue_o(link_argv0);
-      p = shux_runtime_http_glue_o_path(link_argv0);
+      er = xlang_ensure_runtime_http_glue_o(link_argv0);
+      p = xlang_runtime_http_glue_o_path(link_argv0);
     }
     labi_std_glue_push_if(1, er, p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     return;
@@ -2557,7 +2557,7 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
     }
     let p: *u8 = 0 as *u8;
     unsafe {
-      p = shux_runtime_asm_io_stubs_o_path(link_argv0);
+      p = xlang_runtime_asm_io_stubs_o_path(link_argv0);
     }
     let ab: *u8 = argv as *u8;
     if (ab != 0 as *u8) {
@@ -2577,7 +2577,7 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
     }
     let p: *u8 = 0 as *u8;
     unsafe {
-      p = shux_runtime_panic_o_path(link_argv0);
+      p = xlang_runtime_panic_o_path(link_argv0);
     }
     let ab: *u8 = argv as *u8;
     if (ab != 0 as *u8) {
@@ -2605,8 +2605,8 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
     let p: *u8 = 0 as *u8;
     let _e: i32 = 0;
     unsafe {
-      _e = shux_ensure_runtime_time_os_o(link_argv0);
-      p = shux_runtime_time_os_o_path(link_argv0);
+      _e = xlang_ensure_runtime_time_os_o(link_argv0);
+      p = xlang_runtime_time_os_o_path(link_argv0);
     }
     let ab: *u8 = argv as *u8;
     if (ab != 0 as *u8) {
@@ -2634,8 +2634,8 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
     let p: *u8 = 0 as *u8;
     let _e: i32 = 0;
     unsafe {
-      _e = shux_ensure_runtime_random_fill_o(link_argv0);
-      p = shux_runtime_random_fill_o_path(link_argv0);
+      _e = xlang_ensure_runtime_random_fill_o(link_argv0);
+      p = xlang_runtime_random_fill_o_path(link_argv0);
     }
     let ab: *u8 = argv as *u8;
     if (ab != 0 as *u8) {
@@ -2663,8 +2663,8 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
     let p: *u8 = 0 as *u8;
     let _e: i32 = 0;
     unsafe {
-      _e = shux_ensure_runtime_env_os_o(link_argv0);
-      p = shux_runtime_env_os_o_path(link_argv0);
+      _e = xlang_ensure_runtime_env_os_o(link_argv0);
+      p = xlang_runtime_env_os_o_path(link_argv0);
     }
     let ab: *u8 = argv as *u8;
     if (ab != 0 as *u8) {
@@ -2681,7 +2681,7 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
 
 /**
  * When heavy std/runtime leaves already on ld argv but process.o was not pushed,
- * ensure+push runtime_process_argv.o so weak process_arg*_c resolve to process_shux_*.
+ * ensure+push runtime_process_argv.o so weak process_arg*_c resolve to process_xlang_*.
  * Pure orch: need gate → Cap residual ensure → path → peer push_obj.
  * Caller computes need as (have_atomic|have_log|…|flags.have_*) && !have_process
  * (must NOT dual-link with process.o — have_process=1 suppresses this).
@@ -2693,7 +2693,7 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
  * @param argv **u8 — ld argv table
  * @param la *i32 — in/out argv length
  * @param max_la i32 — argv capacity
- * Cap residual: shux_ensure_runtime_process_argv_o + peer path + push_obj.
+ * Cap residual: xlang_ensure_runtime_process_argv_o + peer path + push_obj.
  * Why (wave193): hybrid still had process_argv complement always-mega inline after plan loop.
  * G.7: complete existing C-backend process_argv path; no second plan table.
  * Note: export signature must stay single-line.
@@ -2711,8 +2711,8 @@ export function labi_std_append_process_argv_if(need: i32, link_argv0: *u8, lib_
   let p: *u8 = 0 as *u8;
   let _e: i32 = 0;
   unsafe {
-    _e = shux_ensure_runtime_process_argv_o(link_argv0);
-    p = shux_runtime_process_argv_o_path(link_argv0);
+    _e = xlang_ensure_runtime_process_argv_o(link_argv0);
+    p = xlang_runtime_process_argv_o_path(link_argv0);
   }
   let ab: *u8 = argv as *u8;
   if (ab == 0 as *u8) {
@@ -2751,7 +2751,7 @@ export function labi_std_append_process_argv_if(need: i32, link_argv0: *u8, lib_
  * @param argv **u8 — ld argv table
  * @param la *i32 — in/out argv length
  * @param max_la i32 — argv capacity
- * Cap residual: shux_repo_root_from_argv0 + formal_std_make + skip_missing + rel_o_path +
+ * Cap residual: xlang_repo_root_from_argv0 + formal_std_make + skip_missing + rel_o_path +
  *   ensure_runtime_scheduler_glue_o + path peers; peer pure scheduler rewrite / push_stable /
  *   try_under / needs_std_task.
  * Why (wave194): hybrid still had TASK_SPECIAL always-mega inline after wave193 primary.
@@ -2800,7 +2800,7 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
     if (user_o[0] != 0) {
       let include_root: *u8 = 0 as *u8;
       unsafe {
-        include_root = shux_repo_root_from_argv0(link_argv0);
+        include_root = xlang_repo_root_from_argv0(link_argv0);
       }
       if (include_root != 0 as *u8) {
         if (include_root[0] != 0) {
@@ -2813,7 +2813,7 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
           if (pos >= 0) {
             let _ens: i32 = 0;
             unsafe {
-              _ens = shux_ensure_formal_std_make_o(include_root, task_rel, &make_tgt[0]);
+              _ens = xlang_ensure_formal_std_make_o(include_root, task_rel, &make_tgt[0]);
             }
             if (_ens == 0) {
               // keep ensure result live for typeck; failure still falls through to resolve.
@@ -2827,7 +2827,7 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
   let p: *u8 = 0 as *u8;
   let relp: *u8 = 0 as *u8;
   unsafe {
-    relp = shux_rel_o_path_from_argv0(link_argv0, task_rel);
+    relp = xlang_rel_o_path_from_argv0(link_argv0, task_rel);
   }
   if (relp != 0 as *u8) {
     unsafe {
@@ -2837,7 +2837,7 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
   if (p == 0 as *u8) {
     if (bank != 0 as *u8) {
       unsafe {
-        p = shux_asm_ld_try_under_lib_roots(task_rel, lib_roots, n_lib_roots, bank);
+        p = xlang_asm_ld_try_under_lib_roots(task_rel, lib_roots, n_lib_roots, bank);
       }
     }
   }
@@ -2856,7 +2856,7 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
   if (sched == 0 as *u8) {
     let sp: *u8 = 0 as *u8;
     unsafe {
-      sp = shux_std_async_scheduler_o_path(link_argv0);
+      sp = xlang_std_async_scheduler_o_path(link_argv0);
     }
     if (sp != 0 as *u8) {
       unsafe {
@@ -2867,7 +2867,7 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
   if (sched == 0 as *u8) {
     if (bank != 0 as *u8) {
       unsafe {
-        sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+        sched = xlang_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
       }
     }
   }
@@ -2880,12 +2880,12 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
   // runtime_scheduler_glue.o (only when scheduler was resolved; ≡ mega nested under sched).
   let _eg: i32 = 0;
   unsafe {
-    _eg = shux_ensure_runtime_scheduler_glue_o(link_argv0);
+    _eg = xlang_ensure_runtime_scheduler_glue_o(link_argv0);
   }
   let rsg: *u8 = 0 as *u8;
   let gp: *u8 = 0 as *u8;
   unsafe {
-    gp = shux_runtime_scheduler_glue_o_path(link_argv0);
+    gp = xlang_runtime_scheduler_glue_o_path(link_argv0);
   }
   if (gp != 0 as *u8) {
     unsafe {
@@ -2895,7 +2895,7 @@ export function labi_std_append_task_special(link_argv0: *u8, user_o: *u8, rel: 
   if (rsg == 0 as *u8) {
     if (bank != 0 as *u8) {
       unsafe {
-        rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
+        rsg = xlang_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
       }
     }
   }
@@ -3213,7 +3213,7 @@ function labi_std_need_process_argv(flags: *u8, local_have: *i32): i32 {
  * Track-L: #[no_mangle] product short name (mega call sites / old wrapper).
  */
 #[no_mangle]
-export function shux_asm_ld_append_std_objs_for_user(link_argv0: *u8, user_o: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void {
+export function xlang_asm_ld_append_std_objs_for_user(link_argv0: *u8, user_o: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void {
   // local_have bank: [0]process [1]crypto [2]log [3]atomic [4]backtrace [5]http.
   let local_have: i32[6] = [];
   local_have[0] = 0;

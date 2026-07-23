@@ -24,14 +24,14 @@ C_OK=0
 if nm "$DT_O" 2>/dev/null | grep -qF 'datetime_timezone_smoke_c'; then
   std_datetime_timezone_run_c_smoke "$DT_O" "$TIME_O" && C_OK=1 || exit 1
 else
-  echo "std-datetime-timezone gate SKIP c smoke (datetime.o missing x symbols; need shux-c)" >&2
+  echo "std-datetime-timezone gate SKIP c smoke (datetime.o missing x symbols; need xlang-c)" >&2
   SKIP=1
 fi
 X_OK=0
 SKIP=${SKIP:-0}
-if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_datetime_timezone_run_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_datetime_timezone_run_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi

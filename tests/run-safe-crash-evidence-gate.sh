@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_SAFE_CRASH_DOC:-analysis/safe-crash-evidence-v1.md}"
-MANIFEST="${SHUX_SAFE_CRASH_MANIFEST:-tests/baseline/safe-crash-evidence.tsv}"
+DOC="${XLANG_SAFE_CRASH_DOC:-analysis/safe-crash-evidence-v1.md}"
+MANIFEST="${XLANG_SAFE_CRASH_MANIFEST:-tests/baseline/safe-crash-evidence.tsv}"
 MIN_CASES=2
 
 # shellcheck source=tests/lib/safe-crash.sh
@@ -67,13 +67,13 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
         MISS=$((MISS + 1))
       fi
       if [ "$item_id" = "impl_c" ]; then
-        if ! grep -qF 'shux_crash_evidence_collect_c' compiler/seeds/runtime_backtrace_platform.from_x.c 2>/dev/null; then
+        if ! grep -qF 'xlang_crash_evidence_collect_c' compiler/seeds/runtime_backtrace_platform.from_x.c 2>/dev/null; then
           echo "safe-crash FAIL: missing collect impl" >&2
           MISS=$((MISS + 1))
         fi
       fi
       if [ "$item_id" = "impl_panic" ]; then
-        if ! grep -qF 'shux_crash_evidence_collect_c' compiler/seeds/runtime_panic.from_x.c 2>/dev/null; then
+        if ! grep -qF 'xlang_crash_evidence_collect_c' compiler/seeds/runtime_panic.from_x.c 2>/dev/null; then
           echo "safe-crash FAIL: panic hook missing" >&2
           MISS=$((MISS + 1))
         fi
@@ -121,7 +121,7 @@ if [ "$CASE_N" -lt "$MIN_CASES" ]; then
   exit 1
 fi
 
-for kw in crash evidence SHUX_CRASH_EVIDENCE bundle runnable replay; do
+for kw in crash evidence XLANG_CRASH_EVIDENCE bundle runnable replay; do
   if ! grep -qiF "$kw" "$DOC" 2>/dev/null; then
     echo "safe-crash-evidence gate FAIL: doc missing keyword $kw" >&2
     exit 1
@@ -134,26 +134,26 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "safe-crash-evidence manifest OK (cases=${CASE_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
   chmod +x tests/run-safe-crash-evidence.sh
-  if SHUX="$SHUX_BIN" SHUX_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh | tee /tmp/safe_crash_smoke.log; then
+  if XLANG="$XLANG_BIN" XLANG_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh | tee /tmp/safe_crash_smoke.log; then
     grep -q 'safe-crash-evidence OK' /tmp/safe_crash_smoke.log
   else
     echo "safe-crash-evidence gate FAIL: runner" >&2
     exit 1
   fi
 else
-  echo "safe-crash-evidence gate SKIP runner (no native shux)" >&2
+  echo "safe-crash-evidence gate SKIP runner (no native xlang)" >&2
 fi
 
 echo "safe-crash-evidence gate OK"

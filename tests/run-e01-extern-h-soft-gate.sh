@@ -2,11 +2,11 @@
 # E-01：LSP extern .h 软退役门禁（文件不删 / 不参与 -include 编译）。
 #
 # 用法：./tests/run-e01-extern-h-soft-gate.sh
-# 环境：SHUX_E01_FAIL=1 — 失败时硬退出
+# 环境：XLANG_E01_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_E01_FAIL:-0}
+FAIL=${XLANG_E01_FAIL:-0}
 DOC="analysis/phase-e-soft-v1.md"
 LSP_EXTERN_C="compiler/seeds/runtime_driver_strict_glue_stubs.from_x.c"
 

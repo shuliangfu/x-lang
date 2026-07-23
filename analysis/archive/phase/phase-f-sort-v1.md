@@ -7,7 +7,7 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `sort.c`（qsort + malloc） | `sort.x`（快排 + 归并 + libc malloc/free extern） |
-| `sort.o` | `cc -c sort.c` | `shux -backend asm sort.x` |
+| `sort.o` | `cc -c sort.c` | `xlang -backend asm sort.x` |
 | 比较器 | C 函数指针地址 | v1 **内建 cmp id**（`usize` 1/2/3；与 `cmp_*_fn()` 配套） |
 | 存量 | std 89 `.c` | std **88** `.c` |
 
@@ -26,7 +26,7 @@ make -C compiler ../std/sort/sort.o
 ## 门禁
 
 ```bash
-SHUX_F_SORT_V1_FAIL=1 ./tests/run-f-sort-v1-gate.sh
+XLANG_F_SORT_V1_FAIL=1 ./tests/run-f-sort-v1-gate.sh
 ./tests/run-std-sort-stable-cmp-gate.sh
 ./tests/run-std-sort-key-cmp-gate.sh
 ```

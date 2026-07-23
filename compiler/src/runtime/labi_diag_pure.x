@@ -38,12 +38,12 @@ export extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i
  * vector; typed as *u8 (opaque pointer) so product codegen emits the export body
  * (export fn with **u8 params currently drops the body — G.7 keep *u8 ABI-width).
  * PLATFORM: SHARED residual contract / POSIX fork / WINDOWS _spawnvp. */
-export extern "C" function shux_spawn_sync_impl(prog: *u8, argv: *u8): i32;
+export extern "C" function xlang_spawn_sync_impl(prog: *u8, argv: *u8): i32;
 
 /* Cap residual (wave220): best-effort `strip -x out` (local argv pack + spawn).
  * Public pure thin owns null/empty out_path gates under hybrid L1.
  * Pure cannot safely build **u8 argv tables in product codegen — residual packs
- * sargv[4] and calls public shux_spawn_sync (POSIX) or _spawnvp (Windows).
+ * sargv[4] and calls public xlang_spawn_sync (POSIX) or _spawnvp (Windows).
  * PLATFORM: SHARED residual contract / POSIX strip via spawn / WINDOWS _spawnvp. */
 export extern "C" function invoke_cc_strip_out_x_impl(out_path: *u8): void;
 
@@ -345,7 +345,7 @@ export function link_diag_freestanding_unsupported(): void {
   let code: *u8 = 0 as *u8;
   msg[0] = 0;
   /* See signature and body for contracts. */
-  labi_diag_append(&msg[0], 192, "-freestanding / SHUX_FREESTANDING is only supported for ");
+  labi_diag_append(&msg[0], 192, "-freestanding / XLANG_FREESTANDING is only supported for ");
   labi_diag_append(&msg[0], 192, "Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)");
   kind = "link error";
   code = "BLD001";
@@ -414,7 +414,7 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
  * @param status i32 — raw wait status (not a plain exit code)
  * @return void
  * wave112: closes soft Cap residual "tool_status body always mega reportf under hybrid".
- * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  */
 #[no_mangle]
 export function link_diag_tool_status(tool: *u8, status: i32): void {
@@ -456,7 +456,7 @@ export function link_diag_tool_status(tool: *u8, status: i32): void {
  * @param status i32 — raw wait status (or synthetic -1 when no wait word)
  * @return void
  * wave112: closes soft Cap residual "obj_build_status body always mega reportf under hybrid".
- * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  */
 #[no_mangle]
 export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): void {
@@ -500,7 +500,7 @@ export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): 
  * @param op *u8 — failed operation label
  * @return void
  * wave113: closes soft Cap residual "link_diag_errno body always mega reportf under hybrid".
- * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  */
 #[no_mangle]
 export function link_diag_errno(kind: *u8, op: *u8): void {
@@ -544,7 +544,7 @@ export function link_diag_errno(kind: *u8, op: *u8): void {
  * @param path *u8 — path involved in the failure
  * @return void
  * wave113: closes soft Cap residual "link_diag_errno_path body always mega reportf".
- * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  */
 #[no_mangle]
 export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
@@ -592,7 +592,7 @@ export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
 /**
  * Parse a classic `perror`-style link/process message and report via pure
  * `link_diag_errno` / `link_diag_errno_path` (wave113).
- * Accepts optional leading `shux: ` prefix. If the remaining text ends with
+ * Accepts optional leading `xlang: ` prefix. If the remaining text ends with
  * `op (path)` (last `(` / `)` with trailing NUL after `)`), splits into op + path
  * for `link_diag_errno_path`; otherwise reports the whole remaining text as op.
  * Null/empty msg → `system call` with no path.
@@ -601,10 +601,10 @@ export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
  * Cap residual: pure thin `link_diag_strerror_current` → `_impl` (errno+strerror;
  * mega always; wave217). Pure owns prefix strip + paren split + message orch.
  * wave111: perror body pure; wave113: errno/_path message body pure.
- * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  */
 #[no_mangle]
-export function shux_link_perror(msg: *u8): void {
+export function xlang_link_perror(msg: *u8): void {
   let pe: *u8 = "process error";
   let sc: *u8 = "system call";
   let base: *u8 = msg;
@@ -630,7 +630,7 @@ export function shux_link_perror(msg: *u8): void {
     return;
   }
 
-  /* Optional "shux: " prefix (6 ASCII bytes). Nested checks keep short strings
+  /* Optional "xlang: " prefix (6 ASCII bytes). Nested checks keep short strings
    * from reading past NUL (same short-circuit intent as C strncmp). */
   if (base[0] == 115) {
     if (base[1] == 104) {
@@ -780,21 +780,21 @@ export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
 /**
  * Synchronously run prog with argv (PATH lookup); wait for exit 0.
  * Thin pure public: null/empty prog or null argv → -1 without residual.
- * Cap residual `shux_spawn_sync_impl` holds fork+execvp+waitpid (POSIX) or
+ * Cap residual `xlang_spawn_sync_impl` holds fork+execvp+waitpid (POSIX) or
  * `_spawnvp` (Windows). Uses public `shu_waitpid_retry` inside residual.
  * @param prog *u8 — program name for PATH lookup; null/empty rejected at pure gate
  * @param argv *u8 — opaque pointer to NULL-terminated argv vector (C char** width);
  *   typed *u8 so product codegen emits the body (see export-extern note above)
  * @return i32 — 0 on child exit 0; non-zero failure (-1 or child status)
  * Pure orch: ≡ mega public thin before Cap residual spawn body (wave219).
- * Why (wave219): hybrid still had shux_spawn_sync body always mega C
+ * Why (wave219): hybrid still had xlang_spawn_sync body always mega C
  * (fork/exec/wait or _spawnvp); G.7 single public authority under L1 hybrid.
- * Cap residual: shux_spawn_sync_impl (mega always).
+ * Cap residual: xlang_spawn_sync_impl (mega always).
  * PLATFORM: SHARED orch; residual is POSIX fork/exec or WINDOWS _spawnvp.
  * Track-L: #[no_mangle] keeps short surface name for invoke_cc / ld / strip callers.
  */
 #[no_mangle]
-export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
+export function xlang_spawn_sync(prog: *u8, argv: *u8): i32 {
   if (prog == 0 as *u8) {
     return 0 - 1;
   }
@@ -805,7 +805,7 @@ export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
     return 0 - 1;
   }
   unsafe {
-    return shux_spawn_sync_impl(prog, argv);
+    return xlang_spawn_sync_impl(prog, argv);
   }
   return 0 - 1;
 }
@@ -814,7 +814,7 @@ export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
  * Best-effort `strip -x out_path` after successful cc link (local symbols only).
  * Thin pure public: null/empty out_path → no-op without residual.
  * Cap residual `invoke_cc_strip_out_x_impl` packs strip argv and spawns strip
- * (POSIX via public shux_spawn_sync; Windows via _spawnvp).
+ * (POSIX via public xlang_spawn_sync; Windows via _spawnvp).
  * Why strip -x not bare strip: Darwin bare strip drops _main globals → nm/otool false red.
  * @param out_path *u8 — linked product path; null/empty rejected at pure gate
  * @return void — strip failure ignored (≡ mega (void)spawn / (void)_spawnvp)
@@ -847,7 +847,7 @@ export function invoke_cc_strip_out_x(out_path: *u8): void {
  * Cap residual: link_abi_getenv_impl (host getenv; mega always).
  * Why (wave222): formal_std / ensure_std_net still used raw getenv under hybrid;
  * G.7 single public authority under L1 hybrid (sibling of strerror_current libc face).
- * Product ensure orch (SHUX / SHUX_FORMAL_STD_ENSURE / SHUX_NET_TLS) uses this face.
+ * Product ensure orch (XLANG / XLANG_FORMAL_STD_ENSURE / XLANG_NET_TLS) uses this face.
  * PLATFORM: SHARED orch; residual is host libc getenv (process environment).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
@@ -874,7 +874,7 @@ export function link_abi_getenv(name: *u8): *u8 {
  * Cap residual: link_abi_system_impl (host system; mega always).
  * Why (wave224): ensure_std_net / formal_std_make still used raw system under hybrid;
  * G.7 single public authority under L1 hybrid (sibling of link_abi_getenv libc face).
- * Product ensure orch (net-o-* make / formal SHUX make) uses this face.
+ * Product ensure orch (net-o-* make / formal XLANG make) uses this face.
  * PLATFORM: SHARED orch; residual is host libc system (shell / process boundary).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
@@ -893,10 +893,10 @@ export function link_abi_system(cmd: *u8): i32 {
 }
 
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
- * wave111: shux_link_perror is extra pure orch (not counted in the original 9).
+ * wave111: xlang_link_perror is extra pure orch (not counted in the original 9).
  * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9).
  * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra.
- * wave219: shux_spawn_sync pure thin is extra (not counted in the original 9).
+ * wave219: xlang_spawn_sync pure thin is extra (not counted in the original 9).
  * wave220: invoke_cc_strip_out_x pure thin is extra (not counted in the original 9).
  * wave222: link_abi_getenv pure thin is extra (not counted in the original 9).
  * wave224: link_abi_system pure thin is extra (not counted in the original 9). */

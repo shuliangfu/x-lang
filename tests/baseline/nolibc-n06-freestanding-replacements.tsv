@@ -18,8 +18,8 @@ replace_net	x_replacement	std/net/freestanding_linux.x	grep	freestanding_net_ava
 replace_net_legacy	removed	std/net/net.c	absent	F-04 v14 删除；hosted net.o 纯 .x+胶层
 socket_smoke	smoke	tests/sys/linux_socket_invoke_smoke.x	smoke_import	std.net.freestanding_linux
 socket_gate	gate_ref	tests/run-no-libc-socket-gate.sh	gate_ref	NL-02
-bootstrap_fs_o	compiler_track	compiler/scripts/build_shux_asm.sh	grep	F-06 v1：fs/io/heap 已纯 .x
-bootstrap_heap_o	compiler_track	compiler/scripts/build_shux_asm.sh	grep	F-06 v1
-bootstrap_io_o	compiler_track	compiler/scripts/build_shux_asm.sh	grep	F-06 v1
+bootstrap_fs_o	compiler_track	compiler/scripts/build_xlang_asm.sh	grep	F-06 v1：fs/io/heap 已纯 .x
+bootstrap_heap_o	compiler_track	compiler/scripts/build_xlang_asm.sh	grep	F-06 v1
+bootstrap_io_o	compiler_track	compiler/scripts/build_xlang_asm.sh	grep	F-06 v1
 f06_gate	gate_ref	tests/run-f06-runtime-std-o-cleanup-gate.sh	gate_ref	F-06 v1 专 gate
 f07_gate	gate_ref	tests/run-f07-no-cc-std-migrated-gate.sh	gate_ref	F-07 v1 专 gate

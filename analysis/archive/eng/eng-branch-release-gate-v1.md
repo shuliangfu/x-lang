@@ -48,7 +48,7 @@ GitHub 分支保护（仓库管理员在 UI 配置，本仓库 gate 校验 workf
 ```bash
 ./tests/run-eng-release-precheck.sh
 # 可选：指定 tag + 要求干净工作区
-SHUX_RELEASE_TAG=v0.2.0 SHUX_RELEASE_REQUIRE_CLEAN=1 ./tests/run-eng-release-precheck.sh
+XLANG_RELEASE_TAG=v0.2.0 XLANG_RELEASE_REQUIRE_CLEAN=1 ./tests/run-eng-release-precheck.sh
 ```
 
 4. 按 `tests/templates/eng-release-checklist.txt` 勾选人工项  
@@ -57,7 +57,7 @@ SHUX_RELEASE_TAG=v0.2.0 SHUX_RELEASE_REQUIRE_CLEAN=1 ./tests/run-eng-release-pre
 **全量便携回归**（可选，发布前夜跑或本地）：
 
 ```bash
-SHUX_RELEASE_FULL=1 ./tests/run-eng-release-precheck.sh
+XLANG_RELEASE_FULL=1 ./tests/run-eng-release-precheck.sh
 ```
 
 ---
@@ -70,10 +70,10 @@ SHUX_RELEASE_FULL=1 ./tests/run-eng-release-precheck.sh
 |------|------|
 | manifest | RFC + checklist 模板 + lib + 脚本存在 |
 | 分支锚点 | `ci.yml` 含 `push: dev` 与 `pull_request: main` |
-| Tag | `SHUX_RELEASE_TAG` 设则须匹配 `vX.Y.Z` |
-| 工作区 | `SHUX_RELEASE_REQUIRE_CLEAN=1` 时 git 无未提交变更 |
+| Tag | `XLANG_RELEASE_TAG` 设则须匹配 `vX.Y.Z` |
+| 工作区 | `XLANG_RELEASE_REQUIRE_CLEAN=1` 时 git 无未提交变更 |
 | 快速 gate | baseline 治理 / quality gate / cross-platform CI / 本 gate |
-| 全量 | `SHUX_RELEASE_FULL=1` 时跑 `run-portable-suite.sh` |
+| 全量 | `XLANG_RELEASE_FULL=1` 时跑 `run-portable-suite.sh` |
 
 预检默认执行的 gate（manifest `release_gate`）：
 
@@ -81,7 +81,7 @@ SHUX_RELEASE_FULL=1 ./tests/run-eng-release-precheck.sh
 - `tests/run-eng-quality-gate-gate.sh`
 - `tests/run-eng-crossplatform-ci-gate.sh`
 
-输出前缀：`shux: [SHUX_RELEASE_PRECHECK]`
+输出前缀：`xlang: [XLANG_RELEASE_PRECHECK]`
 
 ---
 

@@ -29,7 +29,7 @@
 | `net_mixed_conns_requests` | **混合** | 256×16×512B | client | C / **Zig** client + P99 |
 | `net_udp_many` | UDP 批量 | 1024 pkts | server | C server |
 
-环境变量：`SHUX_NET_BENCH_CONNS=1024`（CI 默认）、`SHUX_NET_RUNS=3`、`SHUX_PERF_BASELINE_RUNS=3`。
+环境变量：`XLANG_NET_BENCH_CONNS=1024`（CI 默认）、`XLANG_NET_RUNS=3`、`XLANG_PERF_BASELINE_RUNS=3`。
 
 ---
 
@@ -40,9 +40,9 @@
 ```bash
 ./tests/run-perf-net-zig-gate.sh
 # 等价：
-SHUX_PERF_FAIL_ON_NET_ZIG=1 \
-SHUX_PERF_FAIL_ON_NET_REGRESSION=1 \
-SHUX_PERF_FAIL_ON_NET_P99=1 \
+XLANG_PERF_FAIL_ON_NET_ZIG=1 \
+XLANG_PERF_FAIL_ON_NET_REGRESSION=1 \
+XLANG_PERF_FAIL_ON_NET_P99=1 \
   ./tests/run-perf-net.sh --bench
 ```
 
@@ -51,11 +51,11 @@ SHUX_PERF_FAIL_ON_NET_P99=1 \
 | **≥ Zig（吞吐）** | `net_echo_throughput`、`net_mixed_conns_requests`：Shu median ≤ Zig median |
 | **Shu 回归** | Shu median ≤ `tests/baseline/net-perf.tsv` |
 | **P99** | mixed：`Shu_p99 ≤ net-perf-latency.tsv`（微秒） |
-| **Zig 不可用** | 跳过 Zig 列（WARN）；`SHUX_ZIG_BASELINE_STRICT=1` 时 FAIL |
+| **Zig 不可用** | 跳过 Zig 列（WARN）；`XLANG_ZIG_BASELINE_STRICT=1` 时 FAIL |
 
 ### 3.2 与现有 net 门禁关系
 
-- `run-perf-p1-gate.sh` / `run-zc1-gate.sh`：仍用 `SHUX_PERF_FAIL_ON_NET_REGRESSION=1`
+- `run-perf-p1-gate.sh` / `run-zc1-gate.sh`：仍用 `XLANG_PERF_FAIL_ON_NET_REGRESSION=1`
 - PERF-003 在 P1 之上叠加 Zig + P99（可选 CI opt-in）
 
 ---
@@ -71,7 +71,7 @@ SHUX_PERF_FAIL_ON_NET_P99=1 \
 更新：
 
 ```bash
-SHUX_PERF_UPDATE_NET_BASELINE=1 ./tests/run-perf-net.sh --bench
+XLANG_PERF_UPDATE_NET_BASELINE=1 ./tests/run-perf-net.sh --bench
 ```
 
 ---

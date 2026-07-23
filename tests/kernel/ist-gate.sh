@@ -4,16 +4,16 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKDIR="${TMPDIR:-/tmp}"
-SHUX_C="$SCRIPT_DIR/../../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../../compiler/xlang-c"
 PASS=0
 FAIL=0
 
 echo "=== IST (Interrupt Stack Table) gate ==="
 
-# 1. shux-c generates IST structs
-echo "  Check: shux-c generates TSS64 + IDTGate64 structs"
+# 1. xlang-c generates IST structs
+echo "  Check: xlang-c generates TSS64 + IDTGate64 structs"
 if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
-    "$SHUX_C" -E "$SCRIPT_DIR/ist.x" > "$WORKDIR/ist_gate.c" 2>&1; then
+    "$XLANG_C" -E "$SCRIPT_DIR/ist.x" > "$WORKDIR/ist_gate.c" 2>&1; then
     if grep -q "struct TSS64" "$WORKDIR/ist_gate.c" && \
        grep -q "struct IDTGate64" "$WORKDIR/ist_gate.c" && \
        grep -q "ist1_low" "$WORKDIR/ist_gate.c"; then
@@ -24,7 +24,7 @@ if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
         FAIL=$((FAIL + 1))
     fi
 else
-    echo "    FAIL: shux-c failed"
+    echo "    FAIL: xlang-c failed"
     FAIL=$((FAIL + 1))
 fi
 
@@ -43,7 +43,7 @@ fi
 # 3. Run host test (verify IST struct construction logic)
 echo "  Check: IST struct construction returns correct values"
 if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
-    "$SHUX_C" -E "$SCRIPT_DIR/ist.x" > "$WORKDIR/ist_host.c" 2>&1 && \
+    "$XLANG_C" -E "$SCRIPT_DIR/ist.x" > "$WORKDIR/ist_host.c" 2>&1 && \
     cc -O2 -o "$WORKDIR/ist_host" "$WORKDIR/ist_host.c" 2>&1 && \
     "$WORKDIR/ist_host"; then
     RC=$?

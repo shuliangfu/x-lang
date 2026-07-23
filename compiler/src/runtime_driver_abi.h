@@ -6,13 +6,13 @@
  * 与其它文件的关系：runtime.c 仍承载 pipeline/run_compiler_c 主体；本头不依赖 C 前端头。
  */
 
-#ifndef SHUX_RUNTIME_DRIVER_ABI_H
-#define SHUX_RUNTIME_DRIVER_ABI_H
+#ifndef XLANG_RUNTIME_DRIVER_ABI_H
+#define XLANG_RUNTIME_DRIVER_ABI_H
 
 #include <stdint.h>
 #include <stddef.h>
 
-/** shux check：非 0 时 typeck 通过后跳过 codegen 与链接。 */
+/** xlang check：非 0 时 typeck 通过后跳过 codegen 与链接。 */
 void driver_check_only_set(int32_t v);
 int32_t driver_check_only_get(void);
 void driver_check_diag_emitted_reset(void);
@@ -23,18 +23,18 @@ int32_t driver_check_diag_emitted_get(void);
 void driver_freestanding_set(int32_t v);
 int32_t driver_freestanding_get(void);
 
-/** `-fsanitize=address` / SHUX_SANITIZE_ADDRESS=1 时强制边界检查。 */
+/** `-fsanitize=address` / XLANG_SANITIZE_ADDRESS=1 时强制边界检查。 */
 void driver_sanitize_address_set(int32_t v);
 int32_t driver_sanitize_address_get(void);
 
-/** shux fmt --check：仅校验格式，不写回。 */
+/** xlang fmt --check：仅校验格式，不写回。 */
 void driver_fmt_check_only_set(int32_t v);
 int32_t driver_fmt_check_only_get(void);
 
 /** 非 X 链或未链 fmt_check_cmd 时弱符号默认 0（批量 check 成功时静默）。 */
 int driver_check_quiet_ok_get(void);
 
-/** 统一 shux check 成功行；deno 风格批量 check 时由 fmt_check_cmd 保持静默。 */
+/** 统一 xlang check 成功行；deno 风格批量 check 时由 fmt_check_cmd 保持静默。 */
 void driver_print_check_ok(const char *input_path);
 
 /** 非 0 时 pipeline 跳过 .x typeck（C 预检已通过）。 */
@@ -45,7 +45,7 @@ int32_t driver_x_pipeline_skip_typeck_get(void);
 void driver_x_pipeline_skip_codegen_set(int32_t v);
 int32_t driver_x_pipeline_skip_codegen_get(void);
 
-/** SHUX_TYPECK_FORCE_C=1 时入口模块 typeck 走 C typeck_module。 */
+/** XLANG_TYPECK_FORCE_C=1 时入口模块 typeck 走 C typeck_module。 */
 int32_t driver_typeck_force_c_enabled(void);
 
 /** 当前线程是否已在 driver 大栈 pthread 内（避免 LSP 嵌套再分配大栈）。 */
@@ -62,7 +62,7 @@ void driver_bump_stack_limit(void);
 
 /**
  * 在 256MiB 栈 pthread 上执行 fn(arg)；LSP / pipeline / typeck 深栈场景使用。
- * SHUX_PIPELINE_NO_LARGE_STACK=1 时于当前线程直接执行。
+ * XLANG_PIPELINE_NO_LARGE_STACK=1 时于当前线程直接执行。
  */
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 
@@ -91,8 +91,8 @@ void *driver_stdio_stderr(void);
  * Cap residual：rt_entry R2 扫描/消息缓冲与 fmt argv。
  * .x 勿用局部 u8[N]（-E 会抬 init_globals / 丢函数）。
  * wave15 pure：entry_* / path slots（BSS u8[N]）。
- * wave21 pure：fmt_argv_slot — hybrid thin owns fixed {"shux","fmt"} via
- *   byte-lit BSS + 2× LP64 ptr slots (G.7 shux_ptr_slot_set); cold seed keeps C static.
+ * wave21 pure：fmt_argv_slot — hybrid thin owns fixed {"xlang","fmt"} via
+ *   byte-lit BSS + 2× LP64 ptr slots (G.7 xlang_ptr_slot_set); cold seed keeps C static.
  * ABI: returns base of char*[2] (same as opaque *u8 base under thin return type).
  */
 uint8_t *driver_entry_ab_slot(void);
@@ -106,33 +106,33 @@ char **driver_entry_fmt_argv_slot(void);
 /**
  * Cap residual：rt_run_exec R2 usage 写 stdout。
  * wave44 pure under PREFER: color policy orch（NO_COLOR / CLICOLOR_FORCE /
- *   SHUX_FORCE_COLOR / isatty）；cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
- * Always-seed residual: shux_driver_usage_write_stdout（巨型 plain/color lit +
+ *   XLANG_FORCE_COLOR / isatty）；cold twin under #ifndef XLANG_L2_RDABI_THIN_FROM_X。
+ * Always-seed residual: xlang_driver_usage_write_stdout（巨型 plain/color lit +
  *   fwrite+fflush）。.x 禁含 \\n 长字串字面量（-E 编码/丢体）→ 表留 residual。
  */
 void driver_print_usage_write(void);
 /** Permanent Cap residual: giant usage tables + fwrite(stdout) + fflush. Always-seed. */
-void shux_driver_usage_write_stdout(int32_t use_color);
+void xlang_driver_usage_write_stdout(int32_t use_color);
 
 /**
  * Cap residual：rt_run_exec R2 driver_exec_compiled 体。
  * wave42 pure under PREFER: null/argc + G.7 path_is_non_exe + residual scan/spawn；
- * cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
- * Always-seed residual: shux_driver_exec_scan_out_path_opaque + shux_driver_exec_spawn_wait。
+ * cold twin under #ifndef XLANG_L2_RDABI_THIN_FROM_X。
+ * Always-seed residual: xlang_driver_exec_scan_out_path_opaque + xlang_driver_exec_spawn_wait。
  * .x 禁 *u8→**u8 cast / let **u8（-E 整函数丢体）→ cast 留 residual。
  */
 int driver_exec_compiled_body(int argc, uint8_t *argv_opaque);
 /** Permanent Cap residual: *u8 argv → cast + driver_exec_scan_out_path. */
-uint8_t *shux_driver_exec_scan_out_path_opaque(int32_t argc, uint8_t *argv_opaque);
+uint8_t *xlang_driver_exec_scan_out_path_opaque(int32_t argc, uint8_t *argv_opaque);
 /** Permanent OS residual: spawn/fork product exe and wait. PLATFORM: WIN vs POSIX. */
-int32_t shux_driver_exec_spawn_wait(uint8_t *exe);
+int32_t xlang_driver_exec_spawn_wait(uint8_t *exe);
 
 /**
  * Cap-global-bss residual：rt_emit_state R2 经槽写共享 emit 状态。
  * .x export let 会变 static，不能跨 TU 导出 path_buf / lib_roots；数据在 rest seed。
  * Always-seed data residual：path/lib/scan slots + c_path_cell + lib_roots_raw + n/want slots。
  * wave33 pure：clear/bind/take/get/lib_root_at/effective/try_extern under PREFER hybrid thin
- * （G.7 shux_ptr_slot_*；cold C twins under #ifndef SHUX_L2_RDABI_THIN_FROM_X）。
+ * （G.7 xlang_ptr_slot_*；cold C twins under #ifndef XLANG_L2_RDABI_THIN_FROM_X）。
  */
 uint8_t *driver_x_emit_path_buf_slot(void);
 uint8_t *driver_x_emit_lib_buf_slot(int i);
@@ -168,7 +168,7 @@ size_t driver_module_static_size(void);
  * 数据定义在 seeds/rt_preamble.from_x.c（跨 TU 非 static 表）；.x 禁巨型字串表。
  * write_* 业务循环在 .x。
  * wave20 pure：hybrid thin owns line_at/count；always-seed *_lines_raw 表基址；
- * cold C twins under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
+ * cold C twins under #ifndef XLANG_L2_RDABI_THIN_FROM_X。
  */
 uint8_t *driver_preamble_io_net_lines_raw(void);
 uint8_t *driver_preamble_fs_path_lines_raw(void);
@@ -179,8 +179,8 @@ int32_t driver_preamble_fs_path_line_count(void);
 
 /**
  * Cap residual G.7 authority：rt_preamble / async emit R2 fputs 经 opaque *u8（FILE*）。
- * wave22 pure：hybrid thin owns body（null 守卫 + g05 shux_driver_fputs_opaque cast）；
- * cold C twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
+ * wave22 pure：hybrid thin owns body（null 守卫 + g05 xlang_driver_fputs_opaque cast）；
+ * cold C twin under #ifndef XLANG_L2_RDABI_THIN_FROM_X。
  * .x 禁 FILE* 类型；直接 fputs(*u8,*u8) 在 -Werror=incompatible-pointer-types 硬失败。
  */
 int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream);
@@ -201,12 +201,12 @@ uint8_t *driver_x_emit_lib_root_at(int32_t i);
 void driver_x_emit_stdout_set_unbuffered(void);
 /**
  * wave39 pure: hybrid thin owns null/len guards; Cap OS residual
- * shux_driver_fwrite_stdout_n returns written count after fwrite+fflush.
+ * xlang_driver_fwrite_stdout_n returns written count after fwrite+fflush.
  * cold twin under #ifndef FROM_X.
  */
 int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len);
 /** Cap OS residual for pure fwrite_stdout (always linked under FROM_X). */
-int32_t shux_driver_fwrite_stdout_n(uint8_t *data, int32_t len);
+int32_t xlang_driver_fwrite_stdout_n(uint8_t *data, int32_t len);
 /** wave23 pure under PREFER hybrid: calloc(1, 9MiB+4); cold seed sizeof twin. */
 void *driver_codegen_outbuf_calloc(void);
 /** wave24 pure: free / len(LE@CAP) / data base; cold seed twins. */
@@ -217,7 +217,7 @@ uint8_t *driver_codegen_outbuf_data(void *p);
 void *driver_pipeline_dep_ctx_calloc(void);
 /** wave23 pure: calloc(n, 8) LP64; cold seed sizeof(void*) twin. */
 void *driver_ptr_table_calloc(int32_t n);
-/** wave24 pure: free + get/set via G.7 shux_ptr_slot_*; cold seed twins. */
+/** wave24 pure: free + get/set via G.7 xlang_ptr_slot_*; cold seed twins. */
 void driver_ptr_table_free(void *t);
 void *driver_ptr_table_get(void *t, int32_t i);
 void driver_ptr_table_set(void *t, int32_t i, void *p);
@@ -229,12 +229,12 @@ size_t driver_size_table_get(void *t, int32_t i);
 void driver_size_table_set(void *t, int32_t i, size_t v);
 /**
  * wave38 pure: hybrid thin owns null guards; Cap-struct residual
- * shux_parser_parse_into_buf_rc always-seed; cold twin under #ifndef FROM_X.
+ * xlang_parser_parse_into_buf_rc always-seed; cold twin under #ifndef FROM_X.
  */
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx);
 /** Cap-struct-return residual (always seed): parser_parse_into_buf → ok + *out_main_idx. */
-int32_t shux_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
+int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                       int32_t *out_main_idx);
 /** wave23 pure: calloc(1, 32) LP64; cold seed sizeof(DiagContextSnapshot) twin. */
 void *driver_diag_snapshot_alloc(void);
@@ -272,7 +272,7 @@ void driver_x_emit_work_z_set(int32_t i, size_t v);
 /** 释放 work 槽内 dep 表/arena/out/pctx/src/kind 等；调用后 reset。 */
 void driver_x_emit_work_cleanup(void);
 /**
- * Cap residual：-E-extern 分支（#ifdef SHUX_NO_C_FRONTEND）。
+ * Cap residual：-E-extern 分支（#ifdef XLANG_NO_C_FRONTEND）。
  * wave33 pure：product NO_C fixed BLD001 diag + return 1 under PREFER hybrid；
  * cold C twin under #ifndef FROM_X。有 C frontend 的冷全 C 体另议。
  */
@@ -283,12 +283,12 @@ void driver_set_pipeline_entry_source_len(size_t len);
 size_t driver_pipeline_entry_source_len(void);
 int32_t driver_typeck_skip_large_entry(void);
 
-/** SHUX_ASM_BUILD_SKIP_TYPECK / SHUX_ASM_ENTRY_EMIT_HEAVY / SHUX_ASM_ENTRY_MODULE_ONLY。 */
+/** XLANG_ASM_BUILD_SKIP_TYPECK / XLANG_ASM_ENTRY_EMIT_HEAVY / XLANG_ASM_ENTRY_MODULE_ONLY。 */
 int32_t driver_asm_build_skip_typeck(void);
 int32_t driver_asm_entry_emit_heavy(void);
 int32_t driver_asm_entry_module_only_from_env(void);
 
-/** A-11：SHUX_ASM_PARSE_METRIC_ONLY=1 时 entry parse 后输出 num_defined，跳过 pipeline/asm emit（防 typeck.x OOM）。 */
+/** A-11：XLANG_ASM_PARSE_METRIC_ONLY=1 时 entry parse 后输出 num_defined，跳过 pipeline/asm emit（防 typeck.x OOM）。 */
 int32_t driver_asm_parse_metric_only_from_env(void);
 
 /** -o exe 时跳过 dep 0 codegen；当前 dep 路径供 codegen 前缀。 */
@@ -297,13 +297,13 @@ int32_t driver_skip_codegen_dep_0_get(void);
 void driver_set_current_dep_path_for_codegen(const char *path);
 const char *driver_get_current_dep_path_for_codegen(void);
 
-/** OBS-001：SHUX_COMPILE_PHASE_TIMING 阶段计时（pipeline.x 调用）。 */
+/** OBS-001：XLANG_COMPILE_PHASE_TIMING 阶段计时（pipeline.x 调用）。 */
 void driver_compile_phase_timing_begin(int32_t phase);
 void driver_compile_phase_timing_end(int32_t phase);
 void driver_compile_phase_timing_flush(void);
 
 /**
- * 从 argv 收集 -D / -DFOO 与 -target 推导 OS_*、uname 的 SHUX_OS_/SHUX_ARCH_。
+ * 从 argv 收集 -D / -DFOO 与 -target 推导 OS_*、uname 的 XLANG_OS_/XLANG_ARCH_。
  * 参数：defines 至少 max_defines 个槽；返回注入宏数量。
  */
 int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines);
@@ -352,9 +352,9 @@ int32_t driver_pipeline_dep_ctx_get_use_coff_o(void *ctx);
 /** wave23 pure: target 字符串 + emit_elf_o → arch/macho/coff（host #ifdef via OS residual）. */
 void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emit_elf_o);
 /** Permanent OS residual for pure host_defaults (always linked). PLATFORM: MACOS/WINDOWS. */
-int32_t shux_driver_host_default_target_arch(void);
-int32_t shux_driver_host_prefer_macho(int32_t emit_elf_o);
-int32_t shux_driver_host_prefer_coff(int32_t emit_elf_o);
+int32_t xlang_driver_host_default_target_arch(void);
+int32_t xlang_driver_host_prefer_macho(int32_t emit_elf_o);
+int32_t xlang_driver_host_prefer_coff(int32_t emit_elf_o);
 
 /**
  * wave40 pure: hybrid thin owns (null guard + g05 fopen_wb_opaque "wb");
@@ -368,7 +368,7 @@ uint8_t *driver_asm_fopen_wb(uint8_t *path);
  */
 uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64);
 /** Permanent OS residual: WINDOWS → 0；POSIX → 1（pure mkstemp_fdopen gate）。 */
-int32_t shux_driver_asm_mkstemp_fdopen_enabled(void);
+int32_t xlang_driver_asm_mkstemp_fdopen_enabled(void);
 void driver_asm_fclose(uint8_t *fp);
 /**
  * wave39 pure: hybrid thin owns (null/len guards + g05 stdout_ptr/fwrite_opaque);
@@ -376,7 +376,7 @@ void driver_asm_fclose(uint8_t *fp);
  */
 int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len);
 /**
- * wave40 pure: hybrid thin owns via g05 shux_driver_fflush_stdout;
+ * wave40 pure: hybrid thin owns via g05 xlang_driver_fflush_stdout;
  * cold twin under #ifndef FROM_X.
  */
 void driver_asm_fflush_stdout(void);
@@ -426,7 +426,7 @@ int32_t driver_asm_try_c_frontend_early(uint8_t *input_path, uint8_t *src, uint8
  */
 int32_t driver_asm_try_c_typeck_precheck(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
                                         int32_t n_lib);
-/** SHUX_ASM_USE_COMPILER_IMPL_C 是否启用（dep 仅 parse）。
+/** XLANG_ASM_USE_COMPILER_IMPL_C 是否启用（dep 仅 parse）。
  * wave34 pure: product fixed 0 under PREFER; cold twin uses #ifdef. */
 int32_t driver_asm_use_compiler_impl_c(void);
 
@@ -472,7 +472,7 @@ int32_t driver_parsed_use_lto(void *p);
 /**
  * 预处理后 C 前端（check/smoke/generic C 内联）。
  * 返回 -2 继续 .x pipeline；>=0 为应直接返回的 rc。
- * 产品 SHUX_NO_C_FRONTEND 固定 -2。
+ * 产品 XLANG_NO_C_FRONTEND 固定 -2。
  * wave32 pure: hybrid thin owns stub; cold twin under #ifndef FROM_X.
  */
 int32_t driver_parsed_try_c_after_pp(uint8_t *input_path, uint8_t *src, size_t src_len,
@@ -489,8 +489,8 @@ void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v);
  * PLATFORM: SHARED orch; WINDOWS|POSIX close-before-rename (BLD001).
  */
 uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout);
-/** Permanent OS residual: SHUX_TMP_PREFIX as C string (POSIX /tmp/shux_ · WINDOWS shux_). */
-const char *shux_driver_tmp_prefix(void);
+/** Permanent OS residual: XLANG_TMP_PREFIX as C string (POSIX /tmp/xlang_ · WINDOWS xlang_). */
+const char *xlang_driver_tmp_prefix(void);
 /** wave26 pure: hybrid thin owns; cold twin; stdout skip via g05 stdout_ptr. */
 void driver_parsed_fclose(uint8_t *fp);
 /** wave26 pure: hybrid thin owns; cold twin; 0 success / 1 fail. */
@@ -500,13 +500,13 @@ uint8_t *driver_parsed_tmp_c_buf(void);
 /** wave25 pure: 64-byte parsed tmp slot; pure/cold reset clears [0]. */
 uint8_t *driver_parsed_tmp_c_slot(void);
 /** wave26 pure: min preamble + first_line + io_net + fs_path + rest; 0 success.
- * cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X; fwrite via g05 opaque. */
+ * cold twin under #ifndef XLANG_L2_RDABI_THIN_FROM_X; fwrite via g05 opaque. */
 int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len);
 /**
- * 链 std .o 调 shux_invoke_cc；argv0 可为 NULL。
- * 失败时 unlink out_path；成功且无 SHUX_KEEP_C 时 unlink tmp_c。
+ * 链 std .o 调 xlang_invoke_cc；argv0 可为 NULL。
+ * 失败时 unlink out_path；成功且无 XLANG_KEEP_C 时 unlink tmp_c。
  * argc/argv：从命令行提取用户 .o 文件（如 runtime_atomic_glue.o）注入 cc 链接行；
- *   单一权威由 shux_invoke_cc_set_user_o_files_from_argv/clear_user_o_files 承担
+ *   单一权威由 xlang_invoke_cc_set_user_o_files_from_argv/clear_user_o_files 承担
  *   （G.7：同一表亦供 asm invoke_ld；历史命名仍为 cc）。
  * wave28 pure: hybrid thin owns orch; cold twin under #ifndef FROM_X;
  *   c_paths[1] via G.7 ptr_slot; BLD001/KEEP_C via fixed-arity diag (no va_list).
@@ -575,15 +575,15 @@ int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s);
 /*
  * Cap residual：rt_dispatch_thin（R2 full）sibling
  * wave43 pure under PREFER: null/argc + G.7 driver_argv0_basename_is + path pure BSS 512；
- * cold twin under #ifndef SHUX_L2_RDABI_THIN_FROM_X。
- * Always-seed residual: shux_driver_sibling_argv0_get + shux_driver_sibling_access_spawn。
+ * cold twin under #ifndef XLANG_L2_RDABI_THIN_FROM_X。
+ * Always-seed residual: xlang_driver_sibling_argv0_get + xlang_driver_sibling_access_spawn。
  *   业务薄门闩 / full 入口在 rt_dispatch_thin.x，不在 rest。
- *   返回 ≥0 子进程 exit；-1 未委托（含 basename 已是 shux-c / 不可执行等）。
+ *   返回 ≥0 子进程 exit；-1 未委托（含 basename 已是 xlang-c / 不可执行等）。
  */
 int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv);
 /** Permanent Cap residual: *u8 argv → cast + av[0]. */
-uint8_t *shux_driver_sibling_argv0_get(uint8_t *argv_opaque);
+uint8_t *xlang_driver_sibling_argv0_get(uint8_t *argv_opaque);
 /** Permanent OS residual: access X_OK + spawn/fork wait. PLATFORM: WIN vs POSIX. */
-int32_t shux_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *argv_opaque);
+int32_t xlang_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *argv_opaque);
 
-#endif /* SHUX_RUNTIME_DRIVER_ABI_H */
+#endif /* XLANG_RUNTIME_DRIVER_ABI_H */

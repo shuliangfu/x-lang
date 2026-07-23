@@ -19,56 +19,56 @@
 /**
  * runtime.c — 编译器运行时（6.3/6.4：自 main.c 迁出的驱动逻辑与 C 辅助）
  *
- * Phase E active (E-04 v1+)：默认 bootstrap 链 `runtime_driver_no_c.o`（E-04 v1 default no_c；`-DSHUX_NO_C_FRONTEND`）；
- * B-strict `build_shux_asm` 链 `runtime_driver_asm_strict.o`。文件保留；完全收到 ABI 薄壳见 E-04 v2+。
- * E-05 v2：`SHUX_NO_C_FRONTEND` 时不 `#include` lexer/parser/typeck/codegen/ast C 前端头；仍保留 preprocess/target_cpu/lsp_diag。
+ * Phase E active (E-04 v1+)：默认 bootstrap 链 `runtime_driver_no_c.o`（E-04 v1 default no_c；`-DXLANG_NO_C_FRONTEND`）；
+ * B-strict `build_xlang_asm` 链 `runtime_driver_asm_strict.o`。文件保留；完全收到 ABI 薄壳见 E-04 v2+。
+ * E-05 v2：`XLANG_NO_C_FRONTEND` 时不 `#include` lexer/parser/typeck/codegen/ast C 前端头；仍保留 preprocess/target_cpu/lsp_diag。
  * E-04 v2：argv/target ABI 原语已拆至 `runtime_abi.c`（`driver_get_argv_i` 等）；本文件仍承载 pipeline/driver 主体。
- * E-04 v3：POSIX 文件 I/O 已拆至 `runtime_io_abi.c`（`runtime_read_file_malloc` / `shux_read_file_into_path` 等）。
+ * E-04 v3：POSIX 文件 I/O 已拆至 `runtime_io_abi.c`（`runtime_read_file_malloc` / `xlang_read_file_into_path` 等）。
  * E-04 v4：进程/链接辅助已拆至 `runtime_proc_abi.c`（`shu_waitpid_retry` / `asm_link_obj_skip_missing`）。
  * E-04 v5：invoke_cc 链接 argv 辅助已拆至 `runtime_link_abi.c`（`invoke_cc_argv_push_existing` 等）；invoke_cc 主体 v17 已迁入 link_abi。
  * E-04 v6：compress/net TLS 链接辅助已拆至 `runtime_link_abi.c`（`invoke_cc_append_compress_ld` 等）。
- * E-04 v7：Linux 链接硬化（PIE/NX/RELRO）已拆至 `runtime_link_abi.c`（`shux_append_linux_link_harden`）。
+ * E-04 v7：Linux 链接硬化（PIE/NX/RELRO）已拆至 `runtime_link_abi.c`（`xlang_append_linux_link_harden`）。
  * E-04 v8：compiler 目录解析与 asm ld 合成 argv0 已拆至 `runtime_link_abi.c`。
  * E-04 v22：driver CLI / pipeline 跳过标志已拆至 `runtime_driver_abi.c`；v25 扩展 asm 环境/阶段计时。
- * E-04 v23：`invoke_ld` 薄包装与 -o 后缀判断已拆至 `runtime_link_abi.c`（`shux_invoke_ld_for_exe` 等）。
- * E-04 v24：import 路径解析已拆至 `runtime_pipeline_abi.c`（`shux_resolve_import_file_path_multi` 等）。
+ * E-04 v23：`invoke_ld` 薄包装与 -o 后缀判断已拆至 `runtime_link_abi.c`（`xlang_invoke_ld_for_exe` 等）。
+ * E-04 v24：import 路径解析已拆至 `runtime_pipeline_abi.c`（`xlang_resolve_import_file_path_multi` 等）。
  * E-04 v25：pipeline/asm 环境标志、dep codegen 路径与阶段计时已拆至 `runtime_driver_abi.c`。
  * E-04 v26：`driver_dep_*` 全局 dep 槽已拆至 `runtime_pipeline_abi.c`。
  * E-04 v27：import/load 辅助、`driver_argv_collect_defines`、asm 输出 helper 已拆至 pipeline/driver ABI。
  * E-04 v28：PipelineDepCtx 填充/seed、asm dep 路径 helper 已拆至 pipeline_abi；pipeline 诊断/源探测至 driver_abi。
- * E-04 v29：栈上限/大栈 pthread、shux_preprocess_raw_to_malloc、typeck dep 侧车已拆至 driver/pipeline ABI。
+ * E-04 v29：栈上限/大栈 pthread、xlang_preprocess_raw_to_malloc、typeck dep 侧车已拆至 driver/pipeline ABI。
  * E-04 v35：dep 传递闭包 collect/merge/load_direct 已拆至 runtime_pipeline_abi.c。
- * 与 main.c 关系：main.c 仅保留极简 main() 调 main_entry；本文件承载全部 C 侧驱动与 I/O，与 main.x 一一对应构建 shux。
+ * 与 main.c 关系：main.c 仅保留极简 main() 调 main_entry；本文件承载全部 C 侧驱动与 I/O，与 main.x 一一对应构建 xlang。
  * 阶段 10 方向：逐步收成薄壳（入口、ABI、`-E` 桥接）；业务逻辑已迁 .x（pipeline/driver/LSP）；日常构建入口见仓库根目录 build.x + compiler/build_tool。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 
 #include "win32_compat.h"
 
 
 #if !defined(_WIN32) && !defined(_WIN64)
-#define SHUX_TMP_PREFIX "/tmp/shux_"
+#define XLANG_TMP_PREFIX "/tmp/xlang_"
 #else
 /* Windows: 用 TEMP 环境变量替代 /tmp */
 #include <stdio.h>
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-const char * shux_get_tmp_prefix(void) {
+const char * xlang_get_tmp_prefix(void) {
     const char *tmp = getenv("TEMP");
     if (!tmp || !tmp[0]) tmp = getenv("TMP");
     if (!tmp || !tmp[0]) tmp = ".";
     static char buf[260];
     size_t L = strlen(tmp);
-    /* 拼接 tmp + 分隔符 + shux_；统一用反斜杠（MinGW 与 native 都接受） */
+    /* 拼接 tmp + 分隔符 + xlang_；统一用反斜杠（MinGW 与 native 都接受） */
     if (L > 0 && tmp[L - 1] != '/' && tmp[L - 1] != '\\')
-        snprintf(buf, sizeof(buf), "%s\\shux_", tmp);
+        snprintf(buf, sizeof(buf), "%s\\xlang_", tmp);
     else
-        snprintf(buf, sizeof(buf), "%sshux_", tmp);
+        snprintf(buf, sizeof(buf), "%sxlang_", tmp);
     return buf;
 }
 
 
 
-#define SHUX_TMP_PREFIX shux_get_tmp_prefix()
+#define XLANG_TMP_PREFIX xlang_get_tmp_prefix()
 #endif
 
 #include "preprocess.h"
@@ -135,16 +135,16 @@ int driver_run_x_emit_c(void);
 int driver_fmt_one_file(const uint8_t *path, int path_len);
 int main_entry(int argc, char **argv);
 /* G-02f-302 rest diag errno → rt_diag_errno hybrid */
-#ifndef SHUX_RT_DIAG_ERRNO_FROM_X
+#ifndef XLANG_RT_DIAG_ERRNO_FROM_X
 const char *runtime_diag_code_for_kind(const char *kind) {
     if (!kind)
-        return SHUX_DIAG_CODE_BUILD_BLD001;
+        return XLANG_DIAG_CODE_BUILD_BLD001;
     if (strcmp(kind, "io error") == 0)
-        return SHUX_DIAG_CODE_IO_IO001;
+        return XLANG_DIAG_CODE_IO_IO001;
     if (strcmp(kind, "process error") == 0)
-        return SHUX_DIAG_CODE_PROCESS_PRC001;
+        return XLANG_DIAG_CODE_PROCESS_PRC001;
     if (strcmp(kind, "build error") == 0)
-        return SHUX_DIAG_CODE_BUILD_BLD001;
+        return XLANG_DIAG_CODE_BUILD_BLD001;
     return NULL;
 }
 #else
@@ -153,7 +153,7 @@ const char *runtime_diag_code_for_kind(const char *kind);
 
 
 /* G-02f-301 R10 → rt_entry hybrid */
-#ifndef SHUX_RT_ENTRY_FROM_X
+#ifndef XLANG_RT_ENTRY_FROM_X
 int runtime_try_handle_explain_cli(int argc, char **argv) {
     const char *code = NULL;
     if (argc < 2 || !argv || !argv[1])
@@ -174,8 +174,8 @@ int runtime_try_handle_explain_cli(int argc, char **argv) {
         return -1;
     }
     if (!code || !code[0]) {
-        diag_reportf_with_code(NULL, 0, 0, "usage error", SHUX_DIAG_CODE_ARGUMENT_ARG001, NULL,
-                               "--explain requires a diagnostic code (example: shux --explain P001; use --list to see all)");
+        diag_reportf_with_code(NULL, 0, 0, "usage error", XLANG_DIAG_CODE_ARGUMENT_ARG001, NULL,
+                               "--explain requires a diagnostic code (example: xlang --explain P001; use --list to see all)");
         return 1;
     }
     if (strcmp(code, "list") == 0 || strcmp(code, "--list") == 0) {
@@ -185,13 +185,13 @@ int runtime_try_handle_explain_cli(int argc, char **argv) {
     if (!diag_code_is_known(code)) {
         char suggest[16];
         const char *sug;
-        diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG002, NULL,
                                "unknown diagnostic code '%s'", code);
         sug = diag_code_suggest(code, suggest, sizeof suggest);
         if (sug)
             diag_reportf(NULL, 0, 0, "help", NULL, "did you mean '%s'?", sug);
         diag_reportf(NULL, 0, 0, "note", NULL,
-                     "use `shux --explain P001` or `shux explain P001`; use `--list` to see all codes");
+                     "use `xlang --explain P001` or `xlang explain P001`; use `--list` to see all codes");
         fputs("note: ", stderr);
         diag_print_known_codes(stderr);
         return 1;
@@ -210,10 +210,10 @@ int runtime_try_handle_explain_cli(int argc, char **argv);
  * 兼容 smoke summary：保留 stdout 与精确文本，供 run-lexer golden、run-std/run-typeck grep
  * 和 bootstrap-parse-file 继续工作。后续若迁移 parse OK/typeck OK，只改这一处出口。
  */
-/* 结构化 smoke 是否启用：`--diag-json` 或 SHUX_SMOKE_DIAG=1；定义延后到 <stdlib.h> 可见处。 */
-int shux_smoke_diag_enabled(void);
+/* 结构化 smoke 是否启用：`--diag-json` 或 XLANG_SMOKE_DIAG=1；定义延后到 <stdlib.h> 可见处。 */
+int xlang_smoke_diag_enabled(void);
 /* G-02f-301 R10 → rt_entry hybrid */
-#ifndef SHUX_RT_ENTRY_FROM_X
+#ifndef XLANG_RT_ENTRY_FROM_X
 void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit,
                                                     int has_main_body) {
     const char *name = main_name ? main_name : "?";
@@ -226,19 +226,19 @@ void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_fin
         printf("parse OK (library module)\n");
     }
     printf("typeck OK\n");
-    if (shux_smoke_diag_enabled()) {
+    if (xlang_smoke_diag_enabled()) {
         if (has_main_body) {
             if (main_final_lit >= 0)
-                diag_reportf_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE001, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "info", XLANG_DIAG_CODE_SMOKE_SMOKE001, NULL,
                                         "parse OK: %s(): i32 { %d }", name, main_final_lit);
             else
-                diag_reportf_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE001, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "info", XLANG_DIAG_CODE_SMOKE_SMOKE001, NULL,
                                         "parse OK: %s(): i32 { expr }", name);
         } else {
-            diag_reportf_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE001, NULL,
+            diag_reportf_with_code(NULL, 0, 0, "info", XLANG_DIAG_CODE_SMOKE_SMOKE001, NULL,
                                     "parse OK (library module)");
         }
-        diag_report_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE002, "typeck OK", NULL);
+        diag_report_with_code(NULL, 0, 0, "info", XLANG_DIAG_CODE_SMOKE_SMOKE002, "typeck OK", NULL);
     }
 }
 #else
@@ -250,15 +250,15 @@ void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_fin
 
 /** 本文件内 read_file 调用映射至 E-04 v3 I/O ABI TU。 */
 #define read_file runtime_read_file_malloc
-#if defined(SHUX_USE_X_PREPROCESS)
+#if defined(XLANG_USE_X_PREPROCESS)
 /** bootstrap/driver：X 预处理在 pipeline_abi（E-04 v32）。 */
-#define SHUX_RUNTIME_PREPROCESS shux_preprocess
+#define XLANG_RUNTIME_PREPROCESS xlang_preprocess
 #else
-/** shux-c / runtime_x：C preprocess.o 提供 preprocess()。 */
-#define SHUX_RUNTIME_PREPROCESS preprocess
+/** xlang-c / runtime_x：C preprocess.o 提供 preprocess()。 */
+#define XLANG_RUNTIME_PREPROCESS preprocess
 #endif
-#if !defined(SHUX_NO_C_FRONTEND)
-/* C 前端头：仅 shux-c / LEGACY seed / runtime_driver.o 路径；E-05 v2 默认 no_c 不拉入。 */
+#if !defined(XLANG_NO_C_FRONTEND)
+/* C 前端头：仅 xlang-c / LEGACY seed / runtime_driver.o 路径；E-05 v2 默认 no_c 不拉入。 */
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "typeck/typeck.h"
@@ -289,7 +289,7 @@ void cfg_sync_compile_target_from_state_c(void *state);
 /* G-03 freestanding #[cfg] 剪枝：-freestanding 时设 1，使 #[cfg(not(freestanding))] 剪枝 hosted 函数。 */
 void cfg_set_freestanding(int v);
 #endif
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_NO_C_FRONTEND)
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_NO_C_FRONTEND)
 /* 6.2：.x codegen 入口；由 codegen.x 提供（库模块形式，符号带 codegen_ 前缀），转调 C codegen */
 extern int codegen_codegen_entry_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_mods, const char **dep_import_paths, int ndep,
     codegen_is_func_used_fn is_func_used, codegen_is_mono_used_fn is_mono_used, codegen_is_type_used_fn is_type_used, void *dce_ctx,
@@ -328,21 +328,21 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #endif
 
 /**
- * 结构化 smoke 是否启用：`--diag-json`（diag_json_enabled）或 SHUX_SMOKE_DIAG=1。
+ * 结构化 smoke 是否启用：`--diag-json`（diag_json_enabled）或 XLANG_SMOKE_DIAG=1。
  * 默认关闭，保持 stdout 旧行（grep/golden 兼容）；启用时另向 stderr 输出带编号的 info 诊断。
  */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-301 R10 → rt_entry hybrid */
-#ifndef SHUX_RT_ENTRY_FROM_X
-int shux_smoke_diag_enabled(void) {
+#ifndef XLANG_RT_ENTRY_FROM_X
+int xlang_smoke_diag_enabled(void) {
   const char *e;
   if (diag_json_enabled())
     return 1;
-  e = getenv("SHUX_SMOKE_DIAG");
+  e = getenv("XLANG_SMOKE_DIAG");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 #else
-int shux_smoke_diag_enabled(void);
+int xlang_smoke_diag_enabled(void);
 #endif
 
 
@@ -350,7 +350,7 @@ int shux_smoke_diag_enabled(void);
 /* 编译/链接失败时删除 -o 目标，避免遗留 0 字节或半写入产物污染后续增量构建。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-262 R0：逻辑源 src/runtime/rt_util.x；hybrid → seeds/rt_util.from_x.c */
-#ifndef SHUX_RT_UTIL_FROM_X
+#ifndef XLANG_RT_UTIL_FROM_X
 void driver_unlink_failed_output(const char *out_path) {
     if (!out_path || !out_path[0])
         return;
@@ -366,7 +366,7 @@ void driver_unlink_failed_output(const char *out_path);
 #define PATH_MAX 4096
 #endif
 /* G-02f-302 rest diag errno → rt_diag_errno hybrid */
-#ifndef SHUX_RT_DIAG_ERRNO_FROM_X
+#ifndef XLANG_RT_DIAG_ERRNO_FROM_X
 void runtime_diag_errno(const char *file, const char *kind, const char *op) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
@@ -438,7 +438,7 @@ __attribute__((unused))
 void runtime_diag_cli_usage_note(const char *argv0) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.x> [ -o <out> ]",
-                 argv0 ? argv0 : "shux");
+                 argv0 ? argv0 : "xlang");
 }
 #else
 void runtime_diag_errno(const char *file, const char *kind, const char *op);
@@ -454,21 +454,21 @@ int labi_rt_diag_errno_slice_marker(void);
 
 void driver_print_usage_c(void);
 /* G-02f-298 R7-lite → rt_run_exec hybrid */
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
+#ifndef XLANG_RT_RUN_EXEC_FROM_X
 int runtime_test_status_to_rc(const char *script, int st) {
     if (st == -1) {
-        runtime_diag_errno_path(script, "process error", "system(shux test)", script);
+        runtime_diag_errno_path(script, "process error", "system(xlang test)", script);
         return 1;
     }
     if (WIFEXITED(st))
         return WEXITSTATUS(st) != 0 ? 1 : 0;
     if (WIFSIGNALED(st)) {
-        diag_reportf_with_code(script, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+        diag_reportf_with_code(script, 0, 0, "process error", XLANG_DIAG_CODE_PROCESS_PRC001, NULL,
                                "test script terminated by signal %d: '%s'",
                                WTERMSIG(st), script ? script : "?");
         return 1;
     }
-    diag_reportf_with_code(script, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+    diag_reportf_with_code(script, 0, 0, "process error", XLANG_DIAG_CODE_PROCESS_PRC001, NULL,
                            "test script terminated abnormally: '%s'",
                            script ? script : "?");
     return 1;
@@ -480,22 +480,22 @@ int runtime_test_status_to_rc(const char *script, int st);
 
 
 
-#if defined(SHUX_USE_X_TYPECK) && !defined(SHUX_NO_C_FRONTEND)
+#if defined(XLANG_USE_X_TYPECK) && !defined(XLANG_NO_C_FRONTEND)
 /* 6.1：.x typeck 入口；由 typeck.x 提供（库模块形式生成，符号为 typeck_typeck_entry），转调 C typeck_module */
 extern int typeck_typeck_entry(struct ASTModule *mod, struct ASTModule **deps, int ndep);
 #endif
-#ifdef SHUX_USE_X_PIPELINE
+#ifdef XLANG_USE_X_PIPELINE
 /**
  * pipeline / run_compiler 路径调用 driver_dep_*；实现于 runtime_pipeline_abi.c（E-04 v26）。
  */
 #endif
 
-#if defined(SHUX_USE_X_PIPELINE) || defined(SHUX_USE_X_DRIVER)
+#if defined(XLANG_USE_X_PIPELINE) || defined(XLANG_USE_X_DRIVER)
 #endif
 
-#if defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_PIPELINE)
 /* G-02f-265 R3：逻辑源 src/runtime/rt_preamble.x；hybrid → seeds/rt_preamble.from_x.c */
-#ifndef SHUX_RT_PREAMBLE_FROM_X
+#ifndef XLANG_RT_PREAMBLE_FROM_X
 /** 向生成 C 写入 std.io / std.net 内联 ABI（原 io_abi.h、net_abi.h 内容），不再依赖该二头文件。成功返回 0。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int write_io_net_abi_inline(FILE *cf) {
@@ -510,7 +510,7 @@ int write_io_net_abi_inline(FILE *cf) {
          * PLATFORM: POSIX — product -o co-emit of std.fs.posix uses bare O_*, S_IF*,
          * PROT_*, MAP_*, FS_IOV_BUF_MAX, DIRENT_D_NAME_OFF and bare fs_libc_open, plus
          * Darwin __error / Linux __errno_location / fcntl / madvise without prototypes.
-         * Do NOT include sys/stat.h or sys/mman.h: conflict with Shux PosixStatBuf /
+         * Do NOT include sys/stat.h or sys/mman.h: conflict with Xlang PosixStatBuf /
          * extern open,stat,mmap (host-cc red). Values match std/fs/posix.x export const.
          */
         "#ifndef O_RDONLY\n#define O_RDONLY 0\n#endif\n"
@@ -555,28 +555,28 @@ int write_io_net_abi_inline(FILE *cf) {
         "}\n"
         "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n"
         "#endif\n",
-        /* std.io.sync 调用 shux_sys_*：与 unistd 解耦，内部 cast 到系统 iovec/pollfd。 */
-        "static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
+        /* std.io.sync 调用 xlang_sys_*：与 unistd 解耦，内部 cast 到系统 iovec/pollfd。 */
+        "static inline ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return read((int)fd, (void *)buf, count);\n"
         "}\n",
-        "static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
+        "static inline ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return write((int)fd, (const void *)buf, count);\n"
         "}\n",
         /* PLATFORM: POSIX — MinGW lacks readv/writev/poll and the types struct iovec,
          * struct pollfd, nfds_t. Gate each inline behind _WIN32. Windows std.io.sync /
-         * std.net use shux_sys_read/write (provided by MinGW io.h). */
+         * std.net use xlang_sys_read/write (provided by MinGW io.h). */
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
+        "static inline ssize_t xlang_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
+        "static inline ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
+        "static inline int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
         "}\n"
         "#endif\n",
@@ -596,36 +596,36 @@ int write_io_net_abi_inline(FILE *cf) {
         "extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);\n",
         "extern uint8_t *io_read_ptr(size_t handle, unsigned timeout_ms);\n",
         "extern int io_read_ptr_len(void);\n",
-        "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n",
-        "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
-        "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
-        "extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
-        "extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
-        "extern uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
-        "extern int32_t shux_io_read_ptr_len(void);\n",
+        "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
+        "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
+        "extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
+        "extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
+        "extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
+        "extern int32_t xlang_io_read_ptr_len(void);\n",
         "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n",
-        "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
-        "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
+        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
         /* 勿定义 std_io_driver_submit_read/write 同名 inline：co-emit driver 会生成 Buffer 形参强符号。
          * 仅提供 via_ptr 与短名宏；全名调用走 co-emit 定义。 */
-        "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
-        "static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
-        "#define shux_io_register(buf) shux_io_register_buf(buf)\n",
-        "#define shux_io_submit_read(buf, timeout_m) shux_io_submit_read_buf(buf, timeout_m)\n",
-        "#define shux_io_submit_write(buf, timeout_m) shux_io_submit_write_buf(buf, timeout_m)\n",
-        "/* 撤销宏：X codegen 会生成同名函数定义(shux_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */\n",
-        "#undef shux_io_register\n",
-        "#undef shux_io_submit_read\n",
-        "#undef shux_io_submit_write\n",
+        "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        "static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        "#define xlang_io_register(buf) xlang_io_register_buf(buf)\n",
+        "#define xlang_io_submit_read(buf, timeout_m) xlang_io_submit_read_buf(buf, timeout_m)\n",
+        "#define xlang_io_submit_write(buf, timeout_m) xlang_io_submit_write_buf(buf, timeout_m)\n",
+        "/* 撤销宏：X codegen 会生成同名函数定义(xlang_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */\n",
+        "#undef xlang_io_register\n",
+        "#undef xlang_io_submit_read\n",
+        "#undef xlang_io_submit_write\n",
         "struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };\n",
         "typedef struct std_io_driver_Buffer std_io_Buffer;\n",
         "#define std_io_Buffer std_io_driver_Buffer\n",
         "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
         "extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
         "extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer * bufs, uint32_t nr);\n",
-        "#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len\n",
-        "#define std_io_driver_driver_read_ptr shux_io_read_ptr\n",
+        "#define std_io_driver_driver_read_ptr_len xlang_io_read_ptr_len\n",
+        "#define std_io_driver_driver_read_ptr xlang_io_read_ptr\n",
         "#define driver_read_ptr_len std_io_driver_driver_read_ptr_len\n",
         "#define driver_read_ptr std_io_driver_driver_read_ptr\n",
         "#define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf\n",
@@ -651,58 +651,58 @@ int write_io_net_abi_inline(FILE *cf) {
         "#define std_io_core_io_write_batch io_write_batch\n",
         "#define std_io_core_io_read_fixed io_read_fixed\n",
         "#define std_io_core_io_write_fixed io_write_fixed\n",
-        "#define std_io_core_shux_io_register shux_io_register\n",
-        "#define std_io_core_shux_io_register_buffers shux_io_register_buffers\n",
-        "#define std_io_core_shux_io_unregister_buffers shux_io_unregister_buffers\n",
-        "#define std_io_core_shux_io_submit_read shux_io_submit_read\n",
-        "#define std_io_core_shux_io_read_ptr shux_io_read_ptr\n",
-        "#define std_io_core_shux_io_read_ptr_len shux_io_read_ptr_len\n",
-        "#define std_io_core_shux_io_submit_write shux_io_submit_write\n",
-        "#define std_io_core_shux_io_submit_read_batch shux_io_submit_read_batch\n",
-        "#define std_io_core_shux_io_submit_write_batch shux_io_submit_write_batch\n",
-        "#define std_io_core_shux_io_read_fixed shux_io_read_fixed\n",
-        "#define std_io_core_shux_io_write_fixed shux_io_write_fixed\n",
+        "#define std_io_core_xlang_io_register xlang_io_register\n",
+        "#define std_io_core_xlang_io_register_buffers xlang_io_register_buffers\n",
+        "#define std_io_core_xlang_io_unregister_buffers xlang_io_unregister_buffers\n",
+        "#define std_io_core_xlang_io_submit_read xlang_io_submit_read\n",
+        "#define std_io_core_xlang_io_read_ptr xlang_io_read_ptr\n",
+        "#define std_io_core_xlang_io_read_ptr_len xlang_io_read_ptr_len\n",
+        "#define std_io_core_xlang_io_submit_write xlang_io_submit_write\n",
+        "#define std_io_core_xlang_io_submit_read_batch xlang_io_submit_read_batch\n",
+        "#define std_io_core_xlang_io_submit_write_batch xlang_io_submit_write_batch\n",
+        "#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed\n",
+        "#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed\n",
         /* driver→core 前缀：core 未 co-emit 时映到 runtime 符号（与 io.o 一致）。 */
-        "#define std_io_core_shux_io_register_buffers_buf io_register_buffers_buf\n",
-        "#define std_io_core_shux_io_read_ptr_gen shux_io_read_ptr_gen\n",
-        "#define std_io_core_shux_io_read_ptr_gen_valid shux_io_read_ptr_gen_valid\n",
-        "#define std_io_core_shux_io_read_ptr_backend shux_io_read_ptr_backend\n",
-        "#define std_io_core_shux_io_read_ptr_slice shux_io_read_ptr_slice\n",
-        "#define std_io_core_shux_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
-        "#define std_io_core_shux_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
-        "#define std_io_core_shux_io_register_provided_buffers shux_io_register_provided_buffers\n",
+        "#define std_io_core_xlang_io_register_buffers_buf io_register_buffers_buf\n",
+        "#define std_io_core_xlang_io_read_ptr_gen xlang_io_read_ptr_gen\n",
+        "#define std_io_core_xlang_io_read_ptr_gen_valid xlang_io_read_ptr_gen_valid\n",
+        "#define std_io_core_xlang_io_read_ptr_backend xlang_io_read_ptr_backend\n",
+        "#define std_io_core_xlang_io_read_ptr_slice xlang_io_read_ptr_slice\n",
+        "#define std_io_core_xlang_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
+        "#define std_io_core_xlang_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
+        "#define std_io_core_xlang_io_register_provided_buffers xlang_io_register_provided_buffers\n",
         /* Cap co-emit of std.io wrappers calls these names; map to runtime/io.o symbols. */
-        "#define std_io_core_shux_io_unregister_provided_buffers shux_io_unregister_provided_buffers\n",
-        "#define std_io_core_shux_io_provided_buffer_ptr shux_io_provided_buffer_ptr\n",
-        "#define std_io_core_shux_io_provided_buffer_size shux_io_provided_buffer_size\n",
-        "#define std_io_core_shux_io_read_provided shux_io_read_provided\n",
-        "#define std_io_core_shux_io_read_batch_provided shux_io_read_batch_provided\n",
-        "#define std_io_core_shux_io_submit_read_async shux_io_submit_read_async\n",
-        "#define std_io_core_shux_io_complete_read_async shux_io_complete_read_async\n",
-        "#define std_io_core_shux_io_complete_read_async_slot shux_io_complete_read_async_slot\n",
-        "#define std_io_core_shux_io_submit_write_async shux_io_submit_write_async\n",
-        "#define std_io_core_shux_io_complete_write_async shux_io_complete_write_async\n",
-        "#define std_io_core_shux_io_complete_write_async_slot shux_io_complete_write_async_slot\n",
-        "#define std_io_core_shux_io_poll_async_completions shux_io_poll_async_completions\n",
-        "#define std_io_core_shux_io_uring_is_available_c shux_io_uring_is_available_c\n",
-        "extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);\n",
-        "extern int32_t shux_io_read_ptr_backend(void);\n",
-        "extern uint64_t shux_io_read_ptr_gen(void);\n",
-        "extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);\n",
-        "extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);\n",
-        "extern void shux_io_unregister_provided_buffers(void);\n",
-        "extern uint8_t *shux_io_provided_buffer_ptr(uint32_t bid);\n",
-        "extern uint32_t shux_io_provided_buffer_size(void);\n",
-        "extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);\n",
-        "extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);\n",
-        "extern int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n",
-        "extern int32_t shux_io_complete_read_async(void);\n",
-        "extern int32_t shux_io_complete_read_async_slot(int32_t slot);\n",
-        "extern int32_t shux_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);\n",
-        "extern int32_t shux_io_complete_write_async(void);\n",
-        "extern int32_t shux_io_complete_write_async_slot(int32_t slot);\n",
-        "extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);\n",
-        "extern int32_t shux_io_uring_is_available_c(void);\n",
+        "#define std_io_core_xlang_io_unregister_provided_buffers xlang_io_unregister_provided_buffers\n",
+        "#define std_io_core_xlang_io_provided_buffer_ptr xlang_io_provided_buffer_ptr\n",
+        "#define std_io_core_xlang_io_provided_buffer_size xlang_io_provided_buffer_size\n",
+        "#define std_io_core_xlang_io_read_provided xlang_io_read_provided\n",
+        "#define std_io_core_xlang_io_read_batch_provided xlang_io_read_batch_provided\n",
+        "#define std_io_core_xlang_io_submit_read_async xlang_io_submit_read_async\n",
+        "#define std_io_core_xlang_io_complete_read_async xlang_io_complete_read_async\n",
+        "#define std_io_core_xlang_io_complete_read_async_slot xlang_io_complete_read_async_slot\n",
+        "#define std_io_core_xlang_io_submit_write_async xlang_io_submit_write_async\n",
+        "#define std_io_core_xlang_io_complete_write_async xlang_io_complete_write_async\n",
+        "#define std_io_core_xlang_io_complete_write_async_slot xlang_io_complete_write_async_slot\n",
+        "#define std_io_core_xlang_io_poll_async_completions xlang_io_poll_async_completions\n",
+        "#define std_io_core_xlang_io_uring_is_available_c xlang_io_uring_is_available_c\n",
+        "extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);\n",
+        "extern int32_t xlang_io_read_ptr_backend(void);\n",
+        "extern uint64_t xlang_io_read_ptr_gen(void);\n",
+        "extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);\n",
+        "extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);\n",
+        "extern void xlang_io_unregister_provided_buffers(void);\n",
+        "extern uint8_t *xlang_io_provided_buffer_ptr(uint32_t bid);\n",
+        "extern uint32_t xlang_io_provided_buffer_size(void);\n",
+        "extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);\n",
+        "extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);\n",
+        "extern int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t xlang_io_complete_read_async(void);\n",
+        "extern int32_t xlang_io_complete_read_async_slot(int32_t slot);\n",
+        "extern int32_t xlang_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t xlang_io_complete_write_async(void);\n",
+        "extern int32_t xlang_io_complete_write_async_slot(int32_t slot);\n",
+        "extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);\n",
+        "extern int32_t xlang_io_uring_is_available_c(void);\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
         "extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
         "extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
@@ -715,54 +715,54 @@ int write_io_net_abi_inline(FILE *cf) {
         "struct std_net_TcpListener { int32_t fd; };\n",
         "struct std_net_UdpSocket { int32_t fd; };\n",
         "#if defined(__clang__)\n",
-        "#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
+        "#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
         "#elif defined(__GNUC__)\n",
         "/* 仅用 *(int32_t*)&(x)：int32_t 与仅含 .fd 的 struct 首字节相同，且避免 __builtin_types_compatible_p 在部分环境报错、三元分支被全量类型检查。调用方须传 lvalue。 */\n",
-        "#define shux_io_net_fd(x) (*(int32_t*)(void*)&(x))\n",
+        "#define xlang_io_net_fd(x) (*(int32_t*)(void*)&(x))\n",
         "#else\n",
-        "#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
+        "#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
         "#endif\n",
-        "#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
-        "#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
+        "#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
+        "#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
         "/* X 内联 std.io 会生成函数定义；撤销与定义/extern 冲突的宏，并补齐 batch 注册符号映射。 */\n",
         "#undef std_io_driver_io_register_buffers_buf\n",
         "#undef std_io_read_fixed_fd\n",
         "#undef std_io_write_fixed_fd\n",
-        "#undef std_io_core_shux_io_register_buffers\n",
-        "#undef std_io_core_shux_io_unregister_buffers\n",
-        "#undef std_io_core_shux_io_read_fixed\n",
-        "#undef std_io_core_shux_io_write_fixed\n",
-        "#undef std_io_core_shux_io_wait_readable\n",
-        "#define std_io_core_shux_io_register_buffers io_register_buffers_4\n",
-        "#define std_io_core_shux_io_unregister_buffers io_unregister_buffers\n",
-        "#define std_io_core_shux_io_read_fixed shux_io_read_fixed\n",
-        "#define std_io_core_shux_io_write_fixed shux_io_write_fixed\n",
-        "#define std_io_core_shux_io_wait_readable io_wait_readable\n",
+        "#undef std_io_core_xlang_io_register_buffers\n",
+        "#undef std_io_core_xlang_io_unregister_buffers\n",
+        "#undef std_io_core_xlang_io_read_fixed\n",
+        "#undef std_io_core_xlang_io_write_fixed\n",
+        "#undef std_io_core_xlang_io_wait_readable\n",
+        "#define std_io_core_xlang_io_register_buffers io_register_buffers_4\n",
+        "#define std_io_core_xlang_io_unregister_buffers io_unregister_buffers\n",
+        "#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed\n",
+        "#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed\n",
+        "#define std_io_core_xlang_io_wait_readable io_wait_readable\n",
         "/* codegen 体内调 std_io_driver_io_*；#undef 后重绑到 preamble/io.o 的 io_*。 */\n",
         "#define std_io_driver_io_read_batch_buf io_read_batch_buf\n",
         "#define std_io_driver_io_write_batch_buf io_write_batch_buf\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
         /*
          * 【Why 根源】产品 -o 走 write_io_net_abi_inline，仅有 extern。hello 等 co-emit
-         *   整包 std.io 时，未用到的 read/batch 体仍链进 .o，引用 shux_io_submit_read /
+         *   整包 std.io 时，未用到的 read/batch 体仍链进 .o，引用 xlang_io_submit_read /
          *   std_io_driver_submit_* / io_* / ctx_*；macOS 又不能硬链 runtime_asm_io_stubs
          *   （与 co-emit 的 std_io_write_stdout 等强符号冲突）。
          * 【Invariant】weak：有 co-emit/io.o 强符号时选强；无则 stdio 占位，hello print 可链。
          */
         "#include <stdio.h>\n"
         "#ifndef __cplusplus\n"
-        "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
+        "__attribute__((weak)) int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
         "  size_t r; (void)timeout_m; if (!ptr) return 0; if (handle != 0) return -1;\n"
         "  r = fread(ptr, 1, len, stdin); if (r == 0 && ferror(stdin)) return -1; return (int32_t)r;\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
+        "__attribute__((weak)) int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n"
         "  FILE *fp; (void)timeout_m; if (!ptr || len == 0) return 0;\n"
         "  if (handle == 1) fp = stdout; else if (handle == 2) fp = stderr; else return -1;\n"
         "  return (fwrite(ptr, 1, len, fp) == len) ? (int32_t)len : -1;\n"
         "}\n"
-        /* PLATFORM: SHARED — co-emit driver maps core.shux_io_submit_*_batch → short names;
+        /* PLATFORM: SHARED — co-emit driver maps core.xlang_io_submit_*_batch → short names;
          * weak fallback when std.io.core not in TU (run-net udp_batch_buf). Strong io/core wins. */
-        "__attribute__((weak)) int32_t shux_io_submit_read_batch(\n"
+        "__attribute__((weak)) int32_t xlang_io_submit_read_batch(\n"
         "    uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,\n"
         "    uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,\n"
         "    size_t handle, int32_t n, uint32_t timeout_ms) {\n"
@@ -770,7 +770,7 @@ int write_io_net_abi_inline(FILE *cf) {
         "      uint8_t *a2, size_t b2, uint8_t *a3, size_t b3, int32_t nn, unsigned t);\n"
         "  return (int32_t)io_read_batch((int32_t)handle, p0, l0, p1, l1, p2, l2, p3, l3, n, timeout_ms);\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_submit_write_batch(\n"
+        "__attribute__((weak)) int32_t xlang_io_submit_write_batch(\n"
         "    uint8_t *p0, size_t l0, uint8_t *p1, size_t l1,\n"
         "    uint8_t *p2, size_t l2, uint8_t *p3, size_t l3,\n"
         "    size_t handle, int32_t n, uint32_t timeout_ms) {\n"
@@ -778,16 +778,16 @@ int write_io_net_abi_inline(FILE *cf) {
         "      uint8_t *a2, size_t b2, uint8_t *a3, size_t b3, int32_t nn, unsigned t);\n"
         "  return (int32_t)io_write_batch((int32_t)handle, p0, l0, p1, l1, p2, l2, p3, l3, n, timeout_ms);\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {\n"
+        "__attribute__((weak)) int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {\n"
         "  (void)ptr; (void)len; (void)handle; return -1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "__attribute__((weak)) int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
         "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "__attribute__((weak)) int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
         "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }\n"
+        "__attribute__((weak)) int32_t xlang_io_read_ptr_backend(void) { return 0; }\n"
         "__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {\n"
         "  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;\n"
         "}\n"
@@ -799,34 +799,34 @@ int write_io_net_abi_inline(FILE *cf) {
         "}\n"
         /* submit_*_batch(_buf)：co-emit driver.x 为唯一权威；勿 weak stub（同 TU 重定义 + 假 -1）。 */
         "__attribute__((weak)) uint64_t std_io_driver_driver_read_ptr_gen(void) { return 0; }\n"
-        "typedef struct { int32_t _pad; } shux_ctx_handle_t;\n"
-        "__attribute__((weak)) shux_ctx_handle_t *ctx_background_c(void) { return 0; }\n"
-        "__attribute__((weak)) void ctx_cancel_c(shux_ctx_handle_t *c) { (void)c; }\n"
-        "__attribute__((weak)) int64_t ctx_deadline_ns_c(shux_ctx_handle_t *c) { (void)c; return 0; }\n"
-        "__attribute__((weak)) void ctx_free_c(shux_ctx_handle_t *c) { (void)c; }\n"
-        "__attribute__((weak)) void *ctx_get_value_c(shux_ctx_handle_t *c, void *k) { (void)c;(void)k; return 0; }\n"
-        "__attribute__((weak)) int32_t ctx_is_cancelled_c(shux_ctx_handle_t *c) { (void)c; return 0; }\n"
-        "__attribute__((weak)) int64_t ctx_remaining_ns_c(shux_ctx_handle_t *c) { (void)c; return 0; }\n"
-        "__attribute__((weak)) void ctx_set_value_c(shux_ctx_handle_t *c, void *k, void *v) { (void)c;(void)k;(void)v; }\n"
-        "__attribute__((weak)) shux_ctx_handle_t *ctx_with_cancel_c(shux_ctx_handle_t *p) { (void)p; return 0; }\n"
-        "__attribute__((weak)) shux_ctx_handle_t *ctx_with_deadline_c(shux_ctx_handle_t *p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
-        "__attribute__((weak)) shux_ctx_handle_t *ctx_with_timeout_c(shux_ctx_handle_t *p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
+        "typedef struct { int32_t _pad; } xlang_ctx_handle_t;\n"
+        "__attribute__((weak)) xlang_ctx_handle_t *ctx_background_c(void) { return 0; }\n"
+        "__attribute__((weak)) void ctx_cancel_c(xlang_ctx_handle_t *c) { (void)c; }\n"
+        "__attribute__((weak)) int64_t ctx_deadline_ns_c(xlang_ctx_handle_t *c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) void ctx_free_c(xlang_ctx_handle_t *c) { (void)c; }\n"
+        "__attribute__((weak)) void *ctx_get_value_c(xlang_ctx_handle_t *c, void *k) { (void)c;(void)k; return 0; }\n"
+        "__attribute__((weak)) int32_t ctx_is_cancelled_c(xlang_ctx_handle_t *c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) int64_t ctx_remaining_ns_c(xlang_ctx_handle_t *c) { (void)c; return 0; }\n"
+        "__attribute__((weak)) void ctx_set_value_c(xlang_ctx_handle_t *c, void *k, void *v) { (void)c;(void)k;(void)v; }\n"
+        "__attribute__((weak)) xlang_ctx_handle_t *ctx_with_cancel_c(xlang_ctx_handle_t *p) { (void)p; return 0; }\n"
+        "__attribute__((weak)) xlang_ctx_handle_t *ctx_with_deadline_c(xlang_ctx_handle_t *p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
+        "__attribute__((weak)) xlang_ctx_handle_t *ctx_with_timeout_c(xlang_ctx_handle_t *p, int64_t ns) { (void)p;(void)ns; return 0; }\n"
         "#endif\n",
         "struct std_net_Ipv4Addr { uint8_t a; uint8_t b; uint8_t c; uint8_t d; };\n",
         "struct std_net_Ipv6Addr { uint8_t b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15; };\n",
         "#define handle_from_fd std_io_handle_from_fd\n",
         "#define submit_read_batch_buf std_io_submit_read_batch_buf\n",
         "#define submit_write_batch_buf std_io_submit_write_batch_buf\n",
-        "#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
-        "#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
+        "#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
+        "#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
         "/* 实际符号用 _real 后缀，避免宏 net_close_socket_c(x) 展开时再触发自身。 */\n",
         "extern int32_t net_close_socket_c_real(int32_t fd);\n",
         "extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
         "/* 勿 #define bare net_close_socket_c / net_run_accept_workers_c：与 extern 同名会吃掉声明。 */\n",
         "extern int32_t net_close_socket_c(int32_t fd);\n",
         "extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
-        "#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
-        "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
+        "#define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))\n",
+        "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)\n",
         /* 与 rt_preamble 同：#define 标签别名，吸收 codegen 的 std_fs_posix_* tag */
         "#define STD_FS_FS_IOVEC_BUF_DEFINED\nstruct std_fs_FsIovecBuf { void *ptr; size_t len; size_t handle; };\n"
         "#define std_fs_posix_FsIovecBuf std_fs_FsIovecBuf\n"
@@ -934,14 +934,14 @@ int write_fs_path_map_error_abi_inline(FILE *cf) {
 #else
 int write_io_net_abi_inline(FILE *cf);
 int write_fs_path_map_error_abi_inline(FILE *cf);
-#endif /* !SHUX_RT_PREAMBLE_FROM_X */
+#endif /* !XLANG_RT_PREAMBLE_FROM_X */
 
 
 
 
-#endif /* SHUX_USE_X_PIPELINE */
+#endif /* XLANG_USE_X_PIPELINE */
 
-#if !defined(SHUX_USE_X_DRIVER)
+#if !defined(XLANG_USE_X_DRIVER)
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     char rel[PATH_MAX];
@@ -951,7 +951,7 @@ void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     if (!out)
         return;
     /* 缩减版：无 pipeline.x 全量类型与 codegen.o 转发目标，见 pipeline_glue.c 内 #ifndef 块。 */
-    fprintf(out, "\n#define SHUX_PARSER_EXE_PIPELINE_GLUE 1\n");
+    fprintf(out, "\n#define XLANG_PARSER_EXE_PIPELINE_GLUE 1\n");
     if (!argv0 || !argv0[0]) {
         if (realpath("pipeline_glue.c", canon) != NULL)
             fprintf(out, "\n#include \"%s\"\n", canon);
@@ -980,13 +980,13 @@ void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
 
 
 
-#endif /* !SHUX_USE_X_DRIVER */
+#endif /* !XLANG_USE_X_DRIVER */
 
 
-#ifdef SHUX_USE_X_PIPELINE
+#ifdef XLANG_USE_X_PIPELINE
 #include <stdint.h>
 #include <stddef.h>
-/* 9.1：纯 .x 流水线；PipelineDepCtx / shux_slice 见 runtime_pipeline_abi.h。 */
+/* 9.1：纯 .x 流水线；PipelineDepCtx / xlang_slice 见 runtime_pipeline_abi.h。 */
 
 extern int32_t pipeline_dep_ctx_ensure_source_buffers(struct ast_PipelineDepCtx *ctx);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
@@ -998,7 +998,7 @@ extern void pipeline_asm_seed_std_net_struct_layouts(struct ast_Module *m);
 extern int driver_get_module_num_funcs(void *m);
 extern int driver_get_module_main_func_index(void *m);
 
-/** 将 C 侧 dep 槽写入 PipelineDepCtx sidecar — 见 runtime_pipeline_abi.c shux_pipeline_pctx_seed_dep_slots。 */
+/** 将 C 侧 dep 槽写入 PipelineDepCtx sidecar — 见 runtime_pipeline_abi.c xlang_pipeline_pctx_seed_dep_slots。 */
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
 extern int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len);
@@ -1031,7 +1031,7 @@ typedef struct {
     int32_t num_patches;
 } RuntimePipelineElfCtxAccess;
 /* G-02f-304：elf ctx diag → rt_pipeline_elf_diag hybrid */
-#ifndef SHUX_RT_PIPELINE_ELF_DIAG_FROM_X
+#ifndef XLANG_RT_PIPELINE_ELF_DIAG_FROM_X
 void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
     RuntimePipelineElfCtxAccess *ctx;
     int32_t l;
@@ -1090,8 +1090,8 @@ struct codegen_CodegenOutBuf {
 _Static_assert(offsetof(struct codegen_CodegenOutBuf, len) == X_CODEGEN_OUTBUF_CAP, "CodegenOutBuf: len must follow data[] for ABI");
 #endif
 /** asm 后端 C 桩：最小 GAS（main return 42）。G-02f-300 R9 → rt_asm_stub hybrid */
-#ifndef SHUX_RT_ASM_STUB_FROM_X
-SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
+#ifndef XLANG_RT_ASM_STUB_FROM_X
+XLANG_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
     (void)module;
     (void)arena;
     static const char *lines[] = {
@@ -1118,7 +1118,7 @@ SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_Code
     return 0;
 }
 #else
-SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out);
+XLANG_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out);
 int32_t driver_asm_output_want_exe(uint8_t *path);
 int labi_rt_asm_stub_slice_marker(void);
 #endif
@@ -1126,18 +1126,18 @@ int labi_rt_asm_stub_slice_marker(void);
 struct parser_ParseIntoResult { int32_t ok; int32_t main_idx; };
 extern void parser_parse_into_init(void *arena, void *module);
 extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
-extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source);
+extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct xlang_slice_uint8_t *source);
 extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t i, uint8_t *out);
-extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source);
-extern int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module);
-extern int32_t pipeline_parse_one_function_ok(struct shux_slice_uint8_t *source, void *arena);
-extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct shux_slice_uint8_t *source, void *ctx);
+extern int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t *source);
+extern int32_t parser_diag_token_after_collect_imports(struct xlang_slice_uint8_t *source, void *module);
+extern int32_t pipeline_parse_one_function_ok(struct xlang_slice_uint8_t *source, void *arena);
+extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct xlang_slice_uint8_t *source, void *ctx);
 /* G-02f-307：precise parse diag → rt_parse_diag hybrid */
-#ifndef SHUX_RT_PARSE_DIAG_FROM_X
+#ifndef XLANG_RT_PARSE_DIAG_FROM_X
 int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
-    struct shux_slice_uint8_t diag_src_slice;
+    struct xlang_slice_uint8_t diag_src_slice;
     int32_t fail_tok;
     if (!src || src_len == 0)
         return 0;
@@ -1145,7 +1145,7 @@ int runtime_report_precise_parse_failure_if_known(const char *input_path, const 
     diag_src_slice.length = src_len;
     fail_tok = parser_diag_fail_at_token_kind(&diag_src_slice);
     if (fail_tok == TOKEN_STRING) {
-        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                                "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
                                "'break', 'continue', 'return', 'panic', 'match', or '('");
         return 1;
@@ -1161,11 +1161,11 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
 
 
 
-#ifdef SHUX_USE_X_DRIVER
+#ifdef XLANG_USE_X_DRIVER
 /* run_compiler_c 由 C 在此定义，转调 main.x 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
 extern int main_run_compiler_c(int argc, uint8_t *argv);
 /* G-02f-310 R10 扩：run_compiler_c → rt_entry hybrid */
-#ifndef SHUX_RT_ENTRY_FROM_X
+#ifndef XLANG_RT_ENTRY_FROM_X
 int run_compiler_c(int argc, char **argv) {
   return main_run_compiler_c(argc, (uint8_t *)argv);
 }
@@ -1175,10 +1175,10 @@ int run_compiler_c(int argc, char **argv);
 
 #endif
 /* 6.1 后 typeck/pipeline 用 ctx；typeck dep 侧车见 runtime_pipeline_abi.c（E-04 v29）；typeck 入口见 v31 pipeline_typeck_module_for_ctx。 */
-#if defined(SHUX_USE_X_PIPELINE) || defined(SHUX_USE_X_DRIVER)
+#if defined(XLANG_USE_X_PIPELINE) || defined(XLANG_USE_X_DRIVER)
 #endif
 
-#endif /* SHUX_USE_X_PIPELINE */
+#endif /* XLANG_USE_X_PIPELINE */
 
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -1202,7 +1202,7 @@ int run_compiler_c(int argc, char **argv);
  * 错误与边界：无；不分配内存。
  * 副作用与约定：无副作用；返回值不得被 free。
  */
-#if !defined(SHUX_USE_X_DRIVER)
+#if !defined(XLANG_USE_X_DRIVER)
 static const char *token_kind_str(TokenKind k) {
     switch (k) {
         case TOKEN_EOF:     return "EOF";
@@ -1359,9 +1359,9 @@ void driver_smoke_lex_dump_on_large_stack(const char *src) {
 
 
 
-#endif /* !SHUX_USE_X_DRIVER */
+#endif /* !XLANG_USE_X_DRIVER */
 
-#if !defined(SHUX_USE_X_DRIVER)
+#if !defined(XLANG_USE_X_DRIVER)
 /** 阶段 8.1 DCE 上下文：供 dce_is_func_used / dce_is_mono_used / dce_is_type_used 回调使用。 */
 struct dce_ctx {
     ASTFunc **used;
@@ -1463,7 +1463,7 @@ int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
 
 
 
-#endif /* !SHUX_USE_X_DRIVER */
+#endif /* !XLANG_USE_X_DRIVER */
 
 /**
  * 编译器主入口：解析命令行，执行 lexer→parser→typeck，可选 codegen→cc 产出可执行文件。
@@ -1471,25 +1471,25 @@ int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
  * 参数：argc、argv 为标准 C 程序参数；argv[0] 为程序名，后续为可选 -L/-target/-o 及其参数与一个输入 .x 路径。
  * 返回值：0 表示成功（含无参数时打印用法）；1 表示读文件失败、解析/typeck 失败、codegen 或 cc 失败。
  * 错误与边界：无输入文件时打印用法并返回 0；-o 指定但无 main 时返回 1；import 数量超过 32 时仅处理前 32 个。
- * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 getenv("SHUX_LIB")；多文件时可能多次解析同一 import 的 .x。
+ * 副作用与约定：可能创建/删除 /tmp 下临时文件；依赖 getenv("XLANG_LIB")；多文件时可能多次解析同一 import 的 .x。
  */
 #define MAX_DEFINES 64
 #define MAX_LIB_ROOTS 16
 /**
  * 编译器 pipeline 实现（原 main 逻辑）；供 C main 直接调用，或由 .x driver 入口转调（6.3）。
- * SHUX_USE_X_DRIVER 时 run_compiler_c_impl 由 main.x 提供（桩），C 不定义以免重复符号。
+ * XLANG_USE_X_DRIVER 时 run_compiler_c_impl 由 main.x 提供（桩），C 不定义以免重复符号。
  */
-#if defined(SHUX_USE_X_DRIVER)
+#if defined(XLANG_USE_X_DRIVER)
 /* run_compiler_c_impl 由 main.x 提供（桩），C 不定义。 */
 #else
 #define RUN_CC_FUNC run_compiler_c
 int RUN_CC_FUNC(int argc, char **argv) {
-#ifdef SHUX_USE_X_FRONTEND
+#ifdef XLANG_USE_X_FRONTEND
     /* 阶段 3.2：链入 _x.o 时不再提供 typeck_module/codegen_* 等 C 符号，run_compiler_c 不应被调用；main 已走 run_compiler_x_path。 */
     (void)argc;
     (void)argv;
     diag_report(NULL, 0, 0, "internal error",
-                "run_compiler_c called with SHUX_USE_X_FRONTEND", NULL);
+                "run_compiler_c called with XLANG_USE_X_FRONTEND", NULL);
     return 1;
 #else
     /* typeck/codegen 等大模块自举 parse/typeck 栈帧深；须早于 pipeline 入口扩容。 */
@@ -1504,13 +1504,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
     int emit_c_only = 0;  /* -E：仅生成 C 到 stdout，不调用 cc */
     int emit_extern_imports = 0;  /* 阶段 3.1：-E-extern 时仅展开入口，import 用 extern，生成瘦 C */
     const char *lib_name_override = NULL;  /* -lib-name：覆盖 lib_prefix（F 闭合：impl .x 编译为裸符号用空串）*/
-    #ifdef SHUX_USE_X_PIPELINE
+    #ifdef XLANG_USE_X_PIPELINE
     /* 【Why 根源】默认走 C 前端（use_x_pipeline=0），避免 .x pipeline 的 ASM 后端在
      * Darwin/ARM64 上失效（asm_backend_partial.o 为 fallback 弱桩，code_len=0）。
      * C 前端在所有平台上都能工作（-E 生成 C 代码 + cc 编译）。
      * 显式 -backend asm 或 -x 可重新启用 .x pipeline。
      * 【Invariant】仅影响默认编译路径；-E 模式不受影响（emit_c_only 独立于 use_x_pipeline）。 */
-    #ifdef SHUX_NO_C_FRONTEND
+    #ifdef XLANG_NO_C_FRONTEND
     /* 无 C 前端：默认必须走 X pipeline（无 C parse/typeck/codegen 可回退）。 */
     int use_x_pipeline = 1;
     #else
@@ -1522,12 +1522,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
     int ndefines = 0;
 
     for (int i = 1; i < argc; i++) {
-        #ifdef SHUX_USE_X_PIPELINE
+        #ifdef XLANG_USE_X_PIPELINE
         if (strcmp(argv[i], "-x") == 0) {
             use_x_pipeline = 1;
         } else if (strcmp(argv[i], "-backend") == 0) {
             if (i + 1 >= argc) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-backend requires an argument (asm or c)", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG001, "-backend requires an argument (asm or c)", NULL);
                 return 1;
             }
             if (strcmp(argv[i + 1], "asm") == 0) {
@@ -1535,14 +1535,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 use_x_pipeline = 1;  /* -backend asm 必须走 .x pipeline */
             } else if (strcmp(argv[i + 1], "c") == 0) {
                 use_asm_backend = 0;
-#ifdef SHUX_NO_C_FRONTEND
+#ifdef XLANG_NO_C_FRONTEND
                 /* 无 C 前端：-backend c 必须走 X pipeline（C codegen 由 codegen_x.o 提供）。 */
                 use_x_pipeline = 1;
 #else
                 use_x_pipeline = 0;  /* -backend c：C parse/typeck/codegen；-o+import 走 X pipeline 易 out_len=0 */
 #endif
             } else {
-                diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG002, NULL,
                              "-backend expects asm or c (got '%s')", argv[i + 1]);
                 return 1;
             }
@@ -1557,7 +1557,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (strcmp(argv[i], "-lib-name") == 0) {
             /* F 闭合：覆盖 lib_prefix。传空串使 impl .x 函数编译为裸符号（匹配 mod.x 的 extern 调用）。 */
             if (i + 1 >= argc) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-lib-name requires an argument", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG001, "-lib-name requires an argument", NULL);
                 runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
@@ -1565,12 +1565,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
             i++;
         } else if (strcmp(argv[i], "-D") == 0) {
             if (i + 1 >= argc) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-D requires an argument", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG001, "-D requires an argument", NULL);
                 runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
             if (ndefines >= MAX_DEFINES) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, "too many -D defines", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG002, "too many -D defines", NULL);
                 return 1;
             }
             defines[ndefines++] = argv[i + 1];
@@ -1578,19 +1578,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (strncmp(argv[i], "-D", 2) == 0 && argv[i][2] != '\0') {
             /* -DSYMBOL 形式 */
             if (ndefines >= MAX_DEFINES) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, "too many -D defines", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG002, "too many -D defines", NULL);
                 return 1;
             }
             defines[ndefines++] = argv[i] + 2;
         } else if (strcmp(argv[i], "-O") == 0) {
             if (i + 1 >= argc) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-O requires an argument", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG001, "-O requires an argument", NULL);
                 runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
             opt_level = argv[i + 1];
             if (strcmp(opt_level, "0") != 0 && strcmp(opt_level, "1") != 0 && strcmp(opt_level, "2") != 0 && strcmp(opt_level, "3") != 0 && strcmp(opt_level, "s") != 0) {
-                diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG002, NULL,
                              "-O expects 0, 1, 2, 3, or s (got '%s')", opt_level);
                 return 1;
             }
@@ -1603,10 +1603,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
             driver_freestanding_set(1);
             cfg_set_freestanding(1);
         } else if (strcmp(argv[i], "-legacy-f32-abi") == 0) {
-            setenv("SHUX_ABI_F32_XMM", "0", 1);
+            setenv("XLANG_ABI_F32_XMM", "0", 1);
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-o requires an argument", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG001, "-o requires an argument", NULL);
                 runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
@@ -1614,7 +1614,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             i++;
         } else if (strcmp(argv[i], "-L") == 0) {
             if (i + 1 >= argc) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-L requires an argument", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG001, "-L requires an argument", NULL);
                 runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
@@ -1623,7 +1623,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             i++;
         } else if (strcmp(argv[i], "-target") == 0) {
             if (i + 1 >= argc) {
-                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-target requires an argument", NULL);
+                diag_report_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG001, "-target requires an argument", NULL);
                 runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
@@ -1632,9 +1632,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (argv[i][0] == '-') {
             /* 未知选项（如 -backend 在未链 pipeline 的构建中）：提示而非当作输入文件 */
             if (strcmp(argv[i], "-backend") == 0) {
-                diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, "-backend asm not available in this build. Use: make bootstrap-driver", NULL);
+                diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, "-backend asm not available in this build. Use: make bootstrap-driver", NULL);
             } else {
-                diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "argument error", XLANG_DIAG_CODE_ARGUMENT_ARG002, NULL,
                              "unknown option '%s'", argv[i]);
             }
             return 1;
@@ -1654,14 +1654,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
             defines[ndefines++] = "OS_WINDOWS";
         }
     }
-    /* §3.4 条件编译与平台选择：无 -target 时用 uname 注入 SHUX_OS_<SYSNAME>、SHUX_ARCH_<MACHINE>（全大写）供 .x #if 使用 */
+    /* §3.4 条件编译与平台选择：无 -target 时用 uname 注入 XLANG_OS_<SYSNAME>、XLANG_ARCH_<MACHINE>（全大写）供 .x #if 使用 */
     if (ndefines + 2 <= MAX_DEFINES) {
         struct utsname u;
-        /* utsname.sysname/machine can be up to 65 bytes; "SHUX_OS_"=7, "SHUX_ARCH_"=9, so 80 suffices */
+        /* utsname.sysname/machine can be up to 65 bytes; "XLANG_OS_"=7, "XLANG_ARCH_"=9, so 80 suffices */
         static char shu_os_def[80], shu_arch_def[80];
         if (uname(&u) == 0) {
-            (void)snprintf(shu_os_def, sizeof(shu_os_def), "SHUX_OS_%s", u.sysname);
-            (void)snprintf(shu_arch_def, sizeof(shu_arch_def), "SHUX_ARCH_%s", u.machine);
+            (void)snprintf(shu_os_def, sizeof(shu_os_def), "XLANG_OS_%s", u.sysname);
+            (void)snprintf(shu_arch_def, sizeof(shu_arch_def), "XLANG_ARCH_%s", u.machine);
             for (char *p = shu_os_def + 7; *p; p++) *p = (char)toupper((unsigned char)*p);
             for (char *p = shu_arch_def + 9; *p; p++) *p = (char)toupper((unsigned char)*p);
             defines[ndefines++] = shu_os_def;
@@ -1669,13 +1669,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
     }
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("SHUX_LIB");
+        lib_roots_arr[0] = getenv("XLANG_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
-    if (!opt_level) opt_level = getenv("SHUX_OPT");
+    if (!opt_level) opt_level = getenv("XLANG_OPT");
     if (!opt_level || !*opt_level) opt_level = "2";
-    if (!use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0)
+    if (!use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0)
         use_lto = 1;
 
     if (!input_path) {
@@ -1692,23 +1692,23 @@ int RUN_CC_FUNC(int argc, char **argv) {
     if (emit_c_only)
         (void)typeck_set_allow_legacy_extern_calls(1);
 
-    /** B-02：#[cfg] 与 -target triple 联动（shux-c 主路径 run_compiler_c）。 */
+    /** B-02：#[cfg] 与 -target triple 联动（xlang-c 主路径 run_compiler_c）。 */
     if (target)
         cfg_apply_compile_target_from_triple(target, (int)strlen(target));
     else
         cfg_reset_compile_target();
 
-    ShuxRuntimeFileView raw_src_view;
+    XlangRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                "cannot read file '%s'", input_path);
         return 1;
     }
     size_t src_len = 0;
     char *src = NULL;
-#ifdef SHUX_USE_X_PIPELINE
+#ifdef XLANG_USE_X_PIPELINE
     if (use_x_pipeline) {
-        if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_src_view.data, raw_src_view.length, &src, &src_len,
+        if (xlang_preprocess_raw_to_malloc((const unsigned char *)raw_src_view.data, raw_src_view.length, &src, &src_len,
                 input_path,
                 ndefines > 0 ? defines : NULL, ndefines) != 0) {
             runtime_release_file_view(&raw_src_view);
@@ -1719,12 +1719,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
 #endif
     {
         pipeline_diag_emitted_reset();
-        src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+        src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
             ndefines > 0 ? defines : NULL, ndefines,
             &src_len);
         runtime_release_file_view(&raw_src_view);
         if (!src && !pipeline_diag_emitted_get()) {
-            diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                          "preprocess failed for '%s'", input_path);
             return 1;
         }
@@ -1733,14 +1733,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
     }
     diag_set_file(input_path, src, src_len);
 
-#ifdef SHUX_USE_X_PIPELINE
+#ifdef XLANG_USE_X_PIPELINE
     if (use_x_pipeline) {
         size_t arena_sz = pipeline_sizeof_arena();
         size_t module_sz = pipeline_sizeof_module();
         void *arena = malloc(arena_sz);
         void *module = malloc(module_sz);
         if (!arena || !module) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x pipeline allocation failed", NULL);
             if (arena) free(arena);
             if (module) free(module);
@@ -1749,9 +1749,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
-        struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
+        struct xlang_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
         if (src_len > (size_t)INT32_MAX) {
-            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP007, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP007, NULL,
                                    ".x pipeline source too large for parser (>%d bytes): '%s'",
                                    INT32_MAX, input_path ? input_path : "?");
             free(arena);
@@ -1768,7 +1768,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 free(src);
                 return 1;
             }
-            diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                          ".x pipeline parse_into failed for '%s'",
                          input_path ? input_path : "?");
             free(arena);
@@ -1780,12 +1780,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
         /* pipeline_debug_module_funcs(module);  调试 mai/ba 时取消注释 */
         int32_t n_imports = parser_get_module_num_imports(module);
         char entry_dir_buf[512];
-        shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+        xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
         const char *entry_dir = entry_dir_buf;
         /* 阶段 5：有 import 时先 resolve 并 pipeline 各依赖，再 pipeline 入口 */
         char *dep_paths[MAX_ALL_DEPS];
         int n_deps = 0;
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
         /*
          * 与 emit-C 路径一致：传递闭包（如 hello→std.io→driver/core）；merge 保证槽 0..n_imports-1 与入口 import 对齐，
          * asm_codegen_elf_o 才能把 driver/core 的定义编入同一 Mach-O/ELF。
@@ -1793,14 +1793,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (n_imports > 0 && n_imports <= 32) {
             char *cpaths[MAX_ALL_DEPS];
             int n_closure = 0;
-            if (shux_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
+            if (xlang_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
                     ndefines, cpaths, &n_closure) != 0) {
                 free(arena);
                 free(module);
                 free(src);
                 return 1;
             }
-            if (shux_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
+            if (xlang_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
                 while (n_closure > 0) {
                     n_closure--;
                     free(cpaths[n_closure]);
@@ -1823,11 +1823,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     k++;
                 }
                 path_c[k] = '\0';
-                if (shux_find_loaded_import_index(path_c, dep_paths, n_deps) >= 0)
+                if (xlang_find_loaded_import_index(path_c, dep_paths, n_deps) >= 0)
                     continue;
                 char resolved[PATH_MAX];
-                shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
-                ShuxRuntimeFileView raw_view;
+                xlang_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
+                XlangRuntimeFileView raw_view;
                 if (runtime_read_file_view(resolved, &raw_view) != 0) {
                     pipeline_diag_import_open_fail_once(path_c, resolved);
                     while (n_deps--)
@@ -1860,9 +1860,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         int asm_want_exe = 0;
         asm_tmp_o_path[0] = '\0';
         if (use_asm_backend && out_path) {
-            asm_want_exe = shux_output_want_exe(out_path);
+            asm_want_exe = xlang_output_want_exe(out_path);
             if (asm_want_exe) {
-                snprintf(asm_tmp_o_path, 64, "%sshux_asm_XXXXXX", SHUX_TMP_PREFIX);
+                snprintf(asm_tmp_o_path, 64, "%sxlang_asm_XXXXXX", XLANG_TMP_PREFIX);
                 int fd = mkstemp(asm_tmp_o_path);
                 if (fd < 0) {
                     runtime_diag_errno_path(input_path, "build error", "mkstemp (asm)", asm_tmp_o_path);
@@ -1891,12 +1891,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     free(src);
                     return 1;
                 }
-                emit_elf_o = shux_output_is_elf_o(out_path);
+                emit_elf_o = xlang_output_is_elf_o(out_path);
             }
             if (emit_elf_o) {
                 elf_ctx_ptr = malloc(pipeline_sizeof_elf_ctx());
                 if (!elf_ctx_ptr) {
-                    diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+                    diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                           "ELF context allocation failed", NULL);
                     fclose(asm_out);
                     free(arena);
@@ -1914,7 +1914,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             dep_arenas[i] = malloc(arena_sz);
             dep_modules[i] = malloc(module_sz);
             if (!dep_arenas[i] || !dep_modules[i]) {
-                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+                diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                       ".x pipeline dependency allocation failed", NULL);
                 if (asm_out) fclose(asm_out);
                 if (elf_ctx_ptr) free(elf_ctx_ptr);
@@ -1935,7 +1935,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
         struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
         if (!out_buf || !pctx) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                   ".x pipeline output/context allocation failed", NULL);
             if (asm_out) fclose(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
@@ -1949,8 +1949,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
             if (pctx) pipeline_dep_ctx_heap_destroy(pctx);
             return 1;
         }
-        shux_pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
-        shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+        xlang_pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
+        xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
         driver_dep_seeded_clear_all();
         if (use_asm_backend && emit_elf_o && driver_asm_entry_module_only_from_env() && driver_asm_build_skip_typeck() != 0) {
             for (int j = n_deps - 1; j >= 0; j--)
@@ -1960,7 +1960,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
                 struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
                 if (!one_ctx || !dep_out) {
-                    diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+                    diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                           ".x pipeline dependency context/output allocation failed", NULL);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
@@ -1974,11 +1974,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     free(arena); free(module); free(src);
                     return 1;
                 }
-                shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
+                xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
                     lib_roots_arr, n_lib_roots);
                 char resolved[PATH_MAX];
-                shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
-                ShuxRuntimeFileView raw_view;
+                xlang_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
+                XlangRuntimeFileView raw_view;
                 if (runtime_read_file_view(resolved, &raw_view) != 0) {
                     pipeline_diag_import_open_fail_once(dep_paths[j], resolved);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
@@ -1994,10 +1994,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return 1;
                 }
                 size_t dep_len = 0;
-                char *dep_src = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &dep_len);
+                char *dep_src = xlang_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &dep_len);
                 runtime_release_file_view(&raw_view);
                 if (!dep_src) {
-                    diag_reportf_with_code(resolved, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
+                    diag_reportf_with_code(resolved, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP002, NULL,
                                  "preprocess failed for import '%s'", dep_paths[j]);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
@@ -2011,21 +2011,21 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     free(arena); free(module); free(src);
                     return 1;
                 }
-                shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+                xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
                     (const uint8_t *)dep_src, dep_len);
                 DiagContextSnapshot dep_diag_snapshot;
                 int ec;
                 diag_push_file(&dep_diag_snapshot, resolved, dep_src, dep_len);
-                if (use_asm_backend && emit_elf_o && shux_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
-                    ec = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                if (use_asm_backend && emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
+                    ec = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                         (const uint8_t *)dep_src, dep_len);
-                } else if (use_asm_backend && emit_elf_o && shux_asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
-                    ec = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                } else if (use_asm_backend && emit_elf_o && xlang_asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
+                    ec = xlang_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
                         (const uint8_t *)dep_src, dep_len, (void *)dep_out, (void *)one_ctx);
-                    if (ec == 0 && shux_asm_user_std_net_dep_path(dep_paths[j]))
+                    if (ec == 0 && xlang_asm_user_std_net_dep_path(dep_paths[j]))
                         pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
                 } else {
-                    ec = shux_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_src,
+                    ec = xlang_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_src,
                         dep_len, (void *)dep_out, (void *)one_ctx);
                 }
                 diag_restore(&dep_diag_snapshot);
@@ -2033,7 +2033,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 free(dep_out);
                 free(dep_src);
                 if (ec != 0) {
-                    diag_reportf_with_code(resolved, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
+                    diag_reportf_with_code(resolved, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                            "pipeline failed for import '%s' (rc=%d)", dep_paths[j], ec);
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx);
@@ -2084,7 +2084,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         pipeline_set_dep_slots(dep_arenas, dep_modules);
         driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
         /* PLATFORM: SHARED — re-seed pctx after dep pre-parse (same as C emit path; NL-07 L8). */
-        shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+        xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
         codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
         codegen_set_preamble_has_core_option_result(1);
         /* asm 后端：必须让 pipeline_run_x_pipeline 内完整地 parse_into + typeck + asm codegen，
@@ -2116,10 +2116,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 driver_x_pipeline_skip_typeck_set(1);
             driver_x_pipeline_skip_codegen_set(1);
         }
-        int ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+        int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("SHUX_ASM_ENTRY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: ec=%d num_funcs=%d out_asm_len=%zu",
                          ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -2128,13 +2128,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
         codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
         if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
             if (emit_elf_o && elf_ctx_ptr) {
-                shux_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
-                int32_t elf_ec = shux_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
+                xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+                int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
                 if (elf_ec != 0 || out_buf->len <= 0) {
-                    diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG002, NULL,
+                    diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                            "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
                                            (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
-                    if (elf_ec == SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
+                    if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                         diag_report(NULL, 0, 0, "note",
                                     "asm backend produced no object text; empty .o emission was rejected", NULL);
                     if (elf_ec != 0 && elf_ctx_ptr)
@@ -2165,13 +2165,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 driver_bump_stack_limit();
                 /* G.7: CLI user .o into asm ld (same globals as invoke_cc). PLATFORM: SHARED. */
                 if (argv && argc > 0)
-                    shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-                int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, out_path, target, pctx->use_macho_o, pctx->use_coff_o, argv[0], lib_roots_arr, n_lib_roots);
-                shux_invoke_cc_clear_user_o_files();
+                    xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+                int ld_ok = xlang_invoke_ld_for_exe(asm_tmp_o_path, out_path, target, pctx->use_macho_o, pctx->use_coff_o, argv[0], lib_roots_arr, n_lib_roots);
+                xlang_invoke_cc_clear_user_o_files();
                 unlink(asm_tmp_o_path);
                 if (ld_ok != 0) {
                     driver_unlink_failed_output(out_path);
-                    diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, "ld failed (asm -o exe)", NULL);
+                    diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, "ld failed (asm -o exe)", NULL);
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx);
                     free(arena);
@@ -2198,7 +2198,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             }
             if (ec != 0) {
                 driver_unlink_failed_output(out_path);
-                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP001, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP001, NULL,
                              ".x pipeline failed for '%s' (stage=parse_into/typeck_x_ast/codegen_x_ast)",
                              input_path ? input_path : "?");
                 /* 诊断：单独试 parse_into 以区分失败阶段 */
@@ -2254,7 +2254,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         return 1;
     }
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     const char *entry_dir = entry_dir_buf;
 
     ASTModule *dep_mods[32];       /* 入口直接依赖，与 mod->import_paths 一一对应，供 typeck/codegen 入口 */
@@ -2269,7 +2269,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         return 1;
     }
 /* 6.3：与 pipeline_x.o 同链时不再链 typeck_x/codegen_x，非 -x 路径用 C typeck/codegen 避免重复符号 */
-#if defined(SHUX_USE_X_TYPECK) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_TYPECK) && !defined(XLANG_USE_X_PIPELINE)
     if (typeck_typeck_entry(mod, ndep > 0 ? dep_mods : NULL, ndep) != 0) {
 #else
     /* `-E` 自举生成链仍允许旧式裸 extern；常规 compile/check 路径恢复严格 unsafe 语义。 */
@@ -2287,9 +2287,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
     }
 
-    /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（SHUX_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
+    /* WPO-S1：typeck 后可选导出跨模块 call graph JSON（XLANG_WPO_DUMP_CALLGRAPH=路径，"-"=stdout）。 */
     {
-        const char *wpo_out = getenv("SHUX_WPO_DUMP_CALLGRAPH");
+        const char *wpo_out = getenv("XLANG_WPO_DUMP_CALLGRAPH");
         if (wpo_out && wpo_out[0]) {
             FILE *wf = (strcmp(wpo_out, "-") == 0) ? stdout : fopen(wpo_out, "w");
             if (wf) {
@@ -2301,7 +2301,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
     }
 
-    /** shux check（C 路径）：typeck 通过后跳过 codegen 与链接。 */
+    /** xlang check（C 路径）：typeck 通过后跳过 codegen 与链接。 */
     if (driver_check_only_get()) {
         while (n_all--) {
             free(all_dep_paths[n_all]);
@@ -2347,34 +2347,34 @@ int RUN_CC_FUNC(int argc, char **argv) {
             /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型。
              * PE/COFF 不支持 weak 函数符号，Windows 改强符号靠 --allow-multiple-definition（见 codegen.c 注释）。 */
             fprintf(stdout, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
-            fprintf(stdout, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
+            fprintf(stdout, "#ifdef _WIN32\n#define XLANG_LIB_WEAK\n#else\n#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n");
             codegen_emit_fmt_json_helpers_once(stdout);
             codegen_emit_builtin_inline_decls(stdout);
             fprintf(stdout, "extern int getpid(void);\n");
-            fprintf(stdout, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-            fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+            fprintf(stdout, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+            fprintf(stdout, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
             fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(stdout, "  int _pid = (int)getpid();\n");
             fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-            fprintf(stdout, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
-            fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+            fprintf(stdout, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
             fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
-            fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-            fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
-            fprintf(stdout, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
+            fprintf(stdout, "static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+            fprintf(stdout, "static inline void xlang_panic_(int has_msg, int msg_val) {\n");
+            fprintf(stdout, "  xlang_crash_evidence_collect_inline(has_msg, msg_val);\n");
             fprintf(stdout, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
             fprintf(stdout, "  abort();\n");
             fprintf(stdout, "}\n");
             /* pipeline.x 及可能拉入 std.io 的 parser/typeck/codegen/preprocess 等 -E 产出均需 _buf 声明，以便单文件编译通过；main.x 产出 driver_gen.c 不调这些，不输出以免 -Wunused-function。 */
             if (input_path && (strstr(input_path, "pipeline.x") != NULL || strstr(input_path, "parser.x") != NULL || strstr(input_path, "typeck.x") != NULL || strstr(input_path, "codegen.x") != NULL || strstr(input_path, "preprocess.x") != NULL)) {
-                fprintf(stdout, "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
-                fprintf(stdout, "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-                fprintf(stdout, "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+                fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
+                fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+                fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
                 fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-                fprintf(stdout, "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-                fprintf(stdout, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
                 fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
                 fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
                 fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
@@ -2391,14 +2391,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     const char *lib_dep_paths[32];
                     int n_lib = 0;
                     for (int j = 0; j < all_dep_mods[i]->num_imports && n_lib < 32; j++) {
-                        int idx = shux_find_loaded_import_index(all_dep_mods[i]->import_paths[j], all_dep_paths, n_all);
+                        int idx = xlang_find_loaded_import_index(all_dep_mods[i]->import_paths[j], all_dep_paths, n_all);
                         if (idx >= 0) {
                             lib_deps[n_lib] = all_dep_mods[idx];
                             lib_dep_paths[n_lib] = all_dep_paths[idx];
                             n_lib++;
                         }
                     }
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_USE_X_PIPELINE)
                     if (codegen_codegen_entry_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted) != 0) {
 #else
                     if (codegen_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, NULL) != 0) {
@@ -2410,21 +2410,21 @@ int RUN_CC_FUNC(int argc, char **argv) {
             }
             if (ec == 0) {
                 /* 阶段 3 -E-extern：入口一律按库模块输出（带 lib 前缀），避免 main 与 main.o 冲突、且仅 extern 依赖不内联。 */
-                const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
+                const char *lib_name = lib_name_override ? lib_name_override : xlang_entry_lib_name_from_path(input_path);
                 if (mod->num_funcs > 0) {
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_USE_X_PIPELINE)
                     ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #else
                     ec = codegen_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, input_path);
 #endif
                 } else if (mod->main_func && mod->main_func->body) {
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_USE_X_PIPELINE)
                     ec = codegen_codegen_entry_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #else
                     ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #endif
                 } else {
-                    diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+                    diag_report_with_code(NULL, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG001,
                                           "no main function (cannot emit C)", NULL);
                     ec = -1;
                 }
@@ -2432,27 +2432,27 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else {
             /* 无依赖：仅输出入口模块（保持原有行为） */
             if (mod->main_func && mod->main_func->body) {
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_USE_X_PIPELINE)
                 ec = codegen_codegen_entry_module_to_c(mod, stdout, NULL, NULL, 0, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #else
                 ec = codegen_module_to_c(mod, stdout, NULL, NULL, 0, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #endif
             } else if (mod->num_funcs > 0) {
-                const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
+                const char *lib_name = lib_name_override ? lib_name_override : xlang_entry_lib_name_from_path(input_path);
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_USE_X_PIPELINE)
                 ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #else
                 ec = codegen_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0, input_path);
 #endif
             } else {
-                diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+                diag_report_with_code(NULL, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG001,
                                       "no main function (cannot emit C)", NULL);
                 ec = -1;
             }
         }
         /* -E 且入口为 pipeline.x 时输出 #include "pipeline_glue.c"，编译时由 cc 包含，不再追写整份内容 */
         if (ec == 0 && input_path && strstr(input_path, "pipeline.x") != NULL)
-            shux_emit_pipeline_glue_include();
+            xlang_emit_pipeline_glue_include();
         while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
         ast_module_free(mod);
         free(src);
@@ -2465,8 +2465,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
         ASTFunc *root_func = codegen_entry_root_func(mod);
         if (!root_func || !root_func->body) {
             /* LANG-007 v2：库模块 -o *.o → codegen_library_module_to_c + cc -c。 */
-            if (out_path && shux_output_is_elf_o(out_path) && mod->num_funcs > 0) {
-                char tmp_lib[128]; snprintf(tmp_lib, sizeof(tmp_lib), "%ssXXXXXX", SHUX_TMP_PREFIX);
+            if (out_path && xlang_output_is_elf_o(out_path) && mod->num_funcs > 0) {
+                char tmp_lib[128]; snprintf(tmp_lib, sizeof(tmp_lib), "%ssXXXXXX", XLANG_TMP_PREFIX);
                 int fd_lib = mkstemp(tmp_lib);
                 if (fd_lib < 0) {
                     runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp_lib);
@@ -2495,7 +2495,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 codegen_emit_fmt_json_helpers_once(cf_lib);
                 codegen_emit_builtin_inline_decls(cf_lib);
                 {
-                    const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
+                    const char *lib_name = lib_name_override ? lib_name_override : xlang_entry_lib_name_from_path(input_path);
                     if (codegen_library_module_to_c(mod, lib_name, ndep > 0 ? dep_mods : NULL,
                             ndep > 0 ? (const char **)mod->import_paths : NULL, ndep,
                             cf_lib, NULL, NULL, NULL, NULL, NULL, NULL, 0, input_path) != 0) {
@@ -2526,7 +2526,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                                              (char *)out_path, tmp_lib_c, NULL};
                     intptr_t spawn_rc = _spawnvp(_P_WAIT, "gcc", cc_args);
                     if (spawn_rc != 0) {
-                        diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                        diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
                                     "cc -c failed for library module", NULL);
                         cc_ok = -1;
                     }
@@ -2544,16 +2544,16 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         int status = 0;
                         if (shu_waitpid_retry(cpid, &status) != 0 ||
                             !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                            diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                            diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
                                         "cc -c failed for library module", NULL);
                             cc_ok = -1;
                         }
                     }
 #endif
                     if (cc_ok != 0)
-                        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                      "cc failed, keeping generated C: %s", tmp_lib_c);
-                    else if (!getenv("SHUX_KEEP_C"))
+                    else if (!getenv("XLANG_KEEP_C"))
                         unlink(tmp_lib_c);
                     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
                     ast_module_free(mod);
@@ -2561,7 +2561,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return cc_ok == 0 ? 0 : 1;
                 }
             }
-            diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+            diag_report_with_code(NULL, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG001,
                                   "no main function (cannot emit executable)", NULL);
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
             ast_module_free(mod);
@@ -2585,12 +2585,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (!mod->main_func || !mod->main_func->body)
             dce_ctx_arg = NULL;
 
-        const char *c_paths[SHUX_INVOKE_CC_MAX_C_FILES];
+        const char *c_paths[XLANG_INVOKE_CC_MAX_C_FILES];
         int n_c = 0;
         char tmp_c[256];
 
         /* 入口模块 → 临时 .c（有依赖时同一文件内先写依赖再写入口） */
-        char tmp[128]; snprintf(tmp, sizeof(tmp), "%ssXXXXXX", SHUX_TMP_PREFIX);
+        char tmp[128]; snprintf(tmp, sizeof(tmp), "%ssXXXXXX", XLANG_TMP_PREFIX);
         int fd = mkstemp(tmp);
         if (fd < 0) {
             runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
@@ -2626,23 +2626,23 @@ int RUN_CC_FUNC(int argc, char **argv) {
             /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型。
              * PE/COFF 不支持 weak 函数符号，Windows 改强符号靠 --allow-multiple-definition（见 codegen.c 注释）。 */
             fprintf(cf, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
-            fprintf(cf, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
+            fprintf(cf, "#ifdef _WIN32\n#define XLANG_LIB_WEAK\n#else\n#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n");
             codegen_emit_fmt_json_helpers_once(cf);
             codegen_emit_builtin_inline_decls(cf);
             fprintf(cf, "#include <string.h>\n");
             fprintf(cf, "extern int getpid(void);\n");
-            fprintf(cf, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-            fprintf(cf, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+            fprintf(cf, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+            fprintf(cf, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
             fprintf(cf, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(cf, "  int _pid = (int)getpid();\n");
             fprintf(cf, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-            fprintf(cf, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
-            fprintf(cf, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+            fprintf(cf, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(cf, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(cf, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
             fprintf(cf, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
-            fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-            fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
-            fprintf(cf, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
+            fprintf(cf, "static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+            fprintf(cf, "static inline void xlang_panic_(int has_msg, int msg_val) {\n");
+            fprintf(cf, "  xlang_crash_evidence_collect_inline(has_msg, msg_val);\n");
             fprintf(cf, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
             fprintf(cf, "  abort();\n");
             fprintf(cf, "}\n");
@@ -2668,20 +2668,20 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "#define std_io_submit_read_batch_buf std_io_driver_submit_read_batch_buf\n");
             fprintf(cf, "#define std_io_submit_write_batch_buf std_io_driver_submit_write_batch_buf\n");
             /* driver 的 read_ptr/read_ptr_len 由 core/io.o 提供，与 pipeline 内联 ABI 一致 */
-            fprintf(cf, "#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len\n");
-            fprintf(cf, "#define std_io_driver_driver_read_ptr shux_io_read_ptr\n");
+            fprintf(cf, "#define std_io_driver_driver_read_ptr_len xlang_io_read_ptr_len\n");
+            fprintf(cf, "#define std_io_driver_driver_read_ptr xlang_io_read_ptr\n");
             /* std.io.driver 的 register/submit_read/submit_write 体需调 _buf 包装；io_register_buffers_buf_i32 供 submit_register_fixed_buffers_buf 体 */
-            fprintf(cf, "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
-            fprintf(cf, "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-            fprintf(cf, "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-            /* std.io.driver 的 register 走 shux_io_register_buf→裸名 shux_io_register；与 submit_read/write
+            fprintf(cf, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
+            fprintf(cf, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+            fprintf(cf, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+            /* std.io.driver 的 register 走 xlang_io_register_buf→裸名 xlang_io_register；与 submit_read/write
              * 对齐补 weak 桩（返回 0=注册成功占位），使纯 .x io 烟测自包含，无需链 runtime_asm_io_stubs.o
              *（强桩会覆盖 submit_write 的 fwrite 弱实现，破坏 write_stdout）。 */
-            fprintf(cf, "__attribute__((weak)) int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return 0; }\n");
+            fprintf(cf, "__attribute__((weak)) int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return 0; }\n");
             fprintf(cf, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-            fprintf(cf, "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-            fprintf(cf, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
             fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
             fprintf(cf, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
             fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
@@ -2691,7 +2691,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "  return (fwrite(ptr, 1, len, stdout) == len) ? 0 : -1;\n");
             fprintf(cf, "}\n");
             /* 纯 .x io 烟测：无 io.o 时 weak read/write 走 stdio，handle 0/1/2 与 stdin/stdout/stderr 一致。 */
-            fprintf(cf, "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
+            fprintf(cf, "__attribute__((weak)) int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
             fprintf(cf, "  size_t r;\n");
             fprintf(cf, "  (void)timeout_m;\n");
             fprintf(cf, "  if (!ptr) return 0; if (handle != 0) return -1;\n");
@@ -2700,7 +2700,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "  if (r == 0 && ferror(stdin)) return -1;\n");
             fprintf(cf, "  return (int32_t)r;\n");
             fprintf(cf, "}\n");
-            fprintf(cf, "__attribute__((weak)) int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
+            fprintf(cf, "__attribute__((weak)) int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
             fprintf(cf, "  FILE *fp;\n");
             fprintf(cf, "  (void)timeout_m;\n");
             fprintf(cf, "  if (!ptr || len == 0) return 0;\n");
@@ -2712,14 +2712,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 const char *lib_dep_paths[32];
                 int n_lib = 0;
                 for (int j = 0; j < all_dep_mods[i]->num_imports && n_lib < 32; j++) {
-                    int idx = shux_find_loaded_import_index(all_dep_mods[i]->import_paths[j], all_dep_paths, n_all);
+                    int idx = xlang_find_loaded_import_index(all_dep_mods[i]->import_paths[j], all_dep_paths, n_all);
                     if (idx >= 0) {
                         lib_deps[n_lib] = all_dep_mods[idx];
                         lib_dep_paths[n_lib] = all_dep_paths[idx];
                         n_lib++;
                     }
                 }
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_USE_X_PIPELINE)
                 if (codegen_codegen_entry_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, cf, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted) != 0) {
 #else
                 if (codegen_library_module_to_c(all_dep_mods[i], all_dep_paths[i], lib_deps, lib_dep_paths, n_lib, cf, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted, NULL) != 0) {
@@ -2734,7 +2734,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             }
             /* parser 入口随后在单文件内生成，会调用 glue 导出符号；完整定义在文末 #include pipeline_glue.c。依赖模块已写出后 token/ExprKind 等才完整，故前向声明放在 for 之后、入口 codegen 之前。 */
             if (input_path && strstr(input_path, "parser.x") != NULL) {
-                fprintf(cf, "struct shux_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len);\n");
+                fprintf(cf, "struct xlang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len);\n");
                 fprintf(cf, "void parser_pipeline_module_reset_parse_counters(struct ast_Module *m);\n");
                 fprintf(cf, "enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(int32_t kind);\n");
                 fprintf(cf, "int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref);\n");
@@ -2758,7 +2758,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(cf, "size_t pipeline_sizeof_arena(void);\n");
             }
         }
-#if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_CODEGEN) && !defined(XLANG_USE_X_PIPELINE)
         if (codegen_codegen_entry_module_to_c(mod, cf, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, n_all > 0 ? emitted_type_buf : NULL, n_all > 0 ? &n_emitted : NULL, n_all > 0 ? max_emitted : 0) != 0) {
 #else
         if (codegen_module_to_c(mod, cf, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, n_all > 0 ? emitted_type_buf : NULL, n_all > 0 ? &n_emitted : NULL, n_all > 0 ? max_emitted : 0) != 0) {
@@ -2783,75 +2783,75 @@ int RUN_CC_FUNC(int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (getenv("SHUX_DEBUG_C")) {
+        if (getenv("XLANG_DEBUG_C")) {
             FILE *dc = fopen(tmp_c, "r");
             if (dc) {
-                { char _dbg[256]; snprintf(_dbg, sizeof(_dbg), "%sshux_debug.c", SHUX_TMP_PREFIX); FILE *_df = fopen(_dbg, "w"); if (_df) { int ch; while ((ch = getc(dc)) != EOF) putc(ch, _df); fclose(_df); } }
+                { char _dbg[256]; snprintf(_dbg, sizeof(_dbg), "%sxlang_debug.c", XLANG_TMP_PREFIX); FILE *_df = fopen(_dbg, "w"); if (_df) { int ch; while ((ch = getc(dc)) != EOF) putc(ch, _df); fclose(_df); } }
                 fclose(dc);
             }
         }
         c_paths[n_c++] = tmp_c;
 
-        const char *io_o = shux_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
+        const char *io_o = xlang_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
         const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
-        const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
-        const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
+        const char *process_o = xlang_rel_o_path_from_argv0(argv[0], "std/process/process.o");
+        const char *string_o = xlang_rel_o_path_from_argv0(argv[0], "std/string/string.o");
         const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
-        const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
-        const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
-        const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
-        const char *net_o = shux_rel_o_path_from_argv0(argv[0], "std/net/net.o");
-        const char *thread_o = shux_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
-        const char *time_o = shux_rel_o_path_from_argv0(argv[0], "std/time/time.o");
-        const char *random_o = shux_rel_o_path_from_argv0(argv[0], "std/random/random.o");
-        const char *env_o = shux_rel_o_path_from_argv0(argv[0], "std/env/env.o");
-        const char *sync_o = shux_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
-        const char *encoding_o = shux_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
-        const char *base64_o = shux_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
-        const char *crypto_o = shux_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
-        const char *log_o = shux_rel_o_path_from_argv0(argv[0], "std/log/log.o");
-        const char *atomic_o = shux_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
-        const char *channel_o = shux_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
-        const char *backtrace_o = shux_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
-        const char *hash_o = shux_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
-        const char *math_o = shux_rel_o_path_from_argv0(argv[0], "std/math/math.o");
-        const char *sort_o = shux_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
-        const char *ffi_o = shux_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
-        const char *db_o = shux_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
-        const char *elf_o = shux_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
-        const char *json_o = shux_rel_o_path_from_argv0(argv[0], "std/json/json.o");
-        const char *csv_o = shux_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
-        const char *regex_o = shux_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
+        const char *path_o = xlang_rel_o_path_from_argv0(argv[0], "std/path/path.o");
+        const char *runtime_o = xlang_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
+        const char *runtime_panic_o = xlang_runtime_panic_o_path(argv[0]);
+        const char *net_o = xlang_rel_o_path_from_argv0(argv[0], "std/net/net.o");
+        const char *thread_o = xlang_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
+        const char *time_o = xlang_rel_o_path_from_argv0(argv[0], "std/time/time.o");
+        const char *random_o = xlang_rel_o_path_from_argv0(argv[0], "std/random/random.o");
+        const char *env_o = xlang_rel_o_path_from_argv0(argv[0], "std/env/env.o");
+        const char *sync_o = xlang_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
+        const char *encoding_o = xlang_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
+        const char *base64_o = xlang_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
+        const char *crypto_o = xlang_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
+        const char *log_o = xlang_rel_o_path_from_argv0(argv[0], "std/log/log.o");
+        const char *atomic_o = xlang_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
+        const char *channel_o = xlang_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
+        const char *backtrace_o = xlang_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
+        const char *hash_o = xlang_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
+        const char *math_o = xlang_rel_o_path_from_argv0(argv[0], "std/math/math.o");
+        const char *sort_o = xlang_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
+        const char *ffi_o = xlang_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
+        const char *db_o = xlang_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
+        const char *elf_o = xlang_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
+        const char *json_o = xlang_rel_o_path_from_argv0(argv[0], "std/json/json.o");
+        const char *csv_o = xlang_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
+        const char *regex_o = xlang_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
         const char *compress_o = NULL; /* F-06 v1 / F-04 v7：无 compress.o，user .o / 生成 C 按需压缩库 */
-        const char *unicode_o = shux_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
-        const char *dynlib_o = shux_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
-        const char *http_o = shux_rel_o_path_from_argv0(argv[0], "std/http/http.o");
-        const char *tar_o = shux_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
-        const char *simd_o = shux_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
-        const char *context_o = shux_rel_o_path_from_argv0(argv[0], "std/context/context.o");
-        const char *datetime_o = shux_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
-        const char *uuid_o = shux_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
-        const char *url_o = shux_rel_o_path_from_argv0(argv[0], "std/url/url.o");
-        const char *cli_o = shux_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
-        const char *security_o = shux_rel_o_path_from_argv0(argv[0], "std/security/security.o");
-        const char *config_o = shux_rel_o_path_from_argv0(argv[0], "std/config/config.o");
-        const char *cache_o = shux_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
-        const char *trace_o = shux_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
-        const char *task_o = shux_rel_o_path_from_argv0(argv[0], "std/task/task.o");
-        const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
-        const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
+        const char *unicode_o = xlang_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
+        const char *dynlib_o = xlang_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
+        const char *http_o = xlang_rel_o_path_from_argv0(argv[0], "std/http/http.o");
+        const char *tar_o = xlang_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
+        const char *simd_o = xlang_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
+        const char *context_o = xlang_rel_o_path_from_argv0(argv[0], "std/context/context.o");
+        const char *datetime_o = xlang_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
+        const char *uuid_o = xlang_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
+        const char *url_o = xlang_rel_o_path_from_argv0(argv[0], "std/url/url.o");
+        const char *cli_o = xlang_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
+        const char *security_o = xlang_rel_o_path_from_argv0(argv[0], "std/security/security.o");
+        const char *config_o = xlang_rel_o_path_from_argv0(argv[0], "std/config/config.o");
+        const char *cache_o = xlang_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
+        const char *trace_o = xlang_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
+        const char *task_o = xlang_rel_o_path_from_argv0(argv[0], "std/task/task.o");
+        const char *schema_o = xlang_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
+        const char *test_o = xlang_rel_o_path_from_argv0(argv[0], "std/test/test.o");
         const char *async_scheduler_o = NULL;
-        if (shux_generated_c_needs_async_scheduler(tmp_c))
-            async_scheduler_o = shux_std_async_scheduler_o_path(argv[0]);
+        if (xlang_generated_c_needs_async_scheduler(tmp_c))
+            async_scheduler_o = xlang_std_async_scheduler_o_path(argv[0]);
         /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
-        shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-        int cc_ok = shux_invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), async_scheduler_o);
-        shux_invoke_cc_clear_user_o_files();
+        xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+        int cc_ok = xlang_invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, xlang_repo_root_from_argv0(argv[0]), async_scheduler_o);
+        xlang_invoke_cc_clear_user_o_files();
         if (cc_ok != 0) {
             driver_unlink_failed_output(out_path);
-            diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+            diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                          "cc failed, keeping generated C: %s", tmp_c);
-        } else if (getenv("SHUX_KEEP_C")) {
+        } else if (getenv("XLANG_KEEP_C")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "kept generated C: %s", tmp_c);
         } else {
@@ -2880,19 +2880,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
     ast_module_free(mod);
     free(src);
     return 0;
-#endif /* !SHUX_USE_X_FRONTEND */
+#endif /* !XLANG_USE_X_FRONTEND */
 }
 #undef RUN_CC_FUNC
-#endif /* !SHUX_USE_X_DRIVER */
+#endif /* !XLANG_USE_X_DRIVER */
 
 /**
- * 阶段 3 全 .x 前端：当 SHUX_USE_X_FRONTEND 且 SHUX_USE_X_PIPELINE 时，用 pipeline 生成 C 并调用 cc，不依赖 C 的 typeck/codegen。
+ * 阶段 3 全 .x 前端：当 XLANG_USE_X_FRONTEND 且 XLANG_USE_X_PIPELINE 时，用 pipeline 生成 C 并调用 cc，不依赖 C 的 typeck/codegen。
  * 否则直接转调 run_compiler_c。完全自举时 run_compiler_x_path 由 main.x 提供，C 不定义以免重复符号。
  */
-#if !defined(SHUX_USE_X_DRIVER)
+#if !defined(XLANG_USE_X_DRIVER)
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int run_compiler_x_path(int argc, char **argv) {
-#if !defined(SHUX_USE_X_FRONTEND) || !defined(SHUX_USE_X_PIPELINE)
+#if !defined(XLANG_USE_X_FRONTEND) || !defined(XLANG_USE_X_PIPELINE)
     return run_compiler_c(argc, argv);
 #else
     driver_bump_stack_limit();
@@ -2928,9 +2928,9 @@ int run_compiler_x_path(int argc, char **argv) {
         if (strcmp(argv[i], "-x") == 0) continue;
         if (!input_path) input_path = argv[i];
     }
-    if (!use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0) use_lto = 1;
+    if (!use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0) use_lto = 1;
     if (n_lib_roots == 0) {
-        lib_roots_arr[0] = getenv("SHUX_LIB");
+        lib_roots_arr[0] = getenv("XLANG_LIB");
         if (!lib_roots_arr[0]) lib_roots_arr[0] = ".";
         n_lib_roots = 1;
     }
@@ -2939,20 +2939,20 @@ int run_compiler_x_path(int argc, char **argv) {
     /* 无 -o 时：用 pipeline 生成 C 到 stdout，与 run-lexer 等测试一致，不调用 run_compiler_c。 */
     int emit_to_stdout = (out_path == NULL);
 
-    ShuxRuntimeFileView raw_src_view;
+    XlangRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
     pipeline_diag_emitted_reset();
-    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+    char *src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
         ndefines > 0 ? defines : NULL, ndefines,
         &src_len);
     runtime_release_file_view(&raw_src_view);
     if (!src && !pipeline_diag_emitted_get()) {
-        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                      "preprocess failed for '%s'", input_path);
         return 1;
     }
@@ -2989,7 +2989,7 @@ int run_compiler_x_path(int argc, char **argv) {
     }
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
-    struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
+    struct xlang_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr = parser_parse_into(arena, module, &src_slice);
     if (pr.ok != 0) {
@@ -2999,7 +2999,7 @@ int run_compiler_x_path(int argc, char **argv) {
             free(src);
             return 1;
         }
-        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                      "parse failed for '%s' (pr.ok=%d main_idx=%d)",
                      input_path, (int)pr.ok, (int)pr.main_idx);
         {
@@ -3019,7 +3019,7 @@ int run_compiler_x_path(int argc, char **argv) {
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     if (n_imports > 0)
         pipeline_set_entry_dir(entry_dir_buf);
 
@@ -3028,7 +3028,7 @@ int run_compiler_x_path(int argc, char **argv) {
     char *dep_paths[MAX_ALL_DEPS];
     int n_deps = 0;
     if (n_imports > 0 && n_imports <= 32) {
-        if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
+        if (xlang_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
                 ndefines, dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
             free(arena);
             free(module);
@@ -3038,7 +3038,7 @@ int run_compiler_x_path(int argc, char **argv) {
     }
     typeck_ndep_store((int32_t)(0));
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
-    char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
+    char tmp[128]; snprintf(tmp, sizeof(tmp), "%sxlang_x.XXXXXX", XLANG_TMP_PREFIX);
     char tmp_c[256];
     int fd = -1;
     FILE *cf;
@@ -3081,7 +3081,7 @@ int run_compiler_x_path(int argc, char **argv) {
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x path dependency allocation failed", NULL);
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
@@ -3095,7 +3095,7 @@ int run_compiler_x_path(int argc, char **argv) {
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+        diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                               ".x path output/context allocation failed", NULL);
         for (int jj = 0; jj < n_deps; jj++) { free(dep_arenas[jj]); free(dep_modules[jj]); }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
@@ -3105,15 +3105,15 @@ int run_compiler_x_path(int argc, char **argv) {
         if (pctx) pipeline_dep_ctx_heap_destroy(pctx);
         return 1;
     }
-    shux_pipeline_fill_ctx_path_buffers(pctx, entry_dir_buf, lib_roots_arr, n_lib_roots);
-    shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+    xlang_pipeline_fill_ctx_path_buffers(pctx, entry_dir_buf, lib_roots_arr, n_lib_roots);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     /* 先对每个 dep 跑 pipeline 仅做 parse+typecheck，填充 dep_arenas/dep_modules，不写 C 到文件。 */
     driver_dep_seeded_clear_all();
     for (int j = n_deps - 1; j >= 0; j--) {
         struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
         struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
         if (!one_ctx || !dep_out) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                   ".x path dependency context/output allocation failed", NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
@@ -3125,19 +3125,19 @@ int run_compiler_x_path(int argc, char **argv) {
             free(arena); free(module); free(src);
             return 1;
         }
-        shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots), lib_roots_arr, n_lib_roots);
-        shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+        xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots), lib_roots_arr, n_lib_roots);
+        xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
         driver_set_current_dep_path_for_codegen(dep_paths[j]);
         DiagContextSnapshot dep_diag_snapshot;
         diag_push_file(&dep_diag_snapshot, dep_paths[j], dep_sources[j], dep_lens[j]);
-        int ec_loop = shux_pipeline_run_x_pipeline_large_stack(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
+        int ec_loop = xlang_pipeline_run_x_pipeline_large_stack(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
         diag_restore(&dep_diag_snapshot);
         driver_set_current_dep_path_for_codegen(NULL);
         pipeline_dep_ctx_heap_destroy(one_ctx);
         free(dep_out);
         if (ec_loop != 0) {
-            diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
+            diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                    "pipeline failed for import '%s' (rc=%d)", dep_paths[j], ec_loop);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -3163,9 +3163,9 @@ int run_compiler_x_path(int argc, char **argv) {
      * zeroed ndep then load_and_sync rebound via driver_dep_module_buf (masked the
      * miss). Keep-closure realign (NL-07 L8) leaves ndep=12 without that rebind →
      * pure static co-emit saw module=NULL (std.io missing → std_io_print UNDEF).
-     * Authority: same shux_pipeline_pctx_seed_dep_slots as initial seed (G.7).
+     * Authority: same xlang_pipeline_pctx_seed_dep_slots as initial seed (G.7).
      */
-    shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
     codegen_set_preamble_has_core_option_result(1); /* preamble（write_io_net_abi_inline）已含 Option_i32/Result_i32，codegen 跳过避免重定义 */
     codegen_reset_preamble_skip_mask(); /* codegen.x emit 过程中 OR 重叠段 skip；pipeline 完成后写 preamble 时读取 */
@@ -3187,7 +3187,7 @@ int run_compiler_x_path(int argc, char **argv) {
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
     pipeline_dep_ctx_realign_ndep_for_entry_c((struct ast_Module *)module, (struct ast_PipelineDepCtx *)pctx);
-    int ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+    int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
@@ -3196,7 +3196,7 @@ int run_compiler_x_path(int argc, char **argv) {
     free(module);
     free(src);
     if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
-        diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP003, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
                      input_path, ec, (int)out_buf->len);
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
@@ -3209,7 +3209,7 @@ int run_compiler_x_path(int argc, char **argv) {
         int rec_n = runtime_report_parse_recovery_diagnostics(input_path, src, src_len);
         int fail_ck = (rec_n > 0) || (nfuncs_ck <= 0) || driver_check_diag_emitted_get();
         if (nfuncs_ck <= 0 && rec_n <= 0)
-            diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                          "parse produced no functions for '%s'", input_path ? input_path : "?");
         if (fail_ck) {
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
@@ -3247,63 +3247,63 @@ int run_compiler_x_path(int argc, char **argv) {
         }
         {
             const char *c_paths[1] = { tmp_c };
-            const char *io_o = shux_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
+            const char *io_o = xlang_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
             const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
-            const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
-            const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
+            const char *process_o = xlang_rel_o_path_from_argv0(argv[0], "std/process/process.o");
+            const char *string_o = xlang_rel_o_path_from_argv0(argv[0], "std/string/string.o");
             const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
-            const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
-            const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
-            const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
-            const char *net_o = shux_rel_o_path_from_argv0(argv[0], "std/net/net.o");
-            const char *thread_o = shux_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
-            const char *time_o = shux_rel_o_path_from_argv0(argv[0], "std/time/time.o");
-            const char *random_o = shux_rel_o_path_from_argv0(argv[0], "std/random/random.o");
-            const char *env_o = shux_rel_o_path_from_argv0(argv[0], "std/env/env.o");
-            const char *sync_o = shux_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
-            const char *encoding_o = shux_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
-            const char *base64_o = shux_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
-            const char *crypto_o = shux_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
-            const char *log_o = shux_rel_o_path_from_argv0(argv[0], "std/log/log.o");
-            const char *atomic_o = shux_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
-            const char *channel_o = shux_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
-            const char *backtrace_o = shux_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
-            const char *hash_o = shux_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
-            const char *math_o = shux_rel_o_path_from_argv0(argv[0], "std/math/math.o");
-            const char *sort_o = shux_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
-            const char *ffi_o = shux_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
-            const char *db_o = shux_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
-            const char *elf_o = shux_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
-            const char *json_o = shux_rel_o_path_from_argv0(argv[0], "std/json/json.o");
-            const char *csv_o = shux_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
-            const char *regex_o = shux_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
+            const char *path_o = xlang_rel_o_path_from_argv0(argv[0], "std/path/path.o");
+            const char *runtime_o = xlang_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
+            const char *runtime_panic_o = xlang_runtime_panic_o_path(argv[0]);
+            const char *net_o = xlang_rel_o_path_from_argv0(argv[0], "std/net/net.o");
+            const char *thread_o = xlang_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
+            const char *time_o = xlang_rel_o_path_from_argv0(argv[0], "std/time/time.o");
+            const char *random_o = xlang_rel_o_path_from_argv0(argv[0], "std/random/random.o");
+            const char *env_o = xlang_rel_o_path_from_argv0(argv[0], "std/env/env.o");
+            const char *sync_o = xlang_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
+            const char *encoding_o = xlang_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
+            const char *base64_o = xlang_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
+            const char *crypto_o = xlang_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
+            const char *log_o = xlang_rel_o_path_from_argv0(argv[0], "std/log/log.o");
+            const char *atomic_o = xlang_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
+            const char *channel_o = xlang_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
+            const char *backtrace_o = xlang_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
+            const char *hash_o = xlang_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
+            const char *math_o = xlang_rel_o_path_from_argv0(argv[0], "std/math/math.o");
+            const char *sort_o = xlang_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
+            const char *ffi_o = xlang_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
+            const char *db_o = xlang_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
+            const char *elf_o = xlang_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
+            const char *json_o = xlang_rel_o_path_from_argv0(argv[0], "std/json/json.o");
+            const char *csv_o = xlang_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
+            const char *regex_o = xlang_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
             const char *compress_o = NULL; /* F-06 v1 / F-04 v7：无 compress.o，user .o / 生成 C 按需压缩库 */
-            const char *unicode_o = shux_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
-            const char *dynlib_o = shux_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
-            const char *http_o = shux_rel_o_path_from_argv0(argv[0], "std/http/http.o");
-            const char *tar_o = shux_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
-            const char *simd_o = shux_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
-            const char *context_o = shux_rel_o_path_from_argv0(argv[0], "std/context/context.o");
-            const char *datetime_o = shux_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
-            const char *uuid_o = shux_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
-            const char *url_o = shux_rel_o_path_from_argv0(argv[0], "std/url/url.o");
-            const char *cli_o = shux_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
-            const char *security_o = shux_rel_o_path_from_argv0(argv[0], "std/security/security.o");
-            const char *config_o = shux_rel_o_path_from_argv0(argv[0], "std/config/config.o");
-            const char *cache_o = shux_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
-            const char *trace_o = shux_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
-            const char *task_o = shux_rel_o_path_from_argv0(argv[0], "std/task/task.o");
-            const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
-            const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
+            const char *unicode_o = xlang_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
+            const char *dynlib_o = xlang_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
+            const char *http_o = xlang_rel_o_path_from_argv0(argv[0], "std/http/http.o");
+            const char *tar_o = xlang_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
+            const char *simd_o = xlang_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
+            const char *context_o = xlang_rel_o_path_from_argv0(argv[0], "std/context/context.o");
+            const char *datetime_o = xlang_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
+            const char *uuid_o = xlang_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
+            const char *url_o = xlang_rel_o_path_from_argv0(argv[0], "std/url/url.o");
+            const char *cli_o = xlang_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
+            const char *security_o = xlang_rel_o_path_from_argv0(argv[0], "std/security/security.o");
+            const char *config_o = xlang_rel_o_path_from_argv0(argv[0], "std/config/config.o");
+            const char *cache_o = xlang_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
+            const char *trace_o = xlang_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
+            const char *task_o = xlang_rel_o_path_from_argv0(argv[0], "std/task/task.o");
+            const char *schema_o = xlang_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
+            const char *test_o = xlang_rel_o_path_from_argv0(argv[0], "std/test/test.o");
             /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
-            shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-            int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
-            shux_invoke_cc_clear_user_o_files();
+            xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+            int cc_ret = xlang_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, xlang_repo_root_from_argv0(argv[0]), NULL);
+            xlang_invoke_cc_clear_user_o_files();
             if (cc_ret != 0) {
                 driver_unlink_failed_output(out_path);
-                diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "cc failed, keeping generated C: %s", tmp_c);
-            } else if (!getenv("SHUX_KEEP_C")) {
+            } else if (!getenv("XLANG_KEEP_C")) {
                 unlink(tmp_c);
             } else {
                 diag_reportf(NULL, 0, 0, "note", NULL,
@@ -3323,15 +3323,15 @@ int run_compiler_x_path(int argc, char **argv) {
 
 
 
-#endif /* !defined(SHUX_USE_X_DRIVER)：run_compiler_x_path 仅在不使用 .x driver 时由 C 提供 */
+#endif /* !defined(XLANG_USE_X_DRIVER)：run_compiler_x_path 仅在不使用 .x driver 时由 C 提供 */
 
 
 /** driver_diagnostic_* / parser_diag_* 见 runtime_driver_diagnostic.c（E-04 v34）。 */
 
-#ifdef SHUX_USE_X_DRIVER
+#ifdef XLANG_USE_X_DRIVER
 /* 阶段 6.2：-x -E emit 状态槽 + setters。G-02f-303 → rt_emit_state hybrid */
 #define X_EMIT_MAX_LIB_ROOTS 16
-#ifndef SHUX_RT_EMIT_STATE_FROM_X
+#ifndef XLANG_RT_EMIT_STATE_FROM_X
 const char *driver_x_emit_c_path;
 const char *driver_x_emit_lib_roots[X_EMIT_MAX_LIB_ROOTS];
 int driver_x_emit_n_lib_roots;
@@ -3389,7 +3389,7 @@ int labi_rt_emit_state_slice_marker(void);
  * 【返回值】1 → 走 \c driver_run_compiler_full（内含 asm）；0 → 旧逻辑走 \c pipeline_run_x_pipeline_impl 轻路径。
  */
 /* G-02f-297 R7-lite → rt_run_exec hybrid */
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
+#ifndef XLANG_RT_RUN_EXEC_FROM_X
 int driver_want_asm_emit_to_file(int argc, char **argv) {
     int want_asm = 1;
     char cur[512];
@@ -3429,7 +3429,7 @@ int driver_want_asm_emit_to_file(int argc, char **argv);
  * cmd_run：编译成功后 exec 产物。
  * G-02f-299 R7 → rt_run_exec hybrid（pure scan + path gate + spawn 在 seed）
  */
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
+#ifndef XLANG_RT_RUN_EXEC_FROM_X
 const char *driver_exec_scan_out_path(int argc, char **argv) {
     int i;
     if (!argv || argc < 1)
@@ -3515,24 +3515,24 @@ int driver_run_compiler_full(int argc, char **argv);
 /**
  * cmd_build（driver/build.x）：在当前工作目录查找 build.x，编译后执行默认产物 ./a.out。
  * - access("build.x", R_OK) 失败则 fprintf stderr 报错并返回 1。
- * - 构造 argv {"shux","build.x",NULL} 调用 driver_run_compiler_full(2, fake_argv)，非 0 则返回 1。
+ * - 构造 argv {"xlang","build.x",NULL} 调用 driver_run_compiler_full(2, fake_argv)，非 0 则返回 1。
  * - 编译成功后 fork / execv("./a.out", av)、waitpid，返回子进程正常退出码；信号等非正常退出返回 1。
  */
 /* G-02f-310 R10 扩：driver_build_build_x → rt_entry hybrid */
-#ifndef SHUX_RT_ENTRY_FROM_X
+#ifndef XLANG_RT_ENTRY_FROM_X
 int driver_build_build_x(void) {
-    /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./shux。
+    /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./xlang。
        build.x 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
        Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。 */
     int rc = system("cd compiler && make -s build-tool 2>&1");
     if (rc != 0) {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                      "make build-tool failed (exit %d)", rc);
         return 1;
     }
-    rc = system("cd compiler && ./build_tool ./shux 2>&1");
+    rc = system("cd compiler && ./build_tool ./xlang 2>&1");
     if (rc != 0) {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                      "build_tool failed (exit %d)", rc);
         return 1;
     }
@@ -3547,7 +3547,7 @@ int driver_build_build_x(void);
 
 /** 6.2 静态 arena/module 缓冲，供 driver_run_x_emit_x 避免栈上超大数组。 */
 /* G-02f-309：arena/module buf → rt_arena_buf hybrid */
-#ifndef SHUX_RT_ARENA_BUF_FROM_X
+#ifndef XLANG_RT_ARENA_BUF_FROM_X
 #define DRIVER_ARENA_STATIC_SIZE (128 * 1024 * 1024)
 #define DRIVER_MODULE_STATIC_SIZE (2 * 1024 * 1024)
 static uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE];
@@ -3578,7 +3578,7 @@ int labi_rt_arena_buf_slice_marker(void);
 
 /** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。 */
 /* G-02f-308：path open → rt_fs_open hybrid */
-#ifndef SHUX_RT_FS_OPEN_FROM_X
+#ifndef XLANG_RT_FS_OPEN_FROM_X
 int driver_fs_open_read_path(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
@@ -3615,8 +3615,8 @@ int labi_rt_fs_open_slice_marker(void);
 
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
-/* G-02f-126 / G-02f-261：逻辑源 src/runtime/rt_content.x；hybrid 时 SHUX_RT_CONTENT_FROM_X + seeds/rt_content.from_x.c */
-#ifndef SHUX_RT_CONTENT_FROM_X
+/* G-02f-126 / G-02f-261：逻辑源 src/runtime/rt_content.x；hybrid 时 XLANG_RT_CONTENT_FROM_X + seeds/rt_content.from_x.c */
+#ifndef XLANG_RT_CONTENT_FROM_X
 int content_has_generic_syntax(const char *content, size_t n) {
     static const char *generic_type_tokens[] = {
         "<i8>", "<i16>", "<i32>", "<i64>", "<u8>", "<u16>", "<u32>", "<u64>", "<f32>", "<f64>", "<bool>",
@@ -3663,10 +3663,10 @@ int content_has_generic_syntax(const char *content, size_t n) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #else
 int content_has_generic_syntax(const char *content, size_t n);
-#endif /* !SHUX_RT_CONTENT_FROM_X (generic) */
+#endif /* !XLANG_RT_CONTENT_FROM_X (generic) */
 
 /* G-02f-306：path wrappers → rt_content hybrid */
-#ifndef SHUX_RT_CONTENT_FROM_X
+#ifndef XLANG_RT_CONTENT_FROM_X
 int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
@@ -3693,7 +3693,7 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len);
 /** 检测内存源码是否含复合赋值（+= 等）；.x 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
  * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
 /* G-02f-126 / G-02f-261：逻辑源 rt_content.x */
-#ifndef SHUX_RT_CONTENT_FROM_X
+#ifndef XLANG_RT_CONTENT_FROM_X
 int content_has_compound_assign_syntax(const char *content, size_t n) {
     if (!content || n < 3)
         return 0;
@@ -3743,10 +3743,10 @@ int content_has_compound_assign_syntax(const char *content, size_t n) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #else
 int content_has_compound_assign_syntax(const char *content, size_t n);
-#endif /* !SHUX_RT_CONTENT_FROM_X (compound) */
+#endif /* !XLANG_RT_CONTENT_FROM_X (compound) */
 
 /* G-02f-306：path wrappers → rt_content hybrid */
-#ifndef SHUX_RT_CONTENT_FROM_X
+#ifndef XLANG_RT_CONTENT_FROM_X
 int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
@@ -3775,13 +3775,13 @@ int labi_rt_content_slice_marker(void);
 
 
 
-/** shux_collect_deps_transitive / shux_merge_direct_then_transitive_deps / shux_load_direct_imports_for_asm_layout 见 runtime_pipeline_abi.c（E-04 v35）。 */
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+/** xlang_collect_deps_transitive / xlang_merge_direct_then_transitive_deps / xlang_load_direct_imports_for_asm_layout 见 runtime_pipeline_abi.c（E-04 v35）。 */
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
 /** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
 /* G-02f-300 R9 → rt_asm_stub hybrid */
-#ifndef SHUX_RT_ASM_STUB_FROM_X
+#ifndef XLANG_RT_ASM_STUB_FROM_X
 int32_t driver_asm_output_want_exe(uint8_t *path) {
-    return shux_output_want_exe(path ? (const char *)path : NULL);
+    return xlang_output_want_exe(path ? (const char *)path : NULL);
 }
 #else
 int32_t driver_asm_output_want_exe(uint8_t *path);
@@ -3790,7 +3790,7 @@ int32_t driver_asm_output_want_exe(uint8_t *path);
 
 
 
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
 /** C 前端 typeck（定义见 driver_c_typeck_entry）；asm 编译前预检。 */
 int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok);
 int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
@@ -3799,7 +3799,7 @@ int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const c
     int print_ok);
 #endif
 
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
 int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
 int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
 #endif
@@ -3812,7 +3812,7 @@ int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 
 /* G-02f-315：asm backend → rt_run_asm_backend hybrid */
-#ifndef SHUX_RT_RUN_ASM_BACKEND_FROM_X
+#ifndef XLANG_RT_RUN_ASM_BACKEND_FROM_X
 /**
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
@@ -3829,55 +3829,55 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         cfg_apply_compile_target_from_triple(target, (int)strlen(target));
     else
         cfg_reset_compile_target();
-    ShuxRuntimeFileView raw_src_view;
+    XlangRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
     pipeline_diag_emitted_reset();
-    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+    char *src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
         ndefines > 0 ? defines : NULL, ndefines,
         &src_len);
     runtime_release_file_view(&raw_src_view);
     if (!src && !pipeline_diag_emitted_get()) {
-        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                      "preprocess failed for '%s'", input_path);
         return 1;
     }
     if (!src)
         return 1;
     diag_set_file(input_path, src, src_len);
-#if !defined(SHUX_NO_C_FRONTEND) && !defined(SHUX_USE_X_PIPELINE)
+#if !defined(XLANG_NO_C_FRONTEND) && !defined(XLANG_USE_X_PIPELINE)
     /*
      * Why: Both C-frontend fallback paths (smoke + check) require the deleted
      *      C frontend (parse / typeck_module / driver_c_typeck_entry). With
-     *      SHUX_USE_X_PIPELINE defined (default on all current modes:
+     *      XLANG_USE_X_PIPELINE defined (default on all current modes:
      *      macOS no_c, Linux no_c, Windows LEGACY), these paths are dead and
-     *      must NOT be compiled: on Windows PE/MinGW SHUX_WEAK expands to
+     *      must NOT be compiled: on Windows PE/MinGW XLANG_WEAK expands to
      *      empty, so the weak stubs in runtime_driver_strict_glue_stubs.o
      *      (parse, typeck_module, driver_c_frontend_smoke_impl) become STRONG
      *      defs. With --allow-multiple-definition the stub `parse()` returns
      *      -1 → driver_c_frontend_smoke returns 1 → silent exit=1 on every
-     *      `shux -c file.x` invocation. Guarding with !SHUX_USE_X_PIPELINE
+     *      `xlang -c file.x` invocation. Guarding with !XLANG_USE_X_PIPELINE
      *      (matching the existing inner guard on driver_c_typeck_entry) makes
      *      `-c file.x` route through the X pipeline exactly as on macOS no_c.
-     * Invariant: When SHUX_USE_X_PIPELINE is defined, the X pipeline path
+     * Invariant: When XLANG_USE_X_PIPELINE is defined, the X pipeline path
      *            (parser_parse_into_init + parser_parse_into_buf) handles
-     *            `-c file.x` smoke and `shux check` alike; this entire
+     *            `-c file.x` smoke and `xlang check` alike; this entire
      *            block is skipped.
      * PLATFORM: SHARED — guard applies on all platforms; verified macOS arm64
      *           (no_c + LEGACY) and Windows MSYS x86_64.
      */
-    /* 无 -o 烟测走 C 前端（含 import 时 X asm parse 易 0 func）；shux check 不走烟测。 */
+    /* 无 -o 烟测走 C 前端（含 import 时 X asm parse 易 0 func）；xlang check 不走烟测。 */
     if (out_path == NULL && !driver_check_only_get()) {
         int smoke_rc = driver_c_frontend_smoke(input_path, src, lib_roots_arr, n_lib_roots);
         free(src);
         return smoke_rc;
     }
     /*
-     * shux check + asm 后端：优先走下方 X pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
+     * xlang check + asm 后端：优先走下方 X pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
      * 无 X pipeline 时回退 C typeck。
      */
     if (driver_check_only_get()) {
@@ -3891,7 +3891,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     void *arena = malloc(arena_sz);
     void *module = malloc(module_sz);
     if (!arena || !module) {
-        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+        diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                               ".x pipeline allocation failed", NULL);
         if (arena) free(arena);
         if (module) free(module);
@@ -3909,7 +3909,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             free(src);
             return 1;
         }
-        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                      "asm backend parse_into_buf failed for '%s'",
                      input_path ? input_path : "?");
         free(arena);
@@ -3919,7 +3919,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
                      driver_get_module_num_funcs(module), src_len);
@@ -3935,7 +3935,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         {
             FILE *metric_o = fopen(out_path, "wb");
             if (!metric_o) {
-                diag_reportf_with_code(out_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                diag_reportf_with_code(out_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                              "cannot open parse-metric output '%s'",
                              out_path ? out_path : "?");
                 free(arena);
@@ -3945,7 +3945,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             (void)fputc('\0', metric_o);
             if (fclose(metric_o) != 0) {
-                diag_reportf_with_code(out_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                diag_reportf_with_code(out_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                              "failed to write parse-metric output '%s'",
                              out_path ? out_path : "?");
                 free(arena);
@@ -3961,7 +3961,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     int32_t n_imports_entry = parser_get_module_num_imports(module);
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     const char *entry_dir = entry_dir_buf;
 
     char *dep_sources[MAX_ALL_DEPS];
@@ -3969,14 +3969,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     char *dep_paths[MAX_ALL_DEPS];
     int n_deps = 0;
     /*
-     * build_shux_asm 单模块 -o（SHUX_ASM_ENTRY_MODULE_ONLY + SHUX_ASM_BUILD_SKIP_TYPECK）：
+     * build_xlang_asm 单模块 -o（XLANG_ASM_ENTRY_MODULE_ONLY + XLANG_ASM_BUILD_SKIP_TYPECK）：
      * 并列链 build_asm/*.o，勿 collect_deps 读 import 源（无 lib_root 时 rc=1 → 4B stub）。
      */
     const int skip_dep_file_load =
         driver_asm_entry_module_only_from_env() && driver_asm_build_skip_typeck() != 0;
     if (n_imports_entry > 0 && n_imports_entry <= 32) {
         if (skip_dep_file_load) {
-            if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines,
+            if (xlang_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines,
                     dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
                 free(arena);
                 free(module);
@@ -3988,7 +3988,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             size_t clens[MAX_ALL_DEPS];
             char *cpaths[MAX_ALL_DEPS];
             int n_closure = 0;
-            if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
+            if (xlang_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
                     ndefines, cls, clens, cpaths, &n_closure) != 0) {
                 free(arena);
                 free(module);
@@ -4007,7 +4007,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 cpaths[rev] = cpaths[o];
                 cpaths[o] = tp;
             }
-            if (shux_merge_direct_then_transitive_deps(module, n_imports_entry, cls, clens, cpaths, n_closure, dep_sources,
+            if (xlang_merge_direct_then_transitive_deps(module, n_imports_entry, cls, clens, cpaths, n_closure, dep_sources,
                     dep_lens, dep_paths, &n_deps) != 0) {
                 while (n_closure > 0) {
                     n_closure--;
@@ -4042,9 +4042,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         asm_want_exe = 0;
         emit_elf_o = 0;
     } else {
-        asm_want_exe = shux_output_want_exe(out_path);
+        asm_want_exe = xlang_output_want_exe(out_path);
         if (asm_want_exe) {
-            snprintf(asm_tmp_o_path, 64, "%sshux_asm_XXXXXX", SHUX_TMP_PREFIX);
+            snprintf(asm_tmp_o_path, 64, "%sxlang_asm_XXXXXX", XLANG_TMP_PREFIX);
             int fd = mkstemp(asm_tmp_o_path);
             if (fd < 0) {
                 runtime_diag_errno_path(input_path, "build error", "mkstemp (asm)", asm_tmp_o_path);
@@ -4073,13 +4073,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            emit_elf_o = shux_output_is_elf_o(out_path);
+            emit_elf_o = xlang_output_is_elf_o(out_path);
         }
     }
     if (emit_elf_o) {
         elf_ctx_ptr = malloc(pipeline_sizeof_elf_ctx());
         if (!elf_ctx_ptr) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   "ELF context allocation failed", NULL);
             driver_asm_fclose_asm_out(asm_out);
             free(arena);
@@ -4096,7 +4096,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x pipeline dependency allocation failed", NULL);
             driver_asm_fclose_asm_out(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
@@ -4117,7 +4117,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+        diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                               ".x pipeline output/context allocation failed", NULL);
         driver_asm_fclose_asm_out(asm_out);
         if (elf_ctx_ptr) free(elf_ctx_ptr);
@@ -4130,12 +4130,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         if (pctx) pipeline_dep_ctx_heap_destroy(pctx);
         return 1;
     }
-    shux_pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
+    xlang_pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
     /*
-     * 入口 pipeline 阶段 use_asm_backend=0：与 shux check 同走 parse+merge+typeck（+ 可选 C codegen 填 out_buf），
+     * 入口 pipeline 阶段 use_asm_backend=0：与 xlang check 同走 parse+merge+typeck（+ 可选 C codegen 填 out_buf），
      * 避免 use_asm_backend=1 时在 typeck_merge / typeck_x_ast 上对 core.option 等 dep 崩溃（134/139）。
      * 真 .o/.Mach-O 由下方 asm_asm_codegen_elf_o 在 use_asm_backend=1 时 emit。
-     * dep 槽在预跑结束后再 shux_pipeline_pctx_seed_dep_slots（见下方 typeck_ndep 块）。
+     * dep 槽在预跑结束后再 xlang_pipeline_pctx_seed_dep_slots（见下方 typeck_ndep 块）。
      */
     pctx->use_asm_backend = 0;
     pctx->target_arch = 0;
@@ -4164,13 +4164,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (emit_elf_o)
         pctx->asm_entry_module_only = driver_asm_entry_module_only_from_env();
     /**
-     * build_shux_asm（SKIP_TYPECK）：dep 已由 build_asm/*.o 提供，仅编入口模块。
+     * build_xlang_asm（SKIP_TYPECK）：dep 已由 build_asm/*.o 提供，仅编入口模块。
      * 用户多文件（tests/multi-file 等）：须在 asm_codegen_elf_o 内编入各 dep，否则 ld 缺 _foo_bar 等符号。
      */
     if (asm_want_exe && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() != 0)
         pctx->asm_entry_module_only = 1;
     /**
-     * 用户单文件 -o（无 dep、非 build_shux_asm SKIP_TYPECK）：单函数仍 ENTRY_MODULE_ONLY
+     * 用户单文件 -o（无 dep、非 build_xlang_asm SKIP_TYPECK）：单函数仍 ENTRY_MODULE_ONLY
      *（return42 等烟测）；多函数单文件（C5 spill_probe 等）须 emit 全 TU 否则 ld 缺符号。
      */
     if (emit_elf_o && n_deps == 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0 &&
@@ -4188,14 +4188,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         pctx->asm_entry_module_only = 1;
     driver_dep_seeded_clear_all();
     /*
-     * build_shux_asm（SHUX_ASM_BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY）：dep 已由 build_asm/*.o 提供，仅 publish 槽位。
+     * build_xlang_asm（XLANG_ASM_BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY）：dep 已由 build_asm/*.o 提供，仅 publish 槽位。
      * 用户链 exe（无 SKIP_TYPECK）：须 parse+typeck dep 以解析 import 符号名，仅跳过 dep codegen（pipeline.x）。
      */
     if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() != 0) {
         for (j = 0; j < n_deps; j++) {
-            if (shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
+            if (xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     dep_lens[j]) != 0) {
-                diag_reportf_with_code(dep_paths[j], 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                diag_reportf_with_code(dep_paths[j], 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                              "asm layout dep parse-only failed for '%s'",
                              dep_paths[j] ? dep_paths[j] : "?");
                 free(out_buf);
@@ -4224,7 +4224,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             if (!one_ctx || !dep_out) {
-                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+                diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                       ".x pipeline dependency context/output allocation failed", NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
@@ -4239,9 +4239,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
+            xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
                 lib_roots_arr, n_lib_roots);
-            shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+            xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
             /*
              * 无 -o 烟测：dep 仅 parse 填槽；全量 .x typeck 在 strict typeck.o 上对 std.io 等大库易 SIGSEGV。
@@ -4249,51 +4249,51 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
              */
             int ec_loop;
             if (asm_smoke_only) {
-                if (getenv("SHUX_ASM_DEBUG"))
+                if (getenv("XLANG_ASM_DEBUG"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
                                  dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
-            } else if (emit_elf_o && shux_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
+            } else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
                 /*
                  * 用户 asm -o：std.io/fs 由并列 *.o 提供 *_c，dep 仅 parse 填 import 槽；
                  * 勿对 read_fd 等跑 .x typeck（与 user_asm_seed_bridge dep skip emit 对齐）。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
-            } else if (emit_elf_o && shux_asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
+            } else if (emit_elf_o && xlang_asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
                 /*
                  * std.net：须 co-emit listen/accept_many；parse_only 常 funcs=0，改 parse+skip typeck 填槽。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
-                if (ec_loop == 0 && shux_asm_user_std_net_dep_path(dep_paths[j]))
+                if (ec_loop == 0 && xlang_asm_user_std_net_dep_path(dep_paths[j]))
                     pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
             } else if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() == 0) {
                 /*
                  * ENTRY_MODULE_ONLY 且将走 C typeck 预检：dep 仅 parse 填槽，勿对整棵 dep 再跑 .x typeck（栈/耗时）。
                  * 入口模块类型由 driver_c_typeck_entry 与并列 build_asm/*.o 保证。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
-#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
             } else if (emit_elf_o && !asm_smoke_only && !driver_asm_build_skip_typeck()) {
                 /*
-                 * B-strict shux_asm 用户多文件 -o：dep 仅 parse 填 import 槽；入口 skip .x typeck（见下方 set）。
-                 * 注：std.string/heap 等 .x 符号须 shux-c 链 exe，或后续改 co-emit 填全量 func 槽。
+                 * B-strict xlang_asm 用户多文件 -o：dep 仅 parse 填 import 槽；入口 skip .x typeck（见下方 set）。
+                 * 注：std.string/heap 等 .x 符号须 xlang-c 链 exe，或后续改 co-emit 填全量 func 槽。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
 #endif
             } else {
-                ec_loop = shux_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
+                ec_loop = xlang_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
             }
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             if (ec_loop != 0) {
-                diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
+                diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                        "pipeline failed for import '%s' (rc=%d)", dep_paths[j], ec_loop);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
@@ -4314,7 +4314,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         typeck_dep_module_set((int32_t)(j), dep_modules[j]);
         typeck_dep_arena_set((int32_t)(j), dep_arenas[j]);
     }
-    shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pipeline_set_dep_slots(dep_arenas, dep_modules);
     driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
     codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
@@ -4326,32 +4326,32 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     pctx->entry_already_parsed = 1;
     int ec = 0;
     {
-        /* === SHUX_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
+        /* === XLANG_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
         const char *entry_name = input_path ? strrchr(input_path, '/') : NULL;
         entry_name = entry_name ? entry_name + 1 : input_path;
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: entry=%s n_deps=%d",
                          entry_name ? entry_name : "?", n_deps);
         }
         /* 1. 预检：当前文件长度 */
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: src_len=%zu entry_funcs=%d",
                          src_len, driver_get_module_num_funcs(module));
         }
         /* 2. 调 pipeline_run_x_pipeline */
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_report(NULL, 0, 0, "note",
                         "asm entry debug: BEFORE pipeline_run_x_pipeline", NULL);
         }
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
         /*
          * 用户程序 asm 编译：C typeck 预检（strict 链 typeck_c_orchestration_partial 提供真 typeck_module），
          * 再 skip pipeline 内 .x typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
          */
         if (!driver_asm_build_skip_typeck()) {
-            const char *skip_c_precheck = getenv("SHUX_ASM_SKIP_C_TYPECK_PRECHECK");
+            const char *skip_c_precheck = getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
             if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
                 if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
                     free(out_buf);
@@ -4374,11 +4374,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
 #endif
         /*
-         * 用户 asm -o：入口 pipeline 跳过 .x typeck（须在 #endif 外：shux_asm 为 SHUX_NO_C_FRONTEND 时仍要 skip）。
+         * 用户 asm -o：入口 pipeline 跳过 .x typeck（须在 #endif 外：xlang_asm 为 XLANG_NO_C_FRONTEND 时仍要 skip）。
          * import 程序（dead_user 等）否则 typecheck_entry SIGSEGV。
          * 无 import 单文件仍须 typeck（struct field_access_offset）；仅 skip codegen，机器码由 asm_codegen_elf_o 生成。
          * std 库 .o 仍靠 C typeck 预检 + pipeline_fill_*_for_skipped_typeck；勿跑 x typeck（enc_label 失败）。
-         * shux check + std/core 闭包：与 -o 多文件一致 skip 入口 .x typeck，parse 已在 smoke 路径完成。
+         * xlang check + std/core 闭包：与 -o 多文件一致 skip 入口 .x typeck，parse 已在 smoke 路径完成。
          */
         if (!asm_smoke_only) {
             if (n_deps > 0)
@@ -4388,7 +4388,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         } else {
             /*
              * asm_smoke_only（out_path==NULL，含 -c check 与无 -o smoke）：skip codegen。
-             * 【Why】strict link 产出的 shux_asm 不链入 codegen_x.o（C codegen），
+             * 【Why】strict link 产出的 xlang_asm 不链入 codegen_x.o（C codegen），
              * codegen_x_ast 是 bridge.c weak stub（返回 -1）；asm_smoke_only 调用 codegen
              * 会走 weak stub → XP001。-c check 语义只需验证语法与类型，codegen 错误
              * 由 -o 模式检测。-c flag 不设置 driver_check_only（仅 fmt/dep_prerun 设置），
@@ -4401,10 +4401,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             driver_x_pipeline_skip_codegen_set(1);
         }
-        ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
+        ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: AFTER pipeline_run_x_pipeline ec=%d funcs=%d out_len=%zu",
                          ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -4416,7 +4416,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     pctx->use_asm_backend = 1;
-    if (getenv("SHUX_ASM_DEBUG")) {
+    if (getenv("XLANG_ASM_DEBUG")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
                      ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -4437,11 +4437,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             int smoke_num_funcs = driver_get_module_num_funcs(module);
             int smoke_diag_emitted = driver_check_diag_emitted_get();
             if (smoke_ec != 0 && !driver_check_diag_emitted_get())
-                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP001, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP001, NULL,
                              ".x pipeline failed for '%s' (stage=parse_into/typeck_x_ast/codegen_x_ast)",
                              input_path ? input_path : "?");
             else if (smoke_num_funcs <= 0)
-                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                              "parse produced no functions for '%s'", input_path ? input_path : "?");
             else if (driver_check_only_get() && smoke_diag_emitted) {
                 /* check 已有更具体失败诊断时，不再冒充 parse/typeck 成功摘要。 */
@@ -4479,7 +4479,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
-        if (emit_elf_o && elf_ctx_ptr && !shux_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->len : 0)) {
+        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->len : 0)) {
             /*
              * pipeline_run 后 driver_dep_seeded_clear_all 仅清全局槽；须把 dep 模块重新写入 pctx，
              * 且对用户多文件关闭 ENTRY_MODULE_ONLY，否则 asm_codegen_elf_o 只编 main、ld 缺 _foo_bar。
@@ -4494,9 +4494,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 }
                 pipeline_set_dep_slots(dep_arenas, dep_modules);
                 driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
-                shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+                xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
                 /*
-                 * 多文件 -o 须编 dep 机器码；显式 SHUX_ASM_ENTRY_MODULE_ONLY=1（build_shux_asm / M8 单模块 -o）
+                 * 多文件 -o 须编 dep 机器码；显式 XLANG_ASM_ENTRY_MODULE_ONLY=1（build_xlang_asm / M8 单模块 -o）
                  * 时保持仅入口，dep 由并列 build_asm/*.o 提供，勿对 arch/x86_64 等 dep 再跑 asm emit。
                  * hello 等纯 std 闭包勿关 ENTRY_MODULE_ONLY（否则 co-emit std.fmt → SIGSEGV）。
                  */
@@ -4504,18 +4504,18 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                     pctx->asm_entry_module_only = 0;
                 pctx->use_asm_backend = 1;
             }
-            shux_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
-            int32_t elf_ec = shux_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-            if (getenv("SHUX_ASM_DEBUG")) {
+            xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+            int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
+            if (getenv("XLANG_ASM_DEBUG")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
                              (int)elf_ec, (size_t)out_buf->len);
             }
             if (elf_ec != 0 || out_buf->len <= 0) {
-                diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG002, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                        "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
                                        (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
-                if (elf_ec == SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
+                if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                     diag_report(NULL, 0, 0, "note",
                                 "asm backend produced no object text; empty .o emission was rejected", NULL);
                 if (elf_ec != 0 && elf_ctx_ptr)
@@ -4551,14 +4551,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             driver_bump_stack_limit();
             /* G.7: CLI user .o into asm ld (same globals as invoke_cc). PLATFORM: SHARED. */
             if (argv && argc > 0)
-                shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-            int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, asm_exe_out, target, pctx->use_macho_o, pctx->use_coff_o, argv ? argv[0] : NULL,
+                xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+            int ld_ok = xlang_invoke_ld_for_exe(asm_tmp_o_path, asm_exe_out, target, pctx->use_macho_o, pctx->use_coff_o, argv ? argv[0] : NULL,
                 lib_roots_arr, n_lib_roots);
-            shux_invoke_cc_clear_user_o_files();
+            xlang_invoke_cc_clear_user_o_files();
             unlink(asm_tmp_o_path);
             if (ld_ok != 0) {
                 driver_unlink_failed_output(asm_exe_out);
-                diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "ld failed (asm -> %s)", asm_exe_out);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
@@ -4580,13 +4580,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
         if (ec != 0) {
             driver_unlink_failed_output(out_path);
-            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP001, NULL,
                          ".x pipeline failed for '%s' (stage=parse_into/typeck_x_ast/codegen_x_ast)",
                          input_path ? input_path : "?");
         }
     }
     if (ec == 0 && emit_elf_o && driver_get_module_num_funcs(module) <= 0) {
-        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                      "parse produced no functions in '%s'", input_path ? input_path : "?");
         ec = -1;
     }
@@ -4607,7 +4607,7 @@ int labi_rt_run_asm_backend_slice_marker(void);
 
 
 
-#endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
+#endif /* XLANG_USE_X_DRIVER && XLANG_USE_X_PIPELINE */
 
 #define X_FULL_MAX_LIB_ROOTS 16
 
@@ -4623,10 +4623,10 @@ typedef struct DriverCompileParsed {
     int use_lto;
 } DriverCompileParsed;
 
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
 /**
- * C 前端 parse + resolve deps + typeck_module（与 shux-c 一致）。
- * print_ok 非 0 时成功打印 check OK（shux check）；否则静默（asm 编译前预检）。
+ * C 前端 parse + resolve deps + typeck_module（与 xlang-c 一致）。
+ * print_ok 非 0 时成功打印 check OK（xlang check）；否则静默（asm 编译前预检）。
  * 【返回】0 成功；1 失败。
  */
 
@@ -4644,7 +4644,7 @@ int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_
         return 1;
     }
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     ASTModule *dep_mods[32];
     ASTModule *all_dep_mods[MAX_ALL_DEPS];
     char *all_dep_paths[MAX_ALL_DEPS];
@@ -4665,8 +4665,8 @@ int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_
     }
     const char *main_name = (mod->main_func && mod->main_func->name) ? mod->main_func->name : "main";
     /* 双写过渡：opt-in 时为 smoke info 携带编号 SMOKE001/SMOKE002（默认 code=NULL，输出与旧版逐字节一致）。 */
-    const char *smoke_code_parse = shux_smoke_diag_enabled() ? SHUX_DIAG_CODE_SMOKE_SMOKE001 : NULL;
-    const char *smoke_code_typeck = shux_smoke_diag_enabled() ? SHUX_DIAG_CODE_SMOKE_SMOKE002 : NULL;
+    const char *smoke_code_parse = xlang_smoke_diag_enabled() ? XLANG_DIAG_CODE_SMOKE_SMOKE001 : NULL;
+    const char *smoke_code_typeck = xlang_smoke_diag_enabled() ? XLANG_DIAG_CODE_SMOKE_SMOKE002 : NULL;
     diag_reportf_with_code(NULL, 0, 0, "info", smoke_code_parse, NULL,
                            "parse OK: %s(): i32 { expr }", main_name);
     diag_report_with_code(NULL, 0, 0, "info", smoke_code_typeck, "typeck OK", NULL);
@@ -4681,8 +4681,8 @@ int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_
 
 
 
-#if defined(SHUX_USE_X_PIPELINE)
-/** shux check 后 X 栈逃逸 gate 大栈线程参数。 */
+#if defined(XLANG_USE_X_PIPELINE)
+/** xlang check 后 X 栈逃逸 gate 大栈线程参数。 */
 typedef struct {
     uint8_t *src;
     int32_t src_len;
@@ -4690,7 +4690,7 @@ typedef struct {
 } DriverStackEscGateArgs;
 
 /* G-02f-317 R8-lite：stack esc → rt_stack hybrid */
-#ifndef SHUX_RT_STACK_FROM_X
+#ifndef XLANG_RT_STACK_FROM_X
 /** pthread 入口：WPO-S3 post-scan gate。 */
 void * driver_stack_esc_gate_thread_fn(void *arg) {
     DriverStackEscGateArgs *a = (DriverStackEscGateArgs *)arg;
@@ -4731,7 +4731,7 @@ int driver_c_typeck_entry_impl(const char *input_path, char *src, const char **l
         return 1;
     }
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     ASTModule *dep_mods[32];
     ASTModule *all_dep_mods[MAX_ALL_DEPS];
     char *all_dep_paths[MAX_ALL_DEPS];
@@ -4742,7 +4742,7 @@ int driver_c_typeck_entry_impl(const char *input_path, char *src, const char **l
         ast_module_free(mod);
         return 1;
     }
-#if defined(SHUX_USE_X_TYPECK) && !defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_TYPECK) && !defined(XLANG_USE_X_PIPELINE)
     if (typeck_typeck_entry(mod, ndep > 0 ? dep_mods : NULL, ndep) != 0) {
 #else
     if (typeck_module(mod, ndep > 0 ? dep_mods : NULL, ndep, n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
@@ -4754,7 +4754,7 @@ int driver_c_typeck_entry_impl(const char *input_path, char *src, const char **l
         ast_module_free(mod);
         return 1;
     }
-#if defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_PIPELINE)
     if (print_ok) {
         int32_t slen = (int32_t)strlen(src);
         if (slen > 0 && driver_stack_esc_gate_large_stack((uint8_t *)src, slen) != 0) {
@@ -4827,10 +4827,10 @@ int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const c
 
 
 
-#endif /* !SHUX_NO_C_FRONTEND — C parse/typeck 辅助；compile.x / driver_run_compiler_full glue 须在 NO_C seed 链可见 */
+#endif /* !XLANG_NO_C_FRONTEND — C parse/typeck 辅助；compile.x / driver_run_compiler_full glue 须在 NO_C seed 链可见 */
 
-/** shux check：C typeck 入口（库模块无 main 时比 X pipeline 更稳；bootstrap 与 shux-c 共用）。 */
-#if !defined(SHUX_NO_C_FRONTEND)
+/** xlang check：C typeck 入口（库模块无 main 时比 X pipeline 更稳；bootstrap 与 xlang-c 共用）。 */
+#if !defined(XLANG_NO_C_FRONTEND)
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_check_only_c_typeck(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
     return driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
@@ -4845,7 +4845,7 @@ int driver_check_only_c_typeck(const char *input_path, char *src, const char **l
  * tests/multi-file 的 import("foo") 等用户 dep 返回 0，仍走 typeck_only。
  */
 /* G-02f-291 R6-lite：逻辑源 src/runtime/rt_compile.x；hybrid → seeds/rt_compile.from_x.c */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
     int k;
     if (!dep_paths || n_deps <= 0)
@@ -4929,12 +4929,12 @@ int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, Dri
 DriverCompileStateSU *driver_compile_state_alloc_c(void);
 void driver_compile_state_free_c(DriverCompileStateSU *state);
 int labi_rt_compile_slice_marker(void);
-#endif /* !SHUX_RT_COMPILE_FROM_X */
+#endif /* !XLANG_RT_COMPILE_FROM_X */
 
 
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
 /**
- * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 shux-c -backend c -o 可走 C 前端）。
+ * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 xlang-c -backend c -o 可走 C 前端）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_c_mod_imports_are_core_only(ASTModule *mod) {
@@ -4953,10 +4953,10 @@ int driver_c_mod_imports_are_core_only(ASTModule *mod) {
 
 #endif
 
-/** argv[0] basename 是否等于给定名（如 shux-c，避免 sibling exec 自递归）。 */
+/** argv[0] basename 是否等于给定名（如 xlang-c，避免 sibling exec 自递归）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-262 R0 util */
-#ifndef SHUX_RT_UTIL_FROM_X
+#ifndef XLANG_RT_UTIL_FROM_X
 int driver_argv0_basename_is(const char *argv0, const char *base) {
     const char *slash;
     const char *name;
@@ -4981,15 +4981,15 @@ int driver_argv0_basename_is(const char *argv0, const char *base);
 
 
 /* G-02f-316：parsed dispatch → rt_run_compiler_parsed hybrid */
-#ifndef SHUX_RT_RUN_COMPILER_PARSED_FROM_X
+#ifndef XLANG_RT_RUN_COMPILER_PARSED_FROM_X
 /**
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.x 经 driver_run_compiler_dispatch_c 调用。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
-    /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
-     * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
+    /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（xlang_compile_std_module.sh --bare-impl）；
+     * x-pipeline 路径（xlang-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
     const char *lib_name_override = NULL;
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
@@ -5006,15 +5006,15 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (!input_path)
         return 1;
     driver_bump_stack_limit();
-    /* shux check：强制走 X pipeline 的 typeck 路径，不做 asm 后端与链接。 */
+    /* xlang check：强制走 X pipeline 的 typeck 路径，不做 asm 后端与链接。 */
     if (driver_check_only_get())
         want_asm_backend = 0;
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
     /*
      * 默认 asm：入口源码若含泛型/trait 且输出将链成可执行（无 -o 仍视作需降级场景），asm 后端无法单态化，降级为 C/pipeline。
-     * -o 为 .o/.obj/.s 时仅生成对象或汇编、不链 exe，跳过泛型扫描，不改 want_asm_backend（逻辑同 shux_output_want_exe）。
+     * -o 为 .o/.obj/.s 时仅生成对象或汇编、不链 exe，跳过泛型扫描，不改 want_asm_backend（逻辑同 xlang_output_want_exe）。
      */
-    if (want_asm_backend && input_path && (!out_path || shux_output_want_exe(out_path))) {
+    if (want_asm_backend && input_path && (!out_path || xlang_output_want_exe(out_path))) {
         int plen = (int)strlen(input_path);
         if (plen > 0 && plen < 512 &&
             driver_source_has_generic_syntax((const uint8_t *)input_path, plen))
@@ -5026,23 +5026,23 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 回退 C pipeline + host cc，与显式 -backend c 一致。Linux/Ubuntu 金标仍默认 asm。
      * -o *.o/*.s 对象探针仍走 asm（不降级）。与 rt_run_compiler_parsed 同形（禁双权威漂移）。
      */
-    if (want_asm_backend && out_path && shux_output_want_exe(out_path))
+    if (want_asm_backend && out_path && xlang_output_want_exe(out_path))
         want_asm_backend = 0;
 #endif
     /*
      * 默认走 asm：一律走 X pipeline + asm_asm_codegen_*（有无 -o 均如此）；`-backend c` 已在上方关闭 want_asm_backend。
      * 无 \c out_path 时向 stdout 打汇编文本；否则写 \c .o / \c .s / 或可执行路径（参见 driver_run_asm_backend）。
      */
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
     /*
-     * shux-c 路径：顶层 import 时 X asm parse 易 0 func，降级 C；shux_asm（SHUX_NO_C_FRONTEND）须保留 asm + driver_run_asm_backend。
+     * xlang-c 路径：顶层 import 时 X asm parse 易 0 func，降级 C；xlang_asm（XLANG_NO_C_FRONTEND）须保留 asm + driver_run_asm_backend。
      */
     if (want_asm_backend) {
-        ShuxRuntimeFileView imp_raw_view;
+        XlangRuntimeFileView imp_raw_view;
         if (runtime_read_file_view(input_path, &imp_raw_view) == 0) {
             size_t imp_src_len = 0;
             pipeline_diag_emitted_reset();
-            char *imp_src = shux_preprocess_quiet(imp_raw_view.data, imp_raw_view.length, NULL, 0, &imp_src_len);
+            char *imp_src = xlang_preprocess_quiet(imp_raw_view.data, imp_raw_view.length, NULL, 0, &imp_src_len);
             runtime_release_file_view(&imp_raw_view);
             if (imp_src && driver_source_has_top_level_import(imp_src, imp_src_len))
                 want_asm_backend = 0;
@@ -5055,29 +5055,29 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
 #endif
     int emit_to_stdout = (out_path == NULL);
 
-    ShuxRuntimeFileView raw_src_view;
+    XlangRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
     pipeline_diag_emitted_reset();
     /* 必须传入 -D 收集结果；NULL/0 会使 #if FOO 永不成立（run-preprocess 假走 #else）。 */
-    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+    char *src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
                                           ndefines > 0 ? defines : NULL, ndefines, &src_len);
     runtime_release_file_view(&raw_src_view);
     if (!src && !pipeline_diag_emitted_get()) {
-        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                      "preprocess failed for '%s'", input_path);
         return 1;
     }
     if (!src)
         return 1;
     diag_set_file(input_path, src, src_len);
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
     /*
-     * shux check：优先 C parse+typeck（支持库模块、import -L）；X pipeline check 待与 compile 对齐后再切回。
+     * xlang check：优先 C parse+typeck（支持库模块、import -L）；X pipeline check 待与 compile 对齐后再切回。
      */
     if (driver_check_only_get()) {
         int ck = driver_check_only_c_typeck(input_path, src, lib_roots_arr, n_lib_roots);
@@ -5091,9 +5091,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
 #endif
     /* 若预处理后源码含泛型语法，.x 流水线不解析泛型，改走 C 流水线（parse + typeck_module + codegen）以保证 id<i32>(42) 等正确单态化。
-     * `-backend c -o`（want_asm_backend=0）：单文件无泛型亦走 C 前端，与 shux check 对齐（LANG-007 unsafe 等 S0 规则）。
+     * `-backend c -o`（want_asm_backend=0）：单文件无泛型亦走 C 前端，与 xlang check 对齐（LANG-007 unsafe 等 S0 规则）。
      * 无 import 时内联 C 路径，避免 run_compiler_c 重入导致崩溃；有 import 时仍调 run_compiler_c。 */
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
     if (content_has_generic_syntax(src, src_len) || out_path) {
         {
             Lexer *lex = lexer_new(src);
@@ -5126,7 +5126,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             char *all_dep_paths[MAX_ALL_DEPS];
             int ndep = 0, n_all = 0;
             char c_entry_dir[512];
-            shux_get_entry_dir(input_path, c_entry_dir, sizeof(c_entry_dir));
+            xlang_get_entry_dir(input_path, c_entry_dir, sizeof(c_entry_dir));
             if (c_mod->num_imports > 0 &&
                 shu_c_resolve_and_load_imports(c_mod, lib_roots_arr, n_lib_roots, c_entry_dir,
                     ndefines > 0 ? defines : NULL, ndefines, 0, dep_mods, &ndep, all_dep_mods, all_dep_paths,
@@ -5156,7 +5156,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                     return 0;
                 }
                 /* LANG-007 v2：库模块 -backend c -o *.o → codegen_library_module_to_c + cc -c。 */
-                if (out_path && shux_output_is_elf_o(out_path) && c_mod->num_funcs > 0) {
+                if (out_path && xlang_output_is_elf_o(out_path) && c_mod->num_funcs > 0) {
                     if (typeck_module(c_mod, ndep > 0 ? dep_mods : NULL, ndep,
                             n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
                         while (n_all--) {
@@ -5168,7 +5168,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         return 1;
                     }
                     codegen_set_preamble_has_core_option_result(0);
-                    char tmp_lib[128]; snprintf(tmp_lib, sizeof(tmp_lib), "%ssXXXXXX", SHUX_TMP_PREFIX);
+                    char tmp_lib[128]; snprintf(tmp_lib, sizeof(tmp_lib), "%ssXXXXXX", XLANG_TMP_PREFIX);
                     int fd_lib = mkstemp(tmp_lib);
                     if (fd_lib < 0) {
                         runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp_lib);
@@ -5203,7 +5203,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                     codegen_emit_fmt_json_helpers_once(cf_lib);
                     codegen_emit_builtin_inline_decls(cf_lib);
                     {
-                        const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
+                        const char *lib_name = lib_name_override ? lib_name_override : xlang_entry_lib_name_from_path(input_path);
                         if (codegen_library_module_to_c(c_mod, lib_name, ndep > 0 ? dep_mods : NULL,
                                 ndep > 0 ? (const char **)c_mod->import_paths : NULL, ndep,
                                 cf_lib, NULL, NULL, NULL, NULL, NULL, NULL, 0, input_path) != 0) {
@@ -5246,7 +5246,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                                                  (char *)out_path, tmp_lib_c, NULL};
                         intptr_t spawn_rc = _spawnvp(_P_WAIT, "gcc", cc_args);
                         if (spawn_rc != 0) {
-                            diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                            diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
                                         "cc -c failed for library module", NULL);
                             cc_ok = -1;
                         }
@@ -5264,16 +5264,16 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                             int status = 0;
                             if (shu_waitpid_retry(cpid, &status) != 0 ||
                                 !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                                diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                                diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
                                             "cc -c failed for library module", NULL);
                                 cc_ok = -1;
                             }
                         }
 #endif
                         if (cc_ok != 0)
-                            diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                            diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                          "cc failed, keeping generated C: %s", tmp_lib_c);
-                        else if (!getenv("SHUX_KEEP_C"))
+                        else if (!getenv("XLANG_KEEP_C"))
                             unlink(tmp_lib_c);
                         while (n_all--) {
                             free(all_dep_paths[n_all]);
@@ -5290,7 +5290,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 }
                 ast_module_free(c_mod);
                 free(src);
-            diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+            diag_report_with_code(NULL, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG001,
                                   "no main function (cannot emit executable)", NULL);
                 return 1;
             }
@@ -5314,7 +5314,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                 return 0;
             }
             codegen_set_preamble_has_core_option_result(0);
-            char tmp[128]; snprintf(tmp, sizeof(tmp), "%ssXXXXXX", SHUX_TMP_PREFIX);
+            char tmp[128]; snprintf(tmp, sizeof(tmp), "%ssXXXXXX", XLANG_TMP_PREFIX);
             int fd = mkstemp(tmp);
             if (fd < 0) {
                 runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
@@ -5356,7 +5356,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         const char *lib_dep_paths[32];
                         int n_lib = 0;
                         for (int dj = 0; dj < all_dep_mods[di]->num_imports && n_lib < 32; dj++) {
-                            int idx = shux_find_loaded_import_index(all_dep_mods[di]->import_paths[dj], all_dep_paths, n_all);
+                            int idx = xlang_find_loaded_import_index(all_dep_mods[di]->import_paths[dj], all_dep_paths, n_all);
                             if (idx >= 0) {
                                 lib_deps[n_lib] = all_dep_mods[idx];
                                 lib_dep_paths[n_lib] = all_dep_paths[idx];
@@ -5407,63 +5407,63 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             }
             {
                 const char *c_paths[1] = { tmp_c };
-                const char *io_o = shux_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
+                const char *io_o = xlang_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
                 const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
-                const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
-                const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
+                const char *process_o = xlang_rel_o_path_from_argv0(argv[0], "std/process/process.o");
+                const char *string_o = xlang_rel_o_path_from_argv0(argv[0], "std/string/string.o");
                 const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
-                const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
-                const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
-                const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
-                const char *net_o = shux_rel_o_path_from_argv0(argv[0], "std/net/net.o");
-                const char *thread_o = shux_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
-                const char *time_o = shux_rel_o_path_from_argv0(argv[0], "std/time/time.o");
-                const char *random_o = shux_rel_o_path_from_argv0(argv[0], "std/random/random.o");
-                const char *env_o = shux_rel_o_path_from_argv0(argv[0], "std/env/env.o");
-                const char *sync_o = shux_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
-                const char *encoding_o = shux_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
-                const char *base64_o = shux_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
-                const char *crypto_o = shux_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
-                const char *log_o = shux_rel_o_path_from_argv0(argv[0], "std/log/log.o");
-                const char *atomic_o = shux_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
-                const char *channel_o = shux_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
-                const char *backtrace_o = shux_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
-                const char *hash_o = shux_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
-                const char *math_o = shux_rel_o_path_from_argv0(argv[0], "std/math/math.o");
-                const char *sort_o = shux_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
-                const char *ffi_o = shux_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
-                const char *db_o = shux_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
-                const char *elf_o = shux_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
-                const char *json_o = shux_rel_o_path_from_argv0(argv[0], "std/json/json.o");
-                const char *csv_o = shux_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
-                const char *regex_o = shux_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
+                const char *path_o = xlang_rel_o_path_from_argv0(argv[0], "std/path/path.o");
+                const char *runtime_o = xlang_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
+                const char *runtime_panic_o = xlang_runtime_panic_o_path(argv[0]);
+                const char *net_o = xlang_rel_o_path_from_argv0(argv[0], "std/net/net.o");
+                const char *thread_o = xlang_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
+                const char *time_o = xlang_rel_o_path_from_argv0(argv[0], "std/time/time.o");
+                const char *random_o = xlang_rel_o_path_from_argv0(argv[0], "std/random/random.o");
+                const char *env_o = xlang_rel_o_path_from_argv0(argv[0], "std/env/env.o");
+                const char *sync_o = xlang_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
+                const char *encoding_o = xlang_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
+                const char *base64_o = xlang_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
+                const char *crypto_o = xlang_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
+                const char *log_o = xlang_rel_o_path_from_argv0(argv[0], "std/log/log.o");
+                const char *atomic_o = xlang_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
+                const char *channel_o = xlang_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
+                const char *backtrace_o = xlang_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
+                const char *hash_o = xlang_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
+                const char *math_o = xlang_rel_o_path_from_argv0(argv[0], "std/math/math.o");
+                const char *sort_o = xlang_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
+                const char *ffi_o = xlang_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
+                const char *db_o = xlang_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
+                const char *elf_o = xlang_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
+                const char *json_o = xlang_rel_o_path_from_argv0(argv[0], "std/json/json.o");
+                const char *csv_o = xlang_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
+                const char *regex_o = xlang_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
                 const char *compress_o = NULL; /* F-06 v1 / F-04 v7：无 compress.o，user .o / 生成 C 按需压缩库 */
-                const char *unicode_o = shux_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
-                const char *dynlib_o = shux_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
-                const char *http_o = shux_rel_o_path_from_argv0(argv[0], "std/http/http.o");
-                const char *tar_o = shux_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
-                const char *simd_o = shux_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
-                const char *context_o = shux_rel_o_path_from_argv0(argv[0], "std/context/context.o");
-                const char *datetime_o = shux_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
-                const char *uuid_o = shux_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
-                const char *url_o = shux_rel_o_path_from_argv0(argv[0], "std/url/url.o");
-                const char *cli_o = shux_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
-                const char *security_o = shux_rel_o_path_from_argv0(argv[0], "std/security/security.o");
-                const char *config_o = shux_rel_o_path_from_argv0(argv[0], "std/config/config.o");
-                const char *cache_o = shux_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
-                const char *trace_o = shux_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
-                const char *task_o = shux_rel_o_path_from_argv0(argv[0], "std/task/task.o");
-                const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
-                const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
+                const char *unicode_o = xlang_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
+                const char *dynlib_o = xlang_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
+                const char *http_o = xlang_rel_o_path_from_argv0(argv[0], "std/http/http.o");
+                const char *tar_o = xlang_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
+                const char *simd_o = xlang_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
+                const char *context_o = xlang_rel_o_path_from_argv0(argv[0], "std/context/context.o");
+                const char *datetime_o = xlang_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
+                const char *uuid_o = xlang_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
+                const char *url_o = xlang_rel_o_path_from_argv0(argv[0], "std/url/url.o");
+                const char *cli_o = xlang_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
+                const char *security_o = xlang_rel_o_path_from_argv0(argv[0], "std/security/security.o");
+                const char *config_o = xlang_rel_o_path_from_argv0(argv[0], "std/config/config.o");
+                const char *cache_o = xlang_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
+                const char *trace_o = xlang_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
+                const char *task_o = xlang_rel_o_path_from_argv0(argv[0], "std/task/task.o");
+                const char *schema_o = xlang_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
+                const char *test_o = xlang_rel_o_path_from_argv0(argv[0], "std/test/test.o");
                 /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
-                shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-                int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
-                shux_invoke_cc_clear_user_o_files();
+                xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+                int cc_ret = xlang_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, xlang_repo_root_from_argv0(argv[0]), NULL);
+                xlang_invoke_cc_clear_user_o_files();
                 if (cc_ret != 0) {
                     driver_unlink_failed_output(out_path);
-                    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                    diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                  "cc failed, keeping generated C: %s", tmp_c);
-                } else if (!getenv("SHUX_KEEP_C"))
+                } else if (!getenv("XLANG_KEEP_C"))
                     unlink(tmp_c);
                 while (n_all--) {
                     free(all_dep_paths[n_all]);
@@ -5476,16 +5476,16 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             }
         }
     }
-#else  /* SHUX_NO_C_FRONTEND */
+#else  /* XLANG_NO_C_FRONTEND */
     /*
      * G-06 seed 链仅 X 前端；泛型/trait 由 typeck.x 单态化。
      * 勿在此拒掉（否则 -E asm.x / build_seed_asm_host 无法冷启动 partial）。
      */
-#endif /* !SHUX_NO_C_FRONTEND */
-    if (getenv("SHUX_DUMP_PREP")) {
-        if (shux_write_path_bytes("/tmp/shux_prep_entry.bin", src, src_len) == 0) {
+#endif /* !XLANG_NO_C_FRONTEND */
+    if (getenv("XLANG_DUMP_PREP")) {
+        if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len) == 0) {
             diag_reportf(input_path, 0, 0, "note", NULL,
-                         "dumped prep entry (%zu bytes) to /tmp/shux_prep_entry.bin", src_len);
+                         "dumped prep entry (%zu bytes) to /tmp/xlang_prep_entry.bin", src_len);
         }
     }
     size_t arena_sz = pipeline_sizeof_arena();
@@ -5500,9 +5500,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
-    struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len }; /* 仅 diagnostics，入口解析必须与 pipeline 一致走 parse_into_buf */
+    struct xlang_slice_uint8_t src_slice = { (uint8_t *)src, src_len }; /* 仅 diagnostics，入口解析必须与 pipeline 一致走 parse_into_buf */
     if (src_len > (size_t)INT32_MAX) {
-        diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP007, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP007, NULL,
                                "entry source too large for parser (>%d bytes): '%s'",
                                INT32_MAX, input_path ? input_path : "?");
         free(arena);
@@ -5526,7 +5526,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(src);
             return 1;
         }
-        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                      "parse failed for '%s' (pr.ok=%d main_idx=%d)",
                      input_path, (int)pr.ok, (int)pr.main_idx);
         {
@@ -5545,12 +5545,12 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d src_len=%zu",
                      driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     if (n_imports > 0)
         pipeline_set_entry_dir(entry_dir_buf);
 
@@ -5559,14 +5559,14 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     char *dep_paths[MAX_ALL_DEPS];
     int n_deps = 0;
     if (n_imports > 0 && n_imports <= 32) {
-        if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
+        if (xlang_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
                 ndefines, dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
             free(arena);
             free(module);
             free(src);
             return 1;
         }
-        if (getenv("SHUX_DEBUG_PIPE")) {
+        if (getenv("XLANG_DEBUG_PIPE")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: n_deps=%d", n_deps);
             for (int dj = 0; dj < n_deps; dj++)
@@ -5576,7 +5576,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     typeck_ndep_store((int32_t)(0));
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
-    char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_x.XXXXXX", SHUX_TMP_PREFIX);
+    char tmp[128]; snprintf(tmp, sizeof(tmp), "%sxlang_x.XXXXXX", XLANG_TMP_PREFIX);
     char tmp_c[256];
     int fd = -1;
     FILE *cf;
@@ -5619,7 +5619,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x path dependency allocation failed", NULL);
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
@@ -5633,7 +5633,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+        diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                               ".x path output/context allocation failed", NULL);
         for (int jj = 0; jj < n_deps; jj++) { free(dep_arenas[jj]); free(dep_modules[jj]); }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
@@ -5643,8 +5643,8 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         if (pctx) pipeline_dep_ctx_heap_destroy(pctx);
         return 1;
     }
-    shux_pipeline_fill_ctx_path_buffers(pctx, entry_dir_buf, lib_roots_arr, n_lib_roots);
-    shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+    xlang_pipeline_fill_ctx_path_buffers(pctx, entry_dir_buf, lib_roots_arr, n_lib_roots);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pctx->skip_codegen_dep_0 = 0; /* 不再跳过 dep 0：io.o 仅提供 C 层，std.io.driver 的 .x 包装须由 codegen 生成。 */
     /*
      * 先对每个 dep 跑 parse+typecheck（逆拓扑序，与 emit-C 2104 / asm 1186 一致）。
@@ -5656,7 +5656,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
         int ec_dep;
         if (!one_ctx || !dep_out) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                   ".x path dependency context/output allocation failed", NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
@@ -5668,30 +5668,30 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(arena); free(module); free(src);
             return 1;
         }
-        shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
+        xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
                                             lib_roots_arr, n_lib_roots);
-        shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+        xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
         driver_set_current_dep_path_for_codegen(dep_paths[j]);
         /*
          * std/core 闭包 dep 仅 parse 填 import 槽；全量 dep_prerun typeck 在 strict 链上对 std.base64 等易 SIGSEGV。
-         * shux check（stage1）：dep 一律 parse-only，避免 typeck_only 在大 std 子模块上 SIGSEGV。
+         * xlang check（stage1）：dep 一律 parse-only，避免 typeck_only 在大 std 子模块上 SIGSEGV。
          * 用户 multi-file（need_coemit）仍走 parse+typeck。
          */
         if (driver_check_only_get() ||
-            shux_asm_user_std_dep_skip_x_typeck(dep_paths[j]) ||
+            xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j]) ||
             driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
-            ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+            ec_dep = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                 (const uint8_t *)dep_sources[j], dep_lens[j]);
         } else {
-            ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
+            ec_dep = xlang_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                 (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
         }
         driver_set_current_dep_path_for_codegen(NULL);
         pipeline_dep_ctx_heap_destroy(one_ctx);
         free(dep_out);
         if (ec_dep != 0) {
-            diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
+            diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                    "pipeline failed for import '%s' (dep prerun rc=%d)",
                                    dep_paths[j] ? dep_paths[j] : "?", ec_dep);
             free(out_buf);
@@ -5734,19 +5734,19 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 隐式 padding 校验会变成空操作（tests/run-struct.sh padding_no_allow）。
      * import 已解析完毕；清零后 pipeline 从同一预处理源码重建 module/arena。
      */
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
     /* preserve pre-parsed module/arena; do NOT re-zero (entry_already_parsed=1) */
     /* memset(module, 0, module_sz); */
     /* parser_parse_into_init(module, arena); */
-    shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pctx->ndep = n_deps; /* prevent pipeline from reloading deps (already seeded) */
     /* Set entry C prefix (core/mem → core_mem_). Also pin entry_module_import_path
      * so dep codegen cannot pollute entry prefix (see codegen_x_ast entry inherit). */
     {
-        extern const char *shux_entry_lib_name_from_path(const char *path);
-        const char *lib_name = shux_entry_lib_name_from_path(input_path);
+        extern const char *xlang_entry_lib_name_from_path(const char *path);
+        const char *lib_name = xlang_entry_lib_name_from_path(input_path);
         if (lib_name && lib_name[0]) {
             int32_t plen = (int32_t)strlen(lib_name);
             if (plen > 0 && plen < 63) {
@@ -5768,11 +5768,11 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before pipeline_run entry=%s src_len=%zu",
                      input_path ? input_path : "?", (size_t)src_slice.length);
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
     if (n_deps > 0 && !driver_check_only_get() &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
         if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
@@ -5789,9 +5789,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         }
     }
 #endif
-#if defined(SHUX_NO_C_FRONTEND)
+#if defined(XLANG_NO_C_FRONTEND)
     /*
-     * stage1 shux check：std/core import 闭包上大模块（sys/fs/heap mod）全量 .x typecheck 易 SIGSEGV。
+     * stage1 xlang check：std/core import 闭包上大模块（sys/fs/heap mod）全量 .x typecheck 易 SIGSEGV。
      * 入口 parse_into_buf + dep parse-only 已足够 S7 硬依赖门禁；与 asm -o 跳过入口 typeck 策略一致。
      */
     if (driver_check_only_get() && n_deps > 0 &&
@@ -5840,9 +5840,9 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         return 0;
     }
 #endif
-    int ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
+    int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_x_pipeline_skip_typeck_set(0);
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: after pipeline_run ec=%d", ec);
     driver_dep_seeded_clear_all();
@@ -5850,10 +5850,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
     if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
-        diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP003, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
                      input_path, ec, (int)out_buf->len);
-        if (getenv("SHUX_DEBUG_PIPE") && out_buf->len > 0) {
+        if (getenv("XLANG_DEBUG_PIPE") && out_buf->len > 0) {
             size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
@@ -5878,7 +5878,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             fail_ck = 1;
         if (nfuncs_ck <= 0) {
             if (rec_n <= 0)
-                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                              "parse produced no functions for '%s'", input_path ? input_path : "?");
             fail_ck = 1;
         }
@@ -5949,63 +5949,63 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         }
         {
             const char *c_paths[1] = { tmp_c };
-            const char *io_o = shux_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
+            const char *io_o = xlang_std_io_o_path(argv[0]); /* F-03：纯 .x，无 io.o */
             const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
-            const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
-            const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
+            const char *process_o = xlang_rel_o_path_from_argv0(argv[0], "std/process/process.o");
+            const char *string_o = xlang_rel_o_path_from_argv0(argv[0], "std/string/string.o");
             const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
-            const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
-            const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
-            const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
-            const char *net_o = shux_rel_o_path_from_argv0(argv[0], "std/net/net.o");
-            const char *thread_o = shux_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
-            const char *time_o = shux_rel_o_path_from_argv0(argv[0], "std/time/time.o");
-            const char *random_o = shux_rel_o_path_from_argv0(argv[0], "std/random/random.o");
-            const char *env_o = shux_rel_o_path_from_argv0(argv[0], "std/env/env.o");
-            const char *sync_o = shux_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
-            const char *encoding_o = shux_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
-            const char *base64_o = shux_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
-            const char *crypto_o = shux_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
-            const char *log_o = shux_rel_o_path_from_argv0(argv[0], "std/log/log.o");
-            const char *atomic_o = shux_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
-            const char *channel_o = shux_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
-            const char *backtrace_o = shux_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
-            const char *hash_o = shux_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
-            const char *math_o = shux_rel_o_path_from_argv0(argv[0], "std/math/math.o");
-            const char *sort_o = shux_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
-            const char *ffi_o = shux_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
-            const char *db_o = shux_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
-            const char *elf_o = shux_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
-            const char *json_o = shux_rel_o_path_from_argv0(argv[0], "std/json/json.o");
-            const char *csv_o = shux_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
-            const char *regex_o = shux_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
+            const char *path_o = xlang_rel_o_path_from_argv0(argv[0], "std/path/path.o");
+            const char *runtime_o = xlang_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
+            const char *runtime_panic_o = xlang_runtime_panic_o_path(argv[0]);
+            const char *net_o = xlang_rel_o_path_from_argv0(argv[0], "std/net/net.o");
+            const char *thread_o = xlang_rel_o_path_from_argv0(argv[0], "std/thread/thread.o");
+            const char *time_o = xlang_rel_o_path_from_argv0(argv[0], "std/time/time.o");
+            const char *random_o = xlang_rel_o_path_from_argv0(argv[0], "std/random/random.o");
+            const char *env_o = xlang_rel_o_path_from_argv0(argv[0], "std/env/env.o");
+            const char *sync_o = xlang_rel_o_path_from_argv0(argv[0], "std/sync/sync.o");
+            const char *encoding_o = xlang_rel_o_path_from_argv0(argv[0], "std/encoding/encoding.o");
+            const char *base64_o = xlang_rel_o_path_from_argv0(argv[0], "std/base64/base64.o");
+            const char *crypto_o = xlang_rel_o_path_from_argv0(argv[0], "std/crypto/crypto.o");
+            const char *log_o = xlang_rel_o_path_from_argv0(argv[0], "std/log/log.o");
+            const char *atomic_o = xlang_rel_o_path_from_argv0(argv[0], "std/atomic/atomic.o");
+            const char *channel_o = xlang_rel_o_path_from_argv0(argv[0], "std/channel/channel.o");
+            const char *backtrace_o = xlang_rel_o_path_from_argv0(argv[0], "std/backtrace/backtrace.o");
+            const char *hash_o = xlang_rel_o_path_from_argv0(argv[0], "std/hash/hash.o");
+            const char *math_o = xlang_rel_o_path_from_argv0(argv[0], "std/math/math.o");
+            const char *sort_o = xlang_rel_o_path_from_argv0(argv[0], "std/sort/sort.o");
+            const char *ffi_o = xlang_rel_o_path_from_argv0(argv[0], "std/ffi/ffi.o");
+            const char *db_o = xlang_rel_o_path_from_argv0(argv[0], "std/db/sqlite/sqlite.o");
+            const char *elf_o = xlang_rel_o_path_from_argv0(argv[0], "std/elf/elf.o");
+            const char *json_o = xlang_rel_o_path_from_argv0(argv[0], "std/json/json.o");
+            const char *csv_o = xlang_rel_o_path_from_argv0(argv[0], "std/csv/csv.o");
+            const char *regex_o = xlang_rel_o_path_from_argv0(argv[0], "std/regex/regex.o");
             const char *compress_o = NULL; /* F-06 v1 / F-04 v7：无 compress.o，user .o / 生成 C 按需压缩库 */
-            const char *unicode_o = shux_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
-            const char *dynlib_o = shux_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
-            const char *http_o = shux_rel_o_path_from_argv0(argv[0], "std/http/http.o");
-            const char *tar_o = shux_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
-            const char *simd_o = shux_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
-            const char *context_o = shux_rel_o_path_from_argv0(argv[0], "std/context/context.o");
-            const char *datetime_o = shux_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
-            const char *uuid_o = shux_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
-            const char *url_o = shux_rel_o_path_from_argv0(argv[0], "std/url/url.o");
-            const char *cli_o = shux_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
-            const char *security_o = shux_rel_o_path_from_argv0(argv[0], "std/security/security.o");
-            const char *config_o = shux_rel_o_path_from_argv0(argv[0], "std/config/config.o");
-            const char *cache_o = shux_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
-            const char *trace_o = shux_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
-            const char *task_o = shux_rel_o_path_from_argv0(argv[0], "std/task/task.o");
-            const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
-            const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
+            const char *unicode_o = xlang_rel_o_path_from_argv0(argv[0], "std/unicode/unicode.o");
+            const char *dynlib_o = xlang_rel_o_path_from_argv0(argv[0], "std/dynlib/dynlib.o");
+            const char *http_o = xlang_rel_o_path_from_argv0(argv[0], "std/http/http.o");
+            const char *tar_o = xlang_rel_o_path_from_argv0(argv[0], "std/tar/tar.o");
+            const char *simd_o = xlang_rel_o_path_from_argv0(argv[0], "std/simd/simd.o");
+            const char *context_o = xlang_rel_o_path_from_argv0(argv[0], "std/context/context.o");
+            const char *datetime_o = xlang_rel_o_path_from_argv0(argv[0], "std/datetime/datetime.o");
+            const char *uuid_o = xlang_rel_o_path_from_argv0(argv[0], "std/uuid/uuid.o");
+            const char *url_o = xlang_rel_o_path_from_argv0(argv[0], "std/url/url.o");
+            const char *cli_o = xlang_rel_o_path_from_argv0(argv[0], "std/cli/cli.o");
+            const char *security_o = xlang_rel_o_path_from_argv0(argv[0], "std/security/security.o");
+            const char *config_o = xlang_rel_o_path_from_argv0(argv[0], "std/config/config.o");
+            const char *cache_o = xlang_rel_o_path_from_argv0(argv[0], "std/cache/cache.o");
+            const char *trace_o = xlang_rel_o_path_from_argv0(argv[0], "std/trace/trace.o");
+            const char *task_o = xlang_rel_o_path_from_argv0(argv[0], "std/task/task.o");
+            const char *schema_o = xlang_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
+            const char *test_o = xlang_rel_o_path_from_argv0(argv[0], "std/test/test.o");
             /* Single authority (G.3/G.4): push user .o args from argv to cc link line. */
-            shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-            int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
-            shux_invoke_cc_clear_user_o_files();
+            xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+            int cc_ret = xlang_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, xlang_repo_root_from_argv0(argv[0]), NULL);
+            xlang_invoke_cc_clear_user_o_files();
             if (cc_ret != 0) {
                 driver_unlink_failed_output(out_path);
-                diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "cc failed, keeping generated C: %s", tmp_c);
-            } else if (!getenv("SHUX_KEEP_C")) {
+            } else if (!getenv("XLANG_KEEP_C")) {
                 unlink(tmp_c);
             } else {
                 diag_reportf(NULL, 0, 0, "note", NULL,
@@ -6040,7 +6040,7 @@ extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, i
  * 返回值：非 0 表示可用。
  */
 /* G-02f-305：lib root helpers → rt_lib_root hybrid */
-#ifndef SHUX_RT_LIB_ROOT_FROM_X
+#ifndef XLANG_RT_LIB_ROOT_FROM_X
 int driver_lib_root_ptr_usable(const char *p) {
   return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
@@ -6048,11 +6048,11 @@ int driver_lib_root_ptr_usable(const char *p) {
 
 
 /**
- * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
+ * 写入默认 lib root：优先 XLANG_LIB（拷贝到 root_buf），否则 "."。
  * 参数：root_buf 输出缓冲（至少 512 字节）。
  */
 void driver_lib_root_default(char root_buf[512]) {
-    const char *def = getenv("SHUX_LIB");
+    const char *def = getenv("XLANG_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
     if (!driver_lib_root_ptr_usable(def))
@@ -6125,7 +6125,7 @@ typedef struct DriverCompileStateSU {
 } DriverCompileStateSU;
 
 /* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
-#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
+#ifndef XLANG_RT_DISPATCH_IMPL_FROM_X
 /** asm 后端 C mega：lib_key sidecar → lib_roots，委托 driver_run_asm_backend。 */
 int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       int32_t argc, uint8_t *argv) {
@@ -6146,7 +6146,7 @@ int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
 /* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
-#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
+#ifndef XLANG_RT_DISPATCH_THIN_FROM_X
 int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  int32_t argc, uint8_t *argv) {
     return driver_run_asm_backend_impl_c(input_path, out_path, lib_key, target, argc, argv);
@@ -6156,15 +6156,15 @@ int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t
 
 
 /** C 后端 C 桥：供 compile.x 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
-/** 含 import 时 seed 的 X codegen 易重复符号；若同目录有 shux-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
+/** 含 import 时 seed 的 X codegen 易重复符号；若同目录有 xlang-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
 int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     char shu_c[512];
     const char *self;
     const char *slash;
     if (argc < 2 || !argv || !argv[0])
         return -1;
-    /* 已在 shux-c 内：勿 fork 自身（L9 -o 会反复 pipeline failed out_len=0）。 */
-    if (driver_argv0_basename_is(argv[0], "shux-c"))
+    /* 已在 xlang-c 内：勿 fork 自身（L9 -o 会反复 pipeline failed out_len=0）。 */
+    if (driver_argv0_basename_is(argv[0], "xlang-c"))
         return -1;
     self = argv[0];
     slash = strrchr(self, '/');
@@ -6181,9 +6181,9 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
             return -1;
         memcpy(shu_c, self, dir_len);
         shu_c[dir_len] = '\0';
-        strcat(shu_c, "/shux-c");
+        strcat(shu_c, "/xlang-c");
     } else {
-        strcpy(shu_c, "shux-c");
+        strcpy(shu_c, "xlang-c");
     }
     if (access(shu_c, X_OK) != 0)
         return -1;
@@ -6224,8 +6224,8 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv);
 
 
 /* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
-#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
-/** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shux-c；否则 driver_run_compiler_parsed。 */
+#ifndef XLANG_RT_DISPATCH_IMPL_FROM_X
+/** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 xlang-c；否则 driver_run_compiler_parsed。 */
 int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
     const char *lib_roots[X_FULL_MAX_LIB_ROOTS];
@@ -6241,12 +6241,12 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     p.target = target && target[0] ? (const char *)target : NULL;
     p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level : "2";
     p.use_lto = use_lto != 0;
-    if (!p.use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0)
+    if (!p.use_lto && getenv("XLANG_LTO") && strcmp(getenv("XLANG_LTO"), "1") == 0)
         p.use_lto = 1;
-    /* check 走本进程 C typeck，避免子进程 shux-c 与双 -L 导致 core.* import 误解析。
-     * build_shux_asm 单模块 -o（SHUX_ASM_ENTRY_MODULE_ONLY）：须走 asm，勿 exec shux-c（其不支持 -backend asm）。
-     * G-06：SHUX_NO_C_FRONTEND 时 shux-c 与 shux 同源 seed，sibling 失败须回落本进程 X pipeline（-E asm.x）。 */
-#if !defined(SHUX_NO_C_FRONTEND)
+    /* check 走本进程 C typeck，避免子进程 xlang-c 与双 -L 导致 core.* import 误解析。
+     * build_xlang_asm 单模块 -o（XLANG_ASM_ENTRY_MODULE_ONLY）：须走 asm，勿 exec xlang-c（其不支持 -backend asm）。
+     * G-06：XLANG_NO_C_FRONTEND 时 xlang-c 与 xlang 同源 seed，sibling 失败须回落本进程 X pipeline（-E asm.x）。 */
+#if !defined(XLANG_NO_C_FRONTEND)
     if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
         !driver_asm_entry_module_only_from_env()) {
         int shu_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
@@ -6263,7 +6263,7 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
 /* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
-#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
+#ifndef XLANG_RT_DISPATCH_THIN_FROM_X
 int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
     return driver_run_emit_c_path_impl_c(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
@@ -6286,7 +6286,7 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
  * 堆分配 / 释放 DriverCompileState。
  * G-02f-296 R6 → rt_compile hybrid
  */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 DriverCompileStateSU *driver_compile_state_alloc_c(void) {
     DriverCompileStateSU *state;
 
@@ -6321,7 +6321,7 @@ void driver_compile_ensure_default_lib_c(uint8_t *key);
 void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
 
 /* G-02f-263 R1：逻辑源 src/runtime/rt_argv.x；hybrid → seeds/rt_argv.from_x.c */
-#ifndef SHUX_RT_ARGV_FROM_X
+#ifndef XLANG_RT_ARGV_FROM_X
 /** argv 令牌比较与 path 后缀检测（与 compile.x 同名 helper 语义一致）。 */
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_o(const char *buf, int len) {
@@ -6378,7 +6378,7 @@ int drv_eq_c_word(const char *buf, int len) {
 }
 
 
-/** 是否为 Shux 源文件路径（`.x`；仅 `.x`）。 */
+/** 是否为 Xlang 源文件路径（`.x`；仅 `.x`）。 */
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_path_ends_x(const char *buf, int len) {
   if (len >= 2 && buf[len - 2] == '.' && buf[len - 1] == 'x')
@@ -6414,7 +6414,7 @@ int drv_eq_asm_word(const char *buf, int len);
 int drv_eq_c_word(const char *buf, int len);
 int drv_path_ends_x(const char *buf, int len);
 int drv_target_has_arm(const char *buf, int len);
-#endif /* !SHUX_RT_ARGV_FROM_X */
+#endif /* !XLANG_RT_ARGV_FROM_X */
 
 
 
@@ -6425,7 +6425,7 @@ int drv_target_has_arm(const char *buf, int len);
  * 返回下一 argv 下标。scan 循环调用 step。
  */
 /* G-02f-295 R6 → rt_compile hybrid */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
                                             int arg_cap) {
     int len = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
@@ -6528,7 +6528,7 @@ void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, Driver
  * 完整 argv 解析：init → scan → finalize。
  * G-02f-296 R6 → rt_compile hybrid（含 resolve / cfg_sync）
  */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
     if (argc < 2 || !state)
         return 1;
@@ -6567,7 +6567,7 @@ void cfg_sync_compile_target_from_state_c(void *state);
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-292 R6：copy_path / freestanding / help → rt_compile hybrid */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
     int32_t k;
     int32_t n;
@@ -6591,7 +6591,7 @@ void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_b
  * ensure_default_lib / parse_argv_init / append_lib_root。
  * G-02f-294 R6 → rt_compile hybrid
  */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 void driver_compile_ensure_default_lib_c(uint8_t *key) {
     static const uint8_t dot[1] = {46};
     if (!key)
@@ -6640,7 +6640,7 @@ void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path
 
 /** -o / -L / -O：下一 argv 写入 state 或 lib_root sidecar。 */
 /* G-02f-293 R6 → rt_compile hybrid */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i) {
     char **argv = (char **)argv_opaque;
@@ -6691,7 +6691,7 @@ void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32
 /** -flto：置 use_lto。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-264 */
-#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
+#ifndef XLANG_RT_EMIT_FLAGS_FROM_X
 void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state) {
     if (state)
         state->use_lto = 1;
@@ -6706,7 +6706,7 @@ void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state);
 
 /** `-freestanding`：置 use_freestanding 并同步 driver_freestanding_set（S4 nostdlib 链）。 */
 /* G-02f-292 R6 → rt_compile hybrid */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
     if (!state)
         return;
@@ -6715,9 +6715,9 @@ void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
     cfg_set_freestanding(1);
 }
 
-/** `-legacy-f32-abi`：等价 SHUX_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
+/** `-legacy-f32-abi`：等价 XLANG_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
 void driver_compile_argv_set_legacy_f32_abi_c(void) {
-    setenv("SHUX_ABI_F32_XMM", "0", 1);
+    setenv("XLANG_ABI_F32_XMM", "0", 1);
 }
 
 /** `-fsanitize=address`：M-6 debug 边界插桩（release 默认关闭，零开销）。 */
@@ -6735,7 +6735,7 @@ void driver_compile_argv_set_sanitize_address_c(void);
 
 /** -backend / -target / -target-cpu next-token 写入 state。 */
 /* G-02f-293 R6 → rt_compile hybrid */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
     char **argv = (char **)argv_opaque;
@@ -6797,7 +6797,7 @@ void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, in
 /** `--print-target-cpu`：仅打印 feature 后退出。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-264 */
-#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
+#ifndef XLANG_RT_EMIT_FLAGS_FROM_X
 void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state) {
     if (state)
         state->print_target_cpu = 1;
@@ -6812,7 +6812,7 @@ void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state);
 
 /** X run_compiler_full_x：`--print-target-cpu` 早退。 */
 /* G-02f-298 R7-lite → rt_run_exec hybrid */
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
+#ifndef XLANG_RT_RUN_EXEC_FROM_X
 int32_t driver_print_target_cpu_features_c(int32_t features) {
     shu_target_cpu_print(stdout, (uint32_t)features);
     return 0;
@@ -6828,7 +6828,7 @@ int32_t driver_print_target_cpu_features_c(int32_t features);
  * finalize：按 target_cpu_buf（空则 native）解析 feature 掩码。
  * G-02f-296 R6 → rt_compile hybrid
  */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
     const char *spec;
     size_t spec_len;
@@ -6857,13 +6857,13 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
 
 
 
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
 int driver_run_x_emit_c(void);
 
-/** argv 是否含 `-E` / `-E-extern`（G-06 build_seed_asm_host 用 `shux -E file.x`，勿走 asm 后端）。 */
+/** argv 是否含 `-E` / `-E-extern`（G-06 build_seed_asm_host 用 `xlang -E file.x`，勿走 asm 后端）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-264 R5-lite flags */
-#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
+#ifndef XLANG_RT_EMIT_FLAGS_FROM_X
 int driver_argv_has_emit_c_flag(int argc, char **argv) {
     int i;
     if (argc < 2 || !argv)
@@ -6887,7 +6887,7 @@ int driver_argv_has_emit_c_flag(int argc, char **argv);
  * 返回 driver_run_x_emit_c 的 exit code（0 成功）。
  */
 /* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
-#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
+#ifndef XLANG_RT_DISPATCH_IMPL_FROM_X
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int argc, char **argv) {
     const char *lib_roots[X_EMIT_MAX_LIB_ROOTS];
@@ -6925,7 +6925,7 @@ int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int 
 #endif
 
 /* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
-#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
+#ifndef XLANG_RT_DISPATCH_IMPL_FROM_X
 /** parse 完成后后端选择 + 分派；compile.x 薄包装 bl 本符号（EMIT_HEAVY 勿 X 真 emit，宿主 SIGSEGV）。 */
 int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv) {
     uint8_t *out_ptr;
@@ -6934,7 +6934,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
 
     if (!state)
         return 1;
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
     /* G-06：`-E` 须出 C 文本（build_seed_asm_host / gen_bootstrap_gens），禁止默认 asm 后端。 */
     /* -E: use same path as check (driver_run_emit_c_path_impl_c) to ensure
      * proper import resolution and dep slot setup. The x_emit_c path skips
@@ -6963,7 +6963,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
     target_ptr = NULL;
     if (state->target_len > 0)
         target_ptr = state->target_buf;
-#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
     /*
      * 无 import 的单文件 -o 默认 asm；有 import 时允许降级 C（std 测试走 invoke_cc + 预编 *.o）。
      * hello/freestanding 等显式 -backend asm 或 -freestanding 仍保留 asm。
@@ -7007,7 +7007,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
  * 返回 1 表示应打印用法并 exit 0。
  */
 /* G-02f-292 R6 → rt_compile hybrid */
-#ifndef SHUX_RT_COMPILE_FROM_X
+#ifndef XLANG_RT_COMPILE_FROM_X
 int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
     char buf[16];
@@ -7033,26 +7033,26 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
 
 
 /**
- * 打印 shux 用法摘要（fd 1）。
+ * 打印 xlang 用法摘要（fd 1）。
  * G-02f-297 R7-lite → rt_run_exec hybrid
  */
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
+#ifndef XLANG_RT_RUN_EXEC_FROM_X
 void driver_print_usage_c(void) {
-    /* §13 Color policy (see analysis/SHUX 命令行.md §13):
+    /* §13 Color policy (see analysis/XLANG 命令行.md §13):
      *   NO_COLOR (any value, even empty)         -> no color  (https://no-color.org)
-     *   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy -> force color even when piped
+     *   CLICOLOR_FORCE / XLANG_FORCE_COLOR truthy -> force color even when piped
      *   otherwise                                -> isatty(STDOUT_FILENO)
      * Forward-declare isatty so the body stays identical to driver_print_usage_write
      * in runtime_driver_abi.from_x.c (AGENTS.md §4 — no dual authority drift). */
     extern int isatty(int fd);
     const char *no_color = getenv("NO_COLOR");
     const char *force = getenv("CLICOLOR_FORCE");
-    const char *shux_force = getenv("SHUX_FORCE_COLOR");
+    const char *xlang_force = getenv("XLANG_FORCE_COLOR");
     int use_color;
     if (no_color != (const char *)0) {
         use_color = 0;
     } else if ((force != (const char *)0 && force[0] != 0 && force[0] != '0') ||
-               (shux_force != (const char *)0 && shux_force[0] != 0 && shux_force[0] != '0')) {
+               (xlang_force != (const char *)0 && xlang_force[0] != 0 && xlang_force[0] != '0')) {
         use_color = 1;
     } else {
         use_color = isatty(STDOUT_FILENO);
@@ -7062,15 +7062,15 @@ void driver_print_usage_c(void) {
      * Kept identical to driver_print_usage_write in runtime_driver_abi.from_x.c
      * per AGENTS.md §4 (no dual authority drift). */
 static const char usage_plain[] =
-    "Shux compiler\n"
+    "Xlang compiler\n"
     "\n"
-    "Usage: shux [COMMAND] [OPTIONS]\n"
+    "Usage: xlang [COMMAND] [OPTIONS]\n"
     "\n"
     "Subcommands:\n"
     "\n"
     "  build\n"
     "    Compile .x to binary/object (default a.out)\n"
-    "    Usage: shux build [options] file.x [-o exe]\n"
+    "    Usage: xlang build [options] file.x [-o exe]\n"
     "    Options:\n"
     "      -backend asm|c                    Backend (default asm)\n"
     "      -O <0|1|2|3|s>                    Optimization level (default 2)\n"
@@ -7085,7 +7085,7 @@ static const char usage_plain[] =
     "\n"
     "  run\n"
     "    Compile and run .x\n"
-    "    Usage: shux run [options] file.x\n"
+    "    Usage: xlang run [options] file.x\n"
     "    Options:\n"
     "      -backend asm|c                    Backend (default asm)\n"
     "      -O <0|1|2|3|s>                    Optimization level (default 2)\n"
@@ -7097,19 +7097,19 @@ static const char usage_plain[] =
     "\n"
     "  check\n"
     "    Parse + typeck only (no codegen)\n"
-    "    Usage: shux check [paths...]\n"
+    "    Usage: xlang check [paths...]\n"
     "\n"
     "  fmt\n"
     "    Format .x sources\n"
-    "    Usage: shux fmt [--check] [paths...]\n"
+    "    Usage: xlang fmt [--check] [paths...]\n"
     "\n"
     "  explain\n"
     "    Explain a diagnostic code\n"
-    "    Usage: shux explain <CODE>\n"
+    "    Usage: xlang explain <CODE>\n"
     "\n"
     "  test\n"
     "    Run test script\n"
-    "    Usage: shux test [script.sh]\n"
+    "    Usage: xlang test [script.sh]\n"
     "\n"
     "Global options:\n"
     "  --print-target-cpu                    Print host CPU features and exit\n"
@@ -7117,18 +7117,18 @@ static const char usage_plain[] =
     "  --help, -h                            Show this help\n"
     "\n"
     "Environment:\n"
-    "  SHUX_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
-    "  SHUX_OPT                              Default -O level if omitted\n"
+    "  XLANG_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
+    "  XLANG_OPT                              Default -O level if omitted\n"
     "  NO_COLOR                              Disable color output\n"
     "  CLICOLOR_FORCE=1                      Force color output even when piped\n"
-    "  SHUX_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
+    "  XLANG_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
     "\n"
-    "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+    "Release default: xlang_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
     "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
 static const char usage_color[] =
-    "\033[32mShux compiler\033[0m\n"
+    "\033[32mXlang compiler\033[0m\n"
     "\n"
-    "\033[32mUsage:\033[0m shux [OPTIONS] [COMMAND]\n"
+    "\033[32mUsage:\033[0m xlang [OPTIONS] [COMMAND]\n"
     "\n"
     "  \033[34mbuild\033[0m   Compile .x to binary/object\n"
     "      \033[32m-backend\033[0m asm|c                    Backend \033[90m(default asm)\033[0m\n"
@@ -7144,7 +7144,7 @@ static const char usage_color[] =
     "\n"
     "  \033[34mrun\033[0m\n"
     "    Compile and run .x\n"
-    "    Usage: shux run [options] file.x\n"
+    "    Usage: xlang run [options] file.x\n"
     "    Options:\n"
     "      \033[32m-backend\033[0m asm|c                    Backend \033[90m(default asm)\033[0m\n"
     "      \033[32m-O\033[0m <0|1|2|3|s>                    Optimization level \033[90m(default 2)\033[0m\n"
@@ -7156,19 +7156,19 @@ static const char usage_color[] =
     "\n"
     "  \033[34mcheck\033[0m\n"
     "    Parse + typeck only (no codegen)\n"
-    "    Usage: shux check [paths...]\n"
+    "    Usage: xlang check [paths...]\n"
     "\n"
     "  \033[34mfmt\033[0m\n"
     "    Format .x sources\n"
-    "    Usage: shux fmt [--check] [paths...]\n"
+    "    Usage: xlang fmt [--check] [paths...]\n"
     "\n"
     "  \033[34mexplain\033[0m\n"
     "    Explain a diagnostic code\n"
-    "    Usage: shux explain <CODE>\n"
+    "    Usage: xlang explain <CODE>\n"
     "\n"
     "  \033[34mtest\033[0m\n"
     "    Run test script\n"
-    "    Usage: shux test [script.sh]\n"
+    "    Usage: xlang test [script.sh]\n"
     "\n"
     "\033[32mGlobal options:\033[0m\n"
     "  \033[32m--print-target-cpu\033[0m                    Print host CPU features and exit\n"
@@ -7176,13 +7176,13 @@ static const char usage_color[] =
     "  \033[32m--help, -h\033[0m                            Show this help\n"
     "\n"
     "\033[32mEnvironment:\033[0m\n"
-    "  SHUX_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
-    "  SHUX_OPT                              Default -O level if omitted\n"
+    "  XLANG_ABI_F32_XMM=0                    Same as -legacy-f32-abi (x86_64 SysV)\n"
+    "  XLANG_OPT                              Default -O level if omitted\n"
     "  NO_COLOR                              Disable color output\n"
     "  CLICOLOR_FORCE=1                      Force color output even when piped\n"
-    "  SHUX_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
+    "  XLANG_FORCE_COLOR=1                    Same as CLICOLOR_FORCE\n"
     "\n"
-    "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
+    "Release default: xlang_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
     "See \033[4;34mcompiler/docs/F32_XMM_ABI.md\033[0m for f32 ABI and deprecation timeline.\n";
     if (use_color) {
         (void)write(STDOUT_FILENO, usage_color, sizeof(usage_color) - 1u);
@@ -7203,7 +7203,7 @@ int labi_rt_run_exec_slice_marker(void);
  * parse_argv 须走 impl_c（C mega），勿调 compile.x 的 driver_compile_parse_argv（EMIT_HEAVY 下易 silent fail）。
  */
 /* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
-#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
+#ifndef XLANG_RT_DISPATCH_IMPL_FROM_X
 int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
     DriverCompileStateSU *state;
     int32_t rc;
@@ -7244,12 +7244,12 @@ int labi_rt_dispatch_impl_slice_marker(void);
 #endif
 
 /**
- * 完整编译入口：argv 解析在 driver/compile.x；B-strict shux_asm 走 impl_c（完整 parse_argv+finalize），避免 X emit 的 driver_run_compiler_full_x 在 strict 链 silent fail。
+ * 完整编译入口：argv 解析在 driver/compile.x；B-strict xlang_asm 走 impl_c（完整 parse_argv+finalize），避免 X emit 的 driver_run_compiler_full_x 在 strict 链 silent fail。
  */
 /* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
-#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
+#ifndef XLANG_RT_DISPATCH_THIN_FROM_X
 int driver_run_compiler_full(int argc, char **argv) {
-#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
     return (int)driver_run_compiler_full_x_impl_c((int32_t)argc, (uint8_t *)argv);
 #else
     extern int32_t driver_run_compiler_full_x(int32_t argc, uint8_t *argv);
@@ -7265,13 +7265,13 @@ int labi_rt_dispatch_thin_slice_marker(void);
 
 
 /**
- * shux test 入口：在仓库根目录执行 bash 测试脚本；默认 tests/run-all.sh，亦可通过首参指定相对/绝对路径。
+ * xlang test 入口：在仓库根目录执行 bash 测试脚本；默认 tests/run-all.sh，亦可通过首参指定相对/绝对路径。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-311 R7 扩：driver_run_test → rt_run_exec hybrid */
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
+#ifndef XLANG_RT_RUN_EXEC_FROM_X
 int driver_run_test(int argc, char **argv) {
-    const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
+    const char *root = xlang_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
     char script[768];
     char cmd[1024];
@@ -7296,7 +7296,7 @@ int driver_run_test(int argc, char **argv);
 
 /** 扫描 argv：若存在 -x -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。 */
 /* G-02f-304：argv 扫描 → rt_emit_state hybrid（与 emit 状态槽同片） */
-#ifndef SHUX_RT_EMIT_STATE_FROM_X
+#ifndef XLANG_RT_EMIT_STATE_FROM_X
 int driver_argv_parse_x_emit_c(int argc, char **argv) {
     char ab[512];
     char nx[512];
@@ -7338,30 +7338,30 @@ int driver_argv_parse_x_emit_c(int argc, char **argv);
 
 
 
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
 /**
  * -x -E -E-extern：用 C 前端 parse/typeck 与 C codegen 的 emit_extern 路径写 stdout。
  * 说明：codegen_emit_dep_types_only / codegen_library_module_to_c 依赖 C ASTModule；parser_parse_into 的 .x Module 布局不同，故不能复用 x parse 结果。
  */
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
-    /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
-     * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
+    /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（xlang_compile_std_module.sh --bare-impl）；
+     * x-pipeline 路径（xlang-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
     const char *lib_name_override = NULL;
     (void)setvbuf(stdout, NULL, _IONBF, 0);
-    ShuxRuntimeFileView raw_src_view;
+    XlangRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
     pipeline_diag_emitted_reset();
-    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
+    char *src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
     runtime_release_file_view(&raw_src_view);
     if (!src && !pipeline_diag_emitted_get()) {
-        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                      "preprocess failed for '%s'", input_path);
         return 1;
     }
@@ -7378,7 +7378,7 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
         return 1;
     }
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     const char *entry_dir = entry_dir_buf;
     const char *lib_roots_arr[X_EMIT_MAX_LIB_ROOTS];
     int n_lib_roots = driver_x_emit_n_lib_roots;
@@ -7411,7 +7411,7 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
         }
         ast_module_free(mod);
         free(src);
-        diag_reportf_with_code(input_path, 0, 0, "typeck error", SHUX_DIAG_CODE_TYPECK_T001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "typeck error", XLANG_DIAG_CODE_TYPECK_T001, NULL,
                      "-x -E-extern type check failed for '%s'",
                      input_path ? input_path : "?");
         return 1;
@@ -7427,32 +7427,32 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型。
      * PE/COFF 不支持 weak 函数符号，Windows 改强符号靠 --allow-multiple-definition（见 codegen.c 注释）。 */
     fprintf(stdout, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
-    fprintf(stdout, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
+    fprintf(stdout, "#ifdef _WIN32\n#define XLANG_LIB_WEAK\n#else\n#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n");
     codegen_emit_builtin_inline_decls(stdout);
     fprintf(stdout, "extern int getpid(void);\n");
-    fprintf(stdout, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-    fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
+    fprintf(stdout, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
+    fprintf(stdout, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
     fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
     fprintf(stdout, "  int _pid = (int)getpid();\n");
     fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-    fprintf(stdout, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
-    fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
+    fprintf(stdout, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+    fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
     fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
     fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
-    fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
-    fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
-    fprintf(stdout, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
+    fprintf(stdout, "static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
+    fprintf(stdout, "static inline void xlang_panic_(int has_msg, int msg_val) {\n");
+    fprintf(stdout, "  xlang_crash_evidence_collect_inline(has_msg, msg_val);\n");
     fprintf(stdout, "  if (has_msg) (void)fprintf(stderr, \"%%d\\n\", msg_val);\n");
     fprintf(stdout, "  abort();\n");
     fprintf(stdout, "}\n");
     if (input_path && (strstr(input_path, "pipeline.x") != NULL || strstr(input_path, "parser.x") != NULL || strstr(input_path, "typeck.x") != NULL || strstr(input_path, "codegen.x") != NULL || strstr(input_path, "preprocess.x") != NULL)) {
-        fprintf(stdout, "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
-        fprintf(stdout, "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-        fprintf(stdout, "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+        fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
+        fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+        fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
         fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-        fprintf(stdout, "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-        fprintf(stdout, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
         fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
         fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
         fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
@@ -7468,20 +7468,20 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
             ec = -1;
     }
     if (ec == 0) {
-        const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
+        const char *lib_name = lib_name_override ? lib_name_override : xlang_entry_lib_name_from_path(input_path);
         if (mod->num_funcs > 0) {
             ec = codegen_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout,
                 NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted, input_path);
         } else if (mod->main_func && mod->main_func->body) {
             ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted);
         } else {
-            diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+            diag_report_with_code(NULL, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG001,
                         "-x -E-extern: no main and no lib functions (cannot emit C)", NULL);
             ec = -1;
         }
     }
     if (ec == 0 && input_path && strstr(input_path, "pipeline.x") != NULL)
-        shux_emit_pipeline_glue_include();
+        xlang_emit_pipeline_glue_include();
     fflush(stdout);
     while (n_all--) {
         free(all_dep_paths[n_all]);
@@ -7494,12 +7494,12 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
 
 
 
-#endif /* !SHUX_NO_C_FRONTEND */
-#endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
+#endif /* !XLANG_NO_C_FRONTEND */
+#endif /* XLANG_USE_X_DRIVER && XLANG_USE_X_PIPELINE */
 
 /* G-02f-314：-x -E emit → rt_run_x_emit hybrid */
-#ifndef SHUX_RT_RUN_X_EMIT_FROM_X
-/** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
+#ifndef XLANG_RT_RUN_X_EMIT_FROM_X
+/** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 XLANG_USE_X_PIPELINE 时返回 1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_run_x_emit_c(void) {
     const char *input_path = driver_x_emit_c_path;
@@ -7511,24 +7511,24 @@ int driver_run_x_emit_c(void) {
      * X driver 主路径经本函数（非 RUN_CC_FUNC）；须在此接线 allow_legacy。
      */
     old_allow_legacy_extern = typeck_set_allow_legacy_extern_calls(1);
-#ifdef SHUX_USE_X_PIPELINE
+#ifdef XLANG_USE_X_PIPELINE
     {
         /* 关闭 stdout 缓冲，避免重定向或管道下输出被截断（平台差异见 analysis/下一步开发分析.md §4.4） */
         (void)setvbuf(stdout, NULL, _IONBF, 0);
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
         {
             const int want_extern = driver_x_emit_c_want_extern;
             driver_x_emit_c_want_extern = 0;
             if (want_extern) {
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
                 {
                     int r = driver_run_x_emit_c_extern_via_cparser(input_path);
                     typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
                     return r;
                 }
 #else
-                diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
-                            "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
+                diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
+                            "-x -E -E-extern requires C parser/codegen (rebuild without -DXLANG_NO_C_FRONTEND)",
                             NULL);
                 typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
                 return 1;
@@ -7536,19 +7536,19 @@ int driver_run_x_emit_c(void) {
             }
         }
 #endif
-        ShuxRuntimeFileView raw_src_view;
+        XlangRuntimeFileView raw_src_view;
         if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-            diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                    "cannot read file '%s'", input_path ? input_path : "?");
             typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
             return 1;
         }
         size_t src_len = 0;
         pipeline_diag_emitted_reset();
-        char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
+        char *src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
         runtime_release_file_view(&raw_src_view);
         if (!src && !pipeline_diag_emitted_get()) {
-            diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                          "preprocess failed for '%s'", input_path);
             return 1;
         }
@@ -7560,7 +7560,7 @@ int driver_run_x_emit_c(void) {
         void *arena = malloc(arena_sz);
         void *module = malloc(module_sz);
         if (!arena || !module) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x pipeline allocation failed", NULL);
             free(arena);
             free(module);
@@ -7570,7 +7570,7 @@ int driver_run_x_emit_c(void) {
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         if (src_len > (size_t)INT32_MAX) {
-            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP007, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP007, NULL,
                                    ".x -E source too large for parser (>%d bytes): '%s'",
                                    INT32_MAX, input_path ? input_path : "?");
             free(arena);
@@ -7589,7 +7589,7 @@ int driver_run_x_emit_c(void) {
                 free(src);
                 return 1;
             }
-            diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                          ".x -E parse_into failed for '%s'",
                          input_path ? input_path : "?");
             free(arena);
@@ -7599,10 +7599,10 @@ int driver_run_x_emit_c(void) {
         }
         parser_parse_into_set_main_index(module, pr.main_idx);
         if (driver_get_module_num_funcs(module) <= 0) {
-            struct shux_slice_uint8_t diag_src_slice = {(uint8_t *)src, src_len};
+            struct xlang_slice_uint8_t diag_src_slice = {(uint8_t *)src, src_len};
             int32_t fail_tok = parser_diag_fail_at_token_kind(&diag_src_slice);
             if (fail_tok == TOKEN_STRING) {
-                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                                        "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
                                        "'break', 'continue', 'return', 'panic', 'match', or '('");
                 free(arena);
@@ -7613,7 +7613,7 @@ int driver_run_x_emit_c(void) {
         }
         int32_t n_imports = parser_get_module_num_imports(module);
         char entry_dir_buf[512];
-        shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+        xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
         const char *entry_dir = entry_dir_buf;
         /* 供 pipeline 内 resolve/read 单段 import 用；仅在有 import 时设置，避免单文件时影响 */
         if (n_imports > 0)
@@ -7639,7 +7639,7 @@ int driver_run_x_emit_c(void) {
         }
         if (n_imports > 0 && n_imports <= 32) {
             if (asm_direct_import_only) {
-                if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
+                if (xlang_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
                         dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
                     free(arena);
                     free(module);
@@ -7651,14 +7651,14 @@ int driver_run_x_emit_c(void) {
                 int n_closure = 0;
                 for (int i = 0; i < MAX_ALL_DEPS; i++)
                     cpaths[i] = NULL;
-                if (shux_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
+                if (xlang_collect_dep_paths_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir,
                         NULL, 0, cpaths, &n_closure) != 0) {
                     free(arena);
                     free(module);
                     free(src);
                     return 1;
                 }
-                if (shux_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
+                if (xlang_merge_direct_then_transitive_dep_paths(module, n_imports, cpaths, n_closure, dep_paths, &n_deps) != 0) {
                     while (n_closure > 0) {
                         n_closure--;
                         free(cpaths[n_closure]);
@@ -7680,7 +7680,7 @@ int driver_run_x_emit_c(void) {
             dep_arenas[i] = malloc(arena_sz);
             dep_modules[i] = malloc(module_sz);
             if (!dep_arenas[i] || !dep_modules[i]) {
-                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+                diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                       ".x pipeline dependency allocation failed", NULL);
                 while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
                 while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -7693,7 +7693,7 @@ int driver_run_x_emit_c(void) {
         struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
         struct ast_PipelineDepCtx *pctx_e = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx_e));
         if (!out_buf || !pctx_e) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                   ".x -E output/context allocation failed", NULL);
             for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -7702,22 +7702,22 @@ int driver_run_x_emit_c(void) {
             if (pctx_e) pipeline_dep_ctx_heap_destroy(pctx_e);
             return 1;
         }
-        shux_pipeline_fill_ctx_path_buffers(pctx_e, entry_dir_buf, lib_roots_arr, n_lib_roots);
+        xlang_pipeline_fill_ctx_path_buffers(pctx_e, entry_dir_buf, lib_roots_arr, n_lib_roots);
         if (asm_direct_import_only)
-            shux_pipeline_pctx_seed_dep_import_paths_only(pctx_e, dep_paths, n_deps);
+            xlang_pipeline_pctx_seed_dep_import_paths_only(pctx_e, dep_paths, n_deps);
         else
-            shux_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
+            xlang_pipeline_pctx_seed_dep_slots(pctx_e, dep_modules, dep_arenas, dep_paths, n_deps);
         pctx_e->use_asm_backend = 0; /* -E 须走 C codegen 写 stdout */
         /*
          * 【Why 根源】-x -E 走 driver_run_x_emit_c。入口库前缀须写入
          *   entry_module_import_path_mirror（专用、不被 dep codegen 覆盖），
          *   同时写 current_codegen_prefix_mirror（兼容）。codegen_x_ast(entry)
          *   只读 entry_module_*，避免最后 dep 的 core_mem_ 污染 string 等入口。
-         * 【Invariant】lib_name = shux_entry_lib_name_from_path → C 前缀 = lib_name+'_'。
+         * 【Invariant】lib_name = xlang_entry_lib_name_from_path → C 前缀 = lib_name+'_'。
          */
         {
-            extern const char *shux_entry_lib_name_from_path(const char *path);
-            const char *lib_name = shux_entry_lib_name_from_path(input_path);
+            extern const char *xlang_entry_lib_name_from_path(const char *path);
+            const char *lib_name = xlang_entry_lib_name_from_path(input_path);
             if (lib_name && lib_name[0]) {
                 int32_t plen = (int32_t)strlen(lib_name);
                 if (plen > 0 && plen < 63) {
@@ -7748,7 +7748,7 @@ int driver_run_x_emit_c(void) {
             size_t dep_len = 0;
             int ec_dep;
             if (!one_ctx || !dep_out) {
-                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+                diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                       ".x -E dependency context/output allocation failed", NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
@@ -7759,7 +7759,7 @@ int driver_run_x_emit_c(void) {
                 free(arena); free(module); free(src);
                 return 1;
             }
-            shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
+            xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
                                                 lib_roots_arr, n_lib_roots);
             char resolved[PATH_MAX];
             resolved[0] = '\0';
@@ -7767,8 +7767,8 @@ int driver_run_x_emit_c(void) {
                 dep_src = dep_sources[j];
                 dep_len = dep_lens[j];
             } else {
-                ShuxRuntimeFileView raw_view;
-                shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
+                XlangRuntimeFileView raw_view;
+                xlang_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
                 if (runtime_read_file_view(resolved, &raw_view) != 0) {
                     pipeline_diag_import_open_fail_once(dep_paths[j], resolved);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
@@ -7784,10 +7784,10 @@ int driver_run_x_emit_c(void) {
                     free(arena); free(module); free(src);
                     return 1;
                 }
-                dep_src = shux_preprocess(raw_view.data, raw_view.length, NULL, 0, &dep_len);
+                dep_src = xlang_preprocess(raw_view.data, raw_view.length, NULL, 0, &dep_len);
                 runtime_release_file_view(&raw_view);
                 if (!dep_src) {
-                    diag_reportf_with_code(resolved, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                    diag_reportf_with_code(resolved, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                                  "preprocess failed for import '%s'", dep_paths[j]);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
@@ -7803,7 +7803,7 @@ int driver_run_x_emit_c(void) {
                     return 1;
                 }
             }
-            shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+            xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_src, dep_len);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
             DiagContextSnapshot dep_diag_snapshot;
@@ -7812,21 +7812,21 @@ int driver_run_x_emit_c(void) {
                 dep_diag_file = resolved;
             diag_push_file(&dep_diag_snapshot, dep_diag_file, dep_src, dep_len);
             if (driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path, dep_paths[j])) {
-                ec_dep = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                ec_dep = xlang_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
                                                                     (const uint8_t *)dep_src, dep_len,
                                                                     (void *)dep_out, (void *)one_ctx);
             } else if (asm_direct_import_only || driver_x_emit_asm_dep_parse_only_ok(input_path, dep_paths[j])) {
-                ec_dep = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_dep = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                                                              (const uint8_t *)dep_src, dep_len);
             } else {
-                if (getenv("SHUX_DEBUG_PIPE"))
+                if (getenv("XLANG_DEBUG_PIPE"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "pipeline debug: dep prerun begin j=%d path=%s",
                                  j, dep_paths[j] ? dep_paths[j] : "?");
-                ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
+                ec_dep = xlang_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                                                               (const uint8_t *)dep_src, dep_len,
                                                               (void *)dep_out, (void *)one_ctx);
-                if (getenv("SHUX_DEBUG_PIPE"))
+                if (getenv("XLANG_DEBUG_PIPE"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "pipeline debug: dep prerun end j=%d path=%s rc=%d",
                                  j, dep_paths[j] ? dep_paths[j] : "?", ec_dep);
@@ -7838,7 +7838,7 @@ int driver_run_x_emit_c(void) {
             if (!asm_direct_import_only)
                 free(dep_src);
             if (ec_dep != 0) {
-                diag_reportf_with_code(dep_diag_file, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
+                diag_reportf_with_code(dep_diag_file, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                        "pipeline failed for import '%s' (dep prerun rc=%d)",
                                        dep_paths[j] ? dep_paths[j] : "?", ec_dep);
                 for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
@@ -7875,7 +7875,7 @@ int driver_run_x_emit_c(void) {
         }
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
-        int ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
+        int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (uint8_t *)src, src_len, (void *)out_buf, (void *)pctx_e);
         if (ec == 0 && out_buf->len > 0) {
             /* 平台差异诊断（分析文档 4.4）：main 段输出过短时打 stderr，便于 CI/本地确认是 len 错误还是内容只写了数字 */
             if (out_buf->len < 20) {
@@ -7906,20 +7906,20 @@ int driver_run_x_emit_c(void) {
                 free(dep_paths[n_deps]);
             }
             if (ec != 0) {
-                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP003, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                              ".x pipeline failed for '%s'",
                              input_path ? input_path : "?");
             } else if (out_buf->len <= 0) {
                 if (driver_get_module_num_funcs(module) <= 0) {
                     if (!runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
-                        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                                                "parse produced no functions in '%s'",
                                                input_path ? input_path : "?");
                     }
                     goto x_emit_c_done;
                 }
                 /* CI / cross-host: distinguish -x -E 「只吐 0」与真失败——空缓冲视为 codegen 路径未写入 */
-                diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG004, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG004, NULL,
                              "-x -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.len=%d); "
                              "check typeck/codegen/pipeline CodegenOutBuf",
                              (int)out_buf->len);
@@ -7950,17 +7950,17 @@ int labi_rt_run_x_emit_slice_marker(void);
 
 
 
-#endif /* SHUX_USE_X_DRIVER */
+#endif /* XLANG_USE_X_DRIVER */
 
 /**
- * shux fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。供 fmt.x argv 循环调用。
+ * xlang fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。供 fmt.x argv 循环调用。
  * path 为 NUL 终止路径（path_len 不含 NUL）；成功 0，失败 1。
  */
 /* G-02f-311：fmt one → rt_fmt_one hybrid */
-#ifndef SHUX_RT_FMT_ONE_FROM_X
+#ifndef XLANG_RT_FMT_ONE_FROM_X
 int driver_fmt_one_file(const uint8_t *path, int path_len) {
     char pathbuf[512];
-    ShuxRuntimeFileView raw_view;
+    XlangRuntimeFileView raw_view;
     size_t cap;
     uint8_t *out;
     int fmt_len;
@@ -7971,7 +7971,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     if (path_len < 2 || strcmp(pathbuf + path_len - 2, ".x") != 0)
         return 1;
     if (runtime_read_file_view(pathbuf, &raw_view) != 0) {
-        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL,
                      "cannot read '%s'", pathbuf);
         return 1;
     }
@@ -7981,7 +7981,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     out = (uint8_t *)malloc(cap);
     if (!out) {
         runtime_release_file_view(&raw_view);
-        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL,
                      "out of memory while formatting '%s'", pathbuf);
         return 1;
     }
@@ -7989,7 +7989,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     if (fmt_len < 0) {
         free(out);
         runtime_release_file_view(&raw_view);
-        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL,
                      "format failed for '%s'", pathbuf);
         return 1;
     }
@@ -8003,10 +8003,10 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
             return changed ? 1 : 0;
         }
         if (changed) {
-            if (shux_write_path_bytes(pathbuf, out, (size_t)fmt_len) != 0) {
+            if (xlang_write_path_bytes(pathbuf, out, (size_t)fmt_len) != 0) {
                 free(out);
                 runtime_release_file_view(&raw_view);
-                diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+                diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL,
                              "write failed for '%s'", pathbuf);
                 return 1;
             }
@@ -8034,10 +8034,10 @@ extern int driver_run_fmt(int argc, char **argv);
  * 兼容旧 driver_fmt_gen.c 的 extern；新实现委托 driver_run_fmt。
  * G-02f-301 R10 → rt_entry hybrid
  */
-#ifndef SHUX_RT_ENTRY_FROM_X
+#ifndef XLANG_RT_ENTRY_FROM_X
 int driver_fmt_report_no_files(void) {
     char *argv_fmt[2];
-    argv_fmt[0] = "shux";
+    argv_fmt[0] = "xlang";
     argv_fmt[1] = "fmt";
     return driver_run_fmt(2, argv_fmt);
 }
@@ -8049,16 +8049,16 @@ int labi_rt_entry_slice_marker(void);
 
 
 
-#ifndef SHUX_USE_X_DRIVER
+#ifndef XLANG_USE_X_DRIVER
 /**
- * C 版 shux（shux-c）子命令路由：去掉 argv[1] 后调用 check/fmt/test。
+ * C 版 xlang（xlang-c）子命令路由：去掉 argv[1] 后调用 check/fmt/test。
  * 与 runtime_abi driver_argv_drop_subcommand 等价（C char** 路径）。
  */
 static char **runtime_argv_drop_subcommand_c(int argc, char **argv) {
     return (char **)driver_argv_drop_subcommand(argc, (uint8_t *)argv);
 }
 
-/** shux check（C 前端）：委托 fmt_check_cmd（多文件/目录 + 诊断格式）。 */
+/** xlang check（C 前端）：委托 fmt_check_cmd（多文件/目录 + 诊断格式）。 */
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int runtime_run_compiler_check_c(int argc, char **argv) {
     return driver_run_compiler_check(argc, argv);
@@ -8067,7 +8067,7 @@ int runtime_run_compiler_check_c(int argc, char **argv) {
 
 
 
-/** shux fmt（C 前端）：读入 .x、按 LSP 规则格式化，变化时写回。 */
+/** xlang fmt（C 前端）：读入 .x、按 LSP 规则格式化，变化时写回。 */
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int runtime_run_fmt_c(int argc, char **argv) {
     return driver_run_fmt(argc, argv);
@@ -8076,10 +8076,10 @@ int runtime_run_fmt_c(int argc, char **argv) {
 
 
 
-/** shux test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
+/** xlang test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int runtime_run_test_c(int argc, char **argv) {
-    const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
+    const char *root = xlang_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
     char script[768];
     char cmd[1024];
@@ -8101,11 +8101,11 @@ int runtime_run_test_c(int argc, char **argv) {
 /** 6.3：无 .x 入口时由 runtime 提供 main_entry 桩；链接 main.x 时由 main.x 的 main_entry 覆盖。
  * Cygwin/MinGW 上 weak 符号可能不被链接器解析，故仅在非 Windows 环境使用 weak。 */
 #if !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(_WIN32)
-SHUX_WEAK
+XLANG_WEAK
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int main_entry(int argc, char **argv) {
-    /* --diag-json：切换为 NDJSON 诊断输出（供 CI / 工具消费）；亦可通过 SHUX_DIAG_JSON=1 启用。
+    /* --diag-json：切换为 NDJSON 诊断输出（供 CI / 工具消费）；亦可通过 XLANG_DIAG_JSON=1 启用。
      * 作为全局标志可在任意位置出现（含子命令之前/之后），此处就地剔除 argv 以免下游误判为未知选项。 */
     {
         int i, j;

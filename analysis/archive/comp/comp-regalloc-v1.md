@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 评估层 R1–R6 |
 | 2 | 打开 `tests/baseline/comp-regalloc-quality.tsv`（**quality** 对比表） |
 | 3 | `./tests/run-comp-regalloc-gate.sh` |
-| 4 | `SHUX=./compiler/shux_asm ./tests/run-asm-73-gate.sh`（Linux/arm64 全量） |
+| 4 | `XLANG=./compiler/xlang_asm ./tests/run-asm-73-gate.sh`（Linux/arm64 全量） |
 
 ---
 
@@ -87,7 +87,7 @@ v1 **quality report** 以 **arm64 反汇编门禁**为主（CI Linux arm64 + Dar
 ```bash
 ./tests/run-comp-regalloc-gate.sh      # manifest + regalloc hooks（COMP-005）
 ./tests/run-comp-regalloc-quality-gate.sh  # 质量波次 runnable（COMP-013）
-./tests/run-comp-regalloc.sh           # 轻量烟测（有 shux_asm 时）
+./tests/run-comp-regalloc.sh           # 轻量烟测（有 xlang_asm 时）
 ./tests/run-asm-73-gate.sh             # 全量 10 脚本
 ```
 

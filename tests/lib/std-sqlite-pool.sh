@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-pool.sh — STD-084 manifest 与 pool 烟测辅助
 
-STD_DB_POOL_PREFIX="${SHUX_STD084_PREFIX:-shux: [SHUX_STD084_DB_POOL]}"
+STD_DB_POOL_PREFIX="${XLANG_STD084_PREFIX:-xlang: [XLANG_STD084_DB_POOL]}"
 
 std_sqlite_pool_source_sqlite() {
   # shellcheck source=tests/lib/std-sqlite-gate.sh
@@ -52,7 +52,7 @@ std_sqlite_pool_symbols_ok() {
 std_sqlite_pool_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/pool_roundtrip_ok.c"
-  local out="/tmp/shux_std_sqlite_pool_$$"
+  local out="/tmp/xlang_std_sqlite_pool_$$"
   local sqlite_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

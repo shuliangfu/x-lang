@@ -157,7 +157,7 @@ def main() -> int:
     if start < 0:
         print("func start not found", file=sys.stderr)
         return 1
-    end = t.find("SHUX_LIB_WEAK void codegen_copy_param_name32_from_module", start)
+    end = t.find("XLANG_LIB_WEAK void codegen_copy_param_name32_from_module", start)
     if end < 0:
         print("func end not found", file=sys.stderr)
         return 1
@@ -172,7 +172,7 @@ def main() -> int:
         "  (void)(codegen_import_path_to_c_prefix_into((&((dep_path_fast)[0])), (&((pre_fast)[0])), 128));\n"
         "  int32_t pre_fast_len = 0;\n"
         "  while (pre_fast_len < 128 && (pre_fast_len < 0 || (pre_fast_len) >= 128 ? "
-        "(shux_panic_(1, 0), (pre_fast)[0]) : (pre_fast)[pre_fast_len]) != 0) {\n"
+        "(xlang_panic_(1, 0), (pre_fast)[0]) : (pre_fast)[pre_fast_len]) != 0) {\n"
         "    ++pre_fast_len;\n"
         "  }\n"
         "  if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_fast)[0])), "
@@ -194,7 +194,7 @@ def main() -> int:
         "  (void)(codegen_import_path_to_c_prefix_into((&((dep_path_fast)[0])), (&((pre_fast)[0])), 128));\n"
         "  int32_t pre_fast_len = 0;\n"
         "  while (pre_fast_len < 128 && (pre_fast_len < 0 || (pre_fast_len) >= 128 ? "
-        "(shux_panic_(1, 0), (pre_fast)[0]) : (pre_fast)[pre_fast_len]) != 0) {\n"
+        "(xlang_panic_(1, 0), (pre_fast)[0]) : (pre_fast)[pre_fast_len]) != 0) {\n"
         "    ++pre_fast_len;\n"
         "  }\n"
         "  if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name((&((pre_fast)[0])), "

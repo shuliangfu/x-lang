@@ -10,7 +10,7 @@
  *   wave182 bootstrap_nostdlib_stubs ensure: resolve/access/cc_one_extra(-fno-builtin)/stat;
  *   wave186 prepare_for_exe_link: freestanding peers + user_needs + debug report Cap;
  *   wave174 catalog thin wraps: peer *_o_path Cap residual only
- * Regen: ./shux -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave186)
+ * Regen: ./xlang -E ... src/runtime/labi_ensure_list.x | filter DBG + polish prologue (wave186)
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -22,90 +22,90 @@ extern uint8_t * labi_ensure_catalog_seed_base(int32_t i);
 extern int32_t labi_ensure_catalog_flags(int32_t i);
 extern int32_t labi_ensure_catalog_step_at(int32_t i, size_t * stem_out, size_t * out_base_out, size_t * seed_base_out, int32_t * flags_out, size_t * hint_out);
 extern int32_t link_abi_ensure_from_catalog(uint8_t * argv0, int32_t catalog_idx, uint8_t * product_path);
-extern int32_t shux_ensure_runtime_panic_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0);
-extern int32_t shux_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0);
-extern int32_t shux_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, int32_t driver_freestanding, int32_t use_macho_o, int32_t use_coff_o);
-extern int32_t shux_ensure_runtime_asm_io_stubs_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_process_os_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_random_fill_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_time_os_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_queue_contention_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_dynlib_os_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_env_os_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_backtrace_platform_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_log_os_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_math_libm_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_atomic_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_channel_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_net_udp_batch_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_net_workers_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_sync_os_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_sync_lock_diag_tls_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_thread_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_scheduler_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_http_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_kv_mmap_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_arrow_simd_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_sqlite_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_crypto_inc_glue_o(uint8_t * argv0);
-extern int32_t shux_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_panic_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_heap_user_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_test_fn_invoke_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0);
+extern int32_t xlang_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0);
+extern int32_t xlang_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, int32_t driver_freestanding, int32_t use_macho_o, int32_t use_coff_o);
+extern int32_t xlang_ensure_runtime_asm_io_stubs_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_process_argv_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_process_os_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_random_fill_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_time_os_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_queue_contention_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_dynlib_os_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_env_os_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_backtrace_platform_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_log_os_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_math_libm_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_atomic_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_channel_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_net_udp_batch_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_net_workers_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_sync_os_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_sync_lock_diag_tls_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_thread_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_scheduler_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_http_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_kv_mmap_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_arrow_simd_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_sqlite_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_crypto_inc_glue_o(uint8_t * argv0);
+extern int32_t xlang_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0);
 extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
-extern int32_t shux_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
-extern int32_t shux_cc_compile_sync_one_extra(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s, uint8_t * extra0);
+extern int32_t xlang_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
+extern int32_t xlang_cc_compile_sync_one_extra(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s, uint8_t * extra0);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 extern int32_t link_abi_host_is_linux_x86_64(void);
 extern int32_t link_abi_host_is_posix_aarch64(void);
-extern int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
+extern int32_t xlang_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
 extern int32_t unlink(uint8_t * path);
-extern uint8_t * shux_runtime_panic_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_heap_user_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_test_fn_invoke_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_tls_mbedtls_bio_o_path(uint8_t * argv0);
-extern uint8_t * shux_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_panic_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_heap_user_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_test_fn_invoke_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_tls_mbedtls_bio_o_path(uint8_t * argv0);
+extern uint8_t * xlang_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0);
 /* Cap residual / peer pure (wave186 prepare_for_exe_link surface). */
-extern int32_t shux_link_freestanding_enabled(int32_t driver_freestanding);
-extern int32_t shux_freestanding_user_o_needs_panic(uint8_t * user_o);
-extern int32_t shux_freestanding_user_o_needs_io(uint8_t * user_o);
-extern int32_t shux_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding);
-extern int32_t shux_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding);
+extern int32_t xlang_link_freestanding_enabled(int32_t driver_freestanding);
+extern int32_t xlang_freestanding_user_o_needs_panic(uint8_t * user_o);
+extern int32_t xlang_freestanding_user_o_needs_io(uint8_t * user_o);
+extern int32_t xlang_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding);
+extern int32_t xlang_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestanding);
 extern int32_t labi_user_needs_runtime_process_argv(uint8_t * user_o);
 extern int32_t labi_user_needs_runtime_random_fill(uint8_t * user_o);
 extern int32_t labi_user_needs_runtime_time_os(uint8_t * user_o);
 extern int32_t labi_user_needs_runtime_env_os(uint8_t * user_o);
 extern void link_diag_freestanding_unsupported(void);
-extern void shux_debug_hello_stage1_report(uint8_t * hypothesis_id, uint8_t * location, uint8_t * msg, int32_t v1, int32_t v2, int32_t v3);
-extern uint8_t * shux_runtime_asm_io_stubs_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_process_argv_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_process_os_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_random_fill_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_time_os_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_queue_contention_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_dynlib_os_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_env_os_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_backtrace_platform_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_log_os_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_math_libm_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_atomic_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_channel_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_net_udp_batch_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_net_workers_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_sync_os_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_sync_lock_diag_tls_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_thread_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_scheduler_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_http_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_sqlite_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_crypto_inc_glue_o_path(uint8_t * argv0);
-extern uint8_t * shux_runtime_ed25519_ref10_glue_o_path(uint8_t * argv0);
+extern void xlang_debug_hello_stage1_report(uint8_t * hypothesis_id, uint8_t * location, uint8_t * msg, int32_t v1, int32_t v2, int32_t v3);
+extern uint8_t * xlang_runtime_asm_io_stubs_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_process_argv_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_process_os_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_random_fill_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_time_os_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_queue_contention_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_dynlib_os_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_env_os_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_backtrace_platform_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_log_os_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_math_libm_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_atomic_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_channel_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_net_udp_batch_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_net_workers_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_sync_os_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_sync_lock_diag_tls_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_thread_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_scheduler_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_http_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_kv_mmap_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_arrow_simd_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_sqlite_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_crypto_inc_glue_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_ed25519_ref10_glue_o_path(uint8_t * argv0);
 extern void link_diag_runtime_obj_resolve_fail(uint8_t * obj_name, uint8_t * hint);
 extern void link_diag_runtime_source_missing(uint8_t * obj_name, uint8_t * source_path);
 extern void link_diag_runtime_source_missing_under(uint8_t * obj_name, uint8_t * base_dir, uint8_t * suffix);
@@ -648,11 +648,11 @@ int32_t link_abi_ensure_from_catalog(uint8_t * argv0, int32_t catalog_idx, uint8
   int32_t crc = 0;
   if ((flags ==1)) {
     uint8_t * flag_pie = ((uint8_t *)"\x2d\x66\x50\x49\x45");
-    (void)((crc = shux_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_pie)));
+    (void)((crc = xlang_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_pie)));
   } else {
     if ((flags ==2)) {
       uint8_t * flag_sql = ((uint8_t *)"\x2d\x44\x53\x48\x55\x58\x5f\x44\x42\x5f\x55\x53\x45\x5f\x53\x51\x4c\x49\x54\x45\x33");
-      (void)((crc = shux_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_sql)));
+      (void)((crc = xlang_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_sql)));
     } else {
       if ((flags ==3)) {
         uint8_t * http_leaf = ((uint8_t *)"\x73\x65\x65\x64\x73\x2f\x68\x74\x74\x70");
@@ -689,9 +689,9 @@ int32_t link_abi_ensure_from_catalog(uint8_t * argv0, int32_t catalog_idx, uint8
           (void)(((flag_I)[(ln_I + k)] = (http_inc)[k]));
           (void)((k = (k + 1)));
         }
-        (void)((crc = shux_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, &((flag_I)[0]))));
+        (void)((crc = xlang_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, &((flag_I)[0]))));
       } else {
-        (void)((crc = shux_cc_compile_sync(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0)));
+        (void)((crc = xlang_cc_compile_sync(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0)));
       }
     }
   }
@@ -706,10 +706,10 @@ int32_t link_abi_ensure_from_catalog(uint8_t * argv0, int32_t catalog_idx, uint8
   }
   return 0;
 }
-int32_t shux_ensure_runtime_panic_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_panic_o(uint8_t * argv0) {
   uint8_t * o_path = 0;
   uint8_t * have = 0;
-  (void)((o_path = shux_runtime_panic_o_path(argv0)));
+  (void)((o_path = xlang_runtime_panic_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have !=0)) {
     return 0;
@@ -883,12 +883,12 @@ int32_t shux_ensure_runtime_panic_o(uint8_t * argv0) {
     (void)((k = (k + 1)));
   }
   int32_t crc = 0;
-  (void)((crc = shux_cc_compile_sync(src, &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), from_asm_s)));
+  (void)((crc = xlang_cc_compile_sync(src, &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), from_asm_s)));
   if ((crc !=0)) {
     (void)(link_diag_runtime_obj_build_status(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), crc));
     return -1;
   }
-  (void)((o_path = shux_runtime_panic_o_path(argv0)));
+  (void)((o_path = xlang_runtime_panic_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), &((out_o)[0])));
@@ -896,16 +896,16 @@ int32_t shux_ensure_runtime_panic_o(uint8_t * argv0) {
   }
   return 0;
 }
-int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_heap_user_o(uint8_t * argv0) {
   uint8_t * existing = 0;
   uint8_t * have = 0;
-  (void)((existing = shux_runtime_heap_user_o_path(argv0)));
+  (void)((existing = xlang_runtime_heap_user_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(existing)));
   if ((have !=0)) {
     int32_t has_arena = 0;
     int32_t has_alloc = 0;
-    (void)((has_arena = shux_link_obj_has_defined_sym(existing, ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x72\x65\x6e\x61\x5f\x69\x6e\x69\x74\x5f\x63"))));
-    (void)((has_alloc = shux_link_obj_has_defined_sym(existing, ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x6c\x6c\x6f\x63\x5f\x63"))));
+    (void)((has_arena = xlang_link_obj_has_defined_sym(existing, ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x72\x65\x6e\x61\x5f\x69\x6e\x69\x74\x5f\x63"))));
+    (void)((has_alloc = xlang_link_obj_has_defined_sym(existing, ((uint8_t *)"\x68\x65\x61\x70\x5f\x61\x6c\x6c\x6f\x63\x5f\x63"))));
     if ((has_arena !=0)) {
       return 0;
     }
@@ -1018,13 +1018,13 @@ int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0) {
     (void)((k = (k + 1)));
   }
   int32_t crc = 0;
-  (void)((crc = shux_cc_compile_sync(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0)));
+  (void)((crc = xlang_cc_compile_sync(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0)));
   if ((crc !=0)) {
     (void)(link_diag_runtime_obj_build_status(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f"), crc));
     return -1;
   }
   uint8_t * o_path = 0;
-  (void)((o_path = shux_runtime_heap_user_o_path(argv0)));
+  (void)((o_path = xlang_runtime_heap_user_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f"), &((out_o)[0])));
@@ -1032,10 +1032,10 @@ int32_t shux_ensure_runtime_heap_user_o(uint8_t * argv0) {
   }
   return 0;
 }
-int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_test_fn_invoke_o(uint8_t * argv0) {
   uint8_t * existing = 0;
   uint8_t * have = 0;
-  (void)((existing = shux_runtime_test_fn_invoke_o_path(argv0)));
+  (void)((existing = xlang_runtime_test_fn_invoke_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(existing)));
   if ((have !=0)) {
     return 0;
@@ -1144,13 +1144,13 @@ int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0) {
     (void)((k = (k + 1)));
   }
   int32_t crc = 0;
-  (void)((crc = shux_cc_compile_sync(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0)));
+  (void)((crc = xlang_cc_compile_sync(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0)));
   if ((crc !=0)) {
     (void)(link_diag_runtime_obj_build_status(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f"), crc));
     return -1;
   }
   uint8_t * o_path = 0;
-  (void)((o_path = shux_runtime_test_fn_invoke_o_path(argv0)));
+  (void)((o_path = xlang_runtime_test_fn_invoke_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f"), &((out_o)[0])));
@@ -1158,10 +1158,10 @@ int32_t shux_ensure_runtime_test_fn_invoke_o(uint8_t * argv0) {
   }
   return 0;
 }
-int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0) {
   uint8_t * existing = 0;
   uint8_t * have = 0;
-  (void)((existing = shux_runtime_tls_mbedtls_bio_o_path(argv0)));
+  (void)((existing = xlang_runtime_tls_mbedtls_bio_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(existing)));
   if ((have !=0)) {
     return 0;
@@ -1271,13 +1271,13 @@ int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0) {
   }
   uint8_t * flag_I = ((uint8_t *)"\x2d\x49\x2f\x6f\x70\x74\x2f\x68\x6f\x6d\x65\x62\x72\x65\x77\x2f\x6f\x70\x74\x2f\x6d\x62\x65\x64\x74\x6c\x73\x2f\x69\x6e\x63\x6c\x75\x64\x65");
   int32_t crc = 0;
-  (void)((crc = shux_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_I)));
+  (void)((crc = xlang_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_I)));
   if ((crc !=0)) {
     (void)(link_diag_runtime_obj_build_status(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x5f\x62\x69\x6f\x2e\x6f"), crc));
     return -1;
   }
   uint8_t * o_path = 0;
-  (void)((o_path = shux_runtime_tls_mbedtls_bio_o_path(argv0)));
+  (void)((o_path = xlang_runtime_tls_mbedtls_bio_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x5f\x62\x69\x6f\x2e\x6f"), &((out_o)[0])));
@@ -1286,10 +1286,10 @@ int32_t shux_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0) {
   return 0;
 }
 /* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (surface pin). */
-int32_t shux_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0) {
+int32_t xlang_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0) {
   uint8_t * existing = 0;
   uint8_t * have = 0;
-  (void)((existing = shux_bootstrap_nostdlib_stubs_o_path(argv0)));
+  (void)((existing = xlang_bootstrap_nostdlib_stubs_o_path(argv0)));
   if ((existing !=0)) {
     if ((((uint8_t *)existing)[0] !=0)) {
       (void)((have = asm_link_obj_skip_missing(existing)));
@@ -1403,13 +1403,13 @@ int32_t shux_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0) {
   }
   uint8_t * flag_nb = ((uint8_t *)"-fno-builtin");
   int32_t crc = 0;
-  (void)((crc = shux_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_nb)));
+  (void)((crc = xlang_cc_compile_sync_one_extra(&((src_c)[0]), &((out_o)[0]), &((inc0)[0]), &((inc1)[0]), &((inc2)[0]), 0, flag_nb)));
   if ((crc !=0)) {
     (void)(link_diag_runtime_obj_build_status(((uint8_t *)"bootstrap_nostdlib_stubs.o"), crc));
     return -1;
   }
   uint8_t * o_path = 0;
-  (void)((o_path = shux_bootstrap_nostdlib_stubs_o_path(argv0)));
+  (void)((o_path = xlang_bootstrap_nostdlib_stubs_o_path(argv0)));
   (void)((have = asm_link_obj_skip_missing(o_path)));
   if ((have ==0)) {
     (void)(link_diag_runtime_obj_missing(((uint8_t *)"bootstrap_nostdlib_stubs.o"), &((out_o)[0])));
@@ -1417,205 +1417,205 @@ int32_t shux_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0) {
   }
   return 0;
 }
-int32_t shux_ensure_runtime_asm_io_stubs_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_asm_io_stubs_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_asm_io_stubs_o_path(argv0)));
+  (void)((p = xlang_runtime_asm_io_stubs_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 0, p);
 }
-int32_t shux_ensure_runtime_process_argv_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_process_argv_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_process_argv_o_path(argv0)));
+  (void)((p = xlang_runtime_process_argv_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 1, p);
 }
-int32_t shux_ensure_runtime_process_os_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_process_os_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_process_os_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_process_os_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 2, p);
 }
-int32_t shux_ensure_runtime_random_fill_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_random_fill_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_random_fill_o_path(argv0)));
+  (void)((p = xlang_runtime_random_fill_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 3, p);
 }
-int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_compress_zlib_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_compress_zlib_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 4, p);
 }
-int32_t shux_ensure_runtime_time_os_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_time_os_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_time_os_o_path(argv0)));
+  (void)((p = xlang_runtime_time_os_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 5, p);
 }
-int32_t shux_ensure_runtime_queue_contention_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_queue_contention_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_queue_contention_o_path(argv0)));
+  (void)((p = xlang_runtime_queue_contention_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 6, p);
 }
-int32_t shux_ensure_runtime_dynlib_os_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_dynlib_os_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_dynlib_os_o_path(argv0)));
+  (void)((p = xlang_runtime_dynlib_os_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 7, p);
 }
-int32_t shux_ensure_runtime_env_os_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_env_os_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_env_os_o_path(argv0)));
+  (void)((p = xlang_runtime_env_os_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 8, p);
 }
-int32_t shux_ensure_runtime_backtrace_platform_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_backtrace_platform_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_backtrace_platform_o_path(argv0)));
+  (void)((p = xlang_runtime_backtrace_platform_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 9, p);
 }
-int32_t shux_ensure_runtime_log_os_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_log_os_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_log_os_o_path(argv0)));
+  (void)((p = xlang_runtime_log_os_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 10, p);
 }
-int32_t shux_ensure_runtime_math_libm_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_math_libm_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_math_libm_o_path(argv0)));
+  (void)((p = xlang_runtime_math_libm_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 11, p);
 }
-int32_t shux_ensure_runtime_atomic_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_atomic_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_atomic_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_atomic_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 12, p);
 }
-int32_t shux_ensure_runtime_channel_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_channel_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_channel_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_channel_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 13, p);
 }
-int32_t shux_ensure_runtime_net_udp_batch_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_net_udp_batch_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_net_udp_batch_o_path(argv0)));
+  (void)((p = xlang_runtime_net_udp_batch_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 14, p);
 }
-int32_t shux_ensure_runtime_net_workers_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_net_workers_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_net_workers_o_path(argv0)));
+  (void)((p = xlang_runtime_net_workers_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 15, p);
 }
-int32_t shux_ensure_runtime_sync_os_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_sync_os_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_sync_os_o_path(argv0)));
+  (void)((p = xlang_runtime_sync_os_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 16, p);
 }
-int32_t shux_ensure_runtime_sync_lock_diag_tls_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_sync_lock_diag_tls_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_sync_lock_diag_tls_o_path(argv0)));
+  (void)((p = xlang_runtime_sync_lock_diag_tls_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 17, p);
 }
-int32_t shux_ensure_runtime_thread_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_thread_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_thread_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_thread_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 18, p);
 }
-int32_t shux_ensure_runtime_scheduler_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_scheduler_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_scheduler_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_scheduler_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 19, p);
 }
-int32_t shux_ensure_runtime_http_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_http_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_http_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_http_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 20, p);
 }
-int32_t shux_ensure_runtime_kv_mmap_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_kv_mmap_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_kv_mmap_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_kv_mmap_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 21, p);
 }
-int32_t shux_ensure_runtime_arrow_simd_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_arrow_simd_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_arrow_simd_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_arrow_simd_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 22, p);
 }
-int32_t shux_ensure_runtime_sqlite_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_sqlite_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_sqlite_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_sqlite_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 23, p);
 }
-int32_t shux_ensure_runtime_crypto_inc_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_crypto_inc_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_crypto_inc_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_crypto_inc_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 24, p);
 }
-int32_t shux_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0) {
+int32_t xlang_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0) {
   uint8_t * p = 0;
-  (void)((p = shux_runtime_ed25519_ref10_glue_o_path(argv0)));
+  (void)((p = xlang_runtime_ed25519_ref10_glue_o_path(argv0)));
   return link_abi_ensure_from_catalog(argv0, 25, p);
 }
 /* wave186: prepare_for_exe_link pure orch (surface pin ≡ .x). */
-int32_t shux_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, int32_t driver_freestanding, int32_t use_macho_o, int32_t use_coff_o) {
+int32_t xlang_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, int32_t driver_freestanding, int32_t use_macho_o, int32_t use_coff_o) {
   int32_t fs = 0;
   int32_t need = 0;
   int32_t rc = 0;
-  (void)(shux_debug_hello_stage1_report(((uint8_t *)"A"), ((uint8_t *)"runtime_link_abi.c:prepare_for_exe_link_enter"), ((uint8_t *)"prepare_for_exe_link_enter"), driver_freestanding, use_macho_o, use_coff_o));
+  (void)(xlang_debug_hello_stage1_report(((uint8_t *)"A"), ((uint8_t *)"runtime_link_abi.c:prepare_for_exe_link_enter"), ((uint8_t *)"prepare_for_exe_link_enter"), driver_freestanding, use_macho_o, use_coff_o));
   if ((link_eff == 0)) {
     return -1;
   }
   if ((user_o == 0)) {
     return -1;
   }
-  (void)((fs = shux_link_freestanding_enabled(driver_freestanding)));
+  (void)((fs = xlang_link_freestanding_enabled(driver_freestanding)));
   if ((fs != 0)) {
-    (void)((need = shux_freestanding_user_o_needs_panic(user_o)));
+    (void)((need = xlang_freestanding_user_o_needs_panic(user_o)));
     if ((need != 0)) {
-      (void)((rc = shux_ensure_runtime_panic_o(link_eff)));
+      (void)((rc = xlang_ensure_runtime_panic_o(link_eff)));
       if ((rc != 0)) {
         return -1;
       }
     }
   } else {
-    (void)((rc = shux_ensure_runtime_panic_o(link_eff)));
+    (void)((rc = xlang_ensure_runtime_panic_o(link_eff)));
     if ((rc != 0)) {
       return -1;
     }
   }
   if ((fs == 0)) {
-    (void)((rc = shux_ensure_runtime_asm_io_stubs_o(link_eff)));
+    (void)((rc = xlang_ensure_runtime_asm_io_stubs_o(link_eff)));
     if ((rc != 0)) {
       return -1;
     }
     (void)((need = labi_user_needs_runtime_process_argv(user_o)));
     if ((need != 0)) {
-      (void)((rc = shux_ensure_runtime_process_argv_o(link_eff)));
+      (void)((rc = xlang_ensure_runtime_process_argv_o(link_eff)));
       if ((rc != 0)) {
         return -1;
       }
     }
     (void)((need = labi_user_needs_runtime_random_fill(user_o)));
     if ((need != 0)) {
-      (void)((rc = shux_ensure_runtime_random_fill_o(link_eff)));
+      (void)((rc = xlang_ensure_runtime_random_fill_o(link_eff)));
       if ((rc != 0)) {
         return -1;
       }
     }
     (void)((need = labi_user_needs_runtime_time_os(user_o)));
     if ((need != 0)) {
-      (void)((rc = shux_ensure_runtime_time_os_o(link_eff)));
+      (void)((rc = xlang_ensure_runtime_time_os_o(link_eff)));
       if ((rc != 0)) {
         return -1;
       }
     }
     (void)((need = labi_user_needs_runtime_env_os(user_o)));
     if ((need != 0)) {
-      (void)((rc = shux_ensure_runtime_env_os_o(link_eff)));
+      (void)((rc = xlang_ensure_runtime_env_os_o(link_eff)));
       if ((rc != 0)) {
         return -1;
       }
     }
   }
-  (void)((rc = shux_ensure_crt0_user_o(link_eff, driver_freestanding)));
+  (void)((rc = xlang_ensure_crt0_user_o(link_eff, driver_freestanding)));
   if ((rc != 0)) {
     return -1;
   }
   if ((fs != 0)) {
-    (void)((need = shux_freestanding_user_o_needs_io(user_o)));
+    (void)((need = xlang_freestanding_user_o_needs_io(user_o)));
     if ((need != 0)) {
-      (void)((rc = shux_ensure_freestanding_io_o(link_eff, driver_freestanding)));
+      (void)((rc = xlang_ensure_freestanding_io_o(link_eff, driver_freestanding)));
       if ((rc != 0)) {
         return -1;
       }
@@ -1627,6 +1627,6 @@ int32_t shux_asm_ld_prepare_for_exe_link(uint8_t * link_eff, uint8_t * user_o, i
       return -1;
     }
   }
-  (void)(shux_debug_hello_stage1_report(((uint8_t *)"A"), ((uint8_t *)"runtime_link_abi.c:prepare_for_exe_link_exit"), ((uint8_t *)"prepare_for_exe_link_exit"), 0, 0, 0));
+  (void)(xlang_debug_hello_stage1_report(((uint8_t *)"A"), ((uint8_t *)"runtime_link_abi.c:prepare_for_exe_link_exit"), ((uint8_t *)"prepare_for_exe_link_exit"), 0, 0, 0));
   return 0;
 }

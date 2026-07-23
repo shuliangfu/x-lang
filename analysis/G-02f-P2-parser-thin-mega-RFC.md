@@ -22,7 +22,7 @@
 ### 1.2 非目标
 
 - 本步不把 G05 的 `parser_asm_thin_glue.o` 拆成多个正式 objs（仍单 `.o`；hybrid 用 `ld -r`）。  
-- 不默认打开 `SHUX_G05_PREFER_X_O`。  
+- 不默认打开 `XLANG_G05_PREFER_X_O`。  
 - 不并行大改 `parser.x` / `pipeline` / typeck（仅允许为薄门闩所需的前向声明同步）。  
 - 不在本 RFC 落地代码步（代码步 = f-305+ 或本跟进表 f-279+）。  
 - 不追求一次 PR 吞掉 `parser_asm_emit_heavy_stretch_suite_slice.inc`（≈28k LOC）。
@@ -95,7 +95,7 @@
 
 | 阶段 | 做法 |
 |------|------|
-| **A. 逻辑切片（默认，与 link_abi 一致）** | `src/asm/pthin_*.x` + `seeds/pthin_*.from_x.c` 或继续演进现有 `*_slice.inc` → 真 `.from_x.c`；mega `#ifndef SHUX_PTHIN_*_FROM_X`；prefer 时 `ld -r` 合成 **单** `parser_asm_thin_glue.o` |
+| **A. 逻辑切片（默认，与 link_abi 一致）** | `src/asm/pthin_*.x` + `seeds/pthin_*.from_x.c` 或继续演进现有 `*_slice.inc` → 真 `.from_x.c`；mega `#ifndef XLANG_PTHIN_*_FROM_X`；prefer 时 `ld -r` 合成 **单** `parser_asm_thin_glue.o` |
 | **B. 物理多 `.o`（后期）** | 仅当 A 稳定后修订 `g05_relink_env`；需 c08 / STRICT 同步 |
 
 **首阶段只做 A**。现有 `.inc` 视为 **A0（已物理但未 hybrid 宏）**。
@@ -103,20 +103,20 @@
 ### 4.2 宏约定
 
 ```text
-SHUX_PTHIN_LAYOUT_FROM_X     // P0
-SHUX_PTHIN_LEX_SKIP_FROM_X   // P1
-SHUX_PTHIN_LET_ALIAS_FROM_X  // P2
-SHUX_PTHIN_TYPE_REF_FROM_X   // P3
-SHUX_PTHIN_EXPR_FROM_X       // P4
-SHUX_PTHIN_CTRL_FROM_X       // P5
-SHUX_PTHIN_FN_BLOCK_FROM_X   // P6
-SHUX_PTHIN_SIMD_FROM_X       // P7
-SHUX_PTHIN_SEED_PARSE_FROM_X // P8
-SHUX_PTHIN_STRETCH_FROM_X    // P9（默认可关闭 suite）
+XLANG_PTHIN_LAYOUT_FROM_X     // P0
+XLANG_PTHIN_LEX_SKIP_FROM_X   // P1
+XLANG_PTHIN_LET_ALIAS_FROM_X  // P2
+XLANG_PTHIN_TYPE_REF_FROM_X   // P3
+XLANG_PTHIN_EXPR_FROM_X       // P4
+XLANG_PTHIN_CTRL_FROM_X       // P5
+XLANG_PTHIN_FN_BLOCK_FROM_X   // P6
+XLANG_PTHIN_SIMD_FROM_X       // P7
+XLANG_PTHIN_SEED_PARSE_FROM_X // P8
+XLANG_PTHIN_STRETCH_FROM_X    // P9（默认可关闭 suite）
 ```
 
 - 默认：宏未定义 → 逻辑在 `parser_asm_thin_c.from_x.c` + `#include` slice。  
-- 试验：`SHUX_G05_PREFER_X_O=1` 或后续 `SHUX_PTHIN_HYBRID=1` 时切片 `cc` + rest `ld -r`。  
+- 试验：`XLANG_G05_PREFER_X_O=1` 或后续 `XLANG_PTHIN_HYBRID=1` 时切片 `cc` + rest `ld -r`。  
 - **产品默认关闭 hybrid**。  
 - 保留 **`PARSER_ASM_THIN_GLUE_NO_SEED_PARSE`**（产品路径语义；勿与 hybrid 宏混淆）。
 
@@ -129,11 +129,11 @@ SHUX_PTHIN_STRETCH_FROM_X    // P9（默认可关闭 suite）
 
 | mega | 产物 | hybrid 开关 |
 |------|------|-------------|
-| runtime | `runtime_driver_no_c.o` | `SHUX_G05_PREFER_X_O` + `SHUX_RT_*` |
-| link_abi | `runtime_link_abi.o` | 同上 + `SHUX_LABI_*`（L0–L9 已齐） |
-| **parser thin** | **`parser_asm_thin_glue.o`** | 本文落地后同 prefer 或 `SHUX_PTHIN_HYBRID` |
+| runtime | `runtime_driver_no_c.o` | `XLANG_G05_PREFER_X_O` + `XLANG_RT_*` |
+| link_abi | `runtime_link_abi.o` | 同上 + `XLANG_LABI_*`（L0–L9 已齐） |
+| **parser thin** | **`parser_asm_thin_glue.o`** | 本文落地后同 prefer 或 `XLANG_PTHIN_HYBRID` |
 
-建议：**首切片复用 `SHUX_G05_PREFER_X_O`**，ensure 过重再拆开关。
+建议：**首切片复用 `XLANG_G05_PREFER_X_O`**，ensure 过重再拆开关。
 
 ---
 
@@ -167,7 +167,7 @@ SHUX_PTHIN_STRETCH_FROM_X    // P9（默认可关闭 suite）
 |----|------|
 | 现有 | `parser_asm_body_let_slice.inc` / `top_level_let` / `type_alias` |
 | 目标形态 | `seeds/pthin_let_alias.from_x.c` + `src/asm/pthin_let_alias.x`（或保留 inc 名 + hybrid 宏） |
-| mega | `#ifndef SHUX_PTHIN_LET_ALIAS_FROM_X` 包住 `#include` 或内联体 |
+| mega | `#ifndef XLANG_PTHIN_LET_ALIAS_FROM_X` 包住 `#include` 或内联体 |
 
 ### 6.2 非范围
 
@@ -182,7 +182,7 @@ cd compiler
 # 默认产品
 G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 # prefer hybrid（落地后）
-SHUX_G05_PREFER_X_O=1 G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
+XLANG_G05_PREFER_X_O=1 G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 # 最小：nm 导出 + hello/lang-unsafe 双绿（与现 G05 口径一致）
 nm -g parser_asm_thin_glue.o | head
 ```
@@ -240,28 +240,28 @@ nm -g parser_asm_thin_glue.o | head
 | 日期 | 说明 |
 |------|------|
 | 2026-07-11 | f-278 / f-304 初版：parser thin God-View；承认 `seeds/parser_asm/*_slice.inc` 为 A0；首迁 P2 let/alias；suite stretch 后置 |
-| 2026-07-11 | **f-279 P2 let/alias 落地**：`pthin_let_alias.x` + `seeds/pthin_let_alias.from_x.c`（include body_let/top_level_let/type_alias）；`SHUX_PTHIN_LET_ALIAS_FROM_X`；prefer hybrid `P2+rest → parser_asm_thin_glue.o` |
-| 2026-07-11 | **f-280 P3 type_ref 落地**：`pthin_type_ref.*`（type_ref_slice.inc）；`SHUX_PTHIN_TYPE_REF_FROM_X`；rest 保留 `ast_Type`/TypeKind；prefer hybrid **P2+P3+rest** |
-| 2026-07-11 | **f-281 P1 lex/skip 落地**：`pthin_lex_skip.*` + `parser_asm_lex_skip_slice.inc`（lex_from_result / copy_slice / skip_balanced / skip_generic_angle / is_*_token）；`SHUX_PTHIN_LEX_SKIP_FROM_X`；`lex_from_result_val_into` 升为非 static（expr 各 slice 去掉 static 前向）；prefer hybrid **P1+P2+P3+rest** |
-| 2026-07-11 | **f-282 P4 primary 首册**：`pthin_expr_primary.*`（`finish_struct_lit`+`primary` 同 TU，因 static `parse_struct_lit_fields`）；`SHUX_PTHIN_EXPR_PRIMARY_FROM_X`；prefer hybrid **P1+P2+P3+P4primary+rest** |
-| 2026-07-11 | **f-283 P4 unary**：`pthin_expr_unary.*`（unary_slice.inc）；`SHUX_PTHIN_EXPR_UNARY_FROM_X`；prefer hybrid **P1–P4unary+rest** |
-| 2026-07-11 | **f-284 P4 binop**：`pthin_expr_binop.*`（term…logor 十级）；`SHUX_PTHIN_EXPR_BINOP_FROM_X`；prefer hybrid **P1–P4binop+rest** |
-| 2026-07-11 | **f-285 P4 收口**：`pthin_expr_as_suffix.*` + `pthin_expr_ternary.*`；`SHUX_PTHIN_EXPR_AS_SUFFIX_FROM_X` / `SHUX_PTHIN_EXPR_TERNARY_FROM_X`；prefer hybrid **P1–P4 全 + rest**（expr 册齐） |
-| 2026-07-11 | **f-286 P5 ctrl**：`pthin_ctrl.*`（if_stmt + match_subject + if_expr；simd 仍 rest）；`SHUX_PTHIN_CTRL_FROM_X`；rest 保留 `parse_block_result`；prefer hybrid **P1–P5+rest** |
-| 2026-07-11 | **f-287 P6 fn/block**：`pthin_fn_block.*`（struct_layout + library + one_function_buf + block_from_res）；`SHUX_PTHIN_FN_BLOCK_FROM_X`；library scan 仍 rest；prefer hybrid **P1–P6+rest** |
-| 2026-07-11 | **f-288 P7 simd**：`pthin_simd.*`（simd_builtin_slice）；`SHUX_PTHIN_SIMD_FROM_X`；从 CTRL 块旁路独立出来；prefer hybrid **P1–P7+rest** |
-| 2026-07-11 | **f-289 P8 seed_parse**：`pthin_seed_parse.*`（seed_parse_into_buf_slice）；`SHUX_PTHIN_SEED_PARSE_FROM_X` 嵌套于 `!NO_SEED_PARSE`；产品 G05 仍 NO_SEED_PARSE + smoke -c；不 ld -r 进产品 glue |
-| 2026-07-11 | **f-290 P9 stretch lite**：`pthin_stretch.*`（emit_heavy_stretch_slice ≈481）；`SHUX_PTHIN_STRETCH_FROM_X`；suite 28k 仍 rest；prefer hybrid **P1–P7+P9+rest**（P8 smoke-only） |
-| 2026-07-11 | **f-318 P9 suite hybrid**：suite ≈28k 并入 `pthin_stretch.from_x.c`；`SHUX_PTHIN_STRETCH_FROM_X` 时 mega rest 不再 `#include` suite；`labi_pthin_stretch_suite_slice_marker`；prefer hybrid **P1–P7+P9(stretch+suite)+rest** |
-| 2026-07-11 | **f-319 P10 glue tail**：`pthin_glue.*` + `parser_asm_glue_tail_slice.inc`（≈6.5k `*_glue` + 晚期 skip/lex）；`SHUX_PTHIN_GLUE_FROM_X`；prefer hybrid **P1–P7+P9+P10+rest**；rest T **≈86** |
-| 2026-07-11 | **f-320 P11 imports**：`pthin_imports.*` + `parser_asm_imports_slice.inc`（skip/collect_imports 簇 ≈1.8k）；`SHUX_PTHIN_IMPORTS_FROM_X`；prefer hybrid **P1–P7+P9–P11+rest**；rest T **≈77** |
-| 2026-07-11 | **f-321 P12 skip_tl**：`pthin_skip_tl.*` + `parser_asm_skip_tl_slice.inc`（struct/enum/trait/impl/extern skip ≈1.4k）；`SHUX_PTHIN_SKIP_TL_FROM_X`；prefer hybrid **P1–P7+P9–P12+rest**；rest T **≈64** |
-| 2026-07-11 | **f-322 P13 try_skip_allow**：`pthin_try_skip_allow.*` + `parser_asm_try_skip_allow_slice.inc`（allow(padding) 跳过 ≈1.6k）；`SHUX_PTHIN_TRY_SKIP_ALLOW_FROM_X`；prefer hybrid **P1–P7+P9–P13+rest**；rest T **≈59** |
-| 2026-07-11 | **f-323 P14 skip_if**：`pthin_skip_if.*` + `parser_asm_skip_if_slice.inc`（if skip + trait/impl block ≈955）；`SHUX_PTHIN_SKIP_IF_FROM_X`；prefer hybrid **P1–P7+P9–P14+rest**；rest T **≈53** |
-| 2026-07-11 | **f-324 P15 library wrap**：`pthin_library.*` + `parser_asm_library_wrap_slice.inc`（into/buf/scan + late lex_from ≈1.8k；P6 core `library_slice.inc` 不动）；`SHUX_PTHIN_LIBRARY_FROM_X`；prefer hybrid **P1–P7+P9–P15+rest**；rest T **≈45** |
-| 2026-07-11 | **f-325 P16 diag_pipeline**：`pthin_diag_pipeline.*` + `parser_asm_diag_pipeline_slice.inc`（parse_one/diag_lex/module import ≈914）；`SHUX_PTHIN_DIAG_PIPELINE_FROM_X`；prefer hybrid **P1–P7+P9–P16+rest**；rest T **≈35** |
-| 2026-07-11 | **f-326 P17 diag_late**：`pthin_diag_late.*` + `parser_asm_diag_late_slice.inc`（after_imports/fail_at_kind/skip_let_buf/body_skip_buf ≈269）；`SHUX_PTHIN_DIAG_LATE_FROM_X`；prefer hybrid **P1–P7+P9–P17+rest**；rest T **≈32**；共享 helper 非 static + P16 seed `NO_SEED_PARSE` |
-| 2026-07-11 | **f-327 P18 body_tl**：`pthin_body_tl.*` + `parser_asm_body_tl_slice.inc`（is_fn_sig/diag_first/skip_let_into/body_skip/top_level/cfg ≈971）；`SHUX_PTHIN_BODY_TL_FROM_X`；prefer hybrid **P1–P7+P9–P18+rest**；rest T **≈25** |
-| 2026-07-11 | **f-328 P19 helpers**：`pthin_helpers.*` + `parser_asm_helpers_slice.inc`（import_path/struct_field/lex helpers/first_token ≈1170）；`SHUX_PTHIN_HELPERS_FROM_X`；prefer hybrid **P1–P7+P9–P19+rest**；rest T **≈3**（lexer_init + expr zeros + arena_expr_get） |
-| 2026-07-11 | **f-329 P20 foundation**：`pthin_foundation.*` + `parser_asm_foundation_slice.inc`（lexer_init + arena_expr_get/set + expr_set_common_zeros）；`SHUX_PTHIN_FOUNDATION_FROM_X`；prefer hybrid **P1–P7+P9–P20+rest**；**rest T=0**；gate `run-g02f-parser-thin-rest-empty-gate.sh` |
+| 2026-07-11 | **f-279 P2 let/alias 落地**：`pthin_let_alias.x` + `seeds/pthin_let_alias.from_x.c`（include body_let/top_level_let/type_alias）；`XLANG_PTHIN_LET_ALIAS_FROM_X`；prefer hybrid `P2+rest → parser_asm_thin_glue.o` |
+| 2026-07-11 | **f-280 P3 type_ref 落地**：`pthin_type_ref.*`（type_ref_slice.inc）；`XLANG_PTHIN_TYPE_REF_FROM_X`；rest 保留 `ast_Type`/TypeKind；prefer hybrid **P2+P3+rest** |
+| 2026-07-11 | **f-281 P1 lex/skip 落地**：`pthin_lex_skip.*` + `parser_asm_lex_skip_slice.inc`（lex_from_result / copy_slice / skip_balanced / skip_generic_angle / is_*_token）；`XLANG_PTHIN_LEX_SKIP_FROM_X`；`lex_from_result_val_into` 升为非 static（expr 各 slice 去掉 static 前向）；prefer hybrid **P1+P2+P3+rest** |
+| 2026-07-11 | **f-282 P4 primary 首册**：`pthin_expr_primary.*`（`finish_struct_lit`+`primary` 同 TU，因 static `parse_struct_lit_fields`）；`XLANG_PTHIN_EXPR_PRIMARY_FROM_X`；prefer hybrid **P1+P2+P3+P4primary+rest** |
+| 2026-07-11 | **f-283 P4 unary**：`pthin_expr_unary.*`（unary_slice.inc）；`XLANG_PTHIN_EXPR_UNARY_FROM_X`；prefer hybrid **P1–P4unary+rest** |
+| 2026-07-11 | **f-284 P4 binop**：`pthin_expr_binop.*`（term…logor 十级）；`XLANG_PTHIN_EXPR_BINOP_FROM_X`；prefer hybrid **P1–P4binop+rest** |
+| 2026-07-11 | **f-285 P4 收口**：`pthin_expr_as_suffix.*` + `pthin_expr_ternary.*`；`XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X` / `XLANG_PTHIN_EXPR_TERNARY_FROM_X`；prefer hybrid **P1–P4 全 + rest**（expr 册齐） |
+| 2026-07-11 | **f-286 P5 ctrl**：`pthin_ctrl.*`（if_stmt + match_subject + if_expr；simd 仍 rest）；`XLANG_PTHIN_CTRL_FROM_X`；rest 保留 `parse_block_result`；prefer hybrid **P1–P5+rest** |
+| 2026-07-11 | **f-287 P6 fn/block**：`pthin_fn_block.*`（struct_layout + library + one_function_buf + block_from_res）；`XLANG_PTHIN_FN_BLOCK_FROM_X`；library scan 仍 rest；prefer hybrid **P1–P6+rest** |
+| 2026-07-11 | **f-288 P7 simd**：`pthin_simd.*`（simd_builtin_slice）；`XLANG_PTHIN_SIMD_FROM_X`；从 CTRL 块旁路独立出来；prefer hybrid **P1–P7+rest** |
+| 2026-07-11 | **f-289 P8 seed_parse**：`pthin_seed_parse.*`（seed_parse_into_buf_slice）；`XLANG_PTHIN_SEED_PARSE_FROM_X` 嵌套于 `!NO_SEED_PARSE`；产品 G05 仍 NO_SEED_PARSE + smoke -c；不 ld -r 进产品 glue |
+| 2026-07-11 | **f-290 P9 stretch lite**：`pthin_stretch.*`（emit_heavy_stretch_slice ≈481）；`XLANG_PTHIN_STRETCH_FROM_X`；suite 28k 仍 rest；prefer hybrid **P1–P7+P9+rest**（P8 smoke-only） |
+| 2026-07-11 | **f-318 P9 suite hybrid**：suite ≈28k 并入 `pthin_stretch.from_x.c`；`XLANG_PTHIN_STRETCH_FROM_X` 时 mega rest 不再 `#include` suite；`labi_pthin_stretch_suite_slice_marker`；prefer hybrid **P1–P7+P9(stretch+suite)+rest** |
+| 2026-07-11 | **f-319 P10 glue tail**：`pthin_glue.*` + `parser_asm_glue_tail_slice.inc`（≈6.5k `*_glue` + 晚期 skip/lex）；`XLANG_PTHIN_GLUE_FROM_X`；prefer hybrid **P1–P7+P9+P10+rest**；rest T **≈86** |
+| 2026-07-11 | **f-320 P11 imports**：`pthin_imports.*` + `parser_asm_imports_slice.inc`（skip/collect_imports 簇 ≈1.8k）；`XLANG_PTHIN_IMPORTS_FROM_X`；prefer hybrid **P1–P7+P9–P11+rest**；rest T **≈77** |
+| 2026-07-11 | **f-321 P12 skip_tl**：`pthin_skip_tl.*` + `parser_asm_skip_tl_slice.inc`（struct/enum/trait/impl/extern skip ≈1.4k）；`XLANG_PTHIN_SKIP_TL_FROM_X`；prefer hybrid **P1–P7+P9–P12+rest**；rest T **≈64** |
+| 2026-07-11 | **f-322 P13 try_skip_allow**：`pthin_try_skip_allow.*` + `parser_asm_try_skip_allow_slice.inc`（allow(padding) 跳过 ≈1.6k）；`XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X`；prefer hybrid **P1–P7+P9–P13+rest**；rest T **≈59** |
+| 2026-07-11 | **f-323 P14 skip_if**：`pthin_skip_if.*` + `parser_asm_skip_if_slice.inc`（if skip + trait/impl block ≈955）；`XLANG_PTHIN_SKIP_IF_FROM_X`；prefer hybrid **P1–P7+P9–P14+rest**；rest T **≈53** |
+| 2026-07-11 | **f-324 P15 library wrap**：`pthin_library.*` + `parser_asm_library_wrap_slice.inc`（into/buf/scan + late lex_from ≈1.8k；P6 core `library_slice.inc` 不动）；`XLANG_PTHIN_LIBRARY_FROM_X`；prefer hybrid **P1–P7+P9–P15+rest**；rest T **≈45** |
+| 2026-07-11 | **f-325 P16 diag_pipeline**：`pthin_diag_pipeline.*` + `parser_asm_diag_pipeline_slice.inc`（parse_one/diag_lex/module import ≈914）；`XLANG_PTHIN_DIAG_PIPELINE_FROM_X`；prefer hybrid **P1–P7+P9–P16+rest**；rest T **≈35** |
+| 2026-07-11 | **f-326 P17 diag_late**：`pthin_diag_late.*` + `parser_asm_diag_late_slice.inc`（after_imports/fail_at_kind/skip_let_buf/body_skip_buf ≈269）；`XLANG_PTHIN_DIAG_LATE_FROM_X`；prefer hybrid **P1–P7+P9–P17+rest**；rest T **≈32**；共享 helper 非 static + P16 seed `NO_SEED_PARSE` |
+| 2026-07-11 | **f-327 P18 body_tl**：`pthin_body_tl.*` + `parser_asm_body_tl_slice.inc`（is_fn_sig/diag_first/skip_let_into/body_skip/top_level/cfg ≈971）；`XLANG_PTHIN_BODY_TL_FROM_X`；prefer hybrid **P1–P7+P9–P18+rest**；rest T **≈25** |
+| 2026-07-11 | **f-328 P19 helpers**：`pthin_helpers.*` + `parser_asm_helpers_slice.inc`（import_path/struct_field/lex helpers/first_token ≈1170）；`XLANG_PTHIN_HELPERS_FROM_X`；prefer hybrid **P1–P7+P9–P19+rest**；rest T **≈3**（lexer_init + expr zeros + arena_expr_get） |
+| 2026-07-11 | **f-329 P20 foundation**：`pthin_foundation.*` + `parser_asm_foundation_slice.inc`（lexer_init + arena_expr_get/set + expr_set_common_zeros）；`XLANG_PTHIN_FOUNDATION_FROM_X`；prefer hybrid **P1–P7+P9–P20+rest**；**rest T=0**；gate `run-g02f-parser-thin-rest-empty-gate.sh` |
 | 2026-07-11 | **f-330 omit empty rest**：全产品切片齐（P1–P7+P9–P20）时 **跳过 mega rest `cc -c`**，`ld -r` 仅切片合成 `parser_asm_thin_glue.o`；partial hybrid 检测 rest T=0 亦 omit |

@@ -2,16 +2,16 @@
 # EXC-006：错误恢复单 case / 全量 runner（供 gate 与本地调试）
 #
 # 用法：
-#   ./tests/lib/exc-error-recovery.sh              # 全量 runnable（需 native shux）
+#   ./tests/lib/exc-error-recovery.sh              # 全量 runnable（需 native xlang）
 #   ./tests/lib/exc-error-recovery.sh case_id      # 单 case
-#   SHUX=./compiler/shux-c ./tests/lib/exc-error-recovery.sh
+#   XLANG=./compiler/xlang-c ./tests/lib/exc-error-recovery.sh
 set -e
 cd "$(dirname "$0")/../.."
 
-MATRIX="${SHUX_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.tsv}"
+MATRIX="${XLANG_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.tsv}"
 ONE_CASE="${1:-}"
 
-# 判断本机可执行的 shux 二进制格式
+# 判断本机可执行的 xlang 二进制格式
 native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -25,12 +25,12 @@ native_shu() {
 }
 
 resolve_shu() {
-  if [ -n "${SHUX:-}" ] && native_shu "$SHUX"; then
-    echo "$SHUX"
+  if [ -n "${XLANG:-}" ] && native_shu "$XLANG"; then
+    echo "$XLANG"
     return 0
   fi
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -41,26 +41,26 @@ resolve_shu() {
 
 # 编译并运行 .x，校验退出码
 exc_recovery_run_x() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local want_ec="$3"
   local tag="$4"
-  local out="/tmp/shux_exc_recovery_${tag}"
+  local out="/tmp/xlang_exc_recovery_${tag}"
   if [ ! -f "$src" ]; then
     echo "exc-recovery FAIL: missing $src" >&2
     return 1
   fi
   set +e
-  "$shux" -L . "$src" -o "$out" >/tmp/shux_exc_recovery_compile.log 2>&1
+  "$xlang" -L . "$src" -o "$out" >/tmp/xlang_exc_recovery_compile.log 2>&1
   local comp_ec=$?
   set -e
   if [ "$comp_ec" -ne 0 ]; then
-    # Docker/shux-c -o 偶发 SIGSEGV；check 通过则视为 typeck 烟测 OK
-    if [ "$comp_ec" -eq 139 ] && "$shux" check -L . "$src" >/dev/null 2>&1; then
+    # Docker/xlang-c -o 偶发 SIGSEGV；check 通过则视为 typeck 烟测 OK
+    if [ "$comp_ec" -eq 139 ] && "$xlang" check -L . "$src" >/dev/null 2>&1; then
       echo "exc-recovery OK $tag (check-only, compile SIGSEGV)"
       return 0
     fi
-    cat /tmp/shux_exc_recovery_compile.log >&2
+    cat /tmp/xlang_exc_recovery_compile.log >&2
     return 1
   fi
   local ec=0
@@ -74,17 +74,17 @@ exc_recovery_run_x() {
 
 # 执行矩阵一行 runnable case
 exc_recovery_run_row() {
-  local shux="$1"
+  local xlang="$1"
   local case_id="$2"
   local script="$3"
   local policy="$4"
   local want_ec="${5:-0}"
   case "$policy" in
     run)
-      exc_recovery_run_x "$shux" "tests/exc/${script}" "$want_ec" "$case_id"
+      exc_recovery_run_x "$xlang" "tests/exc/${script}" "$want_ec" "$case_id"
       ;;
     run_path)
-      exc_recovery_run_x "$shux" "$script" "$want_ec" "$case_id"
+      exc_recovery_run_x "$xlang" "$script" "$want_ec" "$case_id"
       ;;
     hook)
       local hook="tests/${script}"
@@ -93,7 +93,7 @@ exc_recovery_run_row() {
         return 1
       fi
       chmod +x "$hook" 2>/dev/null || true
-      SHUX="$shux" "$hook"
+      XLANG="$xlang" "$hook"
       ;;
     *)
       echo "exc-recovery WARN: unknown policy $policy ($case_id)" >&2
@@ -102,11 +102,11 @@ exc_recovery_run_row() {
   esac
 }
 
-SHUX_BIN=""
-if SHUX_BIN="$(resolve_shu)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(resolve_shu)"; then
   :
 else
-  echo "exc-error-recovery: no native shux (SKIP runnable)" >&2
+  echo "exc-error-recovery: no native xlang (SKIP runnable)" >&2
   exit 2
 fi
 
@@ -125,7 +125,7 @@ while IFS=$'\t' read -r case_id script policy want_ec _cat notes; do
   fi
   FOUND=$((FOUND + 1))
   echo "── exc-recovery $case_id: ${notes:-} ──"
-  if exc_recovery_run_row "$SHUX_BIN" "$case_id" "$script" "$policy" "${want_ec:-0}"; then
+  if exc_recovery_run_row "$XLANG_BIN" "$case_id" "$script" "$policy" "${want_ec:-0}"; then
     echo "exc-recovery OK $case_id"
   else
     FAILS=$((FAILS + 1))

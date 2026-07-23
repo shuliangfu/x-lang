@@ -3,7 +3,7 @@
 # No QEMU needed. Tests pure-logic kernel functions (math, IDT entry building, etc.)
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SHUX_C="$SCRIPT_DIR/../../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../../compiler/xlang-c"
 WORKDIR="${TMPDIR:-/tmp}"
 PASS=0
 FAIL=0
@@ -11,7 +11,7 @@ FAIL=0
 echo "=== G1: Host unit test gate ==="
 
 # Compile host_test.x for host (not freestanding)
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$SCRIPT_DIR/host_test.x" > "$WORKDIR/host_test.c"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$SCRIPT_DIR/host_test.x" > "$WORKDIR/host_test.c"
 cc -O2 -o "$WORKDIR/host_test" "$WORKDIR/host_test.c" 2>&1
 RESULT=$("$WORKDIR/host_test"; echo $?)
 RC=$(echo "$RESULT" | tail -1)

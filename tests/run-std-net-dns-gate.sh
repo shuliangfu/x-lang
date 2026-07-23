@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_NET_DNS_DOC:-analysis/std-net-dns-v1.md}"
-MANIFEST="${SHUX_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
+DOC="${XLANG_STD_NET_DNS_DOC:-analysis/std-net-dns-v1.md}"
+MANIFEST="${XLANG_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
 NET_X="std/net/mod.x"
 NET_DNS_X="std/net/dns.x"
 LIB="tests/lib/std-net-dns.sh"
@@ -88,33 +88,33 @@ stdlib_cm_native_shu() {
 RESOLVE_OK=0
 MAIN_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-029: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-029: typeck + smoke (XLANG=$XLANG_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/net/net.o
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$RESOLVE_X" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$RESOLVE_X" >/dev/null 2>&1; then
     echo "std-net-dns gate FAIL: typeck $RESOLVE_X" >&2
-    "$SHUX_BIN" check -L . "$RESOLVE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$RESOLVE_X" 2>&1 | tail -10 >&2 || true
     std_net_dns_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_net_dns_run_smoke "$SHUX_BIN" "$RESOLVE_X" "resolve_dns"; then
+  if std_net_dns_run_smoke "$XLANG_BIN" "$RESOLVE_X" "resolve_dns"; then
     RESOLVE_OK=1
   else
     std_net_dns_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_net_dns_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
+  if std_net_dns_run_smoke "$XLANG_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_net_dns_emit_report "fail" "$RESOLVE_OK" 0 0
@@ -122,7 +122,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-net-dns gate SKIP smoke (no native shux-c)" >&2
+  echo "std-net-dns gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 std_net_dns_emit_report "ok" "$RESOLVE_OK" "$MAIN_OK" "$SKIP"

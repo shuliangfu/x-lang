@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run-portable-suite.sh — Tier P 便携测试套件（全平台必过）。
 #
-# 统一 .x / shux-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
+# 统一 .x / xlang-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
 # 由 tests/run-ci-full-suite.sh 在所有 job 上调用。
 #
 # 用法：./tests/run-portable-suite.sh [--with-c-regression]
@@ -28,9 +28,9 @@ done
 
 echo "run-portable-suite: Tier P (host=$(ci_host_summary))"
 
-# 非 x86_64 / MSYS2：-o 链接优先 shux-c（与 bootstrap-link-shux 一致）。
+# 非 x86_64 / MSYS2：-o 链接优先 xlang-c（与 bootstrap-link-xlang 一致）。
 if ci_is_arm64_host || ci_is_windows_msys || ci_is_docker; then
-  export SHUX_LINK_SHUX=./compiler/shux-c
+  export XLANG_LINK_XLANG=./compiler/xlang-c
 fi
 
 run_grep() {
@@ -573,7 +573,7 @@ echo "── BOOT-015 semantic smoke vec/map/heap ──"
 chmod +x tests/run-boot-015-semantic-smoke-gate.sh tests/run-bootstrap-semantic-smoke-vec-map-heap.sh tests/lib/boot-015-semantic-smoke.sh
 run_grep /tmp/boot015_semantic_gate.log 'boot-015-semantic-smoke gate OK' ./tests/run-boot-015-semantic-smoke-gate.sh
 
-echo "── BOOT-016 shux_asm std symbol Top-12 ──"
+echo "── BOOT-016 xlang_asm std symbol Top-12 ──"
 chmod +x tests/run-boot-016-std-asm-symbols-gate.sh tests/lib/boot-016-std-asm-symbols.sh
 run_grep /tmp/boot016_std_sym_gate.log 'boot-016-std-asm-symbols gate OK' ./tests/run-boot-016-std-asm-symbols-gate.sh
 
@@ -769,7 +769,7 @@ chmod +x tests/run-lang-generic-gate.sh tests/run-lang-generic.sh tests/lib/lang
 grep -q 'lang-generic gate OK' /tmp/lang_generic_gate.log
 
 echo "── LANG-001 feature gate manifest ──"
-chmod +x tests/run-lang-feature-gate-gate.sh tests/run-lang-feature-gate.sh tests/lib/lang-feature-gate.sh scripts/shux-lang-edition.sh
+chmod +x tests/run-lang-feature-gate-gate.sh tests/run-lang-feature-gate.sh tests/lib/lang-feature-gate.sh scripts/xlang-lang-edition.sh
 ./tests/run-lang-feature-gate-gate.sh | tee /tmp/lang_feature_gate.log
 grep -q 'lang-feature-gate gate OK' /tmp/lang_feature_gate.log
 
@@ -874,17 +874,17 @@ chmod +x tests/run-tool-debug-symbols-gate.sh tests/run-debug-symbols.sh tests/l
 grep -q 'tool-debug-symbols gate OK' /tmp/tool_debug_symbols_gate.log
 
 echo "── TOOL-006 project scaffold manifest ──"
-chmod +x tests/run-tool-scaffold-gate.sh tests/run-tool-scaffold.sh tests/lib/tool-scaffold.sh scripts/shux-new.sh
+chmod +x tests/run-tool-scaffold-gate.sh tests/run-tool-scaffold.sh tests/lib/tool-scaffold.sh scripts/xlang-new.sh
 ./tests/run-tool-scaffold-gate.sh | tee /tmp/tool_scaffold_gate.log
 grep -q 'tool-scaffold gate OK' /tmp/tool_scaffold_gate.log
 
 echo "── TOOL-007 pkgmgr design manifest ──"
-chmod +x tests/run-tool-pkgmgr-gate.sh tests/run-pkgmgr-resolve.sh tests/lib/tool-pkgmgr.sh scripts/shux-deps-resolve.sh
+chmod +x tests/run-tool-pkgmgr-gate.sh tests/run-pkgmgr-resolve.sh tests/lib/tool-pkgmgr.sh scripts/xlang-deps-resolve.sh
 ./tests/run-tool-pkgmgr-gate.sh | tee /tmp/tool_pkgmgr_gate.log
 grep -q 'tool-pkgmgr gate OK' /tmp/tool_pkgmgr_gate.log
 
 echo "── TOOL-008 deps lock manifest ──"
-chmod +x tests/run-tool-deps-lock-gate.sh tests/run-deps-lock.sh tests/lib/tool-deps-lock.sh scripts/shux-deps-lock.sh scripts/shux-deps-verify.sh
+chmod +x tests/run-tool-deps-lock-gate.sh tests/run-deps-lock.sh tests/lib/tool-deps-lock.sh scripts/xlang-deps-lock.sh scripts/xlang-deps-verify.sh
 ./tests/run-tool-deps-lock-gate.sh | tee /tmp/tool_deps_lock_gate.log
 grep -q 'tool-deps-lock gate OK' /tmp/tool_deps_lock_gate.log
 
@@ -1214,15 +1214,15 @@ chmod +x tests/run-boot-026-parser-c4-bootstrap-gate.sh tests/lib/boot-026-parse
 ./tests/run-boot-026-parser-c4-bootstrap-gate.sh | tee /tmp/boot026_c4.log
 grep -q 'boot-026-parser-c4-bootstrap gate OK' /tmp/boot026_c4.log
 
-echo "── BOOT-028 shux_asm2 CI matrix ──"
-chmod +x tests/run-boot-028-shux-asm2-ci-matrix-gate.sh tests/lib/boot-028-shux-asm2-ci-matrix.sh
-./tests/run-boot-028-shux-asm2-ci-matrix-gate.sh | tee /tmp/boot028_asm2_ci.log
-grep -q 'boot-028-shux-asm2-ci-matrix gate OK' /tmp/boot028_asm2_ci.log
+echo "── BOOT-028 xlang_asm2 CI matrix ──"
+chmod +x tests/run-boot-028-xlang-asm2-ci-matrix-gate.sh tests/lib/boot-028-xlang-asm2-ci-matrix.sh
+./tests/run-boot-028-xlang-asm2-ci-matrix-gate.sh | tee /tmp/boot028_asm2_ci.log
+grep -q 'boot-028-xlang-asm2-ci-matrix gate OK' /tmp/boot028_asm2_ci.log
 
-echo "── BOOT-027 shux_asm2 cross-platform ──"
-chmod +x tests/run-boot-027-shux-asm2-cross-gate.sh tests/lib/boot-027-shux-asm2-cross.sh tests/run-shux-asm2-cross-smoke.sh
-./tests/run-boot-027-shux-asm2-cross-gate.sh | tee /tmp/boot027_asm2_cross.log
-grep -q 'boot-027-shux-asm2-cross gate OK' /tmp/boot027_asm2_cross.log
+echo "── BOOT-027 xlang_asm2 cross-platform ──"
+chmod +x tests/run-boot-027-xlang-asm2-cross-gate.sh tests/lib/boot-027-xlang-asm2-cross.sh tests/run-xlang-asm2-cross-smoke.sh
+./tests/run-boot-027-xlang-asm2-cross-gate.sh | tee /tmp/boot027_asm2_cross.log
+grep -q 'boot-027-xlang-asm2-cross gate OK' /tmp/boot027_asm2_cross.log
 
 echo "── ZC-006 zero-copy semantics whitepaper ──"
 chmod +x tests/run-zc-semantics-gate.sh

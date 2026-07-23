@@ -1,13 +1,13 @@
 /**
- * runtime_c_import.h — shux-c C 前端 import 递归加载（Phase E-04 v33）
+ * runtime_c_import.h — xlang-c C 前端 import 递归加载（Phase E-04 v33）
  *
- * 文件职责：声明 load_one_import / resolve_and_load_imports 的对外入口；仅 shux-c（OBJS_CORE）链接。
+ * 文件职责：声明 load_one_import / resolve_and_load_imports 的对外入口；仅 xlang-c（OBJS_CORE）链接。
  * 所属模块：compiler 运行时 C import 加载；实现于 runtime_c_import.c。
- * 与其它文件的关系：bootstrap driver seed（SHUX_NO_C_FRONTEND）不链本 TU。
+ * 与其它文件的关系：bootstrap driver seed（XLANG_NO_C_FRONTEND）不链本 TU。
  */
 
-#ifndef SHUX_RUNTIME_C_IMPORT_H
-#define SHUX_RUNTIME_C_IMPORT_H
+#ifndef XLANG_RUNTIME_C_IMPORT_H
+#define XLANG_RUNTIME_C_IMPORT_H
 
 #include "ast.h"
 
@@ -34,4 +34,4 @@ int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int
     ASTModule **dep_mods, int *ndep_out, ASTModule **all_dep_mods, char **all_dep_paths,
     char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps);
 
-#endif /* SHUX_RUNTIME_C_IMPORT_H */
+#endif /* XLANG_RUNTIME_C_IMPORT_H */

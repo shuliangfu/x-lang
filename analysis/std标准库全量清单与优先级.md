@@ -25,7 +25,7 @@
 | 序号 | 状态 | 模块 | 路径 | 依赖 | 说明 |
 |------|:----:|------|------|------|------|
 | 1 | ✅ | **std.runtime** | std/runtime/ | core | 运行时初始化、panic/abort 钩子；extern 对接 runtime_panic。 |
-| 2 | ✅ | **std.io.core** | std/io/（core.x） | core | IO 核心：shux_io_register、submit_read/submit_write；经 backend/io 层对接平台（io_uring/kqueue/IOCP 等）。 |
+| 2 | ✅ | **std.io.core** | std/io/（core.x） | core | IO 核心：xlang_io_register、submit_read/submit_write；经 backend/io 层对接平台（io_uring/kqueue/IOCP 等）。 |
 | 3 | ✅ | **std.io.driver** | std/io/（driver.x） | std.io.core | Buffer ABI 24 字节、Completion、submit_*_batch、register_fixed_buffers、wait_readable。 |
 | 4 | ✅ | **std.mem** | std/mem/ | std.io.core, std.heap | Buffer(ptr,len,handle)、register_buffer；copy/set/compare 走 heap C 层。 |
 | 5 | ✅ | **std.io** | std/io/（mod.x） | std.io.driver | 对外 API：Reader/Writer、read/write 超时、print_str、read_batch_fd_buf/write_batch_fd_buf、register_fixed_buffers_buf。 |

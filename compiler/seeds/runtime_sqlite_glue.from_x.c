@@ -5,7 +5,7 @@
  * runtime_sqlite_glue.c — F-ZC：自 std/db 胶层迁入
  *
  * 从 sqlite.c 迁出 sqlite3 调用；业务逻辑见 std/db/sqlite/sqlite.x。
- * -DSHUX_DB_USE_SQLITE3：真实 libsqlite3；否则 stub（无 sqlite3.h）。
+ * -DXLANG_DB_USE_SQLITE3：真实 libsqlite3；否则 stub（无 sqlite3.h）。
  */
 
 #include <stddef.h>
@@ -18,7 +18,7 @@ enum {
     SHU_SQLITE_DONE = 101,
 };
 
-#ifdef SHUX_DB_USE_SQLITE3
+#ifdef XLANG_DB_USE_SQLITE3
 
 #include <sqlite3.h>
 
@@ -276,7 +276,7 @@ void shu_sqlite3_free_c(int64_t ptr) {
     }
 }
 
-#else /* !SHUX_DB_USE_SQLITE3 */
+#else /* !XLANG_DB_USE_SQLITE3 */
 
 /** stub 构建：无 libsqlite3。 */
 int32_t shu_db_use_sqlite3_c(void) {
@@ -409,4 +409,4 @@ void shu_sqlite3_free_c(int64_t ptr) {
     (void)ptr;
 }
 
-#endif /* SHUX_DB_USE_SQLITE3 */
+#endif /* XLANG_DB_USE_SQLITE3 */

@@ -3,8 +3,8 @@
  *
  * 声明保留；实现见 runtime_driver_strict_glue_stubs.c（G-02e-11 自 lsp_codegen_extern.c 并入）。
  */
-#ifndef SHUX_LSP_CODEGEN_EXTERN_H
-#define SHUX_LSP_CODEGEN_EXTERN_H
+#ifndef XLANG_LSP_CODEGEN_EXTERN_H
+#define XLANG_LSP_CODEGEN_EXTERN_H
 
 #include <stdio.h>
 
@@ -34,4 +34,4 @@ int lsp_codegen_emit_path_is_lsp_io_x(const char *path);
 /** entry 路径是否 lsp/lsp.x 的 -E-extern 入口。 */
 int lsp_codegen_emit_path_is_lsp_main_x(const char *path);
 
-#endif /* SHUX_LSP_CODEGEN_EXTERN_H */
+#endif /* XLANG_LSP_CODEGEN_EXTERN_H */

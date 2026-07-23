@@ -3,8 +3,8 @@
  * Product PREFER_X_O: full .x + hybrid rest seed (FROM_X 仅 marker)
  * Cap residual: driver_dispatch_* in driver_abi
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... | filter DBG + polish libc redecls
- * Track-L (2026-07-16): helpers rt_di_env_shux_lto / rt_di_argv_has_e_extern /
+ * Regen: ./xlang -E ... | filter DBG + polish libc redecls
+ * Track-L (2026-07-16): helpers rt_di_env_xlang_lto / rt_di_argv_has_e_extern /
  * rt_di_effective_use_lto keep short names; .x has #[no_mangle] export
  * (was module-prefix mangle on non-export functions).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -45,7 +45,7 @@ struct RtDispatchState {
   int32_t parse_saw_target_cpu;
 };
 
-extern uint8_t * rt_di_env_shux_lto(void);
+extern uint8_t * rt_di_env_xlang_lto(void);
 extern int32_t rt_di_argv_has_e_extern(int32_t argc, uint8_t * argv);
 extern int32_t rt_di_effective_use_lto(int32_t use_lto);
 /* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl). */
@@ -84,7 +84,7 @@ extern uint8_t * driver_dispatch_lib_roots_from_key(uint8_t * lib_key, int32_t *
 extern uint8_t * driver_dispatch_lib_root_at(uint8_t * roots, int32_t i);
 extern int32_t driver_dispatch_run_compiler_parsed(uint8_t * input_path, uint8_t * out_path, uint8_t * lib_roots, int32_t n_lib, uint8_t * target, uint8_t * opt_level, int32_t use_lto, int32_t argc, uint8_t * argv);
 extern uint8_t * driver_dispatch_opt_default(void);
-uint8_t * rt_di_env_shux_lto(void) {
+uint8_t * rt_di_env_xlang_lto(void) {
   uint8_t * p = ((uint8_t *)(0));
   {
     (void)((p = malloc(((size_t)(16)))));
@@ -138,7 +138,7 @@ int32_t rt_di_effective_use_lto(int32_t use_lto) {
   if ((use_lto !=0)) {
     return 1;
   }
-  (void)((env_name = rt_di_env_shux_lto()));
+  (void)((env_name = rt_di_env_xlang_lto()));
   if ((env_name ==((uint8_t *)(0)))) {
     return 0;
   }

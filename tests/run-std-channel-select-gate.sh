@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_CHANNEL_SELECT_DOC:-analysis/std-channel-select-v1.md}"
-MANIFEST="${SHUX_STD_CHANNEL_SELECT_TSV:-tests/baseline/std-channel-select.tsv}"
+DOC="${XLANG_STD_CHANNEL_SELECT_DOC:-analysis/std-channel-select-v1.md}"
+MANIFEST="${XLANG_STD_CHANNEL_SELECT_TSV:-tests/baseline/std-channel-select.tsv}"
 MOD_X="std/channel/mod.x"
-CHANNEL_RUNTIME="${SHUX_STD_CHANNEL_IMPL:-compiler/seeds/runtime_channel_glue.from_x.c}"
+CHANNEL_RUNTIME="${XLANG_STD_CHANNEL_IMPL:-compiler/seeds/runtime_channel_glue.from_x.c}"
 LIB="tests/lib/std-channel-select.sh"
 SEL2_X="tests/channel/select_2.x"
 SELN_X="tests/channel/select_n.x"
@@ -97,33 +97,33 @@ stdlib_cm_native_shu() {
 
 SEL_OK=0
 SKIP=1
-SHUX_BIN=""
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-098/102/104/108: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-098/102/104/108: typeck + smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/channel/channel.o
   for x in "$SEL2_X" "$SELN_X" "$SEL_SEND2_X" "$SEL_SENDN_X" "$SEL_MIXED2_X" "$SEL_MIXEDN_X"; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-channel-select gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
       std_channel_select_emit_report "fail" 0 0
       exit 1
     fi
   done
-  if std_channel_select_run_smoke "$SHUX_BIN" "$SEL2_X" "select2" \
-    && std_channel_select_run_smoke "$SHUX_BIN" "$SELN_X" "selectn" \
-    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_SEND2_X" "selectsend2" \
-    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_SENDN_X" "selectsendn" \
-    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_MIXED2_X" "selectmixed2" \
-    && std_channel_select_run_smoke "$SHUX_BIN" "$SEL_MIXEDN_X" "selectmixedn"; then
+  if std_channel_select_run_smoke "$XLANG_BIN" "$SEL2_X" "select2" \
+    && std_channel_select_run_smoke "$XLANG_BIN" "$SELN_X" "selectn" \
+    && std_channel_select_run_smoke "$XLANG_BIN" "$SEL_SEND2_X" "selectsend2" \
+    && std_channel_select_run_smoke "$XLANG_BIN" "$SEL_SENDN_X" "selectsendn" \
+    && std_channel_select_run_smoke "$XLANG_BIN" "$SEL_MIXED2_X" "selectmixed2" \
+    && std_channel_select_run_smoke "$XLANG_BIN" "$SEL_MIXEDN_X" "selectmixedn"; then
     SEL_OK=1
   else
     std_channel_select_emit_report "fail" 0 0
@@ -131,7 +131,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-channel-select gate SKIP smoke (no native shux)" >&2
+  echo "std-channel-select gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_channel_select_emit_report "ok" "$SEL_OK" "$SKIP"

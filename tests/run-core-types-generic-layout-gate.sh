@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_CORE_TYPES_GL_DOC:-analysis/core-types-generic-layout-v1.md}"
-MANIFEST="${SHUX_CORE_TYPES_GL_TSV:-tests/baseline/core-types-generic-layout.tsv}"
+DOC="${XLANG_CORE_TYPES_GL_DOC:-analysis/core-types-generic-layout-v1.md}"
+MANIFEST="${XLANG_CORE_TYPES_GL_TSV:-tests/baseline/core-types-generic-layout.tsv}"
 TYPES_X="core/types/mod.x"
 LIB="tests/lib/core-types-generic-layout.sh"
 GENERIC_X="tests/core-types-size/generic_layout.x"
@@ -59,31 +59,31 @@ stdlib_cm_native_shu() {
 GENERIC_OK=0
 SCALAR_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== CORE-001: typeck + smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$GENERIC_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== CORE-001: typeck + smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$GENERIC_X" >/dev/null 2>&1; then
     echo "core-types-generic-layout gate FAIL: typeck $GENERIC_X" >&2
-    "$SHUX_BIN" check -L . "$GENERIC_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$GENERIC_X" 2>&1 | tail -10 >&2 || true
     core_types_gl_emit_report "fail" 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SCALAR_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SCALAR_X" >/dev/null 2>&1; then
     echo "core-types-generic-layout gate FAIL: typeck $SCALAR_X" >&2
     core_types_gl_emit_report "fail" 0 0 0
     exit 1
   fi
   SCALAR_OK=1
-  tmp="/tmp/shux_core_types_gl_$$"
-  if "$SHUX_BIN" -L . "$GENERIC_X" -o "$tmp" && "$tmp"; then
+  tmp="/tmp/xlang_core_types_gl_$$"
+  if "$XLANG_BIN" -L . "$GENERIC_X" -o "$tmp" && "$tmp"; then
     GENERIC_OK=1
   else
     echo "core-types-generic-layout gate FAIL: generic_layout smoke" >&2
@@ -93,7 +93,7 @@ if [ -n "$SHUX_BIN" ]; then
   rm -f "$tmp"
   SKIP=0
 else
-  echo "core-types-generic-layout gate SKIP smoke (no native shux-c)" >&2
+  echo "core-types-generic-layout gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 core_types_gl_emit_report "ok" "$GENERIC_OK" "$SCALAR_OK" "$SKIP"

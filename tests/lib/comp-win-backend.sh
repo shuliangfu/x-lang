@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # comp-win-backend.sh — COMP-011 Windows 目标后端共享辅助
 #
-# MSYS 探测、native shux、COFF 对象粗校验。
+# MSYS 探测、native xlang、COFF 对象粗校验。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
-WIN_TRIPLE="${SHUX_WIN_TARGET:-x86_64-pc-windows-msvc}"
+WIN_TRIPLE="${XLANG_WIN_TARGET:-x86_64-pc-windows-msvc}"
 
 # 是否 Windows MSYS/MINGW 环境（可 link+run）。
 comp_win_backend_is_msys() {
@@ -18,9 +18,9 @@ comp_win_backend_is_msys() {
   return 1
 }
 
-# 本机可执行的 shux（与 asm 烟测一致）。
+# 本机可执行的 xlang（与 asm 烟测一致）。
 comp_win_backend_native_shu() {
-  local f="${1:-./compiler/shux}"
+  local f="${1:-./compiler/xlang}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;
@@ -32,27 +32,27 @@ comp_win_backend_native_shu() {
   esac
 }
 
-# 探测 shux 是否支持 -backend asm -target Windows MSVC（C-only seed 返回 not available）。
+# 探测 xlang 是否支持 -backend asm -target Windows MSVC（C-only seed 返回 not available）。
 comp_win_backend_asm_capable() {
-  local shux="$1"
+  local xlang="$1"
   local sample="${2:-$ROOT/tests/asm/windows_min.x}"
   local err=""
-  [ -x "$shux" ] && [ -f "$sample" ] || return 1
-  err="$("$shux" -backend asm -target "$WIN_TRIPLE" "$sample" 2>&1 >/dev/null || true)"
+  [ -x "$xlang" ] && [ -f "$sample" ] || return 1
+  err="$("$xlang" -backend asm -target "$WIN_TRIPLE" "$sample" 2>&1 >/dev/null || true)"
   if echo "$err" | grep -qi 'not available'; then
     return 1
   fi
-  if "$shux" -backend asm -target "$WIN_TRIPLE" "$sample" >/dev/null 2>&1; then
+  if "$xlang" -backend asm -target "$WIN_TRIPLE" "$sample" >/dev/null 2>&1; then
     return 0
   fi
   return 1
 }
 
-# 选择首个 native 且 asm-capable 的 shux；无则返回 1。
-comp_win_backend_pick_shux() {
+# 选择首个 native 且 asm-capable 的 xlang；无则返回 1。
+comp_win_backend_pick_xlang() {
   local cand
-  for cand in ./compiler/shux_asm ./compiler/shux_asm.strict ./compiler/shux_asm.experimental \
-              ./compiler/shux ./compiler/shux-c; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm.experimental \
+              ./compiler/xlang ./compiler/xlang-c; do
     if comp_win_backend_native_shu "$cand" && comp_win_backend_asm_capable "$cand"; then
       echo "$cand"
       return 0
@@ -82,11 +82,11 @@ comp_win_backend_is_coff_obj() {
 
 # 编译 Windows COFF .obj；成功时 echo 输出路径。
 comp_win_backend_emit_coff() {
-  local shux="$1"
+  local xlang="$1"
   local x="$2"
   local out="$3"
   rm -f "$out" 2>/dev/null || true
-  if ! "$shux" -backend asm -target "$WIN_TRIPLE" -o "$out" "$x" 2>/dev/null; then
+  if ! "$xlang" -backend asm -target "$WIN_TRIPLE" -o "$out" "$x" 2>/dev/null; then
     return 1
   fi
   if ! comp_win_backend_is_coff_obj "$out"; then

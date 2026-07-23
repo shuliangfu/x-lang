@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-http-https.sh — STD-HTTP-HTTPS manifest 与烟测辅助
 
-STD_HTTP_HTTPS_PREFIX="${SHUX_STD_HTTP_HTTPS_PREFIX:-shux: [SHUX_STD_HTTP_HTTPS]}"
+STD_HTTP_HTTPS_PREFIX="${XLANG_STD_HTTP_HTTPS_PREFIX:-xlang: [XLANG_STD_HTTP_HTTPS]}"
 
 std_http_https_symbols_ok() {
   local mod_x="$1"
@@ -32,10 +32,10 @@ std_http_https_symbols_ok() {
 }
 
 std_http_https_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_http_https_$$"
-  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/xlang_std_http_https_$$"
+  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
@@ -48,11 +48,11 @@ std_http_https_run_c_smoke() {
   local http_o="$1"
   local net_o="$2"
   local ldflags="$3"
-  local out="/tmp/shux_std_http_https_c_$$"
+  local out="/tmp/xlang_std_http_https_c_$$"
   # shellcheck disable=SC2086
   cc -std=c11 -O1 -o "$out" tests/http/https_smoke_ok.c "$http_o" "$net_o" $ldflags 2>/dev/null || return 1
   set +e
-  SHUX_HTTPS_SMOKE_PORT="${SHUX_HTTPS_SMOKE_PORT:-}" "$out" >/dev/null 2>&1
+  XLANG_HTTPS_SMOKE_PORT="${XLANG_HTTPS_SMOKE_PORT:-}" "$out" >/dev/null 2>&1
   local ec=$?
   set -e
   rm -f "$out"

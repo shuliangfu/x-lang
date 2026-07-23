@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_SECURITY_V1_FAIL=1 ./tests/run-f-security-v1-gate.sh
+XLANG_F_SECURITY_V1_FAIL=1 ./tests/run-f-security-v1-gate.sh
 ./tests/run-std-security-gate.sh
-SHUX_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
+XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
 ```

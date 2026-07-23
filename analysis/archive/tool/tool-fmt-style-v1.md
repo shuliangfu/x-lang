@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 风格规则 S1–S6 |
 | 2 | 打开 `tests/baseline/tool-fmt-style.tsv` |
 | 3 | `./tests/run-tool-fmt-gate.sh` |
-| 4 | 本地：`shux fmt` / `shux fmt --check` |
+| 4 | 本地：`xlang fmt` / `xlang fmt --check` |
 
 ---
 
@@ -44,15 +44,15 @@
 | `case_operator` | `tests/fmt/fmt_operator_space.x` |
 | `case_array_comma` | `tests/fmt/fmt_array_comma_space.x` |
 
-全仓推广：新 `.x` 须 `shux fmt` 后 `shux fmt --check` 通过再提交。
+全仓推广：新 `.x` 须 `xlang fmt` 后 `xlang fmt --check` 通过再提交。
 
 ---
 
 ## 4. 幂等与 --check
 
 ```bash
-shux fmt path.x              # 写回；成功可打印 fmt OK
-shux fmt --check path.x      # 已格式化 → exit 0 无输出
+xlang fmt path.x              # 写回；成功可打印 fmt OK
+xlang fmt --check path.x      # 已格式化 → exit 0 无输出
 ```
 
 门禁 hook：

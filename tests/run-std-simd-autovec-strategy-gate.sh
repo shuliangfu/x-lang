@@ -28,7 +28,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SIMD_X" "$SMOKE_X" \
   fi
 done
 
-for kw in STD-153 recommend_simd_path SHUX_SIMD_AUTovec SIMD_PATH_HW; do
+for kw in STD-153 recommend_simd_path XLANG_SIMD_AUTovec SIMD_PATH_HW; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-simd-autovec gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -63,31 +63,31 @@ HOST_KEY="$(std_simd_autovec_platform_key)"
 read -r DOT_MIN SS_MIN <<< "$(std_simd_autovec_perf_thresholds "$VECTORS" "$HOST_KEY")"
 
 C_OK=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   if std_simd_autovec_run_c_smoke; then C_OK=1; else
     echo "std-simd-autovec gate SKIP c smoke (no full simd.o)" >&2
   fi
 else
-  echo "std-simd-autovec gate SKIP c smoke (no shux-c)" >&2
+  echo "std-simd-autovec gate SKIP c smoke (no xlang-c)" >&2
 fi
 
 X_OK=0
 PERF_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/simd/simd.o
   SIMD_O="$(cd compiler && pwd)/../std/simd/simd.o"
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-simd-autovec gate FAIL: typeck" >&2
     std_simd_autovec_emit_report "fail" "$C_OK" 0 0 0 "$HOST_KEY"
     exit 1
   fi
-  if std_simd_autovec_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "$SIMD_O"; then
+  if std_simd_autovec_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "$SIMD_O"; then
     X_OK=1
   else
     std_simd_autovec_emit_report "fail" "$C_OK" 0 0 0 "$HOST_KEY"
@@ -97,15 +97,15 @@ else
   SKIP=1
 fi
 
-SHUX_ASM=""
-if std_simd_prod_native_asm ./compiler/shux_asm; then
-  SHUX_ASM=./compiler/shux_asm
-elif std_simd_prod_native_asm ./compiler/shux; then
-  SHUX_ASM=./compiler/shux
+XLANG_ASM=""
+if std_simd_prod_native_asm ./compiler/xlang_asm; then
+  XLANG_ASM=./compiler/xlang_asm
+elif std_simd_prod_native_asm ./compiler/xlang; then
+  XLANG_ASM=./compiler/xlang
 fi
 
-if [ -n "$SHUX_ASM" ] && awk -v d="$DOT_MIN" -v s="$SS_MIN" 'BEGIN { exit ((d+s) > 0.001) ? 0 : 1 }'; then
-  if std_simd_autovec_run_perf "$SHUX_ASM" "$DOT_MIN" "$SS_MIN"; then
+if [ -n "$XLANG_ASM" ] && awk -v d="$DOT_MIN" -v s="$SS_MIN" 'BEGIN { exit ((d+s) > 0.001) ? 0 : 1 }'; then
+  if std_simd_autovec_run_perf "$XLANG_ASM" "$DOT_MIN" "$SS_MIN"; then
     PERF_OK=1
   else
     echo "std-simd-autovec WARN: perf below threshold; strategy smoke OK (skip perf hard fail)" >&2
@@ -113,7 +113,7 @@ if [ -n "$SHUX_ASM" ] && awk -v d="$DOT_MIN" -v s="$SS_MIN" 'BEGIN { exit ((d+s)
     SKIP=1
   fi
 else
-  echo "std-simd-autovec gate SKIP perf (asm=${SHUX_ASM:-none} thresholds=${DOT_MIN}/${SS_MIN})" >&2
+  echo "std-simd-autovec gate SKIP perf (asm=${XLANG_ASM:-none} thresholds=${DOT_MIN}/${SS_MIN})" >&2
   PERF_OK=0
   SKIP=1
 fi

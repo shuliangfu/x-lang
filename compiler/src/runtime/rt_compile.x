@@ -346,7 +346,7 @@ export function driver_compile_argv_set_legacy_f32_abi_c(): void {
   let name: *u8 = 0 as *u8;
   let val: *u8 = 0 as *u8;
   unsafe {
-    name = "SHUX_ABI_F32_XMM" as *u8;
+    name = "XLANG_ABI_F32_XMM" as *u8;
     val = "0" as *u8;
     setenv(name, val, 1);
   }

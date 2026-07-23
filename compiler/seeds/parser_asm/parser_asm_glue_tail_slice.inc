@@ -222,7 +222,7 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
   const char *dbg_skip;
   if (!out || !source)
     return;
-  dbg_skip = getenv("SHUX_DEBUG_SKIP_FUNC");
+  dbg_skip = getenv("XLANG_DEBUG_SKIP_FUNC");
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_header_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_async_fn_prefix_audit_c(lex, source));
   /**
@@ -1566,7 +1566,7 @@ void parser_skip_one_top_level_const_into_buf_glue(struct parser_asm_lexer *out,
 }
 
 /** B-01/B-19：跳过一条顶层 let 声明（slice 路径；与 const_into 对称）。
- * PLATFORM: SHARED — product Cap emit passes shux_slice by value; glue takes *slice. */
+ * PLATFORM: SHARED — product Cap emit passes xlang_slice by value; glue takes *slice. */
 void parser_skip_one_top_level_let_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                               struct parser_asm_slice_u8 *source) {
   parser_asm_skip_one_top_level_let_into_slice_c(out, lex, source);

@@ -5,22 +5,22 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
 echo "=== 体积基线（-O2，产出已 strip）==="
-./compiler/shux examples/hello.x -o /tmp/shux_baseline_hello 2>&1
-if [ -f /tmp/shux_baseline_hello ]; then
-  ls -l /tmp/shux_baseline_hello | awk '{print "hello.x -> " $5 " bytes"}'
+./compiler/xlang examples/hello.x -o /tmp/xlang_baseline_hello 2>&1
+if [ -f /tmp/xlang_baseline_hello ]; then
+  ls -l /tmp/xlang_baseline_hello | awk '{print "hello.x -> " $5 " bytes"}'
 fi
 
-./compiler/shux build -L . tests/option/main.x -o /tmp/shux_baseline_option 2>&1
-if [ -f /tmp/shux_baseline_option ]; then
-  ls -l /tmp/shux_baseline_option | awk '{print "option/main.x -> " $5 " bytes"}'
+./compiler/xlang build -L . tests/option/main.x -o /tmp/xlang_baseline_option 2>&1
+if [ -f /tmp/xlang_baseline_option ]; then
+  ls -l /tmp/xlang_baseline_option | awk '{print "option/main.x -> " $5 " bytes"}'
 fi
 
 echo "=== -O 0 / -O 2 / -O s 对比（hello.x）==="
-./compiler/shux -O 0 examples/hello.x -o /tmp/shux_baseline_hello_o0 2>&1
-./compiler/shux -O 2 examples/hello.x -o /tmp/shux_baseline_hello_o2 2>&1
-./compiler/shux -O s examples/hello.x -o /tmp/shux_baseline_hello_os 2>&1
-[ -f /tmp/shux_baseline_hello_o0 ] && ls -l /tmp/shux_baseline_hello_o0 | awk '{print "hello.x -O 0 -> " $5 " bytes (no strip)"}'
-[ -f /tmp/shux_baseline_hello_o2 ] && ls -l /tmp/shux_baseline_hello_o2 | awk '{print "hello.x -O 2 -> " $5 " bytes"}'
-[ -f /tmp/shux_baseline_hello_os ] && ls -l /tmp/shux_baseline_hello_os | awk '{print "hello.x -O s -> " $5 " bytes"}'
+./compiler/xlang -O 0 examples/hello.x -o /tmp/xlang_baseline_hello_o0 2>&1
+./compiler/xlang -O 2 examples/hello.x -o /tmp/xlang_baseline_hello_o2 2>&1
+./compiler/xlang -O s examples/hello.x -o /tmp/xlang_baseline_hello_os 2>&1
+[ -f /tmp/xlang_baseline_hello_o0 ] && ls -l /tmp/xlang_baseline_hello_o0 | awk '{print "hello.x -O 0 -> " $5 " bytes (no strip)"}'
+[ -f /tmp/xlang_baseline_hello_o2 ] && ls -l /tmp/xlang_baseline_hello_o2 | awk '{print "hello.x -O 2 -> " $5 " bytes"}'
+[ -f /tmp/xlang_baseline_hello_os ] && ls -l /tmp/xlang_baseline_hello_os | awk '{print "hello.x -O s -> " $5 " bytes"}'
 
 echo "=== size baseline OK ==="

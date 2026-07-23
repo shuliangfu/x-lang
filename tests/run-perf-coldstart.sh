@@ -4,46 +4,46 @@
 #
 # 用法：./tests/run-perf-coldstart.sh [--bench]
 # 环境：
-#   SHUX_COLDSTART_FREESTANDING_ONLY=1 — 仅跑 freestanding（CI 在 shux_asm 就绪后）
-#   SHUX_COLDSTART_STD_ONLY=1 — 仅跑 std hello（早期 CI）
+#   XLANG_COLDSTART_FREESTANDING_ONLY=1 — 仅跑 freestanding（CI 在 xlang_asm 就绪后）
+#   XLANG_COLDSTART_STD_ONLY=1 — 仅跑 std hello（早期 CI）
 # 门禁（可选）：
-#   SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION=1 — 实测 ≤ tests/baseline/coldstart-perf.tsv
-#   SHUX_PERF_UPDATE_COLDSTART_BASELINE=1 — 刷新基线
+#   XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=1 — 实测 ≤ tests/baseline/coldstart-perf.tsv
+#   XLANG_PERF_UPDATE_COLDSTART_BASELINE=1 — 刷新基线
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
 HELLO_SRC="examples/hello.x"
-OUT="/tmp/shux_coldstart_hello"
+OUT="/tmp/xlang_coldstart_hello"
 FS_HELLO_SRC="tests/freestanding/hello/main.x"
-FS_HELLO_OUT="/tmp/shux_coldstart_fs_hello"
+FS_HELLO_OUT="/tmp/xlang_coldstart_fs_hello"
 FS_RV42_SRC="tests/freestanding/return42/main.x"
-FS_RV42_OUT="/tmp/shux_coldstart_fs_return42"
+FS_RV42_OUT="/tmp/xlang_coldstart_fs_return42"
 BASELINE="tests/baseline/coldstart-perf.tsv"
-RUNS="${SHUX_COLDSTART_RUNS:-20}"
+RUNS="${XLANG_COLDSTART_RUNS:-20}"
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-[ "${SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
-FS_ONLY="${SHUX_COLDSTART_FREESTANDING_ONLY:-0}"
-STD_ONLY="${SHUX_COLDSTART_STD_ONLY:-0}"
+[ "${XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
+FS_ONLY="${XLANG_COLDSTART_FREESTANDING_ONLY:-0}"
+STD_ONLY="${XLANG_COLDSTART_STD_ONLY:-0}"
 
-SHUX_BIN="${SHUX:-./compiler/shux}"
+XLANG_BIN="${XLANG:-./compiler/xlang}"
 
-# std hello 编译：Linux x86_64 用 seed asm；Darwin 等须 shux-c（asm 链接 __TEXT 非 r-x）。
+# std hello 编译：Linux x86_64 用 seed asm；Darwin 等须 xlang-c（asm 链接 __TEXT 非 r-x）。
 coldstart_compile_std() {
   local src="$1"
   local out="$2"
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Linux-x86_64|Linux-amd64)
-      "$SHUX_BIN" -L . "$src" -o "$out"
+      "$XLANG_BIN" -L . "$src" -o "$out"
       ;;
     *)
-      if [ -x ./compiler/shux-c ]; then
-        ./compiler/shux-c -L . "$src" -o "$out"
-      elif [ -x ./compiler/shux ]; then
-        ./compiler/shux build -L . "$src" -backend c -o "$out"
+      if [ -x ./compiler/xlang-c ]; then
+        ./compiler/xlang-c -L . "$src" -o "$out"
+      elif [ -x ./compiler/xlang ]; then
+        ./compiler/xlang build -L . "$src" -backend c -o "$out"
       else
-        "$SHUX_BIN" -L . "$src" -o "$out"
+        "$XLANG_BIN" -L . "$src" -o "$out"
       fi
       ;;
   esac
@@ -114,28 +114,28 @@ PY
 
 # 探测编译器是否支持 -freestanding -backend asm
 freestanding_shu_can_build() {
-  local shux="$1"
-  local probe_out="/tmp/shux_coldstart_fs_probe_$$"
-  [ -n "$shux" ] && [ -x "$shux" ] || return 1
-  if "$shux" -freestanding -backend asm "$FS_RV42_SRC" -o "$probe_out" 2>/dev/null; then
+  local xlang="$1"
+  local probe_out="/tmp/xlang_coldstart_fs_probe_$$"
+  [ -n "$xlang" ] && [ -x "$xlang" ] || return 1
+  if "$xlang" -freestanding -backend asm "$FS_RV42_SRC" -o "$probe_out" 2>/dev/null; then
     rm -f "$probe_out"
     return 0
   fi
   return 1
 }
 
-# 选择 freestanding 编译器：优先 shux_asm，再 SHUX_BIN
+# 选择 freestanding 编译器：优先 xlang_asm，再 XLANG_BIN
 pick_freestanding_shu() {
-  if [ -n "${SHUX:-}" ] && freestanding_shu_can_build "$SHUX"; then
-    echo "$SHUX"
+  if [ -n "${XLANG:-}" ] && freestanding_shu_can_build "$XLANG"; then
+    echo "$XLANG"
     return 0
   fi
-  if freestanding_shu_can_build "./compiler/shux_asm"; then
-    echo "./compiler/shux_asm"
+  if freestanding_shu_can_build "./compiler/xlang_asm"; then
+    echo "./compiler/xlang_asm"
     return 0
   fi
-  if freestanding_shu_can_build "$SHUX_BIN"; then
-    echo "$SHUX_BIN"
+  if freestanding_shu_can_build "$XLANG_BIN"; then
+    echo "$XLANG_BIN"
     return 0
   fi
   return 1
@@ -160,7 +160,7 @@ coldstart_freestanding_one() {
     return 0
   fi
   fs_shu=$(pick_freestanding_shu) || {
-    echo "coldstart ${label}: skip (no shux with -freestanding -backend asm; try shux_asm)"
+    echo "coldstart ${label}: skip (no xlang with -freestanding -backend asm; try xlang_asm)"
     FS_CASE_SKIP=1
     return 0
   }
@@ -238,17 +238,17 @@ if [ "$STD_ONLY" != "1" ]; then
   fi
 
   if [ "$FS_ONLY" = "1" ] && [ "$PERF_FAIL" = "1" ] && [ "$FS_ANY_SKIP" = "1" ]; then
-    echo "coldstart FAIL: SHUX_COLDSTART_FREESTANDING_ONLY=1 but freestanding build skipped" >&2
+    echo "coldstart FAIL: XLANG_COLDSTART_FREESTANDING_ONLY=1 but freestanding build skipped" >&2
     exit 1
   fi
 fi
 
-if [ "${SHUX_PERF_UPDATE_COLDSTART_BASELINE:-0}" = "1" ]; then
+if [ "${XLANG_PERF_UPDATE_COLDSTART_BASELINE:-0}" = "1" ]; then
   mkdir -p "$(dirname "$BASELINE")"
   {
-    echo "# shux coldstart bench 上限；门禁：实测 ≤ 本列值（us 或 bytes）"
-    echo "# 更新：SHUX_PERF_UPDATE_COLDSTART_BASELINE=1 ./tests/run-perf-coldstart.sh --bench"
-    echo "# hello：含 std.io；fs_*：-freestanding nostdlib static（Linux x86_64，优先 shux_asm）"
+    echo "# xlang coldstart bench 上限；门禁：实测 ≤ 本列值（us 或 bytes）"
+    echo "# 更新：XLANG_PERF_UPDATE_COLDSTART_BASELINE=1 ./tests/run-perf-coldstart.sh --bench"
+    echo "# hello：含 std.io；fs_*：-freestanding nostdlib static（Linux x86_64，优先 xlang_asm）"
     if [ -n "$MED_US" ]; then
       echo "hello_stripped_us	${MED_US}"
     elif [ -f "$BASELINE" ]; then

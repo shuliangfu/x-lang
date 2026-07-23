@@ -3,15 +3,15 @@
 #
 # 1) comp-wpo-prod-v1.md + comp-wpo-prod-wave.tsv + comp-wpo.tsv prod 行
 # 2) 父 COMP-004 manifest 绿
-# 3) 有 native shux/shux_asm 时逐条执行 prod hook
+# 3) 有 native xlang/xlang_asm 时逐条执行 prod hook
 #
 # 用法：./tests/run-comp-wpo-prod-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP015_DOC:-analysis/comp-wpo-prod-v1.md}"
-WAVE="${SHUX_COMP015_WAVE_TSV:-tests/baseline/comp-wpo-prod-wave.tsv}"
-MANIFEST="${SHUX_COMP015_MANIFEST:-tests/baseline/comp-wpo.tsv}"
+DOC="${XLANG_COMP015_DOC:-analysis/comp-wpo-prod-v1.md}"
+WAVE="${XLANG_COMP015_WAVE_TSV:-tests/baseline/comp-wpo-prod-wave.tsv}"
+MANIFEST="${XLANG_COMP015_MANIFEST:-tests/baseline/comp-wpo.tsv}"
 LIB="tests/lib/comp-wpo-prod.sh"
 MIN_PROD=5
 
@@ -97,7 +97,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-wpo-prod manifest OK (prod_hooks=${PROD_HOOK_N})"
 
-if [ "${SHUX_COMP015_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_COMP015_MANIFEST_ONLY:-0}" = "1" ]; then
   comp_wpo_prod_emit_report "ok" "$PROD_HOOK_N" 0 1
   echo "comp-wpo-prod gate OK (manifest only)"
   exit 0
@@ -105,16 +105,16 @@ fi
 
 echo "=== COMP-015: parent COMP-004 manifest ==="
 chmod +x tests/run-comp-wpo-gate.sh tests/run-comp-wpo.sh
-SHUX_COMP_WPO_MANIFEST_ONLY=1 ./tests/run-comp-wpo-gate.sh
+XLANG_COMP_WPO_MANIFEST_ONLY=1 ./tests/run-comp-wpo-gate.sh
 
 PROD_RUN=0
 PROD_SKIP=0
 HOST_SKIP=0
 
-SHUX_C="${SHUX:-./compiler/shux-c}"
-if ! comp_wpo_native_exe "$SHUX_C"; then
-  if comp_wpo_native_exe ./compiler/shux; then
-    SHUX_C=./compiler/shux
+XLANG_C="${XLANG:-./compiler/xlang-c}"
+if ! comp_wpo_native_exe "$XLANG_C"; then
+  if comp_wpo_native_exe ./compiler/xlang; then
+    XLANG_C=./compiler/xlang
   fi
 fi
 
@@ -136,12 +136,12 @@ while IFS=$'\t' read -r item_id kind anchor src tier _notes; do
 
   case "$anchor" in
     run-wpo-dce-emit.sh)
-      if ! comp_wpo_native_exe "$SHUX_C"; then
-        echo "comp-wpo-prod SKIP $item_id (no native shux/shux-c)"
+      if ! comp_wpo_native_exe "$XLANG_C"; then
+        echo "comp-wpo-prod SKIP $item_id (no native xlang/xlang-c)"
         PROD_SKIP=$((PROD_SKIP + 1))
         continue
       fi
-      if SHUX="$SHUX_C" "$hook"; then
+      if XLANG="$XLANG_C" "$hook"; then
         PROD_RUN=$((PROD_RUN + 1))
         echo "comp-wpo-prod runnable OK $item_id"
       else
@@ -152,7 +152,7 @@ while IFS=$'\t' read -r item_id kind anchor src tier _notes; do
       ;;
     run-wpo-build-asm-chain-gate.sh|run-wpo-strict-link-gate.sh)
       if ! comp_wpo_prod_linux_asm; then
-        echo "comp-wpo-prod SKIP $item_id (no native Linux shux_asm)"
+        echo "comp-wpo-prod SKIP $item_id (no native Linux xlang_asm)"
         PROD_SKIP=$((PROD_SKIP + 1))
         continue
       fi

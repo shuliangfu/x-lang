@@ -21,12 +21,12 @@
     "only_seed": 4
   },
   "symbols": {
-    "x": ["runtime_string_fast_x_doc_anchor", "shux_string_memrchr_c", "shux_string_memchr_c", "shux_string_portable_memmem_c", "shux_string_memmem_c"],
-    "seed": ["shux_string_ptr_at_c", "shux_string_memcmp_c", "shux_string_memcmp_at_c", "shux_string_copy_c"],
+    "x": ["runtime_string_fast_x_doc_anchor", "xlang_string_memrchr_c", "xlang_string_memchr_c", "xlang_string_portable_memmem_c", "xlang_string_memmem_c"],
+    "seed": ["xlang_string_ptr_at_c", "xlang_string_memcmp_c", "xlang_string_memcmp_at_c", "xlang_string_copy_c"],
     "only_x": ["runtime_string_fast_x_doc_anchor"],
-    "only_seed": ["shux_string_ptr_at_c", "shux_string_memcmp_c", "shux_string_memcmp_at_c", "shux_string_copy_c"]
+    "only_seed": ["xlang_string_ptr_at_c", "xlang_string_memcmp_c", "xlang_string_memcmp_at_c", "xlang_string_copy_c"]
   },
-  "rest_macro": "SHUX_RUNTIME_STRING_FAST_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_STRING_FAST_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": ["provider boundary stabilized", "ld -r validated", "smoke or probe matched", "no seed fallback on repeated builds"]

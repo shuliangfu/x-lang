@@ -37,7 +37,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`shu_sha256_block_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_CRYPTO_INC_GLUE_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X`
 - 前向声明：`shu_sha256_rotr32`, `shu_sha256_ch`, `shu_sha256_maj`（rest 模式下供 `_impl` 调用）
 - 内部调用更新：`crypto_sha256_c` 中 3 处 `shu_sha256_block` → `shu_sha256_block_impl`
 

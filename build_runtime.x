@@ -337,11 +337,11 @@ function build_run_asm_build(shu_path: *u8): i32 {
   return 0;
 }
 
-/** Internal function `build_copy_shux_asm`.
- * Implements `build_copy_shux_asm`.
+/** Internal function `build_copy_xlang_asm`.
+ * Implements `build_copy_xlang_asm`.
  * @return i32
  */
-function build_copy_shux_asm(): i32 {
+function build_copy_xlang_asm(): i32 {
   let cp_cmd: u8[20] = [99,112,32,45,102,32,115,104,117,120,95,97,115,109,32,115,104,117,120,0];
   if (build_exec_system(cp_cmd) != 0) {
     return -1;

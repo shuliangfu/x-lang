@@ -58,7 +58,7 @@
 - `fmt_walk_skip_dot_name`
 - `parse_ignore_opt`
 - `path_should_ignore`
-- `shux_path_is_absolute`
+- `xlang_path_is_absolute`
 - `walk_dir_collect`
 - `walk_dir_collect_process_child`
 

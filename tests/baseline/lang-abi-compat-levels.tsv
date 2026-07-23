@@ -6,5 +6,5 @@ L1	slice T[]	stable	major	tests/abi/layout_abi.c
 L2	struct field layout	stable	major	implicit padding
 L3	extern C SysV	stable	major	safe-ffi-contract
 L4	f32 xmm x86_64	transitional	minor+flag	F32_XMM_ABI
-L5	shux_std_abi/*.h	stable	major	compiler/include/shux_std_abi/fs_abi.h
+L5	xlang_std_abi/*.h	stable	major	compiler/include/xlang_std_abi/fs_abi.h
 L6	compiler wire ABI	internal	none	parser wire

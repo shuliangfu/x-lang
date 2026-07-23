@@ -1,32 +1,32 @@
-# Shux
+# Xlang
 
 > **Systems code that is simple, safe, and fast — finally in one language.**  
 > C-like model you already know · Rust-grade memory safety without the type-theory tax · codegen that aims to **beat** careful C · learning curve measured in **days**, not months.
 
 | Item | Description |
 |------|-------------|
-| **Language** | Shux（舒克斯） |
-| **Compiler** | `shux` / `shux_asm` (product binary after bootstrap) |
+| **Language** | Xlang（舒克斯） |
+| **Compiler** | `xlang` / `xlang_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
-| **Build config** | `build.x` — project build strategy in Shux (steps, targets, products); entry via `shux build` / `build_tool` / `shux-build.sh` |
+| **Build config** | `build.x` — project build strategy in Xlang (steps, targets, products); entry via `xlang build` / `build_tool` / `xlang-build.sh` |
 | **Status (2026-07-20)** | **Product L4 pin `deaf773b`** (dual-host true cold + bstrict **125/125** + Windows hybrid gate). Tip **`0c9458ed`**: CLI help beautify (Deno-style), dual L2 green (**≠** tip L4 re-pin). **Self-host not finished** (seed / hybrid C still required for cold start) |
 | **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
 
-## 1. Why Shux — **Three Highs, One Low**
+## 1. Why Xlang — **Three Highs, One Low**
 
-Shux is a **systems language** for kernels, drivers, runtimes, and high-performance tools: no GC, zero-cost abstractions, explicit memory model, freestanding-ready.
+Xlang is a **systems language** for kernels, drivers, runtimes, and high-performance tools: no GC, zero-cost abstractions, explicit memory model, freestanding-ready.
 
-Most languages force a trade-off. Shux refuses that trade-off:
+Most languages force a trade-off. Xlang refuses that trade-off:
 
 | Pillar | Target | What it means in practice |
 |--------|--------|---------------------------|
 | **High performance** | **Beat careful C by default** | No GC; default ASM backend + optional C backend; aggressive alias / `noalias`, BCE, monomorphized generics, arena/region paths with zero hot-path malloc. Performance comes from the **compiler**, not from heroics in every call site |
 | **High safety** | **Near Rust in the safe subset** | Compile-time region / borrow / linear checks; `Option` / `Result` over silent null; bounds-aware slices; graded `unsafe` only for hardware & syscall edges — **auditable**, not ambient |
 | **High readability** | **Simpler than C at scale** | `T[]` carries length; no header hell (directory = module); `defer` / `with_arena` / scoped allocators; field access is only `.`; diagnostics with real locations |
-| **Low learning cost** | **C programmers productive in days** | C-like control flow and mental model; no lifetime annotation maze; progressive features (write “almost C” first, then adopt modern safety); integrated `shux build` / fmt / LSP |
+| **Low learning cost** | **C programmers productive in days** | C-like control flow and mental model; no lifetime annotation maze; progressive features (write “almost C” first, then adopt modern safety); integrated `xlang build` / fmt / LSP |
 
 **One-line review rule for every language feature:**
 
@@ -35,7 +35,7 @@ Most languages force a trade-off. Shux refuses that trade-off:
 
 ### How we differ (honest positioning)
 
-| vs | Shux choice |
+| vs | Xlang choice |
 |----|-------------|
 | **C** | Same “close to the metal” control — cleaner syntax, fewer footguns, one toolchain, safety proofs where C has UB |
 | **Rust** | Same ambition on memory safety — **without** a heavy borrow-checker lifestyle; regions + inference + linear types do the heavy lifting |
@@ -68,7 +68,7 @@ Design notes: [`analysis/语法与类型设计-高性能与内存安全.md`](ana
 - **Nullability / errors**: `Option<T>`, `Result<T, E>` (prefer over raw nullable C pointers)
 - **Slices**: `T[]` carries length; region forms `T[]<label>` with escape checks
 - **Modules**: `import("std.io")` / `import("core.mem")`; directory = module, entry `mod.x`
-- **Field access**: only `.` in Shux source (not `->`; C `->` is codegen’s job when the base is a pointer)
+- **Field access**: only `.` in Xlang source (not `->`; C `->` is codegen’s job when the base is a pointer)
 
 ### Memory and safety
 
@@ -101,10 +101,10 @@ Syntax index: [`docs/README.md`](docs/README.md).
 ### First-time build
 
 ```bash
-# Recommended: pinned seeds → build_tool → daily shux
+# Recommended: pinned seeds → build_tool → daily xlang
 make -C compiler build-tool
-./shux-build.sh first-time          # build_tool + ./build_tool ./shux
-# Or: cd compiler && ./build_tool ./shux
+./xlang-build.sh first-time          # build_tool + ./build_tool ./xlang
+# Or: cd compiler && ./build_tool ./xlang
 
 # Cold start with cc only: cd compiler && sh bootstrap.sh
 
@@ -116,25 +116,25 @@ FULL=0 bash compiler/scripts/g05_prepare_and_relink.sh
 ### Daily build
 
 ```bash
-# Daily: G-05 path → shux_asm relink gold
-./shux-build.sh build
-# Or: cd compiler && ./build_tool ./shux
+# Daily: G-05 path → xlang_asm relink gold
+./xlang-build.sh build
+# Or: cd compiler && ./build_tool ./xlang
 
-export SHUX=./compiler/shux_asm   # prefer this-wave product binary
+export XLANG=./compiler/xlang_asm   # prefer this-wave product binary
 ./tests/run-hello.sh
 
 # Heavier rebuild after backend/seed changes
-./shux-build.sh full              # or make -C compiler bootstrap-driver-bstrict
+./xlang-build.sh full              # or make -C compiler bootstrap-driver-bstrict
 ```
 
 | Entry | Use |
 |-------|-----|
-| `./shux-build.sh build` / `./build_tool ./shux` | **Daily incremental** (default) |
-| `./shux-build.sh full` | Full B-strict-style rebuild |
+| `./xlang-build.sh build` / `./build_tool ./xlang` | **Daily incremental** (default) |
+| `./xlang-build.sh full` | Full B-strict-style rebuild |
 | `make -C compiler …` | Cold start, CI, low-level targets |
 
-**Product binary**: after a proper build, use **`compiler/shux_asm`** (often mirrored as `compiler/shux`).  
-`shux-c` / seed helpers are for **cold start and transition**, not the daily release story.
+**Product binary**: after a proper build, use **`compiler/xlang_asm`** (often mirrored as `compiler/xlang`).  
+`xlang-c` / seed helpers are for **cold start and transition**, not the daily release story.
 
 ### Hello World
 
@@ -148,10 +148,10 @@ function main(): void {
 ```
 
 ```bash
-export SHUX=./compiler/shux_asm
-$SHUX run examples/hello.x
-$SHUX build examples/hello.x -o hello && ./hello
-$SHUX check examples/hello.x
+export XLANG=./compiler/xlang_asm
+$XLANG run examples/hello.x
+$XLANG build examples/hello.x -o hello && ./hello
+$XLANG check examples/hello.x
 ```
 
 More samples: [`examples/`](examples/) (io, net, async, json, compress, …).
@@ -159,9 +159,9 @@ More samples: [`examples/`](examples/) (io, net, async, json, compress, …).
 ### Acceptance tests
 
 ```bash
-export SHUX=./compiler/shux_asm
+export XLANG=./compiler/xlang_asm
 ./tests/run-all.sh                 # full regression (when appropriate)
-SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~125 scripts)
+XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate suite (~125 scripts)
 ./tests/run-linux-a09-a11-gate.sh  # Linux gold bootstrap subset (Docker OK)
 # Linux x86_64 freestanding S4 smoke (return42 / panic / hello):
 ./tests/run-freestanding-hello.sh
@@ -177,19 +177,19 @@ For **self-host / product release claims**, the project requires **L4 true cold*
 Default backend: **ASM** (`-backend asm`).
 
 ```bash
-shux [COMMAND] [OPTIONS]
+xlang [COMMAND] [OPTIONS]
 ```
 
 ### Subcommands
 
 | Command | Description | Usage |
 |---------|-------------|-------|
-| `build` | Compile .x to binary/object (default a.out) | `shux build [options] file.x [-o exe]` |
-| `run` | Compile and run .x | `shux run [options] file.x` |
-| `check` | Parse + typeck only (no codegen) | `shux check [paths...]` |
-| `fmt` | Format .x sources | `shux fmt [--check] [paths...]` |
-| `explain` | Explain a diagnostic code | `shux explain <CODE>` |
-| `test` | Run test script | `shux test [script.sh]` |
+| `build` | Compile .x to binary/object (default a.out) | `xlang build [options] file.x [-o exe]` |
+| `run` | Compile and run .x | `xlang run [options] file.x` |
+| `check` | Parse + typeck only (no codegen) | `xlang check [paths...]` |
+| `fmt` | Format .x sources | `xlang fmt [--check] [paths...]` |
+| `explain` | Explain a diagnostic code | `xlang explain <CODE>` |
+| `test` | Run test script | `xlang test [script.sh]` |
 
 ### Build options (build / run)
 
@@ -218,61 +218,61 @@ shux [COMMAND] [OPTIONS]
 
 | Variable | Effect |
 |----------|--------|
-| `SHUX_ABI_F32_XMM=0` | Same as `-legacy-f32-abi` (x86_64 SysV) |
-| `SHUX_OPT` | Default -O level if omitted |
+| `XLANG_ABI_F32_XMM=0` | Same as `-legacy-f32-abi` (x86_64 SysV) |
+| `XLANG_OPT` | Default -O level if omitted |
 | `NO_COLOR` | Disable color output |
 | `CLICOLOR_FORCE=1` | Force color output even when piped |
-| `SHUX_FORCE_COLOR=1` | Same as CLICOLOR_FORCE |
+| `XLANG_FORCE_COLOR=1` | Same as CLICOLOR_FORCE |
 
 ### Examples
 
 ```bash
 # Compile and run
-shux run examples/hello.x
+xlang run examples/hello.x
 
 # Compile to executable
-shux build examples/hello.x -o hello && ./hello
+xlang build examples/hello.x -o hello && ./hello
 
 # Parse + typeck only
-shux check examples/hello.x
+xlang check examples/hello.x
 
 # Format sources
-shux fmt src/
+xlang fmt src/
 
 # Explain diagnostic code
-shux explain XP003
+xlang explain XP003
 
 # Run test script
-shux test tests/run-all-bstrict.sh
+xlang test tests/run-all-bstrict.sh
 
 # Language server (stdio JSON-RPC)
-shux --lsp
+xlang --lsp
 
 # Force C backend
-shux build -backend c file.x
+xlang build -backend c file.x
 
 # Freestanding (Linux x86_64 nostdlib)
-shux build -freestanding file.x
+xlang build -freestanding file.x
 ```
 
-Root [`build.x`](build.x) describes what to build. Daily entry: `./shux-build.sh` / `build_tool`.
+Root [`build.x`](build.x) describes what to build. Daily entry: `./xlang-build.sh` / `build_tool`.
 
 ---
 
 ## 5. Repository layout
 
 ```
-shux/
+xlang/
 ├── README.md / README_zh-CN.md
 ├── LICENSE · LICENSE.AGPL-3.0 · LICENSE.Apache-2.0 · NOTICE · CONTRIBUTING.md
-├── build.x / shux-build.sh
+├── build.x / xlang-build.sh
 ├── analysis/                 # process docs + RFCs (当前进度 / 自举方法 / 自举步骤 / 问题分析 / 自举进度 …)
 ├── docs/                     # language syntax (user-facing)
 ├── compiler/                 # compiler (.x + seed C / glue)
 │   ├── src/                  # lexer, parser, typeck, codegen, asm, pipeline, driver, lsp
 │   ├── seeds/                # cold-start pins
 │   ├── docs/SELFHOST.md
-│   └── scripts/              # build_shux_asm, g05, relink, …
+│   └── scripts/              # build_xlang_asm, g05, relink, …
 ├── core/                     # OS-free core library
 ├── std/                      # OS-facing standard library (product .x; no handwritten std .c)
 ├── tests/                    # regressions and gates
@@ -336,8 +336,8 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 
 | Path | Meaning |
 |------|---------|
-| **User / product path** | This-SHA `shux_asm` compiles user `.x` → `-o` / run; matrix + bstrict |
-| **Bootstrap / engineering path** | Seed cold start → `build_shux_asm` / g05 → optional Stage2 / WPO dogfood |
+| **User / product path** | This-SHA `xlang_asm` compiles user `.x` → `-o` / run; matrix + bstrict |
+| **Bootstrap / engineering path** | Seed cold start → `build_xlang_asm` / g05 → optional Stage2 / WPO dogfood |
 
 **Two tracks (do not mix when reading status):**
 
@@ -363,13 +363,13 @@ Link is **on demand** (unused modules stay out of the final link when possible).
 | macOS L4 + full bstrict (pin) | ✅ **125/125** @ **`deaf773b`** |
 | Windows hybrid gate (pin) | ✅ warm green @ **`deaf773b`** |
 | Gold host | **Ubuntu x86_64** |
-| Product binary under test | This-wave `compiler/shux_asm` (g05 / relink) — **never** leftover Stage2 `shux_asm2` or old `stage1` |
+| Product binary under test | This-wave `compiler/xlang_asm` (g05 / relink) — **never** leftover Stage2 `xlang_asm2` or old `stage1` |
 | Branch tip (not tip L4) | **`0c9458ed`** on `self-hosting` — CLI help beautify (Deno-style), dual L2 green. **Tip L4 re-pin only after dual true cold + bstrict 125**, not after every L2 green |
 | Latest tip daily L2 | ✅ mac + Ubuntu L2 matrices + bstrict **125/125** @ `0c9458ed` (**≠** tip L4 re-pin; CLI help beautify is not ABI/link) |
 
 ### Product surface closed on 2026-07-20
 
-On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **does not** auto-raise the L4 pin:
+On the **user product path** (`xlang_asm` / freestanding / gates). Green L2 **does not** auto-raise the L4 pin:
 
 | Area | Status |
 |------|--------|
@@ -379,9 +379,9 @@ On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **doe
 | **Backtrace C-backend heap chain** | ✅ push `page_mmap.o` + asm IO stubs — in pin lineage |
 | **C5 · `EXPR_MATCH` CTFE** | ✅ const subject + const arms fold to imm32 (`lang-const` 13/13); tip `229708f1`, dual L2, **not** L4 re-pin |
 | **C6 · X ABI P0b** | ✅ wave 1 unsafe wrapping (9 sites) + wave 2 ABI consistency (3 sites) — **raised L4 pin to `deaf773b`** |
-| **Driver · `shux run` / bare `shux file.x`** | ✅ in-memory compile-and-run |
+| **Driver · `xlang run` / bare `xlang file.x`** | ✅ in-memory compile-and-run |
 | **Windows hybrid gate** | ✅ MSYS2/MinGW bootstrap-driver-bstrict + return-value 42 + win32-write-gate + win32-read-file-gate + C-03 — **raised L4 pin to `deaf773b`** |
-| **CLI help beautify** | ✅ Deno-style green color scheme + per-subcommand sections + `shux [COMMAND] [OPTIONS]` order |
+| **CLI help beautify** | ✅ Deno-style green color scheme + per-subcommand sections + `xlang [COMMAND] [OPTIONS]` order |
 | **std.print architecture** | ✅ unified under `std.fmt` (stdout) + `std.debug` (stderr); `std.io` retains low-level write primitives only |
 | Freestanding S4 / NL-07 no-libc / hosted asm matrix | ✅ still hold on product pin |
 
@@ -399,13 +399,13 @@ On the **user product path** (`shux_asm` / freestanding / gates). Green L2 **doe
 ### What is *not* claimed
 
 - **Not** “compiler is 100% `.x` with zero seed”
-- **Not** “Stage2 `shux_asm2` is the product compiler”
+- **Not** “Stage2 `xlang_asm2` is the product compiler”
 - **Not** “engineering WPO green = tip product L4”
 - **Not** “dual L2 bstrict on tip = tip L4” — pin is **`deaf773b`** until the next dual **true cold** re-pin
 - **Not** “Windows hybrid green = product L4 / self-host done” — Windows hybrid is probe-only
 - Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
 
-Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `shux-selfhost-product-gate`.
+Methodology: Cap / R / L / M → [`analysis/自举方法.md`](analysis/自举方法.md). Ops: [`compiler/docs/SELFHOST.md`](compiler/docs/SELFHOST.md). Discipline: [`AGENTS.md`](AGENTS.md) + skill `xlang-selfhost-product-gate`.
 
 ### Near-term front row (high level)
 
@@ -454,11 +454,11 @@ Many RFCs live under `analysis/` (http, async, WPO, …).
 | Suite | Command |
 |-------|---------|
 | Full regression | `./tests/run-all.sh` |
-| Product bstrict | `SHUX=./compiler/shux_asm SHUX_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh` |
-| Pre-push P0 | `SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh` |
+| Product bstrict | `XLANG=./compiler/xlang_asm XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh` |
+| Pre-push P0 | `XLANG=./compiler/xlang_asm ./tests/run-pre-push-p0.sh` |
 | Linux gold subset | `./tests/run-linux-a09-a11-gate.sh` |
 | Topic gates | `tests/run-*-gate.sh` |
-| Compile dogfood | `SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh` |
+| Compile dogfood | `XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh` |
 
 Baselines: `tests/baseline/`. When running **true cold full tests**, log paths should be printed for operators (e.g. `/tmp/*true_cold*`, `/tmp/*true_bstrict*`).
 
@@ -466,7 +466,7 @@ Baselines: `tests/baseline/`. When running **true cold full tests**, log paths s
 
 Fair wall-time medians vs `clang -O2` (warmup 3 + 20 rounds). See suite docs under `analysis/perf-*` for refresh procedure.
 
-| Benchmark | ratio (SHUX / C) | Note |
+| Benchmark | ratio (XLANG / C) | Note |
 |-----------|------------------|------|
 | `loop_i32` | ~0.87 | ✅ |
 | `mem_copy` | ~0.87 | ✅ |
@@ -483,7 +483,7 @@ Diff cases D1–D6: 5/6 pass; float D4 still a known P2 placeholder.
 | Component | Path |
 |-----------|------|
 | VS Code / Cursor / Trae | [`editors/vscode/`](editors/vscode/) |
-| LSP | `shux --lsp` · `compiler/src/lsp/` |
+| LSP | `xlang --lsp` · `compiler/src/lsp/` |
 | MCP | [`mcp/`](mcp/) |
 
 Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
@@ -492,8 +492,8 @@ Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
 
 ## 13. Contributing
 
-1. Clone → `make -C compiler build-tool && ./shux-build.sh first-time` (or full bootstrap-driver path).  
-2. Daily edits → `./shux-build.sh build`, set `SHUX=./compiler/shux_asm`, run relevant tests/gates.  
+1. Clone → `make -C compiler build-tool && ./xlang-build.sh first-time` (or full bootstrap-driver path).  
+2. Daily edits → `./xlang-build.sh build`, set `XLANG=./compiler/xlang_asm`, run relevant tests/gates.  
 3. Product / link / SHARED changes → **Ubuntu gold** (and mac when SHARED); for release claims use **L4 true cold** + dual bstrict.  
 4. Commits: Conventional Commits (`feat:` / `fix:` / `docs:` …), English preferred for code comments in `.x` (see `AGENTS.md` / G.9).  
 5. **No dual authority**: seed and `.x` product surfaces move **same commit** when both exist.  
@@ -505,7 +505,7 @@ Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
 
 ## 14. License
 
-Shux uses **layered licensing** (language libraries permissive; compiler copyleft). See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Xlang uses **layered licensing** (language libraries permissive; compiler copyleft). See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
 | Layer | Paths | License |
 |-------|--------|---------|
@@ -513,7 +513,7 @@ Shux uses **layered licensing** (language libraries permissive; compiler copylef
 | B — Language libs | `core/`, `std/` | **Apache-2.0** ([`LICENSE.Apache-2.0`](LICENSE.Apache-2.0)) |
 | Samples | `examples/`, `tests/` | **Apache-2.0** |
 | Editors | `editors/vscode` | **Apache-2.0** |
-| Editors | `editors/tree-sitter-shux`, `editors/vim` | **Apache-2.0** |
+| Editors | `editors/tree-sitter-xlang`, `editors/vim` | **Apache-2.0** |
 | Third-party | `compiler/seeds/crypto/ed25519/` (orlp) | **zlib** |
 
 **Intent:** programs you write that use `core`/`std` are not forced under AGPL. Modifying or redistributing the **compiler/toolchain** is AGPL (or commercial terms).
@@ -528,4 +528,4 @@ For **AGPL exemption on the compiler/toolchain** (proprietary embedding, closed 
 
 ---
 
-*Shux — Three Highs, One Low: faster than C · safer near Rust · simpler than C · learnable in days.*
+*Xlang — Three Highs, One Low: faster than C · safer near Rust · simpler than C · learnable in days.*

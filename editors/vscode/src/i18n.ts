@@ -3,7 +3,7 @@
  *
  * 【Why】VS Code 的 vscode.l10n.t() 自动根据 --locale 加载 bundle，
  *   但用户可能希望在英文 VS Code 中也能看到中文界面（或反之）。
- *   本模块提供 shux.locale 配置项覆盖：
+ *   本模块提供 xlang.locale 配置项覆盖：
  *   - "auto"（默认）：使用 VS Code 显示语言（vscode.l10n.t 原生行为）
  *   - "en"/"zh-cn"/"zh-tw"/"ja"/"ko"/"de"/"fr"/"es"/"ru"/"pt-br"/"it"/"tr"/"pl"：
  *     手动加载对应 l10n.bundle.<lang>.json，覆盖 VS Code locale
@@ -40,14 +40,14 @@ export const SUPPORTED_LOCALES = [
   'pl',
 ] as const;
 
-export type ShuxLocale = (typeof SUPPORTED_LOCALES)[number];
+export type XlangLocale = (typeof SUPPORTED_LOCALES)[number];
 
 /**
- * 初始化 i18n：读取 shux.locale 配置并加载对应 bundle。
+ * 初始化 i18n：读取 xlang.locale 配置并加载对应 bundle。
  * 在 extension.ts 的 activate() 中调用。
  */
 export function initI18n(context: vscode.ExtensionContext): void {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   const locale = config.get<string>('locale', 'auto');
 
   // 重新加载
@@ -74,17 +74,17 @@ export function initI18n(context: vscode.ExtensionContext): void {
   } catch {
     // bundle 文件不存在，回退到 VS Code 原生 l10n
     void vscode.window.showWarningMessage(
-      `Shux locale "${locale}" bundle not found, falling back to VS Code locale.`
+      `Xlang locale "${locale}" bundle not found, falling back to VS Code locale.`
     );
   }
 }
 
 /**
- * 监听配置变化，当 shux.locale 改变时重新加载 bundle。
+ * 监听配置变化，当 xlang.locale 改变时重新加载 bundle。
  */
 export function onLocaleConfigChanged(context: vscode.ExtensionContext): vscode.Disposable {
   return vscode.workspace.onDidChangeConfiguration((e) => {
-    if (e.affectsConfiguration('shux.locale')) {
+    if (e.affectsConfiguration('xlang.locale')) {
       initI18n(context);
     }
   });
@@ -93,7 +93,7 @@ export function onLocaleConfigChanged(context: vscode.ExtensionContext): vscode.
 /**
  * 翻译函数 — 替代 vscode.l10n.t()
  *
- * 优先级：shux.locale 配置 > VS Code locale
+ * 优先级：xlang.locale 配置 > VS Code locale
  *
  * 用法：
  *   t('Hello {0}', name)

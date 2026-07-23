@@ -57,7 +57,7 @@
 ```
 
 ```
-shux: [SHUX_STD_CRYPTO_SHA512_HMAC] status=ok sha512=1 hmac=1 mac512=1 skip=0
+xlang: [XLANG_STD_CRYPTO_SHA512_HMAC] status=ok sha512=1 hmac=1 mac512=1 skip=0
 ```
 
 ---

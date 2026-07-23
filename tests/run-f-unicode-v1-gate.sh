@@ -2,7 +2,7 @@
 # F-unicode v1：std.unicode 去 C（unicode.c → unicode.x；v2 后逻辑全在 unicode.x）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_UNICODE_V1_FAIL:-0}
+FAIL=${XLANG_F_UNICODE_V1_FAIL:-0}
 DOC="analysis/phase-f-unicode-v1.md"
 MANIFEST="tests/baseline/f-unicode-v1-closure.tsv"
 die() { echo "f-unicode-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'unicode.x' compiler/Makefile || die "Makefile missing unicode.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
 else
-  echo "f-unicode-v1 SKIP unicode.o build (no shux-c)" >&2
+  echo "f-unicode-v1 SKIP unicode.o build (no xlang-c)" >&2
 fi
 for sub in run-std-unicode-nfc-gate.sh run-std-unicode-grapheme-case-gate.sh; do
   [ -f "tests/$sub" ] || continue

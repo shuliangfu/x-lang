@@ -40,7 +40,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-io-api manifest OK (${N} symbols)"
 
-# 烟测：需本机可 exec 的 shux/shux-c
+# 烟测：需本机可 exec 的 xlang/xlang-c
 native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -53,23 +53,23 @@ native_shu() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "std-io-api gate SKIP smoke (no native shux; manifest OK only)"
+if [ -z "$XLANG_BIN" ]; then
+  echo "std-io-api gate SKIP smoke (no native xlang; manifest OK only)"
   echo "std-io-api gate OK (manifest)"
   exit 0
 fi
 
 echo "=== STD-001: std.io smoke (run-io.sh) ==="
 chmod +x tests/run-io.sh
-SHUX="$SHUX_BIN" ./tests/run-io.sh
+XLANG="$XLANG_BIN" ./tests/run-io.sh
 echo "std-io-api gate OK"

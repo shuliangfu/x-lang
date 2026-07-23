@@ -34,7 +34,7 @@
 | 语言构造 | codegen / 运行时 | std.async 门面 |
 |----------|------------------|----------------|
 | `async fn` | CPS 帧、`shu_async_sched_<fn>` | — |
-| `await expr` | `shu_async_cps_suspend` | `SHUX_ASYNC_SUSPENDED` |
+| `await expr` | `shu_async_cps_suspend` | `XLANG_ASYNC_SUSPENDED` |
 | `await read(...)` 等 | `shu_async_cps_suspend_io` + IO 槽 | `wait_completion` |
 | `run async_fn(args)` | seed 队列 + `shu_async_run_i32` | `scheduler_reset`（批次前） |
 | `spawn async_fn(args)` | seed + `shu_async_task_submit` | `drain_idle` |

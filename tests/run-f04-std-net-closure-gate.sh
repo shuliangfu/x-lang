@@ -2,11 +2,11 @@
 # F-04 v15：std.net 宿主路径闭合门禁（v1～v14 聚合 + manifest）。
 #
 # 用法：./tests/run-f04-std-net-closure-gate.sh
-# 环境：SHUX_F04_NET_CLOSURE_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_CLOSURE_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_CLOSURE_FAIL:-0}
+FAIL=${XLANG_F04_NET_CLOSURE_FAIL:-0}
 DOC="analysis/phase-f-f04-v15.md"
 MANIFEST="tests/baseline/f04-std-net-closure.tsv"
 
@@ -43,7 +43,7 @@ fi
 if [ -f tests/run-f04-std-net-slice-v14-gate.sh ]; then
   echo "=== F-04 v15: delegate v14 slice gate ==="
   chmod +x tests/run-f04-std-net-slice-v14-gate.sh
-  if ! SHUX_F04_NET_SLICE_V14_FAIL="$FAIL" tests/run-f04-std-net-slice-v14-gate.sh; then
+  if ! XLANG_F04_NET_SLICE_V14_FAIL="$FAIL" tests/run-f04-std-net-slice-v14-gate.sh; then
     die "v14 sub-gate failed"
   fi
 fi
@@ -54,11 +54,11 @@ for sub in run-f04-std-net-dns-alpn-gate.sh run-f04-std-net-tcp-pool-gate.sh \
     echo "=== F-04 v15: delegate $sub ==="
     chmod +x "tests/$sub"
     case "$sub" in
-      *dns-alpn*) env_var=SHUX_F04_NET_DNS_ALPN_FAIL ;;
-      *tcp-pool*) env_var=SHUX_F04_NET_TCP_POOL_FAIL ;;
-      *tls-stub*) env_var=SHUX_F04_NET_TLS_STUB_FAIL ;;
-      *ws*) env_var=SHUX_STD_NET_WS_FAIL ;;
-      *) env_var=SHUX_F04_NET_CLOSURE_FAIL ;;
+      *dns-alpn*) env_var=XLANG_F04_NET_DNS_ALPN_FAIL ;;
+      *tcp-pool*) env_var=XLANG_F04_NET_TCP_POOL_FAIL ;;
+      *tls-stub*) env_var=XLANG_F04_NET_TLS_STUB_FAIL ;;
+      *ws*) env_var=XLANG_STD_NET_WS_FAIL ;;
+      *) env_var=XLANG_F04_NET_CLOSURE_FAIL ;;
     esac
     if ! env "$env_var=$FAIL" "tests/$sub"; then
       die "$sub failed"

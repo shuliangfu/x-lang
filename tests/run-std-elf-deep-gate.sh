@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD063_DOC:-analysis/std-elf-deep-v1.md}"
-MANIFEST="${SHUX_STD063_TSV:-tests/baseline/std-elf-deep.tsv}"
-VECTORS="${SHUX_STD063_VECTORS:-tests/baseline/std-elf-deep-vectors.tsv}"
+DOC="${XLANG_STD063_DOC:-analysis/std-elf-deep-v1.md}"
+MANIFEST="${XLANG_STD063_TSV:-tests/baseline/std-elf-deep.tsv}"
+VECTORS="${XLANG_STD063_VECTORS:-tests/baseline/std-elf-deep-vectors.tsv}"
 MOD_X="std/elf/mod.x"
 ELF_X="std/elf/elf.x"
 LIB="tests/lib/std-elf-deep.sh"
@@ -78,16 +78,16 @@ echo "std-elf-deep manifest OK"
 
 echo "=== STD-063: parent STD-058 manifest ==="
 chmod +x tests/run-std-elf-parse-gate.sh
-SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
+XLANG_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   ensure_std_c_o ../std/elf/elf.o
 else
-  echo "std-elf-deep gate SKIP c/x smoke (need shux-c for elf.x merge)" >&2
+  echo "std-elf-deep gate SKIP c/x smoke (need xlang-c for elf.x merge)" >&2
   std_elf_deep_emit_report "ok" 0 0 1
-  echo "std-elf-deep gate OK (manifest only; no shux-c)"
+  echo "std-elf-deep gate OK (manifest only; no xlang-c)"
   exit 0
 fi
 
@@ -101,7 +101,7 @@ fi
 
 DEEP_X=0
 SKIP=0
-SHUX_BIN=""
+XLANG_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -113,16 +113,16 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shux-c; then
-  SHUX_BIN=./compiler/shux-c
-elif stdlib_cm_native_shu ./compiler/shux; then
-  SHUX_BIN=./compiler/shux
+if stdlib_cm_native_shu ./compiler/xlang-c; then
+  XLANG_BIN=./compiler/xlang-c
+elif stdlib_cm_native_shu ./compiler/xlang; then
+  XLANG_BIN=./compiler/xlang
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-063: .x deep smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-063: .x deep smoke (XLANG=$XLANG_BIN) ==="
   rc=0
-  std_elf_deep_run_x_smoke "$SHUX_BIN" "$SMOKE_X" || rc=$?
+  std_elf_deep_run_x_smoke "$XLANG_BIN" "$SMOKE_X" || rc=$?
   if [ "$rc" -eq 0 ]; then
     DEEP_X=1
   elif [ "$rc" -eq 2 ]; then
@@ -132,7 +132,7 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
 else
-  echo "std-elf-deep gate SKIP .x smoke (no native shux)" >&2
+  echo "std-elf-deep gate SKIP .x smoke (no native xlang)" >&2
   SKIP=1
 fi
 

@@ -6,22 +6,22 @@
 // link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 //
 // link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
-//   shux_asm_ld_bank_push / shux_invoke_cc
-//   shux_asm_ld_append_mach_tail_libs / shux_asm_ld_append_unix_gcc_tail_libs
-//   shux_append_linux_link_harden / shux_invoke_ld_for_exe
+//   xlang_asm_ld_bank_push / xlang_invoke_cc
+//   xlang_asm_ld_append_mach_tail_libs / xlang_asm_ld_append_unix_gcc_tail_libs
+//   xlang_append_linux_link_harden / xlang_invoke_ld_for_exe
 //   labi_gates_count
 // link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 //
 // link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 // link_abi L9 thin gate / null-check forward layer (G.9 English; body is authoritative).
 
-export extern "C" function shux_asm_ld_bank_push_impl(b: *u8, path: *u8): *u8;
-export extern "C" function shux_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
-export extern "C" function shux_invoke_ld_for_exe_impl(
+export extern "C" function xlang_asm_ld_bank_push_impl(b: *u8, path: *u8): *u8;
+export extern "C" function xlang_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
+export extern "C" function xlang_invoke_ld_for_exe_impl(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32
 ): i32;
-export extern "C" function shux_invoke_cc_impl(
+export extern "C" function xlang_invoke_cc_impl(
   c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
   io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
   runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8,
@@ -32,34 +32,34 @@ export extern "C" function shux_invoke_cc_impl(
   uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8,
   trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8
 ): i32;
-export extern "C" function shux_asm_ld_append_mach_tail_libs_impl(
+export extern "C" function xlang_asm_ld_append_mach_tail_libs_impl(
   compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32
 ): void;
-export extern "C" function shux_asm_ld_append_unix_gcc_tail_libs_impl(
+export extern "C" function xlang_asm_ld_append_unix_gcc_tail_libs_impl(
   compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32
 ): void;
 
-/** Exported function `shux_asm_ld_bank_push`.
- * Implements `shux_asm_ld_bank_push`.
+/** Exported function `xlang_asm_ld_bank_push`.
+ * Implements `xlang_asm_ld_bank_push`.
  * @param b *u8
  * @param path *u8
  * @return *u8
  */
 #[no_mangle]
-export function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
+export function xlang_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
   if (b == 0 as *u8) { return 0 as *u8; }
   if (path == 0 as *u8) { return 0 as *u8; }
   if (path[0] == 0) { return 0 as *u8; }
-  unsafe { return shux_asm_ld_bank_push_impl(b, path); }
+  unsafe { return xlang_asm_ld_bank_push_impl(b, path); }
   return 0 as *u8;
 }
 
-/** Function `shux_invoke_cc`.
- * Purpose: implements `shux_invoke_cc`; params/returns as declared (may be multi-line).
+/** Function `xlang_invoke_cc`.
+ * Purpose: implements `xlang_invoke_cc`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
 #[no_mangle]
-export function shux_invoke_cc(
+export function xlang_invoke_cc(
   c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
   io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
   runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8,
@@ -73,7 +73,7 @@ export function shux_invoke_cc(
   if (c_paths == 0 as *u8) { return 0 - 1; }
   if (out_path == 0 as *u8) { return 0 - 1; }
   unsafe {
-    return shux_invoke_cc_impl(
+    return xlang_invoke_cc_impl(
       c_paths, n, out_path, target, opt_level, use_lto,
       io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o,
       runtime_panic_o, net_o, thread_o, time_o, random_o, env_o,
@@ -88,12 +88,12 @@ export function shux_invoke_cc(
   return 0 - 1;
 }
 
-/** Function `shux_asm_ld_append_mach_tail_libs`.
- * Purpose: implements `shux_asm_ld_append_mach_tail_libs`; params/returns as declared (may be multi-line).
+/** Function `xlang_asm_ld_append_mach_tail_libs`.
+ * Purpose: implements `xlang_asm_ld_append_mach_tail_libs`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
 #[no_mangle]
-export function shux_asm_ld_append_mach_tail_libs(
+export function xlang_asm_ld_append_mach_tail_libs(
   compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32
 ): void {
   if (flags == 0 as *u8) { return; }
@@ -101,16 +101,16 @@ export function shux_asm_ld_append_mach_tail_libs(
   if (la == 0 as *i32) { return; }
   if (la[0] < 0) { return; }
   unsafe {
-    shux_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
+    xlang_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
   }
 }
 
-/** Function `shux_asm_ld_append_unix_gcc_tail_libs`.
- * Purpose: implements `shux_asm_ld_append_unix_gcc_tail_libs`; params/returns as declared (may be multi-line).
+/** Function `xlang_asm_ld_append_unix_gcc_tail_libs`.
+ * Purpose: implements `xlang_asm_ld_append_unix_gcc_tail_libs`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
 #[no_mangle]
-export function shux_asm_ld_append_unix_gcc_tail_libs(
+export function xlang_asm_ld_append_unix_gcc_tail_libs(
   compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32
 ): void {
   if (flags == 0 as *u8) { return; }
@@ -118,39 +118,39 @@ export function shux_asm_ld_append_unix_gcc_tail_libs(
   if (la == 0 as *i32) { return; }
   if (la[0] < 0) { return; }
   unsafe {
-    shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
+    xlang_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
   }
 }
 
-/** Exported function `shux_append_linux_link_harden`.
- * Implements `shux_append_linux_link_harden`.
+/** Exported function `xlang_append_linux_link_harden`.
+ * Implements `xlang_append_linux_link_harden`.
  * @param argv *u8
  * @param la *i32
  * @param cap i32
  * @return void
  */
 #[no_mangle]
-export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
+export function xlang_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
   if (argv == 0 as *u8) { return; }
   if (la == 0 as *i32) { return; }
   unsafe {
-    shux_append_linux_link_harden_impl(argv, la, cap);
+    xlang_append_linux_link_harden_impl(argv, la, cap);
   }
 }
 
-/** Function `shux_invoke_ld_for_exe`.
- * Purpose: implements `shux_invoke_ld_for_exe`; params/returns as declared (may be multi-line).
+/** Function `xlang_invoke_ld_for_exe`.
+ * Purpose: implements `xlang_invoke_ld_for_exe`; params/returns as declared (may be multi-line).
  * Contracts: null/cap/PLATFORM as enforced in the body.
  */
 #[no_mangle]
-export function shux_invoke_ld_for_exe(
+export function xlang_invoke_ld_for_exe(
   o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32,
   link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32
 ): i32 {
   if (o_path == 0 as *u8) { return 0 - 1; }
   if (exe_path == 0 as *u8) { return 0 - 1; }
   unsafe {
-    return shux_invoke_ld_for_exe_impl(
+    return xlang_invoke_ld_for_exe_impl(
       o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots
     );
   }

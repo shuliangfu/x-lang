@@ -2,14 +2,14 @@
  * R2 pure surface + Cap residual pure (type/layout + FILE* emit) — isomorphic with src/async/async_liveness.x
  * Product cold path: cc seeds/async_liveness.from_x.c (no FROM_X) for full C + Cap residual.
  * Product PREFER (g05/Makefile): g05_try_x_to_o(async_liveness.x) + rest
- *   (-DSHUX_ASYNC_LIVENESS_FROM_X, marker) ld -r → src/async/async_liveness.o.
+ *   (-DXLANG_ASYNC_LIVENESS_FROM_X, marker) ld -r → src/async/async_liveness.o.
  * R2: full.x eats pure helpers (await walk / live frame / mangle/tag) + Cap residual pure
  *   (lookup/type/size/layout/has_await/needs_cps/analyze/module_struct + emit_* via fputs);
  *   FROM_X omits those C bodies.
  * Cap residual (G.7 single authority): driver_preamble_fputs (opaque FILE*; runtime_driver_abi).
  * Prove: full.x vs this seed → nm IDENTICAL (pure surface)
- * Regen: ./shux -E ... src/async/async_liveness.x | strip libc/shux_sys preamble + polish prologue
- * NOTE: use ./shux (not shux-x). Stack: analyze_block_linear uses malloc(4096) not u8[4096];
+ * Regen: ./xlang -E ... src/async/async_liveness.x | strip libc/xlang_sys preamble + polish prologue
+ * NOTE: use ./xlang (not xlang-x). Stack: analyze_block_linear uses malloc(4096) not u8[4096];
  *   layout temps use malloc(4196) for AsyncFrameLayout.
  * PLATFORM: SHARED — async liveness pure helpers; mac + Ubuntu prove.
  */

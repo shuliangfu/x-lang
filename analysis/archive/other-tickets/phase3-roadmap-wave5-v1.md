@@ -22,7 +22,7 @@
 
 ## 2. 北极星目标（第五批）
 
-1. **parser C2 bootstrap emit**：`SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1` bisect 基础设施（BOOT-024）。
+1. **parser C2 bootstrap emit**：`XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1` bisect 基础设施（BOOT-024）。
 2. **riscv64 QEMU 用户态**：2 case `qemu-riscv64` 烟测（COMP-018）。
 3. **std.db query_rows**：SELECT 行数迭代原型（STD-066）。
 4. **治理闭环**：第五批路线图 manifest + gate 与 `NEXT.md` §2.16 同步（PLAN-005）。
@@ -60,7 +60,7 @@
 ```
 
 ```
-shux: [SHUX_PLAN005_PHASE3_W5] status=ok tasks=4 sections=5 done=4
+xlang: [XLANG_PLAN005_PHASE3_W5] status=ok tasks=4 sections=5 done=4
 ```
 
 ---
@@ -68,5 +68,5 @@ shux: [SHUX_PLAN005_PHASE3_W5] status=ok tasks=4 sections=5 done=4
 ## 6. 非目标（v6 第六批草稿）
 
 - parser C3 gen1/gen2 三代一致性
-- WPO 默认对所有 `shux` 构建全局开启
+- WPO 默认对所有 `xlang` 构建全局开启
 - `std.db` 列值游标 `next_row`

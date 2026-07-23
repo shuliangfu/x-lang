@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # S5：pipeline_wpo.o 编排链 reach 门禁（run_x_pipeline_impl 不应 U 其 direct callee）。
-# ast_pool.c fixpoint + strict preserve 后须重编 pipeline_wpo.o（build_shux_asm post-strict）。
+# ast_pool.c fixpoint + strict preserve 后须重编 pipeline_wpo.o（build_xlang_asm post-strict）。
 # 用法：
 #   ./tests/run-wpo-pipeline-reach-gate.sh
-#   SHUX_WPO_PIPELINE_REACH_FAIL=1 ./tests/run-wpo-pipeline-reach-gate.sh
+#   XLANG_WPO_PIPELINE_REACH_FAIL=1 ./tests/run-wpo-pipeline-reach-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
 PIPE_O="${1:-compiler/build_asm/pipeline_wpo.o}"
-FAIL=${SHUX_WPO_PIPELINE_REACH_FAIL:-1}
-MIN_EXPORTS=${SHUX_WPO_PIPELINE_MIN_EXPORTS:-12}
+FAIL=${XLANG_WPO_PIPELINE_REACH_FAIL:-1}
+MIN_EXPORTS=${XLANG_WPO_PIPELINE_MIN_EXPORTS:-12}
 
 if [ ! -f "$PIPE_O" ]; then
   echo "run-wpo-pipeline-reach-gate SKIP: missing $PIPE_O"
@@ -41,7 +41,7 @@ echo "run-wpo-pipeline-reach-gate: $PIPE_O exports=${EXPORTS} (min=${MIN_EXPORTS
 gate_fail=0
 if [ -n "$MISSING" ]; then
   echo "run-wpo-pipeline-reach-gate FAIL: run_x_pipeline_impl undefined callee(s):${MISSING}" >&2
-  echo "  hint: touch compiler/ast_pool.c && SHUX_WPO_REBUILD_ARTIFACTS_ONLY=1 ./compiler/scripts/build_shux_asm.sh" >&2
+  echo "  hint: touch compiler/ast_pool.c && XLANG_WPO_REBUILD_ARTIFACTS_ONLY=1 ./compiler/scripts/build_xlang_asm.sh" >&2
   gate_fail=1
 fi
 

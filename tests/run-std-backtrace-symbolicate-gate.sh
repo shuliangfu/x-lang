@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="${SHUX_STD_BACKTRACE_SYM_DOC:-analysis/std-backtrace-symbolicate-v1.md}"
-MANIFEST="${SHUX_STD_BACKTRACE_SYM_TSV:-tests/baseline/std-backtrace-symbolicate.tsv}"
-VECTORS="${SHUX_STD_BACKTRACE_SYM_VECTORS:-tests/baseline/std-backtrace-symbolicate-vectors.tsv}"
+DOC="${XLANG_STD_BACKTRACE_SYM_DOC:-analysis/std-backtrace-symbolicate-v1.md}"
+MANIFEST="${XLANG_STD_BACKTRACE_SYM_TSV:-tests/baseline/std-backtrace-symbolicate.tsv}"
+VECTORS="${XLANG_STD_BACKTRACE_SYM_VECTORS:-tests/baseline/std-backtrace-symbolicate-vectors.tsv}"
 MOD_X="std/backtrace/mod.x"
 BT_RUNTIME="compiler/seeds/runtime_backtrace_platform.from_x.c"
 BT_X="std/backtrace/backtrace.x"
@@ -87,7 +87,7 @@ C_OK=0
 X_OK=0
 SKIP=0
 SKIP_GOLD=0
-SHUX_BIN=""
+XLANG_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -100,13 +100,13 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/backtrace/backtrace.o
@@ -125,21 +125,21 @@ if [ -n "$SHUX_BIN" ]; then
     SKIP_GOLD=1
   fi
 
-  echo "=== STD-052: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  echo "=== STD-052: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-backtrace-symbolicate gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_backtrace_sym_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
-  if std_backtrace_sym_run_smoke "$SHUX_BIN" "$SMOKE_X" "known"; then
+  if std_backtrace_sym_run_smoke "$XLANG_BIN" "$SMOKE_X" "known"; then
     X_OK=1
   else
     std_backtrace_sym_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
 else
-  echo "std-backtrace-symbolicate gate SKIP C/.x smoke (no native shux-c)" >&2
+  echo "std-backtrace-symbolicate gate SKIP C/.x smoke (no native xlang-c)" >&2
   SKIP=1
 fi
 

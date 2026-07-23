@@ -3,10 +3,10 @@
 //
 // R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
 // Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
-//   (-DSHUX_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+//   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
 // wave110: pure ImportEntry storage (structure debt) — multi-module malloc map + full
 //   pipeline_module_import_* API set (alloc/path/kind/binding/select + storage_release).
-//   G.7 single authority under product PREFER hybrid; ast_pool Cap demoted SHUX_WEAK cold.
+//   G.7 single authority under product PREFER hybrid; ast_pool Cap demoted XLANG_WEAK cold.
 //   Layout ≡ C ImportEntry (340B) + per-module select rows/lens grow. Soft-reset when
 //   module.num_imports==0 (parse counters / module reset). Closes Cap residual ImportEntry
 //   storage under pure load_and_sync / path64 / collect / typeck import walks.
@@ -15,8 +15,8 @@
 //   cold twin so pure hybrid owns product; wave110 pure owns path_copy storage.
 //   Closes Cap residual path64 under pure load_and_sync / load_import orch.
 // wave100: language residual Cap-fn-ptr — typeck same-module bare fn name → *u8;
-//   pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr use
-//   (fn as *u8) without g05 shux_driver_*_thread_fn_ptr cast harness. Closes hard Cap
+//   pure pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr use
+//   (fn as *u8) without g05 xlang_driver_*_thread_fn_ptr cast harness. Closes hard Cap
 //   residual "g05 &fn cast" on product pure path.
 
 // wave98: product complex #if Cap residual — G.7 cfg_eval.x on product link (not
@@ -32,43 +32,43 @@
 // wave96: pure pipeline_parse_into_buf orch under wave94 pure load_import
 //   (G.7 pure parser_parse_into_init + driver_parse_into_buf_rc + same-TU pure
 //   debug_trace + fixup on ok==0; non-zero ok → -1; buf_len<=0 → -1). glue
-//   SHUX_WEAK cold twin. Closes Cap residual parse_into_buf leaf under load_import.
+//   XLANG_WEAK cold twin. Closes Cap residual parse_into_buf leaf under load_import.
 // wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /
 //   pipeline_preprocess_loaded_into_ctx orch under wave94 pure load_import;
 //   Cap residual try_one_lib_root / try_entry_dir / path+loaded buf accessors /
 //   set_loaded_len / preprocess_x_buf + pure preprocess_len store; parse_into_buf
-//   wave96→pure. glue/ast_pool SHUX_WEAK cold twins (resolve/read already
+//   wave96→pure. glue/ast_pool XLANG_WEAK cold twins (resolve/read already
 //   weak; preprocess_loaded now weak). Closes Cap residual resolve/read/pp leaves.
 // wave94: pure pipeline_load_import_from_disk_c orch + pure
 //   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
 //   pipeline_bind_import_dep_buffers + pipeline_sync_one_dep_slot;
 //   Cap residual (wave95–96→pure) resolve/read/preprocess/parse; typeck merge+wpo
-//   (wave97→typeck.x); path64 wave99→pure; glue/ast_pool SHUX_WEAK.
+//   (wave97→typeck.x); path64 wave99→pure; glue/ast_pool XLANG_WEAK.
 //   Closes Cap residual disk-load + dep-sync leaves under wave93 load_and_sync.
 // wave93: pure pipeline_load_and_sync_direct_import_deps_c orch + same-TU pure
 //   pipeline_try_bind_seeded_import + pipeline_dep_ctx_realign_ndep_for_entry_c;
 //   Cap residual (wave94→pure) load_import/sync; typeck merge+wpo (wave97→typeck.x);
-//   path64 wave99→pure; ast_pool SHUX_WEAK cold twins.
+//   path64 wave99→pure; ast_pool XLANG_WEAK cold twins.
 //   Closes Cap residual load_and_sync leaf under wave60 typeck_only orch.
 // wave92: pure pipeline_typeck_validate_struct_layouts_zero_padding_c /
 //   pipeline_typeck_patch_all_body_parent_links_c thin → G.7 typeck.x authority
 //   (typeck_validate_struct_layouts_zero_padding / typeck_patch_all_body_parent_links);
-//   glue SHUX_WEAK cold twins keep historical metrics/patch bodies for non-PREFER links.
+//   glue XLANG_WEAK cold twins keep historical metrics/patch bodies for non-PREFER links.
 //   Closes Cap residual layout validate+patch helpers under pure dep-prerun light fallback.
-// wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue SHUX_WEAK cold).
+// wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue XLANG_WEAK cold).
 //   Closes Cap residual set_dep_ctx leaf under wave89 pure dep-prerun orch; ast_pool enum
 //   fallback reads via get_dep_ctx (no static dual-auth g_typeck_dep_ctx).
-// wave90: pure pipeline_typeck_diag_soft_suppress_set / _get (i32 BSS; glue SHUX_WEAK cold).
+// wave90: pure pipeline_typeck_diag_soft_suppress_set / _get (i32 BSS; glue XLANG_WEAK cold).
 //   Closes Cap residual soft-suppress leaf under wave89 pure dep-prerun orch.
 // wave89: pure pipeline_typeck_dep_prerun_module_c orch (set_dep_ctx + soft_suppress +
-//   typeck_x_ast_library + layout validate/patch light fallback; glue SHUX_WEAK cold).
+//   typeck_x_ast_library + layout validate/patch light fallback; glue XLANG_WEAK cold).
 //   Closes Cap residual typeck dep-prerun leaf used by wave60 typeck_only orch.
 // wave88: pure preprocess_eval_condition_c orch (trim + simple → pure define_has;
-//   complex ops → Cap residual cfg_eval_expr_c; glue SHUX_WEAK cold fallback).
+//   complex ops → Cap residual cfg_eval_expr_c; glue XLANG_WEAK cold fallback).
 //   Closes Cap residual preprocess #if condition-eval leaf (x_buf already pure cross-TU).
-// wave85: pure preprocess_define_reset / add / has (-D table BSS; glue SHUX_WEAK cold fallback).
-// wave84: pure pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr thin
-//   (G.7 g05 shux_driver_*_thread_fn_ptr function-address cast residual; product surface pure;
+// wave85: pure preprocess_define_reset / add / has (-D table BSS; glue XLANG_WEAK cold fallback).
+// wave84: pure pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr thin
+//   (G.7 g05 xlang_driver_*_thread_fn_ptr function-address cast residual; product surface pure;
 //   seed cold twin under #ifndef FROM_X). Closes Cap residual always-seed Cap-fn-ptr leaf.
 // wave80: pure product_emit thin via export-extern asm_asm_codegen_elf_o (no same-TU -1 body).
 // wave45 root fix: never put the two-char end-comment marker inside block prose
@@ -82,7 +82,7 @@
 //   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue + free prep).
 // wave50: pure collect deps/paths transitive_impl orch (stack to_load[32] + process_one loop).
 // wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
-//   Cap residual then pure (wave55) shux_load_one_direct_resolve_read_preprocess;
+//   Cap residual then pure (wave55) xlang_load_one_direct_resolve_read_preprocess;
 //   G.7 paths_tmp reuses same resolve_read (no dual resolve/read/preprocess).
 // wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
 // wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + resolve_read
@@ -91,15 +91,15 @@
 // wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]
 //   + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
 // wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
-//   Cap-fn-ptr + G.7 driver_run_thread_on_large_stack; SHUX_DEBUG_PIPE notes cold-only).
+//   Cap-fn-ptr + G.7 driver_run_thread_on_large_stack; XLANG_DEBUG_PIPE notes cold-only).
 // wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs stack pack u8[48];
 //   Cap-fn-ptr + product_emit Cap residual; G.7 driver_run_thread_on_large_stack).
 // wave58: pure dep_prerun_parse_skip_typeck_impl orch (check_only + skip typeck/codegen
 //   flags + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
 // wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
-//   pipeline_parse_set_main_from_buf_c; SHUX_ASM_DEBUG notes cold-only).
+//   pipeline_parse_set_main_from_buf_c; XLANG_ASM_DEBUG notes cold-only).
 // wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
-//   typeck_dep_prerun_module; SHUX_DEBUG_PIPE notes cold-only).
+//   typeck_dep_prerun_module; XLANG_DEBUG_PIPE notes cold-only).
 // wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
 //   + owned dup; Cap residual preprocess_* / pure diag helpers; oversized → pure fail).
 // wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc arena/module + parse_into
@@ -123,39 +123,39 @@
 // wave69: pure pipeline_resolved_path_buf_slot (module BSS buf 512; G.7 single authority
 //   for pure into_static + read_file_stage_prep path base; cold twin under FROM_X).
 // wave70: pure pipeline_dep_arena/module_slot_set/at (module BSS 32×LP64 ptr cells each;
-//   G.7 shux_ptr_slot_* on raw u8[256]; single authority for pure set_dep_slots / get_dep_*;
+//   G.7 xlang_ptr_slot_* on raw u8[256]; single authority for pure set_dep_slots / get_dep_*;
 //   cold twins under FROM_X).
 // wave71: pure pipeline_rf_stage_prep_clear/set/take (module BSS ptr cell + size cell;
-//   G.7 shux_ptr_slot_* / shux_size_slot_*; single authority for pure stage_prep / commit_prep;
+//   G.7 xlang_ptr_slot_* / xlang_size_slot_*; single authority for pure stage_prep / commit_prep;
 //   cold twins under FROM_X).
 // wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (module BSS
-//   buf+len+cap cells; G.7 ptr/size slots + malloc ensure floor SHUX_PIPELINE_IMPORT_BUF_CAP;
+//   buf+len+cap cells; G.7 ptr/size slots + malloc ensure floor XLANG_PIPELINE_IMPORT_BUF_CAP;
 //   cold twins under FROM_X).
 // wave73: pure pipeline_diag_emitted_flag_slot (module BSS i32 flag; G.7 single authority for
 //   pure reset/note/get; cold twin under FROM_X).
 // wave74: pure driver_dep_* table BSS orch (arena/module/path_registry/seeded 32 slots;
-//   G.7 shux_ptr_slot_* + pure seeded_slot; no cross-TU naked global — only accessors;
+//   G.7 xlang_ptr_slot_* + pure seeded_slot; no cross-TU naked global — only accessors;
 //   cold twins under FROM_X).
-// wave75: pure entry_lib authority (shux_cstr_typeck_lit / shux_entry_lib_keyword_lit /
-//   shux_entry_lib_name_from_path_impl + thin gate); module BSS stem_buf[128] + keyword lits;
+// wave75: pure entry_lib authority (xlang_cstr_typeck_lit / xlang_entry_lib_keyword_lit /
+//   xlang_entry_lib_name_from_path_impl + thin gate); module BSS stem_buf[128] + keyword lits;
 //   G.7 single path matches C seed order (keywords before std/stem — closes pure std/-first drift);
 //   cold twins under FROM_X).
-// wave76: pure shux_cstr_offset (G.7 &s[off] → C &s[off] / s+off; closes Cap residual pointer
+// wave76: pure xlang_cstr_offset (G.7 &s[off] → C &s[off] / s+off; closes Cap residual pointer
 //   arith leaf for pipe_dir_tail / pipe_strip_prefix_seg / driver -D parse); cold twin under FROM_X.
 // wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
-//   (G.7 shux_ptr_slot_*; product hybrid writers only via accessors — rt_run_* pure +
+//   (G.7 xlang_ptr_slot_*; product hybrid writers only via accessors — rt_run_* pure +
 //   driver_typeck_*; cold seed naked C globals stay under #ifndef FROM_X for cold twins).
-// wave78: pure shu_lsp_ptr_slot_clear (G.7 shux_ptr_slot_set null) + shux_fputs_stdout
-//   (G.7 g05 shux_driver_stdout_ptr + shux_driver_fputs_opaque) + driver_asm_fp_is_stdout
+// wave78: pure shu_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null) + xlang_fputs_stdout
+//   (G.7 g05 xlang_driver_stdout_ptr + xlang_driver_fputs_opaque) + driver_asm_fp_is_stdout
 //   + driver_asm_fclose_file (G.7 g05 stdout_ptr compare + fclose_opaque); cold twins under FROM_X.
-// wave79: pure shux_path_try_realpath_inplace (G.7 g05 shux_driver_realpath_opaque + stack
+// wave79: pure xlang_path_try_realpath_inplace (G.7 g05 xlang_driver_realpath_opaque + stack
 //   resolved[1024] + pipe_cstr_copy; fail → leave path unchanged; matches seed POSIX/APPLE
 //   realpath+snprintf and non-POSIX no-op via harness null); cold twin under FROM_X.
-// wave80: pure shux_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o only —
+// wave80: pure xlang_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o only —
 //   remove same-TU weak -1 stub so call keeps external reloc → final strong bridge;
 //   seed cold twin under #ifndef FROM_X). Closes product_emit Cap residual leaf.
-// wave81: pure shux_preprocess / shux_preprocess_quiet / shux_preprocess_with_path thin public
-//   surface (G.7 pure shux_preprocess_raw_to_malloc_impl; product always X-pipeline path;
+// wave81: pure xlang_preprocess / xlang_preprocess_quiet / xlang_preprocess_with_path thin public
+//   surface (G.7 pure xlang_preprocess_raw_to_malloc_impl; product always X-pipeline path;
 //   seed cold twin keeps LEGACY preprocess_c_fallback under #ifndef FROM_X).
 // wave82: pure pipeline_debug_trace_named_func_bodies_impl orch (getenv + module func walk +
 //   G.7 pure pipeline_debug_body_func_match + stack msg via pipe_diag_msg_append_* + diag_report;
@@ -164,25 +164,25 @@
 // wave83: pure pipeline_sizeof_arena / pipeline_sizeof_module (fixed LP64 layout constants
 //   matching pipeline_glue sizeof; dual-end verified 16 / 68). Glue keeps weak cold fallback.
 // wave84: pure Cap-fn-ptr surface thin (pipeline_run_x_thread_fn_ptr /
-//   shux_asm_codegen_elf_o_thread_fn_ptr) via g05 function-address opaques.
+//   xlang_asm_codegen_elf_o_thread_fn_ptr) via g05 function-address opaques.
 // wave85: pure preprocess_define_reset / add / has (G.7 single -D table BSS;
-//   glue strict_stubs SHUX_WEAK cold fallback). Closes Cap residual define-table
+//   glue strict_stubs XLANG_WEAK cold fallback). Closes Cap residual define-table
 //   leaf of preprocess engine (x_buf / if_stack still Cap residual).
 // wave86: pure preprocess_if_stack_reset / len / push / pop / at / set_at
-//   (G.7 single fixed i32[32] BSS; ast_pool GrowVec SHUX_WEAK cold fallback).
+//   (G.7 single fixed i32[32] BSS; ast_pool GrowVec XLANG_WEAK cold fallback).
 //   Closes Cap residual preprocess #if stack leaf (x_buf still Cap residual).
 // wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
 //   (G.7 single typeck authority; C typeck_module frontend deleted — was weak -1 only).
 //   Closes Cap residual typeck_module C frontend leaf.
 // wave88: pure preprocess_eval_condition_c (G.7 pure define_has simple path + Cap residual
-//   cfg_eval_expr_c for complex #if); glue SHUX_WEAK cold fallback.
+//   cfg_eval_expr_c for complex #if); glue XLANG_WEAK cold fallback.
 //   Closes Cap residual preprocess condition-eval leaf of preprocess.x engine path.
 // wave89: pure pipeline_typeck_dep_prerun_module_c (G.7 pure orch → typeck_x_ast_library +
-//   Cap residual set_dep_ctx / soft_suppress / validate / patch; glue SHUX_WEAK cold).
+//   Cap residual set_dep_ctx / soft_suppress / validate / patch; glue XLANG_WEAK cold).
 //   Closes Cap residual typeck dep-prerun leaf (wave60 typeck_only no longer always-seed body).
 // wave90: pure soft_suppress set/get BSS (G.7 single flag; same-TU orch + diagnostic get).
 // wave91: pure set_dep_ctx / get_dep_ctx BSS (G.7 single ptr; same-TU orch + ast_pool get).
-// wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue SHUX_WEAK cold).
+// wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue XLANG_WEAK cold).
 // wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7; no typeck_typeck_* hop).
 // Cap residual still: g05 &fn cast (language; g05 harness); preprocess_x_buf pure
 //   preprocess.x cross-TU; ImportEntry storage via pipeline_module_import_path_* (ast_pool).
@@ -192,16 +192,16 @@
 
 // wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
 // wave74: driver_dep_seeded_slot / *_ptr_set_impl / path_registry_* / *_buf are pure below.
-// wave75: shux_cstr_typeck_lit / shux_entry_lib_keyword_lit / name_from_path_impl pure below.
-// wave76: shux_cstr_offset is pure export function below (not Cap residual).
+// wave75: xlang_cstr_typeck_lit / xlang_entry_lib_keyword_lit / name_from_path_impl pure below.
+// wave76: xlang_cstr_offset is pure export function below (not Cap residual).
 // wave77: typeck_ndep_slot / store_impl / typeck_dep_*_get/set_impl / ptrs_base pure below.
-// wave78: shu_lsp_ptr_slot_clear / shux_fputs_stdout / driver_asm_fp_is_stdout /
+// wave78: shu_lsp_ptr_slot_clear / xlang_fputs_stdout / driver_asm_fp_is_stdout /
 //   driver_asm_fclose_file are pure export functions below.
-// wave79: shux_path_try_realpath_inplace is pure export function below.
-// wave80: shux_asm_codegen_elf_o_product_emit is pure export function below.
+// wave79: xlang_path_try_realpath_inplace is pure export function below.
+// wave80: xlang_asm_codegen_elf_o_product_emit is pure export function below.
 // wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below.
 // wave83: pipeline_sizeof_arena / pipeline_sizeof_module are pure export functions below.
-// wave84: pipeline_run_x_thread_fn_ptr / shux_asm_codegen_elf_o_thread_fn_ptr pure below.
+// wave84: pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr pure below.
 // wave85: preprocess_define_reset / add / has are pure export functions below.
 // wave86: preprocess_if_stack_* are pure export functions below (not Cap residual).
 // wave87: typeck_module_* / pipeline_typeck_module_for_ctx* pure below (route to typeck_x_ast).
@@ -254,7 +254,7 @@ export extern "C" function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_
 export extern "C" function pipeline_dep_ctx_path_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_loaded_buf_ptr(ctx: *u8): *u8;
 export extern "C" function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void;
-export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
+export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 // wave95 Cap residual under pure load_import orch (arena/prep ptr accessors).
 // wave96: pipeline_parse_into_buf is pure export function below (not export-extern).
 export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
@@ -270,17 +270,17 @@ export extern "C" function free(p: *u8): void;
 // PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
-// wave54: shux_collect_strdup is pure export function below (not Cap residual).
+// wave54: xlang_collect_strdup is pure export function below (not Cap residual).
 // Do not export-extern libc strdup by name — conflicts with string.h after -E preamble.
-// wave52: shux_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
-// wave53: shux_collect_paths_tmp_resolve_parse_enqueue is pure export function below.
-// wave55: shux_load_one_direct_resolve_read_preprocess is pure export function below.
-// wave55 pure resolve_read: runtime file view (ShuxRuntimeFileView 24B; pad 32 stack).
+// wave52: xlang_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
+// wave53: xlang_collect_paths_tmp_resolve_parse_enqueue is pure export function below.
+// wave55: xlang_load_one_direct_resolve_read_preprocess is pure export function below.
+// wave55 pure resolve_read: runtime file view (XlangRuntimeFileView 24B; pad 32 stack).
 // PLATFORM: SHARED — same ABI as fmt_check pure path; G.7 no second view layout.
 export extern "C" function runtime_read_file_view(path: *u8, out: *u8): i32;
 export extern "C" function runtime_release_file_view(view: *u8): void;
 export extern "C" function ast_module_free(mod: *u8): void;
-// wave78: shu_lsp_ptr_slot_clear is pure export function below (G.7 shux_ptr_slot_set).
+// wave78: shu_lsp_ptr_slot_clear is pure export function below (G.7 xlang_ptr_slot_set).
 /* See implementation. */
 export extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
@@ -288,29 +288,29 @@ export extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a:
 export extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void;
 export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
 // wave56: pipeline_run_x_thread_fn_impl is pure export function below.
-// wave57: shux_asm_codegen_elf_o_thread_fn_impl is pure export function below.
+// wave57: xlang_asm_codegen_elf_o_thread_fn_impl is pure export function below.
 // wave80: product_emit is pure thin below (G.7 export-extern asm_asm_codegen_elf_o → bridge).
 // Cap residual always-seed: Cap-fn-ptr for asm large-stack only (wave57/wave80).
 // PLATFORM: SHARED — must not define same-TU body for asm_asm_codegen_elf_o (weak -1 was Cap trap).
 export extern "C" function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 // wave84: Cap-fn-ptr product surfaces pure; wave100: no g05 &fn cast residual —
 //   typeck resolves same-module bare fn name to Cap-fn-ptr *u8; pure bodies use (fn as *u8).
-// PLATFORM: SHARED — g05 may still define dead shux_driver_*_thread_fn_ptr helpers (optional).
+// PLATFORM: SHARED — g05 may still define dead xlang_driver_*_thread_fn_ptr helpers (optional).
 // wave56 pure pipeline large-stack orch: set entry source_len + run pipeline.
 export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
 export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
 
-// wave78: shux_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
+// wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
 // g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
 // PLATFORM: SHARED — static inline in g05_try_x_to_o prologue; not a second product authority.
-export extern "C" function shux_driver_fputs_opaque(s: *u8, stream: *u8): i32;
-export extern "C" function shux_driver_stdout_ptr(): *u8;
-export extern "C" function shux_driver_fclose_opaque(stream: *u8): i32;
+export extern "C" function xlang_driver_fputs_opaque(s: *u8, stream: *u8): i32;
+export extern "C" function xlang_driver_stdout_ptr(): *u8;
+export extern "C" function xlang_driver_fclose_opaque(stream: *u8): i32;
 // wave79: g05 harness — libc realpath char* cast residual (labi_path_io same clash avoidance).
 // PLATFORM: SHARED POSIX/APPLE call realpath; non-POSIX harness returns null (seed no-op).
-export extern "C" function shux_driver_realpath_opaque(path: *u8, resolved: *u8): *u8;
-// wave75: shux_import_dep_dir_from_path_impl removed — pure import_dep_dir is full body.
+export extern "C" function xlang_driver_realpath_opaque(path: *u8, resolved: *u8): *u8;
+// wave75: xlang_import_dep_dir_from_path_impl removed — pure import_dep_dir is full body.
 /* wave45: do not export-extern pipeline_debug_trace_named_func_bodies here —
  * pure export function below is the single authority (#[no_mangle]).
  * A prior export extern + export function dual caused call sites to emit the
@@ -319,20 +319,20 @@ export extern "C" function shux_driver_realpath_opaque(path: *u8, resolved: *u8)
 /* See implementation. */
 /* See implementation. */
 export extern "C" function driver_asm_fflush_stdout(): void;
-// wave79: shux_path_try_realpath_inplace is pure export function below (not Cap residual).
+// wave79: xlang_path_try_realpath_inplace is pure export function below (not Cap residual).
 // wave67: pipeline_dep_ctx_path_bufs_reset / copy_entry_dir are pure export functions below.
 // wave67: pipeline_dep_ctx_set_use_asm_backend is pure thin over G.7 driver authority.
 export extern "C" function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
 export extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
-/* wave61: shux_preprocess_raw_to_malloc_impl is pure export function below.
+/* wave61: xlang_preprocess_raw_to_malloc_impl is pure export function below.
  * wave85: define_reset/add/has pure below (G.7 single -D table).
  * wave86: if_stack_* pure below (G.7 fixed i32[32]; not export-extern).
  * Cap residual: preprocess_x_buf (preprocess.x engine): */
 export extern "C" function preprocess_x_buf(src: *u8, src_len: i64, out_buf: *u8, out_cap: i32): i32;
 // PLATFORM: SHARED — same C ABI as seed cold twin; pure orch owns malloc/copy/diag gates.
 // wave74: driver_dep_seed_slots pure orch owns tables (no seed_slots_impl body required under hybrid).
-// wave75: shux_entry_lib_name_from_path_impl / shux_cstr_typeck_lit /
-//   shux_entry_lib_keyword_lit are pure export functions below (not Cap residual).
+// wave75: xlang_entry_lib_name_from_path_impl / xlang_cstr_typeck_lit /
+//   xlang_entry_lib_keyword_lit are pure export functions below (not Cap residual).
 // wave70: pipeline_dep_arena/module_slot_set/at are pure export functions below (pure BSS 32×LP64).
 // PLATFORM: SHARED — G.7 single authority for pure set_dep_slots / get_dep_*; seed cold twins only.
 /* See implementation. */
@@ -354,10 +354,10 @@ export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 // wave64: pipeline_parse_into_bytes is pure export function below (not Cap residual).
 // wave65: pipeline_resolve_path_into_static is pure export function below.
 // wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
-// wave56: shux_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
-// wave58: shux_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
-// wave59: shux_pipeline_dep_prerun_parse_only_impl is pure export function below.
-// wave60: shux_pipeline_dep_prerun_typeck_only_impl is pure export function below.
+// wave56: xlang_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
+// wave58: xlang_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
+// wave59: xlang_pipeline_dep_prerun_parse_only_impl is pure export function below.
+// wave60: xlang_pipeline_dep_prerun_typeck_only_impl is pure export function below.
 // wave93: pipeline_load_and_sync_direct_import_deps_c is pure export function below
 //   (same-TU try_bind + realign; Cap residual disk load / sync / typeck merge).
 // wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual body).
@@ -374,7 +374,7 @@ export extern "C" function driver_pipeline_dep_ctx_get_asm_entry_module_only(ctx
 export extern "C" function driver_pipeline_dep_ctx_set_asm_entry_module_only(ctx: *u8, v: i32): void;
 /* See implementation. */
 export extern "C" function access(path: *u8, mode: i32): i32;
-// wave76: shux_cstr_offset is pure export function below (not Cap residual).
+// wave76: xlang_cstr_offset is pure export function below (not Cap residual).
 /* See implementation. */
 // wave68: pipeline_entry_dir_copy / set_dot are pure export functions below (not Cap residual).
 // wave75: pipeline_set_dep_slots_impl removed — pure pipeline_set_dep_slots uses wave70 slots.
@@ -382,21 +382,21 @@ export extern "C" function access(path: *u8, mode: i32): i32;
 /* See implementation. */
 /* See implementation. */
 // wave67: pipeline_dep_ctx_set_use_asm_backend is pure export function below (G.7 driver thin).
-// wave62: shux_pipeline_one_ctx_for_dep_prerun_map_impl is pure export function below.
+// wave62: xlang_pipeline_one_ctx_for_dep_prerun_map_impl is pure export function below.
 // wave83: pipeline_sizeof_arena / module are pure export functions below (not Cap residual).
 // Cap-struct-return parse ok unpack (driver residual):
 // PLATFORM: SHARED — same symbols as collect tmp_parse / driver_parse_into_buf_rc pure path.
 export extern "C" function driver_parse_into_buf_rc(arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32): i32;
-// wave57: shux_asm_codegen_elf_o_large_stack_impl is pure export function below.
+// wave57: xlang_asm_codegen_elf_o_large_stack_impl is pure export function below.
 /* See implementation. */
-/* wave46: shux_module_num_imports / import_path_cstr / ptr+size slots / i32_store
+/* wave46: xlang_module_num_imports / import_path_cstr / ptr+size slots / i32_store
  * are pure export function below (not export-extern Cap residual). */
-// wave51: shux_load_one_direct_import_at + shux_load_direct_fail_cleanup are pure orch below
-// (wave55 pure shux_load_one_direct_resolve_read_preprocess for resolve+read+preprocess).
-// wave50: shux_collect_deps_transitive_impl / shux_collect_dep_paths_transitive_impl
+// wave51: xlang_load_one_direct_import_at + xlang_load_direct_fail_cleanup are pure orch below
+// (wave55 pure xlang_load_one_direct_resolve_read_preprocess for resolve+read+preprocess).
+// wave50: xlang_collect_deps_transitive_impl / xlang_collect_dep_paths_transitive_impl
 // are pure export function below (not export-extern Cap residual).
-// wave52: shux_collect_tmp_parse_and_enqueue is pure export function below.
-// wave55: shux_load_one_direct_resolve_read_preprocess is pure export function below.
+// wave52: xlang_collect_tmp_parse_and_enqueue is pure export function below.
+// wave55: xlang_load_one_direct_resolve_read_preprocess is pure export function below.
 // wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below
 //   (not export-extern always-seed). Cap residual: module/ast accessors + getenv +
 //   pure pipe_diag_msg_append_* (same TU; product does not link driver_diag_append_*) +
@@ -547,7 +547,7 @@ export function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): vo
  * PLATFORM: SHARED — final link must provide strong user_asm_seed_bridge (or equiv).
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
   unsafe {
     return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
   }
@@ -824,7 +824,7 @@ export function typeck_driver_dep_arena_buf(i: i32): *u8 {
 
 /* See implementation. */
 #[no_mangle]
-export function shux_cstr_ends_with_dot_x(s: *u8): i32 {
+export function xlang_cstr_ends_with_dot_x(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
@@ -850,7 +850,7 @@ export function shux_cstr_ends_with_dot_x(s: *u8): i32 {
 
 /* See implementation. */
 #[no_mangle]
-export function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
+export function xlang_asm_out_buf_is_object_magic(data: *u8): i32 {
   if (data == 0 as *u8) {
     return 0;
   }
@@ -894,13 +894,13 @@ export function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_import_path_is_file_path`.
- * Implements `shux_import_path_is_file_path`.
+/** Exported function `xlang_import_path_is_file_path`.
+ * Implements `xlang_import_path_is_file_path`.
  * @param import_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_import_path_is_file_path(import_path: *u8): i32 {
+export function xlang_import_path_is_file_path(import_path: *u8): i32 {
   if (import_path == 0 as *u8) {
     return 0;
   }
@@ -918,7 +918,7 @@ export function shux_import_path_is_file_path(import_path: *u8): i32 {
     if (strchr(import_path, 47) != 0 as *u8) {
       return 1;
     }
-    if (shux_cstr_ends_with_dot_x(import_path) != 0) {
+    if (xlang_cstr_ends_with_dot_x(import_path) != 0) {
       return 1;
     }
     return 0;
@@ -926,13 +926,13 @@ export function shux_import_path_is_file_path(import_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_std_dep_skip_x_typeck`.
- * Implements `shux_asm_user_std_dep_skip_x_typeck`.
+/** Exported function `xlang_asm_user_std_dep_skip_x_typeck`.
+ * Implements `xlang_asm_user_std_dep_skip_x_typeck`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
+export function xlang_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -948,13 +948,13 @@ export function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_std_net_dep_path`.
- * Implements `shux_asm_user_std_net_dep_path`.
+/** Exported function `xlang_asm_user_std_net_dep_path`.
+ * Implements `xlang_asm_user_std_net_dep_path`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
+export function xlang_asm_user_std_net_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -970,13 +970,13 @@ export function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_std_io_driver_dep_path`.
- * Implements `shux_asm_user_std_io_driver_dep_path`.
+/** Exported function `xlang_asm_user_std_io_driver_dep_path`.
+ * Implements `xlang_asm_user_std_io_driver_dep_path`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
+export function xlang_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -992,18 +992,18 @@ export function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_dep_parse_skip_typeck_path`.
- * Implements `shux_asm_user_dep_parse_skip_typeck_path`.
+/** Exported function `xlang_asm_user_dep_parse_skip_typeck_path`.
+ * Implements `xlang_asm_user_dep_parse_skip_typeck_path`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
+export function xlang_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
   unsafe {
-    if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
+    if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
       return 1;
     }
-    if (shux_asm_user_std_io_driver_dep_path(dep_path) != 0) {
+    if (xlang_asm_user_std_io_driver_dep_path(dep_path) != 0) {
       return 1;
     }
     return 0;
@@ -1011,14 +1011,14 @@ export function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_out_buf_is_object`.
- * Implements `shux_asm_out_buf_is_object`.
+/** Exported function `xlang_asm_out_buf_is_object`.
+ * Implements `xlang_asm_out_buf_is_object`.
  * @param data *u8
  * @param len i64
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
+export function xlang_asm_out_buf_is_object(data: *u8, len: i64): i32 {
   if (data == 0 as *u8) {
     return 0;
   }
@@ -1026,7 +1026,7 @@ export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
     return 0;
   }
   unsafe {
-    return shux_asm_out_buf_is_object_magic(data);
+    return xlang_asm_out_buf_is_object_magic(data);
   }
   return 0;
 }
@@ -1034,25 +1034,25 @@ export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
 /* See implementation. */
 
 #[no_mangle]
-export function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+export function xlang_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
   unsafe {
     if (n_lib_roots <= 0) {
       return main_entry_dir;
     }
-    return shux_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
+    return xlang_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
   }
   return main_entry_dir;
 }
 
-/** Exported function `shux_find_loaded_import_index`.
- * Implements `shux_find_loaded_import_index`.
+/** Exported function `xlang_find_loaded_import_index`.
+ * Implements `xlang_find_loaded_import_index`.
  * @param import_path *u8
  * @param all_paths *u8
  * @param n_all i32
  * @return i32
  */
 #[no_mangle]
-export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
+export function xlang_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (import_path == 0 as *u8) {
     return -1;
   }
@@ -1062,18 +1062,18 @@ export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, 
   if (n_all <= 0) {
     return -1;
   }
-  return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
+  return xlang_find_loaded_import_index_scan(import_path, all_paths, n_all);
 }
 
-/** Exported function `shux_merge_deps_path_already_out`.
- * Read path helper `shux_merge_deps_path_already_out`.
+/** Exported function `xlang_merge_deps_path_already_out`.
+ * Read path helper `xlang_merge_deps_path_already_out`.
  * @param path *u8
  * @param out_paths *u8
  * @param n_out i32
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
+export function xlang_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
@@ -1083,40 +1083,40 @@ export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_ou
   if (n_out <= 0) {
     return 0;
   }
-  return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
+  return xlang_merge_deps_path_already_out_scan(path, out_paths, n_out);
 }
 
 /**
  * Write NUL-terminated C string s to host stdout via fputs.
  * @param s *u8 — C string; null → no-op
  * @return void
- * wave78 pure: G.7 g05 shux_driver_stdout_ptr + shux_driver_fputs_opaque (FILE* cast residual
+ * wave78 pure: G.7 g05 xlang_driver_stdout_ptr + xlang_driver_fputs_opaque (FILE* cast residual
  * lives in g05_try_x_to_o prologue; .x never names FILE*).
  * Closes always-seed Cap soft residual for emit_pipeline_glue_include.
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_fputs_stdout(s: *u8): void {
+export function xlang_fputs_stdout(s: *u8): void {
   if (s == 0 as *u8) {
     return;
   }
   unsafe {
-    let so: *u8 = shux_driver_stdout_ptr();
+    let so: *u8 = xlang_driver_stdout_ptr();
     if (so != 0 as *u8) {
-      shux_driver_fputs_opaque(s, so);
+      xlang_driver_fputs_opaque(s, so);
     }
   }
 }
 
-// shux_emit_pipeline_glue_include: see function docblock below.
+// xlang_emit_pipeline_glue_include: see function docblock below.
 /**
  * Emit the pipeline_glue.c include line to stdout (codegen glue surface).
  * @return void
- * G.7 pure shux_fputs_stdout (wave78) owns stdout write.
+ * G.7 pure xlang_fputs_stdout (wave78) owns stdout write.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_emit_pipeline_glue_include(): void {
+export function xlang_emit_pipeline_glue_include(): void {
   // "\n#include \"pipeline_glue.c\"\n"
   let s: u8[32] = [];
   s[0]=10;s[1]=35;s[2]=105;s[3]=110;s[4]=99;s[5]=108;s[6]=117;s[7]=100;
@@ -1124,20 +1124,20 @@ export function shux_emit_pipeline_glue_include(): void {
   s[16]=105;s[17]=110;s[18]=101;s[19]=95;s[20]=103;s[21]=108;s[22]=117;s[23]=101;
   s[24]=46;s[25]=99;s[26]=34;s[27]=10;s[28]=0;
   unsafe {
-    shux_fputs_stdout(&s[0]);
+    xlang_fputs_stdout(&s[0]);
   }
 }
 
-// shux_import_dep_dir_from_path: see function docblock below.
-/** Exported function `shux_import_dep_dir_from_path`.
- * Implements `shux_import_dep_dir_from_path`.
+// xlang_import_dep_dir_from_path: see function docblock below.
+/** Exported function `xlang_import_dep_dir_from_path`.
+ * Implements `xlang_import_dep_dir_from_path`.
  * @param path *u8
  * @param dep_dir *u8
  * @param dep_dir_size i64
  * @return i32
  */
 #[no_mangle]
-export function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
+export function xlang_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (dep_dir == 0 as *u8) { return 0 - 1; }
   if (dep_dir_size == 0) { return 0 - 1; }
@@ -1293,16 +1293,16 @@ export function driver_dep_seeded_clear_all(): void {
   driver_typeck_dep_sidecar_clear();
 }
 
-// shux_get_entry_dir: see function docblock below.
-/** Exported function `shux_get_entry_dir`.
- * Implements `shux_get_entry_dir`.
+// xlang_get_entry_dir: see function docblock below.
+/** Exported function `xlang_get_entry_dir`.
+ * Implements `xlang_get_entry_dir`.
  * @param input_path *u8
  * @param entry_dir *u8
  * @param size i64
  * @return void
  */
 #[no_mangle]
-export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
+export function xlang_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
   if (entry_dir == 0 as *u8) {
     return;
   }
@@ -1357,7 +1357,7 @@ export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): 
  * Return 1 if opaque stream fp is host stdout, else 0.
  * @param fp *u8 — opaque FILE* as *u8; null → 0
  * @return i32 — 1 when fp equals stdout, else 0
- * wave78 pure: G.7 g05 shux_driver_stdout_ptr identity compare (no FILE* in .x).
+ * wave78 pure: G.7 g05 xlang_driver_stdout_ptr identity compare (no FILE* in .x).
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -1366,7 +1366,7 @@ export function driver_asm_fp_is_stdout(fp: *u8): i32 {
     return 0;
   }
   unsafe {
-    let so: *u8 = shux_driver_stdout_ptr();
+    let so: *u8 = xlang_driver_stdout_ptr();
     if (fp == so) {
       return 1;
     }
@@ -1378,7 +1378,7 @@ export function driver_asm_fp_is_stdout(fp: *u8): i32 {
  * fclose an opaque non-stdout stream (null-safe).
  * @param fp *u8 — opaque FILE* as *u8; null → no-op
  * @return void
- * wave78 pure: G.7 g05 shux_driver_fclose_opaque (FILE* cast residual in g05 prologue).
+ * wave78 pure: G.7 g05 xlang_driver_fclose_opaque (FILE* cast residual in g05 prologue).
  * Does not special-case stdout — callers use driver_asm_fclose_asm_out for that.
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
@@ -1388,7 +1388,7 @@ export function driver_asm_fclose_file(fp: *u8): void {
     return;
   }
   unsafe {
-    shux_driver_fclose_opaque(fp);
+    xlang_driver_fclose_opaque(fp);
   }
 }
 
@@ -1418,8 +1418,8 @@ export function driver_asm_fclose_asm_out(fp: *u8): void {
 /* See implementation. */
 
 // G-02f-229：lib_root + import（'.'→'/'）+ ".x"
-/** Exported function `shux_import_path_to_file_path`.
- * Implements `shux_import_path_to_file_path`.
+/** Exported function `xlang_import_path_to_file_path`.
+ * Implements `xlang_import_path_to_file_path`.
  * @param lib_root *u8
  * @param import_path *u8
  * @param path *u8
@@ -1427,7 +1427,7 @@ export function driver_asm_fclose_asm_out(fp: *u8): void {
  * @return void
  */
 #[no_mangle]
-export function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function xlang_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -1561,13 +1561,13 @@ export function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
  * @return void
  * wave79 pure Cap residual orch:
  *   stack resolved[1024] (matches seed char resolved[1024]);
- *   G.7 g05 shux_driver_realpath_opaque (libc realpath char* cast residual;
+ *   G.7 g05 xlang_driver_realpath_opaque (libc realpath char* cast residual;
  *   non-POSIX host returns null → no-op, matches seed #else);
  *   success → G.7 pipe_cstr_copy into path with path_size cap (snprintf "%s" equiv).
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void {
+export function xlang_path_try_realpath_inplace(path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -1577,7 +1577,7 @@ export function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void 
   unsafe {
     // Match seed stack resolved[1024]; PATH_MAX on gold Linux is larger but seed pin is 1024.
     let resolved: u8[1024] = [];
-    let r: *u8 = shux_driver_realpath_opaque(path, &resolved[0]);
+    let r: *u8 = xlang_driver_realpath_opaque(path, &resolved[0]);
     if (r != 0 as *u8) {
       let cap: i32 = path_size as i32;
       if (cap > 0) {
@@ -1587,18 +1587,18 @@ export function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void 
   }
 }
 
-// shux_resolve_file_import_path: see function docblock below.
-/** Exported function `shux_resolve_file_import_path`.
- * Implements `shux_resolve_file_import_path`.
+// xlang_resolve_file_import_path: see function docblock below.
+/** Exported function `xlang_resolve_file_import_path`.
+ * Implements `xlang_resolve_file_import_path`.
  * @param entry_dir *u8
  * @param import_path *u8
  * @param path *u8
  * @param path_size i64
  * @return void
- * G.7 pure shux_path_try_realpath_inplace (wave79) owns realpath-in-place after join.
+ * G.7 pure xlang_path_try_realpath_inplace (wave79) owns realpath-in-place after join.
  */
 #[no_mangle]
-export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function xlang_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -1630,7 +1630,7 @@ export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, 
         pipe_cstr_copy(path, cap, import_path);
       }
     }
-    shux_path_try_realpath_inplace(path, path_size);
+    xlang_path_try_realpath_inplace(path, path_size);
   }
 }
 
@@ -1674,7 +1674,7 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
 /**
  * Preprocess raw source into an owned NUL-terminated malloc buffer.
  * @param raw *u8 — source bytes; null only allowed when raw_len == 0
- * @param raw_len i64 — byte count; must fit SHUX_PIPELINE_CTX_BUF_SIZE (4MiB)
+ * @param raw_len i64 — byte count; must fit XLANG_PIPELINE_CTX_BUF_SIZE (4MiB)
  * @param out_src *u8 — char** base as bytes; slot 0 set to owned prep (or null on fail)
  * @param out_src_len *u8 — size_t* base as bytes; slot 0 set to output length (0 on fail)
  * @param path_diag *u8 — path for preprocess diags; may be null
@@ -1689,20 +1689,20 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
  *   G.7 pure cross-TU preprocess_x_buf (preprocess.x engine; wave88 eval pure);
  *   G.7 pure preprocess_eval_condition_c (simple) + Cap residual cfg_eval_expr_c (complex);
  *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
- *   G.7 shux_ptr_slot_set / shux_size_slot_set for out slots (char** / size_t*);
+ *   G.7 xlang_ptr_slot_set / xlang_size_slot_set for out slots (char** / size_t*);
  *   oversized raw → pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
  * PLATFORM: SHARED — same control flow as historical seed _impl.
  */
 #[no_mangle]
-export function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32 {
+export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32 {
   // Clear outs first (same as seed).
   if (out_src != 0 as *u8) {
-    shux_ptr_slot_set(out_src, 0, 0 as *u8);
+    xlang_ptr_slot_set(out_src, 0, 0 as *u8);
   }
   if (out_src_len != 0 as *u8) {
-    shux_size_slot_set(out_src_len, 0, 0);
+    xlang_size_slot_set(out_src_len, 0, 0);
   }
-  // SHUX_PIPELINE_CTX_BUF_SIZE — fixed 4MiB pipeline ctx buffer (runtime_pipeline_abi.h).
+  // XLANG_PIPELINE_CTX_BUF_SIZE — fixed 4MiB pipeline ctx buffer (runtime_pipeline_abi.h).
   let buf_cap: i32 = 4194304;
   let buf_cap_i64: i64 = buf_cap as i64;
   if (raw_len > buf_cap_i64) {
@@ -1734,7 +1734,7 @@ export function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_s
   let di: i32 = 0;
   while (di < ndefines) {
     if (defines != 0 as *u8) {
-      let dname: *u8 = shux_ptr_slot_get(defines, di);
+      let dname: *u8 = xlang_ptr_slot_get(defines, di);
       if (dname != 0 as *u8) {
         unsafe {
           preprocess_define_add(dname);
@@ -1812,10 +1812,10 @@ export function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_s
     free(scratch);
   }
   if (out_src != 0 as *u8) {
-    shux_ptr_slot_set(out_src, 0, dup);
+    xlang_ptr_slot_set(out_src, 0, dup);
   }
   if (out_src_len != 0 as *u8) {
-    shux_size_slot_set(out_src_len, 0, n as i64);
+    xlang_size_slot_set(out_src_len, 0, n as i64);
   }
   return 0;
 }
@@ -1830,11 +1830,11 @@ export function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_s
  * @param defines *u8 — const char** define table
  * @param ndefines i32 — define count; < 0 → -1
  * @return i32 — 0 success; -1 fail
- * wave61: body in pure shux_preprocess_raw_to_malloc_impl.
+ * wave61: body in pure xlang_preprocess_raw_to_malloc_impl.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
+export function xlang_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
   if (raw_len < 0) {
     return 0 - 1;
   }
@@ -1847,7 +1847,7 @@ export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *
     return 0 - 1;
   }
   unsafe {
-    return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
+    return xlang_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
   }
   return 0 - 1;
 }
@@ -1862,15 +1862,15 @@ export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *
  * @param out_length *u8 — size_t* out length as bytes; may be null
  * @return *u8 — owned NUL-terminated prep (caller free); null on fail
  * wave81 pure Cap residual thin:
- *   G.7 pure shux_preprocess_raw_to_malloc_impl with emit_diag=1 (product X-pipeline path);
+ *   G.7 pure xlang_preprocess_raw_to_malloc_impl with emit_diag=1 (product X-pipeline path);
  *   LP64 stack out cells for char** / size_t* (same pattern as stage_prep);
  *   seed cold twin keeps LEGACY preprocess_c_fallback under #ifndef FROM_X.
- * PLATFORM: SHARED — matches seed SHUX_USE_X_PIPELINE && !LEGACY control flow.
+ * PLATFORM: SHARED — matches seed XLANG_USE_X_PIPELINE && !LEGACY control flow.
  */
 #[no_mangle]
-export function shux_preprocess_with_path(source: *u8, source_len: usize, path_diag: *u8, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+export function xlang_preprocess_with_path(source: *u8, source_len: usize, path_diag: *u8, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
   if (out_length != 0 as *u8) {
-    shux_size_slot_set(out_length, 0, 0);
+    xlang_size_slot_set(out_length, 0, 0);
   }
   if (source == 0 as *u8) {
     return 0 as *u8;
@@ -1883,22 +1883,22 @@ export function shux_preprocess_with_path(source: *u8, source_len: usize, path_d
   let out_prep: u8[8] = [];
   let out_len: u8[8] = [];
   pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
-  shux_size_slot_set(&out_len[0], 0, 0);
+  xlang_size_slot_set(&out_len[0], 0, 0);
   let def_arg: *u8 = 0 as *u8;
   if (ndefines > 0) {
     def_arg = defines;
   }
   let rc: i32 = 0;
   unsafe {
-    rc = shux_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], path_diag, def_arg, ndefines, 1);
+    rc = xlang_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], path_diag, def_arg, ndefines, 1);
   }
   if (rc != 0) {
     return 0 as *u8;
   }
   let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
-  let olen: i64 = shux_size_slot_get(&out_len[0], 0);
+  let olen: i64 = xlang_size_slot_get(&out_len[0], 0);
   if (out_length != 0 as *u8) {
-    shux_size_slot_set(out_length, 0, olen);
+    xlang_size_slot_set(out_length, 0, olen);
   }
   return prep;
 }
@@ -1915,9 +1915,9 @@ export function shux_preprocess_with_path(source: *u8, source_len: usize, path_d
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_preprocess_quiet(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+export function xlang_preprocess_quiet(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
   if (out_length != 0 as *u8) {
-    shux_size_slot_set(out_length, 0, 0);
+    xlang_size_slot_set(out_length, 0, 0);
   }
   if (source == 0 as *u8) {
     return 0 as *u8;
@@ -1929,22 +1929,22 @@ export function shux_preprocess_quiet(source: *u8, source_len: usize, defines: *
   let out_prep: u8[8] = [];
   let out_len: u8[8] = [];
   pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
-  shux_size_slot_set(&out_len[0], 0, 0);
+  xlang_size_slot_set(&out_len[0], 0, 0);
   let def_arg: *u8 = 0 as *u8;
   if (ndefines > 0) {
     def_arg = defines;
   }
   let rc: i32 = 0;
   unsafe {
-    rc = shux_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], 0 as *u8, def_arg, ndefines, 0);
+    rc = xlang_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], 0 as *u8, def_arg, ndefines, 0);
   }
   if (rc != 0) {
     return 0 as *u8;
   }
   let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
-  let olen: i64 = shux_size_slot_get(&out_len[0], 0);
+  let olen: i64 = xlang_size_slot_get(&out_len[0], 0);
   if (out_length != 0 as *u8) {
-    shux_size_slot_set(out_length, 0, olen);
+    xlang_size_slot_set(out_length, 0, olen);
   }
   return prep;
 }
@@ -1957,12 +1957,12 @@ export function shux_preprocess_quiet(source: *u8, source_len: usize, defines: *
  * @param ndefines i32 — define count
  * @param out_length *u8 — size_t* out length
  * @return *u8 — owned prep or null
- * wave81 pure Cap residual thin: G.7 pure shux_preprocess_quiet.
+ * wave81 pure Cap residual thin: G.7 pure xlang_preprocess_quiet.
  * PLATFORM: SHARED — matches seed alias.
  */
 #[no_mangle]
-export function shux_preprocess(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
-  return shux_preprocess_quiet(source, source_len, defines, ndefines, out_length);
+export function xlang_preprocess(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+  return xlang_preprocess_quiet(source, source_len, defines, ndefines, out_length);
 }
 
 // driver_dep_seed_slots: see function docblock below.
@@ -2033,16 +2033,16 @@ export function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
  * Thin gate: -E lib_prefix from entry path (null → "typeck"; else pure impl).
  * @param input_path *u8 — entry .x path; null → static "typeck"
  * @return *u8 — never null; keyword lit or stem BSS or "typeck"
- * wave75: G.7 pure shux_entry_lib_name_from_path_impl owns full keyword/std/core/basename
+ * wave75: G.7 pure xlang_entry_lib_name_from_path_impl owns full keyword/std/core/basename
  * order (matches seed cold twin; no pure std/-first dual path).
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
+export function xlang_entry_lib_name_from_path(input_path: *u8): *u8 {
   if (input_path == 0 as *u8) {
-    return shux_cstr_typeck_lit();
+    return xlang_cstr_typeck_lit();
   }
-  return shux_entry_lib_name_from_path_impl(input_path);
+  return xlang_entry_lib_name_from_path_impl(input_path);
 }
 
 /* See implementation. */
@@ -2165,7 +2165,7 @@ export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_p
  * @param path_c *u8 — NUL-terminated import path; null → no-op
  * @return void
  * wave65 pure Cap residual orch (wave69: resolved slot pure):
- *   G.7 pure shux_resolve_import_file_path_multi (file-path / -L / entry_dir fallbacks);
+ *   G.7 pure xlang_resolve_import_file_path_multi (file-path / -L / entry_dir fallbacks);
  *   pure pipeline_entry_dir_get (wave68 BSS) + pure pipeline_resolved_path_buf_slot (wave69 BSS).
  * Stack packs one LP64 ptr slot for lib_roots[1] = {"."} (same as historical seed).
  * PLATFORM: SHARED — resolved buffer cap 512 matches historical seed pipeline_resolved_path_buf.
@@ -2182,11 +2182,11 @@ export function pipeline_resolve_path_into_static(path_c: *u8): void {
   // LP64: one void* slot for multi(lib_roots, n=1, ...).
   let roots: u8[8] = [];
   unsafe {
-    shux_ptr_slot_set(&roots[0], 0, &dot[0]);
+    xlang_ptr_slot_set(&roots[0], 0, &dot[0]);
     let entry: *u8 = pipeline_entry_dir_get();
     let rbuf: *u8 = pipeline_resolved_path_buf_slot();
     // Cap 512 — pure g_pipe_resolved_path_buf (wave69; cold seed char[512]).
-    shux_resolve_import_file_path_multi(&roots[0], 1, entry, path_c, rbuf, 512 as i64);
+    xlang_resolve_import_file_path_multi(&roots[0], 1, entry, path_c, rbuf, 512 as i64);
   }
 }
 
@@ -2233,9 +2233,9 @@ export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
  * wave66 pure orch (wave69 resolved slot; wave71 pure stage clear/set):
  *   pure pipeline_rf_stage_prep_clear / pipeline_rf_stage_prep_set (wave71 pure BSS);
  *   pure pipeline_resolved_path_buf_slot (wave69 BSS; path written by resolve_path_into_static);
- *   runtime_read_file_view into 32B stack ShuxRuntimeFileView (G.7 same as wave55 load_one);
+ *   runtime_read_file_view into 32B stack XlangRuntimeFileView (G.7 same as wave55 load_one);
  *   open fail → pure pipeline_diag_import_open_fail_once(null, path);
- *   G.7 pure shux_preprocess_raw_to_malloc (defines null, ndefines 0);
+ *   G.7 pure xlang_preprocess_raw_to_malloc (defines null, ndefines 0);
  *   runtime_release_file_view always after read success;
  *   null prep after preprocess ok → pure pipeline_diag_import_preprocess_fail.
  * PLATFORM: SHARED — same semantics as historical seed stage_prep.
@@ -2250,7 +2250,7 @@ export function pipeline_read_file_stage_prep(): i32 {
   unsafe {
     path = pipeline_resolved_path_buf_slot();
   }
-  // ShuxRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
+  // XlangRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
   let view: u8[32] = [];
   let z: i32 = 0;
   while (z < 32) {
@@ -2266,17 +2266,17 @@ export function pipeline_read_file_stage_prep(): i32 {
     pipeline_diag_import_open_fail_once(0 as *u8, path);
     return 0 - 1;
   }
-  let raw_data: *u8 = shux_ptr_slot_get(&view[0], 0);
-  let raw_len: i64 = shux_size_slot_get(&view[0], 1);
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
   // LP64 out cells for preprocess (char** / size_t*).
   let out_prep: u8[8] = [];
   let out_len: u8[8] = [];
   pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
-  shux_size_slot_set(&out_len[0], 0, 0);
+  xlang_size_slot_set(&out_len[0], 0, 0);
   let prep_rc: i32 = 0;
   unsafe {
     // defines null / ndefines 0 — same as historical stage_prep.
-    prep_rc = shux_preprocess_raw_to_malloc(raw_data, raw_len, &out_prep[0], &out_len[0], path, 0 as *u8, 0);
+    prep_rc = xlang_preprocess_raw_to_malloc(raw_data, raw_len, &out_prep[0], &out_len[0], path, 0 as *u8, 0);
   }
   unsafe {
     runtime_release_file_view(&view[0]);
@@ -2285,7 +2285,7 @@ export function pipeline_read_file_stage_prep(): i32 {
     return 0 - 1;
   }
   let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
-  let prep_len: i64 = shux_size_slot_get(&out_len[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&out_len[0], 0);
   if (prep == 0 as *u8) {
     pipeline_diag_import_preprocess_fail(0 as *u8, path);
     return 0 - 1;
@@ -2310,7 +2310,7 @@ export function pipeline_read_file_commit_prep(): i32 {
   let out_prep: u8[8] = [];
   let out_len: u8[8] = [];
   pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
-  shux_size_slot_set(&out_len[0], 0, 0);
+  xlang_size_slot_set(&out_len[0], 0, 0);
   let take_rc: i32 = 0;
   unsafe {
     // pure take expects char** / size_t* (slots as raw bytes).
@@ -2320,7 +2320,7 @@ export function pipeline_read_file_commit_prep(): i32 {
     return 0 - 1;
   }
   let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
-  let prep_len: i64 = shux_size_slot_get(&out_len[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&out_len[0], 0);
   if (prep == 0 as *u8) {
     return 0 - 1;
   }
@@ -2427,7 +2427,7 @@ export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 
 
 /* See implementation. */
 
-// shux_pipeline_run_x_pipeline_large_stack: see function docblock below.
+// xlang_pipeline_run_x_pipeline_large_stack: see function docblock below.
 /**
  * Thin gate for large-stack pipeline_run_x_pipeline (null / empty source rejected).
  * @param module *u8 — AST module; null → -1
@@ -2437,11 +2437,11 @@ export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 
  * @param out_buf *u8 — codegen out buffer; may be null (pipeline accepts)
  * @param ctx *u8 — PipelineDepCtx; may be null
  * @return i32 — pipeline ec; -1 on thin reject
- * wave56: body in pure shux_pipeline_run_x_pipeline_large_stack_impl.
+ * wave56: body in pure xlang_pipeline_run_x_pipeline_large_stack_impl.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+export function xlang_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2455,7 +2455,7 @@ export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
+    return xlang_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
   }
   return 0 - 1;
 }
@@ -2476,11 +2476,11 @@ export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8
  *   G.7 driver_check_only_get/set;
  *   G.7 driver_x_pipeline_skip_typeck_set + skip_codegen_set;
  *   G.7 driver_pipeline_dep_ctx_get/set_asm_entry_module_only (no C struct field access);
- *   pure shux_pipeline_run_x_pipeline_large_stack (wave56).
+ *   pure xlang_pipeline_run_x_pipeline_large_stack (wave56).
  * PLATFORM: SHARED — same flag order as historical seed _impl.
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   unsafe {
     let saved: i32 = driver_check_only_get();
     let saved_entry_only: i32 = 0;
@@ -2493,7 +2493,7 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, de
     driver_x_pipeline_skip_typeck_set(1);
     driver_x_pipeline_skip_codegen_set(1);
     // G.7 pure large_stack surface (wave56); re-null-checks inside thin gate are fine.
-    let ec: i32 = shux_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    let ec: i32 = xlang_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
     driver_x_pipeline_skip_codegen_set(0);
     driver_x_pipeline_skip_typeck_set(0);
     if (one_ctx != 0 as *u8) {
@@ -2510,7 +2510,7 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, de
   return 0 - 1;
 }
 
-// shux_pipeline_dep_prerun_parse_skip_typeck: see function docblock below.
+// xlang_pipeline_dep_prerun_parse_skip_typeck: see function docblock below.
 /**
  * Thin gate for dep prerun parse-skip-typeck (null / empty source rejected).
  * @param dep_mod *u8 — dep AST module; null → -1
@@ -2520,11 +2520,11 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, de
  * @param dep_out *u8 — optional out buffer
  * @param one_ctx *u8 — PipelineDepCtx; may be null
  * @return i32 — pipeline ec; -1 on thin reject
- * wave58: body in pure shux_pipeline_dep_prerun_parse_skip_typeck_impl.
+ * wave58: body in pure xlang_pipeline_dep_prerun_parse_skip_typeck_impl.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function xlang_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -2538,7 +2538,7 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_are
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    return xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
   }
   return 0 - 1;
 }
@@ -2555,11 +2555,11 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_are
  * wave59 pure Cap residual:
  *   G.7 pure parser_parse_into_init (weak empty in this TU; strong parser wins final link);
  *   G.7 pure pipeline_parse_set_main_from_buf_c surface (real body in pipeline_glue);
- *   SHUX_ASM_DEBUG notes cold-only (seed twin keeps pipeline_asm_debug_enabled diags).
+ *   XLANG_ASM_DEBUG notes cold-only (seed twin keeps pipeline_asm_debug_enabled diags).
  * PLATFORM: SHARED — same return mapping as historical seed _impl (parse_rc==0 → 0 else -1).
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
+export function xlang_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -2597,11 +2597,11 @@ export function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena
  * @param src *u8 — source bytes; null → -1
  * @param len i64 — byte length; <=0 → -1
  * @return i32 — 0 ok; -1 reject or parse fail
- * wave59: body in pure shux_pipeline_dep_prerun_parse_only_impl.
+ * wave59: body in pure xlang_pipeline_dep_prerun_parse_only_impl.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
+export function xlang_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -2615,7 +2615,7 @@ export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
+    return xlang_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
   }
   return 0 - 1;
 }
@@ -2637,11 +2637,11 @@ export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8
  *   G.7 pure pipeline_parse_set_main_from_buf_c surface (weak empty here; strong glue wins);
  *   G.7 pure pipeline_load_and_sync_direct_import_deps_c (same-TU; Cap residual disk/sync/merge);
  *   G.7 pure pipeline_typeck_dep_prerun_module_c (same-TU; layout helpers wave92 pure);
- *   SHUX_DEBUG_PIPE notes cold-only (seed twin keeps getenv diags).
+ *   XLANG_DEBUG_PIPE notes cold-only (seed twin keeps getenv diags).
  * PLATFORM: SHARED — same return mapping as historical seed _impl.
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function xlang_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   // dep_out is public ABI only; historical seed voids it (no consumer on this path).
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
@@ -2689,14 +2689,14 @@ export function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_aren
  * @param ctx *u8 — PipelineDepCtx; null → -5
  * @return i32 — 0 ok; -5 null args; -7 zero-padding layout fail; else 0 after light fallback
  * wave89 pure Cap residual: G.7 single product authority for pipeline_typeck_dep_prerun_module_c
- * (historical strong body in pipeline_glue.c now SHUX_WEAK cold fallback).
- * Steps (match historical C; SHUX_DEBUG_PIPE notes cold-only):
+ * (historical strong body in pipeline_glue.c now XLANG_WEAK cold fallback).
+ * Steps (match historical C; XLANG_DEBUG_PIPE notes cold-only):
  *   1) pipeline_typeck_set_dep_ctx(ctx) — wave91 pure same-TU BSS (dep_ctx for glue accessors);
  *   2) soft_suppress_set(1) — wave90 pure same-TU BSS (suppress exploratory XT001 soft diags);
  *   3) typeck_x_ast_library (G.7 typeck.x authority; same as wave87 library route);
  *   4) soft_suppress_set(0);
  *   5) tc==0 → 0; else wave92 pure validate zero-padding → -7; pure patch body parent links → 0.
- * PLATFORM: SHARED — glue SHUX_WEAK cold fallback when pure not linked.
+ * PLATFORM: SHARED — glue XLANG_WEAK cold fallback when pure not linked.
  */
 #[no_mangle]
 export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx: *u8): i32 {
@@ -2724,7 +2724,7 @@ export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx
   }
   // Full typeck failed: light fallback — validate struct layout padding then patch parent links.
   // wave92: same-TU pure thin → typeck.x (G.7; closes Cap residual glue-layout fork on product).
-  // SHUX_DEBUG_PIPE getenv/fprintf remains cold-only (seed/glue twin); pure skips notes.
+  // XLANG_DEBUG_PIPE getenv/fprintf remains cold-only (seed/glue twin); pure skips notes.
   let vrc: i32 = 0;
   unsafe {
     vrc = pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena);
@@ -2747,7 +2747,7 @@ export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx
  * (typeck.x → typeck_x.o). Historical C body in pipeline_glue called glue metrics fork
  * (typeck_validate_struct_layouts_zero_padding_glue); product light fallback now shares
  * the same typeck.x path as typeck_x_ast_library / typeck_x_ast_impl.
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_typeck_validate_struct_layouts_zero_padding_c(module: *u8, arena: *u8): i32 {
@@ -2774,7 +2774,7 @@ export function pipeline_typeck_validate_struct_layouts_zero_padding_c(module: *
  * (typeck.x → typeck_x.o; walks pipeline_module_num_funcs + body_ref +
  * pipeline_patch_block_parent_links). Historical C body in pipeline_glue inlined the
  * same walk via ast_ast_arena_patch_block_parent_links; product uses typeck.x only.
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena: *u8): void {
@@ -2797,7 +2797,7 @@ export function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena
  * @return void
  * wave94 pure Cap residual: G.7 single product authority for pipeline_bind_import_dep_buffers
  * (historical strong body in ast_pool). Same pattern as pure try_bind (driver buf → set_*).
- * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_bind_import_dep_buffers(ctx: *u8, import_idx: i32): void {
@@ -2824,7 +2824,7 @@ export function pipeline_bind_import_dep_buffers(ctx: *u8, import_idx: i32): voi
  * wave94 pure Cap residual: G.7 single product authority for pipeline_sync_one_dep_slot
  * (historical strong body in ast_pool). Pins path from entry import[dep_i], maps
  * driver_dep_slot_for_path (fallback dep_i), then set_module/set_arena from that slot.
- * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_sync_one_dep_slot(module: *u8, ctx: *u8, dep_i: i32): i32 {
@@ -2879,14 +2879,14 @@ export function pipeline_sync_one_dep_slot(module: *u8, ctx: *u8, dep_i: i32): i
  * @param module *u8 — entry AST module; null → -1
  * @param ctx *u8 — PipelineDepCtx; null → -1
  * @return i32 — 0 ok; -1 null; else first pipeline_sync_one_dep_slot rc
- * Rules (match historical C; SHUX_DEBUG_PIPE notes cold-only):
+ * Rules (match historical C; XLANG_DEBUG_PIPE notes cold-only):
  *   - if n_entry_imports < ndep (BFS closure): skip entry-index sync (slots already
  *     aligned by pctx_seed / load_and_sync keep-closure rebind); return 0
  *   - else: loop dep_i 0..ndep-1 same-TU pure pipeline_sync_one_dep_slot
  * wave94 pure Cap residual: G.7 single product authority for
  * pipeline_sync_dep_slots_from_driver_c (historical body in pipeline_glue impl_c +
  * strong _c dispatch). Product pure load_and_sync (wave93) calls this name.
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i32 {
@@ -2941,7 +2941,7 @@ export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i3
  *   7) same-TU pure pipeline_parse_into_buf (wave96)
  * wave94 pure Cap residual: G.7 single product authority for pipeline_load_import_from_disk_c
  * (historical glue strong _c → X thin / impl_c). Product pure load_and_sync calls this name.
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
@@ -3017,7 +3017,7 @@ export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *
  * wave93 pure Cap residual: G.7 single product authority for pipeline_try_bind_seeded_import
  * (historical strong body in ast_pool). Uses pure driver_dep_seeded_get + module/arena buf
  * and ast_pipeline_dep_ctx_set_*.
- * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_try_bind_seeded_import(ctx: *u8, import_idx: i32, global_slot: i32): i32 {
@@ -3057,13 +3057,13 @@ export function pipeline_try_bind_seeded_import(ctx: *u8, import_idx: i32, globa
  * @param module *u8 — entry AST module; null → no-op
  * @param ctx *u8 — PipelineDepCtx; null → no-op
  * @return void
- * Rules (match historical C; SHUX_DEBUG_PIPE notes cold-only):
+ * Rules (match historical C; XLANG_DEBUG_PIPE notes cold-only):
  *   - ndep == n_imports → already entry-indexed; keep
  *   - ndep > n_imports → BFS closure seed; keep full list (no re-pin)
  *   - ndep < n_imports → incomplete; set ndep=0 so load_and_sync reloads from entry
  * wave93 pure Cap residual: G.7 single product authority for
  * pipeline_dep_ctx_realign_ndep_for_entry_c (historical strong body in ast_pool).
- * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_dep_ctx_realign_ndep_for_entry_c(module: *u8, ctx: *u8): void {
@@ -3101,7 +3101,7 @@ export function pipeline_dep_ctx_realign_ndep_for_entry_c(module: *u8, ctx: *u8)
  * @return i32 — 0 ok; -1 null; else load_import / sync_dep_slots rc
  * wave93 pure Cap residual: G.7 single product authority for
  * pipeline_load_and_sync_direct_import_deps_c (historical strong body in ast_pool).
- * Steps (match historical C; SHUX_DEBUG_PIPE notes cold-only):
+ * Steps (match historical C; XLANG_DEBUG_PIPE notes cold-only):
  *   1) same-TU pure realign_ndep_for_entry_c;
  *   2) if ndep==0 && n_imports>0: entry walk — pin path, pure try_bind or same-TU pure
  *      load_import_from_disk_c (wave94); set_ndep(n_imports);
@@ -3112,7 +3112,7 @@ export function pipeline_dep_ctx_realign_ndep_for_entry_c(module: *u8, ctx: *u8)
  *   5) if not all entry imports seeded: wave97 G.7 typeck.x merge layouts + wpo unify
  *      (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts;
  *      not typeck_typeck_* double-prefix hop).
- * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: *u8, ctx: *u8): i32 {
@@ -3347,11 +3347,11 @@ export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: 
  * @param dep_out *u8 — optional unused out (forwarded)
  * @param one_ctx *u8 — PipelineDepCtx; null → -1
  * @return i32 — typeck path rc; -1 on thin reject
- * wave60: body in pure shux_pipeline_dep_prerun_typeck_only_impl.
+ * wave60: body in pure xlang_pipeline_dep_prerun_typeck_only_impl.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function xlang_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -3368,14 +3368,14 @@ export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    return xlang_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
   }
   return 0 - 1;
 }
 
-// shux_pipeline_dep_prerun_for_asm_module_o: see function docblock below.
-/** Exported function `shux_pipeline_dep_prerun_for_asm_module_o`.
- * Implements `shux_pipeline_dep_prerun_for_asm_module_o`.
+// xlang_pipeline_dep_prerun_for_asm_module_o: see function docblock below.
+/** Exported function `xlang_pipeline_dep_prerun_for_asm_module_o`.
+ * Implements `xlang_pipeline_dep_prerun_for_asm_module_o`.
  * @param dep_mod *u8
  * @param dep_arena *u8
  * @param src *u8
@@ -3385,8 +3385,8 @@ export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u
  * @return i32
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
-  return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+export function xlang_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  return xlang_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
 
 // pipe_path_readable: see function docblock below.
@@ -3555,7 +3555,7 @@ export function pipe_append_suffix(dst: *u8, cap: i32, off: i32, suf: *u8): void
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_cstr_offset(s: *u8, off: i32): *u8 {
+export function xlang_cstr_offset(s: *u8, off: i32): *u8 {
   if (s == 0 as *u8) {
     return 0 as *u8;
   }
@@ -3573,7 +3573,7 @@ export function shux_cstr_offset(s: *u8, off: i32): *u8 {
  * Basename segment of a directory path (bytes after last '/'; whole path if none).
  * @param entry_dir *u8 — directory path; null → null
  * @return *u8 — pointer into entry_dir at last slash+1 (or entry_dir); lifetime = entry_dir
- * wave76: G.7 pure shux_cstr_offset for tail pointer (no Cap residual).
+ * wave76: G.7 pure xlang_cstr_offset for tail pointer (no Cap residual).
  * PLATFORM: SHARED.
  */
 export function pipe_dir_tail(entry_dir: *u8): *u8 {
@@ -3587,7 +3587,7 @@ export function pipe_dir_tail(entry_dir: *u8): *u8 {
       i = i + 1;
     }
     if (last < 0) { return entry_dir; }
-    return shux_cstr_offset(entry_dir, last + 1);
+    return xlang_cstr_offset(entry_dir, last + 1);
   }
   return entry_dir;
 }
@@ -3611,15 +3611,15 @@ export function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
       i = i + 1;
     }
     if (import_path[tl] == 46) {
-      return shux_cstr_offset(import_path, tl + 1);
+      return xlang_cstr_offset(import_path, tl + 1);
     }
   }
   return import_path;
 }
 
-// shux_resolve_import_file_path_multi: see function docblock below.
-/** Exported function `shux_resolve_import_file_path_multi`.
- * Implements `shux_resolve_import_file_path_multi`.
+// xlang_resolve_import_file_path_multi: see function docblock below.
+/** Exported function `xlang_resolve_import_file_path_multi`.
+ * Implements `xlang_resolve_import_file_path_multi`.
  * @param lib_roots *u8
  * @param n_lib_roots i32
  * @param entry_dir *u8
@@ -3629,7 +3629,7 @@ export function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
  * @return void
  */
 #[no_mangle]
-export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function xlang_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -3647,8 +3647,8 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
     return;
   }
   // See implementation.
-  if (shux_import_path_is_file_path(import_path) != 0) {
-    shux_resolve_file_import_path(entry_dir, import_path, path, path_size);
+  if (xlang_import_path_is_file_path(import_path) != 0) {
+    xlang_resolve_file_import_path(entry_dir, import_path, path, path_size);
     if (pipe_path_readable(path) != 0) { return; }
     unsafe {
       if (import_path[0] != 47) {
@@ -3677,7 +3677,7 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
         if (use_root[0] == 0) { use_root = &dot[0]; }
       }
     }
-    shux_import_path_to_file_path(use_root, import_path, path, path_size);
+    xlang_import_path_to_file_path(use_root, import_path, path, path_size);
     if (pipe_path_readable(path) != 0) { return; }
     // See implementation.
     if (pipe_cstr_has_char(import_path, 46) == 0) {
@@ -3699,7 +3699,7 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
           pipe_append_suffix(path, cap, off, &modx[0]);
           if (pipe_path_readable(path) != 0) { return; }
         }
-        shux_import_path_to_file_path(use_root, import_path, path, path_size);
+        xlang_import_path_to_file_path(use_root, import_path, path, path_size);
         if (pipe_path_readable(path) != 0) { return; }
       }
     }
@@ -3889,7 +3889,7 @@ export function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void {
  * wave95 pure Cap residual: G.7 product authority for pipeline_resolve_path_x
  * (historical glue weak → impl_c). Reuses G.7 try_one / try_entry product surface
  * (pipeline.x pure helpers already linked; no second path-build body).
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i32): i32 {
@@ -3936,10 +3936,10 @@ export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i3
  * @return i32 — 0 ok; -1 null / open-or-read fail
  * Steps (match historical pipeline_read_file_x_impl_c):
  *   1) Cap residual path_buf_ptr + loaded_buf_ptr
- *   2) G.7 pure shux_read_file_into_path (cap 4194304 = PIPELINE_SOURCE_BUF_CAP)
+ *   2) G.7 pure xlang_read_file_into_path (cap 4194304 = PIPELINE_SOURCE_BUF_CAP)
  *   3) Cap residual pipeline_dep_ctx_set_loaded_len(n) on n>=0
  * wave95 pure Cap residual: G.7 product authority for pipeline_read_file_x
- * (historical glue weak → impl_c). PLATFORM: SHARED — glue SHUX_WEAK cold twin.
+ * (historical glue weak → impl_c). PLATFORM: SHARED — glue XLANG_WEAK cold twin.
  */
 #[no_mangle]
 export function pipeline_read_file_x(ctx: *u8): i32 {
@@ -3962,7 +3962,7 @@ export function pipeline_read_file_x(ctx: *u8): i32 {
   let cap: i64 = 4194304;
   let n: i32 = 0;
   unsafe {
-    n = shux_read_file_into_path(path, buf, cap);
+    n = xlang_read_file_into_path(path, buf, cap);
   }
   if (n < 0) {
     return 0 - 1;
@@ -3979,12 +3979,12 @@ export function pipeline_read_file_x(ctx: *u8): i32 {
  * @return i32 — 0 ok; -1 null; -9 preprocess_x_buf fail (match historical)
  * Steps (match historical pipeline_preprocess_loaded_into_ctx):
  *   1) Cap residual loaded_buf_ptr + preprocess_buf_ptr
- *   2) pure load loaded_len via LP64 offsetof + shux_size_slot_get
+ *   2) pure load loaded_len via LP64 offsetof + xlang_size_slot_get
  *      (offset 4195344 = slot index 524418; same as pipe_pctx_off_loaded_len)
  *   3) G.7 pure cross-TU preprocess_x_buf (preprocess.x engine)
  *   4) pure store preprocess_len via pipe_store_i32_le (wave67 offset)
  * wave95 pure Cap residual: G.7 product authority for pipeline_preprocess_loaded_into_ctx
- * (historical strong body in ast_pool). PLATFORM: SHARED — ast_pool SHUX_WEAK cold twin.
+ * (historical strong body in ast_pool). PLATFORM: SHARED — ast_pool XLANG_WEAK cold twin.
  */
 #[no_mangle]
 export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
@@ -4006,7 +4006,7 @@ export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
   // loaded_len is ptrdiff_t/i64 at LP64 offset 4195344 = slot index 524418.
   let loaded_len: i64 = 0;
   unsafe {
-    loaded_len = shux_size_slot_get(ctx, 524418);
+    loaded_len = xlang_size_slot_get(ctx, 524418);
   }
   // PIPELINE_SOURCE_BUF_CAP for out_cap.
   let out_cap: i32 = 4194304;
@@ -4038,7 +4038,7 @@ export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
  * wave96 pure Cap residual: G.7 product authority for pipeline_parse_into_buf
  * (historical glue weak → impl_c / pipeline.x thin → _c). Distinct from wave64
  * pipeline_parse_into_bytes (allows len==0, no post fixup/trace).
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_parse_into_buf(arena: *u8, module: *u8, buf: *u8, buf_len: i32): i32 {
@@ -4148,7 +4148,7 @@ let g_pipe_rf_stage_prep_len: u8[8] = [];
 // wave72 pure loaded-import BSS (committed source after stage prep commit).
 // PLATFORM: SHARED LP64 — buf ptr + len + cap size cells; same ABI as seed statics.
 // G.7 single authority for pure commit_from_owned / data / len_get / commit_prep path.
-// Cap floor SHUX_PIPELINE_IMPORT_BUF_CAP = 4194304 (runtime_pipeline_abi.h).
+// Cap floor XLANG_PIPELINE_IMPORT_BUF_CAP = 4194304 (runtime_pipeline_abi.h).
 let g_pipe_loaded_import_buf: u8[8] = [];
 let g_pipe_loaded_import_len: u8[8] = [];
 let g_pipe_loaded_import_cap: u8[8] = [];
@@ -4160,7 +4160,7 @@ let g_pipe_loaded_import_cap: u8[8] = [];
 let g_pipe_diag_emitted_flag: i32 = 0;
 
 // wave74 pure driver_dep table BSS (G.7 single authority for seeded/publish/slot_for_path/buf).
-// PLATFORM: SHARED LP64 — 32 slots each; same capacity as seed SHUX_DRIVER_DEP_SLOT_MAX.
+// PLATFORM: SHARED LP64 — 32 slots each; same capacity as seed XLANG_DRIVER_DEP_SLOT_MAX.
 // arena/module/path_registry = 32×void* (256B raw); seeded = 32×i32 (128B raw as i32[32]).
 // No cross-TU naked global — ast_pool/glue call driver_dep_*_buf / path_registry_at accessors only.
 let g_pipe_driver_dep_arena: u8[256] = [];
@@ -4180,7 +4180,7 @@ let g_pipe_typeck_dep_arena_ptrs: u8[256] = [];
 // wave85 pure preprocess -D define table (G.7 single authority for product define_has/eval).
 // PLATFORM: SHARED — same capacity as glue PREPROCESS_MAX_DEFINES=128 × name[64].
 // Flat layout: slot i occupies bytes [i*64 .. i*64+63], NUL-terminated name (len 1..63).
-// Product hybrid: pure strong override of glue SHUX_WEAK cold fallback in strict_glue_stubs.
+// Product hybrid: pure strong override of glue XLANG_WEAK cold fallback in strict_glue_stubs.
 // wave88: pure preprocess_eval_condition_c → same-TU preprocess_define_has (simple names);
 //   complex #if still Cap residual cfg_eval_expr_c (lexer/cfg_eval authority).
 let g_pipe_pp_defines: u8[8192] = [];
@@ -4189,7 +4189,7 @@ let g_pipe_pp_ndefines: i32 = 0;
 // wave86 pure preprocess #if nesting stack (G.7 single authority for product if_stack).
 // PLATFORM: SHARED — fixed cap 32 i32 slots (historical fixed stack before ast_pool GrowVec).
 // Layout: g_pipe_pp_if_stack[0 .. n) live; g_pipe_pp_if_n = depth (0..32).
-// Product hybrid: pure override of ast_pool SHUX_WEAK GrowVec cold fallback
+// Product hybrid: pure override of ast_pool XLANG_WEAK GrowVec cold fallback
 // (pipeline_x.o / pipeline_glue_standalone.o embed the weak cold body).
 // preprocess.x thin wrappers + preprocess_x_buf call these by C link name.
 let g_pipe_pp_if_stack: i32[32] = [];
@@ -4197,14 +4197,14 @@ let g_pipe_pp_if_n: i32 = 0;
 
 // wave90 pure typeck soft-suppress flag (G.7 single authority for XT001 soft diags).
 // PLATFORM: SHARED — same ABI as glue static g_pipeline_typeck_diag_soft_suppress (0/1).
-// Product hybrid: pure strong override of pipeline_glue SHUX_WEAK cold fallback.
+// Product hybrid: pure strong override of pipeline_glue XLANG_WEAK cold fallback.
 // Consumers: pure dep_prerun orch set(1)/set(0); diagnostic path get() skips soft XT001.
 // No cross-TU naked global — only set/get accessors (safe pure BSS under PREFER hybrid).
 let g_pipe_typeck_diag_soft_suppress: i32 = 0;
 
 // wave91 pure typeck dep_ctx pointer (G.7 single authority for enum-fallback accessors).
-// PLATFORM: SHARED — LP64 ptr cell via shux_ptr_slot_* (same as wave70/74 pure BSS tables).
-// Product hybrid: pure strong override of pipeline_glue SHUX_WEAK cold fallback.
+// PLATFORM: SHARED — LP64 ptr cell via xlang_ptr_slot_* (same as wave70/74 pure BSS tables).
+// Product hybrid: pure strong override of pipeline_glue XLANG_WEAK cold fallback.
 // Consumers: pure dep_prerun + typeck_parsed_module_c set; ast_pool enum tag get.
 // No cross-TU naked global — only set/get accessors (closes dual-auth static in ast_pool).
 let g_pipe_typeck_dep_ctx: u8[8] = [];
@@ -4214,7 +4214,7 @@ let g_pipe_typeck_dep_ctx: u8[8] = [];
  * @param v i32 — non-zero → suppress; zero → report normally
  * @return void
  * wave90 pure Cap residual: G.7 single product authority for soft-suppress flag
- * (historical strong body in pipeline_glue.c now SHUX_WEAK cold fallback).
+ * (historical strong body in pipeline_glue.c now XLANG_WEAK cold fallback).
  * PLATFORM: SHARED — diagnostic path uses get(); pure dep_prerun orch set(1)/set(0).
  */
 #[no_mangle]
@@ -4245,15 +4245,15 @@ export function pipeline_typeck_diag_soft_suppress_get(): i32 {
  * @param ctx *u8 — PipelineDepCtx pointer; null clears (no dep search)
  * @return void
  * wave91 pure Cap residual: G.7 single product authority for dep_ctx pointer
- * (historical strong body + static g_typeck_dep_ctx in ast_pool.c now SHUX_WEAK cold
+ * (historical strong body + static g_typeck_dep_ctx in ast_pool.c now XLANG_WEAK cold
  * fallback in pipeline_glue; readers use get_dep_ctx only).
  * PLATFORM: SHARED — pure dep_prerun orch + typeck_parsed_module_c set before typeck.
  */
 #[no_mangle]
 export function pipeline_typeck_set_dep_ctx(ctx: *u8): void {
   unsafe {
-    // G.7 shux_ptr_slot_set on pure LP64 cell (no naked *u8 module global).
-    shux_ptr_slot_set(&g_pipe_typeck_dep_ctx[0], 0, ctx);
+    // G.7 xlang_ptr_slot_set on pure LP64 cell (no naked *u8 module global).
+    xlang_ptr_slot_set(&g_pipe_typeck_dep_ctx[0], 0, ctx);
   }
 }
 
@@ -4266,13 +4266,13 @@ export function pipeline_typeck_set_dep_ctx(ctx: *u8): void {
 #[no_mangle]
 export function pipeline_typeck_get_dep_ctx(): *u8 {
   unsafe {
-    return shux_ptr_slot_get(&g_pipe_typeck_dep_ctx[0], 0);
+    return xlang_ptr_slot_get(&g_pipe_typeck_dep_ctx[0], 0);
   }
 }
 
 // wave75 pure entry_lib lit + stem BSS (G.7 single authority for -E lib_prefix).
 // PLATFORM: SHARED — same string values as seed static lits / stem_buf[128].
-// Keyword order matches seed shux_entry_lib_keyword_lit / strstr checks in name_from_path_impl.
+// Keyword order matches seed xlang_entry_lib_keyword_lit / strstr checks in name_from_path_impl.
 let g_pipe_cstr_typeck_lit: u8[7] = [116, 121, 112, 101, 99, 107, 0];
 let g_pipe_entry_lib_kw0: u8[5] = [109, 97, 105, 110, 0];
 let g_pipe_entry_lib_kw1: u8[6] = [98, 117, 105, 108, 100, 0];
@@ -4291,7 +4291,7 @@ let g_pipe_entry_lib_stem_buf: u8[128] = [];
  * @return void
  * wave85 pure Cap residual: G.7 single authority for product define table
  * (historical always-seed body in runtime_driver_strict_glue_stubs).
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold fallback when pure not linked.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold fallback when pure not linked.
  */
 #[no_mangle]
 export function preprocess_define_reset(): void {
@@ -4404,7 +4404,7 @@ export function preprocess_define_has(sym: *u8, sym_len: i32): i32 {
  *   2) if empty after trim → 0;
  *   3) if any complex op char (space/tab/=/!/(/)) → Cap residual cfg_eval_expr_c;
  *   4) else same-TU pure preprocess_define_has (wave85 -D table).
- * PLATFORM: SHARED — glue keeps SHUX_WEAK cold fallback when pure not linked.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold fallback when pure not linked.
  */
 #[no_mangle]
 export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
@@ -4427,7 +4427,7 @@ export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
         break;
       }
     }
-    base = shux_cstr_offset(base, 1);
+    base = xlang_cstr_offset(base, 1);
     n = n - 1;
   }
   // Trim trailing whitespace without moving base (shrink length only).
@@ -4502,7 +4502,7 @@ export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
  * @return void
  * wave86 pure Cap residual: G.7 single authority for product preprocess #if stack
  * (historical always-seed body in ast_pool GrowVec g_preprocess_if_stack).
- * PLATFORM: SHARED — ast_pool keeps SHUX_WEAK cold fallback when pure not linked.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold fallback when pure not linked.
  */
 #[no_mangle]
 export function preprocess_if_stack_reset(): void {
@@ -4624,7 +4624,7 @@ export function typeck_ndep_store_impl(n: i32): void {
  * Load typeck_dep_module_ptrs[i] from pure BSS (capacity 32).
  * @param i i32 — slot index; i < 0 or i >= 32 → null
  * @return *u8 — stored module pointer (may be null)
- * wave77 pure: G.7 shux_ptr_slot_get on g_pipe_typeck_dep_module_ptrs.
+ * wave77 pure: G.7 xlang_ptr_slot_get on g_pipe_typeck_dep_module_ptrs.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -4635,14 +4635,14 @@ export function typeck_dep_module_get(i: i32): *u8 {
   if (i >= 32) {
     return 0 as *u8;
   }
-  return shux_ptr_slot_get(&g_pipe_typeck_dep_module_ptrs[0], i);
+  return xlang_ptr_slot_get(&g_pipe_typeck_dep_module_ptrs[0], i);
 }
 
 /**
  * Load typeck_dep_arena_ptrs[i] from pure BSS (capacity 32).
  * @param i i32 — slot index; i < 0 or i >= 32 → null
  * @return *u8 — stored arena pointer (may be null)
- * wave77 pure: G.7 shux_ptr_slot_get on g_pipe_typeck_dep_arena_ptrs.
+ * wave77 pure: G.7 xlang_ptr_slot_get on g_pipe_typeck_dep_arena_ptrs.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -4653,7 +4653,7 @@ export function typeck_dep_arena_get(i: i32): *u8 {
   if (i >= 32) {
     return 0 as *u8;
   }
-  return shux_ptr_slot_get(&g_pipe_typeck_dep_arena_ptrs[0], i);
+  return xlang_ptr_slot_get(&g_pipe_typeck_dep_arena_ptrs[0], i);
 }
 
 /**
@@ -4661,7 +4661,7 @@ export function typeck_dep_arena_get(i: i32): *u8 {
  * @param i i32 — slot index; OOB → no-op
  * @param mod *u8 — module pointer (may be null)
  * @return void
- * wave77 pure: G.7 shux_ptr_slot_set; pure typeck_dep_module_set / pipeline_set_dep orch own bounds.
+ * wave77 pure: G.7 xlang_ptr_slot_set; pure typeck_dep_module_set / pipeline_set_dep orch own bounds.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -4672,7 +4672,7 @@ export function typeck_dep_module_set_impl(i: i32, mod: *u8): void {
   if (i >= 32) {
     return;
   }
-  shux_ptr_slot_set(&g_pipe_typeck_dep_module_ptrs[0], i, mod);
+  xlang_ptr_slot_set(&g_pipe_typeck_dep_module_ptrs[0], i, mod);
 }
 
 /**
@@ -4680,7 +4680,7 @@ export function typeck_dep_module_set_impl(i: i32, mod: *u8): void {
  * @param i i32 — slot index; OOB → no-op
  * @param arena *u8 — arena pointer (may be null)
  * @return void
- * wave77 pure: G.7 shux_ptr_slot_set; pure typeck_dep_arena_set / pipeline_set_dep orch own bounds.
+ * wave77 pure: G.7 xlang_ptr_slot_set; pure typeck_dep_arena_set / pipeline_set_dep orch own bounds.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -4691,7 +4691,7 @@ export function typeck_dep_arena_set_impl(i: i32, arena: *u8): void {
   if (i >= 32) {
     return;
   }
-  shux_ptr_slot_set(&g_pipe_typeck_dep_arena_ptrs[0], i, arena);
+  xlang_ptr_slot_set(&g_pipe_typeck_dep_arena_ptrs[0], i, arena);
 }
 
 /**
@@ -4709,11 +4709,11 @@ export function typeck_dep_module_ptrs_base(): *u8 {
 /**
  * Return static "typeck" C string (default -E lib prefix).
  * @return *u8 — always non-null; points at g_pipe_cstr_typeck_lit
- * wave75 pure: module BSS lit; matches seed shux_cstr_typeck_lit return "typeck".
+ * wave75 pure: module BSS lit; matches seed xlang_cstr_typeck_lit return "typeck".
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_cstr_typeck_lit(): *u8 {
+export function xlang_cstr_typeck_lit(): *u8 {
   return &g_pipe_cstr_typeck_lit[0];
 }
 
@@ -4725,7 +4725,7 @@ export function shux_cstr_typeck_lit(): *u8 {
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_entry_lib_keyword_lit(k: i32): *u8 {
+export function xlang_entry_lib_keyword_lit(k: i32): *u8 {
   if (k == 0) {
     return &g_pipe_entry_lib_kw0[0];
   }
@@ -4774,40 +4774,40 @@ export function shux_entry_lib_keyword_lit(k: i32): *u8 {
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; stem reuses one 128B BSS cell.
  */
 #[no_mangle]
-export function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8 {
+export function xlang_entry_lib_name_from_path_impl(input_path: *u8): *u8 {
   if (input_path == 0 as *u8) {
-    return shux_cstr_typeck_lit();
+    return xlang_cstr_typeck_lit();
   }
   // Keyword substring checks — same order as seed strstr chain.
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw0[0]) != 0) {
-    return shux_entry_lib_keyword_lit(0);
+    return xlang_entry_lib_keyword_lit(0);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw1[0]) != 0) {
-    return shux_entry_lib_keyword_lit(1);
+    return xlang_entry_lib_keyword_lit(1);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw2[0]) != 0) {
-    return shux_entry_lib_keyword_lit(2);
+    return xlang_entry_lib_keyword_lit(2);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw3[0]) != 0) {
-    return shux_entry_lib_keyword_lit(3);
+    return xlang_entry_lib_keyword_lit(3);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw4[0]) != 0) {
-    return shux_entry_lib_keyword_lit(4);
+    return xlang_entry_lib_keyword_lit(4);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw5[0]) != 0) {
-    return shux_entry_lib_keyword_lit(5);
+    return xlang_entry_lib_keyword_lit(5);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw6[0]) != 0) {
-    return shux_entry_lib_keyword_lit(6);
+    return xlang_entry_lib_keyword_lit(6);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw7[0]) != 0) {
-    return shux_entry_lib_keyword_lit(7);
+    return xlang_entry_lib_keyword_lit(7);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw8[0]) != 0) {
-    return shux_entry_lib_keyword_lit(8);
+    return xlang_entry_lib_keyword_lit(8);
   }
   if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw9[0]) != 0) {
-    return shux_entry_lib_keyword_lit(9);
+    return xlang_entry_lib_keyword_lit(9);
   }
 
   // std/ at path boundary → std_ + segments (skip mod; strip .x/.su).
@@ -5038,7 +5038,7 @@ export function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8 {
       }
     }
   }
-  return shux_cstr_typeck_lit();
+  return xlang_cstr_typeck_lit();
 }
 
 /**
@@ -5077,7 +5077,7 @@ export function driver_dep_seeded_slot(i: i32): *i32 {
  * @param i i32 — slot index; i < 0 or i >= 32 → no-op
  * @param arena *u8 — arena pointer (may be null to clear)
  * @return void
- * wave74 pure: G.7 shux_ptr_slot_set on g_pipe_driver_dep_arena.
+ * wave74 pure: G.7 xlang_ptr_slot_set on g_pipe_driver_dep_arena.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -5088,7 +5088,7 @@ export function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void {
   if (i >= 32) {
     return;
   }
-  shux_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, arena);
+  xlang_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, arena);
 }
 
 /**
@@ -5096,7 +5096,7 @@ export function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void {
  * @param i i32 — slot index; OOB → no-op
  * @param module *u8 — module pointer (may be null to clear)
  * @return void
- * wave74 pure: G.7 shux_ptr_slot_set on g_pipe_driver_dep_module.
+ * wave74 pure: G.7 xlang_ptr_slot_set on g_pipe_driver_dep_module.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -5107,7 +5107,7 @@ export function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void {
   if (i >= 32) {
     return;
   }
-  shux_ptr_slot_set(&g_pipe_driver_dep_module[0], i, module);
+  xlang_ptr_slot_set(&g_pipe_driver_dep_module[0], i, module);
 }
 
 /**
@@ -5115,7 +5115,7 @@ export function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void {
  * @param i i32 — slot index; OOB → no-op
  * @param path *u8 — logical import path pointer (lifetime until clear); null clears the slot
  * @return void
- * wave74 pure: G.7 shux_ptr_slot_set on g_pipe_driver_dep_path_registry.
+ * wave74 pure: G.7 xlang_ptr_slot_set on g_pipe_driver_dep_path_registry.
  * Null path stores null so pure clear_slots can wipe registry (seed cold set rejected null
  * and relied on clear_slots_impl direct assignment; pure set is the single clear path).
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
@@ -5128,14 +5128,14 @@ export function driver_dep_path_registry_set(i: i32, path: *u8): void {
   if (i >= 32) {
     return;
   }
-  shux_ptr_slot_set(&g_pipe_driver_dep_path_registry[0], i, path);
+  xlang_ptr_slot_set(&g_pipe_driver_dep_path_registry[0], i, path);
 }
 
 /**
  * Load path registry pointer at slot i.
  * @param i i32 — slot index; OOB → null
  * @return *u8 — stored path pointer (may be null)
- * wave74 pure: G.7 shux_ptr_slot_get on g_pipe_driver_dep_path_registry.
+ * wave74 pure: G.7 xlang_ptr_slot_get on g_pipe_driver_dep_path_registry.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; used by pure slot_for_path_scan.
  */
 #[no_mangle]
@@ -5146,7 +5146,7 @@ export function driver_dep_path_registry_at(i: i32): *u8 {
   if (i >= 32) {
     return 0 as *u8;
   }
-  return shux_ptr_slot_get(&g_pipe_driver_dep_path_registry[0], i);
+  return xlang_ptr_slot_get(&g_pipe_driver_dep_path_registry[0], i);
 }
 
 /**
@@ -5193,7 +5193,7 @@ export function driver_dep_arena_buf(i: i32): *u8 {
   if (i >= 32) {
     return 0 as *u8;
   }
-  let p: *u8 = shux_ptr_slot_get(&g_pipe_driver_dep_arena[0], i);
+  let p: *u8 = xlang_ptr_slot_get(&g_pipe_driver_dep_arena[0], i);
   if (p != 0 as *u8) {
     return p;
   }
@@ -5206,7 +5206,7 @@ export function driver_dep_arena_buf(i: i32): *u8 {
     }
     memset(p, 0, sz);
   }
-  shux_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, p);
+  xlang_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, p);
   return p;
 }
 
@@ -5226,7 +5226,7 @@ export function driver_dep_module_buf(i: i32): *u8 {
   if (i >= 32) {
     return 0 as *u8;
   }
-  let p: *u8 = shux_ptr_slot_get(&g_pipe_driver_dep_module[0], i);
+  let p: *u8 = xlang_ptr_slot_get(&g_pipe_driver_dep_module[0], i);
   if (p != 0 as *u8) {
     return p;
   }
@@ -5239,27 +5239,27 @@ export function driver_dep_module_buf(i: i32): *u8 {
     }
     memset(p, 0, sz);
   }
-  shux_ptr_slot_set(&g_pipe_driver_dep_module[0], i, p);
+  xlang_ptr_slot_set(&g_pipe_driver_dep_module[0], i, p);
   return p;
 }
 
 /**
  * Free any owned stage-prep buffer and clear stage BSS cells to null/0.
  * @return void
- * wave71 pure: free(g_pipe_rf_stage_prep) then G.7 shux_ptr_slot_set / shux_size_slot_set zero.
+ * wave71 pure: free(g_pipe_rf_stage_prep) then G.7 xlang_ptr_slot_set / xlang_size_slot_set zero.
  * Matches historical seed pipeline_rf_stage_prep_clear (always free then null).
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns these cells.
  */
 #[no_mangle]
 export function pipeline_rf_stage_prep_clear(): void {
-  let p: *u8 = shux_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
+  let p: *u8 = xlang_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
   if (p != 0 as *u8) {
     unsafe {
       free(p);
     }
   }
-  shux_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
-  shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+  xlang_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
 }
 
 /**
@@ -5267,18 +5267,18 @@ export function pipeline_rf_stage_prep_clear(): void {
  * @param prep *u8 — owned heap buffer (or null for empty stage)
  * @param prep_len i64 — byte length; if prep is null, stored len is forced to 0
  * @return void
- * wave71 pure: G.7 shux_ptr_slot_set / shux_size_slot_set on pure stage cells.
+ * wave71 pure: G.7 xlang_ptr_slot_set / xlang_size_slot_set on pure stage cells.
  * Matches seed: prep may be null → stores empty (len 0).
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_rf_stage_prep_set(prep: *u8, prep_len: i64): void {
-  shux_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, prep);
+  xlang_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, prep);
   if (prep == 0 as *u8) {
-    shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+    xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
     return;
   }
-  shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, prep_len);
+  xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, prep_len);
 }
 
 /**
@@ -5291,20 +5291,20 @@ export function pipeline_rf_stage_prep_set(prep: *u8, prep_len: i64): void {
  */
 #[no_mangle]
 export function pipeline_rf_stage_prep_take(out_prep: *u8, out_len: *u8): i32 {
-  let prep: *u8 = shux_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
-  let prep_len: i64 = shux_size_slot_get(&g_pipe_rf_stage_prep_len[0], 0);
+  let prep: *u8 = xlang_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&g_pipe_rf_stage_prep_len[0], 0);
   // Clear stage before writing outs (same order as historical seed).
-  shux_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
-  shux_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+  xlang_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
   if (out_prep != 0 as *u8) {
-    shux_ptr_slot_set(out_prep, 0, prep);
+    xlang_ptr_slot_set(out_prep, 0, prep);
   }
   if (out_len != 0 as *u8) {
     // Historical: out_len = prep ? prep_len : 0 after clear path already read prep_len.
     if (prep == 0 as *u8) {
-      shux_size_slot_set(out_len, 0, 0);
+      xlang_size_slot_set(out_len, 0, 0);
     } else {
-      shux_size_slot_set(out_len, 0, prep_len);
+      xlang_size_slot_set(out_len, 0, prep_len);
     }
   }
   if (prep == 0 as *u8) {
@@ -5318,8 +5318,8 @@ export function pipeline_rf_stage_prep_take(out_prep: *u8, out_len: *u8): i32 {
  * @param prep *u8 — owned heap source buffer; null → -1 (does not free)
  * @param prep_len i64 — byte length to copy; may be 0 if prep non-null
  * @return i32 — 0 success; -1 null prep or OOM (prep freed on OOM only)
- * wave72 pure: G.7 shux_ptr_slot_* / shux_size_slot_* on g_pipe_loaded_import_*.
- * Ensure policy (matches historical seed / SHUX_PIPELINE_IMPORT_BUF_CAP):
+ * wave72 pure: G.7 xlang_ptr_slot_* / xlang_size_slot_* on g_pipe_loaded_import_*.
+ * Ensure policy (matches historical seed / XLANG_PIPELINE_IMPORT_BUF_CAP):
  *   if prep_len > cap or buf null → free old buf; new_cap =
  *     (prep_len < 4194304) ? 4194304 : (prep_len + 65536); malloc; OOM → free(prep) -1.
  *   else reuse existing buf; memcpy prep_len bytes; set len; free(prep).
@@ -5330,15 +5330,15 @@ export function pipeline_loaded_import_commit_from_owned(prep: *u8, prep_len: i6
   if (prep == 0 as *u8) {
     return 0 - 1;
   }
-  let buf: *u8 = shux_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
-  let cap: i64 = shux_size_slot_get(&g_pipe_loaded_import_cap[0], 0);
+  let buf: *u8 = xlang_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
+  let cap: i64 = xlang_size_slot_get(&g_pipe_loaded_import_cap[0], 0);
   // Reallocate when buffer missing or too small for prep_len (same order as seed).
   if (prep_len > cap || buf == 0 as *u8) {
     // free(NULL) is fine; seed always free then assign new cap before malloc.
     unsafe {
       free(buf);
     }
-    // Cap floor 4194304 = SHUX_PIPELINE_IMPORT_BUF_CAP; else prep_len + 65536.
+    // Cap floor 4194304 = XLANG_PIPELINE_IMPORT_BUF_CAP; else prep_len + 65536.
     // Seed: prep_len < floor ? floor : prep_len + 65536  (i.e. >= floor → grow).
     let floor_cap: i64 = 4194304;
     let new_cap: i64 = floor_cap;
@@ -5346,19 +5346,19 @@ export function pipeline_loaded_import_commit_from_owned(prep: *u8, prep_len: i6
       new_cap = prep_len + 65536;
     }
     // Seed sets cap before malloc; OOM leaves cap=new_cap and buf=null (len unchanged).
-    shux_size_slot_set(&g_pipe_loaded_import_cap[0], 0, new_cap);
+    xlang_size_slot_set(&g_pipe_loaded_import_cap[0], 0, new_cap);
     let fresh: *u8 = 0 as *u8;
     unsafe {
       fresh = malloc(new_cap as usize);
     }
     if (fresh == 0 as *u8) {
-      shux_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, 0 as *u8);
+      xlang_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, 0 as *u8);
       unsafe {
         free(prep);
       }
       return 0 - 1;
     }
-    shux_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, fresh);
+    xlang_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, fresh);
     buf = fresh;
   }
   unsafe {
@@ -5366,29 +5366,29 @@ export function pipeline_loaded_import_commit_from_owned(prep: *u8, prep_len: i6
     memcpy(buf, prep, prep_len as usize);
     free(prep);
   }
-  shux_size_slot_set(&g_pipe_loaded_import_len[0], 0, prep_len);
+  xlang_size_slot_set(&g_pipe_loaded_import_len[0], 0, prep_len);
   return 0;
 }
 
 /**
  * Return pointer to committed loaded-import source bytes (or null if empty).
  * @return *u8 — pipeline_loaded_import_buf; null when never committed / OOM cleared
- * wave72 pure: G.7 shux_ptr_slot_get on pure BSS. Matches seed null when buf null.
+ * wave72 pure: G.7 xlang_ptr_slot_get on pure BSS. Matches seed null when buf null.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_loaded_import_data(): *u8 {
-  return shux_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
+  return xlang_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
 }
 
 /**
  * Return byte length of committed loaded-import buffer.
  * @return i64 — size_t length cell (0 when empty / never committed)
- * wave72 pure: G.7 shux_size_slot_get on pure BSS. PLATFORM: SHARED LP64.
+ * wave72 pure: G.7 xlang_size_slot_get on pure BSS. PLATFORM: SHARED LP64.
  */
 #[no_mangle]
 export function pipeline_loaded_import_len_get(): i64 {
-  return shux_size_slot_get(&g_pipe_loaded_import_len[0], 0);
+  return xlang_size_slot_get(&g_pipe_loaded_import_len[0], 0);
 }
 
 /**
@@ -5409,7 +5409,7 @@ export function pipeline_resolved_path_buf_slot(): *u8 {
  * @param i i32 — slot index; i < 0 or i >= 32 → no-op
  * @param p *u8 — arena pointer (may be null)
  * @return void
- * wave70 pure: G.7 shux_ptr_slot_set on g_pipe_dep_arena_slots (32×LP64 LE cells).
+ * wave70 pure: G.7 xlang_ptr_slot_set on g_pipe_dep_arena_slots (32×LP64 LE cells).
  * Matches seed bounds policy on set (reject OOB; do not trap).
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns the table.
  */
@@ -5421,7 +5421,7 @@ export function pipeline_dep_arena_slot_set(i: i32, p: *u8): void {
   if (i >= 32) {
     return;
   }
-  shux_ptr_slot_set(&g_pipe_dep_arena_slots[0], i, p);
+  xlang_ptr_slot_set(&g_pipe_dep_arena_slots[0], i, p);
 }
 
 /**
@@ -5429,7 +5429,7 @@ export function pipeline_dep_arena_slot_set(i: i32, p: *u8): void {
  * @param i i32 — slot index; i < 0 or i >= 32 → no-op
  * @param p *u8 — module pointer (may be null)
  * @return void
- * wave70 pure: G.7 shux_ptr_slot_set on g_pipe_dep_module_slots (pair of arena table).
+ * wave70 pure: G.7 xlang_ptr_slot_set on g_pipe_dep_module_slots (pair of arena table).
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -5440,14 +5440,14 @@ export function pipeline_dep_module_slot_set(i: i32, p: *u8): void {
   if (i >= 32) {
     return;
   }
-  shux_ptr_slot_set(&g_pipe_dep_module_slots[0], i, p);
+  xlang_ptr_slot_set(&g_pipe_dep_module_slots[0], i, p);
 }
 
 /**
  * Load pipeline dep-arena slot i (capacity 32; historical seed had no OOB guard).
  * @param i i32 — slot index; pure rejects i < 0 or i >= 32 → null (safer than seed raw index)
  * @return *u8 — stored arena pointer (may be null)
- * wave70 pure: G.7 shux_ptr_slot_get on g_pipe_dep_arena_slots.
+ * wave70 pure: G.7 xlang_ptr_slot_get on g_pipe_dep_arena_slots.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; pure get_dep_* bounds first.
  */
 #[no_mangle]
@@ -5458,14 +5458,14 @@ export function pipeline_dep_arena_slot_at(i: i32): *u8 {
   if (i >= 32) {
     return 0 as *u8;
   }
-  return shux_ptr_slot_get(&g_pipe_dep_arena_slots[0], i);
+  return xlang_ptr_slot_get(&g_pipe_dep_arena_slots[0], i);
 }
 
 /**
  * Load pipeline dep-module slot i (capacity 32).
  * @param i i32 — slot index; pure rejects OOB → null
  * @return *u8 — stored module pointer (may be null)
- * wave70 pure: G.7 shux_ptr_slot_get on g_pipe_dep_module_slots.
+ * wave70 pure: G.7 xlang_ptr_slot_get on g_pipe_dep_module_slots.
  * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -5476,7 +5476,7 @@ export function pipeline_dep_module_slot_at(i: i32): *u8 {
   if (i >= 32) {
     return 0 as *u8;
   }
-  return shux_ptr_slot_get(&g_pipe_dep_module_slots[0], i);
+  return xlang_ptr_slot_get(&g_pipe_dep_module_slots[0], i);
 }
 
 /**
@@ -5592,9 +5592,9 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
   }
 }
 
-// shux_pipeline_fill_ctx_path_buffers: see function docblock below.
-/** Exported function `shux_pipeline_fill_ctx_path_buffers`.
- * Implements `shux_pipeline_fill_ctx_path_buffers`.
+// xlang_pipeline_fill_ctx_path_buffers: see function docblock below.
+/** Exported function `xlang_pipeline_fill_ctx_path_buffers`.
+ * Implements `xlang_pipeline_fill_ctx_path_buffers`.
  * @param ctx *u8
  * @param entry_dir *u8
  * @param lib_roots *u8
@@ -5602,7 +5602,7 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
+export function xlang_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -5652,9 +5652,9 @@ export function pipe_cstr_len(s: *u8): i32 {
   return i;
 }
 
-// shux_pipeline_pctx_seed_dep_slots: see function docblock below.
-/** Exported function `shux_pipeline_pctx_seed_dep_slots`.
- * Implements `shux_pipeline_pctx_seed_dep_slots`.
+// xlang_pipeline_pctx_seed_dep_slots: see function docblock below.
+/** Exported function `xlang_pipeline_pctx_seed_dep_slots`.
+ * Implements `xlang_pipeline_pctx_seed_dep_slots`.
  * @param ctx *u8
  * @param dep_mods *u8
  * @param dep_ar *u8
@@ -5663,7 +5663,7 @@ export function pipe_cstr_len(s: *u8): i32 {
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
+export function xlang_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -5698,16 +5698,16 @@ export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_a
   }
 }
 
-// shux_pipeline_pctx_seed_dep_import_paths_only: see function docblock below.
-/** Exported function `shux_pipeline_pctx_seed_dep_import_paths_only`.
- * Implements `shux_pipeline_pctx_seed_dep_import_paths_only`.
+// xlang_pipeline_pctx_seed_dep_import_paths_only: see function docblock below.
+/** Exported function `xlang_pipeline_pctx_seed_dep_import_paths_only`.
+ * Implements `xlang_pipeline_pctx_seed_dep_import_paths_only`.
  * @param ctx *u8
  * @param import_paths *u8
  * @param n i32
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
+export function xlang_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -5745,14 +5745,14 @@ export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_p
  *   G.7 pure pipeline_sizeof_arena / pipeline_sizeof_module (wave83 LP64 constants);
  *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
  *   G.7 pure driver_parse_into_buf_rc (returns raw ok; allow 0 and -2 like historical seed);
- *   G.7 pure shux_module_num_imports / shux_module_import_path_cstr /
- *   shux_find_loaded_import_index / shux_pipeline_pctx_update_dep_slots_no_reset /
+ *   G.7 pure xlang_module_num_imports / xlang_module_import_path_cstr /
+ *   xlang_find_loaded_import_index / xlang_pipeline_pctx_update_dep_slots_no_reset /
  *   pipe_load_ptr_slot / pipe_cstr_len / ast_pipeline_dep_ctx_set_*.
  * Why not pipeline_parse_into_bytes: that maps non-zero ok to -1 and loses ok==-2
  * (under-parse still has usable import table). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
+export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -5775,14 +5775,14 @@ export function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods
         free(tmp_module);
       }
     }
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
   if (tmp_module == 0 as *u8) {
     unsafe {
       free(tmp_arena);
     }
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
   unsafe {
@@ -5806,11 +5806,11 @@ export function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods
         free(tmp_arena);
         free(tmp_module);
       }
-      shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+      xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
       return;
     }
   }
-  let n_imp: i32 = shux_module_num_imports(tmp_module);
+  let n_imp: i32 = xlang_module_num_imports(tmp_module);
   if (n_imp <= 0) {
     unsafe {
       free(tmp_arena);
@@ -5824,8 +5824,8 @@ export function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods
   let ii: i32 = 0;
   while (ii < n_imp) {
     let path_c: u8[65] = [];
-    shux_module_import_path_cstr(tmp_module, ii, &path_c[0], 65);
-    let g: i32 = shux_find_loaded_import_index(&path_c[0], dep_paths, ndep);
+    xlang_module_import_path_cstr(tmp_module, ii, &path_c[0], 65);
+    let g: i32 = xlang_find_loaded_import_index(&path_c[0], dep_paths, ndep);
     if (g < 0) {
       ii = ii + 1;
       continue;
@@ -5862,11 +5862,11 @@ export function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods
  * @param dep_src *u8 — dep source for import scan; null/empty/oversized → full slots
  * @param dep_src_len i64 — source length; <=0 or > INT32_MAX → full slots
  * @return void
- * wave62: body in pure shux_pipeline_one_ctx_for_dep_prerun_map_impl after flags.
+ * wave62: body in pure xlang_pipeline_one_ctx_for_dep_prerun_map_impl after flags.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
+export function xlang_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -5892,36 +5892,36 @@ export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods:
     return;
   }
   if (dep_src == 0 as *u8) {
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
   if (dep_src_len <= 0) {
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
   // INT32_MAX — parse_into_buf residual takes int32_t len.
   let imax: i64 = 2147483647;
   if (dep_src_len > imax) {
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
   unsafe {
-    shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+    xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
   }
 }
 
 /* See implementation. */
 
-// shux_driver_asm_prepare_entry_elf_emit: see function docblock below.
-/** Exported function `shux_driver_asm_prepare_entry_elf_emit`.
- * Implements `shux_driver_asm_prepare_entry_elf_emit`.
+// xlang_driver_asm_prepare_entry_elf_emit: see function docblock below.
+/** Exported function `xlang_driver_asm_prepare_entry_elf_emit`.
+ * Implements `xlang_driver_asm_prepare_entry_elf_emit`.
  * @param module *u8
  * @param arena *u8
  * @param pctx *u8
  * @return void
  */
 #[no_mangle]
-export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
+export function xlang_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
   if (module == 0 as *u8) {
     return;
   }
@@ -5938,9 +5938,9 @@ export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, 
   }
 }
 
-// shux_asm_codegen_elf_o_large_stack: see function docblock below.
+// xlang_asm_codegen_elf_o_large_stack: see function docblock below.
 /**
- * Thin gate → pure shux_asm_codegen_elf_o_large_stack_impl (wave57).
+ * Thin gate → pure xlang_asm_codegen_elf_o_large_stack_impl (wave57).
  * @param module *u8 — AST module; null → -1
  * @param arena *u8 — AST arena; null → -1
  * @param ctx *u8 — PipelineDepCtx (may be null)
@@ -5951,7 +5951,7 @@ export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, 
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+export function xlang_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -5962,7 +5962,7 @@ export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx:
     return 0 - 1;
   }
   unsafe {
-    return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
+    return xlang_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
   }
   return 0 - 1;
 }
@@ -5978,7 +5978,7 @@ export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx:
  * PLATFORM: SHARED — pure link-name; free still libc.
  */
 #[no_mangle]
-export function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void {
+export function xlang_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void {
   let i: i32 = mi;
   while (i > 0) {
     i = i - 1;
@@ -6016,16 +6016,16 @@ export function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, 
  * @return i32 — 0 success (*out_prep owned, free with free); 1 fail (out cleared)
  * wave55 pure Cap residual orch (was always-seed PATH_MAX+FILE view):
  *   stack resolved[4096] (SHARED path cap; gold Linux PATH_MAX);
- *   pure shux_resolve_import_file_path_multi;
- *   runtime_read_file_view into 32B stack ShuxRuntimeFileView (G.7 same as fmt_check);
+ *   pure xlang_resolve_import_file_path_multi;
+ *   runtime_read_file_view into 32B stack XlangRuntimeFileView (G.7 same as fmt_check);
  *   open fail → pure pipeline_diag_import_open_fail_once;
- *   pure shux_preprocess_raw_to_malloc(view.data, view.length, out_prep, out_prep_len, …);
+ *   pure xlang_preprocess_raw_to_malloc(view.data, view.length, out_prep, out_prep_len, …);
  *   runtime_release_file_view always after read success path;
  *   null prep after preprocess ok → pure pipeline_diag_import_preprocess_fail.
  * G.7 load_one + paths_tmp call this (single resolve/read/preprocess body). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, out_prep: *u8, out_prep_len: *u8): i32 {
+export function xlang_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, out_prep: *u8, out_prep_len: *u8): i32 {
   if (import_key == 0 as *u8) {
     return 1;
   }
@@ -6037,7 +6037,7 @@ export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_l
   }
   // Clear out cells first (same contract as seed cold twin).
   pipe_store_ptr_slot(out_prep, 0, 0 as *u8);
-  shux_size_slot_set(out_prep_len, 0, 0);
+  xlang_size_slot_set(out_prep_len, 0, 0);
   // Resolved path buffer: 4096 matches gold Linux PATH_MAX; pure stack (no BSS dual path).
   let resolved: u8[4096] = [];
   let zi: i32 = 0;
@@ -6046,9 +6046,9 @@ export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_l
     zi = zi + 1;
   }
   unsafe {
-    shux_resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_key, &resolved[0], 4096 as i64);
+    xlang_resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_key, &resolved[0], 4096 as i64);
   }
-  // ShuxRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
+  // XlangRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
   let view: u8[32] = [];
   let z: i32 = 0;
   while (z < 32) {
@@ -6063,8 +6063,8 @@ export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_l
     pipeline_diag_import_open_fail_once(import_key, &resolved[0]);
     return 1;
   }
-  let raw_data: *u8 = shux_ptr_slot_get(&view[0], 0);
-  let raw_len: i64 = shux_size_slot_get(&view[0], 1);
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
   // defines: only pass table when ndefines > 0 (seed cold twin ternary).
   let def_arg: *u8 = 0 as *u8;
   if (ndefines > 0) {
@@ -6072,7 +6072,7 @@ export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_l
   }
   let prep_rc: i32 = 0;
   unsafe {
-    prep_rc = shux_preprocess_raw_to_malloc(raw_data, raw_len, out_prep, out_prep_len, &resolved[0], def_arg, ndefines);
+    prep_rc = xlang_preprocess_raw_to_malloc(raw_data, raw_len, out_prep, out_prep_len, &resolved[0], def_arg, ndefines);
   }
   unsafe {
     runtime_release_file_view(&view[0]);
@@ -6080,13 +6080,13 @@ export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_l
   if (prep_rc != 0) {
     // Preprocess failed: keep out cleared (preprocess may have written partial; re-clear).
     pipe_store_ptr_slot(out_prep, 0, 0 as *u8);
-    shux_size_slot_set(out_prep_len, 0, 0);
+    xlang_size_slot_set(out_prep_len, 0, 0);
     return 1;
   }
   let prep: *u8 = pipe_load_ptr_slot(out_prep, 0);
   if (prep == 0 as *u8) {
     pipeline_diag_import_preprocess_fail(import_key, &resolved[0]);
-    shux_size_slot_set(out_prep_len, 0, 0);
+    xlang_size_slot_set(out_prep_len, 0, 0);
     return 1;
   }
   return 0;
@@ -6106,14 +6106,14 @@ export function shux_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_l
  * @param mi i32 — slot index; mi < 0 → fail 1
  * @return i32 — 0 success (slot written); 1 fail (no partial slot leave when paths OOM frees prep)
  * wave51 pure Cap residual orch:
- *   wave55 pure shux_load_one_direct_resolve_read_preprocess → owned prep;
+ *   wave55 pure xlang_load_one_direct_resolve_read_preprocess → owned prep;
  *   store prep + prep_len at mi;
- *   wave54 pure shux_collect_strdup(import_key) → dep_paths[mi];
+ *   wave54 pure xlang_collect_strdup(import_key) → dep_paths[mi];
  *   OOM on key: free prep, clear source slot, return 1.
  * G.7 process_one / load_direct_imports layout call this. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32 {
+export function xlang_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32 {
   if (import_key == 0 as *u8) {
     return 1;
   }
@@ -6125,13 +6125,13 @@ export function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32,
   let prep_len_cell: u8[8] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shux_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, import_key, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
+    rc = xlang_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, import_key, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
   }
   if (rc != 0) {
     return 1;
   }
   let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
-  let prep_len: i64 = shux_size_slot_get(&prep_len_cell[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&prep_len_cell[0], 0);
   if (prep == 0 as *u8) {
     return 1;
   }
@@ -6139,12 +6139,12 @@ export function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32,
     pipe_store_ptr_slot(dep_sources, mi, prep);
   }
   if (dep_lens != 0 as *u8) {
-    shux_size_slot_set(dep_lens, mi, prep_len);
+    xlang_size_slot_set(dep_lens, mi, prep_len);
   }
   if (dep_paths != 0 as *u8) {
     let key: *u8 = 0 as *u8;
     unsafe {
-      key = shux_collect_strdup(import_key);
+      key = xlang_collect_strdup(import_key);
     }
     if (key == 0 as *u8) {
       unsafe {
@@ -6160,7 +6160,7 @@ export function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32,
   return 0;
 }
 
-// shux_load_direct_imports_for_asm_layout: see function docblock below.
+// xlang_load_direct_imports_for_asm_layout: see function docblock below.
 /**
  * Load all direct module imports into dep_sources/lens/paths for asm layout.
  * @param module *u8 — AST module; null → -1
@@ -6177,7 +6177,7 @@ export function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32,
  * wave45+ pure orch; wave51 uses pure load_one + fail_cleanup. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
+export function xlang_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -6185,11 +6185,11 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
     return 0 - 1;
   }
   unsafe {
-    shux_i32_store(out_n, 0);
+    xlang_i32_store(out_n, 0);
   }
   let n_imports: i32 = 0;
   unsafe {
-    n_imports = shux_module_num_imports(module);
+    n_imports = xlang_module_num_imports(module);
   }
   if (n_imports <= 0) {
     return 0;
@@ -6201,16 +6201,16 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
     if (mi >= 32) { break; }
     let path_c: u8[65] = [];
     unsafe {
-      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+      xlang_module_import_path_cstr(module, i, &path_c[0], 65);
     }
     let rc: i32 = 0;
     unsafe {
-      rc = shux_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, &path_c[0], defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
+      rc = xlang_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, &path_c[0], defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
     }
     if (rc != 0) {
       unsafe {
-        shux_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
-        shux_i32_store(out_n, 0);
+        xlang_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
+        xlang_i32_store(out_n, 0);
       }
       return 1;
     }
@@ -6218,14 +6218,14 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
     i = i + 1;
   }
   unsafe {
-    shux_i32_store(out_n, mi);
+    xlang_i32_store(out_n, mi);
   }
   return 0;
 }
 
-// shux_merge_direct_then_transitive_dep_paths: see function docblock below.
-/** Exported function `shux_merge_direct_then_transitive_dep_paths`.
- * Implements `shux_merge_direct_then_transitive_dep_paths`.
+// xlang_merge_direct_then_transitive_dep_paths: see function docblock below.
+/** Exported function `xlang_merge_direct_then_transitive_dep_paths`.
+ * Implements `xlang_merge_direct_then_transitive_dep_paths`.
  * @param module *u8
  * @param n_imports i32
  * @param cpaths *u8
@@ -6235,7 +6235,7 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
+export function xlang_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -6258,7 +6258,7 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
     if (mi >= 32) { break; }
     let path_c: u8[65] = [];
     unsafe {
-      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+      xlang_module_import_path_cstr(module, i, &path_c[0], 65);
     }
     let found: i32 = 0 - 1;
     let kk: i32 = 0;
@@ -6283,7 +6283,7 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
     }
     unsafe {
       let pfound: *u8 = pipe_load_ptr_slot(cpaths, found);
-      shux_ptr_slot_set(out_paths, mi, pfound);
+      xlang_ptr_slot_set(out_paths, mi, pfound);
     }
     if (found < 32) {
       used[found] = 1;
@@ -6302,14 +6302,14 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
             cp2 = pipe_load_ptr_slot(cpaths, kj);
           }
           if (cp2 != 0 as *u8) {
-            if (shux_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
+            if (xlang_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
               used[kj] = 1;
             } else {
-              shux_ptr_slot_set(out_paths, mi, cp2);
+              xlang_ptr_slot_set(out_paths, mi, cp2);
               mi = mi + 1;
             }
           } else {
-            shux_ptr_slot_set(out_paths, mi, cp2);
+            xlang_ptr_slot_set(out_paths, mi, cp2);
             mi = mi + 1;
           }
         }
@@ -6318,16 +6318,16 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
     kj = kj + 1;
   }
   unsafe {
-    shux_i32_store(out_n, mi);
+    xlang_i32_store(out_n, mi);
   }
   return 0;
 }
 
 /* See implementation. */
 
-// shux_merge_direct_then_transitive_deps: see function docblock below.
-/** Exported function `shux_merge_direct_then_transitive_deps`.
- * Implements `shux_merge_direct_then_transitive_deps`.
+// xlang_merge_direct_then_transitive_deps: see function docblock below.
+/** Exported function `xlang_merge_direct_then_transitive_deps`.
+ * Implements `xlang_merge_direct_then_transitive_deps`.
  * @param module *u8
  * @param n_imports i32
  * @param cls *u8
@@ -6341,7 +6341,7 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
+export function xlang_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -6364,7 +6364,7 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
     if (mi >= 32) { break; }
     let path_c: u8[65] = [];
     unsafe {
-      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+      xlang_module_import_path_cstr(module, i, &path_c[0], 65);
     }
     let found: i32 = 0 - 1;
     let kk: i32 = 0;
@@ -6398,15 +6398,15 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
         sfound = pipe_load_ptr_slot(cls, found);
       }
       if (clens != 0 as *u8) {
-        lfound = shux_size_slot_get(clens, found);
+        lfound = xlang_size_slot_get(clens, found);
       }
       if (out_src != 0 as *u8) {
-        shux_ptr_slot_set(out_src, mi, sfound);
+        xlang_ptr_slot_set(out_src, mi, sfound);
       }
       if (out_lens != 0 as *u8) {
-        shux_size_slot_set(out_lens, mi, lfound);
+        xlang_size_slot_set(out_lens, mi, lfound);
       }
-      shux_ptr_slot_set(out_paths, mi, pfound);
+      xlang_ptr_slot_set(out_paths, mi, pfound);
     }
     if (found < 32) {
       used[found] = 1;
@@ -6425,7 +6425,7 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
             cp2 = pipe_load_ptr_slot(cpaths, kj);
           }
           if (cp2 != 0 as *u8) {
-            if (shux_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
+            if (xlang_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
               used[kj] = 1;
             } else {
               let s2: *u8 = 0 as *u8;
@@ -6434,15 +6434,15 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
                 s2 = pipe_load_ptr_slot(cls, kj);
               }
               if (clens != 0 as *u8) {
-                l2 = shux_size_slot_get(clens, kj);
+                l2 = xlang_size_slot_get(clens, kj);
               }
               if (out_src != 0 as *u8) {
-                shux_ptr_slot_set(out_src, mi, s2);
+                xlang_ptr_slot_set(out_src, mi, s2);
               }
               if (out_lens != 0 as *u8) {
-                shux_size_slot_set(out_lens, mi, l2);
+                xlang_size_slot_set(out_lens, mi, l2);
               }
-              shux_ptr_slot_set(out_paths, mi, cp2);
+              xlang_ptr_slot_set(out_paths, mi, cp2);
               mi = mi + 1;
             }
           } else {
@@ -6452,15 +6452,15 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
               s3 = pipe_load_ptr_slot(cls, kj);
             }
             if (clens != 0 as *u8) {
-              l3 = shux_size_slot_get(clens, kj);
+              l3 = xlang_size_slot_get(clens, kj);
             }
             if (out_src != 0 as *u8) {
-              shux_ptr_slot_set(out_src, mi, s3);
+              xlang_ptr_slot_set(out_src, mi, s3);
             }
             if (out_lens != 0 as *u8) {
-              shux_size_slot_set(out_lens, mi, l3);
+              xlang_size_slot_set(out_lens, mi, l3);
             }
-            shux_ptr_slot_set(out_paths, mi, cp2);
+            xlang_ptr_slot_set(out_paths, mi, cp2);
             mi = mi + 1;
           }
         }
@@ -6469,14 +6469,14 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
     kj = kj + 1;
   }
   unsafe {
-    shux_i32_store(out_n, mi);
+    xlang_i32_store(out_n, mi);
   }
   return 0;
 }
 
-// shux_collect_deps_transitive: see function docblock below.
-/** Exported function `shux_collect_deps_transitive`.
- * Implements `shux_collect_deps_transitive`.
+// xlang_collect_deps_transitive: see function docblock below.
+/** Exported function `xlang_collect_deps_transitive`.
+ * Implements `xlang_collect_deps_transitive`.
  * @param module *u8
  * @param arena_sz i64
  * @param module_sz i64
@@ -6492,7 +6492,7 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
  * @return i32
  */
 #[no_mangle]
-export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
+export function xlang_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -6501,23 +6501,23 @@ export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_
   }
   let nimp: i32 = 0;
   unsafe {
-    nimp = shux_module_num_imports(module);
+    nimp = xlang_module_num_imports(module);
   }
   if (nimp <= 0) {
     unsafe {
-      shux_i32_store(n_deps, 0);
+      xlang_i32_store(n_deps, 0);
     }
     return 0;
   }
   unsafe {
-    return shux_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
+    return xlang_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
   }
   return 0 - 1;
 }
 
-// shux_collect_dep_paths_transitive: see function docblock below.
-/** Exported function `shux_collect_dep_paths_transitive`.
- * Implements `shux_collect_dep_paths_transitive`.
+// xlang_collect_dep_paths_transitive: see function docblock below.
+/** Exported function `xlang_collect_dep_paths_transitive`.
+ * Implements `xlang_collect_dep_paths_transitive`.
  * @param module *u8
  * @param arena_sz i64
  * @param module_sz i64
@@ -6531,7 +6531,7 @@ export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_
  * @return i32
  */
 #[no_mangle]
-export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
+export function xlang_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -6540,16 +6540,16 @@ export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, mo
   }
   let nimp: i32 = 0;
   unsafe {
-    nimp = shux_module_num_imports(module);
+    nimp = xlang_module_num_imports(module);
   }
   if (nimp <= 0) {
     unsafe {
-      shux_i32_store(n_deps, 0);
+      xlang_i32_store(n_deps, 0);
     }
     return 0;
   }
   unsafe {
-    return shux_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, n_deps);
+    return xlang_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, n_deps);
   }
   return 0 - 1;
 }
@@ -6718,13 +6718,13 @@ export function pipe_diag_msg_append_name(dst: *u8, cap: i32, at: i32, name: *u8
 }
 
 /**
- * Pure body of SHUX_DEBUG_BODY_FUNC named-function body trace (wave82).
+ * Pure body of XLANG_DEBUG_BODY_FUNC named-function body trace (wave82).
  * @param phase *u8 — phase tag for note text; null → "?"
  * @param module *u8 — AST module; null → no-op
  * @param arena *u8 — AST arena; null → no-op
  * @return void
  * wave82 pure Cap residual orch:
- *   G.7 link_abi_getenv SHUX_DEBUG_BODY_FUNC gate (empty/'0' → no-op; wave235);
+ *   G.7 link_abi_getenv XLANG_DEBUG_BODY_FUNC gate (empty/'0' → no-op; wave235);
  *   G.7 pipeline_module_num_funcs / func_name_* / body_ref_at (ast_pool Cap residual);
  *   G.7 pure pipeline_debug_body_func_match (comma token filter);
  *   G.7 ast_ast_block_num_* / final_expr_ref when body_ref > 0 else -1;
@@ -6742,13 +6742,13 @@ export function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: 
   }
   unsafe {
     let key: u8[24] = [];
-    // "SHUX_DEBUG_BODY_FUNC"
+    // "XLANG_DEBUG_BODY_FUNC"
     key[0] = 83; key[1] = 72; key[2] = 85; key[3] = 88; key[4] = 95;
     key[5] = 68; key[6] = 69; key[7] = 66; key[8] = 85; key[9] = 71;
     key[10] = 95; key[11] = 66; key[12] = 79; key[13] = 68; key[14] = 89;
     key[15] = 95; key[16] = 70; key[17] = 85; key[18] = 78; key[19] = 67;
     key[20] = 0;
-    // wave235 G.7: SHUX_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv).
+    // wave235 G.7: XLANG_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv).
     let filter: *u8 = link_abi_getenv(&key[0]);
     if (filter == 0 as *u8) {
       return;
@@ -6997,7 +6997,7 @@ export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8
  * @param arr *u8 — void-star / char-star table base; null → no-op
  * @param i i32 — index; i < 0 → no-op
  * @return void
- * wave78 pure: G.7 thin → shux_ptr_slot_set(arr, i, null); single authority for slot stores.
+ * wave78 pure: G.7 thin → xlang_ptr_slot_set(arr, i, null); single authority for slot stores.
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
@@ -7009,7 +7009,7 @@ export function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void {
     return;
   }
   unsafe {
-    shux_ptr_slot_set(arr, i, 0 as *u8);
+    xlang_ptr_slot_set(arr, i, 0 as *u8);
   }
 }
 
@@ -7356,7 +7356,7 @@ function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void {
  * PLATFORM: SHARED LP64.
  */
 #[no_mangle]
-export function shux_size_slot_get(arr: *u8, i: i32): i64 {
+export function xlang_size_slot_get(arr: *u8, i: i32): i64 {
   if (arr == 0 as *u8) {
     return 0;
   }
@@ -7374,10 +7374,10 @@ export function shux_size_slot_get(arr: *u8, i: i32): i64 {
  * @param i i32 — index; i < 0 → no-op
  * @param v i64 — value (path length / buffer size)
  * @return void
- * wave46 pure; pairs shux_size_slot_get. PLATFORM: SHARED LP64.
+ * wave46 pure; pairs xlang_size_slot_get. PLATFORM: SHARED LP64.
  */
 #[no_mangle]
-export function shux_size_slot_set(arr: *u8, i: i32, v: i64): void {
+export function xlang_size_slot_set(arr: *u8, i: i32, v: i64): void {
   if (arr == 0 as *u8) {
     return;
   }
@@ -7397,7 +7397,7 @@ export function shux_size_slot_set(arr: *u8, i: i32, v: i64): void {
  * PLATFORM: SHARED LP64 — single authority in this TU under PREFER hybrid.
  */
 #[no_mangle]
-export function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void {
+export function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void {
   pipe_store_ptr_slot(arr, i, p);
 }
 
@@ -7410,7 +7410,7 @@ export function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void {
  * Note: never put the two-char end-comment marker inside prose (truncates the block).
  */
 #[no_mangle]
-export function shux_ptr_slot_get(arr: *u8, i: i32): *u8 {
+export function xlang_ptr_slot_get(arr: *u8, i: i32): *u8 {
   if (arr == 0 as *u8) {
     return 0 as *u8;
   }
@@ -7428,7 +7428,7 @@ export function shux_ptr_slot_get(arr: *u8, i: i32): *u8 {
  * wave46 pure Cap residual (merge out_n / n_deps). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_i32_store(p: *i32, v: i32): void {
+export function xlang_i32_store(p: *i32, v: i32): void {
   if (p == 0 as *i32) {
     return;
   }
@@ -7445,7 +7445,7 @@ export function shux_i32_store(p: *i32, v: i32): void {
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_module_num_imports(module: *u8): i32 {
+export function xlang_module_num_imports(module: *u8): i32 {
   if (module == 0 as *u8) {
     return 0;
   }
@@ -7462,7 +7462,7 @@ export function shux_module_num_imports(module: *u8): i32 {
  * wave46 pure: parser path bytes then copy loop (no libc). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void {
+export function xlang_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void {
   if (buf == 0 as *u8) {
     return;
   }
@@ -7510,7 +7510,7 @@ export function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, ca
  * wave46 pure; used by Cap residual collect enqueue. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_to_load_has(to_load: *u8, to_load_n: i32, path: *u8): i32 {
+export function xlang_collect_to_load_has(to_load: *u8, to_load_n: i32, path: *u8): i32 {
   if (to_load == 0 as *u8) {
     return 0;
   }
@@ -7543,7 +7543,7 @@ export function shux_collect_to_load_has(to_load: *u8, to_load_n: i32, path: *u8
  * G.7 seed_to_load / enqueue / load_one / paths_process_one call this. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_strdup(s: *u8): *u8 {
+export function xlang_collect_strdup(s: *u8): *u8 {
   if (s == 0 as *u8) {
     return 0 as *u8;
   }
@@ -7578,12 +7578,12 @@ export function shux_collect_strdup(s: *u8): *u8 {
  * @param to_load *u8 — char** queue base as bytes; null → fail 1
  * @param to_load_n *i32 — out live count; null → fail 1; reset to 0 first
  * @return i32 — 0 success; 1 OOM (queue freed and count cleared)
- * wave47 pure Cap residual: G.7 reuses shux_module_num_imports / import_path_cstr /
- *   pipe_store_ptr_slot; wave54 pure shux_collect_strdup for ownership (free on fail).
- * Slot max = SHUX_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ * wave47 pure Cap residual: G.7 reuses xlang_module_num_imports / import_path_cstr /
+ *   pipe_store_ptr_slot; wave54 pure xlang_collect_strdup for ownership (free on fail).
+ * Slot max = XLANG_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: *i32): i32 {
+export function xlang_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: *i32): i32 {
   if (to_load == 0 as *u8) {
     return 1;
   }
@@ -7597,7 +7597,7 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
     return 0;
   }
   let slot_max: i32 = 32;
-  let n_imports: i32 = shux_module_num_imports(module);
+  let n_imports: i32 = xlang_module_num_imports(module);
   let j: i32 = 0;
   while (j < n_imports) {
     if (j >= slot_max) {
@@ -7611,10 +7611,10 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
       break;
     }
     let path_c: u8[65] = [];
-    shux_module_import_path_cstr(module, j, &path_c[0], 65);
+    xlang_module_import_path_cstr(module, j, &path_c[0], 65);
     let owned: *u8 = 0 as *u8;
     unsafe {
-      owned = shux_collect_strdup(&path_c[0]);
+      owned = xlang_collect_strdup(&path_c[0]);
     }
     if (owned == 0 as *u8) {
       // Free partial queue on OOM (same contract as seed cold twin).
@@ -7650,7 +7650,7 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
  * @param module_sz i64 — malloc size when first ensuring tmp; must match ParseInto module layout
  * @param prep *u8 — owned prep source bytes (not freed here); null → no-op
  * @param prep_len i64 — byte length of prep
- * @param debug_path *u8 — path key for optional SHUX_DEBUG_PIPE note (cold twin only; pure ignores)
+ * @param debug_path *u8 — path key for optional XLANG_DEBUG_PIPE note (cold twin only; pure ignores)
  * @param to_load *u8 — char star-star queue base for sub-import keys
  * @param to_load_n *i32 — live queue count (in/out)
  * @param dep_paths *u8 — already-loaded keys as char star-star; may be null if n_loaded==0
@@ -7663,7 +7663,7 @@ export function shux_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: 
  * G.7 process_one / paths_tmp Cap residual call this. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, prep: *u8, prep_len: i64, debug_path: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
+export function xlang_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, prep: *u8, prep_len: i64, debug_path: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
   if (tmp_arena == 0 as *u8) {
     return;
   }
@@ -7673,7 +7673,7 @@ export function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *
   if (prep == 0 as *u8) {
     return;
   }
-  // Silence unused debug_path in pure (cold twin may log under SHUX_DEBUG_PIPE).
+  // Silence unused debug_path in pure (cold twin may log under XLANG_DEBUG_PIPE).
   if (debug_path == 0 as *u8) {
   }
   let ta: *u8 = pipe_load_ptr_slot(tmp_arena, 0);
@@ -7706,7 +7706,7 @@ export function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *
   if (pr_rc != 0) {
     // Still enqueue whatever imports the partial/failed parse left (same as cold twin).
   }
-  shux_collect_enqueue_module_imports(tm, to_load, to_load_n, dep_paths, n_loaded);
+  xlang_collect_enqueue_module_imports(tm, to_load, to_load_n, dep_paths, n_loaded);
 }
 
 /**
@@ -7730,12 +7730,12 @@ export function shux_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *
  * wave53 pure Cap residual orch:
  *   if *tmp_arena null → malloc arena_sz + module_sz into both slots;
  *   if either buffer missing → return 0 (path already registered upstream; historical);
- *   wave55 pure shux_load_one_direct_resolve_read_preprocess → owned prep;
- *   G.7 pure shux_collect_tmp_parse_and_enqueue; free prep.
+ *   wave55 pure xlang_load_one_direct_resolve_read_preprocess → owned prep;
+ *   G.7 pure xlang_collect_tmp_parse_and_enqueue; free prep.
  * G.7 paths_process_one calls this. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32 {
+export function xlang_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32 {
   if (path_c == 0 as *u8) {
     return 1;
   }
@@ -7770,16 +7770,16 @@ export function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_ro
   let prep_len_cell: u8[8] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shux_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
+    rc = xlang_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
   }
   if (rc != 0) {
     return 1;
   }
   let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
-  let prep_len: i64 = shux_size_slot_get(&prep_len_cell[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&prep_len_cell[0], 0);
   // G.7 pure: memset + parse_into_bytes + enqueue (tmp already live from ensure above).
   unsafe {
-    shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load, to_load_n, dep_paths, n_loaded);
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load, to_load_n, dep_paths, n_loaded);
   }
   // prep is owned only by this shell (paths-only does not keep sources); always free.
   if (prep != 0 as *u8) {
@@ -7813,11 +7813,11 @@ export function shux_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_ro
  *   already-loaded → free path_c + 0;
  *   G.7 load_one_direct_import_at stores prep/path at mi=*n (resolve/read/preprocess Cap);
  *   free path_c; *n = mi+1;
- *   wave52 pure shux_collect_tmp_parse_and_enqueue for parse + enqueue.
+ *   wave52 pure xlang_collect_tmp_parse_and_enqueue for parse + enqueue.
  * wave50: called from pure transitive_impl orch. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
+export function xlang_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
   if (path_c == 0 as *u8) {
     return 1;
   }
@@ -7841,7 +7841,7 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
     mi = n[0];
   }
   // Already loaded: drop owned path and continue (same as cold twin).
-  if (shux_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
+  if (xlang_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
     unsafe {
       free(path_c);
     }
@@ -7850,7 +7850,7 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
   // Cap residual: resolve + read file view + preprocess → dep_sources/lens/paths[mi].
   let rc: i32 = 0;
   unsafe {
-    rc = shux_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
+    rc = xlang_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
   }
   unsafe {
     free(path_c);
@@ -7866,10 +7866,10 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
     n[0] = mi + 1;
   }
   let prep: *u8 = pipe_load_ptr_slot(dep_sources, mi);
-  let prep_len: i64 = shux_size_slot_get(dep_lens, mi);
+  let prep_len: i64 = xlang_size_slot_get(dep_lens, mi);
   let n_loaded: i32 = mi + 1;
   unsafe {
-    shux_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, key, to_load, to_load_n, dep_paths, n_loaded);
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, key, to_load, to_load_n, dep_paths, n_loaded);
   }
   return 0;
 }
@@ -7894,14 +7894,14 @@ export function shux_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib
  * @return i32 — 0 continue; 1 fail (caller cleans queue + partial paths)
  * wave49 pure Cap residual orch:
  *   already-loaded → free path_c + 0;
- *   wave54 pure shux_collect_strdup stores owned key at mi=*n; *n = mi+1;
- *   wave53 pure shux_collect_paths_tmp_resolve_parse_enqueue
+ *   wave54 pure xlang_collect_strdup stores owned key at mi=*n; *n = mi+1;
+ *   wave53 pure xlang_collect_paths_tmp_resolve_parse_enqueue
  *     (ensure tmp; Cap residual resolve/read/preprocess; G.7 pure tmp_parse; free prep);
  *   free path_c. If tmp malloc fails residual no-ops success (path still registered).
  * wave50: called from pure paths transitive_impl orch. PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
+export function xlang_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
   if (path_c == 0 as *u8) {
     return 1;
   }
@@ -7925,7 +7925,7 @@ export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_li
     mi = n[0];
   }
   // Already loaded: drop owned path and continue (same as cold twin).
-  if (shux_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
+  if (xlang_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
     unsafe {
       free(path_c);
     }
@@ -7934,7 +7934,7 @@ export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_li
   // Register owned path key before resolve (fail paths leave key for caller cleanup).
   let key: *u8 = 0 as *u8;
   unsafe {
-    key = shux_collect_strdup(path_c);
+    key = xlang_collect_strdup(path_c);
   }
   if (key == 0 as *u8) {
     unsafe {
@@ -7949,7 +7949,7 @@ export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_li
   let n_loaded: i32 = mi + 1;
   let rc: i32 = 0;
   unsafe {
-    rc = shux_collect_paths_tmp_resolve_parse_enqueue(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, tmp_arena, tmp_module, arena_sz, module_sz, to_load, to_load_n, dep_paths, n_loaded);
+    rc = xlang_collect_paths_tmp_resolve_parse_enqueue(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, tmp_arena, tmp_module, arena_sz, module_sz, to_load, to_load_n, dep_paths, n_loaded);
   }
   unsafe {
     free(path_c);
@@ -7975,13 +7975,13 @@ export function shux_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_li
  * wave50 pure Cap residual orch:
  *   stack char star-star to_load[32] as 256B + two void-star tmp cells as 16B
  *   (G.7 same stack-ptr pattern as check_one_file argv);
- *   G.7 shux_collect_seed_to_load then drain with pure process_one;
+ *   G.7 xlang_collect_seed_to_load then drain with pure process_one;
  *   success: free remaining queue + tmp, store *n_deps;
  *   fail: free queue + tmp + dep_sources/paths[0..n).
- * Slot max = SHUX_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ * Slot max = XLANG_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
+export function xlang_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
   if (n_deps == 0 as *i32) {
     return 1;
   }
@@ -8002,7 +8002,7 @@ export function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, mo
   }
   let n: i32 = 0;
   let slot_max: i32 = 32;
-  if (shux_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
+  if (xlang_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
     // Fail: free any partial queue (seed_to_load already clears on OOM; still drain).
     while (to_load_n > 0) {
       to_load_n = to_load_n - 1;
@@ -8025,7 +8025,7 @@ export function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, mo
     pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
     let rc: i32 = 0;
     unsafe {
-      rc = shux_collect_deps_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
+      rc = xlang_collect_deps_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
     }
     if (rc != 0) {
       // Fail path: free remaining queue, tmp, and partial deps.
@@ -8095,7 +8095,7 @@ export function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, mo
     }
   }
   unsafe {
-    shux_i32_store(n_deps, n);
+    xlang_i32_store(n_deps, n);
   }
   return 0;
 }
@@ -8115,10 +8115,10 @@ export function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, mo
  * @return i32 — 0 success; 1 fail (partial paths freed; queue/tmp freed)
  * wave50 pure Cap residual orch: same stack to_load + tmp_cells as deps transitive;
  *   G.7 seed_to_load + pure paths_process_one; fail frees only dep_paths (no sources).
- * Slot max = SHUX_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ * Slot max = XLANG_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
+export function xlang_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
   if (n_deps == 0 as *i32) {
     return 1;
   }
@@ -8137,7 +8137,7 @@ export function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i6
   }
   let n: i32 = 0;
   let slot_max: i32 = 32;
-  if (shux_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
+  if (xlang_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
     while (to_load_n > 0) {
       to_load_n = to_load_n - 1;
       let p: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
@@ -8159,7 +8159,7 @@ export function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i6
     pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
     let rc: i32 = 0;
     unsafe {
-      rc = shux_collect_paths_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
+      rc = xlang_collect_paths_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
     }
     if (rc != 0) {
       while (to_load_n > 0) {
@@ -8220,7 +8220,7 @@ export function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i6
     }
   }
   unsafe {
-    shux_i32_store(n_deps, n);
+    xlang_i32_store(n_deps, n);
   }
   return 0;
 }
@@ -8234,12 +8234,12 @@ export function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i6
  * @param n_loaded i32 — count of dep_paths already committed
  * @return void
  * wave47 pure Cap residual: G.7 reuses module_num_imports / import_path_cstr /
- *   shux_find_loaded_import_index / shux_collect_to_load_has / pipe slots;
- *   wave54 pure shux_collect_strdup.
+ *   xlang_find_loaded_import_index / xlang_collect_to_load_has / pipe slots;
+ *   wave54 pure xlang_collect_strdup.
  * OOM on one strdup: skip that import (same as cold twin continue). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_collect_enqueue_module_imports(tmp_module: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
+export function xlang_collect_enqueue_module_imports(tmp_module: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
   if (tmp_module == 0 as *u8) {
     return;
   }
@@ -8270,19 +8270,19 @@ export function shux_collect_enqueue_module_imports(tmp_module: *u8, to_load: *u
       break;
     }
     let sub_c: u8[65] = [];
-    shux_module_import_path_cstr(tmp_module, jj, &sub_c[0], 65);
+    xlang_module_import_path_cstr(tmp_module, jj, &sub_c[0], 65);
     // Skip if already loaded or already queued.
-    if (shux_find_loaded_import_index(&sub_c[0], dep_paths, n_loaded) >= 0) {
+    if (xlang_find_loaded_import_index(&sub_c[0], dep_paths, n_loaded) >= 0) {
       jj = jj + 1;
       continue;
     }
-    if (shux_collect_to_load_has(to_load, n, &sub_c[0]) != 0) {
+    if (xlang_collect_to_load_has(to_load, n, &sub_c[0]) != 0) {
       jj = jj + 1;
       continue;
     }
     let owned: *u8 = 0 as *u8;
     unsafe {
-      owned = shux_collect_strdup(&sub_c[0]);
+      owned = xlang_collect_strdup(&sub_c[0]);
     }
     if (owned == 0 as *u8) {
       jj = jj + 1;
@@ -8376,16 +8376,16 @@ export function pipeline_diag_preprocess_directive_code(path_diag: *u8, code: i3
   }
 }
 
-// shux_dep_prerun_entry_dir_pick: see function docblock below.
-/** Exported function `shux_dep_prerun_entry_dir_pick`.
- * Implements `shux_dep_prerun_entry_dir_pick`.
+// xlang_dep_prerun_entry_dir_pick: see function docblock below.
+/** Exported function `xlang_dep_prerun_entry_dir_pick`.
+ * Implements `xlang_dep_prerun_entry_dir_pick`.
  * @param main_entry_dir *u8
  * @param lib_roots *u8
  * @param n_lib_roots i32
  * @return *u8
  */
 #[no_mangle]
-export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+export function xlang_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
   if (lib_roots == 0 as *u8) { return main_entry_dir; }
   if (n_lib_roots <= 0) { return main_entry_dir; }
   unsafe {
@@ -8397,15 +8397,15 @@ export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *
   return main_entry_dir;
 }
 
-/** Exported function `shux_find_loaded_import_index_scan`.
- * Implements `shux_find_loaded_import_index_scan`.
+/** Exported function `xlang_find_loaded_import_index_scan`.
+ * Implements `xlang_find_loaded_import_index_scan`.
  * @param path *u8
  * @param all_paths *u8
  * @param n_all i32
  * @return i32
  */
 #[no_mangle]
-export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
+export function xlang_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (all_paths == 0 as *u8) { return 0 - 1; }
   if (n_all <= 0) { return 0 - 1; }
@@ -8420,15 +8420,15 @@ export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_
   return 0 - 1;
 }
 
-/** Exported function `shux_merge_deps_path_already_out_scan`.
- * Read path helper `shux_merge_deps_path_already_out_scan`.
+/** Exported function `xlang_merge_deps_path_already_out_scan`.
+ * Read path helper `xlang_merge_deps_path_already_out_scan`.
  * @param path *u8
  * @param out_paths *u8
  * @param n_out i32
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
+export function xlang_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) { return 0; }
   if (out_paths == 0 as *u8) { return 0; }
   if (n_out <= 0) { return 0; }
@@ -8445,9 +8445,9 @@ export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8,
 
 /* See implementation. */
 
-// shux_pipeline_pctx_update_dep_slots_no_reset: see function docblock below.
-/** Exported function `shux_pipeline_pctx_update_dep_slots_no_reset`.
- * Implements `shux_pipeline_pctx_update_dep_slots_no_reset`.
+// xlang_pipeline_pctx_update_dep_slots_no_reset: see function docblock below.
+/** Exported function `xlang_pipeline_pctx_update_dep_slots_no_reset`.
+ * Implements `xlang_pipeline_pctx_update_dep_slots_no_reset`.
  * @param ctx *u8
  * @param dep_mods *u8
  * @param dep_ars *u8
@@ -8456,7 +8456,7 @@ export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8,
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
+export function xlang_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -8501,7 +8501,7 @@ export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods:
  * wave56 pure Cap residual:
  *   load pack fields via pipe/size slots; driver_set_pipeline_entry_source_len;
  *   pipeline_run_x_pipeline; store result as LE i64 cell at slot 6 (i32@48 + pad).
- * SHUX_DEBUG_PIPE start/done notes stay cold-twin only (pure skips; same as tmp_parse).
+ * XLANG_DEBUG_PIPE start/done notes stay cold-twin only (pure skips; same as tmp_parse).
  * PLATFORM: SHARED LP64 little-endian.
  */
 #[no_mangle]
@@ -8512,7 +8512,7 @@ export function pipeline_run_x_thread_fn_impl(arg: *u8): *u8 {
   let module: *u8 = pipe_load_ptr_slot(arg, 0);
   let arena: *u8 = pipe_load_ptr_slot(arg, 1);
   let source_data: *u8 = pipe_load_ptr_slot(arg, 2);
-  let source_len: i64 = shux_size_slot_get(arg, 3);
+  let source_len: i64 = xlang_size_slot_get(arg, 3);
   let out_buf: *u8 = pipe_load_ptr_slot(arg, 4);
   let ctx: *u8 = pipe_load_ptr_slot(arg, 5);
   unsafe {
@@ -8523,7 +8523,7 @@ export function pipeline_run_x_thread_fn_impl(arg: *u8): *u8 {
     ec = pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
   }
   // result i32 lives at byte 48 = slot index 6; write full LE cell (pad ok).
-  shux_size_slot_set(arg, 6, ec as i64);
+  xlang_size_slot_set(arg, 6, ec as i64);
   return 0 as *u8;
 }
 
@@ -8550,7 +8550,7 @@ export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
  * @return *u8 — function address as opaque byte pointer (never null when linked)
  * wave84 pure product surface; wave100 language residual closed:
  *   typeck types same-module bare function names as Cap-fn-ptr *u8; body is
- *   (pipeline_run_x_thread_fn as *u8) — no g05 shux_driver_* cast harness.
+ *   (pipeline_run_x_thread_fn as *u8) — no g05 xlang_driver_* cast harness.
  *   C backend emits ((uint8_t *)(pipeline_run_x_thread_fn)); seed cold twin keeps
  *   (uint8_t *)(void *)fn under #ifndef FROM_X for full-C cold link.
  * PLATFORM: SHARED — closes g05 &fn cast Cap residual on pure path.
@@ -8576,7 +8576,7 @@ export function pipeline_run_x_thread_fn_ptr(): *u8 {
  * PLATFORM: SHARED LP64.
  */
 #[no_mangle]
-export function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+export function xlang_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
   let args: u8[56] = [];
   let zi: i32 = 0;
   while (zi < 56) {
@@ -8589,11 +8589,11 @@ export function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena
   pipe_store_ptr_slot(&args[0], 0, module);
   pipe_store_ptr_slot(&args[0], 1, arena);
   pipe_store_ptr_slot(&args[0], 2, source_data);
-  shux_size_slot_set(&args[0], 3, source_len);
+  xlang_size_slot_set(&args[0], 3, source_len);
   pipe_store_ptr_slot(&args[0], 4, out_buf);
   pipe_store_ptr_slot(&args[0], 5, ctx);
   // Sentinel -99: thread_fn overwrites on success; unchanged → current-thread fallback.
-  shux_size_slot_set(&args[0], 6, 0 - 99);
+  xlang_size_slot_set(&args[0], 6, 0 - 99);
   let fn: *u8 = 0 as *u8;
   unsafe {
     fn = pipeline_run_x_thread_fn_ptr();
@@ -8603,7 +8603,7 @@ export function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena
       driver_run_thread_on_large_stack(fn, &args[0]);
     }
   }
-  let result: i64 = shux_size_slot_get(&args[0], 6);
+  let result: i64 = xlang_size_slot_get(&args[0], 6);
   if (result == (0 - 99) as i64) {
     unsafe {
       return pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
@@ -8612,36 +8612,36 @@ export function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena
   return result as i32;
 }
 
-// shux_asm_codegen_elf_o_thread_fn: see function docblock below.
+// xlang_asm_codegen_elf_o_thread_fn: see function docblock below.
 /**
  * Thin pthread entry for large-stack asm emit (null reject).
  * @param arg *u8 — AsmElfLargeArgs pack; null → null
  * @return *u8 — always null
- * wave57: forwards to pure shux_asm_codegen_elf_o_thread_fn_impl.
- * PLATFORM: SHARED — address taken by pure shux_asm_codegen_elf_o_thread_fn_ptr (wave84 g05 cast).
+ * wave57: forwards to pure xlang_asm_codegen_elf_o_thread_fn_impl.
+ * PLATFORM: SHARED — address taken by pure xlang_asm_codegen_elf_o_thread_fn_ptr (wave84 g05 cast).
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
+export function xlang_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
   if (arg == 0 as *u8) {
     return 0 as *u8;
   }
   unsafe {
-    return shux_asm_codegen_elf_o_thread_fn_impl(arg);
+    return xlang_asm_codegen_elf_o_thread_fn_impl(arg);
   }
   return 0 as *u8;
 }
 
 /**
- * Product Cap-fn-ptr surface: opaque *u8 address of shux_asm_codegen_elf_o_thread_fn.
+ * Product Cap-fn-ptr surface: opaque *u8 address of xlang_asm_codegen_elf_o_thread_fn.
  * @return *u8 — function address as opaque byte pointer (never null when linked)
  * wave84 pure product surface; wave100 language residual closed:
- *   same-module bare fn → *u8 (typeck); body (shux_asm_codegen_elf_o_thread_fn as *u8);
- *   no g05 shux_driver_asm_elf_o_thread_fn_ptr cast. Seed cold twin under #ifndef FROM_X.
+ *   same-module bare fn → *u8 (typeck); body (xlang_asm_codegen_elf_o_thread_fn as *u8);
+ *   no g05 xlang_driver_asm_elf_o_thread_fn_ptr cast. Seed cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — closes g05 &fn cast Cap residual on pure path.
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_thread_fn_ptr(): *u8 {
-  return (shux_asm_codegen_elf_o_thread_fn as *u8);
+export function xlang_asm_codegen_elf_o_thread_fn_ptr(): *u8 {
+  return (xlang_asm_codegen_elf_o_thread_fn as *u8);
 }
 
 /**
@@ -8651,12 +8651,12 @@ export function shux_asm_codegen_elf_o_thread_fn_ptr(): *u8 {
  *   null → return null
  * @return *u8 — always null (pthread start_routine contract)
  * wave57 pure Cap residual orch; wave80 product_emit is pure G.7 thin (bridge reloc).
- *   load pack via pipe/size slots; G.7 pure shux_asm_codegen_elf_o_product_emit;
+ *   load pack via pipe/size slots; G.7 pure xlang_asm_codegen_elf_o_product_emit;
  *   store result as LE i64 cell at slot 5 (i32@40 + pad).
  * PLATFORM: SHARED LP64 little-endian.
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
+export function xlang_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
   if (arg == 0 as *u8) {
     return 0 as *u8;
   }
@@ -8667,10 +8667,10 @@ export function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
   let out_buf: *u8 = pipe_load_ptr_slot(arg, 4);
   let ec: i32 = 0;
   unsafe {
-    ec = shux_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
+    ec = xlang_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
   }
   // result i32 lives at byte 40 = slot index 5; write full LE cell (pad ok).
-  shux_size_slot_set(arg, 5, ec as i64);
+  xlang_size_slot_set(arg, 5, ec as i64);
   return 0 as *u8;
 }
 
@@ -8684,12 +8684,12 @@ export function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
  * @return i32 — emit ec; fallback path if result still sentinel -99
  * wave57 pure Cap residual orch; wave80 product_emit pure thin; wave84 pure Cap-fn-ptr surface:
  *   stack args[48] zeroed; fill pack; result sentinel -99;
- *   pure shux_asm_codegen_elf_o_thread_fn_ptr (g05 &fn cast) + G.7 driver_run_thread_on_large_stack;
+ *   pure xlang_asm_codegen_elf_o_thread_fn_ptr (g05 &fn cast) + G.7 driver_run_thread_on_large_stack;
  *   if result still -99 → G.7 pure product_emit (pthread create failed / skipped).
  * PLATFORM: SHARED LP64.
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+export function xlang_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
   let args: u8[48] = [];
   let zi: i32 = 0;
   while (zi < 48) {
@@ -8702,27 +8702,27 @@ export function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8,
   pipe_store_ptr_slot(&args[0], 3, elf_ctx);
   pipe_store_ptr_slot(&args[0], 4, out_buf);
   // Sentinel -99: thread_fn overwrites on success; unchanged → current-thread fallback.
-  shux_size_slot_set(&args[0], 5, 0 - 99);
+  xlang_size_slot_set(&args[0], 5, 0 - 99);
   let fn: *u8 = 0 as *u8;
   unsafe {
-    fn = shux_asm_codegen_elf_o_thread_fn_ptr();
+    fn = xlang_asm_codegen_elf_o_thread_fn_ptr();
   }
   if (fn != 0 as *u8) {
     unsafe {
       driver_run_thread_on_large_stack(fn, &args[0]);
     }
   }
-  let result: i64 = shux_size_slot_get(&args[0], 5);
+  let result: i64 = xlang_size_slot_get(&args[0], 5);
   if (result == (0 - 99) as i64) {
     unsafe {
-      return shux_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
+      return xlang_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
     }
   }
   return result as i32;
 }
 
 /**
- * Whether SHUX_ASM_DEBUG is set (asm pipeline debug notes gate).
+ * Whether XLANG_ASM_DEBUG is set (asm pipeline debug notes gate).
  * wave235 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @return i32 — 1 if env present (any value), 0 otherwise
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl
@@ -8730,8 +8730,8 @@ export function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8,
 #[no_mangle]
 export function pipeline_asm_debug_enabled(): i32 {
   unsafe {
-    // wave235 G.7: SHUX_ASM_DEBUG via link_abi_getenv (not raw getenv).
-    let e: *u8 = link_abi_getenv("SHUX_ASM_DEBUG");
+    // wave235 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv).
+    let e: *u8 = link_abi_getenv("XLANG_ASM_DEBUG");
     if (e != 0) { return 1; }
   }
   return 0;
@@ -8809,7 +8809,7 @@ export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
 // =============================================================================
 // PLATFORM: SHARED LP64 — multi-module pointer-keyed map + malloc grow for entries
 // and select name rows. Mirrors ast_pool ModuleSidecar.imports + import_select_* .
-// Product hybrid: pure strong pipeline_module_import_* override Cap SHUX_WEAK cold.
+// Product hybrid: pure strong pipeline_module_import_* override Cap XLANG_WEAK cold.
 // Layout of one ImportEntry (340 bytes, packed LE, ≡ C typedef ImportEntry):
 //   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[64] @264
 //   | binding_name_len i32 @328 | select_base i32 @332 | select_count i32 @336
@@ -8884,7 +8884,7 @@ function pipe_imp_find_slot(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = shux_ptr_slot_get(&g_pipe_imp_mod[0], i);
+    let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
     if (k == module) {
       return i;
     }
@@ -8930,16 +8930,16 @@ function pipe_imp_find_or_create(module: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 128) {
-    let k: *u8 = shux_ptr_slot_get(&g_pipe_imp_mod[0], i);
+    let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
     if (k == 0 as *u8) {
-      shux_ptr_slot_set(&g_pipe_imp_mod[0], i, module);
+      xlang_ptr_slot_set(&g_pipe_imp_mod[0], i, module);
       g_pipe_imp_n[i] = 0;
       g_pipe_imp_cap[i] = 0;
       g_pipe_imp_sel_n[i] = 0;
       g_pipe_imp_sel_cap[i] = 0;
-      shux_ptr_slot_set(&g_pipe_imp_entries[0], i, 0 as *u8);
-      shux_ptr_slot_set(&g_pipe_imp_sel_rows[0], i, 0 as *u8);
-      shux_ptr_slot_set(&g_pipe_imp_sel_lens[0], i, 0 as *u8);
+      xlang_ptr_slot_set(&g_pipe_imp_entries[0], i, 0 as *u8);
+      xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], i, 0 as *u8);
+      xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], i, 0 as *u8);
       return i;
     }
     i = i + 1;
@@ -8987,7 +8987,7 @@ function pipe_imp_ensure_entries(slot: i32, need: i32): i32 {
   unsafe {
     memset(np, 0, nbytes);
   }
-  let old: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], slot);
+  let old: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
   let old_n: i32 = g_pipe_imp_n[slot];
   if (old != 0 as *u8) {
     if (old_n > 0) {
@@ -9000,7 +9000,7 @@ function pipe_imp_ensure_entries(slot: i32, need: i32): i32 {
       free(old);
     }
   }
-  shux_ptr_slot_set(&g_pipe_imp_entries[0], slot, np);
+  xlang_ptr_slot_set(&g_pipe_imp_entries[0], slot, np);
   g_pipe_imp_cap[slot] = new_cap;
   return 1;
 }
@@ -9058,8 +9058,8 @@ function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
     memset(nrows, 0, row_bytes);
     memset(nlens, 0, lens_bytes);
   }
-  let old_rows: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_rows[0], slot);
-  let old_lens: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_lens[0], slot);
+  let old_rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], slot);
+  let old_lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], slot);
   let old_n: i32 = g_pipe_imp_sel_n[slot];
   if (old_rows != 0 as *u8) {
     if (old_n > 0) {
@@ -9081,8 +9081,8 @@ function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
       free(old_lens);
     }
   }
-  shux_ptr_slot_set(&g_pipe_imp_sel_rows[0], slot, nrows);
-  shux_ptr_slot_set(&g_pipe_imp_sel_lens[0], slot, nlens);
+  xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], slot, nrows);
+  xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], slot, nlens);
   g_pipe_imp_sel_cap[slot] = new_cap;
   return 1;
 }
@@ -9103,14 +9103,14 @@ function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
   if (idx >= g_pipe_imp_n[slot]) {
     return 0 as *u8;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], slot);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
   if (base == 0 as *u8) {
     return 0 as *u8;
   }
   // byte offset = idx * 340 via repeated add (no ptr+int in .x)
   let off: i32 = idx * pipe_imp_entry_size();
   // return base+off by reconstructing from raw address bits is unavailable;
-  // use index into flat table: shux path indexes base[off + field]
+  // use index into flat table: xlang path indexes base[off + field]
   // Callers pass (base, idx) pair — store base and use idx*esz offset in field ops.
   return base;
 }
@@ -9140,28 +9140,28 @@ export function pipeline_module_import_storage_release(module: *u8): void {
   if (s < 0) {
     return;
   }
-  let e: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let e: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (e != 0 as *u8) {
     unsafe {
       free(e);
     }
   }
-  let r: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  let r: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
   if (r != 0 as *u8) {
     unsafe {
       free(r);
     }
   }
-  let l: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  let l: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
   if (l != 0 as *u8) {
     unsafe {
       free(l);
     }
   }
-  shux_ptr_slot_set(&g_pipe_imp_mod[0], s, 0 as *u8);
-  shux_ptr_slot_set(&g_pipe_imp_entries[0], s, 0 as *u8);
-  shux_ptr_slot_set(&g_pipe_imp_sel_rows[0], s, 0 as *u8);
-  shux_ptr_slot_set(&g_pipe_imp_sel_lens[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_imp_mod[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_imp_entries[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], s, 0 as *u8);
   g_pipe_imp_n[s] = 0;
   g_pipe_imp_cap[s] = 0;
   g_pipe_imp_sel_n[s] = 0;
@@ -9174,7 +9174,7 @@ export function pipeline_module_import_storage_release(module: *u8): void {
  * @return i32 — new import index (>=0) or -1
  * wave110 pure Cap residual: G.7 product authority (historical ast_pool GrowVec).
  * Updates module.num_imports header ≡ Cap m->num_imports = sc->imports.len.
- * PLATFORM: SHARED — Cap SHUX_WEAK cold twin for non-PREFER links.
+ * PLATFORM: SHARED — Cap XLANG_WEAK cold twin for non-PREFER links.
  */
 #[no_mangle]
 export function pipeline_module_import_alloc(module: *u8): i32 {
@@ -9189,7 +9189,7 @@ export function pipeline_module_import_alloc(module: *u8): i32 {
   if (pipe_imp_ensure_entries(s, n + 1) == 0) {
     return 0 - 1;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0 - 1;
   }
@@ -9241,7 +9241,7 @@ export function pipeline_module_import_set_path(module: *u8, idx: i32, bytes: *u
   if (idx >= g_pipe_imp_n[s]) {
     return;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return;
   }
@@ -9286,7 +9286,7 @@ export function pipeline_module_import_path_len(module: *u8, idx: i32): i32 {
   if (idx >= g_pipe_imp_n[s]) {
     return 0;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0;
   }
@@ -9301,7 +9301,7 @@ export function pipeline_module_import_path_len(module: *u8, idx: i32): i32 {
  * @param dst_cap i32 — capacity
  * @return void
  * wave110 pure: G.7 product path_copy authority (wave99 path64 thin consumer).
- * PLATFORM: SHARED — Cap SHUX_WEAK cold twin.
+ * PLATFORM: SHARED — Cap XLANG_WEAK cold twin.
  */
 #[no_mangle]
 export function pipeline_module_import_path_copy(module: *u8, idx: i32, dst: *u8, dst_cap: i32): void {
@@ -9328,7 +9328,7 @@ export function pipeline_module_import_path_copy(module: *u8, idx: i32, dst: *u8
   if (idx >= g_pipe_imp_n[s]) {
     return;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return;
   }
@@ -9376,7 +9376,7 @@ export function pipeline_module_import_path_byte_at(module: *u8, idx: i32, off: 
   if (idx >= g_pipe_imp_n[s]) {
     return 0 as u8;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0 as u8;
   }
@@ -9419,7 +9419,7 @@ export function pipeline_module_import_set_kind(module: *u8, idx: i32, kind: i32
   if (idx >= g_pipe_imp_n[s]) {
     return;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return;
   }
@@ -9449,7 +9449,7 @@ export function pipeline_module_import_kind_at(module: *u8, idx: i32): i32 {
   if (idx >= g_pipe_imp_n[s]) {
     return 0;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0;
   }
@@ -9490,7 +9490,7 @@ export function pipeline_module_import_set_binding_name(module: *u8, idx: i32, b
   if (idx >= g_pipe_imp_n[s]) {
     return;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return;
   }
@@ -9535,7 +9535,7 @@ export function pipeline_module_import_binding_name_len(module: *u8, idx: i32): 
   if (idx >= g_pipe_imp_n[s]) {
     return 0;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0;
   }
@@ -9572,7 +9572,7 @@ export function pipeline_module_import_binding_name_byte_at(module: *u8, idx: i3
   if (idx >= g_pipe_imp_n[s]) {
     return 0 as u8;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0 as u8;
   }
@@ -9612,7 +9612,7 @@ export function pipeline_module_import_set_select_count(module: *u8, idx: i32, n
   if (idx >= g_pipe_imp_n[s]) {
     return;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return;
   }
@@ -9650,7 +9650,7 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
   if (idx >= g_pipe_imp_n[s]) {
     return 0 - 1;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0 - 1;
   }
@@ -9663,8 +9663,8 @@ export function pipeline_module_import_append_select_name(module: *u8, idx: i32,
   if (pipe_imp_ensure_select(s, vi + 1) == 0) {
     return 0 - 1;
   }
-  let rows: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
-  let lens: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
   if (rows == 0 as *u8) {
     return 0 - 1;
   }
@@ -9719,7 +9719,7 @@ export function pipeline_module_import_select_count_at(module: *u8, idx: i32): i
   if (idx >= g_pipe_imp_n[s]) {
     return 0;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0;
   }
@@ -9761,7 +9761,7 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
   if (idx >= g_pipe_imp_n[s]) {
     return;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return;
   }
@@ -9783,8 +9783,8 @@ export function pipeline_module_import_set_select_name(module: *u8, idx: i32, se
   }
   let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
   let abs: i32 = sbase + sel;
-  let rows: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
-  let lens: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
   if (rows == 0 as *u8) {
     return;
   }
@@ -9846,7 +9846,7 @@ export function pipeline_module_import_select_name_len(module: *u8, idx: i32, se
   if (idx >= g_pipe_imp_n[s]) {
     return 0;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0;
   }
@@ -9863,7 +9863,7 @@ export function pipeline_module_import_select_name_len(module: *u8, idx: i32, se
   if (abs >= g_pipe_imp_sel_n[s]) {
     return 0;
   }
-  let lens: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
   if (lens == 0 as *u8) {
     return 0;
   }
@@ -9901,7 +9901,7 @@ export function pipeline_module_import_select_name_byte_at(module: *u8, idx: i32
   if (idx >= g_pipe_imp_n[s]) {
     return 0 as u8;
   }
-  let base: *u8 = shux_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
   if (base == 0 as *u8) {
     return 0 as u8;
   }
@@ -9925,7 +9925,7 @@ export function pipeline_module_import_select_name_byte_at(module: *u8, idx: i32
   if (off >= 64) {
     return 0 as u8;
   }
-  let rows: *u8 = shux_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
   if (rows == 0 as *u8) {
     return 0 as u8;
   }

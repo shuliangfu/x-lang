@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-math-fenv.sh — STD-059 manifest 与烟测辅助
 
-STD_MATH_FENV_PREFIX="${SHUX_STD_MATH_FENV_PREFIX:-shux: [SHUX_STD_MATH_FENV]}"
+STD_MATH_FENV_PREFIX="${XLANG_STD_MATH_FENV_PREFIX:-xlang: [XLANG_STD_MATH_FENV]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_math_fenv_symbols_ok() {
@@ -53,7 +53,7 @@ std_math_fenv_symbols_ok() {
 std_math_fenv_run_c_smoke() {
   local math_runtime_c="$1"
   local src="tests/std-math/fenv_smoke_ok.c"
-  local out="/tmp/shux_std_math_fenv_$$"
+  local out="/tmp/xlang_std_math_fenv_$$"
   local rt_o="compiler/runtime_math_libm.o"
   if [ ! -f "$rt_o" ]; then
     make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
@@ -80,12 +80,12 @@ std_math_fenv_run_c_smoke() {
 
 # .x 烟测（x pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
 std_math_fenv_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-fenv}"
-  if ! "$shux" check -L . "$src" >/dev/null 2>&1; then
+  if ! "$xlang" check -L . "$src" >/dev/null 2>&1; then
     echo "std-math-fenv FAIL: typeck $src ($tag)" >&2
-    "$shux" check -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" check -L . "$src" 2>&1 | tail -10 >&2 || true
     return 1
   fi
   return 0

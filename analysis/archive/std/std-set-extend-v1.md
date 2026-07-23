@@ -48,7 +48,7 @@
 
 - manifest：`tests/baseline/std-set-extend.tsv`
 - typeck：`tests/set/extend.x`
-- 报告：`shux: [SHUX_STD_SET_EXTEND] status=ok`
+- 报告：`xlang: [XLANG_STD_SET_EXTEND] status=ok`
 
 ---
 

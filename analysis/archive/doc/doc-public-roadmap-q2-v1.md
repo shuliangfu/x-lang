@@ -40,7 +40,7 @@
 ```
 
 ```
-shux: [SHUX_DOC012_ROADMAP_Q2] status=ok quarter=2027-Q2 roadmap_gate=1
+xlang: [XLANG_DOC012_ROADMAP_Q2] status=ok quarter=2027-Q2 roadmap_gate=1
 ```
 
 联动：`run-doc-public-roadmap-gate.sh`（DOC-005）须同步绿；遵循 DOC-005 `public quarterly` 流程。

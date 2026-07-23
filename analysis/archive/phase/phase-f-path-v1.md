@@ -7,7 +7,7 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | `path_sep_c` | `path.c` + extern | `mod.x` cfg 内联 |
-| `path.o` | `cc -c path.c` | `shux -backend asm mod.x` |
+| `path.o` | `cc -c path.c` | `xlang -backend asm mod.x` |
 | 存量 | std 91 `.c` | std **90** `.c` |
 
 ## 已删除（须保持 absent）
@@ -32,7 +32,7 @@ make -C compiler ../std/path/path.o
 ## 门禁
 
 ```bash
-SHUX_F_PATH_V1_FAIL=1 ./tests/run-f-path-v1-gate.sh
+XLANG_F_PATH_V1_FAIL=1 ./tests/run-f-path-v1-gate.sh
 ./tests/run-std-path-extreme-gate.sh
 ./tests/run-std-path-fs-windows-gate.sh
 ```
@@ -41,4 +41,4 @@ SHUX_F_PATH_V1_FAIL=1 ./tests/run-f-path-v1-gate.sh
 
 - **F-path v1 ✅**：`path.c` 删除；见 `phase-f-path-v1.md`
 - **F-process v1**：`process.c` → `.x` + OS FFI 胶层
-- 刷新 F-09 baseline：`SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh`
+- 刷新 F-09 baseline：`XLANG_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh`

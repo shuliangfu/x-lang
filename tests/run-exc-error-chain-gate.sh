@@ -3,15 +3,15 @@
 #
 # 1) exc-error-chain-v1.md + manifest
 # 2) std/error ErrorChain API 符号
-# 3) native shux：tests/exc/error_chain_smoke.x
+# 3) native xlang：tests/exc/error_chain_smoke.x
 #
 # 用法：./tests/run-exc-error-chain-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_EXC_ERROR_CHAIN_DOC:-analysis/exc-error-chain-v1.md}"
-MATRIX="${SHUX_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
-ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.x}"
+DOC="${XLANG_EXC_ERROR_CHAIN_DOC:-analysis/exc-error-chain-v1.md}"
+MATRIX="${XLANG_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
+ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
 MIN_ITEMS=8
 SMOKE="tests/exc/error_chain_smoke.x"
 
@@ -88,36 +88,36 @@ echo "exc-error-chain manifest OK (items=${FOUND})"
 make -C compiler -q 2>/dev/null || make -C compiler
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "exc-error-chain gate SKIP smoke (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "exc-error-chain gate SKIP smoke (no native xlang)" >&2
   echo "exc-error-chain gate OK"
   exit 0
 fi
 
-OUT=/tmp/shux_exc_error_chain
-echo "=== EXC-004: chain smoke (SHUX=$SHUX_BIN) ==="
+OUT=/tmp/xlang_exc_error_chain
+echo "=== EXC-004: chain smoke (XLANG=$XLANG_BIN) ==="
 set +e
-"$SHUX_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shux_exc_chain_compile.log 2>&1
+"$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_exc_chain_compile.log 2>&1
 _comp_ec=$?
 set -e
 if [ "$_comp_ec" -ne 0 ]; then
-  # Docker/shux-c -o 偶发 SIGSEGV；check 通过则视为 typeck 烟测 OK
-  if [ "$_comp_ec" -eq 139 ] && "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+  # Docker/xlang-c -o 偶发 SIGSEGV；check 通过则视为 typeck 烟测 OK
+  if [ "$_comp_ec" -eq 139 ] && "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     echo "exc-error-chain smoke OK (check-only, compile SIGSEGV)"
     echo "exc-error-chain gate OK"
     exit 0
   fi
-  cat /tmp/shux_exc_chain_compile.log >&2
+  cat /tmp/xlang_exc_chain_compile.log >&2
   exit 1
 fi
 EC=0

@@ -22,10 +22,10 @@ for kw in string_view_case_fold string_view_is_valid_utf8 unicode_case_fold_buf_
   fi
 done
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     echo "std-string-unicode gate FAIL: typeck" >&2
     exit 1
   fi

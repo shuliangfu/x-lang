@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL_LSP_COMP_DOC:-analysis/tool-lsp-completion-v1.md}"
-MANIFEST="${SHUX_TOOL_LSP_COMP_MANIFEST:-tests/baseline/tool-lsp-completion.tsv}"
+DOC="${XLANG_TOOL_LSP_COMP_DOC:-analysis/tool-lsp-completion-v1.md}"
+MANIFEST="${XLANG_TOOL_LSP_COMP_MANIFEST:-tests/baseline/tool-lsp-completion.tsv}"
 MIN_TIERS=6
 MIN_CASES=1
 MIN_HITS=6
@@ -147,23 +147,23 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-lsp-completion manifest OK (tiers=${TIER_N} cases=${CASE_N} expects=${EXPECT_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN" && "$SHUX_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
-  echo "=== TOOL-003: LSP completion hooks (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN" && "$XLANG_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
+  echo "=== TOOL-003: LSP completion hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-lsp-completion.sh tests/run-lsp.sh
-  SHUX="$SHUX_BIN" ./tests/run-lsp-completion.sh
+  XLANG="$XLANG_BIN" ./tests/run-lsp-completion.sh
   echo "tool-lsp-completion hooks OK"
 else
-  echo "tool-lsp-completion gate SKIP hooks (no native shux --lsp)" >&2
+  echo "tool-lsp-completion gate SKIP hooks (no native xlang --lsp)" >&2
 fi
 
 echo "tool-lsp-completion gate OK"

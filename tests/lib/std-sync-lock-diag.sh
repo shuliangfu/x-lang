@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sync-lock-diag.sh — STD-111 manifest 与烟测辅助（F-sync-lock-diag v2：逻辑在 sync.x）
 
-STD_SYNC_LOCK_DIAG_PREFIX="${SHUX_STD111_SYNC_LOCK_DIAG_PREFIX:-shux: [SHUX_STD111_SYNC_LOCK_DIAG]}"
+STD_SYNC_LOCK_DIAG_PREFIX="${XLANG_STD111_SYNC_LOCK_DIAG_PREFIX:-xlang: [XLANG_STD111_SYNC_LOCK_DIAG]}"
 
 # 校验 manifest 中 api/symbol/file；symbol 可在 sync.x 或 tls glue。
 std_sync_lock_diag_symbols_ok() {
@@ -44,13 +44,13 @@ std_sync_lock_diag_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_sync_lock_diag_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-lock_diag}"
-  local exe="/tmp/shux_std_sync_lock_diag_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_sync_lock_diag_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-sync-lock-diag FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -66,11 +66,11 @@ std_sync_lock_diag_run_x_smoke() {
   return 0
 }
 
-# C 烟测：lock_diag_smoke_ok.c + sync.o（需 shux-c 产出 sync.o）。
+# C 烟测：lock_diag_smoke_ok.c + sync.o（需 xlang-c 产出 sync.o）。
 std_sync_lock_diag_run_c_smoke() {
   local sync_tls_glue="$1"
   local src="tests/sync/lock_diag_smoke_ok.c"
-  local out="/tmp/shux_std_sync_lock_diag_c_$$"
+  local out="/tmp/xlang_std_sync_lock_diag_c_$$"
   local sync_o="std/sync/sync.o"
   local rt_os="compiler/runtime_sync_os.o"
   local rt_tls="compiler/runtime_sync_lock_diag_tls.o"

@@ -2,25 +2,25 @@
 # MEM-D2：with_arena 内 arena ptr 工厂栈 promotion — 无 bump alloc，运行正确。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-SHUX="${SHUX:-./compiler/shux-c}"
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/arena_stack_promote.x"
-OUT="/tmp/shux_arena_stack_promote"
+OUT="/tmp/xlang_arena_stack_promote"
 rm -f "$OUT"
-# 带 import 时 -E 可能 DCE 掉 main；用 SHUX_KEEP_C 保留完整 TU（同 scope_alloc gate）
-if ! SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_asp_run.log 2>&1; then
+# 带 import 时 -E 可能 DCE 掉 main；用 XLANG_KEEP_C 保留完整 TU（同 scope_alloc gate）
+if ! XLANG_KEEP_C=1 "$XLANG" "$SRC" -o "$OUT" >/tmp/xlang_asp_run.log 2>&1; then
   echo "arena-stack-promote-gate FAIL: compile/run failed" >&2
-  tail -8 /tmp/shux_asp_run.log 2>/dev/null || true
+  tail -8 /tmp/xlang_asp_run.log 2>/dev/null || true
   exit 1
 fi
-GEN="$(grep 'kept generated C:' /tmp/shux_asp_run.log | sed 's/.*: //' | tail -1)"
+GEN="$(grep 'kept generated C:' /tmp/xlang_asp_run.log | sed 's/.*: //' | tail -1)"
 if [ -z "$GEN" ] || [ ! -f "$GEN" ]; then
   echo "arena-stack-promote-gate FAIL: missing kept generated C" >&2
   exit 1
 fi
-WA_BODY=$(sed -n '/__shux_scope_al_/,/heap_arena64_deinit_c/p' "$GEN" | head -20)
-if ! echo "$WA_BODY" | grep -qE '__shux_asp_p'; then
-  echo "arena-stack-promote-gate FAIL: missing ASP stack storage __shux_asp_p in with_arena body" >&2
+WA_BODY=$(sed -n '/__xlang_scope_al_/,/heap_arena64_deinit_c/p' "$GEN" | head -20)
+if ! echo "$WA_BODY" | grep -qE '__xlang_asp_p'; then
+  echo "arena-stack-promote-gate FAIL: missing ASP stack storage __xlang_asp_p in with_arena body" >&2
   exit 1
 fi
 if echo "$WA_BODY" | grep -qE 'heap_arena64_alloc_c|alloc\('; then
@@ -35,10 +35,10 @@ if ! echo "$WA_BODY" | grep -qE 'return 7;'; then
   echo "arena-stack-promote-gate FAIL: missing folded return 7 in with_arena body" >&2
   exit 1
 fi
-if SHUX_NO_ASP=1 SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "${OUT}.scalar" >/tmp/shux_asp_scalar.log 2>&1; then
-  GEN2="$(grep 'kept generated C:' /tmp/shux_asp_scalar.log | sed 's/.*: //' | tail -1)"
+if XLANG_NO_ASP=1 XLANG_KEEP_C=1 "$XLANG" "$SRC" -o "${OUT}.scalar" >/tmp/xlang_asp_scalar.log 2>&1; then
+  GEN2="$(grep 'kept generated C:' /tmp/xlang_asp_scalar.log | sed 's/.*: //' | tail -1)"
   if [ -n "$GEN2" ] && [ -f "$GEN2" ] && ! grep -qE 'heap_arena64_alloc_c|alloc\(' "$GEN2"; then
-    echo "arena-stack-promote-gate WARN: SHUX_NO_ASP=1 did not preserve bump alloc" >&2
+    echo "arena-stack-promote-gate WARN: XLANG_NO_ASP=1 did not preserve bump alloc" >&2
   fi
 fi
 rc=0
@@ -51,14 +51,14 @@ echo "arena-stack-promote-gate OK (MEM-D2 arena ptr factory stack promotion)"
 
 echo "=== MEM-D2.2: alias promote arena_stack_promote_alias ==="
 ALIAS_SRC="tests/mem/arena_stack_promote_alias.x"
-ALIAS_OUT="/tmp/shux_arena_stack_promote_alias"
-if ! SHUX_KEEP_C=1 "$SHUX" "$ALIAS_SRC" -o "$ALIAS_OUT" >/tmp/shux_asp_alias.log 2>&1; then
+ALIAS_OUT="/tmp/xlang_arena_stack_promote_alias"
+if ! XLANG_KEEP_C=1 "$XLANG" "$ALIAS_SRC" -o "$ALIAS_OUT" >/tmp/xlang_asp_alias.log 2>&1; then
   echo "asp-alias-gate FAIL: compile/run failed" >&2
   exit 1
 fi
-GEN_A="$(grep 'kept generated C:' /tmp/shux_asp_alias.log | sed 's/.*: //' | tail -1)"
-WA_ALIAS=$(sed -n '/__shux_scope_al_/,/heap_arena64_deinit_c/p' "$GEN_A" | head -20)
-if [ -z "$GEN_A" ] || ! echo "$WA_ALIAS" | grep -q '__shux_asp_p'; then
+GEN_A="$(grep 'kept generated C:' /tmp/xlang_asp_alias.log | sed 's/.*: //' | tail -1)"
+WA_ALIAS=$(sed -n '/__xlang_scope_al_/,/heap_arena64_deinit_c/p' "$GEN_A" | head -20)
+if [ -z "$GEN_A" ] || ! echo "$WA_ALIAS" | grep -q '__xlang_asp_p'; then
   echo "asp-alias-gate FAIL: alias flow should still ASP promote" >&2
   exit 1
 fi
@@ -76,15 +76,15 @@ echo "asp-alias-gate OK (block-local alias still promotes)"
 
 echo "=== MEM-D2.2: escape skip arena_stack_promote_escape ==="
 ESC_SRC="tests/mem/arena_stack_promote_escape.x"
-ESC_OUT="/tmp/shux_arena_stack_promote_escape"
-if ! SHUX_KEEP_C=1 "$SHUX" "$ESC_SRC" -o "$ESC_OUT" >/tmp/shux_asp_escape.log 2>&1; then
+ESC_OUT="/tmp/xlang_arena_stack_promote_escape"
+if ! XLANG_KEEP_C=1 "$XLANG" "$ESC_SRC" -o "$ESC_OUT" >/tmp/xlang_asp_escape.log 2>&1; then
   echo "asp-escape-gate FAIL: compile/run failed" >&2
   exit 1
 fi
-GEN_E="$(grep 'kept generated C:' /tmp/shux_asp_escape.log | sed 's/.*: //' | tail -1)"
-WA_ESC=$(sed -n '/__shux_scope_al_/,/heap_arena64_deinit_c/p' "$GEN_E" | head -25)
-if echo "$WA_ESC" | grep -q '__shux_asp_p'; then
-  echo "asp-escape-gate FAIL: outer assign must skip ASP (__shux_asp_p present)" >&2
+GEN_E="$(grep 'kept generated C:' /tmp/xlang_asp_escape.log | sed 's/.*: //' | tail -1)"
+WA_ESC=$(sed -n '/__xlang_scope_al_/,/heap_arena64_deinit_c/p' "$GEN_E" | head -25)
+if echo "$WA_ESC" | grep -q '__xlang_asp_p'; then
+  echo "asp-escape-gate FAIL: outer assign must skip ASP (__xlang_asp_p present)" >&2
   exit 1
 fi
 if ! echo "$WA_ESC" | grep -qE 'make_pair_arena\(|alloc\('; then

@@ -1,5 +1,5 @@
 /* Generated from backend_asm_bare_link_alias.x (G-02f-25 true .x).
- * Regen: ./shux-c -E -L .. backend_asm_bare_link_alias.x > seeds/backend_asm_bare_link_alias.from_x.c
+ * Regen: ./xlang-c -E -L .. backend_asm_bare_link_alias.x > seeds/backend_asm_bare_link_alias.from_x.c
  */
 #include <stdint.h>
 #include <stddef.h>

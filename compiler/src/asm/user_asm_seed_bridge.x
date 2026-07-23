@@ -77,7 +77,7 @@ export function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u
 }
 
 /**
- * Whether SHUX_ASM_DEBUG is set (user-asm seed bridge debug gate).
+ * Whether XLANG_ASM_DEBUG is set (user-asm seed bridge debug gate).
  * wave236 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @return i32 — 1 if env present (any value), 0 otherwise
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl
@@ -85,8 +85,8 @@ export function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u
 #[no_mangle]
 export function seed_asm_debug_enabled(): i32 {
   unsafe {
-    // wave236 G.7: SHUX_ASM_DEBUG via link_abi_getenv (not raw getenv / not *_impl).
-    let e: *u8 = link_abi_getenv("SHUX_ASM_DEBUG");
+    // wave236 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv / not *_impl).
+    let e: *u8 = link_abi_getenv("XLANG_ASM_DEBUG");
     if (e != 0 as *u8) {
       return 1;
     }
@@ -95,7 +95,7 @@ export function seed_asm_debug_enabled(): i32 {
 }
 
 /**
- * Whether SHUX_ASM_EMIT_TRACE is set (user-asm emit-trace gate).
+ * Whether XLANG_ASM_EMIT_TRACE is set (user-asm emit-trace gate).
  * wave236 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @return i32 — 1 if env present (any value), 0 otherwise
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl
@@ -103,8 +103,8 @@ export function seed_asm_debug_enabled(): i32 {
 #[no_mangle]
 export function seed_asm_emit_trace_enabled(): i32 {
   unsafe {
-    // wave236 G.7: SHUX_ASM_EMIT_TRACE via link_abi_getenv (not raw getenv / not *_impl).
-    let e: *u8 = link_abi_getenv("SHUX_ASM_EMIT_TRACE");
+    // wave236 G.7: XLANG_ASM_EMIT_TRACE via link_abi_getenv (not raw getenv / not *_impl).
+    let e: *u8 = link_abi_getenv("XLANG_ASM_EMIT_TRACE");
     if (e != 0 as *u8) {
       return 1;
     }

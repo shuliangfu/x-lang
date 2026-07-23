@@ -23,7 +23,7 @@ e03_preprocess_c	E-03	compiler/src/preprocess.c	hard_retired	preprocess_x.o	not_
 e03_preprocess_gate	gate	tests/run-e03-preprocess-soft-gate.sh	active	n/a	gate_ref	E-03 v2 preprocess 委托
 e03_v3_coldstart_gate	gate	tests/run-e03-v3-coldstart-track-gate.sh	active	n/a	gate_ref	E-03 v3 冷启动 track
 e04_runtime_c	E-04	compiler/seeds/runtime.from_x.c	active	runtime_driver_no_c.o	grep	E-04 v1 default no_c
-e04_main_c	E-04	compiler/seeds/main.from_x.c	active	LEGACY/shux-c cold start	grep	E-04 v21 minimal main
+e04_main_c	E-04	compiler/seeds/main.from_x.c	active	LEGACY/xlang-c cold start	grep	E-04 v21 minimal main
 e04_gate	gate	tests/run-e04-runtime-soft-gate.sh	active	n/a	gate_ref	E-04 v4 abi+io+proc
 e05_gate	gate	tests/run-e05-include-soft-gate.sh	active	n/a	gate_ref	E-05 v2 头文件清单 + NO_C include
 e06_c03_gate	gate	tests/run-c03-no-pipeline-gen-gate.sh	active	n/a	gate_ref	B-strict 无 pipeline_gen

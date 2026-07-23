@@ -30,10 +30,10 @@
 // See implementation.
 
 /* See implementation. */
-extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern function xlang_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 
 /* See implementation. */
-extern function shux_sys_munmap(addr: *u8, len: usize): i32;
+extern function xlang_sys_munmap(addr: *u8, len: usize): i32;
 
 /* See implementation. */
 export const HEAP_CAP: usize = 65536;
@@ -72,7 +72,7 @@ export function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   h.off = 0;
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_sys_mmap(0 as *u8, HEAP_CAP, HEAP_PROT, HEAP_FLAGS, HEAP_FD, 0 as i64);
+    p = xlang_sys_mmap(0 as *u8, HEAP_CAP, HEAP_PROT, HEAP_FLAGS, HEAP_FD, 0 as i64);
   }
   // See implementation.
   if (p == -1 as *u8) {
@@ -130,7 +130,7 @@ export function page_mmap_heap_deinit(h: *PageMmapHeap): void {
   }
   if (h.base != 0 && h.cap > 0) {
     unsafe {
-      shux_sys_munmap(h.base, h.cap);
+      xlang_sys_munmap(h.base, h.cap);
     }
   }
   h.base = 0 as *u8;

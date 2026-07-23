@@ -1,39 +1,39 @@
 #!/usr/bin/env bash
-if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): shux_asm_stage1 OOM"; exit 0; fi
+if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): xlang_asm_stage1 OOM"; exit 0; fi
 # run-bootstrap-min-gate.sh — 自举最小验收（bootstrap-min）
 #
 # 范围：Stage D 金标准（可选）+ P0 typeck + compiler 源码路径语言烟测。
 # 不含：run-all-bstrict 全量 std/asm 微测（net/vec/crypto 等见 staging）。
 #
 # 用法（仓库根，Linux x86_64 / Docker linux/amd64）：
-#   SHUX_LINK_SHUX=./compiler/shux_asm ./tests/run-bootstrap-min-gate.sh
+#   XLANG_LINK_XLANG=./compiler/xlang_asm ./tests/run-bootstrap-min-gate.sh
 #
 # 环境：
-#   SHUX_BOOTSTRAP_MIN_SKIP_BUILD=1   跳过 make bootstrap-driver-bstrict
-#   SHUX_BOOTSTRAP_MIN_SKIP_STAGE=1   跳过 d03/d04（仅跑语言+P0）
-#   SHUX_BOOTSTRAP_MIN_FAIL=1         任一步失败即 exit 1（CI 用）
+#   XLANG_BOOTSTRAP_MIN_SKIP_BUILD=1   跳过 make bootstrap-driver-bstrict
+#   XLANG_BOOTSTRAP_MIN_SKIP_STAGE=1   跳过 d03/d04（仅跑语言+P0）
+#   XLANG_BOOTSTRAP_MIN_FAIL=1         任一步失败即 exit 1（CI 用）
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [ ! -f compiler/shux_asm ] || [ ! -x compiler/shux_asm ]; then
-  if [ -n "${SHUX_BOOTSTRAP_MIN_SKIP_BUILD:-}" ]; then
-    echo "run-bootstrap-min-gate: missing compiler/shux_asm (unset SKIP_BUILD to build)" >&2
+if [ ! -f compiler/xlang_asm ] || [ ! -x compiler/xlang_asm ]; then
+  if [ -n "${XLANG_BOOTSTRAP_MIN_SKIP_BUILD:-}" ]; then
+    echo "run-bootstrap-min-gate: missing compiler/xlang_asm (unset SKIP_BUILD to build)" >&2
     exit 127
   fi
   echo "run-bootstrap-min-gate: make bootstrap-driver-bstrict ..."
   make -C compiler bootstrap-driver-bstrict
 fi
 
-export SHUX=./compiler/shux
-export SHUX_SKIP_SUBSCRIPT_MAKE=1
-export SHUX_BOOTSTRAP_MIN=1
-# bootstrap-min 不设置 SHUX_RUN_ALL_BOOTSTRAP_SHUX，避免 run-parser 等强制覆盖为 shux_asm。
-# bootstrap-min：-o 默认 shux_asm（staging 脚本可 source bootstrap-link 自行回退 gcc）
-export SHUX_LINK_SHUX="${SHUX_LINK_SHUX:-./compiler/shux_asm}"
+export XLANG=./compiler/xlang
+export XLANG_SKIP_SUBSCRIPT_MAKE=1
+export XLANG_BOOTSTRAP_MIN=1
+# bootstrap-min 不设置 XLANG_RUN_ALL_BOOTSTRAP_XLANG，避免 run-parser 等强制覆盖为 xlang_asm。
+# bootstrap-min：-o 默认 xlang_asm（staging 脚本可 source bootstrap-link 自行回退 gcc）
+export XLANG_LINK_XLANG="${XLANG_LINK_XLANG:-./compiler/xlang_asm}"
 
-if [ -z "${SHUX_BOOTSTRAP_MIN_SKIP_BUILD:-}" ]; then
-  cp -f compiler/shux_asm compiler/shux 2>/dev/null || true
+if [ -z "${XLANG_BOOTSTRAP_MIN_SKIP_BUILD:-}" ]; then
+  cp -f compiler/xlang_asm compiler/xlang 2>/dev/null || true
 fi
 
 run_step() {
@@ -44,15 +44,15 @@ run_step() {
 }
 
 # --- Stage D 子集（金标准；须已有 gen1/gen2 或先跑 run-linux-a09-a11-gate-inner）---
-if [ -z "${SHUX_BOOTSTRAP_MIN_SKIP_STAGE:-}" ]; then
-  if [ -f compiler/shux_asm_stage1 ] && [ -f compiler/shux_asm2 ]; then
+if [ -z "${XLANG_BOOTSTRAP_MIN_SKIP_STAGE:-}" ]; then
+  if [ -f compiler/xlang_asm_stage1 ] && [ -f compiler/xlang_asm2 ]; then
     run_step "A-09 Stage2 SHA256 (d03)" \
-      env SHUX_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh \
-        compiler/shux_asm_stage1 compiler/shux_asm2
+      env XLANG_STAGE2_HASH_STRICT=1 ./tests/run-d03-stage2-hash-gate.sh \
+        compiler/xlang_asm_stage1 compiler/xlang_asm2
     run_step "D-04 portable diff (d04)" \
       ./tests/run-d04-stage2-portable-diff-gate.sh
   else
-    echo "run-bootstrap-min-gate: skip d03/d04 (no shux_asm_stage1/2; run run-linux-a09-a11-gate-inner first)" >&2
+    echo "run-bootstrap-min-gate: skip d03/d04 (no xlang_asm_stage1/2; run run-linux-a09-a11-gate-inner first)" >&2
   fi
 fi
 
@@ -91,10 +91,10 @@ LANG_SCRIPTS=(
 
 run_script() {
   local script="$1"
-  local script_shu="${SHUX:-./compiler/shux}"
-  local script_link="${SHUX_LINK_SHUX:-./compiler/shux_asm}"
+  local script_shu="${XLANG:-./compiler/xlang}"
+  local script_link="${XLANG_LINK_XLANG:-./compiler/xlang_asm}"
   local min_wrap
-  min_wrap="$(pwd)/tests/lib/shux-min-link.sh"
+  min_wrap="$(pwd)/tests/lib/xlang-min-link.sh"
   if [ ! -f "tests/$script" ]; then
     echo "run-bootstrap-min-gate: missing tests/$script" >&2
     exit 1
@@ -104,28 +104,28 @@ run_script() {
   # P0：优先 stage2 asm（borrow 等须新 typeck）。
   case "$script" in
     run-scope-borrow-gate.sh|run-al06-gate.sh|run-type-borrow-conflict-gate.sh)
-      if [ -x ./compiler/shux_asm2 ]; then
-        script_shu=./compiler/shux_asm2
-        script_link=./compiler/shux_asm2
+      if [ -x ./compiler/xlang_asm2 ]; then
+        script_shu=./compiler/xlang_asm2
+        script_link=./compiler/xlang_asm2
       fi
       ;;
   esac
-  # 语言烟测：typeck/check 用 seed shux； -o 经 shux-min-link（内嵌 link_abi 缺 gcc 路径时 gcc 回退）。
+  # 语言烟测：typeck/check 用 seed xlang； -o 经 xlang-min-link（内嵌 link_abi 缺 gcc 路径时 gcc 回退）。
   case "$script" in
     run-check.sh|run-typeck.sh|run-parser.sh|run-hello.sh|run-import.sh|\
     run-multi-file.sh|run-struct.sh|run-return-value.sh|run-mem.sh|\
     run-string.sh|run-option.sh|run-match.sh|run-for.sh|run-while.sh)
-      export SHUX_MIN_LINK_REAL="$script_link"
+      export XLANG_MIN_LINK_REAL="$script_link"
       if [ -x "$min_wrap" ]; then
         script_link="$min_wrap"
       fi
       # std.io / print 烟测须 io 链接桩（容器内 -B 重编 -fPIE）。
       case "$script" in
         run-hello.sh|run-import.sh|run-string.sh|run-option.sh)
-          export SHUX_MIN_LINK_IO=1
+          export XLANG_MIN_LINK_IO=1
           ;;
       esac
-      # run-parser / run-for / run-match 等直接用 $SHUX build -o；与 RUN_SHUX 对齐走同一包装。
+      # run-parser / run-for / run-match 等直接用 $XLANG build -o；与 RUN_XLANG 对齐走同一包装。
       case "$script" in
         run-parser.sh|run-for.sh|run-match.sh)
           script_shu="$min_wrap"
@@ -133,12 +133,12 @@ run_script() {
       esac
       ;;
   esac
-  if [ -x compiler/shux_asm2 ]; then
-    cp -f compiler/shux_asm2 compiler/shux 2>/dev/null || true
+  if [ -x compiler/xlang_asm2 ]; then
+    cp -f compiler/xlang_asm2 compiler/xlang 2>/dev/null || true
   else
-    cp -f compiler/shux_asm compiler/shux 2>/dev/null || true
+    cp -f compiler/xlang_asm compiler/xlang 2>/dev/null || true
   fi
-  SHUX="$script_shu" SHUX_LINK_SHUX="$script_link" SHUX_BOOTSTRAP_MIN=1 ./tests/"$script"
+  XLANG="$script_shu" XLANG_LINK_XLANG="$script_link" XLANG_BOOTSTRAP_MIN=1 ./tests/"$script"
 }
 
 for script in "${P0_SCRIPTS[@]}" "${LANG_SCRIPTS[@]}"; do

@@ -1,5 +1,5 @@
 /**
- * Shux WorkspaceSymbolProvider — 全局符号搜索（Ctrl+T 跨文件）
+ * Xlang WorkspaceSymbolProvider — 全局符号搜索（Ctrl+T 跨文件）
  *
  * 【Why】LSP 服务端未声明 workspaceSymbolProvider；扩展侧本地扫描工作区 .x 文件
  *        顶层 function/struct/enum/trait/impl/type 声明，按查询字符串过滤返回。
@@ -31,7 +31,7 @@ const DEFAULT_MAX_FILES = 2000;
 /** 读取用户配置的排除模式（与默认值合并去重） */
 function readExcludePatterns(): string[] {
   const cfg = vscode.workspace
-    .getConfiguration('shux')
+    .getConfiguration('xlang')
     .get<string[]>('workspaceSymbol.excludePatterns', DEFAULT_EXCLUDE_PATTERNS);
   const merged = new Set<string>(DEFAULT_EXCLUDE_PATTERNS);
   for (const p of cfg) {
@@ -43,7 +43,7 @@ function readExcludePatterns(): string[] {
 /** 读取用户配置的最大扫描文件数 */
 function readMaxFiles(): number {
   return vscode.workspace
-    .getConfiguration('shux')
+    .getConfiguration('xlang')
     .get<number>('workspaceSymbol.maxFiles', DEFAULT_MAX_FILES);
 }
 
@@ -213,14 +213,14 @@ export function invalidateWorkspaceSymbolCache(uri?: vscode.Uri): void {
 }
 
 /**
- * Shux 全局符号搜索 Provider。
+ * Xlang 全局符号搜索 Provider。
  *
  * 注册示例：
  * ```ts
- * languages.registerWorkspaceSymbolProvider(new ShuxWorkspaceSymbolProvider());
+ * languages.registerWorkspaceSymbolProvider(new XlangWorkspaceSymbolProvider());
  * ```
  */
-export class ShuxWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
+export class XlangWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
   public async provideWorkspaceSymbols(
     query: string,
     _token: vscode.CancellationToken

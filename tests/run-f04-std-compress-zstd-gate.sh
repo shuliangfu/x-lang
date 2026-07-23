@@ -2,11 +2,11 @@
 # F-04 v7：std.compress zstd 去 C + compress.o 退役门禁。
 #
 # 用法：./tests/run-f04-std-compress-zstd-gate.sh
-# 环境：SHUX_F04_COMPRESS_ZSTD_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_COMPRESS_ZSTD_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_COMPRESS_ZSTD_FAIL:-0}
+FAIL=${XLANG_F04_COMPRESS_ZSTD_FAIL:-0}
 DOC="analysis/phase-f-f04-v7.md"
 ZSTD_LIB="std/compress/zstd/lib.x"
 ZSTD_MOD="std/compress/zstd/mod.x"
@@ -88,7 +88,7 @@ done
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-04 v7: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

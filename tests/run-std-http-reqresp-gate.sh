@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_HTTP_REQRESP_DOC:-analysis/std-http-reqresp-v0.md}"
-MANIFEST="${SHUX_STD_HTTP_REQRESP_TSV:-tests/baseline/std-http-reqresp.tsv}"
+DOC="${XLANG_STD_HTTP_REQRESP_DOC:-analysis/std-http-reqresp-v0.md}"
+MANIFEST="${XLANG_STD_HTTP_REQRESP_TSV:-tests/baseline/std-http-reqresp.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 REQRESP_INC="compiler/seeds/http/http_reqresp.inc"
@@ -95,60 +95,60 @@ stdlib_cm_native_shu() {
 
 SMOKE_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-HTTP-REQRESP: typeck + smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-HTTP-REQRESP: typeck + smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-http-reqresp gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -15 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$URL_OWNED_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$URL_OWNED_X" >/dev/null 2>&1; then
     echo "std-http-reqresp gate FAIL: typeck $URL_OWNED_X" >&2
-    "$SHUX_BIN" check -L . "$URL_OWNED_X" 2>&1 | tail -15 >&2 || true
+    "$XLANG_BIN" check -L . "$URL_OWNED_X" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$OWNED_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$OWNED_X" >/dev/null 2>&1; then
     echo "std-http-reqresp gate FAIL: typeck $OWNED_X" >&2
-    "$SHUX_BIN" check -L . "$OWNED_X" 2>&1 | tail -15 >&2 || true
+    "$XLANG_BIN" check -L . "$OWNED_X" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$RESP_OWNED_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$RESP_OWNED_X" >/dev/null 2>&1; then
     echo "std-http-reqresp gate FAIL: typeck $RESP_OWNED_X" >&2
-    "$SHUX_BIN" check -L . "$RESP_OWNED_X" 2>&1 | tail -15 >&2 || true
+    "$XLANG_BIN" check -L . "$RESP_OWNED_X" 2>&1 | tail -15 >&2 || true
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$SMOKE_X" "reqresp"; then
+  if std_http_reqresp_run_smoke "$XLANG_BIN" "$SMOKE_X" "reqresp"; then
     :
   else
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$URL_OWNED_X" "url_owned"; then
+  if std_http_reqresp_run_smoke "$XLANG_BIN" "$URL_OWNED_X" "url_owned"; then
     :
   else
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$OWNED_X" "owned"; then
+  if std_http_reqresp_run_smoke "$XLANG_BIN" "$OWNED_X" "owned"; then
     :
   else
     std_http_reqresp_emit_report "fail" 0 0
     exit 1
   fi
-  if std_http_reqresp_run_smoke "$SHUX_BIN" "$RESP_OWNED_X" "response_owned"; then
+  if std_http_reqresp_run_smoke "$XLANG_BIN" "$RESP_OWNED_X" "response_owned"; then
     SMOKE_OK=1
   else
     std_http_reqresp_emit_report "fail" 0 0
@@ -156,7 +156,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-http-reqresp gate SKIP smoke (no native shux)" >&2
+  echo "std-http-reqresp gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_http_reqresp_emit_report "ok" "$SMOKE_OK" "$SKIP"

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL_FMT_DOC:-analysis/tool-fmt-style-v1.md}"
-MANIFEST="${SHUX_TOOL_FMT_MANIFEST:-tests/baseline/tool-fmt-style.tsv}"
+DOC="${XLANG_TOOL_FMT_DOC:-analysis/tool-fmt-style-v1.md}"
+MANIFEST="${XLANG_TOOL_FMT_MANIFEST:-tests/baseline/tool-fmt-style.tsv}"
 MIN_CASES=5
 MIN_RULES=6
 
@@ -122,24 +122,24 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-fmt manifest OK (cases=${CASE_N} rules=${RULE_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  echo "=== TOOL-001: fmt hooks (SHUX=$SHUX_BIN) ==="
+  echo "=== TOOL-001: fmt hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-fmt-cmd.sh tests/run-fmt-check-cmd.sh tests/run-fmt-wrap.sh
-  SHUX="$SHUX_BIN" ./tests/run-fmt-cmd.sh
+  XLANG="$XLANG_BIN" ./tests/run-fmt-cmd.sh
   echo "tool-fmt hooks OK"
 else
-  echo "tool-fmt gate SKIP hooks (no shux)" >&2
+  echo "tool-fmt gate SKIP hooks (no xlang)" >&2
 fi
 
 echo "tool-fmt gate OK"

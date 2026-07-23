@@ -29,4 +29,4 @@
 ## 3. 验收
 
 - typeck + runnable：`subslice_split_chunks.x` exit 0
-- 报告：`shux: [SHUX_CORE_SLICE_API] status=ok`
+- 报告：`xlang: [XLANG_CORE_SLICE_API] status=ok`

@@ -11,5 +11,5 @@ if [ "$(uname -s)" != "Darwin" ]; then
 fi
 grep -q 'macos_read_file_into' std/sys/macos.x || { echo "macos-read-file-gate FAIL: macos.x" >&2; exit 1; }
 chmod +x tests/run-sys-read-file-gate.sh
-SHUX_SYS_READ_FILE_FAIL=${SHUX_MACOS_READ_FILE_FAIL:-0} ./tests/run-sys-read-file-gate.sh
+XLANG_SYS_READ_FILE_FAIL=${XLANG_MACOS_READ_FILE_FAIL:-0} ./tests/run-sys-read-file-gate.sh
 echo "macos-read-file-gate OK"

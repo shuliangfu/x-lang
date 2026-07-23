@@ -8,12 +8,12 @@
 #include <stdint.h>
 #include <stdio.h>
 
-/** 与 scheduler.c SHUX_ASYNC_SUSPENDED 一致。 */
-#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)
+/** 与 scheduler.c XLANG_ASYNC_SUSPENDED 一致。 */
+#define XLANG_ASYNC_SUSPENDED ((int32_t)0x41535700)
 
-extern int shux_async_task_submit(int32_t (*fn)(void));
-extern int32_t shux_async_scheduler_drain(void);
-extern void shux_async_queue_reset(void);
+extern int xlang_async_task_submit(int32_t (*fn)(void));
+extern int32_t xlang_async_scheduler_drain(void);
+extern void xlang_async_queue_reset(void);
 
 /** 任务 A：首次 SUSPENDED，二次返回 10。 */
 static int g_step_a;
@@ -21,7 +21,7 @@ static int g_step_a;
 static int32_t task_a(void) {
     if (g_step_a == 0) {
         g_step_a = 1;
-        return SHUX_ASYNC_SUSPENDED;
+        return XLANG_ASYNC_SUSPENDED;
     }
     return 10;
 }
@@ -42,7 +42,7 @@ typedef struct {
  */
 static void *submit_thread(void *arg) {
     submit_arg_t *a = (submit_arg_t *)arg;
-    if (shux_async_task_submit(a->fn) != a->expect_ok) {
+    if (xlang_async_task_submit(a->fn) != a->expect_ok) {
         return (void *)1;
     }
     return NULL;
@@ -60,7 +60,7 @@ int main(void) {
     void *rc1;
     void *rc2;
 
-    shux_async_queue_reset();
+    xlang_async_queue_reset();
     g_step_a = 0;
 
     if (pthread_create(&t1, NULL, submit_thread, &a1) != 0) {
@@ -80,7 +80,7 @@ int main(void) {
         return 4;
     }
 
-    last = shux_async_scheduler_drain();
+    last = xlang_async_scheduler_drain();
     if (last != 10) {
         fprintf(stderr, "async_scheduler_mpsc: drain last=%d want 10\n", (int)last);
         return 5;

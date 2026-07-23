@@ -4,13 +4,13 @@
 # 1) boot-force-stub-v1.md + matrix + ast_pool.c
 # 2) 6 符号在 parser.x 且 PARSER_STUB_EQ 在 ast_pool.c
 # 3) padding glue 锚点存在
-# 4) 回归源存在；有 shux 时 check 烟测
+# 4) 回归源存在；有 xlang 时 check 烟测
 #
 # 用法：./tests/run-boot-force-stub-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_BOOT_FORCE_STUB_TSV:-tests/baseline/boot-force-stub-matrix.tsv}"
+MATRIX="${XLANG_BOOT_FORCE_STUB_TSV:-tests/baseline/boot-force-stub-matrix.tsv}"
 PARSER_X="compiler/src/parser/parser.x"
 AST_POOL="compiler/ast_pool.c"
 THIN_C="compiler/seeds/parser_asm_thin_c.from_x.c"
@@ -101,25 +101,25 @@ for g in \
 done
 echo "boot-force-stub glue OK"
 
-# ── check_only 烟测（有 shux）──
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+# ── check_only 烟测（有 xlang）──
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== BOOT-010: check-only regression (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== BOOT-010: check-only regression (XLANG=$XLANG_BIN) ==="
   while IFS=$'\t' read -r stub_id _s _c _st reg_src reg_hook _n; do
     [ -z "${stub_id:-}" ] && continue
     case "$stub_id" in \#*|min_*) continue ;; esac
     [ "$reg_hook" = "check_only" ] || continue
     echo "── check: $reg_src ($stub_id) ──"
-    if ! "$SHUX_BIN" check "$reg_src" >/tmp/boot_force_stub_check.log 2>&1; then
+    if ! "$XLANG_BIN" check "$reg_src" >/tmp/boot_force_stub_check.log 2>&1; then
       cat /tmp/boot_force_stub_check.log >&2
       echo "boot-force-stub FAIL: check $reg_src ($stub_id)" >&2
       exit 1
@@ -127,7 +127,7 @@ if [ -n "$SHUX_BIN" ]; then
   done < "$MATRIX"
   echo "boot-force-stub check-only OK"
 else
-  echo "boot-force-stub SKIP check/hooks (no native shux)"
+  echo "boot-force-stub SKIP check/hooks (no native xlang)"
   echo "boot-force-stub gate OK"
   exit 0
 fi
@@ -142,7 +142,7 @@ for hook in $HOOKS; do
   fi
   echo "── hook: $hook ──"
   chmod +x "$script" 2>/dev/null || true
-  if SHUX="$SHUX_BIN" "$script"; then
+  if XLANG="$XLANG_BIN" "$script"; then
     echo "boot-force-stub hook OK $hook"
   else
     echo "boot-force-stub hook FAIL $hook" >&2

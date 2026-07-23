@@ -1,19 +1,19 @@
 #!/usr/bin/env sh
-# gen_bootstrap_gens.sh — 用 LEGACY C 前端 shux-c 生成 bootstrap 所需的 *_gen.c（G-06 冷启动）
+# gen_bootstrap_gens.sh — 用 LEGACY C 前端 xlang-c 生成 bootstrap 所需的 *_gen.c（G-06 冷启动）
 #
 # 用法（compiler 目录）：
-#   SHUX_LEGACY_C_FRONTEND=1 ./scripts/gen_bootstrap_gens.sh
+#   XLANG_LEGACY_C_FRONTEND=1 ./scripts/gen_bootstrap_gens.sh
 #
-# 说明：预编译 seed 对 pipeline/asm 等大模块 -E 会挂死；LEGACY shux-c 走 C 前端 -E 路径。
+# 说明：预编译 seed 对 pipeline/asm 等大模块 -E 会挂死；LEGACY xlang-c 走 C 前端 -E 路径。
 # ast.x / pipeline.x 须保留仓库内已 pin 的 ast_gen2.c / pipeline_gen.c。
 
 set -e
 cd "$(dirname "$0")/.."
 
-echo "gen_bootstrap_gens: build LEGACY shux-c ..."
-SHUX_LEGACY_C_FRONTEND=1 make shux-c
+echo "gen_bootstrap_gens: build LEGACY xlang-c ..."
+XLANG_LEGACY_C_FRONTEND=1 make xlang-c
 
-SHUX=./shux-c
+XLANG=./xlang-c
 LIB_ASM="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline -L src/codegen"
 LSP_DIRS="-L .. -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess"
 MAIN_DIRS="-L .. -L src -L src/lsp -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess"
@@ -28,10 +28,10 @@ gen_one() {
     return 0
   fi
   echo "gen_bootstrap_gens: $_out ..."
-  if "$SHUX" "$@" > "$_out" && [ -s "$_out" ]; then
+  if "$XLANG" "$@" > "$_out" && [ -s "$_out" ]; then
     case "$_out" in
       typeck_gen.c|codegen_gen.c|parser_gen.c)
-        if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+        if [ "${XLANG_ALLOW_GEN_PATCH:-0}" = "1" ]; then
           perl scripts/fix_slim_arena_gen_c.pl "$_out" 2>/dev/null || true
         fi
         ;;
@@ -77,11 +77,11 @@ for req in typeck_gen.c codegen_gen.c parser_gen.c lexer_gen.c driver_gen.c prep
   fi
 done
 
-echo "gen_bootstrap_gens: build-seed-asm-host (asm.x -E via LEGACY shux-c) ..."
-if [ "${SHUX_SKIP_SEED_ASM_E:-0}" = "1" ]; then
-  echo "gen_bootstrap_gens: skip asm.x -E (SHUX_SKIP_SEED_ASM_E=1)" >&2
+echo "gen_bootstrap_gens: build-seed-asm-host (asm.x -E via LEGACY xlang-c) ..."
+if [ "${XLANG_SKIP_SEED_ASM_E:-0}" = "1" ]; then
+  echo "gen_bootstrap_gens: skip asm.x -E (XLANG_SKIP_SEED_ASM_E=1)" >&2
 else
-  SHUX_E=./shux-c ./scripts/build_seed_asm_host.sh
+  XLANG_E=./xlang-c ./scripts/build_seed_asm_host.sh
 fi
 
 echo "gen_bootstrap_gens OK"

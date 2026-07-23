@@ -3,18 +3,18 @@
 #
 # 用法：./tests/run-nolibc-n07-bootstrap-prep-gate.sh
 # 环境：
-#   SHUX_NOLIBC_N07_FAIL=1              — 失败时硬退出
-#   SHUX_NOLIBC_N07_MANIFEST_ONLY=1     — 仅 manifest（跳过 B-32 委托）
-#   SHUX_NOLIBC_N07_LC_HARD=1           — -lc 基线回归时硬失败（默认 track-only）
+#   XLANG_NOLIBC_N07_FAIL=1              — 失败时硬退出
+#   XLANG_NOLIBC_N07_MANIFEST_ONLY=1     — 仅 manifest（跳过 B-32 委托）
+#   XLANG_NOLIBC_N07_LC_HARD=1           — -lc 基线回归时硬失败（默认 track-only）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_N07_FAIL:-0}
-LC_HARD=${SHUX_NOLIBC_N07_LC_HARD:-0}
+FAIL=${XLANG_NOLIBC_N07_FAIL:-0}
+LC_HARD=${XLANG_NOLIBC_N07_LC_HARD:-0}
 DOC="analysis/phase-f-n07-v1.md"
 MANIFEST="tests/baseline/nolibc-n07-bootstrap-prep.tsv"
 LC_BASELINE="tests/baseline/nolibc-n07-bootstrap-lc-track.tsv"
-BUILD_ASM="compiler/scripts/build_shux_asm.sh"
+BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 
 die() {
   echo "nolibc-n07 gate FAIL: $*" >&2
@@ -44,7 +44,7 @@ lc_n=$(nolibc_n07_count_lc_link_cmds "$BUILD_ASM")
 std_c_n=$(nolibc_n07_count_ensure_std_c "$BUILD_ASM")
 echo "nolibc-n07: lc_link_cmds=${lc_n} ensure_std_c=${std_c_n} (track-only until NL-07 v2)"
 
-if [ "${SHUX_NOLIBC_N07_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_NOLIBC_N07_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "nolibc-n07 gate OK (manifest + lc track only)"
   exit 0
 fi

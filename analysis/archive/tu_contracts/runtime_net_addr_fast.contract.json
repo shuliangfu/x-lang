@@ -27,7 +27,7 @@
     "only_x": [],
     "only_seed": ["net_tcp_local_addr_c", "net_tcp_peer_addr_c", "net_tcp_set_addr_port_buf_c", "net_udp_set_addr_port_buf_c"]
   },
-  "rest_macro": "SHUX_RUNTIME_NET_ADDR_FAST_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_NET_ADDR_FAST_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

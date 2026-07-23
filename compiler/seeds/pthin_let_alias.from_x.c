@@ -1,6 +1,6 @@
 /* seeds/pthin_let_alias.from_x.c — G-02f-279 P2 parser thin P2 let/alias
  * Logic source: src/asm/pthin_let_alias.x
- * Hybrid: SHUX_PTHIN_LET_ALIAS_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_LET_ALIAS_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Bodies: seeds/parser_asm/{body_let,top_level_let,type_alias}_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).

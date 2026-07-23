@@ -1,19 +1,19 @@
 /**
- * fmt_check_cmd.h — shux fmt / shux check 子命令（对标 deno fmt、deno check 的 CLI 行为）
+ * fmt_check_cmd.h — xlang fmt / xlang check 子命令（对标 deno fmt、deno check 的 CLI 行为）
  *
  * fmt：无参数时递归格式化当前目录下 .x；--check 仅校验；--fail-fast；--ignore=前缀列表。
  * check：支持多文件/目录；收集诊断并以 path:line:col - error: 输出。
  */
 
-#ifndef SHUX_FMT_CHECK_CMD_H
-#define SHUX_FMT_CHECK_CMD_H
+#ifndef XLANG_FMT_CHECK_CMD_H
+#define XLANG_FMT_CHECK_CMD_H
 
 #include <stdint.h>
 
-/** 运行 shux fmt；解析 argv（含子命令后的参数）；0 成功，1 失败。 */
+/** 运行 xlang fmt；解析 argv（含子命令后的参数）；0 成功，1 失败。 */
 int driver_run_fmt(int argc, char **argv);
 
-/** 运行 shux check；0 成功，1 失败。 */
+/** 运行 xlang check；0 成功，1 失败。 */
 int driver_run_compiler_check(int argc, char **argv);
 
 /** 设置当前 check 源文件路径（诊断行前缀）。 */
@@ -25,4 +25,4 @@ int driver_check_print_collected_diagnostics(const char *path);
 /** 非 0 时 driver_print_check_ok 不输出（deno check 全通过时静默）。 */
 int driver_check_quiet_ok_get(void);
 
-#endif /* SHUX_FMT_CHECK_CMD_H */
+#endif /* XLANG_FMT_CHECK_CMD_H */

@@ -34,12 +34,12 @@ std_compress_native_shu() {
 }
 
 std_compress_resolve_shu() {
-  if [ -n "${SHUX:-}" ] && std_compress_native_shu "$SHUX"; then
-    echo "$SHUX"
+  if [ -n "${XLANG:-}" ] && std_compress_native_shu "$XLANG"; then
+    echo "$XLANG"
     return 0
   fi
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if std_compress_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -50,16 +50,16 @@ std_compress_resolve_shu() {
 
 # 编译运行烟测；期望退出码 0。
 std_compress_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_compress_${tag}_$$"
+  local exe="/tmp/xlang_std_compress_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-compress FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/tmp/shux_std_compress_build.log 2>&1; then
-    tail -8 /tmp/shux_std_compress_build.log >&2 || true
+  if ! "$xlang" -L . "$src" -o "$exe" >/tmp/xlang_std_compress_build.log 2>&1; then
+    tail -8 /tmp/xlang_std_compress_build.log >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -75,11 +75,11 @@ std_compress_run_smoke() {
 
 # 探测往返是否真正执行（exit 0 且压缩 API 非 -1 需结合专用探针文件）。
 std_compress_probe_enabled() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-probe}"
-  local exe="/tmp/shux_std_compress_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_compress_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     rm -f "$exe"
     echo "fail"
     return 1

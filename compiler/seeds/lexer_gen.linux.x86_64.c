@@ -10,37 +10,37 @@
 #undef ntohl
 #undef ntohs
 #ifdef _WIN32
-#define SHUX_LIB_WEAK
+#define XLANG_LIB_WEAK
 #else
-#define SHUX_LIB_WEAK __attribute__((weak))
+#define XLANG_LIB_WEAK __attribute__((weak))
 #endif
-#ifndef SHUX_BUILTIN_INLINE_DECLS_GUARD
-#define SHUX_BUILTIN_INLINE_DECLS_GUARD
-/* CORE-009 shux_builtin_* static inline wrappers (clz/ctz/popcount/bswap/rotl/rotr) */
-static inline int shux_builtin_clz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_clz(x); }
-static inline int shux_builtin_ctz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_ctz(x); }
-static inline int shux_builtin_popcount_u32(uint32_t x) { return __builtin_popcount(x); }
-static inline uint32_t shux_builtin_bswap_u32(uint32_t x) { return __builtin_bswap32(x); }
-static inline uint32_t shux_builtin_rotl_u32(uint32_t x, uint32_t c) {
+#ifndef XLANG_BUILTIN_INLINE_DECLS_GUARD
+#define XLANG_BUILTIN_INLINE_DECLS_GUARD
+/* CORE-009 xlang_builtin_* static inline wrappers (clz/ctz/popcount/bswap/rotl/rotr) */
+static inline int xlang_builtin_clz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_clz(x); }
+static inline int xlang_builtin_ctz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_ctz(x); }
+static inline int xlang_builtin_popcount_u32(uint32_t x) { return __builtin_popcount(x); }
+static inline uint32_t xlang_builtin_bswap_u32(uint32_t x) { return __builtin_bswap32(x); }
+static inline uint32_t xlang_builtin_rotl_u32(uint32_t x, uint32_t c) {
   c &= 31; return c == 0 ? x : (x << c) | (x >> (32 - c));
 }
-static inline uint32_t shux_builtin_rotr_u32(uint32_t x, uint32_t c) {
+static inline uint32_t xlang_builtin_rotr_u32(uint32_t x, uint32_t c) {
   c &= 31; return c == 0 ? x : (x >> c) | (x << (32 - c));
 }
 #endif
 extern int getpid(void);
-static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {
-  const char *_ev = getenv("SHUX_CRASH_EVIDENCE");
+static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
+  const char *_ev = getenv("XLANG_CRASH_EVIDENCE");
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
   fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
-  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/shux-crash-%d.txt", _dir, _pid);
+  const char *_dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
     FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
       fprintf(stderr, "note: crash evidence: bundle=%s\n", _p); } } }
-static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
-static inline void shux_panic_(int has_msg, int msg_val) {
-  shux_crash_evidence_collect_inline(has_msg, msg_val);
+static inline void xlang_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));
+static inline void xlang_panic_(int has_msg, int msg_val) {
+  xlang_crash_evidence_collect_inline(has_msg, msg_val);
   if (has_msg) (void)fprintf(stderr, "%d\n", msg_val);
   abort();
 }
@@ -56,11 +56,11 @@ extern void ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_
 extern void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
 extern void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
 
-struct shux_slice_uint8_t { uint8_t *data; size_t length; };
+struct xlang_slice_uint8_t { uint8_t *data; size_t length; };
 struct lexer_Lexer { size_t pos; int32_t line; int32_t col; };
 struct lexer_LexerResult { struct lexer_Lexer next_lex; struct token_Token tok; size_t token_start; };
 extern int32_t cfg_eval_expr_c(uint8_t * restrict start, int32_t len);
-extern struct shux_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * restrict data, int32_t len);
+extern struct xlang_slice_uint8_t lexer_parser_slice_from_buf(uint8_t * restrict data, int32_t len);
 struct lexer_Lexer lexer_init();
 struct lexer_Lexer lexer_advance_one(struct lexer_Lexer lex, uint8_t c);
 int lexer_is_alpha(uint8_t c);
@@ -68,52 +68,52 @@ int lexer_is_hex_digit(uint8_t c);
 int32_t lexer_hex_digit_value(uint8_t c);
 int lexer_is_digit(uint8_t c);
 int lexer_is_alnum_underscore(uint8_t c);
-int lexer_match_keyword(struct shux_slice_uint8_t * data, size_t start, int32_t len, struct shux_slice_uint8_t * keyword);
-int lexer_match_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, int32_t len, struct shux_slice_uint8_t * keyword);
-struct token_Token lexer_try_keyword(struct shux_slice_uint8_t * data, size_t start, size_t len, int32_t line0, int32_t col0);
+int lexer_match_keyword(struct xlang_slice_uint8_t * data, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword);
+int lexer_match_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword);
+struct token_Token lexer_try_keyword(struct xlang_slice_uint8_t * data, size_t start, size_t len, int32_t line0, int32_t col0);
 struct token_Token lexer_try_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, size_t len, int32_t line0, int32_t col0);
-struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-struct lexer_Lexer lexer_skip_cfg_attr_if_present(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_alloc_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_used_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_naked_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_entry_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_no_mangle_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_interrupt_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_send_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
+struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+struct lexer_Lexer lexer_skip_cfg_attr_if_present(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_alloc_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_used_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_naked_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_entry_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_no_mangle_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_interrupt_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_send_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
 struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
-struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-void lexer_apply_optional_exponent(struct lexer_Lexer l, struct shux_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f);
-void lexer_next_body_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data);
+struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+void lexer_apply_optional_exponent(struct lexer_Lexer l, struct xlang_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f);
+void lexer_next_body_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
 void lexer_write_next_lex_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l);
 void lexer_write_tok_into(struct lexer_LexerResult * restrict out, struct token_Token t);
-void lexer_next_impl(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
-void lexer_next_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shux_slice_uint8_t * data);
+void lexer_next_impl(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
+void lexer_next_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
 void lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 struct lexer_LexerResult lexer_next_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
-struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, struct shux_slice_uint8_t * data);
-SHUX_LIB_WEAK struct lexer_Lexer lexer_init() {
+struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, struct xlang_slice_uint8_t * data);
+XLANG_LIB_WEAK struct lexer_Lexer lexer_init() {
   return (struct lexer_Lexer){ .pos = 0, .line = 1, .col = 1 };
 }
-SHUX_LIB_WEAK struct lexer_Lexer lexer_advance_one(struct lexer_Lexer lex, uint8_t c) {
+XLANG_LIB_WEAK struct lexer_Lexer lexer_advance_one(struct lexer_Lexer lex, uint8_t c) {
   if (c == 10) {   return (struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line + 1, .col = 1 };
  }
   return (struct lexer_Lexer){ .pos = (lex).pos + 1, .line = (lex).line, .col = (lex).col + 1 };
 }
-SHUX_LIB_WEAK int lexer_is_alpha(uint8_t c) {
+XLANG_LIB_WEAK int lexer_is_alpha(uint8_t c) {
   if (c >= 97 && c <= 122) {   return 1;
  }
   if (c >= 65 && c <= 90) {   return 1;
  }
   return c == 95;
 }
-SHUX_LIB_WEAK int lexer_is_hex_digit(uint8_t c) {
+XLANG_LIB_WEAK int lexer_is_hex_digit(uint8_t c) {
   if (c >= 48 && c <= 57) {   return 1;
  }
   if (c >= 97 && c <= 102) {   return 1;
@@ -122,7 +122,7 @@ SHUX_LIB_WEAK int lexer_is_hex_digit(uint8_t c) {
  }
   return 0;
 }
-SHUX_LIB_WEAK int32_t lexer_hex_digit_value(uint8_t c) {
+XLANG_LIB_WEAK int32_t lexer_hex_digit_value(uint8_t c) {
   if (c >= 48 && c <= 57) {   return ((int32_t)(c - 48));
  }
   if (c >= 97 && c <= 102) {   return ((int32_t)((c - 97) + 10));
@@ -131,278 +131,278 @@ SHUX_LIB_WEAK int32_t lexer_hex_digit_value(uint8_t c) {
  }
   return 0;
 }
-SHUX_LIB_WEAK int lexer_is_digit(uint8_t c) {
+XLANG_LIB_WEAK int lexer_is_digit(uint8_t c) {
   return c >= 48 && c <= 57;
 }
-SHUX_LIB_WEAK int lexer_is_alnum_underscore(uint8_t c) {
+XLANG_LIB_WEAK int lexer_is_alnum_underscore(uint8_t c) {
   return lexer_is_alpha(c) || lexer_is_digit(c);
 }
-SHUX_LIB_WEAK int lexer_match_keyword(struct shux_slice_uint8_t * data, size_t start, int32_t len, struct shux_slice_uint8_t * keyword) {
+XLANG_LIB_WEAK int lexer_match_keyword(struct xlang_slice_uint8_t * data, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword) {
   int32_t i = 0;
   while (i < len) {
-    if ((start + i < 0 || (size_t)(start + i) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[start + i]) != (i < 0 || (size_t)(i) >= (keyword)->length ? (shux_panic_(1, 0), (keyword)->data[0]) : (keyword)->data[i])) {   return 0;
+    if ((start + i < 0 || (size_t)(start + i) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[start + i]) != (i < 0 || (size_t)(i) >= (keyword)->length ? (xlang_panic_(1, 0), (keyword)->data[0]) : (keyword)->data[i])) {   return 0;
  }
     ++i;
   }
   return 1;
 }
-SHUX_LIB_WEAK int lexer_match_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, int32_t len, struct shux_slice_uint8_t * keyword) {
+XLANG_LIB_WEAK int lexer_match_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword) {
   int32_t i = 0;
   while (i < len) {
     if (((int32_t)(start)) + i >= data_len) {   return 0;
  }
-    if ((data)[start + i] != (i < 0 || (size_t)(i) >= (keyword)->length ? (shux_panic_(1, 0), (keyword)->data[0]) : (keyword)->data[i])) {   return 0;
+    if ((data)[start + i] != (i < 0 || (size_t)(i) >= (keyword)->length ? (xlang_panic_(1, 0), (keyword)->data[0]) : (keyword)->data[i])) {   return 0;
  }
     ++i;
   }
   return 1;
 }
-SHUX_LIB_WEAK struct token_Token lexer_try_keyword(struct shux_slice_uint8_t * data, size_t start, size_t len, int32_t line0, int32_t col0) {
-  if (len == 8 && lexer_match_keyword(data, start, 8, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 117, 110, 99, 116, 105, 111, 110 }, .length = 8 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FUNCTION, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+XLANG_LIB_WEAK struct token_Token lexer_try_keyword(struct xlang_slice_uint8_t * data, size_t start, size_t len, int32_t line0, int32_t col0) {
+  if (len == 8 && lexer_match_keyword(data, start, 8, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 117, 110, 99, 116, 105, 111, 110 }, .length = 8 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FUNCTION, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 108, 101, 116 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_LET, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 108, 101, 116 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_LET, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 99, 111, 110, 115, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_CONST, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 99, 111, 110, 115, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_CONST, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 2 && lexer_match_keyword(data, start, 2, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 102 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 2 && lexer_match_keyword(data, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 102 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 108, 115, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ELSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 108, 115, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ELSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 119, 104, 105, 108, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_WHILE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 119, 104, 105, 108, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_WHILE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 108, 111, 111, 112 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_LOOP, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 108, 111, 111, 112 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_LOOP, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 111, 114 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FOR, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 111, 114 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FOR, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 98, 114, 101, 97, 107 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_BREAK, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 98, 114, 101, 97, 107 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_BREAK, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 8 && lexer_match_keyword(data, start, 8, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 99, 111, 110, 116, 105, 110, 117, 101 }, .length = 8 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_CONTINUE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 8 && lexer_match_keyword(data, start, 8, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 99, 111, 110, 116, 105, 110, 117, 101 }, .length = 8 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_CONTINUE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 114, 101, 116, 117, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RETURN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 114, 101, 116, 117, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RETURN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 112, 97, 110, 105, 99 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_PANIC, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 112, 97, 110, 105, 99 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_PANIC, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 100, 101, 102, 101, 114 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_DEFER, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 100, 101, 102, 101, 114 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_DEFER, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 114, 101, 103, 105, 111, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_REGION, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 114, 101, 103, 105, 111, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_REGION, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 10 && lexer_match_keyword(data, start, 10, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 119, 105, 116, 104, 95, 97, 114, 101, 110, 97 }, .length = 10 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_WITH_ARENA, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 10 && lexer_match_keyword(data, start, 10, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 119, 105, 116, 104, 95, 97, 114, 101, 110, 97 }, .length = 10 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_WITH_ARENA, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 109, 97, 116, 99, 104 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_MATCH, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 109, 97, 116, 99, 104 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_MATCH, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 116, 114, 117, 99, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_STRUCT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 115, 116, 114, 117, 99, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_STRUCT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 116, 121, 112, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TYPE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 116, 121, 112, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TYPE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 112, 97, 99, 107, 101, 100 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_PACKED, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 112, 97, 99, 107, 101, 100 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_PACKED, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 111, 97 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SOA, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 115, 111, 97 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SOA, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 97, 108, 105, 103, 110 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ALIGN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 108, 105, 103, 110 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ALIGN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 110, 117, 109 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ENUM, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 110, 117, 109 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ENUM, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 103, 111, 116, 111 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_GOTO, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 103, 111, 116, 111 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_GOTO, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 116, 114, 97, 105, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TRAIT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 116, 114, 97, 105, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TRAIT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 109, 112, 108 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IMPL, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 109, 112, 108 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IMPL, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 101, 108, 102 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SELF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 115, 101, 108, 102 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SELF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 1 && (start < 0 || (size_t)(start) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[start]) == 95) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_UNDERSCORE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 1 && (start < 0 || (size_t)(start) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[start]) == 95) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_UNDERSCORE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 109, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IMPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 109, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IMPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 116, 101, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXTERN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 116, 101, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXTERN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 97, 115, 121, 110, 99 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ASYNC, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 115, 121, 110, 99 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ASYNC, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 97, 119, 97, 105, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AWAIT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 119, 97, 105, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AWAIT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 114, 117, 110 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RUN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 114, 117, 110 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RUN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 112, 97, 119, 110 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SPAWN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 115, 112, 97, 119, 110 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SPAWN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 98, 111, 111, 108 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_BOOL, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 98, 111, 111, 108 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_BOOL, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 2 && lexer_match_keyword(data, start, 2, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 56 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 2 && lexer_match_keyword(data, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 56 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_USIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_USIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ISIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ISIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 116, 114, 117, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TRUE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 116, 114, 117, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TRUE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 97, 108, 115, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FALSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 97, 108, 115, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FALSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_F32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_F32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_F64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword(data, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_F64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 118, 111, 105, 100 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_VOID, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword(data, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 118, 111, 105, 100 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_VOID, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 120, 52 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32X4, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 120, 52 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32X4, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 120, 56 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32X8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 120, 56 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32X8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 120, 49, 54 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32X16, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 120, 49, 54 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32X16, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 120, 52 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32X4, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 120, 52 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32X4, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 120, 56 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32X8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword(data, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 120, 56 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32X8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 120, 49, 54 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32X16, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 51, 120, 49, 54 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U32X16, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 2 && lexer_match_keyword(data, start, 2, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 97, 115 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AS, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 2 && lexer_match_keyword(data, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 115 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AS, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IDENT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
   return t;
 }
-SHUX_LIB_WEAK struct token_Token lexer_try_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, size_t len, int32_t line0, int32_t col0) {
-  if (len == 8 && lexer_match_keyword_buf(data, data_len, start, 8, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 117, 110, 99, 116, 105, 111, 110 }, .length = 8 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FUNCTION, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+XLANG_LIB_WEAK struct token_Token lexer_try_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, size_t len, int32_t line0, int32_t col0) {
+  if (len == 8 && lexer_match_keyword_buf(data, data_len, start, 8, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 117, 110, 99, 116, 105, 111, 110 }, .length = 8 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FUNCTION, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 108, 101, 116 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_LET, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 108, 101, 116 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_LET, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 99, 111, 110, 115, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_CONST, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 99, 111, 110, 115, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_CONST, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 2 && lexer_match_keyword_buf(data, data_len, start, 2, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 102 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 2 && lexer_match_keyword_buf(data, data_len, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 102 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 108, 115, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ELSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 108, 115, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ELSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 114, 101, 116, 117, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RETURN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 114, 101, 116, 117, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RETURN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 116, 114, 117, 99, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_STRUCT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 115, 116, 114, 117, 99, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_STRUCT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 116, 121, 112, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TYPE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 116, 121, 112, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TYPE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 110, 117, 109 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ENUM, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 110, 117, 109 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ENUM, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 109, 97, 116, 99, 104 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_MATCH, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 109, 97, 116, 99, 104 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_MATCH, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 116, 114, 117, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TRUE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 116, 114, 117, 101 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_TRUE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 97, 108, 115, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FALSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 97, 108, 115, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_FALSE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 102, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_F64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 102, 54, 52 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_F64, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 118, 111, 105, 100 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_VOID, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 118, 111, 105, 100 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_VOID, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 51, 50 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_I32, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 98, 111, 111, 108 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_BOOL, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 4 && lexer_match_keyword_buf(data, data_len, start, 4, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 98, 111, 111, 108 }, .length = 4 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_BOOL, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 2 && lexer_match_keyword_buf(data, data_len, start, 2, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 56 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 2 && lexer_match_keyword_buf(data, data_len, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 56 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_U8, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 117, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_USIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 117, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_USIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ISIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 115, 105, 122, 101 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ISIZE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 2 && lexer_match_keyword_buf(data, data_len, start, 2, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 97, 115 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AS, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 2 && lexer_match_keyword_buf(data, data_len, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 115 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AS, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 105, 109, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IMPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 105, 109, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IMPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 116, 101, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXTERN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 116, 101, 114, 110 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXTERN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 97, 115, 121, 110, 99 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ASYNC, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 115, 121, 110, 99 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_ASYNC, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 97, 119, 97, 105, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AWAIT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 119, 97, 105, 116 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AWAIT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 114, 117, 110 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RUN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 3 && lexer_match_keyword_buf(data, data_len, start, 3, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 114, 117, 110 }, .length = 3 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_RUN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 115, 112, 97, 119, 110 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SPAWN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 5 && lexer_match_keyword_buf(data, data_len, start, 5, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 115, 112, 97, 119, 110 }, .length = 5 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_SPAWN, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
-  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
   if (len == 1 && start < ((size_t)(data_len)) && (data)[start] == 95) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_UNDERSCORE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -411,45 +411,45 @@ SHUX_LIB_WEAK struct token_Token lexer_try_keyword_buf(uint8_t * restrict data, 
   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IDENT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
   return t;
 }
-SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data) {
   struct lexer_Lexer l = lex;
   if ((l).pos + 10 > (data)->length) {   return l;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return l;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return l;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 114 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 112 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114) {   return l;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 114 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 112 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114) {   return l;
  }
-  if (((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 40 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 67 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 41 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 93) {   return l;
+  if (((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 40 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 67 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 41 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 93) {   return l;
  }
   return (struct lexer_Lexer){ .pos = (l).pos + 10, .line = (l).line, .col = (l).col };
 }
-SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_cfg_attr_if_present(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK struct lexer_Lexer lexer_skip_cfg_attr_if_present(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data) {
   struct lexer_Lexer l = lex;
   size_t p = 0;
   int32_t depth = 0;
   if ((l).pos + 6 > (data)->length) {   return l;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return l;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return l;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 99 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 102 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 103) {   return l;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 99 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 102 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 103) {   return l;
  }
-  if (((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 40) {   return l;
+  if (((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 40) {   return l;
  }
   (p = ((l).pos + 6));
   (depth = (1));
   while (p < (data)->length && depth > 0) {
-    if ((p < 0 || (size_t)(p) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 40) {   ++depth;
- } else     if ((p < 0 || (size_t)(p) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 41) {   (depth = (depth - 1));
+    if ((p < 0 || (size_t)(p) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 40) {   ++depth;
+ } else     if ((p < 0 || (size_t)(p) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 41) {   (depth = (depth - 1));
  }
 
     ++p;
   }
-  if (p >= (data)->length || (p < 0 || (size_t)(p) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[p]) != 93) {   return lex;
+  if (p >= (data)->length || (p < 0 || (size_t)(p) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[p]) != 93) {   return lex;
  }
   ++p;
   return (struct lexer_Lexer){ .pos = p, .line = (l).line, .col = (l).col };
 }
-SHUX_LIB_WEAK int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
   size_t p = 0;
@@ -457,23 +457,23 @@ SHUX_LIB_WEAK int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restric
   size_t expr_start = 0;
   if ((l).pos + 6 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 99 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 102 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 103) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 99 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 102 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 103) {   return 0;
  }
-  if (((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 40) {   return 0;
+  if (((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 40) {   return 0;
  }
   (p = ((l).pos + 6));
   (depth = (1));
   (expr_start = (p));
   while (p < (data)->length && depth > 0) {
-    if ((p < 0 || (size_t)(p) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 40) {   ++depth;
- } else     if ((p < 0 || (size_t)(p) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 41) {   (depth = (depth - 1));
+    if ((p < 0 || (size_t)(p) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 40) {   ++depth;
+ } else     if ((p < 0 || (size_t)(p) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[p]) == 41) {   (depth = (depth - 1));
  }
 
     ++p;
   }
-  if (p >= (data)->length || (p < 0 || (size_t)(p) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[p]) != 93) {   return 0;
+  if (p >= (data)->length || (p < 0 || (size_t)(p) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[p]) != 93) {   return 0;
  }
   int32_t expr_len = (((int32_t)(p)) - ((int32_t)(expr_start))) - 1;
   if (expr_len <= 0 || expr_len > 127) {   return 0;
@@ -481,7 +481,7 @@ SHUX_LIB_WEAK int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restric
   uint8_t tmp[128] = { 0 };
   int32_t ti = 0;
   while (ti < expr_len) {
-    ((ti < 0 || (ti) >= 128 ? (shux_panic_(1, 0), 0) : ((tmp)[ti] = (expr_start + ((size_t)(ti)) < 0 || (size_t)(expr_start + ((size_t)(ti))) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[expr_start + ((size_t)(ti))]), 0)));
+    ((ti < 0 || (ti) >= 128 ? (xlang_panic_(1, 0), 0) : ((tmp)[ti] = (expr_start + ((size_t)(ti)) < 0 || (size_t)(expr_start + ((size_t)(ti))) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[expr_start + ((size_t)(ti))]), 0)));
     ++ti;
   }
   int32_t enabled = cfg_eval_expr_c((&((tmp)[0])), expr_len);
@@ -493,14 +493,14 @@ SHUX_LIB_WEAK int32_t lexer_try_cfg_attr_into(struct lexer_LexerResult * restric
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 10 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 114 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 112 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 114 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 112 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114) {   return 0;
  }
-  if (((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 40 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 67 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 41 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 93) {   return 0;
+  if (((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 40 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 67 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 41 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -512,18 +512,18 @@ SHUX_LIB_WEAK int32_t lexer_try_repr_c_attr_into(struct lexer_LexerResult * rest
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 19 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 114 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 112 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 114 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 112 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114) {   return 0;
  }
-  if (((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 40) {   return 0;
+  if (((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 40) {   return 0;
  }
-  if (((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 99 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 111 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 109 || ((l).pos + 10 < 0 || (size_t)((l).pos + 10) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 10]) != 112 || ((l).pos + 11 < 0 || (size_t)((l).pos + 11) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 11]) != 97 || ((l).pos + 12 < 0 || (size_t)((l).pos + 12) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 12]) != 116 || ((l).pos + 13 < 0 || (size_t)((l).pos + 13) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 13]) != 105 || ((l).pos + 14 < 0 || (size_t)((l).pos + 14) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 14]) != 98 || ((l).pos + 15 < 0 || (size_t)((l).pos + 15) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 15]) != 108 || ((l).pos + 16 < 0 || (size_t)((l).pos + 16) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 16]) != 101) {   return 0;
+  if (((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 99 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 111 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 109 || ((l).pos + 10 < 0 || (size_t)((l).pos + 10) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 10]) != 112 || ((l).pos + 11 < 0 || (size_t)((l).pos + 11) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 11]) != 97 || ((l).pos + 12 < 0 || (size_t)((l).pos + 12) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 12]) != 116 || ((l).pos + 13 < 0 || (size_t)((l).pos + 13) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 13]) != 105 || ((l).pos + 14 < 0 || (size_t)((l).pos + 14) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 14]) != 98 || ((l).pos + 15 < 0 || (size_t)((l).pos + 15) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 15]) != 108 || ((l).pos + 16 < 0 || (size_t)((l).pos + 16) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 16]) != 101) {   return 0;
  }
-  if (((l).pos + 17 < 0 || (size_t)((l).pos + 17) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 17]) != 41 || ((l).pos + 18 < 0 || (size_t)((l).pos + 18) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 18]) != 93) {   return 0;
+  if (((l).pos + 17 < 0 || (size_t)((l).pos + 17) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 17]) != 41 || ((l).pos + 18 < 0 || (size_t)((l).pos + 18) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 18]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -535,12 +535,12 @@ SHUX_LIB_WEAK int32_t lexer_try_repr_compatible_attr_into(struct lexer_LexerResu
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 6 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 115 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 111 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 97 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 115 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 111 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 97 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -557,12 +557,12 @@ SHUX_LIB_WEAK int32_t lexer_try_soa_attr_into(struct lexer_LexerResult * restric
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_alloc_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_alloc_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 8 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 97 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 108 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 108 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 111 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 99 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 97 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 108 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 108 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 111 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 99 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -581,12 +581,12 @@ SHUX_LIB_WEAK int32_t lexer_try_alloc_attr_into(struct lexer_LexerResult * restr
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_used_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_used_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 7 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 117 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 115 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 101 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 100 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 117 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 115 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 101 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 100 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -604,12 +604,12 @@ SHUX_LIB_WEAK int32_t lexer_try_used_attr_into(struct lexer_LexerResult * restri
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_naked_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_naked_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 8 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 110 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 97 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 107 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 101 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 100 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 110 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 97 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 107 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 101 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 100 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -627,12 +627,12 @@ SHUX_LIB_WEAK int32_t lexer_try_naked_attr_into(struct lexer_LexerResult * restr
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_entry_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_entry_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 8 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 101 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 110 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 116 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 121 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 101 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 110 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 116 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 114 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 121 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -650,12 +650,12 @@ SHUX_LIB_WEAK int32_t lexer_try_entry_attr_into(struct lexer_LexerResult * restr
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_no_mangle_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_no_mangle_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 12 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 110 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 111 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 95 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 109 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 97 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 110 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 103 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 108 || ((l).pos + 10 < 0 || (size_t)((l).pos + 10) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 10]) != 101 || ((l).pos + 11 < 0 || (size_t)((l).pos + 11) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 11]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 110 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 111 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 95 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 109 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 97 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 110 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 103 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 108 || ((l).pos + 10 < 0 || (size_t)((l).pos + 10) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 10]) != 101 || ((l).pos + 11 < 0 || (size_t)((l).pos + 11) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 11]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -677,12 +677,12 @@ SHUX_LIB_WEAK int32_t lexer_try_no_mangle_attr_into(struct lexer_LexerResult * r
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_interrupt_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_interrupt_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 13 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 105 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 110 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 116 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 101 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 114 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 114 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 117 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 112 || ((l).pos + 10 < 0 || (size_t)((l).pos + 10) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 10]) != 116 || ((l).pos + 11 < 0 || (size_t)((l).pos + 11) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 11]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 105 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 110 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 116 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 101 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 114 || ((l).pos + 7 < 0 || (size_t)((l).pos + 7) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 7]) != 114 || ((l).pos + 8 < 0 || (size_t)((l).pos + 8) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 8]) != 117 || ((l).pos + 9 < 0 || (size_t)((l).pos + 9) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 9]) != 112 || ((l).pos + 10 < 0 || (size_t)((l).pos + 10) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 10]) != 116 || ((l).pos + 11 < 0 || (size_t)((l).pos + 11) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 11]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -704,12 +704,12 @@ SHUX_LIB_WEAK int32_t lexer_try_interrupt_attr_into(struct lexer_LexerResult * r
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_send_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_send_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 8 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 115 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 110 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 100 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 115 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 101 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 110 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 100 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -726,12 +726,12 @@ SHUX_LIB_WEAK int32_t lexer_try_send_attr_into(struct lexer_LexerResult * restri
   ((out)->token_start = (((size_t)(0))));
   return 1;
 }
-SHUX_LIB_WEAK int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK int32_t lexer_try_sync_attr_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
   if ((l).pos + 8 > (data)->length) {   return 0;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 35 || ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) != 91) {   return 0;
  }
-  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 115 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 121 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 110 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 99 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 93) {   return 0;
+  if (((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 2]) != 115 || ((l).pos + 3 < 0 || (size_t)((l).pos + 3) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 3]) != 121 || ((l).pos + 4 < 0 || (size_t)((l).pos + 4) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 4]) != 110 || ((l).pos + 5 < 0 || (size_t)((l).pos + 5) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 5]) != 99 || ((l).pos + 6 < 0 || (size_t)((l).pos + 6) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 6]) != 93) {   return 0;
  }
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
@@ -761,37 +761,37 @@ static int lexer_block_comment_prev_is_path_like(uint8_t prev) {
     return 1;
   return 0;
 }
-SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data) {
   struct lexer_Lexer l = lex;
   int32_t depth = 0;
   while ((l).pos < (data)->length) {
-    uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+    uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     if (c == 32 || c == 9 || c == 10 || c == 13) {
       (l = (lexer_advance_one(l, c)));
-    } else if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {
-      while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
-        (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+    } else if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {
+      while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
+        (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
       }
-    } else if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
+    } else if (c == 47 && (l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
       (l = (lexer_advance_one(l, 47)));
       (l = (lexer_advance_one(l, 42)));
       depth = 1;
       while ((l).pos < (data)->length && depth > 0) {
         if ((l).pos + 1 < (data)->length
-            && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 47
-            && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
+            && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 47
+            && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 42) {
           /* Path-safe nest-open: suppress src star-slash globs and brace globs. */
           int nest_ok = 1;
           if ((l).pos > 0) {
             uint8_t prev = ((l).pos - 1 < 0 || (size_t)((l).pos - 1) >= (data)->length
-                                ? (shux_panic_(1, 0), (data)->data[0])
+                                ? (xlang_panic_(1, 0), (data)->data[0])
                                 : (data)->data[(l).pos - 1]);
             if (lexer_block_comment_prev_is_path_like(prev))
               nest_ok = 0;
           }
           if (nest_ok && (l).pos + 2 < (data)->length) {
             uint8_t after = ((l).pos + 2 < 0 || (size_t)((l).pos + 2) >= (data)->length
-                                 ? (shux_panic_(1, 0), (data)->data[0])
+                                 ? (xlang_panic_(1, 0), (data)->data[0])
                                  : (data)->data[(l).pos + 2]);
             if (after == 46) /* '.' after open: path-style star-dot extension */
               nest_ok = 0;
@@ -801,25 +801,25 @@ SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer
             (l = (lexer_advance_one(l, 42)));
             depth = depth + 1;
           } else {
-            (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+            (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
           }
         } else if ((l).pos + 1 < (data)->length
-            && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 42
-            && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {
+            && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 42
+            && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 47) {
           (l = (lexer_advance_one(l, 42)));
           (l = (lexer_advance_one(l, 47)));
           depth = depth - 1;
         } else {
-          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
         }
       }
       depth = 0;
     } else if (c == 35) {
-      if ((l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 91) {
+      if ((l).pos + 1 < (data)->length && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 91) {
         return l;
       } else {
-        while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
-          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+        while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 10) {
+          (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
         }
       }
     } else {
@@ -828,16 +828,16 @@ SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments(struct lexer
   }
   return l;
 }
-SHUX_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
-  struct shux_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
+XLANG_LIB_WEAK struct lexer_Lexer lexer_skip_whitespace_and_comments_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
+  struct xlang_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
   return lexer_skip_whitespace_and_comments(lex, &(source));
 }
-SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data) {
   struct lexer_Lexer l = lexer_skip_whitespace_and_comments(lex, data);
   if ((l).pos >= (data)->length) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 0) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 0) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return (struct lexer_LexerResult){ .next_lex = l, .tok = t, .token_start = ((size_t)(0)) };
  }
   struct lexer_LexerResult attr_out = (struct lexer_LexerResult){ .next_lex = l, .tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = ((size_t)(0)) };
@@ -867,19 +867,19 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_slice(struct lexer_Lexer lex, 
  }
   return lexer_next_body(l, data);
 }
-SHUX_LIB_WEAK void lexer_apply_optional_exponent(struct lexer_Lexer l, struct shux_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f) {
+XLANG_LIB_WEAK void lexer_apply_optional_exponent(struct lexer_Lexer l, struct xlang_slice_uint8_t * data, double fval, struct lexer_Lexer * restrict out_l, double * restrict out_f) {
   struct lexer_Lexer lex = l;
   double cur = fval;
-  if ((lex).pos < (data)->length && ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 101 || ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 69) {   (lex = (lexer_advance_one(lex, ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]))));
+  if ((lex).pos < (data)->length && ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 101 || ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 69) {   (lex = (lexer_advance_one(lex, ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]))));
   int32_t exp_sign = 1;
-  if ((lex).pos < (data)->length && ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 45) {   (exp_sign = ((-1)));
+  if ((lex).pos < (data)->length && ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 45) {   (exp_sign = ((-1)));
   (lex = (lexer_advance_one(lex, 45)));
- } else {   if ((lex).pos < (data)->length && ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 43) {   (lex = (lexer_advance_one(lex, 43)));
+ } else {   if ((lex).pos < (data)->length && ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]) == 43) {   (lex = (lexer_advance_one(lex, 43)));
  }
  }
   int32_t exp = 0;
-  while ((lex).pos < (data)->length && lexer_is_digit(((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]))) {
-    uint8_t d = ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]);
+  while ((lex).pos < (data)->length && lexer_is_digit(((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]))) {
+    uint8_t d = ((lex).pos < 0 || (size_t)((lex).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(lex).pos]);
     (lex = (lexer_advance_one(lex, d)));
     (exp = (exp * 10 + (d - 48)));
   }
@@ -900,8 +900,8 @@ SHUX_LIB_WEAK void lexer_apply_optional_exponent(struct lexer_Lexer l, struct sh
   ((out_l)[0] = (lex));
   ((out_f)[0] = (cur));
 }
-SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
-  uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
+  uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
   if (lexer_try_cfg_attr_into(out, l, data) != 0) {   return;
  }
   if (lexer_try_repr_c_attr_into(out, l, data) != 0) {   return;
@@ -930,10 +930,10 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   int32_t col0 = (l).col;
   size_t start = (l).pos + 1;
   (l = (lexer_advance_one(l, 34)));
-  while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 34) {
-    if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 92 && (l).pos + 1 < (data)->length) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
-  (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
- } else {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  while ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) != 34) {
+    if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 92 && (l).pos + 1 < (data)->length) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+ } else {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
  }
   }
   if ((l).pos >= (data)->length) {   struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
@@ -954,8 +954,8 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
   (l = (lexer_advance_one(l, c)));
-  while ((l).pos < (data)->length && lexer_is_alnum_underscore(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  while ((l).pos < (data)->length && lexer_is_alnum_underscore(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   }
   size_t len = (l).pos - start;
   struct token_Token tok = lexer_try_keyword(data, start, len, line0, col0);
@@ -969,10 +969,10 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   int32_t col0 = (l).col;
   int64_t ival = 0;
   (l = (lexer_advance_one(l, c)));
-  if (c == 48 && (l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 120 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 88) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  if (c == 48 && (l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 120 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 88) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   uint64_t hval = ((uint64_t)(0));
-  while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
     (l = (lexer_advance_one(l, hd)));
   }
@@ -983,16 +983,16 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   return;
  }
   (ival = (ival * 10 + (c - 48)));
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (ival = (ival * 10 + (d - 48)));
   }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   (l = (lexer_advance_one(l, 46)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (fval = (fval + frac * (d - 48)));
     (frac = (frac * 0.1));
@@ -1004,16 +1004,16 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 101 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 69) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 101 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 69) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   int32_t exp_sign = 1;
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 45) {   (exp_sign = ((-1)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 45) {   (exp_sign = ((-1)));
   (l = (lexer_advance_one(l, 45)));
- } else {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 43) {   (l = (lexer_advance_one(l, 43)));
+ } else {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 43) {   (l = (lexer_advance_one(l, 43)));
  }
  }
   int32_t exp = 0;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (exp = (exp * 10 + (d - 48)));
   }
@@ -1042,14 +1042,14 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   size_t start = (l).pos;
+  if (c == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   size_t start = (l).pos;
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
   (l = (lexer_advance_one(l, 46)));
   double fval = 0.0;
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (fval = (fval + frac * (d - 48)));
     (frac = (frac * 0.1));
@@ -1115,7 +1115,7 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   return;
  }
   if (c == 46) {
-    if ((l).pos + 1 < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 46) {
+    if ((l).pos + 1 < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 46) {
       (l = (lexer_advance_one(l, 46)));
       (l = (lexer_advance_one(l, 46)));
       ((tok).kind = (token_TokenKind_TOKEN_ELLIPSIS));
@@ -1133,7 +1133,7 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 43) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 43) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_PLUS_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_PLUS));
  }
@@ -1142,14 +1142,14 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 45) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
+  if (c == 45) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
   ((tok).kind = (token_TokenKind_TOKEN_ARROW));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
   ((out)->token_start = (start));
   return;
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_MINUS_EQ));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
@@ -1162,7 +1162,7 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 42) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 42) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_STAR_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_STAR));
  }
@@ -1171,7 +1171,7 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 47) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 47) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_SLASH_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_SLASH));
  }
@@ -1180,7 +1180,7 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 37) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 37) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_PERCENT_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_PERCENT));
  }
@@ -1189,7 +1189,7 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 94) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 94) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_CARET_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_CARET));
  }
@@ -1204,14 +1204,14 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 38) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 38) {   (l = (lexer_advance_one(l, 38)));
+  if (c == 38) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 38) {   (l = (lexer_advance_one(l, 38)));
   ((tok).kind = (token_TokenKind_TOKEN_AMPAMP));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
   ((out)->token_start = (start));
   return;
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_AMP_EQ));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
@@ -1224,14 +1224,14 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 124) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 124) {   (l = (lexer_advance_one(l, 124)));
+  if (c == 124) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 124) {   (l = (lexer_advance_one(l, 124)));
   ((tok).kind = (token_TokenKind_TOKEN_PIPEPIPE));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
   ((out)->token_start = (start));
   return;
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_PIPE_EQ));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
@@ -1244,15 +1244,15 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 60) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 60) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_LE));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
   ((out)->token_start = (start));
   return;
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 60) {   (l = (lexer_advance_one(l, 60)));
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 60) {   (l = (lexer_advance_one(l, 60)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_LSHIFT_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_LSHIFT));
  }
@@ -1267,15 +1267,15 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 62) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 62) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_GE));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
   ((out)->token_start = (start));
   return;
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_RSHIFT_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_RSHIFT));
  }
@@ -1290,7 +1290,7 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 33) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 33) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_NE));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
@@ -1315,14 +1315,14 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   ((out)->token_start = (start));
   return;
  }
-  if (c == 61) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
+  if (c == 61) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
   ((tok).kind = (token_TokenKind_TOKEN_FATARROW));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
   ((out)->token_start = (start));
   return;
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_EQ));
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, tok));
@@ -1339,13 +1339,13 @@ SHUX_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out,
   (void)(lexer_write_tok_into(out, tok));
   ((out)->token_start = (start));
 }
-SHUX_LIB_WEAK void lexer_write_next_lex_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l) {
+XLANG_LIB_WEAK void lexer_write_next_lex_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer l) {
   (((out)->next_lex).pos = ((l).pos));
   (((out)->next_lex).line = ((l).line));
   (((out)->next_lex).col = ((l).col));
   ((out)->token_start = (((size_t)(0))));
 }
-SHUX_LIB_WEAK void lexer_write_tok_into(struct lexer_LexerResult * restrict out, struct token_Token t) {
+XLANG_LIB_WEAK void lexer_write_tok_into(struct lexer_LexerResult * restrict out, struct token_Token t) {
   (((out)->tok).kind = ((t).kind));
   (((out)->tok).line = ((t).line));
   (((out)->tok).col = ((t).col));
@@ -1354,39 +1354,39 @@ SHUX_LIB_WEAK void lexer_write_tok_into(struct lexer_LexerResult * restrict out,
   (((out)->tok).ident = ((t).ident));
   (((out)->tok).ident_len = ((t).ident_len));
 }
-SHUX_LIB_WEAK void lexer_next_impl(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK void lexer_next_impl(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * data) {
   struct lexer_Lexer l = lexer_skip_whitespace_and_comments(lex, data);
   if ((l).pos >= (data)->length) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, t));
   return;
  }
-  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 0) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 0) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = (l).line, .col = (l).col, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   (void)(lexer_write_next_lex_into(out, l));
   (void)(lexer_write_tok_into(out, t));
   return;
  }
   (void)(lexer_next_body_into(out, l, data));
 }
-SHUX_LIB_WEAK void lexer_next_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct shux_slice_uint8_t * data) {
+XLANG_LIB_WEAK void lexer_next_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, struct xlang_slice_uint8_t * data) {
   (void)(lexer_next_impl(out, lex, data));
 }
-SHUX_LIB_WEAK void lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
-  struct shux_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
+XLANG_LIB_WEAK void lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
+  struct xlang_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
   (void)(lexer_next_into(out, lex, &(source)));
 }
-SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
-  struct shux_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
+XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_buf(struct lexer_Lexer lex, uint8_t * restrict data, int32_t len) {
+  struct xlang_slice_uint8_t source = lexer_parser_slice_from_buf(data, len);
   return lexer_next_slice(lex, &(source));
 }
-SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, struct shux_slice_uint8_t * data) {
-  uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, struct xlang_slice_uint8_t * data) {
+  uint8_t c = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
   if (lexer_is_alpha(c)) {   size_t start = (l).pos;
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
   (l = (lexer_advance_one(l, c)));
-  while ((l).pos < (data)->length && lexer_is_alnum_underscore(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  while ((l).pos < (data)->length && lexer_is_alnum_underscore(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   }
   size_t len = (l).pos - start;
   struct token_Token tok = lexer_try_keyword(data, start, len, line0, col0);
@@ -1397,10 +1397,10 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   int32_t col0 = (l).col;
   int64_t ival = 0;
   (l = (lexer_advance_one(l, c)));
-  if (c == 48 && (l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 120 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 88) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  if (c == 48 && (l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 120 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 88) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   uint64_t hval = ((uint64_t)(0));
-  while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
     (l = (lexer_advance_one(l, hd)));
   }
@@ -1408,16 +1408,16 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
   (ival = (ival * 10 + (c - 48)));
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (ival = (ival * 10 + (d - 48)));
   }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   (l = (lexer_advance_one(l, 46)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   (l = (lexer_advance_one(l, 46)));
   double fval = ((double)(ival));
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (fval = (fval + frac * (d - 48)));
     (frac = (frac * 0.1));
@@ -1426,16 +1426,16 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_FLOAT, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 101 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 69) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 101 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 69) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
   int32_t exp_sign = 1;
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 45) {   (exp_sign = ((-1)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 45) {   (exp_sign = ((-1)));
   (l = (lexer_advance_one(l, 45)));
- } else {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 43) {   (l = (lexer_advance_one(l, 43)));
+ } else {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 43) {   (l = (lexer_advance_one(l, 43)));
  }
  }
   int32_t exp = 0;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (exp = (exp * 10 + (d - 48)));
   }
@@ -1458,14 +1458,14 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_INT, .line = line0, .col = col0, .int_val = ival, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   size_t start = (l).pos;
+  if (c == 46 && (l).pos + 1 < (data)->length && lexer_is_digit(((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]))) {   size_t start = (l).pos;
   int32_t line0 = (l).line;
   int32_t col0 = (l).col;
   (l = (lexer_advance_one(l, 46)));
   double fval = 0.0;
   double frac = 0.1;
-  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
-    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
+  while ((l).pos < (data)->length && lexer_is_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
+    uint8_t d = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (l = (lexer_advance_one(l, d)));
     (fval = (fval + frac * (d - 48)));
     (frac = (frac * 0.1));
@@ -1504,7 +1504,7 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
   if (c == 46) {
-    if ((l).pos + 1 < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 46) {
+    if ((l).pos + 1 < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 46 && ((l).pos + 1 < 0 || (size_t)((l).pos + 1) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos + 1]) == 46) {
       (l = (lexer_advance_one(l, 46)));
       (l = (lexer_advance_one(l, 46)));
       ((tok).kind = (token_TokenKind_TOKEN_ELLIPSIS));
@@ -1516,42 +1516,42 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   if (c == 59) {   ((tok).kind = (token_TokenKind_TOKEN_SEMICOLON));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 43) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 43) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_PLUS_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_PLUS));
  }
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 45) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
+  if (c == 45) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
   ((tok).kind = (token_TokenKind_TOKEN_ARROW));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_MINUS_EQ));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
   ((tok).kind = (token_TokenKind_TOKEN_MINUS));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 42) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 42) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_STAR_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_STAR));
  }
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 47) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 47) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_SLASH_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_SLASH));
  }
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 37) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 37) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_PERCENT_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_PERCENT));
  }
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 94) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 94) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_CARET_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_CARET));
  }
@@ -1560,34 +1560,34 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   if (c == 126) {   ((tok).kind = (token_TokenKind_TOKEN_TILDE));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 38) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 38) {   (l = (lexer_advance_one(l, 38)));
+  if (c == 38) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 38) {   (l = (lexer_advance_one(l, 38)));
   ((tok).kind = (token_TokenKind_TOKEN_AMPAMP));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_AMP_EQ));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
   ((tok).kind = (token_TokenKind_TOKEN_AMP));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 124) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 124) {   (l = (lexer_advance_one(l, 124)));
+  if (c == 124) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 124) {   (l = (lexer_advance_one(l, 124)));
   ((tok).kind = (token_TokenKind_TOKEN_PIPEPIPE));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_PIPE_EQ));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
   ((tok).kind = (token_TokenKind_TOKEN_PIPE));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 60) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 60) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_LE));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 60) {   (l = (lexer_advance_one(l, 60)));
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 60) {   (l = (lexer_advance_one(l, 60)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_LSHIFT_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_LSHIFT));
  }
@@ -1596,12 +1596,12 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   ((tok).kind = (token_TokenKind_TOKEN_LT));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 62) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 62) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_GE));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_RSHIFT_EQ));
  } else {   ((tok).kind = (token_TokenKind_TOKEN_RSHIFT));
  }
@@ -1610,7 +1610,7 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   ((tok).kind = (token_TokenKind_TOKEN_GT));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 33) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if (c == 33) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_NE));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
@@ -1623,11 +1623,11 @@ SHUX_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, str
   if (c == 64) {   ((tok).kind = (token_TokenKind_TOKEN_AT));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if (c == 61) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
+  if (c == 61) {   if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 62) {   (l = (lexer_advance_one(l, 62)));
   ((tok).kind = (token_TokenKind_TOKEN_FATARROW));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }
-  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (shux_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
+  if ((l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 61) {   (l = (lexer_advance_one(l, 61)));
   ((tok).kind = (token_TokenKind_TOKEN_EQ));
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };
  }

@@ -2,9 +2,9 @@
 # PERF-003：网络并发对标 Zig 门禁（连接 accept + echo 吞吐 + mixed P99）
 #
 # 检查：
-#   1) Shu client median ≤ Zig -O2（SHUX_PERF_FAIL_ON_NET_ZIG=1）
-#   2) Shu median ≤ tests/baseline/net-perf.tsv（SHUX_PERF_FAIL_ON_NET_REGRESSION=1）
-#   3) mixed P99 ≤ tests/baseline/net-perf-latency.tsv（SHUX_PERF_FAIL_ON_NET_P99=1）
+#   1) Shu client median ≤ Zig -O2（XLANG_PERF_FAIL_ON_NET_ZIG=1）
+#   2) Shu median ≤ tests/baseline/net-perf.tsv（XLANG_PERF_FAIL_ON_NET_REGRESSION=1）
+#   3) mixed P99 ≤ tests/baseline/net-perf-latency.tsv（XLANG_PERF_FAIL_ON_NET_P99=1）
 #
 # 用法：./tests/run-perf-net-zig-gate.sh
 set -e
@@ -46,18 +46,18 @@ done
 zig_baseline_validate_tsv "$ZIG_BASELINE_TSV"
 echo "net-perf manifest OK"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "perf-net-zig gate SKIP bench (no native shux; run in Docker/Linux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "perf-net-zig gate SKIP bench (no native xlang; run in Docker/Linux)" >&2
   exit 0
 fi
 
@@ -70,27 +70,27 @@ fi
 echo "=== PERF-003: network throughput vs Zig (echo + mixed + P99) ==="
 chmod +x tests/run-perf-net.sh
 
-NET_BENCH_CONNS="${SHUX_NET_BENCH_CONNS:-$([ -n "${CI:-}" ] && echo 256 || echo 1024)}"
-NET_UDP_PKTS="${SHUX_NET_UDP_PKTS:-$([ -n "${CI:-}" ] && echo 256 || echo 1024)}"
+NET_BENCH_CONNS="${XLANG_NET_BENCH_CONNS:-$([ -n "${CI:-}" ] && echo 256 || echo 1024)}"
+NET_UDP_PKTS="${XLANG_NET_UDP_PKTS:-$([ -n "${CI:-}" ] && echo 256 || echo 1024)}"
 
 run_net_bench() {
-  env SHUX="$SHUX_BIN" \
-    SHUX_PERF_FAIL_ON_NET_ZIG=1 \
-    SHUX_PERF_FAIL_ON_NET_REGRESSION=1 \
-    SHUX_PERF_FAIL_ON_NET_P99=1 \
-    SHUX_NET_BENCH_CONNS="$NET_BENCH_CONNS" \
-    SHUX_NET_UDP_PKTS="$NET_UDP_PKTS" \
+  env XLANG="$XLANG_BIN" \
+    XLANG_PERF_FAIL_ON_NET_ZIG=1 \
+    XLANG_PERF_FAIL_ON_NET_REGRESSION=1 \
+    XLANG_PERF_FAIL_ON_NET_P99=1 \
+    XLANG_NET_BENCH_CONNS="$NET_BENCH_CONNS" \
+    XLANG_NET_UDP_PKTS="$NET_UDP_PKTS" \
     ./tests/run-perf-net.sh --bench
 }
 
 if [ -n "${CI:-}" ] && ci_is_linux_x64 && command -v timeout >/dev/null 2>&1; then
   set +e
-  timeout 180 env SHUX="$SHUX_BIN" \
-    SHUX_PERF_FAIL_ON_NET_ZIG=1 \
-    SHUX_PERF_FAIL_ON_NET_REGRESSION=1 \
-    SHUX_PERF_FAIL_ON_NET_P99=1 \
-    SHUX_NET_BENCH_CONNS="$NET_BENCH_CONNS" \
-    SHUX_NET_UDP_PKTS="$NET_UDP_PKTS" \
+  timeout 180 env XLANG="$XLANG_BIN" \
+    XLANG_PERF_FAIL_ON_NET_ZIG=1 \
+    XLANG_PERF_FAIL_ON_NET_REGRESSION=1 \
+    XLANG_PERF_FAIL_ON_NET_P99=1 \
+    XLANG_NET_BENCH_CONNS="$NET_BENCH_CONNS" \
+    XLANG_NET_UDP_PKTS="$NET_UDP_PKTS" \
     ./tests/run-perf-net.sh --bench
   bench_ec=$?
   set -e

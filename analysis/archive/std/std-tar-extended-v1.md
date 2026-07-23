@@ -50,7 +50,7 @@ manifest：`tests/baseline/std-tar-extended.tsv`
 **report** 示例：
 
 ```
-shux: [SHUX_STD_TAR_EXTENDED] status=ok c=1 x=1 skip=0
+xlang: [XLANG_STD_TAR_EXTENDED] status=ok c=1 x=1 skip=0
 ```
 
 回归：保留 `tests/run-std-tar-ustar-gate.sh`（短路径 round-trip 不破）。

@@ -154,8 +154,8 @@ export extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8,
  * See implementation.
  */
 export extern function driver_argv_drop_subcommand(argc: i32, argv: *u8): *u8;
-/* See implementation (seed runtime_link_abi.from_x.c). For `shux run` / bare
-   `shux file.x`: append `-o <temp>` when no -o given so the product is built
+/* See implementation (seed runtime_link_abi.from_x.c). For `xlang run` / bare
+   `xlang file.x`: append `-o <temp>` when no -o given so the product is built
    in /tmp and exec'd, with no a.out and no generated C to stdout. */
 export extern function driver_argv_ensure_run_o(argc: i32, argv: *u8, out_argc: *i32): *u8;
 /* See implementation. */
@@ -735,7 +735,7 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
 }
 
 /**
- * `shux run file.x` (and bare `shux file.x` via entry): compile in memory and
+ * `xlang run file.x` (and bare `xlang file.x` via entry): compile in memory and
  * run the product directly. No a.out in the cwd and no generated C to stdout.
  * When no -o is given, driver_argv_ensure_run_o injects a temp /tmp path as
  * -o so the C/asm backend links a real executable (instead of the no-`-o`
@@ -752,18 +752,18 @@ export function main_cmd_run(argc: i32, argv: *u8): i32 {
    * Why: driver_argv_ensure_run_o silently injects a temp -o when none is
    * present, so run_argv alone cannot tell whether the user asked for
    * compile-only. When -o is explicit, skip the exec path so the compiled
-   * program's exit code does not leak through shux's own exit status. */
+   * program's exit code does not leak through xlang's own exit status. */
   let has_explicit_o: i32 = main_argv_has_o_flag(argc, argv);
   let run_argc: i32 = argc;
   let run_argv: *u8 = driver_argv_ensure_run_o(argc, argv, &run_argc);
   if (has_explicit_o != 0) {
-    /* Compile-only: do not set SHUX_RUN_QUIET (let cc warnings surface, since
+    /* Compile-only: do not set XLANG_RUN_QUIET (let cc warnings surface, since
      * the user explicitly requested an output path) and do not exec. */
     return main_run_compiler_x_path_impl(run_argc, run_argv);
   }
   /* mute generated-C warning noise so only program output is printed; cc
-     errors still surface (SHUX_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
-  /* "SHUX_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
+     errors still surface (XLANG_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
+  /* "XLANG_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
   let _q: u8[15] = [83, 72, 85, 88, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
   let _one: u8[2] = [49, 0];
   unsafe { setenv(&_q[0], &_one[0], 1); }
@@ -795,7 +795,7 @@ function main_argv_has_o_flag(argc: i32, argv: *u8): i32 {
 /**
  * Return 1 if argv[1] looks like a source path rather than a named subcommand.
  * Heuristic (PLATFORM: SHARED): ends with ".x", or contains '/' or '\\'.
- * Used by entry() so bare `shux file.x [-o out]` is not rejected as an unknown
+ * Used by entry() so bare `xlang file.x [-o out]` is not rejected as an unknown
  * command (historical product UX; many gates still invoke this form).
  * Contract: path may be truncated to path_cap-1 bytes by the caller; scan only
  * the provided len bytes. Null path or len <= 0 → 0.

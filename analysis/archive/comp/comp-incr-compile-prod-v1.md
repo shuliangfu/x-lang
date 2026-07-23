@@ -20,11 +20,11 @@
 | item_id | hook | 平台 | 说明 |
 |---------|------|------|------|
 | `prod_incr_smoke` | `run-comp-incr-compile.sh` | 全平台 | 二次编译 ratio 烟测 |
-| `prod_timing` | `run-obs-compile-phase-timing-gate.sh` | 全平台 | `SHUX_COMPILE_PHASE_TIMING` gate |
+| `prod_timing` | `run-obs-compile-phase-timing-gate.sh` | 全平台 | `XLANG_COMPILE_PHASE_TIMING` gate |
 | `prod_comp007` | `run-comp-incr-compile-gate.sh` | 全平台 | COMP-007 父 manifest |
 | `prod_comp020` | `run-comp-incr-compile-wave-gate.sh` | 全平台 | COMP-020 wave 父波次 |
 
-Darwin / 无 native `shux`：manifest 绿 + prod runnable **SKIP**。
+Darwin / 无 native `xlang`：manifest 绿 + prod runnable **SKIP**。
 
 ---
 
@@ -35,7 +35,7 @@ Darwin / 无 native `shux`：manifest 绿 + prod runnable **SKIP**。
 ```
 
 ```
-shux: [SHUX_COMP021_INCR_PROD] status=ok prod_ok=4 prod_run=2 prod_skip=2 skip=1
+xlang: [XLANG_COMP021_INCR_PROD] status=ok prod_ok=4 prod_run=2 prod_skip=2 skip=1
 ```
 
 - **prod_ok**：prod hook 已登记且父 COMP-020 manifest 绿

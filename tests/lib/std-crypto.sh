@@ -3,8 +3,8 @@
 #
 # 用法（source 后）：
 #   std_crypto_has_api MOD_X fn_name
-#   std_crypto_run_smoke SHUX_BIN smoke_x [tag]
-#   std_crypto_run_hook SHUX_BIN tests/run-*.sh
+#   std_crypto_run_smoke XLANG_BIN smoke_x [tag]
+#   std_crypto_run_hook XLANG_BIN tests/run-*.sh
 
 # 检查 mod.x 是否导出指定函数。
 std_crypto_has_api() {
@@ -15,16 +15,16 @@ std_crypto_has_api() {
 
 # 编译并运行烟测 .x；期望退出码 0。
 std_crypto_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_crypto_${tag}_$$"
+  local exe="/tmp/xlang_std_crypto_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-crypto FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -40,17 +40,17 @@ std_crypto_run_smoke() {
 
 # 运行 hook 脚本（run-crypto.sh / run-random.sh）。
 std_crypto_run_hook() {
-  local shux="$1"
+  local xlang="$1"
   local hook="$2"
   if [ ! -f "$hook" ]; then
     echo "std-crypto FAIL: missing hook $hook" >&2
     return 1
   fi
   chmod +x "$hook" 2>/dev/null || true
-  SHUX="$shux" "$hook"
+  XLANG="$xlang" "$hook"
 }
 
-# 判断本机能否直接执行给定 shux 二进制。
+# 判断本机能否直接执行给定 xlang 二进制。
 std_crypto_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -63,14 +63,14 @@ std_crypto_native_shu() {
   esac
 }
 
-# 解析可用 shux；失败返回 1。
+# 解析可用 xlang；失败返回 1。
 std_crypto_resolve_shu() {
-  if [ -n "${SHUX:-}" ] && std_crypto_native_shu "$SHUX"; then
-    echo "$SHUX"
+  if [ -n "${XLANG:-}" ] && std_crypto_native_shu "$XLANG"; then
+    echo "$XLANG"
     return 0
   fi
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if std_crypto_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -79,7 +79,7 @@ std_crypto_resolve_shu() {
   return 1
 }
 
-# crypto.o 是否含 core.x 链入符号（无 shux-c 时仅 glue）。
+# crypto.o 是否含 core.x 链入符号（无 xlang-c 时仅 glue）。
 std_crypto_o_has_x_symbols() {
   local o="$1"
   nm "$o" 2>/dev/null | grep -qE ' crypto_(mem_eq_c|sha256_c|hmac_sha256_c)$'

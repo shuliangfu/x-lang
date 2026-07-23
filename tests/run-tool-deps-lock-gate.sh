@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL_DEPS_LOCK_DOC:-analysis/tool-deps-lock-v1.md}"
-MANIFEST="${SHUX_TOOL_DEPS_LOCK_MANIFEST:-tests/baseline/tool-deps-lock.tsv}"
-PKG_TSV=tests/fixtures/pkgmgr/shux.pkg.tsv
-LOCK_TSV=tests/fixtures/pkgmgr/shux.pkg.lock.tsv
+DOC="${XLANG_TOOL_DEPS_LOCK_DOC:-analysis/tool-deps-lock-v1.md}"
+MANIFEST="${XLANG_TOOL_DEPS_LOCK_MANIFEST:-tests/baseline/tool-deps-lock.tsv}"
+PKG_TSV=tests/fixtures/pkgmgr/xlang.pkg.tsv
+LOCK_TSV=tests/fixtures/pkgmgr/xlang.pkg.lock.tsv
 MIN_RULES=6
 MIN_LOCKED=2
 
@@ -17,7 +17,7 @@ MIN_LOCKED=2
 
 echo "=== TOOL-008: deps lock manifest ==="
 for f in "$DOC" "$MANIFEST" "$PKG_TSV" "$LOCK_TSV" \
-  scripts/shux-deps-lock.sh scripts/shux-deps-verify.sh analysis/tool-pkgmgr-v1.md; do
+  scripts/xlang-deps-lock.sh scripts/xlang-deps-verify.sh analysis/tool-pkgmgr-v1.md; do
   if [ ! -f "$f" ]; then
     echo "tool-deps-lock gate FAIL: missing $f" >&2
     exit 1
@@ -112,7 +112,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-deps-lock manifest OK (rules=${RULE_N} locked=${LOCKED_N})"
 
-chmod +x scripts/shux-deps-lock.sh scripts/shux-deps-verify.sh tests/run-deps-lock.sh
+chmod +x scripts/xlang-deps-lock.sh scripts/xlang-deps-verify.sh tests/run-deps-lock.sh
 ./tests/run-deps-lock.sh
 
 echo "tool-deps-lock gate OK"

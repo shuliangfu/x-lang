@@ -13,7 +13,7 @@ export extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
 export extern "C" function shu_format_x_document(
   doc: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 export extern "C" function driver_fmt_check_only_get(): i32;
-export extern "C" function shux_write_path_bytes(path: *u8, data: *u8, len: usize): i32;
+export extern "C" function xlang_write_path_bytes(path: *u8, data: *u8, len: usize): i32;
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 
@@ -242,7 +242,7 @@ export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
   if (changed != 0) {
     let wr: i32 = 0;
     unsafe {
-      wr = shux_write_path_bytes(&path_buf[0], out, fmt_len as usize);
+      wr = xlang_write_path_bytes(&path_buf[0], out, fmt_len as usize);
     }
     if (wr != 0) {
       unsafe {

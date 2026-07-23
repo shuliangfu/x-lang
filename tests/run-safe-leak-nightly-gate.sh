@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_LEAK_DOC:-analysis/safe-leak-nightly-v1.md}"
-MANIFEST="${SHUX_LEAK_MANIFEST:-tests/baseline/safe-leak-nightly.tsv}"
+DOC="${XLANG_LEAK_DOC:-analysis/safe-leak-nightly-v1.md}"
+MANIFEST="${XLANG_LEAK_MANIFEST:-tests/baseline/safe-leak-nightly.tsv}"
 MIN_CASES=3
 
 # shellcheck source=tests/lib/safe-leak.sh
@@ -102,7 +102,7 @@ if [ "$CASE_N" -lt "$MIN_CASES" ]; then
   exit 1
 fi
 
-for kw in leak nightly ASAN report runnable SHUX_LEAK_NIGHTLY; do
+for kw in leak nightly ASAN report runnable XLANG_LEAK_NIGHTLY; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "safe-leak-nightly gate FAIL: doc missing keyword $kw" >&2
     exit 1
@@ -121,27 +121,27 @@ fi
 echo "safe-leak-nightly manifest OK (cases=${CASE_N})"
 
 if [ "$(uname -s)" = "Linux" ] && safe_leak_asan_ok; then
-  SHUX_BIN="${SHUX:-}"
-  if [ -z "$SHUX_BIN" ]; then
-    for cand in ./compiler/shux-c ./compiler/shux; do
+  XLANG_BIN="${XLANG:-}"
+  if [ -z "$XLANG_BIN" ]; then
+    for cand in ./compiler/xlang-c ./compiler/xlang; do
       if native_shu "$cand"; then
-        SHUX_BIN="$cand"
+        XLANG_BIN="$cand"
         break
       fi
     done
   fi
-  if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
+  if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
     echo "=== SAFE-005: leak nightly smoke (1 case) ==="
     make -C compiler -q 2>/dev/null || make -C compiler
     # F-03 v2：heap 已纯 .x，不再 ensure heap.o
-    if safe_leak_run_x "$SHUX_BIN" tests/leak/no_leak_heap.x case_heap; then
+    if safe_leak_run_x "$XLANG_BIN" tests/leak/no_leak_heap.x case_heap; then
       echo "safe-leak-nightly smoke OK"
     else
       echo "safe-leak-nightly gate FAIL: smoke" >&2
       exit 1
     fi
   else
-    echo "safe-leak-nightly gate SKIP smoke (no native shux)" >&2
+    echo "safe-leak-nightly gate SKIP smoke (no native xlang)" >&2
   fi
 else
   echo "safe-leak-nightly gate SKIP smoke (non-Linux or no ASAN)" >&2

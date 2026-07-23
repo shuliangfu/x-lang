@@ -15,7 +15,7 @@
 //   + wave3 Cap residual pure：format print（check_ok / fail rc·path / smoke parse·typeck）
 // See implementation.
 //     print/fail format _impl。
-//   + wave4 Cap residual pure：defines_set_at（G.7 shux_ptr_slot_set）+ os_define_lit
+//   + wave4 Cap residual pure：defines_set_at（G.7 xlang_ptr_slot_set）+ os_define_lit
 // See implementation.
 //   + wave5 Cap residual pure：phase timing BSS + begin/end（f64 acc/start + active i32）
 // See implementation.
@@ -30,13 +30,13 @@
 // See implementation.
 // See implementation.
 // See implementation.
-//     shux_driver_path_read_preprocess_malloc（no file-view/preprocess in .x）；
+//     xlang_driver_path_read_preprocess_malloc（no file-view/preprocess in .x）；
 // See implementation.
 // See implementation.
-//     shux_driver_run_thread_on_large_stack_pthread（no pthread_attr/posix_memalign in .x）；
+//     xlang_driver_run_thread_on_large_stack_pthread（no pthread_attr/posix_memalign in .x）；
 // See implementation.
 // See implementation.
-//     （SHUX_DEBUG_PIPE truthy → append_* + diag_report；no va_list reportf）；
+//     （XLANG_DEBUG_PIPE truthy → append_* + diag_report；no va_list reportf）；
 // See implementation.
 // Cap residual pure leaf closed for driver_abi debug_pipe note（OS rest _impl already 0）。
 //   + wave14 Cap residual pure：rt_asm_stub GAS line table + out_append_cstr
@@ -44,7 +44,7 @@
 //   + wave15 Cap residual pure：rt_entry buffer slots + path_max/entry_dir slots
 //     (BSS u8[N]; fmt_argv closed in wave21).
 //   + wave16 Cap residual pure：driver_x_emit work BSS + get/set/reset/cleanup
-//     (p: G.7 shux_ptr_slot_* on LP64 raw u8[208]; i32[17]/usize[5]; free+dep_ctx destroy).
+//     (p: G.7 xlang_ptr_slot_* on LP64 raw u8[208]; i32[17]/usize[5]; free+dep_ctx destroy).
 //   + wave17 Cap residual pure：driver_asm_work BSS + get/set/reset/cleanup
 //     (p: raw u8[200] 25×ptr; i32[16]/usize[4]; free+dep_ctx+fclose asm_out; clear tmp_path[0]).
 //   + wave18 Cap residual pure：driver_parsed_work BSS + get/set/reset/cleanup
@@ -52,15 +52,15 @@
 //   + wave19 Cap residual pure：driver_pipeline_dep_ctx field get/set (LP64 fixed offsets
 //     + wave14 LE load/store; no C struct in .x).
 //   + wave20 Cap residual pure：driver_preamble_{io_net,fs_path}_line_at/count
-//     (G.7 shux_ptr_slot_get on Cap-giant-string table raw base; tables stay in rt_preamble).
+//     (G.7 xlang_ptr_slot_get on Cap-giant-string table raw base; tables stay in rt_preamble).
 //   + wave21 Cap residual pure：driver_entry_fmt_argv_slot
-//     (u8 lit BSS "shux"/"fmt" + 2× LP64 ptr slots via G.7 shux_ptr_slot_set; no *u8[2] lit).
+//     (u8 lit BSS "xlang"/"fmt" + 2× LP64 ptr slots via G.7 xlang_ptr_slot_set; no *u8[2] lit).
 //   + wave22 Cap residual pure：driver_preamble_fputs
-//     (null guard + g05 prologue shux_driver_fputs_opaque FILE* cast; no FILE* in .x).
+//     (null guard + g05 prologue xlang_driver_fputs_opaque FILE* cast; no FILE* in .x).
 //   + wave23 Cap residual pure：calloc family + driver_asm_pctx_apply_host_defaults
 //     (libc calloc/malloc/memset + pipeline_sizeof_*; host #ifdef → OS residual helpers).
 //   + wave24 Cap residual pure：outbuf free/len/data + ptr/size table free/get/set
-//     + diag_snapshot_free (pairs wave23 calloc; G.7 shux_ptr_slot_* + LE usize; free).
+//     + diag_snapshot_free (pairs wave23 calloc; G.7 xlang_ptr_slot_* + LE usize; free).
 //   + wave25 Cap residual pure：tmp path BSS slots (asm 64B + parsed 64B/256B)
 //     (open_out seed always uses accessors; no dual BSS under hybrid).
 //   + wave26 Cap residual pure：driver_parsed_fclose / fclose_rc / write_out
@@ -68,19 +68,19 @@
 //   + wave27 Cap residual pure：driver_parsed_open_out_file
 //     (stdout gate pure; mkstemp/rename/close + g05 fopen_write; seed tmp_prefix residual).
 //   + wave28 Cap residual pure：driver_parsed_invoke_cc
-//     (std .o path pack + set/clear user .o + shux_invoke_cc + fail/KEEP_C cleanup;
-//      no va_list reportf; c_paths[1] via G.7 shux_ptr_slot_set).
+//     (std .o path pack + set/clear user .o + xlang_invoke_cc + fail/KEEP_C cleanup;
+//      no va_list reportf; c_paths[1] via G.7 xlang_ptr_slot_set).
 //   + wave31 Cap residual pure：driver_parsed_deps_has_std_io_{core,driver}
 //     + apply_preamble_skip + maybe_dump_prep
-//     (G.7 shux_ptr_slot_get on dep_paths; strcmp lit; codegen skip mask bits;
-//      dump via shux_write_path_bytes + fixed-arity diag, no va_list reportf).
+//     (G.7 xlang_ptr_slot_get on dep_paths; strcmp lit; codegen skip mask bits;
+//      dump via xlang_write_path_bytes + fixed-arity diag, no va_list reportf).
 //   + wave32 Cap residual pure：driver_parsed field accessors + try_c_after_pp
 //     (LP64 fixed offsetof on DriverCompileParsedAbi + LE i32 / G.7 ptr load;
 //      lib_roots = base+16 embedded array; opt default BSS lit "2";
 //      try_c_after_pp product NO_C stub returns -2).
 //   + wave33 Cap residual pure：driver_x_emit clear/bind/take/get/lib_root_at/
 //     effective_lib_roots + try_extern_via_cparser
-//     (G.7 shux_ptr_slot_* on always-seed c_path_cell / lib_roots_raw / path+lib slots).
+//     (G.7 xlang_ptr_slot_* on always-seed c_path_cell / lib_roots_raw / path+lib slots).
 //   + wave34 Cap residual pure：driver_asm try_c stubs + use_compiler_impl_c +
 //     bind_lib_roots + argv0 + collect_defines/defines_as_u8/ndefines_get
 //     (product NO_C fixed -2/-1/0; one_root BSS + G.7; defines table BSS 64×LP64 +
@@ -88,7 +88,7 @@
 //   + wave35 Cap residual pure：driver_typeck_ndep_set / dep_ptrs_set +
 //     driver_diag_push_file / restore + driver_dispatch_lib_root_at / opt_default
 //     (G.7 typeck_ndep_store + dep_module/arena_set; diag_push_file/restore;
-//      G.7 shux_ptr_slot_get on roots; opt default reuses wave32 BSS lit "2").
+//      G.7 xlang_ptr_slot_get on roots; opt default reuses wave32 BSS lit "2").
 //   + wave36 Cap residual pure：driver_dispatch_lib_roots_from_key +
 //     driver_dispatch_run_compiler_parsed
 //     (BSS 16×512 bufs + 16×LP64 root slots; G.7 driver_lib_roots_from_key;
@@ -96,21 +96,21 @@
 //      opt default reuses wave32 lit "2").
 //   + wave37 Cap residual pure：driver_arena/module_static_{slot,size} +
 //     driver_run_stack_esc_gate_on_large_stack + driver_parser_diag_fail_tok_kind
-//     (Cap-global BSS base residual; Cap-fn-ptr residual; BSS pack shux_slice_uint8_t
+//     (Cap-global BSS base residual; Cap-fn-ptr residual; BSS pack xlang_slice_uint8_t
 //      + parser_diag_fail_at_token_kind; fixed 128MiB/2MiB sizes).
 //   + wave38 Cap residual pure：driver_asm_elf_ctx_free + driver_parse_into_buf_rc
 //     (free pairs wave23 elf_ctx_calloc; Cap-struct-return residual
-//      shux_parser_parse_into_buf_rc hides parser_ParseIntoResult from .x).
+//      xlang_parser_parse_into_buf_rc hides parser_ParseIntoResult from .x).
 //   + wave39 Cap residual pure：driver_stdio_stdout + driver_asm_fwrite +
 //     driver_x_emit_fwrite_stdout
-//     (g05 stdout_ptr + fwrite_opaque; Cap OS residual shux_driver_fwrite_stdout_n
+//     (g05 stdout_ptr + fwrite_opaque; Cap OS residual xlang_driver_fwrite_stdout_n
 //      for count+fflush ABI; FILE* cast stays harness / seed).
 //   + wave40 Cap residual pure：driver_stdio_stderr + driver_asm_fflush_stdout +
 //     driver_asm_fopen_wb + driver_asm_write_metric_o
 //     (g05 stderr_ptr / fflush_stdout / fopen_wb_opaque; write_metric pure orch:
 //      fopen_wb + fwrite one 0 byte + fclose_opaque).
 //   + wave41 Cap residual pure：driver_asm_mkstemp_fdopen
-//     (null + WINDOWS gate residual; template pure via tmp_prefix + "shux_asm_XXXXXX";
+//     (null + WINDOWS gate residual; template pure via tmp_prefix + "xlang_asm_XXXXXX";
 //      mkstemp/close/unlink libc; g05 fdopen_wb_opaque).
 //   + wave42 Cap residual pure：driver_exec_compiled_body
 //     (null/argc + G.7 path_is_non_exe pure; Cap residual scan opaque cast + spawn_wait).
@@ -119,7 +119,7 @@
 //      Cap residual argv0 get + access/spawn OS residual).
 //   + wave44 Cap residual pure：driver_print_usage_write
 //     (color policy pure: NO_COLOR nonnull / FORCE truthy / isatty;
-//      Cap residual shux_driver_usage_write_stdout holds giant plain/color lit +
+//      Cap residual xlang_driver_usage_write_stdout holds giant plain/color lit +
 //      fwrite+fflush; .x cannot host multi-line \\n usage tables).
 //
 
@@ -137,7 +137,7 @@ export extern "C" function codegen_reset_preamble_skip_mask(): void;
 /** OR bits into preamble skip mask. Bits: 1=CORE_MACROS, 2=DRIVER_HANDLE, 4=UNDEF_REDEFINE, 8=WEAK_IO_BATCH. */
 export extern "C" function codegen_or_preamble_skip_mask(mask: i32): void;
 /** Permanent IO residual: write bytes to path (runtime_io_abi). 0 = success. */
-export extern "C" function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32;
+export extern "C" function xlang_write_path_bytes(path: *u8, data: *u8, len: i64): i32;
 /** Pipeline authority: store typeck_ndep (G.7; used by wave35 driver_typeck_ndep_set). */
 export extern "C" function typeck_ndep_store(n: i32): void;
 /** Pipeline authority: typeck_dep_module_ptrs[i] = mod (G.7; wave35 dep_ptrs_set). */
@@ -156,28 +156,28 @@ export extern "C" function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8,
 export extern "C" function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32;
 /** Permanent OS wall-clock surface (seed rest). Returns seconds as f64.
  * PLATFORM: POSIX gettimeofday / WINDOWS time — hides timeval layout from .x. */
-export extern "C" function shux_driver_wall_clock_sec(): f64;
+export extern "C" function xlang_driver_wall_clock_sec(): f64;
 /** Permanent OS indirect call surface (seed rest). Invokes fn(arg) when fn != null.
  * PLATFORM: SHARED — .x cannot safely perform indirect function calls; hide cast in rest. */
-export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
+export extern "C" function xlang_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
 /** Permanent OS RLIMIT_STACK raise surface (seed rest).
  * PLATFORM: POSIX getrlimit/setrlimit; WINDOWS no-op — hides struct rlimit from .x. */
-export extern "C" function shux_driver_bump_stack_limit(want_bytes: i64): void;
+export extern "C" function xlang_driver_bump_stack_limit(want_bytes: i64): void;
 /** Permanent OS path-read + preprocess surface (seed rest).
- * PLATFORM: SHARED — runtime file view + shux_preprocess; hides IO/preprocess ABI from .x. */
-export extern "C" function shux_driver_path_read_preprocess_malloc(path: *u8): *u8;
+ * PLATFORM: SHARED — runtime file view + xlang_preprocess; hides IO/preprocess ABI from .x. */
+export extern "C" function xlang_driver_path_read_preprocess_malloc(path: *u8): *u8;
 /** Permanent OS large-stack pthread create/join surface (seed rest).
  * PLATFORM: POSIX pthread_attr / posix_memalign / pthread_create+join; hides OS layouts from .x.
- * Default stack 256MiB; SHUX_STACK_LIMIT_MB (64..8192) overrides. Falls back to current-stack path. */
-export extern "C" function shux_driver_run_thread_on_large_stack_pthread(fn: *u8, arg: *u8): void;
+ * Default stack 256MiB; XLANG_STACK_LIMIT_MB (64..8192) overrides. Falls back to current-stack path. */
+export extern "C" function xlang_driver_run_thread_on_large_stack_pthread(fn: *u8, arg: *u8): void;
 // Wave3 format print pure: reuse diagnostic append authority (G.7) + fixed-arity diag report.
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32;
 export extern "C" function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32;
 // Wave4/16: G.7 reuse pipeline pointer-slot authority (defines / work_p raw / void** tables).
-export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
-export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
+export extern "C" function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
+export extern "C" function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 /** Destroy heap PipelineDepCtx (ast_pool authority). Used by work cleanup pure.
  * PLATFORM: SHARED — rest/cold free path; null-safe in C body. */
 export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
@@ -186,7 +186,7 @@ export extern "C" function pipeline_dep_ctx_heap_destroy(ctx: *u8): void;
 export extern "C" function driver_asm_fclose(fp: *u8): void;
 /* wave26: driver_parsed_fclose is pure in this TU (no seed extern under hybrid). */
 /** Always-seed Cap-giant-string data residual: address of driver_preamble_io_net_lines[]
- * (pointer table in seeds/rt_preamble.from_x.c). Pure line_at indexes via shux_ptr_slot_get.
+ * (pointer table in seeds/rt_preamble.from_x.c). Pure line_at indexes via xlang_ptr_slot_get.
  * PLATFORM: SHARED — table text stays C; only base address is seed surface. */
 export extern "C" function driver_preamble_io_net_lines_raw(): *u8;
 /** Always-seed Cap-giant-string data residual: address of driver_preamble_fs_path_lines[].
@@ -206,10 +206,10 @@ export extern "C" function driver_stack_esc_gate_thread_fn_ptr(): *u8;
 /** Cap-struct-return residual: call parser_parse_into_buf and unpack ok/main_idx.
  * Wave38 pure driver_parse_into_buf_rc owns null guards then calls this.
  * PLATFORM: SHARED — .x cannot safely consume C struct returns; hide in seed rest. */
-export extern "C" function shux_parser_parse_into_buf_rc(
+export extern "C" function xlang_parser_parse_into_buf_rc(
   arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32
 ): i32;
-/** Parser authority: fail token kind from shux_slice_uint8_t* source (LP64 pack).
+/** Parser authority: fail token kind from xlang_slice_uint8_t* source (LP64 pack).
  * Wave37 pure packs data+length into BSS slice then calls this.
  * PLATFORM: SHARED — G.7 single authority parser_diag_fail_at_token_kind. */
 export extern "C" function parser_diag_fail_at_token_kind(source: *u8): i32;
@@ -235,7 +235,7 @@ let g_driver_on_large_stack_thread_flag: i32[1] = [0];
 // dep path: single *u8 cell (import logic path pointer; no owned buffer).
 // entry_source_len / path_last_preprocess_len: i64[1] so store/load use [0] without &scalar.
 // Rest path_read_impl writes preprocess len via driver_path_last_preprocess_len_store.
-// Wave13 pure: load_and_maybe_debug emits SHUX_DEBUG_PIPE note via append + diag_report.
+// Wave13 pure: load_and_maybe_debug emits XLANG_DEBUG_PIPE note via append + diag_report.
 let g_driver_current_dep_path: *u8 = 0 as *u8;
 let g_pipeline_entry_source_len: i64[1] = [0];
 let g_driver_path_last_preprocess_len: i64[1] = [0];
@@ -250,7 +250,7 @@ let g_compile_phase_active: i32[3] = [0, 0, 0];
 
 // See implementation.
 // See implementation.
-// driver_env_flag_truthy: G.7 single env truthiness for SHUX_* gates / color force.
+// driver_env_flag_truthy: G.7 single env truthiness for XLANG_* gates / color force.
 /**
  * Truthiness for a process env flag name (G.7 single path for driver env gates).
  * True when the value is non-null, non-empty, and not ASCII '0'.
@@ -335,13 +335,13 @@ function driver_parse_u32_cstr(s: *u8): i64 {
 export extern "C" function driver_check_quiet_ok_get(): i32;
 
 export extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
-export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
+export extern "C" function xlang_cstr_offset(s: *u8, off: i32): *u8;
 /** Permanent OS uname host-define surface (seed rest).
- * PLATFORM: POSIX uname(struct utsname) — hides utsname layout from .x; appends SHUX_OS_*/SHUX_ARCH_*. */
-export extern "C" function shux_driver_argv_append_uname(defines: *u8, ndefines: i32, max_defines: i32): i32;
+ * PLATFORM: POSIX uname(struct utsname) — hides utsname layout from .x; appends XLANG_OS_*/XLANG_ARCH_*. */
+export extern "C" function xlang_driver_argv_append_uname(defines: *u8, ndefines: i32, max_defines: i32): i32;
 export extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 export extern "C" function driver_get_module_main_func_index(m: *u8): i32;
-export extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
+export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 export extern "C" function free(p: *u8): void;
 export extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
 
@@ -465,11 +465,11 @@ export function driver_path_last_preprocess_len(): i64 {
 }
 
 /** Pure orch: path-read + preprocess via permanent OS surface.
- * Wave11 pure: forwards to shux_driver_path_read_preprocess_malloc (no path_read _impl residual).
+ * Wave11 pure: forwards to xlang_driver_path_read_preprocess_malloc (no path_read _impl residual).
  * PLATFORM: SHARED pure orch; file view + preprocess stay in seed rest. */
 #[no_mangle]
 export function driver_path_read_preprocess_malloc(path: *u8): *u8 {
-  unsafe { return shux_driver_path_read_preprocess_malloc(path); }
+  unsafe { return xlang_driver_path_read_preprocess_malloc(path); }
   return 0 as *u8;
 }
 
@@ -1010,19 +1010,19 @@ export function driver_print_check_ok(input_path: *u8): void {
 }
 
 /** Wall-clock seconds for compile-phase timing (begin/end).
- * Wave7 pure: forwards to permanent OS surface shux_driver_wall_clock_sec (no timeval in .x).
+ * Wave7 pure: forwards to permanent OS surface xlang_driver_wall_clock_sec (no timeval in .x).
  * PLATFORM: SHARED pure authority in thin; OS layout stays in seed rest; FROM_X no pure-dup. */
 #[no_mangle]
 export function compile_phase_now_sec(): f64 {
   unsafe {
-    return shux_driver_wall_clock_sec();
+    return xlang_driver_wall_clock_sec();
   }
   return 0.0;
 }
 
 /** Run fn(arg) on the current thread under large-stack mark + stack limit bump.
  * Wave8 pure orch: null gate + mark/bump; indirect call via permanent OS surface
- * shux_driver_call_fn_void_arg (no call_fn _impl residual).
+ * xlang_driver_call_fn_void_arg (no call_fn _impl residual).
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C twin; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
@@ -1032,7 +1032,7 @@ export function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   driver_large_stack_thread_mark(1);
   driver_bump_stack_limit();
   unsafe {
-    shux_driver_call_fn_void_arg(fn, arg);
+    xlang_driver_call_fn_void_arg(fn, arg);
   }
   driver_large_stack_thread_mark(0);
 }
@@ -1062,7 +1062,7 @@ export function driver_compile_phase_index_ok(phase: i32): i32 {
  */
 #[no_mangle]
 export function driver_compile_phase_timing_enabled(): i32 {
-  return driver_env_nonnull("SHUX_COMPILE_PHASE_TIMING");
+  return driver_env_nonnull("XLANG_COMPILE_PHASE_TIMING");
 }
 
 /** Load accumulated phase ms from thin BSS (0 if phase out of range).
@@ -1125,7 +1125,7 @@ export function driver_compile_phase_timing_end(phase: i32): void {
 
 /** Print compile phase timing note then clear thin BSS.
  * Wave6 pure: whole milliseconds via driver_diag_append_* + diag_report (no va_list reportf).
- * Fractional sub-ms is truncated (f64→i32); sufficient for SHUX_COMPILE_PHASE_TIMING notes.
+ * Fractional sub-ms is truncated (f64→i32); sufficient for XLANG_COMPILE_PHASE_TIMING notes.
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps integer-ms twin; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_flush(): void {
@@ -1194,7 +1194,7 @@ export function driver_sanitize_address_get(): i32 {
     if (p[0] != 0) {
       return 1;
     }
-    return driver_env_flag_truthy("SHUX_SANITIZE_ADDRESS");
+    return driver_env_flag_truthy("XLANG_SANITIZE_ADDRESS");
   }
   return 0;
 }
@@ -1206,7 +1206,7 @@ export function driver_sanitize_address_get(): i32 {
  */
 #[no_mangle]
 export function driver_typeck_force_c_enabled(): i32 {
-  return driver_env_flag_truthy("SHUX_TYPECK_FORCE_C");
+  return driver_env_flag_truthy("XLANG_TYPECK_FORCE_C");
 }
 
 /** Exported function `driver_asm_build_skip_typeck`.
@@ -1215,7 +1215,7 @@ export function driver_typeck_force_c_enabled(): i32 {
  */
 #[no_mangle]
 export function driver_asm_build_skip_typeck(): i32 {
-  return driver_env_flag_truthy("SHUX_ASM_BUILD_SKIP_TYPECK");
+  return driver_env_flag_truthy("XLANG_ASM_BUILD_SKIP_TYPECK");
 }
 
 /** Exported function `driver_asm_entry_emit_heavy`.
@@ -1224,7 +1224,7 @@ export function driver_asm_build_skip_typeck(): i32 {
  */
 #[no_mangle]
 export function driver_asm_entry_emit_heavy(): i32 {
-  return driver_env_flag_truthy("SHUX_ASM_ENTRY_EMIT_HEAVY");
+  return driver_env_flag_truthy("XLANG_ASM_ENTRY_EMIT_HEAVY");
 }
 
 /** Exported function `driver_pipeline_no_large_stack_env`.
@@ -1233,7 +1233,7 @@ export function driver_asm_entry_emit_heavy(): i32 {
  */
 #[no_mangle]
 export function driver_pipeline_no_large_stack_env(): i32 {
-  return driver_env_flag_truthy("SHUX_PIPELINE_NO_LARGE_STACK");
+  return driver_env_flag_truthy("XLANG_PIPELINE_NO_LARGE_STACK");
 }
 
 /** Exported function `driver_asm_entry_module_only_from_env`.
@@ -1242,7 +1242,7 @@ export function driver_pipeline_no_large_stack_env(): i32 {
  */
 #[no_mangle]
 export function driver_asm_entry_module_only_from_env(): i32 {
-  return driver_env_flag_truthy("SHUX_ASM_ENTRY_MODULE_ONLY");
+  return driver_env_flag_truthy("XLANG_ASM_ENTRY_MODULE_ONLY");
 }
 
 /** Exported function `driver_asm_parse_metric_only_from_env`.
@@ -1251,7 +1251,7 @@ export function driver_asm_entry_module_only_from_env(): i32 {
  */
 #[no_mangle]
 export function driver_asm_parse_metric_only_from_env(): i32 {
-  return driver_env_flag_truthy("SHUX_ASM_PARSE_METRIC_ONLY");
+  return driver_env_flag_truthy("XLANG_ASM_PARSE_METRIC_ONLY");
 }
 
 // driver_pipeline_entry_source_len_i32: see function docblock below.
@@ -1274,9 +1274,9 @@ export function driver_pipeline_entry_source_len_i32(): i32 {
   return 0;
 }
 
-// ---- G-02f-400 / wave4 pure：defines_set_at via shux_ptr_slot_set (G.7); path_last pure wave2 ----
+// ---- G-02f-400 / wave4 pure：defines_set_at via xlang_ptr_slot_set (G.7); path_last pure wave2 ----
 /** Store defines[i] = s for argv -D table (defines is opaque *u8 for **char).
- * Null defines or negative i is a no-op. Uses pipeline shux_ptr_slot_set as the single
+ * Null defines or negative i is a no-op. Uses pipeline xlang_ptr_slot_set as the single
  * pointer-slot write authority (G.7) — no second **write path in driver rest.
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
@@ -1288,12 +1288,12 @@ export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
     return;
   }
   unsafe {
-    shux_ptr_slot_set(defines, i, s);
+    xlang_ptr_slot_set(defines, i, s);
   }
 }
 
 /**
- * Desired RLIMIT_STACK soft size in bytes from SHUX_STACK_LIMIT_MB (or default).
+ * Desired RLIMIT_STACK soft size in bytes from XLANG_STACK_LIMIT_MB (or default).
  * Default is 512 MiB. Env must parse as u32 in [64, 8192] MiB; otherwise default.
  * @return i64 — want bytes (> 0)
  * wave228 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
@@ -1303,7 +1303,7 @@ export function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
 export function driver_stack_limit_want_bytes(): i64 {
   let def: i64 = 512 as i64 * 1024 as i64 * 1024 as i64;
   unsafe {
-    let e: *u8 = link_abi_getenv("SHUX_STACK_LIMIT_MB");
+    let e: *u8 = link_abi_getenv("XLANG_STACK_LIMIT_MB");
     if (e == 0 as *u8) {
       return def;
     }
@@ -1324,12 +1324,12 @@ export function driver_stack_limit_want_bytes(): i64 {
 
 // ---- G-02f-402 / wave9：bump_stack orch pure / set_entry_len / phase_timing enabled pure / os_define_lit wave4 ----
 /** Raise RLIMIT_STACK soft limit using env-derived want bytes.
- * Wave9 pure: want pure in thin; setrlimit via permanent OS surface shux_driver_bump_stack_limit.
+ * Wave9 pure: want pure in thin; setrlimit via permanent OS surface xlang_driver_bump_stack_limit.
  * PLATFORM: SHARED pure orch; OS layout stays in seed rest; FROM_X no pure-dup setrlimit _impl. */
 #[no_mangle]
 export function driver_bump_stack_limit(): void {
   unsafe {
-    shux_driver_bump_stack_limit(driver_stack_limit_want_bytes());
+    xlang_driver_bump_stack_limit(driver_stack_limit_want_bytes());
   }
 }
 
@@ -1347,7 +1347,7 @@ export function driver_set_pipeline_entry_source_len(len: i64): void {
  */
 #[no_mangle]
 export function compile_phase_timing_enabled(): i32 {
-  return driver_env_nonnull("SHUX_COMPILE_PHASE_TIMING");
+  return driver_env_nonnull("XLANG_COMPILE_PHASE_TIMING");
 }
 
 /** Map target OS kind (1..4) to a static define literal pointer (OS_LINUX/…).
@@ -1374,7 +1374,7 @@ export function driver_os_define_lit(kind: i32): *u8 {
 
 /** Emit XP003 "pipeline failed rc=N"; when rc==-7 also XP004 "resolve path tried: P".
  * Wave3 pure: append_i32/cstr + diag_report_with_code (codes XP003/XP004 match cold seed
- * SHUX_DIAG_CODE_X_PIPELINE_*). No va_list reportf. PLATFORM: SHARED — pure authority in thin;
+ * XLANG_DIAG_CODE_X_PIPELINE_*). No va_list reportf. PLATFORM: SHARED — pure authority in thin;
  * cold seed keeps C format _impl; FROM_X rest drops pure-dup. */
 #[no_mangle]
 export function driver_pipeline_fail_code(rc: i32, path: *u8): void {
@@ -1448,7 +1448,7 @@ export function driver_peek_source_file(path: *u8, content: *u8, cap: i64): i32 
     return 0 - 1;
   }
   unsafe {
-    let n: i32 = shux_read_file_into_path(path, content, cap - 1);
+    let n: i32 = xlang_read_file_into_path(path, content, cap - 1);
     return n;
   }
   return 0 - 1;
@@ -1463,7 +1463,7 @@ export function driver_get_current_dep_path_for_codegen(): *u8 {
 
 /** Collect -D / -target defines from argv; append host uname defines when room.
  * Wave10 pure orch: main loop pure; host OS/arch via permanent OS surface
- * shux_driver_argv_append_uname (no struct utsname in .x; no append_uname _impl residual).
+ * xlang_driver_argv_append_uname (no struct utsname in .x; no append_uname _impl residual).
  * PLATFORM: SHARED pure orch; uname layout stays in seed rest. */
 #[no_mangle]
 export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32 {
@@ -1495,7 +1495,7 @@ export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, 
           }
         } else {
           if (driver_argv_is_D_inline(arg) != 0) {
-            let def: *u8 = shux_cstr_offset(arg, 2);
+            let def: *u8 = xlang_cstr_offset(arg, 2);
             if (def != 0 as *u8) {
               if (ndefines < max_defines) {
                 driver_defines_set_at(defines, ndefines, def);
@@ -1543,7 +1543,7 @@ export function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, 
   }
   if (ndefines + 2 <= max_defines) {
     unsafe {
-      ndefines = shux_driver_argv_append_uname(defines, ndefines, max_defines);
+      ndefines = xlang_driver_argv_append_uname(defines, ndefines, max_defines);
     }
   }
   return ndefines;
@@ -1644,8 +1644,8 @@ export function driver_source_has_top_level_import_path(path: *u8): i32 {
 }
 
 /** Orchestrate large-stack run: pure early exits; pthread create via permanent OS surface.
- * Wave8: already-on-large-stack path uses shux_driver_call_fn_void_arg (no call_fn _impl).
- * Wave12 pure: pthread body via shux_driver_run_thread_on_large_stack_pthread (no pthread _impl residual).
+ * Wave8: already-on-large-stack path uses xlang_driver_call_fn_void_arg (no call_fn _impl).
+ * Wave12 pure: pthread body via xlang_driver_run_thread_on_large_stack_pthread (no pthread _impl residual).
  * PLATFORM: SHARED pure orch; pthread_attr / memalign / create+join stay in seed rest. */
 #[no_mangle]
 export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
@@ -1654,7 +1654,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   }
   if (driver_is_large_stack_thread() != 0) {
     unsafe {
-      shux_driver_call_fn_void_arg(fn, arg);
+      xlang_driver_call_fn_void_arg(fn, arg);
     }
     return;
   }
@@ -1670,7 +1670,7 @@ export function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
     return;
   }
   unsafe {
-    shux_driver_run_thread_on_large_stack_pthread(fn, arg);
+    xlang_driver_run_thread_on_large_stack_pthread(fn, arg);
   }
 }
 
@@ -1690,7 +1690,7 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
 }
 
 /** Load pipeline entry source length from thin BSS; optionally emit a debug note.
- * Wave13 pure: when SHUX_DEBUG_PIPE is truthy (non-empty and not '0'), assemble
+ * Wave13 pure: when XLANG_DEBUG_PIPE is truthy (non-empty and not '0'), assemble
  * "pipeline debug: entry_source_len_global=<len>" via driver_diag_append_cstr +
  * driver_abi_append_i64 + diag_report (no va_list diag_reportf). Env gate reuses
  * driver_env_flag_truthy (same shape as driver_diag_env_debug_pipe / G.7).
@@ -1700,7 +1700,7 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
 export function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64 {
   unsafe {
     let len: i64 = g_pipeline_entry_source_len[0];
-    if (driver_env_flag_truthy("SHUX_DEBUG_PIPE") != 0) {
+    if (driver_env_flag_truthy("XLANG_DEBUG_PIPE") != 0) {
       let msg: u8[96] = [0];
       let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "pipeline debug: entry_source_len_global=");
       at = driver_abi_append_i64(&msg[0], 96, at, len);
@@ -1722,7 +1722,7 @@ export function driver_pipeline_entry_source_len(): i64 {
 // Host layout (seeds/runtime_driver_abi.from_x.c driver_codegen_outbuf_abi):
 //   unsigned char data[X_CODEGEN_OUTBUF_CAP_ABI];  // CAP = 9 * 1024 * 1024
 //   int32_t len;                                   // little-endian i32 at offset CAP
-// Cold seed keeps C table/append under #ifndef SHUX_L2_RDABI_THIN_FROM_X.
+// Cold seed keeps C table/append under #ifndef XLANG_L2_RDABI_THIN_FROM_X.
 // G.7: single product authority for gas_line_* / out_append under PREFER hybrid thin.
 
 /** Codegen OutBuf capacity in bytes (matches X_CODEGEN_OUTBUF_CAP_ABI in seed).
@@ -1957,7 +1957,7 @@ export function driver_entry_dir_slot(): *u8 {
 //          14 n_closure 15 rc 16 free_src_flag
 //   z[5]:  0 src_len 1 raw_len 2 arena_sz 3 module_sz 4 dep_len
 // Pointer table: .x has no *u8[N] product array type for BSS (fmt_argv XT001 history);
-//   store 26× LP64 pointer slots in raw u8[208] via G.7 shux_ptr_slot_get/set.
+//   store 26× LP64 pointer slots in raw u8[208] via G.7 xlang_ptr_slot_get/set.
 // Cold seed keeps C static arrays + memset reset; FROM_X drops pure-dup (no dual BSS).
 // G.7: single hybrid authority for driver_x_emit_work_* under PREFER.
 
@@ -1972,7 +1972,7 @@ export function driver_x_emit_work_reset(): void {
   unsafe {
     let j: i32 = 0;
     while (j < 26) {
-      shux_ptr_slot_set(&g_xe_work_p_raw[0], j, 0 as *u8);
+      xlang_ptr_slot_set(&g_xe_work_p_raw[0], j, 0 as *u8);
       j = j + 1;
     }
     j = 0;
@@ -1999,7 +1999,7 @@ export function driver_x_emit_work_p_get(i: i32): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    return shux_ptr_slot_get(&g_xe_work_p_raw[0], i);
+    return xlang_ptr_slot_get(&g_xe_work_p_raw[0], i);
   }
   return 0 as *u8;
 }
@@ -2015,7 +2015,7 @@ export function driver_x_emit_work_p_set(i: i32, v: *u8): void {
     return;
   }
   unsafe {
-    shux_ptr_slot_set(&g_xe_work_p_raw[0], i, v);
+    xlang_ptr_slot_set(&g_xe_work_p_raw[0], i, v);
   }
 }
 
@@ -2081,24 +2081,24 @@ export function driver_x_emit_work_z_set(i: i32, v: usize): void {
 export function driver_x_emit_work_cleanup(): void {
   unsafe {
     let n: i32 = g_xe_work_i[2];
-    let ds: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 6);
-    let dp: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 7);
-    let dl: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 8);
-    let da: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 9);
-    let dm: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 10);
+    let ds: *u8 = xlang_ptr_slot_get(&g_xe_work_p_raw[0], 6);
+    let dp: *u8 = xlang_ptr_slot_get(&g_xe_work_p_raw[0], 7);
+    let dl: *u8 = xlang_ptr_slot_get(&g_xe_work_p_raw[0], 8);
+    let da: *u8 = xlang_ptr_slot_get(&g_xe_work_p_raw[0], 9);
+    let dm: *u8 = xlang_ptr_slot_get(&g_xe_work_p_raw[0], 10);
     let i: i32 = 0;
     while (i < n) {
       if (da != 0 as *u8) {
-        free(shux_ptr_slot_get(da, i));
+        free(xlang_ptr_slot_get(da, i));
       }
       if (dm != 0 as *u8) {
-        free(shux_ptr_slot_get(dm, i));
+        free(xlang_ptr_slot_get(dm, i));
       }
       if (ds != 0 as *u8) {
-        free(shux_ptr_slot_get(ds, i));
+        free(xlang_ptr_slot_get(ds, i));
       }
       if (dp != 0 as *u8) {
-        free(shux_ptr_slot_get(dp, i));
+        free(xlang_ptr_slot_get(dp, i));
       }
       i = i + 1;
     }
@@ -2107,17 +2107,17 @@ export function driver_x_emit_work_cleanup(): void {
     free(dl);
     free(da);
     free(dm);
-    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 11));
-    let pctx: *u8 = shux_ptr_slot_get(&g_xe_work_p_raw[0], 12);
+    free(xlang_ptr_slot_get(&g_xe_work_p_raw[0], 11));
+    let pctx: *u8 = xlang_ptr_slot_get(&g_xe_work_p_raw[0], 12);
     if (pctx != 0 as *u8) {
       pipeline_dep_ctx_heap_destroy(pctx);
     }
-    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 3));
-    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 4));
-    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 1));
-    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 19));
-    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 20));
-    free(shux_ptr_slot_get(&g_xe_work_p_raw[0], 21));
+    free(xlang_ptr_slot_get(&g_xe_work_p_raw[0], 3));
+    free(xlang_ptr_slot_get(&g_xe_work_p_raw[0], 4));
+    free(xlang_ptr_slot_get(&g_xe_work_p_raw[0], 1));
+    free(xlang_ptr_slot_get(&g_xe_work_p_raw[0], 19));
+    free(xlang_ptr_slot_get(&g_xe_work_p_raw[0], 20));
+    free(xlang_ptr_slot_get(&g_xe_work_p_raw[0], 21));
   }
   driver_x_emit_work_reset();
 }
@@ -2125,7 +2125,7 @@ export function driver_x_emit_work_cleanup(): void {
 // ---- Wave25 Cap residual pure: tmp path BSS slots (PLATFORM: SHARED) ----
 // open_out (wave27 pure) writes only via accessors; hybrid pure owns BSS (no dual static).
 // Caps: asm 64 bytes (mkstemp path); parsed slot 64; parsed buf 256 (Windows long TEMP).
-// Cold seed keeps C static + accessor twins under #ifndef SHUX_L2_RDABI_THIN_FROM_X.
+// Cold seed keeps C static + accessor twins under #ifndef XLANG_L2_RDABI_THIN_FROM_X.
 // Defined before work_reset so pure reset can call same-TU accessors.
 
 let g_driver_asm_tmp_path_slot: u8[64] = [];
@@ -2172,7 +2172,7 @@ export function driver_parsed_tmp_c_buf(): *u8 {
 //   i[16]: 0 nlib 1 ndeps 2 nimp 3 main 4 emit_elf 5 want_exe 6 smoke 7 ndef 8 argc
 //          9 ec 10 j 11 entry_only 12 skip_dep_load 13 rc 14 n_closure 15 num_funcs
 //   z[4]:  0 src_len 1 asz 2 msz 3 dep_len
-// Pointer table: 25× LP64 slots in raw u8[200] via G.7 shux_ptr_slot_get/set.
+// Pointer table: 25× LP64 slots in raw u8[200] via G.7 xlang_ptr_slot_get/set.
 // reset also clears driver_asm_tmp_path_slot()[0] (wave25 pure owns 64-byte BSS).
 // cleanup: ndeps=i[1]; free dep rows; free table bases; free out_buf; destroy pctx;
 //   fclose asm_out (p[19]); free elf/arena/module/src/kind/code/msg; then reset.
@@ -2190,7 +2190,7 @@ export function driver_asm_work_reset(): void {
   unsafe {
     let j: i32 = 0;
     while (j < 25) {
-      shux_ptr_slot_set(&g_asm_work_p_raw[0], j, 0 as *u8);
+      xlang_ptr_slot_set(&g_asm_work_p_raw[0], j, 0 as *u8);
       j = j + 1;
     }
     j = 0;
@@ -2222,7 +2222,7 @@ export function driver_asm_work_p_get(i: i32): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    return shux_ptr_slot_get(&g_asm_work_p_raw[0], i);
+    return xlang_ptr_slot_get(&g_asm_work_p_raw[0], i);
   }
   return 0 as *u8;
 }
@@ -2238,7 +2238,7 @@ export function driver_asm_work_p_set(i: i32, v: *u8): void {
     return;
   }
   unsafe {
-    shux_ptr_slot_set(&g_asm_work_p_raw[0], i, v);
+    xlang_ptr_slot_set(&g_asm_work_p_raw[0], i, v);
   }
 }
 
@@ -2304,24 +2304,24 @@ export function driver_asm_work_z_set(i: i32, v: usize): void {
 export function driver_asm_work_cleanup(): void {
   unsafe {
     let n: i32 = g_asm_work_i[1];
-    let ds: *u8 = shux_ptr_slot_get(&g_asm_work_p_raw[0], 6);
-    let dp: *u8 = shux_ptr_slot_get(&g_asm_work_p_raw[0], 7);
-    let dl: *u8 = shux_ptr_slot_get(&g_asm_work_p_raw[0], 8);
-    let da: *u8 = shux_ptr_slot_get(&g_asm_work_p_raw[0], 9);
-    let dm: *u8 = shux_ptr_slot_get(&g_asm_work_p_raw[0], 10);
+    let ds: *u8 = xlang_ptr_slot_get(&g_asm_work_p_raw[0], 6);
+    let dp: *u8 = xlang_ptr_slot_get(&g_asm_work_p_raw[0], 7);
+    let dl: *u8 = xlang_ptr_slot_get(&g_asm_work_p_raw[0], 8);
+    let da: *u8 = xlang_ptr_slot_get(&g_asm_work_p_raw[0], 9);
+    let dm: *u8 = xlang_ptr_slot_get(&g_asm_work_p_raw[0], 10);
     let i: i32 = 0;
     while (i < n) {
       if (da != 0 as *u8) {
-        free(shux_ptr_slot_get(da, i));
+        free(xlang_ptr_slot_get(da, i));
       }
       if (dm != 0 as *u8) {
-        free(shux_ptr_slot_get(dm, i));
+        free(xlang_ptr_slot_get(dm, i));
       }
       if (ds != 0 as *u8) {
-        free(shux_ptr_slot_get(ds, i));
+        free(xlang_ptr_slot_get(ds, i));
       }
       if (dp != 0 as *u8) {
-        free(shux_ptr_slot_get(dp, i));
+        free(xlang_ptr_slot_get(dp, i));
       }
       i = i + 1;
     }
@@ -2330,22 +2330,22 @@ export function driver_asm_work_cleanup(): void {
     free(dl);
     free(da);
     free(dm);
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 11));
-    let pctx: *u8 = shux_ptr_slot_get(&g_asm_work_p_raw[0], 12);
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 11));
+    let pctx: *u8 = xlang_ptr_slot_get(&g_asm_work_p_raw[0], 12);
     if (pctx != 0 as *u8) {
       pipeline_dep_ctx_heap_destroy(pctx);
     }
-    let asm_out: *u8 = shux_ptr_slot_get(&g_asm_work_p_raw[0], 19);
+    let asm_out: *u8 = xlang_ptr_slot_get(&g_asm_work_p_raw[0], 19);
     if (asm_out != 0 as *u8) {
       driver_asm_fclose(asm_out);
     }
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 20));
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 3));
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 4));
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 1));
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 13));
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 14));
-    free(shux_ptr_slot_get(&g_asm_work_p_raw[0], 15));
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 20));
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 3));
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 4));
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 1));
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 13));
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 14));
+    free(xlang_ptr_slot_get(&g_asm_work_p_raw[0], 15));
   }
   driver_asm_work_reset();
 }
@@ -2358,7 +2358,7 @@ export function driver_asm_work_cleanup(): void {
 //   i[14]: 0 nlib 1 ndeps 2 nimp 3 main 4 want_asm 5 emit_stdout 6 ndef 7 use_lto
 //          8 argc 9 ec 10 j 11 check 12 n_funcs 13 (pad)
 //   z[4]:  0 src_len 1 asz 2 msz 3 (pad)
-// Pointer table: 24× LP64 slots in raw u8[192] via G.7 shux_ptr_slot_get/set.
+// Pointer table: 24× LP64 slots in raw u8[192] via G.7 xlang_ptr_slot_get/set.
 // reset also clears driver_parsed_tmp_c_slot()[0] + driver_parsed_tmp_c_buf()[0] (wave25 pure).
 // cleanup: ndeps=i[1]; free dep rows; free table bases; free out_buf; destroy pctx;
 //   if !emit_stdout (i[5]): fclose cf (p[19]), unlink tmp_c (p[20] or pure/seed buf);
@@ -2377,7 +2377,7 @@ export function driver_parsed_work_reset(): void {
   unsafe {
     let j: i32 = 0;
     while (j < 24) {
-      shux_ptr_slot_set(&g_parsed_work_p_raw[0], j, 0 as *u8);
+      xlang_ptr_slot_set(&g_parsed_work_p_raw[0], j, 0 as *u8);
       j = j + 1;
     }
     j = 0;
@@ -2413,7 +2413,7 @@ export function driver_parsed_work_p_get(i: i32): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    return shux_ptr_slot_get(&g_parsed_work_p_raw[0], i);
+    return xlang_ptr_slot_get(&g_parsed_work_p_raw[0], i);
   }
   return 0 as *u8;
 }
@@ -2429,7 +2429,7 @@ export function driver_parsed_work_p_set(i: i32, v: *u8): void {
     return;
   }
   unsafe {
-    shux_ptr_slot_set(&g_parsed_work_p_raw[0], i, v);
+    xlang_ptr_slot_set(&g_parsed_work_p_raw[0], i, v);
   }
 }
 
@@ -2498,24 +2498,24 @@ export function driver_parsed_work_cleanup(): void {
   unsafe {
     let n: i32 = g_parsed_work_i[1];
     let emit_stdout: i32 = g_parsed_work_i[5];
-    let ds: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 6);
-    let dp: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 7);
-    let dl: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 8);
-    let da: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 9);
-    let dm: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 10);
+    let ds: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 6);
+    let dp: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 7);
+    let dl: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 8);
+    let da: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 9);
+    let dm: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 10);
     let i: i32 = 0;
     while (i < n) {
       if (da != 0 as *u8) {
-        free(shux_ptr_slot_get(da, i));
+        free(xlang_ptr_slot_get(da, i));
       }
       if (dm != 0 as *u8) {
-        free(shux_ptr_slot_get(dm, i));
+        free(xlang_ptr_slot_get(dm, i));
       }
       if (ds != 0 as *u8) {
-        free(shux_ptr_slot_get(ds, i));
+        free(xlang_ptr_slot_get(ds, i));
       }
       if (dp != 0 as *u8) {
-        free(shux_ptr_slot_get(dp, i));
+        free(xlang_ptr_slot_get(dp, i));
       }
       i = i + 1;
     }
@@ -2524,17 +2524,17 @@ export function driver_parsed_work_cleanup(): void {
     free(dl);
     free(da);
     free(dm);
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 11));
-    let pctx: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 12);
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 11));
+    let pctx: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 12);
     if (pctx != 0 as *u8) {
       pipeline_dep_ctx_heap_destroy(pctx);
     }
     // Match cold: only fclose+unlink when not writing to stdout.
     if (emit_stdout == 0) {
-      let cf: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 19);
+      let cf: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 19);
       if (cf != 0 as *u8) {
         driver_parsed_fclose(cf);
-        let tmpc: *u8 = shux_ptr_slot_get(&g_parsed_work_p_raw[0], 20);
+        let tmpc: *u8 = xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 20);
         if (tmpc != 0 as *u8) {
           if (tmpc[0] != 0) {
             unlink(tmpc);
@@ -2556,13 +2556,13 @@ export function driver_parsed_work_cleanup(): void {
         }
       }
     }
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 3));
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 4));
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 1));
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 13));
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 14));
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 15));
-    free(shux_ptr_slot_get(&g_parsed_work_p_raw[0], 20));
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 3));
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 4));
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 1));
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 13));
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 14));
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 15));
+    free(xlang_ptr_slot_get(&g_parsed_work_p_raw[0], 20));
   }
   driver_parsed_work_reset();
 }
@@ -2734,7 +2734,7 @@ export function driver_pipeline_dep_ctx_set_skip_codegen_dep_0(ctx: *u8, v: i32)
 //   (driver_preamble_io_net_lines[] / fs_path_lines[] + _n). .x cannot host giant string tables.
 // Hybrid pure owns the public line_at/count surface used by rt_preamble.x write_* loops.
 // Always-seed residual: driver_preamble_*_lines_raw() = base of pointer table (LP64 *u8 slots).
-// Index via G.7 shux_ptr_slot_get (same authority as defines_set_at / work_p).
+// Index via G.7 xlang_ptr_slot_get (same authority as defines_set_at / work_p).
 // Counts are fixed to match sizeof(...)/sizeof(*...) in rt_preamble.from_x.c
 // (wave29 re-count: io_net=224 / fs_path=21; was 219 after preamble rows grew).
 // When adding/removing a table row, update N here in the same commit as the C table.
@@ -2758,7 +2758,7 @@ function driver_abi_preamble_fs_path_n(): i32 {
 
 /** Return the i-th io_net Cap-giant-string preamble line (C string as *u8).
  * Out-of-range or negative i → null. Null table base → null.
- * Wave20 pure: bounds + G.7 shux_ptr_slot_get on always-seed raw base.
+ * Wave20 pure: bounds + G.7 xlang_ptr_slot_get on always-seed raw base.
  * extern calls (raw + ptr_slot) require unsafe (same as wave16 work_p_get).
  * PLATFORM: SHARED — pure authority under PREFER hybrid; cold seed keeps C index. */
 #[no_mangle]
@@ -2774,7 +2774,7 @@ export function driver_preamble_io_net_line_at(i: i32): *u8 {
     if (base == 0 as *u8) {
       return 0 as *u8;
     }
-    return shux_ptr_slot_get(base, i);
+    return xlang_ptr_slot_get(base, i);
   }
   return 0 as *u8;
 }
@@ -2791,7 +2791,7 @@ export function driver_preamble_io_net_line_count(): i32 {
 
 /** Return the i-th fs_path Cap-giant-string preamble line (C string as *u8).
  * Out-of-range or negative i → null. Null table base → null.
- * Wave20 pure: bounds + G.7 shux_ptr_slot_get on always-seed raw base.
+ * Wave20 pure: bounds + G.7 xlang_ptr_slot_get on always-seed raw base.
  * extern calls require unsafe. PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_preamble_fs_path_line_at(i: i32): *u8 {
@@ -2806,7 +2806,7 @@ export function driver_preamble_fs_path_line_at(i: i32): *u8 {
     if (base == 0 as *u8) {
       return 0 as *u8;
     }
-    return shux_ptr_slot_get(base, i);
+    return xlang_ptr_slot_get(base, i);
   }
   return 0 as *u8;
 }
@@ -2819,18 +2819,18 @@ export function driver_preamble_fs_path_line_count(): i32 {
 }
 
 // ---- Wave21 Cap residual pure: driver_entry_fmt_argv_slot (PLATFORM: SHARED) ----
-// Cold seed: static char *[2] = {"shux","fmt"} + slot getter.
+// Cold seed: static char *[2] = {"xlang","fmt"} + slot getter.
 // Product .x cannot host *u8[2] / char*[2] lit-array init (typeck XT001 history).
 // Pure path (same as fmt_check_cmd_thin check_argv / wave16 work_p):
 //   - C strings as module BSS byte arrays (ASCII, trailing NUL)
 //   - argv table as 2× LP64 pointer slots in raw u8[16]
-//   - first call: G.7 shux_ptr_slot_set slots 0/1 → lit bases
+//   - first call: G.7 xlang_ptr_slot_set slots 0/1 → lit bases
 //   - return base of raw table (ABI = char ** / **u8 for driver_run_fmt)
 // G.7: single hybrid authority under PREFER; FROM_X rest drops pure-dup.
 // Return type *u8 is the opaque base of the pointer table (same ABI width as char **).
 
-// ASCII "shux\0"
-let g_driver_entry_fmt_argv_lit0: u8[5] = [115, 104, 117, 120, 0];
+// ASCII "xlang\0"
+let g_driver_entry_fmt_argv_lit0: u8[6] = [120, 108, 97, 110, 103, 0];
 // ASCII "fmt\0"
 let g_driver_entry_fmt_argv_lit1: u8[4] = [102, 109, 116, 0];
 // 2 × 8-byte LP64 pointer slots (char *[2] layout)
@@ -2839,16 +2839,16 @@ let g_driver_entry_fmt_argv_raw: u8[16] = [];
 let g_driver_entry_fmt_argv_ready: i32 = 0;
 
 /** Return fixed argv table for driver_run_fmt when no user paths (argc=2).
- * Layout: [0]="shux", [1]="fmt" as *u8 C strings (NUL-terminated BSS lits).
- * Wave21 pure: no char*[2] lit init; lazy G.7 shux_ptr_slot_set into raw u8[16].
+ * Layout: [0]="xlang", [1]="fmt" as *u8 C strings (NUL-terminated BSS lits).
+ * Wave21 pure: no char*[2] lit init; lazy G.7 xlang_ptr_slot_set into raw u8[16].
  * Returns base of the 2-slot pointer table (ABI-compatible with char ** / **u8).
  * PLATFORM: SHARED — pure authority under PREFER hybrid; cold seed keeps C static. */
 #[no_mangle]
 export function driver_entry_fmt_argv_slot(): *u8 {
   if (g_driver_entry_fmt_argv_ready == 0) {
     unsafe {
-      shux_ptr_slot_set(&g_driver_entry_fmt_argv_raw[0], 0, &g_driver_entry_fmt_argv_lit0[0]);
-      shux_ptr_slot_set(&g_driver_entry_fmt_argv_raw[0], 1, &g_driver_entry_fmt_argv_lit1[0]);
+      xlang_ptr_slot_set(&g_driver_entry_fmt_argv_raw[0], 0, &g_driver_entry_fmt_argv_lit0[0]);
+      xlang_ptr_slot_set(&g_driver_entry_fmt_argv_raw[0], 1, &g_driver_entry_fmt_argv_lit1[0]);
     }
     g_driver_entry_fmt_argv_ready = 1;
   }
@@ -2859,16 +2859,16 @@ export function driver_entry_fmt_argv_slot(): *u8 {
 // G.7 authority for opaque *u8 stream → libc fputs (rt_preamble + async emit pure).
 // .x cannot name FILE*; direct fputs(*u8,*u8) fails host-cc under
 // -Werror=incompatible-pointer-types. Cast residual lives in g05_try_x_to_o prologue
-// as static inline shux_driver_fputs_opaque (same pattern as shux_fmt_opendir/DIR*).
+// as static inline xlang_driver_fputs_opaque (same pattern as xlang_fmt_opendir/DIR*).
 // Cold seed keeps C twin with (FILE*)(void*) cast; FROM_X rest drops pure-dup (H↓).
 
 /** g05 prologue: cast opaque *u8 args to const char* / FILE* then fputs.
  * PLATFORM: SHARED — harness residual only; not a second product authority. */
-export extern "C" function shux_driver_fputs_opaque(s: *u8, stream: *u8): i32;
+export extern "C" function xlang_driver_fputs_opaque(s: *u8, stream: *u8): i32;
 
 /** Write C string s to opaque FILE* stream via fputs.
  * Null s or stream → -1. Otherwise returns libc fputs result (EOF → negative).
- * Wave22 pure: null guard in .x; FILE* cast via g05 shux_driver_fputs_opaque.
+ * Wave22 pure: null guard in .x; FILE* cast via g05 xlang_driver_fputs_opaque.
  * G.7 single authority for Cap residual fputs (async/rt_preamble call this symbol).
  * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin. */
 #[no_mangle]
@@ -2880,7 +2880,7 @@ export function driver_preamble_fputs(s: *u8, stream: *u8): i32 {
     return -1;
   }
   unsafe {
-    return shux_driver_fputs_opaque(s, stream);
+    return xlang_driver_fputs_opaque(s, stream);
   }
   return -1;
 }
@@ -2910,11 +2910,11 @@ export extern "C" function driver_get_pending_target_cpu_features(): u32;
 /** Host default target_arch when -target is null (1 = aarch64 on Apple arm64 host).
  * Permanent OS residual: seed #if __APPLE__ && __aarch64__. PLATFORM: MACOS arm64 vs SHARED.
  */
-export extern "C" function shux_driver_host_default_target_arch(): i32;
+export extern "C" function xlang_driver_host_default_target_arch(): i32;
 /** Prefer Mach-O object when emit_elf_o on Apple host. Permanent OS residual. PLATFORM: MACOS. */
-export extern "C" function shux_driver_host_prefer_macho(emit_elf_o: i32): i32;
+export extern "C" function xlang_driver_host_prefer_macho(emit_elf_o: i32): i32;
 /** Prefer COFF object when emit_elf_o on Windows/Cygwin host. Permanent OS residual. PLATFORM: WINDOWS. */
-export extern "C" function shux_driver_host_prefer_coff(emit_elf_o: i32): i32;
+export extern "C" function xlang_driver_host_prefer_coff(emit_elf_o: i32): i32;
 
 // Target-triple needles (NUL-terminated) for strstr in host_defaults.
 // ASCII "aarch64\0"
@@ -3083,7 +3083,7 @@ export function driver_asm_pctx_apply_host_defaults(ctx: *u8, target: *u8, emit_
   // Host default arch only when -target is absent (seed: if (!t) on Apple aarch64).
   if (target == 0 as *u8) {
     unsafe {
-      ha = shux_driver_host_default_target_arch();
+      ha = xlang_driver_host_default_target_arch();
     }
     if (ha != 0) {
       driver_pipeline_dep_ctx_set_target_arch(ctx, ha);
@@ -3091,8 +3091,8 @@ export function driver_asm_pctx_apply_host_defaults(ctx: *u8, target: *u8, emit_
   }
   // Object format prefs: host platform residual + windows in triple.
   unsafe {
-    macho = shux_driver_host_prefer_macho(emit_elf_o);
-    coff = shux_driver_host_prefer_coff(emit_elf_o);
+    macho = xlang_driver_host_prefer_macho(emit_elf_o);
+    coff = xlang_driver_host_prefer_coff(emit_elf_o);
   }
   if (emit_elf_o != 0) {
     if (target != 0 as *u8) {
@@ -3108,9 +3108,9 @@ export function driver_asm_pctx_apply_host_defaults(ctx: *u8, target: *u8, emit_
 }
 
 // ---- Wave24 Cap residual pure: table free/get/set + outbuf free/len/data (PLATFORM: SHARED) ----
-// Pairs wave23 calloc family. Cold seed keeps C twins under #ifndef SHUX_L2_RDABI_THIN_FROM_X.
+// Pairs wave23 calloc family. Cold seed keeps C twins under #ifndef XLANG_L2_RDABI_THIN_FROM_X.
 // Layout: CodegenOutBuf = data[9MiB] then i32 len at offset CAP (wave14 LE helpers).
-// ptr table: void*[n] → G.7 shux_ptr_slot_get/set. size table: size_t[n] → LE usize at i*8.
+// ptr table: void*[n] → G.7 xlang_ptr_slot_get/set. size table: size_t[n] → LE usize at i*8.
 
 /**
  * Load little-endian usize at base+off (null / off < 0 → 0).
@@ -3243,7 +3243,7 @@ export function driver_ptr_table_free(t: *u8): void {
  * @param t *u8 — table from ptr_table_calloc; null → null
  * @param i i32 — index; i < 0 → null (no upper bound check; caller owns n)
  * @return *u8 — stored pointer at slot i, or null
- * Wave24 pure: G.7 shux_ptr_slot_get. PLATFORM: SHARED LP64.
+ * Wave24 pure: G.7 xlang_ptr_slot_get. PLATFORM: SHARED LP64.
  */
 #[no_mangle]
 export function driver_ptr_table_get(t: *u8, i: i32): *u8 {
@@ -3255,7 +3255,7 @@ export function driver_ptr_table_get(t: *u8, i: i32): *u8 {
   }
   // FFI: G.7 authority lives in pipeline C; Cap-T001 unsafe at call site.
   unsafe {
-    return shux_ptr_slot_get(t, i);
+    return xlang_ptr_slot_get(t, i);
   }
   return 0 as *u8;
 }
@@ -3266,7 +3266,7 @@ export function driver_ptr_table_get(t: *u8, i: i32): *u8 {
  * @param i i32 — index; i < 0 → no-op
  * @param p *u8 — value to store (may be null)
  * @return void
- * Wave24 pure: G.7 shux_ptr_slot_set. PLATFORM: SHARED LP64.
+ * Wave24 pure: G.7 xlang_ptr_slot_set. PLATFORM: SHARED LP64.
  */
 #[no_mangle]
 export function driver_ptr_table_set(t: *u8, i: i32, p: *u8): void {
@@ -3277,7 +3277,7 @@ export function driver_ptr_table_set(t: *u8, i: i32, p: *u8): void {
     return;
   }
   unsafe {
-    shux_ptr_slot_set(t, i, p);
+    xlang_ptr_slot_set(t, i, p);
   }
 }
 
@@ -3348,8 +3348,8 @@ export function driver_diag_snapshot_free(s: *u8): void {
 // ---- Wave26 Cap residual pure: parsed fclose + write_out (PLATFORM: SHARED) ----
 // G.7 authority under PREFER hybrid thin; cold seed keeps C twins (FILE* cast).
 // .x cannot name FILE* or compare to stdout — g05 prologue injects:
-//   shux_driver_stdout_ptr / shux_driver_fclose_opaque / shux_driver_fwrite_opaque
-// (same harness pattern as wave22 shux_driver_fputs_opaque).
+//   xlang_driver_stdout_ptr / xlang_driver_fclose_opaque / xlang_driver_fwrite_opaque
+// (same harness pattern as wave22 xlang_driver_fputs_opaque).
 // write_out calls write_io_net_abi_inline + write_fs_path_map_error_abi_inline
 // (R2 pure in rt_preamble.x under PREFER; Cap-giant-string *data* + skip still seed-backed).
 // min preamble via driver_preamble_fputs
@@ -3357,16 +3357,16 @@ export function driver_diag_snapshot_free(s: *u8): void {
 
 /** g05 prologue: opaque identity of host stdout as *u8.
  * PLATFORM: SHARED — harness residual; product pure compares pointers only. */
-export extern "C" function shux_driver_stdout_ptr(): *u8;
+export extern "C" function xlang_driver_stdout_ptr(): *u8;
 /** g05 prologue: fclose((FILE*)stream); 0 success, 1 failure; null → 0.
  * PLATFORM: SHARED — harness FILE* cast residual. */
-export extern "C" function shux_driver_fclose_opaque(stream: *u8): i32;
+export extern "C" function xlang_driver_fclose_opaque(stream: *u8): i32;
 /** g05 prologue: fwrite(data,1,len,FILE*); 0 full write, 1 fail; len==0 → 0.
  * @param data *u8 — bytes to write
  * @param len i32 — byte count; negative rejected as fail
  * @param stream *u8 — opaque FILE*
  * PLATFORM: SHARED — harness FILE* cast residual. */
-export extern "C" function shux_driver_fwrite_opaque(data: *u8, len: i32, stream: *u8): i32;
+export extern "C" function xlang_driver_fwrite_opaque(data: *u8, len: i32, stream: *u8): i32;
 /** Always-seed rt_preamble: write io/net Cap-giant-string ABI block to opaque FILE*.
  * @param cf *u8 — FILE* as *u8 (product C ABI pointer-compatible with FILE*)
  * @return i32 — 0 success, non-zero fail
@@ -3383,7 +3383,7 @@ export extern "C" function write_fs_path_map_error_abi_inline(cf: *u8): i32;
  * Null or stdout → no-op (stdout must stay open for -E emit-to-stdout).
  * @param fp *u8 — opaque FILE* from open_out / work slot; may be null or stdout
  * @return void
- * Wave26 pure: stdout identity via g05 shux_driver_stdout_ptr; fclose via opaque.
+ * Wave26 pure: stdout identity via g05 xlang_driver_stdout_ptr; fclose via opaque.
  * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
  */
 #[no_mangle]
@@ -3392,11 +3392,11 @@ export function driver_parsed_fclose(fp: *u8): void {
     return;
   }
   unsafe {
-    let so: *u8 = shux_driver_stdout_ptr();
+    let so: *u8 = xlang_driver_stdout_ptr();
     if (fp == so) {
       return;
     }
-    shux_driver_fclose_opaque(fp);
+    xlang_driver_fclose_opaque(fp);
   }
 }
 
@@ -3413,11 +3413,11 @@ export function driver_parsed_fclose_rc(fp: *u8): i32 {
     return 0;
   }
   unsafe {
-    let so: *u8 = shux_driver_stdout_ptr();
+    let so: *u8 = xlang_driver_stdout_ptr();
     if (fp == so) {
       return 0;
     }
-    return shux_driver_fclose_opaque(fp);
+    return xlang_driver_fclose_opaque(fp);
   }
   return 0;
 }
@@ -3509,7 +3509,7 @@ export function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32 {
     }
   }
   unsafe {
-    if (shux_driver_fwrite_opaque(data, first_line, fp) != 0) {
+    if (xlang_driver_fwrite_opaque(data, first_line, fp) != 0) {
       return 1;
     }
     if (write_io_net_abi_inline(fp) != 0) {
@@ -3522,7 +3522,7 @@ export function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32 {
     if (rest > 0) {
       // data + first_line as *u8 without pointer arithmetic type issues.
       let rest_p: *u8 = &data[first_line];
-      if (shux_driver_fwrite_opaque(rest_p, rest, fp) != 0) {
+      if (xlang_driver_fwrite_opaque(rest_p, rest, fp) != 0) {
         return 1;
       }
     }
@@ -3533,17 +3533,17 @@ export function driver_parsed_write_out(fp: *u8, data: *u8, len: i32): i32 {
 // ---- Wave27 Cap residual pure: driver_parsed_open_out_file (PLATFORM: SHARED) ----
 // G.7 authority under PREFER hybrid thin; cold seed keeps C twin (FILE* + snprintf).
 // Cap residual split:
-//   - seed always: shux_driver_tmp_prefix (SHUX_TMP_PREFIX #ifdef; no platform ifdef in .x)
-//   - g05 prologue: shux_driver_fopen_write_opaque (FILE* cast; same pattern as wave22/26)
+//   - seed always: xlang_driver_tmp_prefix (XLANG_TMP_PREFIX #ifdef; no platform ifdef in .x)
+//   - g05 prologue: xlang_driver_fopen_write_opaque (FILE* cast; same pattern as wave22/26)
 //   - libc via g05 unistd/stdio: mkstemp, close, rename, unlink
 //   - pure orch: stdout gate, template build, close-before-rename (BLD001), path copy
 // wave29: rt_preamble write pure already R2; residual = Cap-giant-string *data* only.
 // wave29 also: pure io_net N 219→224 + WEAK_IO_BATCH skip 178..181 (seed/.x/surface).
 
 /** Permanent OS residual: host temp path prefix for mkstemp templates.
- * @return *u8 — NUL-terminated C string; POSIX "/tmp/shux_"; WINDOWS "shux_"
+ * @return *u8 — NUL-terminated C string; POSIX "/tmp/xlang_"; WINDOWS "xlang_"
  * PLATFORM: SHARED surface; body is #ifdef in seed rest (not pure-dup). */
-export extern "C" function shux_driver_tmp_prefix(): *u8;
+export extern "C" function xlang_driver_tmp_prefix(): *u8;
 /** POSIX mkstemp: mutate template ending in XXXXXX; return fd or -1.
  * PLATFORM: POSIX product path (win32_compat may provide on WINDOWS probes). */
 export extern "C" function mkstemp(path: *u8): i32;
@@ -3553,7 +3553,7 @@ export extern "C" function close(fd: i32): i32;
 export extern "C" function rename(old_path: *u8, new_path: *u8): i32;
 /** g05 prologue: fopen(path, "w") as opaque *u8; null path → null.
  * PLATFORM: SHARED — harness FILE* cast residual. */
-export extern "C" function shux_driver_fopen_write_opaque(path: *u8): *u8;
+export extern "C" function xlang_driver_fopen_write_opaque(path: *u8): *u8;
 /** Diag with single path + errno (runtime authority). */
 export extern "C" function runtime_diag_errno_path(
   file: *u8, kind: *u8, op: *u8, path: *u8): void;
@@ -3647,7 +3647,7 @@ function driver_open_out_cstr_cat(dst: *u8, cap: i32, src: *u8): void {
  * @param emit_stdout *i32 — out flag: 1 when returning stdout, else 0; may be null
  * @return *u8 — opaque FILE* (or stdout) on success; null on failure (diag already emitted)
  * Wave27 pure: stdout identity via g05 stdout_ptr; path BSS via wave25 accessor;
- * template = shux_driver_tmp_prefix() + "shux_x.XXXXXX"; close(fd) before rename (BLD001);
+ * template = xlang_driver_tmp_prefix() + "xlang_x.XXXXXX"; close(fd) before rename (BLD001);
  * fopen via g05 opaque. PLATFORM: SHARED orch; WINDOWS|POSIX close-before-rename contract.
  */
 #[no_mangle]
@@ -3669,17 +3669,17 @@ export function driver_parsed_open_out_file(
       if (emit_stdout != 0 as *i32) {
         emit_stdout[0] = 1;
       }
-      return shux_driver_stdout_ptr();
+      return xlang_driver_stdout_ptr();
     }
     if (tbuf == 0 as *u8) {
       return 0 as *u8;
     }
     // Stack template for mkstemp (mutates XXXXXX in place). Cap 128 matches cold twin.
     let tmp: u8[128] = [];
-    let prefix: *u8 = shux_driver_tmp_prefix();
+    let prefix: *u8 = xlang_driver_tmp_prefix();
     driver_open_out_cstr_copy(&tmp[0], 128, prefix);
     // Suffix is short; keep under -E string cap (~63).
-    driver_open_out_cstr_cat(&tmp[0], 128, "shux_x.XXXXXX");
+    driver_open_out_cstr_cat(&tmp[0], 128, "xlang_x.XXXXXX");
     let fd: i32 = mkstemp(&tmp[0]);
     if (fd < 0) {
       runtime_diag_errno_path(out_path, "build error", "mkstemp", &tmp[0]);
@@ -3695,7 +3695,7 @@ export function driver_parsed_open_out_file(
       unlink(&tmp[0]);
       return 0 as *u8;
     }
-    let cf: *u8 = shux_driver_fopen_write_opaque(tbuf);
+    let cf: *u8 = xlang_driver_fopen_write_opaque(tbuf);
     if (cf == 0 as *u8) {
       runtime_diag_errno_path(out_path, "build error", "fopen", tbuf);
       unlink(tbuf);
@@ -3713,26 +3713,26 @@ export function driver_parsed_open_out_file(
 // ---- Wave28 Cap residual pure: driver_parsed_invoke_cc (PLATFORM: SHARED) ----
 // G.7 authority under PREFER hybrid thin; cold seed keeps C twin (c_paths[1] + path pack).
 // Cap residual split:
-//   - product link authority: shux_invoke_cc (+ set/clear user .o table)
-//   - path resolvers: shux_std_io_o_path / shux_rel_o_path_from_argv0 /
-//     shux_runtime_panic_o_path / shux_repo_root_from_argv0 (same seed surface as cold)
+//   - product link authority: xlang_invoke_cc (+ set/clear user .o table)
+//   - path resolvers: xlang_std_io_o_path / xlang_rel_o_path_from_argv0 /
+//     xlang_runtime_panic_o_path / xlang_repo_root_from_argv0 (same seed surface as cold)
 //   - pure orch: null gate, default opt "2", c_paths pack via G.7 ptr_slot,
 //     fail unlink+BLD001 (append+diag_report_with_code), KEEP_C note, success unlink tmp
 // Cap residual data: rt_preamble giant string tables (io_net / fs_path) always seed.
 
 /** Resolve std/io/io.o (or product empty F-06) from compiler argv0. */
-export extern "C" function shux_std_io_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_std_io_o_path(argv0: *u8): *u8;
 /** Resolve repo-relative .o path from argv0 (e.g. "std/process/process.o").
  * @param argv0 *u8 — compiler argv[0]; may be null
  * @param rel *u8 — relative path under repo/compiler layout; non-null
  * @return *u8 — stable path string or null
  * PLATFORM: SHARED — link_abi authority. */
-export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+export extern "C" function xlang_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 /** Resolve runtime_panic.o path from argv0. PLATFORM: SHARED. */
-export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_panic_o_path(argv0: *u8): *u8;
 /** Repo root directory from compiler argv0 (include_root for invoke_cc).
  * PLATFORM: SHARED. */
-export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
+export extern "C" function xlang_repo_root_from_argv0(argv0: *u8): *u8;
 /** Product C frontend host-cc link: fixed std/core .o list + scan-on-demand.
  * @param c_paths *u8 — opaque const char** (one-slot table from pure pack)
  * @param n i32 — number of .c paths (parsed pipeline uses 1)
@@ -3743,7 +3743,7 @@ export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
  * @param … remaining *u8 — optional std/core .o paths (null ok; impl may scan C)
  * @return i32 — 0 success, non-zero host-cc fail
  * PLATFORM: SHARED — runtime_link_abi authority. */
-export extern "C" function shux_invoke_cc(
+export extern "C" function xlang_invoke_cc(
   c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
   io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8,
   runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8,
@@ -3758,24 +3758,24 @@ export extern "C" function shux_invoke_cc(
  * @param argc i32 — argv length
  * @param argv *u8 — opaque char** (same as process argv)
  * PLATFORM: SHARED — set before invoke; clear after. */
-export extern "C" function shux_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
+export extern "C" function xlang_invoke_cc_set_user_o_files_from_argv(argc: i32, argv: *u8): void;
 /** Clear user .o table after invoke (prevents stale pointers). PLATFORM: SHARED. */
-export extern "C" function shux_invoke_cc_clear_user_o_files(): void;
+export extern "C" function xlang_invoke_cc_clear_user_o_files(): void;
 /** Unlink failed product -o path (best-effort). PLATFORM: SHARED. */
 export extern "C" function driver_unlink_failed_output(out_path: *u8): void;
 
 /**
- * Host-cc link step after open_out/write_out: pack std .o paths, invoke shux_invoke_cc,
+ * Host-cc link step after open_out/write_out: pack std .o paths, invoke xlang_invoke_cc,
  * then unlink failed out or drop/keep generated tmp .c.
  * @param tmp_c *u8 — path to generated .c from open_out; null → fail 1
  * @param out_path *u8 — product -o path; null → fail 1
  * @param opt_level *u8 — opt level string; null → default "2"
- * @param use_lto i32 — LTO flag passed through to shux_invoke_cc
+ * @param use_lto i32 — LTO flag passed through to xlang_invoke_cc
  * @param argv0 *u8 — compiler argv[0] for path resolution; may be null
  * @param argc i32 — full argv count (user .o scan)
  * @param argv *u8 — opaque char** argv base (user .o scan)
  * @return i32 — 0 success, 1 host-cc fail (BLD001 already reported) or bad args
- * Wave28 pure: c_paths one-slot via G.7 shux_ptr_slot_set; fail/KEEP_C via
+ * Wave28 pure: c_paths one-slot via G.7 xlang_ptr_slot_set; fail/KEEP_C via
  * append + diag_report(_with_code) (no va_list reportf).
  * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
  */
@@ -3796,61 +3796,61 @@ export function driver_parsed_invoke_cc(
     }
     // c_paths[1] as raw LP64 pointer table (G.7; .x bans **u8 array lit).
     let c_paths_raw: u8[8] = [];
-    shux_ptr_slot_set(&c_paths_raw[0], 0, tmp_c);
+    xlang_ptr_slot_set(&c_paths_raw[0], 0, tmp_c);
     // Path pack mirrors cold seed twin (F-06 nulls for scan-on-demand modules).
     let a0: *u8 = argv0;
-    let io_o: *u8 = shux_std_io_o_path(a0);
+    let io_o: *u8 = xlang_std_io_o_path(a0);
     let fs_o: *u8 = 0 as *u8;
-    let process_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/process/process.o");
-    let string_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/string/string.o");
+    let process_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/process/process.o");
+    let string_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/string/string.o");
     let heap_o: *u8 = 0 as *u8;
-    let path_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/path/path.o");
-    let runtime_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/runtime/runtime.o");
-    let runtime_panic_o: *u8 = shux_runtime_panic_o_path(a0);
-    let net_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/net/net.o");
-    let thread_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/thread/thread.o");
-    let time_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/time/time.o");
-    let random_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/random/random.o");
-    let env_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/env/env.o");
-    let sync_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/sync/sync.o");
-    let encoding_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/encoding/encoding.o");
-    let base64_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/base64/base64.o");
-    let crypto_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/crypto/crypto.o");
-    let log_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/log/log.o");
-    let atomic_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/atomic/atomic.o");
-    let channel_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/channel/channel.o");
-    let backtrace_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/backtrace/backtrace.o");
-    let hash_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/hash/hash.o");
-    let math_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/math/math.o");
-    let sort_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/sort/sort.o");
-    let ffi_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/ffi/ffi.o");
-    let db_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/db/sqlite/sqlite.o");
-    let elf_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/elf/elf.o");
-    let json_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/json/json.o");
-    let csv_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/csv/csv.o");
-    let regex_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/regex/regex.o");
+    let path_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/path/path.o");
+    let runtime_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/runtime/runtime.o");
+    let runtime_panic_o: *u8 = xlang_runtime_panic_o_path(a0);
+    let net_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/net/net.o");
+    let thread_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/thread/thread.o");
+    let time_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/time/time.o");
+    let random_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/random/random.o");
+    let env_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/env/env.o");
+    let sync_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/sync/sync.o");
+    let encoding_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/encoding/encoding.o");
+    let base64_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/base64/base64.o");
+    let crypto_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/crypto/crypto.o");
+    let log_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/log/log.o");
+    let atomic_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/atomic/atomic.o");
+    let channel_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/channel/channel.o");
+    let backtrace_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/backtrace/backtrace.o");
+    let hash_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/hash/hash.o");
+    let math_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/math/math.o");
+    let sort_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/sort/sort.o");
+    let ffi_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/ffi/ffi.o");
+    let db_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/db/sqlite/sqlite.o");
+    let elf_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/elf/elf.o");
+    let json_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/json/json.o");
+    let csv_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/csv/csv.o");
+    let regex_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/regex/regex.o");
     let compress_o: *u8 = 0 as *u8;
-    let unicode_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/unicode/unicode.o");
-    let dynlib_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/dynlib/dynlib.o");
-    let http_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/http/http.o");
-    let tar_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/tar/tar.o");
-    let simd_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/simd/simd.o");
-    let context_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/context/context.o");
-    let datetime_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/datetime/datetime.o");
-    let uuid_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/uuid/uuid.o");
-    let url_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/url/url.o");
-    let cli_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/cli/cli.o");
-    let security_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/security/security.o");
-    let config_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/config/config.o");
-    let cache_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/cache/cache.o");
-    let trace_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/trace/trace.o");
-    let task_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/task/task.o");
-    let schema_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/schema/schema.o");
-    let test_o: *u8 = shux_rel_o_path_from_argv0(a0, "std/test/test.o");
-    let include_root: *u8 = shux_repo_root_from_argv0(a0);
+    let unicode_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/unicode/unicode.o");
+    let dynlib_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/dynlib/dynlib.o");
+    let http_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/http/http.o");
+    let tar_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/tar/tar.o");
+    let simd_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/simd/simd.o");
+    let context_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/context/context.o");
+    let datetime_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/datetime/datetime.o");
+    let uuid_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/uuid/uuid.o");
+    let url_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/url/url.o");
+    let cli_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/cli/cli.o");
+    let security_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/security/security.o");
+    let config_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/config/config.o");
+    let cache_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/cache/cache.o");
+    let trace_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/trace/trace.o");
+    let task_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/task/task.o");
+    let schema_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/schema/schema.o");
+    let test_o: *u8 = xlang_rel_o_path_from_argv0(a0, "std/test/test.o");
+    let include_root: *u8 = xlang_repo_root_from_argv0(a0);
     // G.7: user .o from CLI (e.g. runtime_atomic_glue.o) into the same table as asm ld.
-    shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-    let cc_ret: i32 = shux_invoke_cc(
+    xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+    let cc_ret: i32 = xlang_invoke_cc(
       &c_paths_raw[0], 1, out_path, 0 as *u8, opt, use_lto,
       io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o,
       net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o,
@@ -3858,7 +3858,7 @@ export function driver_parsed_invoke_cc(
       json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o,
       context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o,
       task_o, schema_o, test_o, include_root, 0 as *u8);
-    shux_invoke_cc_clear_user_o_files();
+    xlang_invoke_cc_clear_user_o_files();
     if (cc_ret != 0) {
       driver_unlink_failed_output(out_path);
       // BLD001: match cold seed message text without va_list reportf.
@@ -3868,9 +3868,9 @@ export function driver_parsed_invoke_cc(
       diag_report_with_code(0 as *u8, 0, 0, "build error", "BLD001", &msg[0], 0 as *u8);
       return 1;
     }
-    // Success: drop tmp .c unless SHUX_KEEP_C is set (dev inspection).
+    // Success: drop tmp .c unless XLANG_KEEP_C is set (dev inspection).
     // wave228 G.7: link_abi_getenv (not raw libc getenv); host residual = _impl.
-    if (link_abi_getenv("SHUX_KEEP_C") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_KEEP_C") == 0 as *u8) {
       unlink(tmp_c);
     } else {
       let note: u8[512] = [];
@@ -3888,7 +3888,7 @@ export function driver_parsed_invoke_cc(
  * @param dep_paths *u8 — opaque char** base (LP64 pointer table); null → 0
  * @param n_deps i32 — entry count; n_deps <= 0 → 0
  * @return i32 — 1 if any non-null slot equals "std.io.core", else 0
- * Wave31 pure: G.7 shux_ptr_slot_get + strcmp lit (no C char**).
+ * Wave31 pure: G.7 xlang_ptr_slot_get + strcmp lit (no C char**).
  * PLATFORM: SHARED — pure under PREFER hybrid; cold seed keeps C twin.
  */
 #[no_mangle]
@@ -3902,7 +3902,7 @@ export function driver_parsed_deps_has_std_io_core(dep_paths: *u8, n_deps: i32):
   unsafe {
     let j: i32 = 0;
     while (j < n_deps) {
-      let p: *u8 = shux_ptr_slot_get(dep_paths, j);
+      let p: *u8 = xlang_ptr_slot_get(dep_paths, j);
       if (p != 0 as *u8) {
         if (strcmp(p, "std.io.core") == 0) {
           return 1;
@@ -3934,7 +3934,7 @@ export function driver_parsed_deps_has_std_io_driver(dep_paths: *u8, n_deps: i32
   unsafe {
     let j: i32 = 0;
     while (j < n_deps) {
-      let p: *u8 = shux_ptr_slot_get(dep_paths, j);
+      let p: *u8 = xlang_ptr_slot_get(dep_paths, j);
       if (p != 0 as *u8) {
         if (strcmp(p, "std.io.driver") == 0) {
           return 1;
@@ -3972,31 +3972,31 @@ export function driver_parsed_apply_preamble_skip(dep_paths: *u8, n_deps: i32): 
 }
 
 /**
- * Optional debug dump of prep entry bytes when SHUX_DUMP_PREP is set.
+ * Optional debug dump of prep entry bytes when XLANG_DUMP_PREP is set.
  * @param input_path *u8 — source path for diag note (may be null)
  * @param src *u8 — prep buffer bytes; null → no-op
- * @param src_len usize — byte count passed to shux_write_path_bytes
- * Writes /tmp/shux_prep_entry.bin on success then emits a fixed-arity note
+ * @param src_len usize — byte count passed to xlang_write_path_bytes
+ * Writes /tmp/xlang_prep_entry.bin on success then emits a fixed-arity note
  * (no va_list diag_reportf). Silent if env unset, src null, or write fails.
- * Wave31 pure: env gate + shux_write_path_bytes + append/diag_report.
+ * Wave31 pure: env gate + xlang_write_path_bytes + append/diag_report.
  * wave228 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * PLATFORM: SHARED path text; dump path is fixed /tmp (dev only).
  */
 #[no_mangle]
 export function driver_parsed_maybe_dump_prep(input_path: *u8, src: *u8, src_len: usize): void {
   unsafe {
-    if (link_abi_getenv("SHUX_DUMP_PREP") == 0 as *u8) {
+    if (link_abi_getenv("XLANG_DUMP_PREP") == 0 as *u8) {
       return;
     }
     if (src == 0 as *u8) {
       return;
     }
     // runtime_io_abi: 0 = success (matches cold seed twin).
-    if (shux_write_path_bytes("/tmp/shux_prep_entry.bin", src, src_len as i64) == 0) {
+    if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len as i64) == 0) {
       let msg: u8[192] = [];
       let at: i32 = driver_diag_append_cstr(&msg[0], 192, 0, "dumped prep entry (");
       at = driver_abi_append_i64(&msg[0], 192, at, src_len as i64);
-      at = driver_diag_append_cstr(&msg[0], 192, at, " bytes) to /tmp/shux_prep_entry.bin");
+      at = driver_diag_append_cstr(&msg[0], 192, at, " bytes) to /tmp/xlang_prep_entry.bin");
       diag_report(input_path, 0, 0, "note", &msg[0], 0 as *u8);
     }
   }
@@ -4015,7 +4015,7 @@ export function driver_parsed_maybe_dump_prep(input_path: *u8, src: *u8, src_len
 //   sizeof = 176
 // Pure path: no C struct in .x; fixed offsetof + LE i32 load + G.7 ptr load at (p+off).
 // opt_level null/missing → BSS lit "2" (same as cold g_driver_parsed_opt_default).
-// try_c_after_pp: product SHUX_NO_C_FRONTEND always continues .x pipeline (return -2).
+// try_c_after_pp: product XLANG_NO_C_FRONTEND always continues .x pipeline (return -2).
 // G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
 // PLATFORM: SHARED LP64 (Ubuntu x86_64 + Darwin arm64/x86_64). Not MS64 packing.
 
@@ -4067,7 +4067,7 @@ function driver_abi_parsed_off_use_lto(): i32 {
  * @param p *u8 — struct base; null → null
  * @param off i32 — byte offset of pointer field; off < 0 → null
  * @return *u8 — loaded pointer (may be null)
- * Uses G.7 shux_ptr_slot_get on (p+off) as a 1-slot table (no second load helper).
+ * Uses G.7 xlang_ptr_slot_get on (p+off) as a 1-slot table (no second load helper).
  * PLATFORM: SHARED LP64 little-endian pointer cells.
  */
 function driver_abi_load_ptr_at(p: *u8, off: i32): *u8 {
@@ -4078,7 +4078,7 @@ function driver_abi_load_ptr_at(p: *u8, off: i32): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    return shux_ptr_slot_get(p + off, 0);
+    return xlang_ptr_slot_get(p + off, 0);
   }
   return 0 as *u8;
 }
@@ -4209,7 +4209,7 @@ export function driver_parsed_use_lto(p: *u8): i32 {
  * @param ndefines i32 — define count (unused)
  * @param defines *u8 — opaque defines table (unused)
  * @return i32 — -2 continue .x pipeline; >=0 would be terminal rc
- * Product SHUX_NO_C_FRONTEND always returns -2 (no C frontend body in pure).
+ * Product XLANG_NO_C_FRONTEND always returns -2 (no C frontend body in pure).
  * Cold full-C seeds may still host a real branch; product hybrid keeps stub.
  * Wave32 pure. PLATFORM: SHARED — product path; permanent NO_C contract.
  */
@@ -4238,7 +4238,7 @@ export function driver_parsed_try_c_after_pp(
 //   path_buf_slot / lib_buf_slot / scan_* / c_path_cell / lib_roots_raw /
 //   n_lib_roots_slot / want_extern_slot
 // Pure authority under PREFER: clear/bind/take/get/lib_root_at/effective/try_extern
-// via G.7 shux_ptr_slot_* (no **u8 write in .x; no dual BSS).
+// via G.7 xlang_ptr_slot_* (no **u8 write in .x; no dual BSS).
 // Permanent OS residual (still seed): stdout_set_unbuffered / fwrite_stdout.
 // G.7: single hybrid authority under PREFER; cold seed twins under #ifndef FROM_X.
 // PLATFORM: SHARED LP64.
@@ -4269,7 +4269,7 @@ let g_driver_x_emit_one_root_raw: u8[8] = [];
 /**
  * Clear the shared emit c_path pointer cell (set to null).
  * @return void
- * Wave33 pure: G.7 shux_ptr_slot_set on always-seed c_path_cell.
+ * Wave33 pure: G.7 xlang_ptr_slot_set on always-seed c_path_cell.
  * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
@@ -4279,7 +4279,7 @@ export function driver_x_emit_clear_c_path(): void {
     if (cell == 0 as *u8) {
       return;
     }
-    shux_ptr_slot_set(cell, 0, 0 as *u8);
+    xlang_ptr_slot_set(cell, 0, 0 as *u8);
   }
 }
 
@@ -4297,7 +4297,7 @@ export function driver_x_emit_bind_c_path_to_buf(): void {
     if (cell == 0 as *u8) {
       return;
     }
-    shux_ptr_slot_set(cell, 0, buf);
+    xlang_ptr_slot_set(cell, 0, buf);
   }
 }
 
@@ -4305,7 +4305,7 @@ export function driver_x_emit_bind_c_path_to_buf(): void {
  * Bind lib_roots[i] to lib_bufs[i] after bytes were copied into the buffer.
  * @param i i32 — root index; out of range [0,16) is a no-op
  * @return void
- * Wave33 pure: G.7 shux_ptr_slot_set on lib_roots_raw + lib_buf_slot.
+ * Wave33 pure: G.7 xlang_ptr_slot_set on lib_roots_raw + lib_buf_slot.
  * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
@@ -4325,7 +4325,7 @@ export function driver_x_emit_bind_lib_root(i: i32): void {
     if (buf == 0 as *u8) {
       return;
     }
-    shux_ptr_slot_set(raw, i, buf);
+    xlang_ptr_slot_set(raw, i, buf);
   }
 }
 
@@ -4342,8 +4342,8 @@ export function driver_x_emit_take_c_path(): *u8 {
     if (cell == 0 as *u8) {
       return 0 as *u8;
     }
-    let p: *u8 = shux_ptr_slot_get(cell, 0);
-    shux_ptr_slot_set(cell, 0, 0 as *u8);
+    let p: *u8 = xlang_ptr_slot_get(cell, 0);
+    xlang_ptr_slot_set(cell, 0, 0 as *u8);
     return p;
   }
   return 0 as *u8;
@@ -4408,7 +4408,7 @@ export function driver_x_emit_lib_root_at(i: i32): *u8 {
     if (raw == 0 as *u8) {
       return 0 as *u8;
     }
-    return shux_ptr_slot_get(raw, i);
+    return xlang_ptr_slot_get(raw, i);
   }
   return 0 as *u8;
 }
@@ -4426,7 +4426,7 @@ export function driver_x_emit_effective_lib_roots(n_out: *i32): *u8 {
   let n: i32 = driver_x_emit_n_lib_roots_get();
   if (n <= 0) {
     unsafe {
-      shux_ptr_slot_set(&g_driver_x_emit_one_root_raw[0], 0, &g_driver_x_emit_dot[0]);
+      xlang_ptr_slot_set(&g_driver_x_emit_one_root_raw[0], 0, &g_driver_x_emit_dot[0]);
       if (n_out != 0 as *i32) {
         n_out[0] = 1;
       }
@@ -4451,7 +4451,7 @@ export function driver_x_emit_effective_lib_roots(n_out: *i32): *u8 {
  */
 #[no_mangle]
 export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
-  // Product SHUX_NO_C_FRONTEND: fixed diagnostic (input_path unused).
+  // Product XLANG_NO_C_FRONTEND: fixed diagnostic (input_path unused).
   unsafe {
     diag_report_with_code(
       0 as *u8,
@@ -4459,7 +4459,7 @@ export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
       0,
       "build error",
       "BLD001",
-      "-x -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
+      "-x -E -E-extern requires C parser/codegen (rebuild without -DXLANG_NO_C_FRONTEND)",
       0 as *u8
     );
   }
@@ -4467,7 +4467,7 @@ export function driver_x_emit_try_extern_via_cparser(input_path: *u8): i32 {
 }
 
 // ---- Wave34 Cap residual pure: asm try_c stubs + bind_lib_roots + defines BSS ----
-// Product SHUX_NO_C_FRONTEND / no SHUX_ASM_USE_COMPILER_IMPL_C:
+// Product XLANG_NO_C_FRONTEND / no XLANG_ASM_USE_COMPILER_IMPL_C:
 //   try_c_frontend_early → -2 (continue .x pipeline)
 //   try_c_typeck_precheck → -1 (skip C typeck precheck)
 //   use_compiler_impl_c → 0
@@ -4508,7 +4508,7 @@ let g_driver_asm_ndefines: i32 = 0;
  * @param n_lib i32 — unused
  * @param out_path *u8 — unused
  * @return i32 — always -2 (continue .x)
- * Wave34 pure: product SHUX_NO_C_FRONTEND contract; cold twin under #ifndef FROM_X.
+ * Wave34 pure: product XLANG_NO_C_FRONTEND contract; cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
@@ -4529,7 +4529,7 @@ export function driver_asm_try_c_frontend_early(
  * @param lib_roots *u8 — unused
  * @param n_lib i32 — unused
  * @return i32 — always -1 (skip)
- * Wave34 pure: product SHUX_NO_C_FRONTEND contract; cold twin under #ifndef FROM_X.
+ * Wave34 pure: product XLANG_NO_C_FRONTEND contract; cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
@@ -4543,9 +4543,9 @@ export function driver_asm_try_c_typeck_precheck(
 }
 
 /**
- * Whether SHUX_ASM_USE_COMPILER_IMPL_C is compiled in (dep-only parse path).
+ * Whether XLANG_ASM_USE_COMPILER_IMPL_C is compiled in (dep-only parse path).
  * @return i32 — always 0 on product hybrid (flag never set in product builds)
- * Wave34 pure: product path fixed 0; cold twin uses #ifdef SHUX_ASM_USE_COMPILER_IMPL_C.
+ * Wave34 pure: product path fixed 0; cold twin uses #ifdef XLANG_ASM_USE_COMPILER_IMPL_C.
  * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
@@ -4566,7 +4566,7 @@ export function driver_asm_use_compiler_impl_c(): i32 {
 export function driver_asm_bind_lib_roots(lib_roots: *u8, n: i32, n_out: *i32): *u8 {
   if (n <= 0 || lib_roots == 0 as *u8) {
     unsafe {
-      shux_ptr_slot_set(&g_driver_asm_one_root_raw[0], 0, &g_driver_asm_dot[0]);
+      xlang_ptr_slot_set(&g_driver_asm_one_root_raw[0], 0, &g_driver_asm_dot[0]);
       if (n_out != 0 as *i32) {
         n_out[0] = 1;
       }
@@ -4656,7 +4656,7 @@ export function driver_asm_ndefines_get(): i32 {
 // typeck_*: G.7 thin wrappers over pipeline typeck_ndep_store / dep_module_set / dep_arena_set
 //   (single table authority remains typeck_dep_*_ptrs[32] in pipeline seed).
 // diag_*: null-guard + diag_push_file / diag_restore (diag_thin pure under PREFER).
-// dispatch_lib_root_at: G.7 shux_ptr_slot_get on opaque const char** (max 16).
+// dispatch_lib_root_at: G.7 xlang_ptr_slot_get on opaque const char** (max 16).
 // dispatch_opt_default: reuses wave32 g_driver_parsed_opt_default lit "2" (G.7 one lit).
 // Wave36 pure: dispatch_lib_roots_from_key + run_compiler_parsed (see section below).
 // Still seed (OS residual): sibling_try_spawn (access/fork/exec), fopen family.
@@ -4752,7 +4752,7 @@ export function driver_diag_restore(snap: *u8): void {
  * @param roots *u8 — table base from driver_dispatch_lib_roots_from_key (or equivalent)
  * @param i i32 — root index; null roots or i out of [0,16) → null
  * @return *u8 — C string path at roots[i], or null
- * Wave35 pure: G.7 shux_ptr_slot_get; cold twin casts const char** under #ifndef FROM_X.
+ * Wave35 pure: G.7 xlang_ptr_slot_get; cold twin casts const char** under #ifndef FROM_X.
  * PLATFORM: SHARED LP64 — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
@@ -4767,7 +4767,7 @@ export function driver_dispatch_lib_root_at(roots: *u8, i: i32): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    return shux_ptr_slot_get(roots, i);
+    return xlang_ptr_slot_get(roots, i);
   }
   return 0 as *u8;
 }
@@ -4819,7 +4819,7 @@ function driver_abi_parsed_sizeof(): i32 {
  * @param off i32 — byte offset of pointer field; off < 0 → no-op
  * @param v *u8 — pointer value to store (may be null)
  * @return void
- * G.7: shux_ptr_slot_set on (p+off) as a 1-slot table (pairs driver_abi_load_ptr_at).
+ * G.7: xlang_ptr_slot_set on (p+off) as a 1-slot table (pairs driver_abi_load_ptr_at).
  * PLATFORM: SHARED LP64 little-endian pointer cells.
  */
 function driver_abi_store_ptr_at(p: *u8, off: i32, v: *u8): void {
@@ -4830,7 +4830,7 @@ function driver_abi_store_ptr_at(p: *u8, off: i32, v: *u8): void {
     return;
   }
   unsafe {
-    shux_ptr_slot_set(p + off, 0, v);
+    xlang_ptr_slot_set(p + off, 0, v);
   }
 }
 
@@ -4912,8 +4912,8 @@ export function driver_dispatch_run_compiler_parsed(
       i = 0;
       while (i < n) {
         unsafe {
-          let r: *u8 = shux_ptr_slot_get(lib_roots, i);
-          shux_ptr_slot_set(p + driver_abi_parsed_off_lib_roots(), i, r);
+          let r: *u8 = xlang_ptr_slot_get(lib_roots, i);
+          xlang_ptr_slot_set(p + driver_abi_parsed_off_lib_roots(), i, r);
         }
         i = i + 1;
       }
@@ -4973,7 +4973,7 @@ function driver_abi_module_static_size_const(): usize {
 }
 
 /**
- * LP64 sizeof(struct shux_slice_uint8_t) = 16 (data* + length usize).
+ * LP64 sizeof(struct xlang_slice_uint8_t) = 16 (data* + length usize).
  * @return i32 — bytes for BSS pack used by driver_parser_diag_fail_tok_kind
  * PLATFORM: SHARED LP64.
  */
@@ -4982,7 +4982,7 @@ function driver_abi_slice_uint8_sizeof(): i32 {
 }
 
 /**
- * offsetof(shux_slice_uint8_t, data) on LP64.
+ * offsetof(xlang_slice_uint8_t, data) on LP64.
  * @return i32 — 0
  */
 function driver_abi_slice_uint8_off_data(): i32 {
@@ -4990,7 +4990,7 @@ function driver_abi_slice_uint8_off_data(): i32 {
 }
 
 /**
- * offsetof(shux_slice_uint8_t, length) on LP64.
+ * offsetof(xlang_slice_uint8_t, length) on LP64.
  * @return i32 — 8
  */
 function driver_abi_slice_uint8_off_length(): i32 {
@@ -5075,7 +5075,7 @@ export function driver_run_stack_esc_gate_on_large_stack(arg: *u8): void {
 }
 
 /**
- * Pack source bytes as shux_slice_uint8_t and query parser fail-at token kind.
+ * Pack source bytes as xlang_slice_uint8_t and query parser fail-at token kind.
  * @param src *u8 — source bytes; null → return 0 (matches cold seed)
  * @param len usize — byte length of src (may be 0)
  * @return i32 — parser_diag_fail_at_token_kind result; 0 on null src
@@ -5109,7 +5109,7 @@ export function driver_parser_diag_fail_tok_kind(src: *u8, len: usize): i32 {
  * @param len i32 — byte length of data (passed through to residual)
  * @param out_main_idx *i32 — optional; when non-null set to main_idx or -1 on guard fail
  * @return i32 — ParseIntoResult.ok from residual; -1 on null arena/module/data
- * Wave38 pure: null guards pure; Cap-struct-return residual shux_parser_parse_into_buf_rc
+ * Wave38 pure: null guards pure; Cap-struct-return residual xlang_parser_parse_into_buf_rc
  * unpacks parser_ParseIntoResult (ok + main_idx). Cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — struct return stays seed residual.
  */
@@ -5130,15 +5130,15 @@ export function driver_parse_into_buf_rc(
     return -1;
   }
   unsafe {
-    return shux_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+    return xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
   }
   return -1;
 }
 
 // ---- Wave39 Cap residual pure: stdio stdout + asm fwrite + x_emit fwrite_stdout ----
-// G.7: reuse wave26 g05 harness (shux_driver_stdout_ptr / shux_driver_fwrite_opaque).
+// G.7: reuse wave26 g05 harness (xlang_driver_stdout_ptr / xlang_driver_fwrite_opaque).
 // driver_x_emit_fwrite_stdout returns written byte count (not 0/1); residual
-//   shux_driver_fwrite_stdout_n hides fwrite+fflush and the count ABI.
+//   xlang_driver_fwrite_stdout_n hides fwrite+fflush and the count ABI.
 // wave40 owns stderr / fflush_stdout / fopen_wb / write_metric_o (see below).
 // wave41 owns mkstemp_fdopen. Still seed OS residual: sibling / usage / exec.
 // PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
@@ -5150,18 +5150,18 @@ export function driver_parse_into_buf_rc(
  * @return i32 — fwrite byte count (may be short on partial write)
  * PLATFORM: SHARED — FILE* stdout cast stays seed rest (no FILE* in .x).
  */
-export extern "C" function shux_driver_fwrite_stdout_n(data: *u8, len: i32): i32;
+export extern "C" function xlang_driver_fwrite_stdout_n(data: *u8, len: i32): i32;
 
 /**
  * Opaque stdout FILE* as *u8 for rt_entry / rt_run_exec diag print paths.
  * @return *u8 — never null on hosted product (stdout stream handle)
- * Wave39 pure: G.7 shux_driver_stdout_ptr (wave26 g05 harness); cold twin under #ifndef FROM_X.
+ * Wave39 pure: G.7 xlang_driver_stdout_ptr (wave26 g05 harness); cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — Cap residual pure under PREFER hybrid.
  */
 #[no_mangle]
 export function driver_stdio_stdout(): *u8 {
   unsafe {
-    return shux_driver_stdout_ptr();
+    return xlang_driver_stdout_ptr();
   }
   return 0 as *u8;
 }
@@ -5172,7 +5172,7 @@ export function driver_stdio_stdout(): *u8 {
  * @param data *u8 — bytes; null or len <= 0 → return 0 (success no-op)
  * @param len i32 — byte count; len <= 0 → return 0
  * @return i32 — 0 full write success; 1 short write / stream error
- * Wave39 pure: null/len guards pure; stream select + g05 shux_driver_fwrite_opaque.
+ * Wave39 pure: null/len guards pure; stream select + g05 xlang_driver_fwrite_opaque.
  * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -5186,11 +5186,11 @@ export function driver_asm_fwrite(fp: *u8, data: *u8, len: i32): i32 {
   }
   if (stream == 0 as *u8) {
     unsafe {
-      stream = shux_driver_stdout_ptr();
+      stream = xlang_driver_stdout_ptr();
     }
   }
   unsafe {
-    return shux_driver_fwrite_opaque(data, len, stream);
+    return xlang_driver_fwrite_opaque(data, len, stream);
   }
   return 1;
 }
@@ -5200,7 +5200,7 @@ export function driver_asm_fwrite(fp: *u8, data: *u8, len: i32): i32 {
  * @param data *u8 — bytes; null or len <= 0 → return 0
  * @param len i32 — byte count; len <= 0 → return 0
  * @return i32 — fwrite byte count after residual fflush
- * Wave39 pure: null/len guards pure; Cap OS residual shux_driver_fwrite_stdout_n.
+ * Wave39 pure: null/len guards pure; Cap OS residual xlang_driver_fwrite_stdout_n.
  * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
  */
 #[no_mangle]
@@ -5212,7 +5212,7 @@ export function driver_x_emit_fwrite_stdout(data: *u8, len: i32): i32 {
     return 0;
   }
   unsafe {
-    return shux_driver_fwrite_stdout_n(data, len);
+    return xlang_driver_fwrite_stdout_n(data, len);
   }
   return 0;
 }
@@ -5226,12 +5226,12 @@ export function driver_x_emit_fwrite_stdout(data: *u8, len: i32): i32 {
 
 /** g05 prologue: opaque identity of host stderr as *u8.
  * PLATFORM: SHARED — harness residual; product pure returns pointer only. */
-export extern "C" function shux_driver_stderr_ptr(): *u8;
+export extern "C" function xlang_driver_stderr_ptr(): *u8;
 /** g05 prologue: fflush(stdout). PLATFORM: SHARED — harness residual. */
-export extern "C" function shux_driver_fflush_stdout(): void;
+export extern "C" function xlang_driver_fflush_stdout(): void;
 /** g05 prologue: fopen(path,"wb") as opaque *u8; null path → null.
  * PLATFORM: SHARED — binary write; distinct from fopen_write_opaque "w". */
-export extern "C" function shux_driver_fopen_wb_opaque(path: *u8): *u8;
+export extern "C" function xlang_driver_fopen_wb_opaque(path: *u8): *u8;
 
 /** Single zero byte for pure write_metric_o (one-byte metric .o payload).
  * PLATFORM: SHARED — BSS lit array base; read-only payload for fwrite. */
@@ -5240,13 +5240,13 @@ let g_driver_metric_zero_byte: u8[1] = [0];
 /**
  * Opaque stderr FILE* as *u8 for rt_entry diag print paths.
  * @return *u8 — never null on hosted product (stderr stream handle)
- * Wave40 pure: G.7 shux_driver_stderr_ptr (wave26 harness sibling of stdout_ptr).
+ * Wave40 pure: G.7 xlang_driver_stderr_ptr (wave26 harness sibling of stdout_ptr).
  * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function driver_stdio_stderr(): *u8 {
   unsafe {
-    return shux_driver_stderr_ptr();
+    return xlang_driver_stderr_ptr();
   }
   return 0 as *u8;
 }
@@ -5254,13 +5254,13 @@ export function driver_stdio_stderr(): *u8 {
 /**
  * fflush(stdout) for asm emit-to-stdout paths.
  * @return void
- * Wave40 pure: G.7 shux_driver_fflush_stdout g05 harness.
+ * Wave40 pure: G.7 xlang_driver_fflush_stdout g05 harness.
  * Cold twin under #ifndef FROM_X. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function driver_asm_fflush_stdout(): void {
   unsafe {
-    shux_driver_fflush_stdout();
+    xlang_driver_fflush_stdout();
   }
 }
 
@@ -5268,7 +5268,7 @@ export function driver_asm_fflush_stdout(): void {
  * fopen(path, "wb") as opaque FILE* for asm binary object write.
  * @param path *u8 — NUL-terminated path; null → null
  * @return *u8 — opaque FILE* or null on failure / null path
- * Wave40 pure: null guard pure; g05 shux_driver_fopen_wb_opaque (mode "wb").
+ * Wave40 pure: null guard pure; g05 xlang_driver_fopen_wb_opaque (mode "wb").
  * Cold twin under #ifndef FROM_X. PLATFORM: SHARED — binary mode (not text "w").
  */
 #[no_mangle]
@@ -5277,7 +5277,7 @@ export function driver_asm_fopen_wb(path: *u8): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    return shux_driver_fopen_wb_opaque(path);
+    return xlang_driver_fopen_wb_opaque(path);
   }
   return 0 as *u8;
 }
@@ -5297,18 +5297,18 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
     return 1;
   }
   unsafe {
-    fp = shux_driver_fopen_wb_opaque(path);
+    fp = xlang_driver_fopen_wb_opaque(path);
   }
   if (fp == 0 as *u8) {
     return 1;
   }
   z = &g_driver_metric_zero_byte[0];
   unsafe {
-    if (shux_driver_fwrite_opaque(z, 1, fp) != 0) {
-      shux_driver_fclose_opaque(fp);
+    if (xlang_driver_fwrite_opaque(z, 1, fp) != 0) {
+      xlang_driver_fclose_opaque(fp);
       return 1;
     }
-    return shux_driver_fclose_opaque(fp);
+    return xlang_driver_fclose_opaque(fp);
   }
   return 1;
 }
@@ -5316,8 +5316,8 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
 // ---- Wave41 Cap residual pure: driver_asm_mkstemp_fdopen ----
 // G.7: reuse wave27 open_out helpers (tmp_prefix + cstr_copy/cat + mkstemp/close/unlink).
 // Cap residual split:
-//   - seed always: shux_driver_asm_mkstemp_fdopen_enabled (WINDOWS → 0; POSIX → 1)
-//   - g05 prologue: shux_driver_fdopen_wb_opaque(fd) hides FILE* fdopen("wb")
+//   - seed always: xlang_driver_asm_mkstemp_fdopen_enabled (WINDOWS → 0; POSIX → 1)
+//   - g05 prologue: xlang_driver_fdopen_wb_opaque(fd) hides FILE* fdopen("wb")
 //   - pure orch: null guard, enable gate, template fill into path_out64, mkstemp,
 //     fdopen; fail → close+unlink+clear path[0]
 // Wave42 owns exec_compiled_body (see below).
@@ -5328,21 +5328,21 @@ export function driver_asm_write_metric_o(path: *u8): i32 {
  * @return i32 — 1 enabled; 0 disabled (pure returns null without OS calls)
  * PLATFORM: WINDOWS returns 0; POSIX/LINUX/MACOS return 1. Always-seed residual.
  */
-export extern "C" function shux_driver_asm_mkstemp_fdopen_enabled(): i32;
+export extern "C" function xlang_driver_asm_mkstemp_fdopen_enabled(): i32;
 /**
  * g05 prologue: fdopen(fd, "wb") as opaque *u8; failure → null (caller closes fd).
  * @param fd i32 — open file descriptor from mkstemp
  * @return *u8 — opaque FILE* or null
  * PLATFORM: SHARED — harness FILE* cast residual (no FILE* in .x).
  */
-export extern "C" function shux_driver_fdopen_wb_opaque(fd: i32): *u8;
+export extern "C" function xlang_driver_fdopen_wb_opaque(fd: i32): *u8;
 
 /**
  * Fill path_out64 with a unique temp path and fdopen it for binary asm object write.
  * @param path_out64 *u8 — caller buffer capacity >= 64 including NUL; null → null
  * @return *u8 — opaque FILE* opened "wb", or null on disable/guard/OS failure
  * On failure after mkstemp: close(fd), unlink(path), clear path_out64[0].
- * Wave41 pure: null + enable gate pure; template = tmp_prefix + "shux_asm_XXXXXX"
+ * Wave41 pure: null + enable gate pure; template = tmp_prefix + "xlang_asm_XXXXXX"
  * (reuses wave27 cstr helpers); mkstemp/close/unlink libc; g05 fdopen_wb_opaque.
  * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch; WINDOWS residual disabled.
  */
@@ -5356,15 +5356,15 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
   }
   unsafe {
     // PLATFORM: WINDOWS — cold twin always returns null; do not call mkstemp.
-    if (shux_driver_asm_mkstemp_fdopen_enabled() == 0) {
+    if (xlang_driver_asm_mkstemp_fdopen_enabled() == 0) {
       return 0 as *u8;
     }
-    prefix = shux_driver_tmp_prefix();
+    prefix = xlang_driver_tmp_prefix();
   }
   // Cap 64 matches cold snprintf(path_out64, 64, ...) and wave25 asm tmp slot.
   driver_open_out_cstr_copy(path_out64, 64, prefix);
   // Short suffix keeps under -E string cap (~63); XXXXXX mutated by mkstemp.
-  driver_open_out_cstr_cat(path_out64, 64, "shux_asm_XXXXXX");
+  driver_open_out_cstr_cat(path_out64, 64, "xlang_asm_XXXXXX");
   unsafe {
     fd = mkstemp(path_out64);
   }
@@ -5372,7 +5372,7 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    fp = shux_driver_fdopen_wb_opaque(fd);
+    fp = xlang_driver_fdopen_wb_opaque(fd);
   }
   if (fp == 0 as *u8) {
     // Match cold: close fd, unlink template path, clear first byte for callers.
@@ -5389,8 +5389,8 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
 // ---- Wave42 Cap residual pure: driver_exec_compiled_body ----
 // G.7: reuse pure driver_exec_path_is_non_exe (rt_run_exec.x).
 // Cap residual split:
-//   - seed always: shux_driver_exec_scan_out_path_opaque (*u8 argv → cast + scan)
-//   - seed always: shux_driver_exec_spawn_wait (fork/exec or spawnvp + wait)
+//   - seed always: xlang_driver_exec_scan_out_path_opaque (*u8 argv → cast + scan)
+//   - seed always: xlang_driver_exec_spawn_wait (fork/exec or spawnvp + wait)
 //   - pure orch: null/argc guard, resolve exe, non-exe early 0, spawn residual
 // Wave43 owns sibling_try_spawn; wave44 owns print_usage_write (see below).
 // PLATFORM: SHARED orch; WINDOWS spawn vs POSIX fork in residual.
@@ -5402,14 +5402,14 @@ export function driver_asm_mkstemp_fdopen(path_out64: *u8): *u8 {
  * @return *u8 — product path (may be "a.out" heap) or null
  * PLATFORM: SHARED — *u8→**u8 cast residual (.x -E drops cast body). Always-seed.
  */
-export extern "C" function shux_driver_exec_scan_out_path_opaque(argc: i32, argv_opaque: *u8): *u8;
+export extern "C" function xlang_driver_exec_scan_out_path_opaque(argc: i32, argv_opaque: *u8): *u8;
 /**
  * Cap residual: run product exe and wait for exit status (spawn/fork/exec).
  * @param exe *u8 — NUL-terminated path; null → 1
  * @return i32 — process exit code, or 1 on spawn/wait failure
  * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+shu_waitpid_retry. Always-seed.
  */
-export extern "C" function shux_driver_exec_spawn_wait(exe: *u8): i32;
+export extern "C" function xlang_driver_exec_spawn_wait(exe: *u8): i32;
 /**
  * G.7: pure non-exe gate already in rt_run_exec.x (suffix .o/.obj/.s).
  * @param exe *u8 — product path; null treated as non-exe
@@ -5424,7 +5424,7 @@ export extern "C" function driver_exec_path_is_non_exe(exe: *u8): i32;
  * @param argv_opaque *u8 — opaque char** (cmd_run ABI); null → 1
  * @return i32 — 0 if path is non-exe (.o/.s); else child exit or 1 on failure
  * Wave42 pure: null/argc guards pure; resolve via scan opaque residual; non-exe via
- * G.7 driver_exec_path_is_non_exe; OS process residual shux_driver_exec_spawn_wait.
+ * G.7 driver_exec_path_is_non_exe; OS process residual xlang_driver_exec_spawn_wait.
  * Cold twin under #ifndef FROM_X. PLATFORM: SHARED orch; spawn residual OS-split.
  */
 #[no_mangle]
@@ -5439,13 +5439,13 @@ export function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32 {
   // Cap residual: *u8→char** cast + scan; G.7 non-exe gate; OS spawn residual.
   // All three are C/extern surfaces → require unsafe (T001).
   unsafe {
-    exe = shux_driver_exec_scan_out_path_opaque(argc, argv_opaque);
+    exe = xlang_driver_exec_scan_out_path_opaque(argc, argv_opaque);
     // G.7: single authority for non-exe suffix gate (rt_run_exec pure).
     if (driver_exec_path_is_non_exe(exe) != 0) {
       return 0;
     }
     // Cap residual: fork/exec or Windows spawnvp + wait (process OS boundary).
-    return shux_driver_exec_spawn_wait(exe);
+    return xlang_driver_exec_spawn_wait(exe);
   }
   return 1;
 }
@@ -5453,13 +5453,13 @@ export function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32 {
 // ---- Wave43 Cap residual pure: driver_dispatch_sibling_try_spawn ----
 // G.7: reuse pure driver_argv0_basename_is (rt_util.x) — no second basename path.
 // Cap residual split:
-//   - seed always: shux_driver_sibling_argv0_get (*u8 argv → cast + av[0])
-//   - seed always: shux_driver_sibling_access_spawn (access X_OK + fork/exec or spawnvp)
-//   - pure orch: null/argc guard, basename "shux-c" early -1, path BSS 512 pure, residual
+//   - seed always: xlang_driver_sibling_argv0_get (*u8 argv → cast + av[0])
+//   - seed always: xlang_driver_sibling_access_spawn (access X_OK + fork/exec or spawnvp)
+//   - pure orch: null/argc guard, basename "xlang-c" early -1, path BSS 512 pure, residual
 // Wave44 owns print_usage_write (see below). PLATFORM: SHARED orch;
 // WINDOWS \\ sep + spawnvp vs POSIX / + fork in residual.
 
-/** Module BSS for sibling path "dir/shux-c"; capacity matches cold char shu_c[512]. */
+/** Module BSS for sibling path "dir/xlang-c"; capacity matches cold char shu_c[512]. */
 let g_driver_sibling_path_buf: u8[512] = [];
 
 /**
@@ -5468,16 +5468,16 @@ let g_driver_sibling_path_buf: u8[512] = [];
  * @return *u8 — argv[0] path or null
  * PLATFORM: SHARED — *u8→**u8 cast residual (.x -E drops cast body). Always-seed.
  */
-export extern "C" function shux_driver_sibling_argv0_get(argv_opaque: *u8): *u8;
+export extern "C" function xlang_driver_sibling_argv0_get(argv_opaque: *u8): *u8;
 /**
  * Cap residual: access(path, X_OK) then replace av[0] and spawn/fork wait.
- * @param path *u8 — NUL-terminated sibling shux-c path; null → -1
+ * @param path *u8 — NUL-terminated sibling xlang-c path; null → -1
  * @param argc i32 — argv length (unused except spawn inherits av)
  * @param argv_opaque *u8 — opaque char**; null → -1
  * @return i32 — child exit status, or -1 if not executable / spawn failure
  * PLATFORM: WINDOWS _spawnvp; POSIX fork+execvp+waitpid. Always-seed.
  */
-export extern "C" function shux_driver_sibling_access_spawn(
+export extern "C" function xlang_driver_sibling_access_spawn(
   path: *u8, argc: i32, argv_opaque: *u8
 ): i32;
 /**
@@ -5490,13 +5490,13 @@ export extern "C" function shux_driver_sibling_access_spawn(
 export extern "C" function driver_argv0_basename_is(argv0: *u8, base: *u8): i32;
 
 /**
- * Build sibling path into out[cap]: dirname(self)+"/shux-c" or bare "shux-c".
+ * Build sibling path into out[cap]: dirname(self)+"/xlang-c" or bare "xlang-c".
  * @param self *u8 — argv0 path; null → -1
  * @param out *u8 — destination buffer; null → -1
- * @param cap i32 — capacity including NUL; must be > 8 (room for "/shux-c")
+ * @param cap i32 — capacity including NUL; must be > 8 (room for "/xlang-c")
  * @return i32 — 0 success; -1 null/oversized dirname
  * Scans last '/' (47) or '\\' (92); matches cold strrchr + Windows \\ preference.
- * PLATFORM: SHARED path bytes; always emits '/' before "shux-c" (cold strcat same).
+ * PLATFORM: SHARED path bytes; always emits '/' before "xlang-c" (cold strcat same).
  */
 #[no_mangle]
 export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i32 {
@@ -5528,31 +5528,31 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
     i = i + 1;
   }
   if (last < 0) {
-    // Bare name: cold strcpy(shu_c, "shux-c").
-    driver_open_out_cstr_copy(out, cap, "shux-c");
+    // Bare name: cold strcpy(shu_c, "xlang-c").
+    driver_open_out_cstr_copy(out, cap, "xlang-c");
     return 0;
   }
   // Cold: dir_len = slash - self; reject if dir_len >= sizeof - 8.
   if (last >= cap - 8) {
     return 0 - 1;
   }
-  // Copy dirname excluding trailing separator, then append "/shux-c".
+  // Copy dirname excluding trailing separator, then append "/xlang-c".
   j = 0;
   while (j < last) {
     out[j] = self[j];
     j = j + 1;
   }
   out[j] = 0;
-  driver_open_out_cstr_cat(out, cap, "/shux-c");
+  driver_open_out_cstr_cat(out, cap, "/xlang-c");
   return 0;
 }
 
 /**
- * Try spawn same-dir shux-c sibling with the caller's argv (dispatch via shu-c).
+ * Try spawn same-dir xlang-c sibling with the caller's argv (dispatch via shu-c).
  * @param argc i32 — argv length; argc < 2 → -1 (need argv0 + at least one more)
  * @param argv_opaque *u8 — opaque char** from entry; null → -1
  * @return i32 — child exit status if delegated; -1 if not delegated
- *   (self is already shux-c, path not X_OK, spawn fail, or guard fail)
+ *   (self is already xlang-c, path not X_OK, spawn fail, or guard fail)
  * Wave43 pure: null/argc pure; argv0 via Cap residual; G.7 basename_is pure;
  * path pure into BSS 512; OS residual access+spawn. Cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED orch; residual holds WIN vs POSIX process boundary.
@@ -5571,12 +5571,12 @@ export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): 
   // Cap residual: *u8→char** cast + av[0]; G.7 basename; OS access+spawn.
   // Extern surfaces require unsafe (T001).
   unsafe {
-    self = shux_driver_sibling_argv0_get(argv_opaque);
+    self = xlang_driver_sibling_argv0_get(argv_opaque);
     if (self == 0 as *u8) {
       return 0 - 1;
     }
     // G.7: single authority for argv0 basename (rt_util pure).
-    if (driver_argv0_basename_is(self, "shux-c") != 0) {
+    if (driver_argv0_basename_is(self, "xlang-c") != 0) {
       return 0 - 1;
     }
   }
@@ -5587,17 +5587,17 @@ export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): 
   }
   unsafe {
     // Cap residual: access X_OK + fork/exec or Windows spawnvp + wait.
-    return shux_driver_sibling_access_spawn(path, argc, argv_opaque);
+    return xlang_driver_sibling_access_spawn(path, argc, argv_opaque);
   }
   return 0 - 1;
 }
 
 // ---- Wave44 Cap residual pure: driver_print_usage_write ----
-// Color policy pure (analysis/SHUX 命令行.md §13 / no-color.org):
+// Color policy pure (analysis/XLANG 命令行.md §13 / no-color.org):
 //   NO_COLOR set (any value, even empty) → no color
-//   CLICOLOR_FORCE / SHUX_FORCE_COLOR truthy → force color even when piped
+//   CLICOLOR_FORCE / XLANG_FORCE_COLOR truthy → force color even when piped
 //   otherwise → isatty(1)
-// Cap residual always-seed: shux_driver_usage_write_stdout(use_color)
+// Cap residual always-seed: xlang_driver_usage_write_stdout(use_color)
 //   holds giant plain + ANSI color multi-line tables + fwrite + fflush.
 // Root cause for residual: .x -E drops / mis-encodes long \\n string lits — not a
 // single-line workaround; table authority stays one seed residual (G.7).
@@ -5608,10 +5608,10 @@ export function driver_dispatch_sibling_try_spawn(argc: i32, argv_opaque: *u8): 
  * @param use_color i32 — non-zero selects ANSI color table; zero selects plain
  * PLATFORM: SHARED — giant lit tables + fwrite/fflush. Always-seed (no pure-dup).
  */
-export extern "C" function shux_driver_usage_write_stdout(use_color: i32): void;
+export extern "C" function xlang_driver_usage_write_stdout(use_color: i32): void;
 
 /**
- * Print shux CLI usage summary to stdout (fd1 / stdout FILE*).
+ * Print xlang CLI usage summary to stdout (fd1 / stdout FILE*).
  * Wave44 pure: color policy orch reuses G.7 driver_env_nonnull / driver_env_flag_truthy
  * (same truthiness as cold getenv checks); isatty(1) for TTY default; Cap residual
  * holds multi-line usage tables + write. Cold twin under #ifndef FROM_X.
@@ -5625,7 +5625,7 @@ export function driver_print_usage_write(): void {
     use_color = 0;
   } else if (driver_env_flag_truthy("CLICOLOR_FORCE") != 0) {
     use_color = 1;
-  } else if (driver_env_flag_truthy("SHUX_FORCE_COLOR") != 0) {
+  } else if (driver_env_flag_truthy("XLANG_FORCE_COLOR") != 0) {
     use_color = 1;
   } else {
     // Default: color only when stdout is a TTY.
@@ -5635,7 +5635,7 @@ export function driver_print_usage_write(): void {
   }
   // Cap residual: plain/color tables + fwrite(stdout) + fflush (giant lit authority).
   unsafe {
-    shux_driver_usage_write_stdout(use_color);
+    xlang_driver_usage_write_stdout(use_color);
   }
 }
 

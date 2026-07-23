@@ -309,7 +309,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
  * See implementation.
  */
 extern function build_run_asm_build(shu_path: *u8): i32;
-extern function build_copy_shux_asm(): i32;
+extern function build_copy_xlang_asm(): i32;
 
 /** Internal function `build_patch_pipeline_gen_c`.
  * Implements `build_patch_pipeline_gen_c`.

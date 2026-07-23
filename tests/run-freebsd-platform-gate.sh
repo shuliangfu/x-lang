@@ -2,11 +2,11 @@
 # B-21：FreeBSD 平台 #[cfg] / std.sys 烟测门禁（manifest + cross -target）。
 #
 # 用法：./tests/run-freebsd-platform-gate.sh
-# 环境：SHUX_FREEBSD_PLATFORM_FAIL=1 失败时硬退出；非 FreeBSD 宿主仅验 manifest + cfg triple。
+# 环境：XLANG_FREEBSD_PLATFORM_FAIL=1 失败时硬退出；非 FreeBSD 宿主仅验 manifest + cfg triple。
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_FREEBSD_PLATFORM_FAIL:-0}
+FAIL=${XLANG_FREEBSD_PLATFORM_FAIL:-0}
 DOC="analysis/platform-freebsd-v1.md"
 FREEBSD_MOD="std/sys/freebsd.x"
 SMOKE="tests/sys/freebsd_posix_write_smoke.x"
@@ -29,23 +29,23 @@ grep -q 'freebsd' compiler/src/lexer/cfg_eval.x || {
 }
 echo "freebsd-platform manifest OK"
 
-SHUX="${SHUX:-./compiler/shux-c}"
-if [ ! -x "$SHUX" ]; then
-  SHUX="./compiler/shux"
+XLANG="${XLANG:-./compiler/xlang-c}"
+if [ ! -x "$XLANG" ]; then
+  XLANG="./compiler/xlang"
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "freebsd-platform gate SKIP runtime (no shux)"
+if [ ! -x "$XLANG" ]; then
+  echo "freebsd-platform gate SKIP runtime (no xlang)"
   exit 0
 fi
 
 run_expect() {
   local triple="$1"
   local expect="$2"
-  local out="/tmp/shux_freebsd_triple.$$.out"
+  local out="/tmp/xlang_freebsd_triple.$$.out"
   rm -f "$out" 2>/dev/null || true
-  if ! "$SHUX" -target "$triple" -o "$out" "$CFG_X" 2>/tmp/shux_freebsd_triple.log; then
+  if ! "$XLANG" -target "$triple" -o "$out" "$CFG_X" 2>/tmp/xlang_freebsd_triple.log; then
     echo "freebsd-platform FAIL: compile -target $triple" >&2
-    tail -n 6 /tmp/shux_freebsd_triple.log 2>/dev/null || true
+    tail -n 6 /tmp/xlang_freebsd_triple.log 2>/dev/null || true
     return 1
   fi
   if [ ! -x "$out" ]; then
@@ -73,14 +73,14 @@ if ! run_expect "aarch64-unknown-freebsd14.0" 20; then
 fi
 
 HOSTOS="$(uname -s 2>/dev/null)"
-if [ "$HOSTOS" = "FreeBSD" ] && "$SHUX" check -L . "$SMOKE" >/dev/null 2>&1 \
-  && "$SHUX" "$SMOKE" -o /tmp/shux_freebsd_write_smoke 2>/dev/null \
-  && [ -x /tmp/shux_freebsd_write_smoke ]; then
+if [ "$HOSTOS" = "FreeBSD" ] && "$XLANG" check -L . "$SMOKE" >/dev/null 2>&1 \
+  && "$XLANG" "$SMOKE" -o /tmp/xlang_freebsd_write_smoke 2>/dev/null \
+  && [ -x /tmp/xlang_freebsd_write_smoke ]; then
   set +e
-  OUT=$(/tmp/shux_freebsd_write_smoke 2>/dev/null)
+  OUT=$(/tmp/xlang_freebsd_write_smoke 2>/dev/null)
   EX=$?
   set -e
-  rm -f /tmp/shux_freebsd_write_smoke
+  rm -f /tmp/xlang_freebsd_write_smoke
   EXPECTED=$(printf 'Hello Shu!\n')
   if [ "$EX" -ne 0 ] || [ "$OUT" != "$EXPECTED" ]; then
     echo "freebsd-platform FAIL: host run exit=$EX out='$OUT'" >&2
@@ -89,7 +89,7 @@ if [ "$HOSTOS" = "FreeBSD" ] && "$SHUX" check -L . "$SMOKE" >/dev/null 2>&1 \
   fi
   echo "freebsd-platform host posix write OK"
 else
-  echo "freebsd-platform SKIP host run (need FreeBSD + shux -o exe)"
+  echo "freebsd-platform SKIP host run (need FreeBSD + xlang -o exe)"
 fi
 
 echo "freebsd-platform gate OK"

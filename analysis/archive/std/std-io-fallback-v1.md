@@ -87,7 +87,7 @@ std.io.driver → std.io.core → io.c
 - manifest：`tests/baseline/std-io-fallback.tsv`
 - 烟测：`tests/io/fallback_matrix.x`（`read_fd`/`write_fd` typeck）
 - 回归：`tests/run-io.sh`
-- 报告：`shux: [SHUX_STD_IO_FALLBACK] status=ok`
+- 报告：`xlang: [XLANG_STD_IO_FALLBACK] status=ok`
 
 ---
 

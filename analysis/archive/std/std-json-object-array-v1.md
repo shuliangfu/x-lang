@@ -67,7 +67,7 @@ cursor_object_next → parse_string_view（无转义字段零拷贝）
 
 - manifest：`tests/baseline/std-json-object-array.tsv`
 - 门禁：`tests/run-std-json-object-array-gate.sh`
-- 报告：`shux: [SHUX_STD_JSON_OBJECT_ARRAY] status=ok`
+- 报告：`xlang: [XLANG_STD_JSON_OBJECT_ARRAY] status=ok`
 - CI：`tests/run-portable-suite.sh`（与 STD-008 gate 并存）
 
 ---

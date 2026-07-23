@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 版本层 G1–G6 |
 | 2 | 打开 `tests/baseline/lang-feature-gate.tsv` |
 | 3 | `./tests/run-lang-feature-gate-gate.sh` |
-| 4 | `./scripts/shux-lang-edition.sh 2024 tests/lang-feature/edition_stable.x` |
+| 4 | `./scripts/xlang-lang-edition.sh 2024 tests/lang-feature/edition_stable.x` |
 
 ---
 
@@ -23,24 +23,24 @@
 
 | 层级 | 符号 / 机制 | 说明 |
 |------|-------------|------|
-| **G1-edition-2024** | `SHUX_EDITION_2024` | 稳定语法基线（默认推荐） |
-| **G2-edition-2025** | `SHUX_EDITION_2025` | 实验语法，须显式 `-D` 启用 |
-| **G3-feature-flag** | `SHUX_FEATURE_<NAME>` | 单特性灰度（如 `SHUX_FEATURE_MATCH_STMT`） |
+| **G1-edition-2024** | `XLANG_EDITION_2024` | 稳定语法基线（默认推荐） |
+| **G2-edition-2025** | `XLANG_EDITION_2025` | 实验语法，须显式 `-D` 启用 |
+| **G3-feature-flag** | `XLANG_FEATURE_<NAME>` | 单特性灰度（如 `XLANG_FEATURE_MATCH_STMT`） |
 | **G4-preprocessor** | `#if` / `#else` / `#endif` | 词法前条件编译，保持行号 |
-| **G5-driver-define** | `shux -D SYMBOL` | `driver_argv_collect_defines` 注入 |
-| **G6-platform-auto** | `SHUX_OS_*` / `SHUX_ARCH_*` | uname / `-target` 自动定义 |
+| **G5-driver-define** | `xlang -D SYMBOL` | `driver_argv_collect_defines` 注入 |
+| **G6-platform-auto** | `XLANG_OS_*` / `XLANG_ARCH_*` | uname / `-target` 自动定义 |
 
 **灰度（grayscale）工作流**：
 
 ```bash
 # 稳定 edition（wrapper 注入 -D）
-./scripts/shux-lang-edition.sh 2024 app.x -o app
+./scripts/xlang-lang-edition.sh 2024 app.x -o app
 
 # 实验 edition
-./scripts/shux-lang-edition.sh 2025 app.x -o app.exp
+./scripts/xlang-lang-edition.sh 2025 app.x -o app.exp
 
 # 单特性
-shux -D SHUX_FEATURE_MATCH_STMT app.x -o app
+xlang -D XLANG_FEATURE_MATCH_STMT app.x -o app
 ```
 
 v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-D` + wrapper** 表达。
@@ -53,9 +53,9 @@ v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-
 
 | symbol | tier | 说明 |
 |--------|------|------|
-| `SHUX_EDITION_2024` | stable | 默认稳定 |
-| `SHUX_EDITION_2025` | experimental |  opt-in |
-| `SHUX_FEATURE_MATCH_STMT` | experimental | `match` 语句灰度样例 |
+| `XLANG_EDITION_2024` | stable | 默认稳定 |
+| `XLANG_EDITION_2025` | experimental |  opt-in |
+| `XLANG_FEATURE_MATCH_STMT` | experimental | `match` 语句灰度样例 |
 
 ---
 
@@ -63,10 +63,10 @@ v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-
 
 | case_id | 文件 | 编译方式 | 期望 exit |
 |---------|------|----------|-----------|
-| `case_edition_stable` | `edition_stable.x` | 无 `-D SHUX_EDITION_2025` | 0 |
-| `case_edition_exp` | `edition_stable.x` | `-D SHUX_EDITION_2025` | 99 |
+| `case_edition_stable` | `edition_stable.x` | 无 `-D XLANG_EDITION_2025` | 0 |
+| `case_edition_exp` | `edition_stable.x` | `-D XLANG_EDITION_2025` | 99 |
 | `case_feature_off` | `feature_match.x` | 无 feature flag | 0 |
-| `case_feature_on` | `feature_match.x` | `-D SHUX_FEATURE_MATCH_STMT` | 42 |
+| `case_feature_on` | `feature_match.x` | `-D XLANG_FEATURE_MATCH_STMT` | 42 |
 
 ---
 
@@ -74,7 +74,7 @@ v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-
 
 - 不实现源码级 `edition` 关键字声明。
 - 不做特性依赖求解器（仅扁平 `-D`）。
-- 不改变默认 `shux` 无 `-D` 时的 define 集合（v1.1 可默认注入 `SHUX_EDITION_2024`）。
+- 不改变默认 `xlang` 无 `-D` 时的 define 集合（v1.1 可默认注入 `XLANG_EDITION_2024`）。
 
 ---
 
@@ -92,6 +92,6 @@ v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-
 | 本文 | `analysis/lang-feature-gate-v1.md` |
 | manifest | `tests/baseline/lang-feature-gate.tsv` |
 | catalog | `tests/baseline/lang-feature-catalog.tsv` |
-| wrapper | `scripts/shux-lang-edition.sh` |
+| wrapper | `scripts/xlang-lang-edition.sh` |
 
 **LANG-001 状态：定版 ✅**

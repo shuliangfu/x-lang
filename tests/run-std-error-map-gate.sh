@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_ERROR_MAP_DOC:-analysis/std-error-map-v1.md}"
-UNIFY_DOC="${SHUX_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
-MANIFEST="${SHUX_STD_ERROR_MAP_TSV:-tests/baseline/std-error-map.tsv}"
-ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.x}"
+DOC="${XLANG_STD_ERROR_MAP_DOC:-analysis/std-error-map-v1.md}"
+UNIFY_DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
+MANIFEST="${XLANG_STD_ERROR_MAP_TSV:-tests/baseline/std-error-map.tsv}"
+ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
 LIB="tests/lib/std-error-map.sh"
 SMOKE="tests/std/error_map_smoke.x"
 
@@ -56,7 +56,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -68,23 +68,23 @@ resolve_shu() {
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-020: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-020: typeck (XLANG=$XLANG_BIN) ==="
+  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-error-map gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     std_error_map_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  if $RUN_SHUX build -L . "$SMOKE" -o /tmp/shux_std_error_map 2>/tmp/shux_std_error_map_build.log; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+  if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_std_error_map 2>/tmp/xlang_std_error_map_build.log; then
     exitcode=0
-    /tmp/shux_std_error_map >/dev/null 2>&1 || exitcode=$?
+    /tmp/xlang_std_error_map >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
     else
@@ -94,11 +94,11 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "std-error-map gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/shux_std_error_map_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/xlang_std_error_map_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "std-error-map gate SKIP typeck (no native shux)" >&2
+  echo "std-error-map gate SKIP typeck (no native xlang)" >&2
 fi
 
 std_error_map_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

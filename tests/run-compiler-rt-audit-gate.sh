@@ -8,7 +8,7 @@ echo "=== G-03-rt: compiler-rt / implicit symbol audit ==="
 
 CRT_SYMS="__divdi3 __moddi3 __udivdi3 __umoddi3 __multi3 __ashldi3 __ashrdi3 __lshrdi3"
 
-for binary in "$SCRIPT_DIR/../compiler/shux-c" "$SCRIPT_DIR/../compiler/shux"; do
+for binary in "$SCRIPT_DIR/../compiler/xlang-c" "$SCRIPT_DIR/../compiler/xlang"; do
     name=$(basename "$binary")
     [ ! -f "$binary" ] && continue
     echo "  Check: $name has no implicit compiler-rt symbols"
@@ -41,7 +41,7 @@ done
 # i64 division audit
 echo "  Check: i64 division codegen audit"
 echo 'function div64(a: i64, b: i64): i64 { return a / b; } function main(): i32 { return div64(100, 3) as i32; }' > /tmp/i64div.x
-"$SCRIPT_DIR/../compiler/shux-c" -E /tmp/i64div.x > /tmp/i64div.c 2>/dev/null
+"$SCRIPT_DIR/../compiler/xlang-c" -E /tmp/i64div.x > /tmp/i64div.c 2>/dev/null
 if grep -q '/' /tmp/i64div.c 2>/dev/null; then
     echo "    INFO: i64 division in C output (needs compiler-rt on -nostdlib)"
 else

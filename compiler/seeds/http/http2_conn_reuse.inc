@@ -372,7 +372,7 @@ void http2_conn_shutdown_c(conn_t *conn) {
         conn->tls_ctx = 0;
     }
     if (conn->fd >= 0) {
-        SHUX_HTTP_CLOSE(conn->fd);
+        XLANG_HTTP_CLOSE(conn->fd);
         conn->fd = -1;
     }
     conn->ready = 0;

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_JOA_DOC:-analysis/std-json-object-array-v1.md}"
-MANIFEST="${SHUX_STD_JOA_TSV:-tests/baseline/std-json-object-array.tsv}"
+DOC="${XLANG_STD_JOA_DOC:-analysis/std-json-object-array-v1.md}"
+MANIFEST="${XLANG_STD_JOA_TSV:-tests/baseline/std-json-object-array.tsv}"
 JSON_X="std/json/mod.x"
 JSON_IMPL="std/json/json.x"
 JSON_X="std/json/json.x"
@@ -58,7 +58,7 @@ OA_OK=0
 SKIP=1
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -67,20 +67,20 @@ resolve_shu() {
   return 1
 }
 
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-034: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-034: typeck + smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$OA_X" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$OA_X" >/dev/null 2>&1; then
     echo "std-json-object-array gate FAIL: typeck $OA_X" >&2
-    "$SHUX_BIN" check -L . "$OA_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$OA_X" 2>&1 | tail -10 >&2 || true
     std_joa_emit_report "fail" 0 0
     exit 1
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o
-  if std_json_run_smoke "$SHUX_BIN" "$OA_X" "object_array"; then
+  if std_json_run_smoke "$XLANG_BIN" "$OA_X" "object_array"; then
     OA_OK=1
   else
     std_joa_emit_report "fail" 0 0
@@ -88,7 +88,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   fi
   SKIP=0
 else
-  echo "std-json-object-array gate SKIP smoke (no native shux-c)" >&2
+  echo "std-json-object-array gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 std_joa_emit_report "ok" "$OA_OK" "$SKIP"

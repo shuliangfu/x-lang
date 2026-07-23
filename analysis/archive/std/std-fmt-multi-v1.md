@@ -60,7 +60,7 @@
 - manifest：`tests/baseline/std-fmt-multi.tsv`
 - 烟测：`tests/fmt-std/format_multi.x`
 - 回归：`tests/run-fmt-std.sh`
-- 报告：`shux: [SHUX_STD_FMT_MULTI] status=ok`
+- 报告：`xlang: [XLANG_STD_FMT_MULTI] status=ok`
 
 ---
 

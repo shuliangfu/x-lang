@@ -7,17 +7,17 @@
 | 项 | v1 | v2 |
 |----|----|-----|
 | span/export 实现 | `trace_span_glue.c`（194 行） | **`trace.x`** |
-| `trace.o` | `ld -r` glue + x | **纯 shux → trace.o** |
+| `trace.o` | `ld -r` glue + x | **纯 xlang → trace.o** |
 | text 导出 | glue `snprintf` | **`u8_to_hex2` + `append_u64_dec`** |
 | 单调时钟/随机 | glue 链 time.o + random.o | `extern time_now_monotonic_ns_c` / `random_fill_bytes_c` |
 
 ## 门禁
 
 ```bash
-SHUX_F_TRACE_V2_FAIL=1 ./tests/run-f-trace-v2-gate.sh
+XLANG_F_TRACE_V2_FAIL=1 ./tests/run-f-trace-v2-gate.sh
 ./tests/run-std-trace-gate.sh
 ./tests/run-std-trace-hooks-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

@@ -2,7 +2,7 @@
 # F-task v1：std.task 去 C（task.c → task.x；v2 删除 task_async_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_TASK_V1_FAIL:-0}
+FAIL=${XLANG_F_TASK_V1_FAIL:-0}
 DOC="analysis/phase-f-task-v1.md"
 MANIFEST="tests/baseline/f-task-v1-closure.tsv"
 die() { echo "f-task-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -21,10 +21,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'task.x' compiler/Makefile || die "Makefile missing task.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/task/task.o >/dev/null 2>&1 || die "make task.o failed"
 else
-  echo "f-task-v1 SKIP task.o build (no shux-c)" >&2
+  echo "f-task-v1 SKIP task.o build (no xlang-c)" >&2
 fi
 if [ -f tests/run-std-task-gate.sh ]; then
   chmod +x tests/run-std-task-gate.sh

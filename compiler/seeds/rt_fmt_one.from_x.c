@@ -1,6 +1,6 @@
 /* seeds/rt_fmt_one.from_x.c — G-02f-311 P2 runtime rest (fmt one file)
  * Logic source: src/runtime/rt_fmt_one.x
- * Hybrid: SHUX_RT_FMT_ONE_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_FMT_ONE_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full：driver_fmt_one_file 由 .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -21,14 +21,14 @@ extern void diag_reportf_with_code(const char *file, int line, int col, const ch
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
 
-#ifndef SHUX_RT_FMT_ONE_FROM_X
+#ifndef XLANG_RT_FMT_ONE_FROM_X
 /**
- * shux fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。
+ * xlang fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。
  * path 为字节路径（path_len 不含 NUL）；成功 0，失败 1。
  */
 int driver_fmt_one_file(const uint8_t *path, int path_len) {
   char pathbuf[512];
-  ShuxRuntimeFileView raw_view;
+  XlangRuntimeFileView raw_view;
   size_t cap;
   uint8_t *out;
   int fmt_len;
@@ -39,7 +39,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
   if (path_len < 2 || strcmp(pathbuf + path_len - 2, ".x") != 0)
     return 1;
   if (runtime_read_file_view(pathbuf, &raw_view) != 0) {
-    diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL, "cannot read '%s'", pathbuf);
+    diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL, "cannot read '%s'", pathbuf);
     return 1;
   }
   cap = raw_view.length * 2 + 4096;
@@ -48,7 +48,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
   out = (uint8_t *)malloc(cap);
   if (!out) {
     runtime_release_file_view(&raw_view);
-    diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+    diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL,
                            "out of memory while formatting '%s'", pathbuf);
     return 1;
   }
@@ -56,7 +56,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
   if (fmt_len < 0) {
     free(out);
     runtime_release_file_view(&raw_view);
-    diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL, "format failed for '%s'",
+    diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL, "format failed for '%s'",
                            pathbuf);
     return 1;
   }
@@ -69,10 +69,10 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
       return changed ? 1 : 0;
     }
     if (changed) {
-      if (shux_write_path_bytes(pathbuf, out, (size_t)fmt_len) != 0) {
+      if (xlang_write_path_bytes(pathbuf, out, (size_t)fmt_len) != 0) {
         free(out);
         runtime_release_file_view(&raw_view);
-        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL, "write failed for '%s'",
+        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", XLANG_DIAG_CODE_FMT_FMT001, NULL, "write failed for '%s'",
                                pathbuf);
         return 1;
       }

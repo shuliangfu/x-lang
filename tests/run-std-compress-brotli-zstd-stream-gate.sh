@@ -31,12 +31,12 @@ done < "$MANIFEST"
 echo "std-compress-brotli-zstd-stream manifest OK"
 
 # F-04 v7：不再依赖 compress.o；烟测经 .x + runtime 按需链库
-if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . tests/lib/bootstrap-link-shux.sh
-  EXE="/tmp/shux_compress_br_zs_stream_$$"
-  $RUN_SHUX build -L . "$SMOKE_X" -o "$EXE" >/dev/null
+if [ -x ./compiler/xlang-c ]; then
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . tests/lib/bootstrap-link-xlang.sh
+  EXE="/tmp/xlang_compress_br_zs_stream_$$"
+  $RUN_XLANG build -L . "$SMOKE_X" -o "$EXE" >/dev/null
   "$EXE" || { echo "std-compress-brotli-zstd-stream FAIL: smoke exit=$?" >&2; rm -f "$EXE"; exit 1; }
   rm -f "$EXE"
 fi

@@ -5,7 +5,7 @@
 # 2) typeck + -o exit=225（可用时）；gen1 OOM/SIGSEGV 时 manifest+typeck 降级仍 OK
 #
 # 用法：./tests/run-comp-regalloc-result-spill-gate.sh
-# 环境：SHUX_REGALLOC_SPILL_STRICT=1 时 typeck/-o 失败即 FAIL
+# 环境：XLANG_REGALLOC_SPILL_STRICT=1 时 typeck/-o 失败即 FAIL
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -44,18 +44,18 @@ grep -qF "run-comp-regalloc-result-spill-gate" "$DOC" || {
 }
 gate_progress "OK: regalloc-result-spill manifest"
 
-# shellcheck source=tests/lib/p0-gate-shux.sh
-source tests/lib/p0-gate-shux.sh
+# shellcheck source=tests/lib/p0-gate-xlang.sh
+source tests/lib/p0-gate-xlang.sh
 
-SHUX_BIN=""
+XLANG_BIN=""
 gate_progress "§五 C5: typeck（多编译器回退）..."
 set +e
-SHUX_BIN="$(p0_gate_run_typeck_prefer_seed "$SRC" 2>/tmp/regalloc_rs_typeck_try.log)"
+XLANG_BIN="$(p0_gate_run_typeck_prefer_seed "$SRC" 2>/tmp/regalloc_rs_typeck_try.log)"
 typeck_pick_ec=$?
 set -e
 
-if [ "$typeck_pick_ec" -ne 0 ] || [ -z "$SHUX_BIN" ]; then
-  if [ "${SHUX_REGALLOC_SPILL_STRICT:-0}" = "1" ]; then
+if [ "$typeck_pick_ec" -ne 0 ] || [ -z "$XLANG_BIN" ]; then
+  if [ "${XLANG_REGALLOC_SPILL_STRICT:-0}" = "1" ]; then
     tail -5 /tmp/regalloc_rs_typeck_try.log >&2 2>/dev/null || true
     gate_progress "FAIL: typeck (STRICT=1)"
     exit 1
@@ -66,20 +66,20 @@ if [ "$typeck_pick_ec" -ne 0 ] || [ -z "$SHUX_BIN" ]; then
   exit 0
 fi
 
-gate_progress "OK: typeck (SHUX=$SHUX_BIN)"
+gate_progress "OK: typeck (XLANG=$XLANG_BIN)"
 
-EXE="/tmp/shux_regalloc_rs_$$"
-O_TIMEOUT="${SHUX_P0_GATE_O_TIMEOUT:-60}"
+EXE="/tmp/xlang_regalloc_rs_$$"
+O_TIMEOUT="${XLANG_P0_GATE_O_TIMEOUT:-60}"
 gate_progress "§五 C5: -o 编译 + 运行 (want exit=$WANT_EXIT, timeout=${O_TIMEOUT}s) ..."
 set +e
 try_ec=2
 run_ec=""
-if [ "$(uname)" != "Darwin" ] && [ -x ./compiler/shux_asm_stage1 ]; then
+if [ "$(uname)" != "Darwin" ] && [ -x ./compiler/xlang_asm_stage1 ]; then
   gate_progress "C5 -o: stage1 -backend asm (struct16 spill) ..."
   rm -f "$EXE"
   if gate_progress_run_heartbeat "C5 asm -o" 10 \
-      gate_run_timeout "$O_TIMEOUT" ./compiler/shux_asm_stage1 -backend asm -L . "$SRC" -o "$EXE" \
-      >/tmp/shux_c5_o.log 2>&1; then
+      gate_run_timeout "$O_TIMEOUT" ./compiler/xlang_asm_stage1 -backend asm -L . "$SRC" -o "$EXE" \
+      >/tmp/xlang_c5_o.log 2>&1; then
     if [ -x "$EXE" ]; then
       # heartbeat 结束时会 set -e，须再关 errexit 才能捕获 run exit=225
       set +e
@@ -89,15 +89,15 @@ if [ "$(uname)" != "Darwin" ] && [ -x ./compiler/shux_asm_stage1 ]; then
     fi
   fi
 fi
-if [ "$try_ec" -ne 0 ] && [ -x "$SHUX_BIN" ]; then
-  gate_progress "C5 -o: fallback $SHUX_BIN -backend c ..."
-  run_ec="$(p0_gate_try_run_o "$SHUX_BIN" "$SRC" "$EXE")"
+if [ "$try_ec" -ne 0 ] && [ -x "$XLANG_BIN" ]; then
+  gate_progress "C5 -o: fallback $XLANG_BIN -backend c ..."
+  run_ec="$(p0_gate_try_run_o "$XLANG_BIN" "$SRC" "$EXE")"
   try_ec=$?
 fi
 set -e
 if [ "$try_ec" -eq 0 ]; then
   if [ "$run_ec" -ne "$WANT_EXIT" ]; then
-    if [ "${SHUX_REGALLOC_SPILL_STRICT:-0}" = "1" ]; then
+    if [ "${XLANG_REGALLOC_SPILL_STRICT:-0}" = "1" ]; then
       gate_progress "FAIL: exit=$run_ec want=$WANT_EXIT (rdx/err spill?)"
       exit 1
     fi

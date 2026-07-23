@@ -1,5 +1,5 @@
 /* parser_asm_body_tl_slice.inc — G-02f-327 P18 body/diag residual + top_level skip
- * Hybrid: SHUX_PTHIN_BODY_TL_FROM_X via seeds/pthin_body_tl.from_x.c
+ * Hybrid: XLANG_PTHIN_BODY_TL_FROM_X via seeds/pthin_body_tl.from_x.c
  * is_fn_sig_scalar + diag_first_ident + diag_skip_let_const_into + body_skip_into
  * + skip_one_top_level_{let,const} + cfg_skip_pending_top_level
  */

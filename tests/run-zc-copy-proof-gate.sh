@@ -3,17 +3,17 @@
 #
 # 1) zc-copy-proof-v1.md + 模板 + manifest
 # 2) 模板 metadata 键；PR checklist 字段
-# 3) matrix run 行：编译运行 proof（native shux）
+# 3) matrix run 行：编译运行 proof（native xlang）
 #
 # 用法：./tests/run-zc-copy-proof-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_ZC_COPY_PROOF_DOC:-analysis/zc-copy-proof-v1.md}"
-MATRIX="${SHUX_ZC_COPY_PROOF_TSV:-tests/baseline/zc-copy-proof.tsv}"
-PR_TPL="${SHUX_ZC_PR_COPY_TPL:-tests/templates/zc-pr-copy-declaration.txt}"
-X_TPL="${SHUX_ZC_X_COPY_TPL:-tests/templates/zc-copy-proof-test.x}"
-SEM="${SHUX_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
+DOC="${XLANG_ZC_COPY_PROOF_DOC:-analysis/zc-copy-proof-v1.md}"
+MATRIX="${XLANG_ZC_COPY_PROOF_TSV:-tests/baseline/zc-copy-proof.tsv}"
+PR_TPL="${XLANG_ZC_PR_COPY_TPL:-tests/templates/zc-pr-copy-declaration.txt}"
+X_TPL="${XLANG_ZC_X_COPY_TPL:-tests/templates/zc-copy-proof-test.x}"
+SEM="${XLANG_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
 MIN_PROOFS=1
 
 # shellcheck source=tests/lib/ci-host.sh
@@ -145,18 +145,18 @@ fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "zc-copy-proof gate SKIP smoke (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "zc-copy-proof gate SKIP smoke (no native xlang)" >&2
   echo "zc-copy-proof gate OK"
   exit 0
 fi
@@ -165,9 +165,9 @@ run_proof() {
   local script="$1"
   local want_ec="$2"
   local src="tests/zc/$script"
-  local out="/tmp/shux_zc_proof_${script%.x}"
-  if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_zc_proof_compile.log 2>&1; then
-    cat /tmp/shux_zc_proof_compile.log >&2
+  local out="/tmp/xlang_zc_proof_${script%.x}"
+  if ! "$XLANG_BIN" -L . "$src" -o "$out" >/tmp/xlang_zc_proof_compile.log 2>&1; then
+    cat /tmp/xlang_zc_proof_compile.log >&2
     return 1
   fi
   local ec=0
@@ -180,7 +180,7 @@ run_proof() {
 }
 
 SMOKE_FAILS=0
-echo "=== ZC-007: proof smoke (SHUX=$SHUX_BIN) ==="
+echo "=== ZC-007: proof smoke (XLANG=$XLANG_BIN) ==="
 while IFS=$'\t' read -r proof_id source policy want_ec _c _t _n; do
   [ -z "${proof_id:-}" ] && continue
   case "$proof_id" in \#*|min_proofs|template_meta|pr_checklist) continue ;; esac

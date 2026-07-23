@@ -28,8 +28,8 @@ make -C compiler ../std/crypto/crypto.o
 ## 门禁
 
 ```bash
-SHUX_F04_CRYPTO_V19_FAIL=1 ./tests/run-f04-std-crypto-v19-gate.sh
-SHUX_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-ed25519-gate.sh
+XLANG_F04_CRYPTO_V19_FAIL=1 ./tests/run-f04-std-crypto-v19-gate.sh
+XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-ed25519-gate.sh
 ```
 
 ## 下一项

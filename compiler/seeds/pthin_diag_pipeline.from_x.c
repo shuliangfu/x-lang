@@ -1,6 +1,6 @@
 /* seeds/pthin_diag_pipeline.from_x.c — G-02f-325 P2 parser thin diag pipeline
  * Logic source: src/asm/pthin_diag_pipeline.x
- * Hybrid: SHUX_PTHIN_DIAG_PIPELINE_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_DIAG_PIPELINE_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_diag_pipeline_slice.inc (~914)
  * onefunc_wired + diag_parse_one_after_collect + parse_one_function_ok + module import getters + diag_lex_after

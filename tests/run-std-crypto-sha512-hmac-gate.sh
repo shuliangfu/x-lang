@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_CRYPTO_SHA512_HMAC_DOC:-analysis/std-crypto-sha512-hmac-v1.md}"
-MANIFEST="${SHUX_STD_CRYPTO_SHA512_HMAC_TSV:-tests/baseline/std-crypto-sha512-hmac.tsv}"
-VECTORS="${SHUX_STD_CRYPTO_SHA512_HMAC_VECTORS:-tests/baseline/std-crypto-sha512-hmac-vectors.tsv}"
+DOC="${XLANG_STD_CRYPTO_SHA512_HMAC_DOC:-analysis/std-crypto-sha512-hmac-v1.md}"
+MANIFEST="${XLANG_STD_CRYPTO_SHA512_HMAC_TSV:-tests/baseline/std-crypto-sha512-hmac.tsv}"
+VECTORS="${XLANG_STD_CRYPTO_SHA512_HMAC_VECTORS:-tests/baseline/std-crypto-sha512-hmac-vectors.tsv}"
 MOD_X="std/crypto/mod.x"
 CRYPTO_CORE="std/crypto/core.x"
 CRYPTO_GLUE="compiler/seeds/runtime_crypto_inc_glue.from_x.c"
@@ -102,40 +102,40 @@ SHA512_OK=0
 HMAC_OK=0
 MAC_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-050: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-050: typeck + smoke (XLANG=$XLANG_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/crypto/crypto.o
   for smoke in "$SMOKE_SHA" "$SMOKE_HMAC" "$SMOKE_MAC"; do
-    if ! "$SHUX_BIN" check -L . "$smoke" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$smoke" >/dev/null 2>&1; then
       echo "std-crypto-sha512-hmac gate FAIL: typeck $smoke" >&2
-      "$SHUX_BIN" check -L . "$smoke" 2>&1 | tail -10 >&2 || true
+      "$XLANG_BIN" check -L . "$smoke" 2>&1 | tail -10 >&2 || true
       std_crypto_sha512_hmac_emit_report "fail" 0 0 0 0
       exit 1
     fi
   done
-  if std_crypto_sha512_hmac_run_smoke "$SHUX_BIN" "$SMOKE_SHA" "abc"; then
+  if std_crypto_sha512_hmac_run_smoke "$XLANG_BIN" "$SMOKE_SHA" "abc"; then
     SHA512_OK=1
   else
     std_crypto_sha512_hmac_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_crypto_sha512_hmac_run_smoke "$SHUX_BIN" "$SMOKE_HMAC" "tc1"; then
+  if std_crypto_sha512_hmac_run_smoke "$XLANG_BIN" "$SMOKE_HMAC" "tc1"; then
     HMAC_OK=1
   else
     std_crypto_sha512_hmac_emit_report "fail" "$SHA512_OK" 0 0 0
     exit 1
   fi
-  if std_crypto_sha512_hmac_run_smoke "$SHUX_BIN" "$SMOKE_MAC" "mac512"; then
+  if std_crypto_sha512_hmac_run_smoke "$XLANG_BIN" "$SMOKE_MAC" "mac512"; then
     MAC_OK=1
   else
     std_crypto_sha512_hmac_emit_report "fail" "$SHA512_OK" "$HMAC_OK" 0 0
@@ -143,7 +143,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-crypto-sha512-hmac gate SKIP smoke (no native shux)" >&2
+  echo "std-crypto-sha512-hmac gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_crypto_sha512_hmac_emit_report "ok" "$SHA512_OK" "$HMAC_OK" "$MAC_OK" "$SKIP"

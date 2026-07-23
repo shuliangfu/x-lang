@@ -1,10 +1,10 @@
 /* Generated from src/x_seed_bridge.x (G-02f-27 true .x + C tail).
- * G-02f-332：PREFER_X_O hybrid thin 由 .x→-E；rest 用 SHUX_L2_X_SEED_BRIDGE_THIN_FROM_X。
- * Regen: ./shux-c -E -L .. src/x_seed_bridge.x > /tmp/xsb.c
+ * G-02f-332：PREFER_X_O hybrid thin 由 .x→-E；rest 用 XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X。
+ * Regen: ./xlang-c -E -L .. src/x_seed_bridge.x > /tmp/xsb.c
  *         then re-apply C tail (match-module / ast_expr / io_read-write / buffer / weak).
  * .x covers: typeck_preprocess_x_buf, std_heap_*, io register/read_ptr stubs.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
 
 extern int32_t preprocess_x_buf(uint8_t * src, ssize_t src_len, uint8_t * out_buf, int32_t out_cap);
 extern uint8_t * typeck_std_heap_alloc(size_t size);
-#ifndef SHUX_L2_X_SEED_BRIDGE_THIN_FROM_X
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 int32_t typeck_preprocess_x_buf(uint8_t * src, ssize_t src_len, uint8_t * out_buf, int32_t out_cap) {
   (void)(({   {
     int32_t r = preprocess_x_buf(src, src_len, out_buf, out_cap);
@@ -85,7 +85,7 @@ int32_t io_register_buffers_buf(uint8_t * bufs, int32_t nr) {
 int32_t io_register_buffers_buf_i32(ssize_t bufs, int32_t nr) {
   return io_register_buffers_buf(((uint8_t *)(0)), nr);
 }
-int32_t shux_io_register(uint8_t * ptr, size_t len, size_t handle) {
+int32_t xlang_io_register(uint8_t * ptr, size_t len, size_t handle) {
   return io_register_buffer(ptr, len);
 }
 
@@ -104,7 +104,7 @@ extern int32_t io_wait_readable(int32_t *fds, int32_t n, uint32_t timeout_ms);
 extern int32_t io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, uint32_t nr);
 extern int32_t io_register_buffers_buf(uint8_t *bufs, int32_t nr);
 extern int32_t io_register_buffers_buf_i32(ssize_t bufs, int32_t nr);
-extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);
 #endif
 
 /* ---- C tail (G-02f-27): static global / struct field / ssize io / weak ---- */
@@ -282,14 +282,14 @@ typedef struct {
   size_t handle;
 } shu_buffer_abi_t;
 
-int32_t shux_io_register_buf(intptr_t buf) {
+int32_t xlang_io_register_buf(intptr_t buf) {
   const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
-  return shux_io_register(b->ptr, b->len, b->handle);
+  return xlang_io_register(b->ptr, b->len, b->handle);
 }
 
-int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
+int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
   int32_t fd = (int32_t)handle;
   ptrdiff_t r = io_read(fd, ptr, len, timeout_ms);
   if (r < 0)
@@ -297,14 +297,14 @@ int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned ti
   return (int32_t)r;
 }
 
-int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_ms) {
+int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_ms) {
   const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
-  return shux_io_submit_read(b->ptr, b->len, b->handle, (unsigned)timeout_ms);
+  return xlang_io_submit_read(b->ptr, b->len, b->handle, (unsigned)timeout_ms);
 }
 
-int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
+int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
   int32_t fd = (int32_t)handle;
   ptrdiff_t r = io_write(fd, ptr, len, timeout_ms);
   if (r < 0)
@@ -312,20 +312,20 @@ int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned t
   return (int32_t)r;
 }
 
-int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_ms) {
+int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms) {
   const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
-  return shux_io_submit_write(b->ptr, b->len, b->handle, (unsigned)timeout_ms);
+  return xlang_io_submit_write(b->ptr, b->len, b->handle, (unsigned)timeout_ms);
 }
 
 /** lsp_gen 引用 driver_read_ptr*；真 partial 无 phase1 弱桩时兜底。 */
-SHUX_WEAK uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms) {
+XLANG_WEAK uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms) {
   (void)handle;
   (void)timeout_ms;
   return NULL;
 }
 
-SHUX_WEAK int32_t std_io_driver_driver_read_ptr_len(void) {
+XLANG_WEAK int32_t std_io_driver_driver_read_ptr_len(void) {
   return 0;
 }

@@ -12,7 +12,7 @@ ERR_X="std/error/mod.x"
 SMOKE="tests/http/context_get.x"
 SMOKE_TO="tests/http/context_connect_timeout.x"
 SMOKE_C="tests/http/http_timeout_smoke.c"
-PREFIX="shux: [SHUX_STD094_HTTP_CTX]"
+PREFIX="xlang: [XLANG_STD094_HTTP_CTX]"
 
 stdlib_cm_native_shu() {
   local f="$1"
@@ -71,7 +71,7 @@ ensure_runtime_http_glue_o
 
 C_OK=0
 echo "=== STD-095: C timeout smoke ==="
-c_exe="/tmp/shux_std095_http_to_$$"
+c_exe="/tmp/xlang_std095_http_to_$$"
 if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" compiler/runtime_http_glue.o 2>/dev/null; then
   set +e
   "$c_exe" >/dev/null 2>&1
@@ -88,25 +88,25 @@ else
   exit 1
 fi
 
-SHUX_BIN=""
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
 X_OK=0
 SKIP=0
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-094/095: smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-094/095: smoke (XLANG=$XLANG_BIN) ==="
   for x in "$SMOKE" "$SMOKE_TO"; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "http-context gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
       exit 1
     fi
-    exe="/tmp/shux_std094_http_ctx_$$_${su##*/}"
-    if ! "$SHUX_BIN" -L . "$x" -o "$exe" >/dev/null 2>&1; then
+    exe="/tmp/xlang_std094_http_ctx_$$_${su##*/}"
+    if ! "$XLANG_BIN" -L . "$x" -o "$exe" >/dev/null 2>&1; then
       echo "http-context gate FAIL: compile $x" >&2
       exit 1
     fi
@@ -122,7 +122,7 @@ if [ -n "$SHUX_BIN" ]; then
   done
   X_OK=1
 else
-  echo "http-context gate SKIP .x (no native shux)" >&2
+  echo "http-context gate SKIP .x (no native xlang)" >&2
   SKIP=1
 fi
 

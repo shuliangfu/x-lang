@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_COMPRESS_DOC:-analysis/std-compress-v1.md}"
-MANIFEST="${SHUX_STD_COMPRESS_MANIFEST:-tests/baseline/std-compress-manifest.tsv}"
-MOD_X="${SHUX_STD_COMPRESS_MOD:-std/compress/mod.x}"
+DOC="${XLANG_STD_COMPRESS_DOC:-analysis/std-compress-v1.md}"
+MANIFEST="${XLANG_STD_COMPRESS_MANIFEST:-tests/baseline/std-compress-manifest.tsv}"
+MOD_X="${XLANG_STD_COMPRESS_MOD:-std/compress/mod.x}"
 MIN_APIS=4
 MIN_LAYERS=4
 
@@ -119,10 +119,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-compress manifest OK (apis=${API_N} layers=${LAYER_N})"
 
-if SHUX_BIN="$(std_compress_resolve_shu)"; then
+if XLANG_BIN="$(std_compress_resolve_shu)"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   std_compress_try_libs
-  echo "=== STD-007: runnable report (SHUX=$SHUX_BIN) ==="
+  echo "=== STD-007: runnable report (XLANG=$XLANG_BIN) ==="
   FAILS=0
   GZIP_R="skip"
   ZSTD_R="skip"
@@ -132,7 +132,7 @@ if SHUX_BIN="$(std_compress_resolve_shu)"; then
     case "$kind" in
       smoke)
         echo "── $item_id ──"
-        if std_compress_run_smoke "$SHUX_BIN" "$anchor" "$item_id"; then
+        if std_compress_run_smoke "$XLANG_BIN" "$anchor" "$item_id"; then
           echo "std-compress OK $item_id"
           case "$item_id" in
             smoke_gzip) GZIP_R="ok" ;;
@@ -146,7 +146,7 @@ if SHUX_BIN="$(std_compress_resolve_shu)"; then
         hook="tests/$anchor"
         echo "── $item_id ──"
         chmod +x "$hook" 2>/dev/null || true
-        if SHUX="$SHUX_BIN" "$hook"; then
+        if XLANG="$XLANG_BIN" "$hook"; then
           echo "std-compress OK $item_id"
         else
           FAILS=$((FAILS + 1))
@@ -161,6 +161,6 @@ if SHUX_BIN="$(std_compress_resolve_shu)"; then
   echo "std-compress gate report gzip=${GZIP_R} zstd=${ZSTD_R}"
   echo "std-compress gate OK"
 else
-  echo "std-compress gate SKIP bench (no native shux)" >&2
+  echo "std-compress gate SKIP bench (no native xlang)" >&2
   echo "std-compress gate OK"
 fi

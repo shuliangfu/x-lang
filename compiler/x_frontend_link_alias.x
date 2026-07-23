@@ -4,7 +4,7 @@
 // G-02f-26： .x — pipeline_x  lexer/typeck/codegen_x （i32/void ）。
 // lexer  struct  seeds  C （/ABI ）。
 // weak  seed  __attribute__((weak))。
-// ：./shux-c -E → seeds/x_frontend_link_alias.from_x.c（+ C ）
+// ：./xlang-c -E → seeds/x_frontend_link_alias.from_x.c（+ C ）
 
 /* ---- typeck / pipeline ---- */
 extern "C" function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;

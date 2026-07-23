@@ -23,7 +23,7 @@
 // See implementation.
 
 /* See implementation. */
-export const SHUX_NET_MAX_WORKERS: i32 = 64;
+export const XLANG_NET_MAX_WORKERS: i32 = 64;
 
 /* See implementation. */
 allow(padding) struct NetWorkerArg {
@@ -67,8 +67,8 @@ export function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeo
   if (listener_fd < 0 || nw <= 0) {
     return -1;
   }
-  if (nw > SHUX_NET_MAX_WORKERS) {
-    nw = SHUX_NET_MAX_WORKERS;
+  if (nw > XLANG_NET_MAX_WORKERS) {
+    nw = XLANG_NET_MAX_WORKERS;
   }
   i = 0;
   while (i < nw) {

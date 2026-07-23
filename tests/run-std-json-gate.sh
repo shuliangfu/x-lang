@@ -3,16 +3,16 @@
 #
 # 1) std-json-zc-v1.md + manifest
 # 2) parse_string_view + json_parse_string_view_c
-# 3) native shux：main + zc_parse_string_view 烟测
+# 3) native xlang：main + zc_parse_string_view 烟测
 #
 # 用法：./tests/run-std-json-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
-MANIFEST="${SHUX_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
-MOD_X="${SHUX_STD_JSON_MOD:-std/json/mod.x}"
-JSON_X="${SHUX_STD_JSON_X:-std/json/json.x}"
+DOC="${XLANG_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
+MANIFEST="${XLANG_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
+MOD_X="${XLANG_STD_JSON_MOD:-std/json/mod.x}"
+JSON_X="${XLANG_STD_JSON_X:-std/json/json.x}"
 MIN_APIS=10
 
 # shellcheck source=tests/lib/std-json.sh
@@ -126,26 +126,26 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-json manifest OK (apis=${API_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-  echo "=== STD-008: std.json smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+  echo "=== STD-008: std.json smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o
   FAIL=0
   for smoke in tests/json/main.x tests/json/zc_parse_string_view.x; do
     tag="$(basename "$smoke" .x)"
-    if std_json_run_smoke "$SHUX_BIN" "$smoke" "$tag"; then
+    if std_json_run_smoke "$XLANG_BIN" "$smoke" "$tag"; then
       echo "std-json smoke OK $tag"
     else
       FAIL=$((FAIL + 1))
@@ -156,7 +156,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
     exit 1
   fi
 else
-  echo "std-json gate SKIP smoke (no native shux)" >&2
+  echo "std-json gate SKIP smoke (no native xlang)" >&2
 fi
 
 echo "std-json gate OK"

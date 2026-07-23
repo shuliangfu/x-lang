@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-unicode-grapheme-case.sh — STD-114 manifest 与烟测辅助
 
-STD_UNICODE_GC_PREFIX="${SHUX_STD114_UNICODE_GC_PREFIX:-shux: [SHUX_STD114_UNICODE_GC]}"
+STD_UNICODE_GC_PREFIX="${XLANG_STD114_UNICODE_GC_PREFIX:-xlang: [XLANG_STD114_UNICODE_GC]}"
 
 std_unicode_gc_symbols_ok() {
   local mod_x="$1"
@@ -29,10 +29,10 @@ std_unicode_gc_symbols_ok() {
 }
 
 std_unicode_gc_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_unicode_gc_$$"
-  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/xlang_std_unicode_gc_$$"
+  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?

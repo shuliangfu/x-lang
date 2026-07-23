@@ -35,7 +35,7 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
-  - thin+rest 宏边界：`SHUX_RUNTIME_NET_ADDR_FAST_FROM_X`
+  - thin+rest 宏边界：`XLANG_RUNTIME_NET_ADDR_FAST_FROM_X`
   - 语义差异：.x 用手动字节解析（无 libc 依赖）；seed 用 struct cast + ntohl/ntohs（libc 依赖）。两者语义等价。
   - rest 跨调用依赖：net_tcp_local/peer_addr_c 调用 net_sockaddr_in_pack_addr_port_c（thin 提供，rest 模式下 extern 声明）
 - 下一步补充：

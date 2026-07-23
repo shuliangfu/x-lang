@@ -28,7 +28,7 @@ int32_t net_dns_ai_addconfig_c_impl(void) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_NET_DNS_FAST_FROM_X
+#ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_dns_ai_addconfig_c(void) {
     return net_dns_ai_addconfig_c_impl();
@@ -74,7 +74,7 @@ int32_t net_dns_map_gai_error_c_impl(int err) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_NET_DNS_FAST_FROM_X
+#ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_dns_map_gai_error_c(int err) {
     return net_dns_map_gai_error_c_impl(err);
@@ -97,7 +97,7 @@ int32_t net_dns_ensure_wsa_c_impl(void) {
     return 0;
 }
 
-#ifndef SHUX_RUNTIME_NET_DNS_FAST_FROM_X
+#ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t net_dns_ensure_wsa_c(void) {
     return net_dns_ensure_wsa_c_impl();

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SQLITE_DOC:-analysis/std-sqlite-v1.md}"
-MANIFEST="${SHUX_STD_SQLITE_TSV:-tests/baseline/std-sqlite.tsv}"
-VECTORS="${SHUX_STD_SQLITE_VECTORS:-tests/baseline/std-sqlite-vectors.tsv}"
+DOC="${XLANG_STD_SQLITE_DOC:-analysis/std-sqlite-v1.md}"
+MANIFEST="${XLANG_STD_SQLITE_TSV:-tests/baseline/std-sqlite.tsv}"
+VECTORS="${XLANG_STD_SQLITE_VECTORS:-tests/baseline/std-sqlite-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 SQLITE_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-gate.sh"
@@ -90,7 +90,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-sqlite manifest OK"
 
-if [ "${SHUX_STD_SQLITE_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_SQLITE_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_emit_report "ok" 0 0 1
   echo "std-sqlite gate OK (manifest only)"
   exit 0
@@ -120,37 +120,37 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHUX_BIN=""
-  if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+  XLANG_BIN=""
+  if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-  if [ -n "$SHUX_BIN" ]; then
-    echo "=== STD-057: .x smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if [ -n "$XLANG_BIN" ]; then
+    echo "=== STD-057: .x smoke (XLANG=$XLANG_BIN) ==="
+    if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
       echo "std-sqlite gate FAIL: typeck $SMOKE_X" >&2
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "rt"; then
+    if std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "rt"; then
       X_OK=1
     else
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if ! "$SHUX_BIN" check -L . "$SMOKE_IMPORT_X" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$SMOKE_IMPORT_X" >/dev/null 2>&1; then
       echo "std-sqlite gate FAIL: typeck $SMOKE_IMPORT_X" >&2
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" "$X_OK" 0
       exit 1
     fi
-    if ! std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_IMPORT_X" "import"; then
+    if ! std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_IMPORT_X" "import"; then
       std_sqlite_restore_default_o
       std_sqlite_emit_report "fail" "$C_OK" "$X_OK" 0
       exit 1
     fi
   else
-    echo "std-sqlite gate SKIP .x smoke (no native shux)" >&2
+    echo "std-sqlite gate SKIP .x smoke (no native xlang)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o

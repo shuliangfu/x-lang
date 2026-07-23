@@ -4,8 +4,8 @@
  * 【文件职责】http_glue.c #include；无 net.o 时 HTTPS URL 返回 HTTP_ERR_TLS_NOT_IMPL。
  */
 
-#ifndef SHUX_HTTP_TLS_BRIDGE_INC
-#define SHUX_HTTP_TLS_BRIDGE_INC
+#ifndef XLANG_HTTP_TLS_BRIDGE_INC
+#define XLANG_HTTP_TLS_BRIDGE_INC
 
 #include <stdint.h>
 #include <string.h>
@@ -98,4 +98,4 @@ __attribute__((weak)) int64_t net_tls_accept_server_c(int64_t srv_ctx_h, int32_t
   return 0;
 }
 
-#endif /* SHUX_HTTP_TLS_BRIDGE_INC */
+#endif /* XLANG_HTTP_TLS_BRIDGE_INC */

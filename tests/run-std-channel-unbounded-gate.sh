@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_CHANNEL_UNBOUNDED_DOC:-analysis/std-channel-unbounded-v1.md}"
-MANIFEST="${SHUX_STD_CHANNEL_UNBOUNDED_TSV:-tests/baseline/std-channel-unbounded.tsv}"
+DOC="${XLANG_STD_CHANNEL_UNBOUNDED_DOC:-analysis/std-channel-unbounded-v1.md}"
+MANIFEST="${XLANG_STD_CHANNEL_UNBOUNDED_TSV:-tests/baseline/std-channel-unbounded.tsv}"
 MOD_X="std/channel/mod.x"
-CHANNEL_RUNTIME="${SHUX_STD_CHANNEL_IMPL:-compiler/seeds/runtime_channel_glue.from_x.c}"
+CHANNEL_RUNTIME="${XLANG_STD_CHANNEL_IMPL:-compiler/seeds/runtime_channel_glue.from_x.c}"
 LIB="tests/lib/std-channel-unbounded.sh"
 UB_X="tests/channel/unbounded_roundtrip.x"
 MAIN_X="tests/channel/main.x"
@@ -88,33 +88,33 @@ stdlib_cm_native_shu() {
 UB_OK=0
 MAIN_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-044: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-044: typeck + smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/channel/channel.o
-  if ! "$SHUX_BIN" check -L . "$UB_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$UB_X" >/dev/null 2>&1; then
     echo "std-channel-unbounded gate FAIL: typeck $UB_X" >&2
-    "$SHUX_BIN" check -L . "$UB_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$UB_X" 2>&1 | tail -10 >&2 || true
     std_channel_unbounded_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_channel_unbounded_run_smoke "$SHUX_BIN" "$UB_X" "unbounded"; then
+  if std_channel_unbounded_run_smoke "$XLANG_BIN" "$UB_X" "unbounded"; then
     UB_OK=1
   else
     std_channel_unbounded_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_channel_unbounded_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
+  if std_channel_unbounded_run_smoke "$XLANG_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_channel_unbounded_emit_report "fail" "$UB_OK" 0 0
@@ -122,7 +122,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-channel-unbounded gate SKIP smoke (no native shux)" >&2
+  echo "std-channel-unbounded gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_channel_unbounded_emit_report "ok" "$UB_OK" "$MAIN_OK" "$SKIP"

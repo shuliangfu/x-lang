@@ -12,6 +12,6 @@ hook_vec	hook_script	run-vec.sh	vec regression
 hook_map	hook_script	run-map.sh	map regression
 hook_heap	hook_script	run-heap.sh	heap regression
 cross_check72	cross_ref	compiler/Makefile	check-7.2-bstrict integration
-cross_bootstrap_gate	cross_ref	tests/run-bootstrap-shux-gate.sh	driver gate
+cross_bootstrap_gate	cross_ref	tests/run-bootstrap-xlang-gate.sh	driver gate
 doc	file	boot-015-semantic-smoke-v1.md	analysis/boot-015-semantic-smoke-v1.md	RFC
 gate	script	run-boot-015-semantic-smoke-gate.sh	tests/run-boot-015-semantic-smoke-gate.sh	manifest

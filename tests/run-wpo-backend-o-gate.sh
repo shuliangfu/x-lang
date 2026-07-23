@@ -4,21 +4,21 @@
 # 用法：
 #   ./tests/run-wpo-backend-o-gate.sh
 #   ./tests/run-wpo-backend-o-gate.sh compiler/build_asm/backend_wpo.o
-#   SHUX_WPO_BACKEND_O_FAIL=1 ./tests/run-wpo-backend-o-gate.sh
+#   XLANG_WPO_BACKEND_O_FAIL=1 ./tests/run-wpo-backend-o-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-ab-proxy.sh
 . tests/lib/wpo-ab-proxy.sh
 
 BACKEND_O="${1:-compiler/build_asm/backend_wpo.o}"
-BASELINE="${SHUX_WPO_BACKEND_O_BASELINE:-tests/baseline/wpo-backend-o.tsv}"
+BASELINE="${XLANG_WPO_BACKEND_O_BASELINE:-tests/baseline/wpo-backend-o.tsv}"
 MAX_TEXT=$(awk -F'\t' '$1=="backend_wpo_max_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MAX_TEXT=${MAX_TEXT:-4096}
 MIN_SAVE=$(awk -F'\t' '$1=="backend_wpo_min_save_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 MIN_SAVE=${MIN_SAVE:-2000}
 OFF_PROXY=$(awk -F'\t' '$1=="backend_dce_off_text" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
 OFF_PROXY=${OFF_PROXY:-4941}
-FAIL=${SHUX_WPO_BACKEND_O_FAIL:-1}
+FAIL=${XLANG_WPO_BACKEND_O_FAIL:-1}
 
 if [ ! -f "$BACKEND_O" ]; then
   echo "run-wpo-backend-o-gate FAIL: missing $BACKEND_O" >&2

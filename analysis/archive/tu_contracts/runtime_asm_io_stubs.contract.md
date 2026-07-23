@@ -10,7 +10,7 @@
 
 ## 3. 导出符号合同
 - thin/.x 导出：4（doc_anchor + 3 IMPL wrapper）
-- seed/rest 导出：41（3 `_impl` + 38 个 io/std_io/shux_io/io_uring 函数）
+- seed/rest 导出：41（3 `_impl` + 38 个 io/std_io/xlang_io/io_uring 函数）
 - only_x：1（doc_anchor）
 
 ### 3.1 必须由 thin/.x 提供
@@ -24,7 +24,7 @@
 - `seed_io_syscall_read_impl`（Linux x86_64 裸 syscall read，inline asm）
 - `seed_io_write_fd1_impl`（stdout 写，调用 `io_write`）
 - io 读写：`io_write` / `io_read` / `io_read_ptr` / `io_read_ptr_len` / `io_register_buffer`
-- shux_io 注册：`shux_io_register` / `shux_io_register_buf` / `shux_io_submit_read` / `shux_io_submit_write`
+- xlang_io 注册：`xlang_io_register` / `xlang_io_register_buf` / `xlang_io_submit_read` / `xlang_io_submit_write`
 - std_io 句柄：`std_io_handle_stdin` / `std_io_handle_stdout` / `std_io_handle_stderr`
 - std_io 读写：`std_io_write` / `std_io_read`
 - std_io 打印：`std_io_print_i32` / `std_io_print_u32` / `std_io_print_i64` / `std_io_write_stdout`(W) / `std_io_write_with_timeout`(W) / `std_io_print_u8_ptr_usize`(W) / `std_io_print_str`(W)
@@ -36,7 +36,7 @@
 ## 4. ABI Manifest
 - _impl 残余列表：`seed_io_syscall_write_impl`、`seed_io_syscall_read_impl`、`seed_io_write_fd1_impl`
 - DIRECT 符号列表：（无）
-- thin+rest 宏边界：`SHUX_RUNTIME_ASM_IO_STUBS_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_ASM_IO_STUBS_FROM_X`
 - 前向声明：3 个 thin wrapper（`seed_io_syscall_write` / `seed_io_syscall_read` / `seed_io_write_fd1`），rest 模式下供 rest 函数调用
 - 内部调用更新：
   - `io_write` 调用 `seed_io_syscall_write`（IMPL thin wrapper，Linux x86_64 分支）

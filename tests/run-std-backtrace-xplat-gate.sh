@@ -27,7 +27,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$BT_X" "$BT_RUNTIME" "$SMOKE_C" s
   fi
 done
 
-for kw in STD-147 SHUX_BT_XPLAT export_dynamic DbgHelp; do
+for kw in STD-147 XLANG_BT_XPLAT export_dynamic DbgHelp; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-backtrace-xplat gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -59,15 +59,15 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-SHUX_BIN=""
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "std-backtrace-xplat gate SKIP quality smoke (no native shux-c)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "std-backtrace-xplat gate SKIP quality smoke (no native xlang-c)" >&2
   SKIP=1
   std_backtrace_xplat_emit_report "ok" 0 1 "$(ci_host_summary)"
   echo "std-backtrace-xplat gate OK (skip)"

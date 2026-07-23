@@ -1,9 +1,9 @@
 /* seeds/backend_try_inline_dispatch_thin_surface.from_x.c
  * G-02f backend_try_inline_dispatch R2 thin full surface — isomorphic with src/asm/backend_try_inline_dispatch_thin.x
- * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_TRY_INLINE_THIN_FROM_X) ld -r
+ * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DXLANG_L2_TRY_INLINE_THIN_FROM_X) ld -r
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; *_impl are U)
  * Cap residual: *_impl / try_inline_* C 尾 outside thin (full seed rest)
- * Regen: copy from thin.from_x.c or ./shux -E ... thin.x | filter DBG + polish externs
+ * Regen: copy from thin.from_x.c or ./xlang -E ... thin.x | filter DBG + polish externs
  */
 #include <stddef.h>
 #include <stdint.h>

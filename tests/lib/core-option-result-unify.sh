@@ -5,7 +5,7 @@
 #   core016_check MANIFEST
 #   core016_emit_report status golden_ok typeck_ok skip
 
-CORE016_PREFIX="${SHUX_CORE016_PREFIX:-shux: [SHUX_CORE016_OPTION_RESULT_UNIFY]}"
+CORE016_PREFIX="${XLANG_CORE016_PREFIX:-xlang: [XLANG_CORE016_OPTION_RESULT_UNIFY]}"
 
 # 校验 manifest；echo 缺失数。
 core016_check() {

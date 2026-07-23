@@ -6,7 +6,7 @@ const dynlib = import("std.dynlib");
  * @return i32
  */
 function main(): i32 {
-  // "/nonexistent/shux_dynlib_missing.so"
+  // "/nonexistent/xlang_dynlib_missing.so"
   let bad: u8[35] = [47, 110, 111, 110, 101, 120, 105, 115, 116, 101, 110, 116, 47, 115, 104, 117,
     95, 100, 121, 110, 108, 105, 98, 95, 109, 105, 115, 115, 105, 110, 103, 46, 115, 111, 0];
   let buf: u8[128] = [];

@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_BOOT024_DOC:-analysis/boot-024-parser-bootstrap-emit-v1.md}"
-MANIFEST="${SHUX_BOOT024_TSV:-tests/baseline/boot-024-parser-bootstrap-emit.tsv}"
-WAVE="${SHUX_BOOT024_WAVE_TSV:-tests/baseline/parser-bootstrap-emit-wave.tsv}"
+DOC="${XLANG_BOOT024_DOC:-analysis/boot-024-parser-bootstrap-emit-v1.md}"
+MANIFEST="${XLANG_BOOT024_TSV:-tests/baseline/boot-024-parser-bootstrap-emit.tsv}"
+WAVE="${XLANG_BOOT024_WAVE_TSV:-tests/baseline/parser-bootstrap-emit-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 LIB="tests/lib/boot-024-parser-bootstrap-emit.sh"
 MIN_HOOKS=4
@@ -38,7 +38,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in bootstrap_minimal_ok bootstrap_full_emit SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT boot_bisect; do
+for kw in bootstrap_minimal_ok bootstrap_full_emit XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT boot_bisect; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "boot-024-parser-bootstrap-emit gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -101,7 +101,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "boot-024-parser-bootstrap-emit manifest OK (rows=${ROW_N} hooks=${HOOK_N})"
 
-if [ "${SHUX_BOOT024_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_BOOT024_MANIFEST_ONLY:-0}" = "1" ]; then
   boot024_emit_report "ok" 0 0 1
   echo "boot-024-parser-bootstrap-emit gate OK (manifest only)"
   exit 0
@@ -112,7 +112,7 @@ BOOTSTRAP_FULL_EMIT=0
 SKIP=1
 
 if boot024_parser_linux_shu; then
-  echo "=== BOOT-024: bootstrap bisect (Linux shux) ==="
+  echo "=== BOOT-024: bootstrap bisect (Linux xlang) ==="
   chmod +x tests/run-parser-parse-bootstrap-bisect-gate.sh
   BISECT_OUT="/tmp/boot024_bisect_$$.log"
   if ./tests/run-parser-parse-bootstrap-bisect-gate.sh 2>&1 | tee "$BISECT_OUT"; then
@@ -130,7 +130,7 @@ if boot024_parser_linux_shu; then
   fi
   rm -f "$BISECT_OUT"
 else
-  echo "boot-024-parser-bootstrap-emit gate SKIP wave (Darwin or no compiler/shux)" >&2
+  echo "boot-024-parser-bootstrap-emit gate SKIP wave (Darwin or no compiler/xlang)" >&2
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$BOOTSTRAP_MINIMAL_OK" -lt 1 ]; then

@@ -64,7 +64,7 @@
 ```
 
 ```
-shux: [SHUX_STD_SYNC_RWLOCK_CONDVAR] status=ok rwlock=1 condvar=1 main=1 tsan=1 skip=0
+xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR] status=ok rwlock=1 condvar=1 main=1 tsan=1 skip=0
 ```
 
 ---

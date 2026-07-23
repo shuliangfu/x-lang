@@ -44,7 +44,7 @@
       "shu_net_udp_sendmmsg_buf_c"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_NET_UDP_BATCH_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_NET_UDP_BATCH_FROM_X",
   "impl_residuals": ["shu_udp_batch_set_addr_port_impl", "shu_udp_batch_poll_readable_impl"],
   "forward_decls": [
     "shu_udp_batch_set_addr_port",

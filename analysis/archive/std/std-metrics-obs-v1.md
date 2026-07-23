@@ -32,7 +32,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD117_METRICS_OBS] status=ok x=1 skip=0
+xlang: [XLANG_STD117_METRICS_OBS] status=ok x=1 skip=0
 std-metrics-obs gate OK
 ```
 

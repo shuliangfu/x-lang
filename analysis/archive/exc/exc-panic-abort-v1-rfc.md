@@ -54,10 +54,10 @@
 
 | 入口 | 行为 |
 |------|------|
-| `panic()` | 调用 `runtime_panic()` → `shux_panic_` → **abort** |
+| `panic()` | 调用 `runtime_panic()` → `xlang_panic_` → **abort** |
 | `panic(expr)` | `fprintf(stderr, "%d\n", expr)` 后 abort（i32 消息） |
 | `abort()` | `core.builtin` / `std.runtime` 均终止进程 |
-| 除零 / bounds（M-6） | codegen → `shux_panic_`（见 `tests/ub/`） |
+| 除零 / bounds（M-6） | codegen → `xlang_panic_`（见 `tests/ub/`） |
 
 链接：`runtime_panic.o` 按需链入（与 freestanding 烟测一致）。
 

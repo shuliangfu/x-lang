@@ -3,7 +3,7 @@
 //
 // See implementation.
 // See implementation.
-//   seeds/simd_enc.from_x.c (-DSHUX_SIMD_ENC_FROM_X) ld -r → src/asm/simd_enc.o
+//   seeds/simd_enc.from_x.c (-DXLANG_SIMD_ENC_FROM_X) ld -r → src/asm/simd_enc.o
 // See implementation.
 // See implementation.
 // See implementation.

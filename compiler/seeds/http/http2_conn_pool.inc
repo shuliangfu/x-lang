@@ -25,7 +25,7 @@
 
 /** HTTP/2 连接池（idle 栈 + 累计 connect 次数）。 */
 typedef struct {
-    char host[SHUX_HTTP_HOST_MAX];
+    char host[XLANG_HTTP_HOST_MAX];
     char port[8];
     int32_t max_conns;
     int32_t n_idle;
@@ -37,14 +37,14 @@ typedef struct {
 /** URL host:port 是否与池绑定一致。 */
 static int32_t pool_url_matches(const conn_pool_t *pool, const uint8_t *url,
                                       int32_t url_len, int32_t *out_is_https) {
-    char host_buf[SHUX_HTTP_HOST_MAX];
+    char host_buf[XLANG_HTTP_HOST_MAX];
     char port_buf[8];
-    char path_buf[SHUX_HTTP_PATH_MAX];
+    char path_buf[XLANG_HTTP_PATH_MAX];
     int32_t is_https = 0;
     if (!pool || !url || url_len <= 0)
         return 0;
-    if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
-                       path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
+    if (parse_http_url(url, url_len, host_buf, XLANG_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
+                       path_buf, XLANG_HTTP_PATH_MAX, &is_https) != 0)
         return 0;
     if (out_is_https)
         *out_is_https = is_https;
@@ -87,7 +87,7 @@ static int32_t http2_pool_tcp_connect_c(const char *host, const char *port, uint
     if (timeout_ms > 0) {
         int32_t cr = http_connect_timeout((int)fd, res, timeout_ms);
         if (cr != 0) {
-            SHUX_HTTP_CLOSE((int)fd);
+            XLANG_HTTP_CLOSE((int)fd);
             freeaddrinfo(res);
             return -1;
         }
@@ -97,14 +97,14 @@ static int32_t http2_pool_tcp_connect_c(const char *host, const char *port, uint
 #else
         if (connect(fd, res->ai_addr, res->ai_addrlen) != 0) {
 #endif
-            SHUX_HTTP_CLOSE((int)fd);
+            XLANG_HTTP_CLOSE((int)fd);
             freeaddrinfo(res);
             return -1;
         }
     }
     freeaddrinfo(res);
     if (http_set_timeouts((int)fd, timeout_ms) != 0) {
-        SHUX_HTTP_CLOSE((int)fd);
+        XLANG_HTTP_CLOSE((int)fd);
         return -1;
     }
     return (int32_t)fd;
@@ -123,7 +123,7 @@ static int32_t http2_pool_connect_h2c_new_c(conn_pool_t *pool, conn_t *conn,
         return -1;
     http2_conn_init_c(conn);
     if (http2_conn_attach_h2c_c(fd, conn) != 0) {
-        SHUX_HTTP_CLOSE(fd);
+        XLANG_HTTP_CLOSE(fd);
         return -1;
     }
     rc = http2_conn_handshake_c(conn);
@@ -153,24 +153,24 @@ static int32_t http2_pool_connect_h2_tls_new_c(conn_pool_t *pool, conn_t *conn,
         return -1;
     alpn_len = net_tls_alpn_h2_http1_wire_c(alpn_wire, (int32_t)sizeof(alpn_wire));
     if (alpn_len <= 0) {
-        SHUX_HTTP_CLOSE(fd);
+        XLANG_HTTP_CLOSE(fd);
         return HTTP2_ERR_NETWORK;
     }
     tls_ctx = net_tls_connect_client_alpn_c(fd, pool->host, alpn_wire, alpn_len);
     if (tls_ctx == 0) {
-        SHUX_HTTP_CLOSE(fd);
+        XLANG_HTTP_CLOSE(fd);
         return -1;
     }
     if (net_tls_alpn_is_h2_c(tls_ctx) == 0) {
         net_tls_close_c(tls_ctx);
-        SHUX_HTTP_CLOSE(fd);
+        XLANG_HTTP_CLOSE(fd);
         return HTTP2_ERR_NETWORK;
     }
     http2_conn_init_c(conn);
     conn->fd = fd;
     if (http2_conn_attach_tls_c(tls_ctx, conn) != 0) {
         net_tls_close_c(tls_ctx);
-        SHUX_HTTP_CLOSE(fd);
+        XLANG_HTTP_CLOSE(fd);
         return -1;
     }
     rc = http2_conn_handshake_c(conn);
@@ -215,7 +215,7 @@ static void http2_pool_release_conn_c(conn_pool_t *pool, conn_t *conn) {
 static int64_t http2_conn_pool_create_c(const uint8_t *host, int32_t host_len, const uint8_t *port,
                                         int32_t port_len, int32_t max_conns, int32_t scheme_h2c) {
     conn_pool_t *pool;
-    if (!host || host_len <= 0 || host_len >= SHUX_HTTP_HOST_MAX)
+    if (!host || host_len <= 0 || host_len >= XLANG_HTTP_HOST_MAX)
         return 0;
     if (!port || port_len <= 0 || port_len >= 8)
         return 0;
@@ -269,9 +269,9 @@ int32_t http2_conn_pool_request_c(int64_t pool_h, uint8_t method_u8, const uint8
                                 int32_t url_len, const uint8_t *body, int32_t body_len,
                                 uint8_t *out_buf, int32_t out_cap, uint32_t timeout_ms) {
     conn_pool_t *pool = (conn_pool_t *)(intptr_t)pool_h;
-    char host_buf[SHUX_HTTP_HOST_MAX];
+    char host_buf[XLANG_HTTP_HOST_MAX];
     char port_buf[8];
-    char path_buf[SHUX_HTTP_PATH_MAX];
+    char path_buf[XLANG_HTTP_PATH_MAX];
     conn_t work;
     conn_t *conn;
     int32_t is_https = 0;
@@ -283,15 +283,15 @@ int32_t http2_conn_pool_request_c(int64_t pool_h, uint8_t method_u8, const uint8
     if (http_method_from_u8(method_u8) == NULL)
         return -1;
     if (pool_url_matches(pool, url, url_len, &is_https) == 0) {
-        if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
-                           path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
+        if (parse_http_url(url, url_len, host_buf, XLANG_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
+                           path_buf, XLANG_HTTP_PATH_MAX, &is_https) != 0)
             return -1;
         if ((is_https != 0 && pool->scheme_h2c != 0) || (is_https == 0 && pool->scheme_h2c == 0))
             return HTTP2_ERR_POOL_SCHEME;
         return -1;
     }
-    if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
-                       path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
+    if (parse_http_url(url, url_len, host_buf, XLANG_HTTP_HOST_MAX, port_buf, (int)sizeof(port_buf),
+                       path_buf, XLANG_HTTP_PATH_MAX, &is_https) != 0)
         return -1;
 
     for (attempt = 0; attempt < 2; attempt++) {
@@ -396,14 +396,14 @@ int32_t http2_h2c_pool_goaway_smoke_c(void) {
     if (lfd < 0)
         return 1;
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -442,20 +442,20 @@ int32_t http2_h2c_pool_goaway_smoke_c(void) {
     if (http2_serve_h2c_one_with_goaway_c(lfd, body, 2, 1, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (http2_serve_h2c_one_c(lfd, body, 2, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 6;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }

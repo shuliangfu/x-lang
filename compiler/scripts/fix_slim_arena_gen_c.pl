@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# shux-c -E 对 slim ASTArena 仍可能生成 arena->exprs[] / blocks[] 直访；替换为 grow pool get_copy 调用，
+# xlang-c -E 对 slim ASTArena 仍可能生成 arena->exprs[] / blocks[] 直访；替换为 grow pool get_copy 调用，
 # 并注入 pipeline_arena_* / ast_arena_* 原型与符号别名供 _gen2.c / pipeline_gen.c 单文件编译。
 use strict;
 use warnings;
@@ -39,7 +39,7 @@ my %seen;
 my @fwd_lines;
 my @pipe_extern_lines;
 
-# 返回值含 struct T * 时 shux-c -E 形如 extern struct ast_Module * ast_pipeline_*；
+# 返回值含 struct T * 时 xlang-c -E 形如 extern struct ast_Module * ast_pipeline_*；
 my $extern_ret = qr/(?:int32_t|void|int|uint8_t|size_t|intptr_t|struct\s+[A-Za-z0-9_]+\s*\*?)\s+/;
 
 my $is_pipeline_gen2 = ($path =~ /pipeline_gen2\.c$/);
@@ -394,19 +394,19 @@ sub inject_pipeline_glue_from_usage {
 
 # inject_pipeline_glue_from_usage 定义见上；module gen2 已在 reverse alias 前调用。
 
-# parser_gen.c：所有 inject 完成后，将 shux_slice 提前到 ast_ASTArena 后（GCC 见完整类型再声明 lexer_* extern）。
-sub hoist_shux_slice_struct {
+# parser_gen.c：所有 inject 完成后，将 xlang_slice 提前到 ast_ASTArena 后（GCC 见完整类型再声明 lexer_* extern）。
+sub hoist_xlang_slice_struct {
   my ($s) = @_;
-  my $def = "struct shux_slice_uint8_t { uint8_t *data; size_t length; };\n";
+  my $def = "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };\n";
   return $s unless index($s, $def) >= 0;
   return $s if $s =~ /struct ast_ASTArena \{[^\}]+\};\n\Q$def\E/s;
   $s =~ s/\Q$def\E//g;
   $s =~ s/(struct ast_ASTArena \{[^\}]+\};\n)/$1$def/s
-    or warn "fix_slim_arena_gen_c: hoist shux_slice anchor not found in $path\n";
+    or warn "fix_slim_arena_gen_c: hoist xlang_slice anchor not found in $path\n";
   return $s;
 }
 if ($path =~ /parser_gen(?:2)?\.c$/) {
-  $src = hoist_shux_slice_struct($src);
+  $src = hoist_xlang_slice_struct($src);
 }
 
 # ast_gen2 weak 辅助：typeck/codegen/parser -E 生成体直接调用，单 TU 须 extern 声明。

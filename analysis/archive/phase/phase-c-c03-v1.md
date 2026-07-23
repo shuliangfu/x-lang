@@ -6,7 +6,7 @@
 
 | 项 | 标准 | Gate |
 |----|------|------|
-| B-strict 拓扑 | `SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1` → 无 `cc -c pipeline_gen.c` | `run-c03-no-pipeline-gen-gate.sh` |
+| B-strict 拓扑 | `XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1` → 无 `cc -c pipeline_gen.c` | `run-c03-no-pipeline-gen-gate.sh` |
 | crt0 路径 | `bootstrap-driver-crt0` 日志审计 | 同上 + Makefile |
 | bstrict CI | `run-bootstrap-bstrict-ci.sh` 拒绝 build log 含 pipeline_gen 编译 | 已接入 |
 | A-03 对齐 | Linux crt0 B-partial 无 pipeline_gen | `bootstrap-driver-crt0` |
@@ -24,9 +24,9 @@
 ```bash
 make -C compiler bootstrap-driver-bstrict 2>&1 | tee /tmp/build_bstrict.log
 # 日志不得含：cc -c pipeline_gen.c
-SHUX_C03_FAIL=1 ./tests/run-c03-no-pipeline-gen-gate.sh
+XLANG_C03_FAIL=1 ./tests/run-c03-no-pipeline-gen-gate.sh
 ```
 
 ## 延后（C-03 v3+）
 
-- Windows CI 默认 `SHUX_WIN_BSTRICT=1`（当前 gate 默认 hybrid）
+- Windows CI 默认 `XLANG_WIN_BSTRICT=1`（当前 gate 默认 hybrid）

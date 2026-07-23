@@ -60,10 +60,10 @@ if std_compress_brotli_try_build; then
   if [ "$C_EC" -eq 0 ]; then
     BROTLI_OK=1
     SKIP=0
-    if [ -x ./compiler/shux-c ]; then
-      make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-      ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-      std_compress_brotli_run_x_smoke ./compiler/shux-c "$SMOKE_X" || exit 1
+    if [ -x ./compiler/xlang-c ]; then
+      make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+      ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+      std_compress_brotli_run_x_smoke ./compiler/xlang-c "$SMOKE_X" || exit 1
     fi
   elif [ "$C_EC" -eq 2 ]; then
     echo "std-compress-brotli gate SKIP runtime (no brotli link libs)" >&2

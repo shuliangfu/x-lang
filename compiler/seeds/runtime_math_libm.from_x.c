@@ -8,26 +8,26 @@
  *
  * floor/sin/sqrt/erf 等 libm 转发与 fenv；常量/signum/special_smoke 在 math.x；与 math.o 一并链入（须 -lm）。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
 #include "diag.h"
 
 #ifndef diag_reportf
-SHUX_WEAK void diag_reportf(const char *file, int line, int col, const char *tag, const char *code, const char *fmt, ...) {
+XLANG_WEAK void diag_reportf(const char *file, int line, int col, const char *tag, const char *code, const char *fmt, ...) {
   (void)file; (void)line; (void)col; (void)tag; (void)code; (void)fmt;
 }
 #endif
 
 #if defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__))
 #include <fenv.h>
-#define SHUX_MATH_HAVE_FENV 1
+#define XLANG_MATH_HAVE_FENV 1
 #if defined(__APPLE__)
 #pragma STDC FENV_ACCESS ON
 #endif
 #else
-#define SHUX_MATH_HAVE_FENV 0
+#define XLANG_MATH_HAVE_FENV 0
 #endif
 
 #define FENV_NOT_IMPL (-9)
@@ -121,7 +121,7 @@ double math_expm1_c(double x) { return expm1(x); }
 /** 近似相等；1 是，0 否（STD-115 special_smoke 金样）。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_math_libm.x）提供完整实现 */
-#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
 int math_special_near(double a, double b, double eps) {
   double d = a - b;
   if (d < 0.0) {
@@ -154,8 +154,8 @@ int32_t math_special_smoke_c(void) {
   return 0;
 }
 
-#if SHUX_MATH_HAVE_FENV
-/** 将 Shux fenv 掩码转为 FE_* 位。 */
+#if XLANG_MATH_HAVE_FENV
+/** 将 Xlang fenv 掩码转为 FE_* 位。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
 int math_fenv_mask_to_fe_impl(int32_t mask) {
@@ -168,7 +168,7 @@ int math_fenv_mask_to_fe_impl(int32_t mask) {
   return fe;
 }
 
-#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int math_fenv_mask_to_fe(int32_t mask) {
     return math_fenv_mask_to_fe_impl(mask);
@@ -178,7 +178,7 @@ int math_fenv_mask_to_fe(int32_t mask) {
 
 
 
-/** 将 FE_* 位转为 Shux fenv 掩码。 */
+/** 将 FE_* 位转为 Xlang fenv 掩码。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
 int32_t math_fenv_fe_to_mask_impl(int fe) {
@@ -191,7 +191,7 @@ int32_t math_fenv_fe_to_mask_impl(int fe) {
   return m;
 }
 
-#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t math_fenv_fe_to_mask(int fe) {
     return math_fenv_fe_to_mask_impl(fe);
@@ -219,7 +219,7 @@ void math_fenv_emit_cap_report_impl(int32_t avail) {
                plat, (int)avail);
 }
 
-#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
+#ifndef XLANG_RUNTIME_MATH_LIBM_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void math_fenv_emit_cap_report(int32_t avail) {
     math_fenv_emit_cap_report_impl(avail);
@@ -234,7 +234,7 @@ void math_fenv_emit_cap_report(int32_t avail) {
  * 返回值：1 支持，0 不支持。
  */
 int32_t math_fenv_available_c(void) {
-#if SHUX_MATH_HAVE_FENV
+#if XLANG_MATH_HAVE_FENV
   math_fenv_emit_cap_report(1);
   return 1;
 #else
@@ -247,7 +247,7 @@ int32_t math_fenv_available_c(void) {
  * 测试浮点异常标志；返回当前掩码，不支持时 FENV_NOT_IMPL。
  */
 int32_t math_fenv_test_c(int32_t mask) {
-#if SHUX_MATH_HAVE_FENV
+#if XLANG_MATH_HAVE_FENV
   return math_fenv_fe_to_mask(fetestexcept(math_fenv_mask_to_fe(mask)));
 #else
   (void)mask;
@@ -259,7 +259,7 @@ int32_t math_fenv_test_c(int32_t mask) {
  * 清除浮点异常标志；成功 0，失败 1，不支持 FENV_NOT_IMPL。
  */
 int32_t math_fenv_clear_c(int32_t mask) {
-#if SHUX_MATH_HAVE_FENV
+#if XLANG_MATH_HAVE_FENV
   return feclearexcept(math_fenv_mask_to_fe(mask)) == 0 ? 0 : 1;
 #else
   (void)mask;
@@ -271,7 +271,7 @@ int32_t math_fenv_clear_c(int32_t mask) {
  * 触发浮点异常标志；成功 0，失败 1，不支持 FENV_NOT_IMPL。
  */
 int32_t math_fenv_raise_c(int32_t mask) {
-#if SHUX_MATH_HAVE_FENV
+#if XLANG_MATH_HAVE_FENV
   return feraiseexcept(math_fenv_mask_to_fe(mask)) == 0 ? 0 : 1;
 #else
   (void)mask;
@@ -283,7 +283,7 @@ int32_t math_fenv_raise_c(int32_t mask) {
  * STD-059 fenv 烟测：invalid/overflow 往返；不支持返回 FENV_NOT_IMPL。
  */
 int32_t math_fenv_smoke_c(void) {
-#if SHUX_MATH_HAVE_FENV
+#if XLANG_MATH_HAVE_FENV
   feclearexcept(FE_ALL_EXCEPT);
   volatile double nan_val = 0.0 / 0.0;
   (void)nan_val;

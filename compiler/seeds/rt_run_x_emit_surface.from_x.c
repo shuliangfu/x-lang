@@ -1,7 +1,7 @@
 /* seeds/rt_run_x_emit_surface.from_x.c
  * R2 full surface — isomorphic with src/runtime/rt_run_x_emit.x
  * Product PREFER_X_O: full .x + rest marker (H=0)
- * Regen: shux -E ... rt_run_x_emit.x | strip DBG + polish libc redecl
+ * Regen: xlang -E ... rt_run_x_emit.x | strip DBG + polish libc redecl
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -75,8 +75,8 @@ extern int32_t rt_xe_step_prerun(void);
 extern int32_t rt_xe_step_finish(void);
 extern int32_t driver_run_x_emit_c(void);
 extern uint8_t * runtime_read_file_malloc(uint8_t * path, size_t * out_len);
-extern uint8_t * shux_preprocess_with_path(uint8_t * data, size_t len, uint8_t * path, uint8_t * defines, int32_t n_defines, size_t * out_len);
-extern uint8_t * shux_preprocess(uint8_t * data, size_t len, uint8_t * defines, int32_t n_defines, size_t * out_len);
+extern uint8_t * xlang_preprocess_with_path(uint8_t * data, size_t len, uint8_t * path, uint8_t * defines, int32_t n_defines, size_t * out_len);
+extern uint8_t * xlang_preprocess(uint8_t * data, size_t len, uint8_t * defines, int32_t n_defines, size_t * out_len);
 extern void pipeline_diag_emitted_reset(void);
 extern int32_t pipeline_diag_emitted_get(void);
 extern void diag_set_file(uint8_t * path, uint8_t * src, size_t len);
@@ -86,16 +86,16 @@ extern void parser_parse_into_init(uint8_t * module, uint8_t * arena);
 extern void parser_parse_into_set_main_index(uint8_t * module, int32_t main_idx);
 extern int32_t driver_get_module_num_funcs(uint8_t * m);
 extern int32_t parser_get_module_num_imports(uint8_t * module);
-extern void shux_get_entry_dir(uint8_t * path, uint8_t * out, size_t out_sz);
+extern void xlang_get_entry_dir(uint8_t * path, uint8_t * out, size_t out_sz);
 extern void pipeline_set_entry_dir(uint8_t * dir);
 extern int32_t driver_x_emit_asm_direct_import_only(uint8_t * input_path);
 extern int32_t driver_x_emit_asm_dep_parse_only_ok(uint8_t * input_path, uint8_t * dep_path);
 extern int32_t driver_x_emit_asm_dep_parse_skip_typeck_ok(uint8_t * input_path, uint8_t * dep_path);
 extern void driver_dep_seeded_clear_all(void);
 extern void driver_set_current_dep_path_for_codegen(uint8_t * path);
-extern int32_t shux_pipeline_dep_prerun_parse_skip_typeck(uint8_t * mod, uint8_t * arena, uint8_t * src, size_t len, uint8_t * out, uint8_t * ctx);
-extern int32_t shux_pipeline_dep_prerun_parse_only(uint8_t * mod, uint8_t * arena, uint8_t * src, size_t len);
-extern int32_t shux_pipeline_dep_prerun_typeck_only(uint8_t * mod, uint8_t * arena, uint8_t * src, size_t len, uint8_t * out, uint8_t * ctx);
+extern int32_t xlang_pipeline_dep_prerun_parse_skip_typeck(uint8_t * mod, uint8_t * arena, uint8_t * src, size_t len, uint8_t * out, uint8_t * ctx);
+extern int32_t xlang_pipeline_dep_prerun_parse_only(uint8_t * mod, uint8_t * arena, uint8_t * src, size_t len);
+extern int32_t xlang_pipeline_dep_prerun_typeck_only(uint8_t * mod, uint8_t * arena, uint8_t * src, size_t len, uint8_t * out, uint8_t * ctx);
 extern void driver_dep_publish_slot(int32_t j, uint8_t * arena, uint8_t * module, uint8_t * path);
 extern void pipeline_set_dep_slots(uint8_t * arenas, uint8_t * modules);
 extern void driver_dep_seed_slots(uint8_t * arenas, uint8_t * modules, int32_t n);
@@ -103,17 +103,17 @@ extern void codegen_set_dep_slots_for_x_pipeline(uint8_t * mods, uint8_t * paths
 extern int32_t runtime_report_precise_parse_failure_if_known(uint8_t * input_path, uint8_t * src, size_t src_len);
 extern int32_t driver_x_emit_try_extern_via_cparser(uint8_t * input_path);
 extern void pipeline_dep_ctx_heap_destroy(uint8_t * ctx);
-extern int32_t shux_pipeline_run_x_pipeline_large_stack(uint8_t * module, uint8_t * arena, uint8_t * src, size_t src_len, uint8_t * out_buf, uint8_t * pctx);
-extern void shux_pipeline_fill_ctx_path_buffers(uint8_t * ctx, uint8_t * entry_dir, uint8_t * lib_roots, int32_t n_lib);
-extern void shux_pipeline_pctx_seed_dep_import_paths_only(uint8_t * ctx, uint8_t * import_paths, int32_t n);
-extern void shux_pipeline_pctx_seed_dep_slots(uint8_t * ctx, uint8_t * dep_mods, uint8_t * dep_ar, uint8_t * dep_paths, int32_t n);
-extern void shux_pipeline_one_ctx_for_dep_prerun(uint8_t * ctx, int32_t j, uint8_t * dep_mods, uint8_t * dep_ar, uint8_t * dep_paths, int32_t n, uint8_t * dep_src, size_t dep_len);
-extern int32_t shux_load_direct_imports_for_asm_layout(uint8_t * module, uint8_t * lib_roots, int32_t n_lib, uint8_t * entry_dir, uint8_t * defines, int32_t n_defines, uint8_t * dep_sources, uint8_t * dep_lens, uint8_t * dep_paths, int32_t * n_deps);
-extern int32_t shux_collect_dep_paths_transitive(uint8_t * module, size_t arena_sz, size_t module_sz, uint8_t * lib_roots, int32_t n_lib, uint8_t * entry_dir, uint8_t * defines, int32_t n_defines, uint8_t * cpaths, int32_t * n_closure);
-extern int32_t shux_merge_direct_then_transitive_dep_paths(uint8_t * module, int32_t n_imports, uint8_t * cpaths, int32_t n_closure, uint8_t * dep_paths, int32_t * n_deps);
-extern void shux_resolve_import_file_path_multi(uint8_t * lib_roots, int32_t n_lib, uint8_t * entry_dir, uint8_t * import_path, uint8_t * resolved, size_t resolved_sz);
+extern int32_t xlang_pipeline_run_x_pipeline_large_stack(uint8_t * module, uint8_t * arena, uint8_t * src, size_t src_len, uint8_t * out_buf, uint8_t * pctx);
+extern void xlang_pipeline_fill_ctx_path_buffers(uint8_t * ctx, uint8_t * entry_dir, uint8_t * lib_roots, int32_t n_lib);
+extern void xlang_pipeline_pctx_seed_dep_import_paths_only(uint8_t * ctx, uint8_t * import_paths, int32_t n);
+extern void xlang_pipeline_pctx_seed_dep_slots(uint8_t * ctx, uint8_t * dep_mods, uint8_t * dep_ar, uint8_t * dep_paths, int32_t n);
+extern void xlang_pipeline_one_ctx_for_dep_prerun(uint8_t * ctx, int32_t j, uint8_t * dep_mods, uint8_t * dep_ar, uint8_t * dep_paths, int32_t n, uint8_t * dep_src, size_t dep_len);
+extern int32_t xlang_load_direct_imports_for_asm_layout(uint8_t * module, uint8_t * lib_roots, int32_t n_lib, uint8_t * entry_dir, uint8_t * defines, int32_t n_defines, uint8_t * dep_sources, uint8_t * dep_lens, uint8_t * dep_paths, int32_t * n_deps);
+extern int32_t xlang_collect_dep_paths_transitive(uint8_t * module, size_t arena_sz, size_t module_sz, uint8_t * lib_roots, int32_t n_lib, uint8_t * entry_dir, uint8_t * defines, int32_t n_defines, uint8_t * cpaths, int32_t * n_closure);
+extern int32_t xlang_merge_direct_then_transitive_dep_paths(uint8_t * module, int32_t n_imports, uint8_t * cpaths, int32_t n_closure, uint8_t * dep_paths, int32_t * n_deps);
+extern void xlang_resolve_import_file_path_multi(uint8_t * lib_roots, int32_t n_lib, uint8_t * entry_dir, uint8_t * import_path, uint8_t * resolved, size_t resolved_sz);
 extern void pipeline_diag_import_open_fail_once(uint8_t * dep, uint8_t * resolved);
-extern uint8_t * shux_dep_prerun_entry_dir(uint8_t * entry_dir, uint8_t * lib_roots, int32_t n_lib);
+extern uint8_t * xlang_dep_prerun_entry_dir(uint8_t * entry_dir, uint8_t * lib_roots, int32_t n_lib);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern uint8_t * driver_x_emit_take_c_path(void);
 extern int32_t driver_x_emit_take_want_extern(void);
@@ -734,7 +734,7 @@ int32_t rt_xe_step_read_pp(void) {
   }
   {
     (void)(pipeline_diag_emitted_reset());
-    (void)((src = shux_preprocess_with_path(raw, raw_len, path, ((uint8_t *)(0)), 0, &(src_len))));
+    (void)((src = xlang_preprocess_with_path(raw, raw_len, path, ((uint8_t *)(0)), 0, &(src_len))));
     (void)(free(raw));
   }
   if ((src ==((uint8_t *)(0)))) {
@@ -873,7 +873,7 @@ int32_t rt_xe_step_load_deps(void) {
     (void)((asz = driver_x_emit_work_z_get(wz_asz())));
     (void)((msz = driver_x_emit_work_z_get(wz_msz())));
     (void)((entry = driver_entry_dir_slot()));
-    (void)(shux_get_entry_dir(path, entry, ((size_t)(512))));
+    (void)(xlang_get_entry_dir(path, entry, ((size_t)(512))));
     (void)(driver_x_emit_work_p_set(wp_entry(), entry));
   }
   if ((n_imp > 0)) {
@@ -917,7 +917,7 @@ int32_t rt_xe_step_load_deps(void) {
     if ((n_imp <=32)) {
       if ((asm_d !=0)) {
         {
-          (void)((rc = shux_load_direct_imports_for_asm_layout(module, lib, n_lib, entry, ((uint8_t *)(0)), 0, ds, dl, dp, &(n_deps))));
+          (void)((rc = xlang_load_direct_imports_for_asm_layout(module, lib, n_lib, entry, ((uint8_t *)(0)), 0, ds, dl, dp, &(n_deps))));
         }
         if ((rc !=0)) {
           return 1;
@@ -931,7 +931,7 @@ int32_t rt_xe_step_load_deps(void) {
         }
         (void)((n_cl = 0));
         {
-          (void)((rc = shux_collect_dep_paths_transitive(module, asz, msz, lib, n_lib, entry, ((uint8_t *)(0)), 0, cpaths, &(n_cl))));
+          (void)((rc = xlang_collect_dep_paths_transitive(module, asz, msz, lib, n_lib, entry, ((uint8_t *)(0)), 0, cpaths, &(n_cl))));
         }
         if ((rc !=0)) {
           {
@@ -940,7 +940,7 @@ int32_t rt_xe_step_load_deps(void) {
           return 1;
         }
         {
-          (void)((rc = shux_merge_direct_then_transitive_dep_paths(module, n_imp, cpaths, n_cl, dp, &(n_deps))));
+          (void)((rc = xlang_merge_direct_then_transitive_dep_paths(module, n_imp, cpaths, n_cl, dp, &(n_deps))));
           (void)(driver_ptr_table_free(cpaths));
         }
         if ((rc !=0)) {
@@ -1053,15 +1053,15 @@ int32_t rt_xe_step_prerun(void) {
   {
     (void)(driver_x_emit_work_p_set(wp_out(), out_buf));
     (void)(driver_x_emit_work_p_set(wp_pctx(), pctx));
-    (void)(shux_pipeline_fill_ctx_path_buffers(pctx, entry, lib, n_lib));
+    (void)(xlang_pipeline_fill_ctx_path_buffers(pctx, entry, lib, n_lib));
   }
   if ((asm_d !=0)) {
     {
-      (void)(shux_pipeline_pctx_seed_dep_import_paths_only(pctx, dp, n_deps));
+      (void)(xlang_pipeline_pctx_seed_dep_import_paths_only(pctx, dp, n_deps));
     }
   } else {
     {
-      (void)(shux_pipeline_pctx_seed_dep_slots(pctx, dm, da, dp, n_deps));
+      (void)(xlang_pipeline_pctx_seed_dep_slots(pctx, dm, da, dp, n_deps));
     }
   }
   {
@@ -1089,8 +1089,8 @@ int32_t rt_xe_step_prerun(void) {
       return 1;
     }
     {
-      (void)((p = shux_dep_prerun_entry_dir(entry, lib, n_lib)));
-      (void)(shux_pipeline_fill_ctx_path_buffers(one, p, lib, n_lib));
+      (void)((p = xlang_dep_prerun_entry_dir(entry, lib, n_lib)));
+      (void)(xlang_pipeline_fill_ctx_path_buffers(one, p, lib, n_lib));
       (void)((resolved = driver_path_max_slot()));
       (void)(((resolved)[0] = 0));
     }
@@ -1102,7 +1102,7 @@ int32_t rt_xe_step_prerun(void) {
     } else {
       {
         (void)((p = driver_ptr_table_get(dp, j)));
-        (void)(shux_resolve_import_file_path_multi(lib, n_lib, entry, p, resolved, ((size_t)(4096))));
+        (void)(xlang_resolve_import_file_path_multi(lib, n_lib, entry, p, resolved, ((size_t)(4096))));
         (void)((dep_src = runtime_read_file_malloc(resolved, &(dep_len))));
       }
       if ((dep_src ==((uint8_t *)(0)))) {
@@ -1115,7 +1115,7 @@ int32_t rt_xe_step_prerun(void) {
       }
       {
         (void)((p = dep_src));
-        (void)((dep_src = shux_preprocess(p, dep_len, ((uint8_t *)(0)), 0, &(dep_len))));
+        (void)((dep_src = xlang_preprocess(p, dep_len, ((uint8_t *)(0)), 0, &(dep_len))));
         (void)(free(p));
       }
       if ((dep_src ==((uint8_t *)(0)))) {
@@ -1128,7 +1128,7 @@ int32_t rt_xe_step_prerun(void) {
       }
     }
     {
-      (void)(shux_pipeline_one_ctx_for_dep_prerun(one, j, dm, da, dp, n_deps, dep_src, dep_len));
+      (void)(xlang_pipeline_one_ctx_for_dep_prerun(one, j, dm, da, dp, n_deps, dep_src, dep_len));
       (void)((p = driver_ptr_table_get(dp, j)));
       (void)(driver_set_current_dep_path_for_codegen(p));
       (void)((snap = driver_diag_snapshot_alloc()));
@@ -1143,7 +1143,7 @@ int32_t rt_xe_step_prerun(void) {
     }
     if ((rc !=0)) {
       {
-        (void)((ec = shux_pipeline_dep_prerun_parse_skip_typeck(driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len, dep_out, one)));
+        (void)((ec = xlang_pipeline_dep_prerun_parse_skip_typeck(driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len, dep_out, one)));
       }
     } else {
       {
@@ -1154,11 +1154,11 @@ int32_t rt_xe_step_prerun(void) {
       }
       if ((rc !=0)) {
         {
-          (void)((ec = shux_pipeline_dep_prerun_parse_only(driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len)));
+          (void)((ec = xlang_pipeline_dep_prerun_parse_only(driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len)));
         }
       } else {
         {
-          (void)((ec = shux_pipeline_dep_prerun_typeck_only(driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len, dep_out, one)));
+          (void)((ec = xlang_pipeline_dep_prerun_typeck_only(driver_ptr_table_get(dm, j), driver_ptr_table_get(da, j), dep_src, dep_len, dep_out, one)));
         }
       }
     }
@@ -1249,7 +1249,7 @@ int32_t rt_xe_step_finish(void) {
   {
     (void)(memset(arena, 0, asz));
     (void)(memset(module, 0, msz));
-    (void)((ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, src, src_len, out_buf, pctx)));
+    (void)((ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src, src_len, out_buf, pctx)));
     (void)((out_len = driver_codegen_outbuf_len(out_buf)));
     (void)((out_data = driver_codegen_outbuf_data(out_buf)));
   }

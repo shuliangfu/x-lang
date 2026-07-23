@@ -34,10 +34,10 @@
 ```
 
 ```
-shux: [SHUX_COMP016_RISCV_WAVE] status=ok wave_ok=3 wave_skip=0 skip=1
+xlang: [XLANG_COMP016_RISCV_WAVE] status=ok wave_ok=3 wave_skip=0 skip=1
 ```
 
-无 native `shux` 时 manifest 仍须绿；runnable **SKIP**。
+无 native `xlang` 时 manifest 仍须绿；runnable **SKIP**。
 
 ---
 

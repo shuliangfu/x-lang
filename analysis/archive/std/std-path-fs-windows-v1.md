@@ -58,7 +58,7 @@ Windows 分支（`fs.c`）已用 `CreateFileA`；Win32 接受 `/` 与 `\`。
 
 - manifest：`tests/baseline/std-path-fs-windows.tsv`
 - 门禁：`tests/run-std-path-fs-windows-gate.sh`
-- 报告：`shux: [SHUX_STD_PATH_FS_WIN] status=ok`
+- 报告：`xlang: [XLANG_STD_PATH_FS_WIN] status=ok`
 - CI：`tests/run-portable-suite.sh`
 
 ---

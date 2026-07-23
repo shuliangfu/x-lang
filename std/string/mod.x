@@ -43,14 +43,14 @@ export function string_long_threshold(): i32 { return 32; }
  * @return i32
  */
 export function string_copy_threshold(): i32 { return 8; }
-extern function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32;
-extern function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32;
-extern function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void;
-extern function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32;
-extern function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
-extern function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
+extern function xlang_string_memcmp_c(a: *u8, b: *u8, n: i32): i32;
+extern function xlang_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32;
+extern function xlang_string_copy_c(dst: *u8, src: *u8, n: i32): void;
+extern function xlang_string_memchr_c(ptr: *u8, c: u8, n: i32): i32;
+extern function xlang_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32;
+extern function xlang_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32;
 /* See implementation. */
-extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
+extern function xlang_string_ptr_at_c(ptr: *u8, off: i32): *u8;
 /** Exported function `string_memcmp_c`.
  * Comparison/utility `string_memcmp_c`.
  * @param a *u8
@@ -60,7 +60,7 @@ extern function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8;
  */
 export function string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
   let rc: i32 = 0;
-  unsafe { rc = shux_string_memcmp_c(a, b, n); }
+  unsafe { rc = xlang_string_memcmp_c(a, b, n); }
   return rc;
 }
 /** Exported function `string_memmem_c`.
@@ -73,7 +73,7 @@ export function string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
  */
 export function string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
   let rc: i32 = 0;
-  unsafe { rc = shux_string_memmem_c(hay, hay_len, needle, needle_len); }
+  unsafe { rc = xlang_string_memmem_c(hay, hay_len, needle, needle_len); }
   return rc;
 }
 /** Exported function `string_copy_c`.
@@ -84,7 +84,7 @@ export function string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len:
  * @return void
  */
 export function string_copy_c(dst: *u8, src: *u8, n: i32): void {
-  unsafe { shux_string_copy_c(dst, src, n); }
+  unsafe { xlang_string_copy_c(dst, src, n); }
 }
 /** Exported function `string_memchr_c`.
  * Implements `string_memchr_c`.
@@ -95,7 +95,7 @@ export function string_copy_c(dst: *u8, src: *u8, n: i32): void {
  */
 export function string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
   let rc: i32 = 0;
-  unsafe { rc = shux_string_memchr_c(ptr, c, n); }
+  unsafe { rc = xlang_string_memchr_c(ptr, c, n); }
   return rc;
 }
 /** Exported function `string_memcmp_at_c`.
@@ -108,7 +108,7 @@ export function string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
  */
 export function string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
   let rc: i32 = 0;
-  unsafe { rc = shux_string_memcmp_at_c(a, off, b, n); }
+  unsafe { rc = xlang_string_memcmp_at_c(a, off, b, n); }
   return rc;
 }
 /** Exported function `string_ptr_at_c`.
@@ -119,7 +119,7 @@ export function string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
  */
 export function string_ptr_at_c(ptr: *u8, off: i32): *u8 {
   let p: *u8 = 0 as *u8;
-  unsafe { p = shux_string_ptr_at_c(ptr, off); }
+  unsafe { p = xlang_string_ptr_at_c(ptr, off); }
   return p;
 }
 /** Exported function `string_capacity`.

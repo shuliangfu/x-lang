@@ -45,7 +45,7 @@ export const STDERR_FD: i32 = 2;
 
 /* See implementation. */
 #[cfg(target_os = "linux")]
-extern function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
+extern function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
 
 /**
  * See implementation.
@@ -85,7 +85,7 @@ export function write(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_write(fd, buf, len as usize) as i32;
+    return xlang_sys_write(fd, buf, len as usize) as i32;
   }
 }
 
@@ -474,7 +474,7 @@ export function read(fd: i32, buf: *u8, len: i32): i32 {
  */
 #[cfg(target_os = "windows")]
 export function read(fd: i32, buf: *u8, len: i32): i32 {
-  /* Windows stub: params unused, SHUX has no unused-warning so no `(void)x;`
+  /* Windows stub: params unused, XLANG has no unused-warning so no `(void)x;`
    * C-style cast needed (such syntax hangs the parser). */
   return -1;
 }
@@ -516,7 +516,7 @@ export function close(fd: i32): i32 {
  */
 #[cfg(target_os = "windows")]
 export function close(fd: i32): i32 {
-  /* Windows stub: param unused, SHUX has no unused-warning so no `(void)fd;`
+  /* Windows stub: param unused, XLANG has no unused-warning so no `(void)fd;`
    * C-style cast needed (such syntax hangs the parser). */
   return -1;
 }

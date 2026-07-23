@@ -65,8 +65,8 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
         }
       }
     }
-    // WEAK_IO_BATCH (wave29): rows 178..181 = stdio guard + weak shux_io_* /
-    // process_shux_* / std_io_driver_* / ctx_* (#include..#endif). Co-emit of
+    // WEAK_IO_BATCH (wave29): rows 178..181 = stdio guard + weak xlang_io_* /
+    // process_xlang_* / std_io_driver_* / ctx_* (#include..#endif). Co-emit of
     // std.io.driver supplies strong defs; same-TU weak would redef.
     if ((skip & 8) != 0) {
       if (i >= 178) {

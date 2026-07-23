@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sqlite-row-col-blob.sh — STD-069 manifest 与 row_col_blob BLOB 列烟测辅助
 
-STD_DB_ROW_COL_BLOB_PREFIX="${SHUX_STD069_PREFIX:-shux: [SHUX_STD069_DB_BLOB_COL]}"
+STD_DB_ROW_COL_BLOB_PREFIX="${XLANG_STD069_PREFIX:-xlang: [XLANG_STD069_DB_BLOB_COL]}"
 
 # 复用 STD-057 SQLite 探测与编译。
 std_sqlite_row_col_blob_source_sqlite() {
@@ -55,7 +55,7 @@ std_sqlite_row_col_blob_symbols_ok() {
 std_sqlite_row_col_blob_run_c_smoke() {
   local db_c="$1"
   local src="tests/std-sqlite/row_col_blob_roundtrip_ok.c"
-  local out="/tmp/shux_std_sqlite_row_col_blob_$$"
+  local out="/tmp/xlang_std_sqlite_row_col_blob_$$"
   local db_o
   sqlite_o="$(dirname "$db_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then

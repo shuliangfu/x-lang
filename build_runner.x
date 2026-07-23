@@ -33,7 +33,7 @@ extern function build_get_step_at(i: i32): i32;
 /* See implementation. */
 extern function build_use_asm_only(): i32;
 /* See implementation. */
-extern function build_copy_shux_asm(): i32;
+extern function build_copy_xlang_asm(): i32;
 
 /** Internal function `build_run_legacy_steps`.
  * Implements `build_run_legacy_steps`.
@@ -119,7 +119,7 @@ function entry(argc: i32, argv: *u8): i32 {
   }
   if (build_use_asm_only() != 0) {
     if (build_run_asm_build(shu_buf) == 0) {
-      if (build_copy_shux_asm() != 0) {
+      if (build_copy_xlang_asm() != 0) {
         return 1;
       }
       return 0;

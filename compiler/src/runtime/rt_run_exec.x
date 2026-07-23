@@ -25,7 +25,7 @@ export extern "C" function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function shu_target_cpu_print(out: *u8, features: u32): void;
-export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
+export extern "C" function xlang_repo_root_from_argv0(argv0: *u8): *u8;
 export extern "C" function driver_stdio_stdout(): *u8;
 export extern "C" function driver_print_usage_write(): void;
 export extern "C" function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32;
@@ -261,7 +261,7 @@ export function driver_want_asm_emit_to_file(argc: i32, argv: **u8): i32 {
   return 0;
 }
 
-/** Print shux usage summary on fd 1. Cap residual owns giant usage literal.
+/** Print xlang usage summary on fd 1. Cap residual owns giant usage literal.
  * Track-L: #[no_mangle] keeps public short name.
  * PLATFORM: SHARED — link-name contract. */
 #[no_mangle]
@@ -279,7 +279,7 @@ export function driver_print_usage_c(): void {
 export function runtime_test_status_to_rc(script: *u8, st: i32): i32 {
   if (st == 0 - 1) {
     unsafe {
-      runtime_diag_errno_path(script, "process error" as *u8, "system(shux test)" as *u8, script);
+      runtime_diag_errno_path(script, "process error" as *u8, "system(xlang test)" as *u8, script);
     }
     return 1;
   }
@@ -386,7 +386,7 @@ export function driver_exec_compiled(argc: i32, argv_opaque: *u8): i32 {
   return 1;
 }
 
-/** shux test: run bash test script at repo root.
+/** xlang test: run bash test script at repo root.
  * wave226: uses link_abi_system (public pure thin → _impl host system; I/O boundary).
  * Optional argv[1] is relative path (must not start with '-'); default run-all.sh.
  * Track-L: #[no_mangle] keeps public short name.
@@ -405,7 +405,7 @@ export function driver_run_test(argc: i32, argv: **u8): i32 {
     }
   }
   unsafe {
-    root = shux_repo_root_from_argv0(a0);
+    root = xlang_repo_root_from_argv0(a0);
   }
   rel = "tests/run-all.sh" as *u8;
   if (argc >= 2) {

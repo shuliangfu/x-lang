@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TYPE_BORROW_DOC:-analysis/type-borrow-conflict-v1.md}"
-MANIFEST="${SHUX_TYPE_BORROW_MANIFEST:-tests/baseline/type-borrow-conflict.tsv}"
-MATRIX="${SHUX_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
+DOC="${XLANG_TYPE_BORROW_DOC:-analysis/type-borrow-conflict-v1.md}"
+MANIFEST="${XLANG_TYPE_BORROW_MANIFEST:-tests/baseline/type-borrow-conflict.tsv}"
+MATRIX="${XLANG_TYPE_BORROW_CASES:-tests/baseline/type-borrow-conflict-cases.tsv}"
 MIN_LAYERS=6
 MIN_CASES=6
 

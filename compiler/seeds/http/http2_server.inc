@@ -321,7 +321,7 @@ int32_t http2_serve_h2c_one_with_push_c(int32_t listener_fd, const uint8_t *body
         r = http2_server_serve_h2c_with_push_c((int32_t)client, body, body_len, authority,
                                                authority_len, push_path, push_path_len, push_body,
                                                push_body_len);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -342,7 +342,7 @@ int32_t http2_serve_h2c_one_with_push_c(int32_t listener_fd, const uint8_t *body
         return -1;
     r = http2_server_serve_h2c_with_push_c(client, body, body_len, authority, authority_len,
                                            push_path, push_path_len, push_body, push_body_len);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -414,13 +414,13 @@ int32_t http2_serve_h2_one_with_push_c(int32_t listener_fd, int64_t srv_ctx_h, c
             return -1;
         tls_ctx = net_tls_accept_server_c(srv_ctx_h, (int32_t)client);
         if (tls_ctx == 0) {
-            SHUX_HTTP_CLOSE((int)client);
+            XLANG_HTTP_CLOSE((int)client);
             return HTTP2_ERR_SERVER_TLS;
         }
         r = http2_server_serve_h2_with_push_c(tls_ctx, body, body_len, authority, authority_len,
                                                 push_path, push_path_len, push_body, push_body_len);
         net_tls_close_c(tls_ctx);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -442,13 +442,13 @@ int32_t http2_serve_h2_one_with_push_c(int32_t listener_fd, int64_t srv_ctx_h, c
         return -1;
     tls_ctx = net_tls_accept_server_c(srv_ctx_h, client);
     if (tls_ctx == 0) {
-        SHUX_HTTP_CLOSE(client);
+        XLANG_HTTP_CLOSE(client);
         return HTTP2_ERR_SERVER_TLS;
     }
     r = http2_server_serve_h2_with_push_c(tls_ctx, body, body_len, authority, authority_len,
                                           push_path, push_path_len, push_body, push_body_len);
     net_tls_close_c(tls_ctx);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -687,7 +687,7 @@ int32_t http2_serve_h2c_one_c(int32_t listener_fd, const uint8_t *body, int32_t 
         if (client == INVALID_SOCKET)
             return -1;
         r = http2_server_serve_h2c_c((int32_t)client, body, body_len);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -707,7 +707,7 @@ int32_t http2_serve_h2c_one_c(int32_t listener_fd, const uint8_t *body, int32_t 
     if (client < 0)
         return -1;
     r = http2_server_serve_h2c_c(client, body, body_len);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -726,7 +726,7 @@ int32_t http2_serve_h2c_one_with_goaway_c(int32_t listener_fd, const uint8_t *bo
         if (client == INVALID_SOCKET)
             return -1;
         r = http2_server_serve_h2c_with_goaway_c((int32_t)client, body, body_len, last_stream_id);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -746,7 +746,7 @@ int32_t http2_serve_h2c_one_with_goaway_c(int32_t listener_fd, const uint8_t *bo
     if (client < 0)
         return -1;
     r = http2_server_serve_h2c_with_goaway_c(client, body, body_len, last_stream_id);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -848,12 +848,12 @@ int32_t http2_serve_h2_one_c(int32_t listener_fd, int64_t srv_ctx_h, const uint8
             return -1;
         tls_ctx = net_tls_accept_server_c(srv_ctx_h, (int32_t)client);
         if (tls_ctx == 0) {
-            SHUX_HTTP_CLOSE((int)client);
+            XLANG_HTTP_CLOSE((int)client);
             return HTTP2_ERR_SERVER_TLS;
         }
         r = http2_server_serve_h2_c(tls_ctx, body, body_len);
         net_tls_close_c(tls_ctx);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -875,12 +875,12 @@ int32_t http2_serve_h2_one_c(int32_t listener_fd, int64_t srv_ctx_h, const uint8
         return -1;
     tls_ctx = net_tls_accept_server_c(srv_ctx_h, client);
     if (tls_ctx == 0) {
-        SHUX_HTTP_CLOSE(client);
+        XLANG_HTTP_CLOSE(client);
         return HTTP2_ERR_SERVER_TLS;
     }
     r = http2_server_serve_h2_c(tls_ctx, body, body_len);
     net_tls_close_c(tls_ctx);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -898,7 +898,7 @@ int32_t http2_serve_h2c_multi_one_c(int32_t listener_fd, const uint8_t *body, in
         if (client == INVALID_SOCKET)
             return -1;
         r = http2_server_serve_h2c_multi_c((int32_t)client, body, body_len, max_requests);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -918,7 +918,7 @@ int32_t http2_serve_h2c_multi_one_c(int32_t listener_fd, const uint8_t *body, in
     if (client < 0)
         return -1;
     r = http2_server_serve_h2c_multi_c(client, body, body_len, max_requests);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -943,7 +943,7 @@ int32_t http2_serve_h2c_multi_one_with_push_c(int32_t listener_fd, const uint8_t
                                                      max_requests, authority, authority_len,
                                                      push_path, push_path_len, push_body,
                                                      push_body_len);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -965,7 +965,7 @@ int32_t http2_serve_h2c_multi_one_with_push_c(int32_t listener_fd, const uint8_t
     r = http2_server_serve_h2c_multi_with_push_c(client, body, body_len, max_requests, authority,
                                                  authority_len, push_path, push_path_len, push_body,
                                                  push_body_len);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -985,12 +985,12 @@ int32_t http2_serve_h2_multi_one_c(int32_t listener_fd, int64_t srv_ctx_h, const
             return -1;
         tls_ctx = net_tls_accept_server_c(srv_ctx_h, (int32_t)client);
         if (tls_ctx == 0) {
-            SHUX_HTTP_CLOSE((int)client);
+            XLANG_HTTP_CLOSE((int)client);
             return HTTP2_ERR_SERVER_TLS;
         }
         r = http2_server_serve_h2_multi_c(tls_ctx, body, body_len, max_requests);
         net_tls_close_c(tls_ctx);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -1012,12 +1012,12 @@ int32_t http2_serve_h2_multi_one_c(int32_t listener_fd, int64_t srv_ctx_h, const
         return -1;
     tls_ctx = net_tls_accept_server_c(srv_ctx_h, client);
     if (tls_ctx == 0) {
-        SHUX_HTTP_CLOSE(client);
+        XLANG_HTTP_CLOSE(client);
         return HTTP2_ERR_SERVER_TLS;
     }
     r = http2_server_serve_h2_multi_c(tls_ctx, body, body_len, max_requests);
     net_tls_close_c(tls_ctx);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -1041,14 +1041,14 @@ int32_t http2_serve_h2_multi_one_with_push_c(int32_t listener_fd, int64_t srv_ct
             return -1;
         tls_ctx = net_tls_accept_server_c(srv_ctx_h, (int32_t)client);
         if (tls_ctx == 0) {
-            SHUX_HTTP_CLOSE((int)client);
+            XLANG_HTTP_CLOSE((int)client);
             return HTTP2_ERR_SERVER_TLS;
         }
         r = http2_server_serve_h2_multi_with_push_c(tls_ctx, body, body_len, max_requests,
                                                     authority, authority_len, push_path,
                                                     push_path_len, push_body, push_body_len);
         net_tls_close_c(tls_ctx);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -1070,14 +1070,14 @@ int32_t http2_serve_h2_multi_one_with_push_c(int32_t listener_fd, int64_t srv_ct
         return -1;
     tls_ctx = net_tls_accept_server_c(srv_ctx_h, client);
     if (tls_ctx == 0) {
-        SHUX_HTTP_CLOSE(client);
+        XLANG_HTTP_CLOSE(client);
         return HTTP2_ERR_SERVER_TLS;
     }
     r = http2_server_serve_h2_multi_with_push_c(tls_ctx, body, body_len, max_requests, authority,
                                                 authority_len, push_path, push_path_len, push_body,
                                                 push_body_len);
     net_tls_close_c(tls_ctx);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -1113,14 +1113,14 @@ int32_t http2_h2c_server_smoke_c(void) {
         return 2;
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (pid == 0) {
@@ -1142,21 +1142,21 @@ int32_t http2_h2c_server_smoke_c(void) {
         if (cfd < 0)
             _exit(10);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(11);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(12);
         }
         if (snprintf(port_buf, sizeof(port_buf), "%u", (unsigned)bound_port) <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(13);
         }
         (void)port_buf;
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(14);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -1178,14 +1178,14 @@ int32_t http2_h2c_server_smoke_c(void) {
     if (http2_serve_h2c_one_c(lfd, body, 2, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 6;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -1216,14 +1216,14 @@ int32_t http2_h2c_server_push_smoke_c(void) {
         return 2;
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (pid == 0) {
@@ -1247,16 +1247,16 @@ int32_t http2_h2c_server_push_smoke_c(void) {
         if (cfd < 0)
             _exit(10);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(11);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(12);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(13);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -1284,14 +1284,14 @@ int32_t http2_h2c_server_push_smoke_c(void) {
                                         5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 6;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -1319,14 +1319,14 @@ int32_t http2_h2c_server_push_settings_smoke_c(void) {
         return 1;
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -1350,16 +1350,16 @@ int32_t http2_h2c_server_push_settings_smoke_c(void) {
         if (cfd < 0)
             _exit(60);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(61);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(62);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(63);
         }
         if (http2_conn_handshake_with_enable_push_c(&conn, 0) != 0) {
@@ -1385,14 +1385,14 @@ int32_t http2_h2c_server_push_settings_smoke_c(void) {
                                         5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -1417,14 +1417,14 @@ int32_t http2_h2c_server_settings_full_smoke_c(void) {
         return 1;
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -1444,16 +1444,16 @@ int32_t http2_h2c_server_settings_full_smoke_c(void) {
         if (cfd < 0)
             _exit(80);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(81);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(82);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(83);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -1477,14 +1477,14 @@ int32_t http2_h2c_server_settings_full_smoke_c(void) {
     if (http2_serve_h2c_one_c(lfd, body, 2, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -1509,14 +1509,14 @@ int32_t http2_h2c_server_multistream_smoke_c(void) {
         return 1;
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -1540,16 +1540,16 @@ int32_t http2_h2c_server_multistream_smoke_c(void) {
         if (cfd < 0)
             _exit(40);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(41);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(42);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(43);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -1575,14 +1575,14 @@ int32_t http2_h2c_server_multistream_smoke_c(void) {
     if (http2_serve_h2c_multi_one_c(lfd, body, 2, 2, 5000u) != 2) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -1610,14 +1610,14 @@ int32_t http2_h2c_server_multistream_push_smoke_c(void) {
         return 1;
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -1644,16 +1644,16 @@ int32_t http2_h2c_server_multistream_push_smoke_c(void) {
         if (cfd < 0)
             _exit(50);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(51);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(52);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(53);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -1692,14 +1692,14 @@ int32_t http2_h2c_server_multistream_push_smoke_c(void) {
                                               push_body, 4, 5000u) != 2) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -1740,7 +1740,7 @@ int32_t http2_h2_server_smoke_c(void) {
     }
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 3;
     }
@@ -1748,7 +1748,7 @@ int32_t http2_h2_server_smoke_c(void) {
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 4;
     }
@@ -1774,28 +1774,28 @@ int32_t http2_h2_server_smoke_c(void) {
         if (cfd < 0)
             _exit(21);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(22);
         }
         alpn_len = net_tls_alpn_h2_http1_wire_c(alpn_wire, (int32_t)sizeof(alpn_wire));
         if (alpn_len <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(23);
         }
         tls_ctx = net_tls_connect_client_alpn_c(cfd, "127.0.0.1", alpn_wire, alpn_len);
         if (tls_ctx == 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(24);
         }
         if (net_tls_alpn_is_h2_c(tls_ctx) == 0) {
             net_tls_close_c(tls_ctx);
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(25);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_tls_c(tls_ctx, &conn) != 0) {
             net_tls_close_c(tls_ctx);
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(26);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -1817,16 +1817,16 @@ int32_t http2_h2_server_smoke_c(void) {
     if (http2_serve_h2_one_c(lfd, srv_ctx, body, 2, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 5;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 6;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     http2_tls_server_ctx_destroy_c(srv_ctx);
     return 0;
 #endif
@@ -1869,7 +1869,7 @@ int32_t http2_h2_server_push_smoke_c(void) {
     }
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 3;
     }
@@ -1877,7 +1877,7 @@ int32_t http2_h2_server_push_smoke_c(void) {
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 4;
     }
@@ -1904,28 +1904,28 @@ int32_t http2_h2_server_push_smoke_c(void) {
         if (cfd < 0)
             _exit(20);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(21);
         }
         alpn_len = net_tls_alpn_h2_http1_wire_c(alpn_wire, (int32_t)sizeof(alpn_wire));
         if (alpn_len <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(22);
         }
         tls_ctx = net_tls_connect_client_alpn_c(cfd, "127.0.0.1", alpn_wire, alpn_len);
         if (tls_ctx == 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(23);
         }
         if (net_tls_alpn_is_h2_c(tls_ctx) == 0) {
             net_tls_close_c(tls_ctx);
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(24);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_tls_c(tls_ctx, &conn) != 0) {
             net_tls_close_c(tls_ctx);
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(25);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -1952,16 +1952,16 @@ int32_t http2_h2_server_push_smoke_c(void) {
                                        push_body, 4, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 5;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 6;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     http2_tls_server_ctx_destroy_c(srv_ctx);
     return 0;
 #endif
@@ -2004,7 +2004,7 @@ int32_t http2_h2_server_multistream_push_smoke_c(void) {
     }
     slen = (socklen_t)sizeof(sin);
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 3;
     }
@@ -2012,7 +2012,7 @@ int32_t http2_h2_server_multistream_push_smoke_c(void) {
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 4;
     }
@@ -2042,28 +2042,28 @@ int32_t http2_h2_server_multistream_push_smoke_c(void) {
         if (cfd < 0)
             _exit(70);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(71);
         }
         alpn_len = net_tls_alpn_h2_http1_wire_c(alpn_wire, (int32_t)sizeof(alpn_wire));
         if (alpn_len <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(72);
         }
         tls_ctx = net_tls_connect_client_alpn_c(cfd, "127.0.0.1", alpn_wire, alpn_len);
         if (tls_ctx == 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(73);
         }
         if (net_tls_alpn_is_h2_c(tls_ctx) == 0) {
             net_tls_close_c(tls_ctx);
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(74);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_tls_c(tls_ctx, &conn) != 0) {
             net_tls_close_c(tls_ctx);
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(75);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -2100,16 +2100,16 @@ int32_t http2_h2_server_multistream_push_smoke_c(void) {
                                              push_path, 5, push_body, 4, 5000u) != 2) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 5;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         http2_tls_server_ctx_destroy_c(srv_ctx);
         return 6;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     http2_tls_server_ctx_destroy_c(srv_ctx);
     return 0;
 #endif
@@ -2184,14 +2184,14 @@ int32_t http2_h2c_server_max_frame_smoke_c(void) {
     if (lfd < 0)
         return 1;
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -2213,16 +2213,16 @@ int32_t http2_h2c_server_max_frame_smoke_c(void) {
         if (cfd < 0)
             _exit(90);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(91);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(92);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(93);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -2246,14 +2246,14 @@ int32_t http2_h2c_server_max_frame_smoke_c(void) {
     if (http2_serve_h2c_one_c(lfd, body, 16385, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -2286,14 +2286,14 @@ int32_t http2_h2c_server_goaway_smoke_c(void) {
     if (lfd < 0)
         return 1;
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -2315,16 +2315,16 @@ int32_t http2_h2c_server_goaway_smoke_c(void) {
         if (cfd < 0)
             _exit(80);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(81);
         }
         if (snprintf(host_buf, sizeof(host_buf), "127.0.0.1") <= 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(82);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(83);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -2350,14 +2350,14 @@ int32_t http2_h2c_server_goaway_smoke_c(void) {
     if (http2_serve_h2c_one_with_goaway_c(lfd, body, 9, 1, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }
@@ -2430,7 +2430,7 @@ int32_t http2_serve_h2c_one_ping_echo_c(int32_t listener_fd, uint32_t timeout_ms
         if (client == INVALID_SOCKET)
             return -1;
         r = http2_server_serve_h2c_ping_echo_c((int32_t)client);
-        SHUX_HTTP_CLOSE((int)client);
+        XLANG_HTTP_CLOSE((int)client);
         return r;
     }
 #else
@@ -2450,7 +2450,7 @@ int32_t http2_serve_h2c_one_ping_echo_c(int32_t listener_fd, uint32_t timeout_ms
     if (client < 0)
         return -1;
     r = http2_server_serve_h2c_ping_echo_c(client);
-    SHUX_HTTP_CLOSE(client);
+    XLANG_HTTP_CLOSE(client);
     return r;
 #endif
 }
@@ -2474,14 +2474,14 @@ int32_t http2_h2c_server_ping_smoke_c(void) {
     if (lfd < 0)
         return 1;
     if (getsockname(lfd, (struct sockaddr *)&sin, &slen) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 2;
     }
     bound_port = ntohs(sin.sin_port);
 
     pid = fork();
     if (pid < 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 3;
     }
     if (pid == 0) {
@@ -2497,12 +2497,12 @@ int32_t http2_h2c_server_ping_smoke_c(void) {
         if (cfd < 0)
             _exit(70);
         if (connect(cfd, (struct sockaddr *)&cli, (socklen_t)sizeof(cli)) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(71);
         }
         http2_conn_init_c(&conn);
         if (http2_conn_attach_h2c_c(cfd, &conn) != 0) {
-            SHUX_HTTP_CLOSE(cfd);
+            XLANG_HTTP_CLOSE(cfd);
             _exit(72);
         }
         if (http2_conn_handshake_c(&conn) != 0) {
@@ -2520,14 +2520,14 @@ int32_t http2_h2c_server_ping_smoke_c(void) {
     if (http2_serve_h2c_one_ping_echo_c(lfd, 5000u) != 0) {
         (void)kill(pid, SIGKILL);
         (void)waitpid(pid, NULL, 0);
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 4;
     }
     if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        SHUX_HTTP_CLOSE(lfd);
+        XLANG_HTTP_CLOSE(lfd);
         return 5;
     }
-    SHUX_HTTP_CLOSE(lfd);
+    XLANG_HTTP_CLOSE(lfd);
     return 0;
 #endif
 }

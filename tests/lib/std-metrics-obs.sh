@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-metrics-obs.sh — STD-117 manifest 与烟测辅助
 
-STD_METRICS_OBS_PREFIX="${SHUX_STD117_METRICS_OBS_PREFIX:-shux: [SHUX_STD117_METRICS_OBS]}"
+STD_METRICS_OBS_PREFIX="${XLANG_STD117_METRICS_OBS_PREFIX:-xlang: [XLANG_STD117_METRICS_OBS]}"
 
 # 校验 manifest 中 api/file/smoke 符号。
 std_metrics_obs_symbols_ok() {
@@ -27,11 +27,11 @@ std_metrics_obs_symbols_ok() {
 
 # 编译并运行 .x 烟测；失败时打印编译日志尾部。
 std_metrics_obs_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_metrics_obs_$$"
-  local log="/tmp/shux_std_metrics_obs_compile_$$.log"
-  if ! "$shux" -L . "$src" -o "$exe" >"$log" 2>&1; then
+  local exe="/tmp/xlang_std_metrics_obs_$$"
+  local log="/tmp/xlang_std_metrics_obs_compile_$$.log"
+  if ! "$xlang" -L . "$src" -o "$exe" >"$log" 2>&1; then
     tail -12 "$log" >&2 || true
     rm -f "$log" "$exe"
     return 1

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_CONTEXT_DOC:-analysis/std-context-v1.md}"
-MANIFEST="${SHUX_STD_CONTEXT_MANIFEST:-tests/baseline/std-context-manifest.tsv}"
+DOC="${XLANG_STD_CONTEXT_DOC:-analysis/std-context-v1.md}"
+MANIFEST="${XLANG_STD_CONTEXT_MANIFEST:-tests/baseline/std-context-manifest.tsv}"
 MOD_X="std/context/mod.x"
 CTX_X="std/context/context.x"
 LIB="tests/lib/std-context.sh"
@@ -67,7 +67,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-context manifest OK"
 
-if [ "${SHUX_STD_CONTEXT_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_CONTEXT_MANIFEST_ONLY:-0}" = "1" ]; then
   std_context_emit_report "ok" 0 0 1
   echo "std-context gate OK (manifest only)"
   exit 0
@@ -78,7 +78,7 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-071: context c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   if ensure_std_c_o ../std/context/context.o 2>/dev/null && std_context_run_c_smoke "$CTX_X"; then
@@ -87,28 +87,28 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "std-context gate SKIP c smoke (no full context.o)" >&2
   fi
 else
-  echo "std-context gate SKIP c smoke (no shux-c)" >&2
+  echo "std-context gate SKIP c smoke (no xlang-c)" >&2
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-071: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-071: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-context gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_context_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_context_run_smoke "$SHUX_BIN" "$SMOKE_X" "cancel"; then
+  if std_context_run_smoke "$XLANG_BIN" "$SMOKE_X" "cancel"; then
     X_OK=1
   else
     std_context_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-context gate SKIP .x smoke (no shux)" >&2
+  echo "std-context gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_NET_WS_DOC:-analysis/std-net-ws-v1.md}"
-MANIFEST="${SHUX_STD_NET_WS_TSV:-tests/baseline/std-net-ws.tsv}"
+DOC="${XLANG_STD_NET_WS_DOC:-analysis/std-net-ws-v1.md}"
+MANIFEST="${XLANG_STD_NET_WS_TSV:-tests/baseline/std-net-ws.tsv}"
 MOD_X="std/websocket/mod.x"
 WS_README="std/websocket/README.md"
 WS_CODEC="std/net/ws_codec.x"
@@ -93,30 +93,30 @@ ACCEPT_OK=0
 FRAME_OK=0
 TYPECK_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-031: typeck + frame smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-031: typeck + frame smoke (XLANG=$XLANG_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/net/net.o
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$FRAME_X" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$FRAME_X" >/dev/null 2>&1; then
     echo "std-net-ws gate FAIL: typeck $FRAME_X" >&2
-    "$SHUX_BIN" check -L . "$FRAME_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$FRAME_X" 2>&1 | tail -10 >&2 || true
     std_net_ws_emit_report "fail" 0 0 0 0
     exit 1
   fi
   TYPECK_OK=1
-  exe="/tmp/shux_std_net_ws_frame_$$"
+  exe="/tmp/xlang_std_net_ws_frame_$$"
   set +e
-  link_log=$("$SHUX_BIN" -L . "$FRAME_X" -o "$exe" 2>&1)
+  link_log=$("$XLANG_BIN" -L . "$FRAME_X" -o "$exe" 2>&1)
   link_ec=$?
   set -e
   if [ "$link_ec" -eq 0 ]; then
@@ -146,7 +146,7 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
 else
-  echo "std-net-ws gate SKIP smoke (no native shux-c)" >&2
+  echo "std-net-ws gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 std_net_ws_emit_report "ok" "$ACCEPT_OK" "$FRAME_OK" "$TYPECK_OK" "$SKIP"

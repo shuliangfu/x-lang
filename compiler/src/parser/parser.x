@@ -2684,7 +2684,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         /**
          * Hoist-safe unsafe (block path): pin X→C otherwise does
          * append_unsafe(body_ref=0) before parse_block_into — force drops
-         * `unsafe { return shux_sys_*; }` (hello io_libc_* residual).
+         * `unsafe { return xlang_sys_*; }` (hello io_libc_* residual).
          * PLATFORM: SHARED.
          */
         let block_res_unsafe: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
@@ -5286,7 +5286,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
           expr_res_fi = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fi);
-          /* Full expr required (incl. assign); empty step breaks typeck vs shux-c. */
+          /* Full expr required (incl. assign); empty step breaks typeck vs xlang-c. */
           if (!expr_res_fi.ok) {
             set_onefunc_fail(out, lex); return;
           }

@@ -27,7 +27,7 @@
 | **F2-pointer-bridge** | `*T` | `T*`（递归 `c_type_to_buf`） | ✅ |
 | **F3-extern-syntax** | `extern function f(...)` | 无函数体；链接 C 符号 | ✅ |
 | **F4-struct-by-value** | 具名 struct | `struct Name` 同布局按值传递 | ✅ |
-| **F5-slice-codegen** | `T[]` | `struct shux_slice_<elem>` | ✅（**非**直接 extern 参数） |
+| **F5-slice-codegen** | `T[]` | `struct xlang_slice_<elem>` | ✅（**非**直接 extern 参数） |
 | **F6-coercion** | `*T`→`*u8`、`T[N]`→`*T` | typeck 放宽（C `void*` / 衰减） | ✅ |
 
 **interop 原则**：
@@ -46,7 +46,7 @@ extern function putchar(c: i32): i32;  // Shu i32 → C int32_t
 
 机器可读：`tests/baseline/type-ffi-bridge-map.tsv`（**12+** 行）。
 
-| shux_type | c_type | extern_ok | 说明 |
+| xlang_type | c_type | extern_ok | 说明 |
 |----------|--------|-----------|------|
 | `i32` | `int32_t` | yes | 标量 |
 | `u32` | `uint32_t` | yes | |
@@ -60,7 +60,7 @@ extern function putchar(c: i32): i32;  // Shu i32 → C int32_t
 | `isize` | `ptrdiff_t` | yes | |
 | `*T` | `<T>*` | yes | 指针递归 |
 | `*u8` | `uint8_t*` | yes | void\* 桥接目标 |
-| `T[]` | `struct shux_slice_*` | no | 仅 codegen 内部 |
+| `T[]` | `struct xlang_slice_*` | no | 仅 codegen 内部 |
 
 实现锚点：`compiler/src/codegen/codegen.c` `c_type_to_buf`；typeck 放宽见 `typeck.c` call 实参路径。
 

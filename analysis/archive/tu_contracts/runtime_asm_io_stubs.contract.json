@@ -35,10 +35,10 @@
       "io_read_ptr",
       "io_read_ptr_len",
       "io_register_buffer",
-      "shux_io_register",
-      "shux_io_register_buf",
-      "shux_io_submit_read",
-      "shux_io_submit_write",
+      "xlang_io_register",
+      "xlang_io_register_buf",
+      "xlang_io_submit_read",
+      "xlang_io_submit_write",
       "std_io_handle_stdin",
       "std_io_handle_stdout",
       "std_io_handle_stderr",
@@ -71,7 +71,7 @@
     ],
     "only_x": ["runtime_asm_io_stubs_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_RUNTIME_ASM_IO_STUBS_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_ASM_IO_STUBS_FROM_X",
   "impl_residuals": [
     "seed_io_syscall_write_impl",
     "seed_io_syscall_read_impl",

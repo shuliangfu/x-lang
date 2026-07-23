@@ -7,13 +7,13 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `runtime.c`（27 行） | `runtime.x` |
-| `runtime.o` | `cc -c runtime.c` | `shux -backend asm runtime.x` |
+| `runtime.o` | `cc -c runtime.c` | `xlang -backend asm runtime.x` |
 | 存量 | std 86 `.c` | std **85** `.c` |
 
 ## 门禁
 
 ```bash
-SHUX_F_RUNTIME_V1_FAIL=1 ./tests/run-f-runtime-v1-gate.sh
+XLANG_F_RUNTIME_V1_FAIL=1 ./tests/run-f-runtime-v1-gate.sh
 ./tests/run-std-runtime-panic-hook-gate.sh
 ```
 

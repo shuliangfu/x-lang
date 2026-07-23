@@ -6,8 +6,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TST002_DOC:-analysis/tst-002-boundary-wave2-v1.md}"
-MANIFEST="${SHUX_TST002_TSV:-tests/baseline/tst-002-boundary-wave2.tsv}"
+DOC="${XLANG_TST002_DOC:-analysis/tst-002-boundary-wave2-v1.md}"
+MANIFEST="${XLANG_TST002_TSV:-tests/baseline/tst-002-boundary-wave2.tsv}"
 LIB="tests/lib/tst-002-boundary.sh"
 MIN_CASES=8
 
@@ -82,47 +82,47 @@ VEC_OK=0
 MAP_OK=0
 PROC_OK=0
 SKIP=1
-SHUX_BIN=""
+XLANG_BIN=""
 
-for cand in ./compiler/shux-c ./compiler/shux; do
+for cand in ./compiler/xlang-c ./compiler/xlang; do
   if stdlib_cm_native_shu "$cand"; then
-    SHUX_BIN="$cand"
+    XLANG_BIN="$cand"
     break
   fi
 done
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== TST-002: typeck + smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== TST-002: typeck + smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   make -C compiler -q ../std/heap/heap.o ../std/process/process.o 2>/dev/null \
     || make -C compiler ../std/heap/heap.o ../std/process/process.o 2>/dev/null || true
   for x in tests/heap/boundary.x tests/vec/boundary.x tests/map/boundary.x tests/process/boundary.x; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "tst-002-boundary gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -8 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -8 >&2 || true
       tst002_emit_report "fail" "$HEAP_OK" "$VEC_OK" "$MAP_OK" "$PROC_OK" 0
       exit 1
     fi
   done
-  if tst002_run_boundary "$SHUX_BIN" tests/heap/boundary.x /tmp/shux_tst002_heap; then
+  if tst002_run_boundary "$XLANG_BIN" tests/heap/boundary.x /tmp/xlang_tst002_heap; then
     HEAP_OK=1
   else
     tst002_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if tst002_run_boundary "$SHUX_BIN" tests/vec/boundary.x /tmp/shux_tst002_vec; then
+  if tst002_run_boundary "$XLANG_BIN" tests/vec/boundary.x /tmp/xlang_tst002_vec; then
     VEC_OK=1
   else
     tst002_emit_report "fail" "$HEAP_OK" 0 0 0 0
     exit 1
   fi
-  if tst002_run_boundary "$SHUX_BIN" tests/map/boundary.x /tmp/shux_tst002_map; then
+  if tst002_run_boundary "$XLANG_BIN" tests/map/boundary.x /tmp/xlang_tst002_map; then
     MAP_OK=1
   else
     tst002_emit_report "fail" "$HEAP_OK" "$VEC_OK" 0 0 0
     exit 1
   fi
-  if tst002_run_boundary "$SHUX_BIN" tests/process/boundary.x /tmp/shux_tst002_proc; then
+  if tst002_run_boundary "$XLANG_BIN" tests/process/boundary.x /tmp/xlang_tst002_proc; then
     PROC_OK=1
   else
     tst002_emit_report "fail" "$HEAP_OK" "$VEC_OK" "$MAP_OK" 0 0
@@ -130,7 +130,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "tst-002-boundary gate SKIP smoke (no native shux-c)" >&2
+  echo "tst-002-boundary gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 tst002_emit_report "ok" "$HEAP_OK" "$VEC_OK" "$MAP_OK" "$PROC_OK" "$SKIP"

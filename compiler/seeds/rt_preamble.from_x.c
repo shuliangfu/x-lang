@@ -1,6 +1,6 @@
 /* seeds/rt_preamble.from_x.c — G-02f-265 P2 R3 preamble ABI 内联
  * Logic source: src/runtime/rt_preamble.x
- * Hybrid: SHUX_RT_PREAMBLE_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_PREAMBLE_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：write_io_net / write_fs_path_map_error 由 .x 提供；
  * FROM_X 下本文件：巨型字符串表（Cap-giant-string residual 数据）+ 前向声明 + marker
@@ -8,7 +8,7 @@
  * Cap residual 行访问 API 在 runtime_driver_abi（平台层，供 .x 取表）。
  * wave29：io_net n=224；WEAK_IO_BATCH skip i=178..181（与 rt_preamble.x / surface 同权威）。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -30,7 +30,7 @@ const char *const driver_preamble_io_net_lines[] = {
         "#include <stdint.h>\n",
         /* PLATFORM: SHARED — host libc prototypes for skip-list symbols
          * (codegen_is_libc_conflicting_extern_name: malloc/free/calloc/realloc/
-         * getenv/memcpy/memchr/strtoul/...). SHUX *u8 emits as uint8_t * and
+         * getenv/memcpy/memchr/strtoul/...). XLANG *u8 emits as uint8_t * and
          * clashes with char * / void * in system headers; we skip redecl and
          * rely on these includes. Without them, skipped names become implicit
          * int (heap return malloc -> int-to-pointer).
@@ -46,7 +46,7 @@ const char *const driver_preamble_io_net_lines[] = {
          * PROT_*, MAP_*, FS_IOV_BUF_MAX, DIRENT_D_NAME_OFF and bare fs_libc_open, plus
          * Darwin __error / Linux __errno_location / fcntl / madvise without prototypes.
          * Do NOT include sys/stat.h or sys/mman.h: they macro-expand st_atime etc. and
-         * conflict with Shux PosixStatBuf / extern open,stat,mmap prototypes (host-cc red).
+         * conflict with Xlang PosixStatBuf / extern open,stat,mmap prototypes (host-cc red).
          * Values match std/fs/posix.x export const (Linux + Darwin shared where equal).
          */
         "#ifndef O_RDONLY\n#define O_RDONLY 0\n#endif\n"
@@ -91,50 +91,50 @@ const char *const driver_preamble_io_net_lines[] = {
         "}\n"
         "#define fs_note_last_error_posix std_fs_posix_fs_note_last_error_posix\n"
         "#endif\n",
-        "static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
+        "static inline ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return read((int)fd, (void *)buf, count);\n"
         "}\n",
-        "static inline ssize_t shux_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
+        "static inline ssize_t xlang_sys_write(int32_t fd, uint8_t *buf, size_t count) {\n"
         "  return write((int)fd, (const void *)buf, count);\n"
         "}\n",
         /* PLATFORM: POSIX — MinGW lacks readv/writev/poll/pread/pwrite and the types
          * struct iovec, struct pollfd, nfds_t. Gate each inline behind _WIN32. Windows
-         * std.io.sync / std.net use shux_sys_read/write (provided by MinGW io.h). */
+         * std.io.sync / std.net use xlang_sys_read/write (provided by MinGW io.h). */
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline ssize_t shux_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
+        "static inline ssize_t xlang_sys_readv(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return readv((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline ssize_t shux_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
+        "static inline ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {\n"
         "  return writev((int)fd, (const struct iovec *)(const void *)iov, (int)iovcnt);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
+        "static inline int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {\n"
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline ssize_t shux_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
+        "static inline ssize_t xlang_sys_pread(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
         "  return pread((int)fd, (void *)buf, count, (off_t)offset);\n"
         "}\n"
         "#endif\n",
         "#if !defined(_WIN32) && !defined(_WIN64)\n"
-        "static inline ssize_t shux_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
+        "static inline ssize_t xlang_sys_pwrite(int32_t fd, uint8_t *buf, size_t count, int64_t offset) {\n"
         "  return pwrite((int)fd, (const void *)buf, count, (off_t)offset);\n"
         "}\n"
         "#endif\n",
-        "static inline int32_t shux_fs_unlink(uint8_t *path) {\n"
+        "static inline int32_t xlang_fs_unlink(uint8_t *path) {\n"
         "  return (int32_t)unlink((const char *)path);\n"
         "}\n",
-        "static inline int32_t shux_fs_rmdir(uint8_t *path) {\n"
+        "static inline int32_t xlang_fs_rmdir(uint8_t *path) {\n"
         "  return (int32_t)rmdir((const char *)path);\n"
         "}\n",
-        "struct shux_slice_uint8_t { uint8_t *data; size_t length; };\n"
-        "struct shux_slice_int32_t { int32_t *data; size_t length; };\n"
-        "struct shux_slice_uint64_t { uint64_t *data; size_t length; };\n"
-        "struct shux_slice_size_t { size_t *data; size_t length; };\n"
+        "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };\n"
+        "struct xlang_slice_int32_t { int32_t *data; size_t length; };\n"
+        "struct xlang_slice_uint64_t { uint64_t *data; size_t length; };\n"
+        "struct xlang_slice_size_t { size_t *data; size_t length; };\n"
         /* §10 向量：codegen 发 i32x4_t / f32x4_t 等；与 emit_vector_c_type_out +
          * pipeline_codegen_vector_type_cstr 对齐。f32x{4,8,16} 供 Vec4f 等 F32 向量使用。 */
         "#if defined(__GNUC__) || defined(__clang__)\n"
@@ -174,35 +174,35 @@ const char *const driver_preamble_io_net_lines[] = {
         "extern int io_wait_readable(int32_t *fds, int n, unsigned timeout_ms);\n",
         "extern uint8_t *io_read_ptr(size_t handle, unsigned timeout_ms);\n",
         "extern int io_read_ptr_len(void);\n",
-        "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n",
-        "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
-        "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
-        "extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
-        "extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
-        "extern uint8_t *shux_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
-        "extern int32_t shux_io_read_ptr_len(void);\n",
+        "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
+        "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n",
+        "extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
+        "extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
+        "extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
+        "extern int32_t xlang_io_read_ptr_len(void);\n",
         "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n",
-        "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
-        "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t shux_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (shux_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
+        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
         /* 勿定义 std_io_driver_submit_read/write 同名 inline（与 co-emit Buffer 形参冲突）。 */
-        "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
-        "static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return shux_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
-        "#define shux_io_register(buf) shux_io_register_buf(buf)\n",
-        "#define shux_io_submit_read(buf, timeout_m) shux_io_submit_read_buf(buf, timeout_m)\n",
-        "#define shux_io_submit_write(buf, timeout_m) shux_io_submit_write_buf(buf, timeout_m)\n",
-        "/* 撤销宏：X codegen 会生成同名函数定义(shux_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */\n",
-        "#undef shux_io_register\n",
-        "#undef shux_io_submit_read\n",
-        "#undef shux_io_submit_write\n",
+        "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        "static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
+        "#define xlang_io_register(buf) xlang_io_register_buf(buf)\n",
+        "#define xlang_io_submit_read(buf, timeout_m) xlang_io_submit_read_buf(buf, timeout_m)\n",
+        "#define xlang_io_submit_write(buf, timeout_m) xlang_io_submit_write_buf(buf, timeout_m)\n",
+        "/* 撤销宏：X codegen 会生成同名函数定义(xlang_io_register/submit_read/submit_write)，宏与多参签名冲突，在函数体前必须 undef。 */\n",
+        "#undef xlang_io_register\n",
+        "#undef xlang_io_submit_read\n",
+        "#undef xlang_io_submit_write\n",
         "struct std_io_driver_Buffer { void *ptr; size_t len; size_t handle; };\n",
         "typedef struct std_io_driver_Buffer std_io_Buffer;\n",
         "#define std_io_Buffer std_io_driver_Buffer\n",
         "extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
         "extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);\n",
         "extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_driver_Buffer * bufs, uint32_t nr);\n",
-        "#define std_io_driver_driver_read_ptr_len shux_io_read_ptr_len\n",
-        "#define std_io_driver_driver_read_ptr shux_io_read_ptr\n",
+        "#define std_io_driver_driver_read_ptr_len xlang_io_read_ptr_len\n",
+        "#define std_io_driver_driver_read_ptr xlang_io_read_ptr\n",
         "#define driver_read_ptr_len std_io_driver_driver_read_ptr_len\n",
         "#define driver_read_ptr std_io_driver_driver_read_ptr\n",
         "#define submit_register_fixed_buffers_buf std_io_driver_submit_register_fixed_buffers_buf\n",
@@ -228,58 +228,58 @@ const char *const driver_preamble_io_net_lines[] = {
         "#define std_io_core_io_write_batch io_write_batch\n",
         "#define std_io_core_io_read_fixed io_read_fixed\n",
         "#define std_io_core_io_write_fixed io_write_fixed\n",
-        "#define std_io_core_shux_io_register shux_io_register\n",
-        "#define std_io_core_shux_io_register_buffers shux_io_register_buffers\n",
-        "#define std_io_core_shux_io_unregister_buffers shux_io_unregister_buffers\n",
-        "#define std_io_core_shux_io_submit_read shux_io_submit_read\n",
-        "#define std_io_core_shux_io_read_ptr shux_io_read_ptr\n",
-        "#define std_io_core_shux_io_read_ptr_len shux_io_read_ptr_len\n",
-        "#define std_io_core_shux_io_submit_write shux_io_submit_write\n",
-        "#define std_io_core_shux_io_submit_read_batch shux_io_submit_read_batch\n",
-        "#define std_io_core_shux_io_submit_write_batch shux_io_submit_write_batch\n",
-        "#define std_io_core_shux_io_read_fixed shux_io_read_fixed\n",
-        "#define std_io_core_shux_io_write_fixed shux_io_write_fixed\n",
+        "#define std_io_core_xlang_io_register xlang_io_register\n",
+        "#define std_io_core_xlang_io_register_buffers xlang_io_register_buffers\n",
+        "#define std_io_core_xlang_io_unregister_buffers xlang_io_unregister_buffers\n",
+        "#define std_io_core_xlang_io_submit_read xlang_io_submit_read\n",
+        "#define std_io_core_xlang_io_read_ptr xlang_io_read_ptr\n",
+        "#define std_io_core_xlang_io_read_ptr_len xlang_io_read_ptr_len\n",
+        "#define std_io_core_xlang_io_submit_write xlang_io_submit_write\n",
+        "#define std_io_core_xlang_io_submit_read_batch xlang_io_submit_read_batch\n",
+        "#define std_io_core_xlang_io_submit_write_batch xlang_io_submit_write_batch\n",
+        "#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed\n",
+        "#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed\n",
         /* driver → core 前缀调用：core 未 co-emit 时映到 runtime / 平台符号（与 io.o / backend 一致）。 */
-        "#define std_io_core_shux_io_register_buffers_buf io_register_buffers_buf\n",
-        "#define std_io_core_shux_io_read_ptr_gen shux_io_read_ptr_gen\n",
-        "#define std_io_core_shux_io_read_ptr_gen_valid shux_io_read_ptr_gen_valid\n",
-        "#define std_io_core_shux_io_read_ptr_backend shux_io_read_ptr_backend\n",
-        "#define std_io_core_shux_io_read_ptr_slice shux_io_read_ptr_slice\n",
-        "#define std_io_core_shux_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
-        "#define std_io_core_shux_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
-        "#define std_io_core_shux_io_register_provided_buffers shux_io_register_provided_buffers\n",
+        "#define std_io_core_xlang_io_register_buffers_buf io_register_buffers_buf\n",
+        "#define std_io_core_xlang_io_read_ptr_gen xlang_io_read_ptr_gen\n",
+        "#define std_io_core_xlang_io_read_ptr_gen_valid xlang_io_read_ptr_gen_valid\n",
+        "#define std_io_core_xlang_io_read_ptr_backend xlang_io_read_ptr_backend\n",
+        "#define std_io_core_xlang_io_read_ptr_slice xlang_io_read_ptr_slice\n",
+        "#define std_io_core_xlang_io_read_batch_buf(fd, bufs, n, t) io_read_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
+        "#define std_io_core_xlang_io_write_batch_buf(fd, bufs, n, t) io_write_batch_buf((fd), (const struct std_io_driver_Buffer *)(const void *)(bufs), (n), (t))\n",
+        "#define std_io_core_xlang_io_register_provided_buffers xlang_io_register_provided_buffers\n",
         /* Cap co-emit of std.io wrappers calls these names; map to runtime/io.o symbols. */
-        "#define std_io_core_shux_io_unregister_provided_buffers shux_io_unregister_provided_buffers\n",
-        "#define std_io_core_shux_io_provided_buffer_ptr shux_io_provided_buffer_ptr\n",
-        "#define std_io_core_shux_io_provided_buffer_size shux_io_provided_buffer_size\n",
-        "#define std_io_core_shux_io_read_provided shux_io_read_provided\n",
-        "#define std_io_core_shux_io_read_batch_provided shux_io_read_batch_provided\n",
-        "#define std_io_core_shux_io_submit_read_async shux_io_submit_read_async\n",
-        "#define std_io_core_shux_io_complete_read_async shux_io_complete_read_async\n",
-        "#define std_io_core_shux_io_complete_read_async_slot shux_io_complete_read_async_slot\n",
-        "#define std_io_core_shux_io_submit_write_async shux_io_submit_write_async\n",
-        "#define std_io_core_shux_io_complete_write_async shux_io_complete_write_async\n",
-        "#define std_io_core_shux_io_complete_write_async_slot shux_io_complete_write_async_slot\n",
-        "#define std_io_core_shux_io_poll_async_completions shux_io_poll_async_completions\n",
-        "#define std_io_core_shux_io_uring_is_available_c shux_io_uring_is_available_c\n",
-        "extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);\n",
-        "extern int32_t shux_io_read_ptr_backend(void);\n",
-        "extern uint64_t shux_io_read_ptr_gen(void);\n",
-        "extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);\n",
-        "extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);\n",
-        "extern void shux_io_unregister_provided_buffers(void);\n",
-        "extern uint8_t *shux_io_provided_buffer_ptr(uint32_t bid);\n",
-        "extern uint32_t shux_io_provided_buffer_size(void);\n",
-        "extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);\n",
-        "extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);\n",
-        "extern int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n",
-        "extern int32_t shux_io_complete_read_async(void);\n",
-        "extern int32_t shux_io_complete_read_async_slot(int32_t slot);\n",
-        "extern int32_t shux_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);\n",
-        "extern int32_t shux_io_complete_write_async(void);\n",
-        "extern int32_t shux_io_complete_write_async_slot(int32_t slot);\n",
-        "extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);\n",
-        "extern int32_t shux_io_uring_is_available_c(void);\n",
+        "#define std_io_core_xlang_io_unregister_provided_buffers xlang_io_unregister_provided_buffers\n",
+        "#define std_io_core_xlang_io_provided_buffer_ptr xlang_io_provided_buffer_ptr\n",
+        "#define std_io_core_xlang_io_provided_buffer_size xlang_io_provided_buffer_size\n",
+        "#define std_io_core_xlang_io_read_provided xlang_io_read_provided\n",
+        "#define std_io_core_xlang_io_read_batch_provided xlang_io_read_batch_provided\n",
+        "#define std_io_core_xlang_io_submit_read_async xlang_io_submit_read_async\n",
+        "#define std_io_core_xlang_io_complete_read_async xlang_io_complete_read_async\n",
+        "#define std_io_core_xlang_io_complete_read_async_slot xlang_io_complete_read_async_slot\n",
+        "#define std_io_core_xlang_io_submit_write_async xlang_io_submit_write_async\n",
+        "#define std_io_core_xlang_io_complete_write_async xlang_io_complete_write_async\n",
+        "#define std_io_core_xlang_io_complete_write_async_slot xlang_io_complete_write_async_slot\n",
+        "#define std_io_core_xlang_io_poll_async_completions xlang_io_poll_async_completions\n",
+        "#define std_io_core_xlang_io_uring_is_available_c xlang_io_uring_is_available_c\n",
+        "extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);\n",
+        "extern int32_t xlang_io_read_ptr_backend(void);\n",
+        "extern uint64_t xlang_io_read_ptr_gen(void);\n",
+        "extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);\n",
+        "extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);\n",
+        "extern void xlang_io_unregister_provided_buffers(void);\n",
+        "extern uint8_t *xlang_io_provided_buffer_ptr(uint32_t bid);\n",
+        "extern uint32_t xlang_io_provided_buffer_size(void);\n",
+        "extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t *out_bid, uint32_t *out_len);\n",
+        "extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t *out_bids, uint32_t *out_lens);\n",
+        "extern int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t xlang_io_complete_read_async(void);\n",
+        "extern int32_t xlang_io_complete_read_async_slot(int32_t slot);\n",
+        "extern int32_t xlang_io_submit_write_async(uint8_t *ptr, size_t len, size_t handle);\n",
+        "extern int32_t xlang_io_complete_write_async(void);\n",
+        "extern int32_t xlang_io_complete_write_async_slot(int32_t slot);\n",
+        "extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);\n",
+        "extern int32_t xlang_io_uring_is_available_c(void);\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
         "extern int32_t std_io_driver_submit_read_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
         "extern int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver_Buffer * bufs, int32_t n, uint32_t timeout_ms);\n",
@@ -292,59 +292,59 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct std_net_TcpListener { int32_t fd; };\n",
         "struct std_net_UdpSocket { int32_t fd; };\n",
         "#if defined(__clang__)\n",
-        "#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
+        "#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
         "#elif defined(__GNUC__)\n",
         "/* 仅用 *(int32_t*)&(x)：int32_t 与仅含 .fd 的 struct 首字节相同，且避免 __builtin_types_compatible_p 在部分环境报错、三元分支被全量类型检查。调用方须传 lvalue。 */\n",
-        "#define shux_io_net_fd(x) (*(int32_t*)(void*)&(x))\n",
+        "#define xlang_io_net_fd(x) (*(int32_t*)(void*)&(x))\n",
         "#else\n",
-        "#define shux_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
+        "#define xlang_io_net_fd(x) _Generic((x), struct std_net_TcpStream: (x).fd, struct std_net_TcpListener: (x).fd, struct std_net_UdpSocket: (x).fd, default: (int32_t)(x))\n",
         "#endif\n",
-        "#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
-        "#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
+        "#define std_io_read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
+        "#define std_io_write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
         "/* X 内联 std.io 会生成函数定义；撤销与定义/extern 冲突的宏，并补齐 batch 注册符号映射。 */\n",
         "#undef std_io_driver_io_register_buffers_buf\n",
         "#undef std_io_read_fixed_fd\n",
         "#undef std_io_write_fixed_fd\n",
-        "#undef std_io_core_shux_io_register_buffers\n",
-        "#undef std_io_core_shux_io_unregister_buffers\n",
-        "#undef std_io_core_shux_io_read_fixed\n",
-        "#undef std_io_core_shux_io_write_fixed\n",
-        "#undef std_io_core_shux_io_wait_readable\n",
-        "#define std_io_core_shux_io_register_buffers io_register_buffers_4\n",
-        "#define std_io_core_shux_io_unregister_buffers io_unregister_buffers\n",
-        "#define std_io_core_shux_io_read_fixed shux_io_read_fixed\n",
-        "#define std_io_core_shux_io_write_fixed shux_io_write_fixed\n",
-        "#define std_io_core_shux_io_wait_readable io_wait_readable\n",
+        "#undef std_io_core_xlang_io_register_buffers\n",
+        "#undef std_io_core_xlang_io_unregister_buffers\n",
+        "#undef std_io_core_xlang_io_read_fixed\n",
+        "#undef std_io_core_xlang_io_write_fixed\n",
+        "#undef std_io_core_xlang_io_wait_readable\n",
+        "#define std_io_core_xlang_io_register_buffers io_register_buffers_4\n",
+        "#define std_io_core_xlang_io_unregister_buffers io_unregister_buffers\n",
+        "#define std_io_core_xlang_io_read_fixed xlang_io_read_fixed\n",
+        "#define std_io_core_xlang_io_write_fixed xlang_io_write_fixed\n",
+        "#define std_io_core_xlang_io_wait_readable io_wait_readable\n",
         "/* codegen 体内调 std_io_driver_io_*；#undef 后重绑到 preamble/io.o 的 io_*。 */\n",
         "#define std_io_driver_io_read_batch_buf io_read_batch_buf\n",
         "#define std_io_driver_io_write_batch_buf io_write_batch_buf\n",
         "#define std_io_driver_io_register_buffers_buf(bufs, nr) io_register_buffers_buf((intptr_t)(void *)(bufs), (int)(nr))\n",
         /*
          * 【Why 根源】产品 -o 仅有 extern；co-emit 整包 std.io 时未用到的 read/batch 仍进 .o，
-         *   引用 shux_io_submit_read / std_io_driver_submit_* / io_* / ctx_*。macOS 不能硬链
+         *   引用 xlang_io_submit_read / std_io_driver_submit_* / io_* / ctx_*。macOS 不能硬链
          *   runtime_asm_io_stubs（与 co-emit std_io_write_stdout 强符号冲突）。
          * 【Invariant】weak：有强符号选强；无则 stdio/占位，hello print 可链。
          */
         "#include <stdio.h>\n"
         "#ifndef __cplusplus\n"
         /*
-         * 【Why 根源】勿 weak 桩 shux_io_submit_read / submit_*_batch / submit_write：
+         * 【Why 根源】勿 weak 桩 xlang_io_submit_read / submit_*_batch / submit_write：
          *   core co-emit 现为权威（调 std_io_backend_*）；同 TU weak+strong 重定义。
          *   旧 weak submit_write_batch 再调裸 io_write_batch，产品 -o 不硬链
          *   runtime_asm_io_stubs → 双端 UNDEF。仅保留无 core 体或仅弱路径的桩。
          * PLATFORM: SHARED.
          */
         "/* 仅补 co-emit 未定义的符号；勿桩 submit_read / submit_*_batch / submit_write（core 强定义）。 */\n"
-        "__attribute__((weak)) int32_t shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {\n"
+        "__attribute__((weak)) int32_t xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle) {\n"
         "  (void)ptr; (void)len; (void)handle; return -1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "__attribute__((weak)) int32_t xlang_io_read_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
         "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
+        "__attribute__((weak)) int32_t xlang_io_write_fixed(size_t h, uint32_t bi, size_t o, size_t l, uint32_t t) {\n"
         "  (void)h;(void)bi;(void)o;(void)l;(void)t; return -1;\n"
         "}\n"
-        "__attribute__((weak)) int32_t shux_io_read_ptr_backend(void) { return 0; }\n"
+        "__attribute__((weak)) int32_t xlang_io_read_ptr_backend(void) { return 0; }\n"
         "__attribute__((weak)) int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr) {\n"
         "  (void)p0;(void)l0;(void)p1;(void)l1;(void)p2;(void)l2;(void)p3;(void)l3;(void)nr; return -1;\n"
         "}\n"
@@ -359,16 +359,16 @@ const char *const driver_preamble_io_net_lines[] = {
         "}\n"
         /* std.env mod.x extern args_iter_*_c：formal env.o is mod.x (std_env_*); args_iter body
          * is weak here (env.x no_mangle helpers are not the product formal surface).
-         * PLATFORM: SHARED — process_args_* weak-delegate to process_shux_*.
-         * Provide weak process_shux_* returning 0/NULL so Linux ld resolves refs inside
+         * PLATFORM: SHARED — process_args_* weak-delegate to process_xlang_*.
+         * Provide weak process_xlang_* returning 0/NULL so Linux ld resolves refs inside
          * these weak stubs when runtime_process_argv.o is not linked (pure/backtrace).
-         * Strong process_shux_* from runtime_process_argv.o still win when ensure links it
+         * Strong process_xlang_* from runtime_process_argv.o still win when ensure links it
          * (env/process real args). Do NOT empty process_args_* itself (Darwin would
          * dead_strip getters and hide real argc forever). */
-        "__attribute__((weak)) int32_t process_shux_argc_get(void) { return 0; }\n"
-        "__attribute__((weak)) uint8_t *process_shux_argv_get(int32_t i) { (void)i; return (uint8_t *)0; }\n"
-        "__attribute__((weak)) int32_t process_args_count_c(void) { return process_shux_argc_get(); }\n"
-        "__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_shux_argv_get(i); }\n"
+        "__attribute__((weak)) int32_t process_xlang_argc_get(void) { return 0; }\n"
+        "__attribute__((weak)) uint8_t *process_xlang_argv_get(int32_t i) { (void)i; return (uint8_t *)0; }\n"
+        "__attribute__((weak)) int32_t process_args_count_c(void) { return process_xlang_argc_get(); }\n"
+        "__attribute__((weak)) uint8_t *process_arg_c(int32_t i) { return process_xlang_argv_get(i); }\n"
         "__attribute__((weak)) int32_t args_iter_count_c(void) { return process_args_count_c(); }\n"
         "__attribute__((weak)) uint8_t *args_iter_at_c(int32_t i) { return process_arg_c(i); }\n"
         /* submit_read/write_batch(_buf)：勿 weak stub。co-emit driver.x 真体为权威；同 TU weak+strong 重定义，
@@ -395,8 +395,8 @@ const char *const driver_preamble_io_net_lines[] = {
         "#define handle_from_fd std_io_handle_from_fd\n",
         "#define submit_read_batch_buf std_io_submit_read_batch_buf\n",
         "#define submit_write_batch_buf std_io_submit_write_batch_buf\n",
-        "#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
-        "#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(shux_io_net_fd(x), a, b, c, d)\n",
+        "#define read_fixed_fd(x, a, b, c, d) std_io_read_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
+        "#define write_fixed_fd(x, a, b, c, d) std_io_write_fixed_fd_impl(xlang_io_net_fd(x), a, b, c, d)\n",
         "/* 实际符号用 _real；仅定义 std_net_net_* 宏。\n"
         " * 【Why 勿 #define net_close_socket_c / net_run_accept_workers_c】\n"
         " * link_only 路径会 emit `extern int32_t net_close_socket_c(...)`；\n"
@@ -405,8 +405,8 @@ const char *const driver_preamble_io_net_lines[] = {
         "extern int32_t net_run_accept_workers_c_real(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
         "extern int32_t net_close_socket_c(int32_t fd);\n",
         "extern int32_t net_run_accept_workers_c(int32_t listener_fd, int32_t n_workers, uint32_t timeout_ms);\n",
-        "#define std_net_net_close_socket_c(x) net_close_socket_c_real(shux_io_net_fd(x))\n",
-        "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(shux_io_net_fd(x), n, t)\n",
+        "#define std_net_net_close_socket_c(x) net_close_socket_c_real(xlang_io_net_fd(x))\n",
+        "#define std_net_net_run_accept_workers_c(x, n, t) net_run_accept_workers_c_real(xlang_io_net_fd(x), n, t)\n",
         /* FsIovecBuf / Iovec：preamble 为 ABI 权威。
          * 勿用 typedef 吸收 posix 前缀——codegen 发 (struct std_fs_posix_Iovec){...}
          * 与 struct std_fs_posix_FsIovecBuf * 时，typedef 只建别名不建 tag → incomplete type。
@@ -435,11 +435,11 @@ const char *const driver_preamble_io_net_lines[] = {
         "struct core_option_Option_u8 { int is_some; uint8_t value; uint8_t _pad0; uint8_t _pad1; uint8_t _pad2; };\n",
         "struct core_option_Option_u64 { int is_some; int32_t _pad; uint64_t value; };\n",
         "struct core_option_Option_ptr_u8 { int is_some; int32_t _pad; uint8_t *value; };\n",
-        /* 与 runtime.from_x.c write_io_net_abi_inline 对齐：产品 SHUX_RT_PREAMBLE_FROM_X 路径必须含 Result_*，
+        /* 与 runtime.from_x.c write_io_net_abi_inline 对齐：产品 XLANG_RT_PREAMBLE_FROM_X 路径必须含 Result_*，
            否则 multi-dep（core.types 幽灵 layout 抢 owner）时 incomplete core_result_Result_*。 */
         "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
         "struct core_result_Result_u8 { uint8_t value; uint8_t _pad1; uint8_t _pad2; uint8_t _pad3; int32_t err; int32_t _pad4; };\n",
-        "extern void shux_panic_(int, int);\n",
+        "extern void xlang_panic_(int, int);\n",
         /* 仅 extern：co-emit core.types 会生成强定义；同 TU weak+强定义 → redefinition。 */
         "extern int32_t core_types_placeholder(void);\n",
         "extern int32_t std_heap_alloc_size_zero(void);\n",
@@ -495,7 +495,7 @@ const char *const driver_preamble_fs_path_lines[] = {
 const int32_t driver_preamble_fs_path_lines_n =
     (int32_t)(sizeof(driver_preamble_fs_path_lines) / sizeof(driver_preamble_fs_path_lines[0]));
 
-#ifndef SHUX_RT_PREAMBLE_FROM_X
+#ifndef XLANG_RT_PREAMBLE_FROM_X
 
 /** 向生成 C 写入 std.io / std.net 内联 ABI。成功返回 0。 */
 int write_io_net_abi_inline(FILE *cf) {
@@ -514,11 +514,11 @@ int write_io_net_abi_inline(FILE *cf) {
         /*
          * weak IO batch: table rows 178..181 inclusive (wave29 re-count, n=224):
          *   178 #include <stdio.h> + #ifndef __cplusplus
-         *   179 weak shux_io_* / io_* batch stubs (large)
-         *   180 weak process_shux_* / args_iter_*
+         *   179 weak xlang_io_* / io_* batch stubs (large)
+         *   180 weak process_xlang_* / args_iter_*
          *   181 weak std_io_driver_* / ctx_* + #endif
          * Stale i==174 only hit a comment after rows grew; product .x had 124..134
-         * (shux_io_* externs) — dual authority; both wrong for co-emit redef.
+         * (xlang_io_* externs) — dual authority; both wrong for co-emit redef.
          * PLATFORM: SHARED — align with driver_parsed_apply_preamble_skip(WEAK_IO_BATCH)
          * and src/runtime/rt_preamble.x. Skipping drops process weaks; link
          * runtime_process_argv.o when argv is required.

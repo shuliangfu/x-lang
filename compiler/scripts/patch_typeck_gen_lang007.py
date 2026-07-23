@@ -20,7 +20,7 @@ PATH = ROOT / "typeck_gen.c"
 # call pipeline_* externs without wrapping every site in unsafe { } yet.
 # Default (allow=0) still enforces S0 via glue boundary.
 ALLOW_LEGACY_HELPERS = """\
-/* SHUX_ALLOW_LEGACY_EXTERN: typeck_set_allow_legacy_extern_calls (seed regen / -E). */
+/* XLANG_ALLOW_LEGACY_EXTERN: typeck_set_allow_legacy_extern_calls (seed regen / -E). */
 static int g_typeck_allow_legacy_extern_calls = 0;
 int typeck_set_allow_legacy_extern_calls(int allow) {
   int old = g_typeck_allow_legacy_extern_calls;
@@ -113,13 +113,13 @@ int32_t typeck_check_block_one_region(struct ast_Module * module, struct ast_AST
 
 
 def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
-    """Replace (SHUX_LIB_WEAK)? int32_t <name>(...) { ... } balanced braces.
+    """Replace (XLANG_LIB_WEAK)? int32_t <name>(...) { ... } balanced braces.
 
-    【Why 根源】-E-extern 生成的 typeck_gen.c 用普通 int32_t（无 SHUX_LIB_WEAK 前缀），
+    【Why 根源】-E-extern 生成的 typeck_gen.c 用普通 int32_t（无 XLANG_LIB_WEAK 前缀），
     旧正则只匹配 int32_t 导致补丁从未生效。LANG-007 S0 守卫缺失。
     """
     pat = re.compile(
-        rf"((?:SHUX_LIB_WEAK\s+)?int32_t\s+{re.escape(name)}\s*\([^;]*?\)\s*\{{)",
+        rf"((?:XLANG_LIB_WEAK\s+)?int32_t\s+{re.escape(name)}\s*\([^;]*?\)\s*\{{)",
         re.M | re.S,
     )
     m = pat.search(src)
@@ -331,10 +331,10 @@ def patch_implicit_tail_region(src: str) -> tuple[str, bool]:
 
 
 def patch_tail_debug_print(src: str) -> tuple[str, bool]:
-    """Add debug print to typeck_func_body_has_implicit_return_tail (SHUX_DEBUG_TAIL).
+    """Add debug print to typeck_func_body_has_implicit_return_tail (XLANG_DEBUG_TAIL).
     Idempotent.
     """
-    marker = "SHUX_DEBUG_TAIL"
+    marker = "XLANG_DEBUG_TAIL"
     fn_sig = "int typeck_func_body_has_implicit_return_tail(struct ast_ASTArena * arena, int32_t body_ref) {"
     pos = src.find(fn_sig)
     if pos < 0:
@@ -349,15 +349,15 @@ def patch_tail_debug_print(src: str) -> tuple[str, bool]:
     target = "  int32_t tail_ref = typeck_func_body_tail_expr_ref_for_implicit_rule(arena, body_ref);\n"
     if target not in src[pos:fn_end]:
         return src, False
-    debug_line = '  if (getenv("SHUX_DEBUG_TAIL")) { int32_t _tk = (tail_ref > 0 && tail_ref <= (arena)->num_exprs) ? pipeline_expr_kind_ord_at(arena, tail_ref) : -1; int32_t _ib = (_tk == 26 && tail_ref > 0) ? pipeline_expr_block_ref_at(arena, tail_ref) : 0; fprintf(stderr, "DBG-TAIL body=%d tail=%d kind=%d inner=%d\\n", (int)body_ref, (int)tail_ref, (int)_tk, (int)_ib); }\n'
+    debug_line = '  if (getenv("XLANG_DEBUG_TAIL")) { int32_t _tk = (tail_ref > 0 && tail_ref <= (arena)->num_exprs) ? pipeline_expr_kind_ord_at(arena, tail_ref) : -1; int32_t _ib = (_tk == 26 && tail_ref > 0) ? pipeline_expr_block_ref_at(arena, tail_ref) : 0; fprintf(stderr, "DBG-TAIL body=%d tail=%d kind=%d inner=%d\\n", (int)body_ref, (int)tail_ref, (int)_tk, (int)_ib); }\n'
     new_src = src[:pos] + src[pos:fn_end].replace(target, target + debug_line, 1) + src[fn_end:]
     return new_src, True
 
 
 
 def patch_var_debug_print(src: str) -> tuple[str, bool]:
-    """Add SHUX_DEBUG_VAR trace to typeck_check_expr_var func_param lookup."""
-    marker = "SHUX_DEBUG_VAR"
+    """Add XLANG_DEBUG_VAR trace to typeck_check_expr_var func_param lookup."""
+    marker = "XLANG_DEBUG_VAR"
     fn_sig = "int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, struct ast_PipelineDepCtx * ctx) {"
     pos = src.find(fn_sig)
     if pos < 0:
@@ -387,7 +387,7 @@ def patch_var_debug_print(src: str) -> tuple[str, bool]:
     tpos = src.find(target, pos)
     if tpos < 0 or tpos > fn_end:
         return src, False
-    debug = '\n  if (getenv("SHUX_DEBUG_VAR")) { int32_t _pr = (func_ix >= 0 && func_ix < (module)->num_funcs) ? pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen) : -99; fprintf(stderr, "DBG-VAR fix=%d vnlen=%d nfuncs=%d pr=%d\\n", (int)func_ix, (int)vnlen, (int)(module)->num_funcs, (int)_pr); }'
+    debug = '\n  if (getenv("XLANG_DEBUG_VAR")) { int32_t _pr = (func_ix >= 0 && func_ix < (module)->num_funcs) ? pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen) : -99; fprintf(stderr, "DBG-VAR fix=%d vnlen=%d nfuncs=%d pr=%d\\n", (int)func_ix, (int)vnlen, (int)(module)->num_funcs, (int)_pr); }'
     new_src = src[:tpos] + src[tpos:tpos+len(target)] + debug + src[tpos+len(target):]
     return new_src, True
 
@@ -510,10 +510,11 @@ def patch_string_lit_dispatch(src: str) -> tuple[str, bool]:
 
 def insert_allow_legacy_helpers(src: str) -> tuple[str, bool]:
     """Insert typeck_set/get_allow_legacy_extern_calls once (strong symbols for -E)."""
-    if "SHUX_ALLOW_LEGACY_EXTERN" in src:
+    if "XLANG_ALLOW_LEGACY_EXTERN" in src or "SHUX_ALLOW_LEGACY_EXTERN" in src:
+        # SHUX_ALLOW: legacy marker if a stale gen slipped through; still skip re-insert.
         return src, False
     # Place after first includes block / before first function if possible
-    marker = "/* SHUX_ALLOW_LEGACY_EXTERN"
+    marker = "/* XLANG_ALLOW_LEGACY_EXTERN"
     # Prefer after last #include
     last_inc = -1
     for m in re.finditer(r"^#include[^\n]*\n", src, re.M):

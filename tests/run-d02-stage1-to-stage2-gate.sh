@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# D-02 v1：Stage1（shux_asm_stage1）→ Stage2（shux_asm2）门禁（委托 run-stage2-bstrict-gate）。
+# D-02 v1：Stage1（xlang_asm_stage1）→ Stage2（xlang_asm2）门禁（委托 run-stage2-bstrict-gate）。
 #
 # 用法：./tests/run-d02-stage1-to-stage2-gate.sh
 # 环境：
-#   SHUX_D02_FAIL=1              — 失败时硬退出
-#   SHUX_D02_MANIFEST_ONLY=1     — 仅 manifest
-#   SHUX_STAGE2_SKIP_BOOTSTRAP=1 — 传给 verify（默认 1）
+#   XLANG_D02_FAIL=1              — 失败时硬退出
+#   XLANG_D02_MANIFEST_ONLY=1     — 仅 manifest
+#   XLANG_STAGE2_SKIP_BOOTSTRAP=1 — 传给 verify（默认 1）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_D02_FAIL:-0}
+FAIL=${XLANG_D02_FAIL:-0}
 DOC="analysis/phase-d-d02-v1.md"
 MANIFEST="tests/baseline/d02-stage1-to-stage2.tsv"
 VERIFY="compiler/verify-selfhost-stage2-bstrict.sh"
@@ -27,8 +27,8 @@ for f in "$DOC" "$MANIFEST" "$VERIFY" "$STAGE2_GATE" compiler/Makefile; do
 done
 grep -q 'D-02 v1' "$DOC" || die "doc missing D-02 v1 marker"
 grep -q 'bootstrap-verify-stage2-bstrict' compiler/Makefile || die "Makefile missing bootstrap-verify-stage2-bstrict"
-grep -q 'shux_asm_stage1' "$VERIFY" || die "verify missing stage1 step"
-grep -q 'shux_asm2' "$VERIFY" || die "verify missing stage2 artifact"
+grep -q 'xlang_asm_stage1' "$VERIFY" || die "verify missing stage1 step"
+grep -q 'xlang_asm2' "$VERIFY" || die "verify missing stage2 artifact"
 
 MISS=0
 while IFS=$'\t' read -r item_id _layer anchor check_type _notes; do
@@ -41,7 +41,7 @@ while IFS=$'\t' read -r item_id _layer anchor check_type _notes; do
 done < "$MANIFEST"
 [ "$MISS" -eq 0 ] || die "$MISS manifest gate_ref missing"
 
-if [ "${SHUX_D02_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_D02_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "d02 stage1-to-stage2 gate OK (manifest only)"
   exit 0
 fi
@@ -55,9 +55,9 @@ fi
 
 echo "=== D-02: delegate run-stage2-bstrict-gate ==="
 chmod +x "$STAGE2_GATE" "$VERIFY"
-export SHUX_STAGE2_SKIP_BOOTSTRAP="${SHUX_STAGE2_SKIP_BOOTSTRAP:-1}"
+export XLANG_STAGE2_SKIP_BOOTSTRAP="${XLANG_STAGE2_SKIP_BOOTSTRAP:-1}"
 if [ "$FAIL" = "1" ]; then
-  SHUX_STAGE2_SKIP_BOOTSTRAP="$SHUX_STAGE2_SKIP_BOOTSTRAP" "$STAGE2_GATE" || die "stage2-bstrict sub-gate failed"
+  XLANG_STAGE2_SKIP_BOOTSTRAP="$XLANG_STAGE2_SKIP_BOOTSTRAP" "$STAGE2_GATE" || die "stage2-bstrict sub-gate failed"
 else
   "$STAGE2_GATE" || die "stage2-bstrict sub-gate failed"
 fi

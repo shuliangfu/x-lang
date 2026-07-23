@@ -241,7 +241,7 @@ export function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void 
 #[no_mangle]
 export function driver_parse_strict_enabled(): i32 {
   unsafe {
-    let e: *u8 = link_abi_getenv("SHUX_PARSE_STRICT");
+    let e: *u8 = link_abi_getenv("XLANG_PARSE_STRICT");
     if (e == 0 as *u8) {
       return 0;
     }

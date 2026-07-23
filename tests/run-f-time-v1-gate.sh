@@ -2,11 +2,11 @@
 # F-time v1：std.time 去 C（time.c → time.x + OS 胶层）。
 #
 # 用法：./tests/run-f-time-v1-gate.sh
-# 环境：SHUX_F_TIME_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F_TIME_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_TIME_V1_FAIL:-0}
+FAIL=${XLANG_F_TIME_V1_FAIL:-0}
 DOC="analysis/phase-f-time-v1.md"
 MANIFEST="tests/baseline/f-time-v1-closure.tsv"
 
@@ -44,10 +44,10 @@ if grep -q 'std/time/time\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/time/time.c"
 fi
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/time/time.o >/dev/null 2>&1 || die "make time.o failed"
 else
-  echo "f-time-v1 SKIP time.o build (no shux-c)" >&2
+  echo "f-time-v1 SKIP time.o build (no xlang-c)" >&2
 fi
 
 if [ -f tests/run-std-time-gate.sh ]; then

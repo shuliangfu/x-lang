@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_ELF_PARSE_DOC:-analysis/std-elf-parse-v1.md}"
-MANIFEST="${SHUX_STD_ELF_PARSE_TSV:-tests/baseline/std-elf-parse.tsv}"
-VECTORS="${SHUX_STD_ELF_PARSE_VECTORS:-tests/baseline/std-elf-parse-vectors.tsv}"
+DOC="${XLANG_STD_ELF_PARSE_DOC:-analysis/std-elf-parse-v1.md}"
+MANIFEST="${XLANG_STD_ELF_PARSE_TSV:-tests/baseline/std-elf-parse.tsv}"
+VECTORS="${XLANG_STD_ELF_PARSE_VECTORS:-tests/baseline/std-elf-parse-vectors.tsv}"
 MOD_X="std/elf/mod.x"
 ELF_X="std/elf/elf.x"
 LIB="tests/lib/std-elf-parse.sh"
@@ -80,19 +80,19 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-elf-parse manifest OK"
 
-if [ "${SHUX_STD_ELF_PARSE_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD_ELF_PARSE_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "std-elf-parse gate OK (manifest only)"
   exit 0
 fi
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   ensure_std_c_o ../std/elf/elf.o
 else
-  echo "std-elf-parse gate SKIP c/x smoke (need shux-c for elf.x merge)" >&2
+  echo "std-elf-parse gate SKIP c/x smoke (need xlang-c for elf.x merge)" >&2
   std_elf_parse_emit_report "ok" 0 0 1
-  echo "std-elf-parse gate OK (manifest only; no shux-c)"
+  echo "std-elf-parse gate OK (manifest only; no xlang-c)"
   exit 0
 fi
 
@@ -106,7 +106,7 @@ fi
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
+XLANG_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -118,28 +118,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-058: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-058: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-elf-parse gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_elf_parse_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_X" "hdr"; then
+  if std_elf_parse_run_smoke "$XLANG_BIN" "$SMOKE_X" "hdr"; then
     X_OK=1
   else
     std_elf_parse_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-elf-parse gate SKIP .x smoke (no native shux)" >&2
+  echo "std-elf-parse gate SKIP .x smoke (no native xlang)" >&2
   SKIP=1
 fi
 

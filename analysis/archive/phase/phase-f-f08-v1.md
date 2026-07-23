@@ -14,8 +14,8 @@
 ## 门禁
 
 ```bash
-SHUX_F08_CORE_INVENTORY_FAIL=1 ./tests/run-f08-core-inventory-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
+XLANG_F08_CORE_INVENTORY_FAIL=1 ./tests/run-f08-core-inventory-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 
 ## 终局（v2+）

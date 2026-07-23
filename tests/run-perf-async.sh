@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # B-ASYNC：1M 双任务 ping-pong 切换开销（NEXT §1.2 B-ASYNC）
 # 用法：./tests/run-perf-async.sh [--bench]
-# 门禁：SHUX_PERF_FAIL_ON_ASYNC_REGRESSION=1 — median ≤ tests/baseline/async-perf.tsv
-# 更新：SHUX_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
+# 门禁：XLANG_PERF_FAIL_ON_ASYNC_REGRESSION=1 — median ≤ tests/baseline/async-perf.tsv
+# 更新：XLANG_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
 
-# 与 run-async.sh 一致：外部已设 SHU（CI macOS 传 shux-c）时保留；否则 shux 优先。
-if [ -z "${SHUX:-}" ]; then
-  if [ -x ./compiler/shux ]; then
-    SHUX=./compiler/shux
-  elif [ -x ./compiler/shux-c ]; then
-    SHUX=./compiler/shux-c
+# 与 run-async.sh 一致：外部已设 SHU（CI macOS 传 xlang-c）时保留；否则 xlang 优先。
+if [ -z "${XLANG:-}" ]; then
+  if [ -x ./compiler/xlang ]; then
+    XLANG=./compiler/xlang
+  elif [ -x ./compiler/xlang-c ]; then
+    XLANG=./compiler/xlang-c
   else
-    echo "run-perf-async FAIL: no compiler/shux or compiler/shux-c" >&2
+    echo "run-perf-async FAIL: no compiler/xlang or compiler/xlang-c" >&2
     exit 1
   fi
 fi
 
-# Linux x86_64 可用 seed asm；其它平台 shux-c/-backend c（Darwin asm 链接 __TEXT 非 r-x）。
+# Linux x86_64 可用 seed asm；其它平台 xlang-c/-backend c（Darwin asm 链接 __TEXT 非 r-x）。
 perf_async_is_linux_x64_asm() {
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Linux-x86_64|Linux-amd64) return 0 ;;
@@ -28,26 +28,26 @@ perf_async_is_linux_x64_asm() {
   return 1
 }
 
-# 编译 bench 可执行：x86_64 Linux 默认 asm；其它 host 用 shux-c 或 seed -backend c。
+# 编译 bench 可执行：x86_64 Linux 默认 asm；其它 host 用 xlang-c 或 seed -backend c。
 perf_async_compile_bench() {
   local x="$1"
   local out="$2"
   rm -f "$out"
   if perf_async_is_linux_x64_asm; then
-    "$SHUX" build -L . "$x" -o "$out"
-  elif [ -x ./compiler/shux-c ]; then
-    ./compiler/shux-c -L . "$x" -o "$out"
-  elif [ -x ./compiler/shux ]; then
-    ./compiler/shux build -L . "$x" -backend c -o "$out"
+    "$XLANG" build -L . "$x" -o "$out"
+  elif [ -x ./compiler/xlang-c ]; then
+    ./compiler/xlang-c -L . "$x" -o "$out"
+  elif [ -x ./compiler/xlang ]; then
+    ./compiler/xlang build -L . "$x" -backend c -o "$out"
   else
-    "$SHUX" build -L . "$x" -o "$out"
+    "$XLANG" build -L . "$x" -o "$out"
   fi
 }
 
 RUNS=3
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-[ "${SHUX_PERF_FAIL_ON_ASYNC_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
+[ "${XLANG_PERF_FAIL_ON_ASYNC_REGRESSION:-0}" = "1" ] && PERF_FAIL=1 || PERF_FAIL=0
 
 extract_real_sec() {
   sed -n 's/^real[[:space:]]*\([0-9]*\)m\([0-9.]*\)s.*/\1 \2/p; s/^real[[:space:]]*\([0-9.]*\)s.*/0 \1/p' | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
@@ -70,7 +70,7 @@ median_real() {
 }
 
 async_baseline_cap() {
-  awk -F'\t' -v n="$1" '$1==n && $1 !~ /^#/ { print $2; exit }' "${SHUX_PERF_ASYNC_BASELINE:-tests/baseline/async-perf.tsv}"
+  awk -F'\t' -v n="$1" '$1==n && $1 !~ /^#/ { print $2; exit }' "${XLANG_PERF_ASYNC_BASELINE:-tests/baseline/async-perf.tsv}"
 }
 
 check_async_regress() {
@@ -94,7 +94,7 @@ link_with_scheduler() {
   local x="$1"
   local out="$2"
   rm -f "$out"
-  if ! "$SHUX" build -L . "$x" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
+  if ! "$XLANG" build -L . "$x" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
     cat /tmp/async_compile.log >&2
     return 1
   fi
@@ -148,9 +148,9 @@ else
   echo "async_switch_jmp N/A (scheduler jmp asm requires Linux x86_64)"
 fi
 
-if [ "${SHUX_PERF_UPDATE_ASYNC_BASELINE:-0}" = "1" ]; then
+if [ "${XLANG_PERF_UPDATE_ASYNC_BASELINE:-0}" = "1" ]; then
   echo "# async 1M ping-pong 中位数上限（秒）；门禁：median ≤ cap" >tests/baseline/async-perf.tsv
-  echo "# 更新：SHUX_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench" >>tests/baseline/async-perf.tsv
+  echo "# 更新：XLANG_PERF_UPDATE_ASYNC_BASELINE=1 ./tests/run-perf-async.sh --bench" >>tests/baseline/async-perf.tsv
   echo "async_switch	$(median_real /tmp/bench_async_async_switch 2>/dev/null || echo 0.05)" >>tests/baseline/async-perf.tsv
   echo "async_switch_jmp	$(median_real /tmp/bench_async_async_switch_jmp 2>/dev/null || echo 0.05)" >>tests/baseline/async-perf.tsv
 fi

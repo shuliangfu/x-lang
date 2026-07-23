@@ -72,14 +72,14 @@ stdlib_cm_native_simd_asm() {
   local f="$1"
   stdlib_cm_native_shu "$f" || return 1
   case "$f" in
-    */shux-c|*/shux-x*) return 1 ;;
+    */xlang-c|*/xlang-x*) return 1 ;;
   esac
   return 0
 }
 
-stdlib_cm_pick_shux_asm() {
+stdlib_cm_pick_xlang_asm() {
   local cand
-  for cand in ./compiler/shux ./compiler/shux_asm ./compiler/shux_asm.strict ./compiler/shux_asm_working; do
+  for cand in ./compiler/xlang ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm_working; do
     if stdlib_cm_native_simd_asm "$cand"; then
       echo "$cand"
       return 0
@@ -90,27 +90,27 @@ stdlib_cm_pick_shux_asm() {
 
 X_OK=0
 SKIP=1
-SHUX_ASM=""
-SHUX_TYPECK=""
-if cand="$(stdlib_cm_pick_shux_asm)"; then
-  SHUX_ASM="$cand"
+XLANG_ASM=""
+XLANG_TYPECK=""
+if cand="$(stdlib_cm_pick_xlang_asm)"; then
+  XLANG_ASM="$cand"
 fi
-for cand in ./compiler/shux-c ./compiler/shux; do
+for cand in ./compiler/xlang-c ./compiler/xlang; do
   if stdlib_cm_native_shu "$cand"; then
-    SHUX_TYPECK="$cand"
+    XLANG_TYPECK="$cand"
     break
   fi
 done
 
-if [ -n "$SHUX_TYPECK" ]; then
-  "$SHUX_TYPECK" check -L . "$SMOKE_X" >/dev/null
+if [ -n "$XLANG_TYPECK" ]; then
+  "$XLANG_TYPECK" check -L . "$SMOKE_X" >/dev/null
 else
-  echo "std-simd-intrinsic gate SKIP typeck (no native shux)" >&2
+  echo "std-simd-intrinsic gate SKIP typeck (no native xlang)" >&2
 fi
 
-if [ -n "$SHUX_ASM" ]; then
+if [ -n "$XLANG_ASM" ]; then
   rc=0
-  std_simd_intrinsic_run_smoke "$SHUX_ASM" "$SMOKE_X" || rc=$?
+  std_simd_intrinsic_run_smoke "$XLANG_ASM" "$SMOKE_X" || rc=$?
   if [ "$rc" -eq 0 ]; then
     X_OK=1
     SKIP=0
@@ -122,7 +122,7 @@ if [ -n "$SHUX_ASM" ]; then
     exit 1
   fi
 else
-  echo "std-simd-intrinsic gate SKIP smoke (no asm shux)" >&2
+  echo "std-simd-intrinsic gate SKIP smoke (no asm xlang)" >&2
 fi
 
 std_simd_intrinsic_emit_report ok "$X_OK" "$SKIP"

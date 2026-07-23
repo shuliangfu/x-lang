@@ -90,89 +90,89 @@ export function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bid
   return -1 as isize;
 }
 
-/** Exported function `shux_io_submit_read_async`.
- * Read path helper `shux_io_submit_read_async`.
+/** Exported function `xlang_io_submit_read_async`.
+ * Read path helper `xlang_io_submit_read_async`.
  * @param ptr *u8
  * @param len usize
  * @param handle usize
  * @return i32
  */
-export function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
+export function xlang_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
   if (ptr != 0 && len > 0 && handle >= 0) {
     return -1;
   }
   return -1;
 }
 
-/** Exported function `shux_io_complete_read_async`.
- * Read path helper `shux_io_complete_read_async`.
+/** Exported function `xlang_io_complete_read_async`.
+ * Read path helper `xlang_io_complete_read_async`.
  * @return i32
  */
-export function shux_io_complete_read_async(): i32 {
+export function xlang_io_complete_read_async(): i32 {
   return -1;
 }
 
-/** Exported function `shux_io_complete_read_async_slot`.
- * Read path helper `shux_io_complete_read_async_slot`.
+/** Exported function `xlang_io_complete_read_async_slot`.
+ * Read path helper `xlang_io_complete_read_async_slot`.
  * @param slot i32
  * @return i32
  */
-export function shux_io_complete_read_async_slot(slot: i32): i32 {
+export function xlang_io_complete_read_async_slot(slot: i32): i32 {
   if (slot >= 0) {
     return -1;
   }
   return -1;
 }
 
-/** Exported function `shux_io_submit_write_async`.
- * Write path helper `shux_io_submit_write_async`.
+/** Exported function `xlang_io_submit_write_async`.
+ * Write path helper `xlang_io_submit_write_async`.
  * @param ptr *u8
  * @param len usize
  * @param handle usize
  * @return i32
  */
-export function shux_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
+export function xlang_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
   if (ptr != 0 && len > 0 && handle >= 0) {
     return -1;
   }
   return -1;
 }
 
-/** Exported function `shux_io_complete_write_async`.
- * Write path helper `shux_io_complete_write_async`.
+/** Exported function `xlang_io_complete_write_async`.
+ * Write path helper `xlang_io_complete_write_async`.
  * @return i32
  */
-export function shux_io_complete_write_async(): i32 {
+export function xlang_io_complete_write_async(): i32 {
   return -1;
 }
 
-/** Exported function `shux_io_complete_write_async_slot`.
- * Write path helper `shux_io_complete_write_async_slot`.
+/** Exported function `xlang_io_complete_write_async_slot`.
+ * Write path helper `xlang_io_complete_write_async_slot`.
  * @param slot i32
  * @return i32
  */
-export function shux_io_complete_write_async_slot(slot: i32): i32 {
+export function xlang_io_complete_write_async_slot(slot: i32): i32 {
   if (slot >= 0) {
     return -1;
   }
   return -1;
 }
 
-/** Exported function `shux_io_poll_async_completions`.
- * Implements `shux_io_poll_async_completions`.
+/** Exported function `xlang_io_poll_async_completions`.
+ * Implements `xlang_io_poll_async_completions`.
  * @param timeout_ms u32
  * @return u32
  */
-export function shux_io_poll_async_completions(timeout_ms: u32): u32 {
+export function xlang_io_poll_async_completions(timeout_ms: u32): u32 {
   if (timeout_ms >= 0) {
   }
   return 0 as u32;
 }
 
-/** Exported function `shux_io_uring_is_available_c`.
- * Implements `shux_io_uring_is_available_c`.
+/** Exported function `xlang_io_uring_is_available_c`.
+ * Implements `xlang_io_uring_is_available_c`.
  * @return i32
  */
-export function shux_io_uring_is_available_c(): i32 {
+export function xlang_io_uring_is_available_c(): i32 {
   return 0;
 }

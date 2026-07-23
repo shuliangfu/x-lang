@@ -2,7 +2,7 @@
 # F-datetime v2：std.datetime 逻辑下沉（F-ZC 纯 .x；本地偏移经 std.time）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_DATETIME_V2_FAIL:-0}
+FAIL=${XLANG_F_DATETIME_V2_FAIL:-0}
 DOC="analysis/phase-f-datetime-v2.md"
 MANIFEST="tests/baseline/f-datetime-v2-closure.tsv"
 die() { echo "f-datetime-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -29,10 +29,10 @@ grep -q 'datetime_f_zero_c_marker_c' std/datetime/datetime.x || die "datetime.x 
 grep -q 'datetime_local_offset_min_c' std/datetime/datetime.x || die "datetime.x missing local offset"
 grep -q 'time_wall_local_offset_min_c' std/datetime/datetime.x || die "datetime.x missing time extern"
 grep -q 'datetime.x' compiler/Makefile || die "Makefile missing datetime.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/datetime/datetime.o >/dev/null 2>&1 || die "make datetime.o failed"
 else
-  echo "f-datetime-v2 SKIP datetime.o build (no shux-c)" >&2
+  echo "f-datetime-v2 SKIP datetime.o build (no xlang-c)" >&2
 fi
 for sub in run-std-datetime-gate.sh run-std-datetime-timezone-gate.sh run-std-datetime-iana-gate.sh; do
   chmod +x "tests/$sub"

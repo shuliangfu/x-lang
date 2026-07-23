@@ -8,17 +8,17 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/comp-riscv64.sh
 . tests/lib/comp-riscv64.sh
 
-MATRIX="${SHUX_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
+MATRIX="${XLANG_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 
 echo "=== COMP-012: riscv64 regression smoke ==="
 
-SHUX_BIN=""
-if SHUX_BIN="$(comp_riscv64_pick_shux 2>/dev/null || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(comp_riscv64_pick_xlang 2>/dev/null || true)"; then
   :
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "comp-riscv64 SKIP (no asm-capable shux; seed/C-only build)"
+if [ -z "$XLANG_BIN" ]; then
+  echo "comp-riscv64 SKIP (no asm-capable xlang; seed/C-only build)"
   echo "comp-riscv64 OK"
   exit 0
 fi
@@ -57,7 +57,7 @@ while IFS=$'\t' read -r case_id sample check_kind _expect policy _notes; do
 
   case "$check_kind" in
     asm_text)
-      if comp_riscv64_check_asm_text "$SHUX_BIN" "$path"; then
+      if comp_riscv64_check_asm_text "$XLANG_BIN" "$path"; then
         echo "comp-riscv64 OK $case_id asm_text"
       else
         echo "comp-riscv64 FAIL: $case_id asm_text" >&2
@@ -65,17 +65,17 @@ while IFS=$'\t' read -r case_id sample check_kind _expect policy _notes; do
       fi
       ;;
     asm_text_elf)
-      if comp_riscv64_check_asm_text "$SHUX_BIN" "$path"; then
+      if comp_riscv64_check_asm_text "$XLANG_BIN" "$path"; then
         echo "comp-riscv64 OK $case_id asm_text"
       else
         echo "comp-riscv64 FAIL: $case_id asm_text" >&2
         FAILS=$((FAILS + 1))
         continue
       fi
-      o="/tmp/shux_riscv_${case_id}.$$.o"
-      if comp_riscv64_emit_elf_o "$SHUX_BIN" "$path" "$o"; then
+      o="/tmp/xlang_riscv_${case_id}.$$.o"
+      if comp_riscv64_emit_elf_o "$XLANG_BIN" "$path" "$o"; then
         echo "comp-riscv64 OK $case_id elf_o"
-        bin="/tmp/shux_riscv_bin_${case_id}.$$"
+        bin="/tmp/xlang_riscv_bin_${case_id}.$$"
         if ld_used="$(comp_riscv64_try_link_run "$o" "$bin" 2>/dev/null || true)" && [ -n "$ld_used" ]; then
           echo "comp-riscv64 OK $case_id link_run ($ld_used exit=42)"
         else
@@ -93,11 +93,11 @@ while IFS=$'\t' read -r case_id sample check_kind _expect policy _notes; do
       rm -f "$o" 2>/dev/null || true
       ;;
     elf_o)
-      o="/tmp/shux_riscv_${case_id}.$$.o"
-      if comp_riscv64_emit_elf_o "$SHUX_BIN" "$path" "$o"; then
+      o="/tmp/xlang_riscv_${case_id}.$$.o"
+      if comp_riscv64_emit_elf_o "$XLANG_BIN" "$path" "$o"; then
         echo "comp-riscv64 OK $case_id elf_o"
         if [ "$case_id" = "case_elf_main" ]; then
-          bin="/tmp/shux_riscv_bin_${case_id}.$$"
+          bin="/tmp/xlang_riscv_bin_${case_id}.$$"
           if ld_used="$(comp_riscv64_try_link_run "$o" "$bin" 2>/dev/null || true)" && [ -n "$ld_used" ]; then
             echo "comp-riscv64 OK $case_id link_run ($ld_used exit=42)"
           else

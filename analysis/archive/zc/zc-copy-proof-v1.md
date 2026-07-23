@@ -82,7 +82,7 @@ Gate 会 grep 这些键。
 
 1. 本文 + 模板 + manifest  
 2. 模板含必需 metadata 键  
-3. matrix 中 `policy=run` 的 proof 编译运行 exit 0（有 native shux 时）  
+3. matrix 中 `policy=run` 的 proof 编译运行 exit 0（有 native xlang 时）  
 4. `zc-semantics-v1.md` 引用 ZC-007  
 
 ---

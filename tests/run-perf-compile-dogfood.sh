@@ -3,44 +3,44 @@
 # 用法：
 #   ./tests/run-perf-compile-dogfood.sh
 #   ./tests/run-perf-compile-dogfood-gate.sh          # PERF-004 门禁（manifest + 回归）
-#   SHUX=./compiler/shux_asm ./tests/run-perf-compile-dogfood.sh
-#   SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh
-#   SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh   # 刷新 tests/baseline/compile-dogfood.tsv
+#   XLANG=./compiler/xlang_asm ./tests/run-perf-compile-dogfood.sh
+#   XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh
+#   XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh   # 刷新 tests/baseline/compile-dogfood.tsv
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHUX="${SHUX:-./compiler/shux}"
-# CI make all 产出 C-only shux；dogfood 编译耗时统一用 shux-c，与 run-perf-io/run-perf-baseline 一致。
-PERF_COMPILE_SHUX="$SHUX"
-if [ -x ./compiler/shux-c ]; then
-  PERF_COMPILE_SHUX=./compiler/shux-c
+XLANG="${XLANG:-./compiler/xlang}"
+# CI make all 产出 C-only xlang；dogfood 编译耗时统一用 xlang-c，与 run-perf-io/run-perf-baseline 一致。
+PERF_COMPILE_XLANG="$XLANG"
+if [ -x ./compiler/xlang-c ]; then
+  PERF_COMPILE_XLANG=./compiler/xlang-c
 fi
-SHUX="$PERF_COMPILE_SHUX"
-RUNS="${SHUX_PERF_COMPILE_RUNS:-3}"
-BASELINE="${SHUX_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
+XLANG="$PERF_COMPILE_XLANG"
+RUNS="${XLANG_PERF_COMPILE_RUNS:-3}"
+BASELINE="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 FAIL_REGRESS=0
 UPDATE_BASELINE=0
-[ "${SHUX_PERF_FAIL_ON_COMPILE_REGRESSION:-0}" = "1" ] && FAIL_REGRESS=1
-[ "${SHUX_PERF_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
+[ "${XLANG_PERF_FAIL_ON_COMPILE_REGRESSION:-0}" = "1" ] && FAIL_REGRESS=1
+[ "${XLANG_PERF_UPDATE_BASELINE:-0}" = "1" ] && UPDATE_BASELINE=1
 
 ROOT=$(pwd)
-case "$SHUX" in
-  /*) SHUX_EXE="$SHUX" ;;
-  *) SHUX_EXE="$ROOT/$SHUX" ;;
+case "$XLANG" in
+  /*) XLANG_EXE="$XLANG" ;;
+  *) XLANG_EXE="$ROOT/$XLANG" ;;
 esac
-if [ ! -x "$SHUX_EXE" ]; then
-  echo "run-perf-compile-dogfood: missing executable: $SHUX_EXE" >&2
+if [ ! -x "$XLANG_EXE" ]; then
+  echo "run-perf-compile-dogfood: missing executable: $XLANG_EXE" >&2
   exit 1
 fi
 
-echo "=== compile dogfood (SHUX=$SHUX build RUNS=$RUNS) ==="
+echo "=== compile dogfood (XLANG=$XLANG build RUNS=$RUNS) ==="
 
-export SHUX_EXE RUNS BASELINE FAIL_REGRESS UPDATE_BASELINE ROOT
+export XLANG_EXE RUNS BASELINE FAIL_REGRESS UPDATE_BASELINE ROOT
 python3 <<'PY'
 import os, statistics, subprocess, sys, time
 
-shux = os.environ["SHUX_EXE"]
+xlang = os.environ["XLANG_EXE"]
 runs = int(os.environ["RUNS"])
 baseline_path = os.environ["BASELINE"]
 fail_regress = os.environ["FAIL_REGRESS"] == "1"
@@ -49,14 +49,14 @@ root = os.environ["ROOT"]
 
 # 固定用例：P0 bench 的 -o 编译 + 编译器重模块 check（frontend dogfood）
 cases = [
-    ("loop_i32", f'"{shux}" tests/bench/loop_i32.x -o /tmp/shux_dog_loop_i32'),
-    ("mem_copy", f'"{shux}" tests/bench/mem_copy.x -o /tmp/shux_dog_mem_copy'),
-    ("struct_param", f'"{shux}" tests/bench/struct_param.x -o /tmp/shux_dog_struct_param'),
-    ("call_boundary", f'"{shux}" tests/bench/call_boundary.x -o /tmp/shux_dog_call_boundary'),
-    ("perf_main", f'"{shux}" tests/perf-baseline/main.x -o /tmp/shux_dog_perf_main'),
-    ("check_backend", f'"{shux}" check compiler/src/asm/backend.x'),
-    ("check_parser", f'"{shux}" check compiler/src/parser/parser.x'),
-    ("check_typeck", f'"{shux}" check compiler/src/typeck/typeck.x'),
+    ("loop_i32", f'"{xlang}" tests/bench/loop_i32.x -o /tmp/xlang_dog_loop_i32'),
+    ("mem_copy", f'"{xlang}" tests/bench/mem_copy.x -o /tmp/xlang_dog_mem_copy'),
+    ("struct_param", f'"{xlang}" tests/bench/struct_param.x -o /tmp/xlang_dog_struct_param'),
+    ("call_boundary", f'"{xlang}" tests/bench/call_boundary.x -o /tmp/xlang_dog_call_boundary'),
+    ("perf_main", f'"{xlang}" tests/perf-baseline/main.x -o /tmp/xlang_dog_perf_main'),
+    ("check_backend", f'"{xlang}" check compiler/src/asm/backend.x'),
+    ("check_parser", f'"{xlang}" check compiler/src/parser/parser.x'),
+    ("check_typeck", f'"{xlang}" check compiler/src/typeck/typeck.x'),
 ]
 
 def load_baseline(path):
@@ -101,7 +101,7 @@ for name, cmd in cases:
     if cap is not None and os.environ.get("CI", "").lower() in ("1", "true"):
         ci_mult = 1.4
         # Alpine/musl Docker：check_backend 等比 glibc 慢 ~1.45×，单独放宽。
-        if os.path.isfile("/.dockerenv") or os.environ.get("SHUX_CI_DOCKER"):
+        if os.path.isfile("/.dockerenv") or os.environ.get("XLANG_CI_DOCKER"):
             ci_mult = 1.65
         eff_cap = cap * ci_mult
     status = "OK"
@@ -110,7 +110,7 @@ for name, cmd in cases:
         if fail_regress:
             # OBS-004：回归越界 stderr 告警（机器可 grep）
             print(
-                f"shux: [SHUX_PERF_ALERT] severity=critical baseline_id=compile-dogfood "
+                f"xlang: [XLANG_PERF_ALERT] severity=critical baseline_id=compile-dogfood "
                 f"metric={name} measured={med:.4f} cap={eff_cap:.4f} "
                 f"gate=run-perf-compile-dogfood-gate.sh",
                 file=sys.stderr,
@@ -123,8 +123,8 @@ for name, cmd in cases:
 if update_baseline:
     os.makedirs(os.path.dirname(baseline_path) or ".", exist_ok=True)
     with open(baseline_path, "w", encoding="utf-8") as f:
-        f.write("# shux 固定模块 compile/check 中位数上限（秒）；门禁：实测 median ≤ 本列值\n")
-        f.write("# 更新：SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh\n")
+        f.write("# xlang 固定模块 compile/check 中位数上限（秒）；门禁：实测 median ≤ 本列值\n")
+        f.write("# 更新：XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh\n")
         for name, med, _, _ in rows:
             # 留 ~50% 余量，降低 CI/本机抖动误报
             ceiling = max(med * 1.5, med + 0.015)

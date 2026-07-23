@@ -3,14 +3,14 @@
 # Debug Session: relink-strict-glue-hang
 
 ## Goal
-- 定位并修复 `relink_shux_asm_strict_glue` 阶段卡死或链接失败（未定义符号）的根因，并在 `bootstrap-verify-bstrict` 路径下闭环验证。
+- 定位并修复 `relink_xlang_asm_strict_glue` 阶段卡死或链接失败（未定义符号）的根因，并在 `bootstrap-verify-bstrict` 路径下闭环验证。
 
 ## Symptom
-- 现象：`relink_shux_asm_strict_glue.sh` 在链接/重链接阶段出现卡死或报未定义符号（ARM64/RISC-V emit/enc、cfg_eval 等相关）。
+- 现象：`relink_xlang_asm_strict_glue.sh` 在链接/重链接阶段出现卡死或报未定义符号（ARM64/RISC-V emit/enc、cfg_eval 等相关）。
 - 期望：脚本应稳定生成可用的 strict_glue 产物，并使 bstrict 自举链路继续推进。
 
 ## Repro (Candidate)
-- `scripts/relink_shux_asm_strict_glue.sh`
+- `scripts/relink_xlang_asm_strict_glue.sh`
 - `verify-selfhost-stage2-bstrict.sh` 或 `bootstrap-verify-bstrict`（以实际触发命令为准）
 
 ## Hypotheses
@@ -24,5 +24,5 @@
 - 待采集：通过 Debug Server 收集关键阶段事件（构建 strict_glue 的命令行、关键输入对象列表、耗时点、错误码/信号）。
 
 ## Next Actions
-- 仅做插桩：为 `relink_shux_asm_strict_glue.sh` 的关键步骤（产物刷新、链接命令行生成、实际 ld 调用、退出码）增加结构化日志上报。
+- 仅做插桩：为 `relink_xlang_asm_strict_glue.sh` 的关键步骤（产物刷新、链接命令行生成、实际 ld 调用、退出码）增加结构化日志上报。
 

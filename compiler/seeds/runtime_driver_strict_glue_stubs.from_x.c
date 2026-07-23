@@ -1,12 +1,12 @@
 /* Generated from src/runtime_driver_strict_glue_stubs.x (G-02f-32/33 true .x + C tail).
  * G-02f-105 helper gates.
- * G-02f-258：SHUX_L2_STRICT_GLUE_THIN_FROM_X 时省略 thin 转发
+ * G-02f-258：XLANG_L2_STRICT_GLUE_THIN_FROM_X 时省略 thin 转发
  *           （由 src/runtime_driver_strict_glue_thin.x → .o 提供，再 ld -r）。
- * Regen: ./shux-c -E -L .. src/runtime_driver_strict_glue_stubs.x > /tmp/sgs.c
+ * Regen: ./xlang-c -E -L .. src/runtime_driver_strict_glue_stubs.x > /tmp/sgs.c
  *         merge thin forwards/metrics peek; weak polish; heap_user/slot arrays C.
  * .x covers: asm_driver_*, i32_ptr_*, metrics init/read, call_resolve peek.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -24,15 +24,15 @@ typedef struct ASTModule ASTModule;
 
 typedef struct Lexer Lexer;
 
-SHUX_WEAK void codegen_emit_fmt_json_helpers_once(FILE *out) {
+XLANG_WEAK void codegen_emit_fmt_json_helpers_once(FILE *out) {
   (void)out;
 }
 
-SHUX_WEAK void codegen_emit_builtin_inline_decls(FILE *out) {
+XLANG_WEAK void codegen_emit_builtin_inline_decls(FILE *out) {
   (void)out;
 }
 
-SHUX_WEAK int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out,
+XLANG_WEAK int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out,
                                                       char (*emitted_type_names)[64], int *n_emitted_inout,
                                                       int max_emitted) {
   (void)mods;
@@ -45,20 +45,20 @@ SHUX_WEAK int codegen_emit_dep_types_only(struct ASTModule **mods, const char **
   return -1;
 }
 
-SHUX_WEAK void codegen_set_eextern_entry_path(const char *entry_path) {
+XLANG_WEAK void codegen_set_eextern_entry_path(const char *entry_path) {
   (void)entry_path;
 }
 
-SHUX_WEAK Lexer *lexer_new(const char *source) {
+XLANG_WEAK Lexer *lexer_new(const char *source) {
   (void)source;
   return NULL;
 }
 
-SHUX_WEAK void lexer_free(Lexer *l) {
+XLANG_WEAK void lexer_free(Lexer *l) {
   (void)l;
 }
 
-SHUX_WEAK void lexer_next(Lexer *l, Token *out) {
+XLANG_WEAK void lexer_next(Lexer *l, Token *out) {
   (void)l;
   if (!out)
     return;
@@ -68,13 +68,13 @@ SHUX_WEAK void lexer_next(Lexer *l, Token *out) {
   out->ident_len = 0;
 }
 
-SHUX_WEAK int parse(Lexer *lex, ASTModule **out) {
+XLANG_WEAK int parse(Lexer *lex, ASTModule **out) {
   (void)lex;
   (void)out;
   return -1;
 }
 
-SHUX_WEAK int typeck_module(ASTModule *m, ASTModule **dep_mods, int num_deps, ASTModule **all_dep_mods, int n_all_deps) {
+XLANG_WEAK int typeck_module(ASTModule *m, ASTModule **dep_mods, int num_deps, ASTModule **all_dep_mods, int n_all_deps) {
   (void)m;
   (void)dep_mods;
   (void)num_deps;
@@ -84,7 +84,7 @@ SHUX_WEAK int typeck_module(ASTModule *m, ASTModule **dep_mods, int num_deps, AS
 }
 
 /** G-02e：原 typeck_c_module_stubs.c 的 typeck_one_function，并入本 TU 以便产品链去掉独立 stubs.o。 */
-SHUX_WEAK int typeck_one_function(ASTModule *m, ASTModule **dep_mods, int num_deps, ASTModule **all_dep_mods, int n_all_deps,
+XLANG_WEAK int typeck_one_function(ASTModule *m, ASTModule **dep_mods, int num_deps, ASTModule **all_dep_mods, int n_all_deps,
                                   int only_func_index) {
   (void)m;
   (void)dep_mods;
@@ -95,12 +95,12 @@ SHUX_WEAK int typeck_one_function(ASTModule *m, ASTModule **dep_mods, int num_de
   return -1;
 }
 
-SHUX_WEAK int typeck_set_allow_legacy_extern_calls(int allow) {
+XLANG_WEAK int typeck_set_allow_legacy_extern_calls(int allow) {
   (void)allow;
   return 0;
 }
 
-SHUX_WEAK char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines,
+XLANG_WEAK char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines,
                                        size_t *out_length) {
   (void)source;
   (void)source_len;
@@ -111,12 +111,12 @@ SHUX_WEAK char *preprocess(const char *source, size_t source_len, const char **d
   return NULL;
 }
 
-SHUX_WEAK void driver_print_usage_c(void) {
-  static const char msg[] = "Shux (stub)\nUsage: shux [options] file.x\n";
+XLANG_WEAK void driver_print_usage_c(void) {
+  static const char msg[] = "Xlang (stub)\nUsage: xlang [options] file.x\n";
   (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1u);
 }
 
-SHUX_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
+XLANG_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                                          const char *entry_dir, const char **defines, int ndefines,
                                                          int allow_legacy_extern, ASTModule **dep_mods, int *ndep_out,
                                                          ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][512],
@@ -138,7 +138,7 @@ SHUX_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_ro
   return -1;
 }
 
-SHUX_WEAK int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
+XLANG_WEAK int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                                            const char *entry_dir, ASTModule **dep_mods, int *ndep_out,
                                                            ASTModule **all_dep_mods, char **all_dep_paths,
                                                            char all_dep_fs[][512], int *n_all_out, int max_deps) {
@@ -156,14 +156,14 @@ SHUX_WEAK int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_
   return -1;
 }
 
-SHUX_WEAK int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
+XLANG_WEAK int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
   (void)module;
   (void)arena;
   (void)ctx_void;
   return -1;
 }
 
-SHUX_WEAK void ast_module_free(ASTModule *mod) {
+XLANG_WEAK void ast_module_free(ASTModule *mod) {
   (void)mod;
 }
 
@@ -171,21 +171,21 @@ SHUX_WEAK void ast_module_free(ASTModule *mod) {
 /* G-02e：原 codegen_pipeline_stubs.c 并入本 TU。 */
 /* -------------------------------------------------------------------------- */
 
-SHUX_WEAK void codegen_set_preamble_has_core_option_result(int on) { (void)on; }
+XLANG_WEAK void codegen_set_preamble_has_core_option_result(int on) { (void)on; }
 
-SHUX_WEAK void codegen_reset_preamble_skip_mask(void) { }
+XLANG_WEAK void codegen_reset_preamble_skip_mask(void) { }
 
-SHUX_WEAK void codegen_or_preamble_skip_mask(unsigned mask) { (void)mask; }
+XLANG_WEAK void codegen_or_preamble_skip_mask(unsigned mask) { (void)mask; }
 
-SHUX_WEAK unsigned codegen_get_preamble_skip_mask(void) { return 0; }
+XLANG_WEAK unsigned codegen_get_preamble_skip_mask(void) { return 0; }
 
-SHUX_WEAK void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const char **paths, int n) {
+XLANG_WEAK void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const char **paths, int n) {
   (void)mods;
   (void)paths;
   (void)n;
 }
 
-SHUX_WEAK int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap) {
+XLANG_WEAK int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap) {
   (void)base;
   (void)nargs;
   (void)args;
@@ -194,7 +194,7 @@ SHUX_WEAK int codegen_wpo_mono_sym_format(const char *base, int nargs, const int
   return -1;
 }
 
-SHUX_WEAK int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_mods, const char **dep_import_paths, int ndep,
+XLANG_WEAK int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_mods, const char **dep_import_paths, int ndep,
     codegen_is_func_used_fn is_func_used, codegen_is_mono_used_fn is_mono_used, codegen_is_type_used_fn is_type_used, void *dce_ctx,
     char (*emitted_type_names)[CODEGEN_EMITTED_TYPE_NAME_MAX], int *n_emitted_inout, int max_emitted) {
   (void)m; (void)out; (void)dep_mods; (void)dep_import_paths; (void)ndep;
@@ -203,7 +203,7 @@ SHUX_WEAK int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModu
   return -1;
 }
 
-SHUX_WEAK int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
+XLANG_WEAK int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
     struct ASTModule **lib_dep_mods, const char **lib_dep_paths, int n_lib_dep,
     FILE *out,
     codegen_is_func_used_fn is_func_used, codegen_is_mono_used_fn is_mono_used, codegen_is_type_used_fn is_type_used, void *dce_ctx,
@@ -215,18 +215,18 @@ SHUX_WEAK int codegen_library_module_to_c(struct ASTModule *m, const char *impor
   return -1;
 }
 
-SHUX_WEAK void codegen_compute_used(struct ASTModule *entry, struct ASTModule **dep_mods, int ndep,
+XLANG_WEAK void codegen_compute_used(struct ASTModule *entry, struct ASTModule **dep_mods, int ndep,
     struct ASTFunc **used_funcs_out, int *n_used_out, int max_used, int used_mono[][64]) {
   (void)entry; (void)dep_mods; (void)ndep; (void)used_funcs_out; (void)max_used; (void)used_mono;
   if (n_used_out) *n_used_out = 0;
 }
 
-SHUX_WEAK struct ASTFunc *codegen_entry_root_func(struct ASTModule *entry) {
+XLANG_WEAK struct ASTFunc *codegen_entry_root_func(struct ASTModule *entry) {
   (void)entry;
   return NULL;
 }
 
-SHUX_WEAK void codegen_wpo_reach_compute(CodegenWpoReach *out,
+XLANG_WEAK void codegen_wpo_reach_compute(CodegenWpoReach *out,
     struct ASTModule *entry,
     struct ASTModule **all_mods, int n_all) {
   (void)entry; (void)all_mods; (void)n_all;
@@ -235,20 +235,20 @@ SHUX_WEAK void codegen_wpo_reach_compute(CodegenWpoReach *out,
   out->root_id = -1;
 }
 
-SHUX_WEAK int codegen_wpo_reach_is_reachable(const CodegenWpoReach *wpo, const struct ASTModule *mod,
+XLANG_WEAK int codegen_wpo_reach_is_reachable(const CodegenWpoReach *wpo, const struct ASTModule *mod,
     const struct ASTFunc *func) {
   (void)wpo; (void)mod; (void)func;
   return 0;
 }
 
-SHUX_WEAK void codegen_compute_used_types(struct ASTModule *entry, struct ASTModule **dep_mods, int ndep,
+XLANG_WEAK void codegen_compute_used_types(struct ASTModule *entry, struct ASTModule **dep_mods, int ndep,
     struct ASTFunc **used_funcs, int n_used, const char **used_type_names_out, int *n_out, int max_types) {
   (void)entry; (void)dep_mods; (void)ndep; (void)used_funcs; (void)n_used;
   (void)used_type_names_out; (void)max_types;
   if (n_out) *n_out = 0;
 }
 
-SHUX_WEAK void codegen_dump_wpo_callgraph_json(FILE *out,
+XLANG_WEAK void codegen_dump_wpo_callgraph_json(FILE *out,
     struct ASTModule *entry, const char *entry_path,
     struct ASTModule **all_mods, const char **all_paths, int n_all) {
   (void)entry; (void)entry_path; (void)all_mods; (void)all_paths; (void)n_all;
@@ -260,7 +260,7 @@ SHUX_WEAK void codegen_dump_wpo_callgraph_json(FILE *out,
 extern int32_t driver_skip_codegen_dep_0_get(void);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
 
-#ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
+#ifndef XLANG_L2_STRICT_GLUE_THIN_FROM_X
 int32_t asm_driver_skip_codegen_dep_0_get(void) {
   (void)(({   {
     int32_t r = driver_skip_codegen_dep_0_get();
@@ -393,14 +393,14 @@ int lsp_codegen_emit_gen_extern_to_buf(struct codegen_CodegenOutBuf *out) {
   return append_text_to_codegen_buf(out, lsp_gen_extern_block);
 }
 
-/* ---- G-02e-12：原 runtime_pipeline_abi_shux_c_stubs（shux-c 冷启动 X 管线弱桩）---- */
+/* ---- G-02e-12：原 runtime_pipeline_abi_xlang_c_stubs（xlang-c 冷启动 X 管线弱桩）---- */
 
 struct parser_ParseIntoResult {
     int32_t ok;
     int32_t main_idx;
 };
 
-struct shux_slice_uint8_t {
+struct xlang_slice_uint8_t {
     const uint8_t *ptr;
     size_t len;
 };
@@ -409,8 +409,8 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 
-/** asm 后端 ELF 生成桩；冷启动 shux-c 不走 asm 分支。 */
-SHUX_WEAK int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ctx, void *out_buf) {
+/** asm 后端 ELF 生成桩；冷启动 xlang-c 不走 asm 分支。 */
+XLANG_WEAK int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ctx, void *out_buf) {
     (void)module;
     (void)arena;
     (void)ctx;
@@ -420,36 +420,36 @@ SHUX_WEAK int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, vo
 }
 
 /** driver 模块查询桩。 */
-SHUX_WEAK int32_t driver_get_module_num_funcs(void *module) {
+XLANG_WEAK int32_t driver_get_module_num_funcs(void *module) {
     (void)module;
     return 0;
 }
 
-SHUX_WEAK int32_t driver_get_module_main_func_index(void *module) {
+XLANG_WEAK int32_t driver_get_module_main_func_index(void *module) {
     (void)module;
     return -1;
 }
 
 /** pipeline 模块函数查询桩。 */
-SHUX_WEAK int32_t pipeline_module_num_funcs(void *module) {
+XLANG_WEAK int32_t pipeline_module_num_funcs(void *module) {
     (void)module;
     return 0;
 }
 
-SHUX_WEAK int32_t pipeline_module_func_is_extern_at(void *module, int32_t idx) {
+XLANG_WEAK int32_t pipeline_module_func_is_extern_at(void *module, int32_t idx) {
     (void)module;
     (void)idx;
     return 0;
 }
 
 /** parser 模块 import 计数桩。 */
-SHUX_WEAK int32_t parser_get_module_num_imports(void *module) {
+XLANG_WEAK int32_t parser_get_module_num_imports(void *module) {
     (void)module;
     return 0;
 }
 
 /** parser import 路径写入桩。 */
-SHUX_WEAK void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf) {
+XLANG_WEAK void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf) {
     (void)module;
     (void)idx;
     if (path_buf)
@@ -457,14 +457,14 @@ SHUX_WEAK void parser_get_module_import_path(void *module, int32_t idx, uint8_t 
 }
 
 /** parser parse 初始化桩。 */
-SHUX_WEAK void parser_parse_into_init(void *module, void *arena) {
+XLANG_WEAK void parser_parse_into_init(void *module, void *arena) {
     (void)module;
     (void)arena;
 }
 
 /** parser parse 桩；返回失败。 */
-SHUX_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *module,
-                                                                      struct shux_slice_uint8_t *source) {
+XLANG_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *module,
+                                                                      struct xlang_slice_uint8_t *source) {
     (void)arena;
     (void)module;
     (void)source;
@@ -473,7 +473,7 @@ SHUX_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *mod
 }
 
 /** pipeline X 入口桩。 */
-SHUX_WEAK int pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data,
+XLANG_WEAK int pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data,
                                                    size_t source_len, void *out_buf, void *ctx) {
     (void)module;
     (void)arena;
@@ -485,11 +485,11 @@ SHUX_WEAK int pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *
 }
 
 /** pipeline dep ctx 桩。 */
-SHUX_WEAK void ast_pipeline_dep_ctx_reset(struct ast_PipelineDepCtx *ctx) {
+XLANG_WEAK void ast_pipeline_dep_ctx_reset(struct ast_PipelineDepCtx *ctx) {
     (void)ctx;
 }
 
-SHUX_WEAK int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path,
+XLANG_WEAK int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path,
                                                                int32_t len) {
     (void)ctx;
     (void)path;
@@ -497,26 +497,26 @@ SHUX_WEAK int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ct
     return 0;
 }
 
-SHUX_WEAK void ast_pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx,
+XLANG_WEAK void ast_pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx,
                                                            struct ast_Module *m) {
     (void)ctx;
     (void)idx;
     (void)m;
 }
 
-SHUX_WEAK void ast_pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32_t idx,
+XLANG_WEAK void ast_pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32_t idx,
                                                           struct ast_ASTArena *a) {
     (void)ctx;
     (void)idx;
     (void)a;
 }
 
-SHUX_WEAK void ast_pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n) {
+XLANG_WEAK void ast_pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n) {
     (void)ctx;
     (void)n;
 }
 
-SHUX_WEAK void ast_pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx,
+XLANG_WEAK void ast_pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx,
                                                                 uint8_t *bytes, int32_t len) {
     (void)ctx;
     (void)idx;
@@ -524,45 +524,45 @@ SHUX_WEAK void ast_pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *c
     (void)len;
 }
 
-SHUX_WEAK int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
+XLANG_WEAK int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
     (void)path;
     return 0;
 }
 
-SHUX_WEAK int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path) {
+XLANG_WEAK int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path) {
     (void)path;
     return 0;
 }
 
-SHUX_WEAK int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path) {
+XLANG_WEAK int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path) {
     (void)path;
     return 0;
 }
 
-SHUX_WEAK void asm_skip_heavy_set_pipeline_ctx(void *ctx) {
+XLANG_WEAK void asm_skip_heavy_set_pipeline_ctx(void *ctx) {
     (void)ctx;
 }
 
-SHUX_WEAK void pipeline_fill_array_lit_types_for_skipped_typeck(void *module, void *arena) {
+XLANG_WEAK void pipeline_fill_array_lit_types_for_skipped_typeck(void *module, void *arena) {
     (void)module;
     (void)arena;
 }
 
-SHUX_WEAK void pipeline_fill_soa_field_access_for_asm_emit(void *module, void *arena) {
+XLANG_WEAK void pipeline_fill_soa_field_access_for_asm_emit(void *module, void *arena) {
     (void)module;
     (void)arena;
 }
 
-SHUX_WEAK size_t pipeline_sizeof_arena(void) {
+XLANG_WEAK size_t pipeline_sizeof_arena(void) {
     return 4096u;
 }
 
-SHUX_WEAK size_t pipeline_sizeof_module(void) {
+XLANG_WEAK size_t pipeline_sizeof_module(void) {
     return 4096u;
 }
 
 /** pipeline 解析/typeck 依赖；冷启动 C 前端 check 不走 X dep prerun，弱桩返回失败。 */
-SHUX_WEAK int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  uint8_t *data, int32_t len) {
     (void)module;
     (void)arena;
@@ -571,7 +571,7 @@ SHUX_WEAK int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, 
     return -1;
 }
 
-SHUX_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module,
                                                                             struct ast_ASTArena *arena,
                                                                             struct ast_PipelineDepCtx *ctx) {
     (void)module;
@@ -580,12 +580,12 @@ SHUX_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module 
     return -1;
 }
 
-SHUX_WEAK int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx) {
+XLANG_WEAK int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx) {
     (void)ctx;
     return 0;
 }
 
-SHUX_WEAK void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx,
+XLANG_WEAK void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx,
                                                                uint8_t *dst) {
     (void)ctx;
     (void)idx;
@@ -595,7 +595,7 @@ SHUX_WEAK void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ct
         dst[i] = 0;
 }
 
-SHUX_WEAK int32_t pipeline_module_main_func_index(struct ast_Module *m) {
+XLANG_WEAK int32_t pipeline_module_main_func_index(struct ast_Module *m) {
     (void)m;
     return -1;
 }
@@ -603,10 +603,10 @@ SHUX_WEAK int32_t pipeline_module_main_func_index(struct ast_Module *m) {
 /**
  * wave89: pure runtime_pipeline_abi owns product pipeline_typeck_dep_prerun_module_c.
  * This stub is only for cold/empty-surface links without pure or pipeline_glue.
- * pipeline_glue also keeps a full SHUX_WEAK cold twin (set_dep_ctx + typeck_x_ast_library).
+ * pipeline_glue also keeps a full XLANG_WEAK cold twin (set_dep_ctx + typeck_x_ast_library).
  * PLATFORM: SHARED — pure strong wins under hybrid PREFER.
  */
-SHUX_WEAK int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   struct ast_PipelineDepCtx *ctx) {
     (void)module;
     (void)arena;
@@ -614,25 +614,25 @@ SHUX_WEAK int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module,
     return -1;
 }
 
-SHUX_WEAK void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a) {
+XLANG_WEAK void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a) {
     (void)m;
     (void)a;
 }
 
-SHUX_WEAK int32_t pipeline_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
+XLANG_WEAK int32_t pipeline_module_func_name_len_at(struct ast_Module *m, int32_t func_index) {
     (void)m;
     (void)func_index;
     return 0;
 }
 
-SHUX_WEAK uint8_t pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int32_t i) {
+XLANG_WEAK uint8_t pipeline_module_func_name_byte_at(struct ast_Module *m, int32_t fi, int32_t i) {
     (void)m;
     (void)fi;
     (void)i;
     return 0;
 }
 
-SHUX_WEAK void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t fi, uint8_t *dst) {
+XLANG_WEAK void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t fi, uint8_t *dst) {
     int i;
     (void)m;
     (void)fi;
@@ -642,43 +642,43 @@ SHUX_WEAK void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t fi
         dst[i] = 0;
 }
 
-SHUX_WEAK int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
+XLANG_WEAK int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
     (void)m;
     (void)func_index;
     return 0;
 }
 
-SHUX_WEAK int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br) {
+XLANG_WEAK int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br) {
     (void)a;
     (void)br;
     return 0;
 }
 
-SHUX_WEAK int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t br) {
+XLANG_WEAK int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t br) {
     (void)a;
     (void)br;
     return 0;
 }
 
-SHUX_WEAK int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br) {
+XLANG_WEAK int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br) {
     (void)a;
     (void)br;
     return 0;
 }
 
-SHUX_WEAK int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br) {
+XLANG_WEAK int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br) {
     (void)a;
     (void)br;
     return 0;
 }
 
-SHUX_WEAK int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br) {
+XLANG_WEAK int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br) {
     (void)a;
     (void)br;
     return 0;
 }
 
-SHUX_WEAK int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br) {
+XLANG_WEAK int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br) {
     (void)a;
     (void)br;
     return 0;
@@ -707,24 +707,24 @@ extern void driver_diagnostic_pipe_marker(int32_t id);
 extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
 extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
 
-SHUX_WEAK struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li) {
+XLANG_WEAK struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li) {
   (void)a;
   (void)br;
   (void)li;
   return NULL;
 }
 
-SHUX_WEAK void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes,
+XLANG_WEAK void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes,
                                                             int32_t len) {
   ast_pipeline_dep_ctx_set_import_path(ctx, idx, bytes, len);
 }
 
-/* wave99: product pure owns path64; this SHUX_WEAK is cold twin when pure not linked.
+/* wave99: product pure owns path64; this XLANG_WEAK is cold twin when pure not linked.
  * G.7: ImportEntry path storage = pipeline_module_import_path_copy (ast_pool).
  * PLATFORM: SHARED — semantics ≡ pure / parser_gen weak cold twin. */
 extern void pipeline_module_import_path_copy(struct ast_Module *m, int32_t idx, uint8_t *dst, int32_t dst_cap);
 
-SHUX_WEAK int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]) {
+XLANG_WEAK int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]) {
   int32_t path_len;
   if (!out)
     return 0;
@@ -753,7 +753,7 @@ static int32_t g_typeck_call_resolve_func_idx_slot;
 /* PLATFORM: SHARED — weak fallback; strong def in ast_pool.c on product link. */
 static int32_t g_typeck_overload_expected_ret_slot;
 
-SHUX_WEAK uint8_t *typeck_scratch64_slot(int32_t slot) {
+XLANG_WEAK uint8_t *typeck_scratch64_slot(int32_t slot) {
   if (slot < 0)
     slot = 0;
   if (slot >= 16)
@@ -761,15 +761,15 @@ SHUX_WEAK uint8_t *typeck_scratch64_slot(int32_t slot) {
   return &g_typeck_scratch64[slot][0];
 }
 
-SHUX_WEAK int32_t *typeck_layout_metrics_sz_slot(void) {
+XLANG_WEAK int32_t *typeck_layout_metrics_sz_slot(void) {
   return &g_typeck_layout_metrics_sz_slot;
 }
 
-SHUX_WEAK int32_t *typeck_layout_metrics_al_slot(void) {
+XLANG_WEAK int32_t *typeck_layout_metrics_al_slot(void) {
   return &g_typeck_layout_metrics_al_slot;
 }
 
-SHUX_WEAK int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth) {
+XLANG_WEAK int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth) {
   if (depth < 0)
     depth = 0;
   if (depth >= 64)
@@ -777,7 +777,7 @@ SHUX_WEAK int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth) {
   return &g_typeck_layout_metrics_sz_depth[depth];
 }
 
-SHUX_WEAK int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
+XLANG_WEAK int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
   if (depth < 0)
     depth = 0;
   if (depth >= 64)
@@ -785,8 +785,8 @@ SHUX_WEAK int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
   return &g_typeck_layout_metrics_al_depth[depth];
 }
 
-#ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
-SHUX_WEAK void typeck_layout_metrics_init_depth(int32_t depth) {
+#ifndef XLANG_L2_STRICT_GLUE_THIN_FROM_X
+XLANG_WEAK void typeck_layout_metrics_init_depth(int32_t depth) {
   int32_t *sz = typeck_layout_metrics_sz_slot_depth(depth);
   int32_t *al = typeck_layout_metrics_al_slot_depth(depth);
   if (sz)
@@ -795,60 +795,60 @@ SHUX_WEAK void typeck_layout_metrics_init_depth(int32_t depth) {
     *al = 1;
 }
 
-SHUX_WEAK int32_t typeck_layout_metrics_al_read_depth(int32_t depth) {
+XLANG_WEAK int32_t typeck_layout_metrics_al_read_depth(int32_t depth) {
   return *typeck_layout_metrics_al_slot_depth(depth);
 }
 
-SHUX_WEAK int32_t typeck_layout_metrics_sz_read_depth(int32_t depth) {
+XLANG_WEAK int32_t typeck_layout_metrics_sz_read_depth(int32_t depth) {
   return *typeck_layout_metrics_sz_slot_depth(depth);
 }
 
-SHUX_WEAK void typeck_layout_metrics_init_slot(void) {
+XLANG_WEAK void typeck_layout_metrics_init_slot(void) {
   *typeck_layout_metrics_sz_slot() = 0;
   *typeck_layout_metrics_al_slot() = 1;
 }
 
-SHUX_WEAK void typeck_i32_ptr_store(int32_t *p, int32_t v) {
+XLANG_WEAK void typeck_i32_ptr_store(int32_t *p, int32_t v) {
   if (p)
     *p = v;
 }
 
-SHUX_WEAK int32_t typeck_i32_ptr_read(int32_t *p) {
+XLANG_WEAK int32_t typeck_i32_ptr_read(int32_t *p) {
   return p ? *p : 0;
 }
 
-SHUX_WEAK void typeck_driver_diagnostic_pipe_marker(int32_t id) {
+XLANG_WEAK void typeck_driver_diagnostic_pipe_marker(int32_t id) {
   driver_diagnostic_pipe_marker(id);
 }
 #endif
 
-SHUX_WEAK int32_t *typeck_call_resolve_dep_idx_slot(void) {
+XLANG_WEAK int32_t *typeck_call_resolve_dep_idx_slot(void) {
   return &g_typeck_call_resolve_dep_idx_slot;
 }
 
-SHUX_WEAK int32_t *typeck_call_resolve_func_idx_slot(void) {
+XLANG_WEAK int32_t *typeck_call_resolve_func_idx_slot(void) {
   return &g_typeck_call_resolve_func_idx_slot;
 }
 
-SHUX_WEAK int32_t *typeck_overload_expected_ret_slot(void) {
+XLANG_WEAK int32_t *typeck_overload_expected_ret_slot(void) {
   return &g_typeck_overload_expected_ret_slot;
 }
 
-#ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
-SHUX_WEAK int32_t typeck_call_resolve_dep_idx_peek(void) {
+#ifndef XLANG_L2_STRICT_GLUE_THIN_FROM_X
+XLANG_WEAK int32_t typeck_call_resolve_dep_idx_peek(void) {
   return *typeck_call_resolve_dep_idx_slot();
 }
 
-SHUX_WEAK int32_t typeck_call_resolve_func_idx_peek(void) {
+XLANG_WEAK int32_t typeck_call_resolve_func_idx_peek(void) {
   return *typeck_call_resolve_func_idx_slot();
 }
 
-SHUX_WEAK int32_t typeck_overload_expected_ret_peek(void) {
+XLANG_WEAK int32_t typeck_overload_expected_ret_peek(void) {
   return *typeck_overload_expected_ret_slot();
 }
 #endif
 
-SHUX_WEAK int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module,
+XLANG_WEAK int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module,
                                                                      struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
   uint8_t path_buf[64];
   int32_t path_len;
@@ -866,16 +866,16 @@ SHUX_WEAK int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *modul
 
 /**
  * wave85: pure runtime_pipeline_abi owns product preprocess_define_* (G.7 single -D table).
- * Glue keeps SHUX_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
+ * Glue keeps XLANG_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — same table semantics as pure (128 × 64).
  */
 /** Clear -D macro table (weak cold fallback). */
-SHUX_WEAK void preprocess_define_reset(void) {
+XLANG_WEAK void preprocess_define_reset(void) {
   g_preprocess_ndefines = 0;
 }
 
 /** Append one -D macro name (weak cold fallback). */
-SHUX_WEAK void preprocess_define_add(const char *name) {
+XLANG_WEAK void preprocess_define_add(const char *name) {
   size_t n;
   if (!name || g_preprocess_ndefines >= PREPROCESS_MAX_DEFINES)
     return;
@@ -887,7 +887,7 @@ SHUX_WEAK void preprocess_define_add(const char *name) {
 }
 
 /** True if sym[0..sym_len) is in -D table (weak cold fallback). */
-SHUX_WEAK int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
+XLANG_WEAK int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
   int i, k;
   if (!sym || sym_len <= 0)
     return 0;
@@ -907,10 +907,10 @@ SHUX_WEAK int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
 /**
  * wave88: pure runtime_pipeline_abi owns product preprocess_eval_condition_c
  * (G.7 single authority: trim + simple → pure define_has; complex → cfg_eval_expr_c).
- * Glue keeps SHUX_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
+ * Glue keeps XLANG_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — same semantics as pure (space/tab trim; complex ops → cfg_eval).
  */
-SHUX_WEAK int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond_len) {
+XLANG_WEAK int32_t preprocess_eval_condition_c(const uint8_t *cond, int32_t cond_len) {
   int k;
 
   if (!cond || cond_len <= 0)

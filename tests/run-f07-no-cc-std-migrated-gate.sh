@@ -2,11 +2,11 @@
 # F-07 v1：已迁移纯 .x 的 std 模块硬禁 cc -c（io/fs/heap/compress）。
 #
 # 用法：./tests/run-f07-no-cc-std-migrated-gate.sh
-# 环境：SHUX_F07_NO_CC_MIGRATED_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F07_NO_CC_MIGRATED_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F07_NO_CC_MIGRATED_FAIL:-0}
+FAIL=${XLANG_F07_NO_CC_MIGRATED_FAIL:-0}
 DOC="analysis/phase-f-f07-v1.md"
 MANIFEST="tests/baseline/f07-no-cc-std-migrated.tsv"
 BUILD_STD="tests/lib/build-std-c-o.sh"
@@ -43,9 +43,9 @@ done
 
 # compiler/ 树内 bootstrap 脚本不得 cc -c migrated 模块
 MIGRATED_RE='std/(io/io|fs/fs|heap/heap|compress/(compress|zlib/zlib|gzip/gzip|brotli/brotli|zstd/zstd))\.c'
-for f in compiler/scripts/build_shux_asm.sh \
-  compiler/scripts/relink_shux_asm_experimental_bootstrap.sh \
-  compiler/scripts/relink_shux_asm_strict_glue.sh; do
+for f in compiler/scripts/build_xlang_asm.sh \
+  compiler/scripts/relink_xlang_asm_experimental_bootstrap.sh \
+  compiler/scripts/relink_xlang_asm_strict_glue.sh; do
   [ -f "$f" ] || die "missing $f"
   if grep -qE "cc .*-c.*${MIGRATED_RE}" "$f" 2>/dev/null; then
     die "$f still cc -c migrated std/*.c"
@@ -72,7 +72,7 @@ grep -q 'F-07 v2' analysis/phase-f-f07-v2.md || die "phase-f-f07-v2.md missing m
 if [ -f tests/run-f06-runtime-std-o-cleanup-gate.sh ]; then
   echo "=== F-07 v1: delegate run-f06-runtime-std-o-cleanup-gate ==="
   chmod +x tests/run-f06-runtime-std-o-cleanup-gate.sh
-  if ! SHUX_F06_RUNTIME_CLEANUP_FAIL="$FAIL" tests/run-f06-runtime-std-o-cleanup-gate.sh; then
+  if ! XLANG_F06_RUNTIME_CLEANUP_FAIL="$FAIL" tests/run-f06-runtime-std-o-cleanup-gate.sh; then
     die "f06 sub-gate failed"
   fi
 fi
@@ -80,7 +80,7 @@ fi
 if [ -f tests/run-f03-std-core-gate.sh ]; then
   echo "=== F-07 v1: delegate run-f03-std-core-gate ==="
   chmod +x tests/run-f03-std-core-gate.sh
-  if ! SHUX_F03_CORE_FAIL="$FAIL" tests/run-f03-std-core-gate.sh; then
+  if ! XLANG_F03_CORE_FAIL="$FAIL" tests/run-f03-std-core-gate.sh; then
     die "f03-core sub-gate failed"
   fi
 fi

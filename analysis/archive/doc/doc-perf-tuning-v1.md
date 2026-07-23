@@ -12,7 +12,7 @@
 | 时段 | 章节 | 产出 |
 |------|------|------|
 | **0–10 min** | §2 性能维度 | 区分编译时 vs 运行时 |
-| **10–25 min** | §3 编译调优流程 | 会用 `SHUX_COMPILE_PHASE_TIMING` |
+| **10–25 min** | §3 编译调优流程 | 会用 `XLANG_COMPILE_PHASE_TIMING` |
 | **25–40 min** | §4 IO/NET 调优流程 | 知道跑哪条 perf gate |
 | **40–50 min** | §5 自举/CI 诊断 + §9 自检 | 会 `./tests/run-bootstrap-stage-diag.sh` |
 
@@ -36,7 +36,7 @@
 
 | 症状 | 优先维度 | 首条命令 |
 |------|----------|----------|
-| `shux check` / 编大模块变慢 | A | `SHUX_COMPILE_PHASE_TIMING=1 shux check …` |
+| `xlang check` / 编大模块变慢 | A | `XLANG_COMPILE_PHASE_TIMING=1 xlang check …` |
 | loop/mem_copy bench 变慢 | B | `./tests/run-perf-baseline.sh --bench` |
 | 顺序/随机读慢 | C | `./tests/run-perf-io.sh --bench` |
 | echo/并发连接慢 | D | `./tests/run-perf-net.sh --bench` |
@@ -49,19 +49,19 @@
 ### 3.1 阶段拆分（OBS-001）
 
 ```bash
-SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c check compiler/src/parser/parser.x
+XLANG_COMPILE_PHASE_TIMING=1 ./compiler/xlang-c check compiler/src/parser/parser.x
 ```
 
 期望 stderr 一行：
 
 ```text
-shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=… typeck_ms=… codegen_ms=… total_ms=…
+xlang: [XLANG_COMPILE_PHASE_TIMING] parse_ms=… typeck_ms=… codegen_ms=… total_ms=…
 ```
 
 | 阶段偏高 | 排查方向 |
 |----------|----------|
 | **parse_ms** | parser emit / second-pass；`run-parser-second-pass-gate.sh` |
-| **typeck_ms** | `run-typeck-hotpath-gate.sh`；`SHUX_TYPECK_PTR=1` 调试 |
+| **typeck_ms** | `run-typeck-hotpath-gate.sh`；`XLANG_TYPECK_PTR=1` 调试 |
 | **codegen_ms** | WPO/asm；`run-wpo-strict-link-gate.sh` |
 | **total 回归** | `run-perf-compile-dogfood-gate.sh` vs `compile-dogfood.tsv` |
 
@@ -69,7 +69,7 @@ shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=… typeck_ms=… codegen_ms=… tota
 
 ```bash
 ./tests/run-perf-compile-dogfood.sh
-SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood-gate.sh
+XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood-gate.sh
 ```
 
 固定用例见 `tests/baseline/compile-dogfood.tsv`（bench + `check parser/typeck`）。
@@ -78,9 +78,9 @@ SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood-gate.sh
 
 | 变量 | 用途 |
 |------|------|
-| `SHUX_DEBUG_PIPE=1` | pipeline 阶段 marker |
-| `SHUX_DEBUG_PARSE=1` | parse skip 列表 |
-| `SHUX_TYPECK_PTR=1` | 指针字段 typeck 诊断 |
+| `XLANG_DEBUG_PIPE=1` | pipeline 阶段 marker |
+| `XLANG_DEBUG_PARSE=1` | parse skip 列表 |
+| `XLANG_TYPECK_PTR=1` | 指针字段 typeck 诊断 |
 
 ---
 
@@ -90,7 +90,7 @@ SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood-gate.sh
 
 ```bash
 ./tests/run-perf-io.sh --bench
-SHUX_PERF_FAIL_ON_IO_REGRESSION=1 SHUX_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-io-zig-gate.sh
+XLANG_PERF_FAIL_ON_IO_REGRESSION=1 XLANG_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-io-zig-gate.sh
 ```
 
 | case | 说明 |
@@ -118,7 +118,7 @@ SHUX_PERF_FAIL_ON_IO_REGRESSION=1 SHUX_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-io
 ./tests/run-perf-baseline.sh --bench
 ```
 
-对比 Zig/C：`SHUX_PERF_FAIL_ON_ZIG=1` / `SHUX_PERF_FAIL_ON_C_O3=1`（见脚本注释）。
+对比 Zig/C：`XLANG_PERF_FAIL_ON_ZIG=1` / `XLANG_PERF_FAIL_ON_C_O3=1`（见脚本注释）。
 
 ---
 
@@ -161,7 +161,7 @@ SHUX_PERF_FAIL_ON_IO_REGRESSION=1 SHUX_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-io
 
 | 目标 | 命令 |
 |------|------|
-| 编译阶段耗时 | `SHUX_COMPILE_PHASE_TIMING=1 shux check …` |
+| 编译阶段耗时 | `XLANG_COMPILE_PHASE_TIMING=1 xlang check …` |
 | 编译 dogfood | `tests/run-perf-compile-dogfood-gate.sh` |
 | 编译阶段 gate | `tests/run-obs-compile-phase-timing-gate.sh` |
 | async trace Top20 | `tests/run-obs-async-runtime-trace-gate.sh` |
@@ -192,7 +192,7 @@ SHUX_PERF_FAIL_ON_IO_REGRESSION=1 SHUX_PERF_FAIL_ON_IO_ZIG=1 ./tests/run-perf-io
 
 ## 9. 自检（5 题）
 
-1. 编译变慢先看什么 env？→ **`SHUX_COMPILE_PHASE_TIMING=1`**
+1. 编译变慢先看什么 env？→ **`XLANG_COMPILE_PHASE_TIMING=1`**
 2. IO 随机读回归跑哪个 gate？→ **`run-perf-io-zig-gate.sh`**
 3. 改 io-perf.tsv 还要改什么？→ **registry version + gate**
 4. bootstrap 日志如何定位阶段？→ **`run-bootstrap-stage-diag.sh`**

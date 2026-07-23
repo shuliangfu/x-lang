@@ -3,7 +3,7 @@
 //
 // G-02f-276 / P2 link_abi L7 freestanding pure table + wave117 needs pure orch.
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_freestanding_list.from_x.c.
-// Hybrid macro SHUX_LABI_FREESTANDING_LIST_FROM_X (FROM_X rest business H=0, marker only).
+// Hybrid macro XLANG_LABI_FREESTANDING_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: env/io/panic/ensure catalog tables + wave117 heap needle tables +
 //   link_abi_generated_c_needs_libc_heap / link_abi_user_o_needs_libc_heap /
@@ -20,15 +20,15 @@
 //     (C-path Windows kernel32 / winsock2 string needles; Cap residual contains_substr).
 //   wave142 link_abi_generated_c_needs_{core_builtin,core_mem} pure stub0 orch
 //     (G-01: always 0 — no hard-link builtin.o / mem.o; was mega-only stub0 body).
-//   wave143 shux_generated_c_needs_async_scheduler pure orch
+//   wave143 xlang_generated_c_needs_async_scheduler pure orch
 //     (C-path async scheduler string needles ×9; Cap residual contains_substr).
-//   wave144 shux_freestanding_user_o_needs_{io,panic} pure orch
+//   wave144 xlang_freestanding_user_o_needs_{io,panic} pure orch
 //     (user.o UNDEF scan via labi_fs_io_sym_* / labi_fs_panic_sym; Cap residual undef_sym).
-//   wave159 shux_link_freestanding_enabled pure orch
+//   wave159 xlang_link_freestanding_enabled pure orch
 //     (peer host_is_linux + pure env name + Cap residual getenv).
-//   wave167 shux_ensure_crt0_user_o pure orch
+//   wave167 xlang_ensure_crt0_user_o pure orch
 //     (peer freestanding_enabled + path tables + Cap residual resolve/access/cc/stat).
-//   wave168 shux_ensure_freestanding_io_o pure orch
+//   wave168 xlang_ensure_freestanding_io_o pure orch
 //     (peer freestanding_enabled + io path tables + Cap residual resolve/access/cc/stat).
 //   wave175 link_abi_generated_c_contains_substr pure orch
 //     (pure null gates + Cap residual file malloc/free + Cap residual buf scan).
@@ -44,7 +44,7 @@
 // PLATFORM: SHARED tables / LINUX freestanding face for nostdlib orch.
 
 // wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure L1).
-// Cap residual host getenv stays mega as link_abi_getenv_impl (SHUX_FREESTANDING gate).
+// Cap residual host getenv stays mega as link_abi_getenv_impl (XLANG_FREESTANDING gate).
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 // Cap residual (wave175/176 contains_substr pure orch): host whole-file malloc + free + buf scan.
 // Nested pure byte-scan / line-filter loops over large files historically truncated later
@@ -54,15 +54,15 @@ export extern "C" function free(p: *u8): void;
 export extern "C" function link_abi_buf_contains_substr(data: *u8, data_len: usize, needle: *u8): i32;
 export extern "C" function link_abi_buf_contains_substr_use_line(data: *u8, data_len: usize, needle: *u8): i32;
 // Peer pure (labi_host_lit L thin → Cap residual _impl #if __linux__).
-export extern "C" function shux_host_is_linux(): i32;
+export extern "C" function xlang_host_is_linux(): i32;
 // Cap residual (wave167/168 ensure pure orch): resolve / access / cc / skip-stat.
 export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 export extern "C" function link_abi_path_readable(path: *u8): i32;
-export extern "C" function shux_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32;
+export extern "C" function xlang_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32;
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 // Peer pure path ladder (labi_path_pure L0; wave164/165).
-export extern "C" function shux_crt0_user_o_path(argv0: *u8): *u8;
-export extern "C" function shux_freestanding_io_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_crt0_user_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_freestanding_io_o_path(argv0: *u8): *u8;
 // Peer pure diags (labi_diag_pure L1).
 export extern "C" function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): void;
 export extern "C" function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8): void;
@@ -75,7 +75,7 @@ export extern "C" function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *
  */
 #[no_mangle]
 export function labi_fs_env_freestanding(): *u8 {
-  let p: *u8 = "SHUX_FREESTANDING";
+  let p: *u8 = "XLANG_FREESTANDING";
   return p;
 }
 
@@ -99,55 +99,55 @@ export function labi_fs_io_sym_at(i: i32): *u8 {
     return 0 as *u8;
   }
   if (i == 0) {
-    let p: *u8 = "shux_sys_write";
+    let p: *u8 = "xlang_sys_write";
     return p;
   }
   if (i == 1) {
-    let p: *u8 = "shux_sys_read";
+    let p: *u8 = "xlang_sys_read";
     return p;
   }
   if (i == 2) {
-    let p: *u8 = "shux_sys_close";
+    let p: *u8 = "xlang_sys_close";
     return p;
   }
   if (i == 3) {
-    let p: *u8 = "shux_sys_exit";
+    let p: *u8 = "xlang_sys_exit";
     return p;
   }
   if (i == 4) {
-    let p: *u8 = "shux_sys_open";
+    let p: *u8 = "xlang_sys_open";
     return p;
   }
   if (i == 5) {
-    let p: *u8 = "shux_sys_openat";
+    let p: *u8 = "xlang_sys_openat";
     return p;
   }
   if (i == 6) {
-    let p: *u8 = "shux_sys_mmap";
+    let p: *u8 = "xlang_sys_mmap";
     return p;
   }
   if (i == 7) {
-    let p: *u8 = "shux_sys_munmap";
+    let p: *u8 = "xlang_sys_munmap";
     return p;
   }
   if (i == 8) {
-    let p: *u8 = "shux_sys_socket";
+    let p: *u8 = "xlang_sys_socket";
     return p;
   }
   if (i == 9) {
-    let p: *u8 = "shux_sys_connect";
+    let p: *u8 = "xlang_sys_connect";
     return p;
   }
   if (i == 10) {
-    let p: *u8 = "shux_sys_bind";
+    let p: *u8 = "xlang_sys_bind";
     return p;
   }
   if (i == 11) {
-    let p: *u8 = "shux_sys_listen";
+    let p: *u8 = "xlang_sys_listen";
     return p;
   }
   if (i == 12) {
-    let p: *u8 = "shux_sys_accept";
+    let p: *u8 = "xlang_sys_accept";
     return p;
   }
   return 0 as *u8;
@@ -159,7 +159,7 @@ export function labi_fs_io_sym_at(i: i32): *u8 {
  */
 #[no_mangle]
 export function labi_fs_panic_sym(): *u8 {
-  let p: *u8 = "shux_panic_";
+  let p: *u8 = "xlang_panic_";
   return p;
 }
 
@@ -324,7 +324,7 @@ export function labi_fs_io_src_rel(): *u8 {
 }
 
 /* Cap residual: object UNDEF probe stays mega (nm/popen). */
-export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+export extern "C" function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 
 /**
  * Return 1 iff generated C at c_path contains needle as a raw byte substring.
@@ -687,7 +687,7 @@ export function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32 {
 
 /**
  * Whether user .o still needs libc heap symbols (UNDEF probe).
- * Pure orch: fixed undef-symbol table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed undef-symbol table; Cap residual xlang_link_obj_needs_undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
  * PLATFORM: SHARED — hybrid L7 pure; mega cold twin under #ifndef FREESTANDING_LIST_FROM_X.
@@ -708,7 +708,7 @@ export function link_abi_user_o_needs_libc_heap(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -746,7 +746,7 @@ export function link_abi_user_o_needs_freestanding_nostdlib_face(user_o: *u8): i
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1731,7 +1731,7 @@ export function link_abi_generated_c_provides_std_heap(c_path: *u8): i32 {
  * PLATFORM: SHARED tables — WINDOWS link surface (needles); hybrid L7 pure; mega cold twin. */
 
 /**
- * Count of generated-C substr needles for Win32 kernel32 / shux win32 helpers.
+ * Count of generated-C substr needles for Win32 kernel32 / xlang win32 helpers.
  * @return i32 — 9 needles (GetStdHandle… + win32_* helpers)
  * PLATFORM: SHARED (table) / WINDOWS (link consumers)
  */
@@ -1827,7 +1827,7 @@ export function labi_fs_gen_win32_wsa_needle_at(i: i32): *u8 {
 }
 
 /**
- * Whether generated C needs Win32 kernel32 / shux win32 helpers.
+ * Whether generated C needs Win32 kernel32 / xlang win32 helpers.
  * Pure orch: fixed needle table; Cap residual contains_substr.
  * @param c_path *u8 — path to generated .c; null/empty → 0
  * @return i32 — 1 if any needle hits, else 0
@@ -1959,39 +1959,39 @@ export function labi_fs_gen_async_scheduler_needle_at(i: i32): *u8 {
     return 0 as *u8;
   }
   if (i == 0) {
-    let p: *u8 = "shux_async_run_i32";
+    let p: *u8 = "xlang_async_run_i32";
     return p;
   }
   if (i == 1) {
-    let p: *u8 = "shux_async_cps_suspend";
+    let p: *u8 = "xlang_async_cps_suspend";
     return p;
   }
   if (i == 2) {
-    let p: *u8 = "shux_async_task_submit";
+    let p: *u8 = "xlang_async_task_submit";
     return p;
   }
   if (i == 3) {
-    let p: *u8 = "shux_async_run_seed_";
+    let p: *u8 = "xlang_async_run_seed_";
     return p;
   }
   if (i == 4) {
-    let p: *u8 = "shux_async_coop_pingpong_jmp";
+    let p: *u8 = "xlang_async_coop_pingpong_jmp";
     return p;
   }
   if (i == 5) {
-    let p: *u8 = "shux_async_coop_pingpong";
+    let p: *u8 = "xlang_async_coop_pingpong";
     return p;
   }
   if (i == 6) {
-    let p: *u8 = "shux_async_run_drain_until_idle";
+    let p: *u8 = "xlang_async_run_drain_until_idle";
     return p;
   }
   if (i == 7) {
-    let p: *u8 = "shux_async_queue_reset";
+    let p: *u8 = "xlang_async_queue_reset";
     return p;
   }
   if (i == 8) {
-    let p: *u8 = "shux_async_bind_context_c";
+    let p: *u8 = "xlang_async_bind_context_c";
     return p;
   }
   return 0 as *u8;
@@ -2006,7 +2006,7 @@ export function labi_fs_gen_async_scheduler_needle_at(i: i32): *u8 {
  * PLATFORM: SHARED
  */
 #[no_mangle]
-export function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
+export function xlang_generated_c_needs_async_scheduler(c_path: *u8): i32 {
   if (c_path == 0 as *u8) {
     return 0;
   }
@@ -2035,13 +2035,13 @@ export function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
 
 /* wave144: freestanding user.o needs_io / needs_panic pure orch.
  * Product: freestanding link path pushes freestanding_io.o / panic.o when user.o
- * still UNDEFs shux_sys_* or shux_panic_. Tables already pure (labi_fs_io_sym_* /
+ * still UNDEFs xlang_sys_* or xlang_panic_. Tables already pure (labi_fs_io_sym_* /
  * labi_fs_panic_sym); this wave moves the orch bodies out of always-mega C.
- * Cap residual: shux_link_obj_needs_undef_sym (nm/pipe stays mega).
+ * Cap residual: xlang_link_obj_needs_undef_sym (nm/pipe stays mega).
  * PLATFORM: SHARED orch / LINUX freestanding consumers. */
 
 /**
- * Whether freestanding user .o needs freestanding_io.o (UNDEF shux_sys_*).
+ * Whether freestanding user .o needs freestanding_io.o (UNDEF xlang_sys_*).
  * Pure orch: fixed UNDEF table ×13 via labi_fs_io_sym_*; Cap residual undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any io-face UNDEF hits, else 0
@@ -2049,7 +2049,7 @@ export function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
  * PLATFORM: SHARED
  */
 #[no_mangle]
-export function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
+export function xlang_freestanding_user_o_needs_io(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
   }
@@ -2064,7 +2064,7 @@ export function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -2077,7 +2077,7 @@ export function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
 }
 
 /**
- * Whether freestanding user .o needs panic runtime (UNDEF shux_panic_).
+ * Whether freestanding user .o needs panic runtime (UNDEF xlang_panic_).
  * Pure orch: single panic needle via labi_fs_panic_sym; Cap residual undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if panic UNDEF hits, else 0
@@ -2085,7 +2085,7 @@ export function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
  * PLATFORM: SHARED
  */
 #[no_mangle]
-export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
+export function xlang_freestanding_user_o_needs_panic(user_o: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
   }
@@ -2101,7 +2101,7 @@ export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
   }
   let hit: i32 = 0;
   unsafe {
-    hit = shux_link_obj_needs_undef_sym(user_o, s);
+    hit = xlang_link_obj_needs_undef_sym(user_o, s);
   }
   if (hit != 0) {
     return 1;
@@ -2111,20 +2111,20 @@ export function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
 
 /**
  * Whether freestanding (nostdlib Linux ELF) link mode is active for this driver.
- * Pure orch: peer shux_host_is_linux + pure labi_fs_env_freestanding name + Cap residual getenv.
+ * Pure orch: peer xlang_host_is_linux + pure labi_fs_env_freestanding name + Cap residual getenv.
  * Rules (≡ historical mega): non-Linux → 0; driver_freestanding != 0 → 1; else read
- * SHUX_FREESTANDING env — null / empty / leading '0' → 0; any other non-empty → 1.
+ * XLANG_FREESTANDING env — null / empty / leading '0' → 0; any other non-empty → 1.
  * @param driver_freestanding i32 — CLI/driver freestanding flag (0 = off, nonzero = force on)
  * @return i32 — 1 if freestanding path should run, else 0
  * Why (wave159): hybrid still had freestanding_enabled body always mega C over pure env name.
  * Cap residual: link_abi_getenv (wave223 G.7; host getenv_impl mega). PLATFORM: SHARED orch / LINUX freestanding consumers.
  */
 #[no_mangle]
-export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
+export function xlang_link_freestanding_enabled(driver_freestanding: i32): i32 {
   // Non-Linux hosts never take freestanding product path (peer host_lit pure → _impl Cap).
   let is_linux: i32 = 0;
   unsafe {
-    is_linux = shux_host_is_linux();
+    is_linux = xlang_host_is_linux();
   }
   if (is_linux == 0) {
     return 0;
@@ -2133,7 +2133,7 @@ export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
   if (driver_freestanding != 0) {
     return 1;
   }
-  // Cap residual: read SHUX_FREESTANDING via pure env name table.
+  // Cap residual: read XLANG_FREESTANDING via pure env name table.
   // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
   let name: *u8 = labi_fs_env_freestanding();
   let e: *u8 = 0 as *u8;
@@ -2163,29 +2163,29 @@ export function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
  *   (no snprintf Cap) after Cap residual resolve; Cap residual path_readable + cc_compile_sync
  *   + skip_missing (stat) + path pure crt0 ladder + peer diags.
  * Cap residual: shu_resolve_compiler_dir (PLATFORM #if body); link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
+ *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
  * Why (wave167): hybrid still had always-mega C body for freestanding crt0 ensure path ladder
  *   (tables already pure; only orch+join stayed mega over access/cc Cap).
- * Sibling wave168: shux_ensure_freestanding_io_o pure (same Cap residual set; io tables/path).
+ * Sibling wave168: xlang_ensure_freestanding_io_o pure (same Cap residual set; io tables/path).
  * PLATFORM: SHARED orch / LINUX freestanding consumers — hybrid L7 pure; mega cold twin under
  *   #ifndef FREESTANDING_LIST_FROM_X.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32 {
+export function xlang_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32 {
   // Pure tables for out leaf / asm source rel / stem (diag).
   let out_base: *u8 = labi_fs_crt0_out_base();
   let src_rel: *u8 = labi_fs_crt0_src_rel();
   let stem: *u8 = labi_fs_ensure_stem(0);
   // Peer pure freestanding gate (wave159): no-op when freestanding inactive.
-  if (shux_link_freestanding_enabled(driver_freestanding) == 0) {
+  if (xlang_link_freestanding_enabled(driver_freestanding) == 0) {
     return 0;
   }
   // Cap residual: skip if product path already has crt0_user.o (stat via path pure peer).
   let o_path: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
-    o_path = shux_crt0_user_o_path(argv0);
+    o_path = xlang_crt0_user_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have != 0 as *u8) {
@@ -2281,7 +2281,7 @@ export function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i
   // Cap residual: cc -c asm source → out_o (from_asm_s=1; no -I paths for .s).
   let crc: i32 = 0;
   unsafe {
-    crc = shux_cc_compile_sync(&src_s[0], &out_o[0], 0 as *u8, 0 as *u8, 0 as *u8, 1);
+    crc = xlang_cc_compile_sync(&src_s[0], &out_o[0], 0 as *u8, 0 as *u8, 0 as *u8, 1);
   }
   if (crc != 0) {
     unsafe {
@@ -2291,7 +2291,7 @@ export function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i
   }
   // Cap residual: re-stat product path; missing after cc → diag fail.
   unsafe {
-    o_path = shux_crt0_user_o_path(argv0);
+    o_path = xlang_crt0_user_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have == 0 as *u8) {
@@ -2313,29 +2313,29 @@ export function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i
  *   (no snprintf Cap) after Cap residual resolve; Cap residual path_readable + cc_compile_sync
  *   + skip_missing (stat) + path pure freestanding_io ladder + peer diags.
  * Cap residual: shu_resolve_compiler_dir (PLATFORM #if body); link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
+ *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
  * Why (wave168): hybrid still had always-mega C body for freestanding_io ensure path ladder
  *   (tables already pure wave276; o_path pure wave165; only orch+join stayed mega over access/cc Cap).
- * Peer wave167: shux_ensure_crt0_user_o (same Cap residual set; crt0 tables/path).
+ * Peer wave167: xlang_ensure_crt0_user_o (same Cap residual set; crt0 tables/path).
  * PLATFORM: SHARED orch / LINUX freestanding consumers — hybrid L7 pure; mega cold twin under
  *   #ifndef FREESTANDING_LIST_FROM_X.
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32 {
+export function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32 {
   // Pure tables for out leaf / asm source rel / stem (diag); stem index 1 = freestanding_io.
   let out_base: *u8 = labi_fs_io_out_base();
   let src_rel: *u8 = labi_fs_io_src_rel();
   let stem: *u8 = labi_fs_ensure_stem(1);
   // Peer pure freestanding gate (wave159): no-op when freestanding inactive.
-  if (shux_link_freestanding_enabled(driver_freestanding) == 0) {
+  if (xlang_link_freestanding_enabled(driver_freestanding) == 0) {
     return 0;
   }
   // Cap residual: skip if product path already has freestanding_io.o (stat via path pure peer).
   let o_path: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
-    o_path = shux_freestanding_io_o_path(argv0);
+    o_path = xlang_freestanding_io_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have != 0 as *u8) {
@@ -2431,7 +2431,7 @@ export function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i
   // Cap residual: cc -c asm source → out_o (from_asm_s=1; no -I paths for .s).
   let crc: i32 = 0;
   unsafe {
-    crc = shux_cc_compile_sync(&src_s[0], &out_o[0], 0 as *u8, 0 as *u8, 0 as *u8, 1);
+    crc = xlang_cc_compile_sync(&src_s[0], &out_o[0], 0 as *u8, 0 as *u8, 0 as *u8, 1);
   }
   if (crc != 0) {
     unsafe {
@@ -2441,7 +2441,7 @@ export function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i
   }
   // Cap residual: re-stat product path; missing after cc → diag fail.
   unsafe {
-    o_path = shux_freestanding_io_o_path(argv0);
+    o_path = xlang_freestanding_io_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have == 0 as *u8) {

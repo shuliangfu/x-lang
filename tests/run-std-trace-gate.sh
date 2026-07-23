@@ -3,8 +3,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_TRACE_DOC:-analysis/std-trace-v1.md}"
-MANIFEST="${SHUX_STD_TRACE_MANIFEST:-tests/baseline/std-trace-manifest.tsv}"
+DOC="${XLANG_STD_TRACE_DOC:-analysis/std-trace-v1.md}"
+MANIFEST="${XLANG_STD_TRACE_MANIFEST:-tests/baseline/std-trace-manifest.tsv}"
 MOD_X="std/trace/mod.x"
 TRACE_X="std/trace/trace.x"
 LIB="tests/lib/std-trace.sh"
@@ -64,7 +64,7 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-088: trace c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   if ensure_std_c_o ../std/trace/trace.o 2>/dev/null && std_trace_run_c_smoke "$TRACE_X"; then
@@ -73,21 +73,21 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "std-trace gate SKIP c smoke (no full trace.o)" >&2
   fi
 else
-  echo "std-trace gate SKIP c smoke (no shux-c)" >&2
+  echo "std-trace gate SKIP c smoke (no xlang-c)" >&2
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-088: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-088: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-trace gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_trace_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_trace_run_smoke "$SHUX_BIN" "$SMOKE_X" "nested"; then X_OK=1; else
+  if std_trace_run_smoke "$XLANG_BIN" "$SMOKE_X" "nested"; then X_OK=1; else
     std_trace_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi

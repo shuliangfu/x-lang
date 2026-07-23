@@ -3,18 +3,18 @@
 #
 # 用法：./tests/run-f-std-zero-c-track-gate.sh
 # 环境：
-#   SHUX_F_STD_ZERO_C_FAIL=1       — 跟踪失败时硬退出（默认软通过）
-#   SHUX_F_STD_ZERO_C_STRICT=1     — 终局模式：std 仍存在 .c/.h 即 FAIL
-#   SHUX_F_STD_ZERO_C_UPDATE=1     — 刷新 tests/baseline/f-std-zero-c-track.tsv
+#   XLANG_F_STD_ZERO_C_FAIL=1       — 跟踪失败时硬退出（默认软通过）
+#   XLANG_F_STD_ZERO_C_STRICT=1     — 终局模式：std 仍存在 .c/.h 即 FAIL
+#   XLANG_F_STD_ZERO_C_UPDATE=1     — 刷新 tests/baseline/f-std-zero-c-track.tsv
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_STD_ZERO_C_FAIL:-0}
-STRICT=${SHUX_F_STD_ZERO_C_STRICT:-0}
-UPDATE=${SHUX_F_STD_ZERO_C_UPDATE:-0}
+FAIL=${XLANG_F_STD_ZERO_C_FAIL:-0}
+STRICT=${XLANG_F_STD_ZERO_C_STRICT:-0}
+UPDATE=${XLANG_F_STD_ZERO_C_UPDATE:-0}
 DOC="analysis/phase-f-std-zero-c-v1.md"
 MANIFEST="tests/baseline/f-std-zero-c-track.tsv"
-TMP="/tmp/shux_std_zero_c_track.$$.tsv"
+TMP="/tmp/xlang_std_zero_c_track.$$.tsv"
 
 die() {
   echo "f-std-zero-c-track FAIL: $*" >&2
@@ -29,7 +29,7 @@ collect_track() {
   {
     echo "# F-std-zero-c track manifest（std 零 C/H 终局）"
     echo "# 列：kind	path	phase	notes"
-    echo "# 更新：SHUX_F_STD_ZERO_C_UPDATE=1 ./tests/run-f-std-zero-c-track-gate.sh"
+    echo "# 更新：XLANG_F_STD_ZERO_C_UPDATE=1 ./tests/run-f-std-zero-c-track-gate.sh"
     echo "summary_std_c_target	0"
     echo "summary_std_h_target	0"
     printf 'summary_std_c_current\t%s\n' "$c_n"
@@ -55,8 +55,8 @@ collect_track() {
       esac
       printf 'file_h\t%s\t%s\tpending\n' "$p" "$ph"
     done
-    if [ -f compiler/include/shux_std_abi/fs_abi.h ]; then
-      printf 'file_abi_h\tcompiler/include/shux_std_abi/fs_abi.h\tZ9-abi-header-done\tF-ZC inline preamble\n'
+    if [ -f compiler/include/xlang_std_abi/fs_abi.h ]; then
+      printf 'file_abi_h\tcompiler/include/xlang_std_abi/fs_abi.h\tZ9-abi-header-done\tF-ZC inline preamble\n'
     fi
     if [ -f std/compress/common.x ]; then
       printf 'file_x\tstd/compress/common.x\tZ9-header-done\tcompress_common.h removed\n'
@@ -103,7 +103,7 @@ while IFS=$'\t' read -r kind path _phase _notes; do
   [ -f "$path" ] || GONE=$((GONE + 1))
 done < "$MANIFEST"
 if [ "$GONE" -gt 0 ]; then
-  echo "f-std-zero-c-track: $GONE baseline entries removed (good progress; run SHUX_F_STD_ZERO_C_UPDATE=1 to refresh)" >&2
+  echo "f-std-zero-c-track: $GONE baseline entries removed (good progress; run XLANG_F_STD_ZERO_C_UPDATE=1 to refresh)" >&2
 fi
 
 if [ "$STRICT" = "1" ]; then

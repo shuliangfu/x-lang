@@ -63,8 +63,8 @@
 
 - manifest：`tests/baseline/std-error-map.tsv`
 - 烟测：`tests/std/error_map_smoke.x`
-- 门禁：`tests/run-std-error-map-gate.sh`（`SHUX_STD_ERROR_MAP`）
-- 报告：`shux: [SHUX_STD_ERROR_MAP] status=ok`
+- 门禁：`tests/run-std-error-map-gate.sh`（`XLANG_STD_ERROR_MAP`）
+- 报告：`xlang: [XLANG_STD_ERROR_MAP] status=ok`
 
 ---
 

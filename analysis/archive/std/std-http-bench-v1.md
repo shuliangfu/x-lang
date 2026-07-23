@@ -48,8 +48,8 @@
 
 ```bash
 ./tests/run-perf-http.sh --bench
-SHUX_PERF_FAIL_ON_HTTP_REGRESSION=1 ./tests/run-perf-http.sh --bench
-SHUX_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench
+XLANG_PERF_FAIL_ON_HTTP_REGRESSION=1 ./tests/run-perf-http.sh --bench
+XLANG_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench
 ```
 
 ---
@@ -59,7 +59,7 @@ SHUX_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench
 单次 GET 往返记录微秒延迟；输出 **`BENCH_P99_US=`**（latency）。  
 基线：`tests/baseline/http-perf-latency.tsv`（`http_get_bench_p99` 行）。
 
-门禁在 `SHUX_PERF_FAIL_ON_HTTP_REGRESSION=1` 时同时检查吞吐与 P99。
+门禁在 `XLANG_PERF_FAIL_ON_HTTP_REGRESSION=1` 时同时检查吞吐与 P99。
 
 ---
 
@@ -75,7 +75,7 @@ SHUX_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench
 ```bash
 ./tests/run-std-http-gate.sh
 ./tests/run-http.sh          # runnable 烟测
-./tests/run-perf-http.sh --bench   # Linux native shux
+./tests/run-perf-http.sh --bench   # Linux native xlang
 ```
 
 | 资源 | 路径 |

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-elf-parse.sh — STD-058 manifest 与烟测辅助
 
-STD_ELF_PARSE_PREFIX="${SHUX_STD_ELF_PARSE_PREFIX:-shux: [SHUX_STD_ELF_PARSE]}"
+STD_ELF_PARSE_PREFIX="${XLANG_STD_ELF_PARSE_PREFIX:-xlang: [XLANG_STD_ELF_PARSE]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_elf_parse_symbols_ok() {
@@ -51,7 +51,7 @@ std_elf_parse_symbols_ok() {
 std_elf_parse_run_c_smoke() {
   local elf_o_dir="$1"
   local src="tests/std-elf/parse_smoke_ok.c"
-  local out="/tmp/shux_std_elf_parse_$$"
+  local out="/tmp/xlang_std_elf_parse_$$"
   local elf_o
   elf_o="${elf_o_dir}/elf.o"
   if [ ! -f "$elf_o" ]; then
@@ -76,13 +76,13 @@ std_elf_parse_run_c_smoke() {
 
 # .x 烟测。
 std_elf_parse_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-hdr}"
-  local exe="/tmp/shux_std_elf_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_elf_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-elf-parse FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL_LSP_DIAG_DOC:-analysis/tool-lsp-diag-perf-v1.md}"
-MANIFEST="${SHUX_TOOL_LSP_DIAG_MANIFEST:-tests/baseline/tool-lsp-diag-perf.tsv}"
+DOC="${XLANG_TOOL_LSP_DIAG_DOC:-analysis/tool-lsp-diag-perf-v1.md}"
+MANIFEST="${XLANG_TOOL_LSP_DIAG_MANIFEST:-tests/baseline/tool-lsp-diag-perf.tsv}"
 MIN_OPTS=6
 MIN_CASES=2
 MIN_LARGE_FUNCS=30
@@ -134,23 +134,23 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-lsp-diag-perf manifest OK (opts=${OPT_N} cases=${CASE_N} funcs=${LARGE_FUNCS} max_wall_ms=${MAX_WALL_MS})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN" && "$SHUX_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
-  echo "=== TOOL-004: LSP diag perf hooks (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN" && "$XLANG_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
+  echo "=== TOOL-004: LSP diag perf hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-lsp-diag-perf.sh
-  SHUX_LSP_DIAG_MAX_WALL_MS="$MAX_WALL_MS" SHUX_LSP_DIAG_MIN_FUNCS="$MIN_LARGE_FUNCS" SHUX="$SHUX_BIN" ./tests/run-lsp-diag-perf.sh
+  XLANG_LSP_DIAG_MAX_WALL_MS="$MAX_WALL_MS" XLANG_LSP_DIAG_MIN_FUNCS="$MIN_LARGE_FUNCS" XLANG="$XLANG_BIN" ./tests/run-lsp-diag-perf.sh
   echo "tool-lsp-diag-perf hooks OK"
 else
-  echo "tool-lsp-diag-perf gate SKIP hooks (no native shux --lsp)" >&2
+  echo "tool-lsp-diag-perf gate SKIP hooks (no native xlang --lsp)" >&2
 fi
 
 echo "tool-lsp-diag-perf gate OK"

@@ -2,11 +2,11 @@
 # F-05 v2：std.db.kv 去 C 门禁。
 #
 # 用法：./tests/run-f05-std-db-kv-v2-gate.sh
-# 环境：SHUX_F05_DB_KV_V2_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F05_DB_KV_V2_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F05_DB_KV_V2_FAIL:-0}
+FAIL=${XLANG_F05_DB_KV_V2_FAIL:-0}
 DOC="analysis/phase-f-f05-v2.md"
 
 die() {
@@ -51,7 +51,7 @@ EOF
   "$TMP/kv_smoke" || die "kv smoke run failed"
   echo "f05 kv smoke OK"
 else
-  echo "f05 kv smoke SKIP (kv.o missing .x symbols; need shux-c)"
+  echo "f05 kv smoke SKIP (kv.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-db-kv-arrow-gate.sh ]; then

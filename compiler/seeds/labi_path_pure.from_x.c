@@ -1,38 +1,38 @@
 /* seeds/labi_path_pure.from_x.c — G-02f-267/429/L P2 link_abi L0 path pure → R2 full
  * Logic source: src/runtime/labi_path_pure.x
- * Hybrid: SHUX_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
+ * Hybrid: XLANG_LABI_PATH_PURE_FROM_X + ld -r into runtime_link_abi.o
  *
  * R2 full（2026-07-14 / wave114–116 / wave146–149）：公共业务符号由 full .x 提供：
- *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + shux_output_is_elf_o
- *   + shux_output_want_exe + shux_path_has_sep + shux_path_last_sep
- *   + shux_asm_ld_lib_root_ptr_usable (wave114 low-tag)
- *   + shux_asm_ld_lib_root_default (wave115 SHUX_LIB/"." ; Cap residual link_abi_getenv wave223)
- *   + shux_asm_ld_try_under_lib_roots (wave116 pure join; Cap residual skip+bank)
+ *   labi_suffix_eq2/eq4 + link_abi_ld_argv_entry_is_obj + xlang_output_is_elf_o
+ *   + xlang_output_want_exe + xlang_path_has_sep + xlang_path_last_sep
+ *   + xlang_asm_ld_lib_root_ptr_usable (wave114 low-tag)
+ *   + xlang_asm_ld_lib_root_default (wave115 XLANG_LIB/"." ; Cap residual link_abi_getenv wave223)
+ *   + xlang_asm_ld_try_under_lib_roots (wave116 pure join; Cap residual skip+bank)
  *   + link_abi_asm_ld_argv_has_obj (wave146 pure scan; Cap residual realpath)
  *   + link_abi_asm_ld_argv_push_stable (wave147 pure bank+dedup+append; Cap residual bank_push)
  *   + link_abi_asm_ld_push_obj (wave148 pure resolve orch; Cap residual skip/rel/bank/diag)
  *   + link_abi_asm_ld_push_glue_after_std (wave149 pure have_std+ensure orch; Cap residual call_ensure)
  *   + link_abi_asm_ld_push_minimal_runtime_objs (wave150 pure triple push_obj; Cap residual *_o_path)
- *   + shux_asm_ld_append_user_extra_o_files (wave151 pure CLI extra .o append; Cap residual table+access)
- *   + shux_runtime_compiler_o_path_copy (wave160 pure join compiler-dir/leaf; Cap residual resolve)
- *   + shux_repo_root_from_argv0 (wave162 pure strip parent / process.o walk; Cap residual resolve+rel)
- *   + shux_runtime_panic_o_path (wave163 pure cwd/argv0 ladder; Cap residual realpath+getcwd+skip)
- *   + shux_crt0_user_o_path (wave164 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd)
- *   + shux_freestanding_io_o_path (wave165 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd)
- *   + shux_std_async_scheduler_o_path (wave166 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd;
+ *   + xlang_asm_ld_append_user_extra_o_files (wave151 pure CLI extra .o append; Cap residual table+access)
+ *   + xlang_runtime_compiler_o_path_copy (wave160 pure join compiler-dir/leaf; Cap residual resolve)
+ *   + xlang_repo_root_from_argv0 (wave162 pure strip parent / process.o walk; Cap residual resolve+rel)
+ *   + xlang_runtime_panic_o_path (wave163 pure cwd/argv0 ladder; Cap residual realpath+getcwd+skip)
+ *   + xlang_crt0_user_o_path (wave164 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd)
+ *   + xlang_freestanding_io_o_path (wave165 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd)
+ *   + xlang_std_async_scheduler_o_path (wave166 pure cwd/argv0 ladder; Cap residual realpath_cap+getcwd;
  *     step3 realpath(argv0)+parent+/../std/async)
  *   + scheduler_o_for_task_link (wave180 pure task.o→scheduler.o rewrite; Cap residual
  *     path_readable + realpath_cap; static 4096/4096 BSS)
- *   + shux_bootstrap_nostdlib_stubs_o_path (wave181 pure cwd realpath + compiler-dir/leaf;
+ *   + xlang_bootstrap_nostdlib_stubs_o_path (wave181 pure cwd realpath + compiler-dir/leaf;
  *     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS)
- *   + 29× thin shux_runtime_*_o_path (wave183 pure BSS + compiler_o_path_copy;
+ *   + 29× thin xlang_runtime_*_o_path (wave183 pure BSS + compiler_o_path_copy;
  *     asm_io_stubs … ed25519_ref10_glue; static 4096 BSS each)
- *   + shux_empty_cstr / shux_std_io_o_path / shux_std_compress_o_path /
- *     shux_asm_ld_effective_link_argv0 (wave184 pure empty durable "" + effective link orch;
- *     Cap residual resolve for synthetic compiler-dir/shux)
- *   + shux_rel_o_path_from_argv0 (wave185 pure realpath/cwd/argv0 ladder; Cap residual
+ *   + xlang_empty_cstr / xlang_std_io_o_path / xlang_std_compress_o_path /
+ *     xlang_asm_ld_effective_link_argv0 (wave184 pure empty durable "" + effective link orch;
+ *     Cap residual resolve for synthetic compiler-dir/xlang)
+ *   + xlang_rel_o_path_from_argv0 (wave185 pure realpath/cwd/argv0 ladder; Cap residual
  *     realpath_cap + getcwd + link_abi_cstr_dup + skip_missing; heap return)
- *   + shux_invoke_cc_set/clear_user_o_files (wave189 pure argv .o scan; Cap residual reset/push)
+ *   + xlang_invoke_cc_set/clear_user_o_files (wave189 pure argv .o scan; Cap residual reset/push)
  *   + count
  * Cap residual（mega rest 冷路径）：Windows #if '\\' 分隔符；产品 PREFER 走 .x POSIX。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -50,21 +50,21 @@
 const char *asm_link_obj_skip_missing(const char *path);
 /* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
 const char *link_abi_getenv(const char *name);
-const char *shux_asm_ld_bank_push(void *b, const char *path);
+const char *xlang_asm_ld_bank_push(void *b, const char *path);
 /* Cap residual used by wave146 argv_has_obj / wave185 rel_o cold twin (mega always provides). */
 const char *link_abi_realpath_cap(const char *path, char *out);
 /* Cap residual wave185: heap cstr dup (mega always; wraps strdup). */
 const char *link_abi_cstr_dup(const char *s);
-/* wave185: shux_rel_o_path_from_argv0 pure cold twin below (forward for push_obj). */
-const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
+/* wave185: xlang_rel_o_path_from_argv0 pure cold twin below (forward for push_obj). */
+const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
 /* Cap residual used by wave149 push_glue cold twin (mega always provides). */
 int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0);
 /* Cap residual used by wave150 push_minimal cold twin (mega always provides). */
 /* wave163: panic_o_path is pure in this cold twin (forward decl for push_minimal). */
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
-const char *shux_runtime_process_argv_o_path(const char *argv0);
-const char *shux_runtime_panic_o_path(const char *argv0);
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *xlang_runtime_process_argv_o_path(const char *argv0);
+const char *xlang_runtime_panic_o_path(const char *argv0);
 /* Cap residual used by wave151 append_user_extra cold twin (mega always provides). */
 int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
@@ -72,19 +72,19 @@ int link_abi_path_readable(const char *path);
 /* Cap residual used by wave160 compiler_o_path_copy / wave162 repo_root cold twin (mega always provides). */
 int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 /* Cap residual used by wave163 panic_o_path cold twin (path_io / libc). */
-const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
+const char *xlang_runtime_o_realpath_if_exists(const char *path, char *resolved);
 char *getcwd(char *buf, size_t size);
 /* Cap residual used by wave164/165/166 crt0_user / freestanding_io / async_scheduler_o_path
  * cold twin (POSIX realpath; already declared as link_abi_realpath_cap above for wave146). */
 /* Pure peer defined earlier in this cold twin (wave116); declared for clarity. */
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
+const char *xlang_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la,
     int *flag_out);
 
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 
 int32_t labi_suffix_eq2(uint8_t *s, int32_t n, uint8_t a0, uint8_t a1) {
   if (n < 2) {
@@ -138,7 +138,7 @@ int32_t link_abi_ld_argv_entry_is_obj(uint8_t *s) {
   return 0;
 }
 
-int32_t shux_output_is_elf_o(uint8_t *path) {
+int32_t xlang_output_is_elf_o(uint8_t *path) {
   int32_t n = 0;
   if (path == ((uint8_t *)(0))) {
     return 0;
@@ -158,7 +158,7 @@ int32_t shux_output_is_elf_o(uint8_t *path) {
   return 0;
 }
 
-int32_t shux_output_want_exe(uint8_t *path) {
+int32_t xlang_output_want_exe(uint8_t *path) {
   int32_t n = 0;
   if (path == ((uint8_t *)(0))) {
     return 0;
@@ -184,7 +184,7 @@ int32_t shux_output_want_exe(uint8_t *path) {
   return 1;
 }
 
-int32_t shux_path_has_sep(uint8_t *s) {
+int32_t xlang_path_has_sep(uint8_t *s) {
   if (s == ((uint8_t *)(0))) {
     return 0;
   }
@@ -198,7 +198,7 @@ int32_t shux_path_has_sep(uint8_t *s) {
   return 0;
 }
 
-uint8_t *shux_path_last_sep(uint8_t *s) {
+uint8_t *xlang_path_last_sep(uint8_t *s) {
   if (s == ((uint8_t *)(0))) {
     return ((uint8_t *)(0));
   }
@@ -220,7 +220,7 @@ uint8_t *shux_path_last_sep(uint8_t *s) {
 }
 
 /* wave114 cold twin: lib-root pointer usable (null / low-tag / empty). */
-int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p) {
+int32_t xlang_asm_ld_lib_root_ptr_usable(uint8_t *p) {
   if (p == ((uint8_t *)(0))) {
     return 0;
   }
@@ -233,13 +233,13 @@ int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p) {
   return 1;
 }
 
-/* wave115 cold twin: default lib-root (SHUX_LIB or "."). Cap residual: link_abi_getenv (wave223). */
-void shux_asm_ld_lib_root_default(uint8_t *root_buf) {
+/* wave115 cold twin: default lib-root (XLANG_LIB or "."). Cap residual: link_abi_getenv (wave223). */
+void xlang_asm_ld_lib_root_default(uint8_t *root_buf) {
   const char *def;
   root_buf[0] = (uint8_t)'.';
   root_buf[1] = 0;
-  def = link_abi_getenv("SHUX_LIB");
-  if (shux_asm_ld_lib_root_ptr_usable((uint8_t *)def) == 0) {
+  def = link_abi_getenv("XLANG_LIB");
+  if (xlang_asm_ld_lib_root_ptr_usable((uint8_t *)def) == 0) {
     return;
   }
   strncpy((char *)root_buf, def, 511);
@@ -247,7 +247,7 @@ void shux_asm_ld_lib_root_default(uint8_t *root_buf) {
 }
 
 /* wave116 cold twin: try rel under each lib root (pure join; Cap skip+bank). */
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank) {
+const char *xlang_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank) {
   int i;
   char tmp[4096];
   size_t rel_n;
@@ -281,7 +281,7 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
     }
     if (!asm_link_obj_skip_missing(tmp))
       continue;
-    return shux_asm_ld_bank_push(bank, tmp);
+    return xlang_asm_ld_bank_push(bank, tmp);
   }
   return NULL;
 }
@@ -326,7 +326,7 @@ void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, in
     return;
   use_p = p;
   if (bank) {
-    const char *bp = shux_asm_ld_bank_push(bank, p);
+    const char *bp = xlang_asm_ld_bank_push(bank, p);
     if (bp)
       use_p = bp;
   }
@@ -351,26 +351,26 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
           || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
     debug_runtime_obj = 1;
   /* wave223 G.7: link_abi_getenv (not raw getenv). */
-  if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
+  if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
     link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
   if (primary && primary[0])
     p = asm_link_obj_skip_missing(primary);
-  if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
+  if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
     link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
   if (!p && rel && rel[0])
-    p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel));
+    p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, rel));
   if (!p && bank && rel && rel[0])
-    p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
+    p = xlang_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
   if (!p)
     return 0;
   if (bank) {
-    const char *bp = shux_asm_ld_bank_push(bank, p);
+    const char *bp = xlang_asm_ld_bank_push(bank, p);
     if (bp)
       p = bp;
     else
       return 0;
   }
-  if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
+  if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
     link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
   /* Single-authority append: wave147 push_stable bank=null after hard bank. */
   before = *la;
@@ -399,9 +399,9 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
 /* wave150: push_minimal_runtime_objs pure orch (cold twin ≡ .x; Cap residual *_o_path). */
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, void *bank, const char **argv, int *la, int max_la) {
-  const char *io_p = shux_runtime_asm_io_stubs_o_path(link_argv0);
-  const char *proc_p = shux_runtime_process_argv_o_path(link_argv0);
-  const char *panic_p = shux_runtime_panic_o_path(link_argv0);
+  const char *io_p = xlang_runtime_asm_io_stubs_o_path(link_argv0);
+  const char *proc_p = xlang_runtime_process_argv_o_path(link_argv0);
+  const char *panic_p = xlang_runtime_panic_o_path(link_argv0);
   (void)link_abi_asm_ld_push_obj(io_p, link_argv0, "compiler/runtime_asm_io_stubs.o",
       lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
   (void)link_abi_asm_ld_push_obj(proc_p, link_argv0, "compiler/runtime_process_argv.o",
@@ -411,7 +411,7 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
 }
 
 /* wave151: append_user_extra_o_files pure orch (cold twin ≡ .x; Cap residual table+access). */
-void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
+void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
   int n;
   int ui;
   if (!argv || !la)
@@ -431,7 +431,7 @@ void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_l
 }
 
 /* wave160: compiler_o_path_copy pure orch (cold twin ≡ .x; Cap residual resolve). */
-int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
+int xlang_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
   char comp_dir[4096];
   int dn;
   int ln;
@@ -465,7 +465,7 @@ int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char 
 /* wave162: repo_root pure orch (cold twin ≡ .x; Cap residual resolve + rel_o_path). */
 static char g_labi_repo_root_buf[512];
 
-const char *shux_repo_root_from_argv0(const char *argv0) {
+const char *xlang_repo_root_from_argv0(const char *argv0) {
   char comp[4096];
   int n;
   int i;
@@ -482,7 +482,7 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
     if (n < 512) {
       for (i = 0; i <= n; i++)
         g_labi_repo_root_buf[i] = comp[i];
-      last = (char *)shux_path_last_sep((uint8_t *)g_labi_repo_root_buf);
+      last = (char *)xlang_path_last_sep((uint8_t *)g_labi_repo_root_buf);
       if (last && last != g_labi_repo_root_buf) {
         *last = '\0';
         return g_labi_repo_root_buf;
@@ -490,7 +490,7 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
       g_labi_repo_root_buf[0] = '\0';
     }
   }
-  proc_o = shux_rel_o_path_from_argv0(argv0, "std/process/process.o");
+  proc_o = xlang_rel_o_path_from_argv0(argv0, "std/process/process.o");
   if (!proc_o || !proc_o[0])
     return g_labi_repo_root_buf;
   pn = 0;
@@ -501,7 +501,7 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
   for (j = 0; j <= pn; j++)
     g_labi_repo_root_buf[j] = proc_o[j];
   for (k = 0; k < 3; k++) {
-    last = (char *)shux_path_last_sep((uint8_t *)g_labi_repo_root_buf);
+    last = (char *)xlang_path_last_sep((uint8_t *)g_labi_repo_root_buf);
     if (!last || last == g_labi_repo_root_buf)
       break;
     *last = '\0';
@@ -513,7 +513,7 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
 static char g_labi_panic_o_path_buf[512];
 static char g_labi_panic_o_path_resolved[4096];
 
-const char *shux_runtime_panic_o_path(const char *argv0) {
+const char *xlang_runtime_panic_o_path(const char *argv0) {
   const char *hit;
   char cwd[512];
   int i;
@@ -524,10 +524,10 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
   const char *sm;
   g_labi_panic_o_path_buf[0] = '\0';
   g_labi_panic_o_path_resolved[0] = '\0';
-  hit = shux_runtime_o_realpath_if_exists("runtime_panic.o", g_labi_panic_o_path_resolved);
+  hit = xlang_runtime_o_realpath_if_exists("runtime_panic.o", g_labi_panic_o_path_resolved);
   if (hit)
     return hit;
-  hit = shux_runtime_o_realpath_if_exists("compiler/runtime_panic.o", g_labi_panic_o_path_resolved);
+  hit = xlang_runtime_o_realpath_if_exists("compiler/runtime_panic.o", g_labi_panic_o_path_resolved);
   if (hit)
     return hit;
   if (getcwd(cwd, 488) != NULL) {
@@ -541,7 +541,7 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
         cwd[L + si] = suf[si];
         si = si + 1;
       }
-      hit = shux_runtime_o_realpath_if_exists(cwd, g_labi_panic_o_path_resolved);
+      hit = xlang_runtime_o_realpath_if_exists(cwd, g_labi_panic_o_path_resolved);
       if (hit)
         return hit;
     }
@@ -575,7 +575,7 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
         k = k + 1;
       }
       g_labi_panic_o_path_buf[n + k] = '\0';
-      hit = shux_runtime_o_realpath_if_exists(g_labi_panic_o_path_buf, g_labi_panic_o_path_resolved);
+      hit = xlang_runtime_o_realpath_if_exists(g_labi_panic_o_path_buf, g_labi_panic_o_path_resolved);
       if (hit)
         return hit;
       sm = asm_link_obj_skip_missing(g_labi_panic_o_path_buf);
@@ -590,7 +590,7 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
 static char g_labi_crt0_user_o_path_buf[512];
 static char g_labi_crt0_user_o_path_resolved[4096];
 
-const char *shux_crt0_user_o_path(const char *argv0) {
+const char *xlang_crt0_user_o_path(const char *argv0) {
   const char *hit;
   char cwd[512];
   int i;
@@ -661,7 +661,7 @@ const char *shux_crt0_user_o_path(const char *argv0) {
 static char g_labi_freestanding_io_o_path_buf[512];
 static char g_labi_freestanding_io_o_path_resolved[4096];
 
-const char *shux_freestanding_io_o_path(const char *argv0) {
+const char *xlang_freestanding_io_o_path(const char *argv0) {
   const char *hit;
   char cwd[512];
   int i;
@@ -733,7 +733,7 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
 static char g_labi_async_scheduler_o_path_buf[4096];
 static char g_labi_async_scheduler_o_path_resolved[4096];
 
-const char *shux_std_async_scheduler_o_path(const char *argv0) {
+const char *xlang_std_async_scheduler_o_path(const char *argv0) {
   const char *hit;
   const char *rp;
   char cwd[512];
@@ -884,7 +884,7 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
 static char g_labi_bootstrap_nostdlib_stubs_o_path_buf[4096];
 static char g_labi_bootstrap_nostdlib_stubs_o_path_resolved[4096];
 
-const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
+const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
   const char *hit;
   char comp[4096];
   int rc;
@@ -963,229 +963,229 @@ static char g_labi_ed25519_ref10_glue_o_path_buf[4096];
 /* wave184: durable empty C string (≡ mega static char buf[1]). */
 static char g_labi_empty_cstr_buf[1];
 
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0) {
   g_labi_asm_io_stubs_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", g_labi_asm_io_stubs_o_path_buf, sizeof g_labi_asm_io_stubs_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", g_labi_asm_io_stubs_o_path_buf, sizeof g_labi_asm_io_stubs_o_path_buf) != 0)
     g_labi_asm_io_stubs_o_path_buf[0] = '\0';
   return g_labi_asm_io_stubs_o_path_buf;
 }
 
-const char *shux_runtime_process_argv_o_path(const char *argv0) {
+const char *xlang_runtime_process_argv_o_path(const char *argv0) {
   g_labi_process_argv_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", g_labi_process_argv_o_path_buf, sizeof g_labi_process_argv_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", g_labi_process_argv_o_path_buf, sizeof g_labi_process_argv_o_path_buf) != 0)
     g_labi_process_argv_o_path_buf[0] = '\0';
   return g_labi_process_argv_o_path_buf;
 }
 
-const char *shux_runtime_process_os_glue_o_path(const char *argv0) {
+const char *xlang_runtime_process_os_glue_o_path(const char *argv0) {
   g_labi_process_os_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", g_labi_process_os_glue_o_path_buf, sizeof g_labi_process_os_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", g_labi_process_os_glue_o_path_buf, sizeof g_labi_process_os_glue_o_path_buf) != 0)
     g_labi_process_os_glue_o_path_buf[0] = '\0';
   return g_labi_process_os_glue_o_path_buf;
 }
 
-const char *shux_runtime_test_fn_invoke_o_path(const char *argv0) {
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0) {
   g_labi_test_fn_invoke_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", g_labi_test_fn_invoke_o_path_buf, sizeof g_labi_test_fn_invoke_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", g_labi_test_fn_invoke_o_path_buf, sizeof g_labi_test_fn_invoke_o_path_buf) != 0)
     g_labi_test_fn_invoke_o_path_buf[0] = '\0';
   return g_labi_test_fn_invoke_o_path_buf;
 }
 
-const char *shux_runtime_random_fill_o_path(const char *argv0) {
+const char *xlang_runtime_random_fill_o_path(const char *argv0) {
   g_labi_random_fill_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", g_labi_random_fill_o_path_buf, sizeof g_labi_random_fill_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", g_labi_random_fill_o_path_buf, sizeof g_labi_random_fill_o_path_buf) != 0)
     g_labi_random_fill_o_path_buf[0] = '\0';
   return g_labi_random_fill_o_path_buf;
 }
 
-const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0) {
+const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0) {
   g_labi_compress_zlib_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", g_labi_compress_zlib_glue_o_path_buf, sizeof g_labi_compress_zlib_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", g_labi_compress_zlib_glue_o_path_buf, sizeof g_labi_compress_zlib_glue_o_path_buf) != 0)
     g_labi_compress_zlib_glue_o_path_buf[0] = '\0';
   return g_labi_compress_zlib_glue_o_path_buf;
 }
 
-const char *shux_runtime_heap_user_o_path(const char *argv0) {
+const char *xlang_runtime_heap_user_o_path(const char *argv0) {
   g_labi_heap_user_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", g_labi_heap_user_o_path_buf, sizeof g_labi_heap_user_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", g_labi_heap_user_o_path_buf, sizeof g_labi_heap_user_o_path_buf) != 0)
     g_labi_heap_user_o_path_buf[0] = '\0';
   return g_labi_heap_user_o_path_buf;
 }
 
-const char *shux_runtime_time_os_o_path(const char *argv0) {
+const char *xlang_runtime_time_os_o_path(const char *argv0) {
   g_labi_time_os_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", g_labi_time_os_o_path_buf, sizeof g_labi_time_os_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", g_labi_time_os_o_path_buf, sizeof g_labi_time_os_o_path_buf) != 0)
     g_labi_time_os_o_path_buf[0] = '\0';
   return g_labi_time_os_o_path_buf;
 }
 
-const char *shux_runtime_queue_contention_o_path(const char *argv0) {
+const char *xlang_runtime_queue_contention_o_path(const char *argv0) {
   g_labi_queue_contention_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", g_labi_queue_contention_o_path_buf, sizeof g_labi_queue_contention_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", g_labi_queue_contention_o_path_buf, sizeof g_labi_queue_contention_o_path_buf) != 0)
     g_labi_queue_contention_o_path_buf[0] = '\0';
   return g_labi_queue_contention_o_path_buf;
 }
 
-const char *shux_runtime_dynlib_os_o_path(const char *argv0) {
+const char *xlang_runtime_dynlib_os_o_path(const char *argv0) {
   g_labi_dynlib_os_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", g_labi_dynlib_os_o_path_buf, sizeof g_labi_dynlib_os_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", g_labi_dynlib_os_o_path_buf, sizeof g_labi_dynlib_os_o_path_buf) != 0)
     g_labi_dynlib_os_o_path_buf[0] = '\0';
   return g_labi_dynlib_os_o_path_buf;
 }
 
-const char *shux_runtime_env_os_o_path(const char *argv0) {
+const char *xlang_runtime_env_os_o_path(const char *argv0) {
   g_labi_env_os_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", g_labi_env_os_o_path_buf, sizeof g_labi_env_os_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", g_labi_env_os_o_path_buf, sizeof g_labi_env_os_o_path_buf) != 0)
     g_labi_env_os_o_path_buf[0] = '\0';
   return g_labi_env_os_o_path_buf;
 }
 
-const char *shux_runtime_backtrace_platform_o_path(const char *argv0) {
+const char *xlang_runtime_backtrace_platform_o_path(const char *argv0) {
   g_labi_backtrace_platform_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", g_labi_backtrace_platform_o_path_buf, sizeof g_labi_backtrace_platform_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", g_labi_backtrace_platform_o_path_buf, sizeof g_labi_backtrace_platform_o_path_buf) != 0)
     g_labi_backtrace_platform_o_path_buf[0] = '\0';
   return g_labi_backtrace_platform_o_path_buf;
 }
 
-const char *shux_runtime_log_os_o_path(const char *argv0) {
+const char *xlang_runtime_log_os_o_path(const char *argv0) {
   g_labi_log_os_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", g_labi_log_os_o_path_buf, sizeof g_labi_log_os_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", g_labi_log_os_o_path_buf, sizeof g_labi_log_os_o_path_buf) != 0)
     g_labi_log_os_o_path_buf[0] = '\0';
   return g_labi_log_os_o_path_buf;
 }
 
-const char *shux_runtime_math_libm_o_path(const char *argv0) {
+const char *xlang_runtime_math_libm_o_path(const char *argv0) {
   g_labi_math_libm_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", g_labi_math_libm_o_path_buf, sizeof g_labi_math_libm_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", g_labi_math_libm_o_path_buf, sizeof g_labi_math_libm_o_path_buf) != 0)
     g_labi_math_libm_o_path_buf[0] = '\0';
   return g_labi_math_libm_o_path_buf;
 }
 
-const char *shux_runtime_atomic_glue_o_path(const char *argv0) {
+const char *xlang_runtime_atomic_glue_o_path(const char *argv0) {
   g_labi_atomic_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", g_labi_atomic_glue_o_path_buf, sizeof g_labi_atomic_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", g_labi_atomic_glue_o_path_buf, sizeof g_labi_atomic_glue_o_path_buf) != 0)
     g_labi_atomic_glue_o_path_buf[0] = '\0';
   return g_labi_atomic_glue_o_path_buf;
 }
 
-const char *shux_runtime_channel_glue_o_path(const char *argv0) {
+const char *xlang_runtime_channel_glue_o_path(const char *argv0) {
   g_labi_channel_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", g_labi_channel_glue_o_path_buf, sizeof g_labi_channel_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", g_labi_channel_glue_o_path_buf, sizeof g_labi_channel_glue_o_path_buf) != 0)
     g_labi_channel_glue_o_path_buf[0] = '\0';
   return g_labi_channel_glue_o_path_buf;
 }
 
-const char *shux_runtime_net_udp_batch_o_path(const char *argv0) {
+const char *xlang_runtime_net_udp_batch_o_path(const char *argv0) {
   g_labi_net_udp_batch_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", g_labi_net_udp_batch_o_path_buf, sizeof g_labi_net_udp_batch_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", g_labi_net_udp_batch_o_path_buf, sizeof g_labi_net_udp_batch_o_path_buf) != 0)
     g_labi_net_udp_batch_o_path_buf[0] = '\0';
   return g_labi_net_udp_batch_o_path_buf;
 }
 
-const char *shux_runtime_net_workers_o_path(const char *argv0) {
+const char *xlang_runtime_net_workers_o_path(const char *argv0) {
   g_labi_net_workers_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", g_labi_net_workers_o_path_buf, sizeof g_labi_net_workers_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", g_labi_net_workers_o_path_buf, sizeof g_labi_net_workers_o_path_buf) != 0)
     g_labi_net_workers_o_path_buf[0] = '\0';
   return g_labi_net_workers_o_path_buf;
 }
 
-const char *shux_runtime_sync_os_o_path(const char *argv0) {
+const char *xlang_runtime_sync_os_o_path(const char *argv0) {
   g_labi_sync_os_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", g_labi_sync_os_o_path_buf, sizeof g_labi_sync_os_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", g_labi_sync_os_o_path_buf, sizeof g_labi_sync_os_o_path_buf) != 0)
     g_labi_sync_os_o_path_buf[0] = '\0';
   return g_labi_sync_os_o_path_buf;
 }
 
-const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0) {
+const char *xlang_runtime_sync_lock_diag_tls_o_path(const char *argv0) {
   g_labi_sync_lock_diag_tls_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", g_labi_sync_lock_diag_tls_o_path_buf, sizeof g_labi_sync_lock_diag_tls_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", g_labi_sync_lock_diag_tls_o_path_buf, sizeof g_labi_sync_lock_diag_tls_o_path_buf) != 0)
     g_labi_sync_lock_diag_tls_o_path_buf[0] = '\0';
   return g_labi_sync_lock_diag_tls_o_path_buf;
 }
 
-const char *shux_runtime_thread_glue_o_path(const char *argv0) {
+const char *xlang_runtime_thread_glue_o_path(const char *argv0) {
   g_labi_thread_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", g_labi_thread_glue_o_path_buf, sizeof g_labi_thread_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", g_labi_thread_glue_o_path_buf, sizeof g_labi_thread_glue_o_path_buf) != 0)
     g_labi_thread_glue_o_path_buf[0] = '\0';
   return g_labi_thread_glue_o_path_buf;
 }
 
-const char *shux_runtime_scheduler_glue_o_path(const char *argv0) {
+const char *xlang_runtime_scheduler_glue_o_path(const char *argv0) {
   g_labi_scheduler_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", g_labi_scheduler_glue_o_path_buf, sizeof g_labi_scheduler_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", g_labi_scheduler_glue_o_path_buf, sizeof g_labi_scheduler_glue_o_path_buf) != 0)
     g_labi_scheduler_glue_o_path_buf[0] = '\0';
   return g_labi_scheduler_glue_o_path_buf;
 }
 
-const char *shux_runtime_http_glue_o_path(const char *argv0) {
+const char *xlang_runtime_http_glue_o_path(const char *argv0) {
   g_labi_http_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", g_labi_http_glue_o_path_buf, sizeof g_labi_http_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", g_labi_http_glue_o_path_buf, sizeof g_labi_http_glue_o_path_buf) != 0)
     g_labi_http_glue_o_path_buf[0] = '\0';
   return g_labi_http_glue_o_path_buf;
 }
 
-const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0) {
+const char *xlang_runtime_tls_mbedtls_bio_o_path(const char *argv0) {
   g_labi_tls_mbedtls_bio_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", g_labi_tls_mbedtls_bio_o_path_buf, sizeof g_labi_tls_mbedtls_bio_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", g_labi_tls_mbedtls_bio_o_path_buf, sizeof g_labi_tls_mbedtls_bio_o_path_buf) != 0)
     g_labi_tls_mbedtls_bio_o_path_buf[0] = '\0';
   return g_labi_tls_mbedtls_bio_o_path_buf;
 }
 
-const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0) {
+const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0) {
   g_labi_kv_mmap_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", g_labi_kv_mmap_glue_o_path_buf, sizeof g_labi_kv_mmap_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", g_labi_kv_mmap_glue_o_path_buf, sizeof g_labi_kv_mmap_glue_o_path_buf) != 0)
     g_labi_kv_mmap_glue_o_path_buf[0] = '\0';
   return g_labi_kv_mmap_glue_o_path_buf;
 }
 
-const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0) {
+const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0) {
   g_labi_arrow_simd_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", g_labi_arrow_simd_glue_o_path_buf, sizeof g_labi_arrow_simd_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", g_labi_arrow_simd_glue_o_path_buf, sizeof g_labi_arrow_simd_glue_o_path_buf) != 0)
     g_labi_arrow_simd_glue_o_path_buf[0] = '\0';
   return g_labi_arrow_simd_glue_o_path_buf;
 }
 
-const char *shux_runtime_sqlite_glue_o_path(const char *argv0) {
+const char *xlang_runtime_sqlite_glue_o_path(const char *argv0) {
   g_labi_sqlite_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", g_labi_sqlite_glue_o_path_buf, sizeof g_labi_sqlite_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", g_labi_sqlite_glue_o_path_buf, sizeof g_labi_sqlite_glue_o_path_buf) != 0)
     g_labi_sqlite_glue_o_path_buf[0] = '\0';
   return g_labi_sqlite_glue_o_path_buf;
 }
 
-const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0) {
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0) {
   g_labi_crypto_inc_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", g_labi_crypto_inc_glue_o_path_buf, sizeof g_labi_crypto_inc_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", g_labi_crypto_inc_glue_o_path_buf, sizeof g_labi_crypto_inc_glue_o_path_buf) != 0)
     g_labi_crypto_inc_glue_o_path_buf[0] = '\0';
   return g_labi_crypto_inc_glue_o_path_buf;
 }
 
-const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
   g_labi_ed25519_ref10_glue_o_path_buf[0] = '\0';
-  if (shux_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", g_labi_ed25519_ref10_glue_o_path_buf, sizeof g_labi_ed25519_ref10_glue_o_path_buf) != 0)
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", g_labi_ed25519_ref10_glue_o_path_buf, sizeof g_labi_ed25519_ref10_glue_o_path_buf) != 0)
     g_labi_ed25519_ref10_glue_o_path_buf[0] = '\0';
   return g_labi_ed25519_ref10_glue_o_path_buf;
 }
 
 /* wave184 cold twin: durable empty C string. */
-const char *shux_empty_cstr(void) {
+const char *xlang_empty_cstr(void) {
   g_labi_empty_cstr_buf[0] = '\0';
   return g_labi_empty_cstr_buf;
 }
 
 /* wave184 cold twin: retired std.io path → empty. */
-const char *shux_std_io_o_path(const char *argv0) {
+const char *xlang_std_io_o_path(const char *argv0) {
   (void)argv0;
-  return shux_empty_cstr();
+  return xlang_empty_cstr();
 }
 
 /* wave184 cold twin: retired std.compress path → empty. */
-const char *shux_std_compress_o_path(const char *argv0) {
+const char *xlang_std_compress_o_path(const char *argv0) {
   (void)argv0;
-  return shux_empty_cstr();
+  return xlang_empty_cstr();
 }
 
 /* wave184 cold twin: effective link argv0 (Cap residual resolve + pure join). */
-const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
+const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
   char comp_dir[4096];
   size_t dn;
   size_t need;
@@ -1198,7 +1198,7 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
   if (shu_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
     return NULL;
   dn = strlen(comp_dir);
-  /* "%s/shux" → dn + 1 + 4 + NUL; fail if need >= syn_sz (mega size_t). */
+  /* "%s/xlang" → dn + 1 + 4 + NUL; fail if need >= syn_sz (mega size_t). */
   need = dn + 1 + 4;
   if (need >= syn_sz) {
     syn_buf[0] = '\0';
@@ -1217,7 +1217,7 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
 
 /* wave185 cold twin: rel_o_path pure orch (Cap residual realpath_cap + getcwd + cstr_dup + skip).
  * Heap return per call (never static BSS) — matches mega multi-call independence invariant. */
-const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
+const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel) {
   char buf[512];
   char resolved[4096];
   char cwd[512];
@@ -1297,7 +1297,7 @@ int32_t labi_path_pure_count(void) {
 void link_abi_user_extra_o_reset(void);
 int link_abi_user_extra_o_push(const char *p);
 
-void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
+void xlang_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
     int i;
     link_abi_user_extra_o_reset();
     if (!argv)
@@ -1321,7 +1321,7 @@ void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
     }
 }
 
-void shux_invoke_cc_clear_user_o_files(void) {
+void xlang_invoke_cc_clear_user_o_files(void) {
     link_abi_user_extra_o_reset();
 }
 
@@ -1330,13 +1330,13 @@ void shux_invoke_cc_clear_user_o_files(void) {
 int32_t labi_suffix_eq2(uint8_t *s, int32_t n, uint8_t a0, uint8_t a1);
 int32_t labi_suffix_eq4(uint8_t *s, int32_t n, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3);
 int32_t link_abi_ld_argv_entry_is_obj(uint8_t *s);
-int32_t shux_output_is_elf_o(uint8_t *path);
-int32_t shux_output_want_exe(uint8_t *path);
-int32_t shux_path_has_sep(uint8_t *s);
-uint8_t *shux_path_last_sep(uint8_t *s);
-int32_t shux_asm_ld_lib_root_ptr_usable(uint8_t *p);
-void shux_asm_ld_lib_root_default(uint8_t *root_buf);
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
+int32_t xlang_output_is_elf_o(uint8_t *path);
+int32_t xlang_output_want_exe(uint8_t *path);
+int32_t xlang_path_has_sep(uint8_t *s);
+uint8_t *xlang_path_last_sep(uint8_t *s);
+int32_t xlang_asm_ld_lib_root_ptr_usable(uint8_t *p);
+void xlang_asm_ld_lib_root_default(uint8_t *root_buf);
+const char *xlang_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 int32_t link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
@@ -1347,53 +1347,53 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
     const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots,
     int n_lib_roots, void *bank, const char **argv, int *la, int max_la);
-void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
 /* wave189 */
-void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
-void shux_invoke_cc_clear_user_o_files(void);
+void xlang_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
+void xlang_invoke_cc_clear_user_o_files(void);
 
-int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
-const char *shux_repo_root_from_argv0(const char *argv0);
-const char *shux_runtime_panic_o_path(const char *argv0);
-const char *shux_crt0_user_o_path(const char *argv0);
-const char *shux_freestanding_io_o_path(const char *argv0);
-const char *shux_std_async_scheduler_o_path(const char *argv0);
+int xlang_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
+const char *xlang_repo_root_from_argv0(const char *argv0);
+const char *xlang_runtime_panic_o_path(const char *argv0);
+const char *xlang_crt0_user_o_path(const char *argv0);
+const char *xlang_freestanding_io_o_path(const char *argv0);
+const char *xlang_std_async_scheduler_o_path(const char *argv0);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
-const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
-const char *shux_runtime_process_argv_o_path(const char *argv0);
-const char *shux_runtime_process_os_glue_o_path(const char *argv0);
-const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
-const char *shux_runtime_random_fill_o_path(const char *argv0);
-const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
-const char *shux_runtime_heap_user_o_path(const char *argv0);
-const char *shux_runtime_time_os_o_path(const char *argv0);
-const char *shux_runtime_queue_contention_o_path(const char *argv0);
-const char *shux_runtime_dynlib_os_o_path(const char *argv0);
-const char *shux_runtime_env_os_o_path(const char *argv0);
-const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
-const char *shux_runtime_log_os_o_path(const char *argv0);
-const char *shux_runtime_math_libm_o_path(const char *argv0);
-const char *shux_runtime_atomic_glue_o_path(const char *argv0);
-const char *shux_runtime_channel_glue_o_path(const char *argv0);
-const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
-const char *shux_runtime_net_workers_o_path(const char *argv0);
-const char *shux_runtime_sync_os_o_path(const char *argv0);
-const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0);
-const char *shux_runtime_thread_glue_o_path(const char *argv0);
-const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
-const char *shux_runtime_http_glue_o_path(const char *argv0);
-const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
-const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0);
-const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
-const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
-const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
-const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
-const char *shux_empty_cstr(void);
-const char *shux_std_io_o_path(const char *argv0);
-const char *shux_std_compress_o_path(const char *argv0);
-const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
-const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
+const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0);
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *xlang_runtime_process_argv_o_path(const char *argv0);
+const char *xlang_runtime_process_os_glue_o_path(const char *argv0);
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
+const char *xlang_runtime_random_fill_o_path(const char *argv0);
+const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0);
+const char *xlang_runtime_heap_user_o_path(const char *argv0);
+const char *xlang_runtime_time_os_o_path(const char *argv0);
+const char *xlang_runtime_queue_contention_o_path(const char *argv0);
+const char *xlang_runtime_dynlib_os_o_path(const char *argv0);
+const char *xlang_runtime_env_os_o_path(const char *argv0);
+const char *xlang_runtime_backtrace_platform_o_path(const char *argv0);
+const char *xlang_runtime_log_os_o_path(const char *argv0);
+const char *xlang_runtime_math_libm_o_path(const char *argv0);
+const char *xlang_runtime_atomic_glue_o_path(const char *argv0);
+const char *xlang_runtime_channel_glue_o_path(const char *argv0);
+const char *xlang_runtime_net_udp_batch_o_path(const char *argv0);
+const char *xlang_runtime_net_workers_o_path(const char *argv0);
+const char *xlang_runtime_sync_os_o_path(const char *argv0);
+const char *xlang_runtime_sync_lock_diag_tls_o_path(const char *argv0);
+const char *xlang_runtime_thread_glue_o_path(const char *argv0);
+const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
+const char *xlang_runtime_http_glue_o_path(const char *argv0);
+const char *xlang_runtime_tls_mbedtls_bio_o_path(const char *argv0);
+const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
+const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
+const char *xlang_runtime_sqlite_glue_o_path(const char *argv0);
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+const char *xlang_empty_cstr(void);
+const char *xlang_std_io_o_path(const char *argv0);
+const char *xlang_std_compress_o_path(const char *argv0);
+const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
+const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
 int32_t labi_path_pure_count(void);
 #endif
 

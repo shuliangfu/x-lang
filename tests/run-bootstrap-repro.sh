@@ -9,13 +9,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_BOOTSTRAP_REPRO_TSV:-tests/baseline/bootstrap-repro.tsv}"
+MATRIX="${XLANG_BOOTSTRAP_REPRO_TSV:-tests/baseline/bootstrap-repro.tsv}"
 
 # 与 bstrict-ci 一致：深递归 parser 需要较大栈。
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
 repro_is_docker() {
-  [ -f /.dockerenv ] || [ -n "${SHUX_CI_DOCKER:-}" ]
+  [ -f /.dockerenv ] || [ -n "${XLANG_CI_DOCKER:-}" ]
 }
 
 repro_platform_ok() {
@@ -81,12 +81,12 @@ run_one_case() {
     echo "bootstrap-repro SKIP $case_id ($notes): platform=$platform host=$(uname -s 2>/dev/null)"
     return 0
   fi
-  if [ "$case_id" = "stage2_bstrict" ] && [ -n "${SHUX_CI_SKIP_STAGE2:-}" ]; then
-    echo "bootstrap-repro SKIP $case_id (SHUX_CI_SKIP_STAGE2=1)"
+  if [ "$case_id" = "stage2_bstrict" ] && [ -n "${XLANG_CI_SKIP_STAGE2:-}" ]; then
+    echo "bootstrap-repro SKIP $case_id (XLANG_CI_SKIP_STAGE2=1)"
     return 0
   fi
-  if [ "$case_id" = "bstrict_build" ] && [ -n "${SHUX_BOOTSTRAP_REPRO_SKIP_BUILD:-}" ]; then
-    echo "bootstrap-repro SKIP $case_id (SHUX_BOOTSTRAP_REPRO_SKIP_BUILD=1)"
+  if [ "$case_id" = "bstrict_build" ] && [ -n "${XLANG_BOOTSTRAP_REPRO_SKIP_BUILD:-}" ]; then
+    echo "bootstrap-repro SKIP $case_id (XLANG_BOOTSTRAP_REPRO_SKIP_BUILD=1)"
     return 0
   fi
 
@@ -112,40 +112,40 @@ run_one_case() {
       [ -f "$BUILD_LOG" ] || BUILD_LOG=/tmp/build_bstrict.log
       BUILD_LOG="$BUILD_LOG" "$script"
       ;;
-    shux_asm_gate)
-      SHUX="${SHUX:-./compiler/shux_asm}" "$script"
+    xlang_asm_gate)
+      XLANG="${XLANG:-./compiler/xlang_asm}" "$script"
       ;;
     parser_second_pass)
-      SHUX_PARSER_SECOND_PASS_FAIL=1 \
-      SHUX_PARSER_SECOND_PASS_COMPILER="${SHUX_PARSER_SECOND_PASS_COMPILER:-compiler/shux_asm}" \
-      SHUX_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
-      SHUX_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
+      XLANG_PARSER_SECOND_PASS_FAIL=1 \
+      XLANG_PARSER_SECOND_PASS_COMPILER="${XLANG_PARSER_SECOND_PASS_COMPILER:-compiler/xlang_asm}" \
+      XLANG_PARSER_SECOND_PASS_EMIT_HEAVY=1 \
+      XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 \
         "$script"
       ;;
     parser_symbol_integrity)
-      SHUX_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 "$script"
+      XLANG_PARSER_THIN_GLUE_SYMBOL_INTEGRITY_FAIL=1 "$script"
       ;;
     parser_mega_bisect)
-      SHUX_PARSER_MEGA_BISECT_FAIL=1 "$script"
+      XLANG_PARSER_MEGA_BISECT_FAIL=1 "$script"
       ;;
     parser_parse_count)
-      SHUX_PARSER_PARSE_COUNT_FAIL=1 \
-      SHUX_PARSER_PARSE_COUNT_TARGET="${SHUX_PARSER_PARSE_COUNT_TARGET:-466}" \
-      SHUX="${SHUX:-./compiler/shux_asm}" "$script"
+      XLANG_PARSER_PARSE_COUNT_FAIL=1 \
+      XLANG_PARSER_PARSE_COUNT_TARGET="${XLANG_PARSER_PARSE_COUNT_TARGET:-466}" \
+      XLANG="${XLANG:-./compiler/xlang_asm}" "$script"
       ;;
     wpo_strict_link)
-      SHUX_WPO_STRICT_LINK_FAIL=1 "$script"
+      XLANG_WPO_STRICT_LINK_FAIL=1 "$script"
       ;;
     stage2_bstrict)
-      SHUX_STAGE2_SKIP_BOOTSTRAP=1 "$script"
+      XLANG_STAGE2_SKIP_BOOTSTRAP=1 "$script"
       ;;
     run_all_bstrict)
-      export SHUX_BSTRICT_SKIP_BUILD=1
-      SHUX="${SHUX:-./compiler/shux_asm}" "$script"
+      export XLANG_BSTRICT_SKIP_BUILD=1
+      XLANG="${XLANG:-./compiler/xlang_asm}" "$script"
       ;;
     asm_73)
-      export ASM73_FALLBACK_SHUX="${ASM73_FALLBACK_SHU:-./compiler/shux_asm73_seed}"
-      SHUX="${SHUX:-./compiler/shux_asm}" "$script"
+      export ASM73_FALLBACK_XLANG="${ASM73_FALLBACK_SHU:-./compiler/xlang_asm73_seed}"
+      XLANG="${XLANG:-./compiler/xlang_asm}" "$script"
       ;;
     *)
       "$script"

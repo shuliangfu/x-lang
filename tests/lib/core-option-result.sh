@@ -5,7 +5,7 @@
 #   core_or_symbols_ok OPTION_X RESULT_X TSV
 #   core_or_emit_report status option_ok result_ok skip
 
-CORE_OR_PREFIX="${SHUX_CORE_OPTION_RESULT_PREFIX:-shux: [SHUX_CORE_OPTION_RESULT]}"
+CORE_OR_PREFIX="${XLANG_CORE_OPTION_RESULT_PREFIX:-xlang: [XLANG_CORE_OPTION_RESULT]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_or_symbols_ok() {

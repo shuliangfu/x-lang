@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL009_DOC:-analysis/tool-vscode-020-v1.md}"
-MANIFEST="${SHUX_TOOL009_MANIFEST:-tests/baseline/tool-vscode-020.tsv}"
+DOC="${XLANG_TOOL009_DOC:-analysis/tool-vscode-020-v1.md}"
+MANIFEST="${XLANG_TOOL009_MANIFEST:-tests/baseline/tool-vscode-020.tsv}"
 LIB="tests/lib/tool-vscode-020.sh"
 MIN_RULES=8
 MIN_GOLDEN=5
@@ -34,7 +34,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in Grammar 规则矩阵 vscode-shux grammar_ok vsix; do
+for kw in Grammar 规则矩阵 vscode-xlang grammar_ok vsix; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "tool-vscode-020 gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -120,8 +120,8 @@ echo "tool-vscode-020 manifest OK (rules=${RULE_N} golden=${GOLDEN_N})"
 
 VSIX_OK=0
 SKIP=1
-EXPECTED_VER="${SHUX_TOOL009_VERSION:-0.2.0}"
-VSIX="editors/vscode/vscode-shux-${EXPECTED_VER}.vsix"
+EXPECTED_VER="${XLANG_TOOL009_VERSION:-0.2.0}"
+VSIX="editors/vscode/vscode-xlang-${EXPECTED_VER}.vsix"
 
 if tool_vscode_020_has_node; then
   echo "=== TOOL-009: vsix pack smoke ==="

@@ -2,11 +2,11 @@
 # F-05 v3：std.db.sqlite 去 C 门禁。
 #
 # 用法：./tests/run-f05-std-db-sqlite-v3-gate.sh
-# 环境：SHUX_F05_DB_SQLITE_V3_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F05_DB_SQLITE_V3_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F05_DB_SQLITE_V3_FAIL:-0}
+FAIL=${XLANG_F05_DB_SQLITE_V3_FAIL:-0}
 DOC="analysis/phase-f-f05-v3.md"
 
 die() {
@@ -50,7 +50,7 @@ EOF
   "$TMP/sqlite_smoke" || die "sqlite smoke run failed"
   echo "f05 sqlite smoke OK"
 else
-  echo "f05 sqlite smoke SKIP (sqlite.o missing .x symbols; need shux-c)"
+  echo "f05 sqlite smoke SKIP (sqlite.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-sqlite-gate.sh ]; then

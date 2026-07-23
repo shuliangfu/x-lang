@@ -3,11 +3,11 @@
 #
 # 用法：./tests/run-bootstrap-checklist-gate.sh
 # 环境：
-#   SHUX_CHECKLIST_SECTION=3     只跑某一节（3–9）
-#   SHUX_CHECKLIST_ALLOW_WARN=1  WARN/SKIP 不导致 exit 1
-#   SHUX_CHECKLIST_STOP_ON_FAIL=1 遇 FAIL 即停（默认 1）
-if [ -z "${SHUX_STDBUF_WRAPPED:-}" ] && command -v stdbuf >/dev/null 2>&1; then
-  export SHUX_STDBUF_WRAPPED=1
+#   XLANG_CHECKLIST_SECTION=3     只跑某一节（3–9）
+#   XLANG_CHECKLIST_ALLOW_WARN=1  WARN/SKIP 不导致 exit 1
+#   XLANG_CHECKLIST_STOP_ON_FAIL=1 遇 FAIL 即停（默认 1）
+if [ -z "${XLANG_STDBUF_WRAPPED:-}" ] && command -v stdbuf >/dev/null 2>&1; then
+  export XLANG_STDBUF_WRAPPED=1
   exec stdbuf -oL -eL bash "$0" "$@"
 fi
 
@@ -16,38 +16,38 @@ cd "$(dirname "$0")/.."
 
 # shellcheck source=tests/lib/gate-progress.sh
 source tests/lib/gate-progress.sh
-# shellcheck source=tests/lib/p0-gate-shux.sh
-source tests/lib/p0-gate-shux.sh
+# shellcheck source=tests/lib/p0-gate-xlang.sh
+source tests/lib/p0-gate-xlang.sh
 
-# macOS 守卫：shux_asm_stage1 在 macOS 上会吃 60G+ 内存（asm 后端无限内存），
-# 所有直接调用 shux_asm_stage1 的 gate 在 macOS 上自动 SKIP。
-SHUX_IS_MACOS=0
+# macOS 守卫：xlang_asm_stage1 在 macOS 上会吃 60G+ 内存（asm 后端无限内存），
+# 所有直接调用 xlang_asm_stage1 的 gate 在 macOS 上自动 SKIP。
+XLANG_IS_MACOS=0
 if [ "$(uname)" = "Darwin" ]; then
-  SHUX_IS_MACOS=1
+  XLANG_IS_MACOS=1
 fi
-# macOS 上跳过依赖 shux_asm_stage1 的 gate
+# macOS 上跳过依赖 xlang_asm_stage1 的 gate
 skip_stage1_gate() {
-  if [ "$SHUX_IS_MACOS" = "1" ]; then
-    gate_progress "SKIP (macOS): $1 — shux_asm_stage1 会 OOM"
+  if [ "$XLANG_IS_MACOS" = "1" ]; then
+    gate_progress "SKIP (macOS): $1 — xlang_asm_stage1 会 OOM"
     return 0
   fi
   return 1
 }
 gate_progress "自举前必须清单 gate 加载完成（§三→§九 顺序）"
-if [ -z "${SHUX:-}" ] && seed="$(p0_gate_default_seed 2>/dev/null || true)" && [ -n "$seed" ]; then
-  export SHUX="$seed"
-  gate_progress "默认 SHUX=$SHUX（seed 优先）"
+if [ -z "${XLANG:-}" ] && seed="$(p0_gate_default_seed 2>/dev/null || true)" && [ -n "$seed" ]; then
+  export XLANG="$seed"
+  gate_progress "默认 XLANG=$XLANG（seed 优先）"
 fi
-export SHUX_MINIMAL_CC_LINK="${SHUX_MINIMAL_CC_LINK:-1}"
-export SHUX_P0_SKIP_STAGE1="${SHUX_P0_SKIP_STAGE1:-1}"
+export XLANG_MINIMAL_CC_LINK="${XLANG_MINIMAL_CC_LINK:-1}"
+export XLANG_P0_SKIP_STAGE1="${XLANG_P0_SKIP_STAGE1:-1}"
 
 DOC="analysis/自举前必须清单.md"
 [ -f "$DOC" ] || { gate_progress "FAIL: missing $DOC"; exit 1; }
 
-ONLY="${SHUX_CHECKLIST_SECTION:-}"
-STOP="${SHUX_CHECKLIST_STOP_ON_FAIL:-1}"
-ALLOW_WARN="${SHUX_CHECKLIST_ALLOW_WARN:-0}"
-FAST="${SHUX_CHECKLIST_FAST:-0}"
+ONLY="${XLANG_CHECKLIST_SECTION:-}"
+STOP="${XLANG_CHECKLIST_STOP_ON_FAIL:-1}"
+ALLOW_WARN="${XLANG_CHECKLIST_ALLOW_WARN:-0}"
+FAST="${XLANG_CHECKLIST_FAST:-0}"
 
 PASS=0
 WARN=0
@@ -78,7 +78,7 @@ record_fail() {
   gate_progress "§$1 $2 → FAIL ($3)"
   FAIL=$((FAIL + 1))
   if [ "$STOP" = "1" ]; then
-    gate_progress "STOP: SHUX_CHECKLIST_STOP_ON_FAIL=1"
+    gate_progress "STOP: XLANG_CHECKLIST_STOP_ON_FAIL=1"
     exit 1
   fi
 }
@@ -131,8 +131,8 @@ run_section_4() {
 # ── §五 编译器与工具链（C2/C5/C6/C9 + §9.1 语义债）──
 run_section_5() {
   should_run_section 5 || return 0
-  export SHUX_C2_BIN="${SHUX_C2_BIN:-$SHUX}"
-  export SHUX_C9_BIN="${SHUX_C9_BIN:-$SHUX}"
+  export XLANG_C2_BIN="${XLANG_C2_BIN:-$XLANG}"
+  export XLANG_C9_BIN="${XLANG_C9_BIN:-$XLANG}"
   section_banner 5 "编译器与工具链（C2 diag / C5 spill / C6 asm -o / C9 stdout / §9.1）"
   gate_progress "C2: 泛型 wrong_type_args 诊断 ..."
   if run_gate_script run-typeck-generic-args-gate.sh; then
@@ -148,13 +148,13 @@ run_section_5() {
   fi
   gate_progress "C6: asm -o 直链 ..."
   set +e
-  gate_progress_run "C6 asm -o" ./tests/run-bootstrap-c6-asm-o-gate.sh 2>&1 | tee /tmp/shux_c6.log
+  gate_progress_run "C6 asm -o" ./tests/run-bootstrap-c6-asm-o-gate.sh 2>&1 | tee /tmp/xlang_c6.log
   c6_ec=${PIPESTATUS[0]:-1}
   set -e
   if [ "$c6_ec" -eq 0 ]; then
-    if grep -qi 'SKIP' /tmp/shux_c6.log; then
-      record_skip 5 "C6 asm -o" "无 shux_asm"
-    elif grep -qiE 'WARN|待' /tmp/shux_c6.log; then
+    if grep -qi 'SKIP' /tmp/xlang_c6.log; then
+      record_skip 5 "C6 asm -o" "无 xlang_asm"
+    elif grep -qiE 'WARN|待' /tmp/xlang_c6.log; then
       record_warn 5 "C6 asm -o" "未完全直链"
     else
       record_ok 5 "C6 asm -o"
@@ -172,7 +172,7 @@ run_section_5() {
   if [ "$FAST" = "1" ]; then
     gate_progress "FAST: SKIP §9.1 -o（compound-assign 耗内存；见 run-codegen-semantic-debt-gate）"
     record_skip 5 "§9.1 semantic debt" "FAST skip -o"
-  elif SHUX_CODEGEN_DEBT_STRICT=0 run_gate_script run-codegen-semantic-debt-gate.sh; then
+  elif XLANG_CODEGEN_DEBT_STRICT=0 run_gate_script run-codegen-semantic-debt-gate.sh; then
     record_ok 5 "§9.1 semantic debt (STRICT=0)"
   else
     record_warn 5 "§9.1 semantic debt" "部分 case 红（须逐条修）"
@@ -205,7 +205,7 @@ run_section_7() {
   should_run_section 7 || return 0
   section_banner 7 "自举验证与防塌陷（V6/V7）"
   gate_progress "V6: fresh seed smoke（可能 1–2 分钟）..."
-  if [ "${SHUX_BOOTSTRAP_FRESH_SEED_SKIP:-0}" = "1" ]; then
+  if [ "${XLANG_BOOTSTRAP_FRESH_SEED_SKIP:-0}" = "1" ]; then
     gate_progress "V6: SKIP（已在 FAST 预跑完成）"
     record_ok 7 "V6 fresh seed (pre-run)"
   elif gate_progress_run_heartbeat "V6 fresh seed" 15 ./tests/run-bootstrap-fresh-seed-gate.sh; then
@@ -218,7 +218,7 @@ run_section_7() {
   else
     record_fail 7 "V7 sym-vis" "gate failed"
   fi
-  if [ -f compiler/shux_asm_stage1 ] && [ -f compiler/shux_asm2 ]; then
+  if [ -f compiler/xlang_asm_stage1 ] && [ -f compiler/xlang_asm2 ]; then
     if run_gate_script run-bootstrap-anti-collapse-gate.sh; then
       record_ok 7 "V4/V5 anti-collapse"
     else
@@ -240,7 +240,7 @@ run_section_8() {
     record_warn 8 "G gates" "inventory gate missing"
   fi
   gate_progress "G-03 nostdlib 哨兵（当前预期 FAIL/WARN）..."
-  if SHUX_NOLIBC_N07_V5_FAIL=1 gate_progress_run "G-03 nolibc" \
+  if XLANG_NOLIBC_N07_V5_FAIL=1 gate_progress_run "G-03 nolibc" \
       gate_run_timeout 120 ./tests/run-nolibc-n07-v5-gate.sh; then
     record_ok 8 "G-03 nostdlib"
   else
@@ -285,7 +285,7 @@ if [ "$WARN" -gt 0 ] || [ "$SKIP" -gt 0 ]; then
     gate_progress "清单 gate OK with WARN/SKIP（键 C 未完全闭合）"
     exit 0
   fi
-  gate_progress "清单 gate INCOMPLETE（设 SHUX_CHECKLIST_ALLOW_WARN=1 渐进）"
+  gate_progress "清单 gate INCOMPLETE（设 XLANG_CHECKLIST_ALLOW_WARN=1 渐进）"
   exit 1
 fi
 gate_progress "清单 gate OK（§三～§九 当前必须项全绿）"

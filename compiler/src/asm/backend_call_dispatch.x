@@ -106,7 +106,7 @@ export function backend_call_dispatch_x_doc_anchor(): i32 {
 let g_pipeline_asm_emit_call_f32_xmm: i32 = 0;
 
 /** Exported function `pipeline_asm_abi_f32_xmm_enabled_c`.
- * Default-on f32 XMM ABI gate: returns 0 only when SHUX_ABI_F32_XMM is exactly "0".
+ * Default-on f32 XMM ABI gate: returns 0 only when XLANG_ABI_F32_XMM is exactly "0".
  * wave231 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  * @return i32 1 = f32 xmm enabled; 0 = legacy f64 widen
@@ -114,8 +114,8 @@ let g_pipeline_asm_emit_call_f32_xmm: i32 = 0;
 #[no_mangle]
 export function pipeline_asm_abi_f32_xmm_enabled_c(): i32 {
   unsafe {
-    // wave231 G.7: SHUX_ABI_F32_XMM via link_abi_getenv.
-    let env: *u8 = link_abi_getenv("SHUX_ABI_F32_XMM");
+    // wave231 G.7: XLANG_ABI_F32_XMM via link_abi_getenv.
+    let env: *u8 = link_abi_getenv("XLANG_ABI_F32_XMM");
     if (env != 0) {
       // "0"
       if (env[0] == 48) {
@@ -1087,7 +1087,7 @@ export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: 
     let redir: u8[64] = [];
     let rlen: i32 = glue_try_std_heap_redirect_sym_local(name, name_len, &redir[0], 64);
     if (rlen <= 0) {
-      rlen = glue_try_std_string_shux_redirect_sym_local(name, name_len, &redir[0], 64);
+      rlen = glue_try_std_string_xlang_redirect_sym_local(name, name_len, &redir[0], 64);
     }
     if (rlen <= 0) {
       rlen = glue_try_std_encoding_redirect_sym_local(name, name_len, &redir[0], 64);
@@ -1482,7 +1482,7 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
   unsafe {
     let mod_ref: *u8 = call_dispatch_load_ptr_le(ctx, 16);
     let nargs: i32 = pipeline_expr_method_call_num_args_at(arena, expr_ref);
-    /** Product parses core.shux_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
+    /** Product parses core.xlang_io_submit_*_batch as METHOD_CALL with >5 args; seed _impl is authority. */
     if (nargs < 0) { return 0 - 1; }
     if (nargs > 96) { return 0 - 1; }
     let base_ref: i32 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
@@ -1794,7 +1794,7 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     knofold[5] = 87; knofold[6] = 80; knofold[7] = 79; knofold[8] = 95;
     knofold[9] = 78; knofold[10] = 79; knofold[11] = 95;
     knofold[12] = 70; knofold[13] = 79; knofold[14] = 76; knofold[15] = 68; knofold[16] = 0;
-    // wave231 G.7: SHUX_WPO_MONO / SHUX_WPO_NO_FOLD via link_abi_getenv (not raw getenv).
+    // wave231 G.7: XLANG_WPO_MONO / XLANG_WPO_NO_FOLD via link_abi_getenv (not raw getenv).
     // Const fold only when neither mono nor no-fold env is set.
     if (link_abi_getenv(&kmono[0]) == 0) {
       if (link_abi_getenv(&knofold[0]) == 0) {
@@ -2168,10 +2168,10 @@ export function glue_call_param_type_ref_at(arena: *u8, call: i32, pix: i32): i3
   return 0;
 }
 
-// glue_try_std_string_shux_redirect_sym_local: see function docblock below.
+// glue_try_std_string_xlang_redirect_sym_local: see function docblock below.
 
-/** Exported function `glue_try_std_string_shux_redirect_sym_local`.
- * Implements `glue_try_std_string_shux_redirect_sym_local`.
+/** Exported function `glue_try_std_string_xlang_redirect_sym_local`.
+ * Implements `glue_try_std_string_xlang_redirect_sym_local`.
  * @param name *u8
  * @param nlen i32
  * @param out *u8
@@ -2179,7 +2179,7 @@ export function glue_call_param_type_ref_at(arena: *u8, call: i32, pix: i32): i3
  * @return i32
  */
 #[no_mangle]
-export function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
+export function glue_try_std_string_xlang_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
   if (name == 0) { return 0; }
   if (nlen <= 11) { return 0; }
   if (out == 0) { return 0; }
@@ -2191,7 +2191,7 @@ export function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32
   }
   let suffix_len: i32 = nlen - 11;
   if (suffix_len < 12) { return 0; }
-  // "shux_string_"
+  // "xlang_string_"
   if (name[11]!=115||name[12]!=104||name[13]!=117||name[14]!=120||name[15]!=95
       ||name[16]!=115||name[17]!=116||name[18]!=114||name[19]!=105||name[20]!=110
       ||name[21]!=103||name[22]!=95) {

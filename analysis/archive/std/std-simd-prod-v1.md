@@ -34,10 +34,10 @@
 ```
 
 ```
-shux: [SHUX_STD061_SIMD_PROD] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1.05
+xlang: [XLANG_STD061_SIMD_PROD] status=ok bench_ok=1 bench_skip=0 skip=0 ratio=1.05
 ```
 
-无 native `shux_asm` 时 manifest 仍须绿；perf runnable **SKIP**。
+无 native `xlang_asm` 时 manifest 仍须绿；perf runnable **SKIP**。
 
 ---
 

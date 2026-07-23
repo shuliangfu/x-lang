@@ -1,6 +1,6 @@
 /* seeds/pthin_lex_skip.from_x.c — G-02f-281 P2 parser thin P1 lex/skip
  * Logic source: src/asm/pthin_lex_skip.x
- * Hybrid: SHUX_PTHIN_LEX_SKIP_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_LEX_SKIP_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_lex_skip_slice.inc
  */
@@ -47,7 +47,7 @@ struct lexer_Lexer {
   int32_t col;
 };
 
-struct shux_slice_uint8_t {
+struct xlang_slice_uint8_t {
   uint8_t *data;
   size_t length;
 };

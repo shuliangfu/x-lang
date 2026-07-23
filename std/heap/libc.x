@@ -96,7 +96,7 @@ export function heap_libc_getenv(name: *u8): *u8 {
 }
 
 /* See implementation. */
-let SHUX_HEAP_TRACE_ENV: u8[16] = [
+let XLANG_HEAP_TRACE_ENV: u8[16] = [
   83, 72, 85, 88, 95, 72, 69, 65, 80, 95, 84, 82, 65, 67, 69, 0,
 ];
 
@@ -125,7 +125,7 @@ export function heap_trace_is_on(): i32 {
   if (shu_heap_trace_on >= 0) {
     return shu_heap_trace_on;
   }
-  let env: *u8 = heap_libc_getenv(&SHUX_HEAP_TRACE_ENV[0]);
+  let env: *u8 = heap_libc_getenv(&XLANG_HEAP_TRACE_ENV[0]);
   if (env != 0 && env[0] == 49) {
     shu_heap_trace_on = 1;
   } else {

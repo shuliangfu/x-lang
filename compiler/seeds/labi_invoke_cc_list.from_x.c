@@ -1,12 +1,12 @@
 /* seeds/labi_invoke_cc_list.from_x.c — G-02f-274/L P2 link_abi L5 invoke_cc list pure → R2 full
  * Logic source: src/runtime/labi_invoke_cc_list.x
- * Hybrid: SHUX_LABI_INVOKE_CC_LIST_FROM_X + ld -r into runtime_link_abi.o
+ * Hybrid: XLANG_LABI_INVOKE_CC_LIST_FROM_X + ld -r into runtime_link_abi.o
  *
  * R2 full：公共业务符号由 full .x 提供：
  *   labi_linux_harden_flag_{count,at}
  *   labi_invoke_cc_skip_native_env_{count,at} + invoke_cc_skip_native_tuning
  *   labi_icc_rel_* (12) + labi_icc_needs_rel_{count,at}
- *   shux_append_linux_link_harden_impl (wave155 pure orch over harden table)
+ *   xlang_append_linux_link_harden_impl (wave155 pure orch over harden table)
  *   invoke_cc_append_early_needs (wave198 pure orch early needs scan+push)
  *   invoke_cc_scan_std_module_needs (wave199 pure table scan std need flags)
  *   invoke_cc_append_std_ensure_push_front (wave200 pure ensure-push front string→env)
@@ -19,7 +19,7 @@
  *   invoke_cc_append_argv_tail_flags (wave207 pure argv tail -pthread/-lc/allow-multiple/user_extra+NULL)
  *   invoke_cc_append_minimal_cc_link_tail (wave208 pure MINIMAL_CC_LINK Win process_argv + POSIX -lc + NULL)
  * Cap residual：link_abi_getenv（wave223 G.7；非 raw getenv）；host_is_*；needs/ensure/path/push peers；
- *   shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status；
+ *   xlang_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status；
  *   asm_link_obj_skip_missing；link_abi_user_extra_o_{count,at}；process_argv path (MINIMAL Windows)。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef SHUX_LABI_INVOKE_CC_LIST_FROM_X
+#ifndef XLANG_LABI_INVOKE_CC_LIST_FROM_X
 
 /* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
 const char *link_abi_getenv(const char *name);
@@ -49,60 +49,60 @@ int link_abi_generated_c_needs_win32(const char *c_path);
 int link_abi_generated_c_needs_win32_wsa(const char *c_path);
 int link_abi_generated_c_needs_libc_heap(const char *c_path);
 int invoke_cc_argv_push_existing(char **argv, int *ia, int max_ia, const char *path);
-const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
-const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0);
-const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
-int shux_ensure_runtime_random_fill_o(const char *argv0);
-const char *shux_runtime_random_fill_o_path(const char *argv0);
-int shux_ensure_runtime_time_os_o(const char *argv0);
-const char *shux_runtime_time_os_o_path(const char *argv0);
-int shux_ensure_runtime_panic_o(const char *argv0);
-const char *shux_runtime_panic_o_path(const char *argv0);
-int shux_host_is_linux(void);
+const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
+const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
+const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_random_fill_o(const char *argv0);
+const char *xlang_runtime_random_fill_o_path(const char *argv0);
+int xlang_ensure_runtime_time_os_o(const char *argv0);
+const char *xlang_runtime_time_os_o_path(const char *argv0);
+int xlang_ensure_runtime_panic_o(const char *argv0);
+const char *xlang_runtime_panic_o_path(const char *argv0);
+int xlang_host_is_linux(void);
 int link_abi_host_is_apple(void);
 int link_abi_host_is_windows(void);
 const char *labi_ld_flag_lc(void);
 /* wave200 ensure-push front peers */
-int shux_ensure_runtime_process_argv_o(const char *argv0);
-const char *shux_runtime_process_argv_o_path(const char *argv0);
+int xlang_ensure_runtime_process_argv_o(const char *argv0);
+const char *xlang_runtime_process_argv_o_path(const char *argv0);
 int invoke_cc_append_net_tls_ld(char **argv, int *ia, int argv_cap, const char *net_o, const char *repo_root);
-int shux_ensure_runtime_net_udp_batch_o(const char *argv0);
-const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
-int shux_ensure_runtime_net_workers_o(const char *argv0);
-const char *shux_runtime_net_workers_o_path(const char *argv0);
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
-int shux_ensure_runtime_thread_glue_o(const char *argv0);
-const char *shux_runtime_thread_glue_o_path(const char *argv0);
-int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
-int shux_ensure_runtime_env_os_o(const char *argv0);
-const char *shux_runtime_env_os_o_path(const char *argv0);
+int xlang_ensure_runtime_net_udp_batch_o(const char *argv0);
+const char *xlang_runtime_net_udp_batch_o_path(const char *argv0);
+int xlang_ensure_runtime_net_workers_o(const char *argv0);
+const char *xlang_runtime_net_workers_o_path(const char *argv0);
+int xlang_ensure_runtime_asm_io_stubs_o(const char *argv0);
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
+int xlang_ensure_runtime_thread_glue_o(const char *argv0);
+const char *xlang_runtime_thread_glue_o_path(const char *argv0);
+int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+int xlang_ensure_runtime_env_os_o(const char *argv0);
+const char *xlang_runtime_env_os_o_path(const char *argv0);
 const char *labi_ld_flag_lbcrypt(void);
 const char *labi_ld_flag_lws2_32(void);
 /* wave201 ensure-push mid peers */
-int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
-const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0);
-int shux_ensure_runtime_sync_os_o(const char *argv0);
-const char *shux_runtime_sync_os_o_path(const char *argv0);
-int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
-const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
-int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0);
-const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
-int shux_ensure_runtime_log_os_o(const char *argv0);
-const char *shux_runtime_log_os_o_path(const char *argv0);
-int shux_ensure_runtime_atomic_glue_o(const char *argv0);
-const char *shux_runtime_atomic_glue_o_path(const char *argv0);
-int shux_ensure_runtime_channel_glue_o(const char *argv0);
-const char *shux_runtime_channel_glue_o_path(const char *argv0);
-int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
-const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
+int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
+const char *xlang_runtime_sync_lock_diag_tls_o_path(const char *argv0);
+int xlang_ensure_runtime_sync_os_o(const char *argv0);
+const char *xlang_runtime_sync_os_o_path(const char *argv0);
+int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_log_os_o(const char *argv0);
+const char *xlang_runtime_log_os_o_path(const char *argv0);
+int xlang_ensure_runtime_atomic_glue_o(const char *argv0);
+const char *xlang_runtime_atomic_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_channel_glue_o(const char *argv0);
+const char *xlang_runtime_channel_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_backtrace_platform_o(const char *argv0);
+const char *xlang_runtime_backtrace_platform_o_path(const char *argv0);
 /* wave202 ensure-push heavy_a peers */
-int shux_ensure_runtime_math_libm_o(const char *argv0);
-const char *shux_runtime_math_libm_o_path(const char *argv0);
-int shux_ensure_runtime_sqlite_glue_o(const char *argv0);
-const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
-int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
-const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_math_libm_o(const char *argv0);
+const char *xlang_runtime_math_libm_o_path(const char *argv0);
+int xlang_ensure_runtime_sqlite_glue_o(const char *argv0);
+const char *xlang_runtime_sqlite_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0);
+const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0);
 int link_abi_generated_c_provides_core_mem(const char *c_path);
 int link_abi_generated_c_provides_std_heap(const char *c_path);
 int link_abi_generated_c_needs_zlib(const char *c_path);
@@ -118,18 +118,18 @@ const char *labi_icc_rel_heap_o(void);
 const char *labi_icc_rel_core_mem_o(void);
 void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag);
 /* wave203 ensure-push heavy_b peers */
-int shux_ensure_runtime_dynlib_os_o(const char *argv0);
-const char *shux_runtime_dynlib_os_o_path(const char *argv0);
-int shux_ensure_runtime_http_glue_o(const char *argv0);
-const char *shux_runtime_http_glue_o_path(const char *argv0);
-int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
-const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
-int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
-const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
-const char *shux_std_async_scheduler_o_path(const char *argv0);
-int shux_generated_c_needs_async_scheduler(const char *c_path);
+int xlang_ensure_runtime_dynlib_os_o(const char *argv0);
+const char *xlang_runtime_dynlib_os_o_path(const char *argv0);
+int xlang_ensure_runtime_http_glue_o(const char *argv0);
+const char *xlang_runtime_http_glue_o_path(const char *argv0);
+int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0);
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
+int xlang_ensure_runtime_scheduler_glue_o(const char *argv0);
+const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
+const char *xlang_std_async_scheduler_o_path(const char *argv0);
+int xlang_generated_c_needs_async_scheduler(const char *c_path);
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler);
-int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
+int xlang_link_obj_needs_undef_sym(const char *user_o, const char *sym);
 const char *labi_icc_rel_error_o(void);
 const char *labi_icc_rel_socketio_o(void);
 /* wave204 heap F-06 peers */
@@ -138,7 +138,7 @@ const char *labi_od_rel_page_mmap(void);
 int link_abi_generated_c_provides_core_mem(const char *c_path);
 int link_abi_generated_c_provides_std_heap(const char *c_path);
 /* wave205 fork-exec shell peers */
-int shux_spawn_sync(const char *prog, const char *const *argv);
+int xlang_spawn_sync(const char *prog, const char *const *argv);
 void link_diag_tool_status(const char *tool, int status);
 void invoke_cc_strip_out_x(const char *out_path);
 /* wave207 argv tail peers */
@@ -176,9 +176,9 @@ const char *labi_invoke_cc_skip_native_env_at(int i) {
   if (i == 0)
     return "CI";
   if (i == 1)
-    return "SHUX_CI_DOCKER";
+    return "XLANG_CI_DOCKER";
   if (i == 2)
-    return "SHUX_NO_MARCH_NATIVE";
+    return "XLANG_NO_MARCH_NATIVE";
   return NULL;
 }
 
@@ -241,8 +241,8 @@ const char *labi_icc_needs_rel_at(int i) {
   return NULL;
 }
 
-/* wave155: shux_append_linux_link_harden_impl pure orch (cold twin ≡ .x). */
-void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
+/* wave155: xlang_append_linux_link_harden_impl pure orch (cold twin ≡ .x). */
+void xlang_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
   int n;
   int k;
   if (!argv || !la || *la < 0)
@@ -307,47 +307,47 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
     }
   }
   if (needs_core_builtin) {
-    const char *abi_h = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_abi_h());
+    const char *abi_h = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_abi_h());
     if (abi_h && abi_h[0] && *ia < argv_cap - 2) {
       argv[(*ia)++] = (char *)"-include";
       argv[(*ia)++] = (char *)abi_h;
     }
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_o()));
   }
   if (needs_core_mem)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
   if (needs_core_slice)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_slice_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_slice_o()));
   if (needs_db_kv) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_kv_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_db_kv_o()));
     {
-      const char *rkv = shux_runtime_kv_mmap_glue_o_path(NULL);
+      const char *rkv = xlang_runtime_kv_mmap_glue_o_path(NULL);
       if (rkv && rkv[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rkv);
     }
   }
   if (needs_db_arrow) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_arrow_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_db_arrow_o()));
     {
-      const char *rar = shux_runtime_arrow_simd_glue_o_path(NULL);
+      const char *rar = xlang_runtime_arrow_simd_glue_o_path(NULL);
       if (rar && rar[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rar);
     }
   }
   if (needs_fs) {
-    if (shux_host_is_linux() || link_abi_host_is_apple())
+    if (xlang_host_is_linux() || link_abi_host_is_apple())
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lc());
   }
   if (needs_random) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, random_o);
-    (void)shux_ensure_runtime_random_fill_o(NULL);
+    (void)xlang_ensure_runtime_random_fill_o(NULL);
     {
-      const char *rrf = shux_runtime_random_fill_o_path(NULL);
+      const char *rrf = xlang_runtime_random_fill_o_path(NULL);
       if (rrf && rrf[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rrf);
     }
@@ -356,19 +356,19 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
   }
   if (needs_time) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, time_o);
-    (void)shux_ensure_runtime_time_os_o(NULL);
+    (void)xlang_ensure_runtime_time_os_o(NULL);
     {
-      const char *rto = shux_runtime_time_os_o_path(NULL);
+      const char *rto = xlang_runtime_time_os_o_path(NULL);
       if (rto && rto[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
     }
   }
   if (needs_runtime) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_o);
-    (void)shux_ensure_runtime_panic_o(NULL);
+    (void)xlang_ensure_runtime_panic_o(NULL);
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_panic_o);
     {
-      const char *rp = shux_runtime_panic_o_path(NULL);
+      const char *rp = xlang_runtime_panic_o_path(NULL);
       if (rp && rp[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
     }
@@ -378,7 +378,7 @@ void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
   if (needs_win32_wsa && link_abi_host_is_windows())
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lws2_32());
   if (needs_libc_heap) {
-    if (shux_host_is_linux() || link_abi_host_is_apple())
+    if (xlang_host_is_linux() || link_abi_host_is_apple())
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, labi_ld_flag_lc());
   }
 }
@@ -448,15 +448,15 @@ const char *labi_icc_std_need_needle_at(int mid, int i) {
 
   if (mid == 0) {
     if (i == 0) return "std_process_";
-    if (i == 1) return "shux_process_spawn";
-    if (i == 2) return "shux_process_wait";
+    if (i == 1) return "xlang_process_spawn";
+    if (i == 2) return "xlang_process_wait";
     if (i == 3) return "process_spawn";
     if (i == 4) return "process_exec";
     return NULL;
   }
   if (mid == 1) {
-    if (i == 0) return "process_shux_argc_get";
-    if (i == 1) return "process_shux_argv_get";
+    if (i == 0) return "process_xlang_argc_get";
+    if (i == 1) return "process_xlang_argv_get";
     if (i == 2) return "process_args_count_c";
     if (i == 3) return "process_arg_c";
     if (i == 4) return "args_iter_count_c";
@@ -467,7 +467,7 @@ const char *labi_icc_std_need_needle_at(int mid, int i) {
   }
   if (mid == 2) {
     if (i == 0) return "std_string_";
-    if (i == 1) return "shux_string_";
+    if (i == 1) return "xlang_string_";
     return NULL;
   }
   if (mid == 3) {
@@ -752,7 +752,7 @@ const char *labi_icc_std_need_needle_at(int mid, int i) {
     return NULL;
   }
   if (mid == 51) {
-    if (i == 0) return "shux_panic_(";
+    if (i == 0) return "xlang_panic_(";
     return NULL;
   }
   return NULL;
@@ -775,9 +775,9 @@ void invoke_cc_scan_std_module_needs(const char **c_paths, int n, int *flags, in
       continue;
     for (mid = 0; mid < 52; mid++) {
       if (mid == 51) {
-        if (link_abi_generated_c_contains_substr_use_line(cp, "shux_panic_(")
-            && !link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val) {")
-            && !link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val){"))
+        if (link_abi_generated_c_contains_substr_use_line(cp, "xlang_panic_(")
+            && !link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, int msg_val) {")
+            && !link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, int msg_val){"))
           flags[51] = 1;
         continue;
       }
@@ -824,13 +824,13 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
 
   if (need_process && invoke_cc_argv_push_existing(argv, ia, argv_cap, process_o)) {
     pushed_process_o = 1;
-    if (shux_host_is_linux())
+    if (xlang_host_is_linux())
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-pthread");
   }
   if (!pushed_process_o && (need_process || need_env || need_process_argv_glue)) {
-    (void)shux_ensure_runtime_process_argv_o(NULL);
+    (void)xlang_ensure_runtime_process_argv_o(NULL);
     {
-      const char *rpa = shux_runtime_process_argv_o_path(NULL);
+      const char *rpa = xlang_runtime_process_argv_o_path(NULL);
       if (rpa && rpa[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
     }
@@ -843,10 +843,10 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
   if (need_runtime)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_o);
   if (need_panic || need_runtime) {
-    (void)shux_ensure_runtime_panic_o(NULL);
+    (void)xlang_ensure_runtime_panic_o(NULL);
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_panic_o);
     {
-      const char *rp = shux_runtime_panic_o_path(NULL);
+      const char *rp = xlang_runtime_panic_o_path(NULL);
       if (rp && rp[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
     }
@@ -854,24 +854,24 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
 
   if (need_net && invoke_cc_argv_push_existing(argv, ia, argv_cap, net_o)) {
     (void)invoke_cc_append_net_tls_ld(argv, ia, argv_cap, net_o, include_root);
-    (void)shux_ensure_runtime_net_udp_batch_o(NULL);
+    (void)xlang_ensure_runtime_net_udp_batch_o(NULL);
     {
-      const char *rnub = shux_runtime_net_udp_batch_o_path(NULL);
+      const char *rnub = xlang_runtime_net_udp_batch_o_path(NULL);
       if (rnub && rnub[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rnub);
     }
-    (void)shux_ensure_runtime_net_workers_o(NULL);
+    (void)xlang_ensure_runtime_net_workers_o(NULL);
     {
-      const char *rnw = shux_runtime_net_workers_o_path(NULL);
+      const char *rnw = xlang_runtime_net_workers_o_path(NULL);
       if (rnw && rnw[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rnw);
     }
     need_thread = 1;
     need_flags[6] = 1;
-    if (shux_host_is_linux()) {
-      (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+    if (xlang_host_is_linux()) {
+      (void)xlang_ensure_runtime_asm_io_stubs_o(NULL);
       {
-        const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+        const char *ris = xlang_runtime_asm_io_stubs_o_path(NULL);
         if (ris && ris[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
       }
@@ -881,9 +881,9 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
   }
 
   if (need_thread && invoke_cc_argv_push_existing(argv, ia, argv_cap, thread_o)) {
-    (void)shux_ensure_runtime_thread_glue_o(NULL);
+    (void)xlang_ensure_runtime_thread_glue_o(NULL);
     {
-      const char *rtg = shux_runtime_thread_glue_o_path(NULL);
+      const char *rtg = xlang_runtime_thread_glue_o_path(NULL);
       if (rtg && rtg[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rtg);
     }
@@ -891,16 +891,16 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
 
   if (need_time) {
     if (include_root && include_root[0])
-      (void)shux_ensure_formal_std_make_o(include_root, "std/time/time.o", "../std/time/time.o");
+      (void)xlang_ensure_formal_std_make_o(include_root, "std/time/time.o", "../std/time/time.o");
     {
-      const char *time_push = shux_rel_o_path_from_argv0(include_root, "std/time/time.o");
+      const char *time_push = xlang_rel_o_path_from_argv0(include_root, "std/time/time.o");
       if ((!time_push || !time_push[0]) && time_o && time_o[0])
         time_push = time_o;
       (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, time_push);
     }
-    (void)shux_ensure_runtime_time_os_o(NULL);
+    (void)xlang_ensure_runtime_time_os_o(NULL);
     {
-      const char *rto = shux_runtime_time_os_o_path(NULL);
+      const char *rto = xlang_runtime_time_os_o_path(NULL);
       if (rto && rto[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
     }
@@ -908,9 +908,9 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
 
   if (need_random) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, random_o);
-    (void)shux_ensure_runtime_random_fill_o(NULL);
+    (void)xlang_ensure_runtime_random_fill_o(NULL);
     {
-      const char *rrf = shux_runtime_random_fill_o_path(NULL);
+      const char *rrf = xlang_runtime_random_fill_o_path(NULL);
       if (rrf && rrf[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rrf);
     }
@@ -920,9 +920,9 @@ void invoke_cc_append_std_ensure_push_front(char **argv, int *ia, int argv_cap,
 
   if (need_env) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, env_o);
-    (void)shux_ensure_runtime_env_os_o(NULL);
+    (void)xlang_ensure_runtime_env_os_o(NULL);
     {
-      const char *reo = shux_runtime_env_os_o_path(NULL);
+      const char *reo = xlang_runtime_env_os_o_path(NULL);
       if (reo && reo[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
     }
@@ -950,15 +950,15 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
   need_hash = need_flags[18];
 
   if (need_sync && invoke_cc_argv_push_existing(argv, ia, argv_cap, sync_o)) {
-    (void)shux_ensure_runtime_sync_lock_diag_tls_o(NULL);
+    (void)xlang_ensure_runtime_sync_lock_diag_tls_o(NULL);
     {
-      const char *rsld = shux_runtime_sync_lock_diag_tls_o_path(NULL);
+      const char *rsld = xlang_runtime_sync_lock_diag_tls_o_path(NULL);
       if (rsld && rsld[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsld);
     }
-    (void)shux_ensure_runtime_sync_os_o(NULL);
+    (void)xlang_ensure_runtime_sync_os_o(NULL);
     {
-      const char *rso = shux_runtime_sync_os_o_path(NULL);
+      const char *rso = xlang_runtime_sync_os_o_path(NULL);
       if (rso && rso[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rso);
     }
@@ -969,54 +969,54 @@ void invoke_cc_append_std_ensure_push_mid(char **argv, int *ia, int argv_cap,
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, base64_o);
   if (need_crypto) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, crypto_o);
-    (void)shux_ensure_runtime_ed25519_ref10_glue_o(NULL);
+    (void)xlang_ensure_runtime_ed25519_ref10_glue_o(NULL);
     {
-      const char *red = shux_runtime_ed25519_ref10_glue_o_path(NULL);
+      const char *red = xlang_runtime_ed25519_ref10_glue_o_path(NULL);
       if (red && red[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, red);
     }
-    (void)shux_ensure_runtime_crypto_inc_glue_o(NULL);
+    (void)xlang_ensure_runtime_crypto_inc_glue_o(NULL);
     {
-      const char *rci = shux_runtime_crypto_inc_glue_o_path(NULL);
+      const char *rci = xlang_runtime_crypto_inc_glue_o_path(NULL);
       if (rci && rci[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rci);
     }
   }
   if (need_log && invoke_cc_argv_push_existing(argv, ia, argv_cap,
-      shux_rel_o_path_from_argv0(include_root, labi_icc_rel_log_o()))) {
-    (void)shux_ensure_runtime_log_os_o(NULL);
+      xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_log_o()))) {
+    (void)xlang_ensure_runtime_log_os_o(NULL);
     {
-      const char *rlo = shux_runtime_log_os_o_path(NULL);
+      const char *rlo = xlang_runtime_log_os_o_path(NULL);
       if (rlo && rlo[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rlo);
     }
   }
   if (need_atomic && invoke_cc_argv_push_existing(argv, ia, argv_cap, atomic_o)) {
-    (void)shux_ensure_runtime_atomic_glue_o(NULL);
+    (void)xlang_ensure_runtime_atomic_glue_o(NULL);
     {
-      const char *rag = shux_runtime_atomic_glue_o_path(NULL);
+      const char *rag = xlang_runtime_atomic_glue_o_path(NULL);
       if (rag && rag[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rag);
     }
   }
   if (need_channel) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, channel_o);
-    (void)shux_ensure_runtime_channel_glue_o(NULL);
+    (void)xlang_ensure_runtime_channel_glue_o(NULL);
     {
-      const char *rcg = shux_runtime_channel_glue_o_path(NULL);
+      const char *rcg = xlang_runtime_channel_glue_o_path(NULL);
       if (rcg && rcg[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rcg);
     }
   }
   if (need_backtrace) {
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, backtrace_o);
-    (void)shux_ensure_runtime_backtrace_platform_o(NULL);
+    (void)xlang_ensure_runtime_backtrace_platform_o(NULL);
     {
-      const char *rbp = shux_runtime_backtrace_platform_o_path(NULL);
+      const char *rbp = xlang_runtime_backtrace_platform_o_path(NULL);
       if (rbp && rbp[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rbp);
     }
-    if (shux_host_is_linux()) {
+    if (xlang_host_is_linux()) {
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-rdynamic");
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ldl");
     } else if (link_abi_host_is_apple()) {
@@ -1058,15 +1058,15 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
 
   if (need_math) {
     if (include_root && include_root[0])
-      (void)shux_ensure_formal_std_make_o(include_root, "std/math/math.o", "../std/math/math.o");
+      (void)xlang_ensure_formal_std_make_o(include_root, "std/math/math.o", "../std/math/math.o");
     {
-      const char *math_push = shux_rel_o_path_from_argv0(include_root, "std/math/math.o");
+      const char *math_push = xlang_rel_o_path_from_argv0(include_root, "std/math/math.o");
       if ((!math_push || !math_push[0]) && math_o && math_o[0])
         math_push = math_o;
       if (invoke_cc_argv_push_existing(argv, ia, argv_cap, math_push)) {
-        (void)shux_ensure_runtime_math_libm_o(NULL);
+        (void)xlang_ensure_runtime_math_libm_o(NULL);
         {
-          const char *rml = shux_runtime_math_libm_o_path(NULL);
+          const char *rml = xlang_runtime_math_libm_o_path(NULL);
           if (rml && rml[0])
             (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rml);
         }
@@ -1113,25 +1113,25 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
         if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_v = 1;
       }
       if (include_root && include_root[0]) {
-        (void)shux_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
-        if (!c_prov_sh_v) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-        if (!c_prov_cm_v) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+        (void)xlang_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
+        if (!c_prov_sh_v) (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+        if (!c_prov_cm_v) (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
       }
       if (invoke_cc_argv_push_existing(argv, ia, argv_cap,
-          shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
+          xlang_rel_o_path_from_argv0(include_root, "std/vec/vec.o"))) {
         if (!c_prov_sh_v) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+            xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
         if (!c_prov_cm_v) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+            xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
       }
     }
   }
   if (need_ffi)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ffi_o);
   if (need_db && invoke_cc_argv_push_existing(argv, ia, argv_cap, db_o)) {
-    (void)shux_ensure_runtime_sqlite_glue_o(NULL);
+    (void)xlang_ensure_runtime_sqlite_glue_o(NULL);
     {
-      const char *rsg = shux_runtime_sqlite_glue_o_path(NULL);
+      const char *rsg = xlang_runtime_sqlite_glue_o_path(NULL);
       if (rsg && rsg[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
     }
@@ -1141,10 +1141,10 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, elf_o);
   if (need_json)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
   if (need_csv)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
   if (need_set) {
     int c_prov_cm_s = 0, c_prov_sh_s = 0;
     for (jscan = 0; jscan < n; jscan++) {
@@ -1154,16 +1154,16 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
       if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_s = 1;
     }
     if (include_root && include_root[0]) {
-      (void)shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
-      if (!c_prov_sh_s) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-      if (!c_prov_cm_s) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+      (void)xlang_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
+      if (!c_prov_sh_s) (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      if (!c_prov_cm_s) (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
     }
     if (invoke_cc_argv_push_existing(argv, ia, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
+            xlang_rel_o_path_from_argv0(include_root, "std/set/set.o"))) {
       if (!c_prov_sh_s) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+          xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
       if (!c_prov_cm_s) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+          xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
       (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, hash_o);
     }
   }
@@ -1176,20 +1176,20 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
       if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_m = 1;
     }
     if (include_root && include_root[0]) {
-      (void)shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
-      if (!c_prov_sh_m) (void)shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
-      if (!c_prov_cm_m) (void)shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+      (void)xlang_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
+      if (!c_prov_sh_m) (void)xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+      if (!c_prov_cm_m) (void)xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
     }
     if (invoke_cc_argv_push_existing(argv, ia, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
+            xlang_rel_o_path_from_argv0(include_root, "std/map/map.o"))) {
       if (!c_prov_sh_m) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+          xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
       if (!c_prov_cm_m) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-          shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+          xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
     }
   }
   if (need_queue && invoke_cc_argv_push_existing(argv, ia, argv_cap,
-          shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
+          xlang_rel_o_path_from_argv0(include_root, "std/queue/queue.o"))) {
     int c_prov_cm_q = 0, c_prov_sh_q = 0;
     for (jscan = 0; jscan < n; jscan++) {
       const char *cp = c_paths ? c_paths[jscan] : NULL;
@@ -1198,9 +1198,9 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
       if (link_abi_generated_c_provides_std_heap(cp)) c_prov_sh_q = 1;
     }
     if (!c_prov_sh_q) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
     if (!c_prov_cm_q) (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
   }
   if (need_regex)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, regex_o);
@@ -1222,9 +1222,9 @@ void invoke_cc_append_std_ensure_push_heavy_a(char **argv, int *ia, int argv_cap
       ld_append_brew_lib_paths((const char **)argv, ia, argv_cap);
       if (needs_zlib) {
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lz");
-        (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
+        (void)xlang_ensure_runtime_compress_zlib_glue_o(NULL);
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-            shux_runtime_compress_zlib_glue_o_path(NULL));
+            xlang_runtime_compress_zlib_glue_o_path(NULL));
       }
       if (needs_zstd)
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lzstd");
@@ -1291,19 +1291,19 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
       (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, unicode_o);
   }
   if (need_dynlib && invoke_cc_argv_push_existing(argv, ia, argv_cap, dynlib_o)) {
-    (void)shux_ensure_runtime_dynlib_os_o(NULL);
+    (void)xlang_ensure_runtime_dynlib_os_o(NULL);
     {
-      const char *rdo = shux_runtime_dynlib_os_o_path(NULL);
+      const char *rdo = xlang_runtime_dynlib_os_o_path(NULL);
       if (rdo && rdo[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rdo);
     }
-    if (shux_host_is_linux())
+    if (xlang_host_is_linux())
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ldl");
   }
   if (need_http && invoke_cc_argv_push_existing(argv, ia, argv_cap, http_o)) {
-    (void)shux_ensure_runtime_http_glue_o(NULL);
+    (void)xlang_ensure_runtime_http_glue_o(NULL);
     {
-      const char *rhg = shux_runtime_http_glue_o_path(NULL);
+      const char *rhg = xlang_runtime_http_glue_o_path(NULL);
       if (rhg && rhg[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rhg);
     }
@@ -1313,7 +1313,7 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
   }
   if (need_socketio)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
   if (need_tar)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, tar_o);
   if (need_simd)
@@ -1322,7 +1322,7 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, context_o);
   if (need_error)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap,
-        shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
+        xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
   if (need_datetime)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, datetime_o);
   if (need_uuid)
@@ -1344,9 +1344,9 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
   if (need_schema)
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, schema_o);
   if (need_test && invoke_cc_argv_push_existing(argv, ia, argv_cap, test_o)) {
-    (void)shux_ensure_runtime_test_fn_invoke_o(NULL);
+    (void)xlang_ensure_runtime_test_fn_invoke_o(NULL);
     {
-      const char *rtfi = shux_runtime_test_fn_invoke_o_path(NULL);
+      const char *rtfi = xlang_runtime_test_fn_invoke_o_path(NULL);
       if (rtfi && rtfi[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
     }
@@ -1356,8 +1356,8 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
       const char *cp = c_paths ? c_paths[jscan] : NULL;
       if (!cp)
         continue;
-      if (shux_generated_c_needs_async_scheduler(cp)) {
-        sched_link = shux_std_async_scheduler_o_path(include_root);
+      if (xlang_generated_c_needs_async_scheduler(cp)) {
+        sched_link = xlang_std_async_scheduler_o_path(include_root);
         break;
       }
     }
@@ -1365,29 +1365,29 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
   if (task_linked) {
     const char *sched = scheduler_o_for_task_link(task_o, sched_link);
     if (invoke_cc_argv_push_existing(argv, ia, argv_cap, sched)) {
-      if (shux_host_is_linux())
+      if (xlang_host_is_linux())
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-pthread");
-      (void)shux_ensure_runtime_scheduler_glue_o(NULL);
+      (void)xlang_ensure_runtime_scheduler_glue_o(NULL);
       {
-        const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
+        const char *rsg = xlang_runtime_scheduler_glue_o_path(NULL);
         if (rsg && rsg[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
       }
     }
   } else if (sched_link && sched_link[0] &&
              invoke_cc_argv_push_existing(argv, ia, argv_cap, sched_link)) {
-    if (shux_host_is_linux())
+    if (xlang_host_is_linux())
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-pthread");
-    (void)shux_ensure_runtime_scheduler_glue_o(NULL);
+    (void)xlang_ensure_runtime_scheduler_glue_o(NULL);
     {
-      const char *rsg = shux_runtime_scheduler_glue_o_path(NULL);
+      const char *rsg = xlang_runtime_scheduler_glue_o_path(NULL);
       if (rsg && rsg[0])
         (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
     }
   }
   // process_argv complement after std/*.o pushes
   // (C seed: // form — gcc is non-nested and -Wcomment on /* inside /* */;
-  //  Shux .x accepts the same prose as a nested path-safe block comment.)
+  //  Xlang .x accepts the same prose as a nested path-safe block comment.)
   {
     int need_pav = 0;
     int have_process_o = 0;
@@ -1401,14 +1401,14 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
         have_process_o = 1;
       if (strstr(e, "runtime_process_argv.o") || strstr(e, "process_argv.o"))
         have_pav = 1;
-      if (shux_link_obj_needs_undef_sym(e, "process_shux_argc_get") ||
-          shux_link_obj_needs_undef_sym(e, "process_shux_argv_get"))
+      if (xlang_link_obj_needs_undef_sym(e, "process_xlang_argc_get") ||
+          xlang_link_obj_needs_undef_sym(e, "process_xlang_argv_get"))
         need_pav = 1;
     }
     if (need_pav && !have_process_o && !have_pav) {
-      (void)shux_ensure_runtime_process_argv_o(NULL);
+      (void)xlang_ensure_runtime_process_argv_o(NULL);
       {
-        const char *rpa = shux_runtime_process_argv_o_path(NULL);
+        const char *rpa = xlang_runtime_process_argv_o_path(NULL);
         if (rpa && rpa[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
       }
@@ -1490,20 +1490,20 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
     }
   }
   if (!c_provides_core_mem) {
-    const char *mem_o = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+    const char *mem_o = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, mem_o);
   }
   if (!c_provides_std_heap) {
-    const char *heap_o = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
+    const char *heap_o = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
     (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
   }
   /* PLATFORM: SHARED / LINUX gold — page_mmap + asm_io_stubs companions for heap.o. */
   {
-    const char *pm_o = shux_rel_o_path_from_argv0(include_root, labi_od_rel_page_mmap());
+    const char *pm_o = xlang_rel_o_path_from_argv0(include_root, labi_od_rel_page_mmap());
     if (invoke_cc_argv_push_existing(argv, ia, argv_cap, pm_o)) {
-      (void)shux_ensure_runtime_asm_io_stubs_o(NULL);
+      (void)xlang_ensure_runtime_asm_io_stubs_o(NULL);
       {
-        const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+        const char *ris = xlang_runtime_asm_io_stubs_o_path(NULL);
         if (ris && ris[0])
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
       }
@@ -1528,11 +1528,11 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "cc");
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-std=gnu11");
   /* wave223 G.7: link_abi_getenv (not raw getenv). */
-  if (link_abi_getenv("SHUX_RUN_QUIET")) {
+  if (link_abi_getenv("XLANG_RUN_QUIET")) {
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-w");
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-w");
   }
-  is_linux = shux_host_is_linux();
+  is_linux = xlang_host_is_linux();
   if (is_linux)
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-B/usr/bin");
   ol = opt_level;
@@ -1558,7 +1558,7 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
   if (use_lto && is0 != 0 && !skip_nat)
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-flto");
   if (is_linux && is0 != 0)
-    shux_append_linux_link_harden_impl(argv, ia, argv_cap);
+    xlang_append_linux_link_harden_impl(argv, ia, argv_cap);
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-o");
   if (out_path && out_path[0])
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, out_path);
@@ -1592,7 +1592,7 @@ void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
   const char *p;
   if (!argv || !ia || *ia < 0)
     return;
-  is_linux = shux_host_is_linux();
+  is_linux = xlang_host_is_linux();
   is_apple = link_abi_host_is_apple();
   is_win = link_abi_host_is_windows();
   /* PLATFORM: POSIX (linux|apple) — optional -pthread + always -lc. */
@@ -1643,12 +1643,12 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap) {
   const char *flc;
   if (!argv || !ia || *ia < 0)
     return;
-  is_linux = shux_host_is_linux();
+  is_linux = xlang_host_is_linux();
   is_apple = link_abi_host_is_apple();
   is_win = link_abi_host_is_windows();
-  /* PLATFORM: WINDOWS — process_argv.o for shux_process_argc/argv (extern not weak). */
+  /* PLATFORM: WINDOWS — process_argv.o for xlang_process_argc/argv (extern not weak). */
   if (is_win) {
-    rpav = shux_runtime_process_argv_o_path(NULL);
+    rpav = xlang_runtime_process_argv_o_path(NULL);
     if (rpav && rpav[0])
       (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpav);
   }
@@ -1679,13 +1679,13 @@ int invoke_cc_run_cc_argv(char **argv) {
   is_win = link_abi_host_is_windows();
   if (is_win) {
     argv[0] = (char *)"gcc";
-    rc = shux_spawn_sync("gcc", (const char *const *)argv);
+    rc = xlang_spawn_sync("gcc", (const char *const *)argv);
     if (rc == 0)
       return 0;
     link_diag_tool_status("cc", rc);
     return -1;
   }
-  is_linux = shux_host_is_linux();
+  is_linux = xlang_host_is_linux();
   if (is_linux) {
     static const char *cands[6] = {
       "gcc", "cc", "/usr/bin/gcc", "/usr/bin/cc",
@@ -1694,7 +1694,7 @@ int invoke_cc_run_cc_argv(char **argv) {
     int i;
     for (i = 0; i < 6; i++) {
       argv[0] = (char *)cands[i];
-      rc = shux_spawn_sync(cands[i], (const char *const *)argv);
+      rc = xlang_spawn_sync(cands[i], (const char *const *)argv);
       if (rc == 0)
         return 0;
     }
@@ -1703,11 +1703,11 @@ int invoke_cc_run_cc_argv(char **argv) {
   }
   /* PLATFORM: APPLE / other POSIX */
   argv[0] = (char *)"cc";
-  rc = shux_spawn_sync("cc", (const char *const *)argv);
+  rc = xlang_spawn_sync("cc", (const char *const *)argv);
   if (rc == 0)
     return 0;
   argv[0] = (char *)"gcc";
-  rc = shux_spawn_sync("gcc", (const char *const *)argv);
+  rc = xlang_spawn_sync("gcc", (const char *const *)argv);
   if (rc == 0)
     return 0;
   link_diag_tool_status("cc", -1);
@@ -1748,7 +1748,7 @@ const char *labi_icc_rel_log_o(void);
 const char *labi_icc_rel_socketio_o(void);
 int labi_icc_needs_rel_count(void);
 const char *labi_icc_needs_rel_at(int i);
-void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
+void xlang_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag);
 void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root,

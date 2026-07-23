@@ -19,7 +19,7 @@
 //
 // See implementation.
 // See implementation.
-// shux_panic_，
+// xlang_panic_，
 // See implementation.
 //
 // See implementation.

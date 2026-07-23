@@ -23,9 +23,9 @@
 ## 门禁
 
 ```bash
-SHUX_F_SYNC_LOCK_DIAG_V2_FAIL=1 ./tests/run-f-sync-lock-diag-v2-gate.sh
+XLANG_F_SYNC_LOCK_DIAG_V2_FAIL=1 ./tests/run-f-sync-lock-diag-v2-gate.sh
 ./tests/run-std-sync-lock-diag-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

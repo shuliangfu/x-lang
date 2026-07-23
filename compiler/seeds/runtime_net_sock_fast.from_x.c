@@ -2,7 +2,7 @@
  * G-02f-104 helper gates.
  * Product: ../std/net/net_sock_fast.o; logic still C until full .x port.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -33,26 +33,26 @@ extern void net_udp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_
 #else
 #if defined(__APPLE__)
 extern int *__error(void);
-static int32_t *shux_net_errno_ptr(void) { return (int32_t *)__error(); }
+static int32_t *xlang_net_errno_ptr(void) { return (int32_t *)__error(); }
 #else
 #include <errno.h>
-static int32_t *shux_net_errno_ptr(void) { return (int32_t *)__errno_location(); }
+static int32_t *xlang_net_errno_ptr(void) { return (int32_t *)__errno_location(); }
 #endif
-SHUX_WEAK int32_t *net_tcp_errno_ptr(void) { return shux_net_errno_ptr(); }
-SHUX_WEAK int32_t *net_tcp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
-SHUX_WEAK int32_t *net_udp_errno_ptr(void) { return shux_net_errno_ptr(); }
-SHUX_WEAK int32_t *net_udp_errno_ptr_c(void) { return shux_net_errno_ptr(); }
-SHUX_WEAK int32_t *net_ipv6_errno_ptr(void) { return shux_net_errno_ptr(); }
-SHUX_WEAK int32_t *net_ipv6_errno_ptr_c(void) { return shux_net_errno_ptr(); }
+XLANG_WEAK int32_t *net_tcp_errno_ptr(void) { return xlang_net_errno_ptr(); }
+XLANG_WEAK int32_t *net_tcp_errno_ptr_c(void) { return xlang_net_errno_ptr(); }
+XLANG_WEAK int32_t *net_udp_errno_ptr(void) { return xlang_net_errno_ptr(); }
+XLANG_WEAK int32_t *net_udp_errno_ptr_c(void) { return xlang_net_errno_ptr(); }
+XLANG_WEAK int32_t *net_ipv6_errno_ptr(void) { return xlang_net_errno_ptr(); }
+XLANG_WEAK int32_t *net_ipv6_errno_ptr_c(void) { return xlang_net_errno_ptr(); }
 #endif
 
 /*
- * 【Why 根源】std/net 下 .x 经 -backend asm 出 .o 时，extern shux_sys_poll 为真 U 符号；
+ * 【Why 根源】std/net 下 .x 经 -backend asm 出 .o 时，extern xlang_sys_poll 为真 U 符号；
  * C 前端 user TU 靠 preamble static inline，不会导出给 net.o。
  * 权威体放 net.o 合并的 sock_fast（与 net_close_socket_c 同层），asm/C 两路径可链。
  * 语义对齐 rt_preamble.from_x.c / std.io.sync：poll(pollfd*, nfds, timeout)。
  */
-int32_t shux_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
+int32_t xlang_sys_poll(uint8_t *fds, int32_t nfds, int32_t timeout) {
 #if defined(_WIN32) || defined(_WIN64)
     /* Winsock：WSAPoll；nfds/timeout 与 POSIX poll 对齐（timeout ms，-1 无限）。 */
     if (fds == 0 || nfds <= 0)
@@ -78,7 +78,7 @@ void net_ensure_wsa_impl(void) {
         net_wsa_done = 1;
 }
 
-#ifndef SHUX_RUNTIME_NET_SOCK_FAST_FROM_X
+#ifndef XLANG_RUNTIME_NET_SOCK_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void net_ensure_wsa(void) {
     net_ensure_wsa_impl();
@@ -91,7 +91,7 @@ __attribute__((constructor(65534)))
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void net_wsa_ctor_impl(void) { net_ensure_wsa_impl(); }
 
-#ifndef SHUX_RUNTIME_NET_SOCK_FAST_FROM_X
+#ifndef XLANG_RUNTIME_NET_SOCK_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void net_wsa_ctor(void) { net_ensure_wsa(); }
 #endif

@@ -2,7 +2,7 @@
 #
 # 【文件职责】std.sync 模块的回归测试脚本；编译并运行 tests/sync/main.x，校验退出码。
 # 【测试目的】覆盖 mutex_new、mutex_lock、mutex_try_lock、mutex_unlock、mutex_free，确保 API 行为符合预期。
-# 【运行方式】在仓库根目录执行 bash tests/run-sync.sh 或 ./tests/run-sync.sh；可选环境变量 SHUX 指定编译器路径。
+# 【运行方式】在仓库根目录执行 bash tests/run-sync.sh 或 ./tests/run-sync.sh；可选环境变量 XLANG 指定编译器路径。
 #
 set -e
 cd "$(dirname "$0")/.."
@@ -10,18 +10,18 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 # 确保 compiler 与 std/sync/sync.o 已构建（链接阶段需要 sync.o）
 make -C compiler -q 2>/dev/null || make -C compiler
-# W3 gold best-effort：跳过 ensure_std_c_o（make+seed shux 易挂起/进程风暴）。
-if [ -z "${SHUX_W3_SKIP_STD_ENSURE:-}" ]; then
+# W3 gold best-effort：跳过 ensure_std_c_o（make+seed xlang 易挂起/进程风暴）。
+if [ -z "${XLANG_W3_SKIP_STD_ENSURE:-}" ]; then
   ensure_std_c_o ../std/sync/sync.o
 fi
 
-SHUX="${SHUX:-./compiler/shux}"
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-LINK_SHUX="$RUN_SHUX"
+XLANG="${XLANG:-./compiler/xlang}"
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+LINK_XLANG="$RUN_XLANG"
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-exe="/tmp/shux_sync_$$_main"
-if ! $LINK_SHUX build -L . tests/sync/main.x -o "$exe" 2>&1; then
+exe="/tmp/xlang_sync_$$_main"
+if ! $LINK_XLANG build -L . tests/sync/main.x -o "$exe" 2>&1; then
   echo "sync test: compile failed"
   rm -f "$exe"
   exit 1
@@ -33,4 +33,4 @@ if [ "$exitcode" -ne 0 ]; then
   exit 1
 fi
 echo "sync test OK (all)"
-rm -f /tmp/shux_sync_$$_*
+rm -f /tmp/xlang_sync_$$_*

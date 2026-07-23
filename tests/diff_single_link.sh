@@ -1,40 +1,40 @@
 #!/usr/bin/env bash
 # diff_single_link.sh — 单链差分 harness（自举方法 Phase 0）
 #
-# 对每个 compiler/src/*.x 核心模块跑 shux -E，对比 seed _gen.c / seeds/*.from_x.c
+# 对每个 compiler/src/*.x 核心模块跑 xlang -E，对比 seed _gen.c / seeds/*.from_x.c
 # 输出：自举进度地图（已自举 / typeck 失败 / 差分非空）
 #
 # 用法：cd compiler && bash ../tests/diff_single_link.sh
-#       或：SHUX=./compiler/shux bash tests/diff_single_link.sh
+#       或：XLANG=./compiler/xlang bash tests/diff_single_link.sh
 
 set -u
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT/compiler" || exit 1
 
-# 解析 SHUX 为绝对路径（支持 SHUX=./compiler/shux 或 SHUX=./shux 两种写法）
-# 根因：macOS arm64 ASM backend 链接失败（pre-existing），shux 二进制可能不存在；
-# 此时 fallback 到 shux-c（C 前端构建，-E 功能等价用于差分验证）
-SHUX_REL="${SHUX:-./shux}"
-if [ ! -f "$SHUX_REL" ]; then
-  SHUX_REL="$REPO_ROOT/compiler/shux"
+# 解析 XLANG 为绝对路径（支持 XLANG=./compiler/xlang 或 XLANG=./xlang 两种写法）
+# 根因：macOS arm64 ASM backend 链接失败（pre-existing），xlang 二进制可能不存在；
+# 此时 fallback 到 xlang-c（C 前端构建，-E 功能等价用于差分验证）
+XLANG_REL="${XLANG:-./xlang}"
+if [ ! -f "$XLANG_REL" ]; then
+  XLANG_REL="$REPO_ROOT/compiler/xlang"
 fi
-if [ ! -f "$SHUX_REL" ]; then
-  # shux 不存在，fallback 到 shux-c
-  SHUX_REL="$REPO_ROOT/compiler/shux-c"
-  if [ ! -f "$SHUX_REL" ]; then
-    echo "diff_single_link: neither shux nor shux-c found in compiler/" >&2
+if [ ! -f "$XLANG_REL" ]; then
+  # xlang 不存在，fallback 到 xlang-c
+  XLANG_REL="$REPO_ROOT/compiler/xlang-c"
+  if [ ! -f "$XLANG_REL" ]; then
+    echo "diff_single_link: neither xlang nor xlang-c found in compiler/" >&2
     exit 127
   fi
-  echo "diff_single_link: WARN shux not found, fallback to shux-c" >&2
+  echo "diff_single_link: WARN xlang not found, fallback to xlang-c" >&2
 fi
-SHUX_BIN="$(cd "$(dirname "$SHUX_REL")" && pwd)/$(basename "$SHUX_REL")"
+XLANG_BIN="$(cd "$(dirname "$XLANG_REL")" && pwd)/$(basename "$XLANG_REL")"
 COMPILER_DIR="."
-TMP_DIR="${TMPDIR:-/tmp}/shux_diff_$$"
+TMP_DIR="${TMPDIR:-/tmp}/xlang_diff_$$"
 mkdir -p "$TMP_DIR"
 
 # import 搜索路径：覆盖所有 compiler/src/ 子模块 + 上级 std/
 # 根因：.x 文件用 import("ast") / import("std.heap") 等，需要 -L 指定搜索目录
-SHUX_LIB_PATHS="-L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/driver -L src/preprocess"
+XLANG_LIB_PATHS="-L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/driver -L src/preprocess"
 
 # 核心前端模块（.x 源 → seed C）
 # 格式：.x相对路径|seed相对路径
@@ -130,11 +130,11 @@ for entry in "${MODULES[@]}"; do
     has_seed=0
   fi
 
-  # 跑 shux -E，捕获 stdout 到临时文件（超时 90 秒：大模块 typeck 合法耗时；真死循环仍有上限）
+  # 跑 xlang -E，捕获 stdout 到临时文件（超时 90 秒：大模块 typeck 合法耗时；真死循环仍有上限）
   # 加 -L 搜索路径，让 import("ast") / import("std.heap") 等能正确解析
   out_file="$TMP_DIR/$(basename "$x_src" .x)_gen.c"
   err_file="$TMP_DIR/$(basename "$x_src" .x)_err.txt"
-  perl -e 'alarm 90; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$x_src" >"$out_file" 2>"$err_file"
+  perl -e 'alarm 90; exec @ARGV' "$XLANG_BIN" -E $XLANG_LIB_PATHS "$x_src" >"$out_file" 2>"$err_file"
   rc=$?
 
   if [ $rc -ne 0 ]; then
@@ -208,16 +208,16 @@ for entry in "${MODULES[@]}"; do
     done
     IFS="$old_ifs"
   fi
-  # PLATFORM: SHARED — preprocess EMPTY surface may need shux_slice layout inject
+  # PLATFORM: SHARED — preprocess EMPTY surface may need xlang_slice layout inject
   # when comparing plain -E (type name in protos, no struct body) to surface pin.
   # Product cold pin already embeds the definition; do not rewrite product pin here.
   case "$seed_key" in
     preprocess_empty_surface.from_x.c|preprocess_gen.c)
-      if ! grep -q 'struct shux_slice_uint8_t { uint8_t \*data; size_t length; };' "$norm_out"; then
+      if ! grep -q 'struct xlang_slice_uint8_t { uint8_t \*data; size_t length; };' "$norm_out"; then
         awk '
           { print }
-          /^void shux_panic_\(int has_msg, int msg_val\);$/ && !done {
-            print "struct shux_slice_uint8_t { uint8_t *data; size_t length; };"
+          /^void xlang_panic_\(int has_msg, int msg_val\);$/ && !done {
+            print "struct xlang_slice_uint8_t { uint8_t *data; size_t length; };"
             done=1
           }
         ' "$norm_out" >"${norm_out}.slice" && mv "${norm_out}.slice" "$norm_out"

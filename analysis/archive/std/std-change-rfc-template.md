@@ -35,7 +35,7 @@
 
 - [ ] …
 - [ ] gate 全绿
-- [ ] `shux check` 矩阵含本模块
+- [ ] `xlang check` 矩阵含本模块
 
 ---
 
@@ -128,7 +128,7 @@ import("std.xxx");
 **Gate 报告格式（建议）**
 
 ```
-shux: [SHUX_<TAG>] status=ok ...
+xlang: [XLANG_<TAG>] status=ok ...
 ```
 
 ---

@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_MATH_FENV_DOC:-analysis/std-math-fenv-v1.md}"
-MANIFEST="${SHUX_STD_MATH_FENV_TSV:-tests/baseline/std-math-fenv.tsv}"
-VECTORS="${SHUX_STD_MATH_FENV_VECTORS:-tests/baseline/std-math-fenv-vectors.tsv}"
+DOC="${XLANG_STD_MATH_FENV_DOC:-analysis/std-math-fenv-v1.md}"
+MANIFEST="${XLANG_STD_MATH_FENV_TSV:-tests/baseline/std-math-fenv.tsv}"
+VECTORS="${XLANG_STD_MATH_FENV_VECTORS:-tests/baseline/std-math-fenv-vectors.tsv}"
 MOD_X="std/math/mod.x"
-MATH_RUNTIME="${SHUX_STD_MATH_IMPL:-compiler/seeds/runtime_math_libm.from_x.c}"
+MATH_RUNTIME="${XLANG_STD_MATH_IMPL:-compiler/seeds/runtime_math_libm.from_x.c}"
 MATH_X="std/math/math.x"
 LIB="tests/lib/std-math-fenv.sh"
 SMOKE_X="tests/std-math/fenv_clear.x"
@@ -89,7 +89,7 @@ SKIP=0
 if std_math_fenv_run_c_smoke "$MATH_RUNTIME"; then
   C_OK=1
 else
-  if grep -q 'SHUX_MATH_HAVE_FENV' "$MATH_RUNTIME" 2>/dev/null; then
+  if grep -q 'XLANG_MATH_HAVE_FENV' "$MATH_RUNTIME" 2>/dev/null; then
     std_math_fenv_emit_report "fail" 0 0 0
     exit 1
   fi
@@ -98,7 +98,7 @@ else
 fi
 
 X_OK=0
-SHUX_BIN=""
+XLANG_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -110,28 +110,28 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-059: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-059: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-math-fenv gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_math_fenv_emit_report "fail" "$C_OK" 0 "$SKIP"
     exit 1
   fi
-  if std_math_fenv_run_smoke "$SHUX_BIN" "$SMOKE_X" "clear"; then
+  if std_math_fenv_run_smoke "$XLANG_BIN" "$SMOKE_X" "clear"; then
     X_OK=1
   else
     std_math_fenv_emit_report "fail" "$C_OK" 0 "$SKIP"
     exit 1
   fi
 else
-  echo "std-math-fenv gate SKIP .x smoke (no native shux)" >&2
+  echo "std-math-fenv gate SKIP .x smoke (no native xlang)" >&2
   SKIP=1
 fi
 

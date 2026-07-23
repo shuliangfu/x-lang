@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD103_DOC:-analysis/std-elf-sym-rela-v1.md}"
-MANIFEST="${SHUX_STD103_TSV:-tests/baseline/std-elf-sym-rela.tsv}"
-VECTORS="${SHUX_STD103_VECTORS:-tests/baseline/std-elf-sym-rela-vectors.tsv}"
+DOC="${XLANG_STD103_DOC:-analysis/std-elf-sym-rela-v1.md}"
+MANIFEST="${XLANG_STD103_TSV:-tests/baseline/std-elf-sym-rela.tsv}"
+VECTORS="${XLANG_STD103_VECTORS:-tests/baseline/std-elf-sym-rela-vectors.tsv}"
 MOD_X="std/elf/mod.x"
 ELF_X="std/elf/elf.x"
 LIB="tests/lib/std-elf-sym-rela.sh"
@@ -74,16 +74,16 @@ echo "std-elf-sym-rela manifest OK"
 
 echo "=== STD-103: parent STD-058 manifest ==="
 chmod +x tests/run-std-elf-parse-gate.sh
-SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
+XLANG_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   ensure_std_c_o ../std/elf/elf.o
 else
-  echo "std-elf-sym-rela gate SKIP c/x smoke (need shux-c for elf.x merge)" >&2
+  echo "std-elf-sym-rela gate SKIP c/x smoke (need xlang-c for elf.x merge)" >&2
   std_elf_sym_rela_emit_report "ok" 0 0 1
-  echo "std-elf-sym-rela gate OK (manifest only; no shux-c)"
+  echo "std-elf-sym-rela gate OK (manifest only; no xlang-c)"
   exit 0
 fi
 
@@ -97,7 +97,7 @@ fi
 
 SYM_X=0
 SKIP=0
-SHUX_BIN=""
+XLANG_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -109,21 +109,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if stdlib_cm_native_shu ./compiler/shux-c; then
-  SHUX_BIN=./compiler/shux-c
-elif stdlib_cm_native_shu ./compiler/shux; then
-  SHUX_BIN=./compiler/shux
+if stdlib_cm_native_shu ./compiler/xlang-c; then
+  XLANG_BIN=./compiler/xlang-c
+elif stdlib_cm_native_shu ./compiler/xlang; then
+  XLANG_BIN=./compiler/xlang
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-103: .x symtab/rela smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-103: .x symtab/rela smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-elf-sym-rela gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_elf_sym_rela_emit_report "fail" "$SYM_C" 0 0
     exit 1
   fi
-  if std_elf_sym_rela_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "symrela"; then
+  if std_elf_sym_rela_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "symrela"; then
     SYM_X=1
   else
     std_elf_sym_rela_emit_report "fail" "$SYM_C" 0 0
@@ -131,7 +131,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
 else
   SKIP=1
-  echo "std-elf-sym-rela gate SKIP .x smoke (no native shux)" >&2
+  echo "std-elf-sym-rela gate SKIP .x smoke (no native xlang)" >&2
 fi
 
 std_elf_sym_rela_emit_report "ok" "$SYM_C" "$SYM_X" "$SKIP"

@@ -1,10 +1,10 @@
 /* seeds/rt_lib_root_surface.from_x.c
  * G-02f rt_lib_root R2 full surface — isomorphic with src/runtime/rt_lib_root.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_lib_root.x) + hybrid rest seed
- *   seeds/rt_lib_root.from_x.c (-DSHUX_RT_LIB_ROOT_FROM_X) ld -r into runtime_driver_no_c
+ *   seeds/rt_lib_root.from_x.c (-DXLANG_RT_LIB_ROOT_FROM_X) ld -r into runtime_driver_no_c
  * R2: ptr_usable + default + roots_from_key from .x; rest FROM_X only decls+marker
  * Prove: full.x vs this seed → nm IDENTICAL (3 public symbols)
- * Regen: ./shux -E ... src/runtime/rt_lib_root.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_lib_root.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # std-backtrace-symbolicate.sh — STD-052 manifest 与烟测辅助
 
-STD_BACKTRACE_SYM_PREFIX="${SHUX_STD_BACKTRACE_SYM_PREFIX:-shux: [SHUX_STD_BACKTRACE_SYM]}"
+STD_BACKTRACE_SYM_PREFIX="${XLANG_STD_BACKTRACE_SYM_PREFIX:-xlang: [XLANG_STD_BACKTRACE_SYM]}"
 
 # 探测宿主是否支持 execinfo/backtrace（Alpine/musl 无 glibc execinfo）。
 std_backtrace_sym_gold_supported() {
-  local probe="/tmp/shux_bt_probe_$$"
+  local probe="/tmp/xlang_bt_probe_$$"
   if ! cc -std=c11 -x c - -o "$probe" 2>/dev/null <<'EOF'
 #if (defined(__linux__) && defined(__GLIBC__)) || defined(__APPLE__)
 #include <execinfo.h>
@@ -73,13 +73,13 @@ std_backtrace_sym_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_backtrace_sym_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_backtrace_sym_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_backtrace_sym_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-backtrace-symbolicate FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -99,7 +99,7 @@ std_backtrace_sym_run_smoke() {
 std_backtrace_sym_run_c_gold() {
   local bt_platform_c="$1"
   local src="tests/backtrace/symbolicate_gold.c"
-  local out="/tmp/shux_backtrace_sym_gold_$$"
+  local out="/tmp/xlang_backtrace_sym_gold_$$"
   local bt_o="std/backtrace/backtrace.o"
   local rt_o="compiler/runtime_backtrace_platform.o"
   if [ ! -f "$bt_o" ]; then

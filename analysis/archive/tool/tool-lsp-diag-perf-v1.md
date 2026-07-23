@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 优化策略 P1–P6 |
 | 2 | 打开 `tests/baseline/tool-lsp-diag-perf.tsv` |
 | 3 | `./tests/run-tool-lsp-diag-perf-gate.sh` |
-| 4 | 本地：`./tests/run-lsp-diag-perf.sh`（须 native `shux --lsp`） |
+| 4 | 本地：`./tests/run-lsp-diag-perf.sh`（须 native `xlang --lsp`） |
 
 ---
 

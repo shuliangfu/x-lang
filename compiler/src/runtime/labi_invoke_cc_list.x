@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // link_abi L5 invoke_cc pure table + orch (G.9 English; body is authoritative).
-// Hybrid macro SHUX_LABI_INVOKE_CC_LIST_FROM_X (FROM_X rest business H=0, marker only).
+// Hybrid macro XLANG_LABI_INVOKE_CC_LIST_FROM_X (FROM_X rest business H=0, marker only).
 // R2 full pure:
 //   - labi_linux_harden_flag_{count,at}
 //   - labi_invoke_cc_skip_native_env_{count,at} + invoke_cc_skip_native_tuning
 //   - labi_icc_rel_* (12) + labi_icc_needs_rel_{count,at}
-//   - shux_append_linux_link_harden_impl (wave155; pure orch over harden table)
+//   - xlang_append_linux_link_harden_impl (wave155; pure orch over harden table)
 //   - invoke_cc_append_early_needs (wave198; pure orch early needs scan+push)
 //   - invoke_cc_scan_std_module_needs (wave199; pure table scan std need flags)
 //   - invoke_cc_append_std_ensure_push_front (wave200; pure ensure-push front string→env)
@@ -21,7 +21,7 @@
 //   - invoke_cc_append_minimal_cc_link_tail (wave208; pure MINIMAL_CC_LINK: Win process_argv + POSIX -lc + NULL)
 // Cap residual: link_abi_getenv (wave222 pure thin → host getenv_impl; wave223 G.7 this
 //   module no longer raw-getenv); host_is_* #if probes; ensure/path/needs peers;
-//   contains_substr(_use_line) peers for scan; shux_spawn_sync / setenv / strip_out_x / tool_status;
+//   contains_substr(_use_line) peers for scan; xlang_spawn_sync / setenv / strip_out_x / tool_status;
 //   asm_link_obj_skip_missing; link_abi_user_extra_o_{count,at}; process_argv path (MINIMAL Windows).
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
@@ -45,16 +45,16 @@ export extern "C" function link_abi_generated_c_needs_win32(c_path: *u8): i32;
 export extern "C" function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32;
 export extern "C" function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32;
 export extern "C" function invoke_cc_argv_push_existing(argv: **u8, ia: *i32, max_ia: i32, path: *u8): i32;
-export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
-export extern "C" function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_random_fill_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_random_fill_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_time_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_panic_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
-export extern "C" function shux_host_is_linux(): i32;
+export extern "C" function xlang_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+export extern "C" function xlang_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_random_fill_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_random_fill_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_panic_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_panic_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_host_is_linux(): i32;
 export extern "C" function link_abi_host_is_apple(): i32;
 export extern "C" function link_abi_host_is_windows(): i32;
 export extern "C" function labi_ld_flag_lc(): *u8;
@@ -62,46 +62,46 @@ export extern "C" function labi_ld_flag_lbcrypt(): *u8;
 export extern "C" function labi_ld_flag_lws2_32(): *u8;
 
 /* ===== wave200 Cap residual / peer pure for ensure-push front (string→env) ===== */
-export extern "C" function shux_ensure_runtime_process_argv_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
 export extern "C" function invoke_cc_append_net_tls_ld(argv: **u8, ia: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32;
-export extern "C" function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_net_workers_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_net_workers_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
-export extern "C" function shux_ensure_runtime_env_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_env_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_net_workers_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_net_workers_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
+export extern "C" function xlang_ensure_runtime_env_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_env_os_o_path(argv0: *u8): *u8;
 
 /* ===== wave201 Cap residual / peer pure for ensure-push mid (sync→hash) ===== */
-export extern "C" function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_sync_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_sync_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_log_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_log_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_channel_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_log_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_log_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_channel_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_channel_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_backtrace_platform_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
 
 /* ===== wave202 Cap residual / peer pure for ensure-push heavy_a (math…compress) ===== */
-export extern "C" function shux_ensure_runtime_math_libm_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_math_libm_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_math_libm_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_math_libm_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_sqlite_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
 export extern "C" function link_abi_generated_c_provides_core_mem(c_path: *u8): i32;
 export extern "C" function link_abi_generated_c_provides_std_heap(c_path: *u8): i32;
 export extern "C" function link_abi_generated_c_needs_zlib(c_path: *u8): i32;
@@ -111,18 +111,18 @@ export extern "C" function invoke_cc_append_compress_ld(argv: **u8, ia: *i32, ar
 export extern "C" function ld_append_brew_lib_paths(argv: **u8, la: *i32, max_la: i32): void;
 
 /* ===== wave203 Cap residual / peer pure for ensure-push heavy_b (unicode…process_argv) ===== */
-export extern "C" function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_http_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_http_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_std_async_scheduler_o_path(argv0: *u8): *u8;
-export extern "C" function shux_generated_c_needs_async_scheduler(c_path: *u8): i32;
+export extern "C" function xlang_ensure_runtime_dynlib_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_dynlib_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_http_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_http_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_scheduler_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_std_async_scheduler_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_generated_c_needs_async_scheduler(c_path: *u8): i32;
 export extern "C" function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8): *u8;
-export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+export extern "C" function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 
 /* ===== wave204 Cap residual / peer pure for heap F-06 on-demand ===== */
@@ -133,9 +133,9 @@ export extern "C" function labi_od_rel_page_mmap(): *u8;
 
 /* ===== wave205 Cap residual / peer pure for fork-exec shell + strip ===== */
 /* Authority spawn public (wave219 pure thin under labi_diag_pure L1 hybrid;
- * Cap residual shux_spawn_sync_impl = fork/exec/wait or _spawnvp always mega).
+ * Cap residual xlang_spawn_sync_impl = fork/exec/wait or _spawnvp always mega).
  * G.7 complete; no second fork path in invoke_cc pure. */
-export extern "C" function shux_spawn_sync(prog: *u8, argv: **u8): i32;
+export extern "C" function xlang_spawn_sync(prog: *u8, argv: **u8): i32;
 /* Freestanding / empty PATH: set before spawn so gcc/ld resolve (was child-only setenv). */
 export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
@@ -147,12 +147,12 @@ export extern "C" function link_diag_tool_status(tool: *u8, status: i32): void;
 export extern "C" function invoke_cc_strip_out_x(out_path: *u8): void;
 
 /* ===== wave206 Cap residual / peer pure for argv head flags ===== */
-/* getenv already exported at file top (SHUX_RUN_QUIET); host_is_linux / host_is_apple / skip_native / harden_impl are pure peers. */
+/* getenv already exported at file top (XLANG_RUN_QUIET); host_is_linux / host_is_apple / skip_native / harden_impl are pure peers. */
 
 /* ===== wave207 Cap residual / peer pure for argv tail flags ===== */
 /* Return path if .o exists (non-null → linkable); used for optional -pthread gate. */
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
-/* CLI user .o table authority (mega g_shux_user_extra_o_files via count/at). */
+/* CLI user .o table authority (mega g_xlang_user_extra_o_files via count/at). */
 export extern "C" function link_abi_user_extra_o_count(): i32;
 export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
 
@@ -222,11 +222,11 @@ export function labi_invoke_cc_skip_native_env_at(i: i32): *u8 {
     return p;
   }
   if (i == 1) {
-    let p: *u8 = "SHUX_CI_DOCKER";
+    let p: *u8 = "XLANG_CI_DOCKER";
     return p;
   }
   if (i == 2) {
-    let p: *u8 = "SHUX_NO_MARCH_NATIVE";
+    let p: *u8 = "XLANG_NO_MARCH_NATIVE";
     return p;
   }
   return 0 as *u8;
@@ -460,12 +460,12 @@ export function labi_icc_needs_rel_at(i: i32): *u8 {
  * Pure orch: pure harden table count/at + capacity-guarded append loop (≡ mega cold twin).
  * Why (wave155): hybrid still had always-mega C body for Linux harden flag append over pure table.
  * Note: export signature must stay single-line (multi-line export drops the function).
- * Callers: pure gate shux_append_linux_link_harden (labi_gates) + product invoke_cc/ld paths.
+ * Callers: pure gate xlang_append_linux_link_harden (labi_gates) + product invoke_cc/ld paths.
  * PLATFORM: SHARED orch / LINUX consumers (flags are Linux ld/gcc -Wl,-z*; mac no-op if not called).
  * Track-L: #[no_mangle] keeps surface short name matching mega / gates Cap residual extern.
  */
 #[no_mangle]
-export function shux_append_linux_link_harden_impl(argv: **u8, la: *i32, cap: i32): void {
+export function xlang_append_linux_link_harden_impl(argv: **u8, la: *i32, cap: i32): void {
   // Guard argv null via *u8 cast (wave147/151–154: avoid **u8 null compare codegen drop).
   let ab: *u8 = argv as *u8;
   if (ab == 0 as *u8) {
@@ -549,12 +549,12 @@ export function labi_icc_argv_try_push_flag(argv: **u8, ia: *i32, cap: i32, flag
  * @param runtime_o *u8 — product runtime.o path (nullable)
  * @param runtime_panic_o *u8 — product runtime_panic.o path (nullable)
  * @return void — may append -include / .o paths / -l* flags; mutates *ia
- * Pure orch: ≡ mega early block inside shux_invoke_cc_impl (pre-MINIMAL_CC_LINK).
+ * Pure orch: ≡ mega early block inside xlang_invoke_cc_impl (pre-MINIMAL_CC_LINK).
  * Cap residual: generated_c_needs_* (file view peers) + ensure_runtime_* + host_is_windows
  *   + peer push_existing resolve pool; host_is_linux / host_is_apple for -lc POSIX gate.
  * Why (wave198): hybrid still had early needs scan+push always-mega inside invoke_cc_impl.
  * Note: export signature must stay single-line (multi-line export drops the function).
- * Callers: mega shux_invoke_cc_impl child argv build (SHARED product C link path).
+ * Callers: mega xlang_invoke_cc_impl child argv build (SHARED product C link path).
  * PLATFORM: SHARED orch / POSIX -lc (linux|apple) / WINDOWS -lbcrypt -lkernel32 -lws2_32.
  * Track-L: #[no_mangle] keeps surface short name for mega call sites.
  */
@@ -639,7 +639,7 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (needs_core_builtin != 0) {
     let abi_h: *u8 = 0 as *u8;
     unsafe {
-      abi_h = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_abi_h());
+      abi_h = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_abi_h());
     }
     if (abi_h != 0 as *u8) {
       if (abi_h[0] != 0) {
@@ -655,27 +655,27 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
     }
     let bpath: *u8 = 0 as *u8;
     unsafe {
-      bpath = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_o());
+      bpath = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_o());
       let _p0: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, bpath);
     }
   }
   if (needs_core_mem != 0) {
     unsafe {
-      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+      let p: *u8 = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
       let _pm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
     }
   }
   if (needs_core_slice != 0) {
     unsafe {
-      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_slice_o());
+      let p: *u8 = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_slice_o());
       let _ps: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
     }
   }
   if (needs_db_kv != 0) {
     unsafe {
-      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_kv_o());
+      let p: *u8 = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_db_kv_o());
       let _pk: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
-      let rkv: *u8 = shux_runtime_kv_mmap_glue_o_path(0 as *u8);
+      let rkv: *u8 = xlang_runtime_kv_mmap_glue_o_path(0 as *u8);
       if (rkv != 0 as *u8) {
         if (rkv[0] != 0) {
           let _pk2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rkv);
@@ -685,9 +685,9 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   }
   if (needs_db_arrow != 0) {
     unsafe {
-      let p: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_arrow_o());
+      let p: *u8 = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_db_arrow_o());
       let _pa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
-      let rar: *u8 = shux_runtime_arrow_simd_glue_o_path(0 as *u8);
+      let rar: *u8 = xlang_runtime_arrow_simd_glue_o_path(0 as *u8);
       if (rar != 0 as *u8) {
         if (rar[0] != 0) {
           let _pa2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rar);
@@ -699,7 +699,7 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (needs_fs != 0) {
     let is_posix: i32 = 0;
     unsafe {
-      is_posix = shux_host_is_linux();
+      is_posix = xlang_host_is_linux();
       if (is_posix == 0) {
         is_posix = link_abi_host_is_apple();
       }
@@ -716,8 +716,8 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (needs_random != 0) {
     unsafe {
       let _pr: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, random_o);
-      let _er: i32 = shux_ensure_runtime_random_fill_o(0 as *u8);
-      let rrf: *u8 = shux_runtime_random_fill_o_path(0 as *u8);
+      let _er: i32 = xlang_ensure_runtime_random_fill_o(0 as *u8);
+      let rrf: *u8 = xlang_runtime_random_fill_o_path(0 as *u8);
       if (rrf != 0 as *u8) {
         if (rrf[0] != 0) {
           let _pr2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rrf);
@@ -740,8 +740,8 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (needs_time != 0) {
     unsafe {
       let _pt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, time_o);
-      let _et: i32 = shux_ensure_runtime_time_os_o(0 as *u8);
-      let rto: *u8 = shux_runtime_time_os_o_path(0 as *u8);
+      let _et: i32 = xlang_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = xlang_runtime_time_os_o_path(0 as *u8);
       if (rto != 0 as *u8) {
         if (rto[0] != 0) {
           let _pt2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
@@ -752,9 +752,9 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (needs_runtime != 0) {
     unsafe {
       let _prt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_o);
-      let _ep: i32 = shux_ensure_runtime_panic_o(0 as *u8);
+      let _ep: i32 = xlang_ensure_runtime_panic_o(0 as *u8);
       let _pp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_panic_o);
-      let rp: *u8 = shux_runtime_panic_o_path(0 as *u8);
+      let rp: *u8 = xlang_runtime_panic_o_path(0 as *u8);
       if (rp != 0 as *u8) {
         if (rp[0] != 0) {
           let _pp2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
@@ -789,7 +789,7 @@ export function invoke_cc_append_early_needs(argv: **u8, ia: *i32, argv_cap: i32
   if (needs_libc_heap != 0) {
     let is_posix2: i32 = 0;
     unsafe {
-      is_posix2 = shux_host_is_linux();
+      is_posix2 = xlang_host_is_linux();
       if (is_posix2 == 0) {
         is_posix2 = link_abi_host_is_apple();
       }
@@ -1007,11 +1007,11 @@ export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
       return p;
     }
     if (i == 1) {
-      let p: *u8 = "shux_process_spawn";
+      let p: *u8 = "xlang_process_spawn";
       return p;
     }
     if (i == 2) {
-      let p: *u8 = "shux_process_wait";
+      let p: *u8 = "xlang_process_wait";
       return p;
     }
     if (i == 3) {
@@ -1026,11 +1026,11 @@ export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
   }
   if (mid == 1) {
     if (i == 0) {
-      let p: *u8 = "process_shux_argc_get";
+      let p: *u8 = "process_xlang_argc_get";
       return p;
     }
     if (i == 1) {
-      let p: *u8 = "process_shux_argv_get";
+      let p: *u8 = "process_xlang_argv_get";
       return p;
     }
     if (i == 2) {
@@ -1065,7 +1065,7 @@ export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
       return p;
     }
     if (i == 1) {
-      let p: *u8 = "shux_string_";
+      let p: *u8 = "xlang_string_";
       return p;
     }
     return 0 as *u8;
@@ -1764,7 +1764,7 @@ export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
   }
   if (mid == 51) {
     if (i == 0) {
-      let p: *u8 = "shux_panic_(";
+      let p: *u8 = "xlang_panic_(";
       return p;
     }
     return 0 as *u8;
@@ -1776,13 +1776,13 @@ export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
 /**
  * Scan generated C paths and set std-module need flags (OR across paths).
  * Composes pure needle tables + Cap residual peer contains_substr_use_line.
- * Special mid=51 panic: use_line "shux_panic_(" AND not co-emit body via contains_substr.
+ * Special mid=51 panic: use_line "xlang_panic_(" AND not co-emit body via contains_substr.
  * @param c_paths **u8 — generated C path table; null or n < 1 → zero flags only
  * @param n i32 — number of c_paths entries
  * @param flags *i32 — out flags bank; each slot 0/1; null → no-op
  * @param flags_cap i32 — length of flags; must be >= labi_icc_std_need_count() (52)
  * @return void — zeros flags[0..count) then ORs hits; does not touch flags beyond count
- * Pure orch: ≡ mega std need scan loop inside shux_invoke_cc_impl (pre ensure-push).
+ * Pure orch: ≡ mega std need scan loop inside xlang_invoke_cc_impl (pre ensure-push).
  * Cap residual: link_abi_generated_c_contains_substr_use_line + contains_substr (file view).
  * Why (wave199): hybrid still had std need scan always-mega inside invoke_cc_impl.
  * Flag index map (stable):
@@ -1793,7 +1793,7 @@ export function labi_icc_std_need_needle_at(mid: i32, i: i32): *u8 {
  *   32 tar 33 simd 34 context 35 error 36 datetime 37 uuid 38 url 39 cli
  *   40 security 41 config 42 cache 43 trace 44 task 45 schema 46 test 47 socketio
  *   48 set 49 map 50 queue 51 panic
- * Callers: mega shux_invoke_cc_impl after early needs / MINIMAL path (SHARED product C link).
+ * Callers: mega xlang_invoke_cc_impl after early needs / MINIMAL path (SHARED product C link).
  * PLATFORM: SHARED orch
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
@@ -1831,14 +1831,14 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
       if (mid == 51) {
         let hit_panic: i32 = 0;
         unsafe {
-          hit_panic = link_abi_generated_c_contains_substr_use_line(cp, "shux_panic_(");
+          hit_panic = link_abi_generated_c_contains_substr_use_line(cp, "xlang_panic_(");
         }
         if (hit_panic != 0) {
           let body1: i32 = 0;
           let body2: i32 = 0;
           unsafe {
-            body1 = link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val) {");
-            body2 = link_abi_generated_c_contains_substr(cp, "void shux_panic_(int has_msg, int msg_val){");
+            body1 = link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, int msg_val) {");
+            body2 = link_abi_generated_c_contains_substr(cp, "void xlang_panic_(int has_msg, int msg_val){");
           }
           if (body1 == 0) {
             if (body2 == 0) {
@@ -1895,11 +1895,11 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
  * @param random_o *u8 — product random.o path (nullable)
  * @param env_o *u8 — product env.o path (nullable)
  * @return void — appends .o paths and platform -l* / -pthread flags; mutates *ia and flags[6]
- * Pure orch: ≡ mega ensure-push front inside shux_invoke_cc_impl (after std need scan).
+ * Pure orch: ≡ mega ensure-push front inside xlang_invoke_cc_impl (after std need scan).
  * Cap residual: ensure_runtime_* + push_existing resolve pool + formal_std_make + net_tls_ld.
  * Why (wave200): hybrid still had ensure-push front always-mega after wave199 flags bank.
  * Tail residual (sync…process_argv complement) + heap F-06 + fork/exec remain mega.
- * Callers: mega shux_invoke_cc_impl after invoke_cc_scan_std_module_needs.
+ * Callers: mega xlang_invoke_cc_impl after invoke_cc_scan_std_module_needs.
  * PLATFORM: SHARED orch / LINUX -pthread + asm_io_stubs with net / WINDOWS -lws2_32 -lbcrypt.
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
@@ -1952,7 +1952,7 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
       pushed_process_o = 1;
       let is_lin: i32 = 0;
       unsafe {
-        is_lin = shux_host_is_linux();
+        is_lin = xlang_host_is_linux();
       }
       if (is_lin != 0) {
         let pthr: *u8 = "-pthread";
@@ -1963,8 +1963,8 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
   if (pushed_process_o == 0) {
     if (need_process != 0 || need_env != 0 || need_process_argv_glue != 0) {
       unsafe {
-        let _epa: i32 = shux_ensure_runtime_process_argv_o(0 as *u8);
-        let rpa: *u8 = shux_runtime_process_argv_o_path(0 as *u8);
+        let _epa: i32 = xlang_ensure_runtime_process_argv_o(0 as *u8);
+        let rpa: *u8 = xlang_runtime_process_argv_o_path(0 as *u8);
         if (rpa != 0 as *u8) {
           if (rpa[0] != 0) {
             let _ppa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
@@ -1995,9 +1995,9 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
   // PLATFORM: SHARED — need_panic/need_runtime must ensure then push (L4 cold may lack .o).
   if (need_panic != 0 || need_runtime != 0) {
     unsafe {
-      let _ep: i32 = shux_ensure_runtime_panic_o(0 as *u8);
+      let _ep: i32 = xlang_ensure_runtime_panic_o(0 as *u8);
       let _ppn: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, runtime_panic_o);
-      let rp: *u8 = shux_runtime_panic_o_path(0 as *u8);
+      let rp: *u8 = xlang_runtime_panic_o_path(0 as *u8);
       if (rp != 0 as *u8) {
         if (rp[0] != 0) {
           let _ppn2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rp);
@@ -2015,15 +2015,15 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
     if (pn != 0) {
       unsafe {
         let _nt: i32 = invoke_cc_append_net_tls_ld(argv, ia, argv_cap, net_o, include_root);
-        let _eub: i32 = shux_ensure_runtime_net_udp_batch_o(0 as *u8);
-        let rnub: *u8 = shux_runtime_net_udp_batch_o_path(0 as *u8);
+        let _eub: i32 = xlang_ensure_runtime_net_udp_batch_o(0 as *u8);
+        let rnub: *u8 = xlang_runtime_net_udp_batch_o_path(0 as *u8);
         if (rnub != 0 as *u8) {
           if (rnub[0] != 0) {
             let _pub: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rnub);
           }
         }
-        let _enw: i32 = shux_ensure_runtime_net_workers_o(0 as *u8);
-        let rnw: *u8 = shux_runtime_net_workers_o_path(0 as *u8);
+        let _enw: i32 = xlang_ensure_runtime_net_workers_o(0 as *u8);
+        let rnw: *u8 = xlang_runtime_net_workers_o_path(0 as *u8);
         if (rnw != 0 as *u8) {
           if (rnw[0] != 0) {
             let _pnw: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rnw);
@@ -2035,12 +2035,12 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
       need_flags[6] = 1;
       let is_lin2: i32 = 0;
       unsafe {
-        is_lin2 = shux_host_is_linux();
+        is_lin2 = xlang_host_is_linux();
       }
       if (is_lin2 != 0) {
         unsafe {
-          let _eis: i32 = shux_ensure_runtime_asm_io_stubs_o(0 as *u8);
-          let ris: *u8 = shux_runtime_asm_io_stubs_o_path(0 as *u8);
+          let _eis: i32 = xlang_ensure_runtime_asm_io_stubs_o(0 as *u8);
+          let ris: *u8 = xlang_runtime_asm_io_stubs_o_path(0 as *u8);
           if (ris != 0 as *u8) {
             if (ris[0] != 0) {
               let _pis: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
@@ -2070,8 +2070,8 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
     }
     if (pt != 0) {
       unsafe {
-        let _etg: i32 = shux_ensure_runtime_thread_glue_o(0 as *u8);
-        let rtg: *u8 = shux_runtime_thread_glue_o_path(0 as *u8);
+        let _etg: i32 = xlang_ensure_runtime_thread_glue_o(0 as *u8);
+        let rtg: *u8 = xlang_runtime_thread_glue_o_path(0 as *u8);
         if (rtg != 0 as *u8) {
           if (rtg[0] != 0) {
             let _ptg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtg);
@@ -2088,12 +2088,12 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
         let rel_t: *u8 = "std/time/time.o";
         let mt_t: *u8 = "../std/time/time.o";
         unsafe {
-          let _eft: i32 = shux_ensure_formal_std_make_o(include_root, rel_t, mt_t);
+          let _eft: i32 = xlang_ensure_formal_std_make_o(include_root, rel_t, mt_t);
         }
       }
     }
     unsafe {
-      let time_push: *u8 = shux_rel_o_path_from_argv0(include_root, "std/time/time.o");
+      let time_push: *u8 = xlang_rel_o_path_from_argv0(include_root, "std/time/time.o");
       let use_fallback: i32 = 0;
       if (time_push == 0 as *u8) {
         use_fallback = 1;
@@ -2110,8 +2110,8 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
         }
       }
       let _ptp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, time_push);
-      let _eto: i32 = shux_ensure_runtime_time_os_o(0 as *u8);
-      let rto: *u8 = shux_runtime_time_os_o_path(0 as *u8);
+      let _eto: i32 = xlang_ensure_runtime_time_os_o(0 as *u8);
+      let rto: *u8 = xlang_runtime_time_os_o_path(0 as *u8);
       if (rto != 0 as *u8) {
         if (rto[0] != 0) {
           let _pto: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rto);
@@ -2123,8 +2123,8 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
   if (need_random != 0) {
     unsafe {
       let _prnd: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, random_o);
-      let _erf: i32 = shux_ensure_runtime_random_fill_o(0 as *u8);
-      let rrf: *u8 = shux_runtime_random_fill_o_path(0 as *u8);
+      let _erf: i32 = xlang_ensure_runtime_random_fill_o(0 as *u8);
+      let rrf: *u8 = xlang_runtime_random_fill_o_path(0 as *u8);
       if (rrf != 0 as *u8) {
         if (rrf[0] != 0) {
           let _prf: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rrf);
@@ -2148,8 +2148,8 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
   if (need_env != 0) {
     unsafe {
       let _pe: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, env_o);
-      let _eeo: i32 = shux_ensure_runtime_env_os_o(0 as *u8);
-      let reo: *u8 = shux_runtime_env_os_o_path(0 as *u8);
+      let _eeo: i32 = xlang_ensure_runtime_env_os_o(0 as *u8);
+      let reo: *u8 = xlang_runtime_env_os_o_path(0 as *u8);
       if (reo != 0 as *u8) {
         if (reo[0] != 0) {
           let _peo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, reo);
@@ -2179,12 +2179,12 @@ export function invoke_cc_append_std_ensure_push_front(argv: **u8, ia: *i32, arg
  * @param backtrace_o *u8 — product backtrace.o path (nullable; marker optional)
  * @param hash_o *u8 — product hash.o path (nullable)
  * @return void — appends .o paths and platform ld flags; mutates *ia
- * Pure orch: ≡ mega ensure-push mid inside shux_invoke_cc_impl (after front).
+ * Pure orch: ≡ mega ensure-push mid inside xlang_invoke_cc_impl (after front).
  * Cap residual: ensure_runtime_sync_* / crypto glues / log_os / atomic / channel /
  *   backtrace_platform + push_existing resolve pool.
  * Why (wave201): hybrid still had ensure-push mid always-mega after wave200 front.
  * Heavy tail residual (math…process_argv complement) + heap F-06 + fork/exec remain mega.
- * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_front.
+ * Callers: mega xlang_invoke_cc_impl after invoke_cc_append_std_ensure_push_front.
  * PLATFORM: SHARED orch / LINUX -rdynamic -ldl on backtrace / APPLE -export_dynamic /
  *   WINDOWS -ldbghelp on backtrace.
  * Track-L: #[no_mangle] surface short name for mega call sites.
@@ -2226,15 +2226,15 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
     }
     if (ps != 0) {
       unsafe {
-        let _esld: i32 = shux_ensure_runtime_sync_lock_diag_tls_o(0 as *u8);
-        let rsld: *u8 = shux_runtime_sync_lock_diag_tls_o_path(0 as *u8);
+        let _esld: i32 = xlang_ensure_runtime_sync_lock_diag_tls_o(0 as *u8);
+        let rsld: *u8 = xlang_runtime_sync_lock_diag_tls_o_path(0 as *u8);
         if (rsld != 0 as *u8) {
           if (rsld[0] != 0) {
             let _psld: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rsld);
           }
         }
-        let _eso: i32 = shux_ensure_runtime_sync_os_o(0 as *u8);
-        let rso: *u8 = shux_runtime_sync_os_o_path(0 as *u8);
+        let _eso: i32 = xlang_ensure_runtime_sync_os_o(0 as *u8);
+        let rso: *u8 = xlang_runtime_sync_os_o_path(0 as *u8);
         if (rso != 0 as *u8) {
           if (rso[0] != 0) {
             let _pso: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rso);
@@ -2258,15 +2258,15 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
   if (need_crypto != 0) {
     unsafe {
       let _pc: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, crypto_o);
-      let _eed: i32 = shux_ensure_runtime_ed25519_ref10_glue_o(0 as *u8);
-      let red: *u8 = shux_runtime_ed25519_ref10_glue_o_path(0 as *u8);
+      let _eed: i32 = xlang_ensure_runtime_ed25519_ref10_glue_o(0 as *u8);
+      let red: *u8 = xlang_runtime_ed25519_ref10_glue_o_path(0 as *u8);
       if (red != 0 as *u8) {
         if (red[0] != 0) {
           let _ped: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, red);
         }
       }
-      let _eci: i32 = shux_ensure_runtime_crypto_inc_glue_o(0 as *u8);
-      let rci: *u8 = shux_runtime_crypto_inc_glue_o_path(0 as *u8);
+      let _eci: i32 = xlang_ensure_runtime_crypto_inc_glue_o(0 as *u8);
+      let rci: *u8 = xlang_runtime_crypto_inc_glue_o_path(0 as *u8);
       if (rci != 0 as *u8) {
         if (rci[0] != 0) {
           let _pci: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rci);
@@ -2280,7 +2280,7 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
     let log_rel: *u8 = labi_icc_rel_log_o();
     let log_path: *u8 = 0 as *u8;
     unsafe {
-      log_path = shux_rel_o_path_from_argv0(include_root, log_rel);
+      log_path = xlang_rel_o_path_from_argv0(include_root, log_rel);
     }
     let pl: i32 = 0;
     unsafe {
@@ -2288,8 +2288,8 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
     }
     if (pl != 0) {
       unsafe {
-        let _elo: i32 = shux_ensure_runtime_log_os_o(0 as *u8);
-        let rlo: *u8 = shux_runtime_log_os_o_path(0 as *u8);
+        let _elo: i32 = xlang_ensure_runtime_log_os_o(0 as *u8);
+        let rlo: *u8 = xlang_runtime_log_os_o_path(0 as *u8);
         if (rlo != 0 as *u8) {
           if (rlo[0] != 0) {
             let _plo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rlo);
@@ -2307,8 +2307,8 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
     }
     if (pa != 0) {
       unsafe {
-        let _eag: i32 = shux_ensure_runtime_atomic_glue_o(0 as *u8);
-        let rag: *u8 = shux_runtime_atomic_glue_o_path(0 as *u8);
+        let _eag: i32 = xlang_ensure_runtime_atomic_glue_o(0 as *u8);
+        let rag: *u8 = xlang_runtime_atomic_glue_o_path(0 as *u8);
         if (rag != 0 as *u8) {
           if (rag[0] != 0) {
             let _pag: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rag);
@@ -2322,8 +2322,8 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
   if (need_channel != 0) {
     unsafe {
       let _pch: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, channel_o);
-      let _ecg: i32 = shux_ensure_runtime_channel_glue_o(0 as *u8);
-      let rcg: *u8 = shux_runtime_channel_glue_o_path(0 as *u8);
+      let _ecg: i32 = xlang_ensure_runtime_channel_glue_o(0 as *u8);
+      let rcg: *u8 = xlang_runtime_channel_glue_o_path(0 as *u8);
       if (rcg != 0 as *u8) {
         if (rcg[0] != 0) {
           let _pcg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rcg);
@@ -2336,8 +2336,8 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
   if (need_backtrace != 0) {
     unsafe {
       let _pbt: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, backtrace_o);
-      let _ebp: i32 = shux_ensure_runtime_backtrace_platform_o(0 as *u8);
-      let rbp: *u8 = shux_runtime_backtrace_platform_o_path(0 as *u8);
+      let _ebp: i32 = xlang_ensure_runtime_backtrace_platform_o(0 as *u8);
+      let rbp: *u8 = xlang_runtime_backtrace_platform_o_path(0 as *u8);
       if (rbp != 0 as *u8) {
         if (rbp[0] != 0) {
           let _pbp: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rbp);
@@ -2346,7 +2346,7 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
     }
     let is_lin: i32 = 0;
     unsafe {
-      is_lin = shux_host_is_linux();
+      is_lin = xlang_host_is_linux();
     }
     if (is_lin != 0) {
       let frd: *u8 = "-rdynamic";
@@ -2403,11 +2403,11 @@ export function invoke_cc_append_std_ensure_push_mid(argv: **u8, ia: *i32, argv_
  * @param compress_o *u8 — product compress.o path (nullable; else scan zlib/zstd/brotli)
  * @param hash_o *u8 — product hash.o path (nullable; set.o U needs hash)
  * @return void — appends .o paths and -lm/-lsqlite3/-lz* flags; mutates *ia only
- * Pure orch: ≡ mega ensure-push heavy slice math…compress inside shux_invoke_cc_impl.
+ * Pure orch: ≡ mega ensure-push heavy slice math…compress inside xlang_invoke_cc_impl.
  * Cap residual: formal_std_make / math_libm / sqlite / compress_ld / brew paths / provides_*.
  * Why (wave202): hybrid still had ensure-push heavy always-mega after wave201 mid.
  * Residual heavy_b (unicode…process_argv) pure @ wave203; heap F-06 + fork/exec remain mega.
- * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_mid.
+ * Callers: mega xlang_invoke_cc_impl after invoke_cc_append_std_ensure_push_mid.
  * PLATFORM: SHARED orch; brew -L is mac-oriented peer (ld_append_brew_lib_paths).
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
@@ -2459,14 +2459,14 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
         let rel_m: *u8 = "std/math/math.o";
         let mt_m: *u8 = "../std/math/math.o";
         unsafe {
-          let _em: i32 = shux_ensure_formal_std_make_o(include_root, rel_m, mt_m);
+          let _em: i32 = xlang_ensure_formal_std_make_o(include_root, rel_m, mt_m);
         }
       }
     }
     let math_push: *u8 = 0 as *u8;
     unsafe {
       let rel_math: *u8 = "std/math/math.o";
-      math_push = shux_rel_o_path_from_argv0(include_root, rel_math);
+      math_push = xlang_rel_o_path_from_argv0(include_root, rel_math);
     }
     if (math_push == 0 as *u8 || math_push[0] == 0) {
       if (math_o != 0 as *u8) {
@@ -2481,8 +2481,8 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
     }
     if (pm != 0) {
       unsafe {
-        let _eml: i32 = shux_ensure_runtime_math_libm_o(0 as *u8);
-        let rml: *u8 = shux_runtime_math_libm_o_path(0 as *u8);
+        let _eml: i32 = xlang_ensure_runtime_math_libm_o(0 as *u8);
+        let rml: *u8 = xlang_runtime_math_libm_o_path(0 as *u8);
         if (rml != 0 as *u8) {
           if (rml[0] != 0) {
             let _pml: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rml);
@@ -2574,29 +2574,29 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
       if (include_root != 0 as *u8) {
         if (include_root[0] != 0) {
           unsafe {
-            let _ev: i32 = shux_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
+            let _ev: i32 = xlang_ensure_formal_std_make_o(include_root, "std/vec/vec.o", "../std/vec/vec.o");
             if (c_prov_sh_v == 0) {
-              let _eh: i32 = shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+              let _eh: i32 = xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
             }
             if (c_prov_cm_v == 0) {
-              let _em: i32 = shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+              let _em: i32 = xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
             }
           }
         }
       }
       let pvec: i32 = 0;
       unsafe {
-        pvec = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/vec/vec.o"));
+        pvec = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, "std/vec/vec.o"));
       }
       if (pvec != 0) {
         if (c_prov_sh_v == 0) {
           unsafe {
-            let _phv: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+            let _phv: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
           }
         }
         if (c_prov_cm_v == 0) {
           unsafe {
-            let _pmv: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+            let _pmv: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
           }
         }
       }
@@ -2616,8 +2616,8 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
     }
     if (pdb != 0) {
       unsafe {
-        let _esg: i32 = shux_ensure_runtime_sqlite_glue_o(0 as *u8);
-        let rsg: *u8 = shux_runtime_sqlite_glue_o_path(0 as *u8);
+        let _esg: i32 = xlang_ensure_runtime_sqlite_glue_o(0 as *u8);
+        let rsg: *u8 = xlang_runtime_sqlite_glue_o_path(0 as *u8);
         if (rsg != 0 as *u8) {
           if (rsg[0] != 0) {
             let _psg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
@@ -2636,12 +2636,12 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
   }
   if (need_json != 0) {
     unsafe {
-      let _pj: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
+      let _pj: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
     }
   }
   if (need_csv != 0) {
     unsafe {
-      let _pc: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
+      let _pc: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
     }
   }
 
@@ -2670,29 +2670,29 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
     if (include_root != 0 as *u8) {
       if (include_root[0] != 0) {
         unsafe {
-          let _es: i32 = shux_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
+          let _es: i32 = xlang_ensure_formal_std_make_o(include_root, "std/set/set.o", "../std/set/set.o");
           if (c_prov_sh_s == 0) {
-            let _ehs: i32 = shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+            let _ehs: i32 = xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
           }
           if (c_prov_cm_s == 0) {
-            let _ems: i32 = shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+            let _ems: i32 = xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
           }
         }
       }
     }
     let pset: i32 = 0;
     unsafe {
-      pset = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/set/set.o"));
+      pset = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, "std/set/set.o"));
     }
     if (pset != 0) {
       if (c_prov_sh_s == 0) {
         unsafe {
-          let _phs: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+          let _phs: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
         }
       }
       if (c_prov_cm_s == 0) {
         unsafe {
-          let _pms: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+          let _pms: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
         }
       }
       unsafe {
@@ -2725,29 +2725,29 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
     if (include_root != 0 as *u8) {
       if (include_root[0] != 0) {
         unsafe {
-          let _emap: i32 = shux_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
+          let _emap: i32 = xlang_ensure_formal_std_make_o(include_root, "std/map/map.o", "../std/map/map.o");
           if (c_prov_sh_m == 0) {
-            let _ehm: i32 = shux_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
+            let _ehm: i32 = xlang_ensure_formal_std_make_o(include_root, "std/heap/heap.o", "../std/heap/heap.o");
           }
           if (c_prov_cm_m == 0) {
-            let _emm: i32 = shux_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
+            let _emm: i32 = xlang_ensure_formal_std_make_o(include_root, "core/mem/mem.o", "../core/mem/mem.o");
           }
         }
       }
     }
     let pmap: i32 = 0;
     unsafe {
-      pmap = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/map/map.o"));
+      pmap = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, "std/map/map.o"));
     }
     if (pmap != 0) {
       if (c_prov_sh_m == 0) {
         unsafe {
-          let _phm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+          let _phm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
         }
       }
       if (c_prov_cm_m == 0) {
         unsafe {
-          let _pmm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+          let _pmm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
         }
       }
     }
@@ -2756,7 +2756,7 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
   if (need_queue != 0) {
     let pque: i32 = 0;
     unsafe {
-      pque = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/queue/queue.o"));
+      pque = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, "std/queue/queue.o"));
     }
     if (pque != 0) {
       let c_prov_cm_q: i32 = 0;
@@ -2781,12 +2781,12 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
       }
       if (c_prov_sh_q == 0) {
         unsafe {
-          let _phq: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
+          let _phq: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o()));
         }
       }
       if (c_prov_cm_q == 0) {
         unsafe {
-          let _pmq: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
+          let _pmq: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
         }
       }
     }
@@ -2844,8 +2844,8 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
         let flz: *u8 = "-lz";
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, flz);
         unsafe {
-          let _ez: i32 = shux_ensure_runtime_compress_zlib_glue_o(0 as *u8);
-          let rz: *u8 = shux_runtime_compress_zlib_glue_o_path(0 as *u8);
+          let _ez: i32 = xlang_ensure_runtime_compress_zlib_glue_o(0 as *u8);
+          let rz: *u8 = xlang_runtime_compress_zlib_glue_o_path(0 as *u8);
           let _pz: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rz);
         }
       }
@@ -2896,12 +2896,12 @@ export function invoke_cc_append_std_ensure_push_heavy_a(argv: **u8, ia: *i32, a
  * @param test_o *u8 — product test.o path (nullable; + test_fn_invoke glue)
  * @param async_scheduler_o *u8 — explicit async_scheduler.o path (nullable; else scan C needs)
  * @return void — appends .o paths and platform ld flags; mutates *ia only
- * Pure orch: ≡ mega ensure-push heavy slice unicode…process_argv inside shux_invoke_cc_impl.
+ * Pure orch: ≡ mega ensure-push heavy slice unicode…process_argv inside xlang_invoke_cc_impl.
  * Cap residual: dynlib_os / http_glue / test_fn_invoke / scheduler_glue / async path /
  *   scheduler_o_for_task_link / link_obj_needs_undef_sym / process_argv ensure+path.
  * Why (wave203): hybrid still had ensure-push heavy_b always-mega after wave202 heavy_a.
  * Residual heap F-06 pure @ wave204; fork/exec remain mega.
- * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_a.
+ * Callers: mega xlang_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_a.
  * PLATFORM: SHARED orch / LINUX -ldl -pthread / WINDOWS -lws2_32 on http.
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
@@ -2991,8 +2991,8 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
     }
     if (pd != 0) {
       unsafe {
-        let _edo: i32 = shux_ensure_runtime_dynlib_os_o(0 as *u8);
-        let rdo: *u8 = shux_runtime_dynlib_os_o_path(0 as *u8);
+        let _edo: i32 = xlang_ensure_runtime_dynlib_os_o(0 as *u8);
+        let rdo: *u8 = xlang_runtime_dynlib_os_o_path(0 as *u8);
         if (rdo != 0 as *u8) {
           if (rdo[0] != 0) {
             let _pdo: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rdo);
@@ -3001,7 +3001,7 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       }
       let is_lin: i32 = 0;
       unsafe {
-        is_lin = shux_host_is_linux();
+        is_lin = xlang_host_is_linux();
       }
       if (is_lin != 0) {
         let fdl: *u8 = "-ldl";
@@ -3018,8 +3018,8 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
     }
     if (ph != 0) {
       unsafe {
-        let _ehg: i32 = shux_ensure_runtime_http_glue_o(0 as *u8);
-        let rhg: *u8 = shux_runtime_http_glue_o_path(0 as *u8);
+        let _ehg: i32 = xlang_ensure_runtime_http_glue_o(0 as *u8);
+        let rhg: *u8 = xlang_runtime_http_glue_o_path(0 as *u8);
         if (rhg != 0 as *u8) {
           if (rhg[0] != 0) {
             let _phg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rhg);
@@ -3043,7 +3043,7 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
 
   if (need_socketio != 0) {
     unsafe {
-      let _psio: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
+      let _psio: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
     }
   }
   if (need_tar != 0) {
@@ -3063,7 +3063,7 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
   }
   if (need_error != 0) {
     unsafe {
-      let _per: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
+      let _per: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
     }
   }
   if (need_datetime != 0) {
@@ -3127,8 +3127,8 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
     }
     if (pte != 0) {
       unsafe {
-        let _etfi: i32 = shux_ensure_runtime_test_fn_invoke_o(0 as *u8);
-        let rtfi: *u8 = shux_runtime_test_fn_invoke_o_path(0 as *u8);
+        let _etfi: i32 = xlang_ensure_runtime_test_fn_invoke_o(0 as *u8);
+        let rtfi: *u8 = xlang_runtime_test_fn_invoke_o_path(0 as *u8);
         if (rtfi != 0 as *u8) {
           if (rtfi[0] != 0) {
             let _ptfi: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rtfi);
@@ -3155,11 +3155,11 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
         }
         let needs_as: i32 = 0;
         unsafe {
-          needs_as = shux_generated_c_needs_async_scheduler(cpj);
+          needs_as = xlang_generated_c_needs_async_scheduler(cpj);
         }
         if (needs_as != 0) {
           unsafe {
-            sched_link = shux_std_async_scheduler_o_path(include_root);
+            sched_link = xlang_std_async_scheduler_o_path(include_root);
           }
           break;
         }
@@ -3178,15 +3178,15 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
     if (psch != 0) {
       let is_lin2: i32 = 0;
       unsafe {
-        is_lin2 = shux_host_is_linux();
+        is_lin2 = xlang_host_is_linux();
       }
       if (is_lin2 != 0) {
         let fpth: *u8 = "-pthread";
         labi_icc_argv_try_push_flag(argv, ia, argv_cap, fpth);
       }
       unsafe {
-        let _esg: i32 = shux_ensure_runtime_scheduler_glue_o(0 as *u8);
-        let rsg: *u8 = shux_runtime_scheduler_glue_o_path(0 as *u8);
+        let _esg: i32 = xlang_ensure_runtime_scheduler_glue_o(0 as *u8);
+        let rsg: *u8 = xlang_runtime_scheduler_glue_o_path(0 as *u8);
         if (rsg != 0 as *u8) {
           if (rsg[0] != 0) {
             let _psg: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg);
@@ -3209,15 +3209,15 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       if (psch2 != 0) {
         let is_lin3: i32 = 0;
         unsafe {
-          is_lin3 = shux_host_is_linux();
+          is_lin3 = xlang_host_is_linux();
         }
         if (is_lin3 != 0) {
           let fpth2: *u8 = "-pthread";
           labi_icc_argv_try_push_flag(argv, ia, argv_cap, fpth2);
         }
         unsafe {
-          let _esg2: i32 = shux_ensure_runtime_scheduler_glue_o(0 as *u8);
-          let rsg2: *u8 = shux_runtime_scheduler_glue_o_path(0 as *u8);
+          let _esg2: i32 = xlang_ensure_runtime_scheduler_glue_o(0 as *u8);
+          let rsg2: *u8 = xlang_runtime_scheduler_glue_o_path(0 as *u8);
           if (rsg2 != 0 as *u8) {
             if (rsg2[0] != 0) {
               let _psg2: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rsg2);
@@ -3229,7 +3229,7 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
   }
 
   // PLATFORM: SHARED — after std/*.o pushes, complement process_argv when any linked
-  // .o has U process_shux_* (string/math/… preamble weak). Skip if process.o already on line.
+  // .o has U process_xlang_* (string/math/… preamble weak). Skip if process.o already on line.
   // G.7: complete existing C-backend process_argv path; no second plan table.
   /* process_argv complement after std/*.o pushes */
   let need_pav: i32 = 0;
@@ -3260,8 +3260,8 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
       if (hit_rpa != 0 as *u8 || hit_pa != 0 as *u8) {
         have_pav = 1;
       }
-      let u1: i32 = shux_link_obj_needs_undef_sym(e, "process_shux_argc_get");
-      let u2: i32 = shux_link_obj_needs_undef_sym(e, "process_shux_argv_get");
+      let u1: i32 = xlang_link_obj_needs_undef_sym(e, "process_xlang_argc_get");
+      let u2: i32 = xlang_link_obj_needs_undef_sym(e, "process_xlang_argv_get");
       if (u1 != 0 || u2 != 0) {
         need_pav = 1;
       }
@@ -3271,8 +3271,8 @@ export function invoke_cc_append_std_ensure_push_heavy_b(argv: **u8, ia: *i32, a
     if (have_process_o == 0) {
       if (have_pav == 0) {
         unsafe {
-          let _epa: i32 = shux_ensure_runtime_process_argv_o(0 as *u8);
-          let rpa: *u8 = shux_runtime_process_argv_o_path(0 as *u8);
+          let _epa: i32 = xlang_ensure_runtime_process_argv_o(0 as *u8);
+          let rpa: *u8 = xlang_runtime_process_argv_o_path(0 as *u8);
           if (rpa != 0 as *u8) {
             if (rpa[0] != 0) {
               let _ppa: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpa);
@@ -3363,12 +3363,12 @@ export function labi_icc_heap_f06_needle_at(i: i32): *u8 {
  * @param n i32 — count of c_paths entries
  * @param include_root *u8 — repo root for rel_o_path (nullable; path may fail soft)
  * @return void — mutates *ia only when heap chain is required
- * Pure orch: ≡ mega F-06 block after ensure-push heavy_b inside shux_invoke_cc_impl.
+ * Pure orch: ≡ mega F-06 block after ensure-push heavy_b inside xlang_invoke_cc_impl.
  * Cap residual: link_abi_link_needs_std_heap_import (nm argv) + contains_substr_use_line +
  *   provides_core_mem / provides_std_heap + labi_od_rel_page_mmap + asm_io_stubs ensure/path.
  * Why (wave204): hybrid still had heap F-06 always-mega after wave203 heavy_b.
  * Residual fork/exec pure @ wave205.
- * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_b.
+ * Callers: mega xlang_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_b.
  * PLATFORM: SHARED orch (page_mmap companions required on Ubuntu L4 cold for heap UNDEF).
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
@@ -3469,13 +3469,13 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
 
   if (c_provides_core_mem == 0) {
     unsafe {
-      let mem_o: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
+      let mem_o: *u8 = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o());
       let _pm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, mem_o);
     }
   }
   if (c_provides_std_heap == 0) {
     unsafe {
-      let heap_o: *u8 = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
+      let heap_o: *u8 = xlang_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
       let _ph: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, heap_o);
     }
   }
@@ -3485,11 +3485,11 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
   // Symmetric with asm on-demand (labi_od_rel_page_mmap). Root fix 2026-07-19 Ubuntu L4 cold.
   unsafe {
     let pm_rel: *u8 = labi_od_rel_page_mmap();
-    let pm_o: *u8 = shux_rel_o_path_from_argv0(include_root, pm_rel);
+    let pm_o: *u8 = xlang_rel_o_path_from_argv0(include_root, pm_rel);
     let ppm: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, pm_o);
     if (ppm != 0) {
-      let _eis: i32 = shux_ensure_runtime_asm_io_stubs_o(0 as *u8);
-      let ris: *u8 = shux_runtime_asm_io_stubs_o_path(0 as *u8);
+      let _eis: i32 = xlang_ensure_runtime_asm_io_stubs_o(0 as *u8);
+      let ris: *u8 = xlang_runtime_asm_io_stubs_o_path(0 as *u8);
       if (ris != 0 as *u8) {
         if (ris[0] != 0) {
           let _pris: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
@@ -3509,9 +3509,9 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
  * @param use_lto i32 — non-zero enables -flto when opt != "0" and native tuning not skipped
  * @param include_root *u8 — optional -I root; null/empty skips -I
  * @return void — mutates *ia and argv slots; writes durable -O* into g_labi_icc_oopt_buf BSS
- * Pure orch: ≡ mega argv head inside shux_invoke_cc_impl (before c_paths loop / early_needs).
- * Cap residual: link_abi_getenv(SHUX_RUN_QUIET) + pure skip_native_tuning + pure harden_impl + host_is_*.
- * G.7: reuses labi_icc_argv_try_push_flag + shux_append_linux_link_harden_impl (no second flag path).
+ * Pure orch: ≡ mega argv head inside xlang_invoke_cc_impl (before c_paths loop / early_needs).
+ * Cap residual: link_abi_getenv(XLANG_RUN_QUIET) + pure skip_native_tuning + pure harden_impl + host_is_*.
+ * G.7: reuses labi_icc_argv_try_push_flag + xlang_append_linux_link_harden_impl (no second flag path).
  * Why (wave206): hybrid still had quiet/O/harden/gc argv head always-mega after wave205 fork-exec pure.
  * wave223: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
  * PLATFORM: SHARED orch / LINUX -B/usr/bin + harden + --gc-sections / APPLE -dead_strip / WINDOWS no gc/harden.
@@ -3535,12 +3535,12 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "cc");
   labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-std=gnu11");
 
-  // PLATFORM: SHARED — mute generated-C noise under `shux run` / quiet product path.
+  // PLATFORM: SHARED — mute generated-C noise under `xlang run` / quiet product path.
   // Mega gates on getenv non-null only (empty value still enables quiet).
   // wave223 G.7: public pure thin link_abi_getenv (not raw libc getenv).
   let quiet: *u8 = 0 as *u8;
   unsafe {
-    quiet = link_abi_getenv("SHUX_RUN_QUIET");
+    quiet = link_abi_getenv("XLANG_RUN_QUIET");
   }
   if (quiet != 0 as *u8) {
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-w");
@@ -3550,7 +3550,7 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
   // PLATFORM: LINUX — force /usr/bin as compiler driver search root (Alpine/musl host tools).
   let is_linux: i32 = 0;
   unsafe {
-    is_linux = shux_host_is_linux();
+    is_linux = xlang_host_is_linux();
   }
   if (is_linux != 0) {
     labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-B/usr/bin");
@@ -3615,7 +3615,7 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
   // PLATFORM: LINUX — PIE + NX + RELRO via pure harden table (wave155).
   if (is_linux != 0) {
     if (is0 != 0) {
-      shux_append_linux_link_harden_impl(argv, ia, argv_cap);
+      xlang_append_linux_link_harden_impl(argv, ia, argv_cap);
     }
   }
 
@@ -3663,7 +3663,7 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
  * @param sync_o *u8 — product sync.o path (nullable; existence gates -pthread)
  * @param channel_o *u8 — product channel.o path (nullable; existence gates -pthread)
  * @return void — mutates *ia and argv slots; ends with argv[*ia-1] = NULL when room
- * Pure orch: ≡ mega post-ensure tail inside shux_invoke_cc_impl (before spawn/strip).
+ * Pure orch: ≡ mega post-ensure tail inside xlang_invoke_cc_impl (before spawn/strip).
  * Cap residual: asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at} + push_existing + host_is_*.
  * G.7: reuses labi_icc_argv_try_push_flag + invoke_cc_argv_push_existing + user_extra count/at (no second table).
  * Why (wave207): hybrid still had -pthread/-lc/allow-multiple/user_extra+NULL always-mega after wave206 head pure.
@@ -3689,7 +3689,7 @@ export function invoke_cc_append_argv_tail_flags(argv: **u8, ia: *i32, argv_cap:
   let is_apple: i32 = 0;
   let is_win: i32 = 0;
   unsafe {
-    is_linux = shux_host_is_linux();
+    is_linux = xlang_host_is_linux();
     is_apple = link_abi_host_is_apple();
     is_win = link_abi_host_is_windows();
   }
@@ -3733,7 +3733,7 @@ export function invoke_cc_append_argv_tail_flags(argv: **u8, ia: *i32, argv_cap:
     }
   }
 
-  // PLATFORM: WINDOWS — PE/COFF lacks ELF weak; SHUX_WEAK + codegen weak aliases multi-def.
+  // PLATFORM: WINDOWS — PE/COFF lacks ELF weak; XLANG_WEAK + codegen weak aliases multi-def.
   // --allow-multiple-definition picks first def (≡ mega Windows-only flag).
   if (is_win != 0) {
     let fam: *u8 = "-Wl,--allow-multiple-definition";
@@ -3742,7 +3742,7 @@ export function invoke_cc_append_argv_tail_flags(argv: **u8, ia: *i32, argv_cap:
 
   // CLI user .o after all std/core .o + link flags so user glue resolves last
   // (e.g. runtime_atomic_glue.o provides atomic_load_i32_c for context.o).
-  // Authority table: link_abi_user_extra_o_{count,at} (mega g_shux_user_extra_o_files).
+  // Authority table: link_abi_user_extra_o_{count,at} (mega g_xlang_user_extra_o_files).
   let n_extra: i32 = 0;
   unsafe {
     n_extra = link_abi_user_extra_o_count();
@@ -3767,18 +3767,18 @@ export function invoke_cc_append_argv_tail_flags(argv: **u8, ia: *i32, argv_cap:
 }
 
 /**
- * Append SHUX_MINIMAL_CC_LINK branch argv tail: Windows process_argv.o, POSIX -lc, NULL terminator.
+ * Append XLANG_MINIMAL_CC_LINK branch argv tail: Windows process_argv.o, POSIX -lc, NULL terminator.
  * @param argv **u8 — cc argv table after head+c_paths+early_needs; null → no-op
  * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op
  * @param argv_cap i32 — argv capacity; leave one slot for NULL; try_push_flag guards -lc
  * @return void — mutates *ia and argv slots; ends with argv[*ia-1] = NULL when room
- * Pure orch: ≡ mega SHUX_MINIMAL_CC_LINK block inside shux_invoke_cc_impl (before spawn/strip).
- * Cap residual: shux_runtime_process_argv_o_path (Windows CORE-009 argc/argv defs) + push_existing + host_is_*.
+ * Pure orch: ≡ mega XLANG_MINIMAL_CC_LINK block inside xlang_invoke_cc_impl (before spawn/strip).
+ * Cap residual: xlang_runtime_process_argv_o_path (Windows CORE-009 argc/argv defs) + push_existing + host_is_*.
  * G.7: reuses labi_icc_argv_try_push_flag + labi_ld_flag_lc + invoke_cc_argv_push_existing (no second flag path).
  * Why (wave208): hybrid still had MINIMAL branch -lc/process_argv+NULL always-mega after wave207 always-tail pure.
  * Note: mega MINIMAL gate uses link_abi_getenv (wave225 G.7); this leaf only builds the minimal tail.
  * PLATFORM: SHARED orch / WINDOWS process_argv.o (codegen emits extern not weak) / POSIX (linux|apple) -lc only
- *   (minimal skips std ensure-push; shux_process_* weak defs on Linux/mac from generated C).
+ *   (minimal skips std ensure-push; xlang_process_* weak defs on Linux/mac from generated C).
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
  */
@@ -3799,17 +3799,17 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
   let is_apple: i32 = 0;
   let is_win: i32 = 0;
   unsafe {
-    is_linux = shux_host_is_linux();
+    is_linux = xlang_host_is_linux();
     is_apple = link_abi_host_is_apple();
     is_win = link_abi_host_is_windows();
   }
 
-  // PLATFORM: WINDOWS — minimal link still needs runtime_process_argv.o for shux_process_argc/argv
+  // PLATFORM: WINDOWS — minimal link still needs runtime_process_argv.o for xlang_process_argc/argv
   // (Windows codegen emits extern decls, not weak defs ≡ mega CORE-009 / Docker musl note).
   if (is_win != 0) {
     let rpav: *u8 = 0 as *u8;
     unsafe {
-      rpav = shux_runtime_process_argv_o_path(0 as *u8);
+      rpav = xlang_runtime_process_argv_o_path(0 as *u8);
     }
     if (rpav != 0 as *u8) {
       if (rpav[0] != 0) {
@@ -3848,14 +3848,14 @@ export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv
  * @param argv **u8 — full cc argv ending with null; argv[0] rewritten per candidate; null → -1
  * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed (diag emitted)
  * Pure orch: ≡ mega post-argv fork/exec/wait shell (wave205).
- * Cap residual: setenv(PATH) + host_is_* + shux_spawn_sync (public pure thin wave219
+ * Cap residual: setenv(PATH) + host_is_* + xlang_spawn_sync (public pure thin wave219
  * → _impl mega) + link_diag_tool_status.
  * Candidate order ≡ historical mega child exec chain:
  *   WINDOWS: gcc only (MinGW; no bare `cc`)
  *   LINUX: gcc, cc, /usr/bin/gcc, /usr/bin/cc, /usr/local/bin/gcc, /usr/local/bin/cc
  *   APPLE / other POSIX: cc, gcc
  * Why: hybrid still had always-mega fork+exec+wait after argv pure (wave198–204).
- * G.7: single spawn authority = shux_spawn_sync (no second fork path in pure).
+ * G.7: single spawn authority = xlang_spawn_sync (no second fork path in pure).
  * PLATFORM: SHARED orch / POSIX setenv+PATH / WINDOWS spawn gcc only.
  * Track-L: #[no_mangle] surface short name for mega call sites.
  * Note: export signature must stay single-line.
@@ -3867,7 +3867,7 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
     return 0 - 1;
   }
 
-  // Freestanding shux_asm child/parent may inherit empty PATH; fix tool lookup.
+  // Freestanding xlang_asm child/parent may inherit empty PATH; fix tool lookup.
   // PLATFORM: POSIX primarily; setenv on Windows is harmless when present.
   unsafe {
     let _p: i32 = setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
@@ -3878,12 +3878,12 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
     is_win = link_abi_host_is_windows();
   }
   if (is_win != 0) {
-    // PLATFORM: WINDOWS — no `cc`; MinGW gcc + _spawnvp via shux_spawn_sync.
+    // PLATFORM: WINDOWS — no `cc`; MinGW gcc + _spawnvp via xlang_spawn_sync.
     let gcc: *u8 = "gcc";
     argv[0] = gcc;
     let rc: i32 = 0;
     unsafe {
-      rc = shux_spawn_sync(gcc, argv);
+      rc = xlang_spawn_sync(gcc, argv);
     }
     if (rc == 0) {
       return 0;
@@ -3896,7 +3896,7 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
 
   let is_linux: i32 = 0;
   unsafe {
-    is_linux = shux_host_is_linux();
+    is_linux = xlang_host_is_linux();
   }
   if (is_linux != 0) {
     // PLATFORM: LINUX — Alpine prefers gcc argv[0]; absolute paths if PATH still broken.
@@ -3927,7 +3927,7 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
       argv[0] = cand;
       let rc: i32 = 0;
       unsafe {
-        rc = shux_spawn_sync(cand, argv);
+        rc = xlang_spawn_sync(cand, argv);
       }
       if (rc == 0) {
         return 0;
@@ -3946,7 +3946,7 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
   argv[0] = a0;
   let rc0: i32 = 0;
   unsafe {
-    rc0 = shux_spawn_sync(a0, argv);
+    rc0 = xlang_spawn_sync(a0, argv);
   }
   if (rc0 == 0) {
     return 0;
@@ -3954,7 +3954,7 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
   argv[0] = a1;
   let rc1: i32 = 0;
   unsafe {
-    rc1 = shux_spawn_sync(a1, argv);
+    rc1 = xlang_spawn_sync(a1, argv);
   }
   if (rc1 == 0) {
     return 0;

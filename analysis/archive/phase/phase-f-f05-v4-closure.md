@@ -32,15 +32,15 @@
 make -C compiler ../std/db/arrow/arrow.o   # ld -r(arrow_simd_glue.o + arrow_main.o)
 make -C compiler ../std/db/kv/kv.o       # ld -r(kv_mmap_glue.o + kv_main.o)
 make -C compiler ../std/db/sqlite/sqlite.o # ld -r(sqlite_glue.o + sqlite_main.o)
-make -C compiler sqlite-o-stub             # glue 无 SHUX_DB_USE_SQLITE3
+make -C compiler sqlite-o-stub             # glue 无 XLANG_DB_USE_SQLITE3
 ```
 
 ## 门禁
 
 ```bash
-SHUX_F05_DB_CLOSURE_FAIL=1 ./tests/run-f05-std-db-closure-gate.sh
+XLANG_F05_DB_CLOSURE_FAIL=1 ./tests/run-f05-std-db-closure-gate.sh
 ./tests/run-std-db-kv-arrow-gate.sh
-SHUX_STD_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
+XLANG_STD_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
 ```
 
 ## 下一项

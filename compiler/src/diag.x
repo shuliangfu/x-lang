@@ -622,7 +622,7 @@ export function diag_set_json_mode(enable: i32): void {
 }
 
 /**
- * Whether JSON diagnostics are enabled (cached state or SHUX_DIAG_JSON).
+ * Whether JSON diagnostics are enabled (cached state or XLANG_DIAG_JSON).
  * wave233 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @return i32 — 1 if JSON mode on, 0 otherwise
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl
@@ -631,13 +631,13 @@ export function diag_set_json_mode(enable: i32): void {
 export function diag_json_enabled(): i32 {
   unsafe {
     let s: i32 = diag_json_get_state();
-    // -2 = unset: resolve once from SHUX_DIAG_JSON (truthy non-empty, not leading '0')
+    // -2 = unset: resolve once from XLANG_DIAG_JSON (truthy non-empty, not leading '0')
     if (s == 0 - 2) {
       let k: u8[16] = [];
-      // SHUX_DIAG_JSON
+      // XLANG_DIAG_JSON
       k[0]=83;k[1]=72;k[2]=85;k[3]=88;k[4]=95;k[5]=68;k[6]=73;k[7]=65;k[8]=71;k[9]=95;
       k[10]=74;k[11]=83;k[12]=79;k[13]=78;k[14]=0;
-      // wave233 G.7: SHUX_DIAG_JSON via link_abi_getenv (not raw getenv).
+      // wave233 G.7: XLANG_DIAG_JSON via link_abi_getenv (not raw getenv).
       let e: *u8 = link_abi_getenv(&k[0]);
       let v: i32 = 0;
       if (e != 0) {
@@ -658,7 +658,7 @@ export function diag_json_enabled(): i32 {
 
 /**
  * Whether stderr diagnostics should use ANSI color.
- * Off when SHUX_NO_COLOR is set (any value); else isatty(2).
+ * Off when XLANG_NO_COLOR is set (any value); else isatty(2).
  * wave233 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * @return i32 — 1 if color ok, 0 otherwise
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl; WIN32 seed twin returns 0
@@ -667,10 +667,10 @@ export function diag_json_enabled(): i32 {
 export function diag_should_color(): i32 {
   unsafe {
     let k: u8[16] = [];
-    // SHUX_NO_COLOR
+    // XLANG_NO_COLOR
     k[0]=83;k[1]=72;k[2]=85;k[3]=88;k[4]=95;k[5]=78;k[6]=79;k[7]=95;
     k[8]=67;k[9]=79;k[10]=76;k[11]=79;k[12]=82;k[13]=0;
-    // wave233 G.7: SHUX_NO_COLOR via link_abi_getenv (not raw getenv).
+    // wave233 G.7: XLANG_NO_COLOR via link_abi_getenv (not raw getenv).
     if (link_abi_getenv(&k[0]) != 0) { return 0; }
     if (isatty(2) != 0) { return 1; }
   }

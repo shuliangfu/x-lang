@@ -3,16 +3,16 @@
 #
 # 用法：./tests/run-no-libc-fs-gate.sh
 # 环境：
-#   SHUX_NOLIBC_FS_FAIL=1  — 失败时硬退出
-#   SHUX=./compiler/shux
+#   XLANG_NOLIBC_FS_FAIL=1  — 失败时硬退出
+#   XLANG=./compiler/xlang
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_FS_FAIL:-0}
+FAIL=${XLANG_NOLIBC_FS_FAIL:-0}
 X="tests/sys/linux_fs_freestanding_smoke.x"
 FS_MOD="std/fs/freestanding_linux.x"
-GATE_FILE="/tmp/shux_nolibc_fs_gate.txt"
-OUT="/tmp/shux_nolibc_fs.$$.out"
+GATE_FILE="/tmp/xlang_nolibc_fs_gate.txt"
+OUT="/tmp/xlang_nolibc_fs.$$.out"
 
 die() {
   echo "nolibc-fs gate FAIL: $*" >&2
@@ -31,20 +31,20 @@ if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x
   exit 0
 fi
 
-SHUX="${SHUX:-./compiler/shux}"
-if [ ! -x "$SHUX" ] && [ -x ./compiler/shux_asm ]; then
-  SHUX=./compiler/shux_asm
+XLANG="${XLANG:-./compiler/xlang}"
+if [ ! -x "$XLANG" ] && [ -x ./compiler/xlang_asm ]; then
+  XLANG=./compiler/xlang_asm
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "nolibc-fs gate: SKIP (no shux/shux_asm)"
+if [ ! -x "$XLANG" ]; then
+  echo "nolibc-fs gate: SKIP (no xlang/xlang_asm)"
   exit 0
 fi
 
 printf 'FS' >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" build -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_nolibc_fs.log; then
-  tail -n 12 /tmp/shux_nolibc_fs.log 2>/dev/null || true
+if ! "$XLANG" build -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/xlang_nolibc_fs.log; then
+  tail -n 12 /tmp/xlang_nolibc_fs.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   die "compile $X failed"
 fi

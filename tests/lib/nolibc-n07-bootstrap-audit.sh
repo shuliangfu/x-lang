@@ -77,15 +77,15 @@ nolibc_n07_audit_manifest() {
   return 0
 }
 
-# 统计 build_shux_asm.sh 中非注释行含 -lc 的链接命令数。
+# 统计 build_xlang_asm.sh 中非注释行含 -lc 的链接命令数。
 nolibc_n07_count_lc_link_cmds() {
-  local f="${1:-compiler/scripts/build_shux_asm.sh}"
+  local f="${1:-compiler/scripts/build_xlang_asm.sh}"
   grep -E '\-lc' "$f" 2>/dev/null | grep -vE '^\s*#' | wc -l | tr -d ' '
 }
 
 # 统计 ensure_std_fs_io_heap_objs 内 cc -c ../std/{io,fs,heap}/*.c 行数。
 nolibc_n07_count_ensure_std_c() {
-  local f="${1:-compiler/scripts/build_shux_asm.sh}"
+  local f="${1:-compiler/scripts/build_xlang_asm.sh}"
   awk '/ensure_std_fs_io_heap_objs\(\)/,/^\}/' "$f" | grep -cE '\.\./std/(io|fs|heap)/.*\.c' 2>/dev/null | tr -d ' '
 }
 

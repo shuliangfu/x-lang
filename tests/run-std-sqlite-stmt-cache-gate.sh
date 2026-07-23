@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD070_DOC:-analysis/std-sqlite-stmt-cache-v1.md}"
-MANIFEST="${SHUX_STD070_TSV:-tests/baseline/std-sqlite-stmt-cache.tsv}"
-VECTORS="${SHUX_STD070_VECTORS:-tests/baseline/std-sqlite-stmt-cache-vectors.tsv}"
+DOC="${XLANG_STD070_DOC:-analysis/std-sqlite-stmt-cache-v1.md}"
+MANIFEST="${XLANG_STD070_TSV:-tests/baseline/std-sqlite-stmt-cache.tsv}"
+VECTORS="${XLANG_STD070_VECTORS:-tests/baseline/std-sqlite-stmt-cache-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-stmt-cache.sh"
@@ -87,20 +87,20 @@ else
   echo "std-sqlite-stmt-cache: no libsqlite3, c smoke SKIP"
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ] && [ "$SKIP" -eq 0 ]; then
-  echo "=== STD-070: .x smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ] && [ "$SKIP" -eq 0 ]; then
+  echo "=== STD-070: .x smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-sqlite-stmt-cache gate SKIP .x smoke (typeck fail)" >&2
-  elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "stmt_bind"; then
+  elif std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "stmt_bind"; then
     BIND_X=1
   else
     echo "std-sqlite-stmt-cache gate SKIP .x smoke (link/compile)" >&2
   fi
-elif [ -n "$SHUX_BIN" ] && [ "$SKIP" -eq 1 ]; then
+elif [ -n "$XLANG_BIN" ] && [ "$SKIP" -eq 1 ]; then
   echo "std-sqlite-stmt-cache: .x smoke SKIP (no libsqlite3)"
 fi
 

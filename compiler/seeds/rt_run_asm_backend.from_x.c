@@ -1,6 +1,6 @@
 /* seeds/rt_run_asm_backend.from_x.c — G-02f-315 P2 runtime rest (asm backend)
  * Logic source: src/runtime/rt_run_asm_backend.x
- * Hybrid: SHUX_RT_RUN_ASM_BACKEND_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_RUN_ASM_BACKEND_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：公共业务符号 driver_run_asm_backend 由 full .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
@@ -28,11 +28,11 @@
 #include "runtime_proc_abi.h"
 #include "token.h"
 
-#ifndef SHUX_TMP_PREFIX
+#ifndef XLANG_TMP_PREFIX
 #if !defined(_WIN32) && !defined(_WIN64)
-#define SHUX_TMP_PREFIX "/tmp/shux_"
+#define XLANG_TMP_PREFIX "/tmp/xlang_"
 #else
-#define SHUX_TMP_PREFIX "shux_"
+#define XLANG_TMP_PREFIX "xlang_"
 #endif
 #endif
 
@@ -63,9 +63,9 @@ extern void driver_bump_stack_limit(void);
 extern int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines);
 extern void cfg_apply_compile_target_from_triple(const char *triple, int len);
 extern void cfg_reset_compile_target(void);
-extern char *shux_preprocess_with_path(const char *data, size_t len, const char *path, const char **defines, int n_defines, size_t *out_len);
-extern char *shux_preprocess(const char *data, size_t len, const char **defines, int n_defines, size_t *out_len);
-extern char *shux_preprocess_quiet(const char *data, size_t len, const char **defines, int n_defines, size_t *out_len);
+extern char *xlang_preprocess_with_path(const char *data, size_t len, const char *path, const char **defines, int n_defines, size_t *out_len);
+extern char *xlang_preprocess(const char *data, size_t len, const char **defines, int n_defines, size_t *out_len);
+extern char *xlang_preprocess_quiet(const char *data, size_t len, const char **defines, int n_defines, size_t *out_len);
 extern void pipeline_diag_emitted_reset(void);
 extern int pipeline_diag_emitted_get(void);
 extern void diag_set_file(const char *path, const char *src, size_t len);
@@ -78,7 +78,7 @@ extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *mo
 extern void parser_parse_into_set_main_index(void *module, int32_t main_idx);
 extern int driver_get_module_num_funcs(void *m);
 extern int32_t parser_get_module_num_imports(void *module);
-extern void shux_get_entry_dir(const char *path, char *out, size_t out_sz);
+extern void xlang_get_entry_dir(const char *path, char *out, size_t out_sz);
 extern int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 /* wave77: G.7 accessors only — pure owns typeck_dep BSS under hybrid; no naked C globals. */
 extern void typeck_ndep_store(int32_t n);
@@ -104,7 +104,7 @@ extern void driver_set_pipeline_entry_source_len(size_t len);
 extern void driver_x_pipeline_skip_typeck_set(int v);
 extern void driver_x_pipeline_skip_codegen_set(int v);
 extern int asm_codegen_elf_o(void *module, void *arena, void *out_buf, void *elf_ctx, void *pctx);
-extern int shux_pipeline_dep_prerun_for_asm_module_o(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
+extern int xlang_pipeline_dep_prerun_for_asm_module_o(void *mod, void *arena, const uint8_t *src, size_t len, void *out, void *ctx);
 extern int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
 extern int runtime_report_parse_recovery_diagnostics(const char *input_path, const char *src, size_t src_len);
 extern void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes);
@@ -114,7 +114,7 @@ extern void driver_unlink_failed_output(const char *out_path);
 /**
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
-#ifndef SHUX_RT_RUN_ASM_BACKEND_FROM_X
+#ifndef XLANG_RT_RUN_ASM_BACKEND_FROM_X
 
 int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
     const char *target, int argc, char **argv) {
@@ -128,55 +128,55 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         cfg_apply_compile_target_from_triple(target, (int)strlen(target));
     else
         cfg_reset_compile_target();
-    ShuxRuntimeFileView raw_src_view;
+    XlangRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                                "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
     pipeline_diag_emitted_reset();
-    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+    char *src = xlang_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
         ndefines > 0 ? defines : NULL, ndefines,
         &src_len);
     runtime_release_file_view(&raw_src_view);
     if (!src && !pipeline_diag_emitted_get()) {
-        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
                      "preprocess failed for '%s'", input_path);
         return 1;
     }
     if (!src)
         return 1;
     diag_set_file(input_path, src, src_len);
-#if !defined(SHUX_NO_C_FRONTEND) && !defined(SHUX_USE_X_PIPELINE)
+#if !defined(XLANG_NO_C_FRONTEND) && !defined(XLANG_USE_X_PIPELINE)
     /*
      * Why: Both C-frontend fallback paths (smoke + check) require the deleted
      *      C frontend (parse / typeck_module / driver_c_typeck_entry). With
-     *      SHUX_USE_X_PIPELINE defined (default on all current modes:
+     *      XLANG_USE_X_PIPELINE defined (default on all current modes:
      *      macOS no_c, Linux no_c, Windows LEGACY), these paths are dead and
-     *      must NOT be compiled: on Windows PE/MinGW SHUX_WEAK expands to
+     *      must NOT be compiled: on Windows PE/MinGW XLANG_WEAK expands to
      *      empty, so the weak stubs in runtime_driver_strict_glue_stubs.o
      *      (parse, typeck_module, driver_c_frontend_smoke_impl) become STRONG
      *      defs. With --allow-multiple-definition the stub `parse()` returns
      *      -1 → driver_c_frontend_smoke returns 1 → silent exit=1 on every
-     *      `shux -c file.x` invocation. Guarding with !SHUX_USE_X_PIPELINE
+     *      `xlang -c file.x` invocation. Guarding with !XLANG_USE_X_PIPELINE
      *      (matching driver_c_typeck_entry below) makes `-c file.x` route
      *      through the X pipeline exactly as on macOS no_c mode.
-     * Invariant: When SHUX_USE_X_PIPELINE is defined, the X pipeline path
+     * Invariant: When XLANG_USE_X_PIPELINE is defined, the X pipeline path
      *            (parser_parse_into_init + parser_parse_into_buf) handles
-     *            `-c file.x` smoke and `shux check` alike; this entire
+     *            `-c file.x` smoke and `xlang check` alike; this entire
      *            block is skipped.
      * PLATFORM: SHARED — guard applies on all platforms; verified macOS arm64
      *           (no_c + LEGACY) and Windows MSYS x86_64.
      */
-    /* 无 -o 烟测走 C 前端（含 import 时 X asm parse 易 0 func）；shux check 不走烟测。 */
+    /* 无 -o 烟测走 C 前端（含 import 时 X asm parse 易 0 func）；xlang check 不走烟测。 */
     if (out_path == NULL && !driver_check_only_get()) {
         int smoke_rc = driver_c_frontend_smoke(input_path, src, lib_roots_arr, n_lib_roots);
         free(src);
         return smoke_rc;
     }
     /*
-     * shux check + asm 后端：优先走下方 X pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
+     * xlang check + asm 后端：优先走下方 X pipeline（check_only_mode），与 compile 同 parse/typeck 路径。
      * 无 X pipeline 时回退 C typeck。
      */
     if (driver_check_only_get()) {
@@ -190,7 +190,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     void *arena = malloc(arena_sz);
     void *module = malloc(module_sz);
     if (!arena || !module) {
-        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+        diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                               ".x pipeline allocation failed", NULL);
         if (arena) free(arena);
         if (module) free(module);
@@ -214,7 +214,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             free(src);
             return 1;
         }
-        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                      "asm backend parse_into_buf failed for '%s'",
                      input_path ? input_path : "?");
         free(arena);
@@ -224,7 +224,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (getenv("XLANG_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
                      driver_get_module_num_funcs(module), src_len);
@@ -240,7 +240,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         {
             FILE *metric_o = fopen(out_path, "wb");
             if (!metric_o) {
-                diag_reportf_with_code(out_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                diag_reportf_with_code(out_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                              "cannot open parse-metric output '%s'",
                              out_path ? out_path : "?");
                 free(arena);
@@ -250,7 +250,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             (void)fputc('\0', metric_o);
             if (fclose(metric_o) != 0) {
-                diag_reportf_with_code(out_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                diag_reportf_with_code(out_path, 0, 0, "io error", XLANG_DIAG_CODE_IO_IO001, NULL,
                              "failed to write parse-metric output '%s'",
                              out_path ? out_path : "?");
                 free(arena);
@@ -266,7 +266,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     int32_t n_imports_entry = parser_get_module_num_imports(module);
     char entry_dir_buf[512];
-    shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
+    xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     const char *entry_dir = entry_dir_buf;
 
     char *dep_sources[MAX_ALL_DEPS];
@@ -274,14 +274,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     char *dep_paths[MAX_ALL_DEPS];
     int n_deps = 0;
     /*
-     * build_shux_asm 单模块 -o（SHUX_ASM_ENTRY_MODULE_ONLY + SHUX_ASM_BUILD_SKIP_TYPECK）：
+     * build_xlang_asm 单模块 -o（XLANG_ASM_ENTRY_MODULE_ONLY + XLANG_ASM_BUILD_SKIP_TYPECK）：
      * 并列链 build_asm/*.o，勿 collect_deps 读 import 源（无 lib_root 时 rc=1 → 4B stub）。
      */
     const int skip_dep_file_load =
         driver_asm_entry_module_only_from_env() && driver_asm_build_skip_typeck() != 0;
     if (n_imports_entry > 0 && n_imports_entry <= 32) {
         if (skip_dep_file_load) {
-            if (shux_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines,
+            if (xlang_load_direct_imports_for_asm_layout(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines,
                     dep_sources, dep_lens, dep_paths, &n_deps) != 0) {
                 free(arena);
                 free(module);
@@ -293,7 +293,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             size_t clens[MAX_ALL_DEPS];
             char *cpaths[MAX_ALL_DEPS];
             int n_closure = 0;
-            if (shux_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
+            if (xlang_collect_deps_transitive(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir, defines,
                     ndefines, cls, clens, cpaths, &n_closure) != 0) {
                 free(arena);
                 free(module);
@@ -312,7 +312,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 cpaths[rev] = cpaths[o];
                 cpaths[o] = tp;
             }
-            if (shux_merge_direct_then_transitive_deps(module, n_imports_entry, cls, clens, cpaths, n_closure, dep_sources,
+            if (xlang_merge_direct_then_transitive_deps(module, n_imports_entry, cls, clens, cpaths, n_closure, dep_sources,
                     dep_lens, dep_paths, &n_deps) != 0) {
                 while (n_closure > 0) {
                     n_closure--;
@@ -347,9 +347,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         asm_want_exe = 0;
         emit_elf_o = 0;
     } else {
-        asm_want_exe = shux_output_want_exe(out_path);
+        asm_want_exe = xlang_output_want_exe(out_path);
         if (asm_want_exe) {
-            snprintf(asm_tmp_o_path, 64, "%sshux_asm_XXXXXX", SHUX_TMP_PREFIX);
+            snprintf(asm_tmp_o_path, 64, "%sxlang_asm_XXXXXX", XLANG_TMP_PREFIX);
             int fd = mkstemp(asm_tmp_o_path);
             if (fd < 0) {
                 runtime_diag_errno_path(input_path, "build error", "mkstemp (asm)", asm_tmp_o_path);
@@ -378,13 +378,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            emit_elf_o = shux_output_is_elf_o(out_path);
+            emit_elf_o = xlang_output_is_elf_o(out_path);
         }
     }
     if (emit_elf_o) {
         elf_ctx_ptr = malloc(pipeline_sizeof_elf_ctx());
         if (!elf_ctx_ptr) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   "ELF context allocation failed", NULL);
             driver_asm_fclose_asm_out(asm_out);
             free(arena);
@@ -401,7 +401,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005,
+            diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005,
                                   ".x pipeline dependency allocation failed", NULL);
             driver_asm_fclose_asm_out(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
@@ -422,7 +422,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+        diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                               ".x pipeline output/context allocation failed", NULL);
         driver_asm_fclose_asm_out(asm_out);
         if (elf_ctx_ptr) free(elf_ctx_ptr);
@@ -435,12 +435,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         if (pctx) pipeline_dep_ctx_heap_destroy(pctx);
         return 1;
     }
-    shux_pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
+    xlang_pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
     /*
-     * 入口 pipeline 阶段 use_asm_backend=0：与 shux check 同走 parse+merge+typeck（+ 可选 C codegen 填 out_buf），
+     * 入口 pipeline 阶段 use_asm_backend=0：与 xlang check 同走 parse+merge+typeck（+ 可选 C codegen 填 out_buf），
      * 避免 use_asm_backend=1 时在 typeck_merge / typeck_x_ast 上对 core.option 等 dep 崩溃（134/139）。
      * 真 .o/.Mach-O 由下方 asm_asm_codegen_elf_o 在 use_asm_backend=1 时 emit。
-     * dep 槽在预跑结束后再 shux_pipeline_pctx_seed_dep_slots（见下方 typeck_ndep 块）。
+     * dep 槽在预跑结束后再 xlang_pipeline_pctx_seed_dep_slots（见下方 typeck_ndep 块）。
      */
     pctx->use_asm_backend = 0;
     pctx->target_arch = 0;
@@ -469,13 +469,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (emit_elf_o)
         pctx->asm_entry_module_only = driver_asm_entry_module_only_from_env();
     /**
-     * build_shux_asm（SKIP_TYPECK）：dep 已由 build_asm/*.o 提供，仅编入口模块。
+     * build_xlang_asm（SKIP_TYPECK）：dep 已由 build_asm/*.o 提供，仅编入口模块。
      * 用户多文件（tests/multi-file 等）：须在 asm_codegen_elf_o 内编入各 dep，否则 ld 缺 _foo_bar 等符号。
      */
     if (asm_want_exe && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() != 0)
         pctx->asm_entry_module_only = 1;
     /**
-     * 用户单文件 -o（无 dep、非 build_shux_asm SKIP_TYPECK）：单函数仍 ENTRY_MODULE_ONLY
+     * 用户单文件 -o（无 dep、非 build_xlang_asm SKIP_TYPECK）：单函数仍 ENTRY_MODULE_ONLY
      *（return42 等烟测）；多函数单文件（C5 spill_probe 等）须 emit 全 TU 否则 ld 缺符号。
      */
     if (emit_elf_o && n_deps == 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0 &&
@@ -493,14 +493,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         pctx->asm_entry_module_only = 1;
     driver_dep_seeded_clear_all();
     /*
-     * build_shux_asm（SHUX_ASM_BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY）：dep 已由 build_asm/*.o 提供，仅 publish 槽位。
+     * build_xlang_asm（XLANG_ASM_BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY）：dep 已由 build_asm/*.o 提供，仅 publish 槽位。
      * 用户链 exe（无 SKIP_TYPECK）：须 parse+typeck dep 以解析 import 符号名，仅跳过 dep codegen（pipeline.x）。
      */
     if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() != 0) {
         for (j = 0; j < n_deps; j++) {
-            if (shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
+            if (xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     dep_lens[j]) != 0) {
-                diag_reportf_with_code(dep_paths[j], 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                diag_reportf_with_code(dep_paths[j], 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                              "asm layout dep parse-only failed for '%s'",
                              dep_paths[j] ? dep_paths[j] : "?");
                 free(out_buf);
@@ -529,7 +529,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             if (!one_ctx || !dep_out) {
-                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP006,
+                diag_report_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP006,
                                       ".x pipeline dependency context/output allocation failed", NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
@@ -544,9 +544,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 free(src);
                 return 1;
             }
-            shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
+            xlang_pipeline_fill_ctx_path_buffers(one_ctx, xlang_dep_prerun_entry_dir(entry_dir, lib_roots_arr, n_lib_roots),
                 lib_roots_arr, n_lib_roots);
-            shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
+            xlang_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
             /*
              * 无 -o 烟测：dep 仅 parse 填槽；全量 .x typeck 在 strict typeck.o 上对 std.io 等大库易 SIGSEGV。
@@ -554,51 +554,51 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
              */
             int ec_loop;
             if (asm_smoke_only) {
-                if (getenv("SHUX_ASM_DEBUG"))
+                if (getenv("XLANG_ASM_DEBUG"))
                     diag_reportf(NULL, 0, 0, "note", NULL,
                                  "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
                                  dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
-            } else if (emit_elf_o && shux_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
+            } else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
                 /*
                  * 用户 asm -o：std.io/fs 由并列 *.o 提供 *_c，dep 仅 parse 填 import 槽；
                  * 勿对 read_fd 等跑 .x typeck（与 user_asm_seed_bridge dep skip emit 对齐）。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
-            } else if (emit_elf_o && shux_asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
+            } else if (emit_elf_o && xlang_asm_user_dep_parse_skip_typeck_path(dep_paths[j])) {
                 /*
                  * std.net：须 co-emit listen/accept_many；parse_only 常 funcs=0，改 parse+skip typeck 填槽。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
-                if (ec_loop == 0 && shux_asm_user_std_net_dep_path(dep_paths[j]))
+                if (ec_loop == 0 && xlang_asm_user_std_net_dep_path(dep_paths[j]))
                     pipeline_asm_seed_std_net_struct_layouts((struct ast_Module *)dep_modules[j]);
             } else if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() == 0) {
                 /*
                  * ENTRY_MODULE_ONLY 且将走 C typeck 预检：dep 仅 parse 填槽，勿对整棵 dep 再跑 .x typeck（栈/耗时）。
                  * 入口模块类型由 driver_c_typeck_entry 与并列 build_asm/*.o 保证。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
-#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
             } else if (emit_elf_o && !asm_smoke_only && !driver_asm_build_skip_typeck()) {
                 /*
-                 * B-strict shux_asm 用户多文件 -o：dep 仅 parse 填 import 槽；入口 skip .x typeck（见下方 set）。
-                 * 注：std.string/heap 等 .x 符号须 shux-c 链 exe，或后续改 co-emit 填全量 func 槽。
+                 * B-strict xlang_asm 用户多文件 -o：dep 仅 parse 填 import 槽；入口 skip .x typeck（见下方 set）。
+                 * 注：std.string/heap 等 .x 符号须 xlang-c 链 exe，或后续改 co-emit 填全量 func 槽。
                  */
-                ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
+                ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
 #endif
             } else {
-                ec_loop = shux_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
+                ec_loop = xlang_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);
             }
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             if (ec_loop != 0) {
-                diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP008, NULL,
+                diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP008, NULL,
                                        "pipeline failed for import '%s' (rc=%d)", dep_paths[j], ec_loop);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
@@ -619,7 +619,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         typeck_dep_module_set((int32_t)(j), dep_modules[j]);
         typeck_dep_arena_set((int32_t)(j), dep_arenas[j]);
     }
-    shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+    xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
     pipeline_set_dep_slots(dep_arenas, dep_modules);
     driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
     codegen_set_dep_slots_for_x_pipeline((struct ASTModule **)dep_modules, (const char **)dep_paths, n_deps);
@@ -631,32 +631,32 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     pctx->entry_already_parsed = 1;
     int ec = 0;
     {
-        /* === SHUX_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
+        /* === XLANG_ASM_ENTRY_ONLY_DEBUG: 分段日志，定位 segfault === */
         const char *entry_name = input_path ? strrchr(input_path, '/') : NULL;
         entry_name = entry_name ? entry_name + 1 : input_path;
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: entry=%s n_deps=%d",
                          entry_name ? entry_name : "?", n_deps);
         }
         /* 1. 预检：当前文件长度 */
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: src_len=%zu entry_funcs=%d",
                          src_len, driver_get_module_num_funcs(module));
         }
         /* 2. 调 pipeline_run_x_pipeline */
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_report(NULL, 0, 0, "note",
                         "asm entry debug: BEFORE pipeline_run_x_pipeline", NULL);
         }
-#if !defined(SHUX_NO_C_FRONTEND)
+#if !defined(XLANG_NO_C_FRONTEND)
         /*
          * 用户程序 asm 编译：C typeck 预检（strict 链 typeck_c_orchestration_partial 提供真 typeck_module），
          * 再 skip pipeline 内 .x typeck（第 2+ CALL 实参仍可能 SIGSEGV）。
          */
         if (!driver_asm_build_skip_typeck()) {
-            const char *skip_c_precheck = getenv("SHUX_ASM_SKIP_C_TYPECK_PRECHECK");
+            const char *skip_c_precheck = getenv("XLANG_ASM_SKIP_C_TYPECK_PRECHECK");
             if (skip_c_precheck == NULL || skip_c_precheck[0] == '\0' || skip_c_precheck[0] == '0') {
                 if (driver_c_typeck_entry_large_stack(input_path, src, lib_roots_arr, n_lib_roots, 0) != 0) {
                     free(out_buf);
@@ -679,11 +679,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
 #endif
         /*
-         * 用户 asm -o：入口 pipeline 跳过 .x typeck（须在 #endif 外：shux_asm 为 SHUX_NO_C_FRONTEND 时仍要 skip）。
+         * 用户 asm -o：入口 pipeline 跳过 .x typeck（须在 #endif 外：xlang_asm 为 XLANG_NO_C_FRONTEND 时仍要 skip）。
          * import 程序（dead_user 等）否则 typecheck_entry SIGSEGV。
          * 无 import 单文件仍须 typeck（struct field_access_offset）；仅 skip codegen，机器码由 asm_codegen_elf_o 生成。
          * std 库 .o 仍靠 C typeck 预检 + pipeline_fill_*_for_skipped_typeck；勿跑 x typeck（enc_label 失败）。
-         * shux check + std/core 闭包：与 -o 多文件一致 skip 入口 .x typeck，parse 已在 smoke 路径完成。
+         * xlang check + std/core 闭包：与 -o 多文件一致 skip 入口 .x typeck，parse 已在 smoke 路径完成。
          */
         if (!asm_smoke_only) {
             if (n_deps > 0)
@@ -693,7 +693,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         } else {
             /*
              * asm_smoke_only（out_path==NULL，含 -c check 与无 -o smoke）：skip codegen。
-             * 【Why】strict link 产出的 shux_asm 不链入 codegen_x.o（C codegen），
+             * 【Why】strict link 产出的 xlang_asm 不链入 codegen_x.o（C codegen），
              * codegen_x_ast 是 bridge.c weak stub（返回 -1）；asm_smoke_only 调用 codegen
              * 会走 weak stub → XP001。-c check 语义只需验证语法与类型，codegen 错误
              * 由 -o 模式检测。-c flag 不设置 driver_check_only（仅 fmt/dep_prerun 设置），
@@ -706,10 +706,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             driver_x_pipeline_skip_codegen_set(1);
         }
-        ec = shux_pipeline_run_x_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
+        ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, (const uint8_t *)src, src_len, (void *)out_buf, (void *)pctx);
         driver_x_pipeline_skip_typeck_set(0);
         driver_x_pipeline_skip_codegen_set(0);
-        if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+        if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "asm entry debug: AFTER pipeline_run_x_pipeline ec=%d funcs=%d out_len=%zu",
                          ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -721,7 +721,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     pctx->use_asm_backend = 1;
-    if (getenv("SHUX_ASM_DEBUG")) {
+    if (getenv("XLANG_ASM_DEBUG")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
                      ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
@@ -742,13 +742,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             int smoke_num_funcs = driver_get_module_num_funcs(module);
             int smoke_diag_emitted = driver_check_diag_emitted_get();
             if (smoke_ec != 0 && !driver_check_diag_emitted_get())
-                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP001, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP001, NULL,
                              ".x pipeline failed for '%s' (stage=parse_into/typeck_x_ast/codegen_x_ast)",
                              input_path ? input_path : "?");
             else if (smoke_num_funcs <= 0) {
                 /* multi-error recovery 优先；否则 P001 兜底 */
                 if (runtime_report_parse_recovery_diagnostics(input_path, src, src_len) <= 0)
-                    diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                    diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                                  "parse produced no functions for '%s'", input_path ? input_path : "?");
             }
             else if (driver_check_only_get() && smoke_diag_emitted) {
@@ -787,7 +787,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     if (ec == 0 && (out_buf->len > 0 || emit_elf_o)) {
-        if (emit_elf_o && elf_ctx_ptr && !shux_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->len : 0)) {
+        if (emit_elf_o && elf_ctx_ptr && !xlang_asm_out_buf_is_object(out_buf ? out_buf->data : NULL, out_buf ? (size_t)out_buf->len : 0)) {
             /*
              * pipeline_run 后 driver_dep_seeded_clear_all 仅清全局槽；须把 dep 模块重新写入 pctx，
              * 且对用户多文件关闭 ENTRY_MODULE_ONLY，否则 asm_codegen_elf_o 只编 main、ld 缺 _foo_bar。
@@ -802,9 +802,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 }
                 pipeline_set_dep_slots(dep_arenas, dep_modules);
                 driver_dep_seed_slots(dep_arenas, dep_modules, n_deps);
-                shux_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
+                xlang_pipeline_pctx_seed_dep_slots(pctx, dep_modules, dep_arenas, dep_paths, n_deps);
                 /*
-                 * 多文件 -o 须编 dep 机器码；显式 SHUX_ASM_ENTRY_MODULE_ONLY=1（build_shux_asm / M8 单模块 -o）
+                 * 多文件 -o 须编 dep 机器码；显式 XLANG_ASM_ENTRY_MODULE_ONLY=1（build_xlang_asm / M8 单模块 -o）
                  * 时保持仅入口，dep 由并列 build_asm/*.o 提供，勿对 arch/x86_64 等 dep 再跑 asm emit。
                  * hello 等纯 std 闭包勿关 ENTRY_MODULE_ONLY（否则 co-emit std.fmt → SIGSEGV）。
                  */
@@ -812,18 +812,18 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                     pctx->asm_entry_module_only = 0;
                 pctx->use_asm_backend = 1;
             }
-            shux_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
-            int32_t elf_ec = shux_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-            if (getenv("SHUX_ASM_DEBUG")) {
+            xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
+            int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
+            if (getenv("XLANG_ASM_DEBUG")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
                              (int)elf_ec, (size_t)out_buf->len);
             }
             if (elf_ec != 0 || out_buf->len <= 0) {
-                diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG002, NULL,
+                diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,
                                        "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
                                        (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
-                if (elf_ec == SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
+                if (elf_ec == XLANG_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
                     diag_report(NULL, 0, 0, "note",
                                 "asm backend produced no object text; empty .o emission was rejected", NULL);
                 if (elf_ec != 0 && elf_ctx_ptr)
@@ -860,14 +860,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             /* G.7 single authority: same CLI user .o table as invoke_cc (atomic_glue/time_os/…).
              * PLATFORM: SHARED — pure asm ld on Ubuntu; Darwin -o exe often degrades to C. */
             if (argv && argc > 0)
-                shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
-            int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, asm_exe_out, target, pctx->use_macho_o, pctx->use_coff_o, argv ? argv[0] : NULL,
+                xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+            int ld_ok = xlang_invoke_ld_for_exe(asm_tmp_o_path, asm_exe_out, target, pctx->use_macho_o, pctx->use_coff_o, argv ? argv[0] : NULL,
                 lib_roots_arr, n_lib_roots);
-            shux_invoke_cc_clear_user_o_files();
+            xlang_invoke_cc_clear_user_o_files();
             unlink(asm_tmp_o_path);
             if (ld_ok != 0) {
                 driver_unlink_failed_output(asm_exe_out);
-                diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                              "ld failed (asm -> %s)", asm_exe_out);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
@@ -889,13 +889,13 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
         if (ec != 0) {
             driver_unlink_failed_output(out_path);
-            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP001, NULL,
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP001, NULL,
                          ".x pipeline failed for '%s' (stage=parse_into/typeck_x_ast/codegen_x_ast)",
                          input_path ? input_path : "?");
         }
     }
     if (ec == 0 && emit_elf_o && driver_get_module_num_funcs(module) <= 0) {
-        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+        diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
                      "parse produced no functions in '%s'", input_path ? input_path : "?");
         ec = -1;
     }
@@ -909,10 +909,10 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     return (ec != 0) ? 1 : 0;
 }
 
-#else /* SHUX_RT_RUN_ASM_BACKEND_FROM_X：产品 rest 仅 marker；业务体在 full .x */
+#else /* XLANG_RT_RUN_ASM_BACKEND_FROM_X：产品 rest 仅 marker；业务体在 full .x */
 int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
     const char *target, int argc, char **argv);
-#endif /* SHUX_RT_RUN_ASM_BACKEND_FROM_X */
+#endif /* XLANG_RT_RUN_ASM_BACKEND_FROM_X */
 
 int labi_rt_run_asm_backend_slice_marker(void) {
   return 1;

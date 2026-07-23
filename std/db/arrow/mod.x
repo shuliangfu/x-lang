@@ -19,7 +19,7 @@
  *
  * All `arrow_*_c` functions below are thin wrappers over the Apache Arrow
  * C library (libarrow) column / batch manipulation intrinsics. They are
- * implemented in C (see seeds) and exposed to SHUX via `extern "C"`
+ * implemented in C (see seeds) and exposed to XLANG via `extern "C"`
  * declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches the C runtime

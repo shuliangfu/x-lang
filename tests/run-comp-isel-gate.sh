@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP_ISEL_DOC:-analysis/comp-isel-v1.md}"
-MANIFEST="${SHUX_COMP_ISEL_MANIFEST:-tests/baseline/comp-isel.tsv}"
-BENCH="${SHUX_COMP_ISEL_BENCH:-tests/baseline/comp-isel-bench.tsv}"
+DOC="${XLANG_COMP_ISEL_DOC:-analysis/comp-isel-v1.md}"
+MANIFEST="${XLANG_COMP_ISEL_MANIFEST:-tests/baseline/comp-isel.tsv}"
+BENCH="${XLANG_COMP_ISEL_BENCH:-tests/baseline/comp-isel-bench.tsv}"
 MIN_LAYERS=6
 MIN_CASES=8
 MIN_BENCHES=9

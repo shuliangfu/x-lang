@@ -1,7 +1,7 @@
 /**
- * Shux LSP 客户端 — 启动前校验、Pull 诊断、崩溃自动重启。
+ * Xlang LSP 客户端 — 启动前校验、Pull 诊断、崩溃自动重启。
  *
- * 诊断仅走 LSP textDocument/diagnostic（Pull），不做本地 shux check 回退。
+ * 诊断仅走 LSP textDocument/diagnostic（Pull），不做本地 xlang check 回退。
  */
 
 import { spawnSync } from 'child_process';
@@ -15,23 +15,23 @@ import {
   Trace,
 } from 'vscode-languageclient/node';
 import { t } from './i18n';
-import { setShuxLspStatus } from './statusbar';
+import { setXlangLspStatus } from './statusbar';
 
 /** 用户主动 stop / 扩展 deactivate 时为 true，避免误触发崩溃重启 */
 let intentionalStop = false;
 
 /** 启动 LSP 前的校验结果 */
-export type ShuxLspValidation =
+export type XlangLspValidation =
   | { ok: true }
   | { ok: false; message: string };
 
 /**
- * 校验 shux 是否可作为语言服务器：存在、可执行、支持 --lsp（非 shux-c）。
- * @param command 已 resolve 的 shux 绝对/相对路径
+ * 校验 xlang 是否可作为语言服务器：存在、可执行、支持 --lsp（非 xlang-c）。
+ * @param command 已 resolve 的 xlang 绝对/相对路径
  */
-export function validateShuxLanguageServer(command: string): ShuxLspValidation {
+export function validateXlangLanguageServer(command: string): XlangLspValidation {
   if (!command.trim()) {
-    return { ok: false, message: t('shux.serverPath is empty. Set it to compiler/shux or an absolute path to shux.') };
+    return { ok: false, message: t('xlang.serverPath is empty. Set it to compiler/xlang or an absolute path to xlang.') };
   }
 
   if (!fs.existsSync(command)) {
@@ -44,10 +44,10 @@ export function validateShuxLanguageServer(command: string): ShuxLspValidation {
   try {
     fs.accessSync(command, fs.constants.X_OK);
   } catch {
-    return { ok: false, message: t('shux is not executable: {0}', command) };
+    return { ok: false, message: t('xlang is not executable: {0}', command) };
   }
 
-  /** shux --lsp 会阻塞读 stdin；超时说明进程正常进入 LSP 模式 */
+  /** xlang --lsp 会阻塞读 stdin；超时说明进程正常进入 LSP 模式 */
   const probe = spawnSync(command, ['--lsp'], {
     encoding: 'utf8',
     timeout: 2000,
@@ -57,7 +57,7 @@ export function validateShuxLanguageServer(command: string): ShuxLspValidation {
   if (combined.includes('unknown option') && combined.includes('--lsp')) {
     return {
       ok: false,
-      message: t('Current shux does not support --lsp (commonly shux-c). Use bootstrap-built compiler/shux as shux.serverPath.'),
+      message: t('Current xlang does not support --lsp (commonly xlang-c). Use bootstrap-built compiler/xlang as xlang.serverPath.'),
     };
   }
 
@@ -71,7 +71,7 @@ export function validateShuxLanguageServer(command: string): ShuxLspValidation {
   if (probe.status !== 0 && probe.status !== null) {
     return {
       ok: false,
-      message: t('shux --lsp probe exited abnormally (code {0}). See Shux output channel.', probe.status),
+      message: t('xlang --lsp probe exited abnormally (code {0}). See Xlang output channel.', probe.status),
     };
   }
 
@@ -83,13 +83,13 @@ function createLanguageClient(
   serverOptions: ServerOptions,
   clientOptions: LanguageClientOptions
 ): LanguageClient {
-  return new LanguageClient('shux', 'Shux Language Server', serverOptions, clientOptions);
+  return new LanguageClient('xlang', 'Xlang Language Server', serverOptions, clientOptions);
 }
 
 /**
- * 启动 Shux 语言服务；失败时弹窗并写 Output，返回 undefined。
+ * 启动 Xlang 语言服务；失败时弹窗并写 Output，返回 undefined。
  */
-export async function startShuxLanguageClient(params: {
+export async function startXlangLanguageClient(params: {
   command: string;
   args: string[];
   cwd: string;
@@ -98,11 +98,11 @@ export async function startShuxLanguageClient(params: {
   outputChannel: vscode.OutputChannel;
   restartOnCrash: boolean;
 }): Promise<LanguageClient | undefined> {
-  const validation = validateShuxLanguageServer(params.command);
+  const validation = validateXlangLanguageServer(params.command);
   if (!validation.ok) {
-    params.outputChannel.appendLine(`[Shux] ${validation.message}`);
+    params.outputChannel.appendLine(`[Xlang] ${validation.message}`);
     void vscode.window
-      .showErrorMessage(t('Shux language server failed to start: {0}', validation.message), t('Show Output'))
+      .showErrorMessage(t('Xlang language server failed to start: {0}', validation.message), t('Show Output'))
       .then((choice) => {
         if (choice === t('Show Output')) {
           params.outputChannel.show(true);
@@ -126,7 +126,7 @@ export async function startShuxLanguageClient(params: {
     documentSelector: [{ scheme: 'file', language: 'x' }],
     outputChannel: params.outputChannel,
     traceOutputChannel: params.outputChannel,
-    /** Pull 诊断：编辑/切换标签页时向 shux 请求 textDocument/diagnostic */
+    /** Pull 诊断：编辑/切换标签页时向 xlang 请求 textDocument/diagnostic */
     diagnosticPullOptions: {
       onTabs: true,
     },
@@ -137,7 +137,7 @@ export async function startShuxLanguageClient(params: {
 
   client.onDidChangeState((event) => {
     /** 同步状态栏 LSP 连接指示器 */
-    setShuxLspStatus(event.newState === State.Running);
+    setXlangLspStatus(event.newState === State.Running);
 
     if (
       params.restartOnCrash &&
@@ -145,10 +145,10 @@ export async function startShuxLanguageClient(params: {
       event.oldState === State.Running &&
       event.newState === State.Stopped
     ) {
-      params.outputChannel.appendLine(t('[Shux] Language server exited unexpectedly, auto-restarting...'));
+      params.outputChannel.appendLine(t('[Xlang] Language server exited unexpectedly, auto-restarting...'));
       void client.start().catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
-        params.outputChannel.appendLine(t('[Shux] Auto-restart failed: {0}', message));
+        params.outputChannel.appendLine(t('[Xlang] Auto-restart failed: {0}', message));
       });
     }
   });
@@ -156,13 +156,13 @@ export async function startShuxLanguageClient(params: {
   try {
     await client.start();
     params.outputChannel.appendLine(
-      t('[Shux] Language service connected (Pull diagnostics: parse/typeck errors will show in Problems panel).')
+      t('[Xlang] Language service connected (Pull diagnostics: parse/typeck errors will show in Problems panel).')
     );
     return client;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    params.outputChannel.appendLine(t('[Shux] LSP start failed: {0}', message));
-    void vscode.window.showErrorMessage(t('Shux LSP start failed: {0}', message), t('Show Output')).then((choice) => {
+    params.outputChannel.appendLine(t('[Xlang] LSP start failed: {0}', message));
+    void vscode.window.showErrorMessage(t('Xlang LSP start failed: {0}', message), t('Show Output')).then((choice) => {
       if (choice === t('Show Output')) {
         params.outputChannel.show(true);
       }
@@ -172,7 +172,7 @@ export async function startShuxLanguageClient(params: {
 }
 
 /** 停止语言服务（标记为用户主动，不触发崩溃重启） */
-export async function stopShuxLanguageClient(client: LanguageClient | undefined): Promise<void> {
+export async function stopXlangLanguageClient(client: LanguageClient | undefined): Promise<void> {
   if (!client) {
     return;
   }

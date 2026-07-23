@@ -76,7 +76,7 @@
 ```
 
 ```
-shux: [SHUX_PLAN001_PHASE3] status=ok tasks=11 sections=5
+xlang: [XLANG_PLAN001_PHASE3] status=ok tasks=11 sections=5
 ```
 
 ---

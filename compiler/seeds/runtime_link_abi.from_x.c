@@ -1,12 +1,12 @@
 /* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91/92/94 true .x + C tail).
  * G-02f-115 true .x pure helpers.
  * G-02f-112 helper gates.
- * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
+ * Regen: ./xlang-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
  *         merge invoke_cc + linux_harden + remaining link gates.
- * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
+ * .x covers: + xlang_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
  * G-02f-89/91/92/94: path/diag/needs + cc_ex/nm/nostdlib helpers gated over _impl.
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
 #include "runtime_proc_abi.h"
@@ -17,29 +17,29 @@
 #include "runtime_diag_codes.h"
 
 /* G-02f-53/65/66: empty C string + path/ld helpers */
-const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
-const char *shux_runtime_process_argv_o_path(const char *argv0);
-const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
-int shux_path_is_nonempty_regular_file_impl(const char *path);
+const char *xlang_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *xlang_runtime_process_argv_o_path(const char *argv0);
+const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
+int xlang_path_is_nonempty_regular_file_impl(const char *path);
 int link_abi_ld_argv_entry_is_obj(const char *s);
-int shux_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
+int xlang_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots);
-void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void xlang_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem);
-void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void xlang_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
 /* G-02f-70 invoke_cc + harden */
-int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
-void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
+int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
+void xlang_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 /* G-02f-69 mega link helpers */
 int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
-int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target, int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots, int driver_freestanding);
-void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
-void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
-void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target, int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots, int driver_freestanding);
+void xlang_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 /* wave151: CLI extra .o append (path_pure L0 pure orch; Cap residual table+access). */
-void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
 int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
@@ -53,7 +53,7 @@ const char *link_abi_getenv_impl(const char *name);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
 /* PLATFORM: SHARED — formal std .o after L4 wipe (wave188 pure L6 / cold twin). */
-int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
 /* wave191: formal ensure+companions pure orch for append_std OP_STD (L6 pure / cold twin). */
 int labi_std_rel_is_std_or_core(const char *rel);
 void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *rel,
@@ -83,59 +83,59 @@ int shu_waitpid_retry(pid_t pid, int *status_out);
 int shu_waitpid_retry_impl(pid_t pid, int *status_out);
 /* Cap residual always (wave215): skip_missing + multi-slot realpath pool body. */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
-int shux_asm_user_o_has_undef_syms(const char *o_path);
+int xlang_asm_user_o_has_undef_syms(const char *o_path);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
 /* Cap residual (wave179): skip_missing + realpath multi-slot pool for pure push_existing. */
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 /* wave179: pure orch in L6 (cold twin include / hybrid FROM_X pure .x). */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
-int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding, int use_macho_o, int use_coff_o);
+int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding, int use_macho_o, int use_coff_o);
 /* G-02f-67 ensure impls */
-int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
-int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
-int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0);
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
+int xlang_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
+int xlang_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
+int xlang_ensure_runtime_arrow_simd_glue_o(const char *argv0);
+int xlang_ensure_runtime_asm_io_stubs_o(const char *argv0);
 const char *labi_od_rel_page_mmap(void);
-int shux_ensure_runtime_atomic_glue_o(const char *argv0);
-int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
-int shux_ensure_runtime_channel_glue_o(const char *argv0);
-int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
-int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0);
-int shux_ensure_runtime_dynlib_os_o(const char *argv0);
-int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
-int shux_ensure_runtime_env_os_o(const char *argv0);
-int shux_ensure_runtime_heap_user_o(const char *argv0);
-int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
-int shux_ensure_runtime_http_glue_o(const char *argv0);
-int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0);
-int shux_ensure_runtime_log_os_o(const char *argv0);
-int shux_ensure_runtime_math_libm_o(const char *argv0);
-int shux_ensure_runtime_net_udp_batch_o(const char *argv0);
-int shux_ensure_runtime_net_workers_o(const char *argv0);
-int shux_ensure_runtime_panic_o(const char *argv0);
-int shux_ensure_runtime_process_argv_o(const char *argv0);
-int shux_ensure_runtime_process_os_glue_o(const char *argv0);
-int shux_ensure_runtime_queue_contention_o(const char *argv0);
-int shux_ensure_runtime_random_fill_o(const char *argv0);
-int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
-int shux_ensure_runtime_sqlite_glue_o(const char *argv0);
-int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
-int shux_ensure_runtime_sync_os_o(const char *argv0);
-int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
-int shux_ensure_runtime_thread_glue_o(const char *argv0);
-int shux_ensure_runtime_time_os_o(const char *argv0);
-int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+int xlang_ensure_runtime_atomic_glue_o(const char *argv0);
+int xlang_ensure_runtime_backtrace_platform_o(const char *argv0);
+int xlang_ensure_runtime_channel_glue_o(const char *argv0);
+int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0);
+int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+int xlang_ensure_runtime_dynlib_os_o(const char *argv0);
+int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
+int xlang_ensure_runtime_env_os_o(const char *argv0);
+int xlang_ensure_runtime_heap_user_o(const char *argv0);
+int xlang_link_obj_has_defined_sym(const char *o_path, const char *sym);
+int xlang_ensure_runtime_http_glue_o(const char *argv0);
+int xlang_ensure_runtime_kv_mmap_glue_o(const char *argv0);
+int xlang_ensure_runtime_log_os_o(const char *argv0);
+int xlang_ensure_runtime_math_libm_o(const char *argv0);
+int xlang_ensure_runtime_net_udp_batch_o(const char *argv0);
+int xlang_ensure_runtime_net_workers_o(const char *argv0);
+int xlang_ensure_runtime_panic_o(const char *argv0);
+int xlang_ensure_runtime_process_argv_o(const char *argv0);
+int xlang_ensure_runtime_process_os_glue_o(const char *argv0);
+int xlang_ensure_runtime_queue_contention_o(const char *argv0);
+int xlang_ensure_runtime_random_fill_o(const char *argv0);
+int xlang_ensure_runtime_scheduler_glue_o(const char *argv0);
+int xlang_ensure_runtime_sqlite_glue_o(const char *argv0);
+int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
+int xlang_ensure_runtime_sync_os_o(const char *argv0);
+int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0);
+int xlang_ensure_runtime_thread_glue_o(const char *argv0);
+int xlang_ensure_runtime_time_os_o(const char *argv0);
+int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
 /* wave184: pure orch in labi_path_pure L0 (hybrid FROM_X / cold twin include).
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X. PLATFORM: SHARED. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_empty_cstr(void) {
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X. PLATFORM: SHARED. */
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_empty_cstr(void) {
     static char buf[1];
     buf[0] = '\0';
     return buf;
 }
 #else
-const char *shux_empty_cstr(void);
+const char *xlang_empty_cstr(void);
 #endif
 
 
@@ -179,8 +179,8 @@ const char *shux_empty_cstr(void);
  */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-267 L0 path pure */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-char * shux_path_last_sep(const char *s) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+char * xlang_path_last_sep(const char *s) {
     char *p = s ? strrchr(s, '/') : NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     if (s) {
@@ -192,7 +192,7 @@ char * shux_path_last_sep(const char *s) {
     return p;
 }
 #else
-char *shux_path_last_sep(const char *s);
+char *xlang_path_last_sep(const char *s);
 #endif
 
 
@@ -202,8 +202,8 @@ char *shux_path_last_sep(const char *s);
 /** 字符串是否包含任意路径分隔符（POSIX '/' 或 Windows '\\')。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-267 L0 path pure */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-int shux_path_has_sep(const char *s) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+int xlang_path_has_sep(const char *s) {
     if (!s)
         return 0;
     if (strchr(s, '/'))
@@ -215,7 +215,7 @@ int shux_path_has_sep(const char *s) {
     return 0;
 }
 #else
-int shux_path_has_sep(const char *s);
+int xlang_path_has_sep(const char *s);
 #endif
 
 
@@ -232,7 +232,7 @@ int shux_path_has_sep(const char *s);
  *           并让 Windows 宿主走 _spawnvp 同步路径（无 fork）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_cc_compile_sync_ex(const char *src, const char *out_o,
+int xlang_cc_compile_sync_ex(const char *src, const char *out_o,
                                     const char *inc0, const char *inc1, const char *inc2,
                                     int from_asm_s,
                                     const char *const *extra_flags) {
@@ -295,11 +295,11 @@ int shux_cc_compile_sync_ex(const char *src, const char *out_o,
 
 
 /**
- * shux_cc_compile_sync 的简化包装：无额外标志。
+ * xlang_cc_compile_sync 的简化包装：无额外标志。
  * G-02e-17：若 src 以 .inc 结尾，写临时 wrap.c（#include 绝对路径）再 cc，结束后删除 wrap。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_cc_compile_sync(const char *src, const char *out_o,
+int xlang_cc_compile_sync(const char *src, const char *out_o,
                                 const char *inc0, const char *inc1, const char *inc2,
                                 int from_asm_s) {
     size_t n;
@@ -315,32 +315,32 @@ int shux_cc_compile_sync(const char *src, const char *out_o,
         wf = fopen(wrap_c, "w");
         if (!wf)
             return -1;
-        fprintf(wf, "/* generated by shux_cc_compile_sync (.inc wrap, G-02e) */\n#include \"%s\"\n", src);
+        fprintf(wf, "/* generated by xlang_cc_compile_sync (.inc wrap, G-02e) */\n#include \"%s\"\n", src);
         fclose(wf);
-        rc = shux_cc_compile_sync_ex(wrap_c, out_o, inc0, inc1, inc2, from_asm_s, NULL);
+        rc = xlang_cc_compile_sync_ex(wrap_c, out_o, inc0, inc1, inc2, from_asm_s, NULL);
         (void)remove(wrap_c);
         return rc;
     }
-    return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
+    return xlang_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
 }
 
 /**
- * wave172 Cap residual: shux_cc_compile_sync_ex with at most one extra flag string.
+ * wave172 Cap residual: xlang_cc_compile_sync_ex with at most one extra flag string.
  * Pure ensure orch cannot safely build a local NULL-terminated const char** table;
  * this peer packs extra0 into a stack array and calls the authority compile_sync_ex.
  * @param extra0 optional single flag (e.g. "-I/opt/homebrew/opt/mbedtls/include"); NULL → no extra
  * @return 0 success; non-zero failure (same as compile_sync_ex)
  * PLATFORM: SHARED — G.7 complete compile_sync family; used by ensure_runtime_tls_mbedtls_bio pure.
  */
-int shux_cc_compile_sync_one_extra(const char *src, const char *out_o,
+int xlang_cc_compile_sync_one_extra(const char *src, const char *out_o,
                                    const char *inc0, const char *inc1, const char *inc2,
                                    int from_asm_s, const char *extra0) {
     const char *extra_flags[2];
     if (extra0 == NULL)
-        return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
+        return xlang_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
     extra_flags[0] = extra0;
     extra_flags[1] = NULL;
-    return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, extra_flags);
+    return xlang_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, extra_flags);
 }
 
 
@@ -353,7 +353,7 @@ int shux_cc_compile_sync_one_extra(const char *src, const char *out_o,
  * G.7 single spawn authority for invoke_cc / ld / strip (no second fork path).
  * PLATFORM: SHARED residual / POSIX fork / WINDOWS _spawnvp.
  */
-int shux_spawn_sync_impl(const char *prog, const char *const *argv) {
+int xlang_spawn_sync_impl(const char *prog, const char *const *argv) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
         intptr_t rc = _spawnvp(_P_WAIT, prog, (const char *const *)argv);
@@ -382,19 +382,19 @@ int shux_spawn_sync_impl(const char *prog, const char *const *argv) {
 #endif
 }
 
-/* wave219: shux_spawn_sync pure orch lives in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
- * Pure: null/empty prog + null argv gates; Cap residual shux_spawn_sync_impl always mega.
+/* wave219: xlang_spawn_sync pure orch lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
+ * Pure: null/empty prog + null argv gates; Cap residual xlang_spawn_sync_impl always mega.
  * Why: hybrid still had spawn_sync body always mega C (fork/exec/wait or _spawnvp).
  * PLATFORM: SHARED orch / POSIX fork residual / WINDOWS _spawnvp residual. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-int shux_spawn_sync(const char *prog, const char *const *argv) {
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
+int xlang_spawn_sync(const char *prog, const char *const *argv) {
     if (!prog || !prog[0] || !argv)
         return -1;
-    return shux_spawn_sync_impl(prog, argv);
+    return xlang_spawn_sync_impl(prog, argv);
 }
 #else
-int shux_spawn_sync(const char *prog, const char *const *argv);
+int xlang_spawn_sync(const char *prog, const char *const *argv);
 #endif
 
 /**
@@ -403,7 +403,7 @@ int shux_spawn_sync(const char *prog, const char *const *argv);
  * Pure orch invoke_cc_maybe_strip_out owns opt_level / Windows skip gates.
  * Must use strip -x (local symbols only): bare strip on Darwin drops _main globals
  * → nm/otool false red. G.7 single strip authority for maybe_strip / invoke_cc.
- * PLATFORM: SHARED residual / POSIX strip via public shux_spawn_sync / WINDOWS _spawnvp.
+ * PLATFORM: SHARED residual / POSIX strip via public xlang_spawn_sync / WINDOWS _spawnvp.
  */
 void invoke_cc_strip_out_x_impl(const char *out_path) {
     const char *sargv[4];
@@ -416,16 +416,16 @@ void invoke_cc_strip_out_x_impl(const char *out_path) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     (void)_spawnvp(_P_WAIT, "strip", (const char *const *)sargv);
 #else
-    (void)shux_spawn_sync("strip", sargv);
+    (void)xlang_spawn_sync("strip", sargv);
 #endif
 }
 
 /* wave220: invoke_cc_strip_out_x pure orch lives in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  * Pure: null/empty out_path gates; Cap residual invoke_cc_strip_out_x_impl always mega.
  * Why: hybrid still had strip_out_x body always mega C (gates+argv pack+spawn).
  * PLATFORM: SHARED orch / POSIX strip residual / WINDOWS _spawnvp residual. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void invoke_cc_strip_out_x(const char *out_path) {
     if (!out_path || !out_path[0])
         return;
@@ -439,7 +439,7 @@ void invoke_cc_strip_out_x(const char *out_path);
  * Cap residual (wave222): host getenv(name) → value pointer or NULL.
  * Pure orch (wave222 labi_diag_pure L1) owns null/empty name gates; _impl is always mega.
  * PLATFORM: SHARED — host libc getenv (process environment block).
- * Product ensure orch (formal_std SHUX / SHUX_FORMAL_STD_ENSURE; ensure_std_net SHUX_NET_TLS).
+ * Product ensure orch (formal_std XLANG / XLANG_FORMAL_STD_ENSURE; ensure_std_net XLANG_NET_TLS).
  */
 const char *link_abi_getenv_impl(const char *name) {
     if (!name || !name[0])
@@ -448,11 +448,11 @@ const char *link_abi_getenv_impl(const char *name) {
 }
 
 /* wave222: link_abi_getenv pure orch lives in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  * Pure: null/empty name gates; Cap residual link_abi_getenv_impl (getenv) always mega.
  * Why: hybrid still had formal_std / ensure_std_net raw getenv under product ensure.
  * PLATFORM: SHARED orch. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 const char *link_abi_getenv(const char *name) {
     if (!name || !name[0])
         return NULL;
@@ -466,7 +466,7 @@ const char *link_abi_getenv(const char *name);
  * Cap residual (wave224): host system(cmd) → shell status or -1.
  * Pure orch (wave224 labi_diag_pure L1) owns null/empty cmd gates; _impl is always mega.
  * PLATFORM: SHARED — host libc system (shell make / process boundary).
- * Product ensure orch (ensure_std_net net-o-*; formal_std SHUX make).
+ * Product ensure orch (ensure_std_net net-o-*; formal_std XLANG make).
  */
 int link_abi_system_impl(const char *cmd) {
     if (!cmd || !cmd[0])
@@ -475,11 +475,11 @@ int link_abi_system_impl(const char *cmd) {
 }
 
 /* wave224: link_abi_system pure orch lives in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  * Pure: null/empty cmd gates; Cap residual link_abi_system_impl (system) always mega.
  * Why: hybrid still had formal_std / ensure_std_net raw system under product ensure.
  * PLATFORM: SHARED orch. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 int link_abi_system(const char *cmd) {
     if (!cmd || !cmd[0])
         return -1;
@@ -492,14 +492,14 @@ int link_abi_system(const char *cmd);
 
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-268 L1 diag pure：code_for_kind 真迁在 L1 leaf；rest 非 hybrid 自带 */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 const char * link_diag_code_for_kind(const char *kind) {
     if (!kind)
-        return SHUX_DIAG_CODE_PROCESS_PRC001;
+        return XLANG_DIAG_CODE_PROCESS_PRC001;
     if (strcmp(kind, "build error") == 0)
-        return SHUX_DIAG_CODE_BUILD_BLD001;
+        return XLANG_DIAG_CODE_BUILD_BLD001;
     if (strcmp(kind, "process error") == 0)
-        return SHUX_DIAG_CODE_PROCESS_PRC001;
+        return XLANG_DIAG_CODE_PROCESS_PRC001;
     return NULL;
 }
 #else
@@ -521,10 +521,10 @@ int link_diag_wait_code_impl(int status) {
 }
 
 /* wave217: public pure thin lives in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  * Cap residual: wait_is_signaled_impl / wait_code_impl (WIF* always mega).
  * PLATFORM: SHARED orch / POSIX wait residual. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 int link_diag_wait_is_signaled(int status) {
     return link_diag_wait_is_signaled_impl(status);
 }
@@ -537,17 +537,17 @@ int link_diag_wait_code(int status);
 #endif
 
 /* G-02f-165 / wave112：tool_status pure orch in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual wait decode
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X. Cap residual wait decode
  * stays always-linked. PLATFORM: SHARED. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_tool_status(const char *tool, int status) {
     if (!tool)
         tool = "tool";
     if (WIFSIGNALED(status)) {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                "%s failed (signal %d)", tool, WTERMSIG(status));
     } else {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                "%s failed (exit %d)", tool, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     }
 }
@@ -558,16 +558,16 @@ void link_diag_tool_status(const char *tool, int status);
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* R2 labi_diag_pure：hybrid FROM_X 下公共+消息体由 L1 .x 提供；冷启动仍保留 _impl */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_resolve_fail_impl(const char *obj_name, const char *hint) {
     if (!obj_name)
         obj_name = "runtime object";
     if (hint && hint[0] != '\0') {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                "cannot resolve compiler directory to build %s (%s)",
                                obj_name, hint);
     } else {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                "cannot resolve compiler directory to build %s",
                                obj_name);
     }
@@ -580,11 +580,11 @@ void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint);
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_source_missing_impl(const char *obj_name, const char *source_path) {
     if (!obj_name)
         obj_name = "runtime object";
-    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+    diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                            "%s source not found at %s",
                            obj_name, source_path ? source_path : "?");
 }
@@ -598,12 +598,12 @@ void link_diag_runtime_source_missing(const char *obj_name, const char *source_p
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_source_missing_under_impl(const char *obj_name, const char *base_dir,
                                                    const char *suffix) {
     if (!obj_name)
         obj_name = "runtime object";
-    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+    diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                            "%s source not found under %s%s",
                            obj_name, base_dir ? base_dir : "?", suffix ? suffix : "");
 }
@@ -616,11 +616,11 @@ void link_diag_runtime_source_missing_under(const char *obj_name, const char *ba
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_missing_impl(const char *obj_name, const char *out_o) {
     if (!obj_name)
         obj_name = "runtime object";
-    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+    diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                            "%s missing after cc -c (expected near %s)",
                            obj_name, out_o ? out_o : "?");
 }
@@ -638,16 +638,16 @@ void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o);
 
 /* wave112：obj_build_status pure orch in labi_diag_pure.x (hybrid L1);
  * mega cold twin under #ifndef. Cap residual wait decode always-linked. PLATFORM: SHARED. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_runtime_obj_build_status(const char *obj_name, int status) {
     if (!obj_name)
         obj_name = "runtime object";
     if (WIFSIGNALED(status)) {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                "failed to build %s (signal %d)",
                                obj_name, WTERMSIG(status));
     } else {
-        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                                "failed to build %s (exit %d)",
                                obj_name, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     }
@@ -670,10 +670,10 @@ const char *link_diag_strerror_current_impl(void) {
 }
 
 /* wave217: public pure thin lives in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  * Cap residual: link_diag_strerror_current_impl (errno+strerror always mega).
  * PLATFORM: SHARED orch / libc strerror residual. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 const char *link_diag_strerror_current(void) {
     return link_diag_strerror_current_impl();
 }
@@ -682,9 +682,9 @@ const char *link_diag_strerror_current(void);
 #endif
 
 /* G-02f-165 / wave113：link_diag_errno / _path pure orch in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual strerror stays
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X. Cap residual strerror stays
  * always-linked. PLATFORM: SHARED. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_errno(const char *kind, const char *op) {
     const char *err = link_diag_strerror_current();
     const char *resolved_kind = kind ? kind : "process error";
@@ -746,16 +746,16 @@ __attribute__((unused))
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* R2：freestanding_missing 消息体 hybrid 由 L1 .x；冷启动 _impl */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_freestanding_missing_impl(const char *obj_name, const char *symbol_name) {
     if (symbol_name && symbol_name[0]) {
-        diag_reportf_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "link error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                      "freestanding link missing %s (user references %s)",
                      obj_name ? obj_name : "runtime object",
                      symbol_name);
         return;
     }
-    diag_reportf_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+    diag_reportf_with_code(NULL, 0, 0, "link error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                  "freestanding link missing %s",
                  obj_name ? obj_name : "runtime object");
 }
@@ -770,10 +770,10 @@ void link_diag_freestanding_missing(const char *obj_name, const char *symbol_nam
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* R2：freestanding_unsupported 消息体 hybrid 由 L1 .x（拆段 ≤64） */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_freestanding_unsupported_impl(void) {
-    diag_report_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001,
-                "-freestanding / SHUX_FREESTANDING is only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)",
+    diag_report_with_code(NULL, 0, 0, "link error", XLANG_DIAG_CODE_BUILD_BLD001,
+                "-freestanding / XLANG_FREESTANDING is only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)",
                 NULL);
 }
 void link_diag_freestanding_unsupported(void) {
@@ -785,7 +785,7 @@ void link_diag_freestanding_unsupported(void);
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* R2：ld_debug_push 消息体 hybrid 由 L1 .x */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_push_impl(const char *rel, const char *stage, const char *path) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "ld debug: push %s %s=%s",
@@ -818,7 +818,7 @@ void link_diag_ld_debug_argv_impl(const char *label, const char *const *argv) {
                      argv[di]);
     }
 }
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
     link_diag_ld_debug_argv_impl(label, argv);
 }
@@ -826,13 +826,13 @@ void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
 void link_diag_ld_debug_argv(const char *label, const char *const *argv);
 #endif
 
-/* G-02f-165 / wave111：shux_link_perror pure orch in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+/* G-02f-165 / wave111：xlang_link_perror pure orch in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  * wave113: pure errno/_path orch; Cap residual is link_diag_strerror_current_impl
  * (wave217: public thin pure under hybrid L1).
  * PLATFORM: SHARED. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
-void shux_link_perror(const char *msg) {
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
+void xlang_link_perror(const char *msg) {
     char op_buf[128];
     char path_buf[160];
     const char *text = msg;
@@ -844,7 +844,7 @@ void shux_link_perror(const char *msg) {
         link_diag_errno("process error", "system call");
         return;
     }
-    if (strncmp(text, "shux: ", 6) == 0)
+    if (strncmp(text, "xlang: ", 6) == 0)
         text += 6;
     lparen = strrchr(text, '(');
     rparen = strrchr(text, ')');
@@ -868,10 +868,10 @@ void shux_link_perror(const char *msg) {
     link_diag_errno("process error", text);
 }
 #else
-void shux_link_perror(const char *msg);
+void xlang_link_perror(const char *msg);
 #endif
 
-#define perror(msg) shux_link_perror((msg))
+#define perror(msg) xlang_link_perror((msg))
 
 /**
  * 判断 lib root 指针可安全解引用（避开 NULL/low tag/getenv 脏值）。
@@ -879,38 +879,38 @@ void shux_link_perror(const char *msg);
  * 返回值：非 0 表示可用。
  */
 /* G-02f-115 / wave114：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Semantics: null / (uintptr_t)p < 4096 / empty → 0. PLATFORM: SHARED. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-int shux_asm_ld_lib_root_ptr_usable(const char *p) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+int xlang_asm_ld_lib_root_ptr_usable(const char *p) {
   return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
 #else
-int shux_asm_ld_lib_root_ptr_usable(const char *p);
+int xlang_asm_ld_lib_root_ptr_usable(const char *p);
 #endif
 
 
 
 /**
- * 写入默认 lib root 到 root_buf（SHUX_LIB 或 "."）。
+ * 写入默认 lib root 到 root_buf（XLANG_LIB 或 "."）。
  * 参数：root_buf 至少 512 字节。
  */
 /* G-02f-165 / wave115：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
- * Semantics: "." then link_abi_getenv("SHUX_LIB") if pure usable (wave223 G.7).
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
+ * Semantics: "." then link_abi_getenv("XLANG_LIB") if pure usable (wave223 G.7).
  * PLATFORM: SHARED. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-void shux_asm_ld_lib_root_default(char root_buf[512]) {
-    const char *def = link_abi_getenv("SHUX_LIB");
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+void xlang_asm_ld_lib_root_default(char root_buf[512]) {
+    const char *def = link_abi_getenv("XLANG_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
-    if (!shux_asm_ld_lib_root_ptr_usable(def))
+    if (!xlang_asm_ld_lib_root_ptr_usable(def))
         return;
     strncpy(root_buf, def, 511);
     root_buf[511] = '\0';
 }
 #else
-void shux_asm_ld_lib_root_default(char root_buf[512]);
+void xlang_asm_ld_lib_root_default(char root_buf[512]);
 #endif
 
 
@@ -919,7 +919,7 @@ void shux_asm_ld_lib_root_default(char root_buf[512]);
 #if defined(__linux__)
 /** nostdlib 链 environ 可能无 PATH：链接子进程优先用绝对路径 gcc（含 gcc 官方镜像 /usr/local/bin）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-const char * shux_linux_host_gcc_path(void) {
+const char * xlang_linux_host_gcc_path(void) {
     if (access("/usr/bin/gcc", X_OK) == 0)
         return "/usr/bin/gcc";
     if (access("/usr/local/bin/gcc", X_OK) == 0)
@@ -932,7 +932,7 @@ const char * shux_linux_host_gcc_path(void) {
 
 /** Linux 链接子进程 PATH：gcc 官方镜像仅提供 /usr/local/bin/gcc。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shux_linux_ld_child_path(void) {
+void xlang_linux_ld_child_path(void) {
     (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
 }
 
@@ -942,7 +942,7 @@ void shux_linux_ld_child_path(void) {
 
 /* #region debug-point A:hello-stage1-segv */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shux_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
+void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
     const char *msg, int v1, int v2, int v3) {
     char url[256];
     char session[64];
@@ -991,7 +991,7 @@ void shux_debug_hello_stage1_report(const char *hypothesis_id, const char *locat
 /* #endregion */
 
 /**
- * 解析当前 shux 可执行文件所在目录（compiler/），用于冷启动时在同一目录生成 runtime_panic.o。
+ * 解析当前 xlang 可执行文件所在目录（compiler/），用于冷启动时在同一目录生成 runtime_panic.o。
  * Linux 用 /proc/self/exe，macOS 用 _NSGetExecutablePath；再回退 realpath(argv0)。
  * 参数：argv0 可选；out_dir/out_dir_sz 输出缓冲。
  * 返回值：0 成功，-1 失败。
@@ -1048,7 +1048,7 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
                 n = sizeof(buf) - 1;
             memcpy(buf, exe_path, n);
             buf[n] = '\0';
-            char *slash = shux_path_last_sep(buf);
+            char *slash = xlang_path_last_sep(buf);
             if (slash) {
                 *slash = '\0';
                 if (strlen(buf) >= out_dir_sz)
@@ -1059,12 +1059,12 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
         }
     }
 #endif
-    if (!argv0 || !argv0[0] || !shux_path_has_sep(argv0))
+    if (!argv0 || !argv0[0] || !xlang_path_has_sep(argv0))
         return -1;
     if (realpath(argv0, buf) == NULL)
         return -1;
     {
-        char *slash = shux_path_last_sep(buf);
+        char *slash = xlang_path_last_sep(buf);
         if (!slash)
             return -1;
         *slash = '\0';
@@ -1079,14 +1079,14 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
 
 
 /**
- * argv0 缺失时构造 «compiler-dir/shux» 供 get_*_path 走 ../std/…；shux 毋须真实存在。
+ * argv0 缺失时构造 «compiler-dir/xlang» 供 get_*_path 走 ../std/…；xlang 毋须真实存在。
  * 参数：link_argv0 调用方 argv[0]；syn_buf/syn_sz 合成路径缓冲。
  * 返回值：有效 link argv0 或 NULL。
  * wave184: pure orch in labi_path_pure L0 (hybrid FROM_X / cold twin include).
  * Cap residual: shu_resolve_compiler_dir. PLATFORM: SHARED.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
     char comp_dir[PATH_MAX];
     int nn;
     if (link_argv0 && link_argv0[0])
@@ -1096,51 +1096,51 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
     syn_buf[0] = '\0';
     if (shu_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
         return NULL;
-    nn = snprintf(syn_buf, syn_sz, "%s/shux", comp_dir);
+    nn = snprintf(syn_buf, syn_sz, "%s/xlang", comp_dir);
     if (nn < 0 || (size_t)nn >= syn_sz)
         return NULL;
     return syn_buf;
 }
 #else
-const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
+const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz);
 #endif
 
 
 
 /**
  * F-03 v2/v3：std.io 已纯 .x，无 io.o；保留 API 供 repo root 推导，返回空串。
- * 参数：argv0 可选 shux 路径。
- * 返回值：空串（调用方应改用 shux_repo_root_from_argv0 的 process.o 路径）。
+ * 参数：argv0 可选 xlang 路径。
+ * 返回值：空串（调用方应改用 xlang_repo_root_from_argv0 的 process.o 路径）。
  * wave184: pure orch in labi_path_pure L0. PLATFORM: SHARED.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_std_io_o_path(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_std_io_o_path(const char *argv0) {
   (void)argv0;
   {
-    return shux_empty_cstr();
+    return xlang_empty_cstr();
   }
   return NULL;
 }
 #else
-const char *shux_std_io_o_path(const char *argv0);
+const char *xlang_std_io_o_path(const char *argv0);
 #endif
 
 /**
  * F-04 v7 + F-06 v1：std.compress 已纯 .x，无 compress.o；保留 API 兼容，返回空串。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：空串（压缩库由 user .o / 生成 C 扫描按需 -lz/-lzstd/-lbrotli*）。
  * wave184: pure orch in labi_path_pure L0. PLATFORM: SHARED.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_std_compress_o_path(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_std_compress_o_path(const char *argv0) {
   (void)argv0;
   {
-    return shux_empty_cstr();
+    return xlang_empty_cstr();
   }
   return NULL;
 }
 #else
-const char *shux_std_compress_o_path(const char *argv0);
+const char *xlang_std_compress_o_path(const char *argv0);
 #endif
 
 /**
@@ -1150,19 +1150,19 @@ const char *shux_std_compress_o_path(const char *argv0);
  *
  * Why: after L4 wipe, std/process/process.o is gone. The old path walked
  * process.o up three seps; when process.o is missing, include_root became ""
- * and shux_ensure_formal_std_make_o never ran (mac true-cold residual).
+ * and xlang_ensure_formal_std_make_o never ran (mac true-cold residual).
  * Fallback: legacy process.o walk when compiler_dir resolve fails but process.o
  * already exists (warm tree).
  *
  * wave162: pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: BSS memcpy + path_last_sep strip; Cap residual resolve + rel_o_path.
  *
- * @param argv0 optional shux path (also used by shu_resolve_compiler_dir fallback)
+ * @param argv0 optional xlang path (also used by shu_resolve_compiler_dir fallback)
  * @return static buffer with repo root, or empty string
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_repo_root_from_argv0(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_repo_root_from_argv0(const char *argv0) {
     static char buf[512];
     char comp[PATH_MAX];
     char *last;
@@ -1173,7 +1173,7 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) == 0 && comp[0]) {
         if (strlen(comp) < sizeof(buf)) {
             memcpy(buf, comp, strlen(comp) + 1);
-            last = shux_path_last_sep(buf);
+            last = xlang_path_last_sep(buf);
             if (last && last != buf) {
                 *last = '\0';
                 return buf;
@@ -1182,14 +1182,14 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
         }
     }
     /* Fallback: process.o exists (warm tree) → strip std/process/process.o (3 seps). */
-    proc_o = shux_rel_o_path_from_argv0(argv0, "std/process/process.o");
+    proc_o = xlang_rel_o_path_from_argv0(argv0, "std/process/process.o");
     if (!proc_o || !proc_o[0])
         return buf;
     if (strlen(proc_o) >= sizeof(buf))
         return buf;
     strcpy(buf, proc_o);
     for (k = 0; k < 3; k++) {
-        last = shux_path_last_sep(buf);
+        last = xlang_path_last_sep(buf);
         if (!last || last == buf)
             break;
         *last = '\0';
@@ -1197,15 +1197,15 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
     return buf;
 }
 #else
-const char *shux_repo_root_from_argv0(const char *argv0);
+const char *xlang_repo_root_from_argv0(const char *argv0);
 #endif
 
 /**
  * 将 path 复制到 bank 下一槽（path 常为栈上 snprintf 结果）；成功返回持久指针；满则返回 NULL。
  * 参数：b bank；path 候选路径。
  */
-const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path) {
-    if (!b || b->n >= SHUX_ASM_LD_PATH_BANK_SLOTS)
+const char *xlang_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path) {
+    if (!b || b->n >= XLANG_ASM_LD_PATH_BANK_SLOTS)
         return NULL;
     if (snprintf(b->slots[b->n], sizeof(b->slots[0]), "%s", path) >= (int)sizeof(b->slots[0]))
         return NULL;
@@ -1213,8 +1213,8 @@ const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path) {
 }
 
 /* G-02f-277 L9 gates */
-#ifndef SHUX_LABI_GATES_FROM_X
-const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
+#ifndef XLANG_LABI_GATES_FROM_X
+const char *xlang_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
   if (b == NULL) {
     return NULL;
   }
@@ -1225,12 +1225,12 @@ const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
     if (path[0] == 0) {
       return NULL;
     }
-    return shux_asm_ld_bank_push_impl(b, path);
+    return xlang_asm_ld_bank_push_impl(b, path);
   }
   return NULL;
 }
 #else
-const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
+const char *xlang_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
 #endif
 
 /**
@@ -1238,12 +1238,12 @@ const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
  * 参数：rel 相对路径；lib_roots/n_lib_roots -L 根；bank 路径持久化。
  */
 /* wave116：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: join root/rel without snprintf; Cap residual skip_missing + bank_push.
  * bank is opaque void* (≡ pure .x *u8 / cold twin labi_path_pure / invoke_ld_list decls).
  * PLATFORM: SHARED — G.7 single signature; L4 cold TU must not mix ShuAsmLdPathBank* vs void*. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank) {
     int i;
     char tmp[PATH_MAX];
     if (!rel || (uintptr_t)rel < 4096u)
@@ -1270,12 +1270,12 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
         }
         if (!asm_link_obj_skip_missing(tmp))
             continue;
-        return shux_asm_ld_bank_push((ShuAsmLdPathBank *)bank, tmp);
+        return xlang_asm_ld_bank_push((ShuAsmLdPathBank *)bank, tmp);
     }
     return NULL;
 }
 #else
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
+const char *xlang_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 #endif
 
 /**
@@ -1286,25 +1286,25 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-270/L L3：realpath+skip 主体始终在 rest（thin shell 在 labi_path_io）。
  * 注意：impl 调用 asm_link_obj_skip_missing（hybrid 时由 L3 提供）。 */
-const char *shux_runtime_o_realpath_if_exists_impl(const char *path, char *resolved) {
+const char *xlang_runtime_o_realpath_if_exists_impl(const char *path, char *resolved) {
     if (!path || !path[0] || !resolved || realpath(path, resolved) == NULL)
         return NULL;
     return asm_link_obj_skip_missing(resolved);
 }
 
 /* G-02f-270 L3 path IO public thin（非 hybrid 时 rest 自带；hybrid 时由 L3 提供） */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
-const char * shux_runtime_o_realpath_if_exists(const char *path, char *resolved) {
+#ifndef XLANG_LABI_PATH_IO_FROM_X
+const char * xlang_runtime_o_realpath_if_exists(const char *path, char *resolved) {
     if (path == NULL)
         return NULL;
     if (path[0] == 0)
         return NULL;
     if (resolved == NULL)
         return NULL;
-    return shux_runtime_o_realpath_if_exists_impl(path, resolved);
+    return xlang_runtime_o_realpath_if_exists_impl(path, resolved);
 }
 #else
-const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
+const char *xlang_runtime_o_realpath_if_exists(const char *path, char *resolved);
 #endif
 
 
@@ -1313,25 +1313,25 @@ const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
 
 /**
  * runtime_panic.o 路径；优先 cwd（runtime_panic.o / compiler/runtime_panic.o），再 argv0 目录。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  *
  * wave163: pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: BSS join + last-sep index; Cap residual realpath_if_exists + getcwd + skip_missing.
  * PLATFORM: SHARED orch POSIX; Windows sep rest stays mega cold when non-hybrid.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_runtime_panic_o_path(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_runtime_panic_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
     const char *hit;
     buf[0] = resolved[0] = '\0';
-    /* cwd 即 compiler/：与 shux_asm 同目录的 runtime_panic.o */
-    hit = shux_runtime_o_realpath_if_exists("runtime_panic.o", resolved);
+    /* cwd 即 compiler/：与 xlang_asm 同目录的 runtime_panic.o */
+    hit = xlang_runtime_o_realpath_if_exists("runtime_panic.o", resolved);
     if (hit)
         return hit;
-    hit = shux_runtime_o_realpath_if_exists("compiler/runtime_panic.o", resolved);
+    hit = xlang_runtime_o_realpath_if_exists("compiler/runtime_panic.o", resolved);
     if (hit)
         return hit;
     {
@@ -1341,14 +1341,14 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
             if (L + 24 <= sizeof(cwd)) {
                 memcpy(cwd + L, "/compiler/runtime_panic.o", 25);
                 cwd[L + 24] = '\0';
-                hit = shux_runtime_o_realpath_if_exists(cwd, resolved);
+                hit = xlang_runtime_o_realpath_if_exists(cwd, resolved);
                 if (hit)
                     return hit;
             }
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = shux_path_last_sep(argv0);
+        const char *last_slash = xlang_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -1363,7 +1363,7 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
         }
         if (n + 18 < (int)sizeof(buf)) {
             strcat(buf, "/runtime_panic.o");
-            hit = shux_runtime_o_realpath_if_exists(buf, resolved);
+            hit = xlang_runtime_o_realpath_if_exists(buf, resolved);
             if (hit)
                 return hit;
             if (asm_link_obj_skip_missing(buf))
@@ -1373,22 +1373,22 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
     return buf;
 }
 #else
-const char *shux_runtime_panic_o_path(const char *argv0);
+const char *xlang_runtime_panic_o_path(const char *argv0);
 #endif
 
 /**
  * std.async 协作调度内核（std/async/scheduler.o）；调用 coop_pingpong* 时按需链入。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  *
  * wave166: pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: BSS join + last-sep index + argv0 realpath then parent+/../std/async;
  * Cap residual link_abi_realpath_cap + getcwd.
  * PLATFORM: SHARED orch POSIX; Windows sep rest stays mega cold when non-hybrid.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_std_async_scheduler_o_path(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_std_async_scheduler_o_path(const char *argv0) {
     static char buf[PATH_MAX], resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
     if (realpath("std/async/scheduler.o", resolved) != NULL)
@@ -1406,7 +1406,7 @@ const char *shux_std_async_scheduler_o_path(const char *argv0) {
         }
     }
     if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
-        char *last = shux_path_last_sep(buf);
+        char *last = xlang_path_last_sep(buf);
         if (last && (size_t)(last - buf) + 26 < sizeof(buf)) {
             *last = '\0';
             strcat(buf, "/../std/async/scheduler.o");
@@ -1417,21 +1417,21 @@ const char *shux_std_async_scheduler_o_path(const char *argv0) {
     return buf;
 }
 #else
-const char *shux_std_async_scheduler_o_path(const char *argv0);
+const char *xlang_std_async_scheduler_o_path(const char *argv0);
 #endif
 
 /**
- * crt0_user.o 路径；与 runtime_panic.o 同目录（compiler/），供 SHUX_FREESTANDING 链入。
- * 参数：argv0 可选 shux 路径。
+ * crt0_user.o 路径；与 runtime_panic.o 同目录（compiler/），供 XLANG_FREESTANDING 链入。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  *
  * wave164: pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: BSS join + last-sep index; Cap residual link_abi_realpath_cap + getcwd.
  * PLATFORM: SHARED orch POSIX; Windows sep rest stays mega cold when non-hybrid.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_crt0_user_o_path(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_crt0_user_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
@@ -1450,7 +1450,7 @@ const char *shux_crt0_user_o_path(const char *argv0) {
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = shux_path_last_sep(argv0);
+        const char *last_slash = xlang_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -1473,21 +1473,21 @@ const char *shux_crt0_user_o_path(const char *argv0) {
     return buf;
 }
 #else
-const char *shux_crt0_user_o_path(const char *argv0);
+const char *xlang_crt0_user_o_path(const char *argv0);
 #endif
 
 /**
- * freestanding_io.o 路径；与 crt0_user.o 同目录（compiler/），供 SHUX_FREESTANDING syscall write。
- * 参数：argv0 可选 shux 路径。
+ * freestanding_io.o 路径；与 crt0_user.o 同目录（compiler/），供 XLANG_FREESTANDING syscall write。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  *
  * wave165: pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: BSS join + last-sep index; Cap residual link_abi_realpath_cap + getcwd.
  * PLATFORM: SHARED orch POSIX; Windows sep rest stays mega cold when non-hybrid.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_freestanding_io_o_path(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_freestanding_io_o_path(const char *argv0) {
     static char buf[512];
     static char resolved[PATH_MAX];
     buf[0] = resolved[0] = '\0';
@@ -1506,7 +1506,7 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = shux_path_last_sep(argv0);
+        const char *last_slash = xlang_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -1529,17 +1529,17 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
     return buf;
 }
 #else
-const char *shux_freestanding_io_o_path(const char *argv0);
+const char *xlang_freestanding_io_o_path(const char *argv0);
 #endif
-/* wave160: shux_runtime_compiler_o_path_copy pure orch lives in labi_path_pure
+/* wave160: xlang_runtime_compiler_o_path_copy pure orch lives in labi_path_pure
  * (Cap residual shu_resolve_compiler_dir + pure byte join compiler-dir/leaf).
  * Cold twin via L0 seed / mega #ifndef below; hybrid FROM_X → L0 pure .x.
  * Why: hybrid still had always-mega C body for path join after platform resolve.
  * Cap residual stays: shu_resolve_compiler_dir (#if LINUX/MACOS/WINDOWS).
  * PLATFORM: SHARED orch. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+int xlang_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
     char comp_dir[4096];
     int dn;
     int ln;
@@ -1570,29 +1570,29 @@ int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char 
     return 0;
 }
 #else
-int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
+int xlang_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz);
 #endif
 
 
 
 
-/* wave183: thin shux_runtime_*_o_path pure orch — body removed from mega
- * (lives in labi_path_pure L0 pure / cold twin). Hybrid SHUX_LABI_PATH_PURE_FROM_X → L0 pure;
+/* wave183: thin xlang_runtime_*_o_path pure orch — body removed from mega
+ * (lives in labi_path_pure L0 pure / cold twin). Hybrid XLANG_LABI_PATH_PURE_FROM_X → L0 pure;
  * cold path defines via #ifndef below (static PATH_MAX BSS + compiler_o_path_copy).
  * Why: hybrid still had always-mega C bodies for 29 thin runtime path leaves after wave161
  * G.7 join through compiler_o_path_copy (resolve+snprintf already removed).
  * Cap residual: shu_resolve_compiler_dir inside peer compiler_o_path_copy only.
  * PLATFORM: SHARED orch. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 /**
  * seed asm 用户程序：std.io 桩 .o（与 io.o 同链）；见 seeds/runtime_asm_io_stubs.from_x.c。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：.o 路径或空串。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1601,57 +1601,57 @@ const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
 
 /**
  * F-ZC：runtime_process_argv.o 路径；codegen argc/argv 全局，与 process.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-const char *shux_runtime_process_argv_o_path(const char *argv0) {
+const char *xlang_runtime_process_argv_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 
 
-/* wave161 G.7 path residual: thin shux_runtime_*_o_path static-buffer leaves
+/* wave161 G.7 path residual: thin xlang_runtime_*_o_path static-buffer leaves
  * (process_os_glue … ed25519_ref10_glue) route compiler-dir/leaf join through
- * shux_runtime_compiler_o_path_copy (wave160 pure orch / cold twin). Closes soft
+ * xlang_runtime_compiler_o_path_copy (wave160 pure orch / cold twin). Closes soft
  * residual of per-leaf resolve+snprintf when single join authority exists.
  * Cap residual stays: per-leaf static PATH_MAX buffer (return durable *const).
  * Complex path leaves (async/crt0/freestanding_io) still own cwd/
  * (wave162 repo_root pure; wave163 panic_o_path pure).
  * realpath ladders. PLATFORM: SHARED. */
-const char *shux_runtime_process_os_glue_o_path(const char *argv0) {
+const char *xlang_runtime_process_os_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_process_os_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_test_fn_invoke.o 路径；std.test fn-ptr，与 test.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_test_fn_invoke_o_path(const char *argv0) {
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_test_fn_invoke.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_random_fill.o 路径；CSPRNG OS fill，与 random.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_random_fill_o_path(const char *argv0) {
+const char *xlang_runtime_random_fill_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_random_fill.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1659,10 +1659,10 @@ const char *shux_runtime_random_fill_o_path(const char *argv0) {
 /**
  * zlib 宏包装桩路径；deflateInit2/inflateInit2 是宏，此 .o 提供真实函数符号。
  */
-const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0) {
+const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_compress_zlib_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
@@ -1670,307 +1670,307 @@ const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0) {
 /**
  * F-03：runtime_heap_user.o 路径；co-emit std.heap redirect 的 heap_*_c 符号。
  */
-const char *shux_runtime_heap_user_o_path(const char *argv0) {
+const char *xlang_runtime_heap_user_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_heap_user.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_time_os.o 路径；time OS syscall，与 time.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_time_os_o_path(const char *argv0) {
+const char *xlang_runtime_time_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_time_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_queue_contention.o 路径；queue pthread 胶层，与 queue.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_queue_contention_o_path(const char *argv0) {
+const char *xlang_runtime_queue_contention_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_queue_contention.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_dynlib_os.o 路径；dlopen/LoadLibrary，与 dynlib.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_dynlib_os_o_path(const char *argv0) {
+const char *xlang_runtime_dynlib_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_dynlib_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_env_os.o 路径；env OS getenv/setenv/iter，与 env.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_env_os_o_path(const char *argv0) {
+const char *xlang_runtime_env_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_backtrace_platform.o 路径；capture/symbolicate，与 backtrace.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_backtrace_platform_o_path(const char *argv0) {
+const char *xlang_runtime_backtrace_platform_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_backtrace_platform.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_log_os.o 路径；log sink/轮转/异步，与 log.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_log_os_o_path(const char *argv0) {
+const char *xlang_runtime_log_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_log_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_math_libm.o 路径；libm/fenv，与 math.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_math_libm_o_path(const char *argv0) {
+const char *xlang_runtime_math_libm_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_math_libm.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_atomic_glue.o 路径；原子 load/store/CAS/fence，与 atomic.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_atomic_glue_o_path(const char *argv0) {
+const char *xlang_runtime_atomic_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_atomic_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_channel_glue.o 路径；channel 有界/无界/select，与 channel.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_channel_glue_o_path(const char *argv0) {
+const char *xlang_runtime_channel_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_channel_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_net_udp_batch.o 路径；Linux recvmmsg/sendmmsg，与 net.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_net_udp_batch_o_path(const char *argv0) {
+const char *xlang_runtime_net_udp_batch_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_net_udp_batch.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 /**
  * F-ZC：runtime_net_workers.o 路径；accept worker 线程入口，与 net.o 同链。
- * 参数：argv0 可选 shux 路径。
+ * 参数：argv0 可选 xlang 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_net_workers_o_path(const char *argv0) {
+const char *xlang_runtime_net_workers_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_net_workers.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_sync_os_o_path(const char *argv0) {
+const char *xlang_runtime_sync_os_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_sync_os.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0) {
+const char *xlang_runtime_sync_lock_diag_tls_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_sync_lock_diag_tls.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_thread_glue_o_path(const char *argv0) {
+const char *xlang_runtime_thread_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_thread_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_scheduler_glue_o_path(const char *argv0) {
+const char *xlang_runtime_scheduler_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_scheduler_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_http_glue_o_path(const char *argv0) {
+const char *xlang_runtime_http_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_http_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0) {
+const char *xlang_runtime_tls_mbedtls_bio_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_tls_mbedtls_bio.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0) {
+const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_kv_mmap_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0) {
+const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_arrow_simd_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_sqlite_glue_o_path(const char *argv0) {
+const char *xlang_runtime_sqlite_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_sqlite_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0) {
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_crypto_inc_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
-const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
     static char resolved[PATH_MAX];
     /* wave161 G.7: join via pure/wave160 compiler_o_path_copy (no resolve+snprintf). */
-    if (shux_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", resolved, sizeof resolved) != 0)
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_ed25519_ref10_glue.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
 }
 
 #else
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0);
-const char *shux_runtime_process_argv_o_path(const char *argv0);
-const char *shux_runtime_process_os_glue_o_path(const char *argv0);
-const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
-const char *shux_runtime_random_fill_o_path(const char *argv0);
-const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
-const char *shux_runtime_heap_user_o_path(const char *argv0);
-const char *shux_runtime_time_os_o_path(const char *argv0);
-const char *shux_runtime_queue_contention_o_path(const char *argv0);
-const char *shux_runtime_dynlib_os_o_path(const char *argv0);
-const char *shux_runtime_env_os_o_path(const char *argv0);
-const char *shux_runtime_backtrace_platform_o_path(const char *argv0);
-const char *shux_runtime_log_os_o_path(const char *argv0);
-const char *shux_runtime_math_libm_o_path(const char *argv0);
-const char *shux_runtime_atomic_glue_o_path(const char *argv0);
-const char *shux_runtime_channel_glue_o_path(const char *argv0);
-const char *shux_runtime_net_udp_batch_o_path(const char *argv0);
-const char *shux_runtime_net_workers_o_path(const char *argv0);
-const char *shux_runtime_sync_os_o_path(const char *argv0);
-const char *shux_runtime_sync_lock_diag_tls_o_path(const char *argv0);
-const char *shux_runtime_thread_glue_o_path(const char *argv0);
-const char *shux_runtime_scheduler_glue_o_path(const char *argv0);
-const char *shux_runtime_http_glue_o_path(const char *argv0);
-const char *shux_runtime_tls_mbedtls_bio_o_path(const char *argv0);
-const char *shux_runtime_kv_mmap_glue_o_path(const char *argv0);
-const char *shux_runtime_arrow_simd_glue_o_path(const char *argv0);
-const char *shux_runtime_sqlite_glue_o_path(const char *argv0);
-const char *shux_runtime_crypto_inc_glue_o_path(const char *argv0);
-const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
+const char *xlang_runtime_process_argv_o_path(const char *argv0);
+const char *xlang_runtime_process_os_glue_o_path(const char *argv0);
+const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
+const char *xlang_runtime_random_fill_o_path(const char *argv0);
+const char *xlang_runtime_compress_zlib_glue_o_path(const char *argv0);
+const char *xlang_runtime_heap_user_o_path(const char *argv0);
+const char *xlang_runtime_time_os_o_path(const char *argv0);
+const char *xlang_runtime_queue_contention_o_path(const char *argv0);
+const char *xlang_runtime_dynlib_os_o_path(const char *argv0);
+const char *xlang_runtime_env_os_o_path(const char *argv0);
+const char *xlang_runtime_backtrace_platform_o_path(const char *argv0);
+const char *xlang_runtime_log_os_o_path(const char *argv0);
+const char *xlang_runtime_math_libm_o_path(const char *argv0);
+const char *xlang_runtime_atomic_glue_o_path(const char *argv0);
+const char *xlang_runtime_channel_glue_o_path(const char *argv0);
+const char *xlang_runtime_net_udp_batch_o_path(const char *argv0);
+const char *xlang_runtime_net_workers_o_path(const char *argv0);
+const char *xlang_runtime_sync_os_o_path(const char *argv0);
+const char *xlang_runtime_sync_lock_diag_tls_o_path(const char *argv0);
+const char *xlang_runtime_thread_glue_o_path(const char *argv0);
+const char *xlang_runtime_scheduler_glue_o_path(const char *argv0);
+const char *xlang_runtime_http_glue_o_path(const char *argv0);
+const char *xlang_runtime_tls_mbedtls_bio_o_path(const char *argv0);
+const char *xlang_runtime_kv_mmap_glue_o_path(const char *argv0);
+const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
+const char *xlang_runtime_sqlite_glue_o_path(const char *argv0);
+const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
+const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
 #endif
 
 /**
- * 若 runtime_panic.o 尚不存在则用 cc -c 从 src/asm 下源码生成到 shux 同目录，以便 ASM -o exe 链接能提供 shux_panic_。
+ * 若 runtime_panic.o 尚不存在则用 cc -c 从 src/asm 下源码生成到 xlang 同目录，以便 ASM -o exe 链接能提供 xlang_panic_。
  * G-02f-76/83：产品冷启动源统一 seeds/*.from_x.c。Linux 优先 x86_64 .s；Apple arm64 优先 seeds/runtime_panic_arm64.from_x.c；否则 seeds/runtime_panic.from_x.c。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-/* wave169: shux_ensure_runtime_panic_o pure orch — body removed from mega
+/* wave169: xlang_ensure_runtime_panic_o pure orch — body removed from mega
  * (lives in labi_ensure_list L4 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
  * Why: hybrid still had always-mega C body for special panic ensure (multi-source
  * prefer) after panic path pure wave163 and freestanding ensure pair wave167/168.
  * Cap residual: resolve/access/cc/stat + host linux_x86_64 / posix_aarch64.
  * PLATFORM: SHARED orch; LINUX x86_64 asm; LINUX|MACOS aarch64 arm64 seed. */
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+#ifndef XLANG_LABI_ENSURE_LIST_FROM_X
 /* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
 #else
-int shux_ensure_runtime_panic_o(const char *argv0);
+int xlang_ensure_runtime_panic_o(const char *argv0);
 #endif
 
 
 
 
 /**
- * SHUX_FREESTANDING=1 或 driver -freestanding：Linux x86_64 上用户程序 -nostdlib 静态链（S4）。
+ * XLANG_FREESTANDING=1 或 driver -freestanding：Linux x86_64 上用户程序 -nostdlib 静态链（S4）。
  * 参数：driver_freestanding 非 0 表示 driver 已设 -freestanding。
  * 返回值：非 0 表示 freestanding 链启用。
  */
 /** G-02f-36：OS 门闩槽 — .x freestanding_enabled 读此，避免 .x 内 #if。 */
 /* G-02f-269 / R2 labi_host_lit：#if body Cap residual 常驻 rest（与 path_io stat 同构） */
-int shux_host_is_linux_impl(void) {
+int xlang_host_is_linux_impl(void) {
 #if defined(__linux__)
     return 1;
 #else
@@ -1979,18 +1979,18 @@ int shux_host_is_linux_impl(void) {
 }
 
 /* R2：public thin 非 hybrid 时 rest 自带；FROM_X 时由 L2 full .x 提供 */
-#ifndef SHUX_LABI_HOST_LIT_FROM_X
-int shux_host_is_linux(void) {
-    return shux_host_is_linux_impl();
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
+int xlang_host_is_linux(void) {
+    return xlang_host_is_linux_impl();
 }
 #else
-int shux_host_is_linux(void);
+int xlang_host_is_linux(void);
 #endif
 
 
 /** G-02f-43：Apple aarch64 门闩槽 — .x resolve_target_arch 读此。 */
 /* G-02f-269 / R2 labi_host_lit：#if body Cap residual 常驻 rest */
-int shux_host_is_apple_aarch64_impl(void) {
+int xlang_host_is_apple_aarch64_impl(void) {
 #if defined(__APPLE__) && defined(__aarch64__)
     return 1;
 #else
@@ -1999,18 +1999,18 @@ int shux_host_is_apple_aarch64_impl(void) {
 }
 
 /* R2：public thin 非 hybrid 时 rest 自带；FROM_X 时由 L2 full .x 提供 */
-#ifndef SHUX_LABI_HOST_LIT_FROM_X
-int shux_host_is_apple_aarch64(void) {
-    return shux_host_is_apple_aarch64_impl();
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
+int xlang_host_is_apple_aarch64(void) {
+    return xlang_host_is_apple_aarch64_impl();
 }
 #else
-int shux_host_is_apple_aarch64(void);
+int xlang_host_is_apple_aarch64(void);
 #endif
 
 
 
 /* G-02f-276 L7 freestanding list pure */
-#ifndef SHUX_LABI_FREESTANDING_LIST_FROM_X
+#ifndef XLANG_LABI_FREESTANDING_LIST_FROM_X
 #include "seeds/labi_freestanding_list.from_x.c"
 #else
 const char *labi_fs_env_freestanding(void);
@@ -2078,11 +2078,11 @@ const char *labi_fs_gen_provides_std_heap_needle_at(int i);
 int link_abi_generated_c_provides_core_mem(const char *c_path);
 int link_abi_generated_c_provides_std_heap(const char *c_path);
 /* wave159: freestanding_enabled pure orch (L7; hybrid). */
-int shux_link_freestanding_enabled(int driver_freestanding);
+int xlang_link_freestanding_enabled(int driver_freestanding);
 /* wave167: ensure_crt0_user_o pure orch (L7; hybrid). */
-int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
+int xlang_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 /* wave168: ensure_freestanding_io_o pure orch (L7; hybrid). */
-int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
+int xlang_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 /* wave175: contains_substr pure orch (L7; hybrid). */
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle);
 /* wave176: contains_substr_use_line pure orch (L7; hybrid). */
@@ -2095,27 +2095,27 @@ int link_abi_generated_c_contains_any_substr(const char *c_path, const char **ne
                                             int n_needles);
 #endif
 
-/* wave159: shux_link_freestanding_enabled pure orch — body removed from mega
+/* wave159: xlang_link_freestanding_enabled pure orch — body removed from mega
  * (lives in labi_freestanding_list L7 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
  * Why: hybrid still had always-mega C body for freestanding env gate over pure env name.
  * Cap residual: getenv; peer host_is_linux. PLATFORM: SHARED orch / LINUX consumers. */
 
-/* wave167: shux_ensure_crt0_user_o pure orch — body removed from mega
+/* wave167: xlang_ensure_crt0_user_o pure orch — body removed from mega
  * (lives in labi_freestanding_list L7 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
  * Why: hybrid still had always-mega C body for freestanding crt0 ensure over pure tables.
  * Cap residual: resolve/access/cc/stat. Sibling wave168 ensure_freestanding_io pure.
  * PLATFORM: SHARED orch / LINUX freestanding consumers. */
 
-/* wave168: shux_ensure_freestanding_io_o pure orch — body removed from mega
+/* wave168: xlang_ensure_freestanding_io_o pure orch — body removed from mega
  * (lives in labi_freestanding_list L7 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_FREESTANDING_LIST_FROM_X → L7 pure; cold path defines via include.
  * Why: hybrid still had always-mega C body for freestanding_io ensure over pure tables.
  * Cap residual: resolve/access/cc/stat. Peer wave167 ensure_crt0. PLATFORM: SHARED orch. */
 
 /**
- * 若 runtime_asm_io_stubs.o 尚不存在则用 cc -c 从 seeds/runtime_asm_io_stubs.from_x.c 生成到 shux 同目录，
+ * 若 runtime_asm_io_stubs.o 尚不存在则用 cc -c 从 seeds/runtime_asm_io_stubs.from_x.c 生成到 xlang 同目录，
  * 以便 ASM -o exe 链 hello 等 import std.io 的程序时提供 std_io_print_str。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
@@ -2161,7 +2161,7 @@ enum {
   LABI_ENS_ED25519_REF10_GLUE,
   LABI_ENS_COUNT
 };
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+#ifndef XLANG_LABI_ENSURE_LIST_FROM_X
 #include "seeds/labi_ensure_list.from_x.c"
 #else
 int labi_ensure_catalog_count(void);
@@ -2173,90 +2173,90 @@ const char *labi_ensure_catalog_out_base(int i);
 const char *labi_ensure_catalog_seed_base(int i);
 int labi_ensure_catalog_flags(int i);
 /* wave169: ensure_runtime_panic_o pure orch (L4; hybrid). */
-int shux_ensure_runtime_panic_o(const char *argv0);
+int xlang_ensure_runtime_panic_o(const char *argv0);
 /* wave170: ensure_runtime_heap_user_o pure orch (L4; hybrid). */
-int shux_ensure_runtime_heap_user_o(const char *argv0);
+int xlang_ensure_runtime_heap_user_o(const char *argv0);
 /* wave171: ensure_runtime_test_fn_invoke_o pure orch (L4; hybrid). */
-int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
+int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0);
 /* wave172: ensure_runtime_tls_mbedtls_bio_o pure orch (L4; hybrid). */
-int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
+int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0);
 /* wave182: ensure_bootstrap_nostdlib_stubs_o pure orch (L4; hybrid). */
-int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
+int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
 /* wave173: link_abi_ensure_from_catalog pure orch (L4; hybrid).
  * product_path from peer *_o_path (no path_fn in pure; no .x fnptr ABI). */
 int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char *product_path);
 /* wave174: catalog thin ensure wraps pure (L4; hybrid). */
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0);
-int shux_ensure_runtime_process_argv_o(const char *argv0);
-int shux_ensure_runtime_process_os_glue_o(const char *argv0);
-int shux_ensure_runtime_random_fill_o(const char *argv0);
-int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
-int shux_ensure_runtime_time_os_o(const char *argv0);
-int shux_ensure_runtime_queue_contention_o(const char *argv0);
-int shux_ensure_runtime_dynlib_os_o(const char *argv0);
-int shux_ensure_runtime_env_os_o(const char *argv0);
-int shux_ensure_runtime_backtrace_platform_o(const char *argv0);
-int shux_ensure_runtime_log_os_o(const char *argv0);
-int shux_ensure_runtime_math_libm_o(const char *argv0);
-int shux_ensure_runtime_atomic_glue_o(const char *argv0);
-int shux_ensure_runtime_channel_glue_o(const char *argv0);
-int shux_ensure_runtime_net_udp_batch_o(const char *argv0);
-int shux_ensure_runtime_net_workers_o(const char *argv0);
-int shux_ensure_runtime_sync_os_o(const char *argv0);
-int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
-int shux_ensure_runtime_thread_glue_o(const char *argv0);
-int shux_ensure_runtime_scheduler_glue_o(const char *argv0);
-int shux_ensure_runtime_http_glue_o(const char *argv0);
-int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0);
-int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0);
-int shux_ensure_runtime_sqlite_glue_o(const char *argv0);
-int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0);
-int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
+int xlang_ensure_runtime_asm_io_stubs_o(const char *argv0);
+int xlang_ensure_runtime_process_argv_o(const char *argv0);
+int xlang_ensure_runtime_process_os_glue_o(const char *argv0);
+int xlang_ensure_runtime_random_fill_o(const char *argv0);
+int xlang_ensure_runtime_compress_zlib_glue_o(const char *argv0);
+int xlang_ensure_runtime_time_os_o(const char *argv0);
+int xlang_ensure_runtime_queue_contention_o(const char *argv0);
+int xlang_ensure_runtime_dynlib_os_o(const char *argv0);
+int xlang_ensure_runtime_env_os_o(const char *argv0);
+int xlang_ensure_runtime_backtrace_platform_o(const char *argv0);
+int xlang_ensure_runtime_log_os_o(const char *argv0);
+int xlang_ensure_runtime_math_libm_o(const char *argv0);
+int xlang_ensure_runtime_atomic_glue_o(const char *argv0);
+int xlang_ensure_runtime_channel_glue_o(const char *argv0);
+int xlang_ensure_runtime_net_udp_batch_o(const char *argv0);
+int xlang_ensure_runtime_net_workers_o(const char *argv0);
+int xlang_ensure_runtime_sync_os_o(const char *argv0);
+int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0);
+int xlang_ensure_runtime_thread_glue_o(const char *argv0);
+int xlang_ensure_runtime_scheduler_glue_o(const char *argv0);
+int xlang_ensure_runtime_http_glue_o(const char *argv0);
+int xlang_ensure_runtime_kv_mmap_glue_o(const char *argv0);
+int xlang_ensure_runtime_arrow_simd_glue_o(const char *argv0);
+int xlang_ensure_runtime_sqlite_glue_o(const char *argv0);
+int xlang_ensure_runtime_crypto_inc_glue_o(const char *argv0);
+int xlang_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
 #endif
 
 /*
  * wave173: link_abi_ensure_from_catalog pure orch — body removed from mega
  * (lives in labi_ensure_list L4 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
  * Cap residual: resolve/access/cc/one_extra/stat. PLATFORM: SHARED orch.
  */
 
 /*
  * wave174: catalog thin ensure wraps pure — bodies removed from mega
  * (lives in labi_ensure_list L4 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
- * 26× shux_ensure_runtime_*_o: peer *_o_path + pure ensure_from_catalog.
+ * Hybrid XLANG_LABI_ENSURE_LIST_FROM_X → L4 pure; cold path defines via include.
+ * 26× xlang_ensure_runtime_*_o: peer *_o_path + pure ensure_from_catalog.
  * Why: hybrid still had always-mega thin wrap C after ensure_from_catalog pure wave173.
  * Cap residual: only peer path ladders (static PATH_MAX / compiler_o_path_copy).
  * PLATFORM: SHARED thin orch.
  */
 /* Catalog thin ensure symbols (hybrid FROM_X → L4 pure; cold → include above):
- *   shux_ensure_runtime_asm_io_stubs_o
- *   shux_ensure_runtime_process_argv_o
- *   shux_ensure_runtime_process_os_glue_o
- *   shux_ensure_runtime_random_fill_o
- *   shux_ensure_runtime_compress_zlib_glue_o
- *   shux_ensure_runtime_time_os_o
- *   shux_ensure_runtime_queue_contention_o
- *   shux_ensure_runtime_dynlib_os_o
- *   shux_ensure_runtime_env_os_o
- *   shux_ensure_runtime_backtrace_platform_o
- *   shux_ensure_runtime_log_os_o
- *   shux_ensure_runtime_math_libm_o
- *   shux_ensure_runtime_atomic_glue_o
- *   shux_ensure_runtime_channel_glue_o
- *   shux_ensure_runtime_net_udp_batch_o
- *   shux_ensure_runtime_net_workers_o
- *   shux_ensure_runtime_sync_os_o
- *   shux_ensure_runtime_sync_lock_diag_tls_o
- *   shux_ensure_runtime_thread_glue_o
- *   shux_ensure_runtime_scheduler_glue_o
- *   shux_ensure_runtime_http_glue_o
- *   shux_ensure_runtime_kv_mmap_glue_o
- *   shux_ensure_runtime_arrow_simd_glue_o
- *   shux_ensure_runtime_sqlite_glue_o
- *   shux_ensure_runtime_crypto_inc_glue_o
- *   shux_ensure_runtime_ed25519_ref10_glue_o
+ *   xlang_ensure_runtime_asm_io_stubs_o
+ *   xlang_ensure_runtime_process_argv_o
+ *   xlang_ensure_runtime_process_os_glue_o
+ *   xlang_ensure_runtime_random_fill_o
+ *   xlang_ensure_runtime_compress_zlib_glue_o
+ *   xlang_ensure_runtime_time_os_o
+ *   xlang_ensure_runtime_queue_contention_o
+ *   xlang_ensure_runtime_dynlib_os_o
+ *   xlang_ensure_runtime_env_os_o
+ *   xlang_ensure_runtime_backtrace_platform_o
+ *   xlang_ensure_runtime_log_os_o
+ *   xlang_ensure_runtime_math_libm_o
+ *   xlang_ensure_runtime_atomic_glue_o
+ *   xlang_ensure_runtime_channel_glue_o
+ *   xlang_ensure_runtime_net_udp_batch_o
+ *   xlang_ensure_runtime_net_workers_o
+ *   xlang_ensure_runtime_sync_os_o
+ *   xlang_ensure_runtime_sync_lock_diag_tls_o
+ *   xlang_ensure_runtime_thread_glue_o
+ *   xlang_ensure_runtime_scheduler_glue_o
+ *   xlang_ensure_runtime_http_glue_o
+ *   xlang_ensure_runtime_kv_mmap_glue_o
+ *   xlang_ensure_runtime_arrow_simd_glue_o
+ *   xlang_ensure_runtime_sqlite_glue_o
+ *   xlang_ensure_runtime_crypto_inc_glue_o
+ *   xlang_ensure_runtime_ed25519_ref10_glue_o
  * Special ensures already pure (wave169–172): panic / heap_user / test_fn_invoke / tls_mbedtls_bio.
  */
 
@@ -2264,19 +2264,19 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0);
  * Hybrid decls live in ENSURE_LIST #else above; cold twin defines bodies via include.
  */
 
-/* wave167: shux_ensure_crt0_user_o pure orch lives in labi_freestanding_list
+/* wave167: xlang_ensure_crt0_user_o pure orch lives in labi_freestanding_list
  * (peer freestanding_enabled + pure tables + Cap residual resolve/access/cc/stat).
  * Was always-mega body. Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
  * PLATFORM: SHARED orch / LINUX freestanding consumers — dual-end L2.
  */
-int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
+int xlang_ensure_crt0_user_o(const char *argv0, int driver_freestanding);
 
-/* wave168: shux_ensure_freestanding_io_o pure orch lives in labi_freestanding_list
+/* wave168: xlang_ensure_freestanding_io_o pure orch lives in labi_freestanding_list
  * (peer freestanding_enabled + pure io tables + Cap residual resolve/access/cc/stat).
  * Was always-mega body. Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
  * PLATFORM: SHARED orch / LINUX freestanding consumers — dual-end L2.
  */
-int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
+int xlang_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
 
 
 
@@ -2287,7 +2287,7 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding);
  * 返回值：非 0 表示跳过 native 调优。
  */
 /* G-02f-274 L5 invoke_cc list pure */
-#ifndef SHUX_LABI_INVOKE_CC_LIST_FROM_X
+#ifndef XLANG_LABI_INVOKE_CC_LIST_FROM_X
 #include "seeds/labi_invoke_cc_list.from_x.c"
 #else
 int labi_linux_harden_flag_count(void);
@@ -2309,7 +2309,7 @@ const char *labi_icc_rel_log_o(void);
 const char *labi_icc_rel_socketio_o(void);
 int labi_icc_needs_rel_count(void);
 const char *labi_icc_needs_rel_at(int i);
-void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
+void xlang_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 void labi_icc_argv_try_push_flag(char **argv, int *ia, int cap, const char *flag);
 void invoke_cc_append_early_needs(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root,
@@ -2351,55 +2351,55 @@ void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
 void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 #endif
 
-/* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
+/* wave155: xlang_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
  * (pure harden table count/at + append loop). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had always-mega C body for Linux harden -pie/-z* append.
  * PLATFORM: SHARED orch / LINUX consumers. */
 
 /* wave198: invoke_cc_append_early_needs pure orch lives in labi_invoke_cc_list
- * (early needs scan+push inside shux_invoke_cc_impl). Cold twin via #include
+ * (early needs scan+push inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had early needs block always-mega inside invoke_cc_impl.
  * PLATFORM: SHARED orch / POSIX -lc / WINDOWS -lbcrypt -lkernel32 -lws2_32. */
 
 /* wave199: invoke_cc_scan_std_module_needs pure orch lives in labi_invoke_cc_list
- * (std module need flag scan inside shux_invoke_cc_impl). Cold twin via #include
+ * (std module need flag scan inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had std need scan loop always-mega inside invoke_cc_impl.
  * PLATFORM: SHARED orch; Cap residual contains_substr(_use_line) peers.
  */
 
 /* wave200: invoke_cc_append_std_ensure_push_front pure orch lives in labi_invoke_cc_list
- * (ensure-push front string→env inside shux_invoke_cc_impl). Cold twin via #include
+ * (ensure-push front string→env inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push front always-mega after wave199 flags bank.
  * PLATFORM: SHARED orch / LINUX -pthread+asm_io_stubs / WINDOWS -lws2_32 -lbcrypt.
  */
 
 /* wave201: invoke_cc_append_std_ensure_push_mid pure orch lives in labi_invoke_cc_list
- * (ensure-push mid sync→hash inside shux_invoke_cc_impl). Cold twin via #include
+ * (ensure-push mid sync→hash inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push mid always-mega after wave200 front.
  * PLATFORM: SHARED orch / LINUX -rdynamic -ldl / APPLE -export_dynamic / WINDOWS -ldbghelp.
  */
 
 /* wave202: invoke_cc_append_std_ensure_push_heavy_a pure orch lives in labi_invoke_cc_list
- * (ensure-push heavy_a math…compress inside shux_invoke_cc_impl). Cold twin via #include
+ * (ensure-push heavy_a math…compress inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push heavy always-mega after wave201 mid.
  * PLATFORM: SHARED orch; brew -L peer mac-oriented; set/map/queue formal ensure.
  */
 
 /* wave203: invoke_cc_append_std_ensure_push_heavy_b pure orch lives in labi_invoke_cc_list
- * (ensure-push heavy_b unicode…process_argv inside shux_invoke_cc_impl). Cold twin via #include
+ * (ensure-push heavy_b unicode…process_argv inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had ensure-push heavy_b always-mega after wave202 heavy_a.
  * PLATFORM: SHARED orch / LINUX -ldl -pthread / WINDOWS -lws2_32 on http.
  */
 
 /* wave204: invoke_cc_append_heap_f06_ondemand pure orch lives in labi_invoke_cc_list
- * (heap F-06 on-demand + page_mmap companions inside shux_invoke_cc_impl). Cold twin via #include
+ * (heap F-06 on-demand + page_mmap companions inside xlang_invoke_cc_impl). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had heap F-06 always-mega after wave203 heavy_b.
  * PLATFORM: SHARED orch (Ubuntu L4 cold needs page_mmap + asm_io_stubs with heap.o).
@@ -2408,22 +2408,22 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 /* wave205: invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out pure orch lives in
  * labi_invoke_cc_list (fork-exec shell + strip after argv build). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
- * Cap residual peers: shux_spawn_sync + invoke_cc_strip_out_x_impl + setenv + host_is_* + tool_status.
+ * Cap residual peers: xlang_spawn_sync + invoke_cc_strip_out_x_impl + setenv + host_is_* + tool_status.
  * Why: hybrid still had always-mega fork+exec+wait+strip after argv pure (wave198–204).
  * PLATFORM: SHARED orch / parent-side spawn (no fork-first argv build).
  */
 
 /* wave206: invoke_cc_append_argv_head_flags pure orch lives in labi_invoke_cc_list
- * (argv head quiet/O/native/NDEBUG/flto/harden/gc/-I inside shux_invoke_cc_impl).
+ * (argv head quiet/O/native/NDEBUG/flto/harden/gc/-I inside xlang_invoke_cc_impl).
  * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
  * Cap residual peers: pure skip_native + pure harden_impl + host_is_*.
- * wave223/225 G.7: env lookup via link_abi_getenv (SHUX_RUN_QUIET etc.; not raw getenv).
+ * wave223/225 G.7: env lookup via link_abi_getenv (XLANG_RUN_QUIET etc.; not raw getenv).
  * Why: hybrid still had argv head flags always-mega after wave205 fork-exec pure.
  * PLATFORM: SHARED orch / LINUX -B + harden + --gc-sections / APPLE -dead_strip.
  */
 
 /* wave207: invoke_cc_append_argv_tail_flags pure orch lives in labi_invoke_cc_list
- * (-pthread/-lc/allow-multiple/user_extra+NULL inside shux_invoke_cc_impl).
+ * (-pthread/-lc/allow-multiple/user_extra+NULL inside xlang_invoke_cc_impl).
  * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
  * Cap residual: asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at} + push_existing + host_is_*.
  * Why: hybrid still had argv tail always-mega after wave206 head pure.
@@ -2431,7 +2431,7 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
  */
 
 /* wave208: invoke_cc_append_minimal_cc_link_tail pure orch lives in labi_invoke_cc_list
- * (SHUX_MINIMAL_CC_LINK branch: Windows process_argv.o + POSIX -lc + NULL).
+ * (XLANG_MINIMAL_CC_LINK branch: Windows process_argv.o + POSIX -lc + NULL).
  * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
  * Cap residual: process_argv_o_path + push_existing + host_is_*.
  * wave225 G.7: MINIMAL gate uses link_abi_getenv (not raw getenv); host residual = _impl only.
@@ -2471,17 +2471,17 @@ const char *invoke_cc_argv_resolve_existing_path_impl(const char *path) {
 
 /* wave215: invoke_cc_argv_resolve_existing_path pure orch lives in labi_invoke_ld_list.x
  * (hybrid L6); mega cold twin via #include labi_invoke_ld_list.from_x.c under
- * #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X. Pure: null/empty gates; Cap residual _impl
+ * #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X. Pure: null/empty gates; Cap residual _impl
  * (skip+pool) always mega above. Why: hybrid still had resolve_existing body always
  * mega C (gates+skip+pool). PLATFORM: SHARED orch. */
-#ifdef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+#ifdef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 #endif
 
 /**
  * invoke_cc 子进程：仅当 path 指向已存在的 .o 时追加到 argv（可选 realpath）。
  * wave179: pure orch in labi_invoke_ld_list.x (hybrid L6);
- * mega cold twin under #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X (include below).
+ * mega cold twin under #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X (include below).
  * Pure: gates + Cap residual resolve + pure cstr dedup + pure append.
  * Cap residual: invoke_cc_argv_resolve_existing_path (skip + multi-slot pool).
  * Why: hybrid still had always-mega C body for push_existing.
@@ -2499,11 +2499,11 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
  * 返回值：scheduler .o 路径或 NULL。
  *
  * wave180: pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: cstr copy + needle scan + expand rewrite; Cap residual path_readable + realpath_cap.
  * PLATFORM: SHARED orch — product PREFER uses L0 pure; cold path keeps this body.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_scheduler) {
     static char derived[PATH_MAX];
     static char cwd_buf[PATH_MAX];
@@ -2574,7 +2574,7 @@ int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker) {
  * Pure: null/empty gates; Cap residual link_abi_obj_exports_marker_impl (nm/popen) always mega.
  * Why: hybrid still had exports_marker body always mega C (gates+nm).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
-#ifdef SHUX_LABI_ONDEMAND_LIST_FROM_X
+#ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 #endif
 
@@ -2621,7 +2621,7 @@ int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym) {
  * Pure: null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl (nm/popen) always mega.
  * Why: hybrid still had has_undef_sym body always mega C (gates+nm).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
-#ifdef SHUX_LABI_ONDEMAND_LIST_FROM_X
+#ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X
 int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym);
 #endif
 
@@ -2643,7 +2643,7 @@ int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
 
 /* G-02f-275 L6 invoke_ld list pure */
-#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+#ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 #include "seeds/labi_invoke_ld_list.from_x.c"
 #else
 int labi_ld_brew_lib_path_count(void);
@@ -2676,9 +2676,9 @@ void ld_append_brew_lib_paths(const char **argv, int *la, int max_la);
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
 /* wave156/157/158/179: pure orch in L6; file-top decl already covers call sites — restate for FROM_X block. */
-void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void xlang_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem);
-void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void xlang_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path);
@@ -2692,7 +2692,7 @@ void ensure_std_net_o_auto_tls(const char *repo_root);
 /**
  * Cap residual (wave152): return 1 iff host is Apple (any arch).
  * PLATFORM: MACOS — #if defined(__APPLE__); Linux/Windows → 0.
- * Not the same as shux_host_is_apple_aarch64 (arm64 only; host_lit L2).
+ * Not the same as xlang_host_is_apple_aarch64 (arm64 only; host_lit L2).
  * Pure orch ld_append_brew_lib_paths gates brew -L append on this.
  * Always mega (both cold include path and hybrid FROM_X).
  */
@@ -2758,13 +2758,13 @@ int link_abi_host_is_posix_aarch64(void) {
  * Cap residual stays: invoke_cc_argv_resolve_existing_path (skip+realpath pool; wave179).
  * PLATFORM: SHARED. */
 
-/* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch lives in labi_invoke_ld_list
+/* wave156: xlang_asm_ld_append_mach_tail_libs_impl pure orch lives in labi_invoke_ld_list
  * (flags i32 layout + pure flag_* + peer compress orch + peer needs_compress).
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for mach tail -l*.
  * PLATFORM: SHARED orch / MACOS consumers. */
 
-/* wave157: shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch lives in labi_invoke_ld_list
+/* wave157: xlang_asm_ld_append_unix_gcc_tail_libs_impl pure orch lives in labi_invoke_ld_list
  * (flags i32 layout + pure flag_* + peer compress + peer host_is_linux + host_is_apple).
  * Cold twin via #include labi_invoke_ld_list.from_x.c above; hybrid FROM_X → L6 pure
  * .x (decl in #else). Why: hybrid still had always-mega C body for unix gcc tail -l*.
@@ -2906,7 +2906,7 @@ int link_abi_buf_contains_substr_use_line(const char *data, size_t data_len, con
         }
         /*
          * PLATFORM: SHARED — skip rt_preamble weak stub bodies.
-         * Preamble always emits weak process_args_* → process_shux_* (and similar).
+         * Preamble always emits weak process_args_* → process_xlang_* (and similar).
          * Counting those as "use" forced every -o to ensure runtime_process_argv.o
          * (pure rv/hello residual). Real user calls are non-weak use_lines.
          * G.7: complete use_line authority; no second skip table for process only.
@@ -2961,11 +2961,11 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
  * PLATFORM: LINUX — path to bootstrap_nostdlib_stubs.o (mmap bump malloc/free face).
  * Same object as compiler nostdlib bag; freestanding user link pulls it on demand.
  * wave181: pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Cap residual: link_abi_realpath_cap + shu_resolve_compiler_dir (pure owns leaf join).
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
     static char buf[PATH_MAX];
     static char resolved[PATH_MAX];
     char comp_dir[PATH_MAX];
@@ -2984,20 +2984,20 @@ const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
     return buf;
 }
 #else
-const char *shux_bootstrap_nostdlib_stubs_o_path(const char *argv0);
+const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0);
 #endif
 
 /**
  * PLATFORM: LINUX — ensure bootstrap_nostdlib_stubs.o exists (cc seed if missing).
  * G.7: one face for freestanding malloc (page-backed), shared with compiler nostdlib bag.
  * wave182: pure orch in labi_ensure_list.x (hybrid L4);
- * mega cold twin under #ifndef SHUX_LABI_ENSURE_LIST_FROM_X (#include above).
+ * mega cold twin under #ifndef XLANG_LABI_ENSURE_LIST_FROM_X (#include above).
  * Cap residual: resolve/access/cc_one_extra(-fno-builtin)/stat (no system() Cap path).
  */
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+#ifndef XLANG_LABI_ENSURE_LIST_FROM_X
 /* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
 #else
-int shux_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
+int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0);
 #endif
 
 /* wave141: link_abi_generated_c_needs_win32 pure orch lives in labi_freestanding_list
@@ -3073,8 +3073,8 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
       continue;
     if (memcmp(path, k[i], n) == 0 && (n == plen || path[n] == '.' || path[n] == 0)) {
       /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-      if (link_abi_getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [link_only] hit exact/prefix key=%s path=%s -> 1\n", k[i], path);
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+        fprintf(stderr, "xlang: [link_only] hit exact/prefix key=%s path=%s -> 1\n", k[i], path);
       return 1;
     }
   }
@@ -3087,8 +3087,8 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
     return 1;
   if (plen >= 10 && memcmp(path, "std.base64", 10) == 0)
     return 1;
-  if (link_abi_getenv("SHUX_DEBUG_PIPE"))
-    fprintf(stderr, "shux: [link_only] miss path=%s plen=%zu -> 0\n", path, plen);
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [link_only] miss path=%s plen=%zu -> 0\n", path, plen);
   return 0;
 }
 
@@ -3148,17 +3148,17 @@ int link_abi_generated_c_needs_time(const char *c_path);
 /* wave136: link_abi_generated_c_needs_runtime pure orch (L7 freestanding). */
 int link_abi_generated_c_needs_runtime(const char *c_path);
 
-/* wave143: shux_generated_c_needs_async_scheduler pure orch lives in
+/* wave143: xlang_generated_c_needs_async_scheduler pure orch lives in
  * labi_freestanding_list (9 needles + pure scan; Cap residual contains_substr).
  * Was mega body with hard-coded strings. Cold twin under
  * #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
  * PLATFORM: SHARED — G.7 single authority; dual-end L2.
  */
-int shux_generated_c_needs_async_scheduler(const char *c_path);
+int xlang_generated_c_needs_async_scheduler(const char *c_path);
 /** G-02f-47/65：path 为已存在且 size>0 的常规文件。stat 在 _impl；.x 门闩。 */
 /* G-02f-270/L L3 path IO：stat 主体始终在 rest（与 gates _impl 同构）；
- * 公共 thin shell 由 labi_path_io seed/.x 在 SHUX_LABI_PATH_IO_FROM_X 时提供。 */
-int shux_path_is_nonempty_regular_file_impl(const char *path) {
+ * 公共 thin shell 由 labi_path_io seed/.x 在 XLANG_LABI_PATH_IO_FROM_X 时提供。 */
+int xlang_path_is_nonempty_regular_file_impl(const char *path) {
     struct stat st;
     if (!path || !path[0])
         return 0;
@@ -3171,8 +3171,8 @@ int shux_path_is_nonempty_regular_file_impl(const char *path) {
 
 
 /* G-02f-270 L3 path IO */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
-int shux_path_is_nonempty_regular_file(const char *path) {
+#ifndef XLANG_LABI_PATH_IO_FROM_X
+int xlang_path_is_nonempty_regular_file(const char *path) {
   if (path == NULL) {
     return 0;
   }
@@ -3180,17 +3180,17 @@ int shux_path_is_nonempty_regular_file(const char *path) {
     return 0;
   }
   {
-    return shux_path_is_nonempty_regular_file_impl(path);
+    return xlang_path_is_nonempty_regular_file_impl(path);
   }
   return 0;
 }
 #else
-int shux_path_is_nonempty_regular_file(const char *path);
+int xlang_path_is_nonempty_regular_file(const char *path);
 #endif
 
 
 /* G-02f-270 L3 path IO */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
+#ifndef XLANG_LABI_PATH_IO_FROM_X
 const char *asm_link_obj_skip_missing(const char *path) {
   if ((path ==NULL)) {
     return NULL;
@@ -3199,7 +3199,7 @@ const char *asm_link_obj_skip_missing(const char *path) {
     if (((path)[0] ==0)) {
       return NULL;
     }
-    if ((shux_path_is_nonempty_regular_file(path) ==0)) {
+    if ((xlang_path_is_nonempty_regular_file(path) ==0)) {
       return NULL;
     }
     return path;
@@ -3223,31 +3223,31 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
 /* ============================================================================
  * User-specified .o files from command line (single authority, G.3/G.4 / G.7).
  *
- * Why: `shux -o exe file.x extra.o` drops extra.o because:
- *   - C path: shux_invoke_cc takes a fixed variadic list of std/core .o paths
- *   - ASM path: shux_invoke_ld_for_exe only receives the temp user object, not
+ * Why: `xlang -o exe file.x extra.o` drops extra.o because:
+ *   - C path: xlang_invoke_cc takes a fixed variadic list of std/core .o paths
+ *   - ASM path: xlang_invoke_ld_for_exe only receives the temp user object, not
  *     CLI extra .o (e.g. runtime_atomic_glue.o, runtime_time_os.o)
  * Authority: this global + setter/clearer is the SINGLE path for user .o files
  *   to reach BOTH link lines (cc and asm ld). Historical name says "cc" but
  *   G.7 forbids a second parallel table — asm ld consumes the same globals.
  * Callers wrap invoke_cc OR invoke_ld with set/clear:
- *     shux_invoke_cc_set_user_o_files_from_argv(argc, argv);
- *     shux_invoke_cc(...)  OR  shux_invoke_ld_for_exe(...);
- *     shux_invoke_cc_clear_user_o_files();
- * Invariant: g_shux_n_user_extra_o_files == 0 means no user .o (safe default).
+ *     xlang_invoke_cc_set_user_o_files_from_argv(argc, argv);
+ *     xlang_invoke_cc(...)  OR  xlang_invoke_ld_for_exe(...);
+ *     xlang_invoke_cc_clear_user_o_files();
+ * Invariant: g_xlang_n_user_extra_o_files == 0 means no user .o (safe default).
  * PLATFORM: SHARED — argv is plain char**; macOS/Linux/Windows.
  * ========================================================================== */
-#define SHUX_USER_EXTRA_O_FILES_MAX 32
-static const char *g_shux_user_extra_o_files[SHUX_USER_EXTRA_O_FILES_MAX];
-static int g_shux_n_user_extra_o_files = 0;
+#define XLANG_USER_EXTRA_O_FILES_MAX 32
+static const char *g_xlang_user_extra_o_files[XLANG_USER_EXTRA_O_FILES_MAX];
+static int g_xlang_n_user_extra_o_files = 0;
 
 /**
  * Cap residual (wave151): CLI user-extra .o table size (globals stay mega).
- * Pure orch: shux_asm_ld_append_user_extra_o_files walks count/at + path_readable.
+ * Pure orch: xlang_asm_ld_append_user_extra_o_files walks count/at + path_readable.
  * PLATFORM: SHARED — single authority table for cc + asm ld.
  */
 int link_abi_user_extra_o_count(void) {
-    return g_shux_n_user_extra_o_files;
+    return g_xlang_n_user_extra_o_files;
 }
 
 /**
@@ -3256,9 +3256,9 @@ int link_abi_user_extra_o_count(void) {
  * PLATFORM: SHARED.
  */
 const char *link_abi_user_extra_o_at(int i) {
-    if (i < 0 || i >= g_shux_n_user_extra_o_files)
+    if (i < 0 || i >= g_xlang_n_user_extra_o_files)
         return NULL;
-    return g_shux_user_extra_o_files[i];
+    return g_xlang_user_extra_o_files[i];
 }
 
 /**
@@ -3273,11 +3273,11 @@ int link_abi_path_readable_impl(const char *path) {
 }
 
 /* wave209: link_abi_path_readable pure orch lives in labi_path_io.x (hybrid L3);
- * mega cold twin under #ifndef SHUX_LABI_PATH_IO_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_IO_FROM_X.
  * Pure: null/empty gates; Cap residual link_abi_path_readable_impl (access R_OK).
  * Why: hybrid still had path_readable body always mega C (gates+access).
  * PLATFORM: SHARED orch. */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
+#ifndef XLANG_LABI_PATH_IO_FROM_X
 int link_abi_path_readable(const char *path) {
     if (!path || !path[0])
         return 0;
@@ -3291,7 +3291,7 @@ int link_abi_path_readable(const char *path);
  * Cap residual (wave221): host access(path, X_OK) == 0 → 1.
  * Pure orch (wave221 labi_path_io L3) owns null/empty gates; _impl is always mega.
  * PLATFORM: SHARED — host libc access X_OK (POSIX; Windows hybrid via compat).
- * Product host binary probe (formal_std SHUX / compiler/{shux_asm,shux,shux-c}).
+ * Product host binary probe (formal_std XLANG / compiler/{xlang_asm,xlang,xlang-c}).
  */
 int link_abi_path_executable_impl(const char *path) {
     if (!path || !path[0])
@@ -3300,11 +3300,11 @@ int link_abi_path_executable_impl(const char *path) {
 }
 
 /* wave221: link_abi_path_executable pure orch lives in labi_path_io.x (hybrid L3);
- * mega cold twin under #ifndef SHUX_LABI_PATH_IO_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_IO_FROM_X.
  * Pure: null/empty gates; Cap residual link_abi_path_executable_impl (access X_OK).
  * Why: hybrid still had formal_std raw access(path, X_OK) under product ensure.
  * PLATFORM: SHARED orch. */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
+#ifndef XLANG_LABI_PATH_IO_FROM_X
 int link_abi_path_executable(const char *path) {
     if (!path || !path[0])
         return 0;
@@ -3315,16 +3315,16 @@ int link_abi_path_executable(const char *path);
 #endif
 
 /**
- * Append CLI user .o paths (g_shux_user_extra_o_files) onto an asm ld argv.
+ * Append CLI user .o paths (g_xlang_user_extra_o_files) onto an asm ld argv.
  * wave151：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: Cap residual table count/at + path_readable + pure append loop.
  * Cap residual: link_abi_user_extra_o_count / link_abi_user_extra_o_at / link_abi_path_readable.
  * PLATFORM: SHARED — same authority as invoke_cc push loop; skip unreadable paths.
  * Call immediately before terminating argv with NULL on every asm ld branch.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la) {
     int ui;
     int n;
     if (!argv || !la)
@@ -3342,16 +3342,16 @@ void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_l
     }
 }
 #else
-void shux_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
+void xlang_asm_ld_append_user_extra_o_files(const char **argv, int *la, int max_la);
 #endif
 
 /**
  * Cap residual (wave189): reset CLI user-extra .o table (globals stay mega).
- * Pure orch: shux_invoke_cc_set_user_o_files_from_argv / clear walk argv then push/reset.
+ * Pure orch: xlang_invoke_cc_set_user_o_files_from_argv / clear walk argv then push/reset.
  * PLATFORM: SHARED — single authority table for cc + asm ld.
  */
 void link_abi_user_extra_o_reset(void) {
-    g_shux_n_user_extra_o_files = 0;
+    g_xlang_n_user_extra_o_files = 0;
 }
 
 /**
@@ -3362,21 +3362,21 @@ void link_abi_user_extra_o_reset(void) {
 int link_abi_user_extra_o_push(const char *p) {
     if (!p || !p[0])
         return 0;
-    if (g_shux_n_user_extra_o_files >= SHUX_USER_EXTRA_O_FILES_MAX)
+    if (g_xlang_n_user_extra_o_files >= XLANG_USER_EXTRA_O_FILES_MAX)
         return 0;
-    g_shux_user_extra_o_files[g_shux_n_user_extra_o_files++] = p;
+    g_xlang_user_extra_o_files[g_xlang_n_user_extra_o_files++] = p;
     return 1;
 }
 
 /**
  * Extract .o file args from argv into user-extra table.
  * wave189：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: option skip + .o suffix scan; Cap residual reset/push.
  * PLATFORM: SHARED — argv lifetime covers subsequent invoke_cc/ld.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+void xlang_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
     int i;
     link_abi_user_extra_o_reset();
     if (!argv)
@@ -3401,13 +3401,13 @@ void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv) {
     }
 }
 
-/* Reset user .o state. Call after shux_invoke_cc to prevent stale pointers. */
-void shux_invoke_cc_clear_user_o_files(void) {
+/* Reset user .o state. Call after xlang_invoke_cc to prevent stale pointers. */
+void xlang_invoke_cc_clear_user_o_files(void) {
     link_abi_user_extra_o_reset();
 }
 #else
-void shux_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
-void shux_invoke_cc_clear_user_o_files(void);
+void xlang_invoke_cc_set_user_o_files_from_argv(int argc, char **argv);
+void xlang_invoke_cc_clear_user_o_files(void);
 #endif
 
 /**
@@ -3418,15 +3418,15 @@ void shux_invoke_cc_clear_user_o_files(void);
  * wave206: argv 头 flags 迁 pure（invoke_cc_append_argv_head_flags）；
  * wave207: argv 尾 flags 迁 pure（invoke_cc_append_argv_tail_flags：pthread/-lc/allow-multiple/user_extra+NULL）；
  * wave208: MINIMAL_CC_LINK 尾迁 pure（invoke_cc_append_minimal_cc_link_tail：Win process_argv + POSIX -lc + NULL）；
- *   Cap residual shux_spawn_sync_impl / invoke_cc_strip_out_x_impl / getenv quiet·MINIMAL / skip_missing / user_extra count·at。
+ *   Cap residual xlang_spawn_sync_impl / invoke_cc_strip_out_x_impl / getenv quiet·MINIMAL / skip_missing / user_extra count·at。
  */
-int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
+int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
     (void)json_o;
     (void)csv_o;
     (void)log_o;
     /* #region debug-point B:invoke-cc-enter */
-    shux_debug_hello_stage1_report("B", "runtime_link_abi.c:2954", "invoke_cc_enter", n, use_lto, (include_root && include_root[0]) ? 1 : 0);
+    xlang_debug_hello_stage1_report("B", "runtime_link_abi.c:2954", "invoke_cc_enter", n, use_lto, (include_root && include_root[0]) ? 1 : 0);
     /* #endregion */
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
@@ -3445,26 +3445,26 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
      * wave207: argv tail pure (-pthread/-lc/allow-multiple/user_extra+NULL).
      * wave208: MINIMAL_CC_LINK tail pure (Win process_argv + POSIX -lc + NULL).
      */
-    /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
-    char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
+    /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + XLANG_CC_EXTRA(至多 8) + NULL */
+    char *argv[XLANG_INVOKE_CC_MAX_C_FILES + 48];
     int i = 0;
-    const int argv_cap = SHUX_INVOKE_CC_MAX_C_FILES + 48;
+    const int argv_cap = XLANG_INVOKE_CC_MAX_C_FILES + 48;
     /* wave206 pure: argv head (cc, std, quiet, -B, -O level, native, NDEBUG, flto, harden, -o, sections, gc, -I). */
     invoke_cc_append_argv_head_flags(argv, &i, argv_cap, out_path, opt_level, use_lto, include_root);
-    for (int j = 0; j < n && i < SHUX_INVOKE_CC_MAX_C_FILES + 8; j++)
+    for (int j = 0; j < n && i < XLANG_INVOKE_CC_MAX_C_FILES + 8; j++)
         argv[i++] = (char *)c_paths[j];
     /* wave198: early needs scan+push pure orch (L5 invoke_cc_list).
      * G.7 compose peer needs/rel/push/ensure/path + host_is_* platform gates.
      * wave205: fork/exec shell pure after argv complete. */
     invoke_cc_append_early_needs(argv, &i, argv_cap, c_paths, n, include_root,
         random_o, time_o, runtime_o, runtime_panic_o);
-    /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。
+    /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；xlang_process_* 由生成 C weak 定义。
      * 【Why 根源】Windows codegen 生成 extern 声明（非 weak 定义），minimal 链须显式链入
-     * runtime_process_argv.o 提供 shux_process_argc/argv 定义，否则链接报 undefined reference。
+     * runtime_process_argv.o 提供 xlang_process_argc/argv 定义，否则链接报 undefined reference。
      * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。
      * wave208 pure: MINIMAL tail (process_argv / -lc / NULL).
      * wave225 G.7: MINIMAL gate via link_abi_getenv (not raw getenv); host residual = _impl. */
-    if (link_abi_getenv("SHUX_MINIMAL_CC_LINK")) {
+    if (link_abi_getenv("XLANG_MINIMAL_CC_LINK")) {
         invoke_cc_append_minimal_cc_link_tail(argv, &i, argv_cap);
         /* wave205 pure: spawn cc candidates + strip (no child exec). */
         if (invoke_cc_run_cc_argv(argv) != 0)
@@ -3516,20 +3516,20 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
     invoke_cc_append_argv_tail_flags(argv, &i, argv_cap, thread_o, sync_o, channel_o);
     /* wave205 pure: parent-side spawn cc candidates + strip -x when opt != 0. */
     /* #region debug-point C:invoke-cc-spawn */
-    shux_debug_hello_stage1_report("C", "runtime_link_abi.c:invoke_cc_spawn", "invoke_cc_spawn", n, use_lto, i);
+    xlang_debug_hello_stage1_report("C", "runtime_link_abi.c:invoke_cc_spawn", "invoke_cc_spawn", n, use_lto, i);
     /* #endregion */
     if (invoke_cc_run_cc_argv(argv) != 0)
         return -1;
     /* #region debug-point D:invoke-cc-strip */
-    shux_debug_hello_stage1_report("D", "runtime_link_abi.c:invoke_cc_strip", "invoke_cc_strip", 0, 0, 0);
+    xlang_debug_hello_stage1_report("D", "runtime_link_abi.c:invoke_cc_strip", "invoke_cc_strip", 0, 0, 0);
     /* #endregion */
     invoke_cc_maybe_strip_out(out_path, opt_level);
     return 0;
 }
 
 /* G-02f-277 L9 gates */
-#ifndef SHUX_LABI_GATES_FROM_X
-int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
+#ifndef XLANG_LABI_GATES_FROM_X
+int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
   if (c_paths == NULL) {
     return -1;
   }
@@ -3537,28 +3537,28 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     return -1;
   }
   {
-    return shux_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
+    return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
   }
   return -1;
 }
 #else
-int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
+int xlang_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
 #endif
 
 
-/* wave188: shux_ensure_formal_std_make_o pure orch — body removed from mega
+/* wave188: xlang_ensure_formal_std_make_o pure orch — body removed from mega
  * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
- * Pure: path/SHUX/make-cmd join; Cap residual getenv+access+realpath_cap+system+skip_missing.
+ * Hybrid XLANG_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * Pure: path/XLANG/make-cmd join; Cap residual getenv+access+realpath_cap+system+skip_missing.
  * Why: hybrid still had always-mega C body for formal std make ensure (system/make orch).
  * PLATFORM: SHARED orch / host shell make. */
 /* wave191: labi_std_append_formal_ensure_for_rel pure orch — body removed from mega
  * (append_std OP_STD formal ensure+companions; Cap residual repo_root + ensure_runtime_*).
  * Hybrid → L6 pure; cold twin via include. PLATFORM: SHARED. */
-#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+#ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 /* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
 #else
-int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
+int xlang_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_repo, const char *make_target);
 int labi_std_rel_is_std_or_core(const char *rel);
 void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
@@ -3567,11 +3567,11 @@ void labi_std_append_formal_ensure_for_rel(const char *link_argv0, const char *r
 
 /* wave187: ensure_std_net_o_auto_tls pure orch — body removed from mega
  * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
  * Pure: mode strcmp + path/make-cmd join; Cap residual getenv+system+realpath_cap+exports_marker.
  * Why: hybrid still had always-mega C body for auto TLS ensure (system/make orch).
  * PLATFORM: SHARED orch / host shell make. */
-#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+#ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 /* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
 #else
 void ensure_std_net_o_auto_tls(const char *repo_root);
@@ -3579,7 +3579,7 @@ void ensure_std_net_o_auto_tls(const char *repo_root);
 
 /* wave158: invoke_cc_append_net_tls_ld pure orch — body removed from mega
  * (lives in labi_invoke_ld_list L6 pure / cold twin via #include above).
- * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
  * wave187/188: ensure_std_net + formal_std_make pure siblings (Cap residual getenv+system).
  * PLATFORM: SHARED orch / MACOS brew -L consumers. */
 
@@ -3589,14 +3589,14 @@ void ensure_std_net_o_auto_tls(const char *repo_root);
 /**
  * 相对仓库根的 .o 路径解析：realpath(rel)、cwd/rel、argv0/../rel。
  * wave185: pure orch in labi_path_pure L0 (hybrid FROM_X / cold twin include).
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: last-sep index + byte join; Cap residual realpath_cap + getcwd + strdup + skip_missing.
  * Heap return per call (never static BSS) — multi-call independence for invoke_cc 30+ paths.
  * PLATFORM: SHARED orch.
  */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
-    /* 【Why 逻辑根源】返回独立堆分配内存而非静态缓冲：runtime.c 中 shux_invoke_cc 之前
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel) {
+    /* 【Why 逻辑根源】返回独立堆分配内存而非静态缓冲：runtime.c 中 xlang_invoke_cc 之前
      * 连续调用 30+ 次本函数（path_o/runtime_o/.../crypto_o/.../test_o）保存到局部变量，
      * 若返回静态缓冲则所有指针指向同一缓冲，最终只剩最后一次调用的内容——crypto_o 实际
      * 指向 test.o 路径，链接器找不到 crypto.o 触发 _core_crypto_mem_eq_c 未定义错误。
@@ -3624,7 +3624,7 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = shux_path_last_sep(argv0);
+        const char *last_slash = xlang_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -3651,7 +3651,7 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
     return strdup("");
 }
 #else
-const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
+const char *xlang_rel_o_path_from_argv0(const char *argv0, const char *rel);
 #endif
 
 /**
@@ -3661,7 +3661,7 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
  * Returns 1 on match, 0 on none/error. G.7 authority for freestanding undef probes.
  */
 #if defined(__linux__)
-static int shux_elf64_obj_scan_undef(const char *o_path, const char *want_sym) {
+static int xlang_elf64_obj_scan_undef(const char *o_path, const char *want_sym) {
     int fd;
     struct stat st;
     unsigned char *map = NULL;
@@ -3756,7 +3756,7 @@ static int shux_elf64_obj_scan_undef(const char *o_path, const char *want_sym) {
  * Invariant: skip optional U type field and optional leading `_`, then compare bare sym.
  * PLATFORM: SHARED residual; LINUX freestanding ELF scan when popen fails.
  */
-int shux_link_obj_needs_undef_sym_impl(const char *o_path, const char *sym) {
+int xlang_link_obj_needs_undef_sym_impl(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
     char line[512];
@@ -3771,7 +3771,7 @@ int shux_link_obj_needs_undef_sym_impl(const char *o_path, const char *sym) {
     if (!fp) {
 #if defined(__linux__)
         /* PLATFORM: LINUX freestanding — popen stub; ELF UNDEF scan authority. */
-        return shux_elf64_obj_scan_undef(o_path, sym);
+        return xlang_elf64_obj_scan_undef(o_path, sym);
 #else
         return 0; /* nm 不可用时不臆测缺符号，避免 on_demand 全量误链 net/heap 等 */
 #endif
@@ -3807,14 +3807,14 @@ int shux_link_obj_needs_undef_sym_impl(const char *o_path, const char *sym) {
     return 0;
 }
 
-/* wave212: shux_link_obj_needs_undef_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
+/* wave212: xlang_link_obj_needs_undef_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
  * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
  * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
- * Pure: null/empty gates; Cap residual shux_link_obj_needs_undef_sym_impl (nm/ELF) always mega.
+ * Pure: null/empty gates; Cap residual xlang_link_obj_needs_undef_sym_impl (nm/ELF) always mega.
  * Why: hybrid still had needs_undef_sym body always mega C (gates+nm+ELF).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
-#ifdef SHUX_LABI_ONDEMAND_LIST_FROM_X
-int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym);
+#ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X
+int xlang_link_obj_needs_undef_sym(const char *o_path, const char *sym);
 #endif
 
 /**
@@ -3827,7 +3827,7 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym);
  * skip hard-link mem.o/heap.o. Darwin nm: "0000 T _sym"; ELF: "0000 T sym".
  * PLATFORM: SHARED residual; host nm/popen.
  */
-int shux_link_obj_has_defined_sym_impl(const char *o_path, const char *sym) {
+int xlang_link_obj_has_defined_sym_impl(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
     char line[512];
@@ -3873,14 +3873,14 @@ int shux_link_obj_has_defined_sym_impl(const char *o_path, const char *sym) {
     return 0;
 }
 
-/* wave213: shux_link_obj_has_defined_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
+/* wave213: xlang_link_obj_has_defined_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
  * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
  * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
- * Pure: null/empty gates; Cap residual shux_link_obj_has_defined_sym_impl (nm T/t) always mega.
+ * Pure: null/empty gates; Cap residual xlang_link_obj_has_defined_sym_impl (nm T/t) always mega.
  * Why: hybrid still had has_defined_sym body always mega C (gates+nm).
  * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
-#ifdef SHUX_LABI_ONDEMAND_LIST_FROM_X
-int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
+#ifdef XLANG_LABI_ONDEMAND_LIST_FROM_X
+int xlang_link_obj_has_defined_sym(const char *o_path, const char *sym);
 #endif
 
 /* wave140: link_abi_user_o_provides_core_mem pure orch lives in labi_ondemand_list
@@ -3902,7 +3902,7 @@ int link_abi_user_o_provides_std_heap(const char *user_o);
 /** ld argv 项是否为已解析的 .o/.obj 路径（跳过 -o、编译器驱动等）。 */
 /* G-02f-65：真逻辑来自 .x（.o / .obj 后缀；原 static 提升为导出）。 */
 /* G-02f-267 L0 path pure */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 int link_abi_ld_argv_entry_is_obj(const char *s) {
     size_t n;
     if (s == NULL) {
@@ -3950,21 +3950,21 @@ int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int l
 
 
 
-/* wave144: shux_freestanding_user_o_needs_{io,panic} pure orch lives in
+/* wave144: xlang_freestanding_user_o_needs_{io,panic} pure orch lives in
  * labi_freestanding_list (io_sym ×13 / panic_sym + pure scan; Cap residual
  * undef_sym). Was mega body always over pure tables. Cold twin under
  * #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
  * PLATFORM: SHARED — G.7 single authority; dual-end L2.
  */
-int shux_freestanding_user_o_needs_io(const char *user_o);
-int shux_freestanding_user_o_needs_panic(const char *user_o);
+int xlang_freestanding_user_o_needs_io(const char *user_o);
+int xlang_freestanding_user_o_needs_panic(const char *user_o);
 
-/* wave159: shux_link_freestanding_enabled pure orch lives in
+/* wave159: xlang_link_freestanding_enabled pure orch lives in
  * labi_freestanding_list (peer host_is_linux + pure env name + Cap residual getenv).
  * Was always-mega body. Cold twin under #ifndef FREESTANDING_LIST_FROM_X; hybrid L7 pure .x.
  * PLATFORM: SHARED orch / LINUX freestanding consumers — dual-end L2.
  */
-int shux_link_freestanding_enabled(int driver_freestanding);
+int xlang_link_freestanding_enabled(int driver_freestanding);
 
 /*
  * wave118: needs_std_net pure orch lives in labi_ondemand_list (net sym table + orch).
@@ -4059,11 +4059,11 @@ const char *link_abi_realpath_cap_impl(const char *path, char *out) {
 }
 
 /* wave218: public pure thin lives in labi_path_io.x (hybrid L3);
- * mega cold twin under #ifndef SHUX_LABI_PATH_IO_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_IO_FROM_X.
  * Cap residual: link_abi_realpath_cap_impl (POSIX realpath; Windows null always mega).
  * Why: hybrid still had realpath_cap body always mega C (gates+realpath).
  * PLATFORM: SHARED orch / POSIX realpath residual. */
-#ifndef SHUX_LABI_PATH_IO_FROM_X
+#ifndef XLANG_LABI_PATH_IO_FROM_X
 const char *link_abi_realpath_cap(const char *path, char *out) {
     if (!path || !path[0] || !out)
         return NULL;
@@ -4075,7 +4075,7 @@ const char *link_abi_realpath_cap(const char *path, char *out);
 
 /**
  * Cap residual (wave185): heap-duplicate a C string for multi-call-independent path returns.
- * Pure orch shux_rel_o_path_from_argv0 must never return BSS/static — concurrent invoke_cc
+ * Pure orch xlang_rel_o_path_from_argv0 must never return BSS/static — concurrent invoke_cc
  * keeps 30+ pointers; static would alias all to the last call.
  * Null s → strdup(""); never returns a pointer into caller buffers.
  * G.7: single authority wrap of host/freestanding strdup (no .x libc strdup export —
@@ -4092,13 +4092,13 @@ const char *link_abi_cstr_dup(const char *s) {
  * 检查 path 是否已在 ld argv 中（realpath 去重，避免 /src/std/... 与 -L 解析路径重复入链）。
  */
 /* wave146：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: cstr eq + argv scan; Cap residual link_abi_realpath_cap.
  * PLATFORM: SHARED — G.7 single authority; dual-end L2. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
     int k;
-    /** 勿放栈上：nostdlib shux_asm 在 elf emit 后主栈已深，8KiB×递归 realpath 易 SIGSEGV。 */
+    /** 勿放栈上：nostdlib xlang_asm 在 elf emit 后主栈已深，8KiB×递归 realpath 易 SIGSEGV。 */
     static char abs_new[PATH_MAX];
     static char abs_exist[PATH_MAX];
     const char *use_new;
@@ -4133,17 +4133,17 @@ int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
  * 将已解析 .o 路径拷入 bank 后追加到 ld argv（避免静态路径缓冲被后续解析覆盖）。
  */
 /* wave147：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: capacity + has_obj dedup + append; Cap residual bank_push.
  * bank is opaque void* (≡ pure .x *u8 / cold twin / invoke_ld_list decls).
  * PLATFORM: SHARED — G.7 single authority; L4 cold TU signature unify. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la,
     const char *p) {
     if (!p || !p[0] || !la || *la >= max_la - 1)
         return;
     if (bank) {
-        const char *bp = shux_asm_ld_bank_push((ShuAsmLdPathBank *)bank, p);
+        const char *bp = xlang_asm_ld_bank_push((ShuAsmLdPathBank *)bank, p);
         if (bp)
             p = bp;
     }
@@ -4160,10 +4160,10 @@ void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, in
 
 
 /* wave148：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: capacity + resolve ladder + hard bank + has_obj/append; Cap residual skip/rel/bank/diag.
  * PLATFORM: SHARED — G.7 single authority; dual-end L2. */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out) {
@@ -4175,27 +4175,27 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
             || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
         debug_runtime_obj = 1;
     /* wave223 G.7: link_abi_getenv (not raw getenv). */
-    if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
+    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
         link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
     if (primary && primary[0])
         p = asm_link_obj_skip_missing(primary);
-    if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
+    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
         link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
     if (!p && rel && rel[0])
-        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel));
+        p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, rel));
     if (!p && bank && rel && rel[0])
-        p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
+        p = xlang_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
     if (!p)
         return 0;
-    /* 路径须拷入 bank：shux_rel_o_path_from_argv0 / shux_runtime_*_o_path 用静态缓冲，勿把裸指针留到 argv。 */
+    /* 路径须拷入 bank：xlang_rel_o_path_from_argv0 / xlang_runtime_*_o_path 用静态缓冲，勿把裸指针留到 argv。 */
     if (bank) {
-        const char *bp = shux_asm_ld_bank_push(bank, p);
+        const char *bp = xlang_asm_ld_bank_push(bank, p);
         if (bp)
             p = bp;
         else
             return 0;
     }
-    if (debug_runtime_obj && link_abi_getenv("SHUX_DEBUG_LD"))
+    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
         link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
     if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
         return 0;
@@ -4217,7 +4217,7 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
  * F-03：仅当对应 std/*.o 已入链时才追加 runtime_*_glue.o，避免 glue 引用 log_write_c 等未定义符号。
  * ensure_fn 非 NULL 时在 push 前 cc -c 生成 glue .o（Docker/CI 无预编译 glue 时须 ensure）。
  * wave149：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: have_std gate + Cap residual call_ensure + pure peer push_obj.
  * Cap residual: link_abi_call_ensure_argv0 holds C function-pointer call.
  * PLATFORM: SHARED — G.7 single authority; dual-end L2.
@@ -4231,7 +4231,7 @@ int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0) {
     return ((int (*)(const char *))ensure_fn)(link_argv0);
 }
 
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
     const char *glue_primary, const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
@@ -4302,23 +4302,23 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
  * std_fmt_print / std_fmt_println (runtime_asm_io_stubs; PLATFORM: SHARED).
  * popen 桩恒失败时 has_undef 误判为自包含，勿因此省略 io_stubs。
  * wave150：pure orch in labi_path_pure.x (hybrid L0);
- * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: Cap residual *_o_path primary + pure peer push_obj ×3.
- * Cap residual: shux_runtime_asm_io_stubs_o_path / process_argv_o_path / panic_o_path.
+ * Cap residual: xlang_runtime_asm_io_stubs_o_path / process_argv_o_path / panic_o_path.
  * PLATFORM: SHARED — G.7 single authority; dual-end L2.
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
     /* Cold twin prefers same Cap residual *_o_path as pure .x (static buf ≡ stack copy). */
-    const char *io_stubs_p = shux_runtime_asm_io_stubs_o_path(link_argv0);
-    const char *process_argv_p = shux_runtime_process_argv_o_path(link_argv0);
+    const char *io_stubs_p = xlang_runtime_asm_io_stubs_o_path(link_argv0);
+    const char *process_argv_p = xlang_runtime_process_argv_o_path(link_argv0);
     link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
         "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(process_argv_p, link_argv0,
         "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
+    link_abi_asm_ld_push_obj(xlang_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
 #else
@@ -4331,14 +4331,14 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
 
 #if defined(__linux__)
 /**
- * nostdlib shux_asm：自包含 user.o 的 gcc 最小链（user.o + runtime 桩 + -lc）。
+ * nostdlib xlang_asm：自包含 user.o 的 gcc 最小链（user.o + runtime 桩 + -lc）。
  * pipeline/elf emit 后主栈已很深，完整 ld argv 构建（realpath 去重、popen nm）易 SIGSEGV；
  * 固定小 argv + static path bank，不扫描 std/*.o。
  * 参数：link_eff 有效 argv0/compiler 目录；lib_roots 与 driver -L 一致。
  * 返回值：0 成功，-1 失败。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const char *exe_path,
+int xlang_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const char *exe_path,
     const char *link_eff, const char **lib_roots, int n_lib_roots) {
     static ShuAsmLdPathBank bank;
     const char *argv[24];
@@ -4350,8 +4350,8 @@ int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const c
         return -1;
     bank.n = 0;
     memset(bank.slots, 0, sizeof bank.slots);
-    argv[la++] = shux_linux_host_gcc_path();
-    shux_append_linux_link_harden((char **)argv, &la, (int)(sizeof argv / sizeof argv[0]));
+    argv[la++] = xlang_linux_host_gcc_path();
+    xlang_append_linux_link_harden((char **)argv, &la, (int)(sizeof argv / sizeof argv[0]));
     argv[la++] = "-o";
     argv[la++] = exe_path;
     argv[la++] = o_path;
@@ -4360,10 +4360,10 @@ int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const c
     if (la < (int)(sizeof argv / sizeof argv[0]) - 1)
         argv[la++] = "-lc";
     /* G.7: CLI user .o on self-contained minimal asm link too. */
-    shux_asm_ld_append_user_extra_o_files(argv, &la, (int)(sizeof argv / sizeof argv[0]));
+    xlang_asm_ld_append_user_extra_o_files(argv, &la, (int)(sizeof argv / sizeof argv[0]));
     argv[la] = NULL;
     /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-    if (link_abi_getenv("SHUX_DEBUG_LD"))
+    if (link_abi_getenv("XLANG_DEBUG_LD"))
         link_diag_ld_debug_argv("minimal gcc argv", argv);
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
@@ -4384,7 +4384,7 @@ int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const c
         return -1;
     }
     if (pid == 0) {
-        shux_linux_ld_child_path();
+        xlang_linux_ld_child_path();
         execvp(argv[0], (char *const *)argv);
         execv("/usr/bin/gcc", (char *const *)argv);
         execv("/usr/local/bin/gcc", (char *const *)argv);
@@ -4408,7 +4408,7 @@ int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const c
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 /* G-02f-271 L8 std list pure plan (+ accessors) */
-#ifndef SHUX_LABI_STD_LIST_FROM_X
+#ifndef XLANG_LABI_STD_LIST_FROM_X
 enum {
   LABI_STD_OP_STD = 1,
   LABI_STD_OP_IO_STUBS = 2,
@@ -4598,29 +4598,29 @@ int labi_user_needs_runtime_process_argv(const char *user_o);
 /* wave134: TASK_SPECIAL bulk gate pure; was static mega body. */
 int labi_user_needs_std_task(const char *user_o);
 
-void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
+void xlang_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     /* 兼容旧调用：无 user_o 时走硬链。新调用经 wrapper 传入 o_path。 */
-    shux_asm_ld_append_std_objs_for_user(link_argv0, NULL, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
+    xlang_asm_ld_append_std_objs_for_user(link_argv0, NULL, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
 }
 
-/* wave196: shux_asm_ld_append_std_objs_for_user plan shell pure orch —
+/* wave196: xlang_asm_ld_append_std_objs_for_user plan shell pure orch —
  * body removed from mega (lives in labi_invoke_ld_list L6 pure / cold twin via #include).
- * Hybrid SHUX_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
+ * Hybrid XLANG_LABI_INVOKE_LD_LIST_FROM_X → L6 pure; cold path defines via include.
  * Pure: flags/local_have init + plan_count/step_at loop + dispatch wave190–195 leaves
  *   + process_argv complement; Cap residual inside leaf peers / L8 plan table.
  * Why: hybrid still had plan loop shell always-mega inline after wave190–195 leaf pure.
  * PLATFORM: SHARED orch. */
-#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+#ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 /* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
 #else
-void shux_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
+void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 #endif
 
 /* G-02f-272 L8b on_demand list pure */
-#ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
+#ifndef XLANG_LABI_ONDEMAND_LIST_FROM_X
 #include "seeds/labi_ondemand_list.from_x.c"
 #else
 int labi_od_simple_group_count(void);
@@ -4745,16 +4745,16 @@ const char *labi_od_rel_net_workers(void);
 const char *labi_od_rel_test_fn_invoke(void);
 #endif
 
-/* wave197: shux_asm_ld_append_on_demand_user_objs pure orch —
+/* wave197: xlang_asm_ld_append_on_demand_user_objs pure orch —
  * body removed from mega (lives in labi_ondemand_list L8b pure / cold twin via #include).
- * Hybrid SHUX_LABI_ONDEMAND_LIST_FROM_X → L8b pure; cold path defines via include.
+ * Hybrid XLANG_LABI_ONDEMAND_LIST_FROM_X → L8b pure; cold path defines via include.
  * Pure: needs/provides peers + push/path/ensure compose; Cap residual ensure/skip/undef/fs.
  * Why: hybrid still had full on_demand IO shell always-mega after wave118–145 needs pure.
  * PLATFORM: SHARED orch. */
-#ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
+#ifndef XLANG_LABI_ONDEMAND_LIST_FROM_X
 /* cold twin body is in seeds/labi_ondemand_list.from_x.c (#include above). */
 #else
-void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o,
+void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 #endif
@@ -4763,17 +4763,17 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
 
 /**
  * invoke_ld / driver_asm_invoke_ld 共用：ensure 链入对象并校验 freestanding 仅 Linux ELF。
- * 参数：link_eff 有效 link argv0；user_o 用户 .o；driver_freestanding 同 shux_link_freestanding_enabled。
+ * 参数：link_eff 有效 link argv0；user_o 用户 .o；driver_freestanding 同 xlang_link_freestanding_enabled。
  * 返回值：0 成功，-1 失败。
  * wave186: pure orch in labi_ensure_list.x (hybrid L4);
- * mega cold twin under #ifndef SHUX_LABI_ENSURE_LIST_FROM_X (#include above).
+ * mega cold twin under #ifndef XLANG_LABI_ENSURE_LIST_FROM_X (#include above).
  * Cap residual: freestanding peers + user_needs + ensure_* + debug report Cap.
  * PLATFORM: SHARED orch / LINUX freestanding via freestanding_enabled.
  */
-#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+#ifndef XLANG_LABI_ENSURE_LIST_FROM_X
 /* cold twin body is in seeds/labi_ensure_list.from_x.c (#include above). */
 #else
-int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding,
+int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding,
     int use_macho_o, int use_coff_o);
 #endif
 
@@ -4787,7 +4787,7 @@ int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, i
  * 返回值：1 有未定义符号或 nm 失败（保守），0 完全自包含。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_asm_user_o_has_undef_syms(const char *o_path) {
+int xlang_asm_user_o_has_undef_syms(const char *o_path) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
     char line[512];
@@ -4800,7 +4800,7 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
     if (!fp) {
 #if defined(__linux__)
         /* PLATFORM: LINUX freestanding — popen stub; any ELF UNDEF forces full on_demand path. */
-        return shux_elf64_obj_scan_undef(o_path, NULL) ? 1 : 0;
+        return xlang_elf64_obj_scan_undef(o_path, NULL) ? 1 : 0;
 #else
         return 0; /* nostdlib 无 popen：优先 gcc 最小链 user.o+-lc */
 #endif
@@ -4826,14 +4826,14 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
  * macOS asm ld/clang：按 std 链入标记追加 -lm、压缩库、-lsqlite3、-pthread、-lSystem。
  * G-02f-66：主体 _impl；.x 门闩 null 检查后转发。
  */
-/* wave156: shux_asm_ld_append_mach_tail_libs_impl pure orch — body removed from mega
+/* wave156: xlang_asm_ld_append_mach_tail_libs_impl pure orch — body removed from mega
  * (was always-mega C over pure flag tables). Cold twin / hybrid pure always provide
  * the symbol via labi_invoke_ld_list (flags i32 layout + pure flag_* + peer compress).
  * PLATFORM: SHARED orch / MACOS consumers. */
 
 /* G-02f-277 L9 gates */
-#ifndef SHUX_LABI_GATES_FROM_X
-void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+#ifndef XLANG_LABI_GATES_FROM_X
+void xlang_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem) {
   if (flags == NULL) {
     return;
@@ -4848,22 +4848,22 @@ void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_
     return;
   }
   {
-    shux_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
+    xlang_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
   }
 }
 #else
-void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void xlang_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem);
 #endif
 
-/* wave157: shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch — body removed from mega
+/* wave157: xlang_asm_ld_append_unix_gcc_tail_libs_impl pure orch — body removed from mega
  * (was multi-branch always-mega with #if __linux__ / linux||apple). Cold twin / hybrid pure
  * always provide the symbol via labi_invoke_ld_list (host_is_linux + host_is_apple peers).
  * PLATFORM: SHARED orch / LINUX consumers. */
 
 /* G-02f-277 L9 gates */
-#ifndef SHUX_LABI_GATES_FROM_X
-void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+#ifndef XLANG_LABI_GATES_FROM_X
+void xlang_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la) {
   if (flags == NULL) {
     return;
@@ -4878,22 +4878,22 @@ void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *u
     return;
   }
   {
-    shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
+    xlang_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
   }
 }
 #else
-void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void xlang_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
 #endif
 
-/* wave155: shux_append_linux_link_harden_impl pure orch — body removed from mega
+/* wave155: xlang_append_linux_link_harden_impl pure orch — body removed from mega
  * (was #if __linux__ real + #else no-op stub). Cold twin / hybrid pure always provide
  * the symbol via labi_invoke_cc_list (table scan is host-agnostic; callers stay Linux-gated).
  * PLATFORM: SHARED orch / LINUX consumers. */
 
 /* G-02f-277 L9 gates */
-#ifndef SHUX_LABI_GATES_FROM_X
-void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
+#ifndef XLANG_LABI_GATES_FROM_X
+void xlang_append_linux_link_harden(char *argv[], int *la, int cap) {
   if (argv == NULL) {
     return;
   }
@@ -4901,21 +4901,21 @@ void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
     return;
   }
   {
-    shux_append_linux_link_harden_impl(argv, la, cap);
+    xlang_append_linux_link_harden_impl(argv, la, cap);
   }
 }
 #else
-void shux_append_linux_link_harden(char *argv[], int *la, int cap);
+void xlang_append_linux_link_harden(char *argv[], int *la, int cap);
 #endif
 
 
 /**
- * ASM -o exe：fork 子进程执行 clang/ld 或 lld-link/ld；调用方须先 shux_asm_ld_prepare_for_exe_link。
- * 参数：driver_freestanding 同 shux_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
+ * ASM -o exe：fork 子进程执行 clang/ld 或 lld-link/ld；调用方须先 xlang_asm_ld_prepare_for_exe_link。
+ * 参数：driver_freestanding 同 xlang_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
  * 返回值：0 成功，-1 失败。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target,
+int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots,
     int driver_freestanding) {
     char link_argv_syn[PATH_MAX];
@@ -4927,46 +4927,46 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
 #endif
     if (!o_path || !exe_path)
         return -1;
-    link_eff = shux_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
+    link_eff = xlang_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
 
     {
-        static char shux_asm_ld_lib_root_bufs[24][512];
-        static const char *shux_asm_ld_lib_roots[24];
+        static char xlang_asm_ld_lib_root_bufs[24][512];
+        static const char *xlang_asm_ld_lib_roots[24];
         const char **lib_roots_eff = lib_roots;
         int n_lib_roots_eff = n_lib_roots;
         int li;
 
         if (!lib_roots_eff || (uintptr_t)lib_roots_eff < 4096u || n_lib_roots_eff <= 0 || n_lib_roots_eff > 24) {
-            shux_asm_ld_lib_root_default(shux_asm_ld_lib_root_bufs[0]);
-            shux_asm_ld_lib_roots[0] = shux_asm_ld_lib_root_bufs[0];
-            lib_roots_eff = shux_asm_ld_lib_roots;
+            xlang_asm_ld_lib_root_default(xlang_asm_ld_lib_root_bufs[0]);
+            xlang_asm_ld_lib_roots[0] = xlang_asm_ld_lib_root_bufs[0];
+            lib_roots_eff = xlang_asm_ld_lib_roots;
             n_lib_roots_eff = 1;
         } else {
             for (li = 0; li < n_lib_roots_eff; li++) {
                 const char *r = lib_roots_eff[li];
                 if (!r || (uintptr_t)r < 4096u) {
-                    shux_asm_ld_lib_root_default(shux_asm_ld_lib_root_bufs[li]);
-                    shux_asm_ld_lib_roots[li] = shux_asm_ld_lib_root_bufs[li];
+                    xlang_asm_ld_lib_root_default(xlang_asm_ld_lib_root_bufs[li]);
+                    xlang_asm_ld_lib_roots[li] = xlang_asm_ld_lib_root_bufs[li];
                 } else if (!r[0]) {
-                    shux_asm_ld_lib_root_default(shux_asm_ld_lib_root_bufs[li]);
-                    shux_asm_ld_lib_roots[li] = shux_asm_ld_lib_root_bufs[li];
+                    xlang_asm_ld_lib_root_default(xlang_asm_ld_lib_root_bufs[li]);
+                    xlang_asm_ld_lib_roots[li] = xlang_asm_ld_lib_root_bufs[li];
                 } else {
-                    if (strlen(r) >= sizeof(shux_asm_ld_lib_root_bufs[li]))
+                    if (strlen(r) >= sizeof(xlang_asm_ld_lib_root_bufs[li]))
                         r = ".";
-                    memcpy(shux_asm_ld_lib_root_bufs[li], r, strlen(r) + 1);
-                    shux_asm_ld_lib_roots[li] = shux_asm_ld_lib_root_bufs[li];
+                    memcpy(xlang_asm_ld_lib_root_bufs[li], r, strlen(r) + 1);
+                    xlang_asm_ld_lib_roots[li] = xlang_asm_ld_lib_root_bufs[li];
                 }
             }
-            lib_roots_eff = shux_asm_ld_lib_roots;
+            lib_roots_eff = xlang_asm_ld_lib_roots;
         }
 
         /* slots[42][4096] 勿放栈上：driver 深栈 + ld_bank 易溢出并踩坏 rel/lib_roots。 */
-        static ShuAsmLdPathBank shux_asm_ld_exe_bank;
-        ShuAsmLdPathBank *ld_bank = &shux_asm_ld_exe_bank;
+        static ShuAsmLdPathBank xlang_asm_ld_exe_bank;
+        ShuAsmLdPathBank *ld_bank = &xlang_asm_ld_exe_bank;
         ShuAsmLdStdLinkFlags ldflags;
-        const char *argv[SHUX_LD_ARGV_CAP];
+        const char *argv[XLANG_LD_ARGV_CAP];
         char out_opt[512];
         int la = 0;
         int need_pt;
@@ -4981,14 +4981,14 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = labi_ld_flag_o();
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 0);
+            xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, XLANG_LD_ARGV_CAP, 0);
             /* G.7: CLI user .o after std/on_demand (same globals as invoke_cc). */
-            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
+            xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
             argv[la] = NULL;
             {
-                int rc = shux_spawn_sync(labi_ld_driver_clang(), (const char *const *)argv);
+                int rc = xlang_spawn_sync(labi_ld_driver_clang(), (const char *const *)argv);
                 if (rc == 0)
                     return 0;
             }
@@ -5001,13 +5001,13 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = labi_ld_flag_o();
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 1);
-            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
+            xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, XLANG_LD_ARGV_CAP, 1);
+            xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
             argv[la] = NULL;
             {
-                int rc = shux_spawn_sync(labi_ld_driver_ld(), (const char *const *)argv);
+                int rc = xlang_spawn_sync(labi_ld_driver_ld(), (const char *const *)argv);
                 if (rc != 0) {
                     link_diag_tool_status("ld", rc);
                     return -1;
@@ -5027,13 +5027,13 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "/entry:_main";
             argv[la++] = out_opt;
             argv[la++] = o_path;
-            shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
+            xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
             argv[la++] = "ws2_32.lib";
             argv[la] = NULL;
             {
-                int rc = shux_spawn_sync("lld-link", (const char *const *)argv);
+                int rc = xlang_spawn_sync("lld-link", (const char *const *)argv);
                 if (rc != 0) {
                     link_diag_tool_status("ld", rc);
                     return -1;
@@ -5046,7 +5046,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         memset(ld_bank->slots, 0, sizeof ld_bank->slots);
 #if defined(__linux__)
         /* F-no-libc NL-05 BEGIN: freestanding 用户链（ld -nostdlib -static，禁止 -lc） */
-        if (shux_link_freestanding_enabled(driver_freestanding)) {
+        if (xlang_link_freestanding_enabled(driver_freestanding)) {
             const char *crt0_p;
             const char *panic_p;
             const char *io_p;
@@ -5054,13 +5054,13 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             int need_io = 0;
             int need_panic = 0;
             int need_nostdlib_face = 0;
-            need_io = shux_freestanding_user_o_needs_io(o_path);
-            need_panic = shux_freestanding_user_o_needs_panic(o_path);
+            need_io = xlang_freestanding_user_o_needs_io(o_path);
+            need_panic = xlang_freestanding_user_o_needs_panic(o_path);
             /*
              * PLATFORM: LINUX freestanding product residual —
              * co-emit std.heap.libc → U malloc/free/…; zero-libc face is
              * bootstrap_nostdlib_stubs (mmap bump), same as compiler nostdlib bag.
-             * Stubs need shux_sys_mmap from freestanding_io → force need_io.
+             * Stubs need xlang_sys_mmap from freestanding_io → force need_io.
              * G.7: complete freestanding ld on_demand (no second malloc path).
              */
             need_nostdlib_face = link_abi_user_o_needs_freestanding_nostdlib_face(o_path);
@@ -5069,7 +5069,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "ld";
             argv[la++] = "-nostdlib";
             argv[la++] = "-static";
-            if (la < SHUX_LD_ARGV_CAP - 1)
+            if (la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = "--gc-sections";
             /*
              * G-03 freestanding co-emit 去重未做：dep 模块（如 linux.x）经多条 import 路径
@@ -5082,46 +5082,46 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
              * 【Invariant】仅 freestanding ld 路径；ELF weak 原生支持但 co-emit 产生强符号重复。
              * 【Asm/Perf】链接期选第一个定义，无运行时开销。
              */
-            if (la < SHUX_LD_ARGV_CAP - 1)
+            if (la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = "--allow-multiple-definition";
             argv[la++] = "-o";
             argv[la++] = exe_path;
-            crt0_p = asm_link_obj_skip_missing(shux_crt0_user_o_path(link_eff));
+            crt0_p = asm_link_obj_skip_missing(xlang_crt0_user_o_path(link_eff));
             if (!crt0_p) {
                 link_diag_freestanding_missing("crt0_user.o", NULL);
                 return -1;
             }
             panic_p = NULL;
             if (need_panic)
-                panic_p = asm_link_obj_skip_missing(shux_runtime_panic_o_path(link_eff));
+                panic_p = asm_link_obj_skip_missing(xlang_runtime_panic_o_path(link_eff));
             if (need_panic && !panic_p) {
-                link_diag_freestanding_missing("runtime_panic.o", "shux_panic_");
+                link_diag_freestanding_missing("runtime_panic.o", "xlang_panic_");
                 return -1;
             }
             io_p = NULL;
             if (need_io)
-                io_p = asm_link_obj_skip_missing(shux_freestanding_io_o_path(link_eff));
+                io_p = asm_link_obj_skip_missing(xlang_freestanding_io_o_path(link_eff));
             if (need_io && !io_p) {
-                link_diag_freestanding_missing("freestanding_io.o", "shux_sys_write");
+                link_diag_freestanding_missing("freestanding_io.o", "xlang_sys_write");
                 return -1;
             }
             stubs_p = NULL;
             if (need_nostdlib_face) {
-                if (shux_ensure_bootstrap_nostdlib_stubs_o(link_eff) != 0)
+                if (xlang_ensure_bootstrap_nostdlib_stubs_o(link_eff) != 0)
                     return -1;
-                stubs_p = asm_link_obj_skip_missing(shux_bootstrap_nostdlib_stubs_o_path(link_eff));
+                stubs_p = asm_link_obj_skip_missing(xlang_bootstrap_nostdlib_stubs_o_path(link_eff));
                 if (!stubs_p) {
                     link_diag_freestanding_missing("bootstrap_nostdlib_stubs.o", "malloc");
                     return -1;
                 }
             }
-            if (la < SHUX_LD_ARGV_CAP - 1)
+            if (la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = crt0_p;
-            if (need_panic && la < SHUX_LD_ARGV_CAP - 1)
+            if (need_panic && la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = panic_p;
-            if (need_io && la < SHUX_LD_ARGV_CAP - 1)
+            if (need_io && la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = io_p;
-            if (need_nostdlib_face && stubs_p && la < SHUX_LD_ARGV_CAP - 1)
+            if (need_nostdlib_face && stubs_p && la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = stubs_p;
             /*
              * F-no-libc NL-03/04/06：freestanding 按需链入 import 的 std/*.o（page_mmap/sys/linux/core_mem）。
@@ -5130,22 +5130,22 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
              * 【Invariant】on_demand 在 o_path 之前调用；--gc-sections 从 entry(crt0→main) 做可达性
              * 分析，所有 .o 须在 ld argv 中，未引用的 hosted 函数被 GC 移除。
              */
-            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff,
-                ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-            if (la < SHUX_LD_ARGV_CAP - 1)
+            xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff,
+                ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+            if (la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = o_path;
             /* G.7: CLI user .o (atomic_glue/time_os/…) after primary user.o. */
-            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
+            xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
             argv[la] = NULL;
             {
                 /*
-                 * nostdlib 链 shux_asm 的 environ 可能无 PATH：ld 子进程须显式设置 PATH，
+                 * nostdlib 链 xlang_asm 的 environ 可能无 PATH：ld 子进程须显式设置 PATH，
                  * 否则 execvp("ld") 找不到 /usr/bin/ld → ENOENT → BLD001。
-                 * 【Why】strict link shux_asm 用 -nostdlib -static 链接，environ 不一定
-                 * 继承完整 PATH；gcc 路径用 shux_linux_host_gcc_path() 绕过，ld 亦须设 PATH。
+                 * 【Why】strict link xlang_asm 用 -nostdlib -static 链接，environ 不一定
+                 * 继承完整 PATH；gcc 路径用 xlang_linux_host_gcc_path() 绕过，ld 亦须设 PATH。
                  */
-                shux_linux_ld_child_path();
-                int rc = shux_spawn_sync("ld", (const char *const *)argv);
+                xlang_linux_ld_child_path();
+                int rc = xlang_spawn_sync("ld", (const char *const *)argv);
                 if (rc != 0) {
                     link_diag_tool_status("ld", rc);
                     return -1;
@@ -5156,32 +5156,32 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         /* F-no-libc NL-05 END */
         /*
          * 自包含 .o（nm -u 为空）：gcc 仅链 user.o + libc crt。
-         * nostdlib shux_asm 无 popen：保守走全量 gcc 链（return-value 等）。
+         * nostdlib xlang_asm 无 popen：保守走全量 gcc 链（return-value 等）。
          */
-        if (!shux_asm_user_o_has_undef_syms(o_path)) {
+        if (!xlang_asm_user_o_has_undef_syms(o_path)) {
 #if defined(__linux__)
             /*
-             * nostdlib shux_asm：popen 恒 NULL 时走自包含最小链；勿再 push string/base64 等
+             * nostdlib xlang_asm：popen 恒 NULL 时走自包含最小链；勿再 push string/base64 等
              * （realpath 去重 + 深栈易 SIGSEGV，见 C6 return-value -o）。
              */
             if (bootstrap_nostdlib_pthread_is_stub())
-                return shux_asm_nostdlib_minimal_selfcontained_exe_link(o_path, exe_path, link_eff,
+                return xlang_asm_nostdlib_minimal_selfcontained_exe_link(o_path, exe_path, link_eff,
                     lib_roots_eff, n_lib_roots_eff);
 #endif
-            argv[la++] = shux_linux_host_gcc_path();
-            shux_append_linux_link_harden((char **)argv, &la, SHUX_LD_ARGV_CAP);
+            argv[la++] = xlang_linux_host_gcc_path();
+            xlang_append_linux_link_harden((char **)argv, &la, XLANG_LD_ARGV_CAP);
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
-            link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP);
+            link_abi_asm_ld_push_minimal_runtime_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP);
             /*
              * user.o 无 UNDEF：co-emit 已自洽。勿再硬链 string.o/base64.o/encoding.o
              * （string 入口-only 库 .o 对 heap 有 U，硬链会缺 std_heap_libc_*；且与 co-emit 体重复时 duplicate）。
              * 有 UNDEF 时走下方 full append_std / on_demand。
              */
-            if (la < SHUX_LD_ARGV_CAP - 1)
+            if (la < XLANG_LD_ARGV_CAP - 1)
                 argv[la++] = "-lc";
-            shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
+            xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
             argv[la] = NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
             {
@@ -5202,7 +5202,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 return -1;
             }
             if (pid == 0) {
-                shux_linux_ld_child_path();
+                xlang_linux_ld_child_path();
                 execvp(argv[0], (char *const *)argv);
 #if defined(__linux__)
                 execv("/usr/local/bin/gcc", (char *const *)argv);
@@ -5230,15 +5230,15 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
 #endif
 #if defined(__linux__)
         /* Linux ELF：gcc 驱动链接（crt _start→main）；裸 ld -e main 缺 crt 初始化易 SIGSEGV。 */
-        argv[la++] = shux_linux_host_gcc_path();
-        shux_append_linux_link_harden((char **)argv, &la, SHUX_LD_ARGV_CAP);
+        argv[la++] = xlang_linux_host_gcc_path();
+        xlang_append_linux_link_harden((char **)argv, &la, XLANG_LD_ARGV_CAP);
         /*
          * PLATFORM: LINUX hosted asm — same GC invariant as C invoke_cc + freestanding asm ld.
          * Formal std/*.o are built with -ffunction-sections; without --gc-sections, unused
          * map/set/queue bodies retain U heap/hash and BLD001 even when user only needs empty_size.
          * G.7: complete hosted asm link authority (do not invent a second GC path).
          */
-        if (la < SHUX_LD_ARGV_CAP - 1)
+        if (la < XLANG_LD_ARGV_CAP - 1)
             argv[la++] = "-Wl,--gc-sections";
 #else
         argv[la++] = "ld";
@@ -5248,17 +5248,17 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         argv[la++] = "-o";
         argv[la++] = exe_path;
         argv[la++] = o_path;
-        shux_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
-        shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
+        xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
+        xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
         if (link_abi_user_o_needs_libc_heap(o_path))
             ldflags.have_libc_heap = 1;
         need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
-        shux_asm_ld_append_unix_gcc_tail_libs(compress_o, o_path, &ldflags, need_pt, (const char **)argv, &la, SHUX_LD_ARGV_CAP);
+        xlang_asm_ld_append_unix_gcc_tail_libs(compress_o, o_path, &ldflags, need_pt, (const char **)argv, &la, XLANG_LD_ARGV_CAP);
         /* G.7: CLI user .o after std/on_demand/tail libs (mirrors invoke_cc order). */
-        shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
+        xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
         argv[la] = NULL;
         /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-        if (link_abi_getenv("SHUX_DEBUG_LD"))
+        if (link_abi_getenv("XLANG_DEBUG_LD"))
             link_diag_ld_debug_argv("gcc argv", argv);
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         {
@@ -5280,7 +5280,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         }
         if (pid == 0) {
 #if defined(__linux__)
-            shux_linux_ld_child_path();
+            xlang_linux_ld_child_path();
             execvp(argv[0], (char *const *)argv);
             perror("gcc");
 #else
@@ -5313,8 +5313,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
  */
 /* G-02f-64：真逻辑来自 .x（逐字节后缀；无 _impl）。 */
 /* G-02f-267 L0 path pure */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-int shux_output_is_elf_o(const char *path) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+int xlang_output_is_elf_o(const char *path) {
     size_t n;
     if (path == NULL) {
         return 0;
@@ -5347,7 +5347,7 @@ int shux_output_is_elf_o(const char *path) {
     return 0;
 }
 #else
-int shux_output_is_elf_o(const char *path);
+int xlang_output_is_elf_o(const char *path);
 #endif
 
 
@@ -5358,8 +5358,8 @@ int shux_output_is_elf_o(const char *path);
  * G-02f-64：真逻辑来自 .x。
  */
 /* G-02f-430：.x 真迁到 labi_path_pure.x */
-#ifndef SHUX_LABI_PATH_PURE_FROM_X
-int shux_output_want_exe(const char *path) {
+#ifndef XLANG_LABI_PATH_PURE_FROM_X
+int xlang_output_want_exe(const char *path) {
     size_t n;
     if (path == NULL) {
         return 0;
@@ -5398,32 +5398,32 @@ int shux_output_want_exe(const char *path) {
     return 1;
 }
 #else
-int shux_output_want_exe(const char *path);
+int xlang_output_want_exe(const char *path);
 #endif
 
 /**
- * ASM -o exe 薄包装：ensure .o + shux_asm_ld_prepare_for_exe_link + shux_asm_invoke_ld_platform。
+ * ASM -o exe 薄包装：ensure .o + xlang_asm_ld_prepare_for_exe_link + xlang_asm_invoke_ld_platform。
  * G-02f-66：主体 _impl（PATH_MAX 合成缓冲）；.x 门闩 null 检查后转发。
  */
-int shux_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
+int xlang_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots) {
     char link_argv_syn[PATH_MAX];
     const char *link_eff;
     int freestanding;
 
-    link_eff = shux_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
+    link_eff = xlang_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
     freestanding = driver_freestanding_get();
-    if (shux_asm_ld_prepare_for_exe_link(link_eff, o_path, freestanding, use_macho_o, use_coff_o) != 0)
+    if (xlang_asm_ld_prepare_for_exe_link(link_eff, o_path, freestanding, use_macho_o, use_coff_o) != 0)
         return -1;
-    return shux_asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots,
+    return xlang_asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots,
         freestanding);
 }
 
 /* G-02f-277 L9 gates */
-#ifndef SHUX_LABI_GATES_FROM_X
-int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
+#ifndef XLANG_LABI_GATES_FROM_X
+int xlang_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots) {
   if (o_path == NULL) {
     return -1;
@@ -5432,12 +5432,12 @@ int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char 
     return -1;
   }
   {
-    return shux_invoke_ld_for_exe_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
+    return xlang_invoke_ld_for_exe_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
   }
   return -1;
 }
 #else
-int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
+int xlang_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots);
 int labi_gates_count(void);
 #endif
@@ -5465,7 +5465,7 @@ int shu_waitpid_retry_impl(pid_t pid, int *status_out) {
         {
             int saved_errno = errno;
             const char *err = strerror(saved_errno);
-            diag_reportf_with_code(NULL, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+            diag_reportf_with_code(NULL, 0, 0, "process error", XLANG_DIAG_CODE_PROCESS_PRC001, NULL,
                                    "waitpid failed: %s",
                                    err ? err : "unknown error");
         }
@@ -5474,11 +5474,11 @@ int shu_waitpid_retry_impl(pid_t pid, int *status_out) {
 }
 
 /* wave216: shu_waitpid_retry pure orch lives in labi_diag_pure.x (hybrid L1);
- * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
  * Pure: thin public; Cap residual shu_waitpid_retry_impl (waitpid+EINTR+strerror).
  * Why: hybrid still had waitpid body always mega C (wait+strerror+diag).
  * PLATFORM: SHARED orch / POSIX wait residual. */
-#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+#ifndef XLANG_LABI_DIAG_PURE_FROM_X
 int shu_waitpid_retry(pid_t pid, int *status_out) {
     return shu_waitpid_retry_impl(pid, status_out);
 }
@@ -5570,7 +5570,7 @@ uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque) {
     return (uint8_t *)adj;
 }
 
-/* Build the argv used by `shux run` / bare `shux file.x`: if the user already
+/* Build the argv used by `xlang run` / bare `xlang file.x`: if the user already
  * passed -o, return argv unchanged (and *out_argc = argc) so the explicit
  * product path is compiled and exec'd. Otherwise append `-o <temp>` where
  * <temp> is a unique /tmp path, so the C/asm backend links a real executable
@@ -5578,11 +5578,11 @@ uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque) {
  * that temp. The temp is a unique name obtained via mkstemp+unlink; the
  * compiler (cc -o / ld -o) creates the actual executable file.
  * PLATFORM: SHARED — /tmp on POSIX, current dir fallback on Windows. */
-#ifndef SHUX_RUN_TMP_PREFIX
+#ifndef XLANG_RUN_TMP_PREFIX
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-#define SHUX_RUN_TMP_PREFIX "shux_run_"
+#define XLANG_RUN_TMP_PREFIX "xlang_run_"
 #else
-#define SHUX_RUN_TMP_PREFIX "/tmp/shux_run_"
+#define XLANG_RUN_TMP_PREFIX "/tmp/xlang_run_"
 #endif
 #endif
 uint8_t *driver_argv_ensure_run_o(int argc, uint8_t *argv_opaque, int *out_argc) {
@@ -5607,7 +5607,7 @@ uint8_t *driver_argv_ensure_run_o(int argc, uint8_t *argv_opaque, int *out_argc)
         return argv_opaque;
     if (argc + 2 > 512)
         return argv_opaque;
-    snprintf(temp_path, sizeof temp_path, "%sXXXXXX", SHUX_RUN_TMP_PREFIX);
+    snprintf(temp_path, sizeof temp_path, "%sXXXXXX", XLANG_RUN_TMP_PREFIX);
     {
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(__CYGWIN__)
         /* POSIX: mkstemp yields an atomically unique name; free it so cc -o
@@ -5617,13 +5617,13 @@ uint8_t *driver_argv_ensure_run_o(int argc, uint8_t *argv_opaque, int *out_argc)
             close(fd);
             unlink(temp_path);
         } else {
-            snprintf(temp_path, sizeof temp_path, "%s%ld", SHUX_RUN_TMP_PREFIX, (long)getpid());
+            snprintf(temp_path, sizeof temp_path, "%s%ld", XLANG_RUN_TMP_PREFIX, (long)getpid());
         }
 #else
         /* Windows: no mkstemp here; use a per-process counter for uniqueness. */
         static long run_counter = 0;
         run_counter = run_counter + 1;
-        snprintf(temp_path, sizeof temp_path, "%s%ld", SHUX_RUN_TMP_PREFIX, run_counter);
+        snprintf(temp_path, sizeof temp_path, "%s%ld", XLANG_RUN_TMP_PREFIX, run_counter);
 #endif
     }
     for (i = 0; i < argc; i++)
@@ -5641,7 +5641,7 @@ int32_t driver_resolve_target_arch(int parsed_target, int saw_target_flag) {
     return parsed_target;
   }
   (void)(({   {
-    if ((shux_host_is_apple_aarch64() !=0)) {
+    if ((xlang_host_is_apple_aarch64() !=0)) {
       return 1;
     }
     return parsed_target;
@@ -5652,7 +5652,7 @@ int32_t driver_resolve_target_arch(int parsed_target, int saw_target_flag) {
 
 extern int main_entry(int argc, char **argv);
 
-int shux_forward_main_to_main_entry(int argc, char **argv) {
+int xlang_forward_main_to_main_entry(int argc, char **argv) {
   (void)(({   {
     int r = main_entry(argc, argv);
     return r;
@@ -5661,11 +5661,11 @@ int shux_forward_main_to_main_entry(int argc, char **argv) {
   return 0;
 }
 
-SHUX_WEAK void bootstrap_init_static_tls(void) {
+XLANG_WEAK void bootstrap_init_static_tls(void) {
   (void)(0);
 }
 
-SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
+XLANG_WEAK void bootstrap_init_environ(int argc, char **argv) {
   (void)(0);
 }
 
@@ -5680,10 +5680,10 @@ SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
  *     driver_run_fn_on_current_large_stack path (driver_bump_stack_limit
  *     raises soft limit; pipeline runs on main thread). See AGENTS.md
  *     "平台边界必须标注" + project memory "Windows/MinGW weak" constraints.
- *   Authority: this SHUX_WEAK def is the sole linked definition on all
+ *   Authority: this XLANG_WEAK def is the sole linked definition on all
  *     platforms; the strong def in bootstrap_nostdlib_stubs.from_x.c
  *     (returns 1) is an orphan target never linked. G.4 single authority. */
-SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
+XLANG_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
 #if defined(_WIN32) || defined(_WIN64)
   return 1;
 #else

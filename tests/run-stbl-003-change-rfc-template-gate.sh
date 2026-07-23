@@ -7,9 +7,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STBL_CRFC_DOC:-analysis/stbl-change-rfc-template-v1.md}"
-TEMPLATE="${SHUX_STBL_CRFC_TEMPLATE:-analysis/std-change-rfc-template.md}"
-MANIFEST="${SHUX_STBL_CRFC_TSV:-tests/baseline/stbl-change-rfc-template.tsv}"
+DOC="${XLANG_STBL_CRFC_DOC:-analysis/stbl-change-rfc-template-v1.md}"
+TEMPLATE="${XLANG_STBL_CRFC_TEMPLATE:-analysis/std-change-rfc-template.md}"
+MANIFEST="${XLANG_STBL_CRFC_TSV:-tests/baseline/stbl-change-rfc-template.tsv}"
 LIB="tests/lib/stbl-change-rfc-template.sh"
 MIN_SEC=7
 

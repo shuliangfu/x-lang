@@ -37,7 +37,7 @@
 |------|----------|------|----------------|
 | **alpha** | `v0.x.y-alpha.N` | 每周或按需 | `dev` HEAD + `run-portable-suite.sh` 绿 |
 | **beta** | `v0.x.y-beta.N` | 双周或里程碑 | `main` + `run-eng-release-precheck.sh` 绿 |
-| **stable** | `vX.Y.Z`（无后缀） | 季度或 P0 批次完成 | `main` + `SHUX_RELEASE_FULL=1` 预检 + ENG-004 checklist |
+| **stable** | `vX.Y.Z`（无后缀） | 季度或 P0 批次完成 | `main` + `XLANG_RELEASE_FULL=1` 预检 + ENG-004 checklist |
 
 说明：
 
@@ -57,8 +57,8 @@
 4. beta/stable 前跑：
 
 ```bash
-SHUX_RELEASE_TAG=v0.1.0-beta.1 ./tests/run-eng-release-precheck.sh
-SHUX_RELEASE_FULL=1 SHUX_RELEASE_TAG=v1.0.0 ./tests/run-eng-release-precheck.sh
+XLANG_RELEASE_TAG=v0.1.0-beta.1 ./tests/run-eng-release-precheck.sh
+XLANG_RELEASE_FULL=1 XLANG_RELEASE_TAG=v1.0.0 ./tests/run-eng-release-precheck.sh
 ```
 
 5. baseline 数值变更仍走 ENG-001 version bump（`perf-baseline-registry.tsv`）

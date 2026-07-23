@@ -6,22 +6,22 @@
 #   boot021_parse_bisect_status LOG_FILE TARGET
 #   boot021_emit_report status runnable_ok promote_emit skip
 
-BOOT021_PREFIX="${SHUX_BOOT021_PREFIX:-shux: [SHUX_BOOT021]}"
+BOOT021_PREFIX="${XLANG_BOOT021_PREFIX:-xlang: [XLANG_BOOT021]}"
 _LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/comp-riscv64.sh
 . "$_LIB_DIR/comp-riscv64.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . "$_LIB_DIR/ci-host.sh"
 
-# Linux 且存在本机构建 shux_asm 链时可跑 bisect wave。
-# Docker portable（make all 仅 shux-c）忽略 bind-mount 的 shux_asm.experimental 残留。
+# Linux 且存在本机构建 xlang_asm 链时可跑 bisect wave。
+# Docker portable（make all 仅 xlang-c）忽略 bind-mount 的 xlang_asm.experimental 残留。
 boot021_mega7_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  if ci_is_docker && [ ! -x "./compiler/shux_asm" ]; then
+  if ci_is_docker && [ ! -x "./compiler/xlang_asm" ]; then
     return 1
   fi
   local cand
-  for cand in ./compiler/shux_asm ./compiler/shux_asm.experimental; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang_asm.experimental; do
     if comp_riscv64_native_shu "$cand"; then
       return 0
     fi

@@ -26,7 +26,7 @@
 - **映射表**：`compiler/src/codegen/codegen.c` → `builtin_intrinsic_name()`
 - **调用点**：`codegen` CALL 跨模块路径经 `builtin_intrinsic_name(full_name)` 输出
 
-自举 `.x` codegen 路径尚未镜像该表；当前验收以 C 前端 `shux-c -E` 为准（与 Phase 1 其他 emit gate 一致）。
+自举 `.x` codegen 路径尚未镜像该表；当前验收以 C 前端 `xlang-c -E` 为准（与 Phase 1 其他 emit gate 一致）。
 
 ---
 
@@ -37,16 +37,16 @@
 - RFC、manifest TSV、gate 脚本、`codegen.c` 四条映射字符串存在
 - 烟测源 `tests/core-mem/intrinsic_emit.x` 存在
 
-### 3.2 runnable（本机可执行 shux-c 时）
+### 3.2 runnable（本机可执行 xlang-c 时）
 
-**注意**：有 `import` 时 `-E` 仅内联依赖模块，**不输出入口 `main` 体**（与 `tests/mem/main.x` 实测一致），不能用于验跨模块 CALL intrinsic。须用 `-o` 编译路径 + `SHUX_DEBUG_C=1` 落盘生成 C：
+**注意**：有 `import` 时 `-E` 仅内联依赖模块，**不输出入口 `main` 体**（与 `tests/mem/main.x` 实测一致），不能用于验跨模块 CALL intrinsic。须用 `-o` 编译路径 + `XLANG_DEBUG_C=1` 落盘生成 C：
 
 ```bash
-SHUX_DEBUG_C=1 ./compiler/shux-c -L . tests/mem/main.x -o /tmp/shux_mem_probe
-grep __builtin_mem /tmp/shux_debug.c
+XLANG_DEBUG_C=1 ./compiler/xlang-c -L . tests/mem/main.x -o /tmp/xlang_mem_probe
+grep __builtin_mem /tmp/xlang_debug.c
 ```
 
-（链接失败可忽略，只要 `/tmp/shux_debug.c` 已写出。）
+（链接失败可忽略，只要 `/tmp/xlang_debug.c` 已写出。）
 
 生成 C 的 `main` 中须同时包含：
 
@@ -58,7 +58,7 @@ grep __builtin_mem /tmp/shux_debug.c
 报告前缀：
 
 ```
-shux: [SHUX_CORE_MEM_INTRINSIC] status=ok emit=4/4
+xlang: [XLANG_CORE_MEM_INTRINSIC] status=ok emit=4/4
 ```
 
 ---

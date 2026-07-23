@@ -5,15 +5,15 @@
 #
 # 用法（仓库根）：
 #   . tests/lib/min-asm-gcc-link.sh
-#   min_asm_gcc_link ./compiler/shux_asm tests/typeck/ctfe/i64_min_not_zero.x /tmp/i64_exe
+#   min_asm_gcc_link ./compiler/xlang_asm tests/typeck/ctfe/i64_min_not_zero.x /tmp/i64_exe
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
 
 # 解析 gcc 可执行路径（Docker gcc 镜像优先 /usr/local/bin/gcc）。
 min_asm_pick_gcc() {
-  if [ -n "${SHUX_MIN_GCC:-}" ]; then
-    echo "$SHUX_MIN_GCC"
+  if [ -n "${XLANG_MIN_GCC:-}" ]; then
+    echo "$XLANG_MIN_GCC"
     return 0
   fi
   if [ -x /usr/local/bin/gcc ]; then
@@ -27,30 +27,30 @@ min_asm_pick_gcc() {
   echo gcc
 }
 
-# 用 link_shux emit 用户 .o；透传 SHUX_LINK_BACKEND_ARGS（shux-c 须 -backend asm）。
+# 用 link_xlang emit 用户 .o；透传 XLANG_LINK_BACKEND_ARGS（xlang-c 须 -backend asm）。
 min_asm_emit_user_o() {
-  local link_shux="$1"
+  local link_xlang="$1"
   local x="$2"
   local user_o="$3"
   # shellcheck disable=SC2086
-  "$link_shux" ${SHUX_LINK_BACKEND_ARGS:-} -L . "$x" -o "$user_o"
+  "$link_xlang" ${XLANG_LINK_BACKEND_ARGS:-} -L . "$x" -o "$user_o"
 }
 
 # gcc -fPIE 链最小 runtime + 可选 base64/encoding（link_abi minimal 路径对齐）。
 min_asm_gcc_link() {
-  local link_shux="$1"
+  local link_xlang="$1"
   local x="$2"
   local exe="$3"
-  local user_o="${4:-/tmp/shux_min_user.$$.o}"
+  local user_o="${4:-/tmp/xlang_min_user.$$.o}"
   local gcc_bin
   gcc_bin="$(min_asm_pick_gcc)"
   local extra=()
 
   ensure_runtime_panic_o
   ensure_runtime_process_argv_o
-  min_asm_emit_user_o "$link_shux" "$x" "$user_o"
+  min_asm_emit_user_o "$link_xlang" "$x" "$user_o"
   if [ ! -s "$user_o" ]; then
-    echo "min_asm_gcc_link: empty user.o from $link_shux" >&2
+    echo "min_asm_gcc_link: empty user.o from $link_xlang" >&2
     return 1
   fi
 
@@ -61,7 +61,7 @@ min_asm_gcc_link() {
     extra+=(std/encoding/encoding.o)
   fi
   # std.io 烟测才链 io 桩；须容器内 -B 重编 -fPIE（避免 macOS 挂载 .o 与 -fPIE 链冲突）。
-  if [ -n "${SHUX_MIN_LINK_IO:-}" ]; then
+  if [ -n "${XLANG_MIN_LINK_IO:-}" ]; then
     make -C compiler -B runtime_asm_io_stubs.o
     extra+=(compiler/runtime_asm_io_stubs.o)
   fi
@@ -73,20 +73,20 @@ min_asm_gcc_link() {
     -lc
 }
 
-# shux_asm -o 直链失败时回退 gcc（单文件简写）。
+# xlang_asm -o 直链失败时回退 gcc（单文件简写）。
 min_link_exe() {
-  local link_shux="$1"
+  local link_xlang="$1"
   local x="$2"
   local exe="$3"
   # shellcheck disable=SC2086
-  min_link_exe_args "$link_shux" ${SHUX_LINK_BACKEND_ARGS:-} -L . "$x" -o "$exe"
+  min_link_exe_args "$link_xlang" ${XLANG_LINK_BACKEND_ARGS:-} -L . "$x" -o "$exe"
 }
 
-# 保留完整 argv（-L / -backend 等）尝试直链；失败时对 shux/shux_asm/shux-c 回退 gcc。
+# 保留完整 argv（-L / -backend 等）尝试直链；失败时对 xlang/xlang_asm/xlang-c 回退 gcc。
 min_link_exe_args() {
-  local link_shux="$1"
+  local link_xlang="$1"
   shift
-  local errf="/tmp/shux_min_link_err.$$"
+  local errf="/tmp/xlang_min_link_err.$$"
   local x=""
   local exe=""
   local args=("$@")
@@ -107,16 +107,16 @@ min_link_exe_args() {
     return 1
   fi
 
-  if "$link_shux" "${args[@]}" 2>"$errf"; then
+  if "$link_xlang" "${args[@]}" 2>"$errf"; then
     rm -f "$errf"
     return 0
   fi
 
-  if case "$(basename "$link_shux")" in shux_asm|shux|shux-c|shux_asm2|shux_asm_stage1) true ;; *) false ;; esac; then
-    echo "min: $link_shux -o failed, fallback min_asm_gcc_link ($x -> $exe)" >&2
+  if case "$(basename "$link_xlang")" in xlang_asm|xlang|xlang-c|xlang_asm2|xlang_asm_stage1) true ;; *) false ;; esac; then
+    echo "min: $link_xlang -o failed, fallback min_asm_gcc_link ($x -> $exe)" >&2
     cat "$errf" >&2 || true
     rm -f "$errf"
-    min_asm_gcc_link "$link_shux" "$x" "$exe"
+    min_asm_gcc_link "$link_xlang" "$x" "$exe"
     return $?
   fi
 

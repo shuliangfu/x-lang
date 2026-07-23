@@ -4,7 +4,7 @@
 // ： compiler  pipeline/main/parser  open/read/write/close
 // ， import("std.io")，
 //  ../std/fs/mod.x  std.io  .x typeck （
-// scripts/build_shux_asm.sh）。
+// scripts/build_xlang_asm.sh）。
 //  ../std/fs/mod.x； asm_build_list  -L
 // asm_libroot  -L .. 。
 

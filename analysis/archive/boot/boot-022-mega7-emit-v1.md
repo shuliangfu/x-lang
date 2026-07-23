@@ -9,9 +9,9 @@
 
 ## 1. 目标
 
-在 BOOT-021 runnable 波次上推进 **真 emit 晋升**：`SHUX_ASM_PARSER_MEGA_BISECT=<fn>` 探测 `delta ≥ 8192` 计为 `emit`；**至少 1** 项达标。
+在 BOOT-021 runnable 波次上推进 **真 emit 晋升**：`XLANG_ASM_PARSER_MEGA_BISECT=<fn>` 探测 `delta ≥ 8192` 计为 `emit`；**至少 1** 项达标。
 
-验收：`tests/run-boot-022-mega7-emit-gate.sh` 绿；`min_promote_emit=1`（Linux + `shux_asm`）。
+验收：`tests/run-boot-022-mega7-emit-gate.sh` 绿；`min_promote_emit=1`（Linux + `xlang_asm`）。
 
 ---
 
@@ -48,12 +48,12 @@
 ```
 
 ```
-shux: [SHUX_BOOT022] status=ok promote_emit=1 emit_lead=parse_body_lets_into skip=1
+xlang: [XLANG_BOOT022] status=ok promote_emit=1 emit_lead=parse_body_lets_into skip=1
 ```
 
 - **promote_emit**：`status=emit` 计数；Linux 须 **≥1**
 - **emit_lead**：首个 emit 函数名（期望 B1）
-- Darwin / 无 `shux_asm`：manifest 绿 + wave **SKIP**
+- Darwin / 无 `xlang_asm`：manifest 绿 + wave **SKIP**
 
 ---
 

@@ -8,7 +8,7 @@
  * 职责：为 X 自举编译器提供缺失符号（ASM 后端 / IO 批处理 / LSP 等尚未在 X 路径实现的模块），
  * 以及处理 X 生成代码中模块前缀命名不一致的桥接。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -33,4 +33,4 @@ int32_t preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf
 }
 
 /* ast_module_free — runtime_driver 的某些路径会调用 */
-SHUX_WEAK void ast_module_free(void *m) {}
+XLANG_WEAK void ast_module_free(void *m) {}

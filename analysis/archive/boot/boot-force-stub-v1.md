@@ -54,7 +54,7 @@
 1. manifest：RFC + matrix + `ast_pool.c`  
 2. 6 符号在 `parser.x` + `PARSER_STUB_EQ` 在 `ast_pool.c`  
 3. padding glue 符号在 thin delegate / thin_c  
-4. 回归源文件存在；有 native shux 时 `check` 烟测  
+4. 回归源文件存在；有 native xlang 时 `check` 烟测  
 
 ---
 

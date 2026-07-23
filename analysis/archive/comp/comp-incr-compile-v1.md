@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 策略层 C1–C6 |
 | 2 | 打开 `tests/baseline/comp-incr-compile-prototype.tsv` |
 | 3 | `./tests/run-comp-incr-compile-gate.sh` |
-| 4 | `SHUX_COMPILE_PHASE_TIMING=1 ./tests/run-comp-incr-compile.sh` |
+| 4 | `XLANG_COMPILE_PHASE_TIMING=1 ./tests/run-comp-incr-compile.sh` |
 
 ---
 
@@ -25,18 +25,18 @@
 |------|------|---------|------|
 | **C1-dep-seed** | 依赖模块 C 预跑槽位，跳过重复 read/parse | **done** | `driver_dep_seeded_get` |
 | **C2-lsp-cache** | LSP 同源 hash 复用 `ASTModule` | **done** | `lsp_diag_invalidate_cache` |
-| **C3-asm-preserve** | 自举第二遍失败时保留非空 `__text` | **done** | `build_shux_asm.sh` |
+| **C3-asm-preserve** | 自举第二遍失败时保留非空 `__text` | **done** | `build_xlang_asm.sh` |
 | **C4-std-prelink** | 预编译 `std/*.o` 链入，用户增量不重编 std | **done** | `runtime.c` `get_std_*_o_path` |
-| **C5-phase-timing** | 分阶段计时衡量增量收益 | **done** | `SHUX_COMPILE_PHASE_TIMING` |
+| **C5-phase-timing** | 分阶段计时衡量增量收益 | **done** | `XLANG_COMPILE_PHASE_TIMING` |
 | **C6-object-cache** | 按内容 hash 复用 `.o`（import 闭包） | **planned** | v2 RFC |
 
 **incremental 原则**：
 
-1. **先观测再缓存**：用 `SHUX_COMPILE_PHASE_TIMING` 定位 parse/typeck/codegen 占比，再决定 cache 粒度。
+1. **先观测再缓存**：用 `XLANG_COMPILE_PHASE_TIMING` 定位 parse/typeck/codegen 占比，再决定 cache 粒度。
 2. **dep 优先**：多文件项目重复成本在 import 闭包；v1 以 `driver_dep_*` 预填为主。
-3. **check 与 -o 分轨**：`shux check` 可走 LSP 级 cache；`-o` 链路 v1 仅保证**二次编译可测量且不回退**（ratio ≤1.0）。
+3. **check 与 -o 分轨**：`xlang check` 可走 LSP 级 cache；`-o` 链路 v1 仅保证**二次编译可测量且不回退**（ratio ≤1.0）。
 4. **v2 目标**：二次编译 median ≤ **0.85×** 首次（`comp-incr-compile-bench.tsv` `target_ratio`）。
-5. **稳定 SKIP**：C-only `shux-c` 无 pipeline 阶段计时时 `bench_timing` SKIP；Docker/CI ratio 上限 ×1.65/×1.4 抗抖动。
+5. **稳定 SKIP**：C-only `xlang-c` 无 pipeline 阶段计时时 `bench_timing` SKIP；Docker/CI ratio 上限 ×1.65/×1.4 抗抖动。
 
 ---
 
@@ -48,7 +48,7 @@
 |----------|------|--------|------|
 | `proto_dep_seed` | dep 预跑跳过 parse | done | `pipeline.x` |
 | `proto_lsp_cache` | 源 hash 模块 cache | done | `lsp_diag.c` |
-| `proto_asm_preserve` | build_asm __text 保留 | done | `build_shux_asm.sh` |
+| `proto_asm_preserve` | build_asm __text 保留 | done | `build_xlang_asm.sh` |
 | `proto_std_prelink` | std 预链 .o | done | `runtime.c` |
 | `proto_phase_timing` | 阶段计时 | done | `obs-compile-phase-timing-v1.md` |
 | `proto_object_cache` | 内容寻址 .o | planned | — |
@@ -63,7 +63,7 @@
 |----------|------|------|---------|
 | `bench_double_check` | `loop_i32.x` | `check` ×2 | second/first ≤ **1.0** |
 | `bench_double_o` | `loop_i32.x` | `-o` ×2 | second/first ≤ **1.0** |
-| `bench_timing` | 同上 | `SHUX_COMPILE_PHASE_TIMING=1` | 须输出 timing 行 |
+| `bench_timing` | 同上 | `XLANG_COMPILE_PHASE_TIMING=1` | 须输出 timing 行 |
 | `bench_make_q` | `compiler/` | `make -q` | exit 0（构建 cache 代理） |
 | `bench_dogfood_check` | `tests/wpo/dead_fn.x` | `check` ×2 | second/first ≤ **1.1**（扩面 v1） |
 

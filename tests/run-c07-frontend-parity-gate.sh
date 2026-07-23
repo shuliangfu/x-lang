@@ -1,35 +1,35 @@
 #!/usr/bin/env bash
-# C-07：shux-c（C 前端）vs shux/shux_asm（.x 前端）同输入 typeck/run parity 门禁。
+# C-07：xlang-c（C 前端）vs xlang/xlang_asm（.x 前端）同输入 typeck/run parity 门禁。
 #
 # 用法：./tests/run-c07-frontend-parity-gate.sh
-# 环境：SHUX_C07_FAIL=1 失败时硬退出；C07_REF / C07_CAND 可覆盖编译器路径。
-#       SHUX_C07_TRY_RUN=1 时在 typeck_ok 通过后额外尝试 -o 运行（需 liburing 等）。
+# 环境：XLANG_C07_FAIL=1 失败时硬退出；C07_REF / C07_CAND 可覆盖编译器路径。
+#       XLANG_C07_TRY_RUN=1 时在 typeck_ok 通过后额外尝试 -o 运行（需 liburing 等）。
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_C07_FAIL:-0}
-TRY_RUN=${SHUX_C07_TRY_RUN:-0}
-MATRIX="${SHUX_C07_MATRIX:-tests/baseline/c07-frontend-parity-matrix.tsv}"
+FAIL=${XLANG_C07_FAIL:-0}
+TRY_RUN=${XLANG_C07_TRY_RUN:-0}
+MATRIX="${XLANG_C07_MATRIX:-tests/baseline/c07-frontend-parity-matrix.tsv}"
 DOC="analysis/phase-c-c07-v1.md"
 
 # shellcheck source=tests/lib/c07-frontend-parity.sh
 . tests/lib/c07-frontend-parity.sh
 
-echo "=== C-07: frontend parity (shux-c REF vs x CAND) ==="
+echo "=== C-07: frontend parity (xlang-c REF vs x CAND) ==="
 for f in "$MATRIX" "$DOC" tests/lib/c07-frontend-parity.sh; do
   [ -f "$f" ] || { echo "c07 gate FAIL: missing $f" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 done
 
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
 
 rc_resolve=0
 c07_resolve_compilers || rc_resolve=$?
 if [ "$rc_resolve" -eq 1 ]; then
-  echo "c07 gate SKIP (shux-c not runnable on $(ci_host_summary))"
+  echo "c07 gate SKIP (xlang-c not runnable on $(ci_host_summary))"
   exit 0
 fi
 if [ "$rc_resolve" -eq 2 ]; then
-  echo "c07 gate SKIP (no runnable shux/shux_asm on $(ci_host_summary))"
+  echo "c07 gate SKIP (no runnable xlang/xlang_asm on $(ci_host_summary))"
   exit 0
 fi
 

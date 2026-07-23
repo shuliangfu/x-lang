@@ -47,10 +47,10 @@
 ```
 
 ```
-shux: [SHUX_STD063_ELF_DEEP] status=ok deep_c=1 deep_x=0 skip=1
+xlang: [XLANG_STD063_ELF_DEEP] status=ok deep_c=1 deep_x=0 skip=1
 ```
 
-无 native `shux` 时 manifest 仍须绿；C 烟测须过。
+无 native `xlang` 时 manifest 仍须绿；C 烟测须过。
 
 ---
 

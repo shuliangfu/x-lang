@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_CONFIG_DOC:-analysis/std-config-v1.md}"
-MANIFEST="${SHUX_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
+DOC="${XLANG_STD_CONFIG_DOC:-analysis/std-config-v1.md}"
+MANIFEST="${XLANG_STD_CONFIG_MANIFEST:-tests/baseline/std-config-manifest.tsv}"
 MOD_X="std/config/mod.x"
 CFG_X="std/config/config.x"
 LIB="tests/lib/std-config.sh"
@@ -66,15 +66,15 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-086: config c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/config/config.o ../std/env/env.o ../std/process/process.o runtime_process_argv.o runtime_process_os_glue.o runtime_env_os.o >/dev/null 2>&1
-  if cc -std=c11 -O1 -o /tmp/shux_config_smoke \
+  if cc -std=c11 -O1 -o /tmp/xlang_config_smoke \
     "$SMOKE_C" std/config/config.o std/env/env.o std/process/process.o compiler/runtime_process_argv.o compiler/runtime_process_os_glue.o compiler/runtime_env_os.o 2>/dev/null; then
-    if /tmp/shux_config_smoke >/dev/null 2>&1; then C_OK=1; fi
-    rm -f /tmp/shux_config_smoke
+    if /tmp/xlang_config_smoke >/dev/null 2>&1; then C_OK=1; fi
+    rm -f /tmp/xlang_config_smoke
   fi
 else
-  echo "std-config gate SKIP c smoke (need shux-c for config.x merge)" >&2
+  echo "std-config gate SKIP c smoke (need xlang-c for config.x merge)" >&2
   SKIP=1
 fi
 if [ "$C_OK" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
@@ -83,23 +83,23 @@ if [ "$C_OK" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
   exit 1
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-086: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-086: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-config gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_config_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_config_run_smoke "$SHUX_BIN" "$SMOKE_X" "layer"; then X_OK=1; else
+  if std_config_run_smoke "$XLANG_BIN" "$SMOKE_X" "layer"; then X_OK=1; else
     std_config_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-config gate SKIP .x smoke (no shux)" >&2
+  echo "std-config gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

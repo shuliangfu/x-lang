@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # std-sqlite-gate.sh — STD-057 manifest 与 SQLite 烟测辅助
 
-STD_SQLITE_PREFIX="${SHUX_STD_SQLITE_PREFIX:-shux: [SHUX_STD_SQLITE]}"
+STD_SQLITE_PREFIX="${XLANG_STD_SQLITE_PREFIX:-xlang: [XLANG_STD_SQLITE]}"
 
 # 探测本机是否可链 libsqlite3。
 std_sqlite_probe_libs() {
-  local out="/tmp/shux_std_sqlite_probe_$$"
+  local out="/tmp/xlang_std_sqlite_probe_$$"
   if ! cc -std=c11 -x c - -lsqlite3 -o "$out" 2>/dev/null <<'EOF'
 #include <sqlite3.h>
 int main(void) { return sqlite3_libversion() ? 0 : 1; }
@@ -80,7 +80,7 @@ std_sqlite_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# sqlite.o 是否已合并 .x 符号（无 shux-c 时仅含 glue）。
+# sqlite.o 是否已合并 .x 符号（无 xlang-c 时仅含 glue）。
 std_sqlite_o_has_x_symbols() {
   local sqlite_o="$1"
   [ -f "$sqlite_o" ] && nm "$sqlite_o" 2>/dev/null | grep -q ' db_sqlite_exec_smoke_c'
@@ -90,7 +90,7 @@ std_sqlite_o_has_x_symbols() {
 std_sqlite_run_c_smoke() {
   local sqlite_c="$1"
   local src="tests/std-sqlite/exec_roundtrip_ok.c"
-  local out="/tmp/shux_std_sqlite_$$"
+  local out="/tmp/xlang_std_sqlite_$$"
   local sqlite_o
   sqlite_o="$(dirname "$sqlite_c")/sqlite.o"
   if [ ! -f "$sqlite_o" ]; then
@@ -98,7 +98,7 @@ std_sqlite_run_c_smoke() {
     return 1
   fi
   if ! std_sqlite_o_has_x_symbols "$sqlite_o"; then
-    echo "std-sqlite SKIP c smoke (sqlite.o missing .x symbols; need shux-c)" >&2
+    echo "std-sqlite SKIP c smoke (sqlite.o missing .x symbols; need xlang-c)" >&2
     return 2
   fi
   if ! cc -std=c11 -O1 -o "$out" "$src" "$sqlite_o" -lsqlite3 2>/dev/null; then
@@ -119,13 +119,13 @@ std_sqlite_run_c_smoke() {
 
 # 编译并运行 .x 烟测。
 std_sqlite_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-exec}"
-  local exe="/tmp/shux_std_sqlite_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_sqlite_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-sqlite FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

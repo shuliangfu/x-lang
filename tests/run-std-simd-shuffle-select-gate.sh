@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
-MANIFEST="${SHUX_STD_SIMD_SHUFFLE_SELECT_TSV:-tests/baseline/std-simd-shuffle-select.tsv}"
+DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
+MANIFEST="${XLANG_STD_SIMD_SHUFFLE_SELECT_TSV:-tests/baseline/std-simd-shuffle-select.tsv}"
 MOD_X="std/simd/mod.x"
 LIB="tests/lib/std-simd-shuffle-select.sh"
 SMOKE_X="tests/simd/shuffle_select_roundtrip.x"
@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SMOKE_X"; do
   fi
 done
 
-for kw in STD-047 vec4f_shuffle vec8i_select lane-scalar SHUX_SIMD_HW; do
+for kw in STD-047 vec4f_shuffle vec8i_select lane-scalar XLANG_SIMD_HW; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-simd-shuffle-select gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -93,20 +93,20 @@ stdlib_cm_native_shu() {
   esac
 }
 
-# SIMD shuffle/select 需 asm 后端；shux-c 无法为 Vec 函数体生成 C。
+# SIMD shuffle/select 需 asm 后端；xlang-c 无法为 Vec 函数体生成 C。
 stdlib_cm_native_simd_asm() {
   local f="$1"
   stdlib_cm_native_shu "$f" || return 1
   case "$f" in
-    */shux-c|*/shux-x*) return 1 ;;
+    */xlang-c|*/xlang-x*) return 1 ;;
   esac
   return 0
 }
 
-# 优先使用 bootstrap 产出的 ./compiler/shux（含新 simd_enc / 无 stretch 卡顿）。
-stdlib_cm_pick_shux_asm() {
+# 优先使用 bootstrap 产出的 ./compiler/xlang（含新 simd_enc / 无 stretch 卡顿）。
+stdlib_cm_pick_xlang_asm() {
   local cand
-  for cand in ./compiler/shux ./compiler/shux_asm ./compiler/shux_asm.strict ./compiler/shux_asm_working; do
+  for cand in ./compiler/xlang ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm_working; do
     if stdlib_cm_native_simd_asm "$cand"; then
       echo "$cand"
       return 0
@@ -119,31 +119,31 @@ SHUFFLE_OK=0
 SELECT_OK=0
 S4_OK=0
 SKIP=1
-SHUX_ASM=""
-SHUX_TYPECK=""
-if cand="$(stdlib_cm_pick_shux_asm)"; then
-  SHUX_ASM="$cand"
+XLANG_ASM=""
+XLANG_TYPECK=""
+if cand="$(stdlib_cm_pick_xlang_asm)"; then
+  XLANG_ASM="$cand"
 fi
-for cand in ./compiler/shux-c ./compiler/shux; do
+for cand in ./compiler/xlang-c ./compiler/xlang; do
   if stdlib_cm_native_shu "$cand"; then
-    SHUX_TYPECK="$cand"
+    XLANG_TYPECK="$cand"
     break
   fi
 done
 
-if [ -n "$SHUX_TYPECK" ]; then
-  echo "=== STD-047: typeck ($SHUX_TYPECK) ==="
-  if ! "$SHUX_TYPECK" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_TYPECK" ]; then
+  echo "=== STD-047: typeck ($XLANG_TYPECK) ==="
+  if ! "$XLANG_TYPECK" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-simd-shuffle-select gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_TYPECK" check -L . "$SMOKE_X" 2>&1 | tail -15 >&2 || true
+    "$XLANG_TYPECK" check -L . "$SMOKE_X" 2>&1 | tail -15 >&2 || true
     std_simd_ss_emit_report "fail" 0 0 0 0
     exit 1
   fi
 fi
 
-if [ -n "$SHUX_ASM" ]; then
-  echo "=== STD-047: roundtrip smoke (SHUX_ASM=$SHUX_ASM) ==="
-  if std_simd_ss_run_smoke "$SHUX_ASM" "$SMOKE_X" "roundtrip"; then
+if [ -n "$XLANG_ASM" ]; then
+  echo "=== STD-047: roundtrip smoke (XLANG_ASM=$XLANG_ASM) ==="
+  if std_simd_ss_run_smoke "$XLANG_ASM" "$SMOKE_X" "roundtrip"; then
     SHUFFLE_OK=1
     SELECT_OK=1
     SKIP=0
@@ -152,7 +152,7 @@ if [ -n "$SHUX_ASM" ]; then
       case "$(uname -m 2>/dev/null)" in
         x86_64|amd64) S4_STRICT=1 ;;
       esac
-      if SHUX="$SHUX_ASM" SHUX_SIMD_HW_STRICT="${S4_STRICT}" ./tests/run-simd-s4-gate.sh >/tmp/std_simd_s4_$$.log 2>&1; then
+      if XLANG="$XLANG_ASM" XLANG_SIMD_HW_STRICT="${S4_STRICT}" ./tests/run-simd-s4-gate.sh >/tmp/std_simd_s4_$$.log 2>&1; then
         S4_OK=1
       elif [ -n "$S4_STRICT" ]; then
         echo "std-simd-shuffle-select gate FAIL: simd-s4 strict HW check" >&2
@@ -169,7 +169,7 @@ if [ -n "$SHUX_ASM" ]; then
     echo "std-simd-shuffle-select WARN: asm runtime smoke failed; manifest+typeck OK (skip)" >&2
   fi
 else
-  echo "std-simd-shuffle-select gate SKIP runtime smoke (no native shux_asm)" >&2
+  echo "std-simd-shuffle-select gate SKIP runtime smoke (no native xlang_asm)" >&2
 fi
 
 std_simd_ss_emit_report "ok" "$SHUFFLE_OK" "$SELECT_OK" "$S4_OK" "$SKIP"

@@ -41,7 +41,7 @@
 | G-02e-9 | `bootstrap_seed_io_stubs`→`x_seed_bridge`；`lsp_state`→`lsp_diag_pipeline_ctx`；G05 −2 objs | ✅ 108→106 src；G05 59→57 |
 | G-02e-10 | `_stubs_driver`→`runtime_driver_strict_glue_stubs`；产品链去掉 NO_WRAPPER orch 占位 TU；G05 −2 objs | ✅ src 106；G05 57→55 |
 | G-02e-11 | `lsp_codegen_extern.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 106→105 src；G05 55→54 |
-| G-02e-12 | `runtime_pipeline_abi_shux_c_stubs.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 105→104 src；G05 54→53 |
+| G-02e-12 | `runtime_pipeline_abi_xlang_c_stubs.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 105→104 src；G05 54→53 |
 | G-02e-13 | `ast_pool_l5_bridge.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 104→103 src；G05 53→52 |
 | G-02e-14 | `runtime_heap_user.c`→`.inc` + glue_stubs；link_abi ensure 写 wrap 产用户链 `.o`；G05 −1 | ✅ 103→102 src；G05 52→51 |
 
@@ -55,11 +55,11 @@
 每批门禁：
 
 ```bash
-SHUX_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh
-SHUX=./compiler/shux SHUX_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-lang-unsafe-gate.sh
+XLANG_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh
+XLANG=./compiler/xlang XLANG_SKIP_SUBSCRIPT_MAKE=1 ./tests/run-lang-unsafe-gate.sh
 # 产品：
 cd compiler && sh scripts/g05_prepare_and_relink.sh
-./shux check tests/return-value/main.x && ./shux -backend c -L . tests/return-value/main.x -o /tmp/rv && /tmp/rv; echo $?
+./xlang check tests/return-value/main.x && ./xlang -backend c -L . tests/return-value/main.x -o /tmp/rv && /tmp/rv; echo $?
 ```
 
 ## 5. 完成判据

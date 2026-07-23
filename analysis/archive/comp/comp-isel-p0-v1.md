@@ -35,10 +35,10 @@ bench 扩展见 `comp-isel-bench.tsv`（`bench_field_p0`、`bench_nested_p0`、`
 ```
 
 ```
-shux: [SHUX_COMP014_ISEL_P0] status=ok p0_ok=4 p0_skip=0 skip=0
+xlang: [XLANG_COMP014_ISEL_P0] status=ok p0_ok=4 p0_skip=0 skip=0
 ```
 
-无 native `shux_asm`/`shux` 时 manifest 仍须绿；runnable SKIP。
+无 native `xlang_asm`/`xlang` 时 manifest 仍须绿；runnable SKIP。
 
 ---
 

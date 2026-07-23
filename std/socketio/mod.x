@@ -18,8 +18,8 @@
  * Socket.IO C ABI wrappers.
  *
  * All `net_ws_*` / `net_tls_*` / `net_close_socket_*` / `sio_*` / `sio_eio_*`
- * functions below are thin wrappers over the SHUX Socket.IO / WebSocket
- * C implementation (see seeds). They are exposed to SHUX via
+ * functions below are thin wrappers over the XLANG Socket.IO / WebSocket
+ * C implementation (see seeds). They are exposed to XLANG via
  * `extern "C"` declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches the C runtime

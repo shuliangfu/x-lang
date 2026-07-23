@@ -48,7 +48,7 @@ gate_progress_run_heartbeat() {
   local interval="${2:-15}"
   shift 2
   gate_progress "START: $label (live output + heartbeat every ${interval}s)"
-  local logf="/tmp/shux_gate_hb_$$.log"
+  local logf="/tmp/xlang_gate_hb_$$.log"
   : >"$logf"
   set +e
   # 勿 >>logf 后台吞输出：用 tee 同步刷终端，结束后再读 log 仅作备份。

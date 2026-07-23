@@ -1,6 +1,6 @@
 /* seeds/rt_run_exec.from_x.c — G-02f-297～299/311 P2 runtime R7 (run/exec gates)
  * Logic source: src/runtime/rt_run_exec.x
- * Hybrid: SHUX_RT_RUN_EXEC_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_RUN_EXEC_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：8 公共业务符号均由 .x 提供；
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务符号 H=0）。
@@ -37,12 +37,12 @@ extern void diag_report_with_code(const char *file, int line, int col, const cha
                                   const char *msg, const char *detail);
 extern void shu_target_cpu_print(FILE *out, uint32_t features);
 extern int shu_waitpid_retry(pid_t pid, int *status_out);
-extern const char *shux_repo_root_from_argv0(const char *argv0);
+extern const char *xlang_repo_root_from_argv0(const char *argv0);
 /* wave226 G.7: bash test shell via public pure thin link_abi_system (wave224 → _impl host system). */
 extern int link_abi_system(const char *cmd);
 extern void driver_print_usage_write(void);
 
-#ifndef SHUX_RT_RUN_EXEC_FROM_X
+#ifndef XLANG_RT_RUN_EXEC_FROM_X
 
 /**
  * 是否与 driver_run_compiler_full 默认一致：默认可走 asm 后端；
@@ -76,7 +76,7 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
 }
 
 /**
- * 打印 shux 用法摘要（fd 1）。
+ * 打印 xlang 用法摘要（fd 1）。
  * Cap residual driver_print_usage_write 持巨型字面量。
  */
 void driver_print_usage_c(void) {
@@ -88,17 +88,17 @@ void driver_print_usage_c(void) {
 /** wait/system 状态 → 进程 rc；失败路径写诊断（diag 仍 extern）。 */
 int runtime_test_status_to_rc(const char *script, int st) {
   if (st == -1) {
-    runtime_diag_errno_path(script, "process error", "system(shux test)", script);
+    runtime_diag_errno_path(script, "process error", "system(xlang test)", script);
     return 1;
   }
   if (WIFEXITED(st))
     return WEXITSTATUS(st) != 0 ? 1 : 0;
   if (WIFSIGNALED(st)) {
-    diag_reportf_with_code(script, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+    diag_reportf_with_code(script, 0, 0, "process error", XLANG_DIAG_CODE_PROCESS_PRC001, NULL,
                            "test script terminated by signal %d: '%s'", WTERMSIG(st), script ? script : "?");
     return 1;
   }
-  diag_reportf_with_code(script, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+  diag_reportf_with_code(script, 0, 0, "process error", XLANG_DIAG_CODE_PROCESS_PRC001, NULL,
                          "test script terminated abnormally: '%s'", script ? script : "?");
   return 1;
 }
@@ -125,7 +125,7 @@ const char *driver_exec_scan_out_path(int argc, char **argv) {
 
 /**
  * 路径是否为不应 exec 的对象/汇编产物（.o/.O/.obj/.s）。
- * 与 shux_output_want_exe 后缀规则对齐。
+ * 与 xlang_output_want_exe 后缀规则对齐。
  */
 int driver_exec_path_is_non_exe(const char *exe) {
   size_t n;
@@ -192,13 +192,13 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
 }
 
 /**
- * shux test：在仓库根执行 bash 测试脚本。
+ * xlang test：在仓库根执行 bash 测试脚本。
  * wave226 G.7: public pure thin link_abi_system (not raw libc system);
  * Cap residual host system stays only link_abi_system_impl.
  * PLATFORM: SHARED orch / host shell boundary.
  */
 int driver_run_test(int argc, char **argv) {
-  const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
+  const char *root = xlang_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
   const char *rel = "tests/run-all.sh";
   char script[768];
   char cmd[1024];
@@ -215,7 +215,7 @@ int driver_run_test(int argc, char **argv) {
   return runtime_test_status_to_rc(script, link_abi_system(cmd));
 }
 
-#else /* SHUX_RT_RUN_EXEC_FROM_X：产品 rest 仅 marker；业务符号由 full .x 提供 */
+#else /* XLANG_RT_RUN_EXEC_FROM_X：产品 rest 仅 marker；业务符号由 full .x 提供 */
 
 int driver_want_asm_emit_to_file(int argc, char **argv);
 void driver_print_usage_c(void);
@@ -226,7 +226,7 @@ int driver_exec_path_is_non_exe(const char *exe);
 int driver_exec_compiled(int argc, uint8_t *argv_opaque);
 int driver_run_test(int argc, char **argv);
 
-#endif /* SHUX_RT_RUN_EXEC_FROM_X */
+#endif /* XLANG_RT_RUN_EXEC_FROM_X */
 
 int labi_rt_run_exec_slice_marker(void) {
   return 1;

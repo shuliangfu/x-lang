@@ -5,7 +5,7 @@
 #   std_json_api_count [manifest_tsv]
 #   std_json_has_api MOD_X fn_name
 #   std_json_has_c_impl JSON_C sym_name
-#   std_json_run_smoke SHUX_BIN smoke_x tag
+#   std_json_run_smoke XLANG_BIN smoke_x tag
 
 # 统计 manifest 中 api 行数。
 std_json_api_count() {
@@ -29,16 +29,16 @@ std_json_has_c_impl() {
 
 # 编译并运行烟测 .x；期望退出码 0。
 std_json_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_json_${tag}_$$"
+  local exe="/tmp/xlang_std_json_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-json FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
-    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

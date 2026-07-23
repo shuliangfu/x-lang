@@ -10,8 +10,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_TYPECK_HOTPATH_TSV:-tests/baseline/typeck-hotpath-matrix.tsv}"
-DOGFOOD="${SHUX_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
+MATRIX="${XLANG_TYPECK_HOTPATH_TSV:-tests/baseline/typeck-hotpath-matrix.tsv}"
+DOGFOOD="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 MIN_DONE=6
 
 # shellcheck source=tests/lib/ci-host.sh
@@ -95,18 +95,18 @@ fi
 echo "typeck-hotpath symbols OK (done=${DONE})"
 
 # ── hook 烟测 ──
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "typeck-hotpath gate SKIP hooks (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "typeck-hotpath gate SKIP hooks (no native xlang)" >&2
   echo "typeck-hotpath gate OK"
   exit 0
 fi
@@ -119,9 +119,9 @@ for hook in $HOOKS; do
     FAILS=$((FAILS + 1))
     continue
   fi
-  echo "── hook: $hook (SHUX=$SHUX_BIN) ──"
+  echo "── hook: $hook (XLANG=$XLANG_BIN) ──"
   chmod +x "$script" 2>/dev/null || true
-  if SHUX="$SHUX_BIN" "$script"; then
+  if XLANG="$XLANG_BIN" "$script"; then
     echo "typeck-hotpath hook OK $hook"
   else
     echo "typeck-hotpath hook FAIL $hook" >&2

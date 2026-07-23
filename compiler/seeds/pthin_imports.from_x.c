@@ -1,6 +1,6 @@
 /* seeds/pthin_imports.from_x.c — G-02f-320 P2 parser thin imports cluster
  * Logic source: src/asm/pthin_imports.x
- * Hybrid: SHUX_PTHIN_IMPORTS_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_IMPORTS_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_imports_slice.inc (~1.8k)
  */

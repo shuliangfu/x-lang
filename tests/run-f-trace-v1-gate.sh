@@ -2,7 +2,7 @@
 # F-trace v1：std.trace 去 C（trace.c → trace.x；v2 后逻辑全在 trace.x）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_TRACE_V1_FAIL:-0}
+FAIL=${XLANG_F_TRACE_V1_FAIL:-0}
 DOC="analysis/phase-f-trace-v1.md"
 MANIFEST="tests/baseline/f-trace-v1-closure.tsv"
 die() { echo "f-trace-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'trace.x' compiler/Makefile || die "Makefile missing trace.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/trace/trace.o >/dev/null 2>&1 || die "make trace.o failed"
 else
-  echo "f-trace-v1 SKIP trace.o build (no shux-c)" >&2
+  echo "f-trace-v1 SKIP trace.o build (no xlang-c)" >&2
 fi
 for sub in run-std-trace-gate.sh run-std-trace-hooks-gate.sh; do
   [ -f "tests/$sub" ] || continue

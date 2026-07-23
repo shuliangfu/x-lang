@@ -23,6 +23,6 @@
 ## 复现
 
 ```bash
-SHUX_F02_WIN32_FAIL=1 ./tests/run-f02-std-sys-win32-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=107
+XLANG_F02_WIN32_FAIL=1 ./tests/run-f02-std-sys-win32-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=107
 ```

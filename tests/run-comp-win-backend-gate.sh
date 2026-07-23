@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP_WIN_BACKEND_DOC:-analysis/comp-win-backend-v1.md}"
-MANIFEST="${SHUX_COMP_WIN_BACKEND_MANIFEST:-tests/baseline/comp-win-backend.tsv}"
-MATRIX="${SHUX_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
+DOC="${XLANG_COMP_WIN_BACKEND_DOC:-analysis/comp-win-backend-v1.md}"
+MANIFEST="${XLANG_COMP_WIN_BACKEND_MANIFEST:-tests/baseline/comp-win-backend.tsv}"
+MATRIX="${XLANG_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
 MIN_LAYERS=6
 MIN_CASES=6
 

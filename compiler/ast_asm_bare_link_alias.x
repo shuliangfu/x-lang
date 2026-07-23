@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-25： .x — ast.x  → pipeline_glue ast_ast_*。
-// arena  *u8 ；：./shux-c -E → seeds/ast_asm_bare_link_alias.from_x.c
+// arena  *u8 ；：./xlang-c -E → seeds/ast_asm_bare_link_alias.from_x.c
 
 extern "C" function ast_ast_block_final_expr_ref(a: *u8, br: i32): i32;
 extern "C" function ast_ast_block_region_body_ref(a: *u8, br: i32, ri: i32): i32;

@@ -49,7 +49,7 @@
 
 - manifest：`tests/baseline/core-str-view.tsv`
 - typeck + runnable：`tests/str/bytes_view.x`
-- 报告：`shux: [SHUX_CORE_STR_VIEW] status=ok`
+- 报告：`xlang: [XLANG_CORE_STR_VIEW] status=ok`
 
 ---
 

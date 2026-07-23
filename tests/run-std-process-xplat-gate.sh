@@ -9,7 +9,7 @@ DOC="analysis/std-process-xplat-v1.md"
 MANIFEST="tests/baseline/std-process-xplat-manifest.tsv"
 VECTORS="tests/baseline/std-process-xplat.tsv"
 MOD_X="std/process/mod.x"
-PROC_C="${SHUX_STD_PROCESS_IMPL:-compiler/seeds/runtime_process_os_glue.from_x.c}"
+PROC_C="${XLANG_STD_PROCESS_IMPL:-compiler/seeds/runtime_process_os_glue.from_x.c}"
 PROC_X="std/process/process.x"
 LIB="tests/lib/std-process-xplat.sh"
 SMOKE_X="tests/process/xplat_behavior.x"
@@ -49,15 +49,15 @@ make -C compiler -q ../std/process/process.o 2>/dev/null || make -C compiler ../
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-142: typeck + API grep (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-142: typeck + API grep (XLANG=$XLANG_BIN) ==="
   for x in "$SMOKE_X" tests/process/boundary.x tests/process/spawn_wait_win.x tests/process/spawn_pipe_echo.x; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-process-xplat gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -8 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -8 >&2 || true
       std_process_xplat_emit_report "fail" 0 0
       exit 1
     fi
@@ -78,7 +78,7 @@ if [ -n "$SHUX_BIN" ]; then
   X_OK=1
   SKIP=1
 else
-  echo "std-process-xplat gate SKIP .x smoke (no shux)" >&2
+  echo "std-process-xplat gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

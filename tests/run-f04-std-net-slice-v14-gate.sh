@@ -2,11 +2,11 @@
 # F-04 v14：std.net accept workers 去 C；net.c 删除门禁。
 #
 # 用法：./tests/run-f04-std-net-slice-v14-gate.sh
-# 环境：SHUX_F04_NET_SLICE_V14_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_SLICE_V14_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_SLICE_V14_FAIL:-0}
+FAIL=${XLANG_F04_NET_SLICE_V14_FAIL:-0}
 DOC="analysis/phase-f-f04-v14.md"
 NET_RUNTIME="compiler/seeds/runtime_net_workers.from_x.c"
 
@@ -36,7 +36,7 @@ fi
 if [ -f tests/run-f04-std-net-slice-v13b-gate.sh ]; then
   echo "=== F-04 v14: delegate v13b gate ==="
   chmod +x tests/run-f04-std-net-slice-v13b-gate.sh
-  if ! SHUX_F04_NET_SLICE_V13B_FAIL="$FAIL" tests/run-f04-std-net-slice-v13b-gate.sh; then
+  if ! XLANG_F04_NET_SLICE_V13B_FAIL="$FAIL" tests/run-f04-std-net-slice-v13b-gate.sh; then
     die "v13b sub-gate failed"
   fi
 fi

@@ -1,58 +1,58 @@
 #!/usr/bin/env bash
-# WPO-S3 门禁：小 struct stack promote + struct 跨 await asm CPS（exit 10 / SHUX_ASYNC_YIELD exit 0）
+# WPO-S3 门禁：小 struct stack promote + struct 跨 await asm CPS（exit 10 / XLANG_ASYNC_YIELD exit 0）
 # 用法：./tests/run-wpo-s3-gate.sh
-# 同模块 smoke：shux_asm 已内联 make_pair/sum_pair（disasm 基线）。
-# 跨模块 stack_promote_cross：typeck 始终跑；asm 链默认开启（需可 exec 的 Linux shux_asm）。
+# 同模块 smoke：xlang_asm 已内联 make_pair/sum_pair（disasm 基线）。
+# 跨模块 stack_promote_cross：typeck 始终跑；asm 链默认开启（需可 exec 的 Linux xlang_asm）。
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/wpo-s3-disasm.sh
 . tests/lib/wpo-s3-disasm.sh
 
-CHECK_SHUX="${SHUX:-}"
-# shux_asm 仅在本机可 exec 时跑 disasm（Mac 上常为 Docker 产物的 Linux ELF）
-SHUX_ASM_BIN=""
-SHUX_ASM_NATIVE=0
-if [ -x ./compiler/shux_asm ]; then
-  SHUX_ASM_BIN=./compiler/shux_asm
-elif [ -x ./compiler/shux_asm.experimental ] && [ "$(uname -s)" = "Linux" ]; then
-  SHUX_ASM_BIN=./compiler/shux_asm.experimental
+CHECK_XLANG="${XLANG:-}"
+# xlang_asm 仅在本机可 exec 时跑 disasm（Mac 上常为 Docker 产物的 Linux ELF）
+XLANG_ASM_BIN=""
+XLANG_ASM_NATIVE=0
+if [ -x ./compiler/xlang_asm ]; then
+  XLANG_ASM_BIN=./compiler/xlang_asm
+elif [ -x ./compiler/xlang_asm.experimental ] && [ "$(uname -s)" = "Linux" ]; then
+  XLANG_ASM_BIN=./compiler/xlang_asm.experimental
 fi
-if [ -n "$SHUX_ASM_BIN" ]; then
+if [ -n "$XLANG_ASM_BIN" ]; then
   if [ "$(uname -s)" = "Linux" ]; then
-    SHUX_ASM_NATIVE=1
-  elif [ "$(uname -s)" != "Darwin" ] && file "$SHUX_ASM_BIN" 2>/dev/null | grep -q "Mach-O"; then
-    SHUX_ASM_NATIVE=1
+    XLANG_ASM_NATIVE=1
+  elif [ "$(uname -s)" != "Darwin" ] && file "$XLANG_ASM_BIN" 2>/dev/null | grep -q "Mach-O"; then
+    XLANG_ASM_NATIVE=1
   fi
 fi
 
-if [ -z "$CHECK_SHUX" ]; then
-  # shux-c 无 --help；可执行即优先（Mac 勿误选 Linux ELF shux_asm）
-  if [ -x ./compiler/shux-c ]; then
-    CHECK_SHUX=./compiler/shux-c
-  elif [ -n "$SHUX_ASM_BIN" ] && [ "$SHUX_ASM_NATIVE" = "1" ]; then
-    CHECK_SHUX="$SHUX_ASM_BIN"
+if [ -z "$CHECK_XLANG" ]; then
+  # xlang-c 无 --help；可执行即优先（Mac 勿误选 Linux ELF xlang_asm）
+  if [ -x ./compiler/xlang-c ]; then
+    CHECK_XLANG=./compiler/xlang-c
+  elif [ -n "$XLANG_ASM_BIN" ] && [ "$XLANG_ASM_NATIVE" = "1" ]; then
+    CHECK_XLANG="$XLANG_ASM_BIN"
   else
-    make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-    CHECK_SHUX=./compiler/shux-c
+    make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+    CHECK_XLANG=./compiler/xlang-c
   fi
 fi
 
 X="tests/wpo/stack_promote_smoke.x"
-OUT="/tmp/shux_wpo_stack_promote_smoke"
+OUT="/tmp/xlang_wpo_stack_promote_smoke"
 
-echo "=== WPO-S3: stack_promote_smoke check ($CHECK_SHUX) ==="
-"$CHECK_SHUX" check "$X" >/dev/null
+echo "=== WPO-S3: stack_promote_smoke check ($CHECK_XLANG) ==="
+"$CHECK_XLANG" check "$X" >/dev/null
 
 echo "=== WPO-S3: stack_promote_cross typeck (import struct helpers) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_cross.x >/dev/null
+"$CHECK_XLANG" check tests/wpo/stack_promote_cross.x >/dev/null
 echo "=== WPO-S3: stack_promote_cross_ret typeck (field sum, no sum_pair) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_cross_ret.x >/dev/null
+"$CHECK_XLANG" check tests/wpo/stack_promote_cross_ret.x >/dev/null
 echo "=== WPO-S3: stack_promote_escape typeck (&p escape) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_escape.x >/dev/null
+"$CHECK_XLANG" check tests/wpo/stack_promote_escape.x >/dev/null
 echo "=== WPO-S3: stack_promote_escape_cross typeck (import &p escape) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_escape_cross.x >/dev/null
+"$CHECK_XLANG" check tests/wpo/stack_promote_escape_cross.x >/dev/null
 echo "=== WPO-S3: stack_promote_escape_global typeck (expect struct stack escape) ==="
-neg_global=$("$CHECK_SHUX" check tests/wpo/stack_promote_escape_global.x 2>&1) && {
+neg_global=$("$CHECK_XLANG" check tests/wpo/stack_promote_escape_global.x 2>&1) && {
   echo "wpo-s3 escape_global FAIL: expected typeck reject" >&2
   exit 1
 }
@@ -63,15 +63,15 @@ echo "$neg_global" | grep -q "struct stack escape" || {
 }
 echo "wpo-s3 escape_global reject OK"
 echo "=== WPO-S3: stack_promote_await typeck (struct 跨 await 占位) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_await.x >/dev/null
+"$CHECK_XLANG" check tests/wpo/stack_promote_await.x >/dev/null
 echo "=== WPO-S3: stack_promote_await_yield typeck (struct 跨 await + 双 poll) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_await_yield.x >/dev/null
+"$CHECK_XLANG" check tests/wpo/stack_promote_await_yield.x >/dev/null
 echo "wpo-s3 cross/cross_ret/escape/await/await_yield typeck OK"
 
 if wpo_host_asm_run_na; then
-  echo "wpo-s3 asm smoke N/A on $(uname -s)-$(uname -m) (refresh shux_asm asm stub; x86_64 covers)"
-elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
-  "$SHUX_ASM_BIN" "$X" -o "$OUT" 2>/dev/null
+  echo "wpo-s3 asm smoke N/A on $(uname -s)-$(uname -m) (refresh xlang_asm asm stub; x86_64 covers)"
+elif [ "$XLANG_ASM_NATIVE" = "1" ]; then
+  "$XLANG_ASM_BIN" "$X" -o "$OUT" 2>/dev/null
   EX=0
   "$OUT" >/dev/null 2>&1 || EX=$?
   if [ "$EX" -ne 7 ]; then
@@ -92,11 +92,11 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
   echo "wpo-s3 asm baseline OK (main inlined, exit 7)"
 
   # 跨模块 asm：co-emit dep + 链接 exe；main 应 call 导入的 make_pair/sum_pair（stack promotion 前基线）
-  CROSS_OUT="/tmp/shux_wpo_stack_promote_cross"
-  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_cross.x -o "$CROSS_OUT" 2>/tmp/shux_wpo_s3_cross_build.log
+  CROSS_OUT="/tmp/xlang_wpo_stack_promote_cross"
+  "$XLANG_ASM_BIN" -backend asm tests/wpo/stack_promote_cross.x -o "$CROSS_OUT" 2>/tmp/xlang_wpo_s3_cross_build.log
   if [ ! -x "$CROSS_OUT" ]; then
-    echo "wpo-s3 cross asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_cross_build.log)" >&2
-    tail -8 /tmp/shux_wpo_s3_cross_build.log 2>/dev/null || true
+    echo "wpo-s3 cross asm FAIL: link/exe missing (see /tmp/xlang_wpo_s3_cross_build.log)" >&2
+    tail -8 /tmp/xlang_wpo_s3_cross_build.log 2>/dev/null || true
     exit 1
   fi
   if ! wpo_s3_main_no_helper_calls "$CROSS_OUT"; then
@@ -113,11 +113,11 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
   echo "wpo-s3 cross asm OK (import helpers inlined in main, exit 7)"
 
   # 跨模块 field-sum（无 sum_pair call）：make_pair 内联 + main 直读 p.a/p.b
-  CROSS_RET_OUT="/tmp/shux_wpo_stack_promote_cross_ret"
-  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_cross_ret.x -o "$CROSS_RET_OUT" 2>/tmp/shux_wpo_s3_cross_ret_build.log
+  CROSS_RET_OUT="/tmp/xlang_wpo_stack_promote_cross_ret"
+  "$XLANG_ASM_BIN" -backend asm tests/wpo/stack_promote_cross_ret.x -o "$CROSS_RET_OUT" 2>/tmp/xlang_wpo_s3_cross_ret_build.log
   if [ ! -x "$CROSS_RET_OUT" ]; then
-    echo "wpo-s3 cross_ret asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_cross_ret_build.log)" >&2
-    tail -8 /tmp/shux_wpo_s3_cross_ret_build.log 2>/dev/null || true
+    echo "wpo-s3 cross_ret asm FAIL: link/exe missing (see /tmp/xlang_wpo_s3_cross_ret_build.log)" >&2
+    tail -8 /tmp/xlang_wpo_s3_cross_ret_build.log 2>/dev/null || true
     exit 1
   fi
   if ! wpo_s3_main_no_helper_calls "$CROSS_RET_OUT"; then
@@ -134,11 +134,11 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
   echo "wpo-s3 cross_ret asm OK (make_pair inlined, field sum exit 7)"
 
   # 同模块 &p 逃逸：make_pair 须直写栈槽，sum_via_ptr 可读有效指针
-  ESC_OUT="/tmp/shux_wpo_stack_promote_escape"
-  "$SHUX_ASM_BIN" build tests/wpo/stack_promote_escape.x -o "$ESC_OUT" 2>/tmp/shux_wpo_s3_escape_build.log
+  ESC_OUT="/tmp/xlang_wpo_stack_promote_escape"
+  "$XLANG_ASM_BIN" build tests/wpo/stack_promote_escape.x -o "$ESC_OUT" 2>/tmp/xlang_wpo_s3_escape_build.log
   if [ ! -x "$ESC_OUT" ]; then
-    echo "wpo-s3 escape asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_escape_build.log)" >&2
-    tail -8 /tmp/shux_wpo_s3_escape_build.log 2>/dev/null || true
+    echo "wpo-s3 escape asm FAIL: link/exe missing (see /tmp/xlang_wpo_s3_escape_build.log)" >&2
+    tail -8 /tmp/xlang_wpo_s3_escape_build.log 2>/dev/null || true
     exit 1
   fi
   if ! wpo_main_no_calls_pat "$ESC_OUT" 'make_pair'; then
@@ -155,11 +155,11 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
   echo "wpo-s3 escape asm OK (addr-of local struct, exit 7)"
 
   # 跨模块 &p → import read_pair_ptr：make_pair 内联 + 指针实参 call helper
-  ESC_CROSS_OUT="/tmp/shux_wpo_stack_promote_escape_cross"
-  "$SHUX_ASM_BIN" build -backend asm tests/wpo/stack_promote_escape_cross.x -o "$ESC_CROSS_OUT" 2>/tmp/shux_wpo_s3_escape_cross_build.log
+  ESC_CROSS_OUT="/tmp/xlang_wpo_stack_promote_escape_cross"
+  "$XLANG_ASM_BIN" build -backend asm tests/wpo/stack_promote_escape_cross.x -o "$ESC_CROSS_OUT" 2>/tmp/xlang_wpo_s3_escape_cross_build.log
   if [ ! -x "$ESC_CROSS_OUT" ]; then
-    echo "wpo-s3 escape_cross asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_escape_cross_build.log)" >&2
-    tail -8 /tmp/shux_wpo_s3_escape_cross_build.log 2>/dev/null || true
+    echo "wpo-s3 escape_cross asm FAIL: link/exe missing (see /tmp/xlang_wpo_s3_escape_cross_build.log)" >&2
+    tail -8 /tmp/xlang_wpo_s3_escape_cross_build.log 2>/dev/null || true
     exit 1
   fi
   if ! wpo_main_no_calls_pat "$ESC_CROSS_OUT" 'make_pair'; then
@@ -176,11 +176,11 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
   echo "wpo-s3 escape_cross asm OK (import read_pair_ptr(&p), exit 7)"
 
   # struct 跨 await：asm sync stub / C CPS 帧保留 Pair（exit 10 = 3+4+3）
-  AWAIT_OUT="/tmp/shux_wpo_stack_promote_await"
-  "$SHUX_ASM_BIN" build tests/wpo/stack_promote_await.x -o "$AWAIT_OUT" 2>/tmp/shux_wpo_s3_await_build.log
+  AWAIT_OUT="/tmp/xlang_wpo_stack_promote_await"
+  "$XLANG_ASM_BIN" build tests/wpo/stack_promote_await.x -o "$AWAIT_OUT" 2>/tmp/xlang_wpo_s3_await_build.log
   if [ ! -x "$AWAIT_OUT" ]; then
-    echo "wpo-s3 await asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_await_build.log)" >&2
-    tail -8 /tmp/shux_wpo_s3_await_build.log 2>/dev/null || true
+    echo "wpo-s3 await asm FAIL: link/exe missing (see /tmp/xlang_wpo_s3_await_build.log)" >&2
+    tail -8 /tmp/xlang_wpo_s3_await_build.log 2>/dev/null || true
     exit 1
   fi
   EX=0
@@ -191,19 +191,19 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
   fi
   echo "wpo-s3 await asm OK (struct across await exit 10)"
 
-  # struct 跨 await + SHUX_ASYNC_YIELD 双 poll：帧须保留 Pair，resume 后 exit 0
+  # struct 跨 await + XLANG_ASYNC_YIELD 双 poll：帧须保留 Pair，resume 后 exit 0
   make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
-  AWAIT_YIELD_OUT="/tmp/shux_wpo_stack_promote_await_yield"
-  SHUX_ASYNC_YIELD=1 "$SHUX_ASM_BIN" -L . tests/wpo/stack_promote_await_yield.x -o "$AWAIT_YIELD_OUT" 2>/tmp/shux_wpo_s3_await_yield_build.log
+  AWAIT_YIELD_OUT="/tmp/xlang_wpo_stack_promote_await_yield"
+  XLANG_ASYNC_YIELD=1 "$XLANG_ASM_BIN" -L . tests/wpo/stack_promote_await_yield.x -o "$AWAIT_YIELD_OUT" 2>/tmp/xlang_wpo_s3_await_yield_build.log
   if [ ! -x "$AWAIT_YIELD_OUT" ]; then
-    echo "wpo-s3 await_yield asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_await_yield_build.log)" >&2
-    tail -8 /tmp/shux_wpo_s3_await_yield_build.log 2>/dev/null || true
+    echo "wpo-s3 await_yield asm FAIL: link/exe missing (see /tmp/xlang_wpo_s3_await_yield_build.log)" >&2
+    tail -8 /tmp/xlang_wpo_s3_await_yield_build.log 2>/dev/null || true
     exit 1
   fi
   EX=0
-  SHUX_ASYNC_YIELD=1 "$AWAIT_YIELD_OUT" >/dev/null 2>&1 || EX=$?
+  XLANG_ASYNC_YIELD=1 "$AWAIT_YIELD_OUT" >/dev/null 2>&1 || EX=$?
   if [ "$EX" -ne 0 ]; then
-    echo "wpo-s3 await_yield asm FAIL: expected exit 0 got $EX (SHUX_ASYNC_YIELD=1 double poll)" >&2
+    echo "wpo-s3 await_yield asm FAIL: expected exit 0 got $EX (XLANG_ASYNC_YIELD=1 double poll)" >&2
     exit 1
   fi
   echo "wpo-s3 await_yield asm OK (struct frame preserved across suspend, exit 0)"
@@ -211,7 +211,7 @@ else
   if [ "$(uname -s)" = "Darwin" ]; then
     echo "wpo-s3 asm smoke N/A on Darwin (user exe ld/run; Linux x86_64 covers)"
   else
-    echo "wpo-s3 asm smoke SKIP (no shux_asm; use docker ubuntu-wpo-s2)"
+    echo "wpo-s3 asm smoke SKIP (no xlang_asm; use docker ubuntu-wpo-s2)"
   fi
 fi
 

@@ -44,7 +44,7 @@
 |------|------|------|
 | manifest | `tests/baseline/exc-error-recovery-cases.tsv` | `min_cases` + `case_*` |
 | runner | `tests/lib/exc-error-recovery.sh` | 单 case / 全量 **runnable** |
-| gate | `tests/run-exc-error-recovery-gate.sh` | manifest + 烟测；无 native `shux` 时 **SKIP** bench |
+| gate | `tests/run-exc-error-recovery-gate.sh` | manifest + 烟测；无 native `xlang` 时 **SKIP** bench |
 | report | gate stdout | `exc-error-recovery gate OK` / 失败 case 列表 |
 
 `policy`：
@@ -72,4 +72,4 @@
 - [x] RFC 本文 + manifest **≥30** case
 - [x] `tests/exc/recovery/*.x` 专项用例
 - [x] `run-exc-error-recovery-gate.sh` 纳入 `run-portable-suite.sh`
-- [x] Darwin 无 native `shux` 时 manifest 仍通过
+- [x] Darwin 无 native `xlang` 时 manifest 仍通过

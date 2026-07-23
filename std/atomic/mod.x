@@ -20,7 +20,7 @@
  * All `atomic_*_c` functions below are thin wrappers over C11 <stdatomic.h>
  * intrinsics (atomic_load / atomic_store / atomic_compare_exchange /
  * atomic_fetch_add / atomic_fetch_sub / atomic_fence_*). They are implemented
- * in C (see seeds) and exposed to SHUX via `extern "C"` declarations.
+ * in C (see seeds) and exposed to XLANG via `extern "C"` declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches libc/C runtime.
  * PLATFORM: SHARED — atomic intrinsics are available on all targets

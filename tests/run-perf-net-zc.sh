@@ -3,7 +3,7 @@
 #
 # 用法：
 #   ./tests/run-perf-net-zc.sh
-#   SHUX=./compiler/shux-c ./tests/run-perf-net-zc.sh
+#   XLANG=./compiler/xlang-c ./tests/run-perf-net-zc.sh
 set -e
 cd "$(dirname "$0")/.."
 
@@ -12,11 +12,11 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/io-uring-probe.sh
 source tests/lib/io-uring-probe.sh
 
-BASELINE="${SHUX_NET_ZC_BASELINE:-tests/baseline/net-zc-perf.tsv}"
+BASELINE="${XLANG_NET_ZC_BASELINE:-tests/baseline/net-zc-perf.tsv}"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-FAIL_FLAG="${SHUX_NET_ZC_FAIL:-0}"
-REQUIRE_PERF="${SHUX_NET_ZC_REQUIRE_PERF:-0}"
+FAIL_FLAG="${XLANG_NET_ZC_FAIL:-0}"
+REQUIRE_PERF="${XLANG_NET_ZC_REQUIRE_PERF:-0}"
 
 native_shu() {
   local f="$1"
@@ -38,29 +38,29 @@ pick_free_port() {
   fi
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
-  SHUX_BIN="${SHUX_BIN:-./compiler/shux-c}"
+  XLANG_BIN="${XLANG_BIN:-./compiler/xlang-c}"
 else
-  case "$SHUX_BIN" in /*) ;; *) SHUX_BIN="$(pwd)/$SHUX_BIN" ;; esac
+  case "$XLANG_BIN" in /*) ;; *) XLANG_BIN="$(pwd)/$XLANG_BIN" ;; esac
 fi
 
 echo "=== PERF-009: net zero-copy cycles/byte bench (baseline=${BASELINE}) ==="
 
-if ! native_shu "$SHUX_BIN"; then
-  echo "net-zc perf SKIP: ${SHUX_BIN} not native"
+if ! native_shu "$XLANG_BIN"; then
+  echo "net-zc perf SKIP: ${XLANG_BIN} not native"
   exit 0
 fi
 
 if ! perf_nz_probe_ok; then
   if [ "$REQUIRE_PERF" = "1" ]; then
-    echo "net-zc perf FAIL: perf unavailable (SHUX_NET_ZC_REQUIRE_PERF=1)" >&2
+    echo "net-zc perf FAIL: perf unavailable (XLANG_NET_ZC_REQUIRE_PERF=1)" >&2
     exit 1
   fi
   echo "net-zc perf SKIP: need Linux + perf stat cycles"
@@ -87,10 +87,10 @@ while IFS=$'\t' read -r case_id bench_src server_c bytes_xfer _cap_mib _ref_case
     continue
   fi
 
-  exe="${OUT_DIR}/shux_net_zc_${case_id}"
+  exe="${OUT_DIR}/xlang_net_zc_${case_id}"
   rm -f "$exe"
   echo "── measure ${case_id} ──"
-  if ! "$SHUX_BIN" -L . "$bench_src" -o "$exe"; then
+  if ! "$XLANG_BIN" -L . "$bench_src" -o "$exe"; then
     echo "net-zc FAIL: compile $bench_src" >&2
     HARD_FAIL=1
     continue

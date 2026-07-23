@@ -3,7 +3,7 @@
 #
 # 用法：
 #   ./tests/run-perf-alloc-hotspot.sh
-#   SHUX=./compiler/shux-c ./tests/run-perf-alloc-hotspot.sh
+#   XLANG=./compiler/xlang-c ./tests/run-perf-alloc-hotspot.sh
 set -e
 cd "$(dirname "$0")/.."
 
@@ -14,36 +14,36 @@ source tests/lib/dod-native-exe.sh
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
 
-BASELINE="${SHUX_ALLOC_HOTSPOT_BASELINE:-tests/baseline/alloc-hotspot-perf.tsv}"
+BASELINE="${XLANG_ALLOC_HOTSPOT_BASELINE:-tests/baseline/alloc-hotspot-perf.tsv}"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-FAIL_FLAG="${SHUX_ALLOC_HOTSPOT_FAIL:-0}"
-REQUIRE_STRACE="${SHUX_ALLOC_HOTSPOT_REQUIRE_STRACE:-0}"
+FAIL_FLAG="${XLANG_ALLOC_HOTSPOT_FAIL:-0}"
+REQUIRE_STRACE="${XLANG_ALLOC_HOTSPOT_REQUIRE_STRACE:-0}"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux_asm; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if dod_native_exe "$abs"; then
-      SHUX_BIN="$abs"
+      XLANG_BIN="$abs"
       break
     fi
   done
-  SHUX_BIN="${SHUX_BIN:-./compiler/shux_asm}"
+  XLANG_BIN="${XLANG_BIN:-./compiler/xlang_asm}"
 else
-  case "$SHUX_BIN" in /*) ;; *) SHUX_BIN="$(pwd)/$SHUX_BIN" ;; esac
+  case "$XLANG_BIN" in /*) ;; *) XLANG_BIN="$(pwd)/$XLANG_BIN" ;; esac
 fi
 
 echo "=== PERF-007: alloc hotspot strace bench (baseline=${BASELINE}) ==="
 
-if ! dod_native_exe "$SHUX_BIN"; then
-  echo "alloc-hotspot perf SKIP: ${SHUX_BIN} not native"
+if ! dod_native_exe "$XLANG_BIN"; then
+  echo "alloc-hotspot perf SKIP: ${XLANG_BIN} not native"
   exit 0
 fi
 
 if ! perf_ah_strace_probe_ok; then
   if [ "$REQUIRE_STRACE" = "1" ]; then
-    echo "alloc-hotspot perf FAIL: strace unavailable (SHUX_ALLOC_HOTSPOT_REQUIRE_STRACE=1)" >&2
+    echo "alloc-hotspot perf FAIL: strace unavailable (XLANG_ALLOC_HOTSPOT_REQUIRE_STRACE=1)" >&2
     exit 1
   fi
   echo "alloc-hotspot perf SKIP: need Linux + working strace"
@@ -61,11 +61,11 @@ while IFS=$'\t' read -r case_id bench_src expect_exit cap_m cap_c cap_r _notes; 
   [ -z "${case_id:-}" ] && continue
   case "$case_id" in \#*) continue ;; esac
   CASE_TOTAL=$((CASE_TOTAL + 1))
-  exe="${OUT_DIR}/shux_alloc_hotspot_${case_id}"
+  exe="${OUT_DIR}/xlang_alloc_hotspot_${case_id}"
   rm -f "$exe"
 
   echo "── case ${case_id} (${bench_src}) ──"
-  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$bench_src" -o "$exe"; then
+  if ! XLANG="$XLANG_BIN" "$XLANG_BIN" -L . "$bench_src" -o "$exe"; then
     echo "alloc-hotspot FAIL: compile $bench_src" >&2
     HARD_FAIL=1
     continue

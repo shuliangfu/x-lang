@@ -3,7 +3,7 @@
 #
 # 【Why 根源】方法论 §4.2 要求"先证明 .x -> -E -> .o、符号、ABI、最小行为一致，
 # 再考虑物理删除 seed"。本脚本提供 seed-optional 的对象级证明：临时移走 seed，
-# 用 shux-c -E 从 .x 生成 .c 并编译为 .o，对比 seed-built .o 的 public 符号集。
+# 用 xlang-c -E 从 .x 生成 .c 并编译为 .o，对比 seed-built .o 的 public 符号集。
 # 证明通过后，该 TU 可进入 Phase 4 seed 删除候选。
 #
 # 【Invariant】
@@ -14,11 +14,11 @@
 # 【Asm/Perf】非热路径；单 TU 证明，无性能影响。
 #
 # 用法：
-#   sh scripts/prove_seed_optional.sh <tu_name> [--shux-c <path>]
+#   sh scripts/prove_seed_optional.sh <tu_name> [--xlang-c <path>]
 #
 # 示例：
 #   sh scripts/prove_seed_optional.sh diag
-#   sh scripts/prove_seed_optional.sh runtime_panic --shux-c ./shux-c
+#   sh scripts/prove_seed_optional.sh runtime_panic --xlang-c ./xlang-c
 #
 # 输出：
 #   prove_seed_optional: <tu_name> PASS (nm_match=yes, seed_restored=yes)
@@ -32,17 +32,17 @@ set -eu
 cd "$(dirname "$0")/.."
 
 TU_NAME=""
-SHUX_C="./shux-c"
+XLANG_C="./xlang-c"
 CC_CMD="${CC:-gcc}"
 CFLAGS="${CFLAGS:--O2 -Wall -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare -Wno-parentheses}"
 
 usage() {
   cat <<'EOF'
 usage:
-  sh scripts/prove_seed_optional.sh <tu_name> [--shux-c <path>]
+  sh scripts/prove_seed_optional.sh <tu_name> [--xlang-c <path>]
 
 options:
-  --shux-c <path>  shux-c 路径（默认 ./shux-c）
+  --xlang-c <path>  xlang-c 路径（默认 ./xlang-c）
 EOF
 }
 
@@ -52,8 +52,8 @@ while [ $# -gt 0 ]; do
       usage
       exit 0
       ;;
-    --shux-c)
-      SHUX_C="$2"
+    --xlang-c)
+      XLANG_C="$2"
       shift 2
       ;;
     -*)
@@ -128,18 +128,18 @@ fi
 echo "  [2/4] moving seed aside..." >&2
 mv "$SEED_FILE" "${SEED_FILE}.prove_bak"
 
-# Step 3: 用 shux-c -E 从 .x 生成 .c，编译为 .o
+# Step 3: 用 xlang-c -E 从 .x 生成 .c，编译为 .o
 echo "  [3/4] building optional .o from .x via -E..." >&2
-if [ ! -x "$SHUX_C" ] && [ ! -f "$SHUX_C" ]; then
-  echo "prove_seed_optional: ${TU_NAME} FAIL (reason=shux_c_not_found at $SHUX_C)" >&2
+if [ ! -x "$XLANG_C" ] && [ ! -f "$XLANG_C" ]; then
+  echo "prove_seed_optional: ${TU_NAME} FAIL (reason=xlang_c_not_found at $XLANG_C)" >&2
   exit 1
 fi
 
 # 生成 .c（-E 模式）
-# shux-c -E 用 -L 指定 import 搜索路径（不是 -I）
-SHUX_C_ARGS="-E -L .. -L src -L src/runtime -L src/asm -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/driver"
-if ! "$SHUX_C" $SHUX_C_ARGS "$X_FILE" >"$GEN_C" 2>"${PROBE_DIR}/gen.err"; then
-  echo "prove_seed_optional: ${TU_NAME} FAIL (reason=shux_c_E_failed)" >&2
+# xlang-c -E 用 -L 指定 import 搜索路径（不是 -I）
+XLANG_C_ARGS="-E -L .. -L src -L src/runtime -L src/asm -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/driver"
+if ! "$XLANG_C" $XLANG_C_ARGS "$X_FILE" >"$GEN_C" 2>"${PROBE_DIR}/gen.err"; then
+  echo "prove_seed_optional: ${TU_NAME} FAIL (reason=xlang_c_E_failed)" >&2
   echo "  see: ${PROBE_DIR}/gen.err" >&2
   exit 1
 fi

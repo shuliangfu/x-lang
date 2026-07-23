@@ -9,10 +9,10 @@ cd "$(dirname "$0")/.."
 BENCH_SRC="tests/bench/regex_match_bench.c"
 STUB_SRC="tests/bench/regex_match_naive_stub.c"
 REGEX_X="std/regex/regex.x"
-BENCH_EXE="/tmp/shux_regex_match_bench"
-STUB_EXE="/tmp/shux_regex_match_stub_bench"
-RUNS="${SHUX_REGEX_PERF_RUNS:-3}"
-MIN_RATIO="${SHUX_REGEX_PERF_MIN_RATIO:-1.0}"
+BENCH_EXE="/tmp/xlang_regex_match_bench"
+STUB_EXE="/tmp/xlang_regex_match_stub_bench"
+RUNS="${XLANG_REGEX_PERF_RUNS:-3}"
+MIN_RATIO="${XLANG_REGEX_PERF_MIN_RATIO:-1.0}"
 
 extract_real_sec() {
   sed -n 's/^real[[:space:]]*\([0-9]*\)m\([0-9.]*\)s.*/\1 \2/p; s/^real[[:space:]]*\([0-9.]*\)s.*/0 \1/p' | awk 'NF==2 { print $1*60+$2; next } NF==1 { print $1 }'
@@ -73,7 +73,7 @@ if awk -v r="$RATIO" -v m="$MIN_RATIO" 'BEGIN { exit (r + 0.000001 >= m) ? 0 : 1
   echo "regex-match-perf OK"
 else
   echo "regex-match-perf FAIL: ratio ${RATIO} < ${MIN_RATIO}" >&2
-  if [ "${SHUX_REGEX_PERF_FAIL:-0}" = "1" ]; then
+  if [ "${XLANG_REGEX_PERF_FAIL:-0}" = "1" ]; then
     exit 1
   fi
 fi

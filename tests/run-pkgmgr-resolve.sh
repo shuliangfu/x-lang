@@ -5,13 +5,13 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST=tests/fixtures/pkgmgr/shux.pkg.tsv
+MANIFEST=tests/fixtures/pkgmgr/xlang.pkg.tsv
 MAIN=tests/fixtures/pkgmgr/main.x
 
-chmod +x scripts/shux-deps-resolve.sh
-./scripts/shux-deps-resolve.sh "$MANIFEST"
+chmod +x scripts/xlang-deps-resolve.sh
+./scripts/xlang-deps-resolve.sh "$MANIFEST"
 
-SHUX="${SHUX:-./compiler/shux}"
+XLANG="${XLANG:-./compiler/xlang}"
 native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -24,10 +24,10 @@ native_shu() {
   esac
 }
 
-if [ -n "$SHUX" ] && native_shu "$SHUX"; then
+if [ -n "$XLANG" ] && native_shu "$XLANG"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  EXE="/tmp/shux_pkgmgr_demo_$$"
-  if ! "$SHUX" build -L . "$MAIN" -o "$EXE" 2>&1; then
+  EXE="/tmp/xlang_pkgmgr_demo_$$"
+  if ! "$XLANG" build -L . "$MAIN" -o "$EXE" 2>&1; then
     echo "run-pkgmgr-resolve FAIL: compile $MAIN" >&2
     rm -f "$EXE"
     exit 1
@@ -41,7 +41,7 @@ if [ -n "$SHUX" ] && native_shu "$SHUX"; then
   fi
   echo "pkgmgr-resolve compile OK"
 else
-  echo "pkgmgr-resolve SKIP compile (no native shux)" >&2
+  echo "pkgmgr-resolve SKIP compile (no native xlang)" >&2
 fi
 
 echo "pkgmgr-resolve OK"

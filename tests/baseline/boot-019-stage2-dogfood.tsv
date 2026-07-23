@@ -17,7 +17,7 @@ hook_option	hook_script	run-option.sh	option regression
 hook_result	hook_script	run-result.sh	result regression
 hook_generic	hook_script	run-generic.sh	generic regression
 cross_check72	cross_ref	compiler/Makefile	check-7.2-bstrict integration
-cross_bootstrap_gate	cross_ref	tests/run-bootstrap-shux-gate.sh	driver gate
+cross_bootstrap_gate	cross_ref	tests/run-bootstrap-xlang-gate.sh	driver gate
 cross_boot015	cross_ref	analysis/boot-015-semantic-smoke-v1.md	BOOT-015 子集
 doc	file	boot-019-stage2-dogfood-v1.md	analysis/boot-019-stage2-dogfood-v1.md	RFC
 gate	script	run-boot-019-stage2-dogfood-gate.sh	tests/run-boot-019-stage2-dogfood-gate.sh	manifest

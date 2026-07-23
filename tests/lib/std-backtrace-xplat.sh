@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-backtrace-xplat.sh — STD-147 manifest 与跨平台质量烟测辅助
 
-STD147_PREFIX="${SHUX_STD147_BACKTRACE_XPLAT_PREFIX:-shux: [SHUX_STD147_BACKTRACE_XPLAT]}"
+STD147_PREFIX="${XLANG_STD147_BACKTRACE_XPLAT_PREFIX:-xlang: [XLANG_STD147_BACKTRACE_XPLAT]}"
 
 # 校验 manifest；echo 缺失数。
 std_backtrace_xplat_symbols_ok() {
@@ -81,8 +81,8 @@ std_backtrace_xplat_pick_vector() {
 std_backtrace_xplat_run_smoke() {
   local bt_platform_c="$1"
   local src="tests/backtrace/xplat_quality.c"
-  local out="/tmp/shux_backtrace_xplat_$$"
-  local err="/tmp/shux_backtrace_xplat_err_$$.log"
+  local out="/tmp/xlang_backtrace_xplat_$$"
+  local err="/tmp/xlang_backtrace_xplat_err_$$.log"
   local bt_o="std/backtrace/backtrace.o"
   local rt_o="compiler/runtime_backtrace_platform.o"
   if [ ! -f "$bt_o" ]; then
@@ -117,7 +117,7 @@ std_backtrace_xplat_run_smoke() {
     echo "std-backtrace-xplat FAIL: smoke exit=$ec" >&2
     return 1
   fi
-  if ! grep -qF 'shux: [SHUX_BT_XPLAT]' "$err" 2>/dev/null; then
+  if ! grep -qF 'xlang: [XLANG_BT_XPLAT]' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
     echo "std-backtrace-xplat FAIL: missing quality line" >&2

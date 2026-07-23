@@ -7,6 +7,6 @@ driver_build	x	driver/build.x	cmd_build	build 子命令
 driver_run	x	driver/run.x	cmd_run	run 子命令
 driver_emit	x	driver/emit.x	cmd_emit	-E 烟测路径
 build_policy	x	build.x	build_use_asm_only	根构建策略
-runtime_driver	c	runtime.c	SHUX_USE_X_DRIVER	.x 驱动宏分区
+runtime_driver	c	runtime.c	XLANG_USE_X_DRIVER	.x 驱动宏分区
 runtime_pipeline	c	runtime.c	driver_run_compiler_full	asm 链编排仍 C
 runtime_fopen_track	c	runtime.c	fopen(out_path	asm -o 写产物（B-20 track）

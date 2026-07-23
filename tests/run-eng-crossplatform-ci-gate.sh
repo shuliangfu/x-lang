@@ -6,7 +6,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_CI_PLATFORM_MATRIX:-tests/baseline/ci-platform-matrix.tsv}"
+MATRIX="${XLANG_CI_PLATFORM_MATRIX:-tests/baseline/ci-platform-matrix.tsv}"
 
 echo "=== ENG-003: cross-platform CI manifest ==="
 for f in \

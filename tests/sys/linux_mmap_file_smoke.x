@@ -9,7 +9,7 @@ function main(): i32 {
   if (sys.mmap_available() != 1) {
     return 1;
   }
-  // "/tmp/shux_linux_mmap_file_gate.dat\0"
+  // "/tmp/xlang_linux_mmap_file_gate.dat\0"
   let path: u8[34] = [
     47, 116, 109, 112, 47, 115, 104, 117, 120, 95, 108, 105, 110, 117, 120,
     95, 109, 109, 97, 112, 95, 102, 105, 108, 101, 95, 103, 97, 116, 101,

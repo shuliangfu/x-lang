@@ -8,7 +8,7 @@
 |----|------|
 | `tls_mbedtls.x` | mbedTLS 客户端/服务端握手、读写、ALPN、烟测、marker |
 | `tls_mbedtls_bio.c` | `shu_mbedtls_ssl_bind_fd_c`（set_bio send/recv，~50 行） |
-| `net.c` | 移除 `SHUX_NET_USE_MBEDTLS` + `tls_mbedtls.inc.c` |
+| `net.c` | 移除 `XLANG_NET_USE_MBEDTLS` + `tls_mbedtls.inc.c` |
 | `Makefile` | `net-o-mbedtls`：`ld -r` 合并 `tls_mbedtls_main.o` + `tls_mbedtls_bio.o` |
 | `runtime_link_abi.c` | 识别/链入 `std/net/tls_mbedtls.o` |
 | 删除 | `std/net/tls_mbedtls.inc.c` |
@@ -26,7 +26,7 @@
 ## 复现
 
 ```bash
-SHUX_F04_NET_TLS_MBEDTLS_FAIL=1 ./tests/run-f04-std-net-tls-mbedtls-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=96
+XLANG_F04_NET_TLS_MBEDTLS_FAIL=1 ./tests/run-f04-std-net-tls-mbedtls-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=96
 ./tests/run-std-net-tls-gate.sh
 ```

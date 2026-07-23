@@ -8,24 +8,24 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/comp-wpo.sh
 . tests/lib/comp-wpo.sh
 
-SHUX_C="${SHUX:-./compiler/shux-c}"
-if ! comp_wpo_native_exe "$SHUX_C"; then
-  if comp_wpo_native_exe ./compiler/shux; then
-    SHUX_C=./compiler/shux
+XLANG_C="${XLANG:-./compiler/xlang-c}"
+if ! comp_wpo_native_exe "$XLANG_C"; then
+  if comp_wpo_native_exe ./compiler/xlang; then
+    XLANG_C=./compiler/xlang
   fi
 fi
 
-if ! comp_wpo_native_exe "$SHUX_C"; then
-  echo "comp-wpo SKIP (no native shux/shux-c, host=$(uname -s)/$(uname -m 2>/dev/null))"
+if ! comp_wpo_native_exe "$XLANG_C"; then
+  echo "comp-wpo SKIP (no native xlang/xlang-c, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "comp-wpo OK"
   exit 0
 fi
 
-make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
+make -C compiler xlang-c -q 2>/dev/null || make -C compiler xlang-c
 
-echo "=== COMP-004: WPO smoke (SHUX=$SHUX_C) ==="
+echo "=== COMP-004: WPO smoke (XLANG=$XLANG_C) ==="
 chmod +x tests/run-wpo-dce-emit.sh tests/run-wpo-s1.sh
-SHUX="$SHUX_C" ./tests/run-wpo-dce-emit.sh
+XLANG="$XLANG_C" ./tests/run-wpo-dce-emit.sh
 echo "comp-wpo OK dce"
 
 ./tests/run-wpo-s1.sh

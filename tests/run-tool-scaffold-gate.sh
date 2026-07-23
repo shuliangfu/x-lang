@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL_SCAFFOLD_DOC:-analysis/tool-project-scaffold-v1.md}"
-MANIFEST="${SHUX_TOOL_SCAFFOLD_MANIFEST:-tests/baseline/tool-project-scaffold.tsv}"
+DOC="${XLANG_TOOL_SCAFFOLD_DOC:-analysis/tool-project-scaffold-v1.md}"
+MANIFEST="${XLANG_TOOL_SCAFFOLD_MANIFEST:-tests/baseline/tool-project-scaffold.tsv}"
 TEMPLATE="tests/templates/project-hello"
 MIN_RULES=5
 MIN_TEMPLATE_FILES=2
@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== TOOL-006: project scaffold manifest ==="
-for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.x" "$TEMPLATE/README.md" scripts/shux-new.sh; do
+for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.x" "$TEMPLATE/README.md" scripts/xlang-new.sh; do
   if [ ! -f "$f" ]; then
     echo "tool-scaffold gate FAIL: missing $f" >&2
     exit 1
@@ -111,8 +111,8 @@ if ! grep -q 'function main(): i32' "$TEMPLATE/main.x" 2>/dev/null; then
   echo "tool-scaffold gate FAIL: template missing main()" >&2
   exit 1
 fi
-if ! grep -qi 'shux run' "$TEMPLATE/README.md" 2>/dev/null; then
-  echo "tool-scaffold gate FAIL: README missing shux run" >&2
+if ! grep -qi 'xlang run' "$TEMPLATE/README.md" 2>/dev/null; then
+  echo "tool-scaffold gate FAIL: README missing xlang run" >&2
   exit 1
 fi
 
@@ -129,32 +129,32 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-scaffold manifest OK (rules=${RULE_N} files=${FILES_N} expect_exit=${EXPECT_EXIT})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-  echo "=== TOOL-006: scaffold hooks (SHUX=$SHUX_BIN) ==="
-  chmod +x tests/run-tool-scaffold.sh scripts/shux-new.sh
-  SHUX="$SHUX_BIN" SHUX_SCAFFOLD_EXPECT_EXIT="$EXPECT_EXIT" ./tests/run-tool-scaffold.sh
-  DEMO="/tmp/shux_new_demo_$$"
+if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+  echo "=== TOOL-006: scaffold hooks (XLANG=$XLANG_BIN) ==="
+  chmod +x tests/run-tool-scaffold.sh scripts/xlang-new.sh
+  XLANG="$XLANG_BIN" XLANG_SCAFFOLD_EXPECT_EXIT="$EXPECT_EXIT" ./tests/run-tool-scaffold.sh
+  DEMO="/tmp/xlang_new_demo_$$"
   rm -rf "$DEMO"
-  ./scripts/shux-new.sh "$DEMO"
+  ./scripts/xlang-new.sh "$DEMO"
   if [ ! -f "$DEMO/main.x" ]; then
-    echo "tool-scaffold FAIL: shux-new did not create main.x" >&2
+    echo "tool-scaffold FAIL: xlang-new did not create main.x" >&2
     rm -rf "$DEMO"
     exit 1
   fi
   rm -rf "$DEMO"
   echo "tool-scaffold hooks OK"
 else
-  echo "tool-scaffold gate SKIP hooks (no native shux)" >&2
+  echo "tool-scaffold gate SKIP hooks (no native xlang)" >&2
 fi
 
 echo "tool-scaffold gate OK"

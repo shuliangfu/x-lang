@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_THREAD_POOL_DOC:-analysis/std-thread-pool-v1.md}"
-MANIFEST="${SHUX_STD_THREAD_POOL_TSV:-tests/baseline/std-thread-pool.tsv}"
+DOC="${XLANG_STD_THREAD_POOL_DOC:-analysis/std-thread-pool-v1.md}"
+MANIFEST="${XLANG_STD_THREAD_POOL_TSV:-tests/baseline/std-thread-pool.tsv}"
 MOD_X="std/thread/mod.x"
-THREAD_RUNTIME="${SHUX_STD_THREAD_IMPL:-compiler/seeds/runtime_thread_glue.from_x.c}"
+THREAD_RUNTIME="${XLANG_STD_THREAD_IMPL:-compiler/seeds/runtime_thread_glue.from_x.c}"
 LIB="tests/lib/std-thread-pool.sh"
 POOL_X="tests/thread/pool_roundtrip.x"
 MAIN_X="tests/thread/main.x"
@@ -89,34 +89,34 @@ POOL_OK=0
 NAME_OK=0
 MAIN_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-043: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-043: typeck + smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/thread/thread.o
-  if ! "$SHUX_BIN" check -L . "$POOL_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$POOL_X" >/dev/null 2>&1; then
     echo "std-thread-pool gate FAIL: typeck $POOL_X" >&2
-    "$SHUX_BIN" check -L . "$POOL_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$POOL_X" 2>&1 | tail -10 >&2 || true
     std_thread_pool_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_thread_pool_run_smoke "$SHUX_BIN" "$POOL_X" "pool"; then
+  if std_thread_pool_run_smoke "$XLANG_BIN" "$POOL_X" "pool"; then
     POOL_OK=1
     NAME_OK=1
   else
     std_thread_pool_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_thread_pool_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
+  if std_thread_pool_run_smoke "$XLANG_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_thread_pool_emit_report "fail" "$POOL_OK" "$NAME_OK" 0 0
@@ -124,7 +124,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-thread-pool gate SKIP smoke (no native shux)" >&2
+  echo "std-thread-pool gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_thread_pool_emit_report "ok" "$POOL_OK" "$NAME_OK" "$MAIN_OK" "$SKIP"

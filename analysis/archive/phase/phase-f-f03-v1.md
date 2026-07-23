@@ -22,7 +22,7 @@
 ## 复现
 
 ```bash
-SHUX_F03_HEAP_OPS_FAIL=1 ./tests/run-f03-std-heap-ops-gate.sh
+XLANG_F03_HEAP_OPS_FAIL=1 ./tests/run-f03-std-heap-ops-gate.sh
 ./tests/run-heap.sh
 ./tests/run-std-mem-safe-gate.sh
 ```

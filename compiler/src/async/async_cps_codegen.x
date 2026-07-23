@@ -27,7 +27,7 @@
 // AsyncFrameLayout (size 4196): live@0 live.n@4096 num_awaits@4100 (see async_liveness).
 // PLATFORM: SHARED — pure helper contract; prove surface IDENTICAL on mac + Ubuntu.
 // Cold product path: cc seeds/async_cps_codegen.from_x.c (no FROM_X).
-// Hybrid/PREFER (future): g05_try_x_to_o + rest (-DSHUX_ASYNC_CPS_CODEGEN_FROM_X).
+// Hybrid/PREFER (future): g05_try_x_to_o + rest (-DXLANG_ASYNC_CPS_CODEGEN_FROM_X).
 
 // Cap residual liveness predicates / type_to_c (authority in async_liveness; G.7 single path).
 export extern "C" function async_liveness_func_needs_cps_frame(f: *u8): i32;
@@ -79,8 +79,8 @@ export function emit_hoisted_lets(f: *u8, out: *u8): void {
   emit_hoisted_lets_impl(f, out);
 }
 
-/** True when callee is an IO-A5 await target (std.io sync API / shux_io_* C entry).
- * Pure name table: shux_io_*, read, write, submit_*, read_fd, write_fd,
+/** True when callee is an IO-A5 await target (std.io sync API / xlang_io_* C entry).
+ * Pure name table: xlang_io_*, read, write, submit_*, read_fd, write_fd,
  * read_ptr, read_stdin_ptr, read_into, write_from.
  * @param callee ASTFunc* as *u8 (null-safe)
  * @return 1 if IO target, else 0
@@ -94,7 +94,7 @@ export function async_cps_callee_is_io(callee: *u8): i32 {
   if (name[0] == 0) {
     return 0;
   }
-  // shux_io_
+  // xlang_io_
   if (name[0] == 115 && name[1] == 104 && name[2] == 117 && name[3] == 120 && name[4] == 95
       && name[5] == 105 && name[6] == 111 && name[7] == 95) {
     return 1;
@@ -169,7 +169,7 @@ export function block_has_run_async_ref(b: *u8, target: *u8): i32 {
 }
 
 /** True when name is a Future wait entry (exact or substring).
- * Exact: future_wait, runtime_wait_future, shux_async_future_wait_c,
+ * Exact: future_wait, runtime_wait_future, xlang_async_future_wait_c,
  *   std_async_future_wait, std_async_runtime_wait_future.
  * Substring scan (cap 512): future_wait, runtime_wait_future.
  * @param n NUL-terminated C string or null
@@ -195,7 +195,7 @@ export function async_cps_callee_is_future_wait_by_name(n: *u8): i32 {
       && n[18] == 101 && n[19] == 0) {
     return 1;
   }
-  // shux_async_future_wait_c
+  // xlang_async_future_wait_c
   if (n[0] == 115 && n[1] == 104 && n[2] == 117 && n[3] == 120 && n[4] == 95 && n[5] == 97
       && n[6] == 115 && n[7] == 121 && n[8] == 110 && n[9] == 99 && n[10] == 95 && n[11] == 102
       && n[12] == 117 && n[13] == 116 && n[14] == 117 && n[15] == 114 && n[16] == 101 && n[17] == 95
@@ -253,15 +253,15 @@ export function async_cps_callee_is_future_wait(callee: *u8): i32 {
   return async_cps_callee_is_future_wait_by_name(name);
 }
 
-/** True when name is a scheduler wrapper `shux_async_sched_<async>`.
- * Prefix length 16: "shux_async_sched_".
+/** True when name is a scheduler wrapper `xlang_async_sched_<async>`.
+ * Prefix length 16: "xlang_async_sched_".
  * PLATFORM: SHARED — pure string gate; seed C under #ifndef FROM_X. */
 #[no_mangle]
 export function async_cps_is_sched_wrapper_name(name: *u8): i32 {
   if (name == 0) {
     return 0;
   }
-  // shux_async_sched_
+  // xlang_async_sched_
   if (name[0] == 115 && name[1] == 104 && name[2] == 117 && name[3] == 120 && name[4] == 95
       && name[5] == 97 && name[6] == 115 && name[7] == 121 && name[8] == 110 && name[9] == 99
       && name[10] == 95 && name[11] == 115 && name[12] == 99 && name[13] == 104 && name[14] == 101
@@ -910,7 +910,7 @@ export function async_cps_cstr_eq(a: *u8, b: *u8): i32 {
 }
 
 /** Advance a C string pointer by n bytes (null-safe).
- * Used for sched_name + 16 after "shux_async_sched_" prefix.
+ * Used for sched_name + 16 after "xlang_async_sched_" prefix.
  * PLATFORM: SHARED — host pointer arithmetic via usize. */
 #[no_mangle]
 export function async_cps_cstr_skip(p: *u8, n: i32): *u8 {
@@ -1010,7 +1010,7 @@ export function async_cps_module_references_run_async(m: *u8, async_fn: *u8): i3
   return 0;
 }
 
-/** Resolve scheduler wrapper name `shux_async_sched_<async>` to the async ASTFunc*.
+/** Resolve scheduler wrapper name `xlang_async_sched_<async>` to the async ASTFunc*.
  * Requires is_sched_wrapper_name; strips 16-byte prefix; matches f->name + is_async
  * + async_liveness_func_has_await. Skips extern funcs.
  * @return ASTFunc* as *u8, or null
@@ -1026,7 +1026,7 @@ export function async_cps_resolve_sched_target(m: *u8, sched_name: *u8): *u8 {
   if (async_cps_is_sched_wrapper_name(sched_name) == 0) {
     return 0 as *u8;
   }
-  // "shux_async_sched_" length 16
+  // "xlang_async_sched_" length 16
   let async_name: *u8 = async_cps_cstr_skip(sched_name, 16);
   if (async_name == 0) {
     return 0 as *u8;
@@ -1071,7 +1071,7 @@ export function async_cps_resolve_sched_target(m: *u8, sched_name: *u8): *u8 {
   return 0 as *u8;
 }
 
-/** True when module has `extern "C" function shux_async_sched_<async_fn.name>`.
+/** True when module has `extern "C" function xlang_async_sched_<async_fn.name>`.
  * Pure equivalent of seed snprintf+strcmp: prefix gate + cstr_eq(name+16, async name).
  * Requires async_fn->is_async and async_liveness_func_has_await.
  * PLATFORM: SHARED — Cap residual pure wave2; seed C under #ifndef FROM_X. */
@@ -1229,7 +1229,7 @@ export function async_cps_codegen_end(ctx: *u8, out: *u8): void {
 }
 
 /** Emit phase reset before normal return (re-enter static frame).
- * Writes pad + "__shux_frame.__phase = 0;\\n". Null pad defaults to two spaces.
+ * Writes pad + "__xlang_frame.__phase = 0;\\n". Null pad defaults to two spaces.
  * @param out FILE* as *u8
  * @param pad optional indent cstr (may be null)
  * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
@@ -1246,17 +1246,17 @@ export function async_cps_codegen_emit_phase_reset(out: *u8, pad: *u8): void {
   }
   unsafe {
     driver_preamble_fputs(p, out);
-    driver_preamble_fputs("__shux_frame.__phase = 0;\n", out);
+    driver_preamble_fputs("__xlang_frame.__phase = 0;\n", out);
   }
 }
 
 /** Shared await-boundary emit (seed async_cps_codegen_after_await_impl).
- * Saves live locals into __shux_frame, advances phase, emits suspend call + next case,
+ * Saves live locals into __xlang_frame, advances phase, emits suspend call + next case,
  * then restores live locals. Mutates ctx.phase_next (post-increment).
  * @param ctx AsyncCpsCodegenCtx* as *u8
  * @param out FILE* as *u8
  * @param pad indent cstr (null → two spaces)
- * @param suspend_fn C function name (e.g. shux_async_cps_suspend)
+ * @param suspend_fn C function name (e.g. xlang_async_cps_suspend)
  * @return 0 success, -1 bad args
  * PLATFORM: SHARED — host AsyncFrameLayout LE; seed C under #ifndef FROM_X. */
 #[no_mangle]
@@ -1305,40 +1305,40 @@ export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8,
     if (v[0] == 0) {
       continue;
     }
-    // pad __shux_frame.name = name;\n
+    // pad __xlang_frame.name = name;\n
     unsafe {
       driver_preamble_fputs(p, out);
-      driver_preamble_fputs("__shux_frame.", out);
+      driver_preamble_fputs("__xlang_frame.", out);
       driver_preamble_fputs(v, out);
       driver_preamble_fputs(" = ", out);
       driver_preamble_fputs(v, out);
       driver_preamble_fputs(";\n", out);
     }
   }
-  // pad __shux_frame.__phase = PHASE;\n
+  // pad __xlang_frame.__phase = PHASE;\n
   unsafe {
     driver_preamble_fputs(p, out);
-    driver_preamble_fputs("__shux_frame.__phase = ", out);
+    driver_preamble_fputs("__xlang_frame.__phase = ", out);
   }
   async_cps_fputs_i32_dec(out, phase);
   unsafe {
     driver_preamble_fputs(";\n", out);
   }
-  // pad if (suspend_fn(&__shux_frame.__phase, PHASE)) return (int32_t)SHUX_ASYNC_SUSPENDED;\n
+  // pad if (suspend_fn(&__xlang_frame.__phase, PHASE)) return (int32_t)XLANG_ASYNC_SUSPENDED;\n
   unsafe {
     driver_preamble_fputs(p, out);
     driver_preamble_fputs("if (", out);
     driver_preamble_fputs(suspend_fn, out);
-    driver_preamble_fputs("(&__shux_frame.__phase, ", out);
+    driver_preamble_fputs("(&__xlang_frame.__phase, ", out);
   }
   async_cps_fputs_i32_dec(out, phase);
   unsafe {
-    driver_preamble_fputs(")) return (int32_t)SHUX_ASYNC_SUSPENDED;\n", out);
+    driver_preamble_fputs(")) return (int32_t)XLANG_ASYNC_SUSPENDED;\n", out);
   }
-  // pad /* SHUX_ASYNC_CPS fallthrough phase=PHASE */\n
+  // pad /* XLANG_ASYNC_CPS fallthrough phase=PHASE */\n
   unsafe {
     driver_preamble_fputs(p, out);
-    driver_preamble_fputs("/* SHUX_ASYNC_CPS fallthrough phase=", out);
+    driver_preamble_fputs("/* XLANG_ASYNC_CPS fallthrough phase=", out);
   }
   async_cps_fputs_i32_dec(out, phase);
   unsafe {
@@ -1353,7 +1353,7 @@ export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8,
   unsafe {
     driver_preamble_fputs(":\n", out);
   }
-  // restore live: pad name = __shux_frame.name;\n
+  // restore live: pad name = __xlang_frame.name;\n
   let j: i32 = 0;
   while (j < n) {
     let v2: *u8 = layout + (j * 64);
@@ -1367,7 +1367,7 @@ export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8,
     unsafe {
       driver_preamble_fputs(p, out);
       driver_preamble_fputs(v2, out);
-      driver_preamble_fputs(" = __shux_frame.", out);
+      driver_preamble_fputs(" = __xlang_frame.", out);
       driver_preamble_fputs(v2, out);
       driver_preamble_fputs(";\n", out);
     }
@@ -1375,7 +1375,7 @@ export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8,
   return 0;
 }
 
-/** Await boundary with normal suspend (shux_async_cps_suspend).
+/** Await boundary with normal suspend (xlang_async_cps_suspend).
  * @param ctx AsyncCpsCodegenCtx* as *u8
  * @param out FILE* as *u8
  * @param pad indent cstr
@@ -1383,16 +1383,10 @@ export function async_cps_codegen_after_await_impl(ctx: *u8, out: *u8, pad: *u8,
  * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
 #[no_mangle]
 export function async_cps_codegen_after_await(ctx: *u8, out: *u8, pad: *u8): i32 {
-  // Compile-time constant suspend name (seed uses string literal).
-  let sn: u8[24] = [
-    115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95,
-    115, 117, 115, 112, 101, 110, 100, 0, 0
-  ];
-  // "shux_async_cps_suspend"
-  return async_cps_codegen_after_await_impl(ctx, out, pad, &sn[0]);
+  8, 24, 120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95, 115, 117, 115, 112, 101, 110, 100, 0, 0, 0
 }
 
-/** Await boundary with IO suspend (shux_async_cps_suspend_io).
+/** Await boundary with IO suspend (xlang_async_cps_suspend_io).
  * @param ctx AsyncCpsCodegenCtx* as *u8
  * @param out FILE* as *u8
  * @param pad indent cstr
@@ -1400,15 +1394,10 @@ export function async_cps_codegen_after_await(ctx: *u8, out: *u8, pad: *u8): i32
  * PLATFORM: SHARED — Cap residual pure wave4; seed C under #ifndef FROM_X. */
 #[no_mangle]
 export function async_cps_codegen_after_await_io(ctx: *u8, out: *u8, pad: *u8): i32 {
-  // "shux_async_cps_suspend_io"
-  let sn: u8[27] = [
-    115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95,
-    115, 117, 115, 112, 101, 110, 100, 95, 105, 111, 0, 0
-  ];
-  return async_cps_codegen_after_await_impl(ctx, out, pad, &sn[0]);
+  8, 27, 120, 108, 97, 110, 103, 95, 97, 115, 121, 110, 99, 95, 99, 112, 115, 95, 115, 117, 115, 112, 101, 110, 100, 95, 105, 111, 0, 0, 0
 }
 
-/** Emit global scheduler wrapper shux_async_sched_<name> calling shux_async_run_i32.
+/** Emit global scheduler wrapper xlang_async_sched_<name> calling xlang_async_run_i32.
  * Matches seed async_cps_codegen_emit_sched_wrapper fprintf sequence.
  * @param f ASTFunc* as *u8 (requires f->name)
  * @param c_fname C mangled coroutine entry name
@@ -1433,17 +1422,17 @@ export function async_cps_codegen_emit_sched_wrapper(f: *u8, c_fname: *u8, out: 
     return;
   }
   unsafe {
-    driver_preamble_fputs("/* A4: scheduler entry shux_async_sched_", out);
+    driver_preamble_fputs("/* A4: scheduler entry xlang_async_sched_", out);
     driver_preamble_fputs(name, out);
     driver_preamble_fputs(" */\n", out);
-    driver_preamble_fputs("#ifndef SHUX_ASYNC_SCHED_RT_DECL\n", out);
-    driver_preamble_fputs("#define SHUX_ASYNC_SCHED_RT_DECL\n", out);
-    driver_preamble_fputs("extern int32_t shux_async_run_i32(int32_t (*fn)(void));\n", out);
+    driver_preamble_fputs("#ifndef XLANG_ASYNC_SCHED_RT_DECL\n", out);
+    driver_preamble_fputs("#define XLANG_ASYNC_SCHED_RT_DECL\n", out);
+    driver_preamble_fputs("extern int32_t xlang_async_run_i32(int32_t (*fn)(void));\n", out);
     driver_preamble_fputs("#endif\n", out);
-    driver_preamble_fputs("int32_t shux_async_sched_", out);
+    driver_preamble_fputs("int32_t xlang_async_sched_", out);
     driver_preamble_fputs(name, out);
     driver_preamble_fputs("(void) {\n", out);
-    driver_preamble_fputs("  return shux_async_run_i32((int32_t (*)(void))", out);
+    driver_preamble_fputs("  return xlang_async_run_i32((int32_t (*)(void))", out);
     driver_preamble_fputs(c_fname, out);
     driver_preamble_fputs(");\n", out);
     driver_preamble_fputs("}\n", out);
@@ -1538,7 +1527,7 @@ export function async_cps_type_is_run_seed_scalar(ty: *u8): i32 {
 }
 
 /** Emit one run-seed take assignment for a param (case 0 inject).
- * Writes "      name = shux_async_run_seed_take_<kind>();\\n" by type kind.
+ * Writes "      name = xlang_async_run_seed_take_<kind>();\\n" by type kind.
  * Only I32/U32/I64/USIZE; others are no-ops (seed same).
  * @param out FILE* as *u8
  * @param pname param name cstr
@@ -1561,7 +1550,7 @@ export function async_cps_emit_run_seed_take(out: *u8, pname: *u8, ty: *u8): voi
     unsafe {
       driver_preamble_fputs("      ", out);
       driver_preamble_fputs(pname, out);
-      driver_preamble_fputs(" = shux_async_run_seed_take_u32();\n", out);
+      driver_preamble_fputs(" = xlang_async_run_seed_take_u32();\n", out);
     }
     return;
   }
@@ -1570,7 +1559,7 @@ export function async_cps_emit_run_seed_take(out: *u8, pname: *u8, ty: *u8): voi
     unsafe {
       driver_preamble_fputs("      ", out);
       driver_preamble_fputs(pname, out);
-      driver_preamble_fputs(" = shux_async_run_seed_take_i64();\n", out);
+      driver_preamble_fputs(" = xlang_async_run_seed_take_i64();\n", out);
     }
     return;
   }
@@ -1579,7 +1568,7 @@ export function async_cps_emit_run_seed_take(out: *u8, pname: *u8, ty: *u8): voi
     unsafe {
       driver_preamble_fputs("      ", out);
       driver_preamble_fputs(pname, out);
-      driver_preamble_fputs(" = shux_async_run_seed_take_usize();\n", out);
+      driver_preamble_fputs(" = xlang_async_run_seed_take_usize();\n", out);
     }
     return;
   }
@@ -1588,7 +1577,7 @@ export function async_cps_emit_run_seed_take(out: *u8, pname: *u8, ty: *u8): voi
     unsafe {
       driver_preamble_fputs("      ", out);
       driver_preamble_fputs(pname, out);
-      driver_preamble_fputs(" = shux_async_run_seed_take_i32();\n", out);
+      driver_preamble_fputs(" = xlang_async_run_seed_take_i32();\n", out);
     }
     return;
   }
@@ -1729,25 +1718,25 @@ export function async_cps_codegen_begin(ctx: *u8, f: *u8, layout: *u8, out: *u8)
   }
   if (has_seed_param != 0) {
     unsafe {
-      driver_preamble_fputs("  if (shux_async_run_seed_valid())\n", out);
-      driver_preamble_fputs("    __shux_frame.__phase = 0;\n", out);
+      driver_preamble_fputs("  if (xlang_async_run_seed_valid())\n", out);
+      driver_preamble_fputs("    __xlang_frame.__phase = 0;\n", out);
     }
   }
   // num_awaits @4100
   let num_awaits: i32 = async_cps_load_i32(layout, 4100);
   unsafe {
-    driver_preamble_fputs("  /* SHUX_ASYNC_CPS switch=1 awaits=", out);
+    driver_preamble_fputs("  /* XLANG_ASYNC_CPS switch=1 awaits=", out);
   }
   async_cps_fputs_i32_dec(out, num_awaits);
   unsafe {
     driver_preamble_fputs(" */\n", out);
-    driver_preamble_fputs("  switch (__shux_frame.__phase) {\n", out);
+    driver_preamble_fputs("  switch (__xlang_frame.__phase) {\n", out);
     driver_preamble_fputs("  default:\n", out);
     driver_preamble_fputs("  case 0:\n", out);
   }
   if (has_seed_param != 0) {
     unsafe {
-      driver_preamble_fputs("    if (__shux_frame.__phase == 0 && shux_async_run_seed_valid()) {\n", out);
+      driver_preamble_fputs("    if (__xlang_frame.__phase == 0 && xlang_async_run_seed_valid()) {\n", out);
     }
     if (params != 0) {
       let pj: i32 = 0;

@@ -19,7 +19,7 @@
  *
  * All `math_*_c` functions below are thin wrappers over the C standard
  * math library (libm / <math.h>) intrinsics. They are implemented in
- * C (see seeds) and exposed to SHUX via `extern "C"` declarations.
+ * C (see seeds) and exposed to XLANG via `extern "C"` declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches the C runtime
  * and libm's published C ABI (floor / ceil / trunc / round / sin /

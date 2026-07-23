@@ -11,7 +11,7 @@
  * Unbundle（2026-07-21）：不再 #include 进 pipeline_glue.c；独立 TU 入
  *   DRIVER_SEED_SUPPORT_EXTRA / g05_relink_env（所有模式）。
  * 冷启动/无 PREFER：完整 C 体 → src/async/async_asm_pool.o。
- * PREFER：src/asm/async_asm_pool.x + 本 rest (-DSHUX_ASYNC_ASM_POOL_FROM_X) ld -r。
+ * PREFER：src/asm/async_asm_pool.x + 本 rest (-DXLANG_ASYNC_ASM_POOL_FROM_X) ld -r。
  * Prove：seeds/async_asm_pool_surface.from_x.c（-E 同构）nm IDENTICAL。
  * PLATFORM: SHARED — pool API 跨平台一致。
  */
@@ -67,9 +67,9 @@ extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
 
 /* R2 full：FROM_X 时全部业务体省略（由 src/asm/async_asm_pool.x 提供）；
  * 冷启动无宏时本文件提供完整 C 体（含 build_layout）。
- * 宏边界：SHUX_ASYNC_ASM_POOL_FROM_X
+ * 宏边界：XLANG_ASYNC_ASM_POOL_FROM_X
  */
-#ifndef SHUX_ASYNC_ASM_POOL_FROM_X
+#ifndef XLANG_ASYNC_ASM_POOL_FROM_X
 /** X pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
 /* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
@@ -377,7 +377,7 @@ int32_t async_asm_pool_build_layout(struct ast_ASTArena *arena, struct ast_Modul
 }
 #else
 /* FROM_X rest：业务 H=0；.x 提供全部公共符号 */
-#endif /* SHUX_ASYNC_ASM_POOL_FROM_X */
+#endif /* XLANG_ASYNC_ASM_POOL_FROM_X */
 
 /** Slice marker for hybrid/PREFER ld -r prove (always present). */
 void async_asm_pool_slice_marker(void) {}

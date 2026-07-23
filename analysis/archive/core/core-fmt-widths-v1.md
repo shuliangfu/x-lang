@@ -43,9 +43,9 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/core-fmt-widths.tsv`
-- typeck：`shux check tests/fmt/widths.x`
+- typeck：`xlang check tests/fmt/widths.x`
 - runnable：gate 内链接烟测
-- 报告：`shux: [SHUX_CORE_FMT_WIDTHS] status=ok`
+- 报告：`xlang: [XLANG_CORE_FMT_WIDTHS] status=ok`
 
 ---
 

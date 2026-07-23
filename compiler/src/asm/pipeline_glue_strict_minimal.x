@@ -1332,7 +1332,7 @@ export function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: 
   n0[5] = 112; n0[6] = 116; n0[7] = 114; n0[8] = 95; n0[9] = 115;
   n0[10] = 108; n0[11] = 105; n0[12] = 99; n0[13] = 101; n0[14] = 0;
   if (glue_name_bytes_eq_c(name, name_len, &n0[0], 14) != 0) { return 1; }
-  // "shux_io_read_ptr_slice" 22
+  // "xlang_io_read_ptr_slice" 22
   let n1: u8[24] = [];
   n1[0] = 115; n1[1] = 104; n1[2] = 117; n1[3] = 120; n1[4] = 95;
   n1[5] = 105; n1[6] = 111; n1[7] = 95; n1[8] = 114; n1[9] = 101;

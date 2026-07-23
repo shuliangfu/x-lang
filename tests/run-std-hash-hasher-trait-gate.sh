@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_HASH_HASHER_TRAIT_DOC:-analysis/std-hash-hasher-trait-v1.md}"
-MANIFEST="${SHUX_STD_HASH_HASHER_TRAIT_TSV:-tests/baseline/std-hash-hasher-trait.tsv}"
-VECTORS="${SHUX_STD_HASH_HASHER_TRAIT_VECTORS:-tests/baseline/std-hash-hasher-trait-vectors.tsv}"
+DOC="${XLANG_STD_HASH_HASHER_TRAIT_DOC:-analysis/std-hash-hasher-trait-v1.md}"
+MANIFEST="${XLANG_STD_HASH_HASHER_TRAIT_TSV:-tests/baseline/std-hash-hasher-trait.tsv}"
+VECTORS="${XLANG_STD_HASH_HASHER_TRAIT_VECTORS:-tests/baseline/std-hash-hasher-trait-vectors.tsv}"
 MOD_X="std/hash/mod.x"
 HASH_X="std/hash/hash.x"
 LIB="tests/lib/std-hash-hasher-trait.sh"
@@ -27,7 +27,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$HASH_X" "$SMOKE_X" "$SM
   fi
 done
 
-for kw in STD-056 HASHER_SIPHASH SHUX_HASH_ALGO SipHash; do
+for kw in STD-056 HASHER_SIPHASH XLANG_HASH_ALGO SipHash; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-hash-hasher-trait gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -90,7 +90,7 @@ echo "std-hash-hasher-trait manifest OK"
 C_OK=0
 X_OK=0
 SKIP=0
-SHUX_BIN=""
+XLANG_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -102,13 +102,13 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
-  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
+  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/hash/hash.o
@@ -118,21 +118,21 @@ if [ -n "$SHUX_BIN" ]; then
     std_hash_hasher_trait_emit_report "fail" 0 0 0
     exit 1
   fi
-  echo "=== STD-056: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  echo "=== STD-056: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-hash-hasher-trait gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_hash_hasher_trait_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_hash_hasher_trait_run_smoke "$SHUX_BIN" "$SMOKE_X" "switch"; then
+  if std_hash_hasher_trait_run_smoke "$XLANG_BIN" "$SMOKE_X" "switch"; then
     X_OK=1
   else
     std_hash_hasher_trait_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-hash-hasher-trait gate SKIP c/x smoke (no native shux-c)" >&2
+  echo "std-hash-hasher-trait gate SKIP c/x smoke (no native xlang-c)" >&2
   SKIP=1
 fi
 

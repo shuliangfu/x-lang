@@ -1,5 +1,5 @@
 /**
- * Shux Smart SelectionRange — 语义化逐级放大选区（Ctrl+Shift+Right 链路）。
+ * Xlang Smart SelectionRange — 语义化逐级放大选区（Ctrl+Shift+Right 链路）。
  *
  * 层次（子 → 父，通过 `SelectionRange.parent` 串起）：
  * 1. 标识符：`TextDocument#getWordRangeAtPosition`（与 language-configuration 的 wordPattern 对齐，含整块 PascalCase 标识）。
@@ -12,7 +12,7 @@
  * ```
  * languages.registerSelectionRangeProvider(
  *   { scheme: 'file', language: 'x' },
- *   createShuxSelectionRangeProvider()
+ *   createXlangSelectionRangeProvider()
  * );
  * ```
  */
@@ -30,7 +30,7 @@ import {
 /**
  * Smart Selection Provider：为 Smart Select 命令提供递进式 `SelectionRange` 链。
  */
-export class ShuxSelectionRangeProvider implements SelectionRangeProvider {
+export class XlangSelectionRangeProvider implements SelectionRangeProvider {
   /**
    * @param document 打开的 `.x` 文档。
    * @param positions 需要生成链的根位置数组（通常为当前光标）。
@@ -98,13 +98,13 @@ export class ShuxSelectionRangeProvider implements SelectionRangeProvider {
 /**
  * Provider 工厂函数，便于 activate() 单行注册：
  * ```
- * languages.registerSelectionRangeProvider({ language: 'x' }, createShuxSelectionRangeProvider());
+ * languages.registerSelectionRangeProvider({ language: 'x' }, createXlangSelectionRangeProvider());
  * ```
  *
- * @returns Shux 选区递进实现实例。
+ * @returns Xlang 选区递进实现实例。
  */
-export function createShuxSelectionRangeProvider(): SelectionRangeProvider {
-  return new ShuxSelectionRangeProvider();
+export function createXlangSelectionRangeProvider(): SelectionRangeProvider {
+  return new XlangSelectionRangeProvider();
 }
 
 /**

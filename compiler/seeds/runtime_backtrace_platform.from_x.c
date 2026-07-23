@@ -81,7 +81,7 @@ void backtrace_u8_hex2_impl(uint8_t b, char *out) {
   out[1] = (char)(lo < 10 ? ('0' + lo) : ('a' + lo - 10));
 }
 
-#ifndef SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void backtrace_u8_hex2(uint8_t b, char *out) {
   backtrace_u8_hex2_impl(b, out);
@@ -303,7 +303,7 @@ int32_t backtrace_capture_and_check_gold_c_impl(void) {
   return 12;
 }
 
-#ifndef SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t backtrace_capture_and_check_gold_c(void) {
   return backtrace_capture_and_check_gold_c_impl();
@@ -364,7 +364,7 @@ const char *backtrace_xplat_platform_name_c(void) {
 /** 检查符号名是否含 gold_anchor。 */
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：thin（src/asm/runtime_backtrace_platform.x）提供 public wrapper */
-#ifndef SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+#ifndef XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t name_has_gold_anchor(const char *name) {
   return backtrace_name_has_gold_anchor_c((const uint8_t *)name);
@@ -392,7 +392,7 @@ int32_t backtrace_xplat_quality_c(void) {
   if (total > 0)
     resolved = backtrace_symbolicate_c(buf, total, buf, names, total);
   /* 【Why 根源】runtime 不依赖编译器 diag_reportf（仅 compiler 链入）；用 fprintf 直接输出。 */
-  fprintf(stderr, "shux: [SHUX_BT_XPLAT] backtrace xplat: platform=%s gold=%d resolved=%d total=%d\n",
+  fprintf(stderr, "xlang: [XLANG_BT_XPLAT] backtrace xplat: platform=%s gold=%d resolved=%d total=%d\n",
           plat, gold, resolved, total);
   if (gold < 1 || resolved < 1 || total < 1)
     return 1;
@@ -400,11 +400,11 @@ int32_t backtrace_xplat_quality_c(void) {
 }
 
 /**
- * SAFE-007：SHUX_CRASH_EVIDENCE=1 时 capture 栈并 stderr/bundle 落盘。
+ * SAFE-007：XLANG_CRASH_EVIDENCE=1 时 capture 栈并 stderr/bundle 落盘。
  * 强符号覆盖 runtime_panic.c 内弱默认实现。
  */
-void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
-  const char *en = getenv("SHUX_CRASH_EVIDENCE");
+void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
+  const char *en = getenv("XLANG_CRASH_EVIDENCE");
   uint8_t buf[512];
   int32_t n;
   int32_t pid = 0;
@@ -419,12 +419,12 @@ void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
   fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val,
           n, pid);
   {
-    const char *dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
+    const char *dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
     if (dir && dir[0]) {
       char path[1024];
       FILE *f;
       int32_t i;
-      (void)snprintf(path, sizeof(path), "%s/shux-crash-%d.txt", dir, pid);
+      (void)snprintf(path, sizeof(path), "%s/xlang-crash-%d.txt", dir, pid);
       f = fopen(path, "w");
       if (f) {
         fprintf(f, "panic_has_msg=%d\npanic_msg=%d\nframes=%d\npid=%d\n", has_msg, msg_val, n, pid);

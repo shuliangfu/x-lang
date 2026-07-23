@@ -6,21 +6,21 @@
 #   boot022_parse_emit_lead LOG_FILE
 #   boot022_emit_report status promote_emit emit_lead skip
 
-BOOT022_PREFIX="${SHUX_BOOT022_PREFIX:-shux: [SHUX_BOOT022]}"
+BOOT022_PREFIX="${XLANG_BOOT022_PREFIX:-xlang: [XLANG_BOOT022]}"
 _LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/comp-riscv64.sh
 . "$_LIB_DIR/comp-riscv64.sh"
 # shellcheck source=tests/lib/ci-host.sh
 . "$_LIB_DIR/ci-host.sh"
 
-# Linux 且存在本机构建 shux_asm 链时可跑 emit wave（Docker portable 无 shux_asm 则 SKIP）。
+# Linux 且存在本机构建 xlang_asm 链时可跑 emit wave（Docker portable 无 xlang_asm 则 SKIP）。
 boot022_mega7_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
-  if ci_is_docker && [ ! -x "./compiler/shux_asm" ]; then
+  if ci_is_docker && [ ! -x "./compiler/xlang_asm" ]; then
     return 1
   fi
   local cand
-  for cand in ./compiler/shux_asm ./compiler/shux_asm.experimental; do
+  for cand in ./compiler/xlang_asm ./compiler/xlang_asm.experimental; do
     if comp_riscv64_native_shu "$cand"; then
       return 0
     fi

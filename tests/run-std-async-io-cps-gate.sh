@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_ASYNC_IO_CPS_DOC:-analysis/std-async-io-cps-v1.md}"
-MANIFEST="${SHUX_STD_ASYNC_IO_CPS_TSV:-tests/baseline/std-async-io-cps.tsv}"
+DOC="${XLANG_STD_ASYNC_IO_CPS_DOC:-analysis/std-async-io-cps-v1.md}"
+MANIFEST="${XLANG_STD_ASYNC_IO_CPS_TSV:-tests/baseline/std-async-io-cps.tsv}"
 MOD_X="std/async/mod.x"
 IO_X="std/io/mod.x"
 SCHED_C="compiler/seeds/runtime_scheduler_glue.from_x.c"
@@ -88,43 +88,43 @@ ALIGN_OK=0
 IO_URING_OK=0
 EMIT_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-042: typeck + smoke + emit (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-042: typeck + smoke + emit (XLANG=$XLANG_BIN) ==="
   make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$ALIGN_X" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$ALIGN_X" >/dev/null 2>&1; then
     echo "std-async-io-cps gate FAIL: typeck $ALIGN_X" >&2
-    "$SHUX_BIN" check -L . "$ALIGN_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$ALIGN_X" 2>&1 | tail -10 >&2 || true
     std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$IO_URING_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$IO_URING_X" >/dev/null 2>&1; then
     echo "std-async-io-cps gate FAIL: typeck $IO_URING_X" >&2
-    "$SHUX_BIN" check -L . "$IO_URING_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$IO_URING_X" 2>&1 | tail -10 >&2 || true
     std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_async_io_cps_run_smoke "$SHUX_BIN" "$ALIGN_X" "align"; then
+  if std_async_io_cps_run_smoke "$XLANG_BIN" "$ALIGN_X" "align"; then
     ALIGN_OK=1
   else
     std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_async_io_cps_run_smoke "$SHUX_BIN" "$IO_URING_X" "io_uring"; then
+  if std_async_io_cps_run_smoke "$XLANG_BIN" "$IO_URING_X" "io_uring"; then
     IO_URING_OK=1
   else
     std_async_io_cps_emit_report "fail" "$ALIGN_OK" 0 0 0
     exit 1
   fi
-  if std_async_io_cps_check_emit "$SHUX_BIN" "$EMIT_X"; then
+  if std_async_io_cps_check_emit "$XLANG_BIN" "$EMIT_X"; then
     EMIT_OK=1
   else
     std_async_io_cps_emit_report "fail" "$ALIGN_OK" "$IO_URING_OK" 0 0
@@ -132,7 +132,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-async-io-cps gate SKIP smoke (no native shux)" >&2
+  echo "std-async-io-cps gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_async_io_cps_emit_report "ok" "$ALIGN_OK" "$IO_URING_OK" "$EMIT_OK" "$SKIP"

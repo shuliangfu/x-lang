@@ -23,7 +23,7 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$TEST_X" "$SMOKE_X" std/test/README
   fi
 done
 
-for kw in STD-143 bench_run_noop fuzz_run_noop SHUX_BENCH; do
+for kw in STD-143 bench_run_noop fuzz_run_noop XLANG_BENCH; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-test-executable gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -44,17 +44,17 @@ TEST_O="$(cd compiler && pwd)/../std/test/test.o"
 
 EXEC_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-test-executable gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_test_executable_emit_report "fail" 0 0
     exit 1
   fi
-  if std_test_executable_run_smoke "$SHUX_BIN" "$SMOKE_X" "$TEST_O"; then
+  if std_test_executable_run_smoke "$XLANG_BIN" "$SMOKE_X" "$TEST_O"; then
     EXEC_OK=1
   else
     std_test_executable_emit_report "fail" 0 0

@@ -1,6 +1,6 @@
 /* seeds/pthin_glue.from_x.c — G-02f-319 P2 parser thin glue tail
  * Logic source: src/asm/pthin_glue.x
- * Hybrid: SHUX_PTHIN_GLUE_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_GLUE_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_glue_tail_slice.inc (~6.5k)
  */

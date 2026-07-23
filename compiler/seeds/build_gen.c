@@ -1,7 +1,7 @@
 /**
  * seeds/build_gen.c — pinned C for build.x (G-05)
  * Matches build_use_asm_only / build_get_step_at / build_get_step_count.
- * Regenerate with: shux -x -E -L .. ../build.x  (when -x -E is stable for this file).
+ * Regenerate with: xlang -x -E -L .. ../build.x  (when -x -E is stable for this file).
  */
 #include <stdint.h>
 #include <stddef.h>

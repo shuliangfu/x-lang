@@ -57,7 +57,7 @@ manifest：`tests/baseline/std-tar-ustar.tsv`
 **report** 示例：
 
 ```
-shux: [SHUX_STD_TAR_USTAR] status=ok rt=1 main=1 skip=0
+xlang: [XLANG_STD_TAR_USTAR] status=ok rt=1 main=1 skip=0
 ```
 
 回归：`tests/tar/main.x`（头读写）、`tests/run-tar.sh`

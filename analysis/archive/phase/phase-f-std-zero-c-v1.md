@@ -2,7 +2,7 @@
 
 > **终局目标**：`std/` 下 **零手写 `.c` / `.h`**（**82 → 0**；当前 **47 `.c` + 11 `.h`**）。  
 > **与 F §9.2 关系**：F-01～F-12 为流程与门禁；**F-std-zero-c** 为 std 清场总路线图。  
-> **验收**：`SHUX_F_STD_ZERO_C_STRICT=1 ./tests/run-f-std-zero-c-track-gate.sh`（终局硬绿 = std 无 C/H）。
+> **验收**：`XLANG_F_STD_ZERO_C_STRICT=1 ./tests/run-f-std-zero-c-track-gate.sh`（终局硬绿 = std 无 C/H）。
 
 ## 1. 能否全部去掉？
 
@@ -12,8 +12,8 @@
 |------|------|------|
 | 业务逻辑 `.c` | http inc、scheduler glue 等 | 全量 `.x` |
 | OS 胶层 `.c` | pthread/TLS/dlopen 等 | `.x` 内 `asm {}` / `extern` + 极薄平台桩（或 `.s`，**不在 std/**） |
-| ABI `.h` | fs/path/map/error_abi.h | **F-ZC Z9 ✅**：`compiler/include/shux_std_abi/` canonical + runtime preamble 内联 |
-| crypto ref10 `.c/.h` | ed25519 7×`.c` + 6×`.h` | 保留算法纯 `.x` 或 vendored 经 shux 编译的**单一**汇编对象（仍不保留 std 源 `.c`） |
+| ABI `.h` | fs/path/map/error_abi.h | **F-ZC Z9 ✅**：`compiler/include/xlang_std_abi/` canonical + runtime preamble 内联 |
+| crypto ref10 `.c/.h` | ed25519 7×`.c` + 6×`.h` | 保留算法纯 `.x` 或 vendored 经 xlang 编译的**单一**汇编对象（仍不保留 std 源 `.c`） |
 
 **不能一夜删光**：当前 **~623KB** 手写 C 集中在 http（30 文件）、async scheduler、channel、ed25519。
 
@@ -50,7 +50,7 @@
 - [ ] `runtime.c` / `boot-std-link-contract.tsv` 按需链更新  
 - [ ] v2 gate + closure tsv；v1 gate `absent` 旧 glue  
 - [ ] `f-std-zero-c-track.tsv` 删行；`no-handwritten-c-whitelist` 刷新  
-- [ ] `SHUX_F_STD_ZERO_C_STRICT=1` 仍红直到 total=0（预期）
+- [ ] `XLANG_F_STD_ZERO_C_STRICT=1` 仍红直到 total=0（预期）
 
 ## 5. 门禁
 
@@ -59,15 +59,15 @@
 ./tests/run-f-std-zero-c-track-gate.sh
 
 # 终局硬绿（当前必 FAIL，std>0 时）
-SHUX_F_STD_ZERO_C_STRICT=1 ./tests/run-f-std-zero-c-track-gate.sh
+XLANG_F_STD_ZERO_C_STRICT=1 ./tests/run-f-std-zero-c-track-gate.sh
 
 # 迁移后刷新清单
-SHUX_F_STD_ZERO_C_UPDATE=1 ./tests/run-f-std-zero-c-track-gate.sh
+XLANG_F_STD_ZERO_C_UPDATE=1 ./tests/run-f-std-zero-c-track-gate.sh
 
 # 聚合
-SHUX_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
-SHUX_F_PHASE_F_92_FAIL=1 ./tests/run-f-phase-f-92-batch-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_ZERO_C_FAIL=1 ./tests/run-f-std-zero-c-track-gate.sh
+XLANG_F_PHASE_F_92_FAIL=1 ./tests/run-f-phase-f-92-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 6. 首项清场（v1）

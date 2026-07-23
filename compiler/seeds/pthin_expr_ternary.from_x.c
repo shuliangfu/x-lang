@@ -1,6 +1,6 @@
 /* seeds/pthin_expr_ternary.from_x.c — G-02f-285 P2 parser thin P4 ternary/assign
  * Logic source: src/asm/pthin_expr_ternary.x
- * Hybrid: SHUX_PTHIN_EXPR_TERNARY_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_EXPR_TERNARY_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_ternary_assign_slice.inc
  */

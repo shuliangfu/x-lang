@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SV_ZC4_DOC:-analysis/std-strview-zc4-v1.md}"
-MANIFEST="${SHUX_STD_SV_ZC4_TSV:-tests/baseline/std-strview-zc4.tsv}"
+DOC="${XLANG_STD_SV_ZC4_DOC:-analysis/std-strview-zc4-v1.md}"
+MANIFEST="${XLANG_STD_SV_ZC4_TSV:-tests/baseline/std-strview-zc4.tsv}"
 STRING_X="std/string/mod.x"
 LIB="tests/lib/std-strview-zc4.sh"
 LIFECYCLE_X="tests/string/view_lifecycle.x"
@@ -50,7 +50,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -61,13 +61,13 @@ resolve_shu() {
 
 TYPECK_OK=0
 ZC4_SKIP=1
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-016: typeck (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-016: typeck (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   for x in "$LIFECYCLE_X" tests/string/view_subview_smoke.x tests/string/arena_concat_smoke.x tests/string/stack_str_sso_smoke.x; do
-    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$x" >/dev/null 2>&1; then
       echo "std-strview-zc4 gate FAIL: typeck $x" >&2
-      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -6 >&2 || true
+      "$XLANG_BIN" check -L . "$x" 2>&1 | tail -6 >&2 || true
       std_sv_zc4_emit_report "fail" 1 0 1
       exit 1
     fi
@@ -76,7 +76,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   if [ -x tests/run-zc4-gate.sh ]; then
     echo "=== STD-016: delegate run-zc4-gate (runnable) ==="
     chmod +x tests/run-zc4-gate.sh tests/run-perf-string-arena.sh tests/run-string.sh
-    if SHUX="$SHUX_BIN" ./tests/run-zc4-gate.sh >/tmp/std_sv_zc4_deep.log 2>&1; then
+    if XLANG="$XLANG_BIN" ./tests/run-zc4-gate.sh >/tmp/std_sv_zc4_deep.log 2>&1; then
       ZC4_SKIP=0
       grep -qF 'zc4 gate OK' /tmp/std_sv_zc4_deep.log || true
     else
@@ -85,7 +85,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   fi
 else
-  echo "std-strview-zc4 gate SKIP typeck (no native shux-c)" >&2
+  echo "std-strview-zc4 gate SKIP typeck (no native xlang-c)" >&2
 fi
 
 std_sv_zc4_emit_report "ok" 1 "$TYPECK_OK" "$ZC4_SKIP"

@@ -20,7 +20,7 @@
  * All `db_*_c` functions below are thin wrappers over the SQLite3 C
  * library (libsqlite3) connection / statement / cursor / pool
  * management intrinsics. They are implemented in C (see seeds) and
- * exposed to SHUX via `extern "C"` declarations.
+ * exposed to XLANG via `extern "C"` declarations.
  *
  * ABI: C (System V / AAPCS). Calling convention matches the C runtime
  * and libsqlite3's published C ABI (sqlite3_open / sqlite3_prepare_v2

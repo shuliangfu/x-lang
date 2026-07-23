@@ -47,7 +47,7 @@ export struct AsyncContext {
  * @return i32
  */
 export function register(buf: Buffer): i32 {
-  return core.shux_io_register(buf.ptr, buf.len, buf.handle);
+  return core.xlang_io_register(buf.ptr, buf.len, buf.handle);
 }
 // See implementation.
 // See implementation.
@@ -59,7 +59,7 @@ export function register(buf: Buffer): i32 {
  * @return i32
  */
 export function submit_register_fixed_buffers_buf(bufs: *Buffer, nr: u32): i32 {
-  return core.shux_io_register_buffers_buf(bufs as *u8, nr as i32);
+  return core.xlang_io_register_buffers_buf(bufs as *u8, nr as i32);
 }
 // submit_read: see function docblock below.
 /** Exported function `submit_read`.
@@ -69,7 +69,7 @@ export function submit_register_fixed_buffers_buf(bufs: *Buffer, nr: u32): i32 {
  * @return i32
  */
 export function submit_read(buf: Buffer, timeout_ms: u32): i32 {
-  return core.shux_io_submit_read(buf.ptr, buf.len, buf.handle, timeout_ms);
+  return core.xlang_io_submit_read(buf.ptr, buf.len, buf.handle, timeout_ms);
 }
 // driver_read_ptr: see function docblock below.
 /** Exported function `driver_read_ptr`.
@@ -79,21 +79,21 @@ export function submit_read(buf: Buffer, timeout_ms: u32): i32 {
  * @return *u8
  */
 export function driver_read_ptr(handle: usize, timeout_ms: u32): *u8 {
-  return core.shux_io_read_ptr(handle, timeout_ms);
+  return core.xlang_io_read_ptr(handle, timeout_ms);
 }
 /** Exported function `driver_read_ptr_len`.
  * Read path helper `driver_read_ptr_len`.
  * @return i32
  */
 export function driver_read_ptr_len(): i32 {
-  return core.shux_io_read_ptr_len();
+  return core.xlang_io_read_ptr_len();
 }
 /** Exported function `driver_read_ptr_gen`.
  * Read path helper `driver_read_ptr_gen`.
  * @return u64
  */
 export function driver_read_ptr_gen(): u64 {
-  return core.shux_io_read_ptr_gen();
+  return core.xlang_io_read_ptr_gen();
 }
 /** Exported function `driver_read_ptr_gen_valid`.
  * Read path helper `driver_read_ptr_gen_valid`.
@@ -101,14 +101,14 @@ export function driver_read_ptr_gen(): u64 {
  * @return i32
  */
 export function driver_read_ptr_gen_valid(saved: u64): i32 {
-  return core.shux_io_read_ptr_gen_valid(saved);
+  return core.xlang_io_read_ptr_gen_valid(saved);
 }
 /** Exported function `driver_read_ptr_backend`.
  * Read path helper `driver_read_ptr_backend`.
  * @return i32
  */
 export function driver_read_ptr_backend(): i32 {
-  return core.shux_io_read_ptr_backend();
+  return core.xlang_io_read_ptr_backend();
 }
 /** Exported function `driver_read_ptr_slice`.
  * Read path helper `driver_read_ptr_slice`.
@@ -117,7 +117,7 @@ export function driver_read_ptr_backend(): i32 {
  * @return u8[]<io_read_ptr>
  */
 export function driver_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
-  return core.shux_io_read_ptr_slice(handle, timeout_ms);
+  return core.xlang_io_read_ptr_slice(handle, timeout_ms);
 }
 // submit_write: see function docblock below.
 /** Exported function `submit_write`.
@@ -127,7 +127,7 @@ export function driver_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_r
  * @return i32
  */
 export function submit_write(buf: Buffer, timeout_ms: u32): i32 {
-  return core.shux_io_submit_write(buf.ptr, buf.len, buf.handle, timeout_ms);
+  return core.xlang_io_submit_write(buf.ptr, buf.len, buf.handle, timeout_ms);
 }
 // submit_read_batch: see function docblock below.
 /** Exported function `submit_read_batch`.
@@ -139,7 +139,7 @@ export function submit_write(buf: Buffer, timeout_ms: u32): i32 {
  */
 export function submit_read_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): i32 {
   let h: usize = buffers[0].handle;
-  return core.shux_io_submit_read_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
+  return core.xlang_io_submit_read_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
 }
 // submit_write_batch: see function docblock below.
 /** Exported function `submit_write_batch`.
@@ -151,7 +151,7 @@ export function submit_read_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): 
  */
 export function submit_write_batch(buffers: Buffer[4], n: i32, timeout_ms: u32): i32 {
   let h: usize = buffers[0].handle;
-  return core.shux_io_submit_write_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
+  return core.xlang_io_submit_write_batch(buffers[0].ptr, buffers[0].len, buffers[1].ptr, buffers[1].len, buffers[2].ptr, buffers[2].len, buffers[3].ptr, buffers[3].len, h, n, timeout_ms);
 }
 // submit_read_batch_buf: see function docblock below.
 /** Exported function `submit_read_batch_buf`.
@@ -163,7 +163,7 @@ export function submit_write_batch(buffers: Buffer[4], n: i32, timeout_ms: u32):
  * @return i32
  */
 export function submit_read_batch_buf(handle: usize, bufs: *Buffer, n: i32, timeout_ms: u32): i32 {
-  let r: isize = core.shux_io_read_batch_buf(handle as i32, bufs as *u8, n, timeout_ms);
+  let r: isize = core.xlang_io_read_batch_buf(handle as i32, bufs as *u8, n, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }
@@ -176,7 +176,7 @@ export function submit_read_batch_buf(handle: usize, bufs: *Buffer, n: i32, time
  * @return i32
  */
 export function submit_write_batch_buf(handle: usize, bufs: *Buffer, n: i32, timeout_ms: u32): i32 {
-  let r: isize = core.shux_io_write_batch_buf(handle as i32, bufs as *u8, n, timeout_ms);
+  let r: isize = core.xlang_io_write_batch_buf(handle as i32, bufs as *u8, n, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }

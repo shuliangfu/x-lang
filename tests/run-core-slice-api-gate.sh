@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_CORE_SLICE_DOC:-analysis/core-slice-api-v1.md}"
-MANIFEST="${SHUX_CORE_SLICE_TSV:-tests/baseline/core-slice-api.tsv}"
+DOC="${XLANG_CORE_SLICE_DOC:-analysis/core-slice-api-v1.md}"
+MANIFEST="${XLANG_CORE_SLICE_TSV:-tests/baseline/core-slice-api.tsv}"
 SLICE_X="core/slice/mod.x"
 LIB="tests/lib/core-slice-api.sh"
 SMOKE="tests/slice/subslice_split_chunks.x"
-PREFIX="shux: [SHUX_CORE_SLICE_API]"
+PREFIX="xlang: [XLANG_CORE_SLICE_API]"
 
 # shellcheck source=tests/lib/core-slice-api.sh
 . tests/lib/core-slice-api.sh
@@ -51,7 +51,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -63,23 +63,23 @@ resolve_shu() {
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-004: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== CORE-004: typeck (XLANG=$XLANG_BIN) ==="
+  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "core-slice-api gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     core_slice_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  if $RUN_SHUX build -L . "$SMOKE" -o /tmp/shux_core_slice_api 2>/tmp/shux_core_slice_api_build.log; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+  if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_core_slice_api 2>/tmp/xlang_core_slice_api_build.log; then
     exitcode=0
-    /tmp/shux_core_slice_api >/dev/null 2>&1 || exitcode=$?
+    /tmp/xlang_core_slice_api >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
     else
@@ -89,11 +89,11 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "core-slice-api gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/shux_core_slice_api_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/xlang_core_slice_api_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "core-slice-api gate SKIP typeck (no native shux)" >&2
+  echo "core-slice-api gate SKIP typeck (no native xlang)" >&2
 fi
 
 core_slice_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

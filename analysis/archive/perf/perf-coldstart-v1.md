@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 优化层 T1–T6 |
 | 2 | 打开 `tests/baseline/coldstart-perf.tsv` |
 | 3 | `./tests/run-perf-coldstart-gate.sh` |
-| 4 | `SHUX_COLDSTART_RUNS=5 ./tests/run-perf-coldstart.sh` |
+| 4 | `XLANG_COLDSTART_RUNS=5 ./tests/run-perf-coldstart.sh` |
 
 ---
 
@@ -33,7 +33,7 @@
 **coldstart 原则**：
 
 1. **执行 vs 编译分离**：T1–T3 测**已生成二进制**的启动延迟；T4 测**编译器自身**编源码（PERF-004）。
-2. **median 抗抖**：默认 `SHUX_COLDSTART_RUNS=20`；gate 烟测可用 `3`。
+2. **median 抗抖**：默认 `XLANG_COLDSTART_RUNS=20`；gate 烟测可用 `3`。
 3. **平台放宽**：Darwin/MSYS 对 `hello_stripped_us` 乘 slack（见 `baseline_cap()`）。
 4. **优化方向**：预链 `std/*.o`（`runtime.c`）、`-freestanding` 减链、COMP-007 增量减二次编译。
 
@@ -54,7 +54,7 @@
 更新（须 PR 评审）：
 
 ```bash
-SHUX_PERF_UPDATE_COLDSTART_BASELINE=1 ./tests/run-perf-coldstart.sh --bench
+XLANG_PERF_UPDATE_COLDSTART_BASELINE=1 ./tests/run-perf-coldstart.sh --bench
 ```
 
 ---
@@ -63,10 +63,10 @@ SHUX_PERF_UPDATE_COLDSTART_BASELINE=1 ./tests/run-perf-coldstart.sh --bench
 
 | 变量 | 说明 |
 |------|------|
-| `SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION=1` | 实测 ≤ baseline cap |
-| `SHUX_COLDSTART_RUNS` | median 采样次数（默认 20） |
-| `SHUX_COLDSTART_FREESTANDING_ONLY=1` | 仅 freestanding（shux_asm CI 段） |
-| `SHUX_COLDSTART_STD_ONLY=1` | 仅 std hello |
+| `XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=1` | 实测 ≤ baseline cap |
+| `XLANG_COLDSTART_RUNS` | median 采样次数（默认 20） |
+| `XLANG_COLDSTART_FREESTANDING_ONLY=1` | 仅 freestanding（xlang_asm CI 段） |
+| `XLANG_COLDSTART_STD_ONLY=1` | 仅 std hello |
 
 **gate report**：`coldstart OK` / `perf-coldstart gate OK`（runnable manifest + 烟测）。
 
@@ -84,7 +84,7 @@ SHUX_PERF_UPDATE_COLDSTART_BASELINE=1 ./tests/run-perf-coldstart.sh --bench
 
 ```bash
 ./tests/run-perf-coldstart-gate.sh
-SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh   # Linux CI
+XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION=1 ./tests/run-perf-coldstart.sh   # Linux CI
 ./tests/run-perf-compile-dogfood-gate.sh   # T4 首编译（PERF-004）
 ```
 

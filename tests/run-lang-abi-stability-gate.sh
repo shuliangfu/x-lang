@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_LANG_ABI_DOC:-analysis/lang-abi-stability-v1.md}"
-MANIFEST="${SHUX_LANG_ABI_MANIFEST:-tests/baseline/lang-abi-stability.tsv}"
-LEVELS="${SHUX_LANG_ABI_LEVELS:-tests/baseline/lang-abi-compat-levels.tsv}"
+DOC="${XLANG_LANG_ABI_DOC:-analysis/lang-abi-stability-v1.md}"
+MANIFEST="${XLANG_LANG_ABI_MANIFEST:-tests/baseline/lang-abi-stability.tsv}"
+LEVELS="${XLANG_LANG_ABI_LEVELS:-tests/baseline/lang-abi-compat-levels.tsv}"
 MIN_LAYERS=6
 MIN_CASES=2
 MIN_LEVELS=6
@@ -18,7 +18,7 @@ MIN_LEVELS=6
 echo "=== LANG-005: ABI stability manifest ==="
 for f in "$DOC" "$MANIFEST" "$LEVELS" \
   tests/abi/layout_abi.c tests/abi/f32_call_xmm_smoke.x \
-  compiler/docs/F32_XMM_ABI.md compiler/include/shux_std_abi/fs_abi.h \
+  compiler/docs/F32_XMM_ABI.md compiler/include/xlang_std_abi/fs_abi.h \
   tests/baseline/safe-ffi-contract.tsv; do
   if [ ! -f "$f" ]; then
     echo "lang-abi-stability gate FAIL: missing $f" >&2

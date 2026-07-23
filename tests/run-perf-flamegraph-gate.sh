@@ -3,20 +3,20 @@
 #
 # 1) analysis/perf-flamegraph-v1.md + perf-flamegraph.tsv manifest
 # 2) tests/lib/perf-flamegraph.sh + run-perf-flamegraph.sh 存在
-# 3) Linux + perf + native shux：烟测 check_typeck 须输出 ≥ min_top_n 行
+# 3) Linux + perf + native xlang：烟测 check_typeck 须输出 ≥ min_top_n 行
 #
 # 用法：./tests/run-perf-flamegraph-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_PERF_FLAMEGRAPH_DOC:-analysis/perf-flamegraph-v1.md}"
-MANIFEST="${SHUX_PERF_FLAMEGRAPH_TSV:-tests/baseline/perf-flamegraph.tsv}"
+DOC="${XLANG_PERF_FLAMEGRAPH_DOC:-analysis/perf-flamegraph-v1.md}"
+MANIFEST="${XLANG_PERF_FLAMEGRAPH_TSV:-tests/baseline/perf-flamegraph.tsv}"
 LIB="tests/lib/perf-flamegraph.sh"
 RUNNER="tests/run-perf-flamegraph.sh"
 MIN_TOPN=20
 MIN_CASES=2
 SMOKE_CASE="check_typeck"
-PREFIX="shux: [SHUX_PERF_FLAMEGRAPH]"
+PREFIX="xlang: [XLANG_PERF_FLAMEGRAPH]"
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
@@ -103,7 +103,7 @@ if [ "$MISS" -gt 0 ]; then
   echo "perf-flamegraph gate FAIL: missing=${MISS}" >&2
   exit 1
 fi
-for kw in perf record Top20 flamegraph SHUX_PERF_FLAMEGRAPH; do
+for kw in perf record Top20 flamegraph XLANG_PERF_FLAMEGRAPH; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "perf-flamegraph gate FAIL: doc missing keyword $kw" >&2
     exit 1
@@ -111,29 +111,29 @@ for kw in perf record Top20 flamegraph SHUX_PERF_FLAMEGRAPH; do
 done
 echo "perf-flamegraph manifest OK (cases=${CASES}, min_top_n=${MIN_TOPN})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if ! perf_fg_probe_ok || [ -z "$SHUX_BIN" ]; then
-  echo "perf-flamegraph gate SKIP hooks (perf or native shux unavailable; host=$(ci_host_summary))" >&2
+if ! perf_fg_probe_ok || [ -z "$XLANG_BIN" ]; then
+  echo "perf-flamegraph gate SKIP hooks (perf or native xlang unavailable; host=$(ci_host_summary))" >&2
   echo "perf-flamegraph gate OK"
   exit 0
 fi
 
 echo "=== PERF-005: smoke profile ($SMOKE_CASE) ==="
 chmod +x "$RUNNER"
-OUT="/tmp/shux-perf-flamegraph-gate-$$"
-SHUX="$SHUX_BIN" \
-  SHUX_PERF_FLAMEGRAPH_CASE="$SMOKE_CASE" \
-  SHUX_PERF_FLAMEGRAPH_OUT_DIR="$OUT" \
-  SHUX_PERF_FLAMEGRAPH_TOPN="$MIN_TOPN" \
+OUT="/tmp/xlang-perf-flamegraph-gate-$$"
+XLANG="$XLANG_BIN" \
+  XLANG_PERF_FLAMEGRAPH_CASE="$SMOKE_CASE" \
+  XLANG_PERF_FLAMEGRAPH_OUT_DIR="$OUT" \
+  XLANG_PERF_FLAMEGRAPH_TOPN="$MIN_TOPN" \
   ./"$RUNNER" 2>&1 | tee /tmp/perf_flamegraph_smoke.log
 
 grep -q "perf-flamegraph OK" /tmp/perf_flamegraph_smoke.log || {

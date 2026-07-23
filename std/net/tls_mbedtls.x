@@ -436,7 +436,7 @@ export const ADDR_LOOPBACK: u32 = 0x7f000001;
 
 /* See implementation. */
 let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
-let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
+let ENV_XLANG_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
 
 /**
  * See implementation.
@@ -450,7 +450,7 @@ export function net_tls_mbedtls_smoke_c(): i32 {
   if (name == 0 || name[0] != 109) {
     return 1;
   }
-  unsafe { port_env = getenv(&ENV_SHUX_TLS_PORT[0]); }
+  unsafe { port_env = getenv(&ENV_XLANG_TLS_PORT[0]); }
   if (port_env != 0) {
     unsafe { port = atoi(port_env); }
   }

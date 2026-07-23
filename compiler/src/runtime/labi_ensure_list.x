@@ -3,25 +3,25 @@
 //
 // G-02f-273 / P2 link_abi L4 ensure catalog pure table + special ensure orch.
 // Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_ensure_list.from_x.c.
-// Hybrid macro SHUX_LABI_ENSURE_LIST_FROM_X (FROM_X rest business H=0, marker only).
+// Hybrid macro XLANG_LABI_ENSURE_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: ensure catalog tables (stem/out_base/seed_base/flags/step_at) +
 //   wave173 link_abi_ensure_from_catalog pure orch
 //     (catalog tables + pure byte joins + Cap residual resolve/access/cc/one_extra/stat).
-//   wave174 catalog thin ensure wraps pure (26× shux_ensure_runtime_*_o)
+//   wave174 catalog thin ensure wraps pure (26× xlang_ensure_runtime_*_o)
 //     (peer *_o_path Cap residual + pure ensure_from_catalog; zero extra business logic).
-//   wave169 shux_ensure_runtime_panic_o pure orch
+//   wave169 xlang_ensure_runtime_panic_o pure orch
 //     (peer panic_o_path + Cap residual resolve/access/cc/stat + host #if prefer).
-//   wave170 shux_ensure_runtime_heap_user_o pure orch
+//   wave170 xlang_ensure_runtime_heap_user_o pure orch
 //     (peer heap_user_o_path + stub-defined-sym gate + pure byte joins + Cap residual).
-//   wave171 shux_ensure_runtime_test_fn_invoke_o pure orch
+//   wave171 xlang_ensure_runtime_test_fn_invoke_o pure orch
 //     (peer test_fn_invoke_o_path + pure byte joins + Cap residual resolve/access/cc/stat).
-//   wave172 shux_ensure_runtime_tls_mbedtls_bio_o pure orch
+//   wave172 xlang_ensure_runtime_tls_mbedtls_bio_o pure orch
 //     (peer tls_mbedtls_bio_o_path + pure byte joins + Cap residual resolve/access/cc_one_extra/stat).
-//   wave182 shux_ensure_bootstrap_nostdlib_stubs_o pure orch
+//   wave182 xlang_ensure_bootstrap_nostdlib_stubs_o pure orch
 //     (peer bootstrap_nostdlib_stubs_o_path + pure byte joins + Cap residual resolve/access/
 //      compile_sync_one_extra -fno-builtin + stat; freestanding mmap malloc face).
-//   wave186 shux_asm_ld_prepare_for_exe_link pure orch
+//   wave186 xlang_asm_ld_prepare_for_exe_link pure orch
 //     (peer freestanding_enabled/needs + peer ensure_* + peer user_needs + Cap residual
 //      debug report + freestanding_unsupported; pure gate/order ≡ mega).
 // Cap residual: resolve/access/cc/stat (+ one_extra for PIE/SQLITE/HTTP -I pack / -fno-builtin);
@@ -37,50 +37,50 @@
 // Cap residual (wave169/170/171/172 special ensure pure orch): resolve / access / cc / skip-stat.
 export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 export extern "C" function link_abi_path_readable(path: *u8): i32;
-export extern "C" function shux_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32;
+export extern "C" function xlang_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32;
 // Cap residual (wave172 mbedtls_bio): pack one pure flag string into compile_sync_ex table.
-export extern "C" function shux_cc_compile_sync_one_extra(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32, extra0: *u8): i32;
+export extern "C" function xlang_cc_compile_sync_one_extra(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32, extra0: *u8): i32;
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
 // Cap residual host #if (mega; ≡ ensure_runtime_panic source gates).
 export extern "C" function link_abi_host_is_linux_x86_64(): i32;
 export extern "C" function link_abi_host_is_posix_aarch64(): i32;
 // Cap residual (wave170 heap_user): nm/defined-sym probe + unlink incomplete stub .o.
-export extern "C" function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
+export extern "C" function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 export extern "C" function unlink(path: *u8): i32;
 // Peer pure path ladder (labi_path_pure L0 / wave160-163 compiler_o_path_copy joins).
-export extern "C" function shux_runtime_panic_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_heap_user_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_panic_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_heap_user_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_tls_mbedtls_bio_o_path(argv0: *u8): *u8;
 // Peer pure path ladder (labi_path_pure L0 / wave181 bootstrap_nostdlib_stubs_o_path).
-export extern "C" function shux_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8;
 // Cap residual path peers for wave174 catalog thin ensure wraps (mega / path pure).
-export extern "C" function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_process_os_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_random_fill_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_queue_contention_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_dynlib_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_env_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_log_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_math_libm_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_atomic_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_channel_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_net_workers_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_sync_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_http_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_process_os_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_random_fill_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_compress_zlib_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_dynlib_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_env_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_backtrace_platform_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_log_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_math_libm_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_atomic_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_channel_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_net_workers_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_sync_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_sync_lock_diag_tls_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_http_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_sqlite_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_crypto_inc_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_ed25519_ref10_glue_o_path(argv0: *u8): *u8;
 // Peer pure diags (labi_diag_pure L1).
 export extern "C" function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): void;
 export extern "C" function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8): void;
@@ -89,18 +89,18 @@ export extern "C" function link_diag_runtime_obj_build_status(obj_name: *u8, sta
 export extern "C" function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void;
 // Cap residual / peer pure (wave186 prepare_for_exe_link): freestanding L7 + ondemand L8b + debug Cap.
 // freestanding_enabled already returns 0 on non-Linux (≡ mega #if __linux__ freestanding branches).
-export extern "C" function shux_link_freestanding_enabled(driver_freestanding: i32): i32;
-export extern "C" function shux_freestanding_user_o_needs_panic(user_o: *u8): i32;
-export extern "C" function shux_freestanding_user_o_needs_io(user_o: *u8): i32;
-export extern "C" function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32;
-export extern "C" function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32;
+export extern "C" function xlang_link_freestanding_enabled(driver_freestanding: i32): i32;
+export extern "C" function xlang_freestanding_user_o_needs_panic(user_o: *u8): i32;
+export extern "C" function xlang_freestanding_user_o_needs_io(user_o: *u8): i32;
+export extern "C" function xlang_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32;
+export extern "C" function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32;
 export extern "C" function labi_user_needs_runtime_process_argv(user_o: *u8): i32;
 export extern "C" function labi_user_needs_runtime_random_fill(user_o: *u8): i32;
 export extern "C" function labi_user_needs_runtime_time_os(user_o: *u8): i32;
 export extern "C" function labi_user_needs_runtime_env_os(user_o: *u8): i32;
 export extern "C" function link_diag_freestanding_unsupported(): void;
 // Cap residual: optional hello-stage1 debug probe (fopen/fork/http; no-op when unset).
-export extern "C" function shux_debug_hello_stage1_report(hypothesis_id: *u8, location: *u8, msg: *u8, v1: i32, v2: i32, v3: i32): void;
+export extern "C" function xlang_debug_hello_stage1_report(hypothesis_id: *u8, location: *u8, msg: *u8, v1: i32, v2: i32, v3: i32): void;
 
 // labi_ensure_catalog_count: see function docblock below.
 
@@ -547,7 +547,7 @@ export function labi_ensure_catalog_step_at(
  * seeds/<seed_base> → compiler_dir/<out_base> with catalog flags.
  * @param argv0 *u8 — optional product host path for compiler-dir resolve; may be null
  * @param catalog_idx i32 — row in labi_ensure_catalog_* (0..25); invalid → -1
- * @param product_path *u8 — pre-resolved product .o path from peer shux_runtime_*_o_path;
+ * @param product_path *u8 — pre-resolved product .o path from peer xlang_runtime_*_o_path;
  *   null → -1. Caller passes path once (no .x function-pointer call ABI; Cap residual
  *   path peers stay C / pure path ladder).
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
@@ -555,10 +555,10 @@ export function labi_ensure_catalog_step_at(
  *   residual resolve; Cap residual path_readable + compile_sync / one_extra + skip_missing
  *   + peer diags (resolve_fail / source_missing / build_status / missing).
  * Flags (≡ mega LABI_ENS_FLAG_*): 0 NONE → compile_sync; 1 PIE → one_extra "-fPIE";
- *   2 SQLITE → one_extra "-DSHUX_DB_USE_SQLITE3"; 3 HTTP_SEEDS → pack single
+ *   2 SQLITE → one_extra "-DXLANG_DB_USE_SQLITE3"; 3 HTTP_SEEDS → pack single
  *   "-I{comp}/seeds/http" via one_extra (≡ mega separate -I + path argv entries).
  * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync / shux_cc_compile_sync_one_extra (spawn/cc); asm_link_obj_skip_missing.
+ *   xlang_cc_compile_sync / xlang_cc_compile_sync_one_extra (spawn/cc); asm_link_obj_skip_missing.
  * Why (wave173): hybrid still had always-mega C body for generic catalog ensure after special
  *   ensure leaves pure (wave169–172). Tables were pure; orch/spawn/cc stayed mega.
  * wave174: catalog thin wraps pure (ensure_*(argv0) → path peer + ensure_from_catalog).
@@ -733,14 +733,14 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
     // LABI_ENS_FLAG_PIE
     let flag_pie: *u8 = "-fPIE";
     unsafe {
-      crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_pie);
+      crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_pie);
     }
   } else {
     if (flags == 2) {
       // LABI_ENS_FLAG_SQLITE
-      let flag_sql: *u8 = "-DSHUX_DB_USE_SQLITE3";
+      let flag_sql: *u8 = "-DXLANG_DB_USE_SQLITE3";
       unsafe {
-        crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_sql);
+        crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_sql);
       }
     } else {
       if (flags == 3) {
@@ -781,12 +781,12 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
           k = k + 1;
         }
         unsafe {
-          crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, &flag_I[0]);
+          crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, &flag_I[0]);
         }
       } else {
         // LABI_ENS_FLAG_NONE
         unsafe {
-          crc = shux_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+          crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
         }
       }
     }
@@ -820,7 +820,7 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
  *   resolve; Cap residual host #if prefer + path_readable + cc_compile_sync + skip_missing (stat)
  *   + peer diags (resolve_fail / missing_under / build_status / missing).
  * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat);
+ *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat);
  *   link_abi_host_is_linux_x86_64 / link_abi_host_is_posix_aarch64 (PLATFORM #if body).
  * Why (wave169): hybrid still had always-mega C body for special panic ensure after panic
  *   path pure (wave163) and freestanding ensure pair (wave167/168). Catalog thin wraps stay
@@ -829,12 +829,12 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   // Cap residual: skip if product path already has runtime_panic.o (stat via path pure peer).
   let o_path: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
-    o_path = shux_runtime_panic_o_path(argv0);
+    o_path = xlang_runtime_panic_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have != 0 as *u8) {
@@ -1033,7 +1033,7 @@ export function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
   // Cap residual: cc -c src → out_o (from_asm_s when Linux x86_64 .s selected).
   let crc: i32 = 0;
   unsafe {
-    crc = shux_cc_compile_sync(src, &out_o[0], &inc0[0], &inc1[0], &inc2[0], from_asm_s);
+    crc = xlang_cc_compile_sync(src, &out_o[0], &inc0[0], &inc1[0], &inc2[0], from_asm_s);
   }
   if (crc != 0) {
     unsafe {
@@ -1043,7 +1043,7 @@ export function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
   }
   // Cap residual: re-stat product path; missing after cc → diag fail.
   unsafe {
-    o_path = shux_runtime_panic_o_path(argv0);
+    o_path = xlang_runtime_panic_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have == 0 as *u8) {
@@ -1066,8 +1066,8 @@ export function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
  *   resolve; Cap residual has_defined_sym (nm) + unlink stub + path_readable + cc_compile_sync
  *   + skip_missing (stat) + peer diags (resolve_fail / source_missing / build_status / missing).
  * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat);
- *   shux_link_obj_has_defined_sym (popen/nm); unlink (POSIX remove stub).
+ *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat);
+ *   xlang_link_obj_has_defined_sym (popen/nm); unlink (POSIX remove stub).
  * Why (wave170): hybrid still had always-mega C body for special heap_user ensure after
  *   panic ensure pure (wave169) and freestanding ensure pair (wave167/168). Catalog thin
  *   wraps stay via link_abi_ensure_from_catalog Cap residual.
@@ -1075,21 +1075,21 @@ export function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   // Cap residual: product path + skip if .o exists AND exports arena/alloc API.
   // Incomplete stub .o (skip_missing only) is unlinked and rebuilt (≡ mega remove).
   let existing: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
-    existing = shux_runtime_heap_user_o_path(argv0);
+    existing = xlang_runtime_heap_user_o_path(argv0);
     have = asm_link_obj_skip_missing(existing);
   }
   if (have != 0 as *u8) {
     let has_arena: i32 = 0;
     let has_alloc: i32 = 0;
     unsafe {
-      has_arena = shux_link_obj_has_defined_sym(existing, "heap_arena_init_c");
-      has_alloc = shux_link_obj_has_defined_sym(existing, "heap_alloc_c");
+      has_arena = xlang_link_obj_has_defined_sym(existing, "heap_arena_init_c");
+      has_alloc = xlang_link_obj_has_defined_sym(existing, "heap_alloc_c");
     }
     if (has_arena != 0) {
       return 0;
@@ -1223,7 +1223,7 @@ export function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   // Cap residual: cc -c seed → out_o (from_asm_s=0; C seed only).
   let crc: i32 = 0;
   unsafe {
-    crc = shux_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+    crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
   }
   if (crc != 0) {
     unsafe {
@@ -1234,7 +1234,7 @@ export function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   // Cap residual: re-stat product path; missing after cc → diag fail.
   let o_path: *u8 = 0 as *u8;
   unsafe {
-    o_path = shux_runtime_heap_user_o_path(argv0);
+    o_path = xlang_runtime_heap_user_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have == 0 as *u8) {
@@ -1255,7 +1255,7 @@ export function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
  *   resolve; Cap residual path_readable + cc_compile_sync + skip_missing (stat) + peer diags
  *   (resolve_fail / source_missing / build_status / missing).
  * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
+ *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
  * Why (wave171): hybrid still had always-mega C body for special test_fn_invoke ensure after
  *   heap_user pure (wave170). Mega used wrap.c+#include seed; pure uses direct seed compile
  *   (≡ wave169/170 heap/panic style; no fopen/fprintf Cap residual).
@@ -1263,12 +1263,12 @@ export function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   // Cap residual: product path; skip if .o already present (no stub-sym gate; simple special).
   let existing: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
-    existing = shux_runtime_test_fn_invoke_o_path(argv0);
+    existing = xlang_runtime_test_fn_invoke_o_path(argv0);
     have = asm_link_obj_skip_missing(existing);
   }
   if (have != 0 as *u8) {
@@ -1395,7 +1395,7 @@ export function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   // Cap residual: cc -c seed → out_o (from_asm_s=0; C seed only).
   let crc: i32 = 0;
   unsafe {
-    crc = shux_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
+    crc = xlang_cc_compile_sync(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0);
   }
   if (crc != 0) {
     unsafe {
@@ -1406,7 +1406,7 @@ export function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   // Cap residual: re-stat product path; missing after cc → diag fail.
   let o_path: *u8 = 0 as *u8;
   unsafe {
-    o_path = shux_runtime_test_fn_invoke_o_path(argv0);
+    o_path = xlang_runtime_test_fn_invoke_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have == 0 as *u8) {
@@ -1427,7 +1427,7 @@ export function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
  *   resolve; Cap residual path_readable + cc_compile_sync_one_extra + skip_missing (stat) + peer diags
  *   (resolve_fail with null hint / source_missing / build_status / missing).
  * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync_one_extra (spawn/cc + homebrew -I pack); asm_link_obj_skip_missing (stat).
+ *   xlang_cc_compile_sync_one_extra (spawn/cc + homebrew -I pack); asm_link_obj_skip_missing (stat).
  * Why (wave172): hybrid still had always-mega C body for special tls_mbedtls_bio ensure after
  *   test_fn_invoke pure (wave171). Mega used snprintf + compile_sync_ex(extra_flags homebrew -I);
  *   pure uses direct seed compile + Cap residual one_extra (no local **u8 flag table in .x).
@@ -1435,12 +1435,12 @@ export function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   // Cap residual: product path; skip if .o already present.
   let existing: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
-    existing = shux_runtime_tls_mbedtls_bio_o_path(argv0);
+    existing = xlang_runtime_tls_mbedtls_bio_o_path(argv0);
     have = asm_link_obj_skip_missing(existing);
   }
   if (have != 0 as *u8) {
@@ -1568,7 +1568,7 @@ export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   let flag_I: *u8 = "-I/opt/homebrew/opt/mbedtls/include";
   let crc: i32 = 0;
   unsafe {
-    crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_I);
+    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_I);
   }
   if (crc != 0) {
     // Match mega: build_status on failure; Makefile may still build offline.
@@ -1580,7 +1580,7 @@ export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   // Cap residual: re-stat product path; missing after cc → diag fail.
   let o_path: *u8 = 0 as *u8;
   unsafe {
-    o_path = shux_runtime_tls_mbedtls_bio_o_path(argv0);
+    o_path = xlang_runtime_tls_mbedtls_bio_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have == 0 as *u8) {
@@ -1602,7 +1602,7 @@ export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
  *   Cap residual resolve; Cap residual path_readable + cc_compile_sync_one_extra(-fno-builtin)
  *   + skip_missing (stat) + peer diags (resolve_fail / source_missing / build_status / missing).
  * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
- *   shux_cc_compile_sync_one_extra (spawn/cc + -fno-builtin); asm_link_obj_skip_missing (stat).
+ *   xlang_cc_compile_sync_one_extra (spawn/cc + -fno-builtin); asm_link_obj_skip_missing (stat).
  * Why (wave182): hybrid still had always-mega C body for ensure_bootstrap after path pure
  *   (wave181). Mega used system("cc -c -O2 -fno-builtin -I…"); pure uses Cap residual
  *   one_extra("-fno-builtin") over the shared compile_sync face (G.7; no second system path).
@@ -1612,12 +1612,12 @@ export function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
-export function shux_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
+export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   // Cap residual: product path; skip if .o already present (match mega: empty path is not ready).
   let existing: *u8 = 0 as *u8;
   let have: *u8 = 0 as *u8;
   unsafe {
-    existing = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+    existing = xlang_bootstrap_nostdlib_stubs_o_path(argv0);
   }
   if (existing != 0 as *u8) {
     if (existing[0] != 0) {
@@ -1751,7 +1751,7 @@ export function shux_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   let flag_nb: *u8 = "-fno-builtin";
   let crc: i32 = 0;
   unsafe {
-    crc = shux_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_nb);
+    crc = xlang_cc_compile_sync_one_extra(&src_c[0], &out_o[0], &inc0[0], &inc1[0], &inc2[0], 0, flag_nb);
   }
   if (crc != 0) {
     unsafe {
@@ -1762,7 +1762,7 @@ export function shux_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   // Cap residual: re-stat product path; missing after cc → diag fail.
   let o_path: *u8 = 0 as *u8;
   unsafe {
-    o_path = shux_bootstrap_nostdlib_stubs_o_path(argv0);
+    o_path = xlang_bootstrap_nostdlib_stubs_o_path(argv0);
     have = asm_link_obj_skip_missing(o_path);
   }
   if (have == 0 as *u8) {
@@ -1779,7 +1779,7 @@ export function shux_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_asm_io_stubs.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_asm_io_stubs_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_asm_io_stubs_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 0, product_path)` (LABI_ENS_ASM_IO_STUBS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1790,10 +1790,10 @@ export function shux_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_asm_io_stubs_o_path(argv0);
+    p = xlang_runtime_asm_io_stubs_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 0, p);
 }
@@ -1802,7 +1802,7 @@ export function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_process_argv.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_process_argv_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_process_argv_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 1, product_path)` (LABI_ENS_PROCESS_ARGV).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1813,10 +1813,10 @@ export function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_process_argv_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_process_argv_o_path(argv0);
+    p = xlang_runtime_process_argv_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 1, p);
 }
@@ -1825,7 +1825,7 @@ export function shux_ensure_runtime_process_argv_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_process_os_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_process_os_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_process_os_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 2, product_path)` (LABI_ENS_PROCESS_OS_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1836,10 +1836,10 @@ export function shux_ensure_runtime_process_argv_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_process_os_glue_o_path(argv0);
+    p = xlang_runtime_process_os_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 2, p);
 }
@@ -1848,7 +1848,7 @@ export function shux_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_random_fill.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_random_fill_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_random_fill_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 3, product_path)` (LABI_ENS_RANDOM_FILL).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1859,10 +1859,10 @@ export function shux_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_random_fill_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_random_fill_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_random_fill_o_path(argv0);
+    p = xlang_runtime_random_fill_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 3, p);
 }
@@ -1871,7 +1871,7 @@ export function shux_ensure_runtime_random_fill_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_compress_zlib_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_compress_zlib_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_compress_zlib_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 4, product_path)` (LABI_ENS_COMPRESS_ZLIB_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1882,10 +1882,10 @@ export function shux_ensure_runtime_random_fill_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_compress_zlib_glue_o_path(argv0);
+    p = xlang_runtime_compress_zlib_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 4, p);
 }
@@ -1894,7 +1894,7 @@ export function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_time_os.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_time_os_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_time_os_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 5, product_path)` (LABI_ENS_TIME_OS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1905,10 +1905,10 @@ export function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_time_os_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_time_os_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_time_os_o_path(argv0);
+    p = xlang_runtime_time_os_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 5, p);
 }
@@ -1917,7 +1917,7 @@ export function shux_ensure_runtime_time_os_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_queue_contention.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_queue_contention_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_queue_contention_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 6, product_path)` (LABI_ENS_QUEUE_CONTENTION).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1928,10 +1928,10 @@ export function shux_ensure_runtime_time_os_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_queue_contention_o_path(argv0);
+    p = xlang_runtime_queue_contention_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 6, p);
 }
@@ -1940,7 +1940,7 @@ export function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_dynlib_os.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_dynlib_os_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_dynlib_os_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 7, product_path)` (LABI_ENS_DYNLIB_OS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1951,10 +1951,10 @@ export function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_dynlib_os_o_path(argv0);
+    p = xlang_runtime_dynlib_os_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 7, p);
 }
@@ -1963,7 +1963,7 @@ export function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_env_os.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_env_os_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_env_os_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 8, product_path)` (LABI_ENS_ENV_OS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1974,10 +1974,10 @@ export function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_env_os_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_env_os_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_env_os_o_path(argv0);
+    p = xlang_runtime_env_os_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 8, p);
 }
@@ -1986,7 +1986,7 @@ export function shux_ensure_runtime_env_os_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_backtrace_platform.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_backtrace_platform_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_backtrace_platform_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 9, product_path)` (LABI_ENS_BACKTRACE_PLATFORM).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -1997,10 +1997,10 @@ export function shux_ensure_runtime_env_os_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_backtrace_platform_o_path(argv0);
+    p = xlang_runtime_backtrace_platform_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 9, p);
 }
@@ -2009,7 +2009,7 @@ export function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_log_os.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_log_os_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_log_os_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 10, product_path)` (LABI_ENS_LOG_OS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2020,10 +2020,10 @@ export function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_log_os_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_log_os_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_log_os_o_path(argv0);
+    p = xlang_runtime_log_os_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 10, p);
 }
@@ -2032,7 +2032,7 @@ export function shux_ensure_runtime_log_os_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_math_libm.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_math_libm_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_math_libm_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 11, product_path)` (LABI_ENS_MATH_LIBM).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2043,10 +2043,10 @@ export function shux_ensure_runtime_log_os_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_math_libm_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_math_libm_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_math_libm_o_path(argv0);
+    p = xlang_runtime_math_libm_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 11, p);
 }
@@ -2055,7 +2055,7 @@ export function shux_ensure_runtime_math_libm_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_atomic_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_atomic_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_atomic_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 12, product_path)` (LABI_ENS_ATOMIC_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2066,10 +2066,10 @@ export function shux_ensure_runtime_math_libm_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_atomic_glue_o_path(argv0);
+    p = xlang_runtime_atomic_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 12, p);
 }
@@ -2078,7 +2078,7 @@ export function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_channel_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_channel_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_channel_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 13, product_path)` (LABI_ENS_CHANNEL_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2089,10 +2089,10 @@ export function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_channel_glue_o_path(argv0);
+    p = xlang_runtime_channel_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 13, p);
 }
@@ -2101,7 +2101,7 @@ export function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_net_udp_batch.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_net_udp_batch_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_net_udp_batch_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 14, product_path)` (LABI_ENS_NET_UDP_BATCH).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2112,10 +2112,10 @@ export function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_net_udp_batch_o_path(argv0);
+    p = xlang_runtime_net_udp_batch_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 14, p);
 }
@@ -2124,7 +2124,7 @@ export function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_net_workers.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_net_workers_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_net_workers_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 15, product_path)` (LABI_ENS_NET_WORKERS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2135,10 +2135,10 @@ export function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_net_workers_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_net_workers_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_net_workers_o_path(argv0);
+    p = xlang_runtime_net_workers_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 15, p);
 }
@@ -2147,7 +2147,7 @@ export function shux_ensure_runtime_net_workers_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_sync_os.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_sync_os_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_sync_os_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 16, product_path)` (LABI_ENS_SYNC_OS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2158,10 +2158,10 @@ export function shux_ensure_runtime_net_workers_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_sync_os_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_sync_os_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_sync_os_o_path(argv0);
+    p = xlang_runtime_sync_os_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 16, p);
 }
@@ -2170,7 +2170,7 @@ export function shux_ensure_runtime_sync_os_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_sync_lock_diag_tls.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_sync_lock_diag_tls_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_sync_lock_diag_tls_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 17, product_path)` (LABI_ENS_SYNC_LOCK_DIAG_TLS).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2181,10 +2181,10 @@ export function shux_ensure_runtime_sync_os_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_sync_lock_diag_tls_o_path(argv0);
+    p = xlang_runtime_sync_lock_diag_tls_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 17, p);
 }
@@ -2193,7 +2193,7 @@ export function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_thread_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_thread_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_thread_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 18, product_path)` (LABI_ENS_THREAD_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2204,10 +2204,10 @@ export function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_thread_glue_o_path(argv0);
+    p = xlang_runtime_thread_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 18, p);
 }
@@ -2216,7 +2216,7 @@ export function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_scheduler_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_scheduler_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_scheduler_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 19, product_path)` (LABI_ENS_SCHEDULER_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2227,10 +2227,10 @@ export function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_scheduler_glue_o_path(argv0);
+    p = xlang_runtime_scheduler_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 19, p);
 }
@@ -2239,7 +2239,7 @@ export function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_http_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_http_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_http_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 20, product_path)` (LABI_ENS_HTTP_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2250,10 +2250,10 @@ export function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_http_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_http_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_http_glue_o_path(argv0);
+    p = xlang_runtime_http_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 20, p);
 }
@@ -2262,7 +2262,7 @@ export function shux_ensure_runtime_http_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_kv_mmap_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_kv_mmap_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_kv_mmap_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 21, product_path)` (LABI_ENS_KV_MMAP_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2273,10 +2273,10 @@ export function shux_ensure_runtime_http_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_kv_mmap_glue_o_path(argv0);
+    p = xlang_runtime_kv_mmap_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 21, p);
 }
@@ -2285,7 +2285,7 @@ export function shux_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_arrow_simd_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_arrow_simd_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_arrow_simd_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 22, product_path)` (LABI_ENS_ARROW_SIMD_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2296,10 +2296,10 @@ export function shux_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_arrow_simd_glue_o_path(argv0);
+    p = xlang_runtime_arrow_simd_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 22, p);
 }
@@ -2308,7 +2308,7 @@ export function shux_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_sqlite_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_sqlite_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_sqlite_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 23, product_path)` (LABI_ENS_SQLITE_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2319,10 +2319,10 @@ export function shux_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_sqlite_glue_o_path(argv0);
+    p = xlang_runtime_sqlite_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 23, p);
 }
@@ -2331,7 +2331,7 @@ export function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_crypto_inc_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_crypto_inc_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_crypto_inc_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 24, product_path)` (LABI_ENS_CRYPTO_INC_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2342,10 +2342,10 @@ export function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_crypto_inc_glue_o_path(argv0);
+    p = xlang_runtime_crypto_inc_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 24, p);
 }
@@ -2354,7 +2354,7 @@ export function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
  * Catalog thin ensure wrap: ensure `runtime_ed25519_ref10_glue.o` via pure catalog orch.
  * @param argv0 *u8 — optional product host path for peer path resolve; may be null
  * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `shux_runtime_ed25519_ref10_glue_o_path` then
+ * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_ed25519_ref10_glue_o_path` then
  *   pure `link_abi_ensure_from_catalog(argv0, 25, product_path)` (LABI_ENS_ED25519_REF10_GLUE).
  * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
  *   ensure_from_catalog (wave173) + path peers (wave160/161).
@@ -2365,10 +2365,10 @@ export function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
+export function xlang_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_runtime_ed25519_ref10_glue_o_path(argv0);
+    p = xlang_runtime_ed25519_ref10_glue_o_path(argv0);
   }
   return link_abi_ensure_from_catalog(argv0, 25, p);
 }
@@ -2383,7 +2383,7 @@ export function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
  * @param use_macho_o i32 — 1 if target is Mach-O object style; freestanding+macho → BLD001
  * @param use_coff_o i32 — 1 if target is COFF object style; freestanding+coff → BLD001
  * @return i32 — 0 success; -1 on null args / ensure failure / freestanding unsupported
- * Cap residual: shux_debug_hello_stage1_report (enter/exit probes); peer freestanding_enabled
+ * Cap residual: xlang_debug_hello_stage1_report (enter/exit probes); peer freestanding_enabled
  *   (already 0 on non-Linux ≡ mega #if __linux__ freestanding panic/io branches);
  *   peer needs_panic / needs_io; peer user_needs_runtime_*; peer ensure_* (L4/L7 pure);
  *   peer link_diag_freestanding_unsupported.
@@ -2393,13 +2393,13 @@ export function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
  * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
  */
 #[no_mangle]
-export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, driver_freestanding: i32, use_macho_o: i32, use_coff_o: i32): i32 {
+export function xlang_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, driver_freestanding: i32, use_macho_o: i32, use_coff_o: i32): i32 {
   // Cap residual: enter probe (no-op when .dbg env unset).
   let loc_enter: *u8 = "runtime_link_abi.c:prepare_for_exe_link_enter";
   let msg_enter: *u8 = "prepare_for_exe_link_enter";
   let hyp: *u8 = "A";
   unsafe {
-    shux_debug_hello_stage1_report(hyp, loc_enter, msg_enter, driver_freestanding, use_macho_o, use_coff_o);
+    xlang_debug_hello_stage1_report(hyp, loc_enter, msg_enter, driver_freestanding, use_macho_o, use_coff_o);
   }
   if (link_eff == 0 as *u8) {
     return 0 - 1;
@@ -2411,17 +2411,17 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
   // Hosted / non-Linux: always ensure panic (≡ mega #if __linux__ if/else structure).
   let fs: i32 = 0;
   unsafe {
-    fs = shux_link_freestanding_enabled(driver_freestanding);
+    fs = xlang_link_freestanding_enabled(driver_freestanding);
   }
   if (fs != 0) {
     let need_panic: i32 = 0;
     unsafe {
-      need_panic = shux_freestanding_user_o_needs_panic(user_o);
+      need_panic = xlang_freestanding_user_o_needs_panic(user_o);
     }
     if (need_panic != 0) {
       let prc: i32 = 0;
       unsafe {
-        prc = shux_ensure_runtime_panic_o(link_eff);
+        prc = xlang_ensure_runtime_panic_o(link_eff);
       }
       if (prc != 0) {
         return 0 - 1;
@@ -2430,7 +2430,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
   } else {
     let prc2: i32 = 0;
     unsafe {
-      prc2 = shux_ensure_runtime_panic_o(link_eff);
+      prc2 = xlang_ensure_runtime_panic_o(link_eff);
     }
     if (prc2 != 0) {
       return 0 - 1;
@@ -2441,7 +2441,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
   if (fs == 0) {
     let erc: i32 = 0;
     unsafe {
-      erc = shux_ensure_runtime_asm_io_stubs_o(link_eff);
+      erc = xlang_ensure_runtime_asm_io_stubs_o(link_eff);
     }
     if (erc != 0) {
       return 0 - 1;
@@ -2452,7 +2452,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
     }
     if (need_pa != 0) {
       unsafe {
-        erc = shux_ensure_runtime_process_argv_o(link_eff);
+        erc = xlang_ensure_runtime_process_argv_o(link_eff);
       }
       if (erc != 0) {
         return 0 - 1;
@@ -2464,7 +2464,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
     }
     if (need_rf != 0) {
       unsafe {
-        erc = shux_ensure_runtime_random_fill_o(link_eff);
+        erc = xlang_ensure_runtime_random_fill_o(link_eff);
       }
       if (erc != 0) {
         return 0 - 1;
@@ -2476,7 +2476,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
     }
     if (need_to != 0) {
       unsafe {
-        erc = shux_ensure_runtime_time_os_o(link_eff);
+        erc = xlang_ensure_runtime_time_os_o(link_eff);
       }
       if (erc != 0) {
         return 0 - 1;
@@ -2488,7 +2488,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
     }
     if (need_eo != 0) {
       unsafe {
-        erc = shux_ensure_runtime_env_os_o(link_eff);
+        erc = xlang_ensure_runtime_env_os_o(link_eff);
       }
       if (erc != 0) {
         return 0 - 1;
@@ -2498,7 +2498,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
   // Peer freestanding L7: crt0 ensure (no-op when freestanding off).
   let crc: i32 = 0;
   unsafe {
-    crc = shux_ensure_crt0_user_o(link_eff, driver_freestanding);
+    crc = xlang_ensure_crt0_user_o(link_eff, driver_freestanding);
   }
   if (crc != 0) {
     return 0 - 1;
@@ -2507,12 +2507,12 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
   if (fs != 0) {
     let need_io: i32 = 0;
     unsafe {
-      need_io = shux_freestanding_user_o_needs_io(user_o);
+      need_io = xlang_freestanding_user_o_needs_io(user_o);
     }
     if (need_io != 0) {
       let irc: i32 = 0;
       unsafe {
-        irc = shux_ensure_freestanding_io_o(link_eff, driver_freestanding);
+        irc = xlang_ensure_freestanding_io_o(link_eff, driver_freestanding);
       }
       if (irc != 0) {
         return 0 - 1;
@@ -2538,7 +2538,7 @@ export function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dri
   let loc_exit: *u8 = "runtime_link_abi.c:prepare_for_exe_link_exit";
   let msg_exit: *u8 = "prepare_for_exe_link_exit";
   unsafe {
-    shux_debug_hello_stage1_report(hyp, loc_exit, msg_exit, 0, 0, 0);
+    xlang_debug_hello_stage1_report(hyp, loc_exit, msg_exit, 0, 0, 0);
   }
   return 0;
 }

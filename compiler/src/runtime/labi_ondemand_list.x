@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // link_abi L8b on_demand symbol groups / rel pure tables; G.9 English; body authoritative.
-// Hybrid macro SHUX_LABI_ONDEMAND_LIST_FROM_X (FROM_X rest business H=0, marker only).
+// Hybrid macro XLANG_LABI_ONDEMAND_LIST_FROM_X (FROM_X rest business H=0, marker only).
 //
 // R2 full: simple/kv/arrow/time/queue + rel_* pure tables +
 //   wave118 labi_od_net_sym_* + link_abi_user_o_needs_std_net pure orch +
@@ -33,17 +33,17 @@
 //      Cap residual: none new — reuses pure path_pure is_obj + L8b needs tables).
 //   wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs pure orch
 //     (fk 1–13 plan gates; Cap residual undef_sym; G.7 complete wave135 fk0 sibling).
-//   wave197 shux_asm_ld_append_on_demand_user_objs pure orch
+//   wave197 xlang_asm_ld_append_on_demand_user_objs pure orch
 //     (product on_demand shell: pure needs/provides + pure push/path peers;
 //      Cap residual ensure/skip/path + freestanding_get + undef_sym).
 //   wave210 link_abi_obj_has_undef_sym pure thin orch
 //     (null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl = nm/popen).
 //   wave211 link_abi_obj_exports_marker pure thin orch
 //     (null/empty gates; Cap residual link_abi_obj_exports_marker_impl = nm/popen strstr).
-//   wave212 shux_link_obj_needs_undef_sym pure thin orch
-//     (null/empty gates; Cap residual shux_link_obj_needs_undef_sym_impl = nm/popen + ELF).
-//   wave213 shux_link_obj_has_defined_sym pure thin orch
-//     (null/empty gates; Cap residual shux_link_obj_has_defined_sym_impl = nm/popen T/t).
+//   wave212 xlang_link_obj_needs_undef_sym pure thin orch
+//     (null/empty gates; Cap residual xlang_link_obj_needs_undef_sym_impl = nm/popen + ELF).
+//   wave213 xlang_link_obj_has_defined_sym pure thin orch
+//     (null/empty gates; Cap residual xlang_link_obj_has_defined_sym_impl = nm/popen T/t).
 // Cap residual: ensure/skip/path Cap inside shell peers; needs_undef_impl /
 //   has_undef_impl / exports_marker_impl / has_defined_impl Cap
 //   (wave210–213 pure own has_undef + exports_marker + needs_undef + has_defined public gates).
@@ -61,7 +61,7 @@
  * @return i32 — 1 if user.o has UNDEF for sym, else 0
  * PLATFORM: SHARED orch residual; LINUX freestanding ELF path inside _impl
  */
-export extern "C" function shux_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
+export extern "C" function xlang_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
 
 /**
  * Return 1 iff user.o needs (UNDEF) the given exact symbol; null/empty → 0 without residual.
@@ -69,14 +69,14 @@ export extern "C" function shux_link_obj_needs_undef_sym_impl(user_o: *u8, sym: 
  * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
  * @return i32 — 1 if UNDEF hit, else 0
  * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (+ ELF on LINUX freestanding).
- * Cap residual: shux_link_obj_needs_undef_sym_impl (nm -u parse; strip optional U/_).
+ * Cap residual: xlang_link_obj_needs_undef_sym_impl (nm -u parse; strip optional U/_).
  * Why (wave212): hybrid still had needs_undef_sym body always mega C (gates+nm+ELF).
  * Used by all L8b pure needs_* orch tables (net/set/map/queue/fk/… on_demand gates).
  * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
 #[no_mangle]
-export function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
+export function xlang_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
   if (user_o == 0 as *u8) {
     return 0;
   }
@@ -90,7 +90,7 @@ export function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
     return 0;
   }
   unsafe {
-    return shux_link_obj_needs_undef_sym_impl(user_o, sym);
+    return xlang_link_obj_needs_undef_sym_impl(user_o, sym);
   }
   return 0;
 }
@@ -112,7 +112,7 @@ export extern "C" function link_abi_ld_argv_entry_is_obj(s: *u8): i32;
  * @return i32 — 1 if nm shows T/t definition for sym, else 0
  * PLATFORM: SHARED residual; host nm/popen (POSIX; Windows hybrid via tools)
  */
-export extern "C" function shux_link_obj_has_defined_sym_impl(o_path: *u8, sym: *u8): i32;
+export extern "C" function xlang_link_obj_has_defined_sym_impl(o_path: *u8, sym: *u8): i32;
 
 /**
  * Return 1 iff .o defines (T/t) the given exact symbol; null/empty → 0 without residual.
@@ -120,14 +120,14 @@ export extern "C" function shux_link_obj_has_defined_sym_impl(o_path: *u8, sym: 
  * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
  * @return i32 — 1 if defined hit, else 0
  * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (wave213).
- * Cap residual: shux_link_obj_has_defined_sym_impl (`nm` + skip addr + T/t + optional _).
+ * Cap residual: xlang_link_obj_has_defined_sym_impl (`nm` + skip addr + T/t + optional _).
  * Why (wave213): hybrid still had has_defined_sym body always mega C (gates+nm).
  * Used by wave140 user_o_provides_* orch and wave170 heap_user ensure stub reject.
  * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
  * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
  */
 #[no_mangle]
-export function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32 {
+export function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32 {
   if (o_path == 0 as *u8) {
     return 0;
   }
@@ -141,7 +141,7 @@ export function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32 {
     return 0;
   }
   unsafe {
-    return shux_link_obj_has_defined_sym_impl(o_path, sym);
+    return xlang_link_obj_has_defined_sym_impl(o_path, sym);
   }
   return 0;
 }
@@ -233,32 +233,32 @@ export function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
 /* ===== wave197 Cap residual / peer pure for on_demand product shell ===== */
 export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32;
 export extern "C" function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: **u8, la: *i32, max_la: i32, p: *u8): void;
-export extern "C" function shux_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
+export extern "C" function xlang_asm_ld_try_under_lib_roots(rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8): *u8;
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
-export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
-export extern "C" function shux_repo_root_from_argv0(argv0: *u8): *u8;
-export extern "C" function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
+export extern "C" function xlang_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
+export extern "C" function xlang_repo_root_from_argv0(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8, make_target: *u8): i32;
 export extern "C" function driver_freestanding_get(): i32;
-export extern "C" function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_thread_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_net_workers_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_net_workers_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_heap_user_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_heap_user_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_process_argv_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_process_argv_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_time_os_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_time_os_o_path(argv0: *u8): *u8;
-export extern "C" function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32;
-export extern "C" function shux_runtime_queue_contention_o_path(argv0: *u8): *u8;
-export extern "C" function shux_std_async_scheduler_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
-export extern "C" function shux_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_thread_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_net_udp_batch_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_net_udp_batch_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_net_workers_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_net_workers_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_test_fn_invoke_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_heap_user_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_process_argv_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_process_argv_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_time_os_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_time_os_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_queue_contention_o(argv0: *u8): i32;
+export extern "C" function xlang_runtime_queue_contention_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_std_async_scheduler_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_scheduler_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_kv_mmap_glue_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_arrow_simd_glue_o_path(argv0: *u8): *u8;
 
 /** Return simple on_demand group count (must match seed labi_ondemand_list.from_x.c). */
 #[no_mangle]
@@ -322,23 +322,23 @@ export function labi_od_simple_group_sym_at(g: i32, i: i32): *u8 {
   }
   if (g == 0) {
     if (i == 0) {
-      let p: *u8 = "shux_string_copy_c";
+      let p: *u8 = "xlang_string_copy_c";
       return p;
     }
     if (i == 1) {
-      let p: *u8 = "shux_string_memcmp_c";
+      let p: *u8 = "xlang_string_memcmp_c";
       return p;
     }
     if (i == 2) {
-      let p: *u8 = "shux_string_memchr_c";
+      let p: *u8 = "xlang_string_memchr_c";
       return p;
     }
     if (i == 3) {
-      let p: *u8 = "shux_string_memmem_c";
+      let p: *u8 = "xlang_string_memmem_c";
       return p;
     }
     if (i == 4) {
-      let p: *u8 = "shux_string_memrchr_c";
+      let p: *u8 = "xlang_string_memrchr_c";
       return p;
     }
     if (i == 5) {
@@ -902,7 +902,7 @@ export function labi_od_net_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.net / net_*_c (on-demand chain net.o).
- * Pure orch: fixed net UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed net UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
  * Why (wave118): hybrid still had needs_std_net body always mega C with hard-coded strings.
@@ -924,7 +924,7 @@ export function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1043,7 +1043,7 @@ export function labi_od_set_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.set API (on-demand chain set.o + heap/hash deps).
- * Pure orch: fixed set UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed set UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
  * Why (wave119): hybrid still had needs_std_set body always mega C with hard-coded strings.
@@ -1066,7 +1066,7 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1140,7 +1140,7 @@ export function labi_od_map_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.map API (on-demand chain map.o + heap companions).
- * Pure orch: fixed map UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed map UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
  * Why (wave120): hybrid still had needs_std_map body always mega C with hard-coded strings.
@@ -1163,7 +1163,7 @@ export function link_abi_user_o_needs_std_map(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1250,7 +1250,7 @@ export function labi_od_queue_api_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references product std.queue API (on-demand chain queue.o).
- * Pure orch: fixed product queue UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed product queue UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * Contention path stays labi_od_queue_sym_* + labi_od_user_needs_any_sym_table in mega.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
@@ -1274,7 +1274,7 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1289,7 +1289,7 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
 /**
  * Count of std.test on_demand UNDEF probes (product test.o gate).
  * Prefix-style entries (test_runner_ etc.) rely on Cap residual strstr
- * fallback inside shux_link_obj_needs_undef_sym (exact + substring).
+ * fallback inside xlang_link_obj_needs_undef_sym (exact + substring).
  * @return i32 — 7
  * PLATFORM: SHARED — must match formal test.o / runner export prefixes
  */
@@ -1342,7 +1342,7 @@ export function labi_od_test_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.test API (on-demand chain test.o).
- * Pure orch: fixed test UNDEF/prefix table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed test UNDEF/prefix table; Cap residual xlang_link_obj_needs_undef_sym.
  * Avoids unconditional test.o on hello-class minimal links (ld duplicate risk).
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
@@ -1366,7 +1366,7 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1433,7 +1433,7 @@ export function labi_od_core_mem_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references core.mem API (on-demand chain core/mem/mem.o).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
  * Why (wave123): hybrid still had needs_core_mem body always mega C with hard-coded strings.
@@ -1456,7 +1456,7 @@ export function link_abi_user_o_needs_core_mem(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1519,7 +1519,7 @@ export function labi_od_core_slice_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references core.slice glue API (on-demand chain core/slice/slice.o).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
  * Why (wave124): hybrid still had needs_core_slice body always mega C with hard-coded strings.
@@ -1542,7 +1542,7 @@ export function link_abi_user_o_needs_core_slice(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1601,7 +1601,7 @@ export function labi_od_page_mmap_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.heap.page_mmap API (on-demand chain std/heap/page_mmap.o).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * Freestanding mmap bump heap gate; transitive linux.o + core_mem.o covered by later on_demand.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
@@ -1625,7 +1625,7 @@ export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1692,7 +1692,7 @@ export function labi_od_sys_linux_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.sys.linux API (on-demand chain std/sys/linux.o).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * F-no-libc freestanding Linux syscall thin wrappers (mmap/read/write/close/exit).
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
@@ -1716,7 +1716,7 @@ export function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1787,7 +1787,7 @@ export function labi_od_sys_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.sys facade API (on-demand chain std/sys/sys.o).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * F-no-libc: write_stdout/read/close/exit + freestanding availability probes.
  * On Linux, sys.o may transitively pull linux.o via cfg target_os.
  * @param user_o *u8 — path to user .o; null/empty → 0
@@ -1812,7 +1812,7 @@ export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -1951,7 +1951,7 @@ export function labi_od_heap_api_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references std.heap formal API (on-demand chain std/heap/heap.o).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * Covers typed alloc/free, Allocator/default/kind, arena64, and libc heap surface
  * used by formal set/map/queue/vec .o after import_alias C stubs were removed.
  * @param user_o *u8 — path to user .o; null/empty → 0
@@ -1976,7 +1976,7 @@ export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -2046,7 +2046,7 @@ export function labi_od_heap_user_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references runtime_heap_user symbols (on-demand chain runtime_heap_user.o).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * Covers heap_alloc/free/realloc, arena64_alloc, and with_arena init/deinit surface.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
@@ -2071,7 +2071,7 @@ export function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -2107,143 +2107,143 @@ export function labi_od_async_scheduler_sym_at(i: i32): *u8 {
     return 0 as *u8;
   }
   if (i == 0) {
-    let p: *u8 = "shux_async_coop_pingpong";
+    let p: *u8 = "xlang_async_coop_pingpong";
     return p;
   }
   if (i == 1) {
-    let p: *u8 = "shux_async_coop_pingpong_jmp";
+    let p: *u8 = "xlang_async_coop_pingpong_jmp";
     return p;
   }
   if (i == 2) {
-    let p: *u8 = "shux_async_cps_suspend";
+    let p: *u8 = "xlang_async_cps_suspend";
     return p;
   }
   if (i == 3) {
-    let p: *u8 = "shux_async_asm_frame_phase_by_id";
+    let p: *u8 = "xlang_async_asm_frame_phase_by_id";
     return p;
   }
   if (i == 4) {
-    let p: *u8 = "shux_async_asm_frame_store_from_ptr";
+    let p: *u8 = "xlang_async_asm_frame_store_from_ptr";
     return p;
   }
   if (i == 5) {
-    let p: *u8 = "shux_async_asm_frame_load_to_ptr";
+    let p: *u8 = "xlang_async_asm_frame_load_to_ptr";
     return p;
   }
   if (i == 6) {
-    let p: *u8 = "shux_async_asm_frame_reset_by_id";
+    let p: *u8 = "xlang_async_asm_frame_reset_by_id";
     return p;
   }
   if (i == 7) {
-    let p: *u8 = "shux_async_cps_suspend_io";
+    let p: *u8 = "xlang_async_cps_suspend_io";
     return p;
   }
   if (i == 8) {
-    let p: *u8 = "shux_async_run_i32";
+    let p: *u8 = "xlang_async_run_i32";
     return p;
   }
   if (i == 9) {
-    let p: *u8 = "shux_async_task_submit";
+    let p: *u8 = "xlang_async_task_submit";
     return p;
   }
   if (i == 10) {
-    let p: *u8 = "shux_async_task_submit_to";
+    let p: *u8 = "xlang_async_task_submit_to";
     return p;
   }
   if (i == 11) {
-    let p: *u8 = "shux_async_scheduler_drain";
+    let p: *u8 = "xlang_async_scheduler_drain";
     return p;
   }
   if (i == 12) {
-    let p: *u8 = "shux_async_worker_drain";
+    let p: *u8 = "xlang_async_worker_drain";
     return p;
   }
   if (i == 13) {
-    let p: *u8 = "shux_async_worker_count";
+    let p: *u8 = "xlang_async_worker_count";
     return p;
   }
   if (i == 14) {
-    let p: *u8 = "shux_async_worker_pending";
+    let p: *u8 = "xlang_async_worker_pending";
     return p;
   }
   if (i == 15) {
-    let p: *u8 = "shux_async_queue_reset";
+    let p: *u8 = "xlang_async_queue_reset";
     return p;
   }
   if (i == 16) {
-    let p: *u8 = "shux_async_scheduler_pending";
+    let p: *u8 = "xlang_async_scheduler_pending";
     return p;
   }
   if (i == 17) {
-    let p: *u8 = "shux_async_io_wake_all";
+    let p: *u8 = "xlang_async_io_wake_all";
     return p;
   }
   if (i == 18) {
-    let p: *u8 = "shux_async_io_waiters_pending";
+    let p: *u8 = "xlang_async_io_waiters_pending";
     return p;
   }
   if (i == 19) {
-    let p: *u8 = "shux_async_io_completions_ready";
+    let p: *u8 = "xlang_async_io_completions_ready";
     return p;
   }
   if (i == 20) {
-    let p: *u8 = "shux_async_run_seed_set_i32";
+    let p: *u8 = "xlang_async_run_seed_set_i32";
     return p;
   }
   if (i == 21) {
-    let p: *u8 = "shux_async_run_seed_reset";
+    let p: *u8 = "xlang_async_run_seed_reset";
     return p;
   }
   if (i == 22) {
-    let p: *u8 = "shux_async_run_seed_push_i32";
+    let p: *u8 = "xlang_async_run_seed_push_i32";
     return p;
   }
   if (i == 23) {
-    let p: *u8 = "shux_async_run_seed_push_u32";
+    let p: *u8 = "xlang_async_run_seed_push_u32";
     return p;
   }
   if (i == 24) {
-    let p: *u8 = "shux_async_run_seed_push_i64";
+    let p: *u8 = "xlang_async_run_seed_push_i64";
     return p;
   }
   if (i == 25) {
-    let p: *u8 = "shux_async_run_seed_valid";
+    let p: *u8 = "xlang_async_run_seed_valid";
     return p;
   }
   if (i == 26) {
-    let p: *u8 = "shux_async_run_seed_take_i32";
+    let p: *u8 = "xlang_async_run_seed_take_i32";
     return p;
   }
   if (i == 27) {
-    let p: *u8 = "shux_async_run_seed_take_u32";
+    let p: *u8 = "xlang_async_run_seed_take_u32";
     return p;
   }
   if (i == 28) {
-    let p: *u8 = "shux_async_run_seed_take_i64";
+    let p: *u8 = "xlang_async_run_seed_take_i64";
     return p;
   }
   if (i == 29) {
-    let p: *u8 = "shux_io_submit_read_async";
+    let p: *u8 = "xlang_io_submit_read_async";
     return p;
   }
   if (i == 30) {
-    let p: *u8 = "shux_io_complete_read_async";
+    let p: *u8 = "xlang_io_complete_read_async";
     return p;
   }
   if (i == 31) {
-    let p: *u8 = "shux_io_complete_read_async_slot";
+    let p: *u8 = "xlang_io_complete_read_async_slot";
     return p;
   }
   if (i == 32) {
-    let p: *u8 = "shux_io_submit_write_async";
+    let p: *u8 = "xlang_io_submit_write_async";
     return p;
   }
   if (i == 33) {
-    let p: *u8 = "shux_io_complete_write_async";
+    let p: *u8 = "xlang_io_complete_write_async";
     return p;
   }
   if (i == 34) {
-    let p: *u8 = "shux_io_complete_write_async_slot";
+    let p: *u8 = "xlang_io_complete_write_async_slot";
     return p;
   }
   return 0 as *u8;
@@ -2251,7 +2251,7 @@ export function labi_od_async_scheduler_sym_at(i: i32): *u8 {
 
 /**
  * Whether user .o references async scheduler / async IO symbols (on-demand chain scheduler.o + glue).
- * Pure orch: fixed exact UNDEF table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: fixed exact UNDEF table; Cap residual xlang_link_obj_needs_undef_sym.
  * Covers coop/cps/frame/run/task/worker/io waiters and async read/write complete surface.
  * @param user_o *u8 — path to user .o; null/empty → 0
  * @return i32 — 1 if any UNDEF hits, else 0
@@ -2275,7 +2275,7 @@ export function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -2602,7 +2602,7 @@ export function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
  * wave133: process_argv (9 needles; single-leaf to stay under module codegen capacity).
  * Semantics: null/empty user_o → 1 (legacy hard-link for old call sites without user_o).
  * std_task stays mega until capacity raise or L8b split.
- * Cap residual: shux_link_obj_needs_undef_sym. PLATFORM: SHARED. */
+ * Cap residual: xlang_link_obj_needs_undef_sym. PLATFORM: SHARED. */
 
 /**
  * Count of runtime time_os UNDEF needles for labi_user_needs_runtime_time_os.
@@ -2694,7 +2694,7 @@ export function labi_user_needs_runtime_time_os(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -2804,7 +2804,7 @@ export function labi_user_needs_runtime_random_fill(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -2942,7 +2942,7 @@ export function labi_user_needs_runtime_env_os(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -2956,7 +2956,7 @@ export function labi_user_needs_runtime_env_os(user_o: *u8): i32 {
 
 /**
  * Count of runtime process_argv UNDEF needles for labi_user_needs_runtime_process_argv.
- * Product complete (G.7): process_*_c + process_shux_* + std_process_* + std_env_args_iter.
+ * Product complete (G.7): process_*_c + process_xlang_* + std_process_* + std_env_args_iter.
  * @return i32 — 9
  * PLATFORM: SHARED
  */
@@ -2977,11 +2977,11 @@ export function labi_od_runtime_process_argv_sym_at(i: i32): *u8 {
     return 0 as *u8;
   }
   if (i == 0) {
-    let p: *u8 = "process_shux_argc_get";
+    let p: *u8 = "process_xlang_argc_get";
     return p;
   }
   if (i == 1) {
-    let p: *u8 = "process_shux_argv_get";
+    let p: *u8 = "process_xlang_argv_get";
     return p;
   }
   if (i == 2) {
@@ -3041,7 +3041,7 @@ export function labi_user_needs_runtime_process_argv(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -3054,7 +3054,7 @@ export function labi_user_needs_runtime_process_argv(user_o: *u8): i32 {
 }
 
 /* wave134: bulk TASK_SPECIAL pure table + orch (std_task / task.o gate).
- * Do NOT probe shux_async_task_submit* here — pure async goes through on_demand
+ * Do NOT probe xlang_async_task_submit* here — pure async goes through on_demand
  * scheduler path without forcing task.o. null/empty user_o → 1 legacy hard-link.
  * PLATFORM: SHARED — exact symbols only; Cap residual undef_sym. */
 
@@ -3203,7 +3203,7 @@ export function labi_od_std_task_sym_at(i: i32): *u8 {
  * Whether user .o needs std.task / task.o bulk (TASK_SPECIAL gate).
  * Pure orch: fixed exact UNDEF table; Cap residual undef_sym.
  * null/empty user_o → 1 (legacy hard-link when call site has no user_o).
- * Does not probe shux_async_task_submit* (scheduler on_demand path).
+ * Does not probe xlang_async_task_submit* (scheduler on_demand path).
  * @param user_o *u8 — path to user .o
  * @return i32 — 1 if gate open (push/ensure task.o path), else 0
  * Why (wave134): hybrid still had labi_user_needs_std_task body always mega C;
@@ -3226,7 +3226,7 @@ export function labi_user_needs_std_task(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -3446,11 +3446,11 @@ export function labi_fk0_sym_at(k: i32, i: i32): *u8 {
       return p;
     }
     if (i == 9) {
-      let p: *u8 = "shux_string_memcmp_c";
+      let p: *u8 = "xlang_string_memcmp_c";
       return p;
     }
     if (i == 10) {
-      let p: *u8 = "shux_string_memmem_c";
+      let p: *u8 = "xlang_string_memmem_c";
       return p;
     }
     return 0 as *u8;
@@ -3941,7 +3941,7 @@ export function labi_std_fk0_user_needs_rel(user_o: *u8, rel: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -4019,7 +4019,7 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
   }
   if (fk == 1) {
     if (i == 0) {
-      let p: *u8 = "process_shux_argv_get";
+      let p: *u8 = "process_xlang_argv_get";
       return p;
     }
     if (i == 1) {
@@ -4357,7 +4357,7 @@ export function labi_std_fk_gate_sym_at(fk: i32, i: i32): *u8 {
 
 /**
  * Whether user .o needs std plan OP_STD step with flag_kind fk (1–13).
- * Pure orch: scan pure gate needle table; Cap residual shux_link_obj_needs_undef_sym.
+ * Pure orch: scan pure gate needle table; Cap residual xlang_link_obj_needs_undef_sym.
  * null/empty user_o → 1 (legacy hard-link when call site has no user_o).
  * Unknown fk (no table / fk0) → 1 (no gate here; fk0 uses labi_std_fk0_user_needs_rel).
  * @param user_o *u8 — path to user .o
@@ -4388,7 +4388,7 @@ export function labi_std_fk_user_needs(user_o: *u8, fk: i32): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_needs_undef_sym(user_o, sym);
+          hit = xlang_link_obj_needs_undef_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -4640,7 +4640,7 @@ export function link_abi_user_o_provides_core_mem(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_has_defined_sym(user_o, sym);
+          hit = xlang_link_obj_has_defined_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -4709,7 +4709,7 @@ export function link_abi_user_o_provides_std_heap(user_o: *u8): i32 {
       if (sym[0] != 0) {
         let hit: i32 = 0;
         unsafe {
-          hit = shux_link_obj_has_defined_sym(user_o, sym);
+          hit = xlang_link_obj_has_defined_sym(user_o, sym);
         }
         if (hit != 0) {
           return 1;
@@ -4904,7 +4904,7 @@ function labi_od_user_needs_simple_group(user_o: *u8, g: i32): i32 {
       if (s[0] != 0) {
         let u: i32 = 0;
         unsafe {
-          u = shux_link_obj_needs_undef_sym(user_o, s);
+          u = xlang_link_obj_needs_undef_sym(user_o, s);
         }
         if (u != 0) {
           return 1;
@@ -4954,7 +4954,7 @@ function labi_od_user_needs_table_which(user_o: *u8, n: i32, which: i32): i32 {
       if (s[0] != 0) {
         let u: i32 = 0;
         unsafe {
-          u = shux_link_obj_needs_undef_sym(user_o, s);
+          u = xlang_link_obj_needs_undef_sym(user_o, s);
         }
         if (u != 0) {
           return 1;
@@ -5009,7 +5009,7 @@ function labi_od_resolve_or_try(primary: *u8, rel: *u8, lib_roots: **u8, n_lib_r
     if (bank != 0 as *u8) {
       if (rel != 0 as *u8) {
         unsafe {
-          p = shux_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
+          p = xlang_asm_ld_try_under_lib_roots(rel, lib_roots, n_lib_roots, bank);
         }
       }
     }
@@ -5041,7 +5041,7 @@ function labi_od_resolve_or_try(primary: *u8, rel: *u8, lib_roots: **u8, n_lib_r
  * Track-L: #[no_mangle] product short name (mega call sites / old wrapper).
  */
 #[no_mangle]
-export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void {
+export function xlang_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flags: *u8): void {
   if (user_o == 0 as *u8) {
     return;
   }
@@ -5086,8 +5086,8 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
         let tp: *u8 = 0 as *u8;
         let trel: *u8 = labi_od_rel_thread_glue();
         unsafe {
-          er = shux_ensure_runtime_thread_glue_o(link_argv0);
-          tp = shux_runtime_thread_glue_o_path(link_argv0);
+          er = xlang_ensure_runtime_thread_glue_o(link_argv0);
+          tp = xlang_runtime_thread_glue_o_path(link_argv0);
         }
         labi_od_glue_push_if(er, tp, link_argv0, trel, lib_roots, n_lib_roots, bank, argv, la, max_la);
       }
@@ -5096,16 +5096,16 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
       let up: *u8 = 0 as *u8;
       let urel: *u8 = labi_od_rel_net_udp_batch();
       unsafe {
-        er_u = shux_ensure_runtime_net_udp_batch_o(link_argv0);
-        up = shux_runtime_net_udp_batch_o_path(link_argv0);
+        er_u = xlang_ensure_runtime_net_udp_batch_o(link_argv0);
+        up = xlang_runtime_net_udp_batch_o_path(link_argv0);
       }
       labi_od_glue_push_if(er_u, up, link_argv0, urel, lib_roots, n_lib_roots, bank, argv, la, max_la);
       let er_w: i32 = 0;
       let wp: *u8 = 0 as *u8;
       let wrel: *u8 = labi_od_rel_net_workers();
       unsafe {
-        er_w = shux_ensure_runtime_net_workers_o(link_argv0);
-        wp = shux_runtime_net_workers_o_path(link_argv0);
+        er_w = xlang_ensure_runtime_net_workers_o(link_argv0);
+        wp = xlang_runtime_net_workers_o_path(link_argv0);
       }
       labi_od_glue_push_if(er_w, wp, link_argv0, wrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
@@ -5136,15 +5136,15 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
   if (need_set != 0) {
     let root: *u8 = 0 as *u8;
     unsafe {
-      root = shux_repo_root_from_argv0(link_argv0);
+      root = xlang_repo_root_from_argv0(link_argv0);
     }
     if (root != 0 as *u8) {
       if (root[0] != 0) {
         unsafe {
-          let _e1: i32 = shux_ensure_formal_std_make_o(root, "std/set/set.o", "../std/set/set.o");
-          let _e2: i32 = shux_ensure_formal_std_make_o(root, "std/heap/heap.o", "../std/heap/heap.o");
-          let _e3: i32 = shux_ensure_formal_std_make_o(root, "core/mem/mem.o", "../core/mem/mem.o");
-          let _e4: i32 = shux_ensure_formal_std_make_o(root, "std/hash/hash.o", "../std/hash/hash.o");
+          let _e1: i32 = xlang_ensure_formal_std_make_o(root, "std/set/set.o", "../std/set/set.o");
+          let _e2: i32 = xlang_ensure_formal_std_make_o(root, "std/heap/heap.o", "../std/heap/heap.o");
+          let _e3: i32 = xlang_ensure_formal_std_make_o(root, "core/mem/mem.o", "../core/mem/mem.o");
+          let _e4: i32 = xlang_ensure_formal_std_make_o(root, "std/hash/hash.o", "../std/hash/hash.o");
         }
       }
     }
@@ -5164,14 +5164,14 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
   if (need_map != 0) {
     let rootm: *u8 = 0 as *u8;
     unsafe {
-      rootm = shux_repo_root_from_argv0(link_argv0);
+      rootm = xlang_repo_root_from_argv0(link_argv0);
     }
     if (rootm != 0 as *u8) {
       if (rootm[0] != 0) {
         unsafe {
-          let _m1: i32 = shux_ensure_formal_std_make_o(rootm, "std/map/map.o", "../std/map/map.o");
-          let _m2: i32 = shux_ensure_formal_std_make_o(rootm, "std/heap/heap.o", "../std/heap/heap.o");
-          let _m3: i32 = shux_ensure_formal_std_make_o(rootm, "core/mem/mem.o", "../core/mem/mem.o");
+          let _m1: i32 = xlang_ensure_formal_std_make_o(rootm, "std/map/map.o", "../std/map/map.o");
+          let _m2: i32 = xlang_ensure_formal_std_make_o(rootm, "std/heap/heap.o", "../std/heap/heap.o");
+          let _m3: i32 = xlang_ensure_formal_std_make_o(rootm, "core/mem/mem.o", "../core/mem/mem.o");
         }
       }
     }
@@ -5190,7 +5190,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
   if (need_as != 0) {
     let spath: *u8 = 0 as *u8;
     unsafe {
-      spath = shux_std_async_scheduler_o_path(link_argv0);
+      spath = xlang_std_async_scheduler_o_path(link_argv0);
     }
     let p_as: *u8 = labi_od_resolve_or_try(spath, labi_od_rel_async_scheduler(), lib_roots, n_lib_roots, bank);
     if (p_as != 0 as *u8) {
@@ -5202,7 +5202,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
       if (la[0] < max_la - 1) {
         let gpath: *u8 = 0 as *u8;
         unsafe {
-          gpath = shux_runtime_scheduler_glue_o_path(link_argv0);
+          gpath = xlang_runtime_scheduler_glue_o_path(link_argv0);
         }
         let p_sg: *u8 = labi_od_resolve_or_try(gpath, labi_od_rel_scheduler_glue(), lib_roots, n_lib_roots, bank);
         if (p_sg != 0 as *u8) {
@@ -5220,7 +5220,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
     let crel: *u8 = labi_od_rel_core_mem();
     let cprim: *u8 = 0 as *u8;
     unsafe {
-      cprim = shux_rel_o_path_from_argv0(link_argv0, crel);
+      cprim = xlang_rel_o_path_from_argv0(link_argv0, crel);
     }
     let p_cm: *u8 = labi_od_resolve_or_try(cprim, crel, lib_roots, n_lib_roots, bank);
     if (p_cm != 0 as *u8) {
@@ -5317,7 +5317,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
     let csrel: *u8 = labi_od_rel_core_slice();
     let csprim: *u8 = 0 as *u8;
     unsafe {
-      csprim = shux_rel_o_path_from_argv0(link_argv0, csrel);
+      csprim = xlang_rel_o_path_from_argv0(link_argv0, csrel);
     }
     let p_cs: *u8 = labi_od_resolve_or_try(csprim, csrel, lib_roots, n_lib_roots, bank);
     if (p_cs != 0 as *u8) {
@@ -5333,7 +5333,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
     let kvrel: *u8 = labi_od_kv_rel();
     let kvprim: *u8 = 0 as *u8;
     unsafe {
-      kvprim = shux_rel_o_path_from_argv0(link_argv0, kvrel);
+      kvprim = xlang_rel_o_path_from_argv0(link_argv0, kvrel);
     }
     let p_kv: *u8 = labi_od_resolve_or_try(kvprim, kvrel, lib_roots, n_lib_roots, bank);
     if (p_kv != 0 as *u8) {
@@ -5343,7 +5343,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
       if (la[0] < max_la - 1) {
         let kvp: *u8 = 0 as *u8;
         unsafe {
-          kvp = shux_runtime_kv_mmap_glue_o_path(link_argv0);
+          kvp = xlang_runtime_kv_mmap_glue_o_path(link_argv0);
         }
         let p_kg: *u8 = labi_od_resolve_or_try(kvp, labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
         if (p_kg != 0 as *u8) {
@@ -5361,7 +5361,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
     let arrel: *u8 = labi_od_arrow_rel();
     let arprim: *u8 = 0 as *u8;
     unsafe {
-      arprim = shux_rel_o_path_from_argv0(link_argv0, arrel);
+      arprim = xlang_rel_o_path_from_argv0(link_argv0, arrel);
     }
     let p_ar: *u8 = labi_od_resolve_or_try(arprim, arrel, lib_roots, n_lib_roots, bank);
     if (p_ar != 0 as *u8) {
@@ -5371,7 +5371,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
       if (la[0] < max_la - 1) {
         let arp: *u8 = 0 as *u8;
         unsafe {
-          arp = shux_runtime_arrow_simd_glue_o_path(link_argv0);
+          arp = xlang_runtime_arrow_simd_glue_o_path(link_argv0);
         }
         let p_ag: *u8 = labi_od_resolve_or_try(arp, labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
         if (p_ag != 0 as *u8) {
@@ -5396,8 +5396,8 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
       let tp: *u8 = 0 as *u8;
       let tfrel: *u8 = labi_od_rel_test_fn_invoke();
       unsafe {
-        er_t = shux_ensure_runtime_test_fn_invoke_o(link_argv0);
-        tp = shux_runtime_test_fn_invoke_o_path(link_argv0);
+        er_t = xlang_ensure_runtime_test_fn_invoke_o(link_argv0);
+        tp = xlang_runtime_test_fn_invoke_o_path(link_argv0);
       }
       labi_od_glue_push_if(er_t, tp, link_argv0, tfrel, lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
@@ -5410,7 +5410,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
     if (need_hu != 0) {
       let er_hu: i32 = 0;
       unsafe {
-        er_hu = shux_ensure_runtime_heap_user_o(link_argv0);
+        er_hu = xlang_ensure_runtime_heap_user_o(link_argv0);
       }
       if (er_hu != 0) {
         return;
@@ -5418,7 +5418,7 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
       let hup: *u8 = 0 as *u8;
       let hurel: *u8 = labi_od_rel_heap_user();
       unsafe {
-        hup = shux_runtime_heap_user_o_path(link_argv0);
+        hup = xlang_runtime_heap_user_o_path(link_argv0);
         let _hu: i32 = link_abi_asm_ld_push_obj(hup, link_argv0, hurel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
       if (flags != 0 as *u8) {
@@ -5442,12 +5442,12 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
           if (sg == 1) {
             let rt: *u8 = 0 as *u8;
             unsafe {
-              rt = shux_repo_root_from_argv0(link_argv0);
+              rt = xlang_repo_root_from_argv0(link_argv0);
             }
             if (rt != 0 as *u8) {
               if (rt[0] != 0) {
                 unsafe {
-                  let _fe: i32 = shux_ensure_formal_std_make_o(rt, "core/types/types.o", "../core/types/types.o");
+                  let _fe: i32 = xlang_ensure_formal_std_make_o(rt, "core/types/types.o", "../core/types/types.o");
                 }
                 pushed_core_formal = 1;
               }
@@ -5456,12 +5456,12 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
           if (sg == 6) {
             let rt6: *u8 = 0 as *u8;
             unsafe {
-              rt6 = shux_repo_root_from_argv0(link_argv0);
+              rt6 = xlang_repo_root_from_argv0(link_argv0);
             }
             if (rt6 != 0 as *u8) {
               if (rt6[0] != 0) {
                 unsafe {
-                  let _fe6: i32 = shux_ensure_formal_std_make_o(rt6, "core/option/option.o", "../core/option/option.o");
+                  let _fe6: i32 = xlang_ensure_formal_std_make_o(rt6, "core/option/option.o", "../core/option/option.o");
                 }
                 pushed_core_formal = 1;
               }
@@ -5470,12 +5470,12 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
           if (sg == 7) {
             let rt7: *u8 = 0 as *u8;
             unsafe {
-              rt7 = shux_repo_root_from_argv0(link_argv0);
+              rt7 = xlang_repo_root_from_argv0(link_argv0);
             }
             if (rt7 != 0 as *u8) {
               if (rt7[0] != 0) {
                 unsafe {
-                  let _fe7: i32 = shux_ensure_formal_std_make_o(rt7, "core/result/result.o", "../core/result/result.o");
+                  let _fe7: i32 = xlang_ensure_formal_std_make_o(rt7, "core/result/result.o", "../core/result/result.o");
                 }
                 pushed_core_formal = 1;
               }
@@ -5484,12 +5484,12 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
           if (sg == 8) {
             let rt8: *u8 = 0 as *u8;
             unsafe {
-              rt8 = shux_repo_root_from_argv0(link_argv0);
+              rt8 = xlang_repo_root_from_argv0(link_argv0);
             }
             if (rt8 != 0 as *u8) {
               if (rt8[0] != 0) {
                 unsafe {
-                  let _fe8: i32 = shux_ensure_formal_std_make_o(rt8, "core/debug/debug.o", "../core/debug/debug.o");
+                  let _fe8: i32 = xlang_ensure_formal_std_make_o(rt8, "core/debug/debug.o", "../core/debug/debug.o");
                 }
                 pushed_core_formal = 1;
               }
@@ -5498,12 +5498,12 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
           if (sg == 9) {
             let rt9: *u8 = 0 as *u8;
             unsafe {
-              rt9 = shux_repo_root_from_argv0(link_argv0);
+              rt9 = xlang_repo_root_from_argv0(link_argv0);
             }
             if (rt9 != 0 as *u8) {
               if (rt9[0] != 0) {
                 unsafe {
-                  let _fe9: i32 = shux_ensure_formal_std_make_o(rt9, "core/slice/mod.o", "../core/slice/mod.o");
+                  let _fe9: i32 = xlang_ensure_formal_std_make_o(rt9, "core/slice/mod.o", "../core/slice/mod.o");
                 }
                 pushed_core_formal = 1;
               }
@@ -5516,12 +5516,12 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
           if (sg == 9) {
             let rtg: *u8 = 0 as *u8;
             unsafe {
-              rtg = shux_repo_root_from_argv0(link_argv0);
+              rtg = xlang_repo_root_from_argv0(link_argv0);
             }
             if (rtg != 0 as *u8) {
               if (rtg[0] != 0) {
                 unsafe {
-                  let _feg: i32 = shux_ensure_formal_std_make_o(rtg, "core/slice/slice.o", "../core/slice/slice.o");
+                  let _feg: i32 = xlang_ensure_formal_std_make_o(rtg, "core/slice/slice.o", "../core/slice/slice.o");
                 }
               }
             }
@@ -5538,8 +5538,8 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
   if (pushed_core_formal != 0) {
     let pav: *u8 = 0 as *u8;
     unsafe {
-      let _ep: i32 = shux_ensure_runtime_process_argv_o(link_argv0);
-      pav = shux_runtime_process_argv_o_path(link_argv0);
+      let _ep: i32 = xlang_ensure_runtime_process_argv_o(link_argv0);
+      pav = xlang_runtime_process_argv_o_path(link_argv0);
       let _pp: i32 = link_abi_asm_ld_push_obj(pav, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
     }
   }
@@ -5570,8 +5570,8 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
         let u1: i32 = 0;
         let u2: i32 = 0;
         unsafe {
-          u1 = shux_link_obj_needs_undef_sym(e2, "process_shux_argc_get");
-          u2 = shux_link_obj_needs_undef_sym(e2, "process_shux_argv_get");
+          u1 = xlang_link_obj_needs_undef_sym(e2, "process_xlang_argc_get");
+          u2 = xlang_link_obj_needs_undef_sym(e2, "process_xlang_argv_get");
         }
         if (u1 != 0) {
           need_pav = 1;
@@ -5587,8 +5587,8 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
     if (have_process_o == 0) {
       let pav2: *u8 = 0 as *u8;
       unsafe {
-        let _ep2: i32 = shux_ensure_runtime_process_argv_o(link_argv0);
-        pav2 = shux_runtime_process_argv_o_path(link_argv0);
+        let _ep2: i32 = xlang_ensure_runtime_process_argv_o(link_argv0);
+        pav2 = xlang_runtime_process_argv_o_path(link_argv0);
         let _pp2: i32 = link_abi_asm_ld_push_obj(pav2, link_argv0, "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
     }
@@ -5599,12 +5599,12 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
   if (labi_od_user_needs_table_which(user_o, n_tm, 2) != 0) {
     let rtt: *u8 = 0 as *u8;
     unsafe {
-      rtt = shux_repo_root_from_argv0(link_argv0);
+      rtt = xlang_repo_root_from_argv0(link_argv0);
     }
     if (rtt != 0 as *u8) {
       if (rtt[0] != 0) {
         unsafe {
-          let _te: i32 = shux_ensure_formal_std_make_o(rtt, "std/time/time.o", "../std/time/time.o");
+          let _te: i32 = xlang_ensure_formal_std_make_o(rtt, "std/time/time.o", "../std/time/time.o");
         }
       }
     }
@@ -5612,8 +5612,8 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
     let top: *u8 = 0 as *u8;
     let torel: *u8 = labi_od_time_os_rel();
     unsafe {
-      er_to = shux_ensure_runtime_time_os_o(link_argv0);
-      top = shux_runtime_time_os_o_path(link_argv0);
+      er_to = xlang_ensure_runtime_time_os_o(link_argv0);
+      top = xlang_runtime_time_os_o_path(link_argv0);
     }
     if (er_to == 0) {
       unsafe {
@@ -5633,14 +5633,14 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
   if (need_qp != 0 || need_qc != 0) {
     let rq: *u8 = 0 as *u8;
     unsafe {
-      rq = shux_repo_root_from_argv0(link_argv0);
+      rq = xlang_repo_root_from_argv0(link_argv0);
     }
     if (rq != 0 as *u8) {
       if (rq[0] != 0) {
         unsafe {
-          let _q1: i32 = shux_ensure_formal_std_make_o(rq, "std/queue/queue.o", "../std/queue/queue.o");
-          let _q2: i32 = shux_ensure_formal_std_make_o(rq, "std/heap/heap.o", "../std/heap/heap.o");
-          let _q3: i32 = shux_ensure_formal_std_make_o(rq, "core/mem/mem.o", "../core/mem/mem.o");
+          let _q1: i32 = xlang_ensure_formal_std_make_o(rq, "std/queue/queue.o", "../std/queue/queue.o");
+          let _q2: i32 = xlang_ensure_formal_std_make_o(rq, "std/heap/heap.o", "../std/heap/heap.o");
+          let _q3: i32 = xlang_ensure_formal_std_make_o(rq, "core/mem/mem.o", "../core/mem/mem.o");
         }
       }
     }
@@ -5648,8 +5648,8 @@ export function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: 
       let qcp: *u8 = 0 as *u8;
       let qcrel: *u8 = labi_od_queue_contention_rel();
       unsafe {
-        let _eq: i32 = shux_ensure_runtime_queue_contention_o(link_argv0);
-        qcp = shux_runtime_queue_contention_o_path(link_argv0);
+        let _eq: i32 = xlang_ensure_runtime_queue_contention_o(link_argv0);
+        qcp = xlang_runtime_queue_contention_o_path(link_argv0);
         let _qc: i32 = link_abi_asm_ld_push_obj(qcp, link_argv0, qcrel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
       }
     }

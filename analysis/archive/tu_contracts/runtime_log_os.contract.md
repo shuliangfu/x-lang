@@ -25,7 +25,7 @@
 
 ### 3.2 当前仍由 seed/rest 提供
 - `log_write_fd_impl`（平台条件写 fd：Windows `_write` / POSIX `write`）
-- `log_apply_env_once_impl`（首次读取 SHUX_LOG_MIN_LEVEL 环境变量）
+- `log_apply_env_once_impl`（首次读取 XLANG_LOG_MIN_LEVEL 环境变量）
 - `log_do_rotate_impl`（文件轮转，调用 `log_close_file_sink_c`）
 - `log_write_file_sync_impl`（同步写文件 sink，调用 `log_do_rotate` + `log_write_fd`）
 - `log_write_sync_impl`（同步写所有活跃 sink，调用 `log_write_fd` + `log_write_file_sync`）
@@ -39,7 +39,7 @@
 ## 4. ABI Manifest
 - _impl 残余列表：`log_write_fd_impl`、`log_apply_env_once_impl`、`log_do_rotate_impl`、`log_write_file_sync_impl`、`log_write_sync_impl`、`log_async_enqueue_impl`、`log_emit_bytes_impl`
 - DIRECT 符号列表：（无）
-- thin+rest 宏边界：`SHUX_RUNTIME_LOG_OS_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_LOG_OS_FROM_X`
 - 前向声明：7 个 thin wrapper（`log_write_fd` / `log_do_rotate` / `log_write_file_sync` / `log_write_sync` / `log_async_enqueue` / `log_apply_env_once` / `log_emit_bytes`），rest 模式下供 rest 函数调用
 - 内部调用更新：
   - `log_write_file_sync_impl` 调用 `log_do_rotate` + `log_write_fd`（IMPL thin wrapper）

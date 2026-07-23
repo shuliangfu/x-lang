@@ -3,9 +3,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SECURITY_DOC:-analysis/std-security-v1.md}"
-MANIFEST="${SHUX_STD_SECURITY_MANIFEST:-tests/baseline/std-security-manifest.tsv}"
-VECTORS="${SHUX_STD_SECURITY_VECTORS:-tests/baseline/std-security-vectors.tsv}"
+DOC="${XLANG_STD_SECURITY_DOC:-analysis/std-security-v1.md}"
+MANIFEST="${XLANG_STD_SECURITY_MANIFEST:-tests/baseline/std-security-manifest.tsv}"
+VECTORS="${XLANG_STD_SECURITY_VECTORS:-tests/baseline/std-security-vectors.tsv}"
 MOD_X="std/security/mod.x"
 SEC_X="std/security/security.x"
 LIB="tests/lib/std-security.sh"
@@ -65,7 +65,7 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-079: security c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   if ensure_std_c_o ../std/security/security.o 2>/dev/null && std_security_run_c_smoke "$SEC_X"; then
@@ -74,21 +74,21 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "std-security gate SKIP c smoke (no full security.o)" >&2
   fi
 else
-  echo "std-security gate SKIP c smoke (no shux-c)" >&2
+  echo "std-security gate SKIP c smoke (no xlang-c)" >&2
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-079: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-079: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-security gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_security_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_security_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then X_OK=1; else
+  if std_security_run_smoke "$XLANG_BIN" "$SMOKE_X" "roundtrip"; then X_OK=1; else
     std_security_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi

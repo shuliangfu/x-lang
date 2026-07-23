@@ -9,12 +9,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_PERF_SQLITE_DOC:-analysis/perf-sqlite-v1.md}"
-BASELINE="${SHUX_PERF_SQLITE_TSV:-tests/baseline/perf-sqlite.tsv}"
+DOC="${XLANG_PERF_SQLITE_DOC:-analysis/perf-sqlite-v1.md}"
+BASELINE="${XLANG_PERF_SQLITE_TSV:-tests/baseline/perf-sqlite.tsv}"
 BENCH_X="tests/bench/sqlite_is_available_loop.x"
 STUB_X="tests/stub/sqlite_net_stub.x"
 LIB="tests/lib/perf-sqlite.sh"
-RUNS="${SHUX_PERF_SQLITE_RUNS:-3}"
+RUNS="${XLANG_PERF_SQLITE_RUNS:-3}"
 
 # shellcheck source=tests/lib/perf-sqlite.sh
 . "$LIB"
@@ -43,30 +43,30 @@ CHECK_OK=0
 RUN_OK=0
 SKIP=1
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if perf_sqlite_native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== PERF-170: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$BENCH_X" >/dev/null 2>&1 \
-    && "$SHUX_BIN" check -L . "$STUB_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== PERF-170: typeck (XLANG=$XLANG_BIN) ==="
+  if "$XLANG_BIN" check -L . "$BENCH_X" >/dev/null 2>&1 \
+    && "$XLANG_BIN" check -L . "$STUB_X" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "perf-sqlite gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$BENCH_X" 2>&1 | tail -6 >&2 || true
+    "$XLANG_BIN" check -L . "$BENCH_X" 2>&1 | tail -6 >&2 || true
     perf_sqlite_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
-  OUT="/tmp/shux_perf_sqlite_loop"
-  if "$SHUX_BIN" -L . "$BENCH_X" -o "$OUT" >/dev/null 2>&1 && [ -x "$OUT" ]; then
+  OUT="/tmp/xlang_perf_sqlite_loop"
+  if "$XLANG_BIN" -L . "$BENCH_X" -o "$OUT" >/dev/null 2>&1 && [ -x "$OUT" ]; then
     MED="$(perf_sqlite_median_real "$OUT" "$RUNS")"
     CEIL="$(awk -F'\t' '$1=="sqlite_is_available_loop"{print $2; exit}' "$BASELINE")"
     echo "perf-sqlite median=${MED}s ceiling=${CEIL}s"
@@ -82,7 +82,7 @@ if [ -n "$SHUX_BIN" ]; then
     echo "perf-sqlite gate SKIP runnable (check passed)" >&2
   fi
 else
-  echo "perf-sqlite gate SKIP typeck (no native shux)" >&2
+  echo "perf-sqlite gate SKIP typeck (no native xlang)" >&2
 fi
 
 perf_sqlite_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

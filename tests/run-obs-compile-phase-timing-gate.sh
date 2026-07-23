@@ -3,18 +3,18 @@
 #
 # 1) obs-compile-phase-timing-v1.md + manifest
 # 2) runtime.c / pipeline.x 符号与 env 锚点
-# 3) native shux：SHUX_COMPILE_PHASE_TIMING=1 check 须输出汇总行
+# 3) native xlang：XLANG_COMPILE_PHASE_TIMING=1 check 须输出汇总行
 #
 # 用法：./tests/run-obs-compile-phase-timing-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_OBS_PHASE_TIMING_DOC:-analysis/obs-compile-phase-timing-v1.md}"
-MANIFEST="${SHUX_OBS_PHASE_TIMING_TSV:-tests/baseline/obs-compile-phase-timing.tsv}"
-RUNTIME="${SHUX_OBS_PHASE_TIMING_RUNTIME:-compiler/seeds/runtime_driver_abi.from_x.c}"
-PIPELINE="${SHUX_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.x}"
+DOC="${XLANG_OBS_PHASE_TIMING_DOC:-analysis/obs-compile-phase-timing-v1.md}"
+MANIFEST="${XLANG_OBS_PHASE_TIMING_TSV:-tests/baseline/obs-compile-phase-timing.tsv}"
+RUNTIME="${XLANG_OBS_PHASE_TIMING_RUNTIME:-compiler/seeds/runtime_driver_abi.from_x.c}"
+PIPELINE="${XLANG_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.x}"
 MIN_ITEMS=6
-OUTPUT_PREFIX="shux: [SHUX_COMPILE_PHASE_TIMING]"
+OUTPUT_PREFIX="xlang: [XLANG_COMPILE_PHASE_TIMING]"
 SMOKE_FIX="tests/bench/loop_i32.x"
 
 # shellcheck source=tests/lib/ci-host.sh
@@ -105,34 +105,34 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "obs-compile-phase-timing manifest OK (host=$(ci_host_summary), items=${FOUND})"
 
-# ── native shux 烟测 ──
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
+# ── native xlang 烟测 ──
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "obs-compile-phase-timing gate SKIP smoke (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "obs-compile-phase-timing gate SKIP smoke (no native xlang)" >&2
   echo "obs-compile-phase-timing gate OK"
   exit 0
 fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-LOG=/tmp/shux_obs_phase_timing.log
-if ! SHUX_COMPILE_PHASE_TIMING=1 "$SHUX_BIN" check "$SMOKE_FIX" >"$LOG" 2>&1; then
+LOG=/tmp/xlang_obs_phase_timing.log
+if ! XLANG_COMPILE_PHASE_TIMING=1 "$XLANG_BIN" check "$SMOKE_FIX" >"$LOG" 2>&1; then
   echo "obs-compile-phase-timing gate FAIL: check $SMOKE_FIX (see $LOG)" >&2
   tail -20 "$LOG" >&2 || true
   exit 1
 fi
 if ! grep -qF "$OUTPUT_PREFIX" "$LOG"; then
-  # C-only shux-c（无 SHUX_USE_X_PIPELINE）check 路径不输出阶段计时；manifest 仍须绿。
-  echo "obs-compile-phase-timing gate SKIP smoke (phase timing unavailable; seed/C-only shux-c)" >&2
+  # C-only xlang-c（无 XLANG_USE_X_PIPELINE）check 路径不输出阶段计时；manifest 仍须绿。
+  echo "obs-compile-phase-timing gate SKIP smoke (phase timing unavailable; seed/C-only xlang-c)" >&2
   echo "obs-compile-phase-timing gate OK"
   exit 0
 fi
@@ -142,6 +142,6 @@ for field in parse_ms= typeck_ms= codegen_ms= total_ms=; do
     exit 1
   fi
 done
-echo "obs-compile-phase-timing smoke OK ($SHUX_BIN check $SMOKE_FIX)"
+echo "obs-compile-phase-timing smoke OK ($XLANG_BIN check $SMOKE_FIX)"
 
 echo "obs-compile-phase-timing gate OK"

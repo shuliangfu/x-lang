@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# run_diff.sh — 差分测试：clang -O2 vs shux_asm，比对 exit code + stdout
+# run_diff.sh — 差分测试：clang -O2 vs xlang_asm，比对 exit code + stdout
 #
 # 用法：
 #   ./tests/bench/diff/run_diff.sh              # 跑全部 D1-D6
 #   ./tests/bench/diff/run_diff.sh d1 d2        # 跑指定用例
-#   SHUX=./compiler/shux_asm ./tests/bench/diff/run_diff.sh
+#   XLANG=./compiler/xlang_asm ./tests/bench/diff/run_diff.sh
 #
 # 时机：§11.1 自举前/自举过程中必须项。验证 ASM 后端行为正确性。
-# 原则：C 与 SHUX 同源代码，exit code + stdout 必须一致。
+# 原则：C 与 XLANG 同源代码，exit code + stdout 必须一致。
 set -u
 cd "$(dirname "$0")/../../.."  # 到项目根
 
-SHUX="${SHUX:-./compiler/shux_asm}"
+XLANG="${XLANG:-./compiler/xlang_asm}"
 DIFF_DIR="tests/bench/diff"
-WORKDIR="${TMPDIR:-/tmp}/shux_diff"
+WORKDIR="${TMPDIR:-/tmp}/xlang_diff"
 mkdir -p "$WORKDIR"
 
 PASS=0
@@ -29,20 +29,20 @@ if [ "$os" = "Darwin" ] && [ "$arch" = "arm64" ]; then
   exit 0
 fi
 
-if [ ! -x "$SHUX" ]; then
-  echo "diff: SKIP (no $SHUX)"
+if [ ! -x "$XLANG" ]; then
+  echo "diff: SKIP (no $XLANG)"
   exit 0
 fi
 
-# compile_shux <src.x> <out_bin> <log_file>
-# shux_asm 在非 TTY stdout 重定向时会挂起；用 | cat drain stdout
-compile_shux() {
+# compile_xlang <src.x> <out_bin> <log_file>
+# xlang_asm 在非 TTY stdout 重定向时会挂起；用 | cat drain stdout
+compile_xlang() {
   local src="$1" out="$2" log="$3"
-  "$SHUX" -L . "$src" -o "$out" 2>"$log" | cat >/dev/null
+  "$XLANG" -L . "$src" -o "$out" 2>"$log" | cat >/dev/null
   return "${PIPESTATUS[0]}"
 }
 
-# run_one <name> — 编译 C + SHUX 同源代码，运行比对
+# run_one <name> — 编译 C + XLANG 同源代码，运行比对
 run_one() {
   local name="$1"
   local c_src="$DIFF_DIR/${name}.c"
@@ -68,14 +68,14 @@ run_one() {
     return
   fi
 
-  # 编译 SHUX（shux_asm，ASM 后端）
-  if ! compile_shux "$x_src" "$x_bin" "$x_log"; then
-    echo "[SKIP] $name: SHUX compile failed (see $x_log)"
+  # 编译 XLANG（xlang_asm，ASM 后端）
+  if ! compile_xlang "$x_src" "$x_bin" "$x_log"; then
+    echo "[SKIP] $name: XLANG compile failed (see $x_log)"
     SKIP=$((SKIP + 1))
     return
   fi
   if [ ! -x "$x_bin" ]; then
-    echo "[SKIP] $name: SHUX produced no executable (see $x_log)"
+    echo "[SKIP] $name: XLANG produced no executable (see $x_log)"
     SKIP=$((SKIP + 1))
     return
   fi
@@ -83,7 +83,7 @@ run_one() {
   # 运行 C
   local c_out c_rc
   c_out=$("$c_bin" 2>/dev/null); c_rc=$?
-  # 运行 SHUX
+  # 运行 XLANG
   local x_out x_rc
   x_out=$("$x_bin" 2>/dev/null); x_rc=$?
 
@@ -120,7 +120,7 @@ else
   CASES="$ALL_CASES"
 fi
 
-echo "=== Differential Testing: clang -O2 vs $SHUX ==="
+echo "=== Differential Testing: clang -O2 vs $XLANG ==="
 echo "    arch=$os/$arch  workdir=$WORKDIR"
 
 for c in $CASES; do

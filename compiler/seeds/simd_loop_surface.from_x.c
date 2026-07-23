@@ -1,10 +1,10 @@
 /* seeds/simd_loop_surface.from_x.c
  * R2 full surface — isomorphic with src/asm/simd_loop.x
  * Product PREFER_X_O: g05_try_x_to_o(simd_loop.x) + hybrid rest
- *   seeds/simd_loop.from_x.c (-DSHUX_SIMD_LOOP_FROM_X) ld -r
+ *   seeds/simd_loop.from_x.c (-DXLANG_SIMD_LOOP_FROM_X) ld -r
  * R2: full.x 吃满 peel/parse/emit 公共业务；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... src/asm/simd_loop.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/asm/simd_loop.x | filter DBG + polish prologue
  * Track-L (2026-07-16): glue_simd_hw_env_disabled keeps short name; .x has #[no_mangle]
  * (was module-prefix mangle simd_loop_glue_simd_hw_env_disabled).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -512,7 +512,7 @@ int32_t glue_emit_full_const_peel_c(uint8_t * elf_ctx, int32_t binop_ko, int32_t
       (void)(((name)[18] = 84));
       (void)(((name)[19] = 0));
       {
-        /* wave229 G.7: SHUX_SIMD_HW_STRICT via link_abi_getenv. */
+        /* wave229 G.7: XLANG_SIMD_HW_STRICT via link_abi_getenv. */
         uint8_t * p = (uint8_t *)link_abi_getenv((const char *)&((name)[0]));
         if ((p !=0)) {
           if (((p)[0] !=48)) {
@@ -542,7 +542,7 @@ int32_t glue_simd_hw_env_disabled(void) {
     (void)(((name)[10] = 72));
     (void)(((name)[11] = 87));
     (void)(((name)[12] = 0));
-    /* wave229 G.7: SHUX_SIMD_HW via link_abi_getenv (not raw getenv). */
+    /* wave229 G.7: XLANG_SIMD_HW via link_abi_getenv (not raw getenv). */
     uint8_t * p = (uint8_t *)link_abi_getenv((const char *)&((name)[0]));
     if ((p ==0)) {
       return 0;
@@ -1193,7 +1193,7 @@ int32_t glue_emit_f32_soa_sum_strip_c(uint8_t * arena, uint8_t * elf_ctx, uint8_
     (void)(((name)[18] = 84));
     (void)(((name)[19] = 0));
     {
-      /* wave229 G.7: SHUX_SIMD_HW_STRICT via link_abi_getenv. */
+      /* wave229 G.7: XLANG_SIMD_HW_STRICT via link_abi_getenv. */
       uint8_t * p = (uint8_t *)link_abi_getenv((const char *)&((name)[0]));
       if ((p !=0)) {
         if (((p)[0] !=48)) {

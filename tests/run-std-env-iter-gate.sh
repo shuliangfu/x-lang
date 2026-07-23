@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_ENV_ITER_DOC:-analysis/std-env-iter-v1.md}"
-MANIFEST="${SHUX_STD_ENV_ITER_TSV:-tests/baseline/std-env-iter.tsv}"
+DOC="${XLANG_STD_ENV_ITER_DOC:-analysis/std-env-iter-v1.md}"
+MANIFEST="${XLANG_STD_ENV_ITER_TSV:-tests/baseline/std-env-iter.tsv}"
 ENV_X="std/env/mod.x"
 ENV_IMPL="std/env/env.x"
 ENV_GLUE="compiler/seeds/runtime_env_os.from_x.c"
@@ -53,7 +53,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -65,24 +65,24 @@ resolve_shu() {
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-025: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-025: typeck (XLANG=$XLANG_BIN) ==="
+  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-env-iter gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     std_env_iter_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
   make -C compiler -q ../std/env/env.o 2>/dev/null || make -C compiler ../std/env/env.o
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  if $RUN_SHUX build -L . "$SMOKE" -o /tmp/shux_std_env_iter 2>/tmp/shux_std_env_iter_build.log; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+  if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_std_env_iter 2>/tmp/xlang_std_env_iter_build.log; then
     exitcode=0
-    /tmp/shux_std_env_iter >/dev/null 2>&1 || exitcode=$?
+    /tmp/xlang_std_env_iter >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
     else
@@ -92,11 +92,11 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "std-env-iter gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/shux_std_env_iter_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/xlang_std_env_iter_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "std-env-iter gate SKIP typeck (no native shux)" >&2
+  echo "std-env-iter gate SKIP typeck (no native xlang)" >&2
 fi
 
 std_env_iter_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

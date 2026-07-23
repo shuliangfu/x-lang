@@ -3,7 +3,7 @@
 # Tests: deep parser recursion, struct FFI boundary, large struct return integrity.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SHUX_C="$SCRIPT_DIR/../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../compiler/xlang-c"
 WORKDIR="${TMPDIR:-/tmp}"
 PASS=0
 FAIL=0
@@ -22,7 +22,7 @@ function main(): i32 {
   return result;
 }
 XEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/deep_rec.x" > "$WORKDIR/deep_rec.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/deep_rec.x" > "$WORKDIR/deep_rec.c" 2>&1
 if cc -O2 -o "$WORKDIR/deep_rec" "$WORKDIR/deep_rec.c" 2>&1 && "$WORKDIR/deep_rec"; then
     RC=$?
     if [ "$RC" = "1000" ]; then
@@ -57,7 +57,7 @@ function main(): i32 {
   return 0;
 }
 XEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/struct16.x" > "$WORKDIR/struct16.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/struct16.x" > "$WORKDIR/struct16.c" 2>&1
 if cc -O2 -o "$WORKDIR/struct16" "$WORKDIR/struct16.c" 2>&1 && "$WORKDIR/struct16"; then
     RC=$?
     if [ "$RC" = "0" ]; then
@@ -90,7 +90,7 @@ function main(): i32 {
   return val as i32;
 }
 XEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/nested.x" > "$WORKDIR/nested.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/nested.x" > "$WORKDIR/nested.c" 2>&1
 if cc -O2 -o "$WORKDIR/nested" "$WORKDIR/nested.c" 2>&1 && "$WORKDIR/nested"; then
     RC=$?
     if [ "$RC" = "42" ]; then
@@ -126,7 +126,7 @@ function main(): i32 {
   return r1.val;
 }
 XEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/result_test.x" > "$WORKDIR/result_test.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/result_test.x" > "$WORKDIR/result_test.c" 2>&1
 if cc -O2 -o "$WORKDIR/result_test" "$WORKDIR/result_test.c" 2>&1 && "$WORKDIR/result_test"; then
     RC=$?
     if [ "$RC" = "225" ]; then

@@ -5,11 +5,11 @@
  * G-02f-110 helper gates.
  * G-02f-103 helper gates.
  * G-02f-97 pure helper gates.
- * G-02f-257：SHUX_L2_TARGET_CPU_FLAGS_FROM_X 时省略所有 .x 业务函数
+ * G-02f-257：XLANG_L2_TARGET_CPU_FLAGS_FROM_X 时省略所有 .x 业务函数
  *           （由 src/driver/target_cpu_pure.x → .o 提供，再 ld -r）。
  *
  * Source of truth: src/driver/target_cpu_pure.x (+ print is stdio C co-located; f-5)
- * Hand-synced when full shux-c -E hangs on multi-helper TUs.
+ * Hand-synced when full xlang-c -E hangs on multi-helper TUs.
  * Product default: single TU → src/driver/target_cpu.o (no ld -r).
  *
  * R2 full（2026-07-20）：公共业务符号由 full .x 提供（12 函数 + BSS）：
@@ -34,7 +34,7 @@
 #include <string.h>
 #include "target_cpu.h"
 
-#ifndef SHUX_L2_TARGET_CPU_FLAGS_FROM_X
+#ifndef XLANG_L2_TARGET_CPU_FLAGS_FROM_X
 /* Cold start: full C bodies for all .x business funcs */
 static uint32_t g_driver_pending_target_cpu_features;
 
@@ -350,27 +350,27 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t shu_target_cpu_detect_x86_macro_fallback(void) {
-    uint32_t f = SHUX_CPU_FEAT_SSE2;
+    uint32_t f = XLANG_CPU_FEAT_SSE2;
 #if defined(__SSE4_1__)
-    f |= SHUX_CPU_FEAT_SSE41;
+    f |= XLANG_CPU_FEAT_SSE41;
 #endif
 #if defined(__AVX__)
-    f |= SHUX_CPU_FEAT_AVX;
+    f |= XLANG_CPU_FEAT_AVX;
 #endif
 #if defined(__AVX2__)
-    f |= SHUX_CPU_FEAT_AVX2;
+    f |= XLANG_CPU_FEAT_AVX2;
 #endif
 #if defined(__AVX512F__)
-    f |= SHUX_CPU_FEAT_AVX512F;
+    f |= XLANG_CPU_FEAT_AVX512F;
 #endif
 #if defined(__POPCNT__)
-    f |= SHUX_CPU_FEAT_POPCNT;
+    f |= XLANG_CPU_FEAT_POPCNT;
 #endif
 #if defined(__BMI2__)
-    f |= SHUX_CPU_FEAT_BMI2;
+    f |= XLANG_CPU_FEAT_BMI2;
 #endif
 #if defined(__FMA__)
-    f |= SHUX_CPU_FEAT_FMA;
+    f |= XLANG_CPU_FEAT_FMA;
 #endif
     return f;
 }
@@ -391,21 +391,21 @@ uint32_t shu_target_cpu_detect_x86_linux(void) {
         if (strncmp(line, "flags", 5) != 0)
             continue;
         if (flags_has_token(line, "sse2"))
-            f |= SHUX_CPU_FEAT_SSE2;
+            f |= XLANG_CPU_FEAT_SSE2;
         if (flags_has_token(line, "sse4_1"))
-            f |= SHUX_CPU_FEAT_SSE41;
+            f |= XLANG_CPU_FEAT_SSE41;
         if (flags_has_token(line, "avx"))
-            f |= SHUX_CPU_FEAT_AVX;
+            f |= XLANG_CPU_FEAT_AVX;
         if (flags_has_token(line, "avx2"))
-            f |= SHUX_CPU_FEAT_AVX2;
+            f |= XLANG_CPU_FEAT_AVX2;
         if (flags_has_token(line, "avx512f"))
-            f |= SHUX_CPU_FEAT_AVX512F;
+            f |= XLANG_CPU_FEAT_AVX512F;
         if (flags_has_token(line, "popcnt"))
-            f |= SHUX_CPU_FEAT_POPCNT;
+            f |= XLANG_CPU_FEAT_POPCNT;
         if (flags_has_token(line, "bmi2"))
-            f |= SHUX_CPU_FEAT_BMI2;
+            f |= XLANG_CPU_FEAT_BMI2;
         if (flags_has_token(line, "fma"))
-            f |= SHUX_CPU_FEAT_FMA;
+            f |= XLANG_CPU_FEAT_FMA;
         break;
     }
     fclose(fp);
@@ -422,25 +422,25 @@ uint32_t shu_target_cpu_detect_x86_macos(void) {
     uint64_t leaf7 = 0;
     uint64_t feat = 0;
     size_t sz;
-    uint32_t f = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41;
+    uint32_t f = XLANG_CPU_FEAT_SSE2 | XLANG_CPU_FEAT_SSE41;
 
     sz = sizeof(leaf7);
     if (sysctlbyname("machdep.cpu.leaf7_features", &leaf7, &sz, NULL, 0) == 0) {
         if (leaf7 & (1ULL << 5))
-            f |= SHUX_CPU_FEAT_AVX2;
+            f |= XLANG_CPU_FEAT_AVX2;
         if (leaf7 & (1ULL << 16))
-            f |= SHUX_CPU_FEAT_AVX512F;
+            f |= XLANG_CPU_FEAT_AVX512F;
         if (leaf7 & (1ULL << 8))
-            f |= SHUX_CPU_FEAT_BMI2;
+            f |= XLANG_CPU_FEAT_BMI2;
         if (leaf7 & (1ULL << 12))
-            f |= SHUX_CPU_FEAT_FMA;
+            f |= XLANG_CPU_FEAT_FMA;
     }
     sz = sizeof(feat);
     if (sysctlbyname("machdep.cpu.feature_bits", &feat, &sz, NULL, 0) == 0) {
         if (feat & (1ULL << 28))
-            f |= SHUX_CPU_FEAT_AVX;
+            f |= XLANG_CPU_FEAT_AVX;
         if (feat & (1ULL << 14))
-            f |= SHUX_CPU_FEAT_POPCNT;
+            f |= XLANG_CPU_FEAT_POPCNT;
     }
     if (f == 0)
         f = shu_target_cpu_detect_x86_macro_fallback();
@@ -470,7 +470,7 @@ uint32_t shu_target_cpu_detect_x86(void) {
 uint32_t shu_target_cpu_detect_arm64_linux(void) {
     FILE *fp;
     char line[512];
-    uint32_t f = SHUX_CPU_FEAT_NEON;
+    uint32_t f = XLANG_CPU_FEAT_NEON;
 
     fp = fopen("/proc/cpuinfo", "r");
     if (!fp)
@@ -479,9 +479,9 @@ uint32_t shu_target_cpu_detect_arm64_linux(void) {
         if (strncmp(line, "Features", 8) != 0)
             continue;
         if (flags_has_token(line, "asimd") || flags_has_token(line, "neon"))
-            f |= SHUX_CPU_FEAT_NEON;
+            f |= XLANG_CPU_FEAT_NEON;
         if (flags_has_token(line, "sve"))
-            f |= SHUX_CPU_FEAT_SVE;
+            f |= XLANG_CPU_FEAT_SVE;
         break;
     }
     fclose(fp);
@@ -493,12 +493,12 @@ uint32_t shu_target_cpu_detect_arm64_linux(void) {
 /** macOS arm64：NEON 为 mandatory；SVE 通过 hw.optional.arm.FEAT_SVE 探测。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 uint32_t shu_target_cpu_detect_arm64_macos(void) {
-    uint32_t f = SHUX_CPU_FEAT_NEON;
+    uint32_t f = XLANG_CPU_FEAT_NEON;
     int sve = 0;
     size_t sz = sizeof(sve);
 
     if (sysctlbyname("hw.optional.arm.FEAT_SVE", &sve, &sz, NULL, 0) == 0 && sve)
-        f |= SHUX_CPU_FEAT_SVE;
+        f |= XLANG_CPU_FEAT_SVE;
     return f;
 }
 #endif
@@ -510,7 +510,7 @@ uint32_t shu_target_cpu_detect_arm64(void) {
 #elif defined(__APPLE__)
     return shu_target_cpu_detect_arm64_macos();
 #else
-    return SHUX_CPU_FEAT_NEON;
+    return XLANG_CPU_FEAT_NEON;
 #endif
 }
 #endif /* arm64 */
@@ -539,7 +539,7 @@ uint32_t shu_target_cpu_detect_riscv64_linux(void) {
         while (*isa == ' ' || *isa == '\t')
             isa++;
         if (strchr(isa, 'v') != NULL)
-            f |= SHUX_CPU_FEAT_RVV;
+            f |= XLANG_CPU_FEAT_RVV;
         break;
     }
     fclose(fp);
@@ -571,9 +571,9 @@ uint32_t shu_target_cpu_detect_host(void) {
 
 uint32_t shu_target_cpu_generic_for_host(void) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    return SHUX_CPU_FEAT_SSE2;
+    return XLANG_CPU_FEAT_SSE2;
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    return SHUX_CPU_FEAT_NEON;
+    return XLANG_CPU_FEAT_NEON;
 #else
     return 0;
 #endif

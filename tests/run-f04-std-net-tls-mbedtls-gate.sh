@@ -2,11 +2,11 @@
 # F-04 v9：std.net mbedTLS TLS 去 C 门禁（tls_mbedtls.x + 无 tls_mbedtls.inc.c）。
 #
 # 用法：./tests/run-f04-std-net-tls-mbedtls-gate.sh
-# 环境：SHUX_F04_NET_TLS_MBEDTLS_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_TLS_MBEDTLS_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_TLS_MBEDTLS_FAIL:-0}
+FAIL=${XLANG_F04_NET_TLS_MBEDTLS_FAIL:-0}
 DOC="analysis/phase-f-f04-v9.md"
 TLS_X="std/net/tls_mbedtls.x"
 TLS_BIO="compiler/seeds/runtime_tls_mbedtls_bio.from_x.c"
@@ -31,8 +31,8 @@ grep -q 'shu_mbedtls_ssl_bind_fd_c' "$TLS_BIO" || die "bio.c missing bind"
 if grep -q 'tls_mbedtls.inc.c' "$NET_C" 2>/dev/null; then
   die "net.c still references tls_mbedtls.inc.c"
 fi
-if grep -q 'SHUX_NET_USE_MBEDTLS' "$NET_C" 2>/dev/null; then
-  die "net.c still defines SHUX_NET_USE_MBEDTLS include path"
+if grep -q 'XLANG_NET_USE_MBEDTLS' "$NET_C" 2>/dev/null; then
+  die "net.c still defines XLANG_NET_USE_MBEDTLS include path"
 fi
 grep -q 'tls_mbedtls.x' compiler/Makefile || die "Makefile missing tls_mbedtls.x build"
 grep -q 'std/net/tls_mbedtls.o' compiler/seeds/runtime_link_abi.from_x.c \
@@ -49,7 +49,7 @@ fi
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-04 v9: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

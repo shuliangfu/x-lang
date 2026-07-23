@@ -2,7 +2,7 @@
 # std.compress 测试：gzip / zstd / Brotli 往返。若 compress.o 未启用对应库，分支跳过仍通过。
 set -e
 cd "$(dirname "$0")/.."
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
 # 优先 zlib+zstd；回退 zlib-only
@@ -21,17 +21,17 @@ if ! echo '#include <zlib.h>' | "$CC" -E -x c - >/dev/null 2>&1; then
   exit 0
 fi
 # 追加常见 lib 搜索路径（与 runtime_link_abi.inc ld_append_brew_lib_paths 对齐），尝试链接四个压缩库
-SHUX_COMPRESS_LIB_DIRS=""
+XLANG_COMPRESS_LIB_DIRS=""
 for d in /opt/homebrew/lib /usr/local/lib /usr/lib /lib; do
-  [ -d "$d" ] && SHUX_COMPRESS_LIB_DIRS="$SHUX_COMPRESS_LIB_DIRS -L$d"
+  [ -d "$d" ] && XLANG_COMPRESS_LIB_DIRS="$XLANG_COMPRESS_LIB_DIRS -L$d"
 done
-if ! echo 'int main(void){return 0;}' | "$CC" -x c - $SHUX_COMPRESS_LIB_DIRS -lz -lzstd -lbrotlienc -lbrotlidec -o /dev/null 2>/dev/null; then
+if ! echo 'int main(void){return 0;}' | "$CC" -x c - $XLANG_COMPRESS_LIB_DIRS -lz -lzstd -lbrotlienc -lbrotlidec -o /dev/null 2>/dev/null; then
   echo "compress test: skipped (zlib/zstd/brotli libraries not linkable)"
   exit 0
 fi
-SHUX="${SHUX:-./compiler/shux}"
-exe="/tmp/shux_compress_$$"
-if ! $SHUX build -L . tests/compress/main.x -o "$exe" 2>&1; then echo "compress test: compile failed"; rm -f "$exe"; exit 1; fi
+XLANG="${XLANG:-./compiler/xlang}"
+exe="/tmp/xlang_compress_$$"
+if ! $XLANG build -L . tests/compress/main.x -o "$exe" 2>&1; then echo "compress test: compile failed"; rm -f "$exe"; exit 1; fi
 $exe 2>/dev/null; exitcode=$?
 rm -f "$exe"
 if [ "$exitcode" -ne 0 ]; then echo "compress test: expected exit 0, got $exitcode"; exit 1; fi

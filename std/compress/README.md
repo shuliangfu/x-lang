@@ -31,7 +31,7 @@ F-04 v7 起四格式均为 `.x`；**不再构建** `compress.o`。runtime 扫描
 - **zlib**：2 字节头 + deflate 流 + 4 字节 Adler-32，常用于 HTTP 等协议。API：`deflate` / `inflate`（`std.compress.zlib`）。
 - **gzip**：.gz 文件格式，含 gzip 头、deflate 流、8 字节尾。API：`gzip_compress` / `gzip_decompress`；流式见 `gzip_stream_*` 与统一门面 `compress_*`（STD-122，`std.compress.gzip`）。
 - **Brotli（.br）**：压缩率通常优于 gzip（尤其文本），HTTP Content-Encoding: br。API：`brotli_compress` / `brotli_decompress`；流式见 `brotli_stream_*`（`std.compress.brotli`）。
-- **zstd**：块压缩/解压 API：`zstd_compress` / `zstd_decompress`；流式见 `zstd_stream_*`（需 `-DSHUX_USE_ZSTD -lzstd`，`std.compress.zstd`）。
+- **zstd**：块压缩/解压 API：`zstd_compress` / `zstd_decompress`；流式见 `zstd_stream_*`（需 `-DXLANG_USE_ZSTD -lzstd`，`std.compress.zstd`）。
 - **统一流**：`compress_init` / `compress_process` / `compress_end` 支持 gzip/brotli/zstd（STD-122/136，`std.compress`）。
 
 ## 平台与系统支持

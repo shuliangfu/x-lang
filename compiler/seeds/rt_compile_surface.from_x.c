@@ -2,7 +2,7 @@
  * G-02f rt_compile R2 full surface — isomorphic with src/runtime/rt_compile.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_compile.x) + rest seed marker under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (25 public + helpers)
- * Regen: ./shux -E ... src/runtime/rt_compile.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_compile.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>

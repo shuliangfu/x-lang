@@ -2,7 +2,7 @@
 # F-trace v2：std.trace 逻辑全量 .x（删除 trace_span_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_TRACE_V2_FAIL:-0}
+FAIL=${XLANG_F_TRACE_V2_FAIL:-0}
 DOC="analysis/phase-f-trace-v2.md"
 MANIFEST="tests/baseline/f-trace-v2-closure.tsv"
 die() { echo "f-trace-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -25,10 +25,10 @@ grep -q 'trace_export_text_c' std/trace/trace.x || die "trace.x missing export"
 grep -q 'trace_smoke_c' std/trace/trace.x || die "trace.x missing smoke"
 grep -q 'trace_f_trace_v2_marker_c' std/trace/trace.x || die "trace.x missing v2 marker"
 grep -q 'F-trace v2' compiler/Makefile || die "Makefile missing F-trace v2 note"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/trace/trace.o >/dev/null 2>&1 || die "make trace.o failed"
 else
-  echo "f-trace-v2 SKIP trace.o build (no shux-c)" >&2
+  echo "f-trace-v2 SKIP trace.o build (no xlang-c)" >&2
 fi
 for sub in run-std-trace-gate.sh run-std-trace-hooks-gate.sh; do
   chmod +x "tests/$sub"

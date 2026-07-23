@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# STD-017：std.heap SHUX_HEAP_TRACE 调试钩子门禁
+# STD-017：std.heap XLANG_HEAP_TRACE 调试钩子门禁
 #
 # 用法：./tests/run-std-heap-trace-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_HEAP_TRACE_DOC:-analysis/std-heap-trace-v1.md}"
-MANIFEST="${SHUX_STD_HEAP_TRACE_TSV:-tests/baseline/std-heap-trace.tsv}"
+DOC="${XLANG_STD_HEAP_TRACE_DOC:-analysis/std-heap-trace-v1.md}"
+MANIFEST="${XLANG_STD_HEAP_TRACE_TSV:-tests/baseline/std-heap-trace.tsv}"
 HEAP_X="std/heap/mod.x"
 HEAP_LIBC="std/heap/libc.x"
 LIB="tests/lib/std-heap-trace.sh"
@@ -23,15 +23,15 @@ for f in "$DOC" "$MANIFEST" "$LIB" "$HEAP_X" "$HEAP_LIBC" "$SMOKE"; do
   fi
 done
 
-for kw in SHUX_HEAP_TRACE HeapTraceStats trace_reset; do
+for kw in XLANG_HEAP_TRACE HeapTraceStats trace_reset; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-heap-trace gate FAIL: doc missing '$kw'" >&2
     exit 1
   fi
 done
 
-if ! grep -qF 'SHUX_HEAP_TRACE' "$HEAP_LIBC" 2>/dev/null; then
-  echo "std-heap-trace gate FAIL: libc.x missing SHUX_HEAP_TRACE" >&2
+if ! grep -qF 'XLANG_HEAP_TRACE' "$HEAP_LIBC" 2>/dev/null; then
+  echo "std-heap-trace gate FAIL: libc.x missing XLANG_HEAP_TRACE" >&2
   exit 1
 fi
 if ! grep -qF 'getenv' "$HEAP_LIBC" 2>/dev/null; then
@@ -60,7 +60,7 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
     if stdlib_cm_native_shu "$cand"; then
       echo "$cand"
       return 0
@@ -72,29 +72,29 @@ resolve_shu() {
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-017: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-017: typeck (XLANG=$XLANG_BIN) ==="
+  if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-heap-trace gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true
     std_heap_trace_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
-  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  if $RUN_SHUX build -L . "$SMOKE" -o /tmp/shux_std_heap_trace 2>/tmp/shux_std_heap_trace_build.log; then
+  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+  if $RUN_XLANG build -L . "$SMOKE" -o /tmp/xlang_std_heap_trace 2>/tmp/xlang_std_heap_trace_build.log; then
     exitcode=0
-    /tmp/shux_std_heap_trace >/dev/null 2>&1 || exitcode=$?
+    /tmp/xlang_std_heap_trace >/dev/null 2>&1 || exitcode=$?
     if [ "$exitcode" -eq 0 ]; then
       RUN_OK=1
-      if SHUX_HEAP_TRACE=1 /tmp/shux_std_heap_trace >/dev/null 2>&1; then
+      if XLANG_HEAP_TRACE=1 /tmp/xlang_std_heap_trace >/dev/null 2>&1; then
         :
       else
-        echo "std-heap-trace gate FAIL: SHUX_HEAP_TRACE=1 runnable" >&2
+        echo "std-heap-trace gate FAIL: XLANG_HEAP_TRACE=1 runnable" >&2
         std_heap_trace_emit_report "fail" "$CHECK_OK" 0 0
         exit 1
       fi
@@ -105,11 +105,11 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   else
     echo "std-heap-trace gate SKIP runnable link (check passed)" >&2
-    tail -5 /tmp/shux_std_heap_trace_build.log 2>/dev/null >&2 || true
+    tail -5 /tmp/xlang_std_heap_trace_build.log 2>/dev/null >&2 || true
     SKIP=1
   fi
 else
-  echo "std-heap-trace gate SKIP typeck (no native shux)" >&2
+  echo "std-heap-trace gate SKIP typeck (no native xlang)" >&2
 fi
 
 std_heap_trace_emit_report "ok" "$CHECK_OK" "$RUN_OK" "$SKIP"

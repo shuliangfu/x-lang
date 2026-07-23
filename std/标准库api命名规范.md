@@ -123,40 +123,40 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `wait_completion`                 | —                                                                                                                                            | `wait_completion`           | 已符合命名          | `async.wait_completion(...)`           |
 | `submit_read_sync`                | —                                                                                                                                            | `submit_read_sync`          | 已符合命名          | `async.submit_read_sync(...)`          |
 | `submit_write_sync`               | —                                                                                                                                            | `submit_write_sync`         | 已符合命名          | `async.submit_write_sync(...)`         |
-| `shux_async_coop_pingpong`        | ─── A1/A2 协作调度（scheduler_glue.c）：无栈 ping-pong bench ───                                                                                      | `coop_pingpong`             | 去模块前缀+去类型名     | `async.coop_pingpong(...)`             |
-| `shux_async_coop_pingpong_jmp`    | extern C/平台                                                                                                                                  | `coop_pingpong_jmp`         | 去模块前缀+去类型名     | `async.coop_pingpong_jmp(...)`         |
-| `shux_async_cps_suspend`          | ─── A3 CPS suspend/resume（scheduler_glue.c；SHUX_ASYNC_YIELD=1 时 await 边界 yield）───                                                           | `cps_suspend`               | 去模块前缀+去类型名     | `async.cps_suspend(...)`               |
-| `shux_async_cps_suspend_io`       | IO-A5：await IO 边界 suspend；yield 时进 IO 等待队列。                                                                                                  | `cps_suspend_io`            | 去模块前缀+去类型名     | `async.cps_suspend_io(...)`            |
-| `shux_async_run_i32`              | extern C/平台                                                                                                                                  | `run`                       | 去模块前缀+去类型名     | `async.run(...)`                       |
-| `shux_async_spawn_i32`            | IO-A5 v5：push seed 并 submit 协程（spawn C 侧等价）。                                                                                             | `submit`                    | 与 task_submit 合并为 submit 重载（fn, seed）；`spawn` 为语言关键字     | `async.submit(fn, seed)`                     |
-| `shux_async_run_drain_until_idle` | IO-A5 v4：poll + drain 直至就绪环与 IO 等待队列皆空；返回已完成任务结果之和。 | `drain_idle` | 去模块前缀+去类型名；三轮精简 | `async.drain_idle(...)` |
-| `shux_async_run_seed_reset`       | run v4：实参 seed 队列（i32/u32/i64/usize）。                                                                                                        | `run_seed_reset`            | 去模块前缀+去类型名     | `async.run_seed_reset(...)`            |
-| `shux_async_run_seed_push_i32`    | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
-| `shux_async_run_seed_push_u32`    | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
-| `shux_async_run_seed_push_i64`    | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
-| `shux_async_run_seed_push_usize`  | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
-| `shux_async_run_seed_set_i32`     | run v1 兼容：单 i32 实参 seed。                                                                                                                     | `run_seed_set`              | 去模块前缀+去类型名     | `async.run_seed_set(...)`              |
-| `shux_async_run_seed_valid`       | extern C/平台                                                                                                                                  | `run_seed_valid`            | 去模块前缀+去类型名     | `async.run_seed_valid(...)`            |
-| `shux_async_run_seed_take_i32`    | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
-| `shux_async_run_seed_take_u32`    | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
-| `shux_async_run_seed_take_i64`    | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
-| `shux_async_run_seed_take_usize`  | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
-| `shux_async_task_submit` | ─── A4 就绪队列（MPSC ring；per-worker 环 + worker_drain）─── DOD-CL-S2：C 侧 shux_async_task_queue_t 已 align(64) head/tail/slots（见 scheduler_glue.c）。 | `submit` | 去模块前缀+去类型名；三轮精简 | `async.submit(...)` |
-| `shux_async_task_submit_to`       | 提交到指定 worker 环（0..worker_count-1）。                                                                                                           | `task_submit_to`            | 去模块前缀+去类型名     | `async.task_submit_to(...)`            |
-| `shux_async_scheduler_drain`      | extern C/平台                                                                                                                                  | `scheduler_drain`           | 去模块前缀+去类型名     | `async.scheduler_drain(...)`           |
-| `shux_async_worker_drain`         | 单 worker consumer drain（A4 v2 多 consumer）。                                                                                                   | `worker_drain`              | 去模块前缀+去类型名     | `async.worker_drain(...)`              |
-| `shux_async_worker_count` | extern C/平台 | `workers` | 去模块前缀+去类型名；三轮精简 | `async.workers(...)` |
-| `shux_async_worker_pending` | extern C/平台 | `pending` | 去模块前缀+去类型名；三轮精简 | `async.pending(...)` |
-| `shux_async_queue_reset`          | extern C/平台                                                                                                                                  | `queue_reset` | 去模块前缀+去类型名 | `async.queue_reset(...)` |
-| `shux_async_scheduler_pending` | extern C/平台 | `pending` | 去模块前缀+去类型名；三轮精简 | `async.pending(...)` |
-| `shux_async_io_wake_all`          | extern C/平台                                                                                                                                  | `io_wake_all`               | 去模块前缀+去类型名     | `async.io_wake_all(...)`               |
-| `shux_async_io_waiters_pending`   | extern C/平台                                                                                                                                  | `waiters_pending`           | 去模块前缀+去类型名     | `async.waiters_pending(...)`           |
-| `shux_io_poll_async_completions` | IO-A5 v3：poll io_uring CQE（未链 io.o 时为 weak 桩）。 | `poll_completions` | 去模块前缀+去类型名；三轮精简 | `async.poll_completions(...)` |
-| `shux_async_bind_context_c` | ─── STD-090/093：Context 绑定与取消传播（scheduler_glue.c ctx_slots）─── | `bind_ctx` | 去模块前缀+去类型名（C层） | `async.bind_ctx(...)` |
-| `shux_async_unbind_context_c` | extern C/平台 | `unbind_ctx` | 去模块前缀+去类型名（C层） | `async.unbind_ctx(...)` |
-| `shux_async_current_context_c` | extern C/平台 | `current_ctx` | 去模块前缀+去类型名（C层） | `async.current_ctx(...)` |
-| `shux_async_task_submit_with_ctx` | extern C/平台 | `submit_ctx` | 去模块前缀+去类型名；三轮精简 | `async.submit_ctx(...)` |
-| `shux_async_spawn_ctx_smoke_c` | extern C/平台 | `spawn_ctx_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `async.spawn_ctx_smoke(...)` |
+| `xlang_async_coop_pingpong`        | ─── A1/A2 协作调度（scheduler_glue.c）：无栈 ping-pong bench ───                                                                                      | `coop_pingpong`             | 去模块前缀+去类型名     | `async.coop_pingpong(...)`             |
+| `xlang_async_coop_pingpong_jmp`    | extern C/平台                                                                                                                                  | `coop_pingpong_jmp`         | 去模块前缀+去类型名     | `async.coop_pingpong_jmp(...)`         |
+| `xlang_async_cps_suspend`          | ─── A3 CPS suspend/resume（scheduler_glue.c；XLANG_ASYNC_YIELD=1 时 await 边界 yield）───                                                           | `cps_suspend`               | 去模块前缀+去类型名     | `async.cps_suspend(...)`               |
+| `xlang_async_cps_suspend_io`       | IO-A5：await IO 边界 suspend；yield 时进 IO 等待队列。                                                                                                  | `cps_suspend_io`            | 去模块前缀+去类型名     | `async.cps_suspend_io(...)`            |
+| `xlang_async_run_i32`              | extern C/平台                                                                                                                                  | `run`                       | 去模块前缀+去类型名     | `async.run(...)`                       |
+| `xlang_async_spawn_i32`            | IO-A5 v5：push seed 并 submit 协程（spawn C 侧等价）。                                                                                             | `submit`                    | 与 task_submit 合并为 submit 重载（fn, seed）；`spawn` 为语言关键字     | `async.submit(fn, seed)`                     |
+| `xlang_async_run_drain_until_idle` | IO-A5 v4：poll + drain 直至就绪环与 IO 等待队列皆空；返回已完成任务结果之和。 | `drain_idle` | 去模块前缀+去类型名；三轮精简 | `async.drain_idle(...)` |
+| `xlang_async_run_seed_reset`       | run v4：实参 seed 队列（i32/u32/i64/usize）。                                                                                                        | `run_seed_reset`            | 去模块前缀+去类型名     | `async.run_seed_reset(...)`            |
+| `xlang_async_run_seed_push_i32`    | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
+| `xlang_async_run_seed_push_u32`    | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
+| `xlang_async_run_seed_push_i64`    | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
+| `xlang_async_run_seed_push_usize`  | extern C/平台                                                                                                                                  | `run_seed_push`             | 去模块前缀+去类型名     | `async.run_seed_push(...)`             |
+| `xlang_async_run_seed_set_i32`     | run v1 兼容：单 i32 实参 seed。                                                                                                                     | `run_seed_set`              | 去模块前缀+去类型名     | `async.run_seed_set(...)`              |
+| `xlang_async_run_seed_valid`       | extern C/平台                                                                                                                                  | `run_seed_valid`            | 去模块前缀+去类型名     | `async.run_seed_valid(...)`            |
+| `xlang_async_run_seed_take_i32`    | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
+| `xlang_async_run_seed_take_u32`    | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
+| `xlang_async_run_seed_take_i64`    | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
+| `xlang_async_run_seed_take_usize`  | extern C/平台                                                                                                                                  | `run_seed_take`             | 去模块前缀+去类型名     | `async.run_seed_take(...)`             |
+| `xlang_async_task_submit` | ─── A4 就绪队列（MPSC ring；per-worker 环 + worker_drain）─── DOD-CL-S2：C 侧 xlang_async_task_queue_t 已 align(64) head/tail/slots（见 scheduler_glue.c）。 | `submit` | 去模块前缀+去类型名；三轮精简 | `async.submit(...)` |
+| `xlang_async_task_submit_to`       | 提交到指定 worker 环（0..worker_count-1）。                                                                                                           | `task_submit_to`            | 去模块前缀+去类型名     | `async.task_submit_to(...)`            |
+| `xlang_async_scheduler_drain`      | extern C/平台                                                                                                                                  | `scheduler_drain`           | 去模块前缀+去类型名     | `async.scheduler_drain(...)`           |
+| `xlang_async_worker_drain`         | 单 worker consumer drain（A4 v2 多 consumer）。                                                                                                   | `worker_drain`              | 去模块前缀+去类型名     | `async.worker_drain(...)`              |
+| `xlang_async_worker_count` | extern C/平台 | `workers` | 去模块前缀+去类型名；三轮精简 | `async.workers(...)` |
+| `xlang_async_worker_pending` | extern C/平台 | `pending` | 去模块前缀+去类型名；三轮精简 | `async.pending(...)` |
+| `xlang_async_queue_reset`          | extern C/平台                                                                                                                                  | `queue_reset` | 去模块前缀+去类型名 | `async.queue_reset(...)` |
+| `xlang_async_scheduler_pending` | extern C/平台 | `pending` | 去模块前缀+去类型名；三轮精简 | `async.pending(...)` |
+| `xlang_async_io_wake_all`          | extern C/平台                                                                                                                                  | `io_wake_all`               | 去模块前缀+去类型名     | `async.io_wake_all(...)`               |
+| `xlang_async_io_waiters_pending`   | extern C/平台                                                                                                                                  | `waiters_pending`           | 去模块前缀+去类型名     | `async.waiters_pending(...)`           |
+| `xlang_io_poll_async_completions` | IO-A5 v3：poll io_uring CQE（未链 io.o 时为 weak 桩）。 | `poll_completions` | 去模块前缀+去类型名；三轮精简 | `async.poll_completions(...)` |
+| `xlang_async_bind_context_c` | ─── STD-090/093：Context 绑定与取消传播（scheduler_glue.c ctx_slots）─── | `bind_ctx` | 去模块前缀+去类型名（C层） | `async.bind_ctx(...)` |
+| `xlang_async_unbind_context_c` | extern C/平台 | `unbind_ctx` | 去模块前缀+去类型名（C层） | `async.unbind_ctx(...)` |
+| `xlang_async_current_context_c` | extern C/平台 | `current_ctx` | 去模块前缀+去类型名（C层） | `async.current_ctx(...)` |
+| `xlang_async_task_submit_with_ctx` | extern C/平台 | `submit_ctx` | 去模块前缀+去类型名；三轮精简 | `async.submit_ctx(...)` |
+| `xlang_async_spawn_ctx_smoke_c` | extern C/平台 | `spawn_ctx_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `async.spawn_ctx_smoke(...)` |
 | `async_err_ctx_abort`             | 返回 Context 取消时 drain 的错误码。                                                                                                                   | `err_ctx_abort`             | 去模块前缀+去类型名     | `async.err_ctx_abort(...)`             |
 | `bind_context` | 绑定 Context 到当前 async 运行时（spawn/drain 取消传播）。 | `bind_ctx` | 三轮精简 | `async.bind_ctx(...)` |
 | `unbind_context` | 弹出最近一次 bind_context。 | `unbind_ctx` | 三轮精简 | `async.unbind_ctx(...)` |
@@ -167,7 +167,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `task_submit` | 提交 async 任务到就绪环；0 成功。 | `submit` | 三轮精简 | `async.submit(...)` |
 | `task_submit_with_context` | 提交任务并绑定 Context；ctx 已取消时返回 -2。 | `submit_ctx` | 三轮精简 | `async.submit_ctx(...)` |
 | `spawn_context_smoke` | STD-093：spawn 自动继承 bind_context 烟测；0 通过。 | `spawn_ctx_smoke` | 已符合命名；Tier-X 不 export | `async.spawn_ctx_smoke(...)` |
-| `scheduler_reset` | 清空就绪环与 IO 等待队列（保留 run seed 时见 shux_async_queue_reset_impl）。 | `scheduler_reset` | 三轮精简 | `async.scheduler_reset(...)` |
+| `scheduler_reset` | 清空就绪环与 IO 等待队列（保留 run seed 时见 xlang_async_queue_reset_impl）。 | `scheduler_reset` | 三轮精简 | `async.scheduler_reset(...)` |
 | `drain_until_idle` | poll + drain 直至就绪环与 IO 等待队列皆空。 | `drain_idle` | 三轮精简 | `async.drain_idle(...)` |
 | `cps_suspend_io`                  | await IO 边界 suspend 门面。                                                                                                                      | `cps_suspend_io`            | 已符合命名          | `async.cps_suspend_io(...)`            |
 | `poll_io_completions` | poll io_uring completion 并唤醒 IO 等待任务。 | `poll_completions` | 三轮精简 | `async.poll_completions(...)` |
@@ -187,16 +187,16 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `net_write_async`                 | net TcpStream fd 异步写（await_write_fd 别名）。                                                                                                     | `net_write_async`           | 已符合命名          | `async.net_write_async(...)`           |
 | `fs_read_async`                   | fs 已打开 fd 异步读（await_read_fd 别名）。                                                                                                             | `fs_read_async`             | 已符合命名          | `async.fs_read_async(...)`             |
 | `fs_write_async`                  | fs 已打开 fd 异步写（await_write_fd 别名）。                                                                                                            | `fs_write_async`            | 已符合命名          | `async.fs_write_async(...)`            |
-| `shux_async_net_fs_smoke_c` | extern C/平台 | `net_fs_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `async.net_fs_smoke(...)` |
+| `xlang_async_net_fs_smoke_c` | extern C/平台 | `net_fs_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `async.net_fs_smoke(...)` |
 | `net_fs_async_smoke` | async net/fs fd 路径 C 烟测（pipe 模拟）；0 通过。 | `net_fs_async_smoke` | 已符合命名；Tier-X 不 export | `async.net_fs_async_smoke(...)` |
 | `io_waiters_pending` | IO 等待队列深度。 | `waiters` | 语义重命名；三轮精简 | `async.waiters(...)` |
-| `shux_async_future_create_c` | extern C/平台 | `future_create` | 去模块前缀+去类型名（C层） | `async.future_create(...)` |
-| `shux_async_future_poll_c` | extern C/平台 | `future_poll` | 去模块前缀+去类型名（C层） | `async.future_poll(...)` |
-| `shux_async_future_complete_c` | extern C/平台 | `future_complete` | 去模块前缀+去类型名（C层） | `async.future_complete(...)` |
-| `shux_async_future_take_c` | extern C/平台 | `future_take` | 去模块前缀+去类型名（C层） | `async.future_take(...)` |
-| `shux_async_future_reset_c` | extern C/平台 | `future_reset` | 去模块前缀+去类型名（C层） | `async.future_reset(...)` |
-| `shux_async_future_wait_c` | extern C/平台 | `future_wait` | 去模块前缀+去类型名（C层） | `async.future_wait(...)` |
-| `shux_async_future_smoke_c` | extern C/平台 | `future_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `async.future_smoke(...)` |
+| `xlang_async_future_create_c` | extern C/平台 | `future_create` | 去模块前缀+去类型名（C层） | `async.future_create(...)` |
+| `xlang_async_future_poll_c` | extern C/平台 | `future_poll` | 去模块前缀+去类型名（C层） | `async.future_poll(...)` |
+| `xlang_async_future_complete_c` | extern C/平台 | `future_complete` | 去模块前缀+去类型名（C层） | `async.future_complete(...)` |
+| `xlang_async_future_take_c` | extern C/平台 | `future_take` | 去模块前缀+去类型名（C层） | `async.future_take(...)` |
+| `xlang_async_future_reset_c` | extern C/平台 | `future_reset` | 去模块前缀+去类型名（C层） | `async.future_reset(...)` |
+| `xlang_async_future_wait_c` | extern C/平台 | `future_wait` | 去模块前缀+去类型名（C层） | `async.future_wait(...)` |
+| `xlang_async_future_smoke_c` | extern C/平台 | `future_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `async.future_smoke(...)` |
 | `poll_pending`                    | 返回 Poll::Pending 常量。                                                                                                                         | `poll_pending`              | 已符合命名          | `async.poll_pending(...)`              |
 | `poll_ready`                      | 返回 Poll::Ready 常量。                                                                                                                           | `poll_ready`                | 已符合命名          | `async.poll_ready(...)`                |
 | `future_new` | 创建 pending Future；池满时 handle=0。 | `new` | 三轮精简 | `async.new(...)` |
@@ -327,7 +327,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `backtrace_symbolicate_c` | extern C/平台 | `symbolicate` | 去模块前缀+去类型名（C层） | `backtrace.symbolicate(...)` |
 | `capture`                       | —                                                                                        | `capture`                | 已符合命名          | `backtrace.capture(...)`                |
 | `symbolicate`                   | —                                                                                        | `symbolicate`            | 已符合命名          | `backtrace.symbolicate(...)`            |
-| `shux_crash_evidence_collect_c` | SAFE-007：收集崩溃证据（须环境变量 SHUX_CRASH_EVIDENCE=1；可选 SHUX_CRASH_EVIDENCE_DIR 落盘）。              | `crash_evidence_collect` | 去模块前缀+去类型名（C层） | `backtrace.crash_evidence_collect(...)` |
+| `xlang_crash_evidence_collect_c` | SAFE-007：收集崩溃证据（须环境变量 XLANG_CRASH_EVIDENCE=1；可选 XLANG_CRASH_EVIDENCE_DIR 落盘）。              | `crash_evidence_collect` | 去模块前缀+去类型名（C层） | `backtrace.crash_evidence_collect(...)` |
 | `collect_crash_evidence`        | 手动或 panic 路径登记证据；has_msg 非 0 时 msg_val 为消息码。                                             | `collect_crash_evidence` | 已符合命名          | `backtrace.collect_crash_evidence(...)` |
 
 
@@ -1476,7 +1476,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 | 当前名称                           | 功能说明                                                                                                                                              | 简化名称                    | 说明             | 绑定调用                              |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | -------------- | --------------------------------- |
-| `hash_sip_new_c` | std.hash — Hasher 抽象与 SipHash-2-4（对标 Zig std.hash、Rust std::hash::Hasher） STD-056：统一 Hasher 工厂 hash_start_algo / default_hasher / SHUX_HASH_ALGO。 | `sip_new` | 去模块前缀+去类型名（C层） | `hash.sip_new(...)` |
+| `hash_sip_new_c` | std.hash — Hasher 抽象与 SipHash-2-4（对标 Zig std.hash、Rust std::hash::Hasher） STD-056：统一 Hasher 工厂 hash_start_algo / default_hasher / XLANG_HASH_ALGO。 | `sip_new` | 去模块前缀+去类型名（C层） | `hash.sip_new(...)` |
 | `hash_sip_write_u32_c` | extern C/平台 | `sip_write` | 去模块前缀+去类型名（C层） | `hash.sip_write(...)` |
 | `hash_sip_write_u64_c` | extern C/平台 | `sip_write` | 去模块前缀+去类型名（C层） | `hash.sip_write(...)` |
 | `hash_sip_write_bytes_c` | extern C/平台 | `sip_write_bytes` | 去模块前缀+去类型名（C层） | `hash.sip_write_bytes(...)` |
@@ -1493,7 +1493,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `hash_xxhash64_seed_bytes_c` | extern C/平台 | `xxhash64_seed_bytes` | 去模块前缀+去类型名（C层） | `hash.xxhash64_seed_bytes(...)` |
 | `hash_recommend_hasher_map_c` | extern C/平台 | `recommend_hasher_map` | 去模块前缀+去类型名（C层） | `hash.recommend_hasher_map(...)` |
 | `hash_recommend_hasher_fast_c` | extern C/平台                                                                                                                                       | `recommend_hasher_fast` | 去模块前缀+去类型名（C层） | `hash.recommend_hasher_fast(...)` |
-| `default_hasher`               | 读取 SHUX_HASH_ALGO 环境变量，返回默认 Hasher 算法 id。                                                                                                         | `default_hasher`        | 已符合命名          | `hash.default_hasher(...)`        |
+| `default_hasher`               | 读取 XLANG_HASH_ALGO 环境变量，返回默认 Hasher 算法 id。                                                                                                         | `default_hasher`        | 已符合命名          | `hash.default_hasher(...)`        |
 | `recommend_hasher_map`         | Map/Set 场景推荐 Hasher（SipHash）。                                                                                                                     | `recommend_hasher_map`  | 已符合命名          | `hash.recommend_hasher_map(...)`  |
 | `recommend_hasher_fast`        | 内部去重/checksum 推荐 Hasher（xxHash64）。                                                                                                                | `recommend_hasher_fast` | 已符合命名          | `hash.recommend_hasher_fast(...)` |
 | `hash_start_algo`              | 按算法创建 Hasher 状态；失败返回 0。                                                                                                                           | `start_algo`            | 去模块前缀+去类型名     | `hash.start_algo(...)`            |
@@ -2298,7 +2298,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `set_file_sink`             | 打开追加写文件 sink；path 为字节路径，len 为长度。成功 0，失败 -1。                                                                               | `set_file_sink`       | 已符合命名                                          | `log.set_file_sink(...)`       |
 | `close_file_sink`           | 关闭文件 sink（若已打开）。                                                                                                          | `close_file_sink`     | 已符合命名                                          | `log.close_file_sink(...)`     |
 | `log`                       | 写一条人类可读日志："[LEVEL] " + ptr[0..len] + 换行。返回 0 成功，-1 失败。                                                                    | `log`                 | 已符合命名                                          | `log.log(...)`                 |
-| `log_structured_kv`         | 写一条 OBS-003 结构化行：shux: level=… component=… kv…；comp/kv 为 NUL 结尾字节串。                                                       | `structured_kv`       | 去模块前缀+去类型名                                     | `log.structured_kv(...)`       |
+| `log_structured_kv`         | 写一条 OBS-003 结构化行：xlang: level=… component=… kv…；comp/kv 为 NUL 结尾字节串。                                                       | `structured_kv`       | 去模块前缀+去类型名                                     | `log.structured_kv(...)`       |
 | `set_rotate_limit`          | 设置文件 sink 轮转阈值（须先 set_file_sink）；max_backups 0=截断，1..8=备份。                                                                | `set_rotate_limit`    | 已符合命名                                          | `log.set_rotate_limit(...)`    |
 | `set_async_enabled`         | 启用/关闭异步缓冲（32 槽环形队列）；关闭前自动 flush。                                                                                          | `set_async_enabled`   | 已符合命名                                          | `log.set_async_enabled(...)`   |
 | `async_flush`               | 刷出异步缓冲到活跃 sink。                                                                                                           | `async_flush`         | 已符合命名                                          | `log.async_flush(...)`         |
@@ -2820,7 +2820,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `runtime_ready`                    | —                                                                                         | `ready`                  | 去模块前缀+去类型名     | `runtime.ready(...)`                  |
 | `runtime_diag_enabled`             | 运行时诊断是否启用；当前恒为 1（STD-159）。                                                                | `diag_enabled`           | 去模块前缀+去类型名     | `runtime.diag_enabled(...)`           |
 | `runtime_diag_collect`             | 收集运行时诊断事件（占位；code/detail 保留扩展）。                                                           | `diag_collect`           | 去模块前缀+去类型名     | `runtime.diag_collect(...)`           |
-| `runtime_crash_evidence_collect_c` | STD-028：panic 前收集崩溃证据（弱符号 shux_crash_evidence_collect_c）。                                 | `crash_evidence_collect` | 去模块前缀+去类型名（C层） | `runtime.crash_evidence_collect(...)` |
+| `runtime_crash_evidence_collect_c` | STD-028：panic 前收集崩溃证据（弱符号 xlang_crash_evidence_collect_c）。                                 | `crash_evidence_collect` | 去模块前缀+去类型名（C层） | `runtime.crash_evidence_collect(...)` |
 | `panic_hook_collect`               | 用户/测试可调用：登记 panic 钩子参数（has_msg/msg_val 透传 runtime）。                                       | `panic_hook_collect`     | 已符合命名          | `runtime.panic_hook_collect(...)`     |
 
 
@@ -3276,13 +3276,13 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | --------------------------- | -------------------------------------------------------------- | ------------------- | -------------- | ---------------------------- |
 | `string_long_threshold`     | —                                                              | `long_threshold`    | 去模块前缀+去类型名     | `str.long_threshold(...)`    |
 | `string_copy_threshold`     | —                                                              | `copy_threshold`    | 去模块前缀+去类型名     | `str.copy_threshold(...)`    |
-| `shux_string_memcmp_c` | extern C/平台 | `memcmp` | 去模块前缀+去类型名（C层） | `str.memcmp(...)` |
-| `shux_string_memmem_c` | extern C/平台 | `memmem` | 去模块前缀+去类型名（C层） | `str.memmem(...)` |
-| `shux_string_copy_c` | extern C/平台 | `copy` | 去模块前缀+去类型名（C层） | `str.copy(...)` |
-| `shux_string_memchr_c` | extern C/平台 | `memchr` | 去模块前缀+去类型名（C层） | `str.memchr(...)` |
-| `shux_string_memrchr_c` | extern C/平台 | `memrchr` | 去模块前缀+去类型名（C层） | `str.memrchr(...)` |
-| `shux_string_memcmp_at_c` | extern C/平台 | `memcmp_at` | 去模块前缀+去类型名（C层） | `str.memcmp_at(...)` |
-| `shux_string_ptr_at_c` | 指针偏移 ptr+off；供 subview 与 arena concat 写入第二段。 | `ptr_at` | 去模块前缀+去类型名（C层） | `str.ptr_at(...)` |
+| `xlang_string_memcmp_c` | extern C/平台 | `memcmp` | 去模块前缀+去类型名（C层） | `str.memcmp(...)` |
+| `xlang_string_memmem_c` | extern C/平台 | `memmem` | 去模块前缀+去类型名（C层） | `str.memmem(...)` |
+| `xlang_string_copy_c` | extern C/平台 | `copy` | 去模块前缀+去类型名（C层） | `str.copy(...)` |
+| `xlang_string_memchr_c` | extern C/平台 | `memchr` | 去模块前缀+去类型名（C层） | `str.memchr(...)` |
+| `xlang_string_memrchr_c` | extern C/平台 | `memrchr` | 去模块前缀+去类型名（C层） | `str.memrchr(...)` |
+| `xlang_string_memcmp_at_c` | extern C/平台 | `memcmp_at` | 去模块前缀+去类型名（C层） | `str.memcmp_at(...)` |
+| `xlang_string_ptr_at_c` | 指针偏移 ptr+off；供 subview 与 arena concat 写入第二段。 | `ptr_at` | 去模块前缀+去类型名（C层） | `str.ptr_at(...)` |
 | `string_capacity`           | 固定缓冲容量（字节）；不分配堆，超过请用 StrView。                                  | `capacity`          | 去模块前缀+去类型名     | `str.capacity(...)`          |
 | `string_empty`              | 空字符串长度常量 0。                                                    | `empty`             | 去模块前缀+去类型名     | `str.empty(...)`             |
 | `string_view`               | 从 (ptr, len) 构造只读视图，零拷贝（不复制内存）。                                | `from_raw_parts`    | 去模块前缀+去类型名     | `str.from_raw_parts(...)`    |
@@ -3407,7 +3407,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 | 当前名称                            | 功能说明                                     | 简化名称                            | 说明         | 绑定调用                                     |
 | ------------------------------- | ---------------------------------------- | ------------------------------- | ---------- | ---------------------------------------- |
-| `shux_sys_write`                | extern C/平台                              | `write`                         | 去模块前缀+去类型名 | `sys.write(...)`                         |
+| `xlang_sys_write`                | extern C/平台                              | `write`                         | 去模块前缀+去类型名 | `sys.write(...)`                         |
 | `freestanding_write_available`  | —                                        | `freestanding_write_available`  | 已符合命名      | `sys.freestanding_write_available(...)`  |
 | `freestanding_write_available`  | —                                        | `freestanding_write_available`  | 已符合命名      | `sys.freestanding_write_available(...)`  |
 | `os_write`                      | —                                        | `os_write`                      | 已符合命名      | `sys.os_write(...)`                      |
@@ -3543,8 +3543,8 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `expect_ne_i32`             | 断言 a != b（i32）；返回 0 通过，1 失败。                                                                                                      | `assert_ne`          | 去模块前缀+去类型名     | `test.assert_ne(...)`          |
 | `test_run`                  | —                                                                                                                                 | `run`                | 去模块前缀+去类型名     | `test.run(...)`                |
 | `bench_run`                 | 调用无参 fn 共 iters 次，返回纳秒耗时。                                                                                                         | `bench_run`          | 已符合命名          | `test.bench_run(...)`          |
-| `bench_report`              | 写 bench 报告到 stderr：shux: [SHUX_BENCH] name=… ns=…                                                                                 | `bench_report`       | 已符合命名          | `test.bench_report(...)`       |
-| `fuzz_seed`                 | 读取 SHUX_FUZZ_SEED 或默认种子。                                                                                                          | `fuzz_seed`          | 已符合命名          | `test.fuzz_seed(...)`          |
+| `bench_report`              | 写 bench 报告到 stderr：xlang: [XLANG_BENCH] name=… ns=…                                                                                 | `bench_report`       | 已符合命名          | `test.bench_report(...)`       |
+| `fuzz_seed`                 | 读取 XLANG_FUZZ_SEED 或默认种子。                                                                                                          | `fuzz_seed`          | 已符合命名          | `test.fuzz_seed(...)`          |
 | `fuzz_next`                 | LCG 单步；state 为 in/out 种子指针。                                                                                                       | `fuzz_next`          | 已符合命名          | `test.fuzz_next(...)`          |
 | `fuzz_run`                  | 每轮推进 PRNG 后调用 fn；全部返回 0 则 0。                                                                                                      | `fuzz_run`           | 已符合命名          | `test.fuzz_run(...)`           |
 | `bench_run_noop`            | STD-143：对 C 内置 noop 跑 bench，无需函数指针。                                                                                               | `bench_run_noop`     | 已符合命名          | `test.bench_run_noop(...)`     |

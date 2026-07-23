@@ -67,33 +67,33 @@ HTTP_O="$(cd compiler && pwd)/../std/http/http.o"
 
 C_OK=0
 OPENSSL_OK=0
-if cc -std=c11 -O1 -o /tmp/shux_http_https_stub_$$ tests/http/https_smoke_ok.c "$HTTP_O" 2>/dev/null; then
-  /tmp/shux_http_https_stub_$$ >/dev/null 2>&1 && C_OK=1
-  rm -f /tmp/shux_http_https_stub_$$
+if cc -std=c11 -O1 -o /tmp/xlang_http_https_stub_$$ tests/http/https_smoke_ok.c "$HTTP_O" 2>/dev/null; then
+  /tmp/xlang_http_https_stub_$$ >/dev/null 2>&1 && C_OK=1
+  rm -f /tmp/xlang_http_https_stub_$$
 fi
 [ "$C_OK" -eq 1 ] || { std_http_https_emit_report fail 0 0 0 0; exit 1; }
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
-if [ -n "$SHUX_BIN" ]; then
-  "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null
-  std_http_https_run_x_smoke "$SHUX_BIN" "$SMOKE_X" && X_OK=1 || exit 1
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
+if [ -n "$XLANG_BIN" ]; then
+  "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null
+  std_http_https_run_x_smoke "$XLANG_BIN" "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi
 
 if std_net_tls_probe_openssl; then
-  TLS_PORT="${SHUX_HTTPS_SMOKE_PORT:-9888}"
-  TLS_CERT="/tmp/shux_https_cert_$$.pem"
-  TLS_KEY="/tmp/shux_https_key_$$.pem"
-  TLS_PID="/tmp/shux_https_spid_$$"
+  TLS_PORT="${XLANG_HTTPS_SMOKE_PORT:-9888}"
+  TLS_CERT="/tmp/xlang_https_cert_$$.pem"
+  TLS_KEY="/tmp/xlang_https_key_$$.pem"
+  TLS_PID="/tmp/xlang_https_spid_$$"
   if openssl req -x509 -newkey rsa:2048 -keyout "$TLS_KEY" -out "$TLS_CERT" -days 1 -nodes \
     -subj "/CN=localhost" 2>/dev/null; then
     if std_net_tls_build_openssl_o && std_net_tls_start_s_server "$TLS_PID" "$TLS_PORT" "$TLS_CERT" "$TLS_KEY"; then
       NET_O="$(cd compiler && pwd)/../std/net/net.o"
-      export SHUX_HTTPS_SMOKE_PORT="$TLS_PORT"
+      export XLANG_HTTPS_SMOKE_PORT="$TLS_PORT"
       ldflags="$(std_net_tls_openssl_ldflags)"
       if std_http_https_run_c_smoke "$HTTP_O" "$NET_O" "$ldflags"; then
         OPENSSL_OK=1

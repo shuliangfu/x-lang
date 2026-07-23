@@ -22,7 +22,7 @@ export function parser_asm_parse_expr_link_x_doc_anchor(): i32 {
 }
 
 /**
- * Whether SHUX_PARSER_ASM_DEBUG enables parser-asm parse_expr debug.
+ * Whether XLANG_PARSER_ASM_DEBUG enables parser-asm parse_expr debug.
  * wave237 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * Rules (≡ historical seed): null / empty / leading '0' → 0; any other non-empty → 1.
  * @return i32 — 1 if debug enabled, 0 otherwise
@@ -31,8 +31,8 @@ export function parser_asm_parse_expr_link_x_doc_anchor(): i32 {
 #[no_mangle]
 export function parser_asm_parse_expr_debug_enabled(): i32 {
   unsafe {
-    // wave237 G.7: SHUX_PARSER_ASM_DEBUG via link_abi_getenv (not raw getenv / not *_impl).
-    let v: *u8 = link_abi_getenv("SHUX_PARSER_ASM_DEBUG");
+    // wave237 G.7: XLANG_PARSER_ASM_DEBUG via link_abi_getenv (not raw getenv / not *_impl).
+    let v: *u8 = link_abi_getenv("XLANG_PARSER_ASM_DEBUG");
     if (v == 0 as *u8) {
       return 0;
     }

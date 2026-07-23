@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_DYNLIB_V1_FAIL=1 ./tests/run-f-dynlib-v1-gate.sh
+XLANG_F_DYNLIB_V1_FAIL=1 ./tests/run-f-dynlib-v1-gate.sh
 ./tests/run-std-dynlib-windows-gate.sh
 ./tests/run-std-dynlib-last-error-gate.sh
 ```

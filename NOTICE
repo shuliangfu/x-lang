@@ -1,4 +1,4 @@
-Shux — copyright, layered licenses, and third-party notices
+Xlang — copyright, layered licenses, and third-party notices
 ==========================================================
 
 Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
@@ -7,7 +7,7 @@ SPDX-FileCopyrightText: 2026 ShuLiangfu <admin@shuliangfu.com>
 Project: https://github.com/shuliangfu/shux
 Contact: admin@shuliangfu.com
 
-This product includes software developed as part of the Shux project.
+This product includes software developed as part of the Xlang project.
 Primary license map: LICENSE
 Full texts: LICENSE.AGPL-3.0 · LICENSE.Apache-2.0
 
@@ -25,7 +25,7 @@ Full texts: LICENSE.AGPL-3.0 · LICENSE.Apache-2.0
   examples/                    Apache-2.0           LICENSE.Apache-2.0
   tests/                       Apache-2.0           (not under compiler/)
   editors/vscode/              Apache-2.0           editors/vscode/LICENSE
-  editors/tree-sitter-shux/    Apache-2.0           package metadata + LICENSE
+  editors/tree-sitter-xlang/    Apache-2.0           package metadata + LICENSE
   editors/vim/                 Apache-2.0           default
   Unlisted paths               AGPL-3.0-or-later    default Layer A
 
@@ -107,13 +107,13 @@ Helper: tools/add_x_license_header.sh (respects core|std vs compiler/src).
   Full text:   compiler/seeds/crypto/ed25519/LICENSE-zlib.txt
   Upstream:    https://github.com/orlp/ed25519
 
-  Alterations in Shux (zlib condition 2 — altered versions must be marked):
+  Alterations in Xlang (zlib condition 2 — altered versions must be marked):
     - Integrated as a single translation unit via .inc includes
     - Exported symbol renames (ed25519_ref10_*, sha512 → ed25519_ref10_sha512, …)
       to avoid clashing with higher-level std.crypto APIs
     - Build/glue wrappers; algorithmic core retained from upstream
 
-  Note: The **std/crypto** Shux API surface is Apache-2.0; this vendored C
+  Note: The **std/crypto** Xlang API surface is Apache-2.0; this vendored C
   remains under zlib and is part of the compiler runtime glue tree until ported.
 
 ------------------------------------------------------------------------------

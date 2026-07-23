@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-codec.sh — STD-073 manifest 与烟测辅助
 
-STD_CODEC_PREFIX="${SHUX_STD_CODEC_PREFIX:-shux: [SHUX_STD_CODEC]}"
+STD_CODEC_PREFIX="${XLANG_STD_CODEC_PREFIX:-xlang: [XLANG_STD_CODEC]}"
 
 # 遍历 manifest 校验 api/file/smoke。
 std_codec_symbols_ok() {
@@ -31,15 +31,15 @@ std_codec_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .x round-trip 烟测（F-04 v7+：gzip 符号在 .x，shux 按需 -lz）。
+# 编译并运行 .x round-trip 烟测（F-04 v7+：gzip 符号在 .x，xlang 按需 -lz）。
 std_codec_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-codec}"
-  local exe="/tmp/shux_std_codec_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_codec_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-codec FAIL: compile $src" >&2
-    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

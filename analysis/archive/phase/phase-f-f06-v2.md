@@ -12,7 +12,7 @@
 ## 复现
 
 ```bash
-SHUX_F06_RUNTIME_CLEANUP_FAIL=1 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
+XLANG_F06_RUNTIME_CLEANUP_FAIL=1 ./tests/run-f06-runtime-std-o-cleanup-gate.sh
 ```
 
 ## 下一项（终局）

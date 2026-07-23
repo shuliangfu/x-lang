@@ -1,7 +1,7 @@
 #!/bin/sh
-# build_seed_asm_host.sh — 用 shux-c -E 将 asm 后端编成宿主 .o，供 bootstrap-driver-seed 链入（无 weak 桩、无 runtime 回退）。
+# build_seed_asm_host.sh — 用 xlang-c -E 将 asm 后端编成宿主 .o，供 bootstrap-driver-seed 链入（无 weak 桩、无 runtime 回退）。
 # 用法：在 compiler 目录 ./scripts/build_seed_asm_host.sh
-# 依赖：./shux-c（make shux-c）
+# 依赖：./xlang-c（make xlang-c）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -80,7 +80,7 @@ _seed_arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$_seed_arch" in x86_64|amd64) _seed_arch="x86_64" ;; aarch64|arm64) _seed_arch="arm64" ;; esac
 # PLATFORM: WINDOWS | MSYS | MINGW — MSYS Git Bash returns "MSYS_NT-10.0-xxxxx" or
 # "MINGW64_NT-10.0-xxxxx" for uname -s. Without normalization, the host seed
-# lookup (seeds/bootstrap_shuxc.${os}.${arch}) would never match a committed
+# lookup (seeds/bootstrap_xlangc.${os}.${arch}) would never match a committed
 # "windows.x86_64" file. Map both MSYS_NT* and MINGW*_NT* to "windows".
 # Invariant: macOS/Linux/FreeBSD unchanged; Windows canonical name "windows".
 case "$_seed_os" in
@@ -88,7 +88,7 @@ case "$_seed_os" in
   linux) _seed_os="linux" ;;
   msys_nt*|mingw*_nt*|mingw*|cygwin*) _seed_os="windows" ;;
 esac
-HOST_SEED="./seeds/bootstrap_shuxc.${_seed_os}.${_seed_arch}"
+HOST_SEED="./seeds/bootstrap_xlangc.${_seed_os}.${_seed_arch}"
 
 default_asm_e_max_rss_mb() {
   if [ "$_seed_os" = "darwin" ]; then
@@ -121,7 +121,7 @@ kill_proc_tree() {
 
 can_seed_run() {
   [ -x "$1" ] || return 1
-  _tmp="/tmp/shux_build_seed_can_run_$$.su"
+  _tmp="/tmp/xlang_build_seed_can_run_$$.su"
   printf '%s\n' 'function main(): i32 { return 0; }' >"$_tmp"
   if "$1" -c "$_tmp" >/dev/null 2>&1; then
     rm -f "$_tmp" 2>/dev/null || true
@@ -135,27 +135,27 @@ can_seed_run() {
   return 1
 }
 
-SHUX_E=./bootstrap_shuxc
+XLANG_E=./bootstrap_xlangc
 if can_seed_run "$HOST_SEED"; then
-  SHUX_E="$HOST_SEED"
-elif can_seed_run ./bootstrap_shuxc; then
-  SHUX_E=./bootstrap_shuxc
-elif can_seed_run ./shux-c; then
-  SHUX_E=./shux-c
-elif can_seed_run ./shux-seed-phase1; then
-  SHUX_E=./shux-seed-phase1
-elif can_seed_run ./shux-x; then
-  SHUX_E=./shux-x
-elif can_seed_run ./shux; then
-  SHUX_E=./shux
-elif can_seed_run ./shux_asm; then
-  SHUX_E=./shux_asm
+  XLANG_E="$HOST_SEED"
+elif can_seed_run ./bootstrap_xlangc; then
+  XLANG_E=./bootstrap_xlangc
+elif can_seed_run ./xlang-c; then
+  XLANG_E=./xlang-c
+elif can_seed_run ./xlang-seed-phase1; then
+  XLANG_E=./xlang-seed-phase1
+elif can_seed_run ./xlang-x; then
+  XLANG_E=./xlang-x
+elif can_seed_run ./xlang; then
+  XLANG_E=./xlang
+elif can_seed_run ./xlang_asm; then
+  XLANG_E=./xlang_asm
 fi
-if [ ! -x "$SHUX_E" ]; then
+if [ ! -x "$XLANG_E" ]; then
   # No executable seed available. This happens on Windows MSYS cold start
-  # (no committed bootstrap_shuxc.windows.x86_64 binary) and on any fresh
-  # checkout before phase1 link produces shux-seed-phase1.
-  # Why: Without a seed binary, we cannot run `shux-c -E src/asm/asm_seed_full.x`
+  # (no committed bootstrap_xlangc.windows.x86_64 binary) and on any fresh
+  # checkout before phase1 link produces xlang-seed-phase1.
+  # Why: Without a seed binary, we cannot run `xlang-c -E src/asm/asm_seed_full.x`
   #      to generate the asm partial. But we CAN build the partial directly
   #      from the C source fallback (seeds/backend_seed_mega_fallback.from_x.c),
   #      which provides the same backend_asm_codegen_ast_seed_mega strong symbol.
@@ -166,25 +166,25 @@ if [ ! -x "$SHUX_E" ]; then
   #            so a silently-broken fallback build is rejected.
   # PLATFORM: WINDOWS | MSYS | MINGW (primary use case); also catches any
   #           other host without a pre-built seed binary.
-  build_seed_asm_host_warn "no executable seed (shux-c / bootstrap_shuxc) — try source fallback partial"
+  build_seed_asm_host_warn "no executable seed (xlang-c / bootstrap_xlangc) — try source fallback partial"
   if build_backend_partial_from_c_fallback; then
     clear_asm_seed_stale_logs
     build_seed_asm_host_info "OK ($OUT_DIR) via source fallback partial (no executable seed)"
     exit 0
   fi
-  build_seed_asm_host_error "缺少可执行 seed（shux-seed-phase1 / shux-c）且 source fallback partial 失败"
+  build_seed_asm_host_error "缺少可执行 seed（xlang-seed-phase1 / xlang-c）且 source fallback partial 失败"
   exit 1
 fi
 
-# `asm_seed_full.x -E` 当前会触发 `shux-x` 的 parser 资源失控；同一输入下 `shux-c`
-# 可稳定产出完整 C，因此 seed partial 生成优先走 `shux-c`，仅在缺失时才回退到 `shux-x` / `shux`。
-SHUX_ASM_E="${SHUX_ASM_E:-$SHUX_E}"
-if can_seed_run ./shux-c; then
-  SHUX_ASM_E=./shux-c
-elif can_seed_run ./shux-x; then
-  SHUX_ASM_E=./shux-x
-elif can_seed_run ./shux; then
-  SHUX_ASM_E=./shux
+# `asm_seed_full.x -E` 当前会触发 `xlang-x` 的 parser 资源失控；同一输入下 `xlang-c`
+# 可稳定产出完整 C，因此 seed partial 生成优先走 `xlang-c`，仅在缺失时才回退到 `xlang-x` / `xlang`。
+XLANG_ASM_E="${XLANG_ASM_E:-$XLANG_E}"
+if can_seed_run ./xlang-c; then
+  XLANG_ASM_E=./xlang-c
+elif can_seed_run ./xlang-x; then
+  XLANG_ASM_E=./xlang-x
+elif can_seed_run ./xlang; then
+  XLANG_ASM_E=./xlang
 fi
 
 CC="${CC:-cc}"
@@ -203,17 +203,17 @@ run_asm_x_emit_c() {
   _err="$2"
   _start=$(date +%s)
   _run() {
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.x >"$_out" 2>"$_err"
+    XLANG_STACK_LIMIT_MB="${XLANG_STACK_LIMIT_MB:-256}" "$XLANG_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.x >"$_out" 2>"$_err"
   }
   _run_bg() {
     # 回退仍须全量 -L；仅 -L src/asm 无法 resolve import codegen/ast 等。
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.x >"$_out" 2>"$_err"
+    XLANG_STACK_LIMIT_MB="${XLANG_STACK_LIMIT_MB:-256}" "$XLANG_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.x >"$_out" 2>"$_err"
   }
   _wait_with_heartbeat() {
     _pid=$1
     _label=$2
-    _timeout="${SHUX_ASM_E_TIMEOUT_SEC:-120}"
-    _rss_limit_mb="${SHUX_ASM_E_MAX_RSS_MB:-$(default_asm_e_max_rss_mb)}"
+    _timeout="${XLANG_ASM_E_TIMEOUT_SEC:-120}"
+    _rss_limit_mb="${XLANG_ASM_E_MAX_RSS_MB:-$(default_asm_e_max_rss_mb)}"
     _rss_limit_kb=$((_rss_limit_mb * 1024))
     _peak_rss_kb=0
     while kill -0 "$_pid" 2>/dev/null; do
@@ -286,8 +286,8 @@ run_asm_x_emit_c() {
 }
 
 dedupe_slice() {
-  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
-    perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' "$1" 2>/dev/null || true
+  if [ "${XLANG_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+    perl -i -ne 'print unless /^struct xlang_slice_uint8_t/ && $seen++' "$1" 2>/dev/null || true
   fi
 }
 
@@ -311,7 +311,7 @@ asm_full_gen_c_usable_for_fix() {
 # fix perl 三件套 + lea 自递归清理
 run_fix_asm_full_c_pipeline() {
   _c="$1"
-  [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ] || return 0
+  [ "${XLANG_ALLOW_GEN_PATCH:-0}" = "1" ] || return 0
   if grep -q 'struct ast_ASTArena {' "$_c" 2>/dev/null; then
     perl scripts/fix_slim_arena_gen_c.pl "$_c"
   fi
@@ -329,7 +329,7 @@ try_cc_asm_full_gen_c() {
   fi
   build_seed_asm_host_error "[$(date +%H:%M:%S)] cc FAILED ($(grep -c 'error:' "$OUT_DIR/cc.err" 2>/dev/null || echo 0) errors)"
   build_seed_asm_host_dump_tail "$OUT_DIR/cc.err" 15
-  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" != "1" ]; then
+  if [ "${XLANG_ALLOW_GEN_PATCH:-0}" != "1" ]; then
     return 1
   fi
   for _retry in "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak"; do
@@ -436,7 +436,7 @@ SEED_PARTIAL="seeds/asm_backend_partial.${os}.${arch}.o"
 
 darwin_seed_full_e_allowed() {
   [ "$os" != "darwin" ] && return 0
-  [ "${SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E:-0}" = "1" ]
+  [ "${XLANG_DARWIN_ALLOW_ASM_SEED_FULL_E:-0}" = "1" ]
 }
 
 if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL" ] \
@@ -447,7 +447,7 @@ if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL"
   build_seed_asm_host_info "seed partial (seed_mega) <- $SEED_PARTIAL"
   exit 0
 fi
-# phase1 弱桩 partial 无强符号 seed_mega，须用 shux-seed-phase1 重新 -E asm.x
+# phase1 弱桩 partial 无强符号 seed_mega，须用 xlang-seed-phase1 重新 -E asm.x
 if [ -f "$BACKEND_PARTIAL" ] && ! has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
   build_seed_asm_host_warn "phase1 stub partial (no strong seed_mega), regen via asm.x -E ..."
   rm -f "$BACKEND_PARTIAL"
@@ -478,12 +478,12 @@ if seed_partial_needs_regen; then
   if ! darwin_seed_full_e_allowed; then
     if [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
       clear_asm_seed_stale_logs
-      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, keep existing $BACKEND_PARTIAL (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
+      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, keep existing $BACKEND_PARTIAL (set XLANG_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
     if build_backend_partial_from_c_fallback; then
       clear_asm_seed_stale_logs
-      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, use source fallback partial (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
+      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, use source fallback partial (set XLANG_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
     build_seed_asm_host_error "Darwin safety guard blocked asm_seed_full.x -E, and fallback partial build failed"
@@ -546,12 +546,12 @@ if seed_partial_needs_regen; then
   fi
   cp -f "$ASM_FULL_C" "${ASM_FULL_C}.pre_fix"
   _t0=$(date +%s)
-  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+  if [ "${XLANG_ALLOW_GEN_PATCH:-0}" = "1" ]; then
     build_seed_asm_host_info "[$(date +%H:%M:%S)] fix perl scripts ..."
     run_fix_asm_full_c_pipeline "$ASM_FULL_C"
     build_seed_asm_host_info "[$(date +%H:%M:%S)] fix perl done ($(( $(date +%s) - _t0 ))s)"
   else
-    build_seed_asm_host_info "[$(date +%H:%M:%S)] gen patch disabled (SHUX_ALLOW_GEN_PATCH=1 to enable)"
+    build_seed_asm_host_info "[$(date +%H:%M:%S)] gen patch disabled (XLANG_ALLOW_GEN_PATCH=1 to enable)"
   fi
   _t0=$(date +%s)
   build_seed_asm_host_info "[$(date +%H:%M:%S)] cc -c asm_full_gen.c ..."
@@ -573,7 +573,7 @@ if seed_partial_needs_regen; then
   build_seed_asm_host_info "[$(date +%H:%M:%S)] cc OK ($(( $(date +%s) - _t0 ))s, $(wc -c <"$ASM_FULL_O" | tr -d ' ') bytes -> $ASM_FULL_O)"
   # cc 成功后保留 raw -E 落盘副本，供 OOM/cc 失败时重试
   cp -f "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak" 2>/dev/null || true
-  if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
+  if [ "${XLANG_ALLOW_GEN_PATCH:-0}" = "1" ]; then
     ENC_STUB_C="$OUT_DIR/asm_full_enc_link_stubs.c"
     ENC_STUB_O="$OUT_DIR/asm_full_enc_link_stubs.o"
     _stub_scan="$ASM_FULL_O"

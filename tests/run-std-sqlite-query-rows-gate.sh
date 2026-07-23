@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD066_DOC:-analysis/std-sqlite-query-rows-v1.md}"
-MANIFEST="${SHUX_STD066_TSV:-tests/baseline/std-sqlite-query-rows.tsv}"
-VECTORS="${SHUX_STD066_VECTORS:-tests/baseline/std-sqlite-query-rows-vectors.tsv}"
+DOC="${XLANG_STD066_DOC:-analysis/std-sqlite-query-rows-v1.md}"
+MANIFEST="${XLANG_STD066_TSV:-tests/baseline/std-sqlite-query-rows.tsv}"
+VECTORS="${XLANG_STD066_VECTORS:-tests/baseline/std-sqlite-query-rows-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-query-rows.sh"
@@ -74,9 +74,9 @@ echo "std-sqlite-query-rows manifest OK"
 
 echo "=== STD-066: parent STD-065 manifest ==="
 chmod +x tests/run-std-sqlite-exec-deep-gate.sh
-SHUX_STD065_MANIFEST_ONLY=1 ./tests/run-std-sqlite-exec-deep-gate.sh
+XLANG_STD065_MANIFEST_ONLY=1 ./tests/run-std-sqlite-exec-deep-gate.sh
 
-if [ "${SHUX_STD066_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD066_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_query_rows_emit_report "ok" 0 0 1
   echo "std-sqlite-query-rows gate OK (manifest only)"
   exit 0
@@ -100,7 +100,7 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHUX_BIN=""
+  XLANG_BIN=""
   stdlib_cm_native_shu() {
     local f="$1"
     [ -n "$f" ] && [ -x "$f" ] || return 1
@@ -112,18 +112,18 @@ if std_sqlite_probe_libs; then
       *) return 0 ;;
     esac
   }
-  if stdlib_cm_native_shu ./compiler/shux-c; then
-    SHUX_BIN=./compiler/shux-c
-  elif stdlib_cm_native_shu ./compiler/shux; then
-    SHUX_BIN=./compiler/shux
+  if stdlib_cm_native_shu ./compiler/xlang-c; then
+    XLANG_BIN=./compiler/xlang-c
+  elif stdlib_cm_native_shu ./compiler/xlang; then
+    XLANG_BIN=./compiler/xlang
   fi
 
-  if [ -n "$SHUX_BIN" ]; then
-    echo "=== STD-066: .x query_rows smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if [ -n "$XLANG_BIN" ]; then
+    echo "=== STD-066: .x query_rows smoke (XLANG=$XLANG_BIN) ==="
+    if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
       echo "std-sqlite-query-rows gate SKIP .x smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "rows"; then
+    elif std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "rows"; then
       ROWS_X=1
       SKIP=0
     else
@@ -131,7 +131,7 @@ if std_sqlite_probe_libs; then
       SKIP=1
     fi
   else
-    echo "std-sqlite-query-rows gate SKIP .x smoke (no native shux)" >&2
+    echo "std-sqlite-query-rows gate SKIP .x smoke (no native xlang)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o

@@ -2,23 +2,23 @@
  * Why: MinGW does not provide <poll.h>. Generated C files (parser_gen.c,
  *      codegen_gen.c, typeck_gen.c, seeds/runtime_driver_abi_thin.from_x.c,
  *      seeds/fmt_check_cmd_thin.from_x.c, etc.) include <poll.h> for
- *      struct pollfd / nfds_t / poll() used by shux_sys_poll inline helpers.
+ *      struct pollfd / nfds_t / poll() used by xlang_sys_poll inline helpers.
  *      Without this shim, Windows MSYS/MinGW compilation fails at
  *      `#include <poll.h>` with "No such file or directory".
  * On macOS/Linux the system <poll.h> is used via #include_next.
- * Invariant: shux_sys_poll is a static inline helper that is currently
+ * Invariant: xlang_sys_poll is a static inline helper that is currently
  *            defined but never invoked (verified via grep — no callers).
  *            poll() therefore returns -1 (ENOSYS) on Windows, letting
  *            callers surface a clean error rather than link-time failure.
  *            WSAPoll (winsock2.h) is intentionally NOT used: winsock2.h
  *            pulls in windows.h → winnt.h, whose TOKEN_TYPE enum conflicts
- *            with shux's own TOKEN_TYPE (see win32_compat.h L27-29 note).
+ *            with xlang's own TOKEN_TYPE (see win32_compat.h L27-29 note).
  *            A real select()-based emulation can be added in a later wave
- *            if Windows LSP/server code actually calls shux_sys_poll.
+ *            if Windows LSP/server code actually calls xlang_sys_poll.
  * PLATFORM: WINDOWS | MSYS | MINGW (provides struct pollfd/nfds_t/poll);
  *           POSIX (delegates to system header via #include_next). */
-#ifndef SHUX_POLL_H
-#define SHUX_POLL_H
+#ifndef XLANG_POLL_H
+#define XLANG_POLL_H
 
 #if defined(_WIN32) || defined(_WIN64)
 
@@ -50,9 +50,9 @@ struct pollfd {
 };
 
 /* poll — POSIX I/O multiplexing; MinGW lacks it. Returns -1 (ENOSYS)
- *         because shux_sys_poll is currently defined-but-unused on
+ *         because xlang_sys_poll is currently defined-but-unused on
  *         Windows. A real select()-based emulation belongs here if any
- *         Windows code path ever actually invokes shux_sys_poll. */
+ *         Windows code path ever actually invokes xlang_sys_poll. */
 static inline int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     (void)fds; (void)nfds; (void)timeout;
     return -1;
@@ -63,4 +63,4 @@ static inline int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 #include_next <poll.h>
 #endif
 
-#endif /* SHUX_POLL_H */
+#endif /* XLANG_POLL_H */

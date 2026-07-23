@@ -5,7 +5,7 @@
  * 编译 pipeline_gen.c 时由 cc 在同一 TU 内包含本文件，故可直接使用上方已定义的 ast_* / codegen_* 等类型。
  * 不单独编译；无补丁、无 sed，所有逻辑在此源文件内从根源提供。
  *
- * parser.x 聚合 -o 可执行时，runtime 在含入前 #define SHUX_PARSER_EXE_PIPELINE_GLUE：省略依赖
+ * parser.x 聚合 -o 可执行时，runtime 在含入前 #define XLANG_PARSER_EXE_PIPELINE_GLUE：省略依赖
  * platform_elf_ElfCodegenCtx 完整定义与 codegen.o 转发符号的片段，避免单文件 TU 编译失败。
  *
  * ── extern 消费者索引（10.4.2 自举；删函数前 grep 本表）────────────────────────────
@@ -40,7 +40,7 @@
 #include "simd_loop.h"
 #include "async_asm_pool.h"
 
-struct shux_slice_uint8_t {
+struct xlang_slice_uint8_t {
   uint8_t *data;
   size_t length;
 };
@@ -104,7 +104,7 @@ void pipeline_module_enum_set_is_export(struct ast_Module *m, int32_t idx, int32
 int32_t pipeline_module_enum_is_export_at(struct ast_Module *m, int32_t idx);
 void pipeline_module_top_level_let_set_is_export(struct ast_Module *m, int32_t idx, int32_t is_export);
 int32_t pipeline_module_top_level_let_is_export_at(struct ast_Module *m, int32_t idx);
-/** SHUX_VISIBILITY: 0=compat 1=warn 2=strict；默认 compat（迁移期）。 */
+/** XLANG_VISIBILITY: 0=compat 1=warn 2=strict；默认 compat（迁移期）。 */
 int32_t pipeline_visibility_mode(void);
 /** 跨模块访问函数：compat 放行；warn 告警并放行；strict 要求 is_export。返回 1 允许 0 拒绝。 */
 int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t cross_module);
@@ -282,21 +282,21 @@ int32_t parser_parse_strict_enabled(void) {
   return driver_parse_strict_enabled();
 }
 
-/** parse_into_buf 跳过函数时的 stderr 诊断（SHUX_DEBUG_PARSE=1 或 SHUX_PARSE_STRICT=1）。 */
+/** parse_into_buf 跳过函数时的 stderr 诊断（XLANG_DEBUG_PARSE=1 或 XLANG_PARSE_STRICT=1）。 */
 void parser_diagnostic_parse_skip(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t *name) {
   extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
                                                     const uint8_t *name);
   driver_diagnostic_parse_skip_function(byte_pos, num_funcs_so_far, name_len, name);
 }
 
-/** parse_into_buf commit 失败时的 stderr 诊断（SHUX_DEBUG_PARSE=1）；大模块须 skip+continue 勿 abort。 */
+/** parse_into_buf commit 失败时的 stderr 诊断（XLANG_DEBUG_PARSE=1）；大模块须 skip+continue 勿 abort。 */
 void parser_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, uint8_t *name) {
   extern void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
                                                 const uint8_t *name);
   driver_diagnostic_parse_commit_fail(byte_pos, num_funcs_so_far, name_len, name);
 }
 
-/** parse_into/parse_into_buf 提交函数槽前打印 generic 计数（SHUX_DEBUG_PARSE_GENERIC=1）。 */
+/** parse_into/parse_into_buf 提交函数槽前打印 generic 计数（XLANG_DEBUG_PARSE_GENERIC=1）。 */
 void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name, int32_t name_len,
                                           int32_t num_generic_params, int32_t is_main) {
   extern void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
@@ -304,7 +304,7 @@ void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
   driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
 }
 
-/** parse_into/parse_into_buf 函数体提交前后打印 OneFunc sidecar 与 Block 形状（SHUX_DEBUG_PARSE_COMMIT=1）。 */
+/** parse_into/parse_into_buf 函数体提交前后打印 OneFunc sidecar 与 Block 形状（XLANG_DEBUG_PARSE_COMMIT=1）。 */
 static void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
                                                  uint8_t *name, int32_t phase, int32_t block_ref,
                                                  int32_t pool_num_consts, int32_t pool_num_lets,
@@ -327,8 +327,8 @@ static void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_f
 }
 
 /** 从 (data, len) 构造 slice，供 parser.x 内 parse_into_buf 调 parse_one_function_impl 时使用。 */
-struct shux_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {
-  struct shux_slice_uint8_t s;
+struct xlang_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {
+  struct xlang_slice_uint8_t s;
   s.data = data;
   s.length = (size_t)(len >= 0 ? len : 0);
   return s;
@@ -345,7 +345,7 @@ size_t parser_lexer_pos_before(size_t end_pos, int32_t run_len) {
  * lexer.x 内的 extern：Codegen 会带 lexer_ 模块前缀，否则会链接到不存在的 lexer_parser_slice_from_buf。
  * 与 parser_slice_from_buf 等价，仅别名。
  */
-struct shux_slice_uint8_t lexer_parser_slice_from_buf(uint8_t *data, int32_t len) {
+struct xlang_slice_uint8_t lexer_parser_slice_from_buf(uint8_t *data, int32_t len) {
   return parser_slice_from_buf(data, len);
 }
 
@@ -541,18 +541,18 @@ void pipeline_parser_onefunc_buf_into_set_success_c(void *out_raw, struct lexer_
 }
 
 /** 供 pipeline.x run_x_pipeline_impl 使用：与 parser_slice_from_buf 相同，避免 -E 对 parser_* 符号双重前缀。 */
-struct shux_slice_uint8_t pipeline_source_slice(uint8_t *data, int32_t len) {
+struct xlang_slice_uint8_t pipeline_source_slice(uint8_t *data, int32_t len) {
   return parser_slice_from_buf(data, len);
 }
 
-#ifndef SHUX_PARSER_EXE_PIPELINE_GLUE
+#ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
 /* C 包装：以 (data, len) 形式调用 pipeline，impl 内用 parse_into_with_init_buf 解析，无需组 slice。 */
 extern int32_t pipeline_run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
 
 int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *arena, const uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx) {
   return pipeline_run_x_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
 }
-#endif /* !SHUX_PARSER_EXE_PIPELINE_GLUE */
+#endif /* !XLANG_PARSER_EXE_PIPELINE_GLUE */
 
 /* PLATFORM: SHARED LP64 — layout truth via C sizeof for cold full-C bootstrap.
  * wave83: product hybrid pure owns strong pipeline_sizeof_arena/module (fixed LP64
@@ -566,12 +566,12 @@ size_t pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx);
 /** parser OneFuncResult 体量大（256×64 let 名等）；parse_block_into 堆分配 scratch，避免递归块解析栈溢出。 */
 size_t pipeline_sizeof_onefunc_result(void) { return (size_t)8192; }
 size_t pipeline_arena_offset_num_types(void) { return offsetof(struct ast_ASTArena, num_types); }
-#ifndef SHUX_PARSER_EXE_PIPELINE_GLUE
+#ifndef XLANG_PARSER_EXE_PIPELINE_GLUE
 size_t pipeline_sizeof_elf_ctx(void) { return sizeof(struct platform_elf_ElfCodegenCtx); }
 #else
 /** parser 聚合 exe TU 不含 ElfCodegenCtx 定义：占位返回 0（该路径不调 asm 全流程 sizeof）。 */
 size_t pipeline_sizeof_elf_ctx(void) { return (size_t)0; }
-#endif /* SHUX_PARSER_EXE_PIPELINE_GLUE */
+#endif /* XLANG_PARSER_EXE_PIPELINE_GLUE */
 
 #include <stdio.h>
 void pipeline_debug_module_funcs(void *m) {
@@ -609,8 +609,8 @@ void driver_diagnostic_entry_module(struct ast_Module *mod, struct ast_ASTArena 
   int32_t i;
   int32_t j;
   (void)a;
-  /** SHUX_ASM_LIST_FUNCS=1：列出 module 全部函数名与 extern 标记，排查 asm 单编缺符号（如 parse_into_buf 未注册）。 */
-  list_env = getenv("SHUX_ASM_LIST_FUNCS");
+  /** XLANG_ASM_LIST_FUNCS=1：列出 module 全部函数名与 extern 标记，排查 asm 单编缺符号（如 parse_into_buf 未注册）。 */
+  list_env = getenv("XLANG_ASM_LIST_FUNCS");
   if (list_env && list_env[0] != '\0' && list_env[0] != '0' && mod) {
     for (i = 0; i < (int32_t)mod->num_funcs; i++) {
       uint8_t nm[64];
@@ -699,7 +699,7 @@ int32_t pipeline_driver_typeck_skip_large_entry(void) {
   return driver_typeck_skip_large_entry();
 }
 
-/** build_shux_asm：SHUX_ASM_BUILD_SKIP_TYPECK=1 时 pipeline 跳过 .x typeck。 */
+/** build_xlang_asm：XLANG_ASM_BUILD_SKIP_TYPECK=1 时 pipeline 跳过 .x typeck。 */
 int32_t pipeline_driver_asm_build_skip_typeck(void) {
   return driver_asm_build_skip_typeck();
 }
@@ -734,7 +734,7 @@ void driver_diagnostic_entry_block_after_parse(void *mod, void *arena) {
 
 struct std_io_driver_Buffer;
 
-/* std.io.driver 批量读写桩：pipeline_gen.c 同 TU 已定义 struct std_io_driver_Buffer；io.o 提供 io_read_batch_buf/io_write_batch_buf，供 shux_x 链接时解析。 */
+/* std.io.driver 批量读写桩：pipeline_gen.c 同 TU 已定义 struct std_io_driver_Buffer；io.o 提供 io_read_batch_buf/io_write_batch_buf，供 xlang_x 链接时解析。 */
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 
@@ -774,7 +774,7 @@ static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int
 }
 
 /**
- * parser.x expr_ref_is_assign_lvalue：与 shux-c 生成码对 struct 直读一致。
+ * parser.x expr_ref_is_assign_lvalue：与 xlang-c 生成码对 struct 直读一致。
  * X 中对「let e: Expr = ast_arena_expr_get(...)」再写 e.kind == … 会在 .x typeck 路径失败（见 ast.x 注释）；由 C 从池读 kind / is_enum_variant。
  * 返回 1 表示可作为赋值左值，0 表示否。
  */
@@ -913,7 +913,7 @@ int32_t pipeline_codegen_emit_float_lit_c(struct codegen_CodegenOutBuf *out, dou
  * let s: T[] = arr：写出 { .data = arr, .length = N }（对齐 codegen.c codegen_init / codegen.x）。
  * @return 1 已写出；0 不适用；-1 失败。
  */
-#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
+#if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
 int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                    int32_t block_ref, int32_t let_idx, int32_t let_type_ref,
                                                    int32_t linit_ref) {
@@ -1204,7 +1204,7 @@ int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t
 
 /**
  * 比较表达式 ExprKind 序数 → enc_cmp_setcc 的 cc（0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=ge）。
- * backend.x 多路 `if (kind==…) cc=N` 经 shux-c -E 后可能全部执行，须在 C 内 switch 一次性映射。
+ * backend.x 多路 `if (kind==…) cc=N` 经 xlang-c -E 后可能全部执行，须在 C 内 switch 一次性映射。
  */
 int32_t pipeline_asm_cmp_cc_for_expr_kind_ord(int32_t kind_ord) {
   switch (kind_ord) {
@@ -1251,7 +1251,7 @@ int32_t pipeline_asm_arm64_cset_cond_enc_from_cc(int32_t cc) {
 
 /**
  * seed asm 后端（asm_backend_partial.o）提供的 enc/emit 符号；在 C 内实现二元运算，
- * 避免 shux-c -E 将 if/return 包进 statement expression 导致 emit_expr_elf fallthrough。
+ * 避免 xlang-c -E 将 if/return 包进 statement expression 导致 emit_expr_elf fallthrough。
  */
 struct platform_elf_ElfCodegenCtx;
 struct backend_AsmFuncCtx;
@@ -1434,7 +1434,7 @@ extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCo
                                                        int32_t ta);
 extern int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
                                                        int32_t ta);
-/** SHUX_ABI_F32_XMM=1 时启用（pipeline_abi_f32_xmm.c）。 */
+/** XLANG_ABI_F32_XMM=1 时启用（pipeline_abi_f32_xmm.c）。 */
 extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
 extern int32_t backend_enc_load_rbp_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos,
                                                     int32_t ta);
@@ -2132,10 +2132,10 @@ static int32_t glue_async_cps_mov_imm32_to_rax(struct platform_elf_ElfCodegenCtx
   return backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta);
 }
 
-/** 调 shux_async_asm_frame_phase_by_id(fn_id)；结果 phase 指针在 rax。 */
+/** 调 xlang_async_asm_frame_phase_by_id(fn_id)；结果 phase 指针在 rax。 */
 static int32_t glue_async_cps_emit_frame_phase_ptr(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t fn_id,
                                                    int32_t ta) {
-  static const uint8_t nm[] = "shux_async_asm_frame_phase_by_id";
+  static const uint8_t nm[] = "xlang_async_asm_frame_phase_by_id";
   if (glue_async_cps_mov_imm32_to_rax(elf_ctx, (int32_t)fn_id, ta) != 0)
     return -1;
   if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
@@ -2170,7 +2170,7 @@ static int32_t glue_async_cps_call_frame_memop(struct platform_elf_ElfCodegenCtx
 static int32_t glue_async_cps_save_live(struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
                                         int32_t ta) {
   int32_t i;
-  static const uint8_t store_nm[] = "shux_async_asm_frame_store_from_ptr";
+  static const uint8_t store_nm[] = "xlang_async_asm_frame_store_from_ptr";
   for (i = 0; i < g_glue_async_cps_emit.layout.num_live; i++) {
     const AsyncAsmPoolLiveVar *lv = &g_glue_async_cps_emit.layout.live[i];
     int32_t stack_off = asm_ctx_local_find_offset((uint8_t *)ctx, (uint8_t *)lv->name, lv->name_len);
@@ -2188,7 +2188,7 @@ static int32_t glue_async_cps_save_live(struct platform_elf_ElfCodegenCtx *elf_c
 static int32_t glue_async_cps_restore_live(struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx,
                                            int32_t ta) {
   int32_t i;
-  static const uint8_t load_nm[] = "shux_async_asm_frame_load_to_ptr";
+  static const uint8_t load_nm[] = "xlang_async_asm_frame_load_to_ptr";
   for (i = 0; i < g_glue_async_cps_emit.layout.num_live; i++) {
     const AsyncAsmPoolLiveVar *lv = &g_glue_async_cps_emit.layout.live[i];
     int32_t stack_off = asm_ctx_local_find_offset((uint8_t *)ctx, (uint8_t *)lv->name, lv->name_len);
@@ -2206,7 +2206,7 @@ static int32_t glue_async_cps_restore_live(struct platform_elf_ElfCodegenCtx *el
 static int32_t glue_async_cps_emit_after_await(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                struct backend_AsmFuncCtx *ctx, int32_t ta) {
   pipeline_glue_AsmFuncCtxLayout *ly;
-  static const uint8_t suspend_nm[] = "shux_async_cps_suspend";
+  static const uint8_t suspend_nm[] = "xlang_async_cps_suspend";
   int32_t next_ph;
   if (!g_glue_async_cps_emit.active)
     return 0;
@@ -2243,7 +2243,7 @@ static int32_t glue_async_cps_emit_after_await(struct ast_ASTArena *arena, struc
 
 /** return 前 reset 协程 phase（须 preserve rax 中的 return 值，reset_by_id 会 clobber）。 */
 static int32_t glue_async_cps_emit_phase_reset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  static const uint8_t reset_nm[] = "shux_async_asm_frame_reset_by_id";
+  static const uint8_t reset_nm[] = "xlang_async_asm_frame_reset_by_id";
   if (!g_glue_async_cps_emit.active)
     return 0;
   if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
@@ -2413,8 +2413,8 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
     br = pipeline_expr_block_ref_at(arena, arm_ref);
     if (br <= 0)
       return -1;
-    if (getenv("SHUX_ASM_EMIT_TRACE"))
-      fprintf(stderr, "shux: if_arm block br=%d\n", (int)br);
+    if (getenv("XLANG_ASM_EMIT_TRACE"))
+      fprintf(stderr, "xlang: if_arm block br=%d\n", (int)br);
     sv_locs = ly->num_locals;
     sv_next = ly->next_offset;
     backend_ensure_block_local_slots(ctx, arena, br);
@@ -2495,8 +2495,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   ly = pipeline_asm_ctx_layout(ctx);
   if (!ly)
     return -1;
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: struct_lit_c expr=%d nf=%d slot_off=%d temp_off=%d\n", (int)expr_ref, (int)nf,
+  if (getenv("XLANG_ASM_EMIT_TRACE"))
+    fprintf(stderr, "xlang: struct_lit_c expr=%d nf=%d slot_off=%d temp_off=%d\n", (int)expr_ref, (int)nf,
             (int)stack_slot_off, (int)ly->next_offset);
   if (nf <= 0 || nf > GLUE_ASM_MAX_STRUCT_LIT_FIELDS)
     return -1;
@@ -2517,8 +2517,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
   }
   for (fi = 0; fi < nf; fi++) {
     init_ref = pipeline_expr_struct_lit_init_ref(arena, expr_ref, fi);
-    if (getenv("SHUX_ASM_EMIT_TRACE"))
-      fprintf(stderr, "shux: struct_lit_c fi=%d init_ref=%d ko=%d\n", (int)fi, (int)init_ref,
+    if (getenv("XLANG_ASM_EMIT_TRACE"))
+      fprintf(stderr, "xlang: struct_lit_c fi=%d init_ref=%d ko=%d\n", (int)fi, (int)init_ref,
               (int)(init_ref > 0 ? pipeline_expr_kind_ord_at(arena, init_ref) : -1));
     if (init_ref != 0) {
       int32_t fty;
@@ -2583,8 +2583,8 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
       }
     }
   }
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: struct_lit_c done expr=%d\n", (int)expr_ref);
+  if (getenv("XLANG_ASM_EMIT_TRACE"))
+    fprintf(stderr, "xlang: struct_lit_c done expr=%d\n", (int)expr_ref);
   if (stack_slot_off >= 0)
     return 0;
   /**
@@ -2818,8 +2818,8 @@ static int32_t glue_block_let_is_simd_vector_type(struct ast_ASTArena *arena, in
     if (ko == 46 || ko == 3 || glue_is_vector_lane_scalar_binop_ko(ko))
       return 1;
   }
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: let idx=%d type_ref=%d kind=%d slot_b=%d init=%d\n", (int)let_idx, (int)tr,
+  if (getenv("XLANG_ASM_EMIT_TRACE"))
+    fprintf(stderr, "xlang: let idx=%d type_ref=%d kind=%d slot_b=%d init=%d\n", (int)let_idx, (int)tr,
             (int)pipeline_type_kind_ord_at(arena, tr), (int)asm_local_slot_bytes(arena, tr), (int)init_ref);
   return 0;
 }
@@ -3187,7 +3187,7 @@ static int32_t glue_try_hw_vector_add_binop_elf_c(struct ast_ASTArena *arena,
     return -1;
   if (glue_vector_type_lanes_esz_c(arena, type_ref, &lanes, &esz) != 0)
     return -1;
-  hw_env = getenv("SHUX_SIMD_HW");
+  hw_env = getenv("XLANG_SIMD_HW");
   if (hw_env && hw_env[0] == '0')
     return -1;
   off_a = glue_asm_local_var_stack_off_scoped(arena, ctx, left_ref);
@@ -3400,7 +3400,7 @@ int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(struct ast_ASTArena *are
   src_off = glue_asm_local_var_stack_off_scoped(arena, ctx, arg0);
   if (src_off < 0)
     return 0;
-  hw_env = getenv("SHUX_SIMD_HW");
+  hw_env = getenv("XLANG_SIMD_HW");
   if (!hw_env || hw_env[0] != '0') {
     if (glue_shuffle_pshufd_imm8_from_mask_c(arena, arg1, lanes, &imm8) == 0) {
       feats = glue_simd_emit_cpu_features_c();
@@ -3528,7 +3528,7 @@ int32_t pipeline_asm_simd_try_inline_select_call_elf_c(struct ast_ASTArena *aren
   if (off_m < 0 || off_a < 0 || off_b < 0)
     return 0;
   is_f32 = glue_vector_elem_is_f32_c(arena, type_ref);
-  hw_env = getenv("SHUX_SIMD_HW");
+  hw_env = getenv("XLANG_SIMD_HW");
   if (!hw_env || hw_env[0] != '0') {
     feats = glue_simd_emit_cpu_features_c();
     if (feats == 0)
@@ -4069,7 +4069,7 @@ int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(struct ast_ASTArena *arena,
   off_c = glue_asm_local_var_stack_off_scoped(arena, ctx, arg2);
   if (off_a < 0 || off_b < 0 || off_c < 0)
     return 0;
-  hw_env = getenv("SHUX_SIMD_HW");
+  hw_env = getenv("XLANG_SIMD_HW");
   if (hw_env && hw_env[0] == '0')
     return 0;
   feats = glue_simd_emit_cpu_features_c();
@@ -4251,8 +4251,8 @@ static int32_t glue_emit_struct_type_let_init_elf_c(struct ast_ASTArena *arena,
   if (!arena || !elf_ctx || !ctx || init_ref <= 0)
     return -2;
   ko = pipeline_expr_kind_ord_at(arena, init_ref);
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: struct_let_init ko=%d ref=%d slot=%d\n", (int)ko, (int)init_ref, (int)stack_slot_off);
+  if (getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: struct_let_init ko=%d ref=%d slot=%d\n", (int)ko, (int)init_ref, (int)stack_slot_off);
   if (ko == 45)
     return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
   /**
@@ -9932,8 +9932,8 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
   if (ok == 44)
     return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
   /* #region debug-point A:context-cg002-addr-of-fallback */
-  if (getenv("SHUX_ASM_DEBUG")) {
-    fprintf(stderr, "shux: addr_of elf fallback expr_ref=%d op_ref=%d op_kind=%d\n",
+  if (getenv("XLANG_ASM_DEBUG")) {
+    fprintf(stderr, "xlang: addr_of elf fallback expr_ref=%d op_ref=%d op_kind=%d\n",
             (int)expr_ref, (int)op, (int)ok);
   }
   /* #endregion debug-point A:context-cg002-addr-of-fallback */
@@ -10033,31 +10033,31 @@ int32_t pipeline_asm_emit_expr_if_elf_c(struct ast_ASTArena *arena, struct platf
   cond = pipeline_expr_if_cond_ref_at(arena, expr_ref);
   then_ref = pipeline_expr_if_then_ref_at(arena, expr_ref);
   else_ref = pipeline_expr_if_else_ref_at(arena, expr_ref);
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: if_elf_c expr=%d cond=%d then=%d else=%d\n", (int)expr_ref, (int)cond, (int)then_ref,
+  if (getenv("XLANG_ASM_EMIT_TRACE"))
+    fprintf(stderr, "xlang: if_elf_c expr=%d cond=%d then=%d else=%d\n", (int)expr_ref, (int)cond, (int)then_ref,
             (int)else_ref);
   if (cond == 0 || then_ref == 0)
     return -1;
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, cond, ctx, ta) != 0) {
-    if (getenv("SHUX_ASM_EMIT_TRACE"))
-      fprintf(stderr, "shux: if_elf_c cond emit fail\n");
+    if (getenv("XLANG_ASM_EMIT_TRACE"))
+      fprintf(stderr, "xlang: if_elf_c cond emit fail\n");
     return -1;
   }
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: if_elf_c cond ok, labels...\n");
+  if (getenv("XLANG_ASM_EMIT_TRACE"))
+    fprintf(stderr, "xlang: if_elf_c cond ok, labels...\n");
   else_len = pipeline_asm_emit_next_label_c(ctx, else_lbl, 64);
   done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: if_elf_c else_len=%d done_len=%d jz...\n", (int)else_len, (int)done_len);
+  if (getenv("XLANG_ASM_EMIT_TRACE"))
+    fprintf(stderr, "xlang: if_elf_c else_len=%d done_len=%d jz...\n", (int)else_len, (int)done_len);
   if (else_len <= 0 || done_len <= 0)
     return -1;
   if (glue_enc_jz_after_bool_in_eax(elf_ctx, else_lbl, else_len, ta) != 0)
     return -1;
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: if_elf_c then arm...\n");
+  if (getenv("XLANG_ASM_EMIT_TRACE"))
+    fprintf(stderr, "xlang: if_elf_c then arm...\n");
   if (pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, then_ref, ctx, ta) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: if_elf_c then fail expr_ref=%d then_ref=%d kind=%d\n", (int)expr_ref, (int)then_ref,
+    if (getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: if_elf_c then fail expr_ref=%d then_ref=%d kind=%d\n", (int)expr_ref, (int)then_ref,
               (int)pipeline_expr_kind_ord_at(arena, then_ref));
     return -1;
   }
@@ -10067,8 +10067,8 @@ int32_t pipeline_asm_emit_expr_if_elf_c(struct ast_ASTArena *arena, struct platf
     return -1;
   if (else_ref != 0) {
     if (pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, else_ref, ctx, ta) != 0) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: if_elf_c else fail expr_ref=%d else_ref=%d\n", (int)expr_ref, (int)else_ref);
+      if (getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr, "xlang: if_elf_c else fail expr_ref=%d else_ref=%d\n", (int)expr_ref, (int)else_ref);
       return -1;
     }
   } else {
@@ -10302,7 +10302,7 @@ static int32_t glue_var_is_current_func_param_c(struct ast_ASTArena *arena, stru
 static int32_t glue_type_ref_is_scalar_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 
 /**
- * f32 VAR 装入 rax：SHUX_ABI_F32_XMM=1 形参走 32-bit homing；否则 caller f64 movabs → cvtsd2ss。
+ * f32 VAR 装入 rax：XLANG_ABI_F32_XMM=1 形参走 32-bit homing；否则 caller f64 movabs → cvtsd2ss。
  */
 static int32_t glue_load_f32_var_slot_to_rax_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                     struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
@@ -11056,7 +11056,7 @@ static int32_t glue_emit_slice_length_to_rbx_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * UB 收窄：定长数组 / 切片下标越界时发射 shux_panic_(1,0)（与 C codegen 一致）。
+ * UB 收窄：定长数组 / 切片下标越界时发射 xlang_panic_(1,0)（与 C codegen 一致）。
  * ix_ref：INDEX expr ref（读 proven_in_bounds / base_is_slice）；<=0 时仍按 base 类型检查。
  */
 static int32_t glue_emit_index_bounds_guard_elf_c(struct ast_ASTArena *arena,
@@ -11348,7 +11348,7 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
   static int32_t dbg_prev_ko = -1;
   static int32_t dbg_same_expr_streak = 0;
   /* #endregion debug-point A:regex-asm-expr-recursion */
-  dbg_on = getenv("SHUX_DEBUG_REGEX_EMIT") != NULL ? 1 : 0;
+  dbg_on = getenv("XLANG_DEBUG_REGEX_EMIT") != NULL ? 1 : 0;
   dbg_depth_now = 0;
   dbg_log_now = 0;
   ko = expr_ref > 0 ? pipeline_expr_kind_ord_at(arena, expr_ref) : -1;
@@ -11371,7 +11371,7 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     }
     if (dbg_log_now) {
       fprintf(stderr,
-              "shux: [SHUX_DEBUG_REGEX_EMIT] rec depth=%d expr_ref=%d ko=%d streak=%d ctx=%p ta=%d\n",
+              "xlang: [XLANG_DEBUG_REGEX_EMIT] rec depth=%d expr_ref=%d ko=%d streak=%d ctx=%p ta=%d\n",
               (int)dbg_depth_now, (int)expr_ref, (int)ko, (int)dbg_same_expr_streak, (void *)ctx, (int)ta);
     }
   }
@@ -11445,7 +11445,7 @@ debug_done:
   /* #region debug-point A:regex-asm-expr-recursion */
   if (dbg_on && dbg_log_now && out_rc == PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED) {
     fprintf(stderr,
-            "shux: [SHUX_DEBUG_REGEX_EMIT] unhandled depth=%d expr_ref=%d ko=%d\n",
+            "xlang: [XLANG_DEBUG_REGEX_EMIT] unhandled depth=%d expr_ref=%d ko=%d\n",
             (int)dbg_depth_now, (int)expr_ref, (int)ko);
   }
   if (dbg_on && dbg_depth > 0)
@@ -11975,7 +11975,7 @@ static int32_t glue_call_param_named_struct_pass_addr_elf_c(struct ast_ASTArena 
 int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                  int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t pty;
-  /** SHUX_ABI_F32_XMM=1：f32 实参发 32-bit 位型；否则 legacy f64 widen 经 gp 寄存器。 */
+  /** XLANG_ABI_F32_XMM=1：f32 实参发 32-bit 位型；否则 legacy f64 widen 经 gp 寄存器。 */
   int32_t call_abi_widen_f64 = pipeline_asm_abi_f32_xmm_enabled_c() != 0 ? 0 : 1;
   /** f32 实参：typeck resolved 或 callee 形参表；勿 f64 movabs（低 32 位=0 致 heap 列全 0）。 */
   if (arena && pipeline_expr_kind_ord_at(arena, expr_ref) == 1) {
@@ -12002,7 +12002,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(struct ast_ASTArena *arena, str
           return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
         /*
          * PLATFORM: SHARED + LINUX/MACOS x86_64 SysV —
-         * TYPE_SLICE params lower as `struct shux_slice_* *` in C (codegen.x authority).
+         * TYPE_SLICE params lower as `struct xlang_slice_* *` in C (codegen.x authority).
          * Call sites must pass &local fat (sequential {data@0,length@8}), not dual-GP
          * by-value. Dual-load here → formal C reads data ptr as struct* → SIGSEGV
          * (Ubuntu tests/slice/length.x -backend asm after formal mod.o). G.7 complete.
@@ -12473,14 +12473,14 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
 }
 
 /**
- * 发射 call shux_panic_(code, msg)；msg_ref==0 时第二参为 0。
+ * 发射 call xlang_panic_(code, msg)；msg_ref==0 时第二参为 0。
  * x86/arm64 均先装 arg1 再 arg0，避免 arm64 覆盖 w0。
  */
-static int32_t pipeline_asm_emit_shux_panic_call_elf_c(struct ast_ASTArena *arena,
+static int32_t pipeline_asm_emit_xlang_panic_call_elf_c(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t code,
                                                             int32_t msg_ref) {
-  static const uint8_t panic_nm[] = "shux_panic_";
+  static const uint8_t panic_nm[] = "xlang_panic_";
 
   if (msg_ref > 0) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, msg_ref, ctx, ta) != 0)
@@ -12498,7 +12498,7 @@ static int32_t pipeline_asm_emit_shux_panic_call_elf_c(struct ast_ASTArena *aren
 }
 
 /**
- * EXPR_PANIC：panic() → shux_panic_(0,0)；panic(expr) → shux_panic_(1, expr)。
+ * EXPR_PANIC：panic() → xlang_panic_(0,0)；panic(expr) → xlang_panic_(1, expr)。
  */
 int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                       int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -12508,14 +12508,14 @@ int32_t pipeline_asm_emit_panic_elf_c(struct ast_ASTArena *arena, struct platfor
     return -1;
   op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   code = (op_ref > 0) ? 1 : 0;
-  return pipeline_asm_emit_shux_panic_call_elf_c(arena, elf_ctx, ctx, ta, code, op_ref);
+  return pipeline_asm_emit_xlang_panic_call_elf_c(arena, elf_ctx, ctx, ta, code, op_ref);
 }
 
 /**
- * UB 收窄：发射 shux_panic_(1, 0)（与 C codegen 整数除零检查一致）。
+ * UB 收窄：发射 xlang_panic_(1, 0)（与 C codegen 整数除零检查一致）。
  */
 static int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  return pipeline_asm_emit_shux_panic_call_elf_c(0, elf_ctx, 0, ta, 1, 0);
+  return pipeline_asm_emit_xlang_panic_call_elf_c(0, elf_ctx, 0, ta, 1, 0);
 }
 
 /**
@@ -12996,8 +12996,8 @@ static int32_t pipeline_asm_emit_var_field_access_elf_c(struct ast_ASTArena *are
   if (var_off < 0)
     var_off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
   if (var_off < 0) {
-    if (getenv("SHUX_ASM_EMIT_TRACE"))
-      fprintf(stderr, "shux: var_field_access miss var='%.*s'\n", (int)vlen, (char *)vname);
+    if (getenv("XLANG_ASM_EMIT_TRACE"))
+      fprintf(stderr, "xlang: var_field_access miss var='%.*s'\n", (int)vlen, (char *)vname);
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
   }
   field_off = glue_field_access_effective_offset_c(arena, g_pipeline_asm_emit_module, expr_ref);
@@ -13154,13 +13154,13 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
   /**
    * 形参/局部 VAR 勿走 CTFE 快速路径（池字段未初始化或与 C 布局错位时会误折叠为 0）。
    * CALL with pre-emit fold: default mov imm (authority = typeck CTFE).
-   * SHUX_WPO_MONO / SHUX_WPO_NO_FOLD still need the call dispatch (mono thunk or real call).
+   * XLANG_WPO_MONO / XLANG_WPO_NO_FOLD still need the call dispatch (mono thunk or real call).
    * PLATFORM: SHARED — env gates for WPO-S2 harness only.
    */
   if (e->const_folded_valid != 0 && ko != (int32_t)ast_ExprKind_EXPR_VAR) {
     if (ko == (int32_t)ast_ExprKind_EXPR_CALL) {
-      const char *wpo_mono = getenv("SHUX_WPO_MONO");
-      const char *wpo_nofold = getenv("SHUX_WPO_NO_FOLD");
+      const char *wpo_mono = getenv("XLANG_WPO_MONO");
+      const char *wpo_nofold = getenv("XLANG_WPO_NO_FOLD");
       if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
         /* fall through to CALL emit / mono path */;
       else
@@ -14081,7 +14081,7 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
    * (3) Pure `laneK(vec_binop([const…],[const…]))` when outer is `return p0[K]`
    *     and inner is vector `return p0 binop p1` with array-lit const lanes.
    * Emit only *consumes* const_folded_* (mov imm / C int); try_inline_* remain
-   * safety nets. SHUX_WPO_MONO / NO_FOLD skip stamp so call sites stay live.
+   * safety nets. XLANG_WPO_MONO / NO_FOLD skip stamp so call sites stay live.
    */
   if (kd == ast_ExprKind_EXPR_CALL) {
     int32_t nargs;
@@ -14107,13 +14107,13 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
         glue_typeck_fold_expr_ref(a, ar, const_names, const_values, n_const_names);
     }
     /**
-     * WPO-S2 harness: SHUX_WPO_MONO needs a live CALL for mono thunks;
-     * SHUX_WPO_NO_FOLD needs a real call. Skip stamping CALL const_folded so
+     * WPO-S2 harness: XLANG_WPO_MONO needs a live CALL for mono thunks;
+     * XLANG_WPO_NO_FOLD needs a real call. Skip stamping CALL const_folded so
      * parent binops do not erase the site (scale(c0,c1)-K would become 0).
      */
     {
-      const char *wpo_mono = getenv("SHUX_WPO_MONO");
-      const char *wpo_nofold = getenv("SHUX_WPO_NO_FOLD");
+      const char *wpo_mono = getenv("XLANG_WPO_MONO");
+      const char *wpo_nofold = getenv("XLANG_WPO_NO_FOLD");
       if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
         return;
     }
@@ -14415,7 +14415,7 @@ static void glue_typeck_fold_expr_ref(struct ast_ASTArena *a, int32_t expr_ref,
         glue_typeck_fold_expr_ref(a, else_ref, const_names, const_values, n_const_names);
       return;
     }
-    /* Cond folded: pick the live branch. SHUX ternary/if treats any non-zero
+    /* Cond folded: pick the live branch. XLANG ternary/if treats any non-zero
      * int as true (mirrors C semantics; bool is i32 0/1 in the IR). */
     sel_ref = (ec->const_folded_val != 0) ? then_ref : else_ref;
     if (sel_ref <= 0)
@@ -14806,9 +14806,9 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
 extern void driver_diagnostic_warn_pad_fields_same_cache_line(uint8_t *sname, int32_t sname_len, uint8_t *f0,
                                                               int32_t f0_len, uint8_t *f1, int32_t f1_len);
 
-/** SHUX_PAD_FIELDS=1 时启用 -pad-fields 伪共享警告。 */
+/** XLANG_PAD_FIELDS=1 时启用 -pad-fields 伪共享警告。 */
 static int glue_pad_fields_warn_enabled(void) {
-  const char *e = getenv("SHUX_PAD_FIELDS");
+  const char *e = getenv("XLANG_PAD_FIELDS");
   return e && e[0] == '1' && e[1] == '\0';
 }
 
@@ -14865,9 +14865,9 @@ void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct as
 extern void driver_diagnostic_warn_hot_reorder_field(uint8_t *sname, int32_t sname_len, uint8_t *hot, int32_t hot_len,
                                                     uint8_t *cold, int32_t cold_len);
 
-/** SHUX_HOT_REORDER=1 时启用热字段重排 hint。 */
+/** XLANG_HOT_REORDER=1 时启用热字段重排 hint。 */
 static int glue_hot_reorder_warn_enabled(void) {
-  const char *e = getenv("SHUX_HOT_REORDER");
+  const char *e = getenv("XLANG_HOT_REORDER");
   return e && e[0] == '1' && e[1] == '\0';
 }
 
@@ -15454,7 +15454,7 @@ static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct
       int32_t off = glue_struct_layout_compute_field_offset_c(m, a, li, j);
       pipeline_module_struct_layout_set_field_offset(m, li, j, off);
     }
-    if (getenv("SHUX_ASM_DEBUG") && li == 0) {
+    if (getenv("XLANG_ASM_DEBUG") && li == 0) {
       uint8_t fn0[64];
       uint8_t fn1[64];
       memset(fn0, 0, sizeof(fn0));
@@ -15463,7 +15463,7 @@ static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct
         pipeline_module_struct_layout_field_name_into(m, li, 0, fn0);
       if (nf > 1)
         pipeline_module_struct_layout_field_name_into(m, li, 1, fn1);
-      fprintf(stderr, "shux: layout0 nf=%d f0=%.4s off0=%d fa0=%d f1=%.4s off1=%d fa1=%d\n", (int)nf, fn0,
+      fprintf(stderr, "xlang: layout0 nf=%d f0=%.4s off0=%d fa0=%d f1=%.4s off1=%d fa1=%d\n", (int)nf, fn0,
               (int)glue_struct_layout_compute_field_offset_c(m, a, li, 0),
               (int)pipeline_module_struct_layout_field_align_at(m, li, 0), fn1,
               nf > 1 ? (int)glue_struct_layout_compute_field_offset_c(m, a, li, 1) : -1,
@@ -15847,7 +15847,7 @@ int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_re
 }
 
 /**
- * 比较表达式 ELF 发射（EQ/NE/LT/LE/GT/GE 全在 C 内，避免 backend.x 经 shux-c -E 后
+ * 比较表达式 ELF 发射（EQ/NE/LT/LE/GT/GE 全在 C 内，避免 backend.x 经 xlang-c -E 后
  * EXPR_NE(15) 与字面量/分支条件误合并，导致 != 恒与 0 比较）。
  */
 /** 比较 TypeKind 变体名；flen 允许多 1 尾字节，与 glue_enum_field_name_equal 一致。 */
@@ -16013,8 +16013,8 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
    */
   if (left_ref > 0 && right_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 48) {
     int32_t lit_ok = pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm);
-    if (getenv("SHUX_ASM_DEBUG") && cmp_ko == 15)
-      fprintf(stderr, "shux: cmp_call0 left=%d lit_ok=%d lit=%d cmp_ko=%d\n", (int)left_ref, (int)lit_ok, (int)lit_imm,
+    if (getenv("XLANG_ASM_DEBUG") && cmp_ko == 15)
+      fprintf(stderr, "xlang: cmp_call0 left=%d lit_ok=%d lit=%d cmp_ko=%d\n", (int)left_ref, (int)lit_ok, (int)lit_imm,
               (int)cmp_ko);
   }
   if (left_ref > 0 && right_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 48 &&
@@ -16526,14 +16526,14 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
   glue_asm_ctx_set_scope_block((uint8_t *)ctx, block_ref);
   /** 保留 assign 留下的 rbx 址缓存，供 final return 的 EXPR_INDEX 对称复用（7.3）。 */
   if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: final_expr scratch cleanup fail block=%d fref=%d ko=%d\n", (int)block_ref,
+    if (getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: final_expr scratch cleanup fail block=%d fref=%d ko=%d\n", (int)block_ref,
               (int)blk->final_expr_ref, (int)pipeline_expr_kind_ord_at(arena, blk->final_expr_ref));
     return -1;
   }
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, blk->final_expr_ref, ctx, ta) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: final_expr emit_expr fail block=%d fref=%d ko=%d sret=%d ret_sz=%d\n",
+    if (getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: final_expr emit_expr fail block=%d fref=%d ko=%d sret=%d ret_sz=%d\n",
               (int)block_ref, (int)blk->final_expr_ref,
               (int)pipeline_expr_kind_ord_at(arena, blk->final_expr_ref),
               (int)g_pipeline_asm_func_sret_active, (int)g_pipeline_asm_func_sret_ret_sz);
@@ -16545,8 +16545,8 @@ static int glue_emit_block_final_expr_elf(struct ast_ASTArena *arena, struct pla
     pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
     if (ly->tail_join_label_len > 0 &&
         backend_enc_jmp_arch(elf_ctx, ly->tail_join_label, ly->tail_join_label_len, ta) != 0) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: final_expr tail_join jmp fail block=%d\n", (int)block_ref);
+      if (getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr, "xlang: final_expr tail_join jmp fail block=%d\n", (int)block_ref);
       return -1;
     }
   }
@@ -16776,7 +16776,7 @@ static void glue_block_compute_pass1_deferred_lets(struct ast_ASTArena *arena, s
 }
 
 /**
- * 按 stmt_order 同步发射块体（C for 循环）：避免 shux-c -E 使 backend.x 内 while(i<nso) 只跑一轮，
+ * 按 stmt_order 同步发射块体（C for 循环）：避免 xlang-c -E 使 backend.x 内 while(i<nso) 只跑一轮，
  * 导致 while 体内仅首条 if/赋值被发射（escape 的 else 与 j++ 丢失）。
  */
 int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -16793,16 +16793,16 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   int32_t saved_cfg_live_parent;
   if (!arena || !elf_ctx || !ctx || block_ref <= 0)
     return -1;
-  if (getenv("SHUX_ASM_DEBUG") != NULL) {
+  if (getenv("XLANG_ASM_DEBUG") != NULL) {
     static int32_t dbg_block_sync_n;
     if (dbg_block_sync_n < 12) {
       int32_t fn_body_dbg = 0;
       if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0)
         fn_body_dbg = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-      fprintf(stderr, "shux: emit_block_body_sync br=%d nso=%d nif=%d ta=%d\n", (int)block_ref,
+      fprintf(stderr, "xlang: emit_block_body_sync br=%d nso=%d nif=%d ta=%d\n", (int)block_ref,
               (int)ast_ast_block_num_stmt_order(arena, block_ref),
               (int)ast_ast_block_num_if_stmts(arena, block_ref), (int)ta);
-      fprintf(stderr, "shux: emit_block_scope fi=%d fn_body=%d block=%d nlet=%d nconst=%d\n",
+      fprintf(stderr, "xlang: emit_block_scope fi=%d fn_body=%d block=%d nlet=%d nconst=%d\n",
               (int)g_pipeline_asm_emit_func_index, (int)fn_body_dbg, (int)block_ref,
               (int)ast_ast_block_num_lets(arena, block_ref), (int)ast_ast_block_num_consts(arena, block_ref));
       fflush(stderr);
@@ -16891,11 +16891,11 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         return -1;
     }
   }
-  if (getenv("SHUX_ASM_DEBUG2") != NULL) {
+  if (getenv("XLANG_ASM_DEBUG2") != NULL) {
     int32_t dbg_fn_body2 = 0;
     if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0)
       dbg_fn_body2 = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-    fprintf(stderr, "shux: SO-BEGIN fi=%d br=%d nso=%d is_fn_body=%d\n",
+    fprintf(stderr, "xlang: SO-BEGIN fi=%d br=%d nso=%d is_fn_body=%d\n",
             (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)nso, (int)(dbg_fn_body2 == block_ref));
     fflush(stderr);
     for (i = 0; i < nso; i++) {
@@ -16906,7 +16906,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         int32_t iref = ast_pipeline_block_let_init_ref(arena, block_ref, dix);
         init_ko = iref > 0 ? pipeline_expr_kind_ord_at(arena, iref) : -1;
       }
-      fprintf(stderr, "shux: SO fi=%d br=%d [%d] kind=%d idx=%d init_ko=%d\n",
+      fprintf(stderr, "xlang: SO fi=%d br=%d [%d] kind=%d idx=%d init_ko=%d\n",
               (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)i, (int)dk, (int)dix, (int)init_ko);
       fflush(stderr);
     }
@@ -17045,9 +17045,9 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
             /** u8[N] = [..] 非空 ARRAY_LIT：走 rec（pipeline_asm_emit_array_lit_elf_c）。 */
             glue_index_assign_addr_cache_clear();
             if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) {
-              if (getenv("SHUX_ASM_DEBUG"))
+              if (getenv("XLANG_ASM_DEBUG"))
                 fprintf(stderr,
-                        "shux: block let array_lit slow fail block_ref=%d let_idx=%d init_ref=%d nlet=%d\n",
+                        "xlang: block let array_lit slow fail block_ref=%d let_idx=%d init_ref=%d nlet=%d\n",
                         (int)block_ref, (int)idx, (int)init_ref, (int)ast_ast_block_num_lets(arena, block_ref));
               return -1;
             }
@@ -17069,9 +17069,9 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
                 if (glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, init_ref, ta, let_ty, 0) != 0)
                   return -1;
               } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) {
-                if (getenv("SHUX_ASM_DEBUG"))
+                if (getenv("XLANG_ASM_DEBUG"))
                   fprintf(stderr,
-                          "shux: block let init emit fail block_ref=%d let_idx=%d name=%.*s init_ref=%d kind_ord=%d nlet=%d\n",
+                          "xlang: block let init emit fail block_ref=%d let_idx=%d name=%.*s init_ref=%d kind_ord=%d nlet=%d\n",
                           (int)block_ref, (int)idx, (int)(llen > 0 ? llen : 0),
                           (char *)(llen > 0 ? lnb : (uint8_t *)""), (int)init_ref,
                           (int)pipeline_expr_kind_ord_at(arena, init_ref),
@@ -17125,7 +17125,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
             glue_binop_var_slot_cache_clear();
           }
           if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0) {
-            if (getenv("SHUX_ASM_DEBUG")) {
+            if (getenv("XLANG_ASM_DEBUG")) {
               uint8_t fnb[64];
               int32_t flen = 0;
               if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
@@ -17134,7 +17134,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
                 flen = pipeline_asm_module_func_name_len_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
               }
               fprintf(stderr,
-                      "shux: block expr_stmt emit fail func=%.*s fi=%d block_ref=%d ex_i=%d expr_ref=%d kind=%d\n",
+                      "xlang: block expr_stmt emit fail func=%.*s fi=%d block_ref=%d ex_i=%d expr_ref=%d kind=%d\n",
                       (int)flen, (char *)fnb, (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)idx,
                       (int)expr_ref, (int)pipeline_expr_kind_ord_at(arena, expr_ref));
             }
@@ -17213,8 +17213,8 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
     glue_binop_cache_intersect_live_fwd();
   }
   if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: block final_expr emit fail block_ref=%d nlet=%d nso=%d\n", (int)block_ref,
+    if (getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: block final_expr emit fail block_ref=%d nlet=%d nso=%d\n", (int)block_ref,
               (int)ast_ast_block_num_lets(arena, block_ref), (int)ast_ast_block_num_stmt_order(arena, block_ref));
     return -1;
   }
@@ -17256,7 +17256,7 @@ int32_t pipeline_asm_block_stmt_order_has_return(struct ast_ASTArena *a, int32_t
 }
 
 /**
- * 块级 if ELF 发射（then-first + jz）：避免 backend.x 经 shux-c -E 后 jnz/else/then 顺序错乱，
+ * 块级 if ELF 发射（then-first + jz）：避免 backend.x 经 xlang-c -E 后 jnz/else/then 顺序错乱，
  * 导致 cond 为真时跳进错误分支（escape/unescape 等 while 内 if 返回 -1）。
  */
 int32_t pipeline_asm_emit_block_if_stmt_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -17277,21 +17277,21 @@ int32_t pipeline_asm_emit_block_if_stmt_elf(struct ast_ASTArena *arena, struct p
   cond_if = ast_pipeline_block_if_cond_ref(arena, cur_block, if_idx);
   then_ref = ast_pipeline_block_if_then_body_ref(arena, cur_block, if_idx);
   else_ref = ast_pipeline_block_if_else_body_ref(arena, cur_block, if_idx);
-  if (getenv("SHUX_ASM_DEBUG") && g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0 &&
+  if (getenv("XLANG_ASM_DEBUG") && g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0 &&
       pipeline_module_func_name_equal_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index,
                                          (uint8_t *)"vec_u8_push", 11)) {
     int32_t ck = pipeline_expr_kind_ord_at(arena, cond_if);
     int32_t lr = pipeline_expr_binop_left_ref_at(arena, cond_if);
     int32_t rr = pipeline_expr_binop_right_ref_at(arena, cond_if);
-    fprintf(stderr, "shux: vec_u8_push block_if cond=%d kind=%d left=%d lk=%d right=%d rk=%d\n", (int)cond_if, (int)ck,
+    fprintf(stderr, "xlang: vec_u8_push block_if cond=%d kind=%d left=%d lk=%d right=%d rk=%d\n", (int)cond_if, (int)ck,
             (int)lr, lr > 0 ? (int)pipeline_expr_kind_ord_at(arena, lr) : -1, (int)rr,
             rr > 0 ? (int)pipeline_expr_kind_ord_at(arena, rr) : -1);
   }
   if (cond_if == 0 || then_ref == 0)
     return -1;
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, cond_if, ctx, ta) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: if cond emit fail block=%d if_idx=%d cond_ref=%d\n", (int)cur_block, (int)if_idx,
+    if (getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: if cond emit fail block=%d if_idx=%d cond_ref=%d\n", (int)cur_block, (int)if_idx,
               (int)cond_if);
     return -1;
   }
@@ -17734,7 +17734,7 @@ void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_re
     return;
   old_ref = ex->resolved_type_ref;
   ex->resolved_type_ref = type_ref;
-  trace_expr = getenv("SHUX_TRACE_EXPR_SET");
+  trace_expr = getenv("XLANG_TRACE_EXPR_SET");
   if (!trace_expr || !*trace_expr)
     return;
   trace_ref = atoi(trace_expr);
@@ -18293,8 +18293,8 @@ int32_t pipeline_expr_enum_namespace_field_tag(struct ast_ASTArena *a, int32_t e
   if (flen <= 0 || flen > 63)
     return -1;
   pipeline_expr_field_access_name_into(a, expr_ref, field_buf);
-  if (getenv("SHUX_ASM_EMIT_TRACE")) {
-    fprintf(stderr, "shux: enum_ns_tag base_len=%d field_len=%d mod=%p base='", (int)blen, (int)flen,
+  if (getenv("XLANG_ASM_EMIT_TRACE")) {
+    fprintf(stderr, "xlang: enum_ns_tag base_len=%d field_len=%d mod=%p base='", (int)blen, (int)flen,
             (void *)g_pipeline_asm_emit_module);
     for (int32_t di = 0; di < blen && di < 31; di++)
       fputc((char)base_buf[di], stderr);
@@ -18357,8 +18357,8 @@ int32_t pipeline_expr_enum_namespace_field_tag(struct ast_ASTArena *a, int32_t e
   }
   {
     int32_t mod_tag = pipeline_expr_enum_field_tag_via_module(base_buf, blen, field_buf, flen);
-    if (getenv("SHUX_ASM_EMIT_TRACE"))
-      fprintf(stderr, "shux: enum_ns_tag mod_tag=%d\n", (int)mod_tag);
+    if (getenv("XLANG_ASM_EMIT_TRACE"))
+      fprintf(stderr, "xlang: enum_ns_tag mod_tag=%d\n", (int)mod_tag);
     if (mod_tag >= 0)
       return mod_tag;
   }
@@ -18527,14 +18527,14 @@ void pipeline_asm_module_func_param_name_copy32(struct ast_Module *m, int32_t fu
  *
  * Authority for load/store of covered names: modlet path below (not per-fn register + rbp).
  */
-#define SHUX_ASM_MODLET_MAX 64
+#define XLANG_ASM_MODLET_MAX 64
 typedef struct {
   int32_t n;
-  int32_t name_len[SHUX_ASM_MODLET_MAX];
-  uint8_t name[SHUX_ASM_MODLET_MAX][64];
-  int32_t label_len[SHUX_ASM_MODLET_MAX];
-  uint8_t label[SHUX_ASM_MODLET_MAX][24];
-  int32_t init_imm[SHUX_ASM_MODLET_MAX];
+  int32_t name_len[XLANG_ASM_MODLET_MAX];
+  uint8_t name[XLANG_ASM_MODLET_MAX][64];
+  int32_t label_len[XLANG_ASM_MODLET_MAX];
+  uint8_t label[XLANG_ASM_MODLET_MAX][24];
+  int32_t init_imm[XLANG_ASM_MODLET_MAX];
 } pipeline_asm_modlet_table_t;
 
 static pipeline_asm_modlet_table_t g_pipeline_asm_modlet;
@@ -18664,7 +18664,7 @@ static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, 
     int32_t k;
     int32_t is_const;
     int32_t idx;
-    if (g_pipeline_asm_modlet.n >= SHUX_ASM_MODLET_MAX)
+    if (g_pipeline_asm_modlet.n >= XLANG_ASM_MODLET_MAX)
       break;
     is_const = pipeline_module_top_level_let_is_const(m, tl);
     if (is_const != 0)
@@ -18683,10 +18683,10 @@ static int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(struct ast_Module *m, 
     for (k = 0; k < name_len; k++)
       g_pipeline_asm_modlet.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
     g_pipeline_asm_modlet.init_imm[idx] = pipeline_expr_int_val_at(a, init_ref);
-    /* Symbol: Lshux_ml_<idx> (COMMON object; reloc target for lea). */
+    /* Symbol: Lxlang_ml_<idx> (COMMON object; reloc target for lea). */
     {
       int32_t llen = 0;
-      const char *pfx = "Lshux_ml_";
+      const char *pfx = "Lxlang_ml_";
       int32_t di;
       int32_t v = idx;
       uint8_t digs[8];
@@ -19172,7 +19172,7 @@ static int32_t glue_func_param_agg_byte_size_c(struct ast_ASTArena *arena, struc
     return 8; /* pointer */
   /*
    * PLATFORM: SHARED + LINUX/MACOS x86_64 SysV —
-   * TYPE_SLICE params are lowered as `struct shux_slice_* *` (codegen.x), one GP.
+   * TYPE_SLICE params are lowered as `struct xlang_slice_* *` (codegen.x), one GP.
    * Fat value is 16B but call/home must not dual-GP classify (that steals rsi for
    * the next arg → get_i32(s,i) puts i in rdx; C expects i in rsi). G.7 complete
    * with call-arg lea for TYPE_SLICE.
@@ -19353,7 +19353,7 @@ static void glue_sysv_x86_func_param_slot_c(struct ast_ASTArena *arena, struct a
 }
 
 /**
- * SysV x86 + SHUX_ABI_F32_XMM=1：gp/xmm 分轨形参 homing + INTEGER dual-GP + MEMORY by-value copy.
+ * SysV x86 + XLANG_ABI_F32_XMM=1：gp/xmm 分轨形参 homing + INTEGER dual-GP + MEMORY by-value copy.
  * PLATFORM: LINUX+MACOS x86_64 SysV.
  * - f32/f64: xmm0–7 (or stack if >8)
  * - 9–16B INTEGER: 2 consecutive GPs (or 16B stack) into dual-half home — formal C / Allocator
@@ -19471,7 +19471,7 @@ static int32_t pipeline_asm_emit_param_home_elf_sysv_f32_xmm_c(struct platform_e
 /**
  * prologue 后形参 homing：寄存器实参写入 fill_param_slots 栈槽，栈上传参从 [fp+#] 拷入。
  * AAPCS64：x0-x7 @ [fp-8..-64]；第 9+ 个 @ [x29,#16] 起。SysV x86：rdi..r9；第 7+ @ [rbp+16] 起。
- * SHUX_ABI_F32_XMM=1：SysV gp/xmm 分轨（f32 走 xmm0–7）。
+ * XLANG_ABI_F32_XMM=1：SysV gp/xmm 分轨（f32 走 xmm0–7）。
  */
 int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                            struct backend_AsmFuncCtx *ctx, struct ast_Module *mod,
@@ -21906,8 +21906,8 @@ int32_t backend_emit_while_loop_elf_sync(struct ast_ASTArena *arena, struct plat
   /** fold 匹配但 emit 失败（fold_rc<0）时回退通用 while，勿 abort 整模块 codegen。 */
   cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
   body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: while emit br=%d wi=%d cond=%d body=%d\n", (int)block_ref, (int)loop_idx, (int)cond_ref,
+  if (getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: while emit br=%d wi=%d cond=%d body=%d\n", (int)block_ref, (int)loop_idx, (int)cond_ref,
             (int)body_ref);
   loop_len = pipeline_asm_emit_next_label_c(ctx, loop_buf, 64);
   exit_len = pipeline_asm_emit_next_label_c(ctx, exit_buf, 64);
@@ -22043,7 +22043,7 @@ int32_t pipeline_asm_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_M
 }
 
 /**
- * build_shux_asm SKIP 桩：M8-tail 薄包装 emit bl C 委托 + epilogue；mega 仍 mov w0,#0 + epilogue。
+ * build_xlang_asm SKIP 桩：M8-tail 薄包装 emit bl C 委托 + epilogue；mega 仍 mov w0,#0 + epilogue。
  * 须在 enc_prologue(0) 之后调用；实参已由 ABI 传入 x0..xN。
  */
 int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta,
@@ -22061,7 +22061,7 @@ int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(struct platform_elf_ElfC
           if (asm_driver_m8_tail_thin_delegate_c_name(mod, func_index, cname, (int32_t)sizeof(cname), &clen) == 0)
             (void)asm_typeck_m8_tail_thin_delegate_c_name(mod, func_index, cname, (int32_t)sizeof(cname), &clen);
   }
-  dbg_env = getenv("SHUX_DEBUG_PARSER_DELEGATE");
+  dbg_env = getenv("XLANG_DEBUG_PARSER_DELEGATE");
   if (dbg_env && dbg_env[0] != '\0' && dbg_env[0] != '0' && mod != NULL) {
     static int32_t dbg_stub_n;
     static int32_t dbg_delegate_hit;
@@ -22161,7 +22161,7 @@ int32_t ast_ast_arena_func_alloc(struct ast_ASTArena *a) {
 }
 
 /** ast_pool.c 内 pipeline_elf_ctx_resolve_patches 需前置声明（standalone TU 由 pipeline_glue_types.inc 提供）。 */
-#ifndef SHUX_PIPELINE_GLUE_STANDALONE_TU
+#ifndef XLANG_PIPELINE_GLUE_STANDALONE_TU
 void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t name_len);
 #endif
 struct platform_elf_ElfCodegenCtx;
@@ -22219,7 +22219,7 @@ void glue_wpo_mono_register_thunk_n(const char *base, int32_t nargs, const int32
   char sym[GLUE_WPO_MONO_SYM_MAX];
   int sym_len;
   GlueWpoMonoThunk *slot;
-  if (!base || !getenv("SHUX_WPO_MONO"))
+  if (!base || !getenv("XLANG_WPO_MONO"))
     return;
   if (nargs < 0)
     nargs = 0;
@@ -22252,7 +22252,7 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
 
 /**
  * WPO-S2 monomorphize：在常规函数 emit 完成后追加单态 thunk（mov folded_imm; ret）。
- * 仅当 SHUX_WPO_MONO 非空时由 pipeline_backend_asm_codegen_ast_to_elf_c 调用。
+ * 仅当 XLANG_WPO_MONO 非空时由 pipeline_backend_asm_codegen_ast_to_elf_c 调用。
  */
 int32_t pipeline_asm_emit_wpo_mono_thunks_elf_c(struct ast_Module *entry, struct ast_ASTArena *arena,
                                                  struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -22264,7 +22264,7 @@ int32_t pipeline_asm_emit_wpo_mono_thunks_elf_c(struct ast_Module *entry, struct
   (void)arena;
   if (!elf_ctx || !pipeline_ctx)
     return -1;
-  if (!getenv("SHUX_WPO_MONO"))
+  if (!getenv("XLANG_WPO_MONO"))
     return 0;
   thunks = &g_glue_wpo_mono_pending;
   ta = pipeline_ctx->target_arch;
@@ -22355,12 +22355,12 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
    * so set_g/get_g share storage (not per-fn stack). Non-x86: no-op, stack residual.
    */
   if (pipeline_asm_modlet_prepare_and_emit_elf_c(m, a, elf_ctx, ta) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: mega_body_c modlet prepare fail\n");
+    if (getenv("XLANG_ASM_DEBUG"))
+      fprintf(stderr, "xlang: mega_body_c modlet prepare fail\n");
     return -1;
   }
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: mega_body_c start emit_n=%d start_skip=%d nf=%d\n", (int)emit_n, (int)start_skip,
+  if (getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: mega_body_c start emit_n=%d start_skip=%d nf=%d\n", (int)emit_n, (int)start_skip,
             (int)pipeline_module_num_funcs(m));
   for (k = 0; k < emit_n; k++) {
     int32_t i = pipeline_asm_wpo_pgo_emit_order_at(m, k);
@@ -22405,8 +22405,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
     if (export_sym_len <= 0)
       return -1;
     if (backend_enc_label_arch(elf_ctx, export_sym, export_sym_len, 1, ta) != 0) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: mega_body_c enc_label fail func=%.*s\n", (int)export_sym_len, (char *)export_sym);
+      if (getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr, "xlang: mega_body_c enc_label fail func=%.*s\n", (int)export_sym_len, (char *)export_sym);
       return -1;
     }
     if (asm_skip_heavy_module_func_body(m, a, i) != 0) {
@@ -22432,16 +22432,16 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
       return -1;
     /** Mutable module-level lit lets on non-hoist: seed stack slots after param home. */
     if (pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a, elf_ctx, bctx, m, i, ta) != 0) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: mega_body_c top_level lit inits fail func=%.*s fi=%d\n", (int)fname_len,
+      if (getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr, "xlang: mega_body_c top_level lit inits fail func=%.*s fi=%d\n", (int)fname_len,
                 (char *)fname_buf, (int)i);
       return -1;
     }
     /** COMMON BSS starts zero; non-zero modlet inits (e.g. -1) once on hoist target. */
     if (i == pipeline_asm_hoist_target_func_index(m) &&
         pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx, ta) != 0) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: mega_body_c modlet nonzero seed fail func=%.*s\n", (int)fname_len,
+      if (getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr, "xlang: mega_body_c modlet nonzero seed fail func=%.*s\n", (int)fname_len,
                 (char *)fname_buf);
       return -1;
     }
@@ -22452,8 +22452,8 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
       if (pipeline_asm_block_num_stmt_order_at(a, body_ref) > 0) {
         pipeline_debug_trace_named_func_bodies("mega_pre_emit_block_body", m, a);
         if (backend_emit_block_body_sync_elf(a, elf_ctx, body_ref, bctx, ta) != 0) {
-          if (getenv("SHUX_ASM_DEBUG"))
-            fprintf(stderr, "shux: mega_body_c emit_block_body fail func=%.*s fi=%d body_ref=%d\n",
+          if (getenv("XLANG_ASM_DEBUG"))
+            fprintf(stderr, "xlang: mega_body_c emit_block_body fail func=%.*s fi=%d body_ref=%d\n",
                     (int)fname_len, (char *)fname_buf, (int)i, (int)body_ref);
           return -1;
         }
@@ -22492,15 +22492,15 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
       }
     }
     if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: mega_body_c epilogue fail func=%.*s fi=%d\n", (int)fname_len, (char *)fname_buf,
+      if (getenv("XLANG_ASM_DEBUG"))
+        fprintf(stderr, "xlang: mega_body_c epilogue fail func=%.*s fi=%d\n", (int)fname_len, (char *)fname_buf,
                 (int)i);
       return -1;
     }
     pipeline_asm_emit_async_cps_end_func_elf_c();
   }
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: mega_body_c done emit_n=%d rc=0\n", (int)emit_n);
+  if (getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: mega_body_c done emit_n=%d rc=0\n", (int)emit_n);
   return 0;
 }
 
@@ -22508,7 +22508,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
 /* R2 unbundle (2026-07-21): async_asm_pool is a separate product TU
  * (src/async/async_asm_pool.o), not embedded here.
  * Cold: seeds/async_asm_pool.from_x.c full C.
- * PREFER: src/asm/async_asm_pool.x + rest (-DSHUX_ASYNC_ASM_POOL_FROM_X, marker).
+ * PREFER: src/asm/async_asm_pool.x + rest (-DXLANG_ASYNC_ASM_POOL_FROM_X, marker).
  * Call sites use include/async_asm_pool.h (top of this file).
  * PLATFORM: SHARED — link DRIVER_SEED_SUPPORT / g05_relink_env. */
 /* #include "seeds/async_asm_pool.from_x.c" — retired; see src/async/async_asm_pool.o */
@@ -22626,9 +22626,9 @@ int32_t pipeline_sync_dep_slots_from_driver_impl_c(struct ast_Module *module, st
    * PLATFORM: SHARED — 与 pipeline_load_and_sync_direct_import_deps_c 对齐。
    */
   if (n_entry_imports >= 0 && n_entry_imports < dep_sync_nd) {
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr,
-              "shux: [SHUX_DEBUG_PIPE] skip entry-index dep sync (ndep=%d entry_imports=%d)\n",
+              "xlang: [XLANG_DEBUG_PIPE] skip entry-index dep sync (ndep=%d entry_imports=%d)\n",
               (int)dep_sync_nd, (int)n_entry_imports);
     return 0;
   }
@@ -22660,7 +22660,7 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
   return parser_parse_into_buf(arena, module, data, len);
 }
 
-#ifdef SHUX_PIPELINE_GLUE_STANDALONE_TU
+#ifdef XLANG_PIPELINE_GLUE_STANDALONE_TU
 /**
  * wave96: product pure owns pipeline_parse_into_buf (runtime_pipeline_abi.x).
  * Keep weak cold twin for standalone / non-PREFER links.
@@ -22711,7 +22711,7 @@ __attribute__((weak)) struct parser_ParseIntoResult pipeline_parse_into_with_ini
 /**
  * M8-tail：优先 dispatch 至 pipeline_load_import_from_disk（X 或 weak impl_c）。
  * wave94: product pure owns pipeline_load_import_from_disk_c (runtime_pipeline_abi.x).
- * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * Keep XLANG_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
 __attribute__((weak)) int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -22739,7 +22739,7 @@ extern void driver_diagnostic_typeck_fail(void);
 /**
  * M8-tail：优先 dispatch 至 pipeline_sync_dep_slots_from_driver（X 或 weak impl_c）。
  * wave94: product pure owns pipeline_sync_dep_slots_from_driver_c (runtime_pipeline_abi.x).
- * Keep SHUX_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
+ * Keep XLANG_WEAK cold twin for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure.
  */
 __attribute__((weak)) int32_t pipeline_sync_dep_slots_from_driver_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
@@ -22776,13 +22776,13 @@ int32_t pipeline_lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct a
 extern void ast_ast_arena_init(struct ast_ASTArena *arena);
 extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTArena *arena);
 extern struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                        struct shux_slice_uint8_t *source);
+                                                        struct xlang_slice_uint8_t *source);
 
 /**
  * strict 回退：slice parse_into_with_init + typeck；X 薄编排调用 _c（勿 _c→裸名 dispatch，避免 X 薄包装递归）。
  */
 struct parser_ParseIntoResult pipeline_parse_into_with_init_c(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                               struct shux_slice_uint8_t *source) {
+                                                               struct xlang_slice_uint8_t *source) {
   struct parser_ParseIntoResult fail;
 
   fail.ok = 1;
@@ -22803,7 +22803,7 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
 extern void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len);
 
 int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
-                                               struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx) {
+                                               struct xlang_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx) {
   struct parser_ParseIntoResult r;
   int32_t tc;
 
@@ -22816,8 +22816,8 @@ int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct
     return r.main_idx;
   pipeline_module_set_main_func_index(module, r.main_idx);
   pipeline_typeck_set_active_ctx_c(module, ctx);
-  if (getenv("SHUX_DEBUG_PIPE") != NULL) {
-    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] type_aliases=%d struct_layouts=%d\n",
+  if (getenv("XLANG_DEBUG_PIPE") != NULL) {
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] type_aliases=%d struct_layouts=%d\n",
             (int)pipeline_module_num_type_aliases_at(module),
             (int)pipeline_module_num_struct_layouts_at(module));
   }
@@ -22847,7 +22847,7 @@ int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct
 
 int32_t pipeline_typeck_after_parse_ok_buf_impl_c(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *data,
                                                    int32_t len, struct ast_PipelineDepCtx *ctx) {
-  struct shux_slice_uint8_t source;
+  struct xlang_slice_uint8_t source;
 
   if (!data || len <= 0)
     return -1;
@@ -22855,7 +22855,7 @@ int32_t pipeline_typeck_after_parse_ok_buf_impl_c(struct ast_ASTArena *arena, st
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, &source, ctx);
 }
 
-/** shux check 后 WPO-S3 X 栈逃逸 gate（strict parse + post-scan；C typeck 已通过）。 */
+/** xlang check 后 WPO-S3 X 栈逃逸 gate（strict parse + post-scan；C typeck 已通过）。 */
 int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len) {
   size_t asz;
   size_t msz;
@@ -22896,16 +22896,16 @@ int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src
 
 /** X 或 weak impl_c；_c dispatch 前向声明。 */
 int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
-                                        struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx);
+                                        struct xlang_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx);
 
 /** M8-tail：优先 dispatch 至 pipeline_typeck_after_parse_ok（X 或 weak impl_c）。 */
 int32_t pipeline_typeck_after_parse_ok_c(struct ast_ASTArena *arena, struct ast_Module *module,
-                                          struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx) {
+                                          struct xlang_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_after_parse_ok(arena, module, source, ctx);
 }
 
 /** weak 默认：lsp / typeck 诊断路径（standalone；build_asm pipeline.o X 强符号覆盖）。 */
-#ifdef SHUX_PIPELINE_GLUE_STANDALONE_TU
+#ifdef XLANG_PIPELINE_GLUE_STANDALONE_TU
 __attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   uint8_t *source_data, int32_t source_len,
                                                                   struct ast_PipelineDepCtx *ctx) {
@@ -22913,7 +22913,7 @@ __attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Modu
 }
 
 __attribute__((weak)) int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                              struct shux_slice_uint8_t *source,
+                                                              struct xlang_slice_uint8_t *source,
                                                               struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
 }
@@ -23806,7 +23806,7 @@ int32_t ast_pipeline_arena_block_alloc(struct ast_ASTArena *a) { return pipeline
 int32_t ast_pipeline_arena_func_alloc(struct ast_ASTArena *a) { return pipeline_arena_func_alloc(a); }
 
 /**
- * ast.x 中 ast_arena_*_get/set 仅作 extern 声明；实现在此，避免 shux-c -E 将 get 错误 lowering 为
+ * ast.x 中 ast_arena_*_get/set 仅作 extern 声明；实现在此，避免 xlang-c -E 将 get 错误 lowering 为
  * arena->exprs[] / blocks[] 直访（slim ASTArena 已无内嵌数组）。
  * ast_ast_arena_* 供 ast 模块 hoisted 声明；ast_arena_* 供 import ast 的其他模块链接。
  */
@@ -23825,9 +23825,9 @@ struct ast_Expr ast_ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref) {
   return pipeline_arena_expr_get_copy(a, ref);
 }
 void ast_ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
-  const char *trace_expr = getenv("SHUX_TRACE_EXPR_SET");
-  const char *trace_name = getenv("SHUX_TRACE_EXPR_NAME");
-  const char *trace_type = getenv("SHUX_TRACE_TYPE_REF");
+  const char *trace_expr = getenv("XLANG_TRACE_EXPR_SET");
+  const char *trace_name = getenv("XLANG_TRACE_EXPR_NAME");
+  const char *trace_type = getenv("XLANG_TRACE_TYPE_REF");
   int trace_hit = 0;
   int trace_ty = 0;
   if (trace_expr && *trace_expr && atoi(trace_expr) == ref) {
@@ -24020,8 +24020,8 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
       int32_t nreg = ast_ast_block_num_regions(arena, body_ref);
       int32_t is_unsafe =
           (idx >= 0 && idx < nreg) ? pipeline_block_region_is_unsafe(arena, body_ref, idx) : 0;
-      if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_region_peel body=%d idx=%d nreg=%d unsafe=%d\n",
+      if (getenv("XLANG_DEBUG_PIPE"))
+        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_region_peel body=%d idx=%d nreg=%d unsafe=%d\n",
                 (int)body_ref, (int)idx, (int)nreg, (int)is_unsafe);
       if (idx >= 0 && idx < nreg && is_unsafe != 0) {
         int32_t inner_ref = ast_ast_block_region_body_ref(arena, body_ref, idx);
@@ -24032,17 +24032,17 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
   }
   if (!ast_ref_is_null(fin_ref))
     return fin_ref;
-  if (getenv("SHUX_DEBUG_PIPE"))
-    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=%d fin=%d nso=%d\n", (int)body_ref,
+  if (getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_scan body=%d fin=%d nso=%d\n", (int)body_ref,
             (int)fin_ref, (int)nso);
   if (nso > 0) {
     uint8_t last_k;
     int32_t idx;
     int32_t nes;
-    if (getenv("SHUX_DEBUG_PIPE")) {
+    if (getenv("XLANG_DEBUG_PIPE")) {
       int32_t si;
       int32_t nes_dbg = ast_ast_block_num_expr_stmts(arena, body_ref);
-      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=%d exprs=%d\n", (int)body_ref, (int)nes_dbg);
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_dump body=%d exprs=%d\n", (int)body_ref, (int)nes_dbg);
       for (si = 0; si < nso; si++) {
         int32_t so_idx = pipeline_block_stmt_order_idx(arena, body_ref, si);
         uint8_t so_kind = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, si);
@@ -24053,14 +24053,14 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
           expr_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
         }
         fprintf(stderr,
-                "shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=%d si=%d so_kind=%u so_idx=%d expr=%d expr_kind=%d\n",
+                "xlang: [XLANG_DEBUG_PIPE] implicit_tail_item body=%d si=%d so_kind=%u so_idx=%d expr=%d expr_kind=%d\n",
                 (int)body_ref, (int)si, (unsigned)so_kind, (int)so_idx, (int)expr_ref, (int)expr_kind);
       }
     }
 
     last_k = (uint8_t)pipeline_block_stmt_order_kind(arena, body_ref, nso - 1);
-    if (getenv("SHUX_DEBUG_PIPE"))
-      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=%d kind=%u\n", (int)body_ref,
+    if (getenv("XLANG_DEBUG_PIPE"))
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_last body=%d kind=%u\n", (int)body_ref,
               (unsigned)last_k);
     if (last_k == stmt_order_kind_expr_stmt) {
       idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
@@ -24091,8 +24091,8 @@ int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena
   if (ast_ref_is_null(tail_ref))
     return 0;
   tail_kind = pipeline_expr_kind_ord_at(arena, tail_ref);
-  if (getenv("SHUX_DEBUG_PIPE"))
-    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=%d tail=%d kind=%d\n", (int)body_ref,
+  if (getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_result body=%d tail=%d kind=%d\n", (int)body_ref,
             (int)tail_ref, (int)tail_kind);
   if (implicit_tail_expr_disallowed_by_glue(arena, tail_ref) != 0)
     return 0;
@@ -24102,8 +24102,8 @@ int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena
    * 用 pipeline_expr_block_ref_at accessor（与 line 19812 一致），避免直接访问 Expr 结构体。 */
   if (tail_kind == 26) {
     int32_t inner_block = pipeline_expr_block_ref_at(arena, tail_ref);
-    if (getenv("SHUX_DEBUG_PIPE"))
-      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_block body=%d tail=%d inner_block=%d\n",
+    if (getenv("XLANG_DEBUG_PIPE"))
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] implicit_tail_block body=%d tail=%d inner_block=%d\n",
               (int)body_ref, (int)tail_ref, (int)inner_block);
     if (!ast_ref_is_null(inner_block))
       return pipeline_typeck_func_body_has_implicit_return_tail_c(arena, inner_block);
@@ -24113,7 +24113,7 @@ int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena
 
 /*
  * wave92: product pure owns pipeline_typeck_patch_all_body_parent_links_c
- * (runtime_pipeline_abi.x thin → typeck_patch_all_body_parent_links). Keep SHUX_WEAK cold
+ * (runtime_pipeline_abi.x thin → typeck_patch_all_body_parent_links). Keep XLANG_WEAK cold
  * fallback for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure; same walk as typeck.x.
  */
@@ -25175,8 +25175,8 @@ void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct as
   }
   /** DOD-CL-S1：align(N) 字段 offset 按 field_align 重算并落盘，再填 FIELD_ACCESS。 */
   glue_sync_struct_layout_field_offsets_c(m, arena);
-  if (getenv("SHUX_ASM_DEBUG")) {
-    fprintf(stderr, "shux: fill_cl n_layouts=%d n_exprs=%d\n", (int)pipeline_module_num_struct_layouts_at(m),
+  if (getenv("XLANG_ASM_DEBUG")) {
+    fprintf(stderr, "xlang: fill_cl n_layouts=%d n_exprs=%d\n", (int)pipeline_module_num_struct_layouts_at(m),
             (int)arena->num_exprs);
   }
   saved_fi = g_pipeline_asm_emit_func_index;
@@ -25192,8 +25192,8 @@ void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct as
     glue_fill_var_types_from_lets_in_block(arena, br);
     glue_fill_var_types_from_params_for_func(m, arena, fi);
   }
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: fill_cl func_loop done nf=%d\n", (int)m->num_funcs);
+  if (getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: fill_cl func_loop done nf=%d\n", (int)m->num_funcs);
   for (ei = 1; ei <= arena->num_exprs; ei++) {
     int32_t base_ref;
     int32_t flen;
@@ -25217,8 +25217,8 @@ void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct as
     if (layout_off >= 0)
       pipeline_expr_set_field_access_offset(arena, ei, layout_off);
   }
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: fill_cl expr_loop done\n");
+  if (getenv("XLANG_ASM_DEBUG"))
+    fprintf(stderr, "xlang: fill_cl expr_loop done\n");
   g_pipeline_asm_emit_func_index = saved_fi;
   pipeline_debug_trace_named_func_bodies("fill_cl_post", m, arena);
 }
@@ -25703,8 +25703,8 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
         j = j + 1;
         continue;
       }
-      if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep_func_match name=%.*s func_idx=%d dep_ix=%d raw_ret=%d\n",
+      if (getenv("XLANG_DEBUG_PIPE"))
+        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_match name=%.*s func_idx=%d dep_ix=%d raw_ret=%d\n",
                 (int)name_len, name, (int)j, (int)from_dep_index, (int)pipeline_module_func_return_type_at(mod, j));
       if (func_index_out)
         func_index_out[0] = j;
@@ -25713,16 +25713,16 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
         return rtr;
       {
         int32_t mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, rtr, caller_arena, ctx);
-        if (getenv("SHUX_DEBUG_PIPE"))
-          fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep_func_map name=%.*s func_idx=%d dep_ix=%d mapped=%d\n",
+        if (getenv("XLANG_DEBUG_PIPE"))
+          fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_map name=%.*s func_idx=%d dep_ix=%d mapped=%d\n",
                   (int)name_len, name, (int)j, (int)from_dep_index, (int)mapped);
         if (mapped != 0)
           return mapped;
         /* bootstrap：ctx dep arena 直映 primitive（import_idx 与全局 dep 槽错位时）。 */
         {
           struct ast_ASTArena *da = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
-          if (getenv("SHUX_DEBUG_PIPE"))
-            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep_func_fallback name=%.*s func_idx=%d dep_ix=%d dep_arena=%p raw_ret=%d\n",
+          if (getenv("XLANG_DEBUG_PIPE"))
+            fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep_func_fallback name=%.*s func_idx=%d dep_ix=%d dep_arena=%p raw_ret=%d\n",
                     (int)name_len, name, (int)j, (int)from_dep_index, (void *)da, (int)rtr);
           if (da && rtr != 0)
             return pipeline_typeck_dep_return_type_to_caller_arena_impl(da, rtr, caller_arena);
@@ -26223,7 +26223,7 @@ extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_
 
 /*
  * wave92: product pure owns pipeline_typeck_validate_struct_layouts_zero_padding_c
- * (runtime_pipeline_abi.x thin → typeck_validate_struct_layouts_zero_padding). Keep SHUX_WEAK
+ * (runtime_pipeline_abi.x thin → typeck_validate_struct_layouts_zero_padding). Keep XLANG_WEAK
  * cold fallback for links without pure pipeline_abi / PREFER hybrid (still glue metrics fork).
  * PLATFORM: SHARED — ELF weak overridden by pure; cold uses typeck_validate_*_glue.
  */
@@ -27086,7 +27086,7 @@ int32_t pipeline_typeck_check_call_struct_stack_escape_c(struct ast_Module *modu
   np = pipeline_module_func_num_params_at(module, func_ix);
   if (num_args != np || num_args < 2)
     return 0;
-  if (getenv("SHUX_SKIP_STACK_ESCAPE") != NULL)
+  if (getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
     return 0;
   for (src_i = 0; src_i < num_args; src_i++) {
     int32_t arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, src_i);
@@ -27347,7 +27347,7 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
   int32_t num_generic_params;
   if (!module || !arena || !ctx)
     return 0;
-  if (getenv("SHUX_SKIP_STACK_ESCAPE") != NULL)
+  if (getenv("XLANG_SKIP_STACK_ESCAPE") != NULL)
     return 0;
   g_typeck_with_arena_scope_n = 0;
   g_typeck_region_scope_n = 0;
@@ -27372,7 +27372,7 @@ int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *mod
 /** M-5：callee 名是否为 read_ptr slice 生产者（自动绑 io_read_ptr 域）。 */
 int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
   static const uint8_t n0[] = "read_ptr_slice";
-  static const uint8_t n1[] = "shux_io_read_ptr_slice";
+  static const uint8_t n1[] = "xlang_io_read_ptr_slice";
   static const uint8_t n2[] = "driver_read_ptr_slice";
   static const uint8_t n3[] = "io_read_ptr_slice";
   if (!name || name_len <= 0)
@@ -28254,7 +28254,7 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
    * PLATFORM: SHARED — Cap-T001: skip when already inside unsafe { } (same gate as call_struct_stack_escape).
    * G.7 note: body mirrors pipeline_typeck_check_call_struct_stack_escape_c for dep-resolved callee_mod.
    */
-  if (ctx && num_args >= 2 && getenv("SHUX_SKIP_STACK_ESCAPE") == NULL &&
+  if (ctx && num_args >= 2 && getenv("XLANG_SKIP_STACK_ESCAPE") == NULL &&
       pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
     int32_t src_i;
     int32_t dst_j;
@@ -28744,7 +28744,7 @@ static void debug_try_propagate_report_glue_c(int32_t expr_ref, int32_t func_ix,
   char url[256];
   char session[64];
   char cmd[2048];
-  const char *enabled = getenv("SHUX_DEBUG_RESULT_TRY");
+  const char *enabled = getenv("XLANG_DEBUG_RESULT_TRY");
   if (!enabled || enabled[0] == '\0' || enabled[0] == '0')
     return;
   snprintf(url, sizeof(url), "%s", "http://127.0.0.1:7777/event");
@@ -28865,8 +28865,8 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(struct ast_ASTArena *arena, s
                                    struct ast_PipelineDepCtx *ctx);
   extern int32_t codegen_emit_bytes_from_ptr(struct codegen_CodegenOutBuf *out, uint8_t *p, int32_t n);
   int32_t op;
-  static const uint8_t pre[] = "({ struct core_result_Result_i32 __shux_q = ";
-  static const uint8_t suf[] = "; if (__shux_q.err != 0) return __shux_q; __shux_q.value; })";
+  static const uint8_t pre[] = "({ struct core_result_Result_i32 __xlang_q = ";
+  static const uint8_t suf[] = "; if (__xlang_q.err != 0) return __xlang_q; __xlang_q.value; })";
 
   (void)ctx;
   if (!arena || !out || expr_ref <= 0)
@@ -28945,16 +28945,16 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
       return -1;
     arg_i = arg_i + 1;
   }
-  if (getenv("SHUX_DEBUG_PIPE")) {
+  if (getenv("XLANG_DEBUG_PIPE")) {
     fprintf(stderr,
-            "shux: [SHUX_DEBUG_PIPE] method_call expr=%d base=%d base_kind=%d base_rc=%d base_ty=%d method=%.*s\n",
+            "xlang: [XLANG_DEBUG_PIPE] method_call expr=%d base=%d base_kind=%d base_rc=%d base_ty=%d method=%.*s\n",
             (int)expr_ref, (int)base_ref, (int)base_ord, (int)base_rc, (int)base_ty, (int)method_nlen, method_nm);
     if (base_ord == ord_var) {
       int32_t dbg_base_nlen = pipeline_expr_var_name_len(arena, base_ref);
       if (dbg_base_nlen > 0 && dbg_base_nlen <= 63) {
         uint8_t dbg_base_nm[64];
         pipeline_expr_var_name_into(arena, base_ref, dbg_base_nm);
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] method_call base_var=%.*s imports=%d\n", (int)dbg_base_nlen,
+        fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] method_call base_var=%.*s imports=%d\n", (int)dbg_base_nlen,
                 dbg_base_nm, (int)pipeline_typeck_module_num_imports_c(module));
       }
     }
@@ -28968,7 +28968,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
       int32_t n_imp = pipeline_typeck_module_num_imports_c(module);
       pipeline_expr_var_name_into(arena, base_ref, base_nm);
       while (j < n_imp) {
-        if (getenv("SHUX_DEBUG_PIPE")) {
+        if (getenv("XLANG_DEBUG_PIPE")) {
           int32_t bind_len = pipeline_module_import_binding_name_len(module, j);
           int32_t path_len = pipeline_module_import_path_len(module, j);
           uint8_t bind_nm[64];
@@ -28992,7 +28992,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
               dbg_i = dbg_i + 1;
             }
           fprintf(stderr,
-                  "shux: [SHUX_DEBUG_PIPE] method_call scan_import idx=%d kind=%d bind=%.*s path=%.*s\n", (int)j,
+                  "xlang: [XLANG_DEBUG_PIPE] method_call scan_import idx=%d kind=%d bind=%.*s path=%.*s\n", (int)j,
                   (int)pipeline_module_import_kind_at(module, j), (int)(bind_len > 0 ? bind_len : 0),
                   (bind_len > 0 ? bind_nm : (uint8_t *)""), (int)(path_len > 0 ? path_len : 0),
                   (path_len > 0 ? path_nm : (uint8_t *)""));
@@ -29001,9 +29001,9 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
             pipeline_typeck_import_binding_name_equal_impl(module, j, base_nm, base_nlen)) {
           int32_t dep_slot = pipeline_typeck_resolve_dep_index_for_import_c(module, ctx, j);
           struct ast_Module *dm = dep_slot >= 0 ? pipeline_dep_ctx_module_at(ctx, dep_slot) : 0;
-          if (getenv("SHUX_DEBUG_PIPE")) {
+          if (getenv("XLANG_DEBUG_PIPE")) {
             fprintf(stderr,
-                    "shux: [SHUX_DEBUG_PIPE] method_call binding_match idx=%d dep_slot=%d dep=%p dep_funcs=%d\n",
+                    "xlang: [XLANG_DEBUG_PIPE] method_call binding_match idx=%d dep_slot=%d dep=%p dep_funcs=%d\n",
                     (int)j, (int)dep_slot, (void *)dm, dm ? (int)dm->num_funcs : -1);
             if (dm) {
               int32_t dbg_fi = 0;
@@ -29012,7 +29012,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
                 uint8_t dbg_fn[64];
                 if (dbg_fn_len > 0 && dbg_fn_len <= 63) {
                   pipeline_module_func_name_copy64(dm, dbg_fi, dbg_fn);
-                  fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] method_call dep_func idx=%d name=%.*s\n", (int)dbg_fi,
+                  fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] method_call dep_func idx=%d name=%.*s\n", (int)dbg_fi,
                           (int)dbg_fn_len, dbg_fn);
                 }
                 dbg_fi = dbg_fi + 1;
@@ -29024,9 +29024,9 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
             /* Overload by arg types (not first same-name). Authority: call_strict_minimal. */
             ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
                 dm, arena, method_nm, method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &bind_fn);
-            if (getenv("SHUX_DEBUG_PIPE"))
+            if (getenv("XLANG_DEBUG_PIPE"))
               fprintf(stderr,
-                      "shux: [SHUX_DEBUG_PIPE] method_call binding_ret idx=%d dep_slot=%d ret_ty=%d bind_fn=%d\n",
+                      "xlang: [XLANG_DEBUG_PIPE] method_call binding_ret idx=%d dep_slot=%d ret_ty=%d bind_fn=%d\n",
                       (int)j, (int)dep_slot, (int)ret_ty, (int)bind_fn);
             if (ret_ty != 0) {
               pipeline_typeck_expr_apply_call_resolve_c(arena, expr_ref, dep_slot, bind_fn);
@@ -29415,7 +29415,7 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
 }
 
 /** 非 standalone TU 保留旧 glue wrapper；strict_glue 改由 typeck_x.o 作为唯一导出方。 */
-#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
+#if !defined(XLANG_PIPELINE_GLUE_STANDALONE_TU) && !defined(XLANG_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
 int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -29604,8 +29604,8 @@ int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTAr
   if (kind == GLUE_EXPR_KIND_TRY_PROPAGATE || kind == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
     return pipeline_typeck_check_expr_try_propagate_c(module, arena, expr_ref, return_type_ref, ctx);
   rc = pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
-  if (rc != 0 && getenv("SHUX_DEBUG_PIPE"))
-    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_expr fail func=%d expr=%d kind=%d block=%d\n",
+  if (rc != 0 && getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_expr fail func=%d expr=%d kind=%d block=%d\n",
             ctx ? (int)ctx->current_func_index : -1, (int)expr_ref, (int)kind,
             ctx ? (int)ctx->current_block_ref : -1);
   return rc;
@@ -29680,7 +29680,7 @@ void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t de
   ctx->typeck_loop_depth = depth;
 }
 
-/** typeck_check_block_one_if 包装：SHUX_DEBUG_PIPE 时打印失败 if 的条件类型，便于 dep prerun 定位。 */
+/** typeck_check_block_one_if 包装：XLANG_DEBUG_PIPE 时打印失败 if 的条件类型，便于 dep prerun 定位。 */
 static int32_t pipeline_typeck_check_block_one_if_dbg_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                         int32_t block_ref, int32_t return_type_ref,
                                                         struct ast_PipelineDepCtx *ctx, int32_t idx) {
@@ -29689,11 +29689,11 @@ static int32_t pipeline_typeck_check_block_one_if_dbg_c(struct ast_Module *modul
   int32_t got_ty;
 
   rc = typeck_check_block_one_if(module, arena, block_ref, return_type_ref, ctx, idx);
-  if (rc != 0 && getenv("SHUX_DEBUG_PIPE")) {
+  if (rc != 0 && getenv("XLANG_DEBUG_PIPE")) {
     ic_cr = ast_ast_block_if_cond_ref(arena, block_ref, idx);
     got_ty = ast_ref_is_null(ic_cr) ? 0 : pipeline_expr_resolved_type_ref(arena, ic_cr);
     fprintf(stderr,
-            "shux: [SHUX_DEBUG_PIPE] check_block_one_if fail func=%d block=%d idx=%d cond=%d got_ty=%d is_bool=%d\n",
+            "xlang: [XLANG_DEBUG_PIPE] check_block_one_if fail func=%d block=%d idx=%d cond=%d got_ty=%d is_bool=%d\n",
             ctx ? (int)ctx->current_func_index : -1, (int)block_ref, (int)idx, (int)ic_cr, (int)got_ty,
             (int)pipeline_typeck_type_ref_is_bool_c(arena, got_ty));
     fflush(stderr);
@@ -29743,8 +29743,8 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
       if (sk == 0) {
         if (idx >= 0 && idx < nc && idx < 128) {
           if (typeck_check_block_one_const(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (getenv("SHUX_DEBUG_PIPE"))
-              fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_block fail func=%d sk=const idx=%d\n",
+            if (getenv("XLANG_DEBUG_PIPE"))
+              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=const idx=%d\n",
                       (int)ctx->current_func_index, (int)idx);
             pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
             return -1;
@@ -29753,8 +29753,8 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
       } else if (sk == 1) {
         if (idx >= 0 && idx < nl && idx < 128) {
           if (typeck_check_block_one_let(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (getenv("SHUX_DEBUG_PIPE"))
-              fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_block fail func=%d sk=let idx=%d\n",
+            if (getenv("XLANG_DEBUG_PIPE"))
+              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=let idx=%d\n",
                       (int)ctx->current_func_index, (int)idx);
             pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
             return -1;
@@ -29764,8 +29764,8 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
         if (idx >= 0 && idx < nes) {
           es_ref = ast_ast_block_expr_stmt_ref(arena, block_ref, idx);
           if (pipeline_typeck_check_expr_c(module, arena, es_ref, return_type_ref, ctx) != 0) {
-            if (getenv("SHUX_DEBUG_PIPE"))
-              fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_block fail func=%d sk=expr idx=%d es_ref=%d\n",
+            if (getenv("XLANG_DEBUG_PIPE"))
+              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=expr idx=%d es_ref=%d\n",
                       (int)ctx->current_func_index, (int)idx, (int)es_ref);
             pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
             return -1;
@@ -29774,8 +29774,8 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
       } else if (sk == 3) {
         if (idx >= 0 && idx < nlp) {
           if (typeck_check_block_one_while(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (getenv("SHUX_DEBUG_PIPE"))
-              fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_block fail func=%d sk=while idx=%d\n",
+            if (getenv("XLANG_DEBUG_PIPE"))
+              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=while idx=%d\n",
                       (int)ctx->current_func_index, (int)idx);
             pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
             return -1;
@@ -29784,8 +29784,8 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
       } else if (sk == 4) {
         if (idx >= 0 && idx < nfp) {
           if (typeck_check_block_one_for(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (getenv("SHUX_DEBUG_PIPE"))
-              fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_block fail func=%d sk=for idx=%d\n",
+            if (getenv("XLANG_DEBUG_PIPE"))
+              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d sk=for idx=%d\n",
                       (int)ctx->current_func_index, (int)idx);
             pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
             return -1;
@@ -29794,8 +29794,8 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
       } else if (sk == 5) {
         if (idx >= 0 && idx < nif) {
           if (pipeline_typeck_check_block_one_if_dbg_c(module, arena, block_ref, return_type_ref, ctx, idx) != 0) {
-            if (getenv("SHUX_DEBUG_PIPE"))
-              fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_block fail func=%d block=%d sk=if idx=%d\n",
+            if (getenv("XLANG_DEBUG_PIPE"))
+              fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d block=%d sk=if idx=%d\n",
                       (int)ctx->current_func_index, (int)block_ref, (int)idx);
             pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
             return -1;
@@ -29856,8 +29856,8 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
     }
   }
   if (typeck_check_block_final(module, arena, block_ref, return_type_ref, ctx, fin0) != 0) {
-    if (getenv("SHUX_DEBUG_PIPE"))
-      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] check_block fail func=%d block=%d sk=final fin0=%d\n",
+    if (getenv("XLANG_DEBUG_PIPE"))
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] check_block fail func=%d block=%d sk=final fin0=%d\n",
               (int)ctx->current_func_index, (int)block_ref, (int)fin0);
     pipeline_typeck_block_impl_restore_ctx_c(ctx, saved_block_ref);
     return -1;
@@ -29992,9 +29992,9 @@ int32_t pipeline_typeck_x_ast_impl_c(struct ast_Module *module, struct ast_ASTAr
       if (pipeline_typeck_check_block_c(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
         fn_name_len = pipeline_module_func_name_len_at(module, i);
         pipeline_asm_module_func_name_copy64(module, i, fn_name_buf);
-        if (getenv("SHUX_DEBUG_PIPE")) {
+        if (getenv("XLANG_DEBUG_PIPE")) {
           fn_name_buf[fn_name_len > 0 && fn_name_len < 64 ? fn_name_len : 0] = '\0';
-          fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] library typeck fail i=%d name=%s\n", (int)i,
+          fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] library typeck fail i=%d name=%s\n", (int)i,
                   fn_name_len > 0 ? (char *)fn_name_buf : "?");
           fflush(stderr);
         }
@@ -30028,13 +30028,13 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
   int32_t i;
 
   if (!module || !arena || !ctx) {
-    if (getenv("SHUX_DEBUG_PIPE"))
-      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_x_ast_library_c null arg m=%p a=%p ctx=%p\n", (void *)module,
+    if (getenv("XLANG_DEBUG_PIPE"))
+      fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typeck_x_ast_library_c null arg m=%p a=%p ctx=%p\n", (void *)module,
               (void *)arena, (void *)ctx);
     return -5;
   }
-  if (getenv("SHUX_DEBUG_PIPE"))
-    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] enter library_c module->num_funcs=%d pipeline_num=%d\n",
+  if (getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] enter library_c module->num_funcs=%d pipeline_num=%d\n",
             (int)module->num_funcs, (int)pipeline_module_num_funcs(module));
   if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
     return -7;
@@ -30062,9 +30062,9 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
       if (pipeline_typeck_check_block_c(module, arena, body_ref, ret_ty_ref, ctx) != 0) {
         fn_name_len = pipeline_module_func_name_len_at(module, i);
         pipeline_asm_module_func_name_copy64(module, i, fn_name_buf);
-        if (getenv("SHUX_DEBUG_PIPE")) {
+        if (getenv("XLANG_DEBUG_PIPE")) {
           fn_name_buf[fn_name_len > 0 && fn_name_len < 64 ? fn_name_len : 0] = '\0';
-          fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] library typeck fail i=%d name=%s\n", (int)i,
+          fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] library typeck fail i=%d name=%s\n", (int)i,
                   fn_name_len > 0 ? (char *)fn_name_buf : "?");
           fflush(stderr);
         }
@@ -30100,7 +30100,7 @@ int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_AS
  * Entry / final typeck still report hard XT001 (suppress cleared after prerun attempt).
  *
  * wave90: product pure owns pipeline_typeck_diag_soft_suppress_set / _get
- * (runtime_pipeline_abi.x BSS). Keep SHUX_WEAK cold fallback for links without pure
+ * (runtime_pipeline_abi.x BSS). Keep XLANG_WEAK cold fallback for links without pure
  * pipeline_abi / PREFER hybrid. PLATFORM: SHARED — ELF weak overridden by pure.
  */
 static int32_t g_pipeline_typeck_diag_soft_suppress = 0;
@@ -30115,7 +30115,7 @@ __attribute__((weak)) int32_t pipeline_typeck_diag_soft_suppress_get(void) {
 
 /*
  * wave91: product pure owns pipeline_typeck_set_dep_ctx / get_dep_ctx
- * (runtime_pipeline_abi.x LP64 BSS). Keep SHUX_WEAK cold fallback for links without pure
+ * (runtime_pipeline_abi.x LP64 BSS). Keep XLANG_WEAK cold fallback for links without pure
  * pipeline_abi / PREFER hybrid. Independent cold BSS (not shared with pure).
  * PLATFORM: SHARED — ELF weak overridden by pure; ast_pool enum fallback calls get.
  */
@@ -30139,7 +30139,7 @@ extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast
                                             struct ast_PipelineDepCtx *ctx);
 /*
  * wave89: product pure owns pipeline_typeck_dep_prerun_module_c (runtime_pipeline_abi.x).
- * Keep SHUX_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
+ * Keep XLANG_WEAK cold fallback for links without pure pipeline_abi / PREFER hybrid.
  * PLATFORM: SHARED — ELF weak overridden by pure; same steps as pure orch.
  */
 __attribute__((weak)) int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module,
@@ -30155,8 +30155,8 @@ __attribute__((weak)) int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Mod
   pipeline_typeck_diag_soft_suppress_set(0);
   if (tc == 0)
     return 0;
-  if (getenv("SHUX_DEBUG_PIPE"))
-    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun full typeck rc=%d, light fallback\n", (int)tc);
+  if (getenv("XLANG_DEBUG_PIPE"))
+    fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep prerun full typeck rc=%d, light fallback\n", (int)tc);
   if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
     return -7;
   pipeline_typeck_patch_all_body_parent_links_c(module, arena);

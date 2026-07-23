@@ -66,7 +66,7 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：`json_escape_str_impl`、`lsp_diag_copy_text_impl`
-  - thin+rest 宏边界：`SHUX_LSP_DIAG_STUBS_NO_C_FROM_X`
+  - thin+rest 宏边界：`XLANG_LSP_DIAG_STUBS_NO_C_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape

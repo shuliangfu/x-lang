@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-time-bench-timer.sh — STD-133 manifest 与烟测辅助
 
-STD_TIME_BENCH_TIMER_PREFIX="${SHUX_STD133_TIME_BENCH_TIMER_PREFIX:-shux: [SHUX_STD133_TIME_BENCH_TIMER]}"
+STD_TIME_BENCH_TIMER_PREFIX="${XLANG_STD133_TIME_BENCH_TIMER_PREFIX:-xlang: [XLANG_STD133_TIME_BENCH_TIMER]}"
 
 # 校验 manifest 条目；echo 缺失数。
 std_time_bench_timer_symbols_ok() {
@@ -39,10 +39,10 @@ std_time_bench_timer_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_time_bench_timer_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_time_bench_$$"
-  if ! "$shux" -L . "$src" -o "$exe" 2>&1; then
+  local exe="/tmp/xlang_std_time_bench_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" 2>&1; then
     echo "std-time-bench-timer FAIL: compile $src" >&2
     rm -f "$exe"
     return 1

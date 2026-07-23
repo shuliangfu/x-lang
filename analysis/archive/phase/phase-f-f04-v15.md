@@ -34,8 +34,8 @@
 ## 复现
 
 ```bash
-SHUX_F04_NET_CLOSURE_FAIL=1 ./tests/run-f04-std-net-closure-gate.sh
-SHUX_F04_NET_SLICE_V14_FAIL=1 ./tests/run-f04-std-net-slice-v14-gate.sh
+XLANG_F04_NET_CLOSURE_FAIL=1 ./tests/run-f04-std-net-closure-gate.sh
+XLANG_F04_NET_SLICE_V14_FAIL=1 ./tests/run-f04-std-net-slice-v14-gate.sh
 ./tests/run-net.sh
 ```
 

@@ -2,10 +2,10 @@
  * Logic still C until full .x port.
  */
 /**
- * runtime_c_import.c — shux-c C 前端 import 递归加载（Phase E-04 v33）
+ * runtime_c_import.c — xlang-c C 前端 import 递归加载（Phase E-04 v33）
  *
  * 文件职责：load_one_import / resolve_and_load_imports / shu_lsp_resolve_and_load_imports；
- *           自 runtime.c 迁出，供 shux-c 与带 C 前端的 runtime_driver 路径链接。
+ *           自 runtime.c 迁出，供 xlang-c 与带 C 前端的 runtime_driver 路径链接。
  * 所属模块：compiler 运行时；bootstrap driver seed（NO_C）不链本 TU。
  * 与其它文件的关系：依赖 runtime_pipeline_abi（路径/preprocess）、preprocess.o、lexer/parser/typeck。
  */
@@ -34,18 +34,18 @@
 static ASTModule *load_one_import(const char *import_path, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char **defines, int ndefines, int allow_legacy_extern, ASTModule **all_dep_mods, char **all_dep_paths,
     char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all, int max_all) {
-    int idx = shux_find_loaded_import_index(import_path, all_dep_paths, *n_all);
+    int idx = xlang_find_loaded_import_index(import_path, all_dep_paths, *n_all);
 
     if (idx >= 0)
         return all_dep_mods[idx];
     if (*n_all >= max_all) {
-        diag_report_with_code(NULL, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, "too many transitive imports", NULL);
+        diag_report_with_code(NULL, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP004, "too many transitive imports", NULL);
         return NULL;
     }
     {
         char path[512];
         char dep_dir[512];
-        ShuxRuntimeFileView raw_view;
+        XlangRuntimeFileView raw_view;
         char *src;
         Lexer *lex;
         ASTModule *dep = NULL;
@@ -53,14 +53,14 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
         int diag_pushed = 0;
         int pr;
 
-        shux_resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_path, path, sizeof(path));
-        if (shux_import_dep_dir_from_path(path, dep_dir, sizeof(dep_dir)) != 0) {
-            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
+        xlang_resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_path, path, sizeof(path));
+        if (xlang_import_dep_dir_from_path(path, dep_dir, sizeof(dep_dir)) != 0) {
+            diag_reportf_with_code(path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP004, NULL,
                          "import path too long for dep_dir '%s'", import_path ? import_path : "?");
             return NULL;
         }
         if (runtime_read_file_view(path, &raw_view) != 0) {
-            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP001, NULL,
+            diag_reportf_with_code(path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP001, NULL,
                          "cannot open import '%s' (tried %s)",
                          import_path ? import_path : "?", path);
             return NULL;
@@ -68,7 +68,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
         src = preprocess(raw_view.data, raw_view.length, defines, ndefines, NULL);
         runtime_release_file_view(&raw_view);
         if (!src) {
-            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
+            diag_reportf_with_code(path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP002, NULL,
                          "preprocess failed for import '%s'", import_path ? import_path : "?");
             return NULL;
         }
@@ -81,7 +81,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
             if (diag_pushed)
                 diag_restore(&diag_snapshot);
             free(src);
-            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP003, NULL,
+            diag_reportf_with_code(path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP003, NULL,
                          "failed to parse import '%s'", import_path ? import_path : "?");
             return NULL;
         }
@@ -110,7 +110,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
             int ndeps = 0;
 
             for (int j = 0; j < dep->num_imports && ndeps < SHU_C_MAX_ALL_DEPS; j++) {
-                idx = shux_find_loaded_import_index(dep->import_paths[j], all_dep_paths, *n_all);
+                idx = xlang_find_loaded_import_index(dep->import_paths[j], all_dep_paths, *n_all);
                 if (idx >= 0)
                     deps[ndeps++] = all_dep_mods[idx];
             }
@@ -125,7 +125,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
                     if (diag_pushed)
                         diag_restore(&diag_snapshot);
                     free(src);
-                    diag_reportf_with_code(path, 0, 0, "typeck error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
+                    diag_reportf_with_code(path, 0, 0, "typeck error", XLANG_DIAG_CODE_IMPORT_IMP004, NULL,
                                  "typeck failed for import '%s' (file %s)",
                                  import_path ? import_path : "?", path);
                     ast_module_free(dep);

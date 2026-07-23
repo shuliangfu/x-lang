@@ -34,7 +34,7 @@ int shu_mbedtls_bio_send_impl(void *ctx, const unsigned char *buf, size_t len) {
     return (int)r;
 }
 
-#ifndef SHUX_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
+#ifndef XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int shu_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len) {
     return shu_mbedtls_bio_send_impl(ctx, buf, len);
@@ -57,7 +57,7 @@ int shu_mbedtls_bio_recv_impl(void *ctx, unsigned char *buf, size_t len) {
     return (int)r;
 }
 
-#ifndef SHUX_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
+#ifndef XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int shu_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
     return shu_mbedtls_bio_recv_impl(ctx, buf, len);

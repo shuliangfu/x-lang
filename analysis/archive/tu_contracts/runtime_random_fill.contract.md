@@ -30,7 +30,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`random_get_alg_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_RANDOM_FILL_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_RANDOM_FILL_FROM_X`
 - 平台注意：`random_get_alg`/`_impl` 仅 Windows 有定义；.x thin wrapper 在非 Windows 平台引用 `_impl`（U 符号），但不被引用故不影响链接
 
 ## 5. 验证状态

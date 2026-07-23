@@ -17,7 +17,7 @@
 // mod.x — SHIR layer module entry (re-export)
 //
 // Module: ir/shir
-// Layer: SHIR (Shux High IR; closest to language semantics)
+// Layer: SHIR (Xlang High IR; closest to language semantics)
 // Phase: Phase 1
 // Responsibility: Aggregate shir/ submodule exports (lower / interp / verify).
 // Depends: ../inst / ../contract / ../effect / ../opcode / ../abi

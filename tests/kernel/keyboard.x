@@ -77,7 +77,7 @@ function kmain(): i32 {
   serial_putc(kbd_translate(0x28));
   serial_putc(kbd_translate(0x31));
   serial_putc(10);
-  // "shux" = s(0x13) h(0x24) u(0x22) x(0x11)
+  // "xlang" = s(0x13) h(0x24) u(0x22) x(0x11)
   serial_putc(kbd_translate(0x13));
   serial_putc(kbd_translate(0x24));
   serial_putc(kbd_translate(0x22));

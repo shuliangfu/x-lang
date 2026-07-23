@@ -481,7 +481,7 @@ export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: 
  *   await_stmt_idx@4876 i32; total 4880 bytes.
  *
  * Stack discipline: cache only let indices (i32[64]), re-fetch names from the AST
- * when needed — avoids a u8[4096] frame that flaked Ubuntu shux -E (SIGSEGV).
+ * when needed — avoids a u8[4096] frame that flaked Ubuntu xlang -E (SIGSEGV).
  *
  * @param arena AST arena (opaque)
  * @param mod module (opaque)
