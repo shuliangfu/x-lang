@@ -1475,24 +1475,33 @@ export function driver_lib_root_ptr_usable(p: *u8): i32 {
   return 1;
 }
 
-export extern "C" function getenv(name: *u8): *u8;
+/* wave242 G.7: dual-anchor env via public pure thin link_abi_getenv (wave222 → _impl host
+ * getenv); not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * Product hybrid authority remains rt_entry pure (wave227 already link_abi_getenv); this
+ * file is the cold/.x dual anchor and must match pure semantics.
+ * PLATFORM: SHARED orch / host getenv residual via single face. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 
 export extern "C" function diag_json_enabled(): i32;
 
-// xlang_smoke_diag_enabled: see function docblock below.
-
-/** Exported function `xlang_smoke_diag_enabled`.
- * Implements `xlang_smoke_diag_enabled`.
- * @return i32
+/**
+ * Whether structured smoke diagnostic emission is enabled.
+ * Dual-anchor mirror of rt_entry pure orch (wave227 G.7).
+ * True when diag JSON mode is on, or XLANG_SMOKE_DIAG is set to a non-empty value
+ * other than ASCII '0' (48).
+ * @return i32 — 1 enabled, 0 disabled
+ * wave242: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
+ * PLATFORM: SHARED — process env; host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function xlang_smoke_diag_enabled(): i32 {
   unsafe {
     let j: i32 = diag_json_enabled();
     if (j != 0) { return 1; }
-    let e: *u8 = getenv("XLANG_SMOKE_DIAG");
+    let e: *u8 = link_abi_getenv("XLANG_SMOKE_DIAG");
     if (e == 0) { return 0; }
     if (e[0] == 0) { return 0; }
+    /* Leading ASCII '0' (48) disables smoke diag. */
     if (e[0] == 48) { return 0; }
     return 1;
   }

@@ -328,17 +328,25 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #endif
 
 /**
- * 结构化 smoke 是否启用：`--diag-json`（diag_json_enabled）或 XLANG_SMOKE_DIAG=1。
- * 默认关闭，保持 stdout 旧行（grep/golden 兼容）；启用时另向 stderr 输出带编号的 info 诊断。
+ * Whether structured smoke diagnostic emission is enabled.
+ * Dual-anchor cold twin of rt_entry pure / runtime.x (wave227/wave242 G.7).
+ * True when `--diag-json` (diag_json_enabled) or XLANG_SMOKE_DIAG is non-empty
+ * and not leading ASCII '0'. Default off keeps legacy stdout lines (grep/golden).
+ * wave242: raw getenv closed — public pure thin link_abi_getenv (→ _impl host getenv).
+ * Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — process env; host residual via single face.
  */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-301 R10 → rt_entry hybrid */
+/* wave242 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern char *link_abi_getenv(const char *name);
 #ifndef XLANG_RT_ENTRY_FROM_X
 int xlang_smoke_diag_enabled(void) {
   const char *e;
   if (diag_json_enabled())
     return 1;
-  e = getenv("XLANG_SMOKE_DIAG");
+  /* wave242 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+  e = link_abi_getenv("XLANG_SMOKE_DIAG");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 #else
