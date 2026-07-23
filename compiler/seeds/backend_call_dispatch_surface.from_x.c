@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+/* wave231 G.7: env via public pure thin link_abi_getenv (not raw libc getenv). */
+extern char *link_abi_getenv(const char *name);
 extern int32_t backend_call_dispatch_x_doc_anchor(void);
 extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
 extern void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
@@ -76,7 +78,8 @@ int32_t backend_call_dispatch_x_doc_anchor(void) {
 }
 int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
   {
-    uint8_t * env = getenv((uint8_t[]){83, 72, 85, 88, 95, 65, 66, 73, 95, 70, 51, 50, 95, 88, 77, 77, 0 });
+    /* wave231 G.7: SHUX_ABI_F32_XMM via link_abi_getenv (not raw getenv). */
+    uint8_t * env = (uint8_t *)link_abi_getenv((const char *)(uint8_t[]){83, 72, 85, 88, 95, 65, 66, 73, 95, 70, 51, 50, 95, 88, 77, 77, 0 });
     if ((env !=0)) {
       if (((env)[0] ==48)) {
         if (((env)[1] ==0)) {
@@ -1857,8 +1860,9 @@ int32_t pipeline_asm_emit_call_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t
     (void)(((knofold)[14] = 76));
     (void)(((knofold)[15] = 68));
     (void)(((knofold)[16] = 0));
-    if ((getenv(&((kmono)[0])) ==0)) {
-      if ((getenv(&((knofold)[0])) ==0)) {
+    /* wave231 G.7: SHUX_WPO_MONO / SHUX_WPO_NO_FOLD via link_abi_getenv (not raw getenv). */
+    if ((link_abi_getenv((const char *)&((kmono)[0])) ==0)) {
+      if ((link_abi_getenv((const char *)&((knofold)[0])) ==0)) {
         (void)((inline_rc = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta)));
         if ((inline_rc !=0)) {
           if ((inline_rc < 0)) {

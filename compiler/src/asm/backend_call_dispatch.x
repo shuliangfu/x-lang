@@ -9,7 +9,10 @@
 // PLATFORM: SHARED — all export extern "C" hoisted before first use so -E emits
 // short-name prototypes matching call sites (late mid-file externs caused type-mangle
 // decls vs short calls → undeclared + cc fail). Product ABI = short pipeline_* names.
-export extern "C" function getenv(name: *u8): *u8;
+/* wave231 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid full.x path owns f32 xmm / WPO fold env gates. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
@@ -103,13 +106,16 @@ export function backend_call_dispatch_x_doc_anchor(): i32 {
 let g_pipeline_asm_emit_call_f32_xmm: i32 = 0;
 
 /** Exported function `pipeline_asm_abi_f32_xmm_enabled_c`.
- * Implements `pipeline_asm_abi_f32_xmm_enabled_c`.
- * @return i32
+ * Default-on f32 XMM ABI gate: returns 0 only when SHUX_ABI_F32_XMM is exactly "0".
+ * wave231 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
+ * @return i32 1 = f32 xmm enabled; 0 = legacy f64 widen
  */
 #[no_mangle]
 export function pipeline_asm_abi_f32_xmm_enabled_c(): i32 {
   unsafe {
-    let env: *u8 = getenv("SHUX_ABI_F32_XMM");
+    // wave231 G.7: SHUX_ABI_F32_XMM via link_abi_getenv.
+    let env: *u8 = link_abi_getenv("SHUX_ABI_F32_XMM");
     if (env != 0) {
       // "0"
       if (env[0] == 48) {
@@ -1788,8 +1794,10 @@ export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
     knofold[5] = 87; knofold[6] = 80; knofold[7] = 79; knofold[8] = 95;
     knofold[9] = 78; knofold[10] = 79; knofold[11] = 95;
     knofold[12] = 70; knofold[13] = 79; knofold[14] = 76; knofold[15] = 68; knofold[16] = 0;
-    if (getenv(&kmono[0]) == 0) {
-      if (getenv(&knofold[0]) == 0) {
+    // wave231 G.7: SHUX_WPO_MONO / SHUX_WPO_NO_FOLD via link_abi_getenv (not raw getenv).
+    // Const fold only when neither mono nor no-fold env is set.
+    if (link_abi_getenv(&kmono[0]) == 0) {
+      if (link_abi_getenv(&knofold[0]) == 0) {
         inline_rc = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
         if (inline_rc != 0) {
           if (inline_rc < 0) { return 0 - 1; }

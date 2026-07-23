@@ -95,10 +95,15 @@ int32_t glue_f32_xmm_flag_get_body(void);
 #endif
 
 
+/* wave231 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure).
+ * Cap residual host getenv stays only link_abi_getenv_impl. Cold twin of backend_call_dispatch.x. */
+extern char *link_abi_getenv(const char *name);
+
 static void backend_call_debugf(const char *fmt, ...) {
   char buf[256];
   va_list ap;
-  if (!getenv("SHUX_ASM_DEBUG"))
+  /* wave231 G.7: SHUX_ASM_DEBUG via link_abi_getenv (not raw getenv). */
+  if (!link_abi_getenv("SHUX_ASM_DEBUG"))
     return;
   va_start(ap, fmt);
   (void)vsnprintf(buf, sizeof buf, fmt ? fmt : "asm call debug", ap);
@@ -451,8 +456,9 @@ extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t typ
 /** 默认开启 f32 xmm ABI；SHUX_ABI_F32_XMM=0 回落 legacy f64 widen。 */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
+/* wave231 G.7: SHUX_ABI_F32_XMM via link_abi_getenv (not raw getenv). */
 int32_t pipeline_asm_abi_f32_xmm_enabled_c_impl(void) {
-  const char *env = getenv("SHUX_ABI_F32_XMM");
+  const char *env = link_abi_getenv("SHUX_ABI_F32_XMM");
   if (env && env[0] == '0' && env[1] == '\0')
     return 0;
   return 1;
@@ -3253,7 +3259,8 @@ int32_t pipeline_asm_emit_call_elf_c_impl(struct ast_ASTArena *arena, struct pla
   inline_rc = try_call_wpo_mono_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
   if (inline_rc != 0)
     return inline_rc < 0 ? -1 : 0;
-  if (!getenv("SHUX_WPO_MONO") && !getenv("SHUX_WPO_NO_FOLD")) {
+  /* wave231 G.7: SHUX_WPO_MONO / SHUX_WPO_NO_FOLD via link_abi_getenv (not raw getenv). */
+  if (!link_abi_getenv("SHUX_WPO_MONO") && !link_abi_getenv("SHUX_WPO_NO_FOLD")) {
     /* SHUX_WPO_NO_FOLD=1：bench/对照时禁用常量实参 fold（仍允许 mono 路径）。 */
     inline_rc = try_inline_wpo_const_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
     if (inline_rc != 0)
