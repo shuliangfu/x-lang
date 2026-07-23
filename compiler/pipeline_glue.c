@@ -12301,6 +12301,12 @@ static int32_t glue_binop_operand_is_scalar_f64_elf_c(struct ast_ASTArena *arena
   return 0;
 }
 
+/** wave296/wave297 mixed f32/f64 arith; defined below (forward for add path). */
+static int32_t glue_try_emit_mixed_f32_f64_arith_elf_c(struct ast_ASTArena *arena,
+                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                        struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                        int32_t right_ref, int32_t ta, int32_t op_kind);
+
 /** f32 ADD → addss; f64 ADD → addsd; else integer add。 */
 static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -12389,6 +12395,16 @@ static int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena, str
   int32_t lit_imm;
   int32_t vr;
   int32_t inl;
+  int32_t mixed_rc;
+  /**
+   * wave297: mixed f32+f64 before commutative/left-assoc (placement not fixed there).
+   * Promote f32 side (cvtss2sd) then addsd; typeck result is f64 (f64-before-f32).
+   */
+  mixed_rc = glue_try_emit_mixed_f32_f64_arith_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta, 4);
+  if (mixed_rc == 0)
+    return 0;
+  if (mixed_rc == -1)
+    return -1;
   /** WPO-S3：p.a + p.b 同 VAR 字段求和（cross_ret 等 import struct）。 */
   inl = try_inline_var_field_sum_binop_elf(arena, elf_ctx, left_ref, right_ref, ctx, ta);
   if (inl != 0)
@@ -12499,16 +12515,25 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * wave296: freestanding mixed f32*f64 (or f64*f32) mul with fixed register placement.
- * Emits left→rax, push; right→rax; pop rbx (left=rbx, right=rax); promotes the f32
- * side via cvtss2sd (reuse wave293 encoder on rax; rbx via mov swap); then mulsd.
- * @return 0 ok; -1 emit fail; -2 not mixed (caller falls through).
+ * wave296/wave297: freestanding mixed f32/f64 ADD SUB MUL DIV with fixed register placement.
+ * Typeck usual arithmetic conversion is f64-before-f32 (result kind f64); emit must
+ * promote the f32 side (cvtss2sd, wave293) then use f64 scalar ops - never integer
+ * add/sub/imul/idiv on mixed IEEE widths (Ubuntu freestanding run=0; mac host-gcc hides).
+ *
+ * Placement (matches pure f64 conventions for non-commutative ops):
+ *   ADD/MUL (commutative): left=rbx, right=rax then addsd/mulsd rax,rbx
+ *   SUB: left=rbx, right=rax then subsd_rbx_rax (left minus right)
+ *   DIV: left=rax, right=rbx then divsd_rax_rbx (left / right; IEEE Inf/NaN on /0)
+ *
+ * @param op_kind EXPR kind_ord: 4=ADD, 5=SUB, 6=MUL, 7=DIV
+ * @return 0 ok; -1 emit fail; -2 not mixed (caller falls through to pure paths)
  * PLATFORM: LINUX+MACOS x86_64 emit / SHARED type semantics.
+ * G.7: single authority for mixed f32/f64 arith (complete mul leaf; no parallel helpers).
  */
-static int32_t glue_try_emit_mixed_f32_f64_mul_elf_c(struct ast_ASTArena *arena,
-                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                      struct backend_AsmFuncCtx *ctx, int32_t left_ref,
-                                                      int32_t right_ref, int32_t ta) {
+static int32_t glue_try_emit_mixed_f32_f64_arith_elf_c(struct ast_ASTArena *arena,
+                                                        struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                        struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                        int32_t right_ref, int32_t ta, int32_t op_kind) {
   int32_t lf32;
   int32_t rf32;
   int32_t lf64;
@@ -12516,11 +12541,13 @@ static int32_t glue_try_emit_mixed_f32_f64_mul_elf_c(struct ast_ASTArena *arena,
   int32_t mixed;
   if (ta != 0 || !arena || !elf_ctx || !ctx)
     return -2;
+  if (op_kind != 4 && op_kind != 5 && op_kind != 6 && op_kind != 7)
+    return -2;
   lf32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
   rf32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref);
   lf64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
   rf64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref);
-  /* Pure same-class: not mixed (caller uses mulss/mulsd). */
+  /* Pure same-class: not mixed (caller uses addss/addsd/mulss/mulsd/…). */
   if (lf32 && rf32)
     return -2;
   if (lf64 && rf64 && !lf32 && !rf32)
@@ -12528,34 +12555,77 @@ static int32_t glue_try_emit_mixed_f32_f64_mul_elf_c(struct ast_ASTArena *arena,
   mixed = ((lf32 && rf64) || (lf64 && rf32)) ? 1 : 0;
   if (!mixed)
     return -2;
-  /* Fixed placement: left in rbx, right in rax (same stack order as commutative slow). */
-  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
-    return -1;
-  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
-    return -1;
-  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
-    return -1;
-  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
-  /* Promote f32 side to f64 IEEE bits (cvtss2sd authority = wave293 encoder). */
-  if (lf32) {
+
+  if (op_kind == 7) {
+    /* DIV: left=rax, right=rbx (matches pure f64 divsd path). */
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
       return -1;
-    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
-  }
-  if (rf32) {
-    if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+    /* Promote f32 side(s) to f64 IEEE bits in place. */
+    if (lf32) {
+      if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (rf32) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_divsd_rax_rbx_arch(elf_ctx, ta) != 0)
       return -1;
+  } else {
+    /* ADD/SUB/MUL: left=rbx, right=rax (wave296 mul placement). */
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    /* Promote f32 side to f64 IEEE bits (cvtss2sd authority = wave293 encoder). */
+    if (lf32) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (rf32) {
+      if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    if (op_kind == 4) {
+      if (backend_enc_addsd_rax_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else if (op_kind == 5) {
+      if (backend_enc_subsd_rbx_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    } else {
+      /* op_kind == 6 MUL */
+      if (backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
   }
-  if (backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta) != 0)
-    return -1;
   glue_binop_var_slot_cache_invalidate_rax();
   return 0;
 }
@@ -12564,6 +12634,16 @@ static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, str
                                                    int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx,
                                                    int32_t ta) {
   int32_t lit_imm;
+  int32_t mixed_rc;
+  /**
+   * wave297: mixed f32-f64 / f64-f32 before lit/var paths (placement not fixed there).
+   * Promote f32 side then subsd_rbx_rax (left − right); typeck result f64.
+   */
+  mixed_rc = glue_try_emit_mixed_f32_f64_arith_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta, 5);
+  if (mixed_rc == 0)
+    return 0;
+  if (mixed_rc == -1)
+    return -1;
   /** 左字面量：先 emit 右子树，再 rbx=左立即数，结果 rbx-rax（如 42-i）。 */
   if (pipeline_asm_expr_lit_i32_at_c(arena, left_ref, &lit_imm)) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
@@ -12632,10 +12712,11 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
   int32_t vr;
   int32_t mixed_rc;
   /**
-   * wave296: mixed f32*f64 before commutative/left-assoc (placement not fixed there).
+   * wave296/wave297: mixed f32*f64 before commutative/left-assoc (placement not fixed there).
    * Promote f32 side (cvtss2sd) then mulsd; typeck result is f64 (f64-before-f32).
+   * Authority: glue_try_emit_mixed_f32_f64_arith_elf_c (G.7 complete arith leaf).
    */
-  mixed_rc = glue_try_emit_mixed_f32_f64_mul_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  mixed_rc = glue_try_emit_mixed_f32_f64_arith_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta, 6);
   if (mixed_rc == 0)
     return 0;
   if (mixed_rc == -1)
@@ -12837,6 +12918,16 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
   int32_t lit_imm;
   int32_t vr;
   int32_t is_unsigned;
+  int32_t mixed_rc;
+  /**
+   * wave297: mixed f32/f64 before pure-f64 or integer idiv.
+   * Promote f32 then divsd; no integer div-zero panic (IEEE Inf/NaN).
+   */
+  mixed_rc = glue_try_emit_mixed_f32_f64_arith_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta, 7);
+  if (mixed_rc == 0)
+    return 0;
+  if (mixed_rc == -1)
+    return -1;
   /** PLATFORM: SHARED — f64 / must use IEEE divsd, not idiv of bit patterns (same residual as mulsd).
    * Skip integer lit imm32 path (truncates float bits) and integer div-zero panic (IEEE → Inf/NaN). */
   if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
