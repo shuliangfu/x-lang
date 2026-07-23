@@ -142,6 +142,9 @@ int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_
 int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t esz, int32_t ta);
 int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_mulss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_subss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_subss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_divss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -801,6 +804,82 @@ int32_t backend_enc_mulss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm1_ebx, 4) != 0)
     return -1;
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)mulss_xmm0_xmm1, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_eax_xmm0, 4);
+}
+#endif
+
+/**
+ * x86: scalar f32 sub left(rbx)-right(rax) → eax (subss).
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ * Root: glue SUB only emitted subsd when both scalar f64; pure f32 fell to integer sub
+ * of IEEE bits → freestanding run=0 (mac host-gcc hid). G.7 next to addss/mulss/subsd.
+ * Encoding: movd xmm0,ebx; movd xmm1,eax; subss xmm0,xmm1 (F3 0F 5C C1); movd eax,xmm0.
+ */
+/* G-02f-208: logic source .x (true migrate); seed keeps same semantics for product cc */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_subss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movd_xmm0_ebx[4] = {0x66, 0x0f, 0x6e, 0xc3};
+  static const uint8_t movd_xmm1_eax[4] = {0x66, 0x0f, 0x6e, 0xc8};
+  static const uint8_t subss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x5c, 0xc1};
+  static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_ebx, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm1_eax, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)subss_xmm0_xmm1, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_eax_xmm0, 4);
+}
+#endif
+
+/**
+ * x86: scalar f32 sub left(rax)-right(rbx) → eax (subss).
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ * G.7 twin of subss_rbx_rax / subsd_rax_rbx conventions.
+ * Encoding: movd xmm0,eax; movd xmm1,ebx; subss xmm0,xmm1; movd eax,xmm0.
+ */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_subss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
+  static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
+  static const uint8_t subss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x5c, 0xc1};
+  static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm1_ebx, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)subss_xmm0_xmm1, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_eax_xmm0, 4);
+}
+#endif
+
+/**
+ * x86: scalar f32 div left(rax)/right(rbx) → eax (divss).
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `/` (wave298 Cap residual pure).
+ * Root: glue DIV only emitted divsd when both scalar f64; pure f32 fell to idiv
+ * of IEEE bits → freestanding run=0 (mac host-gcc hid). G.7 next to mulss/divsd.
+ * Encoding: movd xmm0,eax; movd xmm1,ebx; divss xmm0,xmm1 (F3 0F 5E C1); movd eax,xmm0.
+ * IEEE Inf/NaN on /0 (no integer div-zero panic).
+ */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_divss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
+  static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
+  static const uint8_t divss_xmm0_xmm1[4] = {0xf3, 0x0f, 0x5e, 0xc1};
+  static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm1_ebx, 4) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)divss_xmm0_xmm1, 4) != 0)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_eax_xmm0, 4);
 }

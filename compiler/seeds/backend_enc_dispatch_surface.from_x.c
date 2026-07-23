@@ -132,6 +132,9 @@ extern int32_t backend_enc_mul_imm_to_index_scratch_arch(uint8_t * elf_ctx, int3
 extern int32_t backend_enc_mul_imm_to_rbx_arch(uint8_t * elf_ctx, int32_t lit, int32_t ta);
 extern int32_t backend_enc_addss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_subss_rbx_rax_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_subss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_divss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
@@ -1633,6 +1636,128 @@ int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
     (void)(((a)[0] = 243));
     (void)(((a)[1] = 15));
     (void)(((a)[2] = 89));
+    (void)(((a)[3] = 193));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 126));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 SUB freestanding (subss); left=rbx right=rax → eax. */
+int32_t backend_enc_subss_rbx_rax_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    /* movd xmm0,ebx — 66 0f 6e c3 */
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 195));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* movd xmm1,eax — 66 0f 6e c8 */
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 200));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* subss xmm0,xmm1 — f3 0f 5c c1 */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 92));
+    (void)(((a)[3] = 193));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 126));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 SUB freestanding (subss); left=rax right=rbx → eax. */
+int32_t backend_enc_subss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 203));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* subss xmm0,xmm1 — f3 0f 5c c1 */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 92));
+    (void)(((a)[3] = 193));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 126));
+    (void)(((a)[3] = 192));
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 DIV freestanding (divss); left=rax right=rbx → eax. */
+int32_t backend_enc_divss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==0)) {
+    return (0 - 1);
+  }
+  {
+    uint8_t a[4] = {};
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 192));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    (void)(((a)[0] = 102));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 110));
+    (void)(((a)[3] = 203));
+    if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
+      return (0 - 1);
+    }
+    /* divss xmm0,xmm1 — f3 0f 5e c1 */
+    (void)(((a)[0] = 243));
+    (void)(((a)[1] = 15));
+    (void)(((a)[2] = 94));
     (void)(((a)[3] = 193));
     if ((pipeline_elf_ctx_append_bytes(elf_ctx, &((a)[0]), 4) !=0)) {
       return (0 - 1);

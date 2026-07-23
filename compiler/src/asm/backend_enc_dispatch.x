@@ -2346,6 +2346,97 @@ export function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
+/**
+ * Scalar f32 sub: left bits in ebx, right in eax → (left-right) bits in eax (subss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ * G.7: complete authority next to addss/mulss/subsd (not integer sub on float bits).
+ */
+#[no_mangle]
+export function backend_enc_subss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, ebx — 66 0f 6e c3 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 195;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, eax — 66 0f 6e c8 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 200;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* subss xmm0, xmm1 — f3 0f 5c c1 */
+    a[0] = 243; a[1] = 15; a[2] = 92; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Scalar f32 sub: left bits in eax, right in ebx → (left-right) bits in eax (subss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ * G.7 twin of subss_rbx_rax (rax-rbx placement convention).
+ */
+#[no_mangle]
+export function backend_enc_subss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, ebx — 66 0f 6e cb */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 203;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* subss xmm0, xmm1 — f3 0f 5c c1 */
+    a[0] = 243; a[1] = 15; a[2] = 92; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Scalar f32 divide: left bits in eax, right in ebx → quotient bits in eax (divss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `/` (wave298 Cap residual pure).
+ * G.7: complete authority next to mulss/divsd (not integer idiv on float bits).
+ * IEEE Inf/NaN on /0 (no integer div-zero panic).
+ */
+#[no_mangle]
+export function backend_enc_divss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd xmm1, ebx — 66 0f 6e cb */
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 203;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* divss xmm0, xmm1 — f3 0f 5e c1 */
+    a[0] = 243; a[1] = 15; a[2] = 94; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * Implements `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * @param elf_ctx *u8

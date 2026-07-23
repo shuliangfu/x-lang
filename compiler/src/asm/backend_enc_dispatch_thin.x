@@ -2523,6 +2523,103 @@ export function backend_enc_mulss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
+/**
+ * Scalar f32 sub left=rbx right=rax (subss); thin u32 LE twin.
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ * Encoding: movd xmm0,ebx; movd xmm1,eax; subss F3 0F 5C C1 (u32 le 3244036083); movd eax,xmm0.
+ */
+#[no_mangle]
+export function backend_enc_subss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    /* movd xmm0,ebx: 66 0f 6e c3 → 3278770022 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3278770022) != 0) {
+      return 0 - 1;
+    }
+    /* movd xmm1,eax: 66 0f 6e c8 → 3362656102 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3362656102) != 0) {
+      return 0 - 1;
+    }
+    /* subss xmm0,xmm1: f3 0f 5c c1 → 3244036083 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3244036083) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Scalar f32 sub left=rax right=rbx (subss); thin u32 LE twin.
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `-` (wave298 Cap residual pure).
+ */
+#[no_mangle]
+export function backend_enc_subss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3412987750) != 0) {
+      return 0 - 1;
+    }
+    /* subss f3 0f 5c c1 → 3244036083 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3244036083) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Scalar f32 div left=rax right=rbx (divss); thin u32 LE twin.
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `/` (wave298 Cap residual pure).
+ * Encoding mirror of mulss with divss opcode F3 0F 5E C1 (u32 le 3244167155).
+ */
+#[no_mangle]
+export function backend_enc_divss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3412987750) != 0) {
+      return 0 - 1;
+    }
+    /* divss xmm0,xmm1: f3 0f 5e c1 → 3244167155 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3244167155) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * Implements `backend_enc_cvttss2si_eax_from_f32_bits_arch`.
  * @param elf_ctx *u8

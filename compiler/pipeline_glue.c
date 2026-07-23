@@ -1340,6 +1340,12 @@ extern int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *e
 extern int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** f32 bits in eax/rbx → product bits in eax (mulss); freestanding f32 `*` (wave294). */
 extern int32_t backend_enc_mulss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f32 bits: left ebx − right eax → eax (subss); freestanding f32 `-` (wave298). */
+extern int32_t backend_enc_subss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f32 bits: left eax − right ebx → eax (subss); freestanding f32 `-` (wave298). */
+extern int32_t backend_enc_subss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f32 bits: left eax / right ebx → eax (divss); freestanding f32 `/` (wave298). */
+extern int32_t backend_enc_divss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_addsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_subsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -12306,6 +12312,11 @@ static int32_t glue_try_emit_mixed_f32_f64_arith_elf_c(struct ast_ASTArena *aren
                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                         struct backend_AsmFuncCtx *ctx, int32_t left_ref,
                                                         int32_t right_ref, int32_t ta, int32_t op_kind);
+/** wave298: f32/f64 SUB helper (forward for assign -= path above body). */
+static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *arena,
+                                                         struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                         struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                         int32_t right_ref, int32_t ta);
 
 /** f32 ADD → addss; f64 ADD → addsd; else integer add。 */
 static int32_t glue_emit_binop_add_rax_rbx_elf_c(struct ast_ASTArena *arena,
@@ -12353,14 +12364,18 @@ static int32_t glue_emit_assign_rhs_to_rax_elf_c(struct ast_ASTArena *arena,
   case 29:
     return glue_emit_binop_add_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   case 30:
-    return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+    /* PLATFORM: SHARED — f64/f32 -= → subsd/subss (same residual as EXPR_SUB; not int sub). */
+    return glue_emit_binop_sub_rax_minus_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   case 31:
     return glue_emit_binop_mul_rax_rbx_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
   case 32:
-    /* PLATFORM: SHARED — f64 /= → divsd (same residual as EXPR_DIV; not idiv). */
+    /* PLATFORM: SHARED — f64 /= → divsd; f32 /= → divss (same residual as EXPR_DIV; not idiv). */
     if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
         glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
       return backend_enc_divsd_rax_rbx_arch(elf_ctx, ta);
+    if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+        glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
     if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
       return -1;
     return backend_enc_idiv_rbx_arch(elf_ctx, ta);
@@ -12468,7 +12483,12 @@ static int32_t pipeline_asm_emit_binop_add_elf_c(struct ast_ASTArena *arena, str
   return 0;
 }
 
-/** f64 SUB: left-right with bits in GPRs; rbx-rax or rax-rbx conventions match integer sub helpers. */
+/**
+ * f64 SUB → subsd; f32 SUB → subss; else integer sub.
+ * PLATFORM: SHARED arith / LINUX+MACOS x86_64 emit.
+ * wave298 Cap residual pure: freestanding f32 `-` used integer sub on IEEE bits → run=0
+ * (mac host-gcc hid). G.7: complete next to addss/mulss + subsd family.
+ */
 static int32_t glue_emit_binop_sub_rbx_minus_rax_elf_c(struct ast_ASTArena *arena,
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct backend_AsmFuncCtx *ctx, int32_t left_ref,
@@ -12476,6 +12496,9 @@ static int32_t glue_emit_binop_sub_rbx_minus_rax_elf_c(struct ast_ASTArena *aren
   if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
+  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
+    return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
   return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
 }
 
@@ -12486,6 +12509,9 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
   if (ta == 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) &&
       glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref))
     return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
+  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
+    return backend_enc_subss_rax_rbx_arch(elf_ctx, ta);
   return backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
 }
 
@@ -12920,7 +12946,7 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
   int32_t is_unsigned;
   int32_t mixed_rc;
   /**
-   * wave297: mixed f32/f64 before pure-f64 or integer idiv.
+   * wave297: mixed f32/f64 before pure-f64/f32 or integer idiv.
    * Promote f32 then divsd; no integer div-zero panic (IEEE Inf/NaN).
    */
   mixed_rc = glue_try_emit_mixed_f32_f64_arith_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta, 7);
@@ -12948,6 +12974,30 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
       return -1;
     return backend_enc_divsd_rax_rbx_arch(elf_ctx, ta);
+  }
+  /**
+   * wave298 Cap residual pure: pure f32 `/` → divss (not idiv of IEEE bits).
+   * Placement left=rax right=rbx matches pure f64 divsd path. IEEE Inf/NaN on /0.
+   * G.7: complete f32 scalar arith next to mulss/addss/subss.
+   */
+  if (ta == 0 && glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) &&
+      glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref)) {
+    vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+    if (vr == -1)
+      return -1;
+    if (vr == 0)
+      return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    return backend_enc_divss_rax_rbx_arch(elf_ctx, ta);
   }
   is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref);
   if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {

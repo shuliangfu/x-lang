@@ -129,6 +129,9 @@ extern int32_t backend_enc_load_rbp_to_rbx_arch(uint8_t * elf_ctx, int32_t offse
 extern int32_t backend_enc_load_rbp_lane_to_rbx_arch(uint8_t * elf_ctx, int32_t offset, int32_t esz, int32_t ta);
 extern int32_t backend_enc_addss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_subss_rbx_rax_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_subss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_divss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
@@ -2179,6 +2182,77 @@ int32_t backend_enc_mulss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
     }
     /* mulss F3 0F 59 C1 → u32 3243839475 → i32 -1051127821 */
     if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1051127821) !=0)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, -1065480346);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 SUB freestanding (subss); left=rbx right=rax → eax. */
+int32_t backend_enc_subss_rbx_rax_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    /* movd xmm0,ebx: 66 0f 6e c3 → i32 -1016197274 */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1016197274) !=0)) {
+      return (0 - 1);
+    }
+    /* movd xmm1,eax: 66 0f 6e c8 → i32 -932311194 */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -932311194) !=0)) {
+      return (0 - 1);
+    }
+    /* subss F3 0F 5C C1 → u32 3244036083 → i32 -1050931213 */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1050931213) !=0)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, -1065480346);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 SUB freestanding (subss); left=rax right=rbx → eax. */
+int32_t backend_enc_subss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1066528922) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -881979546) !=0)) {
+      return (0 - 1);
+    }
+    /* subss F3 0F 5C C1 → i32 -1050931213 */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1050931213) !=0)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, -1065480346);
+  }
+  return (0 - 1);
+}
+/* wave298: f32 DIV freestanding (divss); left=rax right=rbx → eax. */
+int32_t backend_enc_divss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1066528922) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -881979546) !=0)) {
+      return (0 - 1);
+    }
+    /* divss F3 0F 5E C1 → u32 3244167155 → i32 -1050800141 */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, -1050800141) !=0)) {
       return (0 - 1);
     }
     return backend_enc_append_u32_le_c_impl(elf_ctx, -1065480346);
