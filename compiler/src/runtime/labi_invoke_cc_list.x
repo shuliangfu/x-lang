@@ -139,7 +139,9 @@ export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 /* Diag on all-cc-candidates fail (status often -1 after spawn_sync collapses wait bits). */
 export extern "C" function link_diag_tool_status(tool: *u8, status: i32): void;
-/* Cap residual: best-effort `strip -x out` (local argv pack; pure cannot safely build **u8 table). */
+/* Cap residual body is invoke_cc_strip_out_x_impl (argv pack + spawn; wave220).
+ * Public pure thin (labi_diag_pure L1 hybrid) owns null/empty out_path gates.
+ * Pure cannot safely build **u8 argv tables in product codegen — residual packs sargv. */
 export extern "C" function invoke_cc_strip_out_x(out_path: *u8): void;
 
 /* ===== wave206 Cap residual / peer pure for argv head flags ===== */
@@ -3964,8 +3966,8 @@ export function invoke_cc_run_cc_argv(argv: **u8): i32 {
  * @param opt_level *u8 — optimization level string; null/empty/"0" → no-op
  * @return void — strip failure ignored (≡ mega (void)wait / (void)_spawnvp)
  * Pure orch: ≡ mega stage-8 strip shell after successful cc wait.
- * Cap residual: invoke_cc_strip_out_x (packs strip argv + spawn); host_is_windows skip
- *   (mega Windows path returned before strip; PE strip optional / often absent).
+ * Cap residual: invoke_cc_strip_out_x public pure thin (wave220) → _impl (packs strip argv +
+ *   spawn); host_is_windows skip (mega Windows path returned before strip; PE strip optional).
  * Why strip -x not bare strip: Darwin bare strip drops _main global → nm/otool false red.
  * PLATFORM: SHARED gate / POSIX strip body / WINDOWS no-op (preserve mega semantics).
  * Track-L: #[no_mangle] surface short name for mega call sites.

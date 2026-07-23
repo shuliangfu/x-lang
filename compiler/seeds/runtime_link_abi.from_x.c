@@ -392,12 +392,14 @@ int shux_spawn_sync(const char *prog, const char *const *argv);
 #endif
 
 /**
- * Cap residual (wave205): best-effort `strip -x out_path` after successful cc link.
+ * Cap residual (wave220): best-effort `strip -x out_path` body (argv pack + spawn).
+ * Pure orch (labi_diag_pure L1) owns public thin null/empty gates; _impl is always mega.
  * Pure orch invoke_cc_maybe_strip_out owns opt_level / Windows skip gates.
  * Must use strip -x (local symbols only): bare strip on Darwin drops _main globals
- * → nm/otool false red. PLATFORM: POSIX fork/spawn strip; WINDOWS _spawnvp strip.
+ * → nm/otool false red. G.7 single strip authority for maybe_strip / invoke_cc.
+ * PLATFORM: SHARED residual / POSIX strip via public shux_spawn_sync / WINDOWS _spawnvp.
  */
-void invoke_cc_strip_out_x(const char *out_path) {
+void invoke_cc_strip_out_x_impl(const char *out_path) {
     const char *sargv[4];
     if (!out_path || !out_path[0])
         return;
@@ -411,6 +413,21 @@ void invoke_cc_strip_out_x(const char *out_path) {
     (void)shux_spawn_sync("strip", sargv);
 #endif
 }
+
+/* wave220: invoke_cc_strip_out_x pure orch lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * Pure: null/empty out_path gates; Cap residual invoke_cc_strip_out_x_impl always mega.
+ * Why: hybrid still had strip_out_x body always mega C (gates+argv pack+spawn).
+ * PLATFORM: SHARED orch / POSIX strip residual / WINDOWS _spawnvp residual. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+void invoke_cc_strip_out_x(const char *out_path) {
+    if (!out_path || !out_path[0])
+        return;
+    invoke_cc_strip_out_x_impl(out_path);
+}
+#else
+void invoke_cc_strip_out_x(const char *out_path);
+#endif
 
 
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -2330,7 +2347,7 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 /* wave205: invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out pure orch lives in
  * labi_invoke_cc_list (fork-exec shell + strip after argv build). Cold twin via #include
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
- * Cap residual peers: shux_spawn_sync + invoke_cc_strip_out_x + setenv + host_is_* + tool_status.
+ * Cap residual peers: shux_spawn_sync + invoke_cc_strip_out_x_impl + setenv + host_is_* + tool_status.
  * Why: hybrid still had always-mega fork+exec+wait+strip after argv pure (wave198–204).
  * PLATFORM: SHARED orch / parent-side spawn (no fork-first argv build).
  */
@@ -3310,7 +3327,7 @@ void shux_invoke_cc_clear_user_o_files(void);
  * wave206: argv 头 flags 迁 pure（invoke_cc_append_argv_head_flags）；
  * wave207: argv 尾 flags 迁 pure（invoke_cc_append_argv_tail_flags：pthread/-lc/allow-multiple/user_extra+NULL）；
  * wave208: MINIMAL_CC_LINK 尾迁 pure（invoke_cc_append_minimal_cc_link_tail：Win process_argv + POSIX -lc + NULL）；
- *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x / getenv quiet·MINIMAL / skip_missing / user_extra count·at。
+ *   Cap residual shux_spawn_sync_impl / invoke_cc_strip_out_x_impl / getenv quiet·MINIMAL / skip_missing / user_extra count·at。
  */
 int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;

@@ -40,6 +40,13 @@ export extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i
  * PLATFORM: SHARED residual contract / POSIX fork / WINDOWS _spawnvp. */
 export extern "C" function shux_spawn_sync_impl(prog: *u8, argv: *u8): i32;
 
+/* Cap residual (wave220): best-effort `strip -x out` (local argv pack + spawn).
+ * Public pure thin owns null/empty out_path gates under hybrid L1.
+ * Pure cannot safely build **u8 argv tables in product codegen — residual packs
+ * sargv[4] and calls public shux_spawn_sync (POSIX) or _spawnvp (Windows).
+ * PLATFORM: SHARED residual contract / POSIX strip via spawn / WINDOWS _spawnvp. */
+export extern "C" function invoke_cc_strip_out_x_impl(out_path: *u8): void;
+
 /** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
@@ -795,11 +802,40 @@ export function shux_spawn_sync(prog: *u8, argv: *u8): i32 {
   return 0 - 1;
 }
 
+/**
+ * Best-effort `strip -x out_path` after successful cc link (local symbols only).
+ * Thin pure public: null/empty out_path → no-op without residual.
+ * Cap residual `invoke_cc_strip_out_x_impl` packs strip argv and spawns strip
+ * (POSIX via public shux_spawn_sync; Windows via _spawnvp).
+ * Why strip -x not bare strip: Darwin bare strip drops _main globals → nm/otool false red.
+ * @param out_path *u8 — linked product path; null/empty rejected at pure gate
+ * @return void — strip failure ignored (≡ mega (void)spawn / (void)_spawnvp)
+ * Pure orch: ≡ mega public thin before Cap residual strip body (wave220).
+ * Why (wave220): hybrid still had invoke_cc_strip_out_x body always mega C
+ * (gates+argv pack+spawn); G.7 single public authority under L1 hybrid.
+ * Cap residual: invoke_cc_strip_out_x_impl (mega always; argv pack stays Cap).
+ * PLATFORM: SHARED orch; residual is POSIX strip spawn or WINDOWS _spawnvp.
+ * Track-L: #[no_mangle] keeps short surface name for maybe_strip / invoke_cc.
+ */
+#[no_mangle]
+export function invoke_cc_strip_out_x(out_path: *u8): void {
+  if (out_path == 0 as *u8) {
+    return;
+  }
+  if (out_path[0] == 0) {
+    return;
+  }
+  unsafe {
+    invoke_cc_strip_out_x_impl(out_path);
+  }
+}
+
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
  * wave111: shux_link_perror is extra pure orch (not counted in the original 9).
  * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9).
  * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra.
- * wave219: shux_spawn_sync pure thin is extra (not counted in the original 9). */
+ * wave219: shux_spawn_sync pure thin is extra (not counted in the original 9).
+ * wave220: invoke_cc_strip_out_x pure thin is extra (not counted in the original 9). */
 #[no_mangle]
 export function labi_diag_pure_count(): i32 {
   return 9;
