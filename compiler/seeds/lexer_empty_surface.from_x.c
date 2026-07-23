@@ -80,9 +80,61 @@ extern void lexer_illegal_char_reset(void);
 extern int32_t lexer_illegal_char_pending(void);
 extern void lexer_incomplete_hex_reset(void);
 extern int32_t lexer_incomplete_hex_pending(void);
+extern void lexer_incomplete_exp_reset(void);
+extern int32_t lexer_incomplete_exp_pending(void);
 extern struct LexerResult lexer_next(struct Lexer lex, struct xlang_slice_uint8_t data);
-extern void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f);
-extern void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
+extern int32_t lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f) {
+  struct Lexer lex = l;
+  double cur = fval;
+  if ((((lex.pos) < (data.length)) && (((data).data[(lex.pos)] ==101) || ((data).data[(lex.pos)] ==69)))) {
+    int32_t e_line = lex.line;
+    int32_t e_col = lex.col;
+    int32_t exp_sign = 1;
+    int32_t exp = 0;
+    int32_t exp_digits = 0;
+    double scale = 1.0;
+    int32_t e = 0;
+    (void)((lex = advance_one(lex, (data).data[(lex.pos)])));
+    if ((((lex.pos) < (data.length)) && ((data).data[(lex.pos)] ==45))) {
+      (void)((exp_sign = -(1)));
+      (void)((lex = advance_one(lex, 45)));
+    } else {
+      if ((((lex.pos) < (data.length)) && ((data).data[(lex.pos)] ==43))) {
+        (void)((lex = advance_one(lex, 43)));
+      }
+    }
+    while ((((lex.pos) < (data.length)) && is_digit((data).data[(lex.pos)]))) {
+      uint8_t d = (data).data[(lex.pos)];
+      (void)((lex = advance_one(lex, d)));
+      (void)((exp = ((exp * 10) + (d - 48))));
+      exp_digits = exp_digits + 1;
+    }
+    /* wave274: require ≥1 exp digit (≡ lexer.x L005). */
+    if (exp_digits == 0) {
+      lexer_note_incomplete_exp(e_line, e_col);
+      (void)(((out_l)[0] = lex));
+      (void)(((out_f)[0] = cur));
+      return -1;
+    }
+    (void)((exp = (exp * exp_sign)));
+    if ((exp > 0)) {
+      while ((e < exp)) {
+        (void)((scale = (scale * 10.0)));
+        (void)((e = (e + 1)));
+      }
+    } else {
+      while ((e > exp)) {
+        (void)((scale = (scale * 0.1)));
+        (void)((e = (e - 1)));
+      }
+    }
+    (void)((cur = (fval * scale)));
+  }
+  (void)(((out_l)[0] = lex));
+  (void)(((out_f)[0] = cur));
+  return 0;
+}
+void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
 extern void lexer_next_punct_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data, uint8_t c);
 extern void write_next_lex_into(struct LexerResult * out, struct Lexer l);
 extern void write_tok_into(struct LexerResult * out, struct token_Token t);
@@ -994,6 +1046,12 @@ static int32_t g_lexer_incomplete_hex = 0;
 static int32_t g_lexer_incomplete_hex_line = 0;
 static int32_t g_lexer_incomplete_hex_col = 0;
 static int32_t g_lexer_incomplete_hex_reported = 0;
+
+/* wave274 Cap residual: sticky incomplete float-exponent state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_exp = 0;
+static int32_t g_lexer_incomplete_exp_line = 0;
+static int32_t g_lexer_incomplete_exp_col = 0;
+static int32_t g_lexer_incomplete_exp_reported = 0;
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
   g_lexer_unclosed_line = 0;
@@ -1029,6 +1087,43 @@ void lexer_incomplete_hex_reset(void) {
 }
 int32_t lexer_incomplete_hex_pending(void) {
   return g_lexer_incomplete_hex;
+}
+
+void lexer_incomplete_exp_reset(void) {
+  g_lexer_incomplete_exp = 0;
+  g_lexer_incomplete_exp_line = 0;
+  g_lexer_incomplete_exp_col = 0;
+  g_lexer_incomplete_exp_reported = 0;
+}
+int32_t lexer_incomplete_exp_pending(void) {
+  return g_lexer_incomplete_exp;
+}
+static void lexer_note_incomplete_exp(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_exp == 0) {
+    g_lexer_incomplete_exp = 1;
+    g_lexer_incomplete_exp_line = line;
+    g_lexer_incomplete_exp_col = col;
+  }
+  if (g_lexer_incomplete_exp_reported != 0)
+    return;
+  g_lexer_incomplete_exp_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '5'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'f'; msg[12] = 'l'; msg[13] = 'o'; msg[14] = 'a';
+    msg[15] = 't'; msg[16] = ' '; msg[17] = 'e'; msg[18] = 'x'; msg[19] = 'p';
+    msg[20] = 'o'; msg[21] = 'n'; msg[22] = 'e'; msg[23] = 'n'; msg[24] = 't';
+    msg[25] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_exp_line, g_lexer_incomplete_exp_col,
+                          kind, code, msg, NULL);
+  }
 }
 static void lexer_note_unclosed_block_comment(int32_t line, int32_t col) {
   if (g_lexer_unclosed_bc == 0) {
@@ -1422,19 +1517,27 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
         (void)((fval = (fval + (frac * (d - 48)))));
         (void)((frac = (frac * 0.0)));
       }
-      (void)(lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)));
+      if (lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)) != 0) {
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok));
       (void)(((out->token_start) = start));
       return;
     }
     if ((((l.pos) < (data.length)) && (((data).data[(l.pos)] ==101) || ((data).data[(l.pos)] ==69)))) {
+      /* wave274: require ≥1 exp digit (≡ lexer.x L005). */
+      int32_t e_line = l.line;
+      int32_t e_col = l.col;
       int32_t exp_sign = 1;
       int32_t exp = 0;
-      double scale = 0.0;
+      int32_t exp_digits = 0;
+      double scale = 1.0;
       int32_t e = 0;
-      double fval = (((double)(ival)) * scale);
-      struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
       (void)((l = advance_one(l, (data).data[(l.pos)])));
       if ((((l.pos) < (data.length)) && ((data).data[(l.pos)] ==45))) {
         (void)((exp_sign = -(1)));
@@ -1448,19 +1551,30 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
         uint8_t d = (data).data[(l.pos)];
         (void)((l = advance_one(l, d)));
         (void)((exp = ((exp * 10) + (d - 48))));
+        exp_digits = exp_digits + 1;
+      }
+      if (exp_digits == 0) {
+        lexer_note_incomplete_exp(e_line, e_col);
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
       }
       (void)((exp = (exp * exp_sign)));
       if ((exp > 0)) {
         while ((e < exp)) {
-          (void)((scale = (scale * 0.0)));
+          (void)((scale = (scale * 10.0)));
           (void)((e = (e + 1)));
         }
       } else {
         while ((e > exp)) {
-          (void)((scale = (scale * 0.0)));
+          (void)((scale = (scale * 0.1)));
           (void)((e = (e - 1)));
         }
       }
+      double fval = (((double)(ival)) * scale);
+      struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok));
       (void)(((out->token_start) = start));
@@ -1485,7 +1599,13 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       (void)((fval = (fval + (frac * (d - 48)))));
       (void)((frac = (frac * 0.0)));
     }
-    (void)(lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)));
+    if (lexer_apply_optional_exponent(l, data, fval, &(l), &(fval)) != 0) {
+        struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+        (void)(write_next_lex_into(out, l));
+        (void)(write_tok_into(out, tok_eof));
+        (void)(((out->token_start) = start));
+        return;
+      }
     struct token_Token tok = (struct Token){ .kind = 81, .line = line0, .col = col0, .int_val = 0, .float_val = fval, .ident = 0, .ident_len = 0 };
     (void)(write_next_lex_into(out, l));
     (void)(write_tok_into(out, tok));

@@ -5153,6 +5153,16 @@ export extern "C" function lexer_incomplete_hex_reset(): void;
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_incomplete_hex_pending(): i32;
+/**
+ * wave274: reset sticky incomplete-float-exponent state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_exp_reset(): void;
+/**
+ * wave274: non-zero if lexer saw `e`/`E` (optional sign) with zero exponent digits.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_incomplete_exp_pending(): i32;
 
 #[no_mangle]
 export function driver_parse_into_buf_rc(
@@ -5170,20 +5180,21 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
-  // wave269–wave273: clear sticky L001/L002/L003/L004 state for this entry.
+  // wave269–wave274: clear sticky L001/L002/L003/L004/L005 state for this entry.
   unsafe {
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
     lexer_illegal_char_reset();
     lexer_incomplete_hex_reset();
+    lexer_incomplete_exp_reset();
   }
   let rc: i32 = 0;
   unsafe {
     rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
   }
   // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted),
-  // string lex hit EOF without closer (L002), illegal/unknown byte (L003), or
-  // incomplete hex literal (L004).
+  // string lex hit EOF without closer (L002), illegal/unknown byte (L003),
+  // incomplete hex literal (L004), or incomplete float exponent (L005).
   unsafe {
     if (lexer_unclosed_block_comment_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
@@ -5204,6 +5215,12 @@ export function driver_parse_into_buf_rc(
       return -1;
     }
     if (lexer_incomplete_hex_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_incomplete_exp_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
         out_main_idx[0] = -1;
       }

@@ -112,6 +112,19 @@ let g_lexer_incomplete_hex_col: i32 = 0;
 let g_lexer_incomplete_hex_reported: i32 = 0;
 
 /**
+ * wave274 Cap residual: sticky incomplete float-exponent state for the current parse.
+ * Set when a float exponent introducer `e`/`E` (optionally followed by `+`/`-`) has zero
+ * decimal digits (e.g. `1e`, `1e+`, `1.5e-`, `2E`). Prior behavior treated missing digits as
+ * exp=0 → silent TOKEN_FLOAT (e.g. `return (1e) as i32` ran as 1).
+ * Cleared by lexer_incomplete_exp_reset at each product parse entry.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_incomplete_exp: i32 = 0;
+let g_lexer_incomplete_exp_line: i32 = 0;
+let g_lexer_incomplete_exp_col: i32 = 0;
+let g_lexer_incomplete_exp_reported: i32 = 0;
+
+/**
  * Clear unclosed block-comment sticky state (call once per parse entry).
  * @return void
  * PLATFORM: SHARED
@@ -193,6 +206,27 @@ export function lexer_incomplete_hex_reset(): void {
  */
 export function lexer_incomplete_hex_pending(): i32 {
   return g_lexer_incomplete_hex;
+}
+
+/**
+ * Clear incomplete-float-exponent sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_exp_reset(): void {
+  g_lexer_incomplete_exp = 0;
+  g_lexer_incomplete_exp_line = 0;
+  g_lexer_incomplete_exp_col = 0;
+  g_lexer_incomplete_exp_reported = 0;
+}
+
+/**
+ * Whether lex saw `e`/`E` (optional sign) with zero following exponent digits.
+ * @return i32 — 1 if pending hard fail, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_exp_pending(): i32 {
+  return g_lexer_incomplete_exp;
 }
 
 /**
@@ -484,6 +518,84 @@ function lexer_note_incomplete_hex(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_incomplete_hex_line,
       g_lexer_incomplete_hex_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L005 once for an incomplete float exponent (`e`/`E` with no digits).
+ * @param line i32 — 1-based line of the `e`/`E` introducer
+ * @param col i32 — 1-based column of the `e`/`E` introducer
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_incomplete_exp(line: i32, col: i32): void {
+  if (g_lexer_incomplete_exp == 0) {
+    g_lexer_incomplete_exp = 1;
+    g_lexer_incomplete_exp_line = line;
+    g_lexer_incomplete_exp_col = col;
+  }
+  if (g_lexer_incomplete_exp_reported != 0) {
+    return;
+  }
+  g_lexer_incomplete_exp_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L005"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 53;
+  code[4] = 0;
+  // msg = "incomplete float exponent"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 110;
+  msg[2] = 99;
+  msg[3] = 111;
+  msg[4] = 109;
+  msg[5] = 112;
+  msg[6] = 108;
+  msg[7] = 101;
+  msg[8] = 116;
+  msg[9] = 101;
+  msg[10] = 32;
+  msg[11] = 102;
+  msg[12] = 108;
+  msg[13] = 111;
+  msg[14] = 97;
+  msg[15] = 116;
+  msg[16] = 32;
+  msg[17] = 101;
+  msg[18] = 120;
+  msg[19] = 112;
+  msg[20] = 111;
+  msg[21] = 110;
+  msg[22] = 101;
+  msg[23] = 110;
+  msg[24] = 116;
+  msg[25] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_incomplete_exp_line,
+      g_lexer_incomplete_exp_col,
       &kind[0],
       &code[0],
       &msg[0],
@@ -2110,11 +2222,25 @@ export function lexer_next(lex: Lexer, data: u8[]): LexerResult {
 * See implementation.
 * See implementation.
 */
+/**
+ * Optionally consume a float exponent (`e`/`E` [+-]? digits) and scale `fval`.
+ * wave274 Cap residual: zero digits after `e`/`E` (optional sign) is incomplete — sticky L005
+ * and return -1 (caller must not emit a silent TOKEN_FLOAT with exp=0).
+ * @param l Lexer — position at optional `e`/`E`
+ * @param data u8[] — full source buffer
+ * @param fval f64 — significand so far
+ * @param out_l *Lexer — advanced lexer (always written; past incomplete e/sign too)
+ * @param out_f *f64 — scaled value on success; unchanged significand on incomplete
+ * @return i32 — 0 ok (no exp or complete exp), -1 incomplete exp (L005 sticky set)
+ * PLATFORM: SHARED
+ */
 export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, out_l: *Lexer, out_f:
-*f64): void {
+*f64): i32 {
   let lex: Lexer = l;
   let cur: f64 = fval;
   if (lex.pos < data.length && (data[lex.pos] == 101 || data[lex.pos] == 69)) {
+    let e_line: i32 = lex.line;
+    let e_col: i32 = lex.col;
     lex = advance_one(lex, data[lex.pos]);
     let exp_sign: i32 = 1;
     if (lex.pos < data.length && data[lex.pos] == 45) {
@@ -2124,10 +2250,19 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
       if (lex.pos < data.length && data[lex.pos] == 43) { lex = advance_one(lex, 43); }
     }
     let exp: i32 = 0;
+    let exp_digits: i32 = 0;
     while (lex.pos < data.length && is_digit(data[lex.pos])) {
       let d: u8 = data[lex.pos];
       lex = advance_one(lex, d);
       exp = exp * 10 + (d - 48);
+      exp_digits = exp_digits + 1;
+    }
+    // wave274: `1e` / `1e+` / `1.5e-` with zero digits was silent exp=0 (wrong TOKEN_FLOAT).
+    if (exp_digits == 0) {
+      lexer_note_incomplete_exp(e_line, e_col);
+      out_l[0] = lex;
+      out_f[0] = cur;
+      return -1;
     }
     exp = exp * exp_sign;
     let scale: f64 = 1.0;
@@ -2147,6 +2282,7 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
   }
   out_l[0] = lex;
   out_f[0] = cur;
+  return 0;
 }
 
 /** Exported function `lexer_next_body_into`.
@@ -2295,7 +2431,15 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         fval = fval + frac * (d - 48);
         frac = frac * 0.1;
       }
-      lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+      // wave274: incomplete exp after fraction → L005 + TOKEN_EOF (not silent exp=0 float).
+      if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof);
+        out.token_start = start;
+        return;
+      }
       let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
         float_val: fval, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
@@ -2304,6 +2448,9 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       return;
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
+      // wave274 Cap residual: `1e`/`1e+`/`1E-` require ≥1 exp digit (mirror L004 hex digits).
+      let e_line: i32 = l.line;
+      let e_col: i32 = l.col;
       l = advance_one(l, data[l.pos]);
       let exp_sign: i32 = 1;
       if (l.pos < data.length && data[l.pos] == 45) {
@@ -2313,10 +2460,21 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
         if (l.pos < data.length && data[l.pos] == 43) { l = advance_one(l, 43); }
       }
       let exp: i32 = 0;
+      let exp_digits: i32 = 0;
       while (l.pos < data.length && is_digit(data[l.pos])) {
         let d: u8 = data[l.pos];
         l = advance_one(l, d);
         exp = exp * 10 + (d - 48);
+        exp_digits = exp_digits + 1;
+      }
+      if (exp_digits == 0) {
+        lexer_note_incomplete_exp(e_line, e_col);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof);
+        out.token_start = start;
+        return;
       }
       exp = exp * exp_sign;
       let scale: f64 = 1.0;
@@ -2361,7 +2519,15 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       fval = fval + frac * (d - 48);
       frac = frac * 0.1;
     }
-    lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+    // wave274: incomplete exp after leading-dot float → L005 + TOKEN_EOF.
+    if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
+      let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      write_next_lex_into(out, l);
+      write_tok_into(out, tok_eof);
+      out.token_start = start;
+      return;
+    }
     let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
       float_val: fval, ident: 0, ident_len: 0 };
     write_next_lex_into(out, l);
@@ -2785,15 +2951,24 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
     let ival: i64 = 0;
     l = advance_one(l, c);
     if (c == 48 && l.pos < data.length && (data[l.pos] == 120 || data[l.pos] == 88)) {
+      // G.7: mirror product path L004 (wave273) — require ≥1 hex digit.
       l = advance_one(l, data[l.pos]);
       let hval: u64 = (0 as u64);
+      let hex_digits: i32 = 0;
       while (l.pos < data.length && is_hex_digit(data[l.pos])) {
         let hd: u8 = data[l.pos];
         hval = hval * 16 + (hex_digit_value(hd) as u64);
         l = advance_one(l, hd);
+        hex_digits = hex_digits + 1;
+      }
+      if (hex_digits == 0) {
+        lexer_note_incomplete_hex(line0, col0);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
       }
       let tok: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: hval as i64,
-        float_val: 0.0, ident: 0, ident_len: 0 }
+        float_val: 0.0, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok, token_start: start };
     }
     ival = ival * 10 + (c - 48);
@@ -2813,12 +2988,20 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         fval = fval + frac * (d - 48);
         frac = frac * 0.1;
       }
-      lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+      // wave274: incomplete exp after fraction → L005 + TOKEN_EOF.
+      if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
+      }
       let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
-        float_val: fval, ident: 0, ident_len: 0 }
+        float_val: fval, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok, token_start: start };
     }
     if (l.pos < data.length && (data[l.pos] == 101 || data[l.pos] == 69)) {
+      // wave274 Cap residual: require ≥1 exp digit (mirror product path).
+      let e_line: i32 = l.line;
+      let e_col: i32 = l.col;
       l = advance_one(l, data[l.pos]);
       let exp_sign: i32 = 1;
       if (l.pos < data.length && data[l.pos] == 45) {
@@ -2828,10 +3011,18 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
         if (l.pos < data.length && data[l.pos] == 43) { l = advance_one(l, 43); }
       }
       let exp: i32 = 0;
+      let exp_digits: i32 = 0;
       while (l.pos < data.length && is_digit(data[l.pos])) {
         let d: u8 = data[l.pos];
         l = advance_one(l, d);
         exp = exp * 10 + (d - 48);
+        exp_digits = exp_digits + 1;
+      }
+      if (exp_digits == 0) {
+        lexer_note_incomplete_exp(e_line, e_col);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
       }
       exp = exp * exp_sign;
       let scale: f64 = 1.0;
@@ -2849,11 +3040,11 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       }
       let fval: f64 = (ival as f64) * scale;
       let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
-        float_val: fval, ident: 0, ident_len: 0 }
+        float_val: fval, ident: 0, ident_len: 0 };
       return LexerResult { next_lex: l, tok: tok, token_start: start };
     }
     let tok: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: ival,
-      float_val: 0.0, ident: 0, ident_len: 0 }
+      float_val: 0.0, ident: 0, ident_len: 0 };
     return LexerResult { next_lex: l, tok: tok, token_start: start };
   }
   if (c == 46 && l.pos + 1 < data.length && is_digit(data[l.pos + 1])) {
@@ -2869,9 +3060,13 @@ export function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       fval = fval + frac * (d - 48);
       frac = frac * 0.1;
     }
-    lexer_apply_optional_exponent(l, data, fval, &l, &fval);
+    if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
+      let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+        float_val: 0.0, ident: 0, ident_len: 0 };
+      return LexerResult { next_lex: l, tok: tok_eof, token_start: start };
+    }
     let tok: token.Token = token.Token { kind: 81, line: line0, col: col0, int_val: 0,
-      float_val: fval, ident: 0, ident_len: 0 }
+      float_val: fval, ident: 0, ident_len: 0 };
     return LexerResult { next_lex: l, tok: tok, token_start: start };
   }
   let start: usize = l.pos;

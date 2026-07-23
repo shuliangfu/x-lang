@@ -2283,6 +2283,7 @@ void driver_size_table_set(void *t, int32_t i, size_t v) {
  * wave269: always-seed also owns L001 sticky hard-fail (reset before parse, pending
  * after). wave271: same for L002 unclosed string. wave272: same for L003 illegal char.
  * wave273: same for L004 incomplete hex.
+ * wave274: same for L005 incomplete float exponent.
  * Thin driver_parse_into_buf_rc may also check; this residual is the G.7 single choke
  * that hybrid and cold both pass through.
  */
@@ -2294,6 +2295,8 @@ extern void lexer_illegal_char_reset(void);
 extern int32_t lexer_illegal_char_pending(void);
 extern void lexer_incomplete_hex_reset(void);
 extern int32_t lexer_incomplete_hex_pending(void);
+extern void lexer_incomplete_exp_reset(void);
+extern int32_t lexer_incomplete_exp_pending(void);
 int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                       int32_t *out_main_idx) {
     struct parser_ParseIntoResult pr;
@@ -2301,6 +2304,7 @@ int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data,
     lexer_unclosed_string_reset();
     lexer_illegal_char_reset();
     lexer_incomplete_hex_reset();
+    lexer_incomplete_exp_reset();
     pr = parser_parse_into_buf(arena, module, data, len);
     if (lexer_unclosed_block_comment_pending() != 0) {
         if (out_main_idx)
@@ -2322,6 +2326,11 @@ int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data,
             *out_main_idx = -1;
         return -1;
     }
+    if (lexer_incomplete_exp_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
     if (out_main_idx)
         *out_main_idx = pr.main_idx;
     return pr.ok;
@@ -2331,7 +2340,8 @@ int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data,
  * wave269: reset + hard-fail on unclosed block comment (L001 sticky pending).
  * wave271: reset + hard-fail on unclosed string (L002 sticky pending).
  * wave272: reset + hard-fail on illegal character (L003 sticky pending).
- * wave273: reset + hard-fail on incomplete hex (L004 sticky pending). */
+ * wave273: reset + hard-fail on incomplete hex (L004 sticky pending).
+ * wave274: reset + hard-fail on incomplete float exponent (L005 sticky pending). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 extern void lexer_unclosed_block_comment_reset(void);
 extern int32_t lexer_unclosed_block_comment_pending(void);
@@ -2341,6 +2351,8 @@ extern void lexer_illegal_char_reset(void);
 extern int32_t lexer_illegal_char_pending(void);
 extern void lexer_incomplete_hex_reset(void);
 extern int32_t lexer_incomplete_hex_pending(void);
+extern void lexer_incomplete_exp_reset(void);
+extern int32_t lexer_incomplete_exp_pending(void);
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx) {
     int32_t rc;
@@ -2352,6 +2364,7 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
     lexer_unclosed_string_reset();
     lexer_illegal_char_reset();
     lexer_incomplete_hex_reset();
+    lexer_incomplete_exp_reset();
     rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
     if (lexer_unclosed_block_comment_pending() != 0) {
         if (out_main_idx)
@@ -2369,6 +2382,11 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
         return -1;
     }
     if (lexer_incomplete_hex_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_exp_pending() != 0) {
         if (out_main_idx)
             *out_main_idx = -1;
         return -1;
