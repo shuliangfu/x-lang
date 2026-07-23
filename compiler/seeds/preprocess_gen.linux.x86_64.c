@@ -1,4 +1,5 @@
 /* generated from preprocess */
+/* wave265: line_buf 512→4096 (silent truncate at 511 caused P001 on long source lines). */
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -37,8 +38,8 @@ extern void preprocess_if_stack_set_at(int32_t i, int32_t v);
 extern int32_t preprocess_eval_condition_c(uint8_t * cond, int32_t cond_len);
 int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val);
 int preprocess_line_keeping();
-int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[512], int32_t pos, int32_t line_len);
-void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]);
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[4096], int32_t pos, int32_t line_len);
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[256]);
 int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uint8_t * out_buf);
 int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
 /* 失败码：-2 else without #if；-3 endif without；-4 elseif without；-5 elseif after else；-6 duplicate else；-7 nesting */
@@ -106,10 +107,10 @@ int preprocess_line_keeping() {
   int32_t top = preprocess_if_stack_at(depth - 1);
   return top == 1 || top == 2;
 }
-int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[512], int32_t pos, int32_t line_len) {
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[4096], int32_t pos, int32_t line_len) {
   int32_t s = 0;
   while (pos < line_len && s < 255) {
-    uint8_t ch = (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    uint8_t ch = (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
     (void)(({ int32_t __tmp = 0; if (ch == 10 || ch == 13) {   break;
  } else (__tmp = 0) ; __tmp; }));
     ((s < 0 || (s) >= 256 ? (xlang_panic_(1, 0), 0) : ((cond)[s] = ch, 0)));
@@ -124,32 +125,32 @@ int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf
   }
   return s;
 }
-void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]) {
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[256]) {
   int32_t pos = 0;
   ((out)->kind = (0));
   ((out)->sym_len = (0));
   while (pos < line_len) {
-    uint8_t ws0 = (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    uint8_t ws0 = (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
     (void)(({ int32_t __tmp = 0; if (ws0 != 32 && ws0 != 9) {   break;
  } else (__tmp = 0) ; __tmp; }));
     ++pos;
   }
-  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 35) {   return;
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 35) {   return;
  } else (__tmp = 0) ; __tmp; }));
   ++pos;
   while (pos < line_len) {
-    uint8_t ws1 = (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    uint8_t ws1 = (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
     (void)(({ int32_t __tmp = 0; if (ws1 != 32 && ws1 != 9) {   break;
  } else (__tmp = 0) ; __tmp; }));
     ++pos;
   }
   (void)(({ int32_t __tmp = 0; if (pos >= line_len) {   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pos + 2 <= line_len && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 105 && (pos + 1 < 0 || (pos + 1) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 102) {   pos += 2;
-  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
+  (void)(({ int32_t __tmp = 0; if (pos + 2 <= line_len && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 105 && (pos + 1 < 0 || (pos + 1) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 102) {   pos += 2;
+  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
  } else (__tmp = 0) ; __tmp; }));
   while (pos < line_len) {
-    uint8_t ws_if = (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    uint8_t ws_if = (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
     (void)(({ int32_t __tmp = 0; if (ws_if != 32 && ws_if != 9) {   break;
  } else (__tmp = 0) ; __tmp; }));
     ++pos;
@@ -163,11 +164,11 @@ void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * ou
   ((out)->sym_len = (cl));
   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pos + 6 <= line_len && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101 && (pos + 4 < 0 || (pos + 4) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 105 && (pos + 5 < 0 || (pos + 5) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 5]) == 102) {   pos += 6;
-  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
+  (void)(({ int32_t __tmp = 0; if (pos + 6 <= line_len && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101 && (pos + 4 < 0 || (pos + 4) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 105 && (pos + 5 < 0 || (pos + 5) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 5]) == 102) {   pos += 6;
+  (void)(({ int32_t __tmp = 0; if (pos < line_len && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 32 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 9 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 10 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 13 && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) != 0) {   return;
  } else (__tmp = 0) ; __tmp; }));
   while (pos < line_len) {
-    uint8_t ws_elseif = (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
+    uint8_t ws_elseif = (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
     (void)(({ int32_t __tmp = 0; if (ws_elseif != 32 && ws_elseif != 9) {   break;
  } else (__tmp = 0) ; __tmp; }));
     ++pos;
@@ -181,15 +182,15 @@ void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * ou
   ((out)->sym_len = (cl2));
   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pos + 4 <= line_len && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101) {   pos += 4;
-  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   ((out)->kind = (2));
+  (void)(({ int32_t __tmp = 0; if (pos + 4 <= line_len && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 108 && (pos + 2 < 0 || (pos + 2) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 115 && (pos + 3 < 0 || (pos + 3) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 101) {   pos += 4;
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   ((out)->kind = (2));
   ((out)->sym_len = (0));
   return;
  } else (__tmp = 0) ; __tmp; }));
   return;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pos + 5 <= line_len && (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 110 && (pos + 2 < 0 || (pos + 2) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 100 && (pos + 3 < 0 || (pos + 3) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 105 && (pos + 4 < 0 || (pos + 4) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 102) {   pos += 5;
-  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   ((out)->kind = (3));
+  (void)(({ int32_t __tmp = 0; if (pos + 5 <= line_len && (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 101 && (pos + 1 < 0 || (pos + 1) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 1]) == 110 && (pos + 2 < 0 || (pos + 2) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 2]) == 100 && (pos + 3 < 0 || (pos + 3) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 3]) == 105 && (pos + 4 < 0 || (pos + 4) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos + 4]) == 102) {   pos += 5;
+  (void)(({ int32_t __tmp = 0; if (pos >= line_len || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 32 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 9 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 10 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 13 || (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]) == 0) {   ((out)->kind = (3));
   ((out)->sym_len = (0));
   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -203,7 +204,7 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
   (void)(preprocess_if_stack_reset());
   int32_t out_len = 0;
   int32_t line_len = 0;
-  uint8_t line_buf[512] = { 0 };
+  uint8_t line_buf[4096] = { 0 };
   int32_t pos = 0;
   while (pos < (source)->length) {
     uint8_t ch = (pos < 0 || (size_t)(pos) >= (source)->length ? (xlang_panic_(1, 0), (source)->data[0]) : (source)->data[pos]);
@@ -225,7 +226,7 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
   while (i < line_len) {
     (void)(({ int32_t __tmp = 0; if (out_len >= (out_buf)->length) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (xlang_panic_(1, 0), 0) : ((out_buf)->data[out_len] = (i < 0 || (i) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i]), 0)));
+    ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (xlang_panic_(1, 0), 0) : ((out_buf)->data[out_len] = (i < 0 || (i) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i]), 0)));
     ++out_len;
     ++i;
   }
@@ -238,7 +239,7 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
  } else (__tmp = 0) ; __tmp; }));
   (line_len = (0));
   ++pos;
- } else {   (void)(({ int32_t __tmp = 0; if (line_len < 511) {   ((line_len < 0 || (line_len) >= 512 ? (xlang_panic_(1, 0), 0) : ((line_buf)[line_len] = ch, 0)));
+ } else {   (void)(({ int32_t __tmp = 0; if (line_len < 4095) {   ((line_len < 0 || (line_len) >= 4096 ? (xlang_panic_(1, 0), 0) : ((line_buf)[line_len] = ch, 0)));
   ++line_len;
  } else (__tmp = 0) ; __tmp; }));
   ++pos;
@@ -275,7 +276,7 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
           if (out_len >= (out_buf)->length) {
             return (-1);
           }
-          ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (xlang_panic_(1, 0), 0) : ((out_buf)->data[out_len] = (i_eof < 0 || (i_eof) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i_eof]), 0)));
+          ((out_len < 0 || (size_t)(out_len) >= (out_buf)->length ? (xlang_panic_(1, 0), 0) : ((out_buf)->data[out_len] = (i_eof < 0 || (i_eof) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i_eof]), 0)));
           ++out_len;
           ++i_eof;
         }
@@ -298,7 +299,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
   (void)(preprocess_if_stack_reset());
   int32_t out_len = 0;
   int32_t line_len = 0;
-  uint8_t line_buf[512] = { 0 };
+  uint8_t line_buf[4096] = { 0 };
   int32_t pos = 0;
   while (pos < source_len && pos < 4194304) {
     uint8_t ch = (pos < 0 || (pos) >= 4194304 ? (xlang_panic_(1, 0), (source_buf)[0]) : (source_buf)[pos]);
@@ -320,7 +321,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
   while (i < line_len) {
     (void)(({ int32_t __tmp = 0; if (out_len >= out_cap) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-    ((out_len < 0 || (out_len) >= 4194304 ? (xlang_panic_(1, 0), 0) : ((out_buf)[out_len] = (i < 0 || (i) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i]), 0)));
+    ((out_len < 0 || (out_len) >= 4194304 ? (xlang_panic_(1, 0), 0) : ((out_buf)[out_len] = (i < 0 || (i) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i]), 0)));
     ++out_len;
     ++i;
   }
@@ -333,7 +334,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
  } else (__tmp = 0) ; __tmp; }));
   (line_len = (0));
   ++pos;
- } else {   (void)(({ int32_t __tmp = 0; if (line_len < 511) {   ((line_len < 0 || (line_len) >= 512 ? (xlang_panic_(1, 0), 0) : ((line_buf)[line_len] = ch, 0)));
+ } else {   (void)(({ int32_t __tmp = 0; if (line_len < 4095) {   ((line_len < 0 || (line_len) >= 4096 ? (xlang_panic_(1, 0), 0) : ((line_buf)[line_len] = ch, 0)));
   ++line_len;
  } else (__tmp = 0) ; __tmp; }));
   ++pos;
@@ -369,7 +370,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
           if (out_len >= out_cap) {
             return (-1);
           }
-          ((out_len < 0 || (out_len) >= 4194304 ? (xlang_panic_(1, 0), 0) : ((out_buf)[out_len] = (i_eof_b < 0 || (i_eof_b) >= 512 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i_eof_b]), 0)));
+          ((out_len < 0 || (out_len) >= 4194304 ? (xlang_panic_(1, 0), 0) : ((out_buf)[out_len] = (i_eof_b < 0 || (i_eof_b) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[i_eof_b]), 0)));
           ++out_len;
           ++i_eof_b;
         }

@@ -38,7 +38,8 @@ let g_pp_kind: i32 = 0;
 let g_pp_sym_len: i32 = 0;
 
 /* See implementation. */
-let g_pp_line_buf: u8[512] = [];
+/* wave265: line-oriented buffer; was 512 (silent truncate at 511 → P001). */
+let g_pp_line_buf: u8[4096] = [];
 let g_pp_cond: u8[256] = [];
 
 /**
@@ -388,7 +389,7 @@ export struct ParseDirectiveResult {
 /**
  * See implementation.
  */
-export function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[512], pos: i32, line_len: i32): i32 {
+export function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[4096], pos: i32, line_len: i32): i32 {
   let s: i32 = 0;
   while (pos < line_len) {
     if (s >= 255) {
@@ -422,7 +423,7 @@ export function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[512], pos:
  * See implementation.
  * See implementation.
  */
-export function parse_directive_into(line_buf: u8[512], line_len: i32, cond: u8[256]): void {
+export function parse_directive_into(line_buf: u8[4096], line_len: i32, cond: u8[256]): void {
   let pos: i32 = 0;
   g_pp_kind = 0;
   g_pp_sym_len = 0;
@@ -528,6 +529,11 @@ export function parse_directive_into(line_buf: u8[512], line_len: i32, cond: u8[
  * Run preprocess over a full source slice into out_buf.
  * Returns output length, or -1 on buffer overflow / unclosed #if.
  *
+ * wave265 Cap residual: per-line buffer is 4096 bytes (max content 4095).
+ * Prior 512/511 silently dropped tail bytes of long source lines → parser
+ * saw truncated text → P001 / late-export silent-skip (product -E path).
+ * Lines longer than 4095 still drop excess (soft residual; raise again if needed).
+ *
  * PLATFORM: SHARED — line-oriented #if/#else/#endif. After the scan loop,
  * any partial last line (source not ending in LF) is flushed so a trailing
  * `}` or last statement is not dropped. Missing that flush historically
@@ -586,7 +592,7 @@ export function preprocess_x(source: u8[], out_buf: u8[]): i32 {
       line_len = 0;
       pos = pos + 1;
     } else {
-      if (line_len < 511) {
+      if (line_len < 4095) {
         g_pp_line_buf[line_len] = ch;
         line_len = line_len + 1;
       }
@@ -701,7 +707,7 @@ export function preprocess_x_buf(source_buf: u8[4194304], source_len: isize, out
       line_len = 0;
       pos = pos + 1;
     } else {
-      if (line_len < 511) {
+      if (line_len < 4095) {
         g_pp_line_buf[line_len] = ch;
         line_len = line_len + 1;
       }

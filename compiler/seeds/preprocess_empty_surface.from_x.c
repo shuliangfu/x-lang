@@ -35,7 +35,7 @@ extern int32_t preprocess_x(struct xlang_slice_uint8_t source, struct xlang_slic
 extern int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out_buf, int32_t out_cap);
 static int32_t g_pp_kind;
 static int32_t g_pp_sym_len;
-static uint8_t g_pp_line_buf[512];
+static uint8_t g_pp_line_buf[4096];
 static uint8_t g_pp_cond[256];
 static void init_globals(void) {
   g_pp_kind = 0;
@@ -487,7 +487,7 @@ int32_t preprocess_x(struct xlang_slice_uint8_t source, struct xlang_slice_uint8
       (void)((line_len = 0));
       (void)((pos = (pos + 1)));
     } else {
-      if ((line_len < 511)) {
+      if ((line_len < 4095)) {
         (void)(((g_pp_line_buf)[line_len] = ch));
         (void)((line_len = (line_len + 1)));
       }
@@ -551,7 +551,7 @@ int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out
       (void)((line_len = 0));
       (void)((pos = (pos + 1)));
     } else {
-      if ((line_len < 511)) {
+      if ((line_len < 4095)) {
         (void)(((g_pp_line_buf)[line_len] = ch));
         (void)((line_len = (line_len + 1)));
       }
