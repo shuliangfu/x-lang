@@ -2637,12 +2637,32 @@ export function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): vo
 }
 
 
-/* See implementation. */
-
-
-
+/**
+ * Return 1 iff user.o needs (UNDEF) the given exact symbol; null/empty → 0 without residual.
+ * @param user_o *u8 — path to user .o; null/empty rejected at pure gate
+ * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
+ * @return i32 — 1 if UNDEF hit, else 0
+ * Authority (G.7 / wave212): product pure orch is labi_ondemand_list.x
+ * `shux_link_obj_needs_undef_sym` (same gates + Cap residual _impl). This mega .x twin
+ * stays isomorphic for logical-source fold; product hybrid uses L8b pure.
+ * Cap residual: shux_link_obj_needs_undef_sym_impl (nm -u + optional LINUX ELF).
+ * PLATFORM: SHARED orch; residual nm/popen is host.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
 #[no_mangle]
 export function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym[0] == 0) {
+    return 0;
+  }
   unsafe {
     return shux_link_obj_needs_undef_sym_impl(user_o, sym);
   }

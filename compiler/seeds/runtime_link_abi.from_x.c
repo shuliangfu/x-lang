@@ -2491,7 +2491,8 @@ int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym);
 /*
  * wave131: compress family pure orch lives in labi_ondemand_list
  * (zlib/zstd/brotli marker + UNDEF/prefix tables + needs_compress_libs).
- * Cap residual: exports_marker pure thin (wave211; _impl Cap); has_undef_sym pure thin (wave210; _impl Cap).
+ * Cap residual: exports_marker pure thin (wave211; _impl Cap); has_undef_sym pure thin (wave210; _impl Cap);
+ *   needs_undef_sym pure thin (wave212; _impl Cap).
  * Cold twin: #include labi_ondemand_list.from_x.c (below); hybrid FROM_X → L8b pure.
  * Forward decls: call sites below need symbols before the ondemand include block.
  * PLATFORM: SHARED.
@@ -3573,15 +3574,20 @@ static int shux_elf64_obj_scan_undef(const char *o_path, const char *want_sym) {
 }
 #endif /* __linux__ */
 
-/** 扫描用户 .o 未定义符号；nm/popen 失败时 LINUX 走 ELF 扫描（freestanding 产品）。
- * G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc
+/**
+ * Cap residual (wave212): host nm/popen exact UNDEF probe body (+ LINUX ELF freestanding).
+ * Pure orch (labi_ondemand_list L8b) owns null/empty gates; _impl is always mega.
+ * Params: o_path / sym — caller pure already rejected null/empty (defense in depth here too).
+ * Returns: 1 if UNDEF line matches bare sym (optional U type + leading _), else 0.
  *
- * 【Why 根源】Darwin `nm -u` 输出为 `_sym` 单行（无类型字母 U），且 Mach-O 符号带前导 `_`。
- * 旧实现用 `nm -u --porcelain`（Apple nm 常空输出）且只匹配无 `_` 的裸名 / 含 `U` 的行，
- * 导致 http.o 等对 std_heap_* 的 U 永远测不到 → on_demand 不推 heap.o → 链接失败。
- * Freestanding：popen 桩恒 NULL → 旧实现永远 0 → minimal gcc 永不 on_demand（si UNDEF）。
- * 【Invariant】匹配时跳过可选的 `U` 类型字段与可选的前导 `_`，再与裸 sym 比较。 */
-int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
+ * Why root: Darwin `nm -u` is `_sym` alone (no type letter U) with Mach-O leading `_`.
+ * Old code used `nm -u --porcelain` (often empty on Apple) and only bare names / lines with U
+ * → http.o UNDEF for std_heap_* never hit → on_demand skipped heap.o → link fail.
+ * Freestanding: popen stub always NULL → always 0 → minimal gcc never on_demand (si UNDEF).
+ * Invariant: skip optional U type field and optional leading `_`, then compare bare sym.
+ * PLATFORM: SHARED residual; LINUX freestanding ELF scan when popen fails.
+ */
+int shux_link_obj_needs_undef_sym_impl(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
     char line[512];
@@ -3631,6 +3637,16 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     pclose(fp);
     return 0;
 }
+
+/* wave212: shux_link_obj_needs_undef_sym pure orch lives in labi_ondemand_list.x (hybrid L8b);
+ * cold twin under #ifndef ONDEMAND_LIST_FROM_X in seeds/labi_ondemand_list.from_x.c
+ * (mega #include when !FROM_X, or L8b cold seed object when pure .x fails).
+ * Pure: null/empty gates; Cap residual shux_link_obj_needs_undef_sym_impl (nm/ELF) always mega.
+ * Why: hybrid still had needs_undef_sym body always mega C (gates+nm+ELF).
+ * PLATFORM: SHARED orch. Do not define public twin here — would double-def with seed include. */
+#ifdef SHUX_LABI_ONDEMAND_LIST_FROM_X
+int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym);
+#endif
 
 /**
  * 扫描 .o 是否已定义（T/t）给定符号。用于 co-emit 后避免再链 mem.o。

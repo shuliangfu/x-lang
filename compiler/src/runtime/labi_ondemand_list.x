@@ -40,17 +40,58 @@
 //     (null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl = nm/popen).
 //   wave211 link_abi_obj_exports_marker pure thin orch
 //     (null/empty gates; Cap residual link_abi_obj_exports_marker_impl = nm/popen strstr).
-// Cap residual: ensure/skip/path Cap inside shell peers; needs_undef /
+//   wave212 shux_link_obj_needs_undef_sym pure thin orch
+//     (null/empty gates; Cap residual shux_link_obj_needs_undef_sym_impl = nm/popen + ELF).
+// Cap residual: ensure/skip/path Cap inside shell peers; needs_undef_impl /
 //   has_undef_impl / exports_marker_impl / has_defined Cap
-//   (wave210–211 pure own has_undef + exports_marker public gates).
+//   (wave210–212 pure own has_undef + exports_marker + needs_undef public gates).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
 // Formal core/*/*.o; g1 rel is core/types/types.o; g9 rel is core/slice/mod.o (API, not glue).
 // g9: length.x needs core_slice_len_i32/get_* from mod.x; glue remains core/slice/slice.o.
 
-/** Cap residual: nm UNDEF probe used by pure needs orch (mega always). */
-export extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+/**
+ * Cap residual (wave212): host nm/popen exact UNDEF probe body (+ LINUX ELF freestanding).
+ * Pure orch owns null/empty gates; _impl is always mega (nm -u line parse + optional ELF scan).
+ * @param user_o *u8 — path to .o (caller already rejected null/empty)
+ * @param sym *u8 — exact bare symbol name, no leading underscore (caller rejected null/empty)
+ * @return i32 — 1 if user.o has UNDEF for sym, else 0
+ * PLATFORM: SHARED orch residual; LINUX freestanding ELF path inside _impl
+ */
+export extern "C" function shux_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
+
+/**
+ * Return 1 iff user.o needs (UNDEF) the given exact symbol; null/empty → 0 without residual.
+ * @param user_o *u8 — path to user .o; null/empty rejected at pure gate
+ * @param sym *u8 — exact bare symbol name; null/empty rejected at pure gate
+ * @return i32 — 1 if UNDEF hit, else 0
+ * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (+ ELF on LINUX freestanding).
+ * Cap residual: shux_link_obj_needs_undef_sym_impl (nm -u parse; strip optional U/_).
+ * Why (wave212): hybrid still had needs_undef_sym body always mega C (gates+nm+ELF).
+ * Used by all L8b pure needs_* orch tables (net/set/map/queue/fk/… on_demand gates).
+ * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
+ */
+#[no_mangle]
+export function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  if (user_o[0] == 0) {
+    return 0;
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym[0] == 0) {
+    return 0;
+  }
+  unsafe {
+    return shux_link_obj_needs_undef_sym_impl(user_o, sym);
+  }
+  return 0;
+}
 
 /**
  * Cap residual path pure: whether ld argv entry looks like .o/.obj (suffix scan).
