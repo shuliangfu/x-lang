@@ -436,7 +436,7 @@ export const ADDR_LOOPBACK: u32 = 0x7f000001;
 
 /* See implementation. */
 let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
-let ENV_XLANG_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
+let ENV_XLANG_TLS_PORT: u8[21] = [88, 76, 65, 78, 71, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
 
 /**
  * See implementation.

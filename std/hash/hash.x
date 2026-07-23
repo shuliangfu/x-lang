@@ -30,7 +30,7 @@ export const HASHER_XXHASH: i32 = 2;
 /* See implementation. */
 export const HAS_LIT_N1: u8[2] = [49, 0];
 export const HAS_LIT_N2: u8[2] = [50, 0];
-export const HAS_LIT_XLANG_HASH_ALGO: u8[15] = [83, 72, 85, 88, 95, 72, 65, 83, 72, 95, 65, 76, 71, 79, 0];
+export const HAS_LIT_XLANG_HASH_ALGO: u8[16] = [88, 76, 65, 78, 71, 95, 72, 65, 83, 72, 95, 65, 76, 71, 79, 0];
 export const HAS_LIT_AHASH: u8[6] = [97, 104, 97, 115, 104, 0];
 export const HAS_LIT_X: u8[2] = [120, 0];
 export const HAS_LIT_XXHASH: u8[7] = [120, 120, 104, 97, 115, 104, 0];

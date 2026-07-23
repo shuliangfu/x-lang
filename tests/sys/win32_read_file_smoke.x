@@ -12,10 +12,7 @@ function main(): i32 {
    *      this file to CWD before exec, so relative path works on Windows.
    * Invariant: gate script must write xlang_win32_read_gate.txt to the
    *            working directory before invoking this binary. */
-  let path: u8[30] = [
-    115, 104, 117, 120, 95, 119, 105, 110, 51, 50, 95, 114, 101, 97, 100, 95,
-    103, 97, 116, 101, 46, 116, 120, 116, 0,
-  ];
+  let path: u8[31] = [120, 108, 97, 110, 103, 95, 119, 105, 110, 51, 50, 95, 114, 101, 97, 100, 95, 103, 97, 116, 101, 46, 116, 120, 116, 0];
   let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let n: i32 = sys.read_file_into(&path[0], &buf[0], 8);
   if (n != 3) {

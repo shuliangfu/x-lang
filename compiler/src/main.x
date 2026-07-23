@@ -764,7 +764,7 @@ export function main_cmd_run(argc: i32, argv: *u8): i32 {
   /* mute generated-C warning noise so only program output is printed; cc
      errors still surface (XLANG_RUN_QUIET only adds -w / -Wl,-w in invoke_cc). */
   /* "XLANG_RUN_QUIET" (14 bytes) + NUL terminator; setenv needs a C string. */
-  let _q: u8[15] = [83, 72, 85, 88, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
+  let _q: u8[16] = [88, 76, 65, 78, 71, 95, 82, 85, 78, 95, 81, 85, 73, 69, 84, 0];
   let _one: u8[2] = [49, 0];
   unsafe { setenv(&_q[0], &_one[0], 1); }
   let rc: i32 = main_run_compiler_x_path_impl(run_argc, run_argv);

@@ -96,9 +96,7 @@ export function heap_libc_getenv(name: *u8): *u8 {
 }
 
 /* See implementation. */
-let XLANG_HEAP_TRACE_ENV: u8[16] = [
-  83, 72, 85, 88, 95, 72, 69, 65, 80, 95, 84, 82, 65, 67, 69, 0,
-];
+let XLANG_HEAP_TRACE_ENV: u8[17] = [88, 76, 65, 78, 71, 95, 72, 69, 65, 80, 95, 84, 82, 65, 67, 69, 0];
 
 /* See implementation. */
 let shu_heap_trace_on: i32 = -1;

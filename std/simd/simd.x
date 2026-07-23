@@ -29,8 +29,8 @@ export const SIMD_PATH_SCALAR: i32 = 0;
 export const SIMD_PATH_HW: i32 = 1;
 
 /* See implementation. */
-export const SIM_LIT_XLANG_SIMD_AUTOVEC: u8[18] = [83, 72, 85, 88, 95, 83, 73, 77, 68, 95, 65, 85, 84, 111, 118, 101, 99, 0];
-export const SIM_LIT_XLANG_SIMD_HW: u8[13] = [83, 72, 85, 88, 95, 83, 73, 77, 68, 95, 72, 87, 0];
+export const SIM_LIT_XLANG_SIMD_AUTOVEC: u8[19] = [88, 76, 65, 78, 71, 95, 83, 73, 77, 68, 95, 65, 85, 84, 111, 118, 101, 99, 0];
+export const SIM_LIT_XLANG_SIMD_HW: u8[14] = [88, 76, 65, 78, 71, 95, 83, 73, 77, 68, 95, 72, 87, 0];
 
 /** Exported function `simd_str_eq`.
  * Implements `simd_str_eq`.
