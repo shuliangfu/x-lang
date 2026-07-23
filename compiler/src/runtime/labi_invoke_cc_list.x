@@ -15,8 +15,9 @@
 //   - invoke_cc_append_std_ensure_push_heavy_a (wave202; pure ensure-push heavy_a math…compress)
 //   - invoke_cc_append_std_ensure_push_heavy_b (wave203; pure ensure-push heavy_b unicode…process_argv)
 //   - invoke_cc_append_heap_f06_ondemand (wave204; pure heap F-06 on-demand + page_mmap companions)
+//   - invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205; pure fork-exec shell + strip)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
-//   contains_substr(_use_line) peers for scan; fork/exec still mega.
+//   contains_substr(_use_line) peers for scan; shux_spawn_sync / setenv / strip_out_x / tool_status.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 export extern "C" function getenv(name: *u8): *u8;
@@ -120,6 +121,17 @@ export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
 export extern "C" function link_abi_link_needs_std_heap_import(user_o: *u8, argv: **u8, la: i32): i32;
 /* page_mmap.o rel path peer pure (labi_ondemand_list); heap.o always imports freestanding mmap path. */
 export extern "C" function labi_od_rel_page_mmap(): *u8;
+
+/* ===== wave205 Cap residual / peer pure for fork-exec shell + strip ===== */
+/* Authority spawn: POSIX fork+execvp+wait / Windows _spawnvp (G.7 complete; no second fork path). */
+export extern "C" function shux_spawn_sync(prog: *u8, argv: **u8): i32;
+/* Freestanding / empty PATH: set before spawn so gcc/ld resolve (was child-only setenv). */
+export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
+export extern "C" function strcmp(a: *u8, b: *u8): i32;
+/* Diag on all-cc-candidates fail (status often -1 after spawn_sync collapses wait bits). */
+export extern "C" function link_diag_tool_status(tool: *u8, status: i32): void;
+/* Cap residual: best-effort `strip -x out` (local argv pack; pure cannot safely build **u8 table). */
+export extern "C" function invoke_cc_strip_out_x(out_path: *u8): void;
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -3331,7 +3343,7 @@ export function labi_icc_heap_f06_needle_at(i: i32): *u8 {
  * Cap residual: link_abi_link_needs_std_heap_import (nm argv) + contains_substr_use_line +
  *   provides_core_mem / provides_std_heap + labi_od_rel_page_mmap + asm_io_stubs ensure/path.
  * Why (wave204): hybrid still had heap F-06 always-mega after wave203 heavy_b.
- * Residual fork/exec remain mega.
+ * Residual fork/exec pure @ wave205.
  * Callers: mega shux_invoke_cc_impl after invoke_cc_append_std_ensure_push_heavy_b.
  * PLATFORM: SHARED orch (page_mmap companions required on Ubuntu L4 cold for heap UNDEF).
  * Track-L: #[no_mangle] surface short name for mega call sites.
@@ -3460,5 +3472,173 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
         }
       }
     }
+  }
+}
+
+/**
+ * Spawn system cc/gcc with a finished NULL-terminated argv (parent-side, no fork-first).
+ * @param argv **u8 — full cc argv ending with null; argv[0] rewritten per candidate; null → -1
+ * @return i32 — 0 success (first candidate exit 0); -1 all candidates failed (diag emitted)
+ * Pure orch: ≡ mega post-argv fork/exec/wait shell (wave205).
+ * Cap residual: setenv(PATH) + host_is_* + shux_spawn_sync + link_diag_tool_status.
+ * Candidate order ≡ historical mega child exec chain:
+ *   WINDOWS: gcc only (MinGW; no bare `cc`)
+ *   LINUX: gcc, cc, /usr/bin/gcc, /usr/bin/cc, /usr/local/bin/gcc, /usr/local/bin/cc
+ *   APPLE / other POSIX: cc, gcc
+ * Why: hybrid still had always-mega fork+exec+wait after argv pure (wave198–204).
+ * G.7: single spawn authority = shux_spawn_sync (no second fork path in pure).
+ * PLATFORM: SHARED orch / POSIX setenv+PATH / WINDOWS spawn gcc only.
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_run_cc_argv(argv: **u8): i32 {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return 0 - 1;
+  }
+
+  // Freestanding shux_asm child/parent may inherit empty PATH; fix tool lookup.
+  // PLATFORM: POSIX primarily; setenv on Windows is harmless when present.
+  unsafe {
+    let _p: i32 = setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
+  }
+
+  let is_win: i32 = 0;
+  unsafe {
+    is_win = link_abi_host_is_windows();
+  }
+  if (is_win != 0) {
+    // PLATFORM: WINDOWS — no `cc`; MinGW gcc + _spawnvp via shux_spawn_sync.
+    let gcc: *u8 = "gcc";
+    argv[0] = gcc;
+    let rc: i32 = 0;
+    unsafe {
+      rc = shux_spawn_sync(gcc, argv);
+    }
+    if (rc == 0) {
+      return 0;
+    }
+    unsafe {
+      link_diag_tool_status("cc", rc);
+    }
+    return 0 - 1;
+  }
+
+  let is_linux: i32 = 0;
+  unsafe {
+    is_linux = shux_host_is_linux();
+  }
+  if (is_linux != 0) {
+    // PLATFORM: LINUX — Alpine prefers gcc argv[0]; absolute paths if PATH still broken.
+    let c0: *u8 = "gcc";
+    let c1: *u8 = "cc";
+    let c2: *u8 = "/usr/bin/gcc";
+    let c3: *u8 = "/usr/bin/cc";
+    let c4: *u8 = "/usr/local/bin/gcc";
+    let c5: *u8 = "/usr/local/bin/cc";
+    let i: i32 = 0;
+    while (i < 6) {
+      let cand: *u8 = c0;
+      if (i == 1) {
+        cand = c1;
+      }
+      if (i == 2) {
+        cand = c2;
+      }
+      if (i == 3) {
+        cand = c3;
+      }
+      if (i == 4) {
+        cand = c4;
+      }
+      if (i == 5) {
+        cand = c5;
+      }
+      argv[0] = cand;
+      let rc: i32 = 0;
+      unsafe {
+        rc = shux_spawn_sync(cand, argv);
+      }
+      if (rc == 0) {
+        return 0;
+      }
+      i = i + 1;
+    }
+    unsafe {
+      link_diag_tool_status("cc", 0 - 1);
+    }
+    return 0 - 1;
+  }
+
+  // PLATFORM: APPLE / other POSIX — prefer cc then gcc (Darwin cc is Apple clang wrapper).
+  let a0: *u8 = "cc";
+  let a1: *u8 = "gcc";
+  argv[0] = a0;
+  let rc0: i32 = 0;
+  unsafe {
+    rc0 = shux_spawn_sync(a0, argv);
+  }
+  if (rc0 == 0) {
+    return 0;
+  }
+  argv[0] = a1;
+  let rc1: i32 = 0;
+  unsafe {
+    rc1 = shux_spawn_sync(a1, argv);
+  }
+  if (rc1 == 0) {
+    return 0;
+  }
+  unsafe {
+    link_diag_tool_status("cc", 0 - 1);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Best-effort strip -x on linked product when opt_level is not "0".
+ * @param out_path *u8 — executable path just produced by cc; null/empty → no-op
+ * @param opt_level *u8 — optimization level string; null/empty/"0" → no-op
+ * @return void — strip failure ignored (≡ mega (void)wait / (void)_spawnvp)
+ * Pure orch: ≡ mega stage-8 strip shell after successful cc wait.
+ * Cap residual: invoke_cc_strip_out_x (packs strip argv + spawn); host_is_windows skip
+ *   (mega Windows path returned before strip; PE strip optional / often absent).
+ * Why strip -x not bare strip: Darwin bare strip drops _main global → nm/otool false red.
+ * PLATFORM: SHARED gate / POSIX strip body / WINDOWS no-op (preserve mega semantics).
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_maybe_strip_out(out_path: *u8, opt_level: *u8): void {
+  if (out_path == 0 as *u8) {
+    return;
+  }
+  if (out_path[0] == 0) {
+    return;
+  }
+  if (opt_level == 0 as *u8) {
+    return;
+  }
+  if (opt_level[0] == 0) {
+    return;
+  }
+  let is0: i32 = 0;
+  unsafe {
+    is0 = strcmp(opt_level, "0");
+  }
+  if (is0 == 0) {
+    return;
+  }
+  let is_win: i32 = 0;
+  unsafe {
+    is_win = link_abi_host_is_windows();
+  }
+  if (is_win != 0) {
+    // PLATFORM: WINDOWS — mega historically returned before strip; keep no-op.
+    return;
+  }
+  unsafe {
+    invoke_cc_strip_out_x(out_path);
   }
 }

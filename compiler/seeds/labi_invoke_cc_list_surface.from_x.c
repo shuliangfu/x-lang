@@ -6,15 +6,17 @@
  *   + wave201 invoke_cc_append_std_ensure_push_mid pure orch
  *   + wave202 invoke_cc_append_std_ensure_push_heavy_a pure orch
  *   + wave203 invoke_cc_append_std_ensure_push_heavy_b pure orch
- *   + wave204 invoke_cc_append_heap_f06_ondemand pure orch.
+ *   + wave204 invoke_cc_append_heap_f06_ondemand pure orch
+ *   + wave205 invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out pure orch.
  *
  * 【Why 根源】旧 surface 由 .x STRING_LIT 生成 `(uint8_t[]){...}; return p`：
  *   C 块作用域 compound literal 为自动存储，return 后悬空。
  *   labi_linux_harden_flag_at 被 invoke_cc 写入 argv → gcc 收到乱码路径。
  * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
  * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table
- *   + wave155/198/199/200/201/202/203/204 pure orch).
- * Cap residual: generated_c_needs_* + ensure/path/push peers + host_is_* + net_tls_ld.
+ *   + wave155/198/199/200/201/202/203/204/205 pure orch).
+ * Cap residual: generated_c_needs_* + ensure/path/push peers + host_is_* + net_tls_ld
+ *   + shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status.
  * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
@@ -116,6 +118,11 @@ extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
 /* wave204 heap F-06 peers */
 extern int32_t link_abi_link_needs_std_heap_import(uint8_t * user_o, uint8_t * * argv, int32_t la);
 extern uint8_t * labi_od_rel_page_mmap(void);
+/* wave205 fork-exec shell peers */
+extern int32_t shux_spawn_sync(uint8_t * prog, uint8_t * * argv);
+extern int32_t setenv(const char *name, const char *value, int overwrite);
+extern void link_diag_tool_status(uint8_t * tool, int32_t status);
+extern void invoke_cc_strip_out_x(uint8_t * out_path);
 /* labi_icc_rel_error_o / labi_icc_rel_socketio_o / provides_* defined in this surface file */
 
 int32_t labi_linux_harden_flag_count(void) {
@@ -1496,4 +1503,62 @@ void invoke_cc_append_heap_f06_ondemand(uint8_t **argv, int32_t *ia, int32_t arg
       }
     }
   }
+}
+
+/* wave205: invoke_cc_run_cc_argv pure orch (surface pin ≡ .x). */
+int32_t invoke_cc_run_cc_argv(uint8_t **argv) {
+  int32_t is_win;
+  int32_t is_linux;
+  int32_t rc;
+  if (!argv)
+    return -1;
+  (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
+  is_win = link_abi_host_is_windows();
+  if (is_win) {
+    argv[0] = (uint8_t *)"gcc";
+    rc = shux_spawn_sync((uint8_t *)"gcc", argv);
+    if (rc == 0)
+      return 0;
+    link_diag_tool_status((uint8_t *)"cc", rc);
+    return -1;
+  }
+  is_linux = shux_host_is_linux();
+  if (is_linux) {
+    static const char *cands[6] = {
+      "gcc", "cc", "/usr/bin/gcc", "/usr/bin/cc",
+      "/usr/local/bin/gcc", "/usr/local/bin/cc"
+    };
+    int i;
+    for (i = 0; i < 6; i++) {
+      argv[0] = (uint8_t *)cands[i];
+      rc = shux_spawn_sync((uint8_t *)cands[i], argv);
+      if (rc == 0)
+        return 0;
+    }
+    link_diag_tool_status((uint8_t *)"cc", -1);
+    return -1;
+  }
+  argv[0] = (uint8_t *)"cc";
+  rc = shux_spawn_sync((uint8_t *)"cc", argv);
+  if (rc == 0)
+    return 0;
+  argv[0] = (uint8_t *)"gcc";
+  rc = shux_spawn_sync((uint8_t *)"gcc", argv);
+  if (rc == 0)
+    return 0;
+  link_diag_tool_status((uint8_t *)"cc", -1);
+  return -1;
+}
+
+/* wave205: invoke_cc_maybe_strip_out pure orch (surface pin ≡ .x). */
+void invoke_cc_maybe_strip_out(uint8_t *out_path, uint8_t *opt_level) {
+  if (!out_path || !out_path[0])
+    return;
+  if (!opt_level || !opt_level[0])
+    return;
+  if (strcmp((const char *)opt_level, "0") == 0)
+    return;
+  if (link_abi_host_is_windows())
+    return;
+  invoke_cc_strip_out_x(out_path);
 }

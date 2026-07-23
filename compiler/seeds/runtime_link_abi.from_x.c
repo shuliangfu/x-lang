@@ -372,6 +372,27 @@ int shux_spawn_sync(const char *prog, const char *const *argv) {
 #endif
 }
 
+/**
+ * Cap residual (wave205): best-effort `strip -x out_path` after successful cc link.
+ * Pure orch invoke_cc_maybe_strip_out owns opt_level / Windows skip gates.
+ * Must use strip -x (local symbols only): bare strip on Darwin drops _main globals
+ * → nm/otool false red. PLATFORM: POSIX fork/spawn strip; WINDOWS _spawnvp strip.
+ */
+void invoke_cc_strip_out_x(const char *out_path) {
+    const char *sargv[4];
+    if (!out_path || !out_path[0])
+        return;
+    sargv[0] = "strip";
+    sargv[1] = "-x";
+    sargv[2] = out_path;
+    sargv[3] = NULL;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    (void)_spawnvp(_P_WAIT, "strip", (const char *const *)sargv);
+#else
+    (void)shux_spawn_sync("strip", sargv);
+#endif
+}
+
 
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-268 L1 diag pure：code_for_kind 真迁在 L1 leaf；rest 非 hybrid 自带 */
@@ -2192,6 +2213,8 @@ void invoke_cc_append_std_ensure_push_heavy_b(char **argv, int *ia, int argv_cap
     const char *test_o, const char *async_scheduler_o);
 void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root);
+int invoke_cc_run_cc_argv(char **argv);
+void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2246,6 +2269,14 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
  * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
  * Why: hybrid still had heap F-06 always-mega after wave203 heavy_b.
  * PLATFORM: SHARED orch (Ubuntu L4 cold needs page_mmap + asm_io_stubs with heap.o).
+ */
+
+/* wave205: invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out pure orch lives in
+ * labi_invoke_cc_list (fork-exec shell + strip after argv build). Cold twin via #include
+ * labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x (decl in #else).
+ * Cap residual peers: shux_spawn_sync + invoke_cc_strip_out_x + setenv + host_is_* + tool_status.
+ * Why: hybrid still had always-mega fork+exec+wait+strip after argv pure (wave198–204).
+ * PLATFORM: SHARED orch / parent-side spawn (no fork-first argv build).
  */
 
 
@@ -3144,9 +3175,11 @@ void shux_invoke_cc_clear_user_o_files(void);
 #endif
 
 /**
- * 调用系统 cc 将多个 C 文件编译链接为可执行文件（fork/exec + 可选 strip）。
+ * 调用系统 cc 将多个 C 文件编译链接为可执行文件（parent 建 argv + pure spawn/strip）。
  * 参数：c_paths/n 源文件；各 *_o 可选 std/core .o；include_root 用于 -I 与按需 .o 解析。
  * 返回值：0 成功，-1 失败。
+ * wave205: fork/exec/wait/strip 壳迁 pure（invoke_cc_run_cc_argv + maybe_strip_out）；
+ *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x。无 fork-first 在子进程建 argv。
  */
 int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
@@ -3166,290 +3199,192 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
      * C link (and Darwin paths that still hit invoke_cc) to rebuild time_os.
      * Authority: ensure only under need_time (below) + ASM PRIMARY/on_demand
      * gated by labi_user_needs_runtime_time_os. G.7 complete existing need path.
+     *
+     * wave205: build argv in parent, then pure invoke_cc_run_cc_argv (spawn_sync
+     * candidates) + invoke_cc_maybe_strip_out. No fork-first child argv build.
      */
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    pid_t pid = 0;  /* Windows: 模拟 child 分支，直接构造 argv + _spawnvp */
-#else
-    pid_t pid = fork();
-    if (pid < 0) {
-        perror("fork");
-        return -1;
+    /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
+    char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
+    int i = 0;
+    const int argv_cap = SHUX_INVOKE_CC_MAX_C_FILES + 48;
+    argv[i++] = (char *)"cc";
+    /* preamble 中 std_io_* / std_net_* 使用 C11 _Generic，须传 -std=gnu11（不能 -x c，否则 .o 会被当 C 源码编译） */
+    argv[i++] = (char *)"-std=gnu11";
+    /* `shux run` / bare `shux file.x`: compile in memory for direct exec, so
+     * suppress the generated-C diagnostic noise (the preamble/codegen emit
+     * trips -Wparentheses-equality etc.). Errors still surface; only warnings
+     * (cc -w and linker -Wl,-w) are muted. PLATFORM: SHARED. */
+    if (i + 2 < argv_cap && getenv("SHUX_RUN_QUIET")) {
+        argv[i++] = (char *)"-w";
+        argv[i++] = (char *)"-Wl,-w";
     }
-    if (pid == 0) {
-        /* #region debug-point C:invoke-cc-child */
-        shux_debug_hello_stage1_report("C", "runtime_link_abi.c:2978", "invoke_cc_child", n, use_lto, 0);
-        /* #endregion */
-        /* 静态链 shux_asm 子进程可能继承空 PATH，gcc 找不到 ld；显式补齐常见路径。 */
-        (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
-#endif
-        /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
-        char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
-        int i = 0;
-        const int argv_cap = SHUX_INVOKE_CC_MAX_C_FILES + 48;
-        argv[i++] = (char *)"cc";
-        /* preamble 中 std_io_* / std_net_* 使用 C11 _Generic，须传 -std=gnu11（不能 -x c，否则 .o 会被当 C 源码编译） */
-        argv[i++] = (char *)"-std=gnu11";
-        /* `shux run` / bare `shux file.x`: compile in memory for direct exec, so
-         * suppress the generated-C diagnostic noise (the preamble/codegen emit
-         * trips -Wparentheses-equality etc.). Errors still surface; only warnings
-         * (cc -w and linker -Wl,-w) are muted. PLATFORM: SHARED. */
-        if (i + 2 < argv_cap && getenv("SHUX_RUN_QUIET")) {
-            argv[i++] = (char *)"-w";
-            argv[i++] = (char *)"-Wl,-w";
-        }
 #if defined(__linux__)
-        if (i < argv_cap - 1)
-            argv[i++] = (char *)"-B/usr/bin";
+    if (i < argv_cap - 1)
+        argv[i++] = (char *)"-B/usr/bin";
 #endif
-        {
-            static char oopt_buf[8];
-            (void)snprintf(oopt_buf, sizeof(oopt_buf), "-O%s", opt_level);
-            argv[i++] = oopt_buf;
-            /* 极致性能：-O3 时加 march=native mtune=native；-O2 时加 march=native；CI/Docker 跳过。 */
-            if (!invoke_cc_skip_native_tuning() && (strcmp(opt_level, "3") == 0 || strcmp(opt_level, "2") == 0)) {
-                argv[i++] = (char *)"-march=native";
-                if (strcmp(opt_level, "3") == 0)
-                    argv[i++] = (char *)"-mtune=native";
-            }
+    {
+        static char oopt_buf[8];
+        (void)snprintf(oopt_buf, sizeof(oopt_buf), "-O%s", opt_level);
+        argv[i++] = oopt_buf;
+        /* 极致性能：-O3 时加 march=native mtune=native；-O2 时加 march=native；CI/Docker 跳过。 */
+        if (!invoke_cc_skip_native_tuning() && (strcmp(opt_level, "3") == 0 || strcmp(opt_level, "2") == 0)) {
+            argv[i++] = (char *)"-march=native";
+            if (strcmp(opt_level, "3") == 0)
+                argv[i++] = (char *)"-mtune=native";
         }
-        /* 阶段 8：非调试时传 -DNDEBUG；-flto 便于跨模块内联（2.3 构建与链接） */
-        if (strcmp(opt_level, "0") != 0)
-            argv[i++] = (char *)"-DNDEBUG";
-        if (use_lto && strcmp(opt_level, "0") != 0 && !invoke_cc_skip_native_tuning())
-            argv[i++] = (char *)"-flto";
+    }
+    /* 阶段 8：非调试时传 -DNDEBUG；-flto 便于跨模块内联（2.3 构建与链接） */
+    if (strcmp(opt_level, "0") != 0)
+        argv[i++] = (char *)"-DNDEBUG";
+    if (use_lto && strcmp(opt_level, "0") != 0 && !invoke_cc_skip_native_tuning())
+        argv[i++] = (char *)"-flto";
 #if defined(__linux__)
-        /* P1-7：release 可执行文件默认 PIE + NX + RELRO（与 asm 链接路径一致）。 */
-        if (strcmp(opt_level, "0") != 0)
-            shux_append_linux_link_harden(argv, &i, argv_cap);
+    /* P1-7：release 可执行文件默认 PIE + NX + RELRO（与 asm 链接路径一致）。 */
+    if (strcmp(opt_level, "0") != 0)
+        shux_append_linux_link_harden(argv, &i, argv_cap);
 #endif
-        argv[i++] = (char *)"-o";
-        argv[i++] = (char *)out_path;
-        /*
-         * 死代码剥离：preamble / co-emit 常带 std_io_*_ctx / read_batch 等「可能用」体，
-         * 其 U 引用 context/error/driver；hello 与 io.print 等未调用路径须 GC 掉，
-         * 否则会假依赖链 context.o→atomic，或直接 ld UNDEF（bstrict27 run-io）。
-         *
-         * 【Invariant】与 freestanding asm / std 模块编译同权威：
-         *   - 编译：-ffunction-sections -fdata-sections（每函数独立 section）
-         *   - 链接：--gc-sections / Darwin -dead_strip（从 main 可达性剔除）
-         * 仅传 --gc-sections 而无 function-sections 时，整块 .text 要么全留要么
-         * （偶发）全丢；io 的 print 落在 .text 会拖死整段 U，hello 因全内联进
-         * .text.startup 才碰巧绿。二者必须成对，禁止只加链接侧 GC。
-         */
-        if (i < argv_cap - 2) {
-            argv[i++] = (char *)"-ffunction-sections";
-            argv[i++] = (char *)"-fdata-sections";
-        }
+    argv[i++] = (char *)"-o";
+    argv[i++] = (char *)out_path;
+    /*
+     * 死代码剥离：preamble / co-emit 常带 std_io_*_ctx / read_batch 等「可能用」体，
+     * 其 U 引用 context/error/driver；hello 与 io.print 等未调用路径须 GC 掉，
+     * 否则会假依赖链 context.o→atomic，或直接 ld UNDEF（bstrict27 run-io）。
+     *
+     * 【Invariant】与 freestanding asm / std 模块编译同权威：
+     *   - 编译：-ffunction-sections -fdata-sections（每函数独立 section）
+     *   - 链接：--gc-sections / Darwin -dead_strip（从 main 可达性剔除）
+     * 仅传 --gc-sections 而无 function-sections 时，整块 .text 要么全留要么
+     * （偶发）全丢；io 的 print 落在 .text 会拖死整段 U，hello 因全内联进
+     * .text.startup 才碰巧绿。二者必须成对，禁止只加链接侧 GC。
+     */
+    if (i < argv_cap - 2) {
+        argv[i++] = (char *)"-ffunction-sections";
+        argv[i++] = (char *)"-fdata-sections";
+    }
 #if defined(__APPLE__)
-        if (i < argv_cap - 1)
-            argv[i++] = (char *)"-Wl,-dead_strip";
+    if (i < argv_cap - 1)
+        argv[i++] = (char *)"-Wl,-dead_strip";
 #elif defined(__linux__)
-        if (i < argv_cap - 1)
-            argv[i++] = (char *)"-Wl,--gc-sections";
+    if (i < argv_cap - 1)
+        argv[i++] = (char *)"-Wl,--gc-sections";
 #endif
-        if (include_root && include_root[0]) {
-            argv[i++] = (char *)"-I";
-            argv[i++] = (char *)include_root;
-        }
-        for (int j = 0; j < n && i < SHUX_INVOKE_CC_MAX_C_FILES + 8; j++)
-            argv[i++] = (char *)c_paths[j];
-        /* wave198: early needs scan+push pure orch (L5 invoke_cc_list).
-         * G.7 compose peer needs/rel/push/ensure/path + host_is_* platform gates.
-         * Cap residual still mega for fork/exec and remaining invoke_cc_impl body. */
-        invoke_cc_append_early_needs(argv, &i, argv_cap, c_paths, n, include_root,
-            random_o, time_o, runtime_o, runtime_panic_o);
-        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。
-         * 【Why 根源】Windows codegen 生成 extern 声明（非 weak 定义），minimal 链须显式链入
-         * runtime_process_argv.o 提供 shux_process_argc/argv 定义，否则链接报 undefined reference。
-         * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。 */
-        if (getenv("SHUX_MINIMAL_CC_LINK")) {
+    if (include_root && include_root[0]) {
+        argv[i++] = (char *)"-I";
+        argv[i++] = (char *)include_root;
+    }
+    for (int j = 0; j < n && i < SHUX_INVOKE_CC_MAX_C_FILES + 8; j++)
+        argv[i++] = (char *)c_paths[j];
+    /* wave198: early needs scan+push pure orch (L5 invoke_cc_list).
+     * G.7 compose peer needs/rel/push/ensure/path + host_is_* platform gates.
+     * wave205: fork/exec shell pure after argv complete. */
+    invoke_cc_append_early_needs(argv, &i, argv_cap, c_paths, n, include_root,
+        random_o, time_o, runtime_o, runtime_panic_o);
+    /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。
+     * 【Why 根源】Windows codegen 生成 extern 声明（非 weak 定义），minimal 链须显式链入
+     * runtime_process_argv.o 提供 shux_process_argc/argv 定义，否则链接报 undefined reference。
+     * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。 */
+    if (getenv("SHUX_MINIMAL_CC_LINK")) {
 #if defined(_WIN32) || defined(_WIN64)
-            {
-                const char *rpav = shux_runtime_process_argv_o_path(NULL);
-                if (rpav && rpav[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpav);
-            }
-#endif
-#if defined(__linux__) || defined(__APPLE__)
-            if (i < argv_cap - 1)
-                argv[i++] = (char *)"-lc";
-#endif
-            if (i < argv_cap)
-                argv[i++] = NULL;
-#if defined(__linux__)
-            argv[0] = (char *)"gcc";
-            execvp("gcc", argv);
-            argv[0] = (char *)"cc";
-            execvp("cc", argv);
-            argv[0] = (char *)"/usr/bin/gcc";
-            execv("/usr/bin/gcc", argv);
-            argv[0] = (char *)"/usr/bin/cc";
-            execv("/usr/bin/cc", argv);
-        argv[0] = (char *)"/usr/local/bin/gcc";
-        execv("/usr/local/bin/gcc", argv);
-        argv[0] = (char *)"/usr/local/bin/cc";
-        execv("/usr/local/bin/cc", argv);
-#else
-            argv[0] = (char *)"cc";
-            execvp("cc", argv);
-            argv[0] = (char *)"gcc";
-            execvp("gcc", argv);
-#endif
-            perror("cc/gcc");
-            _exit(127);
-        }
-        /*
-         * 【权威】std/*.o 仅在生成 C 真正引用「模块 API」时链入。
-         * 禁止裸前缀 std_net_/std_context_/std_string_：rt_preamble 恒注入类型/宏/extern，
-         * hello 也会假阳性 → 链 net.o/context.o → 再拖 thread/atomic（与用户无关）。
-         * 针脚与 ASM 路径 link_abi_user_o_needs_std_net 等同权威（具体 API 名）。
-         * 配合上方 -dead_strip/--gc-sections：co-emit 的未引用 io_ctx 体不迫使链 context。
-         */
         {
-            /* wave199: std module need scan pure orch (L5 invoke_cc_list).
-             * G.7 pure needle tables + Cap residual contains_substr(_use_line).
-             * Flag map: 0 process 1 process_argv_glue 2 string 3 path 4 runtime 5 net
-             * 6 thread 7 time 8 random 9 env 10 sync 11 encoding 12 base64 13 crypto
-             * 14 log 15 atomic 16 channel 17 backtrace 18 hash 19 math 20 sort 21 vec
-             * 22 ffi 23 db 24 elf 25 json 26 csv 27 regex 28 compress 29 unicode
-             * 30 dynlib 31 http 32 tar 33 simd 34 context 35 error 36 datetime 37 uuid
-             * 38 url 39 cli 40 security 41 config 42 cache 43 trace 44 task 45 schema
-             * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
-             * wave200: ensure-push front string→env pure; wave201 mid sync→hash pure;
-             * wave202 heavy_a math…compress pure; wave203 heavy_b unicode…process_argv pure;
-             * wave204 heap F-06 pure; fork/exec still mega. */
-            int need_flags[52];
-            invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
-            /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
-             * May set need_flags[6]=1 when net.o links (workers → thread). */
-            invoke_cc_append_std_ensure_push_front(argv, &i, argv_cap, need_flags, 52, include_root,
-                process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o,
-                net_o, thread_o, time_o, random_o, env_o);
-            /* wave201 pure: sync/encoding/base64/crypto/log/atomic/channel/backtrace/hash. */
-            invoke_cc_append_std_ensure_push_mid(argv, &i, argv_cap, need_flags, 52, include_root,
-                sync_o, encoding_o, base64_o, crypto_o, atomic_o, channel_o, backtrace_o, hash_o);
-            /* wave202 pure: math/sort/vec/ffi/db/elf/json/csv/set/map/queue/regex/compress. */
-            invoke_cc_append_std_ensure_push_heavy_a(argv, &i, argv_cap, need_flags, 52, include_root,
-                c_paths, n, math_o, sort_o, ffi_o, db_o, elf_o, regex_o, compress_o, hash_o);
-            /* wave203 pure: unicode…process_argv complement (task/scheduler/test/dynlib/http…). */
-            invoke_cc_append_std_ensure_push_heavy_b(argv, &i, argv_cap, need_flags, 52, include_root,
-                c_paths, n, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o,
-                datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o,
-                task_o, schema_o, test_o, async_scheduler_o);
+            const char *rpav = shux_runtime_process_argv_o_path(NULL);
+            if (rpav && rpav[0])
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpav);
         }
-        /* wave204 pure: heap F-06 on-demand (nm argv + use_line + provides + page_mmap companions). */
-        invoke_cc_append_heap_f06_ondemand(argv, &i, argv_cap, c_paths, n, include_root);
+#endif
 #if defined(__linux__) || defined(__APPLE__)
-        /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
-        if ((asm_link_obj_skip_missing(thread_o) || asm_link_obj_skip_missing(sync_o) ||
-             asm_link_obj_skip_missing(channel_o)) &&
-            i < argv_cap - 1)
-            argv[i++] = (char *)"-pthread";
         if (i < argv_cap - 1)
             argv[i++] = (char *)"-lc";
 #endif
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-        /* 【Why 根源】PE/COFF 格式不支持 weak 符号：SHUX_WEAK 函数被 MinGW 当
-           普通强符号定义。shux codegen 对 std/*.o 中函数生成 weak 别名（如 log_write_c、
-           core_crypto_mem_eq_c），多份 .o 链入时产生 multiple definition error。
-           --allow-multiple-definition 让 ld 选第一个定义，与 ELF weak 语义对齐。
-           【Invariant】仅 PE 格式（Windows/Cygwin）需此 flag；ELF/Mach-O weak 原生支持。
-           【Asm/Perf】链接期选第一个定义，无运行时开销。 */
-        if (i < argv_cap - 1)
-            argv[i++] = (char *)"-Wl,--allow-multiple-definition";
-#endif
-        /* User-specified .o files from command line (single authority:
-         * g_shux_user_extra_o_files, set by shux_invoke_cc_set_user_o_files_from_argv).
-         * Pushed AFTER all std/core .o and link flags so user glue resolves last
-         * (resolves UNDEF symbols from std .o that user glue provides, e.g.
-         * runtime_atomic_glue.o provides atomic_load_i32_c referenced by context.o). */
-        {
-            int ui;
-            for (ui = 0; ui < g_shux_n_user_extra_o_files; ui++) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                                                    g_shux_user_extra_o_files[ui]);
-            }
-        }
         if (i < argv_cap)
             argv[i++] = NULL;
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-        {
-            /* Windows 无 cc，用 gcc；_spawnvp 第一参数为 PATH 查找的程序名 */
-            argv[0] = (char *)"gcc";
-            intptr_t rc = _spawnvp(_P_WAIT, "gcc", (const char *const *)argv);
-            if (rc == -1) {
-                perror("_spawnvp (cc)");
-                return -1;
-            }
-            {
-                int status = (int)rc;
-                if (rc != 0) {
-                    link_diag_tool_status("cc", status);
-                    return -1;
-                }
-            }
-        }
+        /* wave205 pure: spawn cc candidates + strip (no child exec). */
+        if (invoke_cc_run_cc_argv(argv) != 0)
+            return -1;
+        invoke_cc_maybe_strip_out(out_path, opt_level);
         return 0;
-#else
-#if defined(__linux__)
-        /* Alpine 等环境下优先用 gcc 并传 argv[0]=gcc，确保 -std=gnu11 等参数被正确识别（部分 cc 包装可能行为不同） */
-        argv[0] = (char *)"gcc";
-        execvp("gcc", argv);
-        argv[0] = (char *)"cc";
-        execvp("cc", argv);
-        argv[0] = (char *)"/usr/bin/gcc";
-        execv("/usr/bin/gcc", argv);
-        argv[0] = (char *)"/usr/bin/cc";
-        execv("/usr/bin/cc", argv);
-        argv[0] = (char *)"/usr/local/bin/gcc";
-        execv("/usr/local/bin/gcc", argv);
-        argv[0] = (char *)"/usr/local/bin/cc";
-        execv("/usr/local/bin/cc", argv);
-#else
-        argv[0] = (char *)"cc";
-        execvp("cc", argv);
-        argv[0] = (char *)"gcc";
-        execvp("gcc", argv);
-#endif
-        perror("cc/gcc");
-        _exit(127);
     }
-    int status;
-    if (shu_waitpid_retry(pid, &status) != 0)
-        return -1;
-    /* #region debug-point D:invoke-cc-wait */
-    shux_debug_hello_stage1_report("D", "runtime_link_abi.c:3455", "invoke_cc_wait", status, WIFSIGNALED(status) ? WTERMSIG(status) : -1, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
-    /* #endregion */
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        link_diag_tool_status("cc", status);
-        return -1;
+    /*
+     * 【权威】std/*.o 仅在生成 C 真正引用「模块 API」时链入。
+     * 禁止裸前缀 std_net_/std_context_/std_string_：rt_preamble 恒注入类型/宏/extern，
+     * hello 也会假阳性 → 链 net.o/context.o → 再拖 thread/atomic（与用户无关）。
+     * 针脚与 ASM 路径 link_abi_user_o_needs_std_net 等同权威（具体 API 名）。
+     * 配合上方 -dead_strip/--gc-sections：co-emit 的未引用 io_ctx 体不迫使链 context。
+     */
+    {
+        /* wave199: std module need scan pure orch (L5 invoke_cc_list).
+         * G.7 pure needle tables + Cap residual contains_substr(_use_line).
+         * Flag map: 0 process 1 process_argv_glue 2 string 3 path 4 runtime 5 net
+         * 6 thread 7 time 8 random 9 env 10 sync 11 encoding 12 base64 13 crypto
+         * 14 log 15 atomic 16 channel 17 backtrace 18 hash 19 math 20 sort 21 vec
+         * 22 ffi 23 db 24 elf 25 json 26 csv 27 regex 28 compress 29 unicode
+         * 30 dynlib 31 http 32 tar 33 simd 34 context 35 error 36 datetime 37 uuid
+         * 38 url 39 cli 40 security 41 config 42 cache 43 trace 44 task 45 schema
+         * 46 test 47 socketio 48 set 49 map 50 queue 51 panic.
+         * wave200–204 ensure-push/heap pure; wave205 fork-exec pure. */
+        int need_flags[52];
+        invoke_cc_scan_std_module_needs(c_paths, n, need_flags, 52);
+        /* wave200 pure: string/process/heap/path/runtime/panic/net/thread/time/random/env.
+         * May set need_flags[6]=1 when net.o links (workers → thread). */
+        invoke_cc_append_std_ensure_push_front(argv, &i, argv_cap, need_flags, 52, include_root,
+            process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o,
+            net_o, thread_o, time_o, random_o, env_o);
+        /* wave201 pure: sync/encoding/base64/crypto/log/atomic/channel/backtrace/hash. */
+        invoke_cc_append_std_ensure_push_mid(argv, &i, argv_cap, need_flags, 52, include_root,
+            sync_o, encoding_o, base64_o, crypto_o, atomic_o, channel_o, backtrace_o, hash_o);
+        /* wave202 pure: math/sort/vec/ffi/db/elf/json/csv/set/map/queue/regex/compress. */
+        invoke_cc_append_std_ensure_push_heavy_a(argv, &i, argv_cap, need_flags, 52, include_root,
+            c_paths, n, math_o, sort_o, ffi_o, db_o, elf_o, regex_o, compress_o, hash_o);
+        /* wave203 pure: unicode…process_argv complement (task/scheduler/test/dynlib/http…). */
+        invoke_cc_append_std_ensure_push_heavy_b(argv, &i, argv_cap, need_flags, 52, include_root,
+            c_paths, n, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o,
+            datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o,
+            task_o, schema_o, test_o, async_scheduler_o);
     }
+    /* wave204 pure: heap F-06 on-demand (nm argv + use_line + provides + page_mmap companions). */
+    invoke_cc_append_heap_f06_ondemand(argv, &i, argv_cap, c_paths, n, include_root);
+#if defined(__linux__) || defined(__APPLE__)
+    /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
+    if ((asm_link_obj_skip_missing(thread_o) || asm_link_obj_skip_missing(sync_o) ||
+         asm_link_obj_skip_missing(channel_o)) &&
+        i < argv_cap - 1)
+        argv[i++] = (char *)"-pthread";
+    if (i < argv_cap - 1)
+        argv[i++] = (char *)"-lc";
 #endif
-    /* 阶段 8：非 -O0 时 strip 减体积。必须用 strip -x（仅剥局部符号）：
-     * 裸 strip 在 Darwin 会去掉 _main 等全局符号，导致 LC_MAIN 仍可跑但 nm/otool
-     * 无 _main: 标签 → run-asm-* 反汇编门禁假红、调试符号丢失。禁止 -s 给 cc（obsolete）。 */
-    if (strcmp(opt_level, "0") != 0) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-        {
-            const char *sargv[4];
-            sargv[0] = "strip";
-            sargv[1] = "-x";
-            sargv[2] = out_path;
-            sargv[3] = NULL;
-            (void)_spawnvp(_P_WAIT, "strip", (const char *const *)sargv);
-        }
-#else
-        pid_t spid = fork();
-        if (spid == 0) {
-            execlp("strip", "strip", "-x", out_path, (char *)NULL);
-            _exit(127);
-        }
-        if (spid > 0) {
-            int sstatus;
-            (void)shu_waitpid_retry(spid, &sstatus);
-        }
+    /* 【Why 根源】PE/COFF 格式不支持 weak 符号：SHUX_WEAK 函数被 MinGW 当
+       普通强符号定义。shux codegen 对 std/*.o 中函数生成 weak 别名（如 log_write_c、
+       core_crypto_mem_eq_c），多份 .o 链入时产生 multiple definition error。
+       --allow-multiple-definition 让 ld 选第一个定义，与 ELF weak 语义对齐。
+       【Invariant】仅 PE 格式（Windows/Cygwin）需此 flag；ELF/Mach-O weak 原生支持。
+       【Asm/Perf】链接期选第一个定义，无运行时开销。 */
+    if (i < argv_cap - 1)
+        argv[i++] = (char *)"-Wl,--allow-multiple-definition";
 #endif
+    /* User-specified .o files from command line (single authority:
+     * g_shux_user_extra_o_files, set by shux_invoke_cc_set_user_o_files_from_argv).
+     * Pushed AFTER all std/core .o and link flags so user glue resolves last
+     * (resolves UNDEF symbols from std .o that user glue provides, e.g.
+     * runtime_atomic_glue.o provides atomic_load_i32_c referenced by context.o). */
+    {
+        int ui;
+        for (ui = 0; ui < g_shux_n_user_extra_o_files; ui++) {
+            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                                                g_shux_user_extra_o_files[ui]);
+        }
     }
+    if (i < argv_cap)
+        argv[i++] = NULL;
+    /* wave205 pure: parent-side spawn cc candidates + strip -x when opt != 0. */
+    /* #region debug-point C:invoke-cc-spawn */
+    shux_debug_hello_stage1_report("C", "runtime_link_abi.c:invoke_cc_spawn", "invoke_cc_spawn", n, use_lto, i);
+    /* #endregion */
+    if (invoke_cc_run_cc_argv(argv) != 0)
+        return -1;
+    /* #region debug-point D:invoke-cc-strip */
+    shux_debug_hello_stage1_report("D", "runtime_link_abi.c:invoke_cc_strip", "invoke_cc_strip", 0, 0, 0);
+    /* #endregion */
+    invoke_cc_maybe_strip_out(out_path, opt_level);
     return 0;
 }
 

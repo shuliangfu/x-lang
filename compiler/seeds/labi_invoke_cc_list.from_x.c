@@ -14,8 +14,9 @@
  *   invoke_cc_append_std_ensure_push_heavy_a (wave202 pure ensure-push heavy_a math…compress)
  *   invoke_cc_append_std_ensure_push_heavy_b (wave203 pure ensure-push heavy_b unicode…process_argv)
  *   invoke_cc_append_heap_f06_ondemand (wave204 pure heap F-06 on-demand + page_mmap)
+ *   invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205 pure fork-exec shell + strip)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
- *   fork/exec 仍 mega。
+ *   shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -129,6 +130,10 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
 const char *labi_od_rel_page_mmap(void);
 int link_abi_generated_c_provides_core_mem(const char *c_path);
 int link_abi_generated_c_provides_std_heap(const char *c_path);
+/* wave205 fork-exec shell peers */
+int shux_spawn_sync(const char *prog, const char *const *argv);
+void link_diag_tool_status(const char *tool, int status);
+void invoke_cc_strip_out_x(const char *out_path);
 
 int labi_linux_harden_flag_count(void) {
   return 5;
@@ -1494,6 +1499,65 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
   }
 }
 
+/* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x). */
+int invoke_cc_run_cc_argv(char **argv) {
+  int is_win;
+  int is_linux;
+  int rc;
+  if (!argv)
+    return -1;
+  (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
+  is_win = link_abi_host_is_windows();
+  if (is_win) {
+    argv[0] = (char *)"gcc";
+    rc = shux_spawn_sync("gcc", (const char *const *)argv);
+    if (rc == 0)
+      return 0;
+    link_diag_tool_status("cc", rc);
+    return -1;
+  }
+  is_linux = shux_host_is_linux();
+  if (is_linux) {
+    static const char *cands[6] = {
+      "gcc", "cc", "/usr/bin/gcc", "/usr/bin/cc",
+      "/usr/local/bin/gcc", "/usr/local/bin/cc"
+    };
+    int i;
+    for (i = 0; i < 6; i++) {
+      argv[0] = (char *)cands[i];
+      rc = shux_spawn_sync(cands[i], (const char *const *)argv);
+      if (rc == 0)
+        return 0;
+    }
+    link_diag_tool_status("cc", -1);
+    return -1;
+  }
+  /* PLATFORM: APPLE / other POSIX */
+  argv[0] = (char *)"cc";
+  rc = shux_spawn_sync("cc", (const char *const *)argv);
+  if (rc == 0)
+    return 0;
+  argv[0] = (char *)"gcc";
+  rc = shux_spawn_sync("gcc", (const char *const *)argv);
+  if (rc == 0)
+    return 0;
+  link_diag_tool_status("cc", -1);
+  return -1;
+}
+
+/* wave205: invoke_cc_maybe_strip_out pure orch (cold twin ≡ .x). */
+void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level) {
+  if (!out_path || !out_path[0])
+    return;
+  if (!opt_level || !opt_level[0])
+    return;
+  if (strcmp(opt_level, "0") == 0)
+    return;
+  if (link_abi_host_is_windows())
+    return;
+  invoke_cc_strip_out_x(out_path);
+}
+
 
 #else
 int labi_linux_harden_flag_count(void);
@@ -1550,6 +1614,8 @@ int labi_icc_heap_f06_needle_count(void);
 const char *labi_icc_heap_f06_needle_at(int i);
 void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root);
+int invoke_cc_run_cc_argv(char **argv);
+void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {
