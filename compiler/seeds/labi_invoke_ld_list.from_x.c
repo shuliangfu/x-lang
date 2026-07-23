@@ -19,6 +19,8 @@
  *   invoke_cc_append_net_tls_ld (wave158 pure orch; Cap residual exports_marker +
  *     realpath_cap + rel_o_path + pure push_existing + host_is_apple for brew -L)
  *   invoke_cc_argv_push_existing (wave179 pure orch; Cap residual resolve pool)
+ *   invoke_cc_argv_resolve_existing_path (wave215 pure thin; Cap residual
+ *     resolve_existing_path_impl = skip_missing + multi-slot realpath pool)
  *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual getenv+system+
  *     realpath_cap+exports_marker; shell make net-o-* Cap residual)
  *   shux_ensure_formal_std_make_o (wave188 pure orch; Cap residual getenv+access+
@@ -38,7 +40,7 @@
  *   shux_asm_ld_append_std_objs_for_user (wave196 pure orch; plan shell init+loop+
  *     dispatch wave190–195 leaves + process_argv complement)
  * Cap residual: host_is_apple; needs+ensure+path Cap;
- *   invoke_cc_argv_resolve_existing_path (skip+realpath pool);
+ *   invoke_cc_argv_resolve_existing_path_impl (skip+realpath pool; wave215 pure owns public gates);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
  *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual);
@@ -66,7 +68,9 @@ int link_abi_obj_needs_brotli(const char *obj_o);
 int link_abi_user_o_needs_compress_libs(const char *user_o);
 int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
-/* Cap residual (wave179): skip_missing + realpath multi-slot pool. */
+/* Cap residual always (wave215): skip_missing + multi-slot realpath pool body (mega). */
+const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
+/* wave215 pure thin public (cold twin under #ifndef; hybrid FROM_X → L6 pure .x). */
 const char *invoke_cc_argv_resolve_existing_path(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
@@ -137,8 +141,21 @@ const char *shux_runtime_process_argv_o_path(const char *argv0);
 
 #ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
 
+/* wave215: pure thin invoke_cc_argv_resolve_existing_path (cold twin ≡ .x).
+ * Cap residual _impl = skip_missing + multi-slot realpath pool (always mega).
+ * PLATFORM: SHARED — included into mega cold path under same ifndef; hybrid FROM_X
+ * uses L6 pure .x public and skips this body.
+ */
+const char *invoke_cc_argv_resolve_existing_path(const char *path) {
+  if (path == NULL)
+    return NULL;
+  if (path[0] == 0)
+    return NULL;
+  return invoke_cc_argv_resolve_existing_path_impl(path);
+}
+
 /* wave179: pure orch invoke_cc_argv_push_existing (cold twin ≡ .x).
- * Cap residual resolve + pure gates/dedup/append. PLATFORM: SHARED.
+ * Cap residual resolve (public → _impl) + pure gates/dedup/append. PLATFORM: SHARED.
  */
 int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path) {
   const char *use;

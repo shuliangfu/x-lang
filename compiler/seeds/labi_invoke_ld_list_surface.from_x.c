@@ -9,6 +9,7 @@
  *   + wave157 shux_asm_ld_append_unix_gcc_tail_libs_impl pure orch
  *   + wave158 invoke_cc_append_net_tls_ld pure orch
  *   + wave179 invoke_cc_argv_push_existing pure orch
+ *   + wave215 invoke_cc_argv_resolve_existing_path pure thin orch
  *   + wave187 ensure_std_net_o_auto_tls pure orch
  *   + wave188 shux_ensure_formal_std_make_o pure orch
  *   + wave191 labi_std_append_formal_ensure_for_rel pure orch
@@ -17,7 +18,7 @@
  *   + wave194 labi_std_append_task_special pure orch
  *   + wave195 labi_std_append_op_std pure orch
  *   + wave196 shux_asm_ld_append_std_objs_for_user plan shell pure orch)
- * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path pool;
+ * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path_impl pool;
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega;
  *   getenv / system / access / skip_missing for ensure_std_net + formal_std_make (wave187/188);
  *   repo_root + ensure_runtime_* + push_obj for wave191 formal companions;
@@ -40,6 +41,8 @@ extern int32_t link_abi_obj_needs_brotli(uint8_t * obj_o);
 extern int32_t link_abi_user_o_needs_compress_libs(uint8_t * user_o);
 extern int32_t shux_ensure_runtime_compress_zlib_glue_o(uint8_t * argv0);
 extern uint8_t * shux_runtime_compress_zlib_glue_o_path(uint8_t * argv0);
+/* Cap residual (wave215): skip_missing + multi-slot realpath pool body; pure owns null/empty gates. */
+extern uint8_t * invoke_cc_argv_resolve_existing_path_impl(uint8_t * path);
 extern uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
@@ -110,6 +113,20 @@ extern int32_t labi_std_fk_user_needs(uint8_t * user_o, int32_t fk);
 /* wave196 plan shell peers (L8 plan table accessors). */
 extern int32_t labi_std_plan_count(void);
 extern int32_t labi_std_plan_step_at(int32_t i, int32_t * op_out, size_t * rel_out, int32_t * flag_kind_out);
+
+/* wave215: invoke_cc_argv_resolve_existing_path pure thin orch (surface pin ≡ .x). */
+uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return ((uint8_t *)(0));
+  }
+  if (((path)[0] ==0)) {
+    return ((uint8_t *)(0));
+  }
+  {
+    return invoke_cc_argv_resolve_existing_path_impl(path);
+  }
+  return ((uint8_t *)(0));
+}
 
 int32_t invoke_cc_argv_push_existing(uint8_t * * argv, int32_t * ia, int32_t max_ia, uint8_t * path) {
   uint8_t * ab = ((uint8_t *)(argv));
