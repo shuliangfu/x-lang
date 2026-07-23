@@ -47,6 +47,12 @@
  * Header may already declare; explicit for this TU (included into pipeline_gen).
  */
 extern char *link_abi_getenv(const char *name);
+/* wave248 G.7: shell via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl.
+ * PLATFORM: SHARED — debug curl residual (try_propagate report) migrates to this face
+ * (same G.7 pattern as wave226 pure/modular twins + wave247 mega dual).
+ */
+extern int link_abi_system(const char *cmd);
 
 struct xlang_slice_uint8_t {
   uint8_t *data;
@@ -28778,7 +28784,8 @@ static void debug_try_propagate_report_glue_c(int32_t expr_ref, int32_t func_ix,
            "\"data\":{\"expr_ref\":%d,\"func_ix\":%d,\"return_type_ref\":%d,\"func_ret\":%d,"
            "\"enclosing_return_type_ref\":%d,\"op_ty\":%d}}' >/dev/null 2>&1",
            url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
-  (void)system(cmd);
+  /* wave248 G.7: public pure thin link_abi_system (not raw libc system). */
+  (void)link_abi_system(cmd);
 }
 // #endregion
 

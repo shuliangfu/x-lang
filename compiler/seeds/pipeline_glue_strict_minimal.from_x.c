@@ -28,6 +28,11 @@
  * PLATFORM: SHARED — strict_minimal residual raw getenv → same face as pipeline_glue.c.
  */
 extern char *link_abi_getenv(const char *name);
+/* wave248 G.7: shell via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl.
+ * PLATFORM: SHARED — debug curl residual (try_propagate report) → same face as pipeline_glue.c.
+ */
+extern int link_abi_system(const char *cmd);
 
 struct ast_Module;
 struct ast_ASTArena;
@@ -234,7 +239,8 @@ void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32
            "\"data\":{\"expr_ref\":%d,\"func_ix\":%d,\"return_type_ref\":%d,\"func_ret\":%d,"
            "\"enclosing_return_type_ref\":%d,\"op_ty\":%d}}' >/dev/null 2>&1",
            url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
-  (void)system(cmd);
+  /* wave248 G.7: public pure thin link_abi_system (not raw libc system). */
+  (void)link_abi_system(cmd);
 }
 #endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 // #endregion
