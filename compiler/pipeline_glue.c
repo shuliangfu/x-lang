@@ -29159,9 +29159,13 @@ int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *are
   /* 【Why 根源】i8/i16 无独立 TypeKind（存为 TYPE_NAMED name="i8"/"i16"），binop/NEG 初值（如 -1 解析为
    * EXPR_NEG(lit(1))）需按 name 放行 signed 窄整型，否则 let y:i16=-1 报 type mismatch。
    * 【Invariant】仅放行 i8/i16（signed）；u8/u16（unsigned）不走此路径，保持与 lit 路径一致拒绝负数。
-   * 【Asm/Perf】与 i32 路径对齐，不做编译期范围检查（i32 路径同样不做）。 */
+   * 【Asm/Perf】与 i32 路径对齐，不做编译期范围检查（i32 路径同样不做）。
+   * wave309 Cap residual: TYPE_ISIZE + EXPR_NEG/binop (let a:isize=-1 / 1-2). Prior gate had
+   * U64/USIZE but omitted ISIZE; widen i32→isize is the dual path (typeck_integer_widen_ok).
+   * PLATFORM: SHARED — typeck.x thin-wraps this C authority. */
   if (decl_kind != (int32_t)ast_TypeKind_TYPE_I32 && decl_kind != (int32_t)ast_TypeKind_TYPE_I64 &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_U64 && decl_kind != (int32_t)ast_TypeKind_TYPE_USIZE &&
+      decl_kind != (int32_t)ast_TypeKind_TYPE_ISIZE &&
       decl_kind != (int32_t)ast_TypeKind_TYPE_NAMED)
     return 0;
   /* TYPE_NAMED 仅允许 i8("i8"=[105,56]) / i16("i16"=[105,49,54])，拒绝 u8/u16 及用户自定义类型 */

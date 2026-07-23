@@ -4368,6 +4368,7 @@ int typeck_type_refs_equal(struct ast_ASTArena * arena, int32_t a, int32_t b) {
   }
   return (pipeline_typeck_type_refs_equal_c(arena, a, b) !=0);
 }
+/* wave309 Cap residual: TYPE_ISIZE identity + i32→isize (align glue / typeck.x). */
 int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind) {
   int32_t ord_i32 = 0;
   int32_t ord_u8 = 2;
@@ -4375,8 +4376,9 @@ int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind) {
   int32_t ord_u64 = 4;
   int32_t ord_i64 = 5;
   int32_t ord_usize = 6;
+  int32_t ord_isize = 7;
   if ((dest_kind ==src_kind)) {
-    if (((((((dest_kind ==ord_i32) || (dest_kind ==ord_i64)) || (dest_kind ==ord_u8)) || (dest_kind ==ord_u32)) || (dest_kind ==ord_u64)) || (dest_kind ==ord_usize))) {
+    if ((((((((dest_kind ==ord_i32) || (dest_kind ==ord_i64)) || (dest_kind ==ord_u8)) || (dest_kind ==ord_u32)) || (dest_kind ==ord_u64)) || (dest_kind ==ord_usize)) || (dest_kind ==ord_isize))) {
       return 1;
     }
     return 0;
@@ -4388,7 +4390,7 @@ int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind) {
     return 0;
   }
   if ((src_kind ==ord_i32)) {
-    if ((((dest_kind ==ord_i64) || (dest_kind ==ord_u32)) || (dest_kind ==ord_usize))) {
+    if (((((dest_kind ==ord_i64) || (dest_kind ==ord_u32)) || (dest_kind ==ord_usize)) || (dest_kind ==ord_isize))) {
       return 1;
     }
     return 0;

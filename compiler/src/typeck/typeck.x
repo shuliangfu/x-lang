@@ -3754,6 +3754,16 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
 * See implementation.
 * See implementation.
 */
+/**
+ * Integer implicit widen gate (let-init, assign, call arg, return).
+ * @param dest_kind i32 — TypeKind ordinal of the expected/declared type
+ * @param src_kind i32 — TypeKind ordinal of the found/rhs type
+ * @return bool — true if same integer kind or a documented widen is allowed
+ * wave309 Cap residual: add TYPE_ISIZE identity + i32→isize (symmetric with
+ * i32→usize; matches pipeline_typeck_integer_widen_ok_c — G.7 dual-authority).
+ * Prior omit left `let a:isize = -1` / `a = -1` as found i32 (EXPR_NEG/binop).
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit.
+ */
 export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
   let ord_i32: i32 = 0;
   let ord_u8: i32 = 2;
@@ -3761,9 +3771,11 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
   let ord_u64: i32 = 4;
   let ord_i64: i32 = 5;
   let ord_usize: i32 = 6;
+  let ord_isize: i32 = 7;
   if (dest_kind == src_kind) {
     if (dest_kind == ord_i32 || dest_kind == ord_i64 || dest_kind == ord_u8 ||
-    dest_kind == ord_u32 || dest_kind == ord_u64 || dest_kind == ord_usize) {
+    dest_kind == ord_u32 || dest_kind == ord_u64 || dest_kind == ord_usize ||
+    dest_kind == ord_isize) {
       return true;
     }
     return false;
@@ -3775,7 +3787,9 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
     return false;
   }
   if (src_kind == ord_i32) {
-    if (dest_kind == ord_i64 || dest_kind == ord_u32 || dest_kind == ord_usize) {
+    /* i32→isize: pointer-width signed; symmetric with i32→usize (glue already had this). */
+    if (dest_kind == ord_i64 || dest_kind == ord_u32 || dest_kind == ord_usize ||
+    dest_kind == ord_isize) {
       return true;
     }
     return false;
