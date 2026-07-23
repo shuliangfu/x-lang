@@ -47,6 +47,9 @@ int link_abi_path_readable_impl(const char *path);
 /* wave221: X_OK pure thin (labi_path_io) + Cap residual _impl always mega. */
 int link_abi_path_executable(const char *path);
 int link_abi_path_executable_impl(const char *path);
+/* wave222: getenv pure thin (labi_diag_pure) + Cap residual _impl always mega. */
+const char *link_abi_getenv(const char *name);
+const char *link_abi_getenv_impl(const char *name);
 int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
 void ensure_std_net_o_auto_tls(const char *repo_root);
 /* PLATFORM: SHARED — formal std .o after L4 wipe (wave188 pure L6 / cold twin). */
@@ -430,6 +433,33 @@ void invoke_cc_strip_out_x(const char *out_path) {
 }
 #else
 void invoke_cc_strip_out_x(const char *out_path);
+#endif
+
+/**
+ * Cap residual (wave222): host getenv(name) → value pointer or NULL.
+ * Pure orch (wave222 labi_diag_pure L1) owns null/empty name gates; _impl is always mega.
+ * PLATFORM: SHARED — host libc getenv (process environment block).
+ * Product ensure orch (formal_std SHUX / SHUX_FORMAL_STD_ENSURE; ensure_std_net SHUX_NET_TLS).
+ */
+const char *link_abi_getenv_impl(const char *name) {
+    if (!name || !name[0])
+        return NULL;
+    return getenv(name);
+}
+
+/* wave222: link_abi_getenv pure orch lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * Pure: null/empty name gates; Cap residual link_abi_getenv_impl (getenv) always mega.
+ * Why: hybrid still had formal_std / ensure_std_net raw getenv under product ensure.
+ * PLATFORM: SHARED orch. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+const char *link_abi_getenv(const char *name) {
+    if (!name || !name[0])
+        return NULL;
+    return link_abi_getenv_impl(name);
+}
+#else
+const char *link_abi_getenv(const char *name);
 #endif
 
 

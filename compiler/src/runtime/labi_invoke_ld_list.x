@@ -55,7 +55,8 @@
 //   wave215 pure owns public resolve null/empty gates);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
-//   getenv / system / access for ensure_std_net + formal_std_make shell make (wave187/188 Cap);
+//   link_abi_getenv / system / path_executable for ensure_std_net + formal_std_make
+//     (wave187/188 Cap; wave221 X_OK pure; wave222 getenv pure);
 //   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
 //   needs + primary ensure/path + process_argv for wave193 primary/complement;
 //   task/scheduler path peers + bank_push for wave194 TASK_SPECIAL;
@@ -123,9 +124,11 @@ export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 // Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
 export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 
-// Cap residual (wave187/188 ensure shell make): host getenv / system / skip_missing.
+// Cap residual (wave187/188 ensure shell make): host system / skip_missing.
 // PLATFORM: SHARED — SHUX_NET_TLS net-o-* + formal std make (SHUX_FORMAL_STD_ENSURE reentrancy).
-export extern "C" function getenv(name: *u8): *u8;
+// wave222: env lookup is public pure thin link_abi_getenv (labi_diag_pure L1 hybrid);
+// Cap residual host getenv stays mega as link_abi_getenv_impl.
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function system(cmd: *u8): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 // wave221: product host binary X_OK probe is public pure thin link_abi_path_executable
@@ -1628,10 +1631,11 @@ export function labi_net_tls_join_repo_rel(path_buf: *u8, cap: i32, repo_root: *
  * @param repo_root *u8 — absolute repository root; null/empty → no-op
  * @return void — best-effort make; marker short-circuit when already built
  * Pure orch: mode strcmp + pure path join + pure make-cmd join.
- * Cap residual: getenv (SHUX_NET_TLS); system(make); link_abi_realpath_cap;
- *   link_abi_obj_exports_marker (nm/marker probe).
+ * Cap residual: link_abi_getenv (SHUX_NET_TLS pure thin → _impl; wave222); system(make);
+ *   link_abi_realpath_cap; link_abi_obj_exports_marker (nm/marker probe).
  * Why (wave187): hybrid still had always-mega C body for auto TLS ensure orch
  *   (getenv + marker probe + system make). Soft residual after wave158 net_tls ld append.
+ * wave222: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc_impl call sites.
@@ -1644,10 +1648,10 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
   if (repo_root[0] == 0) {
     return;
   }
-  // Cap residual: mode from env; empty/unset → no rebuild.
+  // wave222: mode from env via public pure thin getenv (not raw libc getenv).
   let mode: *u8 = 0 as *u8;
   unsafe {
-    mode = getenv("SHUX_NET_TLS");
+    mode = link_abi_getenv("SHUX_NET_TLS");
   }
   if (mode == 0 as *u8) {
     return;
@@ -1850,11 +1854,13 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, shux_bin: *u8
  * @param make_target *u8 — make target under compiler/ (e.g. ../std/vec/vec.o); null/empty → 0
  * @return i32 — 1 if object exists after ensure, 0 otherwise
  * Pure orch: path join + SHUX discovery loop + make-cmd join (G.7 labi_net_tls_* helpers).
- * Cap residual: getenv; link_abi_path_executable (X_OK pure thin → _impl; wave221);
- *   link_abi_realpath_cap; system(make); asm_link_obj_skip_missing (stat existence).
+ * Cap residual: link_abi_getenv (pure thin → _impl; wave222); link_abi_path_executable
+ *   (X_OK pure thin → _impl; wave221); link_abi_realpath_cap; system(make);
+ *   asm_link_obj_skip_missing (stat existence).
  * Why (wave188): hybrid still had always-mega C body for formal_std_make (getenv+access+
  *   realpath+system make orch). Soft residual sibling of wave187 ensure_std_net.
  * wave221: raw access(X_OK) closed — public pure thin path_executable owns X_OK probe.
+ * wave222: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc / on_demand call sites.
@@ -1896,7 +1902,7 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
   // Nested ensure while compiling formal .o: do not system(make) again.
   let ensuring: *u8 = 0 as *u8;
   unsafe {
-    ensuring = getenv("SHUX_FORMAL_STD_ENSURE");
+    ensuring = link_abi_getenv("SHUX_FORMAL_STD_ENSURE");
   }
   if (ensuring != 0 as *u8) {
     if (ensuring[0] != 0) {
@@ -1911,7 +1917,7 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
   shux_bin[0] = 0;
   let env_shux: *u8 = 0 as *u8;
   unsafe {
-    env_shux = getenv("SHUX");
+    env_shux = link_abi_getenv("SHUX");
   }
   // wave221: X_OK via public pure thin path_executable (not raw access mode).
   let found: i32 = 0;

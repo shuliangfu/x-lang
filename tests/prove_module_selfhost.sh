@@ -105,7 +105,8 @@ MODULES=(
   # + wave216 waitpid pure thin + wave217 strerror/wait decode pure thin
   # + wave219 spawn_sync pure thin（null/empty gates；Cap residual fork/exec/_spawnvp _impl）
   # + wave220 strip_out_x pure thin（null/empty gates；Cap residual argv pack+spawn _impl）
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv + wait/strerror/spawn/strip _impl 在 mega rest
+  # + wave222 link_abi_getenv pure thin（null/empty name gates；Cap residual host getenv _impl）
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv + wait/strerror/spawn/strip/getenv _impl 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
   "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure_surface.from_x.c||"
   # diagnostic R2 thin + Cap residual pure deep-migrate: thin.x gates + fixed-msg/pipe orch + assemble pure + getenv

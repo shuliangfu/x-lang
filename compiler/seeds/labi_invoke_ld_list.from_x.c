@@ -21,10 +21,10 @@
  *   invoke_cc_argv_push_existing (wave179 pure orch; Cap residual resolve pool)
  *   invoke_cc_argv_resolve_existing_path (wave215 pure thin; Cap residual
  *     resolve_existing_path_impl = skip_missing + multi-slot realpath pool)
- *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual getenv+system+
- *     realpath_cap+exports_marker; shell make net-o-* Cap residual)
- *   shux_ensure_formal_std_make_o (wave188 pure orch; Cap residual getenv+access+
- *     realpath_cap+system+asm_link_obj_skip_missing; shell make formal std Cap residual)
+ *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual link_abi_getenv+system+
+ *     realpath_cap+exports_marker; shell make net-o-* Cap residual; wave222 getenv pure)
+ *   shux_ensure_formal_std_make_o (wave188 pure orch; Cap residual link_abi_getenv+
+ *     path_executable+realpath_cap+system+skip_missing; wave221 X_OK pure; wave222 getenv pure)
  *   labi_std_append_formal_ensure_for_rel (wave191 pure orch; Cap residual repo_root +
  *     ensure_runtime_* + peer push_obj; formal ensure companions for append_std OP_STD)
  *   labi_std_append_glue_for_op (wave192 pure orch; Cap residual ensure_runtime_*_glue +
@@ -43,7 +43,8 @@
  *   invoke_cc_argv_resolve_existing_path_impl (skip+realpath pool; wave215 pure owns public gates);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
- *   getenv / system / access for ensure_std_net + formal_std_make (wave187/188 Cap residual);
+ *   link_abi_getenv / system / path_executable for ensure_std_net + formal_std_make
+ *     (wave187/188 Cap residual; wave221 X_OK pure; wave222 getenv pure);
  *   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
  *   needs + primary ensure/path + process_argv for wave193 primary/complement;
  *   task/scheduler path peers + bank for wave194 TASK_SPECIAL;
@@ -75,10 +76,12 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
-/* Cap residual (wave187/188 ensure shell make): getenv / system / access / skip_missing. */
-char *getenv(const char *name);
+/* Cap residual (wave187/188 ensure shell make): system / skip_missing.
+ * wave221: X_OK via public pure thin link_abi_path_executable.
+ * wave222: env via public pure thin link_abi_getenv (labi_diag_pure L1). */
+const char *link_abi_getenv(const char *name);
 int system(const char *cmd);
-int access(const char *path, int mode);
+int link_abi_path_executable(const char *path);
 const char *asm_link_obj_skip_missing(const char *path);
 /* Peer pure / Cap residual (wave191 formal companions + wave192 OP_GLUE_* leaves). */
 const char *shux_repo_root_from_argv0(const char *argv0);
@@ -560,7 +563,7 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
   const char *rp;
   if (!repo_root || !repo_root[0])
     return;
-  mode = getenv("SHUX_NET_TLS");
+  mode = link_abi_getenv("SHUX_NET_TLS");
   if (!mode || !mode[0])
     return;
   mk_ssl = labi_net_tls_openssl_marker();
@@ -661,12 +664,13 @@ int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_re
   have = asm_link_obj_skip_missing(abs);
   if (have)
     return 1;
-  ensuring = getenv("SHUX_FORMAL_STD_ENSURE");
+  ensuring = link_abi_getenv("SHUX_FORMAL_STD_ENSURE");
   if (ensuring && ensuring[0] && ensuring[0] != '0')
     return 0;
   shux_bin[0] = '\0';
-  env_shux = getenv("SHUX");
-  if (env_shux && env_shux[0] && access(env_shux, 1 /* X_OK */) == 0) {
+  env_shux = link_abi_getenv("SHUX");
+  /* wave221: X_OK via path_executable (1 = ok); wave222: env via link_abi_getenv. */
+  if (env_shux && env_shux[0] && link_abi_path_executable(env_shux) != 0) {
     rp = link_abi_realpath_cap(env_shux, shux_bin);
     if (!rp) {
       if (labi_net_tls_buf_append(shux_bin, 4096, 0, env_shux) < 0)
@@ -687,8 +691,8 @@ int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_re
       pos = labi_net_tls_buf_append(cand, 4096, pos, names[i]);
       if (pos < 0)
         continue;
-      ax = access(cand, 1 /* X_OK */);
-      if (ax != 0)
+      ax = link_abi_path_executable(cand);
+      if (ax == 0)
         continue;
       rp = link_abi_realpath_cap(cand, shux_bin);
       if (!rp) {

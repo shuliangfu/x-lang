@@ -47,6 +47,10 @@ export extern "C" function shux_spawn_sync_impl(prog: *u8, argv: *u8): i32;
  * PLATFORM: SHARED residual contract / POSIX strip via spawn / WINDOWS _spawnvp. */
 export extern "C" function invoke_cc_strip_out_x_impl(out_path: *u8): void;
 
+/* Cap residual (wave222): host getenv(name) only; pure owns null/empty name gates.
+ * PLATFORM: SHARED residual — host libc getenv (process environment block). */
+export extern "C" function link_abi_getenv_impl(name: *u8): *u8;
+
 /** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
@@ -830,12 +834,40 @@ export function invoke_cc_strip_out_x(out_path: *u8): void {
   }
 }
 
+/**
+ * Look up environment variable by NUL-terminated name (host getenv Cap residual).
+ * Thin pure public: null/empty name → null without residual.
+ * @param name *u8 — environment key; null/empty rejected at pure gate
+ * @return *u8 — value pointer from host env block, or null if unset / rejected
+ * Pure orch: ≡ mega null/empty gates before Cap residual getenv (wave222).
+ * Cap residual: link_abi_getenv_impl (host getenv; mega always).
+ * Why (wave222): formal_std / ensure_std_net still used raw getenv under hybrid;
+ * G.7 single public authority under L1 hybrid (sibling of strerror_current libc face).
+ * Product ensure orch (SHUX / SHUX_FORMAL_STD_ENSURE / SHUX_NET_TLS) uses this face.
+ * PLATFORM: SHARED orch; residual is host libc getenv (process environment).
+ * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
+ */
+#[no_mangle]
+export function link_abi_getenv(name: *u8): *u8 {
+  if (name == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (name[0] == 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return link_abi_getenv_impl(name);
+  }
+  return 0 as *u8;
+}
+
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
  * wave111: shux_link_perror is extra pure orch (not counted in the original 9).
  * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9).
  * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra.
  * wave219: shux_spawn_sync pure thin is extra (not counted in the original 9).
- * wave220: invoke_cc_strip_out_x pure thin is extra (not counted in the original 9). */
+ * wave220: invoke_cc_strip_out_x pure thin is extra (not counted in the original 9).
+ * wave222: link_abi_getenv pure thin is extra (not counted in the original 9). */
 #[no_mangle]
 export function labi_diag_pure_count(): i32 {
   return 9;

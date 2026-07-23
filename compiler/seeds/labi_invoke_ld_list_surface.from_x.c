@@ -47,11 +47,13 @@ extern uint8_t * invoke_cc_argv_resolve_existing_path(uint8_t * path);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
-/* Cap residual (wave187/188 ensure shell make surface). */
-extern uint8_t * getenv(uint8_t * name);
+/* Cap residual (wave187/188 ensure shell make surface).
+ * wave221: X_OK via link_abi_path_executable pure thin.
+ * wave222: env via link_abi_getenv pure thin. */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 extern int32_t system(uint8_t * cmd);
 extern int32_t strcmp(uint8_t * a, uint8_t * b);
-extern int32_t access(uint8_t * path, int32_t mode);
+extern int32_t link_abi_path_executable(uint8_t * path);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
 /* Peer pure / Cap residual (wave191 formal companions for append_std OP_STD). */
 extern uint8_t * shux_repo_root_from_argv0(uint8_t * argv0);
@@ -985,7 +987,7 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
     return;
   }
   uint8_t * mode = 0;
-  (void)((mode = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4e\x45\x54\x5f\x54\x4c\x53"))));
+  (void)((mode = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4e\x45\x54\x5f\x54\x4c\x53"))));
   if ((mode ==0)) {
     return;
   }
@@ -1156,7 +1158,7 @@ int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_re
     return 1;
   }
   uint8_t * ensuring = 0;
-  (void)((ensuring = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x4f\x52\x4d\x41\x4c\x5f\x53\x54\x44\x5f\x45\x4e\x53\x55\x52\x45"))));
+  (void)((ensuring = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x46\x4f\x52\x4d\x41\x4c\x5f\x53\x54\x44\x5f\x45\x4e\x53\x55\x52\x45"))));
   if ((ensuring !=0)) {
     if (((ensuring)[0] !=0)) {
       if (((ensuring)[0] !=48)) {
@@ -1167,14 +1169,14 @@ int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_re
   uint8_t shux_bin[4096] = {};
   (void)(((shux_bin)[0] = 0));
   uint8_t * env_shux = 0;
-  (void)((env_shux = getenv(((uint8_t *)"\x53\x48\x55\x58"))));
-  int32_t x_ok = 1;
+  (void)((env_shux = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58"))));
+  /* wave221: X_OK via path_executable (1 = ok); wave222: env via link_abi_getenv. */
   int32_t found = 0;
   if ((env_shux !=0)) {
     if (((env_shux)[0] !=0)) {
       int32_t ax = 0;
-      (void)((ax = access(env_shux, x_ok)));
-      if ((ax ==0)) {
+      (void)((ax = link_abi_path_executable(env_shux)));
+      if ((ax !=0)) {
         uint8_t * rp = 0;
         (void)((rp = link_abi_realpath_cap(env_shux, &((shux_bin)[0]))));
         if ((rp ==0)) {
@@ -1218,8 +1220,8 @@ int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_re
         continue;
       }
       int32_t ax2 = 0;
-      (void)((ax2 = access(&((cand)[0]), x_ok)));
-      if ((ax2 ==0)) {
+      (void)((ax2 = link_abi_path_executable(&((cand)[0]))));
+      if ((ax2 !=0)) {
         uint8_t * rp2 = 0;
         (void)((rp2 = link_abi_realpath_cap(&((cand)[0]), &((shux_bin)[0]))));
         if ((rp2 ==0)) {
