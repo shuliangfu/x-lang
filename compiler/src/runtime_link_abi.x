@@ -2345,8 +2345,19 @@ export extern "C" function shux_asm_ld_append_on_demand_user_objs_impl(link_argv
 export extern "C" function invoke_cc_append_net_tls_ld_impl(argv: *u8, i: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32;
 export extern "C" function ensure_std_net_o_auto_tls_impl(repo_root: *u8): void;
 
-/* See implementation. */
+/* wave216: public pure thin authority is labi_diag_pure.x (hybrid L1).
+ * Cap residual shu_waitpid_retry_impl stays mega always (waitpid+EINTR+strerror).
+ * Cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X in mega / labi_diag cold seed.
+ * This mega logical .x keeps a matching thin so regen/selfhost does not re-open
+ * an always-full public body (G.7 single Cap residual = _impl). */
 
+/**
+ * Wait for child pid with EINTR retry (logical mega twin of L1 pure thin).
+ * @param pid i64 — child process id
+ * @param status_out *i32 — optional wait status out; null allowed
+ * @return i32 — 0 success, -1 failure
+ * PLATFORM: SHARED orch / POSIX wait residual via _impl.
+ */
 #[no_mangle]
 export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
   unsafe {

@@ -72,8 +72,9 @@ void labi_std_append_task_special(const char *link_argv0, const char *user_o, co
 void labi_std_append_op_std(const char *link_argv0, const char *user_o, const char *rel, int fk,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have);
-/* G-02f-68 link helpers */
+/* G-02f-68 / wave216: pure thin public (L1) + Cap residual _impl always. */
 int shu_waitpid_retry(pid_t pid, int *status_out);
+int shu_waitpid_retry_impl(pid_t pid, int *status_out);
 /* Cap residual always (wave215): skip_missing + multi-slot realpath pool body. */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
 int shux_asm_user_o_has_undef_syms(const char *o_path);
@@ -5272,10 +5273,11 @@ int labi_gates_count(void);
 /* -------------------------------------------------------------------------- */
 
 /**
- * 等待子进程；EINTR 时重试，避免 invoke_cc/asm_invoke_ld 误判失败。
+ * Cap residual (wave216): waitpid with EINTR retry + errno strerror report.
+ * Pure orch (labi_diag_pure L1) owns public thin; _impl is always mega.
+ * PLATFORM: POSIX — waitpid; Windows product uses _spawnvp paths that skip this.
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shu_waitpid_retry(pid_t pid, int *status_out) {
+int shu_waitpid_retry_impl(pid_t pid, int *status_out) {
     int st = 0;
     for (;;) {
         pid_t w = waitpid(pid, &st, 0);
@@ -5296,6 +5298,19 @@ int shu_waitpid_retry(pid_t pid, int *status_out) {
         return -1;
     }
 }
+
+/* wave216: shu_waitpid_retry pure orch lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * Pure: thin public; Cap residual shu_waitpid_retry_impl (waitpid+EINTR+strerror).
+ * Why: hybrid still had waitpid body always mega C (wait+strerror+diag).
+ * PLATFORM: SHARED orch / POSIX wait residual. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+int shu_waitpid_retry(pid_t pid, int *status_out) {
+    return shu_waitpid_retry_impl(pid, status_out);
+}
+#else
+int shu_waitpid_retry(pid_t pid, int *status_out);
+#endif
 
 
 

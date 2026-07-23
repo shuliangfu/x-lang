@@ -1,9 +1,10 @@
 /* seeds/labi_diag_pure_surface.from_x.c
  * G-02f labi_diag_pure R2 full surface — isomorphic with src/runtime/labi_diag_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_diag_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + reports + count + wave111/112/113)
+ * Prove: full.x vs this seed → nm IDENTICAL (code_for_kind + reports + count + wave111/112/113/216)
  * Cap residual: link_diag_ld_debug_argv → mega _impl (char**);
  *   link_diag_strerror_current (errno+strerror); link_diag_wait_* (WIF*);
+ *   shu_waitpid_retry_impl (waitpid+EINTR+strerror; wave216);
  *   wave111 perror; wave112 tool/obj status; wave113 errno/_path pure orch
  * Regen: ./shux -E ... src/runtime/labi_diag_pure.x | filter DBG + polish prologue
  * Track-L (2026-07-16): labi_diag_append keeps short name; .x has #[no_mangle] (was module mangle).
@@ -476,12 +477,14 @@ extern void link_diag_runtime_obj_build_status(uint8_t * obj_name, int32_t statu
 extern void link_diag_errno(uint8_t * kind, uint8_t * op);
 extern void link_diag_errno_path(uint8_t * kind, uint8_t * op, uint8_t * path);
 extern void shux_link_perror(uint8_t * msg);
+extern int32_t shu_waitpid_retry(int64_t pid, int32_t * status_out);
 extern int32_t labi_diag_pure_count(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern void link_diag_ld_debug_argv_impl(uint8_t * label, uint8_t * argv);
 extern uint8_t * link_diag_strerror_current(void);
 extern int32_t link_diag_wait_is_signaled(int32_t status);
 extern int32_t link_diag_wait_code(int32_t status);
+extern int32_t shu_waitpid_retry_impl(int64_t pid, int32_t * status_out);
 int32_t labi_diag_append(uint8_t * dst, int32_t cap, uint8_t * src) {
   int32_t i = 0;
   int32_t j = 0;
@@ -928,6 +931,13 @@ void shux_link_perror(uint8_t * msg) {
   }
   (void)((text = &((base)[start])));
   (void)(link_diag_errno(pe, text));
+}
+/* wave216: shu_waitpid_retry pure thin (surface pin ≡ .x). */
+int32_t shu_waitpid_retry(int64_t pid, int32_t * status_out) {
+  {
+    return shu_waitpid_retry_impl(pid, status_out);
+  }
+  return (0 - 1);
 }
 int32_t labi_diag_pure_count(void) {
   return 9;

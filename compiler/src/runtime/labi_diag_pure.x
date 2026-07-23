@@ -28,6 +28,9 @@ export extern "C" function link_diag_strerror_current(): *u8;
 export extern "C" function link_diag_wait_is_signaled(status: i32): i32;
 export extern "C" function link_diag_wait_code(status: i32): i32;
 
+/* Cap residual (wave216): waitpid + EINTR retry + strerror report (mega always). */
+export extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
+
 /** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
@@ -675,8 +678,31 @@ export function shux_link_perror(msg: *u8): void {
   link_diag_errno(pe, text);
 }
 
+/**
+ * Wait for child `pid`; retry on EINTR; optional status store.
+ * Thin pure public: Cap residual `shu_waitpid_retry_impl` holds waitpid loop,
+ * errno capture, libc strerror, and process-error reportf.
+ * @param pid i64 — child process id (POSIX pid_t width on product hosts)
+ * @param status_out *i32 — optional wait status out; null allowed (impl skips store)
+ * @return i32 — 0 success, -1 waitpid failure after non-EINTR error
+ * Pure orch: ≡ mega public thin before Cap residual waitpid body (wave216).
+ * Why (wave216): hybrid still had shu_waitpid_retry body always mega C
+ * (waitpid+EINTR+strerror+diag); G.7 single public authority under L1 hybrid.
+ * Cap residual: shu_waitpid_retry_impl (mega always).
+ * PLATFORM: SHARED orch; residual is POSIX waitpid (Windows spawn paths skip).
+ * Track-L: #[no_mangle] keeps short surface name for spawn/ld/cc callers.
+ */
+#[no_mangle]
+export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
+  unsafe {
+    return shu_waitpid_retry_impl(pid, status_out);
+  }
+  return 0 - 1;
+}
+
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
- * wave111: shux_link_perror is extra pure orch (not counted in the original 9). */
+ * wave111: shux_link_perror is extra pure orch (not counted in the original 9).
+ * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9). */
 #[no_mangle]
 export function labi_diag_pure_count(): i32 {
   return 9;

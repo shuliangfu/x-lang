@@ -8,10 +8,12 @@
  * wave111：shux_link_perror pure orch（prefix + paren split）
  * wave112：tool_status / obj_build_status pure orch（append_i32 + wait Cap residual）
  * wave113：link_diag_errno / _path pure orch（append + code_for_kind + report_with_code）
+ * wave216：shu_waitpid_retry pure thin（Cap residual waitpid+EINTR+strerror _impl）
  * Cap residual（mega rest 常驻）：
  *   link_diag_ld_debug_argv_impl（char** 🔒）
  *   link_diag_strerror_current（errno + strerror 🔒）
  *   link_diag_wait_is_signaled / link_diag_wait_code（WIF* 🔒）
+ *   shu_waitpid_retry_impl（waitpid+EINTR+strerror 🔒；wave216）
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega _impl 并存）。
  *
@@ -31,6 +33,9 @@ extern const char *link_diag_strerror_current(void);
 /* Cap residual (mega always): POSIX wait decode. PLATFORM: POSIX. */
 extern int link_diag_wait_is_signaled(int status);
 extern int link_diag_wait_code(int status);
+/* Cap residual (wave216): waitpid + EINTR + strerror. PLATFORM: POSIX.
+ * Signature uses int64_t to match pure .x i64 / surface pin (pid_t on host). */
+extern int shu_waitpid_retry_impl(int64_t pid, int *status_out);
 
 #ifndef SHUX_LABI_DIAG_PURE_FROM_X
 
@@ -314,6 +319,12 @@ void shux_link_perror(const char *msg) {
   link_diag_errno("process error", text);
 }
 
+/* wave216 cold twin of pure shu_waitpid_retry (thin → Cap residual _impl).
+ * PLATFORM: SHARED orch / POSIX wait residual. */
+int shu_waitpid_retry(int64_t pid, int *status_out) {
+  return shu_waitpid_retry_impl(pid, status_out);
+}
+
 int labi_diag_pure_count(void) {
   return 9;
 }
@@ -334,6 +345,7 @@ void link_diag_runtime_obj_build_status(const char *obj_name, int status);
 void link_diag_errno(const char *kind, const char *op);
 void link_diag_errno_path(const char *kind, const char *op, const char *path);
 void shux_link_perror(const char *msg);
+int shu_waitpid_retry(int64_t pid, int *status_out);
 int labi_diag_pure_count(void);
 #endif
 
