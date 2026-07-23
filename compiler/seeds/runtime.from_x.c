@@ -1,5 +1,6 @@
 /* seeds/runtime.from_x.c — wave243 getenv→link_abi_getenv; wave247 residual system→link_abi_system;
  * wave254: user C CRASH_EVIDENCE fprintf templates emit link_abi_getenv (not raw getenv);
+ * wave261: residual realpath→link_abi_realpath_cap (codegen_emit_include_pipeline_glue_c);
  * product -o resolves face via panic strong / user_env weak (wave251–253).
  * G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
  * G-02f-129 true .x pure helpers.
@@ -57,6 +58,10 @@ extern char *link_abi_getenv(const char *name);
  * Aligns mega dual cold (#ifndef RT_ENTRY/RT_RUN_EXEC) with modular twins / pure .x (wave226).
  * PLATFORM: SHARED orch / host system residual via single face. */
 extern int link_abi_system(const char *cmd);
+/* wave261 G.7: path resolve via public pure thin link_abi_realpath_cap (wave218 → _impl host
+ * realpath); not raw libc realpath. Cap residual host realpath stays only link_abi_realpath_cap_impl
+ * (+ freestanding stubs). PLATFORM: SHARED orch / host realpath residual via single face. */
+extern char *link_abi_realpath_cap(const char *path, char *out);
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #define XLANG_TMP_PREFIX "/tmp/xlang_"
@@ -962,7 +967,8 @@ int write_fs_path_map_error_abi_inline(FILE *cf);
 #endif /* XLANG_USE_X_PIPELINE */
 
 #if !defined(XLANG_USE_X_DRIVER)
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc
+ * wave261 G.7: path resolve via link_abi_realpath_cap (not raw realpath). */
 void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     char rel[PATH_MAX];
     static char canon[PATH_MAX];
@@ -973,7 +979,7 @@ void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     /* 缩减版：无 pipeline.x 全量类型与 codegen.o 转发目标，见 pipeline_glue.c 内 #ifndef 块。 */
     fprintf(out, "\n#define XLANG_PARSER_EXE_PIPELINE_GLUE 1\n");
     if (!argv0 || !argv0[0]) {
-        if (realpath("pipeline_glue.c", canon) != NULL)
+        if (link_abi_realpath_cap("pipeline_glue.c", canon) != NULL)
             fprintf(out, "\n#include \"%s\"\n", canon);
         return;
     }
@@ -984,16 +990,16 @@ void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
             if (n >= 0 && (size_t)n + (size_t)21 < sizeof(rel)) {
                 (void)snprintf(rel, sizeof(rel), "%.*s/pipeline_glue.c", n, argv0);
             }
-        } else if (realpath("pipeline_glue.c", rel) == NULL) {
+        } else if (link_abi_realpath_cap("pipeline_glue.c", rel) == NULL) {
             rel[0] = '\0';
         }
     }
     if (rel[0] != '\0') {
-        if (realpath(rel, canon) != NULL)
+        if (link_abi_realpath_cap(rel, canon) != NULL)
             fprintf(out, "\n#include \"%s\"\n", canon);
         else
             fprintf(out, "\n#include \"%s\"\n", rel);
-    } else if (realpath("pipeline_glue.c", canon) != NULL) {
+    } else if (link_abi_realpath_cap("pipeline_glue.c", canon) != NULL) {
         fprintf(out, "\n#include \"%s\"\n", canon);
     }
 }
