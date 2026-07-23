@@ -23,6 +23,12 @@
 
 #include "diag.h"
 
+/* wave240 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — strict_minimal residual raw getenv → same face as pipeline_glue.c.
+ */
+extern char *link_abi_getenv(const char *name);
+
 struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx {
@@ -201,7 +207,7 @@ void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32
   char url[256];
   char session[64];
   char cmd[2048];
-  const char *enabled = getenv("XLANG_DEBUG_RESULT_TRY");
+  const char *enabled = link_abi_getenv("XLANG_DEBUG_RESULT_TRY");
   (void)arena;
   if (!enabled || enabled[0] == '\0' || enabled[0] == '0')
     return;
@@ -624,7 +630,7 @@ extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTAren
 /* G-02f-220：逻辑源 .x（真迁）；seed 保留 debug getenv 冷路径 */
 XLANG_WEAK int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi) {
   int32_t n = pipeline_module_func_num_generic_params_at(m, fi);
-  if (getenv("XLANG_DEBUG_FUNC_GENERIC_GET"))
+  if (link_abi_getenv("XLANG_DEBUG_FUNC_GENERIC_GET"))
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "func generic get: fi=%d n=%d", (int)fi, (int)n);
   return n;
@@ -1344,7 +1350,7 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
     return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op_ref, ctx, ta);
   }
   /* #region debug-point A:context-cg002-addr-of-fallback */
-  if (getenv("XLANG_ASM_DEBUG")) {
+  if (link_abi_getenv("XLANG_ASM_DEBUG")) {
     fprintf(stderr, "xlang: addr_of elf fallback expr_ref=%d op_ref=%d op_kind=%d\n",
             (int)expr_ref, (int)op_ref, (int)op_kind);
   }
