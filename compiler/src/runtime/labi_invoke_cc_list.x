@@ -3776,7 +3776,7 @@ export function invoke_cc_append_argv_tail_flags(argv: **u8, ia: *i32, argv_cap:
  * Cap residual: shux_runtime_process_argv_o_path (Windows CORE-009 argc/argv defs) + push_existing + host_is_*.
  * G.7: reuses labi_icc_argv_try_push_flag + labi_ld_flag_lc + invoke_cc_argv_push_existing (no second flag path).
  * Why (wave208): hybrid still had MINIMAL branch -lc/process_argv+NULL always-mega after wave207 always-tail pure.
- * Note: getenv("SHUX_MINIMAL_CC_LINK") gate stays mega Cap residual; this leaf only builds the minimal tail.
+ * Note: mega MINIMAL gate uses link_abi_getenv (wave225 G.7); this leaf only builds the minimal tail.
  * PLATFORM: SHARED orch / WINDOWS process_argv.o (codegen emits extern not weak) / POSIX (linux|apple) -lc only
  *   (minimal skips std ensure-push; shux_process_* weak defs on Linux/mac from generated C).
  * Track-L: #[no_mangle] surface short name for mega call sites.

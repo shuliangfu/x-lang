@@ -2416,7 +2416,8 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 /* wave206: invoke_cc_append_argv_head_flags pure orch lives in labi_invoke_cc_list
  * (argv head quiet/O/native/NDEBUG/flto/harden/gc/-I inside shux_invoke_cc_impl).
  * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
- * Cap residual: getenv(SHUX_RUN_QUIET) + pure skip_native + pure harden_impl + host_is_*.
+ * Cap residual peers: pure skip_native + pure harden_impl + host_is_*.
+ * wave223/225 G.7: env lookup via link_abi_getenv (SHUX_RUN_QUIET etc.; not raw getenv).
  * Why: hybrid still had argv head flags always-mega after wave205 fork-exec pure.
  * PLATFORM: SHARED orch / LINUX -B + harden + --gc-sections / APPLE -dead_strip.
  */
@@ -2432,7 +2433,8 @@ void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 /* wave208: invoke_cc_append_minimal_cc_link_tail pure orch lives in labi_invoke_cc_list
  * (SHUX_MINIMAL_CC_LINK branch: Windows process_argv.o + POSIX -lc + NULL).
  * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
- * Cap residual: process_argv_o_path + push_existing + host_is_*; getenv gate stays mega.
+ * Cap residual: process_argv_o_path + push_existing + host_is_*.
+ * wave225 G.7: MINIMAL gate uses link_abi_getenv (not raw getenv); host residual = _impl only.
  * Why: hybrid still had MINIMAL -lc/process_argv+NULL always-mega after wave207 always-tail pure.
  * PLATFORM: SHARED orch / WINDOWS process_argv / POSIX -lc only.
  */
@@ -3070,7 +3072,8 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
     if (n > plen)
       continue;
     if (memcmp(path, k[i], n) == 0 && (n == plen || path[n] == '.' || path[n] == 0)) {
-      if (getenv("SHUX_DEBUG_PIPE"))
+      /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+      if (link_abi_getenv("SHUX_DEBUG_PIPE"))
         fprintf(stderr, "shux: [link_only] hit exact/prefix key=%s path=%s -> 1\n", k[i], path);
       return 1;
     }
@@ -3084,7 +3087,7 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
     return 1;
   if (plen >= 10 && memcmp(path, "std.base64", 10) == 0)
     return 1;
-  if (getenv("SHUX_DEBUG_PIPE"))
+  if (link_abi_getenv("SHUX_DEBUG_PIPE"))
     fprintf(stderr, "shux: [link_only] miss path=%s plen=%zu -> 0\n", path, plen);
   return 0;
 }
@@ -3459,8 +3462,9 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
      * 【Why 根源】Windows codegen 生成 extern 声明（非 weak 定义），minimal 链须显式链入
      * runtime_process_argv.o 提供 shux_process_argc/argv 定义，否则链接报 undefined reference。
      * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。
-     * wave208 pure: MINIMAL tail (process_argv / -lc / NULL); getenv gate stays Cap residual. */
-    if (getenv("SHUX_MINIMAL_CC_LINK")) {
+     * wave208 pure: MINIMAL tail (process_argv / -lc / NULL).
+     * wave225 G.7: MINIMAL gate via link_abi_getenv (not raw getenv); host residual = _impl. */
+    if (link_abi_getenv("SHUX_MINIMAL_CC_LINK")) {
         invoke_cc_append_minimal_cc_link_tail(argv, &i, argv_cap);
         /* wave205 pure: spawn cc candidates + strip (no child exec). */
         if (invoke_cc_run_cc_argv(argv) != 0)
@@ -4358,7 +4362,8 @@ int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const c
     /* G.7: CLI user .o on self-contained minimal asm link too. */
     shux_asm_ld_append_user_extra_o_files(argv, &la, (int)(sizeof argv / sizeof argv[0]));
     argv[la] = NULL;
-    if (getenv("SHUX_DEBUG_LD"))
+    /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+    if (link_abi_getenv("SHUX_DEBUG_LD"))
         link_diag_ld_debug_argv("minimal gcc argv", argv);
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
@@ -5252,7 +5257,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         /* G.7: CLI user .o after std/on_demand/tail libs (mirrors invoke_cc order). */
         shux_asm_ld_append_user_extra_o_files(argv, &la, SHUX_LD_ARGV_CAP);
         argv[la] = NULL;
-        if (getenv("SHUX_DEBUG_LD"))
+        /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+        if (link_abi_getenv("SHUX_DEBUG_LD"))
             link_diag_ld_debug_argv("gcc argv", argv);
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         {
