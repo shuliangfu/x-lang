@@ -2187,12 +2187,21 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
       return backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx, ta);
     }
   }
-  /** i32 → f32：cvtsi2ss（return v.len as f32 等；勿把整型 3 当 f32 位型 0x3 返回）。 */
+  /**
+   * 32-bit-class integer → f32：cvtsi2ss (wave302 Cap residual pure).
+   * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+   * Root: TYPE_F32 path only matched kind 0/3/13; TypeKind 13 is VECTOR not named int,
+   * TYPE_U8=2 was missing (u8→f64 already had kind 2), TYPE_NAMED=8 (i8/i16/u16) never
+   * matched → re-emitted integer bits then outer `as i32` did cvttss2si on denormals →
+   * freestanding `(u8 as f32)` / `(i16 as f32)*f32` run=0 while i32→f32 and u8→f64 green.
+   * G.7: complete i32-family → f32 next to wave292/295 f64 path (no new encoder).
+   * Kinds: 0=i32, 2=u8, 3=u32, 8=NAMED (i8/i16/u16 spelling).
+   */
   if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14) {
     int32_t src_tr = pipeline_expr_resolved_type_ref(arena, op);
     if (src_tr > 0) {
       int32_t src_kind = pipeline_type_kind_ord_at(arena, src_tr);
-      if (src_kind == 0 || src_kind == 3 || src_kind == 13) {
+      if (src_kind == 0 || src_kind == 2 || src_kind == 3 || src_kind == 8) {
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
@@ -2245,8 +2254,11 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
           return -1;
         return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
       }
-      /* 0=i32, 2=u8, 3=u32, 13=named-int — 32-bit eax form. */
-      if (src_kind == 0 || src_kind == 2 || src_kind == 3 || src_kind == 13) {
+      /*
+       * 32-bit-class integer → f64 (eax form). wave302: kind 13 was mislabeled named-int
+       * (VECTOR); TYPE_NAMED=8 covers i8/i16/u16. Keep 0/2/3 + 8 (G.7 complete with f32 path).
+       */
+      if (src_kind == 0 || src_kind == 2 || src_kind == 3 || src_kind == 8) {
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
