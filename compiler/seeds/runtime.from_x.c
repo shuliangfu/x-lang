@@ -1,4 +1,5 @@
-/* seeds/runtime.from_x.c — wave243 G.7 residual getenv→link_abi_getenv; G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+/* seeds/runtime.from_x.c — wave243 getenv→link_abi_getenv; wave247 residual system→link_abi_system;
+ * G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
@@ -49,6 +50,11 @@
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED orch / host getenv residual via single face. */
 extern char *link_abi_getenv(const char *name);
+/* wave247 G.7: shell via public pure thin link_abi_system (wave224 → _impl host system);
+ * not raw libc system. Cap residual host system stays only link_abi_system_impl.
+ * Aligns mega dual cold (#ifndef RT_ENTRY/RT_RUN_EXEC) with modular twins / pure .x (wave226).
+ * PLATFORM: SHARED orch / host system residual via single face. */
+extern int link_abi_system(const char *cmd);
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #define XLANG_TMP_PREFIX "/tmp/xlang_"
@@ -3535,14 +3541,15 @@ int driver_run_compiler_full(int argc, char **argv);
 int driver_build_build_x(void) {
     /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./xlang。
        build.x 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
-       Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。 */
-    int rc = system("cd compiler && make -s build-tool 2>&1");
+       Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。
+       wave247 G.7: link_abi_system (not raw system); ≡ rt_entry pure/twin (wave226). */
+    int rc = link_abi_system("cd compiler && make -s build-tool 2>&1");
     if (rc != 0) {
         diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                      "make build-tool failed (exit %d)", rc);
         return 1;
     }
-    rc = system("cd compiler && ./build_tool ./xlang 2>&1");
+    rc = link_abi_system("cd compiler && ./build_tool ./xlang 2>&1");
     if (rc != 0) {
         diag_reportf_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001, NULL,
                      "build_tool failed (exit %d)", rc);
@@ -7297,7 +7304,8 @@ int driver_run_test(int argc, char **argv) {
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
     diag_reportf(NULL, 0, 0, "info", NULL,
                  "test script: %s", script);
-    return runtime_test_status_to_rc(script, system(cmd));
+    /* wave247 G.7: link_abi_system (not raw system); ≡ rt_run_exec pure/twin (wave226). */
+    return runtime_test_status_to_rc(script, link_abi_system(cmd));
 }
 #else
 int driver_run_test(int argc, char **argv);
@@ -8090,6 +8098,7 @@ int runtime_run_fmt_c(int argc, char **argv) {
 
 /** xlang test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* wave247 G.7: shell via link_abi_system (not raw system); same face as driver_run_test. */
 int runtime_run_test_c(int argc, char **argv) {
     const char *root = xlang_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
@@ -8104,7 +8113,7 @@ int runtime_run_test_c(int argc, char **argv) {
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
     diag_reportf(NULL, 0, 0, "info", NULL,
                  "test script: %s", script);
-    return runtime_test_status_to_rc(script, system(cmd));
+    return runtime_test_status_to_rc(script, link_abi_system(cmd));
 }
 
 
