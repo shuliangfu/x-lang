@@ -161,6 +161,21 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
   }
 }
 
+/**
+ * Report illegal pointer arithmetic (wave285 Cap residual; G.7 ≡ thin.x).
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid pointer arithmetic (ptr+ptr / non-offset ops not allowed; use integer offset, std.string, or adjacent string literals)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_enum_no_variant`.
  * Implements `driver_diagnostic_typeck_enum_no_variant`.
  * @param line i32

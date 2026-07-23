@@ -1674,6 +1674,8 @@ extern void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_
 extern void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32_t col, uint8_t * name, int32_t name_len, uint8_t * binding, int32_t binding_len);
 extern void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
+/* wave285 Cap residual: illegal pointer arithmetic hard diag (G.7 ≡ typeck.x). */
+extern void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -6071,6 +6073,35 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
             (void)((out_ar = rt_ar));
           }
         }
+      }
+      /* wave285 Cap residual: hard-fail illegal pointer arithmetic (G.7 ≡ typeck.x).
+       * PLATFORM: SHARED — closes type_refs_equal → host BLD001 soft residual. */
+      if (((lko ==ord_ptr) || (rko ==ord_ptr))) {
+        int32_t line_pb = pipeline_expr_line_at(arena, expr_ref);
+        int32_t col_pb = pipeline_expr_col_at(arena, expr_ref);
+        if ((expr_kind ==ord_add)) {
+          if (!(ast_ref_is_null(out_ar))) {
+            (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar));
+            return 0;
+          }
+          (void)(driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb));
+          return -1;
+        }
+        if ((expr_kind ==ord_sub)) {
+          if (((lko ==ord_ptr) && (rko ==ord_ptr))) {
+            (void)((out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_isize)));
+            (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar));
+            return 0;
+          }
+          if (!(ast_ref_is_null(out_ar))) {
+            (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar));
+            return 0;
+          }
+          (void)(driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb));
+          return -1;
+        }
+        (void)(driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb));
+        return -1;
       }
       if (ast_ref_is_null(out_ar)) {
         if (((((((((lko ==ord_i32) || (lko ==ord_u8)) || (lko ==ord_u32)) || (lko ==ord_u64)) || (lko ==ord_i64)) || (lko ==ord_usize)) || (lko ==ord_isize)) && (((((((rko ==ord_i32) || (rko ==ord_u8)) || (rko ==ord_u32)) || (rko ==ord_u64)) || (rko ==ord_i64)) || (rko ==ord_usize)) || (rko ==ord_isize)))) {

@@ -120,6 +120,14 @@ export extern function driver_diagnostic_typeck_subscript_base(line: i32, col: i
 /* See implementation. */
 export extern function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32,
 is_break: i32): void;
+/**
+ * Report illegal pointer arithmetic at a binary operator (wave285 Cap residual).
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — closes soft residual that formerly passed typeck then failed host-cc as BLD001.
+ */
+export extern function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -5796,7 +5804,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       dbg_left, dbg_left_len, dbg_right, dbg_right_len);
       lko = pipeline_type_kind_ord_at(arena, lt_ar);
       rko = pipeline_type_kind_ord_at(arena, rt_ar);
-      /* See implementation. */
+      /* Pointer ± integer is the only legal pointer arithmetic (C-like). */
       if (expr_kind == ord_add || expr_kind == ord_sub) {
         if (lko == ord_ptr && (rko == ord_i32 || rko == ord_usize || rko == ord_isize)) {
           out_ar = lt_ar;
@@ -5804,6 +5812,43 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         && (lko == ord_i32 || lko == ord_usize || lko == ord_isize)) {
           out_ar = rt_ar;
         }
+      }
+      /*
+       * wave285 Cap residual: hard-fail illegal pointer arithmetic at typeck.
+       * Root cause: type_refs_equal fallthrough accepted ptr+ptr / ptr*ptr / … and
+       * codegen emitted invalid C → soft residual BLD001 (host-cc).
+       * Allowed: ptr+int / int+ptr (ADD→ptr), ptr-int (SUB→ptr), ptr-ptr (SUB→isize).
+       * Rejected: ptr+ptr (runtime *u8 string concat leave-off; use std.string or
+       * adjacent string lits wave282), mul/div/mod/bitops with ptr, int-ptr, etc.
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool infer twin same commit.
+       */
+      if (lko == ord_ptr || rko == ord_ptr) {
+        let line_pb: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_pb: i32 = pipeline_expr_col_at(arena, expr_ref);
+        if (expr_kind == ord_add) {
+          if (!ast.ref_is_null(out_ar)) {
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+            return 0;
+          }
+          driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb);
+          return -1;
+        }
+        if (expr_kind == ord_sub) {
+          if (lko == ord_ptr && rko == ord_ptr) {
+            /* Pointer difference yields isize (not a pointer). */
+            out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_isize);
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+            return 0;
+          }
+          if (!ast.ref_is_null(out_ar)) {
+            pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+            return 0;
+          }
+          driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb);
+          return -1;
+        }
+        driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb);
+        return -1;
       }
       if (ast.ref_is_null(out_ar)) {
         if ((lko == ord_i32 || lko == ord_u8 || lko == ord_u32 || lko == ord_u64 || lko == ord_i64

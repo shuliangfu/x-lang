@@ -8045,6 +8045,33 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     else if (expr_kind == 4 && rko == 9 && (lko == 0 || lko == 6 || lko == 7))
       out_ar = rt_ar;
   }
+  /* wave285 Cap residual: G.7 ≡ typeck.x — illegal pointer arithmetic must not
+   * fall through type_refs_equal (host BLD001 soft residual). This helper only
+   * sets resolved type; callers that hard-fail use typeck_check_expr_binop_arith.
+   * Allowed: ptr+int/int+ptr (ADD), ptr-int (SUB→ptr), ptr-ptr (SUB→isize=7). */
+  if (lko == 9 || rko == 9) {
+    if (expr_kind == 4) {
+      if (out_ar != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+        return;
+      }
+      return; /* leave unresolved; product path hard-fails in typeck_check_expr_binop_arith */
+    }
+    if (expr_kind == 5) {
+      if (lko == 9 && rko == 9) {
+        out_ar = pipeline_type_ensure_by_kind_ord(arena, 7); /* isize */
+        if (out_ar != 0)
+          pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+        return;
+      }
+      if (out_ar != 0) {
+        pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+        return;
+      }
+      return;
+    }
+    return; /* mul/div/… with ptr: leave unresolved */
+  }
   if (lko == 13 && rko == 13 && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar) &&
       pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, lt_ar),
                                         pipeline_type_elem_ref_at(arena, rt_ar)) != 0) {

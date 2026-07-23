@@ -456,6 +456,23 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
   }
 }
 
+/**
+ * Report illegal pointer arithmetic (wave285 Cap residual pure leaf).
+ * Closes soft residual: typeck accepted ptr+ptr / ptr*ptr via type_refs_equal, then
+ * host-cc failed as BLD001. Product path hard-fails at typeck with a clear message.
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid pointer arithmetic (ptr+ptr / non-offset ops not allowed; use integer offset, std.string, or adjacent string literals)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.
