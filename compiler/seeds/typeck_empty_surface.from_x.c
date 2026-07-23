@@ -716,6 +716,8 @@ extern void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 /* wave285 Cap residual: illegal pointer arithmetic hard diag (G.7 ≡ typeck.x). */
 extern void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col);
+/* wave286 Cap residual: illegal float bitop/mod/shift hard diag (G.7 ≡ typeck.x). */
+extern void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col);
 extern void typeck_driver_diagnostic_pipe_marker(int32_t id);
 extern void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col);
 extern void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col);
@@ -4888,6 +4890,15 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
       }
       (void)(driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb));
       return -(1);
+    }
+    /* wave286 Cap residual: hard-fail illegal float bitop/mod/shift (G.7 ≡ typeck.x). */
+    if ((((lko ==ord_f32) || (lko ==ord_f64)) || (rko ==ord_f32)) || (rko ==ord_f64)) {
+      if ((((((expr_kind ==ord_mod) || (expr_kind ==ord_shl)) || (expr_kind ==ord_shr)) || (expr_kind ==ord_bitand)) || (expr_kind ==ord_bitor)) || (expr_kind ==ord_bitxor)) {
+        int32_t line_fb = pipeline_expr_line_at(arena, expr_ref);
+        int32_t col_fb = pipeline_expr_col_at(arena, expr_ref);
+        (void)(driver_diagnostic_typeck_invalid_float_binop(line_fb, col_fb));
+        return -(1);
+      }
     }
     if (ast_ref_is_null(out_ar)) {
       if (((((((((lko ==ord_i32) || (lko ==ord_u8)) || (lko ==ord_u32)) || (lko ==ord_u64)) || (lko ==ord_i64)) || (lko ==ord_usize)) || (lko ==ord_isize)) && (((((((rko ==ord_i32) || (rko ==ord_u8)) || (rko ==ord_u32)) || (rko ==ord_u64)) || (rko ==ord_i64)) || (rko ==ord_usize)) || (rko ==ord_isize)))) {

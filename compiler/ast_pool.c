@@ -8072,6 +8072,15 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     }
     return; /* mul/div/… with ptr: leave unresolved */
   }
+  /* wave286 Cap residual: G.7 ≡ typeck.x — illegal float bitop/mod/shift must not
+   * promote to f32/f64 (host BLD001 soft residual). Leave unresolved; product path
+   * hard-fails in typeck_check_expr_binop_arith.
+   * expr_kind: MOD=8 SHL=9 SHR=10 BITAND=11 BITOR=12 BITXOR=13; f32=14 f64=15. */
+  if ((lko == 14 || lko == 15 || rko == 14 || rko == 15)
+      && (expr_kind == 8 || expr_kind == 9 || expr_kind == 10 || expr_kind == 11
+          || expr_kind == 12 || expr_kind == 13)) {
+    return;
+  }
   if (lko == 13 && rko == 13 && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar) &&
       pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, lt_ar),
                                         pipeline_type_elem_ref_at(arena, rt_ar)) != 0) {

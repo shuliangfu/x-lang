@@ -128,6 +128,14 @@ is_break: i32): void;
  * PLATFORM: SHARED — closes soft residual that formerly passed typeck then failed host-cc as BLD001.
  */
 export extern function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void;
+/**
+ * Report illegal float bitwise/mod/shift at a binary operator (wave286 Cap residual).
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — closes soft residual that formerly passed typeck then failed host-cc as BLD001.
+ */
+export extern function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void;
 export extern function typeck_driver_diagnostic_pipe_marker(id: i32): void;
 export extern function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void;
 export extern function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void;
@@ -5849,6 +5857,23 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
         driver_diagnostic_typeck_invalid_ptr_binop(line_pb, col_pb);
         return -1;
+      }
+      /*
+       * wave286 Cap residual: hard-fail illegal float bitwise / mod / shift at typeck.
+       * Root cause: f32/f64 promotion applied to ANY binop (incl. & | ^ << >> %) and
+       * codegen emitted invalid C (`double a & b`) → soft residual BLD001 (host-cc).
+       * Allowed on float: + - * / only (ADD/SUB/MUL/DIV). Rejected: MOD, SHL, SHR,
+       * BITAND, BITOR, BITXOR with either operand f32/f64 (incl. float << int).
+       * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool infer twin same commit.
+       */
+      if (lko == ord_f32 || lko == ord_f64 || rko == ord_f32 || rko == ord_f64) {
+        if (expr_kind == ord_mod || expr_kind == ord_shl || expr_kind == ord_shr
+        || expr_kind == ord_bitand || expr_kind == ord_bitor || expr_kind == ord_bitxor) {
+          let line_fb: i32 = pipeline_expr_line_at(arena, expr_ref);
+          let col_fb: i32 = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_invalid_float_binop(line_fb, col_fb);
+          return -1;
+        }
       }
       if (ast.ref_is_null(out_ar)) {
         if ((lko == ord_i32 || lko == ord_u8 || lko == ord_u32 || lko == ord_u64 || lko == ord_i64

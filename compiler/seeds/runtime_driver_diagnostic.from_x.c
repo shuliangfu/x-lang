@@ -627,6 +627,17 @@ void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col)
 }
 #endif
 
+/* wave286 Cap residual: pure 权威 thin.x driver_diagnostic_typeck_invalid_float_binop；
+ * 冷启动全 C；FROM_X 无 pure-dup _impl。PLATFORM: SHARED. */
+#ifndef XLANG_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col)
+{
+  (void)(lsp_diag_report_typeck(line, col,
+      "invalid float operation (bitwise / mod / shift not allowed on f32/f64; use + - * / only)"));
+  return;
+}
+#endif
+
 
 /* pure 权威：thin.x driver_diagnostic_typeck_if_condition_not_bool；冷启动全 C；FROM_X 无 pure-dup _impl */
 #ifndef XLANG_L2_RDD_THIN_FROM_X

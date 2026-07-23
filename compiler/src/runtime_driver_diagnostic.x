@@ -176,6 +176,21 @@ export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32):
   }
 }
 
+/**
+ * Report illegal float bitwise/mod/shift (wave286 Cap residual; G.7 ≡ thin.x).
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid float operation (bitwise / mod / shift not allowed on f32/f64; use + - * / only)");
+  }
+}
+
 /** Exported function `driver_diagnostic_typeck_enum_no_variant`.
  * Implements `driver_diagnostic_typeck_enum_no_variant`.
  * @param line i32

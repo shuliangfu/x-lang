@@ -473,6 +473,22 @@ export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32):
   }
 }
 
+/**
+ * Report illegal float bitwise/mod/shift (wave286 Cap residual pure leaf).
+ * Closes soft residual: typeck promoted f32/f64 for & | ^ << >> % then host-cc BLD001.
+ * @param line i32 — 1-based source line of the binop
+ * @param col i32 — 1-based source column of the binop
+ * @return void
+ * PLATFORM: SHARED — seed cold twin under #ifndef XLANG_L2_RDD_THIN_FROM_X same commit.
+ */
+#[no_mangle]
+export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void {
+  unsafe {
+    lsp_diag_report_typeck(line, col,
+      "invalid float operation (bitwise / mod / shift not allowed on f32/f64; use + - * / only)");
+  }
+}
+
 // ---- G-02f-341 pure helpers / remaining gates ----
 
 /** Exported function `parser_is_ident_allow`.
