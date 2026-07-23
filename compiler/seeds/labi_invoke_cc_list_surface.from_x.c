@@ -7,14 +7,15 @@
  *   + wave202 invoke_cc_append_std_ensure_push_heavy_a pure orch
  *   + wave203 invoke_cc_append_std_ensure_push_heavy_b pure orch
  *   + wave204 invoke_cc_append_heap_f06_ondemand pure orch
- *   + wave205 invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out pure orch.
+ *   + wave205 invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out pure orch
+ *   + wave206 invoke_cc_append_argv_head_flags pure orch.
  *
  * 【Why 根源】旧 surface 由 .x STRING_LIT 生成 `(uint8_t[]){...}; return p`：
  *   C 块作用域 compound literal 为自动存储，return 后悬空。
  *   labi_linux_harden_flag_at 被 invoke_cc 写入 argv → gcc 收到乱码路径。
  * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
  * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table
- *   + wave155/198/199/200/201/202/203/204/205 pure orch).
+ *   + wave155/198/199/200/201/202/203/204/205/206 pure orch).
  * Cap residual: generated_c_needs_* + ensure/path/push peers + host_is_* + net_tls_ld
  *   + shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status.
  * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
@@ -1502,6 +1503,69 @@ void invoke_cc_append_heap_f06_ondemand(uint8_t **argv, int32_t *ia, int32_t arg
           (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
       }
     }
+  }
+}
+
+/* wave206: durable -O{level} slot (≡ .x g_labi_icc_oopt_buf). */
+static uint8_t g_labi_icc_oopt_buf[8];
+
+/* wave206: invoke_cc_append_argv_head_flags pure orch (surface pin ≡ .x). */
+void invoke_cc_append_argv_head_flags(uint8_t **argv, int32_t *ia, int32_t argv_cap,
+    uint8_t *out_path, uint8_t *opt_level, int32_t use_lto, uint8_t *include_root) {
+  const char *ol;
+  int32_t is_linux;
+  int32_t is_apple;
+  int32_t skip_nat;
+  int32_t is0, is2, is3;
+  int k;
+  if (!argv || !ia || *ia < 0)
+    return;
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"cc");
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-std=gnu11");
+  if (getenv("SHUX_RUN_QUIET")) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-w");
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-Wl,-w");
+  }
+  is_linux = shux_host_is_linux();
+  if (is_linux)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-B/usr/bin");
+  ol = (const char *)opt_level;
+  if (!ol || !ol[0])
+    ol = "2";
+  g_labi_icc_oopt_buf[0] = (uint8_t)'-';
+  g_labi_icc_oopt_buf[1] = (uint8_t)'O';
+  for (k = 0; k < 5 && ol[k]; k++)
+    g_labi_icc_oopt_buf[2 + k] = (uint8_t)ol[k];
+  g_labi_icc_oopt_buf[2 + k] = 0;
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, g_labi_icc_oopt_buf);
+  skip_nat = invoke_cc_skip_native_tuning();
+  is2 = strcmp(ol, "2");
+  is3 = strcmp(ol, "3");
+  if (!skip_nat && (is2 == 0 || is3 == 0)) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-march=native");
+    if (is3 == 0)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-mtune=native");
+  }
+  is0 = strcmp(ol, "0");
+  if (is0 != 0)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-DNDEBUG");
+  if (use_lto && is0 != 0 && !skip_nat)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-flto");
+  if (is_linux && is0 != 0)
+    shux_append_linux_link_harden_impl(argv, ia, argv_cap);
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-o");
+  if (out_path && out_path[0])
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, out_path);
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-ffunction-sections");
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-fdata-sections");
+  is_apple = link_abi_host_is_apple();
+  if (is_apple)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-Wl,-dead_strip");
+  else if (is_linux)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-Wl,--gc-sections");
+  if (include_root && include_root[0]) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-I");
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
   }
 }
 

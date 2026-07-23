@@ -16,9 +16,13 @@
 //   - invoke_cc_append_std_ensure_push_heavy_b (wave203; pure ensure-push heavy_b unicode…process_argv)
 //   - invoke_cc_append_heap_f06_ondemand (wave204; pure heap F-06 on-demand + page_mmap companions)
 //   - invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205; pure fork-exec shell + strip)
+//   - invoke_cc_append_argv_head_flags (wave206; pure argv head: quiet/O/native/NDEBUG/flto/harden/gc/-I)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
 //   contains_substr(_use_line) peers for scan; shux_spawn_sync / setenv / strip_out_x / tool_status.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
+
+// wave206: durable -O{level} argv slot (≡ mega static char oopt_buf[8]; durable pointer into argv).
+let g_labi_icc_oopt_buf: u8[8] = [];
 
 export extern "C" function getenv(name: *u8): *u8;
 
@@ -132,6 +136,9 @@ export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function link_diag_tool_status(tool: *u8, status: i32): void;
 /* Cap residual: best-effort `strip -x out` (local argv pack; pure cannot safely build **u8 table). */
 export extern "C" function invoke_cc_strip_out_x(out_path: *u8): void;
+
+/* ===== wave206 Cap residual / peer pure for argv head flags ===== */
+/* getenv already exported at file top (SHUX_RUN_QUIET); host_is_linux / host_is_apple / skip_native / harden_impl are pure peers. */
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -3471,6 +3478,159 @@ export function invoke_cc_append_heap_f06_ondemand(argv: **u8, ia: *i32, argv_ca
           let _pris: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, ris);
         }
       }
+    }
+  }
+}
+
+/**
+ * Append invoke_cc argv head flags: driver, std, quiet, -B, -O*, native, NDEBUG, flto, harden, -o, sections, gc, -I.
+ * @param argv **u8 — cc argv table (char**); null → no-op
+ * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op; starts at 0 for fresh table
+ * @param argv_cap i32 — argv capacity; leave one slot for NULL terminator (try_push_flag guards)
+ * @param out_path *u8 — product executable path for -o; null/empty still pushes -o then skips path
+ * @param opt_level *u8 — optimization level string; null/empty treated as "2" (≡ mega default)
+ * @param use_lto i32 — non-zero enables -flto when opt != "0" and native tuning not skipped
+ * @param include_root *u8 — optional -I root; null/empty skips -I
+ * @return void — mutates *ia and argv slots; writes durable -O* into g_labi_icc_oopt_buf BSS
+ * Pure orch: ≡ mega argv head inside shux_invoke_cc_impl (before c_paths loop / early_needs).
+ * Cap residual: getenv(SHUX_RUN_QUIET) + pure skip_native_tuning + pure harden_impl + host_is_*.
+ * G.7: reuses labi_icc_argv_try_push_flag + shux_append_linux_link_harden_impl (no second flag path).
+ * Why (wave206): hybrid still had quiet/O/harden/gc argv head always-mega after wave205 fork-exec pure.
+ * PLATFORM: SHARED orch / LINUX -B/usr/bin + harden + --gc-sections / APPLE -dead_strip / WINDOWS no gc/harden.
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap: i32, out_path: *u8, opt_level: *u8, use_lto: i32, include_root: *u8): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+
+  // Driver + language dialect (preamble uses C11 _Generic → gnu11).
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "cc");
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-std=gnu11");
+
+  // PLATFORM: SHARED — mute generated-C noise under `shux run` / quiet product path.
+  // Mega gates on getenv non-null only (empty value still enables quiet).
+  let quiet: *u8 = 0 as *u8;
+  unsafe {
+    quiet = getenv("SHUX_RUN_QUIET");
+  }
+  if (quiet != 0 as *u8) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-w");
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-w");
+  }
+
+  // PLATFORM: LINUX — force /usr/bin as compiler driver search root (Alpine/musl host tools).
+  let is_linux: i32 = 0;
+  unsafe {
+    is_linux = shux_host_is_linux();
+  }
+  if (is_linux != 0) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-B/usr/bin");
+  }
+
+  // Build durable "-O{level}" into BSS (≡ mega static oopt_buf[8] + snprintf).
+  let ol: *u8 = opt_level;
+  if (ol == 0 as *u8) {
+    ol = "2";
+  }
+  if (ol[0] == 0) {
+    ol = "2";
+  }
+  g_labi_icc_oopt_buf[0] = 45; // '-'
+  g_labi_icc_oopt_buf[1] = 79; // 'O'
+  let k: i32 = 0;
+  // Cap: 2 prefix + up to 5 level chars + NUL in 8-byte BSS (≡ snprintf sizeof 8).
+  while (k < 5) {
+    let ch: u8 = ol[k];
+    if (ch == 0) {
+      break;
+    }
+    g_labi_icc_oopt_buf[2 + k] = ch;
+    k = k + 1;
+  }
+  g_labi_icc_oopt_buf[2 + k] = 0;
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, g_labi_icc_oopt_buf as *u8);
+
+  // -march=native (+ -mtune=native for -O3); CI/Docker skip via pure skip_native_tuning.
+  let skip_nat: i32 = invoke_cc_skip_native_tuning();
+  let is2: i32 = 0;
+  let is3: i32 = 0;
+  unsafe {
+    is2 = strcmp(ol, "2");
+    is3 = strcmp(ol, "3");
+  }
+  if (skip_nat == 0) {
+    if (is2 == 0 || is3 == 0) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-march=native");
+      if (is3 == 0) {
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-mtune=native");
+      }
+    }
+  }
+
+  let is0: i32 = 0;
+  unsafe {
+    is0 = strcmp(ol, "0");
+  }
+  // Release: -DNDEBUG; optional -flto when not skipped and not -O0.
+  if (is0 != 0) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-DNDEBUG");
+  }
+  if (use_lto != 0) {
+    if (is0 != 0) {
+      if (skip_nat == 0) {
+        labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-flto");
+      }
+    }
+  }
+
+  // PLATFORM: LINUX — PIE + NX + RELRO via pure harden table (wave155).
+  if (is_linux != 0) {
+    if (is0 != 0) {
+      shux_append_linux_link_harden_impl(argv, ia, argv_cap);
+    }
+  }
+
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-o");
+  if (out_path != 0 as *u8) {
+    if (out_path[0] != 0) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, out_path);
+    }
+  }
+
+  // Dead-code GC pair: compile-side function/data sections + link-side strip/gc.
+  // Invariant: never pass only --gc-sections without -ffunction-sections (see mega comment).
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ffunction-sections");
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-fdata-sections");
+
+  let is_apple: i32 = 0;
+  unsafe {
+    is_apple = link_abi_host_is_apple();
+  }
+  if (is_apple != 0) {
+    // PLATFORM: MACOS|DARWIN — Mach-O dead strip from main reachability.
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
+  } else {
+    if (is_linux != 0) {
+      // PLATFORM: LINUX — ELF --gc-sections (pair with function-sections above).
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+    }
+  }
+
+  // Optional -I include_root for generated C / std headers.
+  if (include_root != 0 as *u8) {
+    if (include_root[0] != 0) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
     }
   }
 }

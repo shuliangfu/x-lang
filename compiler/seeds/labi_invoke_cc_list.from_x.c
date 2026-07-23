@@ -15,6 +15,7 @@
  *   invoke_cc_append_std_ensure_push_heavy_b (wave203 pure ensure-push heavy_b unicode…process_argv)
  *   invoke_cc_append_heap_f06_ondemand (wave204 pure heap F-06 on-demand + page_mmap)
  *   invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205 pure fork-exec shell + strip)
+ *   invoke_cc_append_argv_head_flags (wave206 pure argv head quiet/O/native/NDEBUG/flto/harden/gc/-I)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
  *   shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
@@ -1499,6 +1500,69 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
   }
 }
 
+/* wave206: durable -O{level} slot (≡ .x g_labi_icc_oopt_buf / mega static oopt_buf[8]). */
+static char g_labi_icc_oopt_buf[8];
+
+/* wave206: invoke_cc_append_argv_head_flags pure orch (cold twin ≡ .x). */
+void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
+    const char *out_path, const char *opt_level, int use_lto, const char *include_root) {
+  const char *ol;
+  int is_linux;
+  int is_apple;
+  int skip_nat;
+  int is0, is2, is3;
+  int k;
+  if (!argv || !ia || *ia < 0)
+    return;
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "cc");
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-std=gnu11");
+  if (getenv("SHUX_RUN_QUIET")) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-w");
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-w");
+  }
+  is_linux = shux_host_is_linux();
+  if (is_linux)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-B/usr/bin");
+  ol = opt_level;
+  if (!ol || !ol[0])
+    ol = "2";
+  g_labi_icc_oopt_buf[0] = '-';
+  g_labi_icc_oopt_buf[1] = 'O';
+  for (k = 0; k < 5 && ol[k]; k++)
+    g_labi_icc_oopt_buf[2 + k] = ol[k];
+  g_labi_icc_oopt_buf[2 + k] = '\0';
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, g_labi_icc_oopt_buf);
+  skip_nat = invoke_cc_skip_native_tuning();
+  is2 = strcmp(ol, "2");
+  is3 = strcmp(ol, "3");
+  if (!skip_nat && (is2 == 0 || is3 == 0)) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-march=native");
+    if (is3 == 0)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-mtune=native");
+  }
+  is0 = strcmp(ol, "0");
+  if (is0 != 0)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-DNDEBUG");
+  if (use_lto && is0 != 0 && !skip_nat)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-flto");
+  if (is_linux && is0 != 0)
+    shux_append_linux_link_harden_impl(argv, ia, argv_cap);
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-o");
+  if (out_path && out_path[0])
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, out_path);
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-ffunction-sections");
+  labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-fdata-sections");
+  is_apple = link_abi_host_is_apple();
+  if (is_apple)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,-dead_strip");
+  else if (is_linux)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--gc-sections");
+  if (include_root && include_root[0]) {
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
+  }
+}
+
 /* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x). */
 int invoke_cc_run_cc_argv(char **argv) {
   int is_win;
@@ -1616,6 +1680,8 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root);
 int invoke_cc_run_cc_argv(char **argv);
 void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
+void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
+    const char *out_path, const char *opt_level, int use_lto, const char *include_root);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {

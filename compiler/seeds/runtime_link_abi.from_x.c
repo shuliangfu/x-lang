@@ -2215,6 +2215,8 @@ void invoke_cc_append_heap_f06_ondemand(char **argv, int *ia, int argv_cap,
     const char **c_paths, int n, const char *include_root);
 int invoke_cc_run_cc_argv(char **argv);
 void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
+void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
+    const char *out_path, const char *opt_level, int use_lto, const char *include_root);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2277,6 +2279,14 @@ void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
  * Cap residual peers: shux_spawn_sync + invoke_cc_strip_out_x + setenv + host_is_* + tool_status.
  * Why: hybrid still had always-mega fork+exec+wait+strip after argv pure (wave198–204).
  * PLATFORM: SHARED orch / parent-side spawn (no fork-first argv build).
+ */
+
+/* wave206: invoke_cc_append_argv_head_flags pure orch lives in labi_invoke_cc_list
+ * (argv head quiet/O/native/NDEBUG/flto/harden/gc/-I inside shux_invoke_cc_impl).
+ * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
+ * Cap residual: getenv(SHUX_RUN_QUIET) + pure skip_native + pure harden_impl + host_is_*.
+ * Why: hybrid still had argv head flags always-mega after wave205 fork-exec pure.
+ * PLATFORM: SHARED orch / LINUX -B + harden + --gc-sections / APPLE -dead_strip.
  */
 
 
@@ -3179,7 +3189,8 @@ void shux_invoke_cc_clear_user_o_files(void);
  * 参数：c_paths/n 源文件；各 *_o 可选 std/core .o；include_root 用于 -I 与按需 .o 解析。
  * 返回值：0 成功，-1 失败。
  * wave205: fork/exec/wait/strip 壳迁 pure（invoke_cc_run_cc_argv + maybe_strip_out）；
- *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x。无 fork-first 在子进程建 argv。
+ * wave206: argv 头 flags 迁 pure（invoke_cc_append_argv_head_flags）；
+ *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x / getenv quiet。无 fork-first 在子进程建 argv。
  */
 int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
@@ -3202,76 +3213,14 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
      *
      * wave205: build argv in parent, then pure invoke_cc_run_cc_argv (spawn_sync
      * candidates) + invoke_cc_maybe_strip_out. No fork-first child argv build.
+     * wave206: argv head flags pure (quiet/O/native/NDEBUG/flto/harden/gc/-I).
      */
     /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
     char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
     int i = 0;
     const int argv_cap = SHUX_INVOKE_CC_MAX_C_FILES + 48;
-    argv[i++] = (char *)"cc";
-    /* preamble 中 std_io_* / std_net_* 使用 C11 _Generic，须传 -std=gnu11（不能 -x c，否则 .o 会被当 C 源码编译） */
-    argv[i++] = (char *)"-std=gnu11";
-    /* `shux run` / bare `shux file.x`: compile in memory for direct exec, so
-     * suppress the generated-C diagnostic noise (the preamble/codegen emit
-     * trips -Wparentheses-equality etc.). Errors still surface; only warnings
-     * (cc -w and linker -Wl,-w) are muted. PLATFORM: SHARED. */
-    if (i + 2 < argv_cap && getenv("SHUX_RUN_QUIET")) {
-        argv[i++] = (char *)"-w";
-        argv[i++] = (char *)"-Wl,-w";
-    }
-#if defined(__linux__)
-    if (i < argv_cap - 1)
-        argv[i++] = (char *)"-B/usr/bin";
-#endif
-    {
-        static char oopt_buf[8];
-        (void)snprintf(oopt_buf, sizeof(oopt_buf), "-O%s", opt_level);
-        argv[i++] = oopt_buf;
-        /* 极致性能：-O3 时加 march=native mtune=native；-O2 时加 march=native；CI/Docker 跳过。 */
-        if (!invoke_cc_skip_native_tuning() && (strcmp(opt_level, "3") == 0 || strcmp(opt_level, "2") == 0)) {
-            argv[i++] = (char *)"-march=native";
-            if (strcmp(opt_level, "3") == 0)
-                argv[i++] = (char *)"-mtune=native";
-        }
-    }
-    /* 阶段 8：非调试时传 -DNDEBUG；-flto 便于跨模块内联（2.3 构建与链接） */
-    if (strcmp(opt_level, "0") != 0)
-        argv[i++] = (char *)"-DNDEBUG";
-    if (use_lto && strcmp(opt_level, "0") != 0 && !invoke_cc_skip_native_tuning())
-        argv[i++] = (char *)"-flto";
-#if defined(__linux__)
-    /* P1-7：release 可执行文件默认 PIE + NX + RELRO（与 asm 链接路径一致）。 */
-    if (strcmp(opt_level, "0") != 0)
-        shux_append_linux_link_harden(argv, &i, argv_cap);
-#endif
-    argv[i++] = (char *)"-o";
-    argv[i++] = (char *)out_path;
-    /*
-     * 死代码剥离：preamble / co-emit 常带 std_io_*_ctx / read_batch 等「可能用」体，
-     * 其 U 引用 context/error/driver；hello 与 io.print 等未调用路径须 GC 掉，
-     * 否则会假依赖链 context.o→atomic，或直接 ld UNDEF（bstrict27 run-io）。
-     *
-     * 【Invariant】与 freestanding asm / std 模块编译同权威：
-     *   - 编译：-ffunction-sections -fdata-sections（每函数独立 section）
-     *   - 链接：--gc-sections / Darwin -dead_strip（从 main 可达性剔除）
-     * 仅传 --gc-sections 而无 function-sections 时，整块 .text 要么全留要么
-     * （偶发）全丢；io 的 print 落在 .text 会拖死整段 U，hello 因全内联进
-     * .text.startup 才碰巧绿。二者必须成对，禁止只加链接侧 GC。
-     */
-    if (i < argv_cap - 2) {
-        argv[i++] = (char *)"-ffunction-sections";
-        argv[i++] = (char *)"-fdata-sections";
-    }
-#if defined(__APPLE__)
-    if (i < argv_cap - 1)
-        argv[i++] = (char *)"-Wl,-dead_strip";
-#elif defined(__linux__)
-    if (i < argv_cap - 1)
-        argv[i++] = (char *)"-Wl,--gc-sections";
-#endif
-    if (include_root && include_root[0]) {
-        argv[i++] = (char *)"-I";
-        argv[i++] = (char *)include_root;
-    }
+    /* wave206 pure: argv head (cc, std, quiet, -B, -O level, native, NDEBUG, flto, harden, -o, sections, gc, -I). */
+    invoke_cc_append_argv_head_flags(argv, &i, argv_cap, out_path, opt_level, use_lto, include_root);
     for (int j = 0; j < n && i < SHUX_INVOKE_CC_MAX_C_FILES + 8; j++)
         argv[i++] = (char *)c_paths[j];
     /* wave198: early needs scan+push pure orch (L5 invoke_cc_list).
