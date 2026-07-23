@@ -414,18 +414,35 @@ const char * link_diag_code_for_kind(const char *kind) {
 const char * link_diag_code_for_kind(const char *kind);
 #endif
 
-/* Cap residual (always): POSIX wait status decode for pure tool/obj status orch.
+/* Cap residual (always _impl, wave217): POSIX wait status decode.
+ * Pure orch (labi_diag_pure L1) owns public thin; _impl is always mega.
  * PLATFORM: POSIX (macOS + Linux). Windows hybrid uses win32_compat wait macros. */
-int link_diag_wait_is_signaled(int status) {
+int link_diag_wait_is_signaled_impl(int status) {
     return WIFSIGNALED(status) ? 1 : 0;
 }
-int link_diag_wait_code(int status) {
+int link_diag_wait_code_impl(int status) {
     if (WIFSIGNALED(status))
         return (int)WTERMSIG(status);
     if (WIFEXITED(status))
         return (int)WEXITSTATUS(status);
     return -1;
 }
+
+/* wave217: public pure thin lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * Cap residual: wait_is_signaled_impl / wait_code_impl (WIF* always mega).
+ * PLATFORM: SHARED orch / POSIX wait residual. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+int link_diag_wait_is_signaled(int status) {
+    return link_diag_wait_is_signaled_impl(status);
+}
+int link_diag_wait_code(int status) {
+    return link_diag_wait_code_impl(status);
+}
+#else
+int link_diag_wait_is_signaled(int status);
+int link_diag_wait_code(int status);
+#endif
 
 /* G-02f-165 / wave112：tool_status pure orch in labi_diag_pure.x (hybrid L1);
  * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual wait decode
@@ -551,13 +568,26 @@ void link_diag_runtime_obj_build_status(const char *obj_name, int status);
 
 
 
-/* Cap residual always: errno capture + strerror. Message orch is pure L1 (wave113).
- * PLATFORM: SHARED — libc errno/strerror. */
-const char *link_diag_strerror_current(void) {
+/* Cap residual (always _impl, wave217): errno capture + strerror.
+ * Pure orch (labi_diag_pure L1) owns public thin; _impl is always mega.
+ * Message orch is pure L1 (wave113). PLATFORM: SHARED — libc errno/strerror. */
+const char *link_diag_strerror_current_impl(void) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
     return err ? err : "unknown error";
 }
+
+/* wave217: public pure thin lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * Cap residual: link_diag_strerror_current_impl (errno+strerror always mega).
+ * PLATFORM: SHARED orch / libc strerror residual. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+const char *link_diag_strerror_current(void) {
+    return link_diag_strerror_current_impl();
+}
+#else
+const char *link_diag_strerror_current(void);
+#endif
 
 /* G-02f-165 / wave113：link_diag_errno / _path pure orch in labi_diag_pure.x (hybrid L1);
  * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X. Cap residual strerror stays
@@ -706,7 +736,8 @@ void link_diag_ld_debug_argv(const char *label, const char *const *argv);
 
 /* G-02f-165 / wave111：shux_link_perror pure orch in labi_diag_pure.x (hybrid L1);
  * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
- * wave113: pure errno/_path orch; Cap residual is link_diag_strerror_current only.
+ * wave113: pure errno/_path orch; Cap residual is link_diag_strerror_current_impl
+ * (wave217: public thin pure under hybrid L1).
  * PLATFORM: SHARED. */
 #ifndef SHUX_LABI_DIAG_PURE_FROM_X
 void shux_link_perror(const char *msg) {

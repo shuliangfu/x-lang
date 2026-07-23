@@ -20,13 +20,15 @@ export extern "C" function diag_report_with_code(
 /* See signature and body for contracts. */
 export extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): void;
 
-/* Cap residual (mega always): capture errno + strerror (libc). Message orch is pure. */
-export extern "C" function link_diag_strerror_current(): *u8;
+/* Cap residual (mega always _impl): capture errno + strerror (libc).
+ * wave217: public pure thin owns link_diag_strerror_current under hybrid L1. */
+export extern "C" function link_diag_strerror_current_impl(): *u8;
 
-/* Cap residual (mega always): POSIX wait status macros (WIFSIGNALED / WTERMSIG /
- * WIFEXITED / WEXITSTATUS). PLATFORM: POSIX (macOS + Linux product hosts). */
-export extern "C" function link_diag_wait_is_signaled(status: i32): i32;
-export extern "C" function link_diag_wait_code(status: i32): i32;
+/* Cap residual (mega always _impl): POSIX wait status macros (WIFSIGNALED /
+ * WTERMSIG / WIFEXITED / WEXITSTATUS). wave217: public pure thin under hybrid L1.
+ * PLATFORM: POSIX (macOS + Linux product hosts); Windows hybrid win32_compat. */
+export extern "C" function link_diag_wait_is_signaled_impl(status: i32): i32;
+export extern "C" function link_diag_wait_code_impl(status: i32): i32;
 
 /* Cap residual (wave216): waitpid + EINTR retry + strerror report (mega always). */
 export extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
@@ -384,7 +386,7 @@ export function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
  * Report a tool (cc/ld/…) failure from a wait(2) status word.
  * Pure owns message orch: `"<tool> failed (signal N)"` or `"<tool> failed (exit N)"`
  * then `diag_report_with_code` (build error / BLD001). Cap residual wait decode:
- * `link_diag_wait_is_signaled` / `link_diag_wait_code` (WIF* macros, mega always).
+ * pure thin `link_diag_wait_*` → mega always `_impl` (WIF* macros; wave217).
  * Null tool → literal `"tool"`. Integer formatting via pure `labi_diag_append_i32`.
  * @param tool *u8 — tool name for the message (null → "tool")
  * @param status i32 — raw wait status (not a plain exit code)
@@ -405,10 +407,9 @@ export function link_diag_tool_status(tool: *u8, status: i32): void {
   }
   msg[0] = 0;
   labi_diag_append(&msg[0], 320, t);
-  unsafe {
-    sig = link_diag_wait_is_signaled(status);
-    c = link_diag_wait_code(status);
-  }
+  /* Public thin (same module) → Cap residual wait decode _impl. */
+  sig = link_diag_wait_is_signaled(status);
+  c = link_diag_wait_code(status);
   if (sig != 0) {
     labi_diag_append(&msg[0], 320, " failed (signal ");
   } else {
@@ -449,10 +450,9 @@ export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): 
   msg[0] = 0;
   labi_diag_append(&msg[0], 320, "failed to build ");
   labi_diag_append(&msg[0], 320, on);
-  unsafe {
-    sig = link_diag_wait_is_signaled(status);
-    c = link_diag_wait_code(status);
-  }
+  /* Public thin (same module) → Cap residual wait decode _impl. */
+  sig = link_diag_wait_is_signaled(status);
+  c = link_diag_wait_code(status);
   if (sig != 0) {
     labi_diag_append(&msg[0], 320, " (signal ");
   } else {
@@ -470,9 +470,9 @@ export function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): 
 /**
  * Report a process/link errno failure: `"<op> failed: <strerror>"`.
  * Pure owns kind/op defaults, `link_diag_code_for_kind`, message append, and
- * `diag_report_with_code`. Cap residual `link_diag_strerror_current` holds
- * errno capture + libc strerror (must run before other Cap calls that may
- * clobber errno — pure body calls it first).
+ * `diag_report_with_code`. Cap residual strerror: pure thin
+ * `link_diag_strerror_current` → mega always `_impl` (errno+strerror; wave217).
+ * Call strerror first before other Cap calls that may clobber errno.
  * Null kind → `"process error"`; null/empty op → `"system call"`.
  * @param kind *u8 — diagnostic kind (null → process error)
  * @param op *u8 — failed operation label
@@ -497,9 +497,8 @@ export function link_diag_errno(kind: *u8, op: *u8): void {
       o = "system call";
     }
   }
-  unsafe {
-    err = link_diag_strerror_current();
-  }
+  /* Public thin (same module) → Cap residual strerror _impl. */
+  err = link_diag_strerror_current();
   if (err == 0 as *u8) {
     err = "unknown error";
   }
@@ -551,9 +550,8 @@ export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
       o = "system call";
     }
   }
-  unsafe {
-    err = link_diag_strerror_current();
-  }
+  /* Public thin (same module) → Cap residual strerror _impl. */
+  err = link_diag_strerror_current();
   if (err == 0 as *u8) {
     err = "unknown error";
   }
@@ -578,8 +576,8 @@ export function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
  * Null/empty msg → `system call` with no path.
  * @param msg *u8 — NUL-terminated diagnostic text; null treated as empty
  * @return void
- * Cap residual: only `link_diag_strerror_current` under the pure errno path
- * (errno+strerror; mega always). Pure owns prefix strip + paren split + message orch.
+ * Cap residual: pure thin `link_diag_strerror_current` → `_impl` (errno+strerror;
+ * mega always; wave217). Pure owns prefix strip + paren split + message orch.
  * wave111: perror body pure; wave113: errno/_path message body pure.
  * PLATFORM: SHARED — hybrid L1 pure; mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
  */
@@ -679,6 +677,63 @@ export function shux_link_perror(msg: *u8): void {
 }
 
 /**
+ * Capture current errno and return libc strerror (or "unknown error").
+ * Thin pure public: Cap residual `link_diag_strerror_current_impl` holds errno
+ * snapshot + strerror (must run before other Cap calls that may clobber errno).
+ * @return *u8 — non-null C string (libc buffer or static "unknown error")
+ * Pure orch: ≡ mega public thin before Cap residual strerror body (wave217).
+ * Why (wave217): hybrid still had strerror_current body always mega C
+ * (errno+strerror); G.7 single public authority under L1 hybrid.
+ * Cap residual: link_diag_strerror_current_impl (mega always).
+ * PLATFORM: SHARED — libc errno/strerror on product hosts.
+ * Track-L: #[no_mangle] keeps short surface name for pure errno/_path orch.
+ */
+#[no_mangle]
+export function link_diag_strerror_current(): *u8 {
+  unsafe {
+    return link_diag_strerror_current_impl();
+  }
+  return 0 as *u8;
+}
+
+/**
+ * Decode wait(2) status: 1 if WIFSIGNALED, else 0.
+ * Thin pure public: Cap residual `link_diag_wait_is_signaled_impl` holds WIF*.
+ * @param status i32 — raw wait status word
+ * @return i32 — 1 signaled, 0 otherwise
+ * Pure orch: ≡ mega public thin before Cap residual wait decode (wave217).
+ * Cap residual: link_diag_wait_is_signaled_impl (mega always).
+ * PLATFORM: SHARED orch; residual is POSIX wait macros (win32_compat on Windows).
+ * Track-L: #[no_mangle] keeps short surface name for tool/obj status orch.
+ */
+#[no_mangle]
+export function link_diag_wait_is_signaled(status: i32): i32 {
+  unsafe {
+    return link_diag_wait_is_signaled_impl(status);
+  }
+  return 0;
+}
+
+/**
+ * Decode wait(2) status to signal number or exit code.
+ * Thin pure public: Cap residual `link_diag_wait_code_impl` holds WTERMSIG /
+ * WEXITSTATUS (or -1 when neither signaled nor exited).
+ * @param status i32 — raw wait status word
+ * @return i32 — signal number, exit code, or -1
+ * Pure orch: ≡ mega public thin before Cap residual wait decode (wave217).
+ * Cap residual: link_diag_wait_code_impl (mega always).
+ * PLATFORM: SHARED orch; residual is POSIX wait macros (win32_compat on Windows).
+ * Track-L: #[no_mangle] keeps short surface name for tool/obj status orch.
+ */
+#[no_mangle]
+export function link_diag_wait_code(status: i32): i32 {
+  unsafe {
+    return link_diag_wait_code_impl(status);
+  }
+  return 0 - 1;
+}
+
+/**
  * Wait for child `pid`; retry on EINTR; optional status store.
  * Thin pure public: Cap residual `shu_waitpid_retry_impl` holds waitpid loop,
  * errno capture, libc strerror, and process-error reportf.
@@ -702,7 +757,8 @@ export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
 
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
  * wave111: shux_link_perror is extra pure orch (not counted in the original 9).
- * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9). */
+ * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9).
+ * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra. */
 #[no_mangle]
 export function labi_diag_pure_count(): i32 {
   return 9;
