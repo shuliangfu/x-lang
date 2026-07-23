@@ -4,7 +4,7 @@
  * Product: runtime_env_os.o; logic still C until full .x port.
  *
  * wave252 G.7: POSIX getenv residual via public face link_abi_getenv (not raw getenv).
- * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
+ * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
  * Windows path keeps GetEnvironmentVariableA (PLATFORM: WINDOWS).
  * PLATFORM: SHARED face name / POSIX host residual via face; never g05 host bag.
  */
@@ -16,8 +16,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-/* wave252: weak face twin for residual getenv (see header). */
-#define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
+/* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
 
 #if defined(_WIN32) || defined(_WIN64)

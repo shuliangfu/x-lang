@@ -1,26 +1,27 @@
 /*
  * xlang_user_link_abi_getenv.h — user-domain link_abi_getenv face for STD_AND_PANIC
  *
- * wave252 G.7: residual STD_AND_PANIC leaves (backtrace/env_os/process_os/log_os/http_glue)
+ * wave252–253 G.7: residual STD_AND_PANIC leaves (backtrace/env_os/process_os/log_os/http_glue)
  * must not call raw libc getenv; authority name is link_abi_getenv (≡ wave222 pure thin
  * null/empty gate → link_abi_getenv_impl host getenv).
  *
  * Product host g05 authority remains labi_diag_pure.x + mega link_abi_getenv_impl —
- * this header is NEVER compiled into the g05 60/62-obj bag.
+ * this header / user_env.o are NEVER compiled into the g05 60/62-obj bag.
  *
  * Dual-end co-link policy (PLATFORM: SHARED user/STD_AND_PANIC only):
  * - Strong twin: runtime_panic C seeds (wave251) when that TU is linked (mac / non-x86_64 C).
  * - Linux x86_64 product panic is freestanding .s (no face, must not pull libc getenv).
- * - Residual leaves that still need face under .s panic define a weak twin via
- *   XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN before including this header.
- * - Strong wins over weak when both present; multiple weak copies are linker-ok.
+ * - wave253: sole residual-domain body is compiler/runtime_link_abi_user_env.o
+ *   (weak face; strong panic C wins when co-linked). Residual leaves declare only.
+ * - PRIMARY_PANIC / push_minimal companion-push user_env.o so face is on the product
+ *   -o line when panic is linked (always on append_std plan).
  *
- * Usage:
- *   #define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
+ * Usage (residual leaves — declaration only):
  *   #include <xlang_user_link_abi_getenv.h>
  *   // then call link_abi_getenv("KEY") instead of getenv("KEY")
  *
- * Or declaration-only (panic / already has strong twin):
+ * Optional weak twin body in-header (legacy / tests only; product residual do not use):
+ *   #define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
  *   #include <xlang_user_link_abi_getenv.h>
  */
 
@@ -42,8 +43,7 @@ extern "C" {
 #include <stdlib.h>
 
 /**
- * Cap residual host getenv for user-linked STD_AND_PANIC residual TUs (≡ product _impl).
- * Weak: strong may come from runtime_panic C seed (wave251).
+ * Cap residual host getenv (legacy in-header weak twin; prefer runtime_link_abi_user_env.o).
  * @param name NUL-terminated environment key; may be null
  * @return value pointer from process env block, or NULL
  */
@@ -55,8 +55,7 @@ const char *link_abi_getenv_impl(const char *name) {
 }
 
 /**
- * Public face twin: null/empty gate then host residual (≡ product pure thin / wave251).
- * Weak: strong may come from runtime_panic C seed (wave251).
+ * Public face twin (legacy in-header weak twin; prefer runtime_link_abi_user_env.o).
  * @param name NUL-terminated environment key
  * @return NULL on null/empty; else link_abi_getenv_impl value
  */

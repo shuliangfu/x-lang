@@ -1909,6 +1909,19 @@ const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
     return resolved;
 }
 
+/**
+ * wave253: runtime_link_abi_user_env.o path — sole residual-domain face companion (weak).
+ * @param argv0 optional product host path
+ * @return durable .o path or empty string
+ * PLATFORM: SHARED — user/STD_AND_PANIC only; never g05 host bag as TU (path only).
+ */
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0) {
+    static char resolved[PATH_MAX];
+    if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_link_abi_user_env.o", resolved, sizeof resolved) != 0)
+        resolved[0] = '\0';
+    return resolved;
+}
+
 #else
 const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *xlang_runtime_process_argv_o_path(const char *argv0);
@@ -1939,6 +1952,7 @@ const char *xlang_runtime_arrow_simd_glue_o_path(const char *argv0);
 const char *xlang_runtime_sqlite_glue_o_path(const char *argv0);
 const char *xlang_runtime_crypto_inc_glue_o_path(const char *argv0);
 const char *xlang_runtime_ed25519_ref10_glue_o_path(const char *argv0);
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
 #endif
 
 /**
@@ -4320,6 +4334,9 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
         "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(xlang_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    /* wave253: companion user-domain face (weak; residual declare-only; panic C strong wins). */
+    link_abi_asm_ld_push_obj(xlang_runtime_link_abi_user_env_o_path(link_argv0), link_argv0,
+        "compiler/runtime_link_abi_user_env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
 #else
 void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,

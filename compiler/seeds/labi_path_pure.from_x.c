@@ -65,6 +65,8 @@ int link_abi_call_ensure_argv0(void *ensure_fn, const char *link_argv0);
 const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *xlang_runtime_process_argv_o_path(const char *argv0);
 const char *xlang_runtime_panic_o_path(const char *argv0);
+/* wave253: user-domain residual face companion (forward decl for push_minimal). */
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
 /* Cap residual used by wave151 append_user_extra cold twin (mega always provides). */
 int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
@@ -408,6 +410,12 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
       lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
   (void)link_abi_asm_ld_push_obj(panic_p, link_argv0, "compiler/runtime_panic.o",
       lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  /* wave253: companion user-domain face (weak; residual declare-only; panic C strong wins). */
+  {
+    const char *ue_p = xlang_runtime_link_abi_user_env_o_path(link_argv0);
+    (void)link_abi_asm_ld_push_obj(ue_p, link_argv0, "compiler/runtime_link_abi_user_env.o",
+        lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+  }
 }
 
 /* wave151: append_user_extra_o_files pure orch (cold twin ≡ .x; Cap residual table+access). */
@@ -942,6 +950,7 @@ static char g_labi_time_os_o_path_buf[4096];
 static char g_labi_queue_contention_o_path_buf[4096];
 static char g_labi_dynlib_os_o_path_buf[4096];
 static char g_labi_env_os_o_path_buf[4096];
+static char g_labi_link_abi_user_env_o_path_buf[4096];
 static char g_labi_backtrace_platform_o_path_buf[4096];
 static char g_labi_log_os_o_path_buf[4096];
 static char g_labi_math_libm_o_path_buf[4096];
@@ -1038,6 +1047,14 @@ const char *xlang_runtime_env_os_o_path(const char *argv0) {
   if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_env_os.o", g_labi_env_os_o_path_buf, sizeof g_labi_env_os_o_path_buf) != 0)
     g_labi_env_os_o_path_buf[0] = '\0';
   return g_labi_env_os_o_path_buf;
+}
+
+/* wave253: thin durable path for runtime_link_abi_user_env.o (companion face). */
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0) {
+  g_labi_link_abi_user_env_o_path_buf[0] = '\0';
+  if (xlang_runtime_compiler_o_path_copy(argv0, "runtime_link_abi_user_env.o", g_labi_link_abi_user_env_o_path_buf, sizeof g_labi_link_abi_user_env_o_path_buf) != 0)
+    g_labi_link_abi_user_env_o_path_buf[0] = '\0';
+  return g_labi_link_abi_user_env_o_path_buf;
 }
 
 const char *xlang_runtime_backtrace_platform_o_path(const char *argv0) {
@@ -1371,6 +1388,7 @@ const char *xlang_runtime_time_os_o_path(const char *argv0);
 const char *xlang_runtime_queue_contention_o_path(const char *argv0);
 const char *xlang_runtime_dynlib_os_o_path(const char *argv0);
 const char *xlang_runtime_env_os_o_path(const char *argv0);
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
 const char *xlang_runtime_backtrace_platform_o_path(const char *argv0);
 const char *xlang_runtime_log_os_o_path(const char *argv0);
 const char *xlang_runtime_math_libm_o_path(const char *argv0);

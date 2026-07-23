@@ -140,6 +140,8 @@ int labi_user_needs_runtime_random_fill(const char *user_o);
 int labi_user_needs_runtime_env_os(const char *user_o);
 const char *xlang_runtime_asm_io_stubs_o_path(const char *argv0);
 const char *xlang_runtime_panic_o_path(const char *argv0);
+const char *xlang_runtime_link_abi_user_env_o_path(const char *argv0);
+int xlang_ensure_runtime_link_abi_user_env_o(const char *argv0);
 int xlang_ensure_runtime_process_argv_o(const char *argv0);
 const char *xlang_runtime_process_argv_o_path(const char *argv0);
 
@@ -932,6 +934,12 @@ void labi_std_append_primary_for_op(int op, const char *link_argv0, const char *
     if (argv && la)
       (void)link_abi_asm_ld_push_obj(xlang_runtime_panic_o_path(link_argv0), link_argv0,
                                      use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    /* wave253: companion user-domain face for residual declare-only leaves / Linux .s panic. */
+    (void)xlang_ensure_runtime_link_abi_user_env_o(link_argv0);
+    if (argv && la)
+      (void)link_abi_asm_ld_push_obj(xlang_runtime_link_abi_user_env_o_path(link_argv0), link_argv0,
+                                     "compiler/runtime_link_abi_user_env.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
     return;
   }
   if (op == 4) { /* PRIMARY_TIME_OS */

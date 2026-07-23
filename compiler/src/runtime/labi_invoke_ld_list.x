@@ -201,6 +201,8 @@ export extern "C" function labi_user_needs_runtime_env_os(user_o: *u8): i32;
 // PLATFORM: SHARED — product path symbols used by append_std PRIMARY plan steps.
 export extern "C" function xlang_runtime_asm_io_stubs_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_panic_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_runtime_link_abi_user_env_o_path(argv0: *u8): *u8;
+export extern "C" function xlang_ensure_runtime_link_abi_user_env_o(argv0: *u8): i32;
 
 // Cap residual / peer pure: process_argv ensure+path for wave193 complement.
 // PLATFORM: SHARED — constructor-bound argc/argv glue; never dual-link with process.o.
@@ -2585,6 +2587,24 @@ export function labi_std_append_primary_for_op(op: i32, link_argv0: *u8, user_o:
         let _p: i32 = 0;
         unsafe {
           _p = link_abi_asm_ld_push_obj(p, link_argv0, use_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+        }
+      }
+    }
+    // wave253: companion user-domain face for residual declare-only / Linux .s panic.
+    unsafe {
+      let _e: i32 = 0;
+      _e = xlang_ensure_runtime_link_abi_user_env_o(link_argv0);
+    }
+    let ue_p: *u8 = 0 as *u8;
+    unsafe {
+      ue_p = xlang_runtime_link_abi_user_env_o_path(link_argv0);
+    }
+    let ab2: *u8 = argv as *u8;
+    if (ab2 != 0 as *u8) {
+      if (la != 0 as *i32) {
+        let _ue: i32 = 0;
+        unsafe {
+          _ue = link_abi_asm_ld_push_obj(ue_p, link_argv0, "compiler/runtime_link_abi_user_env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
         }
       }
     }

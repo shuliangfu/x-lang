@@ -4625,6 +4625,11 @@ ensure_runtime_user_link_objs() {
   echo " cc_inc_tu runtime_env_os.o <- seeds/runtime_env_os.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o runtime_env_os.o
   fi
+  # wave253: sole user-domain residual face body (weak; companion of PRIMARY_PANIC / residual).
+  if [ ! -f runtime_link_abi_user_env.o ] || [ seeds/runtime_link_abi_user_env.from_x.c -nt runtime_link_abi_user_env.o ]; then
+  echo " cc_inc_tu runtime_link_abi_user_env.o <- seeds/runtime_link_abi_user_env.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_link_abi_user_env.from_x.c -o runtime_link_abi_user_env.o
+  fi
 }
 
 # NL-07 / G-03: freestanding_io + bootstrap_nostdlib_stubs + wants_nostdlib + weak atoi

@@ -5,6 +5,7 @@
  * Product: runtime_backtrace_platform.o; logic still C until full .x port.
  *
  * wave252 G.7: CRASH_EVIDENCE env via public face link_abi_getenv (not raw libc getenv).
+ * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
  * Weak user-domain twin when Linux x86_64 freestanding panic.s has no face; strong twin
  * may come from runtime_panic C seed (wave251). Never g05 host bag.
  * PLATFORM: SHARED — user/STD_AND_PANIC residual face.
@@ -26,8 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "diag.h"
-/* wave252: weak face twin for residual getenv (see header). */
-#define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
+/* wave253: declaration only — face body in runtime_link_abi_user_env.o (weak; panic C strong wins). */
 #include <xlang_user_link_abi_getenv.h>
 #if defined(__unix__) || defined(__APPLE__)
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW

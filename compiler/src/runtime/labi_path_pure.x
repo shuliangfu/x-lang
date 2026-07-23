@@ -128,6 +128,7 @@ let g_labi_time_os_o_path_buf: u8[4096] = [];
 let g_labi_queue_contention_o_path_buf: u8[4096] = [];
 let g_labi_dynlib_os_o_path_buf: u8[4096] = [];
 let g_labi_env_os_o_path_buf: u8[4096] = [];
+let g_labi_link_abi_user_env_o_path_buf: u8[4096] = [];
 let g_labi_backtrace_platform_o_path_buf: u8[4096] = [];
 let g_labi_log_os_o_path_buf: u8[4096] = [];
 let g_labi_math_libm_o_path_buf: u8[4096] = [];
@@ -1375,6 +1376,12 @@ export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_r
   if (_pn == 0) {
     return;
   }
+  // wave253: companion user-domain face (weak; residual declare-only; panic C strong wins).
+  let ue_p: *u8 = xlang_runtime_link_abi_user_env_o_path(link_argv0);
+  let _ue: i32 = link_abi_asm_ld_push_obj(ue_p, link_argv0, "compiler/runtime_link_abi_user_env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
+  if (_ue == 0) {
+    // continue: missing user_env is silent skip (same as other minimal companions)
+  }
 }
 
 /**
@@ -2031,6 +2038,25 @@ export function xlang_runtime_env_os_o_path(argv0: *u8): *u8 {
   }
   return &g_labi_env_os_o_path_buf[0];
 }
+
+/**
+ * Thin durable path for compiler/runtime_link_abi_user_env.o (wave253 pure BSS + compiler_o_path_copy).
+ * @param argv0 *u8 — optional product host path; may be null
+ * @return *u8 — static BSS path or empty string (never null)
+ * Sole residual-domain face body for STD_AND_PANIC (weak; panic C strong wins).
+ * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
+ * Track-L: #[no_mangle] keeps surface short name.
+ */
+#[no_mangle]
+export function xlang_runtime_link_abi_user_env_o_path(argv0: *u8): *u8 {
+  g_labi_link_abi_user_env_o_path_buf[0] = 0;
+  let rc: i32 = xlang_runtime_compiler_o_path_copy(argv0, "runtime_link_abi_user_env.o", &g_labi_link_abi_user_env_o_path_buf[0], 4096);
+  if (rc != 0) {
+    g_labi_link_abi_user_env_o_path_buf[0] = 0;
+  }
+  return &g_labi_link_abi_user_env_o_path_buf[0];
+}
+
 
 /**
  * Thin durable path for compiler/runtime_backtrace_platform.o (wave183 pure BSS + compiler_o_path_copy).
