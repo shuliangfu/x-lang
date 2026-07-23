@@ -18,9 +18,10 @@
 //   - invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205; pure fork-exec shell + strip)
 //   - invoke_cc_append_argv_head_flags (wave206; pure argv head: quiet/O/native/NDEBUG/flto/harden/gc/-I)
 //   - invoke_cc_append_argv_tail_flags (wave207; pure argv tail: -pthread/-lc/allow-multiple/user_extra+NULL)
+//   - invoke_cc_append_minimal_cc_link_tail (wave208; pure MINIMAL_CC_LINK: Win process_argv + POSIX -lc + NULL)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
 //   contains_substr(_use_line) peers for scan; shux_spawn_sync / setenv / strip_out_x / tool_status;
-//   asm_link_obj_skip_missing; link_abi_user_extra_o_{count,at}.
+//   asm_link_obj_skip_missing; link_abi_user_extra_o_{count,at}; process_argv path (MINIMAL Windows).
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 // wave206: durable -O{level} argv slot (≡ mega static char oopt_buf[8]; durable pointer into argv).
@@ -3749,6 +3750,83 @@ export function invoke_cc_append_argv_tail_flags(argv: **u8, ia: *i32, argv_cap:
   }
 
   // NULL-terminate argv for spawn (try_push_flag leaves room; direct write of null pointer).
+  let cur: i32 = ia[0];
+  if (cur < argv_cap) {
+    argv[cur] = 0 as *u8;
+    ia[0] = cur + 1;
+  }
+}
+
+/**
+ * Append SHUX_MINIMAL_CC_LINK branch argv tail: Windows process_argv.o, POSIX -lc, NULL terminator.
+ * @param argv **u8 — cc argv table after head+c_paths+early_needs; null → no-op
+ * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op
+ * @param argv_cap i32 — argv capacity; leave one slot for NULL; try_push_flag guards -lc
+ * @return void — mutates *ia and argv slots; ends with argv[*ia-1] = NULL when room
+ * Pure orch: ≡ mega SHUX_MINIMAL_CC_LINK block inside shux_invoke_cc_impl (before spawn/strip).
+ * Cap residual: shux_runtime_process_argv_o_path (Windows CORE-009 argc/argv defs) + push_existing + host_is_*.
+ * G.7: reuses labi_icc_argv_try_push_flag + labi_ld_flag_lc + invoke_cc_argv_push_existing (no second flag path).
+ * Why (wave208): hybrid still had MINIMAL branch -lc/process_argv+NULL always-mega after wave207 always-tail pure.
+ * Note: getenv("SHUX_MINIMAL_CC_LINK") gate stays mega Cap residual; this leaf only builds the minimal tail.
+ * PLATFORM: SHARED orch / WINDOWS process_argv.o (codegen emits extern not weak) / POSIX (linux|apple) -lc only
+ *   (minimal skips std ensure-push; shux_process_* weak defs on Linux/mac from generated C).
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_append_minimal_cc_link_tail(argv: **u8, ia: *i32, argv_cap: i32): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+
+  let is_linux: i32 = 0;
+  let is_apple: i32 = 0;
+  let is_win: i32 = 0;
+  unsafe {
+    is_linux = shux_host_is_linux();
+    is_apple = link_abi_host_is_apple();
+    is_win = link_abi_host_is_windows();
+  }
+
+  // PLATFORM: WINDOWS — minimal link still needs runtime_process_argv.o for shux_process_argc/argv
+  // (Windows codegen emits extern decls, not weak defs ≡ mega CORE-009 / Docker musl note).
+  if (is_win != 0) {
+    let rpav: *u8 = 0 as *u8;
+    unsafe {
+      rpav = shux_runtime_process_argv_o_path(0 as *u8);
+    }
+    if (rpav != 0 as *u8) {
+      if (rpav[0] != 0) {
+        unsafe {
+          let _pu: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, rpav);
+        }
+      }
+    }
+  }
+
+  // PLATFORM: POSIX (linux|apple) — only -lc; no -pthread / no std ensure-push on minimal path.
+  // Prefer pure -lc flag peer when available (G.7); fall back literal if null.
+  if (is_linux != 0 || is_apple != 0) {
+    let flc: *u8 = 0 as *u8;
+    unsafe {
+      flc = labi_ld_flag_lc();
+    }
+    if (flc != 0 as *u8) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
+    } else {
+      let flc2: *u8 = "-lc";
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc2);
+    }
+  }
+
+  // NULL-terminate argv for spawn (same contract as wave207 always-path tail).
   let cur: i32 = ia[0];
   if (cur < argv_cap) {
     argv[cur] = 0 as *u8;

@@ -2219,6 +2219,7 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root);
 void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
     const char *thread_o, const char *sync_o, const char *channel_o);
+void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2297,6 +2298,14 @@ void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
  * Cap residual: asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at} + push_existing + host_is_*.
  * Why: hybrid still had argv tail always-mega after wave206 head pure.
  * PLATFORM: SHARED orch / POSIX -pthread+-lc / WINDOWS allow-multiple.
+ */
+
+/* wave208: invoke_cc_append_minimal_cc_link_tail pure orch lives in labi_invoke_cc_list
+ * (SHUX_MINIMAL_CC_LINK branch: Windows process_argv.o + POSIX -lc + NULL).
+ * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
+ * Cap residual: process_argv_o_path + push_existing + host_is_*; getenv gate stays mega.
+ * Why: hybrid still had MINIMAL -lc/process_argv+NULL always-mega after wave207 always-tail pure.
+ * PLATFORM: SHARED orch / WINDOWS process_argv / POSIX -lc only.
  */
 
 
@@ -3201,7 +3210,8 @@ void shux_invoke_cc_clear_user_o_files(void);
  * wave205: fork/exec/wait/strip 壳迁 pure（invoke_cc_run_cc_argv + maybe_strip_out）；
  * wave206: argv 头 flags 迁 pure（invoke_cc_append_argv_head_flags）；
  * wave207: argv 尾 flags 迁 pure（invoke_cc_append_argv_tail_flags：pthread/-lc/allow-multiple/user_extra+NULL）；
- *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x / getenv quiet / skip_missing / user_extra count·at。
+ * wave208: MINIMAL_CC_LINK 尾迁 pure（invoke_cc_append_minimal_cc_link_tail：Win process_argv + POSIX -lc + NULL）；
+ *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x / getenv quiet·MINIMAL / skip_missing / user_extra count·at。
  */
 int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
@@ -3226,6 +3236,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
      * candidates) + invoke_cc_maybe_strip_out. No fork-first child argv build.
      * wave206: argv head flags pure (quiet/O/native/NDEBUG/flto/harden/gc/-I).
      * wave207: argv tail pure (-pthread/-lc/allow-multiple/user_extra+NULL).
+     * wave208: MINIMAL_CC_LINK tail pure (Win process_argv + POSIX -lc + NULL).
      */
     /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
     char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
@@ -3243,21 +3254,10 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
     /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。
      * 【Why 根源】Windows codegen 生成 extern 声明（非 weak 定义），minimal 链须显式链入
      * runtime_process_argv.o 提供 shux_process_argc/argv 定义，否则链接报 undefined reference。
-     * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。 */
+     * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。
+     * wave208 pure: MINIMAL tail (process_argv / -lc / NULL); getenv gate stays Cap residual. */
     if (getenv("SHUX_MINIMAL_CC_LINK")) {
-#if defined(_WIN32) || defined(_WIN64)
-        {
-            const char *rpav = shux_runtime_process_argv_o_path(NULL);
-            if (rpav && rpav[0])
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpav);
-        }
-#endif
-#if defined(__linux__) || defined(__APPLE__)
-        if (i < argv_cap - 1)
-            argv[i++] = (char *)"-lc";
-#endif
-        if (i < argv_cap)
-            argv[i++] = NULL;
+        invoke_cc_append_minimal_cc_link_tail(argv, &i, argv_cap);
         /* wave205 pure: spawn cc candidates + strip (no child exec). */
         if (invoke_cc_run_cc_argv(argv) != 0)
             return -1;

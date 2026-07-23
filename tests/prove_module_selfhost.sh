@@ -46,6 +46,7 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_gates.from_x.c 全 C 体
   "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates_surface.from_x.c||"
   # labi_invoke_cc_list R2 full：.x 吃满 harden/skip-native/icc rel 纯表 + wave155 harden orch + wave198 early_needs + wave199 std need scan + wave200 ensure-push front + wave201 ensure-push mid + wave202 ensure-push heavy_a + wave203 ensure-push heavy_b
+  # + wave204 heap F-06 + wave205 fork-exec + wave206 argv head + wave207 argv tail + wave208 MINIMAL_CC_LINK tail
   # + wave155 shux_append_linux_link_harden_impl pure orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：getenv 🔒 + mega invoke_cc_impl
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_cc_list.from_x.c 全 C 体

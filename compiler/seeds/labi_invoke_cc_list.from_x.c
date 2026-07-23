@@ -17,9 +17,10 @@
  *   invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205 pure fork-exec shell + strip)
  *   invoke_cc_append_argv_head_flags (wave206 pure argv head quiet/O/native/NDEBUG/flto/harden/gc/-I)
  *   invoke_cc_append_argv_tail_flags (wave207 pure argv tail -pthread/-lc/allow-multiple/user_extra+NULL)
+ *   invoke_cc_append_minimal_cc_link_tail (wave208 pure MINIMAL_CC_LINK Win process_argv + POSIX -lc + NULL)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
  *   shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status；
- *   asm_link_obj_skip_missing；link_abi_user_extra_o_{count,at}。
+ *   asm_link_obj_skip_missing；link_abi_user_extra_o_{count,at}；process_argv path (MINIMAL Windows)。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -1627,6 +1628,41 @@ void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
   }
 }
 
+/* wave208: invoke_cc_append_minimal_cc_link_tail pure orch (cold twin ≡ .x). */
+void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap) {
+  int is_linux;
+  int is_apple;
+  int is_win;
+  int cur;
+  const char *rpav;
+  const char *flc;
+  if (!argv || !ia || *ia < 0)
+    return;
+  is_linux = shux_host_is_linux();
+  is_apple = link_abi_host_is_apple();
+  is_win = link_abi_host_is_windows();
+  /* PLATFORM: WINDOWS — process_argv.o for shux_process_argc/argv (extern not weak). */
+  if (is_win) {
+    rpav = shux_runtime_process_argv_o_path(NULL);
+    if (rpav && rpav[0])
+      (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpav);
+  }
+  /* PLATFORM: POSIX (linux|apple) — only -lc on minimal path. */
+  if (is_linux || is_apple) {
+    flc = labi_ld_flag_lc();
+    if (flc)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
+    else
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lc");
+  }
+  /* NULL-terminate for spawn. */
+  cur = *ia;
+  if (cur < argv_cap) {
+    argv[cur] = NULL;
+    *ia = cur + 1;
+  }
+}
+
 /* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x). */
 int invoke_cc_run_cc_argv(char **argv) {
   int is_win;
@@ -1748,6 +1784,7 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root);
 void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
     const char *thread_o, const char *sync_o, const char *channel_o);
+void invoke_cc_append_minimal_cc_link_tail(char **argv, int *ia, int argv_cap);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {

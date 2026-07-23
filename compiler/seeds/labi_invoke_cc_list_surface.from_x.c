@@ -9,17 +9,19 @@
  *   + wave204 invoke_cc_append_heap_f06_ondemand pure orch
  *   + wave205 invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out pure orch
  *   + wave206 invoke_cc_append_argv_head_flags pure orch
- *   + wave207 invoke_cc_append_argv_tail_flags pure orch.
+ *   + wave207 invoke_cc_append_argv_tail_flags pure orch
+ *   + wave208 invoke_cc_append_minimal_cc_link_tail pure orch.
  *
  * 【Why 根源】旧 surface 由 .x STRING_LIT 生成 `(uint8_t[]){...}; return p`：
  *   C 块作用域 compound literal 为自动存储，return 后悬空。
  *   labi_linux_harden_flag_at 被 invoke_cc 写入 argv → gcc 收到乱码路径。
  * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
  * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table
- *   + wave155/198/199/200/201/202/203/204/205/206/207 pure orch).
+ *   + wave155/198/199/200/201/202/203/204/205/206/207/208 pure orch).
  * Cap residual: generated_c_needs_* + ensure/path/push peers + host_is_* + net_tls_ld
  *   + shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status
- *   + asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at}.
+ *   + asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at}
+ *   + process_argv path (MINIMAL Windows).
  * PLATFORM: SHARED - symbol contract; Ubuntu gold + mac prove.
  */
 #include <stdint.h>
@@ -1622,6 +1624,41 @@ void invoke_cc_append_argv_tail_flags(uint8_t **argv, int32_t *ia, int32_t argv_
     if (p)
       (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
   }
+  cur = *ia;
+  if (cur < argv_cap) {
+    argv[cur] = NULL;
+    *ia = cur + 1;
+  }
+}
+
+/* wave208: invoke_cc_append_minimal_cc_link_tail pure orch (surface pin ≡ .x). */
+void invoke_cc_append_minimal_cc_link_tail(uint8_t **argv, int32_t *ia, int32_t argv_cap) {
+  int32_t is_linux;
+  int32_t is_apple;
+  int32_t is_win;
+  int32_t cur;
+  uint8_t *rpav;
+  uint8_t *flc;
+  if (!argv || !ia || *ia < 0)
+    return;
+  is_linux = shux_host_is_linux();
+  is_apple = link_abi_host_is_apple();
+  is_win = link_abi_host_is_windows();
+  /* PLATFORM: WINDOWS — process_argv.o for shux_process_argc/argv (extern not weak). */
+  if (is_win) {
+    rpav = shux_runtime_process_argv_o_path(NULL);
+    if (rpav && rpav[0])
+      (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, rpav);
+  }
+  /* PLATFORM: POSIX (linux|apple) — only -lc on minimal path. */
+  if (is_linux || is_apple) {
+    flc = labi_ld_flag_lc();
+    if (flc)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
+    else
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, (uint8_t *)"-lc");
+  }
+  /* NULL-terminate for spawn. */
   cur = *ia;
   if (cur < argv_cap) {
     argv[cur] = NULL;
