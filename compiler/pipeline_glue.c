@@ -13695,7 +13695,26 @@ int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platf
        * wave306: const_folded_val is i32. Non-negative → mov_imm32 (zero-extend OK).
        * Negative → mov_imm64 with sign-extended hi so i64 slots keep 0xff.. high bits
        * (same residual as bare EXPR_LIT -1 via mov_imm32).
+       * wave310: unsigned narrow target (TYPE_U8 / TYPE_U32 / NAMED u16) must
+       * materialize the bit-pattern width (0xff / 0xffff / 0xffffffff) via
+       * mov_imm32 — full sign-extended -1 makes freestanding `a:u8=-1; a==255`
+       * load 0xffffffff and fail the 0xff compare (host-gcc truncates on store).
+       * PLATFORM: SHARED emit width / LINUX+MACOS freestanding.
        */
+      {
+        int32_t cfold_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        int32_t cfold_k = (cfold_tr > 0) ? pipeline_type_kind_ord_at(arena, cfold_tr) : -1;
+        if (cfold_k == (int32_t)ast_TypeKind_TYPE_U8)
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffu), ta);
+        if (cfold_k == (int32_t)ast_TypeKind_TYPE_U32)
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta); /* low 32 bits; zext high */
+        if (cfold_k == (int32_t)ast_TypeKind_TYPE_NAMED) {
+          uint8_t nm[64];
+          int32_t nlen = pipeline_type_named_name_into(arena, cfold_tr, nm);
+          if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6')
+            return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffffu), ta);
+        }
+      }
       if (cfold_imm >= 0)
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
       {
