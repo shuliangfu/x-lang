@@ -25279,18 +25279,46 @@ static int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(struct ast_ASTArena *aren
 }
 
 /**
- * Resolve source type for float promote: resolved, else VAR decl fallback.
+ * Resolve source type for float promote.
+ * Prefer VAR **declaration** type over resolved_type_ref: typeck may stamp the VAR
+ * expr as f64 under f64 let context (init_ctx=decl), which would skip cvtss2sd and
+ * zero-extend f32 bits (Ubuntu wave314 run=0). PLATFORM: SHARED.
  */
 static int32_t glue_float_promote_src_ty_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t tr;
+  uint8_t vname[64];
+  int32_t vlen;
   if (!arena || expr_ref <= 0)
     return 0;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) == GLUE_EXPR_KIND_VAR) {
+    /* Decl / param first — true storage type before any widen stamp. */
+    vlen = pipeline_expr_var_name_len(arena, expr_ref);
+    if (vlen > 0 && vlen <= 63) {
+      pipeline_expr_var_name_into(arena, expr_ref, vname);
+      if (g_pipeline_asm_emit_func_index >= 0 && g_pipeline_asm_emit_module) {
+        tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module,
+                                                         g_pipeline_asm_emit_func_index, vname, vlen);
+        if (tr > 0)
+          return tr;
+      }
+      if (g_pipeline_asm_emit_scope_block > 0) {
+        tr = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname, vlen);
+        if (tr > 0)
+          return tr;
+      }
+      if (g_pipeline_asm_emit_func_index >= 0 && g_pipeline_asm_emit_module) {
+        int32_t body_ref =
+            pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+        if (body_ref > 0) {
+          tr = pipeline_block_resolve_var_type_ref(arena, body_ref, vname, vlen);
+          if (tr > 0)
+            return tr;
+        }
+      }
+    }
+  }
   tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-  if (tr > 0)
-    return tr;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) == GLUE_EXPR_KIND_VAR)
-    return glue_var_expr_type_ref_with_decl_fallback_c(arena, expr_ref);
-  return 0;
+  return tr > 0 ? tr : 0;
 }
 
 /**
