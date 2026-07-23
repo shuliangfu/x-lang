@@ -1,25 +1,26 @@
-# Xlang
+# X language
 
 > **Systems code that is simple, safe, and fast — finally in one language.**  
 > C-like model you already know · Rust-grade memory safety without the type-theory tax · codegen that aims to **beat** careful C · learning curve measured in **days**, not months.
 
 | Item | Description |
 |------|-------------|
-| **Language** | Xlang（舒克斯） |
+| **Language** | **X language** (中文：**X 语言**) |
+| **Short / toolchain** | `xlang` — compiler CLI, package id, and repo short name |
 | **Compiler** | `xlang` / `xlang_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |
-| **Build config** | `build.x` — project build strategy in Xlang (steps, targets, products); entry via `xlang build` / `build_tool` / `xlang-build.sh` |
+| **Build config** | `build.x` — project build strategy in X language (steps, targets, products); entry via `xlang build` / `build_tool` / `xlang-build.sh` |
 | **Status (2026-07-20)** | **Product L4 pin `deaf773b`** (dual-host true cold + bstrict **125/125** + Windows hybrid gate). Tip **`0c9458ed`**: CLI help beautify (Deno-style), dual L2 green (**≠** tip L4 re-pin). **Self-host not finished** (seed / hybrid C still required for cold start) |
 | **Live dashboard** | [`analysis/自举进度.md`](analysis/自举进度.md) · daily snapshot [`analysis/当前进度.md`](analysis/当前进度.md) |
 | **中文** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
 
-## 1. Why Xlang — **Three Highs, One Low**
+## 1. Why X language — **Three Highs, One Low**
 
-Xlang is a **systems language** for kernels, drivers, runtimes, and high-performance tools: no GC, zero-cost abstractions, explicit memory model, freestanding-ready.
+**X language** is a **systems language** for kernels, drivers, runtimes, and high-performance tools: no GC, zero-cost abstractions, explicit memory model, freestanding-ready.
 
-Most languages force a trade-off. Xlang refuses that trade-off:
+Most languages force a trade-off. X language refuses that trade-off:
 
 | Pillar | Target | What it means in practice |
 |--------|--------|---------------------------|
@@ -35,7 +36,7 @@ Most languages force a trade-off. Xlang refuses that trade-off:
 
 ### How we differ (honest positioning)
 
-| vs | Xlang choice |
+| vs | X language choice |
 |----|-------------|
 | **C** | Same “close to the metal” control — cleaner syntax, fewer footguns, one toolchain, safety proofs where C has UB |
 | **Rust** | Same ambition on memory safety — **without** a heavy borrow-checker lifestyle; regions + inference + linear types do the heavy lifting |
@@ -68,7 +69,7 @@ Design notes: [`analysis/语法与类型设计-高性能与内存安全.md`](ana
 - **Nullability / errors**: `Option<T>`, `Result<T, E>` (prefer over raw nullable C pointers)
 - **Slices**: `T[]` carries length; region forms `T[]<label>` with escape checks
 - **Modules**: `import("std.io")` / `import("core.mem")`; directory = module, entry `mod.x`
-- **Field access**: only `.` in Xlang source (not `->`; C `->` is codegen’s job when the base is a pointer)
+- **Field access**: only `.` in X language source (not `->`; C `->` is codegen’s job when the base is a pointer)
 
 ### Memory and safety
 
@@ -505,7 +506,7 @@ Plugin install: [`editors/vscode/README.md`](editors/vscode/README.md).
 
 ## 14. License
 
-Xlang uses **layered licensing** (language libraries permissive; compiler copyleft). See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+X language uses **layered licensing** (language libraries permissive; compiler copyleft). See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
 | Layer | Paths | License |
 |-------|--------|---------|
@@ -528,4 +529,4 @@ For **AGPL exemption on the compiler/toolchain** (proprietary embedding, closed 
 
 ---
 
-*Xlang — Three Highs, One Low: faster than C · safer near Rust · simpler than C · learnable in days.*
+*X language — Three Highs, One Low: faster than C · safer near Rust · simpler than C · learnable in days.*

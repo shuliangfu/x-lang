@@ -1,11 +1,11 @@
-Xlang — layered open-source licenses
-===================================
+X language — layered open-source licenses
+=========================================
 
 Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 Project: https://github.com/shuliangfu/shux
 Contact: admin@shuliangfu.com
 
-Xlang uses a **layered licensing** model: the language runtime and standard
+X language uses a **layered licensing** model: the language runtime and standard
 library are under a permissive license so end-user programs are not forced
 into copyleft; the compiler and toolchain remain under a strong copyleft
 license (with optional commercial terms).

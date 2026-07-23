@@ -1,4 +1,4 @@
-# xlang.toml — XLANG 项目配置文件
+# xlang.toml — X 语言 / X language 项目配置文件
 #
 # ============================================================================
 # ⚠️  本文件为【Full 设计示例 / 语言仓库超集】，编译器尚未读取。
@@ -31,9 +31,9 @@ version = "0.3.2"
 name = "xlang"                                        # 包名（未来包管理器使用）
 authors = ["shuliangfu"]                             # 作者列表
 license = "AGPL-3.0"                                 # 编译器主许可（SPDX 标识符）
-repository = "https://github.com/shuliangfu/xlang"
+repository = "https://github.com/shuliangfu/shux"
 edition = "2026"                                     # 语言版本/特性集（影响 parser/typeck 默认行为）
-description = "XLANG 系统级语言（无 GC / zero-copy / 自举中）"
+description = "X 语言（X language）— systems language (no GC / zero-copy / self-hosting)"
 keywords = ["systems-language", "self-hosting", "asm-backend"]
 categories = ["compilers", "systems-programming"]
 

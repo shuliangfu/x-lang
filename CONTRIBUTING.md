@@ -1,4 +1,4 @@
-# Contributing to Xlang
+# Contributing to X language
 
 Thank you for considering a contribution.
 
