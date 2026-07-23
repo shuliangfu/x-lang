@@ -92,6 +92,9 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"L001", "lexer error", "Lexer found an unclosed block comment.",
      "Used when a nested `/* ... */` block comment reaches end-of-file with nesting depth still greater than zero. "
      "Typical action: add the matching `*/` closers for every true nest-open `/*` (path globs like `src/*.x` do not nest-open)."},
+    {"L002", "lexer error", "Lexer found an unclosed string literal.",
+     "Used when a double-quoted string reaches end-of-file without a closing quote. "
+     "Typical action: add the matching `\"` at the end of the string (multi-line strings are allowed if closed)."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

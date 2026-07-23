@@ -2281,17 +2281,25 @@ void driver_size_table_set(void *t, int32_t i, size_t v) {
  * null guards then calls this. PLATFORM: SHARED — struct return stays C.
  *
  * wave269: always-seed also owns L001 sticky hard-fail (reset before parse, pending
- * after). Thin driver_parse_into_buf_rc may also check; this residual is the G.7
- * single choke that hybrid and cold both pass through.
+ * after). wave271: same for L002 unclosed string. Thin driver_parse_into_buf_rc may
+ * also check; this residual is the G.7 single choke that hybrid and cold both pass through.
  */
 extern void lexer_unclosed_block_comment_reset(void);
 extern int32_t lexer_unclosed_block_comment_pending(void);
+extern void lexer_unclosed_string_reset(void);
+extern int32_t lexer_unclosed_string_pending(void);
 int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                       int32_t *out_main_idx) {
     struct parser_ParseIntoResult pr;
     lexer_unclosed_block_comment_reset();
+    lexer_unclosed_string_reset();
     pr = parser_parse_into_buf(arena, module, data, len);
     if (lexer_unclosed_block_comment_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_unclosed_string_pending() != 0) {
         if (out_main_idx)
             *out_main_idx = -1;
         return -1;
@@ -2302,10 +2310,13 @@ int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data,
 }
 
 /* wave38 pure: hybrid thin owns parse_into_buf_rc orch; cold keeps twin with guards.
- * wave269: reset + hard-fail on unclosed block comment (L001 sticky pending). */
+ * wave269: reset + hard-fail on unclosed block comment (L001 sticky pending).
+ * wave271: reset + hard-fail on unclosed string (L002 sticky pending). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 extern void lexer_unclosed_block_comment_reset(void);
 extern int32_t lexer_unclosed_block_comment_pending(void);
+extern void lexer_unclosed_string_reset(void);
+extern int32_t lexer_unclosed_string_pending(void);
 int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
                                  int32_t *out_main_idx) {
     int32_t rc;
@@ -2314,8 +2325,14 @@ int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32
     if (!arena || !module || !data)
         return -1;
     lexer_unclosed_block_comment_reset();
+    lexer_unclosed_string_reset();
     rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
     if (lexer_unclosed_block_comment_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_unclosed_string_pending() != 0) {
         if (out_main_idx)
             *out_main_idx = -1;
         return -1;

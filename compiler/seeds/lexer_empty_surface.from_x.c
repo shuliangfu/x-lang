@@ -74,6 +74,8 @@ extern void diag_report_with_code(const char *file, int32_t line, int32_t col,
                                   const char *msg, const char *detail);
 extern void lexer_unclosed_block_comment_reset(void);
 extern int32_t lexer_unclosed_block_comment_pending(void);
+extern void lexer_unclosed_string_reset(void);
+extern int32_t lexer_unclosed_string_pending(void);
 extern struct LexerResult lexer_next(struct Lexer lex, struct xlang_slice_uint8_t data);
 extern void lexer_apply_optional_exponent(struct Lexer l, struct xlang_slice_uint8_t data, double fval, struct Lexer * out_l, double * out_f);
 extern void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang_slice_uint8_t data);
@@ -973,6 +975,11 @@ static int32_t g_lexer_unclosed_bc = 0;
 static int32_t g_lexer_unclosed_line = 0;
 static int32_t g_lexer_unclosed_col = 0;
 static int32_t g_lexer_unclosed_reported = 0;
+/* wave271 Cap residual: sticky unclosed string state (≡ lexer.x). */
+static int32_t g_lexer_unclosed_str = 0;
+static int32_t g_lexer_unclosed_str_line = 0;
+static int32_t g_lexer_unclosed_str_col = 0;
+static int32_t g_lexer_unclosed_str_reported = 0;
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
   g_lexer_unclosed_line = 0;
@@ -981,6 +988,15 @@ void lexer_unclosed_block_comment_reset(void) {
 }
 int32_t lexer_unclosed_block_comment_pending(void) {
   return g_lexer_unclosed_bc;
+}
+void lexer_unclosed_string_reset(void) {
+  g_lexer_unclosed_str = 0;
+  g_lexer_unclosed_str_line = 0;
+  g_lexer_unclosed_str_col = 0;
+  g_lexer_unclosed_str_reported = 0;
+}
+int32_t lexer_unclosed_string_pending(void) {
+  return g_lexer_unclosed_str;
 }
 static void lexer_note_unclosed_block_comment(int32_t line, int32_t col) {
   if (g_lexer_unclosed_bc == 0) {
@@ -1005,6 +1021,32 @@ static void lexer_note_unclosed_block_comment(int32_t line, int32_t col) {
     msg[15] = 'c'; msg[16] = 'o'; msg[17] = 'm'; msg[18] = 'm'; msg[19] = 'e';
     msg[20] = 'n'; msg[21] = 't'; msg[22] = 0;
     diag_report_with_code(NULL, g_lexer_unclosed_line, g_lexer_unclosed_col,
+                          kind, code, msg, NULL);
+  }
+}
+static void lexer_note_unclosed_string(int32_t line, int32_t col) {
+  if (g_lexer_unclosed_str == 0) {
+    g_lexer_unclosed_str = 1;
+    g_lexer_unclosed_str_line = line;
+    g_lexer_unclosed_str_col = col;
+  }
+  if (g_lexer_unclosed_str_reported != 0)
+    return;
+  g_lexer_unclosed_str_reported = 1;
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '2'; code[4] = 0;
+    msg[0] = 'u'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'l'; msg[4] = 'o';
+    msg[5] = 's'; msg[6] = 'e'; msg[7] = 'd'; msg[8] = ' '; msg[9] = 's';
+    msg[10] = 't'; msg[11] = 'r'; msg[12] = 'i'; msg[13] = 'n'; msg[14] = 'g';
+    msg[15] = ' '; msg[16] = 'l'; msg[17] = 'i'; msg[18] = 't'; msg[19] = 'e';
+    msg[20] = 'r'; msg[21] = 'a'; msg[22] = 'l'; msg[23] = 0;
+    diag_report_with_code(NULL, g_lexer_unclosed_str_line, g_lexer_unclosed_str_col,
                           kind, code, msg, NULL);
   }
 }
@@ -1218,6 +1260,8 @@ void lexer_next_body_into(struct LexerResult * out, struct Lexer l, struct xlang
       }
     }
     if (((l.pos) >=(data.length))) {
+      /* wave271: unclosed string at EOF → L002 hard diag + sticky pending. */
+      lexer_note_unclosed_string(line0, col0);
       struct token_Token tok_eof = (struct Token){ .kind = 0, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
       (void)(write_next_lex_into(out, l));
       (void)(write_tok_into(out, tok_eof));

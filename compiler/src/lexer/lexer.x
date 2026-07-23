@@ -74,6 +74,18 @@ let g_lexer_unclosed_col: i32 = 0;
 let g_lexer_unclosed_reported: i32 = 0;
 
 /**
+ * wave271 Cap residual: sticky unclosed string-literal state for the current parse.
+ * Set when string lex hits EOF without a closing double-quote; cleared by
+ * lexer_unclosed_string_reset at each product parse entry.
+ * Prior behavior returned TOKEN_EOF silently → empty module / BLD001 or soft P001.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_unclosed_str: i32 = 0;
+let g_lexer_unclosed_str_line: i32 = 0;
+let g_lexer_unclosed_str_col: i32 = 0;
+let g_lexer_unclosed_str_reported: i32 = 0;
+
+/**
  * Clear unclosed block-comment sticky state (call once per parse entry).
  * @return void
  * PLATFORM: SHARED
@@ -92,6 +104,27 @@ export function lexer_unclosed_block_comment_reset(): void {
  */
 export function lexer_unclosed_block_comment_pending(): i32 {
   return g_lexer_unclosed_bc;
+}
+
+/**
+ * Clear unclosed string sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_unclosed_string_reset(): void {
+  g_lexer_unclosed_str = 0;
+  g_lexer_unclosed_str_line = 0;
+  g_lexer_unclosed_str_col = 0;
+  g_lexer_unclosed_str_reported = 0;
+}
+
+/**
+ * Whether string lex hit EOF without a closing double-quote.
+ * @return i32 — 1 if pending hard fail, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_unclosed_string_pending(): i32 {
+  return g_lexer_unclosed_str;
 }
 
 /**
@@ -162,6 +195,82 @@ function lexer_note_unclosed_block_comment(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_unclosed_line,
       g_lexer_unclosed_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L002 once for an unclosed double-quoted string at EOF.
+ * @param line i32 — 1-based line of the opening double-quote
+ * @param col i32 — 1-based column of the opening double-quote
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_unclosed_string(line: i32, col: i32): void {
+  if (g_lexer_unclosed_str == 0) {
+    g_lexer_unclosed_str = 1;
+    g_lexer_unclosed_str_line = line;
+    g_lexer_unclosed_str_col = col;
+  }
+  if (g_lexer_unclosed_str_reported != 0) {
+    return;
+  }
+  g_lexer_unclosed_str_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L002"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 50;
+  code[4] = 0;
+  // msg = "unclosed string literal"
+  let msg: u8[32] = [];
+  msg[0] = 117;
+  msg[1] = 110;
+  msg[2] = 99;
+  msg[3] = 108;
+  msg[4] = 111;
+  msg[5] = 115;
+  msg[6] = 101;
+  msg[7] = 100;
+  msg[8] = 32;
+  msg[9] = 115;
+  msg[10] = 116;
+  msg[11] = 114;
+  msg[12] = 105;
+  msg[13] = 110;
+  msg[14] = 103;
+  msg[15] = 32;
+  msg[16] = 108;
+  msg[17] = 105;
+  msg[18] = 116;
+  msg[19] = 101;
+  msg[20] = 114;
+  msg[21] = 97;
+  msg[22] = 108;
+  msg[23] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_unclosed_str_line,
+      g_lexer_unclosed_str_col,
       &kind[0],
       &code[0],
       &msg[0],
@@ -1873,7 +1982,8 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
   if (lexer_try_sync_attr_into(out, l, data) != 0) {
     return;
   }
-  /* See implementation. */
+  /* wave271 Cap residual: double-quoted string; EOF without closer → L002 hard diag.
+   * Multi-line strings remain valid when a closing quote appears later in the file. */
   if (c == 34) {
     let line0: i32 = l.line;
     let col0: i32 = l.col;
@@ -1888,6 +1998,8 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       }
     }
     if (l.pos >= data.length) {
+      // wave271: silent TOKEN_EOF here swallowed the rest of the module (no main / soft P001).
+      lexer_note_unclosed_string(line0, col0);
       let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
         float_val: 0.0, ident: 0, ident_len: 0 };
       write_next_lex_into(out, l);
