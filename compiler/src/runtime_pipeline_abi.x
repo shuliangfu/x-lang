@@ -411,8 +411,11 @@ export extern "C" function ast_ast_block_num_if_stmts(arena: *u8, block_ref: i32
 export extern "C" function ast_ast_block_num_regions(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
 export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
-// wave82: getenv for SHUX_DEBUG_BODY_FUNC gate (also used by pure pipeline_asm_debug_enabled).
-export extern "C" function getenv(name: *u8): *u8;
+/* wave235 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
+ * PLATFORM: SHARED — product hybrid pipeline_abi pure uses same face as cold seed. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 
 /* See implementation. */
 
@@ -6721,7 +6724,7 @@ export function pipe_diag_msg_append_name(dst: *u8, cap: i32, at: i32, name: *u8
  * @param arena *u8 — AST arena; null → no-op
  * @return void
  * wave82 pure Cap residual orch:
- *   G.7 getenv SHUX_DEBUG_BODY_FUNC gate (empty/'0' → no-op);
+ *   G.7 link_abi_getenv SHUX_DEBUG_BODY_FUNC gate (empty/'0' → no-op; wave235);
  *   G.7 pipeline_module_num_funcs / func_name_* / body_ref_at (ast_pool Cap residual);
  *   G.7 pure pipeline_debug_body_func_match (comma token filter);
  *   G.7 ast_ast_block_num_* / final_expr_ref when body_ref > 0 else -1;
@@ -6745,7 +6748,8 @@ export function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: 
     key[10] = 95; key[11] = 66; key[12] = 79; key[13] = 68; key[14] = 89;
     key[15] = 95; key[16] = 70; key[17] = 85; key[18] = 78; key[19] = 67;
     key[20] = 0;
-    let filter: *u8 = getenv(&key[0]);
+    // wave235 G.7: SHUX_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv).
+    let filter: *u8 = link_abi_getenv(&key[0]);
     if (filter == 0 as *u8) {
       return;
     }
@@ -8717,17 +8721,17 @@ export function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8,
   return result as i32;
 }
 
-// See implementation.
-// wave82: getenv is export-extern near module/ast accessors (shared with body-trace pure).
-
-/** Exported function `pipeline_asm_debug_enabled`.
- * Implements `pipeline_asm_debug_enabled`.
- * @return i32
+/**
+ * Whether SHUX_ASM_DEBUG is set (asm pipeline debug notes gate).
+ * wave235 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @return i32 — 1 if env present (any value), 0 otherwise
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl
  */
 #[no_mangle]
 export function pipeline_asm_debug_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_DEBUG");
+    // wave235 G.7: SHUX_ASM_DEBUG via link_abi_getenv (not raw getenv).
+    let e: *u8 = link_abi_getenv("SHUX_ASM_DEBUG");
     if (e != 0) { return 1; }
   }
   return 0;

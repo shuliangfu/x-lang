@@ -160,6 +160,10 @@
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+/* wave235 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed twins use same face as product hybrid pure .x. */
+extern char *link_abi_getenv(const char *name);
 /** preprocess.x 生成；pipeline/import 与 runtime preprocess() 共用。 */
 extern int32_t preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
 extern void preprocess_define_reset(void);
@@ -511,9 +515,10 @@ void pipeline_diag_merge_dep_missing(const char *import_path) {
 
 
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* wave235 G.7: SHUX_ASM_DEBUG via link_abi_getenv (not raw getenv). */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 int pipeline_asm_debug_enabled(void) {
-  return getenv("SHUX_ASM_DEBUG") != NULL;
+  return link_abi_getenv("SHUX_ASM_DEBUG") != NULL;
 }
 #endif /* SHUX_RUNTIME_PIPELINE_ABI_FROM_X */
 
@@ -564,10 +569,11 @@ int pipeline_debug_body_func_match(const char *filter, const char *name) {
 
 
 /* wave82: pure owns pipeline_debug_trace_named_func_bodies_impl under PREFER FROM_X
- * (append+diag_report, no reportf). Cold twin keeps historical reportf format. */
+ * (append+diag_report, no reportf). Cold twin keeps historical reportf format.
+ * wave235 G.7: SHUX_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv). */
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
-    const char *filter = getenv("SHUX_DEBUG_BODY_FUNC");
+    const char *filter = link_abi_getenv("SHUX_DEBUG_BODY_FUNC");
     int32_t nf;
     int32_t fi;
     if (!filter || !filter[0] || filter[0] == '0' || !module || !arena)
@@ -2669,11 +2675,11 @@ void *pipeline_run_x_thread_fn_impl(void *arg) {
     if (!a)
         return NULL;
     driver_set_pipeline_entry_source_len(a->source_len);
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (link_abi_getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipeline thread start len=%zu", a->source_len);
     a->result = pipeline_run_x_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
-    if (getenv("SHUX_DEBUG_PIPE"))
+    if (link_abi_getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipeline thread done ec=%d", a->result);
     return NULL;
@@ -2778,7 +2784,7 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     parse_rc = pipeline_parse_set_main_from_buf_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                     (uint8_t *)src, len_i32);
     if (parse_rc != 0) {
-        if (getenv("SHUX_DEBUG_PIPE"))
+        if (link_abi_getenv("SHUX_DEBUG_PIPE"))
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: dep prerun parse rc=%d", (int)parse_rc);
         return -2;
@@ -2786,13 +2792,13 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     load_rc = pipeline_load_and_sync_direct_import_deps_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                           (struct ast_PipelineDepCtx *)one_ctx);
     if (load_rc != 0) {
-        if (getenv("SHUX_DEBUG_PIPE"))
+        if (link_abi_getenv("SHUX_DEBUG_PIPE"))
             diag_reportf(NULL, 0, 0, "note", NULL,
                          "pipeline debug: dep prerun load rc=%d ndep=%d",
                          (int)load_rc, (int)pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)one_ctx));
         return load_rc;
     }
-    if (getenv("SHUX_DEBUG_PIPE")) {
+    if (link_abi_getenv("SHUX_DEBUG_PIPE")) {
         uint8_t dep_path_buf[64];
         memset(dep_path_buf, 0, sizeof(dep_path_buf));
         pipeline_dep_ctx_import_path_copy64((struct ast_PipelineDepCtx *)one_ctx, 0, dep_path_buf);
@@ -2802,7 +2808,7 @@ int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, co
     }
     tc_rc = pipeline_typeck_dep_prerun_module_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                               (struct ast_PipelineDepCtx *)one_ctx);
-    if (getenv("SHUX_DEBUG_PIPE") && tc_rc != 0)
+    if (link_abi_getenv("SHUX_DEBUG_PIPE") && tc_rc != 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: dep prerun typeck rc=%d funcs=%d main=%d ctx=%p",
                      (int)tc_rc, (int)pipeline_module_num_funcs(dep_mod),
@@ -3419,7 +3425,7 @@ void shux_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, siz
             int pr_rc;
             pr_rc = pipeline_parse_into_bytes(*tmp_arena, *tmp_module, (uint8_t *)prep, prep_len);
             n_imp = parser_get_module_num_imports(*tmp_module);
-            if (getenv("SHUX_DEBUG_PIPE")) {
+            if (link_abi_getenv("SHUX_DEBUG_PIPE")) {
                 diag_reportf(NULL, 0, 0, "note", NULL,
                              "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
                              debug_path ? debug_path : "?", pr_rc == 0 ? 1 : 0, n_imp);
