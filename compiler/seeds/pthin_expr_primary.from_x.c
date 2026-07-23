@@ -16,6 +16,12 @@
 #include "token.h"
 #include "diag.h"
 
+/* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only TU (parser thin glue) — not in user STD_AND_PANIC bag. */
+extern char *link_abi_getenv(const char *name);
+
 struct parser_asm_token {
   int32_t kind;
   int32_t line;
@@ -182,8 +188,8 @@ static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_
   int trace_ty;
   int trace_hit;
   memcpy(&e, &ae, sizeof(e));
-  trace_name = getenv("XLANG_TRACE_EXPR_NAME");
-  trace_type = getenv("XLANG_TRACE_TYPE_REF");
+  trace_name = link_abi_getenv("XLANG_TRACE_EXPR_NAME");
+  trace_type = link_abi_getenv("XLANG_TRACE_TYPE_REF");
   trace_ty = 0;
   trace_hit = 0;
   if (trace_name && *trace_name && e.var_name_len > 0) {

@@ -40,6 +40,12 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+/* wave244 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only TU (lsp_diag.o) — not in user STD_AND_PANIC bag. */
+extern char *link_abi_getenv(const char *name);
+
 /** LSP import 图：由 runtime.c 提供，供跨模块 typeck 与跳转 URI。 */
 extern int xlang_lsp_resolve_and_load_imports(struct ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                           const char *entry_dir, struct ASTModule **dep_mods, int *ndep_out,
@@ -57,12 +63,12 @@ extern size_t lsp_diag_x_alloc_dep_ctx_size(void);
 
 /** 调试 LSP read_message 的 leftover 长度 n；LSP_READ_DEBUG 时打 stderr，便于确认 state 是否在两次调用间保留。 */
 void lsp_debug_u32(uint32_t n) {
-    if (getenv("LSP_READ_DEBUG") != NULL)
+    if (link_abi_getenv("LSP_READ_DEBUG") != NULL)
         (void)fprintf(stderr, "lsp_read_message leftover n=%u\n", (unsigned)n);
 }
 /** 调试：打 state 指针。 */
 void lsp_debug_ptr(uint8_t *p) {
-    if (getenv("LSP_READ_DEBUG") != NULL)
+    if (link_abi_getenv("LSP_READ_DEBUG") != NULL)
         (void)fprintf(stderr, "lsp_read_message state_buf=%p\n", (void *)p);
 }
 
@@ -289,7 +295,7 @@ void lsp_init_lib_roots_once(void) {
     int i;
     if (s_lib_roots_inited) return;
     s_lib_roots_inited = 1;
-    const char *env = getenv("XLANG_LSP_LIB_ROOTS");
+    const char *env = link_abi_getenv("XLANG_LSP_LIB_ROOTS");
     if (env && env[0]) {
         char buf[1024];
         (void)snprintf(buf, sizeof(buf), "%s", env);
