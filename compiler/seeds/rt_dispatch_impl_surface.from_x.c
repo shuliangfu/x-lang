@@ -48,6 +48,8 @@ struct RtDispatchState {
 extern uint8_t * rt_di_env_shux_lto(void);
 extern int32_t rt_di_argv_has_e_extern(int32_t argc, uint8_t * argv);
 extern int32_t rt_di_effective_use_lto(int32_t use_lto);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 extern int32_t driver_run_asm_backend_impl_c(uint8_t * input_path, uint8_t * out_path, uint8_t * lib_key, uint8_t * target, int32_t argc, uint8_t * argv);
 extern int32_t driver_run_emit_c_path_impl_c(uint8_t * input_path, uint8_t * out_path, uint8_t * lib_key, uint8_t * target, uint8_t * opt_level, int32_t use_lto, int32_t argc, uint8_t * argv);
 extern int32_t driver_run_x_emit_c_from_compile_state(struct RtDispatchState * state, int32_t argc, uint8_t * argv);
@@ -141,7 +143,8 @@ int32_t rt_di_effective_use_lto(int32_t use_lto) {
     return 0;
   }
   {
-    (void)((env_val = getenv(env_name)));
+    /* wave227 G.7: public pure thin link_abi_getenv (not raw libc getenv). */
+    (void)((env_val = link_abi_getenv(env_name)));
     (void)(free(env_name));
   }
   if ((env_val ==((uint8_t *)(0)))) {

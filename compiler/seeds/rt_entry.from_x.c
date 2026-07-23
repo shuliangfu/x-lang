@@ -32,6 +32,8 @@ extern int driver_run_fmt(int argc, char **argv);
 extern int main_run_compiler_c(int argc, uint8_t *argv);
 /* wave226 G.7: shell make via public pure thin link_abi_system (wave224 → _impl host system). */
 extern int link_abi_system(const char *cmd);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern char *link_abi_getenv(const char *name);
 
 #ifndef SHUX_RT_ENTRY_FROM_X
 
@@ -86,7 +88,8 @@ int shux_smoke_diag_enabled(void) {
   const char *e;
   if (diag_json_enabled())
     return 1;
-  e = getenv("SHUX_SMOKE_DIAG");
+  /* wave227 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+  e = link_abi_getenv("SHUX_SMOKE_DIAG");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 

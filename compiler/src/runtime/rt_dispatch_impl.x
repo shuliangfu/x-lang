@@ -32,7 +32,9 @@ export struct RtDispatchState {
   parse_saw_target_cpu: i32;
 }
 
-export extern "C" function getenv(name: *u8): *u8;
+/* wave227 G.7: env lookup via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function strlen(s: *u8): usize;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
@@ -138,10 +140,15 @@ export function rt_di_argv_has_e_extern(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
-/** Effective LTO enable: explicit use_lto, or getenv("SHUX_LTO") equal to "1".
- * Frees the temporary env-name buffer from rt_di_env_shux_lto after getenv.
+/**
+ * Effective LTO enable: explicit use_lto, or SHUX_LTO equal to "1".
+ * Frees the temporary env-name buffer from rt_di_env_shux_lto after lookup.
+ * @param use_lto i32 — explicit CLI/driver LTO flag; non-zero forces enable
+ * @return i32 — 1 LTO on, 0 off
  * Track-L: #[no_mangle] keeps surface short name (not rt_dispatch_impl_rt_di_effective_use_lto).
- * PLATFORM: SHARED — link-name contract; env semantics via host getenv. */
+ * wave227 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — link-name contract; host residual only link_abi_getenv_impl.
+ */
 #[no_mangle]
 export function rt_di_effective_use_lto(use_lto: i32): i32 {
   let env_name: *u8 = 0 as *u8;
@@ -154,7 +161,7 @@ export function rt_di_effective_use_lto(use_lto: i32): i32 {
     return 0;
   }
   unsafe {
-    env_val = getenv(env_name);
+    env_val = link_abi_getenv(env_name);
     free(env_name);
   }
   if (env_val == 0 as *u8) {

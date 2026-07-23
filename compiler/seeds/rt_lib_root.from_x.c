@@ -18,6 +18,8 @@
 extern int32_t driver_emit_lib_root_count(uint8_t *state);
 extern int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t cap);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern char *link_abi_getenv(const char *name);
 
 #ifndef SHUX_RT_LIB_ROOT_FROM_X
 /**
@@ -29,9 +31,10 @@ int driver_lib_root_ptr_usable(const char *p) {
 
 /**
  * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
+ * wave227 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl.
  */
 void driver_lib_root_default(char root_buf[512]) {
-  const char *def = getenv("SHUX_LIB");
+  const char *def = link_abi_getenv("SHUX_LIB");
   root_buf[0] = '.';
   root_buf[1] = '\0';
   if (!driver_lib_root_ptr_usable(def))

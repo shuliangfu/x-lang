@@ -9,7 +9,9 @@
 // Runtime entry helpers (explain/smoke/fmt/build); G.9 English; body authoritative.
 
 export extern "C" function diag_json_enabled(): i32;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave227 G.7: env lookup via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 /* wave226 G.7: shell make via public pure thin link_abi_system (wave224 → _impl host system);
  * not raw libc system. Cap residual host system stays only link_abi_system_impl. */
 export extern "C" function link_abi_system(cmd: *u8): i32;
@@ -474,9 +476,13 @@ export function runtime_try_handle_explain_cli(argc: i32, argv: **u8): i32 {
   return rt_entry_explain_known(code);
 }
 
-/** Exported function `shux_smoke_diag_enabled`.
- * Implements `shux_smoke_diag_enabled`.
- * @return i32
+/**
+ * Whether smoke diagnostic emission is enabled.
+ * True when diag JSON mode is on, or SHUX_SMOKE_DIAG is set to a non-empty value
+ * other than ASCII "0".
+ * @return i32 — 1 enabled, 0 disabled
+ * wave227 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — process env; host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function shux_smoke_diag_enabled(): i32 {
@@ -485,7 +491,7 @@ export function shux_smoke_diag_enabled(): i32 {
     if (diag_json_enabled() != 0) {
       return 1;
     }
-    e = getenv("SHUX_SMOKE_DIAG");
+    e = link_abi_getenv("SHUX_SMOKE_DIAG");
   }
   if (e == 0 as *u8) {
     return 0;

@@ -5,7 +5,9 @@
 // Lib root pointer usability + default root + from_key; G.9 English; body authoritative.
 // Lib root pointer usability + default root + from_key; G.9 English; body authoritative.
 
-export extern "C" function getenv(name: *u8): *u8;
+/* wave227 G.7: env lookup via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function driver_emit_lib_root_count(state: *u8): i32;
 export extern "C" function driver_emit_lib_root_len(state: *u8, i: i32): i32;
 export extern "C" function driver_emit_lib_root_copy(state: *u8, i: i32, dst: *u8, cap: i32): void;
@@ -27,8 +29,11 @@ export function driver_lib_root_ptr_usable(p: *u8): i32 {
 }
 
 /**
- * See signature and body for params/returns/contracts.
- * See signature and body for params/returns/contracts.
+ * Write default lib-root into root_buf: prefer SHUX_LIB when usable, else ".".
+ * @param root_buf *u8 — destination buffer; capacity >= 512; always NUL-terminated
+ * @return void
+ * wave227 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * PLATFORM: SHARED — process env; host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
 export function driver_lib_root_default(root_buf: *u8): void {
@@ -36,7 +41,7 @@ export function driver_lib_root_default(root_buf: *u8): void {
   root_buf[1] = 0;
   let def: *u8 = 0 as *u8;
   unsafe {
-    def = getenv("SHUX_LIB");
+    def = link_abi_getenv("SHUX_LIB");
   }
   if (driver_lib_root_ptr_usable(def) == 0) {
     return;

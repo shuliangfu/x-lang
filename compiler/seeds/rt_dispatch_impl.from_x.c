@@ -64,6 +64,8 @@ typedef struct DriverCompileParsed {
 #ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
 
 extern int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern char *link_abi_getenv(const char *name);
 extern void driver_set_pending_target_cpu_features(uint32_t features);
 extern int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
                                   const char *target, int argc, char **argv);
@@ -121,8 +123,12 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
   p.target = target && target[0] ? (const char *)target : NULL;
   p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level : "2";
   p.use_lto = use_lto != 0;
-  if (!p.use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0)
-    p.use_lto = 1;
+  /* wave227 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+  {
+    const char *_lto = link_abi_getenv("SHUX_LTO");
+    if (!p.use_lto && _lto && strcmp(_lto, "1") == 0)
+      p.use_lto = 1;
+  }
 #if !defined(SHUX_NO_C_FRONTEND)
   if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
       !driver_asm_entry_module_only_from_env()) {

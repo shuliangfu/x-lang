@@ -59,6 +59,8 @@ extern uint8_t * driver_entry_tmp_slot(void);
 extern uint8_t * driver_entry_tmp2_slot(void);
 /* wave226 G.7: shell make via public pure thin link_abi_system (wave224 → _impl). */
 extern int32_t link_abi_system(uint8_t * cmd);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 extern uint8_t * * driver_entry_fmt_argv_slot(void);
 int32_t rt_entry_strlen(uint8_t * s) {
   int32_t i = 0;
@@ -419,7 +421,8 @@ int32_t shux_smoke_diag_enabled(void) {
     if ((diag_json_enabled() !=0)) {
       return 1;
     }
-    (void)((e = getenv((uint8_t[]){83, 72, 85, 88, 95, 83, 77, 79, 75, 69, 95, 68, 73, 65, 71, 0 })));
+    /* wave227 G.7: public pure thin link_abi_getenv (not raw libc getenv). */
+    (void)((e = link_abi_getenv((uint8_t[]){83, 72, 85, 88, 95, 83, 77, 79, 75, 69, 95, 68, 73, 65, 71, 0 })));
   }
   if ((e ==((uint8_t *)(0)))) {
     return 0;
