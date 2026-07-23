@@ -42,7 +42,9 @@ let g_pp_sym_len: i32 = 0;
  * wave266: non-directive overflow streams; cap still 4096 for directive parse.
  * wave267: known directive on buffer-full → early apply + drain (no silent drop).
  * wave268: #if/#elseif cond buffer 256→4096 (silent truncate at 255 after long
- *   line support left conditions mis-copied / kind=0 when leading ws ate the cap). */
+ *   line support left conditions mis-copied / kind=0 when leading ws ate the cap).
+ * wave270: seed cold overflow/EOF locals cond_ov/cond_eof 256→4096 (wave268 raised
+ *   API + main-path cond; seed overflow stack still 256 → UB on long cond). */
 let g_pp_line_buf: u8[4096] = [];
 let g_pp_cond: u8[4096] = [];
 
@@ -556,6 +558,12 @@ export function parse_directive_into(line_buf: u8[4096], line_len: i32, cond: u8
  * matching the line cap. Prior cond[256] silently truncated at 255; long
  * leading whitespace before a token could yield empty cond → kind=0 and
  * the directive was treated as body (stack not pushed).
+ *
+ * wave270 Cap residual: seed cold twin overflow + no-trailing-LF locals
+ * (cond_ov / cond_eof / cond_ov_b / cond_eof_b) raised 256→4096 to match
+ * parse_copy_cond_from_line + main-path cond. Product .x already used
+ * g_pp_cond[4096] on those paths; seed alone retained 256-byte stacks so a
+ * long condition on the overflow or EOF flush path wrote past the buffer.
  *
  * wave267 Cap residual: when the buffer fills on a *known* directive
  * (#if/#elseif/#else/#endif), parse+apply immediately from the 4095-byte

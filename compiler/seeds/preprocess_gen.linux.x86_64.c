@@ -1,5 +1,7 @@
 /* generated from preprocess */
 /* wave265: line_buf 512→4096 (silent truncate at 511 caused P001 on long source lines). */
+/* wave268: cond main-path + parse API 256→4096. */
+/* wave270: seed overflow/EOF locals cond_ov/cond_eof 256→4096 (G.7 dual-auth close). */
 /* wave266: non-directive overflow streams byte-by-byte. */
 /* wave267: known directive on buffer-full → early apply + drain (no silent drop). */
 #include <stdint.h>
@@ -279,8 +281,10 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
       ++line_len;
       ++pos;
     } else {
-      /* Buffer full: early-apply known directives; else body-stream (wave267). */
-      uint8_t cond_ov[256] = { 0 };
+      /* Buffer full: early-apply known directives; else body-stream (wave267).
+       * wave270: cond_ov 256→4096 (≡ parse_copy_cond / main-path cond; wave268
+       * raised the API but left overflow locals at 256 → stack smash on long cond). */
+      uint8_t cond_ov[4096] = { 0 };
       struct preprocess_ParseDirectiveResult res_ov = { .kind = 0, .sym_len = 0 };
       (void)(preprocess_parse_directive_into((&(res_ov)), line_buf, line_len, cond_ov));
       int32_t kind_ov = (res_ov).kind;
@@ -331,7 +335,8 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
     line_stream = 0;
     line_len = 0;
   } else if (line_len > 0) {
-    uint8_t cond_eof[256] = { 0 };
+    /* wave270: cond_eof 256→4096 (no-trailing-LF flush path; ≡ wave268 API). */
+    uint8_t cond_eof[4096] = { 0 };
     struct preprocess_ParseDirectiveResult res_eof = { .kind = 0, .sym_len = 0 };
     (void)(preprocess_parse_directive_into((&(res_eof)), line_buf, line_len, cond_eof));
     int32_t kind_eof = (res_eof).kind;
@@ -445,7 +450,8 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
       ++line_len;
       ++pos;
     } else {
-      uint8_t cond_ov_b[256] = { 0 };
+      /* wave270: cond_ov_b 256→4096 (preprocess_x_buf overflow twin of cond_ov). */
+      uint8_t cond_ov_b[4096] = { 0 };
       struct preprocess_ParseDirectiveResult res_ov_b = { .kind = 0, .sym_len = 0 };
       (void)(preprocess_parse_directive_into((&(res_ov_b)), line_buf, line_len, cond_ov_b));
       int32_t kind_ov_b = (res_ov_b).kind;
@@ -495,7 +501,8 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
     line_stream = 0;
     line_len = 0;
   } else if (line_len > 0) {
-    uint8_t cond_eof_b[256] = { 0 };
+    /* wave270: cond_eof_b 256→4096 (preprocess_x_buf no-trailing-LF twin). */
+    uint8_t cond_eof_b[4096] = { 0 };
     struct preprocess_ParseDirectiveResult res_eof_b = { .kind = 0, .sym_len = 0 };
     (void)(preprocess_parse_directive_into((&(res_eof_b)), line_buf, line_len, cond_eof_b));
     int32_t kind_eof_b = (res_eof_b).kind;
