@@ -2607,12 +2607,13 @@ export function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i
     return 0 - 1;
   }
   unsafe {
-    /* cvtsi2sd xmm0,eax: f2 0f 2a c0 → u32 le 0xc02a0ff2 = 3223980274 */
-    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3223980274) != 0) {
+    /* cvtsi2sd xmm0,eax: f2 0f 2a c0 → u32 le 0xc02a0ff2 = 3223982066
+     * (same family as cvtsi2ss F3… = 3223982067; do not miscompute decimal). */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3223982066) != 0) {
       return 0 - 1;
     }
-    /* movq rax,xmm0: 66 48 0f 7e + c0 */
-    if (backend_enc_append_u32_le_c_impl(elf_ctx, 2114848870) != 0) {
+    /* movq rax,xmm0: 66 48 0f 7e + c0 → first4 u32 le 0x7e0f4866 = 2114930790 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 2114930790) != 0) {
       return 0 - 1;
     }
     return backend_enc_append_u8_c_impl(elf_ctx, 192);

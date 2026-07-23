@@ -2237,10 +2237,11 @@ int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta) {
     return (0 - 1);
   }
   {
-    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 3223980274) !=0)) {
+    /* f2 0f 2a c0 = 0xc02a0ff2 = 3223982066u; 66 48 0f 7e = 2114930790u */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 3223982066) !=0)) {
       return (0 - 1);
     }
-    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 2114848870) !=0)) {
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 2114930790) !=0)) {
       return (0 - 1);
     }
     return backend_enc_append_u8_c_impl(elf_ctx, 192);
