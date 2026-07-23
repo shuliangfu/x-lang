@@ -1997,7 +1997,34 @@ static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct
       return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)neg_x0, 4);
     }
   }
-  return backend_enc_neg_eax_arch(elf_ctx, ta);
+  if (backend_enc_neg_eax_arch(elf_ctx, ta) != 0)
+    return -1;
+  /*
+   * wave310: after 32-bit neg, rax/eax is 0xffffffff for -1. Freestanding
+   * compares u8/u16 against 0xff/0xffff — mask to declared width (cfold path
+   * already masks; live NEG from assign `a=-1` does not).
+   * PLATFORM: SHARED emit / x86_64 and-imm; arm64 and-imm32.
+   */
+  {
+    int32_t tr_n = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    int32_t k_n = (tr_n > 0) ? pipeline_type_kind_ord_at(arena, tr_n) : -1;
+    if (k_n == (int32_t)ast_TypeKind_TYPE_U8) {
+      if (ta == 0) {
+        static const uint8_t and_eax_ff[3] = {0x83, 0xe0, 0xff}; /* and $0xff,%eax */
+        return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_eax_ff, 3);
+      }
+    } else if (k_n == (int32_t)ast_TypeKind_TYPE_NAMED) {
+      uint8_t nm[64];
+      int32_t nlen = pipeline_type_named_name_into(arena, tr_n, nm);
+      if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6') {
+        if (ta == 0) {
+          static const uint8_t and_eax_ffff[5] = {0x25, 0xff, 0xff, 0x00, 0x00}; /* and $0xffff,%eax */
+          return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_eax_ffff, 5);
+        }
+      }
+    }
+  }
+  return 0;
 }
 
 /**
