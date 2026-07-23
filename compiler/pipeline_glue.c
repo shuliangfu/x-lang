@@ -2010,8 +2010,10 @@ static int32_t pipeline_asm_emit_neg_elf_impl(struct ast_ASTArena *arena, struct
     int32_t k_n = (tr_n > 0) ? pipeline_type_kind_ord_at(arena, tr_n) : -1;
     if (k_n == (int32_t)ast_TypeKind_TYPE_U8) {
       if (ta == 0) {
-        static const uint8_t and_eax_ff[3] = {0x83, 0xe0, 0xff}; /* and $0xff,%eax */
-        return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_eax_ff, 3);
+        /* and $0xff,%eax — must be imm32 (25 ff 00 00 00). Opcode 83 e0 ff
+         * sign-extends imm8 0xff → and $0xffffffff (no-op). */
+        static const uint8_t and_eax_ff[5] = {0x25, 0xff, 0x00, 0x00, 0x00};
+        return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_eax_ff, 5);
       }
     } else if (k_n == (int32_t)ast_TypeKind_TYPE_NAMED) {
       uint8_t nm[64];
