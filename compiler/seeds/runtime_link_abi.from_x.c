@@ -3917,11 +3917,12 @@ int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, i
  */
 
 /**
- * Cap residual: POSIX realpath into out; Windows / fail → NULL.
- * Pure orch (wave146 labi_path_pure) calls this for path resolution only.
- * PLATFORM: SHARED export; WINDOWS always NULL (≡ mega #if skip realpath).
+ * Cap residual (always _impl, wave218): POSIX realpath into out; Windows / fail → NULL.
+ * Pure orch (wave218 labi_path_io L3) owns public thin + null/empty/out gates;
+ * path_pure / invoke_ld / formal_std call the public face (wave146+).
+ * PLATFORM: SHARED residual; WINDOWS always NULL (≡ mega #if skip realpath).
  */
-const char *link_abi_realpath_cap(const char *path, char *out) {
+const char *link_abi_realpath_cap_impl(const char *path, char *out) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)path;
     (void)out;
@@ -3932,6 +3933,21 @@ const char *link_abi_realpath_cap(const char *path, char *out) {
     return realpath(path, out);
 #endif
 }
+
+/* wave218: public pure thin lives in labi_path_io.x (hybrid L3);
+ * mega cold twin under #ifndef SHUX_LABI_PATH_IO_FROM_X.
+ * Cap residual: link_abi_realpath_cap_impl (POSIX realpath; Windows null always mega).
+ * Why: hybrid still had realpath_cap body always mega C (gates+realpath).
+ * PLATFORM: SHARED orch / POSIX realpath residual. */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
+const char *link_abi_realpath_cap(const char *path, char *out) {
+    if (!path || !path[0] || !out)
+        return NULL;
+    return link_abi_realpath_cap_impl(path, out);
+}
+#else
+const char *link_abi_realpath_cap(const char *path, char *out);
+#endif
 
 /**
  * Cap residual (wave185): heap-duplicate a C string for multi-call-independent path returns.
