@@ -35,11 +35,11 @@
 - `backtrace_symbolicate_smoke_c`（C 烟测）
 - `backtrace_xplat_platform_name_c`（平台名）
 - `backtrace_xplat_quality_c`（跨平台质量探测）
-- `shux_crash_evidence_collect_c`（crash evidence 落盘）
+- `xlang_crash_evidence_collect_c`（crash evidence 落盘）
 
 ## 4. ABI Manifest
 - _impl 残余列表：`backtrace_u8_hex2_impl`, `backtrace_capture_and_check_gold_c_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_BACKTRACE_PLATFORM_FROM_X`
 - 内部调用更新：
   - `backtrace_format_hex_addr_c` 中 `backtrace_u8_hex2` → `backtrace_u8_hex2_impl`
   - `backtrace_gold_anchor_smoke_enter_c` 中 `backtrace_capture_and_check_gold_c` → `backtrace_capture_and_check_gold_c_impl`

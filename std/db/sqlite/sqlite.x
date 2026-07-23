@@ -29,9 +29,9 @@ export const DB_ERR_EXEC: i32 = -3;
 export const DB_ERR_BUSY: i32 = -4;
 export const DB_NOT_IMPL: i32 = -9;
 
-export const SHU_SQLITE_OK: i32 = 0;
-export const SHU_SQLITE_ROW: i32 = 100;
-export const SHU_SQLITE_DONE: i32 = 101;
+export const XLANG_SQLITE_OK: i32 = 0;
+export const XLANG_SQLITE_ROW: i32 = 100;
+export const XLANG_SQLITE_DONE: i32 = 101;
 
 export const DB_STMT_CACHE_CAP: i32 = 16;
 export const DB_STMT_SQL_MAX: i32 = 240;
@@ -141,27 +141,27 @@ extern "C" function malloc(size: usize): *u8;
 extern "C" function snprintf(buf: *u8, size: usize, fmt: *u8): i32;
 extern "C" function strlen(s: *u8): usize;
 
-extern "C" function shu_db_use_sqlite3_c(): i32;
-extern "C" function shu_sqlite3_open_c(path: *u8, out_db: *i64): i32;
-extern "C" function shu_sqlite3_close_c(db_h: i64): i32;
-extern "C" function shu_sqlite3_exec_c(db_h: i64, sql: *u8, out_errmsg: *i64): i32;
-extern "C" function shu_sqlite3_exec_count_c(db_h: i64, sql: *u8, out_count: *i32, out_errmsg: *i64): i32;
-extern "C" function shu_sqlite3_prepare_v2_c(db_h: i64, sql: *u8, out_stmt: *i64): i32;
-extern "C" function shu_sqlite3_step_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_finalize_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_reset_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_clear_bindings_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_column_count_c(stmt_h: i64): i32;
-extern "C" function shu_sqlite3_column_int_c(stmt_h: i64, col: i32): i32;
-extern "C" function shu_sqlite3_column_text_c(stmt_h: i64, col: i32): i64;
-extern "C" function shu_sqlite3_column_blob_c(stmt_h: i64, col: i32): i64;
-extern "C" function shu_sqlite3_column_bytes_c(stmt_h: i64, col: i32): i32;
-extern "C" function shu_sqlite3_bind_int_c(stmt_h: i64, idx: i32, val: i32): i32;
-extern "C" function shu_sqlite3_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32;
-extern "C" function shu_sqlite3_errmsg_c(db_h: i64): i64;
-extern "C" function shu_sqlite3_db_handle_c(stmt_h: i64): i64;
-extern "C" function shu_sqlite3_changes_c(db_h: i64): i32;
-extern "C" function shu_sqlite3_free_c(ptr: i64): void;
+extern "C" function xlang_db_use_sqlite3_c(): i32;
+extern "C" function xlang_sqlite3_open_c(path: *u8, out_db: *i64): i32;
+extern "C" function xlang_sqlite3_close_c(db_h: i64): i32;
+extern "C" function xlang_sqlite3_exec_c(db_h: i64, sql: *u8, out_errmsg: *i64): i32;
+extern "C" function xlang_sqlite3_exec_count_c(db_h: i64, sql: *u8, out_count: *i32, out_errmsg: *i64): i32;
+extern "C" function xlang_sqlite3_prepare_v2_c(db_h: i64, sql: *u8, out_stmt: *i64): i32;
+extern "C" function xlang_sqlite3_step_c(stmt_h: i64): i32;
+extern "C" function xlang_sqlite3_finalize_c(stmt_h: i64): i32;
+extern "C" function xlang_sqlite3_reset_c(stmt_h: i64): i32;
+extern "C" function xlang_sqlite3_clear_bindings_c(stmt_h: i64): i32;
+extern "C" function xlang_sqlite3_column_count_c(stmt_h: i64): i32;
+extern "C" function xlang_sqlite3_column_int_c(stmt_h: i64, col: i32): i32;
+extern "C" function xlang_sqlite3_column_text_c(stmt_h: i64, col: i32): i64;
+extern "C" function xlang_sqlite3_column_blob_c(stmt_h: i64, col: i32): i64;
+extern "C" function xlang_sqlite3_column_bytes_c(stmt_h: i64, col: i32): i32;
+extern "C" function xlang_sqlite3_bind_int_c(stmt_h: i64, idx: i32, val: i32): i32;
+extern "C" function xlang_sqlite3_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32;
+extern "C" function xlang_sqlite3_errmsg_c(db_h: i64): i64;
+extern "C" function xlang_sqlite3_db_handle_c(stmt_h: i64): i64;
+extern "C" function xlang_sqlite3_changes_c(db_h: i64): i32;
+extern "C" function xlang_sqlite3_free_c(ptr: i64): void;
 
 /** Exported function `db_set_err`.
  * Implements `db_set_err`.
@@ -237,7 +237,7 @@ export function db_stmt_cache_drop_conn(conn: i64): void {
   while (i < DB_STMT_CACHE_CAP) {
     slot = db_stmt_cache_slot(i);
     if (slot.conn == conn && slot.stmt != 0 as i64) {
-      unsafe { shu_sqlite3_finalize_c(slot.stmt); }
+      unsafe { xlang_sqlite3_finalize_c(slot.stmt); }
       slot.conn = 0;
       slot.sql[0] = 0;
       slot.stmt = 0;
@@ -282,7 +282,7 @@ export function db_stmt_cache_alloc_slot(): *DbCachedStmt {
   }
   slot = db_stmt_cache_slot(0);
   if (slot.stmt != 0 as i64) {
-    unsafe { shu_sqlite3_finalize_c(slot.stmt); }
+    unsafe { xlang_sqlite3_finalize_c(slot.stmt); }
     slot.conn = 0;
     slot.sql[0] = 0;
     slot.stmt = 0;
@@ -316,7 +316,7 @@ export function db_stmt_cache_remove_stmt(stmt_h: i64): void {
  * @return i32
  */
 export function db_stub_active(): i32 {
-  unsafe { return shu_db_use_sqlite3_c() == 0 ? 1 : 0; }
+  unsafe { return xlang_db_use_sqlite3_c() == 0 ? 1 : 0; }
   return 0; // unreachable — typeck workaround
 }
 
@@ -337,15 +337,15 @@ export function db_open_c(path: *u8): i64 {
     return 0;
   }
   db_clear_err();
-  unsafe { rc = shu_sqlite3_open_c(path, &db); }
-  if (rc != SHU_SQLITE_OK) {
+  unsafe { rc = xlang_sqlite3_open_c(path, &db); }
+  if (rc != XLANG_SQLITE_OK) {
     let em: *u8 = 0 as *u8;
     if (db != 0 as i64) {
-      unsafe { em = shu_sqlite3_errmsg_c(db) as *u8; }
+      unsafe { em = xlang_sqlite3_errmsg_c(db) as *u8; }
     }
     if (em == 0) { em = &SQL_LIT_SQLITE3_OPEN_FAILED[0]; }
     db_set_err(DB_ERR_OPEN, em);
-    unsafe { if (db != 0 as i64) { shu_sqlite3_close_c(db); } }
+    unsafe { if (db != 0 as i64) { xlang_sqlite3_close_c(db); } }
     return 0;
   }
   return db;
@@ -367,9 +367,9 @@ export function db_close_c(handle: i64): i32 {
     return DB_ERR_NULL;
   }
   db_stmt_cache_drop_conn(handle);
-  unsafe { rc = shu_sqlite3_close_c(handle); }
-  if (rc != SHU_SQLITE_OK) {
-    unsafe { db_set_err(DB_ERR_BUSY, shu_sqlite3_errmsg_c(handle) as *u8); }
+  unsafe { rc = xlang_sqlite3_close_c(handle); }
+  if (rc != XLANG_SQLITE_OK) {
+    unsafe { db_set_err(DB_ERR_BUSY, xlang_sqlite3_errmsg_c(handle) as *u8); }
     return DB_ERR_BUSY;
   }
   db_clear_err();
@@ -397,15 +397,15 @@ export function db_exec_c(handle: i64, sql: *u8): i32 {
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_SQL[0]);
     return DB_ERR_NULL;
   }
-  unsafe { rc = shu_sqlite3_exec_c(handle, sql, &errmsg); }
-  if (rc != SHU_SQLITE_OK) {
+  unsafe { rc = xlang_sqlite3_exec_c(handle, sql, &errmsg); }
+  if (rc != XLANG_SQLITE_OK) {
     let em: *u8 = &SQL_LIT_EXEC_FAILED[0];
     if (errmsg != 0 as i64) { em = errmsg as *u8; }
     db_set_err(DB_ERR_EXEC, em);
-    unsafe { if (errmsg != 0 as i64) { shu_sqlite3_free_c(errmsg); } }
+    unsafe { if (errmsg != 0 as i64) { xlang_sqlite3_free_c(errmsg); } }
     return DB_ERR_EXEC;
   }
-  unsafe { if (errmsg != 0 as i64) { shu_sqlite3_free_c(errmsg); } }
+  unsafe { if (errmsg != 0 as i64) { xlang_sqlite3_free_c(errmsg); } }
   db_clear_err();
   return DB_OK;
 }
@@ -432,15 +432,15 @@ export function db_query_rows_c(handle: i64, sql: *u8): i32 {
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_SQL[0]);
     return DB_ERR_NULL;
   }
-  unsafe { rc = shu_sqlite3_exec_count_c(handle, sql, &count, &errmsg); }
-  if (rc != SHU_SQLITE_OK) {
+  unsafe { rc = xlang_sqlite3_exec_count_c(handle, sql, &count, &errmsg); }
+  if (rc != XLANG_SQLITE_OK) {
     let em: *u8 = &SQL_LIT_QUERY_FAILED[0];
     if (errmsg != 0 as i64) { em = errmsg as *u8; }
     db_set_err(DB_ERR_EXEC, em);
-    unsafe { if (errmsg != 0 as i64) { shu_sqlite3_free_c(errmsg); } }
+    unsafe { if (errmsg != 0 as i64) { xlang_sqlite3_free_c(errmsg); } }
     return DB_ERR_EXEC;
   }
-  unsafe { if (errmsg != 0 as i64) { shu_sqlite3_free_c(errmsg); } }
+  unsafe { if (errmsg != 0 as i64) { xlang_sqlite3_free_c(errmsg); } }
   db_clear_err();
   return count;
 }
@@ -466,9 +466,9 @@ export function db_query_begin_c(handle: i64, sql: *u8): i64 {
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_SQL[0]);
     return 0;
   }
-  unsafe { rc = shu_sqlite3_prepare_v2_c(handle, sql, &stmt); }
-  if (rc != SHU_SQLITE_OK) {
-    unsafe { db_set_err(DB_ERR_EXEC, shu_sqlite3_errmsg_c(handle) as *u8); }
+  unsafe { rc = xlang_sqlite3_prepare_v2_c(handle, sql, &stmt); }
+  if (rc != XLANG_SQLITE_OK) {
+    unsafe { db_set_err(DB_ERR_EXEC, xlang_sqlite3_errmsg_c(handle) as *u8); }
     return 0;
   }
   db_clear_err();
@@ -490,13 +490,13 @@ export function db_next_row_c(cursor: i64): i32 {
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_CURSOR[0]);
     return DB_ERR_NULL;
   }
-  unsafe { rc = shu_sqlite3_step_c(cursor); }
-  if (rc == SHU_SQLITE_ROW) { return 1; }
-  if (rc == SHU_SQLITE_DONE) {
+  unsafe { rc = xlang_sqlite3_step_c(cursor); }
+  if (rc == XLANG_SQLITE_ROW) { return 1; }
+  if (rc == XLANG_SQLITE_DONE) {
     db_clear_err();
     return 0;
   }
-  unsafe { db_set_err(DB_ERR_EXEC, shu_sqlite3_errmsg_c(shu_sqlite3_db_handle_c(cursor)) as *u8); }
+  unsafe { db_set_err(DB_ERR_EXEC, xlang_sqlite3_errmsg_c(xlang_sqlite3_db_handle_c(cursor)) as *u8); }
   return DB_ERR_EXEC;
 }
 
@@ -515,12 +515,12 @@ export function db_row_col_i32_c(cursor: i64, col: i32): i32 {
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_CURSOR[0]);
     return DB_ERR_NULL;
   }
-  unsafe { if (col < 0 || col >= shu_sqlite3_column_count_c(cursor)) {
+  unsafe { if (col < 0 || col >= xlang_sqlite3_column_count_c(cursor)) {
     db_set_err(DB_ERR_EXEC, &SQL_LIT_COL_INDEX[0]);
     return DB_ERR_EXEC;
   } }
   db_clear_err();
-  unsafe { return shu_sqlite3_column_int_c(cursor, col); }
+  unsafe { return xlang_sqlite3_column_int_c(cursor, col); }
   return 0; // unreachable — typeck workaround
 }
 
@@ -543,7 +543,7 @@ export function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: 
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_CURSOR[0]);
     return DB_ERR_NULL;
   }
-  unsafe { if (col < 0 || col >= shu_sqlite3_column_count_c(cursor)) {
+  unsafe { if (col < 0 || col >= xlang_sqlite3_column_count_c(cursor)) {
     db_set_err(DB_ERR_EXEC, &SQL_LIT_COL_INDEX[0]);
     return DB_ERR_EXEC;
   } }
@@ -551,7 +551,7 @@ export function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: 
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_BUF[0]);
     return DB_ERR_NULL;
   }
-  unsafe { txt = shu_sqlite3_column_text_c(cursor, col); }
+  unsafe { txt = xlang_sqlite3_column_text_c(cursor, col); }
   if (txt == 0 as i64) {
     out_buf[0] = 0;
     db_clear_err();
@@ -586,7 +586,7 @@ export function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: 
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_CURSOR[0]);
     return DB_ERR_NULL;
   }
-  unsafe { if (col < 0 || col >= shu_sqlite3_column_count_c(cursor)) {
+  unsafe { if (col < 0 || col >= xlang_sqlite3_column_count_c(cursor)) {
     db_set_err(DB_ERR_EXEC, &SQL_LIT_COL_INDEX[0]);
     return DB_ERR_EXEC;
   } }
@@ -594,12 +594,12 @@ export function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: 
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_BUF[0]);
     return DB_ERR_NULL;
   }
-  unsafe { n = shu_sqlite3_column_bytes_c(cursor, col); }
+  unsafe { n = xlang_sqlite3_column_bytes_c(cursor, col); }
   if (n <= 0) {
     db_clear_err();
     return 0;
   }
-  unsafe { blob = shu_sqlite3_column_blob_c(cursor, col); }
+  unsafe { blob = xlang_sqlite3_column_blob_c(cursor, col); }
   if (blob == 0 as i64) {
     db_clear_err();
     return 0;
@@ -629,11 +629,11 @@ export function db_row_col_blob_len_c(cursor: i64, col: i32): i32 {
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_CURSOR[0]);
     return DB_ERR_NULL;
   }
-  unsafe { if (col < 0 || col >= shu_sqlite3_column_count_c(cursor)) {
+  unsafe { if (col < 0 || col >= xlang_sqlite3_column_count_c(cursor)) {
     db_set_err(DB_ERR_EXEC, &SQL_LIT_COL_INDEX[0]);
     return DB_ERR_EXEC;
   } }
-  unsafe { n = shu_sqlite3_column_bytes_c(cursor, col); }
+  unsafe { n = xlang_sqlite3_column_bytes_c(cursor, col); }
   if (n < 0) { n = 0; }
   db_clear_err();
   return n;
@@ -661,7 +661,7 @@ export function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_b
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_CURSOR[0]);
     return DB_ERR_NULL;
   }
-  unsafe { if (col < 0 || col >= shu_sqlite3_column_count_c(cursor)) {
+  unsafe { if (col < 0 || col >= xlang_sqlite3_column_count_c(cursor)) {
     db_set_err(DB_ERR_EXEC, &SQL_LIT_COL_INDEX[0]);
     return DB_ERR_EXEC;
   } }
@@ -673,12 +673,12 @@ export function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_b
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_BUF[0]);
     return DB_ERR_NULL;
   }
-  unsafe { n = shu_sqlite3_column_bytes_c(cursor, col); }
+  unsafe { n = xlang_sqlite3_column_bytes_c(cursor, col); }
   if (n <= 0 || offset >= n) {
     db_clear_err();
     return 0;
   }
-  unsafe { blob = shu_sqlite3_column_blob_c(cursor, col); }
+  unsafe { blob = xlang_sqlite3_column_blob_c(cursor, col); }
   if (blob == 0 as i64) {
     db_clear_err();
     return 0;
@@ -704,8 +704,8 @@ export function db_query_end_c(cursor: i64): i32 {
   }
   if (cursor == 0 as i64) { return DB_OK; }
   db_stmt_cache_remove_stmt(cursor);
-  unsafe { rc = shu_sqlite3_finalize_c(cursor); }
-  if (rc != SHU_SQLITE_OK) {
+  unsafe { rc = xlang_sqlite3_finalize_c(cursor); }
+  if (rc != XLANG_SQLITE_OK) {
     db_set_err(DB_ERR_BUSY, &SQL_LIT_FINALIZE_FAILED[0]);
     return DB_ERR_BUSY;
   }
@@ -751,14 +751,14 @@ export function db_prepare_cached_c(handle: i64, sql: *u8): i64 {
   } }
   slot = db_stmt_cache_find(handle, sql);
   if (slot != 0) {
-    unsafe { shu_sqlite3_reset_c(slot.stmt); }
-    unsafe { shu_sqlite3_clear_bindings_c(slot.stmt); }
+    unsafe { xlang_sqlite3_reset_c(slot.stmt); }
+    unsafe { xlang_sqlite3_clear_bindings_c(slot.stmt); }
     db_clear_err();
     return slot.stmt;
   }
-  unsafe { rc = shu_sqlite3_prepare_v2_c(handle, sql, &stmt); }
-  if (rc != SHU_SQLITE_OK) {
-    unsafe { db_set_err(DB_ERR_EXEC, shu_sqlite3_errmsg_c(handle) as *u8); }
+  unsafe { rc = xlang_sqlite3_prepare_v2_c(handle, sql, &stmt); }
+  if (rc != XLANG_SQLITE_OK) {
+    unsafe { db_set_err(DB_ERR_EXEC, xlang_sqlite3_errmsg_c(handle) as *u8); }
     return 0;
   }
   slot = db_stmt_cache_alloc_slot();
@@ -790,9 +790,9 @@ export function db_stmt_bind_i32_c(stmt_h: i64, idx: i32, val: i32): i32 {
     db_set_err(DB_ERR_EXEC, &SQL_LIT_BIND_IDX[0]);
     return DB_ERR_EXEC;
   }
-  unsafe { rc = shu_sqlite3_bind_int_c(stmt_h, idx, val); }
-  if (rc != SHU_SQLITE_OK) {
-    unsafe { db_set_err(DB_ERR_EXEC, shu_sqlite3_errmsg_c(shu_sqlite3_db_handle_c(stmt_h)) as *u8); }
+  unsafe { rc = xlang_sqlite3_bind_int_c(stmt_h, idx, val); }
+  if (rc != XLANG_SQLITE_OK) {
+    unsafe { db_set_err(DB_ERR_EXEC, xlang_sqlite3_errmsg_c(xlang_sqlite3_db_handle_c(stmt_h)) as *u8); }
     return DB_ERR_EXEC;
   }
   db_clear_err();
@@ -820,9 +820,9 @@ export function db_stmt_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32 {
     db_set_err(DB_ERR_EXEC, &SQL_LIT_BIND_IDX[0]);
     return DB_ERR_EXEC;
   }
-  unsafe { rc = shu_sqlite3_bind_text_c(stmt_h, idx, text); }
-  if (rc != SHU_SQLITE_OK) {
-    unsafe { db_set_err(DB_ERR_EXEC, shu_sqlite3_errmsg_c(shu_sqlite3_db_handle_c(stmt_h)) as *u8); }
+  unsafe { rc = xlang_sqlite3_bind_text_c(stmt_h, idx, text); }
+  if (rc != XLANG_SQLITE_OK) {
+    unsafe { db_set_err(DB_ERR_EXEC, xlang_sqlite3_errmsg_c(xlang_sqlite3_db_handle_c(stmt_h)) as *u8); }
     return DB_ERR_EXEC;
   }
   db_clear_err();
@@ -853,9 +853,9 @@ export function db_stmt_reset_c(stmt_h: i64): i32 {
     db_set_err(DB_ERR_NULL, &SQL_LIT_NULL_STMT[0]);
     return DB_ERR_NULL;
   }
-  unsafe { rc = shu_sqlite3_reset_c(stmt_h); }
-  if (rc != SHU_SQLITE_OK) {
-    unsafe { db_set_err(DB_ERR_EXEC, shu_sqlite3_errmsg_c(shu_sqlite3_db_handle_c(stmt_h)) as *u8); }
+  unsafe { rc = xlang_sqlite3_reset_c(stmt_h); }
+  if (rc != XLANG_SQLITE_OK) {
+    unsafe { db_set_err(DB_ERR_EXEC, xlang_sqlite3_errmsg_c(xlang_sqlite3_db_handle_c(stmt_h)) as *u8); }
     return DB_ERR_EXEC;
   }
   db_clear_err();
@@ -968,7 +968,7 @@ export function db_backend_name_c(): *u8 {
 export function db_changes_c(handle: i64): i32 {
   if (db_stub_active() != 0) { return 0; }
   if (handle == 0 as i64) { return 0; }
-  unsafe { return shu_sqlite3_changes_c(handle); }
+  unsafe { return xlang_sqlite3_changes_c(handle); }
   return 0; // unreachable — typeck workaround
 }
 

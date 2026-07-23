@@ -2,7 +2,7 @@
 # F-sync v1：std.sync 去 C（sync.x + seeds/runtime_sync_os.from_x.c + seeds/runtime_sync_lock_diag_tls.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_SYNC_V1_FAIL:-0}
+FAIL=${XLANG_F_SYNC_V1_FAIL:-0}
 DOC="analysis/phase-f-sync-v1.md"
 MANIFEST="tests/baseline/f-sync-v1-closure.tsv"
 die() { echo "f-sync-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -27,10 +27,10 @@ done < "$MANIFEST"
 grep -q 'runtime_sync_os' compiler/Makefile || die "Makefile missing runtime_sync_os"
 make -C compiler -q runtime_sync_os.o runtime_sync_lock_diag_tls.o 2>/dev/null || \
   make -C compiler runtime_sync_os.o runtime_sync_lock_diag_tls.o >/dev/null 2>&1 || die "runtime sync build failed"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/sync/sync.o >/dev/null 2>&1 || die "make sync.o failed"
 else
-  echo "f-sync-v1 SKIP sync.o build (no shux-c)" >&2
+  echo "f-sync-v1 SKIP sync.o build (no xlang-c)" >&2
 fi
 for sub in run-std-sync-lock-diag-gate.sh run-std-sync-rwlock-condvar-gate.sh run-f-sync-lock-diag-v2-gate.sh; do
   [ -f "tests/$sub" ] || continue

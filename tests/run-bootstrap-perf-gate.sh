@@ -13,9 +13,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 
-MATRIX="${SHUX_BOOT_PERF_MATRIX:-tests/baseline/bootstrap-perf-matrix.tsv}"
-DOGFOOD="${SHUX_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
-REG="${SHUX_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
+MATRIX="${XLANG_BOOT_PERF_MATRIX:-tests/baseline/bootstrap-perf-matrix.tsv}"
+DOGFOOD="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
+REG="${XLANG_PERF_BASELINE_REGISTRY:-tests/baseline/perf-baseline-registry.tsv}"
 MIN_BOOT=3
 
 echo "=== BOOT-012: bootstrap perf manifest ==="
@@ -98,7 +98,7 @@ chmod +x tests/run-perf-compile-dogfood-gate.sh
 if ci_is_linux && ! ci_is_docker; then
   ./tests/run-perf-compile-dogfood-gate.sh
 else
-  SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
+  XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
 fi
 
 echo "bootstrap-perf gate OK"

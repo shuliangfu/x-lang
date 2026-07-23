@@ -15,6 +15,10 @@
 | [IR核心设计.md](./IR核心设计.md) | IR v4 架构冻结 |
 | [安全路线.md](./安全路线.md) · [FFI隔离.md](./FFI隔离.md) · [lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md) | 安全 / FFI |
 | [std标准库全量清单与优先级.md](./std标准库全量清单与优先级.md) | std 总表 |
+| [全面异步架构-分析与准备.md](./全面异步架构-分析与准备.md) | **Zig 级全面异步 / 无染色 / Io 注入**：现状差距、分阶段路径、自举期准备与禁令（2026-07-21） |
+| [xlang-项目重命名重构分析.md](./xlang-项目重命名重构分析.md) | **Xlang→Xlang 全库重命名**（文档/CLI/Env/ABI）；主域 **`xlang.dev`**；自举暂停至 R3 验收 |
+| [build-x-强大配置能力分析.md](./build-x-强大配置能力分析.md) | **build.x + xlang.toml**：正交架构、**现状校准**、强大且易写易用路径（M0–M6 / 域 A·B） |
+| [xlang-toml-实现分析.md](./xlang-toml-实现分析.md) | xlang.toml 实现阶段（配置层；与 build.x 互补；将随 xlang 重命名） |
 | [G-02e-*.md](./G-02e-physical-zero-c.md) · [G-02f-*.md](./G-02f-L2-x-o-pilot.md) · [G-07-*.md](./G-07-selfhost-release.md) | 去 C / 自举发布闸门 |
 | [ABI与布局.md](./ABI与布局.md) · [X-ABI-设计分析.md](./X-ABI-设计分析.md) · [内存契约.md](./内存契约.md) · [UB与未定义行为.md](./UB与未定义行为.md) · [零libc产品策略.md](./零libc产品策略.md) | ABI / 契约 |
 | [doc-selfhost-architecture-v1.md](./doc-selfhost-architecture-v1.md) · [doc-memory-safety-error-v1.md](./doc-memory-safety-error-v1.md) · [comp-wpo-v1.md](./comp-wpo-v1.md) | 仍引用的专项 |

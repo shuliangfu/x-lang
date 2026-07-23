@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MATRIX="${SHUX_STD_ASYNC_1M_TSV:-tests/baseline/std-async-1m.tsv}"
+MATRIX="${XLANG_STD_ASYNC_1M_TSV:-tests/baseline/std-async-1m.tsv}"
 
 platform_policy() {
   local linux="$1"
@@ -26,7 +26,7 @@ platform_policy() {
   fi
 }
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -54,32 +54,32 @@ fi
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "std-async-1m gate SKIP (no native shux; host=$(ci_host_summary))" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "std-async-1m gate SKIP (no native xlang; host=$(ci_host_summary))" >&2
   exit 0
 fi
 
-# 编译 bench：Linux x86_64 可用 asm；其它平台 shux-c/-backend c。
+# 编译 bench：Linux x86_64 可用 asm；其它平台 xlang-c/-backend c。
 async_compile_bench() {
   local x="$1"
   local out="$2"
   rm -f "$out"
   if async_is_linux_x64_asm && [[ "$x" == *sched* ]]; then
-    if ! "$SHUX_BIN" -L . "$x" -backend asm -o "$out" >/tmp/async_1m_compile.log 2>&1; then
+    if ! "$XLANG_BIN" -L . "$x" -backend asm -o "$out" >/tmp/async_1m_compile.log 2>&1; then
       if grep -qE 'backend asm not available|not available in this build' /tmp/async_1m_compile.log 2>/dev/null; then
-        echo "async 1M WARN: asm backend unavailable, fallback shux-c for $x" >&2
-        if [ -x ./compiler/shux-c ]; then
-          ./compiler/shux-c -L . "$x" -o "$out" || return 1
+        echo "async 1M WARN: asm backend unavailable, fallback xlang-c for $x" >&2
+        if [ -x ./compiler/xlang-c ]; then
+          ./compiler/xlang-c -L . "$x" -o "$out" || return 1
           return 0
         fi
       fi
@@ -89,17 +89,17 @@ async_compile_bench() {
     return 0
   fi
   if async_is_linux_x64_asm; then
-    "$SHUX_BIN" -L . "$x" -o "$out"
-  elif [ -x ./compiler/shux-c ]; then
-    ./compiler/shux-c -L . "$x" -o "$out"
-  elif [ -x ./compiler/shux ]; then
-    ./compiler/shux build -L . "$x" -backend c -o "$out"
+    "$XLANG_BIN" -L . "$x" -o "$out"
+  elif [ -x ./compiler/xlang-c ]; then
+    ./compiler/xlang-c -L . "$x" -o "$out"
+  elif [ -x ./compiler/xlang ]; then
+    ./compiler/xlang build -L . "$x" -backend c -o "$out"
   else
-    "$SHUX_BIN" -L . "$x" -o "$out"
+    "$XLANG_BIN" -L . "$x" -o "$out"
   fi
 }
 
-echo "=== STD-004: async 1M stress ($(ci_host_summary) SHUX=$SHUX_BIN) ==="
+echo "=== STD-004: async 1M stress ($(ci_host_summary) XLANG=$XLANG_BIN) ==="
 
 FAILS=0
 while IFS=$'\t' read -r case_id script linux pol_mac pol_win want_ec notes; do
@@ -118,7 +118,7 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win want_ec notes; do
     FAILS=$((FAILS + 1))
     continue
   fi
-  out="/tmp/shux_async_1m_${case_id}"
+  out="/tmp/xlang_async_1m_${case_id}"
   echo "── case $case_id: $src ──"
   if ! async_compile_bench "$src" "$out"; then
     echo "async 1M FAIL $case_id: compile" >&2

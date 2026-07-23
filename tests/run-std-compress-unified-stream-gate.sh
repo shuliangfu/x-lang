@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD122_COMPRESS_UNIFIED_DOC:-analysis/std-compress-unified-stream-v1.md}"
-MANIFEST="${SHUX_STD122_COMPRESS_UNIFIED_TSV:-tests/baseline/std-compress-unified-stream-manifest.tsv}"
+DOC="${XLANG_STD122_COMPRESS_UNIFIED_DOC:-analysis/std-compress-unified-stream-v1.md}"
+MANIFEST="${XLANG_STD122_COMPRESS_UNIFIED_TSV:-tests/baseline/std-compress-unified-stream-manifest.tsv}"
 MOD_X="std/compress/mod.x"
 COMPRESS_C="std/compress/gzip/libz.x"
 LIB="tests/lib/std-compress-unified-stream.sh"
@@ -76,18 +76,18 @@ echo "std-compress-unified-stream manifest OK"
 
 STREAM_OK=0
 SKIP=1
-if SHUX_BIN="$(std_compress_resolve_shu)"; then
-  echo "=== STD-122: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if XLANG_BIN="$(std_compress_resolve_shu)"; then
+  echo "=== STD-122: typeck + smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   std_compress_try_libs
   # F-04 v7+：compress 纯 .x，不再 ensure compress.o
-  if ! "$SHUX_BIN" check -L . "$STREAM_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$STREAM_X" >/dev/null 2>&1; then
     echo "std-compress-unified-stream gate FAIL: typeck $STREAM_X" >&2
-    "$SHUX_BIN" check -L . "$STREAM_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$STREAM_X" 2>&1 | tail -10 >&2 || true
     std_compress_unified_emit_report "fail" 0 0
     exit 1
   fi
-  if std_compress_unified_run_smoke "$SHUX_BIN" "$STREAM_X" "unified_stream"; then
+  if std_compress_unified_run_smoke "$XLANG_BIN" "$STREAM_X" "unified_stream"; then
     STREAM_OK=1
     SKIP=0
   else
@@ -95,7 +95,7 @@ if SHUX_BIN="$(std_compress_resolve_shu)"; then
     exit 1
   fi
 else
-  echo "std-compress-unified-stream gate SKIP smoke (no native shux)" >&2
+  echo "std-compress-unified-stream gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_compress_unified_emit_report "ok" "$STREAM_OK" "$SKIP"

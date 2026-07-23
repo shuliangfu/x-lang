@@ -1,14 +1,14 @@
 /**
- * Shux import 路径解析 — 与 compiler/runtime.c resolve_import_file_path_multi 对齐。
+ * Xlang import 路径解析 — 与 compiler/runtime.c resolve_import_file_path_multi 对齐。
  */
 
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { readLibRootsSetting } from './configSettings';
 
-/** 读取 shux.compiler.libRoots，转为 SHUX_LSP_LIB_ROOTS（`:` 分隔，与 runtime/LSP C 侧一致）。 */
+/** 读取 xlang.compiler.libRoots，转为 XLANG_LSP_LIB_ROOTS（`:` 分隔，与 runtime/LSP C 侧一致）。 */
 export function getLibRootsEnvColon(): string {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   return readLibRootsSetting(config).join(':');
 }
 
@@ -18,10 +18,10 @@ export type ImportResolveResult = {
 };
 
 /**
- * 读取 shux.compiler.libRoots 配置（字符串数组）。
+ * 读取 xlang.compiler.libRoots 配置（字符串数组）。
  */
 export function getLibRootUris(workspaceRoot: vscode.Uri): vscode.Uri[] {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   const rels = readLibRootsSetting(config);
   return rels.map((rel) =>
     rel === '.' || rel === ''
@@ -89,7 +89,7 @@ function collectCandidates(
   return out;
 }
 
-export async function resolveShuxImportWithAttempts(
+export async function resolveXlangImportWithAttempts(
   workspaceRoot: vscode.Uri,
   documentUri: vscode.Uri,
   importPath: string
@@ -115,11 +115,11 @@ export async function resolveShuxImportWithAttempts(
   return { attempts };
 }
 
-export async function resolveShuxImportUri(
+export async function resolveXlangImportUri(
   workspaceRoot: vscode.Uri,
   documentUri: vscode.Uri,
   importPath: string
 ): Promise<vscode.Uri | undefined> {
-  const r = await resolveShuxImportWithAttempts(workspaceRoot, documentUri, importPath);
+  const r = await resolveXlangImportWithAttempts(workspaceRoot, documentUri, importPath);
   return r.uri;
 }

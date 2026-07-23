@@ -64,7 +64,7 @@ if (mac_verify(&key[0], key_len, &msg[0], msg_len, &tag[0]) != 1) { return 1; }
 | runner | `tests/lib/std-crypto.sh` |
 | gate | `tests/run-std-crypto-gate.sh` |
 
-gate 输出 **`std-crypto gate OK`**；无 native `shux` 时 manifest 仍过、**runnable** bench SKIP。
+gate 输出 **`std-crypto gate OK`**；无 native `xlang` 时 manifest 仍过、**runnable** bench SKIP。
 
 ---
 

@@ -96,16 +96,14 @@ export function heap_libc_getenv(name: *u8): *u8 {
 }
 
 /* See implementation. */
-let SHUX_HEAP_TRACE_ENV: u8[16] = [
-  83, 72, 85, 88, 95, 72, 69, 65, 80, 95, 84, 82, 65, 67, 69, 0,
-];
+let XLANG_HEAP_TRACE_ENV: u8[17] = [88, 76, 65, 78, 71, 95, 72, 69, 65, 80, 95, 84, 82, 65, 67, 69, 0];
 
 /* See implementation. */
-let shu_heap_trace_on: i32 = -1;
-let shu_heap_trace_alloc_count: u64 = 0;
-let shu_heap_trace_free_count: u64 = 0;
-let shu_heap_trace_realloc_count: u64 = 0;
-let shu_heap_trace_bytes: u64 = 0;
+let xlang_heap_trace_on: i32 = -1;
+let xlang_heap_trace_alloc_count: u64 = 0;
+let xlang_heap_trace_free_count: u64 = 0;
+let xlang_heap_trace_realloc_count: u64 = 0;
+let xlang_heap_trace_bytes: u64 = 0;
 
 /* See implementation. */
 export const HEAP_PTR_SIZE: usize = 8;
@@ -122,16 +120,16 @@ allow(padding) struct LibcArena64 {
  * See implementation.
  */
 export function heap_trace_is_on(): i32 {
-  if (shu_heap_trace_on >= 0) {
-    return shu_heap_trace_on;
+  if (xlang_heap_trace_on >= 0) {
+    return xlang_heap_trace_on;
   }
-  let env: *u8 = heap_libc_getenv(&SHUX_HEAP_TRACE_ENV[0]);
+  let env: *u8 = heap_libc_getenv(&XLANG_HEAP_TRACE_ENV[0]);
   if (env != 0 && env[0] == 49) {
-    shu_heap_trace_on = 1;
+    xlang_heap_trace_on = 1;
   } else {
-    shu_heap_trace_on = 0;
+    xlang_heap_trace_on = 0;
   }
-  return shu_heap_trace_on;
+  return xlang_heap_trace_on;
 }
 
 /**
@@ -141,8 +139,8 @@ export function heap_trace_note_alloc(size: usize): void {
   if (heap_trace_is_on() == 0) {
     return;
   }
-  shu_heap_trace_alloc_count = shu_heap_trace_alloc_count + 1;
-  shu_heap_trace_bytes = shu_heap_trace_bytes + (size as u64);
+  xlang_heap_trace_alloc_count = xlang_heap_trace_alloc_count + 1;
+  xlang_heap_trace_bytes = xlang_heap_trace_bytes + (size as u64);
 }
 
 /**
@@ -152,7 +150,7 @@ export function heap_trace_note_free(): void {
   if (heap_trace_is_on() == 0) {
     return;
   }
-  shu_heap_trace_free_count = shu_heap_trace_free_count + 1;
+  xlang_heap_trace_free_count = xlang_heap_trace_free_count + 1;
 }
 
 /**
@@ -557,10 +555,10 @@ export function heap_trace_enabled_c(): i32 {
  * See implementation.
  */
 export function heap_trace_reset_c(): void {
-  shu_heap_trace_alloc_count = 0;
-  shu_heap_trace_free_count = 0;
-  shu_heap_trace_realloc_count = 0;
-  shu_heap_trace_bytes = 0;
+  xlang_heap_trace_alloc_count = 0;
+  xlang_heap_trace_free_count = 0;
+  xlang_heap_trace_realloc_count = 0;
+  xlang_heap_trace_bytes = 0;
 }
 
 /**
@@ -569,16 +567,16 @@ export function heap_trace_reset_c(): void {
 export function heap_trace_stats_c(alloc_count: *u64, free_count: *u64, realloc_count: *u64,
   bytes_allocated: *u64): void {
   if (alloc_count != 0) {
-    alloc_count[0] = shu_heap_trace_alloc_count;
+    alloc_count[0] = xlang_heap_trace_alloc_count;
   }
   if (free_count != 0) {
-    free_count[0] = shu_heap_trace_free_count;
+    free_count[0] = xlang_heap_trace_free_count;
   }
   if (realloc_count != 0) {
-    realloc_count[0] = shu_heap_trace_realloc_count;
+    realloc_count[0] = xlang_heap_trace_realloc_count;
   }
   if (bytes_allocated != 0) {
-    bytes_allocated[0] = shu_heap_trace_bytes;
+    bytes_allocated[0] = xlang_heap_trace_bytes;
   }
 }
 

@@ -6,10 +6,10 @@ analysis/*
 !analysis/archive/**
 
 # --- 构建产物 ---
-# 可执行文件（编译器 shux / shux_x / shux-c 等）
-shux
-shux_x
-shux-c
+# 可执行文件（编译器 xlang / xlang_x / xlang-c 等）
+xlang
+xlang_x
+xlang-c
 su
 *.exe
 *.out
@@ -71,7 +71,7 @@ node_modules/
 # clangd 本地配置（非仓库约定）
 .clangd
 .dbg/
-# IDE（保留团队共享的工作区 Shux 配置）
+# IDE（保留团队共享的工作区 Xlang 配置）
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
@@ -102,8 +102,8 @@ compiler/compile_commands.json
 compiler/typeck_err.txt
 # lexer/typeck 等临时调试 .x
 compiler/**/tmp_*.x
-# 可执行文件（根已有 shux/shux-c，此处补 compiler 下特有）
-compiler/shux_driver
+# 可执行文件（根已有 xlang/xlang-c，此处补 compiler 下特有）
+compiler/xlang_driver
 compiler/build_tool
 # 构建目录（含历史手工 build_v* / build_final 等）
 compiler/build_asm/
@@ -117,26 +117,26 @@ compiler/_*
 !compiler/_x_stubs2.c
 !compiler/_stubs_driver.c
 compiler/0
-compiler/bootstrap_shux
-compiler/bootstrap_shuxc
-# G-06 本地 bootstrap 副本（pin 二进制在 seeds/bootstrap_shuxc.*）
+compiler/bootstrap_xlang
+compiler/bootstrap_xlangc
+# G-06 本地 bootstrap 副本（pin 二进制在 seeds/bootstrap_xlangc.*）
 bstrict_rc.txt
 compiler/.gen_bootstrap_log.txt
 compiler/rv_local.x
 compiler/parser.x
-compiler/shux_stage1
-compiler/shux_stage2
-compiler/shux_x_dbg
-compiler/shux_asm2
-compiler/shux-x
-compiler/shux-x2
-compiler/shux_asm
+compiler/xlang_stage1
+compiler/xlang_stage2
+compiler/xlang_x_dbg
+compiler/xlang_asm2
+compiler/xlang-x
+compiler/xlang-x2
+compiler/xlang_asm
 compiler/lsp_gen_full.c
-compiler/shux-x.hide
-compiler/shux_seed_backup
+compiler/xlang-x.hide
+compiler/xlang_seed_backup
 compiler/asm_min
 compiler/asm_v2
-compiler/shux_stage1_test
+compiler/xlang_stage1_test
 # 由 -E 或脚本生成的 C 源文件（parser_gen.c, driver_gen.c, pipeline_gen.c, typeck_gen.c, codegen_gen.c 等）
 compiler/*_gen.c
 compiler/**/*_gen.c
@@ -185,19 +185,19 @@ compiler/build_runner.o
 # pipeline 实验/单测生成 C（非 Makefile 常规 pipeline_gen.c）
 compiler/pipeline_gen_extern.c
 compiler/pipeline_gen2_test.c
-# shux_asm 实验链路、备份与调试二进制（shux_asm / shux_asm2 已在上方）
-compiler/shux_asm.*
-compiler/shux_asm_*
-compiler/shux_asm_stage1
+# xlang_asm 实验链路、备份与调试二进制（xlang_asm / xlang_asm2 已在上方）
+compiler/xlang_asm.*
+compiler/xlang_asm_*
+compiler/xlang_asm_stage1
 
 # gdb/core dump 与本地调试二进制（勿提交）
 compiler/core
-compiler/shux_asm2_raw
-compiler/shux-x.hide
-compiler/shux-test
-compiler/shux_test
-compiler/shux_test_*
-compiler/shux-new-*
+compiler/xlang_asm2_raw
+compiler/xlang-x.hide
+compiler/xlang-test
+compiler/xlang_test
+compiler/xlang_test_*
+compiler/xlang-new-*
 # 类型检查/测试错误转储
 compiler/tests/tck_err.txt
 compiler/tests/*_err.txt
@@ -262,9 +262,9 @@ tests/std-db/.cb_kv_arrow
 tests/std-db/.cb_kv_arrow.*
 
 # 临时二进制 / gate 输出（勿提交）
-compiler/shux_new
-compiler/shux_old
-compiler/shux-seed-phase1
+compiler/xlang_new
+compiler/xlang_old
+compiler/xlang-seed-phase1
 gate_out.txt
 gate_out2.txt
 logs/bootstrap-seed.fresh
@@ -274,9 +274,9 @@ logs/bootstrap-postlink.*
 !compiler/seeds/asm_backend_partial.linux.x86_64.o
 .trae/
 
-# shux-x 二进制备份（手动恢复用，非仓库资产）
-compiler/shux-x-backup
-compiler/shux-x-default-backup
+# xlang-x 二进制备份（手动恢复用，非仓库资产）
+compiler/xlang-x-backup
+compiler/xlang-x-default-backup
 
 # --- 编译物 / 本地残留（禁止入库）---
 # 手工改 gen 的旁路副本、fixed 中间件
@@ -286,8 +286,8 @@ compiler/*.fixed_*
 # 运行日志与冷启动/门禁输出目录（scp 回来的日志可放 logs/ 本地看）
 logs/
 # g05 / bootstrap 本机同步出的额外二进制别名
-compiler/shux-c
-compiler/bootstrap_shuxc
+compiler/xlang-c
+compiler/bootstrap_xlangc
 # Darwin 本地 seed 目标（Linux 金标 .o 若需 pin 用 seeds 例外规则）
 compiler/seeds/asm_backend_partial.darwin.*.o
 # std 预编 .o 与库产物（*.o 已全局忽略；显式声明 std/core）
@@ -297,3 +297,20 @@ core/**/*.o
 /tmp/
 *.dSYM/
 **/*.dSYM/
+
+# Product / backup binaries (never commit)
+compiler/xlang
+compiler/xlang_asm
+compiler/xlang-c
+compiler/xlang-x
+compiler/bootstrap_xlangc
+compiler/xlang-seed-phase1
+compiler/xlang
+compiler/xlang_asm
+compiler/xlang-c
+compiler/xlang_*
+compiler/xlang-*
+compiler/xlang_*
+compiler/xlang-*
+!compiler/xlang_x_stubs.c
+!compiler/scripts/

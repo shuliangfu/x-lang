@@ -113,10 +113,10 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
-VSIX="vscode-shux-${VERSION}.vsix"
+VSIX="vscode-xlang-${VERSION}.vsix"
 VSIX_PATH="${SCRIPT_DIR}/${VSIX}"
 
-echo "== Shux VSCode local install =="
+echo "== Xlang VSCode local install =="
 echo "dir: ${SCRIPT_DIR}"
 echo "version: ${VERSION}"
 
@@ -173,5 +173,5 @@ OK: extension installed via ${CLI}
 Next step:
   1. Reload window in your editor
   2. Open a .x file
-  3. Check "Shux" output channel if LSP still does not respond
+  3. Check "Xlang" output channel if LSP still does not respond
 EOF

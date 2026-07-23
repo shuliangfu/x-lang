@@ -2,7 +2,7 @@
 # X5: Struct layout static assert gate — verify AST/IR struct offsetof stability.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SHUX_C="$SCRIPT_DIR/../compiler/shux-c"
+XLANG_C="$SCRIPT_DIR/../compiler/xlang-c"
 WORKDIR="${TMPDIR:-/tmp}"
 PASS=0
 FAIL=0
@@ -31,7 +31,7 @@ function main(): i32 { return 0; }
 XEOF
 
 echo "  Check: struct definitions emitted in C output"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/struct_layout.x" > "$WORKDIR/struct_layout.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/struct_layout.x" > "$WORKDIR/struct_layout.c" 2>&1
 if grep -q "struct Layout8 {" "$WORKDIR/struct_layout.c" && grep -q "struct Layout32 {" "$WORKDIR/struct_layout.c"; then
     echo "    PASS"
     PASS=$((PASS + 1))
@@ -73,7 +73,7 @@ struct Context { sp: u32; }
 #[used] function ctx_sp(s: Context): i32 { return s.sp as i32; }
 function main(): i32 { return 0; }
 XEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/struct_x86.x" > "$WORKDIR/struct_x86.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/struct_x86.x" > "$WORKDIR/struct_x86.c" 2>&1
 cat >> "$WORKDIR/struct_x86.c" << 'CEOF'
 #include <assert.h>
 #include <stddef.h>
@@ -99,7 +99,7 @@ struct PackedMixed packed { a: u8; b: u32; c: u8; }
 #[used] function pk_a(s: PackedMixed): i32 { return s.a as i32; }
 function main(): i32 { return 0; }
 XEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/packed.x" > "$WORKDIR/packed.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/packed.x" > "$WORKDIR/packed.c" 2>&1
 cat >> "$WORKDIR/packed.c" << 'CEOF'
 #include <assert.h>
 #include <stddef.h>
@@ -121,7 +121,7 @@ struct BF3 { a: u32 : 3; b: u32 : 5; c: u32 : 24; }
 #[used] function bf_a(s: BF3): i32 { return s.a as i32; }
 function main(): i32 { return 0; }
 XEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/bf.x" > "$WORKDIR/bf.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$WORKDIR/bf.x" > "$WORKDIR/bf.c" 2>&1
 cat >> "$WORKDIR/bf.c" << 'CEOF'
 #include <assert.h>
 #include <stddef.h>

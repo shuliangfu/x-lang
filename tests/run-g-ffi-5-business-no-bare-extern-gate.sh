@@ -8,13 +8,13 @@
 #   - 默认：freeze 基线 tests/baseline/g-ffi-5-std-business-unsafe-baseline.tsv
 #     · 基线内文件允许仍含 unsafe（既有债务）
 #     · 基线外 std 业务 .x 新增 unsafe → 硬失败（债务不得扩张）
-#   - SHUX_G_FFI5_STRICT_ZERO_UNSAFE=1：要求 std 业务层 unsafe 计数为 0（终局）
+#   - XLANG_G_FFI5_STRICT_ZERO_UNSAFE=1：要求 std 业务层 unsafe 计数为 0（终局）
 #
 # 用法：./tests/run-g-ffi-5-business-no-bare-extern-gate.sh
-#   SHUX_G_FFI5_FAIL=1  — 失败硬退出（CI）
+#   XLANG_G_FFI5_FAIL=1  — 失败硬退出（CI）
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_G_FFI5_FAIL:-0}
+FAIL=${XLANG_G_FFI5_FAIL:-0}
 ALLOW="tests/baseline/g-ffi-5-business-extern-allowlist.tsv"
 STD_BASE="tests/baseline/g-ffi-5-std-business-unsafe-baseline.tsv"
 die() {
@@ -109,7 +109,7 @@ EOF
 CUR_N=$(wc -l < "$CUR_TMP" | tr -d ' ')
 echo "g-ffi-5 §8: current unsafe files=$CUR_N baseline=$BASE_N"
 
-if [ "${SHUX_G_FFI5_STRICT_ZERO_UNSAFE:-0}" = "1" ]; then
+if [ "${XLANG_G_FFI5_STRICT_ZERO_UNSAFE:-0}" = "1" ]; then
   if [ "$CUR_N" -ne 0 ]; then
     while IFS= read -r f; do
       echo "  std unsafe (strict zero): $f" >&2

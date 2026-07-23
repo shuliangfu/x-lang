@@ -1,10 +1,10 @@
 /* seeds/backend_enc_dispatch_surface.from_x.c
  * R2 full surface — isomorphic with src/asm/backend_enc_dispatch.x
  * Product PREFER_X_O: g05_try_x_to_o(backend_enc_dispatch.x) + hybrid rest
- *   seeds/backend_enc_dispatch.from_x.c (-DSHUX_BACKEND_ENC_DISPATCH_FROM_X) ld -r
+ *   seeds/backend_enc_dispatch.from_x.c (-DXLANG_BACKEND_ENC_DISPATCH_FROM_X) ld -r
  * R2: full.x 吃满 enc/ta 公共业务；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
- * Regen: ./shux -E ... src/asm/backend_enc_dispatch.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/asm/backend_enc_dispatch.x | filter DBG + polish prologue
  * Track-L (2026-07-16): riscv call/mov_rax_to_arg_reg 对齐 .x #[no_mangle] 短名（去 type-suffix mangle 快照）
  */
 #include <stddef.h>

@@ -10,10 +10,10 @@
 
 | 目标 | 说明 |
 |------|------|
-| **越界即告警** | 性能回归失败时 stderr 输出统一 `SHUX_PERF_ALERT` 行 |
+| **越界即告警** | 性能回归失败时 stderr 输出统一 `XLANG_PERF_ALERT` 行 |
 | **registry 联动** | 7 条 perf baseline 各有 `fail_env` + gate |
 | **机器可聚合** | 与 OBS-003 bracket 格式一致，CI/Loki 可 grep |
-| **零假阳性默认** | 仅 `SHUX_PERF_FAIL_ON_*=1` 硬失败路径发 `severity=critical` |
+| **零假阳性默认** | 仅 `XLANG_PERF_FAIL_ON_*=1` 硬失败路径发 `severity=critical` |
 
 验收（NEXT OBS-004）：**指标越界自动通知** → manifest + emit lib + dogfood 挂钩 + gate。
 
@@ -22,7 +22,7 @@
 ## 2. 告警行格式（v1）
 
 ```text
-shux: [SHUX_PERF_ALERT] severity=critical baseline_id=compile-dogfood metric=loop_i32 measured=0.1000 cap=0.0900 gate=run-perf-compile-dogfood-gate.sh
+xlang: [XLANG_PERF_ALERT] severity=critical baseline_id=compile-dogfood metric=loop_i32 measured=0.1000 cap=0.0900 gate=run-perf-compile-dogfood-gate.sh
 ```
 
 | 字段 | 说明 |
@@ -44,12 +44,12 @@ shux: [SHUX_PERF_ALERT] severity=critical baseline_id=compile-dogfood metric=loo
 
 | baseline_id | fail_env | gate |
 |-------------|----------|------|
-| `zig-perf` | `SHUX_PERF_FAIL_ON_ZIG` | `run-zig-baseline-gate.sh` |
-| `io-perf` | `SHUX_PERF_FAIL_ON_IO_REGRESSION` | `run-perf-io-zig-gate.sh` |
-| `net-perf` | `SHUX_PERF_FAIL_ON_NET_REGRESSION` | `run-perf-net-zig-gate.sh` |
-| `compile-dogfood` | `SHUX_PERF_FAIL_ON_COMPILE_REGRESSION` | `run-perf-compile-dogfood-gate.sh` |
-| `async-perf` | `SHUX_PERF_FAIL_ON_ASYNC_REGRESSION` | `run-perf-async.sh` |
-| `coldstart-perf` | `SHUX_PERF_FAIL_ON_COLDSTART_REGRESSION` | `run-perf-coldstart.sh` |
+| `zig-perf` | `XLANG_PERF_FAIL_ON_ZIG` | `run-zig-baseline-gate.sh` |
+| `io-perf` | `XLANG_PERF_FAIL_ON_IO_REGRESSION` | `run-perf-io-zig-gate.sh` |
+| `net-perf` | `XLANG_PERF_FAIL_ON_NET_REGRESSION` | `run-perf-net-zig-gate.sh` |
+| `compile-dogfood` | `XLANG_PERF_FAIL_ON_COMPILE_REGRESSION` | `run-perf-compile-dogfood-gate.sh` |
+| `async-perf` | `XLANG_PERF_FAIL_ON_ASYNC_REGRESSION` | `run-perf-async.sh` |
+| `coldstart-perf` | `XLANG_PERF_FAIL_ON_COLDSTART_REGRESSION` | `run-perf-coldstart.sh` |
 
 `net-perf-latency` 与 `net-perf` 共用 gate/env（manifest 一行备注）。
 
@@ -76,14 +76,14 @@ shux: [SHUX_PERF_ALERT] severity=critical baseline_id=compile-dogfood metric=loo
 ./tests/run-obs-perf-regression-alert-gate.sh
 
 # CI 聚合
-grep -F 'shux: [SHUX_PERF_ALERT]' ci.log
+grep -F 'xlang: [XLANG_PERF_ALERT]' ci.log
 ```
 
 环境：
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `SHUX_PERF_ALERT_EMIT` | `1` | `0` 关闭 emit（测试用） |
+| `XLANG_PERF_ALERT_EMIT` | `1` | `0` 关闭 emit（测试用） |
 
 ---
 
@@ -93,7 +93,7 @@ grep -F 'shux: [SHUX_PERF_ALERT]' ci.log
 
 1. RFC + manifest + lib + registry 交叉校验  
 2. `run-obs-perf-regression-alert.sh --smoke` 输出 ≥ `min_alerts` 行  
-3. `compile-dogfood` 脚本含 `SHUX_PERF_ALERT` emit 锚点  
+3. `compile-dogfood` 脚本含 `XLANG_PERF_ALERT` emit 锚点  
 
 ---
 

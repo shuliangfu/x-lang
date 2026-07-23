@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # S4 freestanding 烟测：`-freestanding` 按需链 crt0_user +（可选）runtime_panic +（可选）freestanding_io + --gc-sections
-# Alpine/musl：若 shux 尚无 -backend asm（bootstrap 未就绪），回退 musl crt0 syscall 直连烟测。
+# Alpine/musl：若 xlang 尚无 -backend asm（bootstrap 未就绪），回退 musl crt0 syscall 直连烟测。
 # 用法（仓库根）：./tests/run-freestanding-hello.sh
 # 非 Linux 宿主：skip exit 0（macOS CI 不跑）。
 
@@ -17,8 +17,8 @@ if [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
   exit 0
 fi
 
-if [ -z "${SHUX:-}" ] && [ -x ./compiler/shux ]; then
-  SHUX=./compiler/shux
+if [ -z "${XLANG:-}" ] && [ -x ./compiler/xlang ]; then
+  XLANG=./compiler/xlang
 fi
 
 TMP=$(mktemp -d)
@@ -36,24 +36,24 @@ freestanding_trim_ok() {
     return 0
   fi
   if [ "$want_io" = "0" ]; then
-    if nm "$prog" 2>/dev/null | grep -q 'shux_sys_write'; then
-      echo "run-freestanding-hello: FAIL $prog should not link shux_sys_write (trim io)"
+    if nm "$prog" 2>/dev/null | grep -q 'xlang_sys_write'; then
+      echo "run-freestanding-hello: FAIL $prog should not link xlang_sys_write (trim io)"
       exit 1
     fi
   elif [ "$want_io" = "1" ]; then
-    if ! nm "$prog" 2>/dev/null | grep -q 'shux_sys_write'; then
-      echo "run-freestanding-hello: FAIL $prog missing shux_sys_write"
+    if ! nm "$prog" 2>/dev/null | grep -q 'xlang_sys_write'; then
+      echo "run-freestanding-hello: FAIL $prog missing xlang_sys_write"
       exit 1
     fi
   fi
   if [ "$want_panic" = "0" ]; then
-    if nm "$prog" 2>/dev/null | grep -q 'shux_panic_'; then
-      echo "run-freestanding-hello: FAIL $prog should not link shux_panic_ (trim panic)"
+    if nm "$prog" 2>/dev/null | grep -q 'xlang_panic_'; then
+      echo "run-freestanding-hello: FAIL $prog should not link xlang_panic_ (trim panic)"
       exit 1
     fi
   elif [ "$want_panic" = "1" ]; then
-    if ! nm "$prog" 2>/dev/null | grep -q 'shux_panic_'; then
-      echo "run-freestanding-hello: FAIL $prog missing shux_panic_"
+    if ! nm "$prog" 2>/dev/null | grep -q 'xlang_panic_'; then
+      echo "run-freestanding-hello: FAIL $prog missing xlang_panic_"
       exit 1
     fi
   fi
@@ -94,10 +94,10 @@ EOF
 
   cat >"$TMP/hello_main.c" <<'EOF'
 /** musl 烟测桩：等价 tests/freestanding/hello/main.x（crt0_user 经 call main 进入） */
-extern long shux_sys_write(int fd, const void *buf, unsigned long len);
+extern long xlang_sys_write(int fd, const void *buf, unsigned long len);
 int main(void) {
-  static const char msg[] = "Hello Shu!\n";
-  if (shux_sys_write(1, msg, 11) != 11) {
+  static const char msg[] = "Hello Xlang!\n";
+  if (xlang_sys_write(1, msg, 11) != 11) {
     return 1;
   }
   return 0;
@@ -117,33 +117,33 @@ EOF
     echo "run-freestanding-hello: musl hello expected exit 0, got $EX"
     exit 1
   fi
-  EXPECTED=$(printf 'Hello Shu!\n')
+  EXPECTED=$(printf 'Hello Xlang!\n')
   if [ "$OUT" != "$EXPECTED" ]; then
-    echo "run-freestanding-hello: musl hello stdout mismatch (expected 'Hello Shu!\\n', got '$OUT')"
+    echo "run-freestanding-hello: musl hello stdout mismatch (expected 'Hello Xlang!\\n', got '$OUT')"
     exit 1
   fi
-  echo "run-freestanding-hello: musl hello OK (stdout 'Hello Shu!', syscall write)"
+  echo "run-freestanding-hello: musl hello OK (stdout 'Hello Xlang!', syscall write)"
 }
 
-# 探测 shux 是否具备 -freestanding + -backend asm 链入能力
-SHUX_ASM=0
-if [ -n "${SHUX:-}" ] && [ -x "$SHUX" ]; then
-  if "$SHUX" -freestanding -backend asm tests/freestanding/return42/main.x -o "$TMP/probe" 2>/dev/null; then
-    SHUX_ASM=1
+# 探测 xlang 是否具备 -freestanding + -backend asm 链入能力
+XLANG_ASM=0
+if [ -n "${XLANG:-}" ] && [ -x "$XLANG" ]; then
+  if "$XLANG" -freestanding -backend asm tests/freestanding/return42/main.x -o "$TMP/probe" 2>/dev/null; then
+    XLANG_ASM=1
     rm -f "$TMP/probe"
   fi
 fi
 
-if [ "$SHUX_ASM" != "1" ]; then
-  echo "run-freestanding-hello: shux -backend asm unavailable; musl crt0 syscall link smoke"
+if [ "$XLANG_ASM" != "1" ]; then
+  echo "run-freestanding-hello: xlang -backend asm unavailable; musl crt0 syscall link smoke"
   freestanding_musl_link_smoke
   echo "run-freestanding-hello OK (musl link smoke)"
   exit 0
 fi
 
-# return42：仅 syscall exit（完整 shux asm 路径）
+# return42：仅 syscall exit（完整 xlang asm 路径）
 RV="$TMP/return42"
-"$SHUX" -freestanding -backend asm tests/freestanding/return42/main.x -o "$RV" 2>/dev/null
+"$XLANG" -freestanding -backend asm tests/freestanding/return42/main.x -o "$RV" 2>/dev/null
 freestanding_no_libc "$RV"
 EX=0
 "$RV" >/dev/null 2>&1 || EX=$?
@@ -154,9 +154,9 @@ fi
 echo "run-freestanding-hello: return42 OK (exit 42)"
 freestanding_trim_ok "$RV" 0 0
 
-# panic_div：除零 → shux_panic_，须按需链 runtime_panic.o
+# panic_div：除零 → xlang_panic_，须按需链 runtime_panic.o
 PANIC="$TMP/panic_div"
-"$SHUX" -freestanding -backend asm tests/freestanding/panic_div/main.x -o "$PANIC" 2>/dev/null
+"$XLANG" -freestanding -backend asm tests/freestanding/panic_div/main.x -o "$PANIC" 2>/dev/null
 freestanding_no_libc "$PANIC"
 freestanding_trim_ok "$PANIC" 0 1
 EX=0
@@ -165,11 +165,11 @@ if [ "$EX" -ne 134 ]; then
   echo "run-freestanding-hello: panic_div expected exit 134, got $EX"
   exit 1
 fi
-echo "run-freestanding-hello: panic_div OK (exit 134, shux_panic_)"
+echo "run-freestanding-hello: panic_div OK (exit 134, xlang_panic_)"
 
-# hello：shux_sys_write → stdout
+# hello：xlang_sys_write → stdout
 HELLO="$TMP/hello"
-"$SHUX" -freestanding -backend asm tests/freestanding/hello/main.x -o "$HELLO" 2>/dev/null
+"$XLANG" -freestanding -backend asm tests/freestanding/hello/main.x -o "$HELLO" 2>/dev/null
 freestanding_no_libc "$HELLO"
 set +e
 OUT=$("$HELLO" 2>/dev/null)
@@ -179,12 +179,12 @@ if [ "$EX" -ne 0 ]; then
   echo "run-freestanding-hello: hello expected exit 0, got $EX"
   exit 1
 fi
-EXPECTED=$(printf 'Hello Shu!\n')
+EXPECTED=$(printf 'Hello Xlang!\n')
 if [ "$OUT" != "$EXPECTED" ]; then
-  echo "run-freestanding-hello: hello stdout mismatch (expected 'Hello Shu!\\n', got '$OUT')"
+  echo "run-freestanding-hello: hello stdout mismatch (expected 'Hello Xlang!\\n', got '$OUT')"
   exit 1
 fi
-echo "run-freestanding-hello: hello OK (stdout 'Hello Shu!', syscall write)"
+echo "run-freestanding-hello: hello OK (stdout 'Hello Xlang!', syscall write)"
 freestanding_trim_ok "$HELLO" 1 0
 
 echo "run-freestanding-hello OK"

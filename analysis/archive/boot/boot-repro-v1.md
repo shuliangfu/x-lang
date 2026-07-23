@@ -44,7 +44,7 @@
 |-------|----------|---------|
 | **build** | `make bootstrap-driver-bstrict` 失败；log 含 `pipeline_gen.c` | `bstrict_build` |
 | **build** | experimental fallback / 无 `asm_only_strict` | `strict_smoke` |
-| **compile** | `shux_asm` 编用户 .x 失败 | `shux_asm_gate` |
+| **compile** | `xlang_asm` 编用户 .x 失败 | `xlang_asm_gate` |
 | **compile** | asm binop/cfg-merge SIGSEGV | `asm_73` |
 | **run** | B-strict 白名单 run-all 失败 | `run_all_bstrict` |
 | **selfhost** | gen1→gen2 不一致 | `stage2_bstrict` |
@@ -53,7 +53,7 @@
 | **parser** | mega 7 bisect delta | `parser_mega_bisect` |
 | **parser** | parse func 计数不足 | `parser_parse_count` |
 | **wpo** | strict_glue WPO 链接失败 | `wpo_strict_link` |
-| **link/run** | 两代 shux 行为不一致 | `verify_semantic` |
+| **link/run** | 两代 xlang 行为不一致 | `verify_semantic` |
 | **all** | 完整 B-strict CI 链 | `full_ci` |
 
 ---
@@ -74,7 +74,7 @@
 
 | 条件 | 说明 |
 |------|------|
-| `compiler/shux` 可执行 | 冷启动：`make -C compiler OPT=1 all` |
+| `compiler/xlang` 可执行 | 冷启动：`make -C compiler OPT=1 all` |
 | Linux Stage2 / crt0 | 部分 case 仅 Linux；macOS 会 SKIP 并打印原因 |
 | 栈限制 | 脚本内 `ulimit -s 65532`（与 bstrict-ci 一致） |
 
@@ -83,14 +83,14 @@
 | 变量 | 作用 |
 |------|------|
 | `SHU` | 覆盖编译器路径 |
-| `SHUX_BOOTSTRAP_REPRO_SKIP_BUILD=1` | `bstrict_build` 跳过（已构建时） |
-| `SHUX_CI_SKIP_STAGE2=1` | 跳过 stage2 case |
+| `XLANG_BOOTSTRAP_REPRO_SKIP_BUILD=1` | `bstrict_build` 跳过（已构建时） |
+| `XLANG_CI_SKIP_STAGE2=1` | 跳过 stage2 case |
 
 ---
 
 ## 5. 与 BOOT-004 衔接
 
-BOOT-004 已实现：`tests/run-bootstrap-stage-diag.sh` 从失败 log 输出 `SHUX_BOOT_STAGE` / `SHUX_BOOT_REPRO`；`--repro` 自动调用本脚本 case。
+BOOT-004 已实现：`tests/run-bootstrap-stage-diag.sh` 从失败 log 输出 `XLANG_BOOT_STAGE` / `XLANG_BOOT_REPRO`；`--repro` 自动调用本脚本 case。
 
 ```bash
 ./tests/run-bootstrap-stage-diag.sh --repro /tmp/build_bstrict.log

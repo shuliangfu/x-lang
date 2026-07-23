@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# B-01 v1：#[cfg(...)] 语义剪枝烟测（parse/typeck + 运行）；Darwin/Linux 可用 shux-c。
+# B-01 v1：#[cfg(...)] 语义剪枝烟测（parse/typeck + 运行）；Darwin/Linux 可用 xlang-c。
 # 用法：./tests/run-cfg-attribute-skip-gate.sh
-# 环境：SHUX_CFG_ATTR_SKIP_FAIL=1 失败时硬退出
+# 环境：XLANG_CFG_ATTR_SKIP_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_CFG_ATTR_SKIP_FAIL:-0}
+FAIL=${XLANG_CFG_ATTR_SKIP_FAIL:-0}
 X="tests/lexer/cfg_attribute_skip.x"
-OUT="/tmp/shux_cfg_attr_skip.$$.out"
-SHUX="${SHUX:-./compiler/shux-c}"
+OUT="/tmp/xlang_cfg_attr_skip.$$.out"
+XLANG="${XLANG:-./compiler/xlang-c}"
 
-if [ ! -x "$SHUX" ]; then
-  SHUX="./compiler/shux"
+if [ ! -x "$XLANG" ]; then
+  XLANG="./compiler/xlang"
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "cfg-attribute-skip-gate: SKIP (no shux/shux-c)"
+if [ ! -x "$XLANG" ]; then
+  echo "cfg-attribute-skip-gate: SKIP (no xlang/xlang-c)"
   exit 0
 fi
 
@@ -34,9 +34,9 @@ esac
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" build -o "$OUT" "$X" 2>/tmp/shux_cfg_attr_skip.log; then
+if ! "$XLANG" build -o "$OUT" "$X" 2>/tmp/xlang_cfg_attr_skip.log; then
   echo "cfg-attribute-skip-gate FAIL: compile $X" >&2
-  tail -n 8 /tmp/shux_cfg_attr_skip.log 2>/dev/null || true
+  tail -n 8 /tmp/xlang_cfg_attr_skip.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

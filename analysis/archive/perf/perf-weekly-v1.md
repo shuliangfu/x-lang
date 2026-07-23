@@ -32,6 +32,6 @@
 
 ## 3. 跳过策略
 
-- 无 native `shux`/`shux-c`：IO/NET bench 子步骤 SKIP，manifest 仍须全绿。
-- 无 `shux_asm`：SIMD shuffle/select perf SKIP，autovec strategy gate 仍须 OK。
+- 无 native `xlang`/`xlang-c`：IO/NET bench 子步骤 SKIP，manifest 仍须全绿。
+- 无 `xlang_asm`：SIMD shuffle/select perf SKIP，autovec strategy gate 仍须 OK。
 - 无 libsqlite3：`sqlite_is_available()==0` 时 DB loop 仍跑 stub 路径。

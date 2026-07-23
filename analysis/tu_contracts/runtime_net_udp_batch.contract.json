@@ -23,32 +23,32 @@
   "symbols": {
     "x": [
       "runtime_net_udp_batch_x_doc_anchor",
-      "shu_udp_batch_set_addr_port",
-      "shu_udp_batch_poll_readable"
+      "xlang_udp_batch_set_addr_port",
+      "xlang_udp_batch_poll_readable"
     ],
     "seed": [
-      "shu_udp_batch_set_addr_port_impl",
-      "shu_udp_batch_poll_readable_impl",
-      "shu_net_udp_recvmmsg2_c",
-      "shu_net_udp_sendmmsg2_c",
-      "shu_net_udp_recvmmsg_buf_c",
-      "shu_net_udp_sendmmsg_buf_c"
+      "xlang_udp_batch_set_addr_port_impl",
+      "xlang_udp_batch_poll_readable_impl",
+      "xlang_net_udp_recvmmsg2_c",
+      "xlang_net_udp_sendmmsg2_c",
+      "xlang_net_udp_recvmmsg_buf_c",
+      "xlang_net_udp_sendmmsg_buf_c"
     ],
     "only_x": ["runtime_net_udp_batch_x_doc_anchor"],
     "only_seed": [
-      "shu_udp_batch_set_addr_port_impl",
-      "shu_udp_batch_poll_readable_impl",
-      "shu_net_udp_recvmmsg2_c",
-      "shu_net_udp_sendmmsg2_c",
-      "shu_net_udp_recvmmsg_buf_c",
-      "shu_net_udp_sendmmsg_buf_c"
+      "xlang_udp_batch_set_addr_port_impl",
+      "xlang_udp_batch_poll_readable_impl",
+      "xlang_net_udp_recvmmsg2_c",
+      "xlang_net_udp_sendmmsg2_c",
+      "xlang_net_udp_recvmmsg_buf_c",
+      "xlang_net_udp_sendmmsg_buf_c"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_NET_UDP_BATCH_FROM_X",
-  "impl_residuals": ["shu_udp_batch_set_addr_port_impl", "shu_udp_batch_poll_readable_impl"],
+  "rest_macro": "XLANG_RUNTIME_NET_UDP_BATCH_FROM_X",
+  "impl_residuals": ["xlang_udp_batch_set_addr_port_impl", "xlang_udp_batch_poll_readable_impl"],
   "forward_decls": [
-    "shu_udp_batch_set_addr_port",
-    "shu_udp_batch_poll_readable"
+    "xlang_udp_batch_set_addr_port",
+    "xlang_udp_batch_poll_readable"
   ],
   "internal_call_rewrites": [],
   "known_limitations": [

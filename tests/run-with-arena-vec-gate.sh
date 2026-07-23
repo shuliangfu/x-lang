@@ -3,17 +3,17 @@
 # 用法：./tests/run-with-arena-vec-gate.sh
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-SHUX="${SHUX:-./compiler/shux-c}"
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+XLANG="${XLANG:-./compiler/xlang-c}"
 SRC="tests/mem/with_arena_vec_push.x"
-OUT="/tmp/shux_with_arena_vec_$$"
-FAIL="${SHUX_WITH_ARENA_VEC_GATE_FAIL:-0}"
+OUT="/tmp/xlang_with_arena_vec_$$"
+FAIL="${XLANG_WITH_ARENA_VEC_GATE_FAIL:-0}"
 
 rm -f "$OUT"
-# shux 非 TTY stdout 重定向会挂起；tee|cat Drain（与 A-11 parse 指标同根因）。
-if ! "$SHUX" "$SRC" -o "$OUT" 2>&1 | tee /tmp/shux_with_arena_vec_build.log | cat >/dev/null; then
+# xlang 非 TTY stdout 重定向会挂起；tee|cat Drain（与 A-11 parse 指标同根因）。
+if ! "$XLANG" "$SRC" -o "$OUT" 2>&1 | tee /tmp/xlang_with_arena_vec_build.log | cat >/dev/null; then
   echo "with-arena-vec-gate FAIL: compile $SRC" >&2
-  tail -8 /tmp/shux_with_arena_vec_build.log 2>/dev/null || true
+  tail -8 /tmp/xlang_with_arena_vec_build.log 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
@@ -27,7 +27,7 @@ if [ "$rc" != "0" ]; then
 fi
 
 # 生成 C 应走 alloc（非 heap_alloc_u8）
-gen="$(grep -oE '/tmp/shux_[A-Za-z0-9]+\.c' /tmp/shux_with_arena_vec_build.log | tail -1)"
+gen="$(grep -oE '/tmp/xlang_[A-Za-z0-9]+\.c' /tmp/xlang_with_arena_vec_build.log | tail -1)"
 if [ -n "$gen" ] && [ -f "$gen" ]; then
   if grep -qE 'heap_alloc_u8_c|heap\.alloc_u8' "$gen" 2>/dev/null; then
     echo "with-arena-vec-gate FAIL: reserve still uses heap.alloc in generated C" >&2

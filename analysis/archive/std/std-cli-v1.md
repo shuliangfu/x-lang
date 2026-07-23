@@ -33,6 +33,6 @@ Cookbook：`examples/cookbook/cli_subcommand.x`（gate 烟测同逻辑）。
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CLI] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_CLI] status=ok c_smoke=1 x=1 skip=0
 std-cli gate OK
 ```

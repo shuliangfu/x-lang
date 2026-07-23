@@ -45,7 +45,7 @@ export function gzip_stream_hdr_bytes(): i32 {
 }
 
 /* See implementation. */
-export const SHU_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
+export const XLANG_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
 
 /* See implementation. */
 export const GZIP_WBITS: i32 = 31;
@@ -124,13 +124,13 @@ export function gzip_zstream_clear_alloc(strm: *ZStream): void {
 /**
  * See implementation.
  */
-export function shu_gzip_stream_cast(state: *u8, state_cap: i32): *GzipStream {
+export function xlang_gzip_stream_cast(state: *u8, state_cap: i32): *GzipStream {
   let need: i32 = gzip_stream_state_bytes();
   if (state == 0 || state_cap < need) {
     return 0 as *GzipStream;
   }
   let s: *GzipStream = state as *GzipStream;
-  if (s.hdr.magic != SHU_GZIP_STREAM_MAGIC || s.hdr.inited == 0) {
+  if (s.hdr.magic != XLANG_GZIP_STREAM_MAGIC || s.hdr.inited == 0) {
     return 0 as *GzipStream;
   }
   return s;
@@ -210,7 +210,7 @@ export function compress_gzip_stream_init_compress_c(state: *u8, state_cap: i32)
   }
   mem.mem_zero(state, need);
   let s: *GzipStream = state as *GzipStream;
-  s.hdr.magic = SHU_GZIP_STREAM_MAGIC;
+  s.hdr.magic = XLANG_GZIP_STREAM_MAGIC;
   s.hdr.mode = 0;
   gzip_zstream_clear_alloc(&s.strm);
   let init_ret: i32 = 0;
@@ -232,7 +232,7 @@ export function compress_gzip_stream_init_decompress_c(state: *u8, state_cap: i3
   }
   mem.mem_zero(state, need);
   let s: *GzipStream = state as *GzipStream;
-  s.hdr.magic = SHU_GZIP_STREAM_MAGIC;
+  s.hdr.magic = XLANG_GZIP_STREAM_MAGIC;
   s.hdr.mode = 1;
   gzip_zstream_clear_alloc(&s.strm);
   let init_ret: i32 = 0;
@@ -252,7 +252,7 @@ export function compress_gzip_stream_compress_c(state: *u8, state_cap: i32, in: 
   if (in_consumed != 0) {
     in_consumed[0] = 0;
   }
-  let s: *GzipStream = shu_gzip_stream_cast(state, state_cap);
+  let s: *GzipStream = xlang_gzip_stream_cast(state, state_cap);
   if (s == 0 || s.hdr.mode != 0 || out == 0 || out_cap <= 0) {
     return -1;
   }
@@ -300,7 +300,7 @@ export function compress_gzip_stream_decompress_c(state: *u8, state_cap: i32, in
   if (in_consumed != 0) {
     in_consumed[0] = 0;
   }
-  let s: *GzipStream = shu_gzip_stream_cast(state, state_cap);
+  let s: *GzipStream = xlang_gzip_stream_cast(state, state_cap);
   if (s == 0 || s.hdr.mode != 1 || out == 0 || out_cap <= 0) {
     return -1;
   }
@@ -345,7 +345,7 @@ export function compress_gzip_stream_end_c(state: *u8, state_cap: i32): i32 {
     return 0;
   }
   let s: *GzipStream = state as *GzipStream;
-  if (s.hdr.magic != SHU_GZIP_STREAM_MAGIC || s.hdr.inited == 0) {
+  if (s.hdr.magic != XLANG_GZIP_STREAM_MAGIC || s.hdr.inited == 0) {
     return 0;
   }
   if (s.hdr.mode == 0) {

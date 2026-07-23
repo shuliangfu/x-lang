@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # MEM-B0：defer 静态内联烟测（LIFO / 嵌套 / 多 return）。
 # 用法：./tests/run-defer-gate.sh
-# 产品路径：必须 SHUX=shux_asm（或可 -o 的产品编译器）；失败硬退出（禁止假绿）。
+# 产品路径：必须 XLANG=xlang_asm（或可 -o 的产品编译器）；失败硬退出（禁止假绿）。
 set -e
 cd "$(dirname "$0")/.."
 
-SHUX="${SHUX:-./compiler/shux_asm}"
-if [ ! -x "$SHUX" ]; then
-  SHUX="./compiler/shux"
+XLANG="${XLANG:-./compiler/xlang_asm}"
+if [ ! -x "$XLANG" ]; then
+  XLANG="./compiler/xlang"
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "defer-gate FAIL: no product SHUX (shux_asm/shux)" >&2
+if [ ! -x "$XLANG" ]; then
+  echo "defer-gate FAIL: no product XLANG (xlang_asm/xlang)" >&2
   exit 1
 fi
 
 run_case() {
   local src="$1"
   local expect="$2"
-  local out="/tmp/shux_defer_gate_$$"
-  if ! "$SHUX" build -backend c "$src" -o "$out" 2>/tmp/shux_defer_gate_build.log; then
+  local out="/tmp/xlang_defer_gate_$$"
+  if ! "$XLANG" build -backend c "$src" -o "$out" 2>/tmp/xlang_defer_gate_build.log; then
     echo "defer-gate FAIL: compile $src" >&2
-    tail -20 /tmp/shux_defer_gate_build.log 2>/dev/null || true
+    tail -20 /tmp/xlang_defer_gate_build.log 2>/dev/null || true
     exit 1
   fi
   local got=0

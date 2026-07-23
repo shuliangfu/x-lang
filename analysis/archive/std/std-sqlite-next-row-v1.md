@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD067_DB_CURSOR] status=ok cursor_c=1 cursor_x=0 skip=1
+xlang: [XLANG_STD067_DB_CURSOR] status=ok cursor_c=1 cursor_x=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。

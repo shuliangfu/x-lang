@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# LSP 测试：启动 shux --lsp，发送 initialize / didOpen / diagnostics / textDocument/formatting / shutdown / exit，校验 stdout 含预期 JSON-RPC 响应。
-# 依赖：带 LSP 的 shux（make -C compiler bootstrap-driver-seed）。
+# LSP 测试：启动 xlang --lsp，发送 initialize / didOpen / diagnostics / textDocument/formatting / shutdown / exit，校验 stdout 含预期 JSON-RPC 响应。
+# 依赖：带 LSP 的 xlang（make -C compiler bootstrap-driver-seed）。
 
 set -e
 cd "$(dirname "$0")/.."
-SHUX="${SHUX:-./compiler/shux}"
+XLANG="${XLANG:-./compiler/xlang}"
 
-# 构建带 LSP 的 shux（若尚未构建或无 --lsp 则先 bootstrap-driver-seed）
-if ! "$SHUX" --help 2>/dev/null | grep -q '\-\-lsp'; then
+# 构建带 LSP 的 xlang（若尚未构建或无 --lsp 则先 bootstrap-driver-seed）
+if ! "$XLANG" --help 2>/dev/null | grep -q '\-\-lsp'; then
   make -C compiler bootstrap-driver-seed
-  SHUX=./compiler/shux
+  XLANG=./compiler/xlang
 fi
 
 # 发送一条 LSP 消息：Content-Length: N\r\n\r\n<body>
@@ -57,17 +57,17 @@ trap "rm -f $OUT $ERR $LSP_IN" EXIT
 } >"$LSP_IN"
 # 调试 stdin 每次 read 的请求/返回字节数：LSP_READ_DEBUG=1 时 LSP 的 stderr 会打 io_read 日志
 # timeout 为 GNU coreutils，macOS 默认无；无 timeout 时直接运行，避免 exit 127
-# Alpine 等默认栈约 8MB，LSP parse/typeck 易 SIGSEGV(139)；与 build_shux_asm 一致抬高 soft limit。
+# Alpine 等默认栈约 8MB，LSP parse/typeck 易 SIGSEGV(139)；与 build_xlang_asm 一致抬高 soft limit。
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 LSP_EC=0
 if command -v timeout >/dev/null 2>&1; then
-  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" timeout 5 "$SHUX" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
+  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" timeout 5 "$XLANG" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
 else
-  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" "$SHUX" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
+  LSP_READ_DEBUG="${LSP_READ_DEBUG:-}" "$XLANG" --lsp <"$LSP_IN" 2>"$ERR" >"$OUT" || LSP_EC=$?
 fi
 # 124 = timeout 且已有部分响应时可接受；0 为正常；其余为失败
 if [ "$LSP_EC" -ne 0 ] && [ "$LSP_EC" -ne 124 ]; then
-  echo "LSP test FAIL: shux --lsp exit $LSP_EC" >&2
+  echo "LSP test FAIL: xlang --lsp exit $LSP_EC" >&2
   [ -s "$ERR" ] && cat "$ERR" >&2
   [ -s "$OUT" ] && cat "$OUT"
   exit 1
@@ -88,7 +88,7 @@ if ! grep -q '"result"' "$OUT"; then
   cat "$OUT"
   exit 1
 fi
-if ! grep -qE 'capabilities|serverInfo|"name":"shux"' "$OUT"; then
+if ! grep -qE 'capabilities|serverInfo|"name":"xlang"' "$OUT"; then
   echo "LSP test FAIL: initialize response missing capabilities"
   [ -s "$ERR" ] && cat "$ERR" >&2
   [ -s "$OUT" ] && cat "$OUT"

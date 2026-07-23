@@ -44,7 +44,7 @@ function main(): i32 { return 21.double(); }  // → exit 42
 
 - 无 trait 泛型参数 / 关联类型
 - 无跨模块 trait 对象（vtable 动态派发）
-- `.x` seed pipeline 不解析 trait（见 `runtime.c` `content_has_generic_or_trait`）→ 须 **shux / shux-c**
+- `.x` seed pipeline 不解析 trait（见 `runtime.c` `content_has_generic_or_trait`）→ 须 **xlang / xlang-c**
 
 ---
 

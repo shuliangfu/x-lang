@@ -5,22 +5,22 @@
 # 与 verify-selfhost-stage2-bstrict.sh 行为 parity 正交：行为一致 ≠ 二进制一致。
 #
 # 用法（仓库根）：
-#   ./tests/run-stage2-hash-gate.sh compiler/shux_asm_stage1 compiler/shux_asm2
-#   SHUX_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh   # 默认路径见下
+#   ./tests/run-stage2-hash-gate.sh compiler/xlang_asm_stage1 compiler/xlang_asm2
+#   XLANG_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh   # 默认路径见下
 #
 # 环境：
-#   SHUX_STAGE2_HASH_SKIP=1      — 完全跳过（非 Linux / 本地调试）
-#   SHUX_STAGE2_HASH_STRICT=1    — 哈希不等时 exit 1（CI 在哈希稳定后开启）
+#   XLANG_STAGE2_HASH_SKIP=1      — 完全跳过（非 Linux / 本地调试）
+#   XLANG_STAGE2_HASH_STRICT=1    — 哈希不等时 exit 1（CI 在哈希稳定后开启）
 #   默认（STRICT 未设）：不等时 WARN 但 exit 0（track-only，待 A-09 全绿后改 STRICT）
 
 set -e
 cd "$(dirname "$0")/.."
 
-STAGE1="${1:-compiler/shux_asm_stage1}"
-STAGE2="${2:-compiler/shux_asm2}"
+STAGE1="${1:-compiler/xlang_asm_stage1}"
+STAGE2="${2:-compiler/xlang_asm2}"
 
-if [ "${SHUX_STAGE2_HASH_SKIP:-0}" = "1" ]; then
-  echo "stage2-hash-gate: SKIP (SHUX_STAGE2_HASH_SKIP=1)"
+if [ "${XLANG_STAGE2_HASH_SKIP:-0}" = "1" ]; then
+  echo "stage2-hash-gate: SKIP (XLANG_STAGE2_HASH_SKIP=1)"
   exit 0
 fi
 
@@ -58,10 +58,10 @@ if [ "$H1" = "$H2" ]; then
 fi
 
 echo "stage2-hash-gate: MISMATCH (stage1 != stage2 SHA256)" >&2
-if [ "${SHUX_STAGE2_HASH_STRICT:-0}" = "1" ]; then
-  echo "stage2-hash-gate FAIL (SHUX_STAGE2_HASH_STRICT=1)" >&2
+if [ "${XLANG_STAGE2_HASH_STRICT:-0}" = "1" ]; then
+  echo "stage2-hash-gate FAIL (XLANG_STAGE2_HASH_STRICT=1)" >&2
   exit 1
 fi
 
-echo "stage2-hash-gate WARN (track-only; set SHUX_STAGE2_HASH_STRICT=1 to hard-fail)"
+echo "stage2-hash-gate WARN (track-only; set XLANG_STAGE2_HASH_STRICT=1 to hard-fail)"
 exit 0

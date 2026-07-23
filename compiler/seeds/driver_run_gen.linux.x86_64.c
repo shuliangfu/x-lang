@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-void shux_panic_(int has_msg, int msg_val);
+void xlang_panic_(int has_msg, int msg_val);
 extern int32_t driver_run_eq_word(uint8_t * buf, int32_t len, uint8_t * word_ptr, int32_t word_len);
 extern int32_t driver_cmd_run(int32_t argc, uint8_t * argv);
 extern int32_t driver_exec_compiled(int32_t argc, uint8_t * argv);

@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # B-02：#[cfg] 与 `-target` triple 联动烟测（cross OS/arch 剪枝）。
 # 用法：./tests/run-cfg-target-triple-gate.sh
-# 环境：SHUX_CFG_TARGET_TRIPLE_FAIL=1 失败时硬退出
+# 环境：XLANG_CFG_TARGET_TRIPLE_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_CFG_TARGET_TRIPLE_FAIL:-0}
+FAIL=${XLANG_CFG_TARGET_TRIPLE_FAIL:-0}
 X="tests/lexer/cfg_attribute_skip.x"
-SHUX="${SHUX:-./compiler/shux-c}"
+XLANG="${XLANG:-./compiler/xlang-c}"
 
-if [ ! -x "$SHUX" ]; then
-  SHUX="./compiler/shux"
+if [ ! -x "$XLANG" ]; then
+  XLANG="./compiler/xlang"
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "cfg-target-triple-gate: SKIP (no shux/shux-c)"
+if [ ! -x "$XLANG" ]; then
+  echo "cfg-target-triple-gate: SKIP (no xlang/xlang-c)"
   exit 0
 fi
 
@@ -30,11 +30,11 @@ esac
 run_expect() {
   local triple="$1"
   local expect="$2"
-  local out="/tmp/shux_cfg_triple.$$.out"
+  local out="/tmp/xlang_cfg_triple.$$.out"
   rm -f "$out" 2>/dev/null || true
-  if ! "$SHUX" -target "$triple" -o "$out" "$X" 2>/tmp/shux_cfg_triple.log; then
+  if ! "$XLANG" -target "$triple" -o "$out" "$X" 2>/tmp/xlang_cfg_triple.log; then
     echo "cfg-target-triple-gate FAIL: compile with -target $triple" >&2
-    tail -n 8 /tmp/shux_cfg_triple.log 2>/dev/null || true
+    tail -n 8 /tmp/xlang_cfg_triple.log 2>/dev/null || true
     rm -f "$out" 2>/dev/null || true
     return 1
   fi

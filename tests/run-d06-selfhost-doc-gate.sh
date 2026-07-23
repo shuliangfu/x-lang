@@ -2,11 +2,11 @@
 # D-06 v1：SELFHOST / README Stage2 黄金自举文档与复现命令门禁。
 #
 # 用法：./tests/run-d06-selfhost-doc-gate.sh
-# 环境：SHUX_D06_FAIL=1 失败时硬退出
+# 环境：XLANG_D06_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_D06_FAIL:-0}
+FAIL=${XLANG_D06_FAIL:-0}
 DOC="analysis/phase-d-d06-v1.md"
 MANIFEST="tests/baseline/d06-selfhost-doc.tsv"
 SELFHOST="compiler/docs/SELFHOST.md"
@@ -39,8 +39,8 @@ for kw in \
 done
 
 # Stage2 哈希：须写明 STRICT 默认（D-03）
-grep -q 'SHUX_STAGE2_HASH_STRICT' "$SELFHOST" || die "SELFHOST.md missing SHA256 STRICT env"
-grep -q 'SHUX_STAGE2_HASH_STRICT=1' "$SELFHOST" || die "SELFHOST.md missing STRICT=1 example"
+grep -q 'XLANG_STAGE2_HASH_STRICT' "$SELFHOST" || die "SELFHOST.md missing SHA256 STRICT env"
+grep -q 'XLANG_STAGE2_HASH_STRICT=1' "$SELFHOST" || die "SELFHOST.md missing STRICT=1 example"
 
 # ── README 自举状态对齐 ──
 grep -q 'Stage2 哈希金标准' "$README" || die "README missing Stage2 hash row"

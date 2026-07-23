@@ -141,7 +141,7 @@ void parser_asm_skip_balanced_parens_into_buf_c(struct parser_asm_lexer *out, st
 
 /**
  * skip_balanced_parens_into（u8[] slice 路径）：结果写入 *out。
- * X u8[] 经 C 生成器以 shux_slice_uint8_t* 传递（与 parser_gen lexer_next_into 一致）。
+ * X u8[] 经 C 生成器以 xlang_slice_uint8_t* 传递（与 parser_gen lexer_next_into 一致）。
  */
 void parser_asm_skip_balanced_parens_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                   struct parser_asm_slice_u8 *source) {
@@ -314,7 +314,7 @@ void parser_skip_generic_angle_list_into_buf_glue(struct parser_asm_lexer *out, 
 }
 
 void parser_skip_generic_angle_list_count_into_glue(struct lexer_Lexer *out, int32_t *count, struct lexer_Lexer lex,
-                                                    struct shux_slice_uint8_t *source) {
+                                                    struct xlang_slice_uint8_t *source) {
   struct parser_asm_lexer aout;
   struct parser_asm_lexer alex;
   struct parser_asm_slice_u8 asrc;
@@ -335,7 +335,7 @@ void parser_skip_generic_angle_list_count_into_glue(struct lexer_Lexer *out, int
 
 /** parser_gen / parser.x 用 lexer_Lexer ABI 跳过 `<...>` 泛型列表。 */
 void parser_skip_generic_angle_list_into_glue(struct lexer_Lexer *out, struct lexer_Lexer lex,
-                                            struct shux_slice_uint8_t *source) {
+                                            struct xlang_slice_uint8_t *source) {
   struct parser_asm_lexer aout;
   struct parser_asm_lexer alex;
   struct parser_asm_slice_u8 asrc;

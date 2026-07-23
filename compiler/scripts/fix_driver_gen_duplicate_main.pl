@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# shux-c -E-extern 生成 driver_gen.c 时可能重复 main_run_compiler_c（后者自递归）。
+# xlang-c -E-extern 生成 driver_gen.c 时可能重复 main_run_compiler_c（后者自递归）。
 # 保留转调 impl 的版本，删掉多余的自调用副本。
 use strict;
 use warnings;
@@ -11,9 +11,9 @@ my $src = <$fh>;
 my $orig = $src;
 
 # 删掉 codegen 重复生成的 wrapper（impl 本体经 #define 已导出为 main_run_compiler_c）。
-# SHUX_LIB_WEAK 前缀可选匹配（codegen 输出可能带或不带）。
-$src =~ s/\n(?:SHUX_LIB_WEAK\s+)?int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c_impl\(argc, argv\);\n\}//s;
-$src =~ s/\n(?:SHUX_LIB_WEAK\s+)?int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c\(argc, argv\);\n\}//s;
+# XLANG_LIB_WEAK 前缀可选匹配（codegen 输出可能带或不带）。
+$src =~ s/\n(?:XLANG_LIB_WEAK\s+)?int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c_impl\(argc, argv\);\n\}//s;
+$src =~ s/\n(?:XLANG_LIB_WEAK\s+)?int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c\(argc, argv\);\n\}//s;
 # 去重连续相同前向声明。
 while ($src =~ s/(int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\);\n)\1/$1/s) { }
 

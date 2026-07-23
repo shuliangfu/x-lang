@@ -2,7 +2,7 @@
 # F-dynlib v1：std.dynlib 去 C（dynlib.c → dynlib.x；胶层 v2 已拆，见 run-f-dynlib-v2-gate.sh）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_DYNLIB_V1_FAIL:-0}
+FAIL=${XLANG_F_DYNLIB_V1_FAIL:-0}
 DOC="analysis/phase-f-dynlib-v1.md"
 MANIFEST="tests/baseline/f-dynlib-v1-closure.tsv"
 die() { echo "f-dynlib-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'dynlib.x' compiler/Makefile || die "Makefile missing dynlib.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "make dynlib.o failed"
 else
-  echo "f-dynlib-v1 SKIP dynlib.o build (no shux-c)" >&2
+  echo "f-dynlib-v1 SKIP dynlib.o build (no xlang-c)" >&2
 fi
 for sub in run-std-dynlib-windows-gate.sh run-std-dynlib-last-error-gate.sh; do
   [ -f "tests/$sub" ] || continue

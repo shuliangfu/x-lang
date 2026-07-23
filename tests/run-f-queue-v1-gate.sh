@@ -2,7 +2,7 @@
 # F-queue v1：std.queue 去 C（queue.c → queue.x；胶层 v2 已拆，见 run-f-queue-v2-gate.sh）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_QUEUE_V1_FAIL:-0}
+FAIL=${XLANG_F_QUEUE_V1_FAIL:-0}
 DOC="analysis/phase-f-queue-v1.md"
 MANIFEST="tests/baseline/f-queue-v1-closure.tsv"
 die() { echo "f-queue-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'queue.x' compiler/Makefile || die "Makefile missing queue.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/queue/queue.o >/dev/null 2>&1 || die "make queue.o failed"
 else
-  echo "f-queue-v1 SKIP queue.o build (no shux-c)" >&2
+  echo "f-queue-v1 SKIP queue.o build (no xlang-c)" >&2
 fi
 chmod +x tests/run-std-queue-concurrent-gate.sh
 tests/run-std-queue-concurrent-gate.sh || die "run-std-queue-concurrent-gate failed"

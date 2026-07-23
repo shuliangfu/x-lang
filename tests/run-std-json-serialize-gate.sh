@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_JSZ_DOC:-analysis/std-json-serialize-v1.md}"
-MANIFEST="${SHUX_STD_JSZ_TSV:-tests/baseline/std-json-serialize.tsv}"
+DOC="${XLANG_STD_JSZ_DOC:-analysis/std-json-serialize-v1.md}"
+MANIFEST="${XLANG_STD_JSZ_TSV:-tests/baseline/std-json-serialize.tsv}"
 JSON_X="std/json/mod.x"
 JSON_IMPL="std/json/json.x"
 JSON_X="std/json/json.x"
@@ -41,7 +41,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-json-serialize manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -55,28 +55,28 @@ stdlib_cm_native_shu() {
 
 RT_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-035: typeck + round-trip smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-035: typeck + round-trip smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
-  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$RT_X" >/dev/null 2>&1; then
+  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$RT_X" >/dev/null 2>&1; then
     echo "std-json-serialize gate FAIL: typeck $RT_X" >&2
-    "$SHUX_BIN" check -L . "$RT_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$RT_X" 2>&1 | tail -10 >&2 || true
     std_jsz_emit_report "fail" 0 0
     exit 1
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o
-  if std_json_run_smoke "$SHUX_BIN" "$RT_X" "object_array_roundtrip"; then
+  if std_json_run_smoke "$XLANG_BIN" "$RT_X" "object_array_roundtrip"; then
     RT_OK=1
   else
     std_jsz_emit_report "fail" 0 0
@@ -84,7 +84,7 @@ if [ -n "$SHUX_BIN" ]; then
   fi
   SKIP=0
 else
-  echo "std-json-serialize gate SKIP smoke (no native shux-c)" >&2
+  echo "std-json-serialize gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 std_jsz_emit_report "ok" "$RT_OK" "$SKIP"

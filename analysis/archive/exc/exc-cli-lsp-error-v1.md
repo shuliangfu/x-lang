@@ -13,7 +13,7 @@
 | **同错同文案** | 同一 typeck/parse 错误，CLI 与 LSP 的 **message 正文** 一致 |
 | **同定位** | line/col 均为 **1-based**，与源码行列对齐 |
 | **统一 hub** | typeck 经 `lsp_diag_report_typeck`；parse 经 `parser fail()` |
-| **check 形态** | `shux check` 输出 `path:line:col - error: msg`（deno 风格） |
+| **check 形态** | `xlang check` 输出 `path:line:col - error: msg`（deno 风格） |
 
 验收（NEXT EXC-005）：**同错同文案同定位** + manifest + golden 烟测。
 
@@ -65,7 +65,7 @@
 |---------|----------|-------------------|
 | `typeck_assign` | `tests/typeck/type_mismatch_assign.x` | `assignment type mismatch: expected i32, found bool` |
 | `typeck_return` | `tests/typeck/return_operand_type_mismatch.x` | `return expression type mismatch` |
-| `check_format` | `shux check` + assign fixture | ` - error: ` + 上列正文 |
+| `check_format` | `xlang check` + assign fixture | ` - error: ` + 上列正文 |
 
 行列：须匹配 `\d+:\d+`（check）或 ` at \d+:\d+`（compile typeck）。
 
@@ -76,7 +76,7 @@
 | 路径 | 说明 |
 |------|------|
 | `driver_diagnostic_typeck_fail` | 泛化 fallback 行可含 `typeck error:` 前缀 |
-| `SHUX_DEBUG_*` | 调试行非用户诊断 |
+| `XLANG_DEBUG_*` | 调试行非用户诊断 |
 | codegen/link | 非 frontend 诊断，不在本规范范围 |
 
 ---

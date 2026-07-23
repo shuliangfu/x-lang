@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # strict 链 parser 真机码在 parser_x.o（-x -E）；本门禁验符号非 U 且 build_asm/parser.o 第二遍非空。
 # 用法：./tests/run-parser-x-strict-gate.sh
-# 环境：SHUX_PARSER_X_STRICT_FAIL=1 硬失败（CI 默认）
+# 环境：XLANG_PARSER_X_STRICT_FAIL=1 硬失败（CI 默认）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_PARSER_X_STRICT_FAIL:-1}
+FAIL=${XLANG_PARSER_X_STRICT_FAIL:-1}
 # 兼容旧 env 名（迁移期）
-FAIL=${SHUX_PARSER_X_STRICT_FAIL:-$FAIL}
-PARSER_X="${SHUX_PARSER_X_O:-${SHUX_PARSER_X_O:-compiler/parser_x.o}}"
-PARSER_ASM="${SHUX_PARSER_ASM_O:-compiler/build_asm/parser.o}"
+FAIL=${XLANG_PARSER_X_STRICT_FAIL:-$FAIL}
+PARSER_X="${XLANG_PARSER_X_O:-${XLANG_PARSER_X_O:-compiler/parser_x.o}}"
+PARSER_ASM="${XLANG_PARSER_ASM_O:-compiler/build_asm/parser.o}"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "parser-x-strict-gate: N/A on Darwin"

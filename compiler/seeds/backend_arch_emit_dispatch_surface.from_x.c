@@ -1,11 +1,11 @@
 /* seeds/backend_arch_emit_dispatch_surface.from_x.c
  * R2 full surface — isomorphic with src/asm/backend_arch_emit_dispatch.x
  * Product PREFER_X_O: g05_try_x_to_o(full.x) + rest
- *   seeds/backend_arch_emit_dispatch.from_x.c (-DSHUX_BACKEND_ARCH_EMIT_DISPATCH_FROM_X) ld -r
+ *   seeds/backend_arch_emit_dispatch.from_x.c (-DXLANG_BACKEND_ARCH_EMIT_DISPATCH_FROM_X) ld -r
  * R2: full.x 吃满 47 ta 分派壳；FROM_X rest 仅 slice_marker（业务 H=0）
  * Prove: full.x vs this seed → nm IDENTICAL
  * Cap residual: arch_*_emit_* 在外 TU（U）
- * Regen: copy thin_surface / ./shux -E full.x | filter DBG
+ * Regen: copy thin_surface / ./xlang -E full.x | filter DBG
  */
 #include <stddef.h>
 #include <stdint.h>

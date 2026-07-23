@@ -27,7 +27,7 @@
 //   - Mark C ABI FFI boundary (never inlined; Target MIR codegens directly)
 // Depends: inst (reuses ABIKind)
 // Design constraints:
-//   - X ABI is the sole SHUX calling convention; safe (extern function, no unsafe)
+//   - X ABI is the sole XLANG calling convention; safe (extern function, no unsafe)
 //   - C ABI requires unsafe (extern "C"; C libraries / syscalls)
 //   - X ABI param types are restricted: i32 / enum / struct / slice / Arena ptr;
 //     forbid *void / raw function pointers

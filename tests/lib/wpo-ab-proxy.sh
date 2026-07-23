@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # WPO A/B 快路径：build_asm 已有压缩 .o 时用 baseline proxy 作 dce_off，免重复 EMIT_HEAVY 重编。
-# 被 run-perf-wpo-dce-compiler-self-text.sh / run-perf-wpo-dce-shux-asm-text.sh source。
-# 关闭：SHUX_WPO_FAST_AB=0
+# 被 run-perf-wpo-dce-compiler-self-text.sh / run-perf-wpo-dce-xlang-asm-text.sh source。
+# 关闭：XLANG_WPO_FAST_AB=0
 #
 # PLATFORM: SHARED (helpers) / LINUX (binary proxy dogfood 金标)
 # Authority for max_on / dce_off:
@@ -70,7 +70,7 @@ wpo_ab_try_main_fast() {
   local baseline="$2"
   local max_on="${3:-}"
   local off_proxy on_txt
-  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${XLANG_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_main" ] || return 1
   if [ -z "$max_on" ]; then
     max_on=$(wpo_ab_proxy_prefer "main_o_max_text_bytes" \
@@ -92,7 +92,7 @@ wpo_ab_try_driver_fast() {
   local baseline="$2"
   local max_on="${3:-768}"
   local off_proxy on_txt
-  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${XLANG_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_drv" ] || return 1
   # Ubuntu true A/B (LIBROOT + EMIT_HEAVY=1 + WPO=0) ~12934B @ 2026-07-17.
   off_proxy=$(wpo_ab_proxy_from_baseline "driver_dce_off_text" "$baseline")
@@ -112,7 +112,7 @@ wpo_ab_try_pipeline_fast() {
   local baseline="$2"
   local max_on="${3:-}"
   local off_proxy on_txt
-  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${XLANG_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_pipe" ] || return 1
   if [ -z "$max_on" ]; then
     max_on=$(wpo_ab_proxy_prefer "pipeline_wpo_max_text_bytes" \
@@ -136,7 +136,7 @@ wpo_ab_try_typeck_fast() {
   local baseline="$2"
   local max_on="${3:-}"
   local off_proxy on_txt
-  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${XLANG_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_tck" ] || return 1
   if [ -z "$max_on" ]; then
     max_on=$(wpo_ab_proxy_prefer "typeck_wpo_max_text_bytes" \
@@ -160,7 +160,7 @@ wpo_ab_try_backend_fast() {
   local baseline="$2"
   local max_on="${3:-}"
   local off_proxy on_txt
-  [ "${SHUX_WPO_FAST_AB:-1}" = "1" ] || return 1
+  [ "${XLANG_WPO_FAST_AB:-1}" = "1" ] || return 1
   [ -f "$build_be" ] || return 1
   if [ -z "$max_on" ]; then
     max_on=$(wpo_ab_proxy_prefer "backend_wpo_max_text_bytes" \
@@ -179,15 +179,15 @@ wpo_ab_try_backend_fast() {
 
 # ---------------------------------------------------------------------------
 # A/B recompile (fallback when build_asm fast-path misses)
-# G.7 single authority with build_shux_asm.sh rebuild_main_o_for_cli / EMIT_HEAVY paths:
+# G.7 single authority with build_xlang_asm.sh rebuild_main_o_for_cli / EMIT_HEAVY paths:
 #   - LIBROOT from asm_build_list.x // LIBROOT: (must pass -L … or IMP001 on import("ast"))
-#   - env -u SHUX_ASM_START_FUNC
+#   - env -u XLANG_ASM_START_FUNC
 #   - ENTRY_MODULE_ONLY + BUILD_SKIP_TYPECK
 # PLATFORM: SHARED helpers; binary dogfood gold = LINUX (Ubuntu). mac may CG002 on ELF emit.
 # ---------------------------------------------------------------------------
 
 # Print production LIBROOT flags (cwd-relative to compiler/ when compiling).
-# Authority: compiler/src/asm/asm_build_list.x // LIBROOT: line (same as build_shux_asm.sh).
+# Authority: compiler/src/asm/asm_build_list.x // LIBROOT: line (same as build_xlang_asm.sh).
 wpo_ab_libroot() {
   local list_x="${1:-}"
   local tab=$'\t'
@@ -223,19 +223,19 @@ wpo_ab_compile_entry() {
   rm -f "$out_o"
   if command -v timeout >/dev/null 2>&1; then
     ( cd compiler && \
-      timeout "$timeout_s" env -u SHUX_ASM_START_FUNC \
-        SHUX_ASM_ENTRY_MODULE_ONLY=1 \
-        SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-        SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
-        SHUX_ASM_WPO_DCE="$wpo_dce" \
+      timeout "$timeout_s" env -u XLANG_ASM_START_FUNC \
+        XLANG_ASM_ENTRY_MODULE_ONLY=1 \
+        XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+        XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+        XLANG_ASM_WPO_DCE="$wpo_dce" \
         "$compiler" -backend asm -o "$out_o" $libroot "$src" >/dev/null 2>&1 ) || return 1
   else
     ( cd compiler && \
-      env -u SHUX_ASM_START_FUNC \
-        SHUX_ASM_ENTRY_MODULE_ONLY=1 \
-        SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-        SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
-        SHUX_ASM_WPO_DCE="$wpo_dce" \
+      env -u XLANG_ASM_START_FUNC \
+        XLANG_ASM_ENTRY_MODULE_ONLY=1 \
+        XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+        XLANG_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
+        XLANG_ASM_WPO_DCE="$wpo_dce" \
         "$compiler" -backend asm -o "$out_o" $libroot "$src" >/dev/null 2>&1 ) || return 1
   fi
   [ -s "$out_o" ]

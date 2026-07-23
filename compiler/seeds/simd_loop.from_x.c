@@ -1,16 +1,16 @@
 /* G-02f-8 / R2 full（2026-07-14）：simd_loop 真迁
  * Logic source: src/asm/simd_loop.x
- * Product PREFER_X_O: g05_try_x_to_o(full.x) + rest (-DSHUX_SIMD_LOOP_FROM_X) ld -r
+ * Product PREFER_X_O: g05_try_x_to_o(full.x) + rest (-DXLANG_SIMD_LOOP_FROM_X) ld -r
  *   → src/asm/simd_loop.o
  * R2: full.x 吃满 peel/parse/emit 公共业务；FROM_X 下 rest 业务 T=0（仅 slice_marker）
  * 冷启动/无 PREFER：本文件完整 C 体（含 L2 thin hybrid 的 _impl 尾）
- * L2 thin hybrid（SHUX_L2_SIMD_LOOP_THIN_FROM_X）仍作 full.x 失败时的回退路径。
+ * L2 thin hybrid（XLANG_L2_SIMD_LOOP_THIN_FROM_X）仍作 full.x 失败时的回退路径。
  *
  * seeds/simd_loop.from_x.c — product SIMD loop peel TU (cold full C)
  */
-#ifndef SHUX_SIMD_LOOP_FROM_X
+#ifndef XLANG_SIMD_LOOP_FROM_X
 /* G-02f-349 / R2 thin full：PREFER hybrid thin 由 src/asm/simd_loop_thin.x；
- * rest SHUX_L2_SIMD_LOOP_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
+ * rest XLANG_L2_SIMD_LOOP_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
  * seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
  * G-02f-215 runtime/f32-strip true .x; G-02f-214/213 peel/parse.
  * G-02f-133 true .x pure helpers.
@@ -41,7 +41,11 @@
 #include <stdint.h>
 #include <string.h>
 
-#ifdef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+/* wave229 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure).
+ * Cap residual host getenv stays only link_abi_getenv_impl. Cold twin of simd_loop.x. */
+const char *link_abi_getenv(const char *name);
+
+#ifdef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 struct ast_ASTArena;
 int32_t glue_f32_slot_rbp_disp32(int32_t off);
 int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx);
@@ -138,7 +142,7 @@ int32_t glue_expr_same_var_c_impl(struct ast_ASTArena *arena, int32_t a_ref, int
     return 1;
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
     return glue_expr_same_var_c_impl(arena, a_ref, b_ref);
 }
@@ -156,7 +160,7 @@ int32_t glue_index_uses_var_c_impl(struct ast_ASTArena *arena, int32_t index_exp
     return glue_expr_same_var_c_impl(arena, idx_ref, i_var_ref);
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
     return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref);
 }
@@ -165,7 +169,7 @@ int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref
 
 /** VAR 的 i32[N] 定长数组元素个数；失败 0。 */
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t elem;
@@ -233,7 +237,7 @@ int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block
     }
     return 0;
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
                                          int32_t *out_lit) {
     return glue_block_let_init_lit_c_impl(arena, block_ref, var_ref, out_lit);
@@ -245,7 +249,7 @@ int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref,
 
 /** VAR 是否为 i32[N] 栈数组（resolved 类型）。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
     return glue_var_array_i32_size_c(arena, var_ref) == n ? 1 : 0;
 }
@@ -291,7 +295,7 @@ int32_t glue_parse_i_plus_one_step_c_impl(struct ast_ASTArena *arena, int32_t st
         return 0;
     return 1;
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
     return glue_parse_i_plus_one_step_c_impl(arena, step_ref, i_var_ref);
 }
@@ -341,7 +345,7 @@ int32_t glue_parse_index_binop_assign_c_impl(struct ast_ASTArena *arena, int32_t
     *b_base_ref = b_base;
     return 1;
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
                                                int32_t *b_base_ref) {
@@ -390,7 +394,7 @@ int32_t glue_parse_i_lt_bound_c_impl(struct ast_ASTArena *arena, int32_t block_r
     *n_is_const = 0;
     return 1;
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
                                        int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
     return glue_parse_i_lt_bound_c_impl(arena, block_ref, cond_ref, i_var_ref, n_lit, n_is_const, n_var_ref);
@@ -420,7 +424,7 @@ int32_t glue_simd_local_var_stack_off_c_impl(struct ast_ASTArena *arena, struct 
     return off;
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t var_expr_ref) {
   return glue_simd_local_var_stack_off_c_impl(arena, ctx, var_expr_ref);
 }
@@ -436,9 +440,9 @@ uint32_t glue_simd_loop_cpu_features_c_impl(void) {
     feats = driver_get_pending_target_cpu_features();
     if (feats != 0)
         return feats;
-    return shu_target_cpu_detect_host();
+    return xlang_target_cpu_detect_host();
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 uint32_t glue_simd_loop_cpu_features_c(void) {
     return glue_simd_loop_cpu_features_c_impl();
 }
@@ -447,24 +451,24 @@ uint32_t glue_simd_loop_cpu_features_c(void) {
 
 /** 按 binop 与 CPU feature 选取 SIMD lane 宽（add/sub→SSE2/AVX2，mul→SSE4.1/AVX2）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
   if (binop_ko == GLUE_EXPR_MUL) {
-    if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
+    if ((feats & XLANG_CPU_FEAT_AVX2) != 0) {
       *lanes_out = 8;
       return 0;
     }
-    if ((feats & SHUX_CPU_FEAT_SSE41) != 0) {
+    if ((feats & XLANG_CPU_FEAT_SSE41) != 0) {
       *lanes_out = 4;
       return 0;
     }
     return -1;
   }
-  if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
+  if ((feats & XLANG_CPU_FEAT_AVX2) != 0) {
     *lanes_out = 8;
     return 0;
   }
-  if ((feats & SHUX_CPU_FEAT_SSE2) != 0) {
+  if ((feats & XLANG_CPU_FEAT_SSE2) != 0) {
     *lanes_out = 4;
     return 0;
   }
@@ -487,7 +491,7 @@ int32_t glue_simd_loop_emit_chunk_binop_c_impl(struct platform_elf_ElfCodegenCtx
     return simd_enc_try_hw_vector_iadd_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
   return glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
 }
@@ -506,7 +510,7 @@ int32_t glue_simd_x86_cmp_rax_rbx_c_impl(struct platform_elf_ElfCodegenCtx *elf_
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)insn, 2);
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx);
 }
@@ -533,7 +537,8 @@ int32_t glue_emit_full_const_peel_c_impl(struct platform_elf_ElfCodegenCtx *elf_
         int32_t chunk_off_d = off_d - start * esz;
         if (glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta,
                                               feats) != 0) {
-            strict_env = getenv("SHUX_SIMD_HW_STRICT");
+            /* wave229 G.7: link_abi_getenv (not raw getenv). */
+            strict_env = link_abi_getenv("XLANG_SIMD_HW_STRICT");
             if (strict_env && strict_env[0] != '0')
                 return -1;
             return 0;
@@ -542,7 +547,7 @@ int32_t glue_emit_full_const_peel_c_impl(struct platform_elf_ElfCodegenCtx *elf_
     return 1;
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a, int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
   return glue_emit_full_const_peel_c_impl(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
 }
@@ -631,7 +636,7 @@ int32_t glue_emit_runtime_strip_loop_c_impl(struct ast_ASTArena *arena, struct p
     return 1;
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref, int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a, int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes, uint32_t feats) {
   return glue_emit_runtime_strip_loop_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, binop_ko, off_i, off_n, off_a, off_b, off_d, array_n, lanes, feats);
 }
@@ -652,7 +657,7 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenC
 
 /** SoA x 列 x[start] 的 [rbp+disp32]（col0 为 x[0] 栈正偏移）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx) {
   return -(off_col0 - start_idx * 4);
 }
@@ -663,7 +668,7 @@ int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx) {
 
 /** f32 局部槽 [rbp+disp32]。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_f32_slot_rbp_disp32(int32_t off) {
   return -off;
 }
@@ -690,7 +695,7 @@ int32_t glue_var_array_size_c_impl(struct ast_ASTArena *arena, int32_t var_ref) 
 
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
   return glue_var_array_size_c_impl(arena, var_ref);
 }
@@ -748,7 +753,7 @@ int32_t glue_parse_f32_soa_sum_assign_c_impl(struct ast_ASTArena *arena, int32_t
     *fa_ref = add_r;
     return 1;
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *sum_ref, int32_t *arr_ref, int32_t *fa_ref) {
     return glue_parse_f32_soa_sum_assign_c_impl(arena, assign_ref, i_var_ref, sum_ref, arr_ref, fa_ref);
@@ -777,7 +782,7 @@ int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct pl
     int32_t epi_len;
     int32_t done_len;
     const char *strict_env;
-    if (ta != 0 || lanes != 4 || (feats & SHUX_CPU_FEAT_SSE2) == 0)
+    if (ta != 0 || lanes != 4 || (feats & XLANG_CPU_FEAT_SSE2) == 0)
         return 0;
     vec_len = pipeline_asm_emit_next_label_c(ctx, vec_loop, 64);
     merge_len = pipeline_asm_emit_next_label_c(ctx, epi_merge, 64);
@@ -814,7 +819,8 @@ int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct pl
     if (backend_enc_jge_arch(elf_ctx, epi_merge, merge_len, ta) != 0)
         return -1;
     if (simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta) != 0) {
-        strict_env = getenv("SHUX_SIMD_HW_STRICT");
+        /* wave229 G.7: link_abi_getenv (not raw getenv). */
+        strict_env = link_abi_getenv("XLANG_SIMD_HW_STRICT");
         if (strict_env && strict_env[0] != '0')
             return -1;
         return 0;
@@ -873,7 +879,7 @@ int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct pl
         return -1;
     return 1;
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
                                               int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n,
@@ -916,7 +922,8 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(struct ast_ASTArena *are
 
     if (!arena || !elf_ctx || !ctx || block_ref <= 0)
         return 0;
-    hw_env = getenv("SHUX_SIMD_HW");
+    /* wave229 G.7: link_abi_getenv (not raw getenv). */
+    hw_env = link_abi_getenv("XLANG_SIMD_HW");
     if (hw_env && hw_env[0] == '0')
         return 0;
     cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
@@ -954,7 +961,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(struct ast_ASTArena *are
         return 0;
     feats = glue_simd_loop_cpu_features_c_impl();
     lanes = 4;
-    if ((feats & SHUX_CPU_FEAT_SSE2) == 0)
+    if ((feats & XLANG_CPU_FEAT_SSE2) == 0)
         return 0;
     off_n = -1;
     if (n_var_ref > 0)
@@ -964,7 +971,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(struct ast_ASTArena *are
     return glue_emit_f32_soa_sum_strip_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, off_col0, off_s, off_i, off_n,
                                          n_lit, lanes, feats);
 }
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                     int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -1002,7 +1009,8 @@ int32_t glue_try_simd_peel_index_add_while_elf_c_impl(struct ast_ASTArena *arena
 
     if (!arena || !elf_ctx || !ctx || block_ref <= 0)
         return 0;
-    hw_env = getenv("SHUX_SIMD_HW");
+    /* wave229 G.7: link_abi_getenv (not raw getenv). */
+    hw_env = link_abi_getenv("XLANG_SIMD_HW");
     if (hw_env && hw_env[0] == '0')
         return 0;
     cond_ref = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
@@ -1052,7 +1060,7 @@ int32_t glue_try_simd_peel_index_add_while_elf_c_impl(struct ast_ASTArena *arena
     return 0;
 }
 
-#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+#ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                  int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -1065,8 +1073,8 @@ int simd_loop_slice_marker(void) {
 }
 
 
-#else /* SHUX_SIMD_LOOP_FROM_X：产品 rest 业务 H=0 */
+#else /* XLANG_SIMD_LOOP_FROM_X：产品 rest 业务 H=0 */
 int simd_loop_slice_marker(void) {
   return 0;
 }
-#endif /* SHUX_SIMD_LOOP_FROM_X */
+#endif /* XLANG_SIMD_LOOP_FROM_X */

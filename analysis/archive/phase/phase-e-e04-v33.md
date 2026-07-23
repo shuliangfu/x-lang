@@ -10,7 +10,7 @@
 | `shu_lsp_resolve_and_load_imports` | runtime_c_import.c | LSP import 加载（原 runtime.c） |
 | `driver_source_has_top_level_import` | runtime_driver_abi.c | 预处理后源码顶层 import 扫描 |
 | `driver_source_has_top_level_import_path` | runtime_driver_abi.c | compile.x asm 分派降级探测 |
-| `shux_merge_deps_path_already_out` | runtime_pipeline_abi.c | asm dep layout merge 去重 |
+| `xlang_merge_deps_path_already_out` | runtime_pipeline_abi.c | asm dep layout merge 去重 |
 
 ## 仍留 runtime.c
 
@@ -21,7 +21,7 @@
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_c_import.o src/runtime_pipeline_abi.o src/runtime_driver_abi.o src/runtime_driver_no_c.o
 wc -l compiler/src/runtime.c compiler/src/runtime_c_import.c
 ```

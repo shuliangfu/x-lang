@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # F-01：全仓库 std/core 手写 .c 存量盘点与回归门禁（完全自举阶段 F 清场基线）。
 # 用法：./tests/run-std-c-inventory-gate.sh
-# 环境：SHUX_STD_C_INVENTORY_FAIL=1 超过 baseline 时硬失败
-#       SHUX_STD_C_INVENTORY_UPDATE=1 刷新 tests/baseline/std-c-inventory.tsv
+# 环境：XLANG_STD_C_INVENTORY_FAIL=1 超过 baseline 时硬失败
+#       XLANG_STD_C_INVENTORY_UPDATE=1 刷新 tests/baseline/std-c-inventory.tsv
 set -e
 cd "$(dirname "$0")/.."
 
-BASELINE="${SHUX_STD_C_INVENTORY_TSV:-tests/baseline/std-c-inventory.tsv}"
-FAIL=${SHUX_STD_C_INVENTORY_FAIL:-0}
-UPDATE=${SHUX_STD_C_INVENTORY_UPDATE:-0}
-TMP="/tmp/shux_std_c_inventory.$$.tsv"
+BASELINE="${XLANG_STD_C_INVENTORY_TSV:-tests/baseline/std-c-inventory.tsv}"
+FAIL=${XLANG_STD_C_INVENTORY_FAIL:-0}
+UPDATE=${XLANG_STD_C_INVENTORY_UPDATE:-0}
+TMP="/tmp/xlang_std_c_inventory.$$.tsv"
 
 # 收集 std/ 与 core/ 下全部 .c（含 .inc.c），相对仓库根路径。
 collect_c_files() {
@@ -25,7 +25,7 @@ echo "std-c-inventory-gate: std/**/*.c=${std_count} core/**/*.c=${core_count} to
 {
   echo "# F-01 std/core handwritten .c inventory (完全自举清场基线)"
   echo "# 列：path"
-  echo "# 更新：SHUX_STD_C_INVENTORY_UPDATE=1 ./tests/run-std-c-inventory-gate.sh"
+  echo "# 更新：XLANG_STD_C_INVENTORY_UPDATE=1 ./tests/run-std-c-inventory-gate.sh"
   printf 'summary_std_c\t%s\n' "$std_count"
   printf 'summary_core_c\t%s\n' "$core_count"
   printf 'summary_total_c\t%s\n' "$total"
@@ -63,7 +63,7 @@ if [ "$total" -gt "$base_total" ] 2>/dev/null; then
 fi
 
 if [ "$total" -lt "$base_total" ] 2>/dev/null; then
-  echo "std-c-inventory-gate OK (total=${total} < baseline ${base_total}; .c removed — run SHUX_STD_C_INVENTORY_UPDATE=1 to refresh)"
+  echo "std-c-inventory-gate OK (total=${total} < baseline ${base_total}; .c removed — run XLANG_STD_C_INVENTORY_UPDATE=1 to refresh)"
   exit 0
 fi
 

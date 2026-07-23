@@ -1,6 +1,6 @@
 /* seeds/pthin_fn_block.from_x.c — G-02f-287 P2 parser thin P6 fn/block
  * Logic source: src/asm/pthin_fn_block.x
- * Hybrid: SHUX_PTHIN_FN_BLOCK_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_FN_BLOCK_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Bodies: struct_layout + library + one_function_buf + block_from_res
  */

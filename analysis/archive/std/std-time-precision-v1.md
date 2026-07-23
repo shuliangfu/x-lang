@@ -94,14 +94,14 @@
 ## 6. 验证与门禁
 
 ```bash
-# manifest + API + 烟测（native shux）
+# manifest + API + 烟测（native xlang）
 ./tests/run-std-time-gate.sh
 
 # 模块回归（compile + run main）
 ./tests/run-time.sh
 
 # 单文件 typeck / runnable 烟测
-./compiler/shux check -L . tests/time/precision_smoke.x
+./compiler/xlang check -L . tests/time/precision_smoke.x
 ```
 
 | 资源 | 路径 |

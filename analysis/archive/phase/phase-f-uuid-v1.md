@@ -7,7 +7,7 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `uuid.c` + extern | `uuid.x` |
-| `uuid.o` | `cc -c uuid.c` | `shux -backend asm uuid.x` |
+| `uuid.o` | `cc -c uuid.c` | `xlang -backend asm uuid.x` |
 | 存量 | std 90 `.c` | std **89** `.c` |
 
 ## 已删除（须保持 absent）
@@ -32,7 +32,7 @@ make -C compiler ../std/uuid/uuid.o   # 自动先链 random.o + time.o
 ## 门禁
 
 ```bash
-SHUX_F_UUID_V1_FAIL=1 ./tests/run-f-uuid-v1-gate.sh
+XLANG_F_UUID_V1_FAIL=1 ./tests/run-f-uuid-v1-gate.sh
 ./tests/run-std-uuid-gate.sh
 ```
 

@@ -2,7 +2,7 @@
 # F-thread v1：std.thread 去 C（thread.x + seeds/runtime_thread_glue.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_THREAD_V1_FAIL:-0}
+FAIL=${XLANG_F_THREAD_V1_FAIL:-0}
 DOC="analysis/phase-f-thread-v1.md"
 MANIFEST="tests/baseline/f-thread-v1-closure.tsv"
 die() { echo "f-thread-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -23,10 +23,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
 done < "$MANIFEST"
 grep -q 'runtime_thread_glue' compiler/Makefile || die "Makefile missing runtime_thread_glue"
 make -C compiler -q runtime_thread_glue.o 2>/dev/null || make -C compiler runtime_thread_glue.o >/dev/null 2>&1 || die "runtime_thread_glue.o build failed"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/thread/thread.o >/dev/null 2>&1 || die "make thread.o failed"
 else
-  echo "f-thread-v1 SKIP thread.o build (no shux-c)" >&2
+  echo "f-thread-v1 SKIP thread.o build (no xlang-c)" >&2
 fi
 [ -f tests/run-std-thread-pool-gate.sh ] && chmod +x tests/run-std-thread-pool-gate.sh && tests/run-std-thread-pool-gate.sh || true
 echo "f-thread-v1 gate OK"

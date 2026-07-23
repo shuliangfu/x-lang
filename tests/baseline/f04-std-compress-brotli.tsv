@@ -2,6 +2,6 @@
 # 列：item_id	kind	anchor	mod_path	notes
 symbol_compress	symbol	compress_brotli_compress_c	std/compress/brotli/lib.x	块压
 symbol_stream	symbol	compress_brotli_stream_compress_c	std/compress/brotli/lib.x	流压
-symbol_marker	symbol	shu_compress_brotli_marker	std/compress/brotli/lib.x	-lbrotli*
+symbol_marker	symbol	xlang_compress_brotli_marker	std/compress/brotli/lib.x	-lbrotli*
 import_lib	symbol	import("std.compress.brotli.lib")	std/compress/brotli/mod.x	import 转发
 absent_c	absent	std/compress/brotli/brotli.c	删除 brotli.c

@@ -5,8 +5,8 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function shu_mbedtls_bio_send_impl(ctx: *u8, buf: *u8, len: usize): i32;
-export extern "C" function shu_mbedtls_bio_recv_impl(ctx: *u8, buf: *u8, len: usize): i32;
+export extern "C" function xlang_mbedtls_bio_send_impl(ctx: *u8, buf: *u8, len: usize): i32;
+export extern "C" function xlang_mbedtls_bio_recv_impl(ctx: *u8, buf: *u8, len: usize): i32;
 
 /** Exported function `runtime_tls_mbedtls_bio_x_doc_anchor`.
  * Implements `runtime_tls_mbedtls_bio_x_doc_anchor`.
@@ -19,24 +19,24 @@ export function runtime_tls_mbedtls_bio_x_doc_anchor(): i32 {
 /* See implementation. */
 
 #[no_mangle]
-export function shu_mbedtls_bio_send(ctx: *u8, buf: *u8, len: usize): i32 {
+export function xlang_mbedtls_bio_send(ctx: *u8, buf: *u8, len: usize): i32 {
   unsafe {
-    return shu_mbedtls_bio_send_impl(ctx, buf, len);
+    return xlang_mbedtls_bio_send_impl(ctx, buf, len);
   }
   return 0 - 1;
 }
 
-/** Exported function `shu_mbedtls_bio_recv`.
- * Implements `shu_mbedtls_bio_recv`.
+/** Exported function `xlang_mbedtls_bio_recv`.
+ * Implements `xlang_mbedtls_bio_recv`.
  * @param ctx *u8
  * @param buf *u8
  * @param len usize
  * @return i32
  */
 #[no_mangle]
-export function shu_mbedtls_bio_recv(ctx: *u8, buf: *u8, len: usize): i32 {
+export function xlang_mbedtls_bio_recv(ctx: *u8, buf: *u8, len: usize): i32 {
   unsafe {
-    return shu_mbedtls_bio_recv_impl(ctx, buf, len);
+    return xlang_mbedtls_bio_recv_impl(ctx, buf, len);
   }
   return 0 - 1;
 }

@@ -100,9 +100,9 @@ extern "C" function free(ptr: *u8): void;
 extern "C" function malloc(size: usize): *u8;
 extern "C" function strlen(s: *u8): usize;
 
-extern function shu_kv_mmap_file_c(path: *u8, min_size: usize, out_size: *usize): i64;
-extern function shu_kv_munmap_c(addr: i64, len: usize): i32;
-extern function shu_kv_msync_c(addr: i64, len: usize): i32;
+extern function xlang_kv_mmap_file_c(path: *u8, min_size: usize, out_size: *usize): i64;
+extern function xlang_kv_munmap_c(addr: i64, len: usize): i32;
+extern function xlang_kv_msync_c(addr: i64, len: usize): i32;
 
 /** Exported function `kv_hash_key`.
  * Implements `kv_hash_key`.
@@ -413,7 +413,7 @@ export function kv_build_sst_path(data_path: *u8, slot: u32, out: *u8, out_cap: 
  * @return i64
  */
 export function kv_mmap_file(path: *u8, min_size: usize, out_size: *usize): i64 {
-  unsafe { return shu_kv_mmap_file_c(path, min_size, out_size); }
+  unsafe { return xlang_kv_mmap_file_c(path, min_size, out_size); }
   return 0; // unreachable — typeck workaround
 }
 
@@ -688,7 +688,7 @@ export function kv_sst_merge_dedup(s: *KvStoreMem, src_slot: u32, dst_slot: u32)
   dst_hdr.write_pos = (KV_SECTOR as u64) + (out_len as u64);
   unsafe { memset(s.sst_map[src_slot] as *u8 + (KV_SECTOR as usize), 0, (src_hdr.capacity - (KV_SECTOR as u64)) as usize); }
   src_hdr.write_pos = KV_SECTOR as u64;
-  unsafe { if (shu_kv_msync_c(s.sst_map[dst_slot], s.sst_map_size[dst_slot]) == 0) { return 0; } }
+  unsafe { if (xlang_kv_msync_c(s.sst_map[dst_slot], s.sst_map_size[dst_slot]) == 0) { return 0; } }
   return -3;
 }
 
@@ -746,7 +746,7 @@ export function kv_freeze_main_to_sst(s: *KvStoreMem): i32 {
   unsafe { memset(main_base + (KV_SECTOR as usize), 0, (hdr.capacity - (KV_SECTOR as u64)) as usize); }
   hdr.write_pos = KV_SECTOR as u64;
   hdr.record_count = 0;
-  unsafe { if (shu_kv_msync_c(s.sst_map[slot], s.sst_map_size[slot]) == 0) { return 0; } }
+  unsafe { if (xlang_kv_msync_c(s.sst_map[slot], s.sst_map_size[slot]) == 0) { return 0; } }
   return -4;
 }
 
@@ -793,7 +793,7 @@ export function kv_db_open_impl(path: *u8, capacity_bytes: u64): i64 {
   kv_build_wal_path(&s.data_path[0], &wal_path[0], 512);
   s.wal_map = kv_mmap_file(&wal_path[0], cap, &wal_sz);
   if (s.wal_map == 0 as i64) {
-    unsafe { shu_kv_munmap_c(s.map, s.map_size); }
+    unsafe { xlang_kv_munmap_c(s.map, s.map_size); }
     unsafe { free(s as *u8); }
     return 0 as i64;
   }
@@ -809,8 +809,8 @@ export function kv_db_open_impl(path: *u8, capacity_bytes: u64): i64 {
   }
   if (wh.write_pos < KV_SECTOR as u64) { wh.write_pos = KV_SECTOR as u64; }
   if (kv_open_sst_slots(s) != 0) {
-    unsafe { shu_kv_munmap_c(s.wal_map, s.wal_map_size); }
-    unsafe { shu_kv_munmap_c(s.map, s.map_size); }
+    unsafe { xlang_kv_munmap_c(s.wal_map, s.wal_map_size); }
+    unsafe { xlang_kv_munmap_c(s.map, s.map_size); }
     unsafe { free(s as *u8); }
     return 0 as i64;
   }
@@ -836,13 +836,13 @@ export function kv_db_close_impl(handle: i64): i32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let i: u32 = 0;
   if (s == 0) { return -1; }
-  unsafe { if (s.wal_map != 0 as i64) { shu_kv_munmap_c(s.wal_map, s.wal_map_size); } }
+  unsafe { if (s.wal_map != 0 as i64) { xlang_kv_munmap_c(s.wal_map, s.wal_map_size); } }
   i = 0;
   while (i < KV_SST_SLOTS) {
-    unsafe { if (s.sst_map[i] != 0 as i64) { shu_kv_munmap_c(s.sst_map[i], s.sst_map_size[i]); } }
+    unsafe { if (s.sst_map[i] != 0 as i64) { xlang_kv_munmap_c(s.sst_map[i], s.sst_map_size[i]); } }
     i = i + 1;
   }
-  unsafe { if (s.map != 0 as i64) { shu_kv_munmap_c(s.map, s.map_size); } }
+  unsafe { if (s.map != 0 as i64) { xlang_kv_munmap_c(s.map, s.map_size); } }
   unsafe { free(s as *u8); }
   return 0;
 }
@@ -857,14 +857,14 @@ export function kv_db_sync_impl(handle: i64): i32 {
   let i: u32 = 0;
   let hdr: *KvHeader = 0 as *KvHeader;
   if (s == 0 || s.map == 0 as i64) { return -1; }
-  unsafe { if (s.wal_map != 0 as i64 && shu_kv_msync_c(s.wal_map, s.wal_map_size) != 0) { return -1; } }
+  unsafe { if (s.wal_map != 0 as i64 && xlang_kv_msync_c(s.wal_map, s.wal_map_size) != 0) { return -1; } }
   hdr = s.hdr as *KvHeader;
   i = 0;
   while (i < hdr.sst_count && i < KV_SST_SLOTS) {
-    unsafe { if (s.sst_map[i] != 0 as i64 && shu_kv_msync_c(s.sst_map[i], s.sst_map_size[i]) != 0) { return -1; } }
+    unsafe { if (s.sst_map[i] != 0 as i64 && xlang_kv_msync_c(s.sst_map[i], s.sst_map_size[i]) != 0) { return -1; } }
     i = i + 1;
   }
-  unsafe { if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
+  unsafe { if (xlang_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
   return -1;
 }
 
@@ -998,7 +998,7 @@ export function kv_db_wal_flush_impl(handle: i64): i32 {
     }
     i = i + 1;
   }
-  unsafe { if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
+  unsafe { if (xlang_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
   return -4;
 }
 
@@ -1067,7 +1067,7 @@ export function kv_db_compact_impl(handle: i64): i32 {
   }
   wh = s.wal_hdr as *KvWalHeader;
   if (wh != 0) { wh.write_pos = KV_SECTOR as u64; wh.record_count = 0; }
-  unsafe { if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
+  unsafe { if (xlang_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
   return -3;
 }
 

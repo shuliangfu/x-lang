@@ -79,7 +79,7 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 ./tests/run-std-examples.sh
 
 # 单示例 typeck
-./compiler/shux-c check -L . examples/hello.x
+./compiler/xlang-c check -L . examples/hello.x
 ```
 
 | 脚本 | 角色 |

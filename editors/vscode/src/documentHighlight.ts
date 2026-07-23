@@ -1,5 +1,5 @@
 /**
- * Shux DocumentHighlightProvider — 同符号高亮
+ * Xlang DocumentHighlightProvider — 同符号高亮
  *
  * 光标在标识符上时，高亮文档内所有相同标识符：
  * - 文本读 → Read
@@ -98,7 +98,7 @@ function isWriteContext(text: string, offset: number, len: number): boolean {
   return false;
 }
 
-export class ShuxDocumentHighlightProvider implements vscode.DocumentHighlightProvider {
+export class XlangDocumentHighlightProvider implements vscode.DocumentHighlightProvider {
   public provideDocumentHighlights(
     document: vscode.TextDocument,
     position: vscode.Position,

@@ -2,11 +2,11 @@
 # F-04 v6：std.compress brotli 去 C 门禁（lib.x + 无 brotli.c）。
 #
 # 用法：./tests/run-f04-std-compress-brotli-gate.sh
-# 环境：SHUX_F04_COMPRESS_BROTLI_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_COMPRESS_BROTLI_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_COMPRESS_BROTLI_FAIL:-0}
+FAIL=${XLANG_F04_COMPRESS_BROTLI_FAIL:-0}
 DOC="analysis/phase-f-f04-v6.md"
 BROTLI_LIB="std/compress/brotli/lib.x"
 BROTLI_MOD="std/compress/brotli/mod.x"
@@ -24,7 +24,7 @@ grep -q 'F-04 v6' "$DOC" || die "doc missing F-04 v6 marker"
 [ ! -f std/compress/brotli/brotli.c ] || die "brotli.c should be deleted"
 grep -q 'compress_brotli_compress_c' "$BROTLI_LIB" || die "lib missing compress_brotli_compress_c"
 grep -q 'compress_brotli_stream_compress_c' "$BROTLI_LIB" || die "lib missing stream compress"
-grep -q 'shu_compress_brotli_marker' "$BROTLI_LIB" || die "lib missing marker"
+grep -q 'xlang_compress_brotli_marker' "$BROTLI_LIB" || die "lib missing marker"
 grep -q 'import("std.compress.brotli.lib")' "$BROTLI_MOD" || die "mod.x missing lib import"
 if grep -q 'extern function compress_brotli_compress_c' "$BROTLI_MOD" 2>/dev/null; then
   die "mod.x still extern compress_brotli_compress_c"
@@ -69,7 +69,7 @@ done
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-04 v6: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

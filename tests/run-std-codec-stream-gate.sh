@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD110_DOC:-analysis/std-codec-stream-v1.md}"
-MANIFEST="${SHUX_STD110_TSV:-tests/baseline/std-codec-stream.tsv}"
-VECTORS="${SHUX_STD110_VECTORS:-tests/baseline/std-codec-stream-vectors.tsv}"
+DOC="${XLANG_STD110_DOC:-analysis/std-codec-stream-v1.md}"
+MANIFEST="${XLANG_STD110_TSV:-tests/baseline/std-codec-stream.tsv}"
+VECTORS="${XLANG_STD110_VECTORS:-tests/baseline/std-codec-stream-vectors.tsv}"
 MOD_X="std/codec/mod.x"
 LIB="tests/lib/std-codec-stream.sh"
 SMOKE_X="tests/std-codec/stream_roundtrip.x"
@@ -69,19 +69,19 @@ echo "std-codec-stream manifest OK"
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-110: .x smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-110: .x smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-codec-stream gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_codec_stream_emit_report "fail" 0 0
     exit 1
   fi
-  if std_codec_stream_run_smoke "$SHUX_BIN" "$SMOKE_X" "stream"; then
+  if std_codec_stream_run_smoke "$XLANG_BIN" "$SMOKE_X" "stream"; then
     X_OK=1
   else
     std_codec_stream_emit_report "fail" 0 0

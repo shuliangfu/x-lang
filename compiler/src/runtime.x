@@ -94,7 +94,7 @@ export extern "C" function driver_check_only_c_typeck_impl(input_path: *u8, src:
 export extern "C" function driver_lib_root_default_impl(root_buf: *u8): void;
 export extern "C" function runtime_test_status_to_rc_impl(script: *u8, st: i32): i32;
 
-export extern "C" function shux_get_tmp_prefix_impl(): *u8;
+export extern "C" function xlang_get_tmp_prefix_impl(): *u8;
 export extern "C" function dce_is_func_used_impl(ctx: *u8, mod: *u8, func: *u8): i32;
 export extern "C" function dce_is_mono_used_impl(ctx: *u8, mod: *u8, k: i32): i32;
 export extern "C" function dce_is_type_used_impl(ctx: *u8, mod: *u8, type_name: *u8): i32;
@@ -915,9 +915,9 @@ export function runtime_test_status_to_rc(script: *u8, st: i32): i32 {
 /* See implementation. */
 
 #[no_mangle]
-export function shux_get_tmp_prefix(): *u8 {
+export function xlang_get_tmp_prefix(): *u8 {
   unsafe {
-    return shux_get_tmp_prefix_impl();
+    return xlang_get_tmp_prefix_impl();
   }
   return 0 as *u8;
 }
@@ -1479,18 +1479,18 @@ export extern "C" function getenv(name: *u8): *u8;
 
 export extern "C" function diag_json_enabled(): i32;
 
-// shux_smoke_diag_enabled: see function docblock below.
+// xlang_smoke_diag_enabled: see function docblock below.
 
-/** Exported function `shux_smoke_diag_enabled`.
- * Implements `shux_smoke_diag_enabled`.
+/** Exported function `xlang_smoke_diag_enabled`.
+ * Implements `xlang_smoke_diag_enabled`.
  * @return i32
  */
 #[no_mangle]
-export function shux_smoke_diag_enabled(): i32 {
+export function xlang_smoke_diag_enabled(): i32 {
   unsafe {
     let j: i32 = diag_json_enabled();
     if (j != 0) { return 1; }
-    let e: *u8 = getenv("SHUX_SMOKE_DIAG");
+    let e: *u8 = getenv("XLANG_SMOKE_DIAG");
     if (e == 0) { return 0; }
     if (e[0] == 0) { return 0; }
     if (e[0] == 48) { return 0; }
@@ -1501,7 +1501,7 @@ export function shux_smoke_diag_enabled(): i32 {
 
 // See implementation.
 
-export extern "C" function shux_output_want_exe(path: *u8): i32;
+export extern "C" function xlang_output_want_exe(path: *u8): i32;
 
 /** Exported function `driver_asm_output_want_exe`.
  * Implements `driver_asm_output_want_exe`.
@@ -1511,7 +1511,7 @@ export extern "C" function shux_output_want_exe(path: *u8): i32;
 #[no_mangle]
 export function driver_asm_output_want_exe(path: *u8): i32 {
   unsafe {
-    return shux_output_want_exe(path);
+    return xlang_output_want_exe(path);
   }
   return 0;
 }

@@ -2,7 +2,7 @@
 # bootstrap_nostdlib_shared.sh — NL-07 / G-03 nostdlib link policy (single authority)
 #
 # PLATFORM: LINUX — bootstrap product zero-libc tail for:
-#   · build_shux_asm.sh (crt0 / experimental / strict / driver tails)
+#   · build_xlang_asm.sh (crt0 / experimental / strict / driver tails)
 #   · g05_relink_env.sh + g05_ensure_relink_prereqs.sh (product default g05 chain)
 #
 # G.7: one wants_nostdlib + one freestanding_io + one bootstrap_nostdlib_stubs + one weak atoi.
@@ -14,16 +14,16 @@
 #
 # ensure_* progress must go to stderr when callers capture stdout for link lines.
 
-# NL-07 v5: Linux x86_64 defaults to nostdlib unless SHUX_BOOTSTRAP_ALLOW_LIBC=1.
-# Explicit SHUX_BOOTSTRAP_NOSTDLIB=1 still forces try on non-x86_64 Linux.
+# NL-07 v5: Linux x86_64 defaults to nostdlib unless XLANG_BOOTSTRAP_ALLOW_LIBC=1.
+# Explicit XLANG_BOOTSTRAP_NOSTDLIB=1 still forces try on non-x86_64 Linux.
 bootstrap_wants_nostdlib() {
   if [ "$(uname -s 2>/dev/null)" != "Linux" ]; then
     return 1
   fi
-  if [ -n "${SHUX_BOOTSTRAP_ALLOW_LIBC:-}" ]; then
+  if [ -n "${XLANG_BOOTSTRAP_ALLOW_LIBC:-}" ]; then
     return 1
   fi
-  if [ -n "${SHUX_BOOTSTRAP_NOSTDLIB:-}" ]; then
+  if [ -n "${XLANG_BOOTSTRAP_NOSTDLIB:-}" ]; then
     return 0
   fi
   if [ "$(uname -m 2>/dev/null)" = "x86_64" ] || [ "$(uname -m 2>/dev/null)" = "amd64" ]; then
@@ -32,7 +32,7 @@ bootstrap_wants_nostdlib() {
   return 1
 }
 
-# PLATFORM: LINUX — freestanding syscall face (shux_sys_*); not a second libc stub table.
+# PLATFORM: LINUX — freestanding syscall face (xlang_sys_*); not a second libc stub table.
 ensure_freestanding_io_x86_64_obj() {
   _cc="${CC:-cc}"
   if [ -f src/asm/freestanding_io_x86_64.s ]; then

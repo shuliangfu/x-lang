@@ -1,5 +1,5 @@
-#ifndef SHUX_DIAG_H
-#define SHUX_DIAG_H
+#ifndef XLANG_DIAG_H
+#define XLANG_DIAG_H
 
 #include <stddef.h>
 #include <stdio.h>

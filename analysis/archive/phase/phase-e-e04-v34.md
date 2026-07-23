@@ -16,12 +16,12 @@
 
 - `run_compiler_c` / `run_compiler_x_path` 主体
 - `load_direct_imports_for_asm_layout` / `collect_deps_transitive` 等 dep 辅助
-- `driver_run_x_emit_c` 与 X emit 路径（`SHUX_USE_X_DRIVER`）
+- `driver_run_x_emit_c` 与 X emit 路径（`XLANG_USE_X_DRIVER`）
 
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_driver_diagnostic.o src/runtime_driver_no_c.o
 wc -l compiler/src/runtime.c compiler/src/runtime_driver_diagnostic.c
 ```

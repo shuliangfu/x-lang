@@ -69,7 +69,7 @@ hello\r\n
 ```
 
 ```
-shux: [SHUX_STD_HTTP_CHUNKED] status=ok chunked=1 keepalive=1 typeck=1 skip=0
+xlang: [XLANG_STD_HTTP_CHUNKED] status=ok chunked=1 keepalive=1 typeck=1 skip=0
 ```
 
 ---

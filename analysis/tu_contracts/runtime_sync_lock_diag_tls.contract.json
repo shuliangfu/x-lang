@@ -51,7 +51,7 @@
     ],
     "only_x": ["runtime_sync_lock_diag_tls_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X",
   "impl_residuals": [
     "sync_lock_diag_find_meta_idx_impl",
     "sync_lock_diag_get_order_impl"

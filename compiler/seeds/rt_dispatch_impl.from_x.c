@@ -1,6 +1,6 @@
 /* seeds/rt_dispatch_impl.from_x.c — G-02f-313 P2 runtime rest (dispatch impl gates)
  * Logic source: src/runtime/rt_dispatch_impl.x
- * Hybrid: SHUX_RT_DISPATCH_IMPL_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_DISPATCH_IMPL_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：公共业务符号由 full .x 提供：
  *   driver_run_asm_backend_impl_c / driver_run_emit_c_path_impl_c /
@@ -61,9 +61,11 @@ typedef struct DriverCompileParsed {
   int use_lto;
 } DriverCompileParsed;
 
-#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
+#ifndef XLANG_RT_DISPATCH_IMPL_FROM_X
 
 extern int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv). */
+extern char *link_abi_getenv(const char *name);
 extern void driver_set_pending_target_cpu_features(uint32_t features);
 extern int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
                                   const char *target, int argc, char **argv);
@@ -89,7 +91,7 @@ extern void driver_bump_stack_limit(void);
 extern DriverCompileStateSU *driver_compile_state_alloc_c(void);
 extern void driver_compile_state_free_c(DriverCompileStateSU *state);
 extern int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv, DriverCompileStateSU *state);
-extern void shu_target_cpu_print(FILE *out, uint32_t features);
+extern void xlang_target_cpu_print(FILE *out, uint32_t features);
 
 /** asm 后端：lib_key sidecar → lib_roots，委托 driver_run_asm_backend。 */
 int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
@@ -105,7 +107,7 @@ int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, ui
                                 target && target[0] ? (const char *)target : NULL, (int)argc, (char **)argv);
 }
 
-/** C 后端：lib_key→lib_roots；可选 sibling shux-c；否则 parsed。 */
+/** C 后端：lib_key→lib_roots；可选 sibling xlang-c；否则 parsed。 */
 int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
   const char *lib_roots[X_FULL_MAX_LIB_ROOTS];
@@ -121,14 +123,18 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
   p.target = target && target[0] ? (const char *)target : NULL;
   p.opt_level = (opt_level && opt_level[0]) ? (const char *)opt_level : "2";
   p.use_lto = use_lto != 0;
-  if (!p.use_lto && getenv("SHUX_LTO") && strcmp(getenv("SHUX_LTO"), "1") == 0)
-    p.use_lto = 1;
-#if !defined(SHUX_NO_C_FRONTEND)
+  /* wave227 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
+  {
+    const char *_lto = link_abi_getenv("XLANG_LTO");
+    if (!p.use_lto && _lto && strcmp(_lto, "1") == 0)
+      p.use_lto = 1;
+  }
+#if !defined(XLANG_NO_C_FRONTEND)
   if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
       !driver_asm_entry_module_only_from_env()) {
-    int shu_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
-    if (shu_c_rc >= 0)
-      return shu_c_rc;
+    int xlang_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
+    if (xlang_c_rc >= 0)
+      return xlang_c_rc;
   }
 #endif
   return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
@@ -170,7 +176,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
 
   if (!state)
     return 1;
-#if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
+#if defined(XLANG_USE_X_DRIVER) && defined(XLANG_USE_X_PIPELINE)
   if (driver_argv_has_emit_c_flag((int)argc, (char **)argv))
     return driver_run_x_emit_c_from_compile_state(state, (int)argc, (char **)argv);
 #endif
@@ -194,7 +200,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
   target_ptr = NULL;
   if (state->target_len > 0)
     target_ptr = state->target_buf;
-#if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
+#if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
   if (state->out_path_len > 0 && !state->backend_asm_explicit &&
       !driver_source_has_top_level_import_path((const char *)state->path_buf))
     state->backend_asm_explicit = 1;
@@ -252,7 +258,7 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
     return 1;
   }
   if (state->print_target_cpu) {
-    shu_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
+    xlang_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
     driver_compile_state_free_c(state);
     return 0;
   }
@@ -261,7 +267,7 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
   return rc;
 }
 
-#else /* SHUX_RT_DISPATCH_IMPL_FROM_X：产品 rest 仅 marker；业务体在 full .x */
+#else /* XLANG_RT_DISPATCH_IMPL_FROM_X：产品 rest 仅 marker；业务体在 full .x */
 int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       int32_t argc, uint8_t *argv);
 int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
@@ -269,7 +275,7 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 int32_t driver_run_x_emit_c_from_compile_state(void *state, int argc, char **argv);
 int32_t driver_run_compiler_full_x_post_parse_impl_c(void *state, int32_t argc, uint8_t *argv);
 int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv);
-#endif /* SHUX_RT_DISPATCH_IMPL_FROM_X */
+#endif /* XLANG_RT_DISPATCH_IMPL_FROM_X */
 
 int labi_rt_dispatch_impl_slice_marker(void) {
   return 1;

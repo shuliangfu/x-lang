@@ -49,7 +49,7 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
-  - thin+rest 宏边界：`SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X`
+  - thin+rest 宏边界：`XLANG_BACKEND_SEED_MEGA_FALLBACK_FROM_X`
   - 实现差异：.x pipeline_dep_ctx_target_arch_local 调用 extern pipeline_dep_ctx_target_arch；seed 直接访问 ctx->target_arch。两者语义等价。
   - rest 跨调用依赖：backend_asm_codegen_ast_seed_mega 调用 pipeline_seed_mega_ctx_reset + pipeline_dep_ctx_target_arch_local（thin 提供，rest 模式下 extern 声明）
 - 下一步补充：

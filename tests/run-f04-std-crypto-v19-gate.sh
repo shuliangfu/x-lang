@@ -2,11 +2,11 @@
 # F-04 v19：std.crypto ed25519.inc.c → ed25519.x 门禁。
 #
 # 用法：./tests/run-f04-std-crypto-v19-gate.sh
-# 环境：SHUX_F04_CRYPTO_V19_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_CRYPTO_V19_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_CRYPTO_V19_FAIL:-0}
+FAIL=${XLANG_F04_CRYPTO_V19_FAIL:-0}
 DOC="analysis/phase-f-f04-v19.md"
 ED25519="std/crypto/ed25519.x"
 GLUE="compiler/seeds/runtime_ed25519_ref10_glue.from_x.c"
@@ -79,7 +79,7 @@ EOF
     echo "f04 crypto ed25519 smoke SKIP (crypto.o missing ed25519 .x symbols)"
   fi
 else
-  echo "f04 crypto ed25519 smoke SKIP (crypto.o missing .x symbols; need shux-c)"
+  echo "f04 crypto ed25519 smoke SKIP (crypto.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-crypto-ed25519-gate.sh ]; then

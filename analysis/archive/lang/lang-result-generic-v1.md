@@ -64,7 +64,7 @@ allow(padding) struct Result<T, E> {
 ```
 
 ```
-shux: [SHUX_LANG010_RESULT_GENERIC] status=ok golden=2 typeck=2 skip=0
+xlang: [XLANG_LANG010_RESULT_GENERIC] status=ok golden=2 typeck=2 skip=0
 ```
 
 ---

@@ -12,9 +12,9 @@ DYNLIB_X="std/dynlib/dynlib.x"
 MANIFEST="tests/baseline/std-dynlib-last-error.tsv"
 SMOKE_X="tests/dynlib/last_error.x"
 SMOKE_C="tests/dynlib/last_error_smoke.c"
-PREFIX="shux: [SHUX_STD096_DYNLIB_ERR]"
+PREFIX="xlang: [XLANG_STD096_DYNLIB_ERR]"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -46,14 +46,14 @@ echo "dynlib-last-error manifest OK"
 C_OK=0
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+XLANG_BIN=""
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/dynlib/dynlib.o
@@ -64,7 +64,7 @@ if [ -n "$SHUX_BIN" ]; then
   esac
 
   echo "=== STD-096: C smoke ==="
-  c_exe="/tmp/shux_std096_dynlib_err_$$"
+  c_exe="/tmp/xlang_std096_dynlib_err_$$"
   if cc -Wall -Wextra -o "$c_exe" "$SMOKE_C" std/dynlib/dynlib.o compiler/runtime_dynlib_os.o $ld_extra 2>/dev/null; then
     set +e
     "$c_exe" >/dev/null 2>&1
@@ -81,15 +81,15 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
 
-  echo "=== STD-096: .x typeck (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  echo "=== STD-096: .x typeck (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "dynlib-last-error gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     exit 1
   fi
   X_OK=1
 else
-  echo "dynlib-last-error gate SKIP C/.x smoke (no native shux-c)" >&2
+  echo "dynlib-last-error gate SKIP C/.x smoke (no native xlang-c)" >&2
   SKIP=1
 fi
 

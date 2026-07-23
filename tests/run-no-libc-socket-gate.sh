@@ -3,16 +3,16 @@
 #
 # 用法：./tests/run-no-libc-socket-gate.sh
 # 环境：
-#   SHUX_NOLIBC_SOCKET_FAIL=1  — 失败时硬退出
-#   SHUX=./compiler/shux
+#   XLANG_NOLIBC_SOCKET_FAIL=1  — 失败时硬退出
+#   XLANG=./compiler/xlang
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_SOCKET_FAIL:-0}
+FAIL=${XLANG_NOLIBC_SOCKET_FAIL:-0}
 X="tests/sys/linux_socket_invoke_smoke.x"
 NET_MOD="std/net/freestanding_linux.x"
 ASM="compiler/src/asm/freestanding_io_x86_64.s"
-OUT="/tmp/shux_nolibc_socket.$$.out"
+OUT="/tmp/xlang_nolibc_socket.$$.out"
 
 die() {
   echo "nolibc-socket gate FAIL: $*" >&2
@@ -24,7 +24,7 @@ echo "=== NL-02: freestanding socket syscall (zero libc) ==="
 for f in "$X" "$NET_MOD" "$ASM"; do
   [ -f "$f" ] || die "missing $f"
 done
-for sym in shux_sys_socket shux_sys_connect shux_sys_bind shux_sys_listen shux_sys_accept; do
+for sym in xlang_sys_socket xlang_sys_connect xlang_sys_bind xlang_sys_listen xlang_sys_accept; do
   grep -q "$sym" "$ASM" || die "$ASM missing $sym"
 done
 
@@ -33,18 +33,18 @@ if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x
   exit 0
 fi
 
-SHUX="${SHUX:-./compiler/shux}"
-if [ ! -x "$SHUX" ] && [ -x ./compiler/shux_asm ]; then
-  SHUX=./compiler/shux_asm
+XLANG="${XLANG:-./compiler/xlang}"
+if [ ! -x "$XLANG" ] && [ -x ./compiler/xlang_asm ]; then
+  XLANG=./compiler/xlang_asm
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "nolibc-socket gate: SKIP (no shux/shux_asm)"
+if [ ! -x "$XLANG" ]; then
+  echo "nolibc-socket gate: SKIP (no xlang/xlang_asm)"
   exit 0
 fi
 
 rm -f "$OUT" 2>/dev/null || true
-if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_nolibc_socket.log; then
-  tail -n 12 /tmp/shux_nolibc_socket.log 2>/dev/null || true
+if ! "$XLANG" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/xlang_nolibc_socket.log; then
+  tail -n 12 /tmp/xlang_nolibc_socket.log 2>/dev/null || true
   die "compile $X failed"
 fi
 [ -x "$OUT" ] || die "no executable $OUT"

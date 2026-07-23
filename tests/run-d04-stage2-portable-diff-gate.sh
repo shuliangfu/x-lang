@@ -3,19 +3,19 @@
 #
 # 用法：./tests/run-d04-stage2-portable-diff-gate.sh
 # 环境：
-#   SHUX_D04_FAIL=1        — 失败时硬退出（CI 默认）
-#   SHUX_D04_STAGE1/2      — 默认 compiler/shux_asm_stage1 / shux_asm2
-#   SHUX_D04_MANIFEST_ONLY — 仅审计 manifest，不跑用例
+#   XLANG_D04_FAIL=1        — 失败时硬退出（CI 默认）
+#   XLANG_D04_STAGE1/2      — 默认 compiler/xlang_asm_stage1 / xlang_asm2
+#   XLANG_D04_MANIFEST_ONLY — 仅审计 manifest，不跑用例
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_D04_FAIL:-0}
+FAIL=${XLANG_D04_FAIL:-0}
 DOC="analysis/phase-d-d04-v1.md"
 MANIFEST="tests/baseline/d04-stage2-portable-matrix.tsv"
 LIB="tests/lib/d04-stage2-portable-diff.sh"
-if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): shux_asm_stage1 OOM"; exit 0; fi
-STAGE1="${SHUX_D04_STAGE1:-compiler/shux_asm_stage1}"
-STAGE2="${SHUX_D04_STAGE2:-compiler/shux_asm2}"
+if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): xlang_asm_stage1 OOM"; exit 0; fi
+STAGE1="${XLANG_D04_STAGE1:-compiler/xlang_asm_stage1}"
+STAGE2="${XLANG_D04_STAGE2:-compiler/xlang_asm2}"
 MIN_CASES=10
 
 die() {
@@ -59,7 +59,7 @@ done < "$MANIFEST"
 [ "$CASE_N" -ge "$MIN_CASES" ] || die "matrix cases $CASE_N < $MIN_CASES"
 [ "$MISS" -eq 0 ] || die "$MISS matrix rows invalid"
 
-if [ "${SHUX_D04_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_D04_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "d04 stage2-portable-diff gate OK (manifest only)"
   exit 0
 fi
@@ -78,11 +78,11 @@ if ! d04_stage_binaries_ready; then
   exit 0
 fi
 
-d04_export_link_shux_if_needed
+d04_export_link_xlang_if_needed
 
 OK=0
 BAD=0
-echo "=== D-04: stage1 vs stage2 diff (SHUX1=$STAGE1 SHUX2=$STAGE2) ==="
+echo "=== D-04: stage1 vs stage2 diff (XLANG1=$STAGE1 XLANG2=$STAGE2) ==="
 while IFS=$'\t' read -r case_id category src mode expected_exit _notes; do
   [ -z "${case_id:-}" ] && continue
   case "$case_id" in \#*|min_*) continue ;; esac

@@ -38,12 +38,12 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
-  - thin+rest 宏边界：`SHUX_RUNTIME_HEAP_USER_FROM_X`
+  - thin+rest 宏边界：`XLANG_RUNTIME_HEAP_USER_FROM_X`
   - rest 跨调用依赖：`heap_arena64_deinit_c` 调用 `heap_free_c`（thin 提供，rest 模式下 extern 声明）
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape
-  - struct_size_snapshot（ShuxHeapArena64: chunk/cap/off 各 8B）
+  - struct_size_snapshot（XlangHeapArena64: chunk/cap/off 各 8B）
   - critical_field_offsets
 
 ## 5. 验证状态

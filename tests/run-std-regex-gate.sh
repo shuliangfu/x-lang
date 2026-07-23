@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-DOC="${SHUX_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
-MANIFEST="${SHUX_STD_REGEX_TSV:-tests/baseline/std-regex.tsv}"
-XPLAT="${SHUX_STD_REGEX_XPLAT:-tests/baseline/std-regex-xplat.tsv}"
+DOC="${XLANG_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
+MANIFEST="${XLANG_STD_REGEX_TSV:-tests/baseline/std-regex.tsv}"
+XPLAT="${XLANG_STD_REGEX_XPLAT:-tests/baseline/std-regex-xplat.tsv}"
 MOD_X="std/regex/mod.x"
 REGEX_X="std/regex/regex.x"
 LIB="tests/lib/std-regex.sh"
@@ -91,24 +91,24 @@ platform_policy() {
 ensure_std_c_o ../std/regex/regex.o
 
 C_OK=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   if std_regex_run_c_smoke "$REGEX_X"; then
     C_OK=1
   else
     echo "std-regex gate SKIP c smoke (no full regex.o)" >&2
   fi
 else
-  echo "std-regex gate SKIP c smoke (no shux-c)" >&2
+  echo "std-regex gate SKIP c smoke (no xlang-c)" >&2
 fi
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ] && ! ./compiler/shux-c check -L . tests/regex/literal_match.x >/dev/null 2>&1; then
-  echo "std-regex gate: rebuild shux-c (C frontend) for match API" >&2
-  SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c >/dev/null 2>&1 || true
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ] && ! ./compiler/xlang-c check -L . tests/regex/literal_match.x >/dev/null 2>&1; then
+  echo "std-regex gate: rebuild xlang-c (C frontend) for match API" >&2
+  XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c >/dev/null 2>&1 || true
 fi
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -120,14 +120,14 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-051: xplat .x smoke (SHUX=$SHUX_BIN host=$(ci_host_summary)) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-051: xplat .x smoke (XLANG=$XLANG_BIN host=$(ci_host_summary)) ==="
   X_FAIL=0
   while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
     [ -z "$case_id" ] && continue
@@ -142,13 +142,13 @@ if [ -n "$SHUX_BIN" ]; then
     if [ "$script" = "tests/regex/regex_min_ok.c" ]; then
       continue
     fi
-    if ! "$SHUX_BIN" check -L . "$script" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$script" >/dev/null 2>&1; then
       echo "std-regex gate FAIL: typeck $script" >&2
-      "$SHUX_BIN" check -L . "$script" 2>&1 | tail -6 >&2 || true
+      "$XLANG_BIN" check -L . "$script" 2>&1 | tail -6 >&2 || true
       X_FAIL=1
       break
     fi
-    if ! std_regex_run_smoke "$SHUX_BIN" "$script" "$case_id"; then
+    if ! std_regex_run_smoke "$XLANG_BIN" "$script" "$case_id"; then
       echo "std-regex gate SKIP x run $case_id (typeck OK; regex.o link debt)" >&2
       SKIP=1
       continue
@@ -174,7 +174,7 @@ if [ -n "$SHUX_BIN" ]; then
   # x compile/run 待 regex.o co-emit 闭合；typeck + manifest + grep 通过即 OK。
   X_OK=1
 else
-  echo "std-regex gate SKIP .x smoke (no native shux)" >&2
+  echo "std-regex gate SKIP .x smoke (no native xlang)" >&2
   SKIP=1
 fi
 

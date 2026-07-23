@@ -2,7 +2,7 @@
 # F-dynlib v2：std.dynlib F-ZC（dynlib_os_glue.c → runtime_dynlib_os.inc）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_DYNLIB_V2_FAIL:-0}
+FAIL=${XLANG_F_DYNLIB_V2_FAIL:-0}
 DOC="analysis/phase-f-dynlib-v2.md"
 MANIFEST="tests/baseline/f-dynlib-v2-closure.tsv"
 die() { echo "f-dynlib-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -27,10 +27,10 @@ grep -q 'dynlib_f_dynlib_v2_marker_c' std/dynlib/dynlib.x || die "dynlib.x missi
 grep -q 'dynlib_os_open_c' compiler/seeds/runtime_dynlib_os.from_x.c || die "runtime missing open"
 grep -q 'dynlib_glue.c' compiler/Makefile && die "Makefile still references dynlib_glue.c"
 grep -q 'runtime_dynlib_os' compiler/Makefile || die "Makefile missing runtime_dynlib_os.o"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/dynlib/dynlib.o >/dev/null 2>&1 || die "make dynlib.o failed"
 else
-  echo "f-dynlib-v2 SKIP dynlib.o build (no shux-c)" >&2
+  echo "f-dynlib-v2 SKIP dynlib.o build (no xlang-c)" >&2
 fi
 for sub in run-std-dynlib-windows-gate.sh run-std-dynlib-last-error-gate.sh; do
   [ -f "tests/$sub" ] || continue

@@ -44,7 +44,7 @@
 ./tests/run-std-process-xplat-gate.sh
 ```
 
-报告：`shux: [SHUX_STD142_PROCESS_XPLAT]`
+报告：`xlang: [XLANG_STD142_PROCESS_XPLAT]`
 
 ---
 

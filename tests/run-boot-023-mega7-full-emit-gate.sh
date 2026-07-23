@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_BOOT023_DOC:-analysis/boot-023-mega7-full-emit-v1.md}"
-MANIFEST="${SHUX_BOOT023_TSV:-tests/baseline/boot-023-mega7-full-emit.tsv}"
-WAVE="${SHUX_BOOT023_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
+DOC="${XLANG_BOOT023_DOC:-analysis/boot-023-mega7-full-emit-v1.md}"
+MANIFEST="${XLANG_BOOT023_TSV:-tests/baseline/boot-023-mega7-full-emit.tsv}"
+WAVE="${XLANG_BOOT023_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 LIB="tests/lib/boot-023-mega7-full-emit.sh"
 MIN_EMIT=7
@@ -71,7 +71,7 @@ if [ "$ROW_N" -lt "$MIN_ROWS" ]; then
   exit 1
 fi
 
-# B1–B7 须均为 emit_target（仅 Linux+shux_asm 时硬门禁）
+# B1–B7 须均为 emit_target（仅 Linux+xlang_asm 时硬门禁）
 EMIT_TARGET_N=0
 if boot023_mega7_linux_asm; then
   while IFS=$'\t' read -r item_id kind _phase status _hook _notes; do
@@ -89,7 +89,7 @@ if boot023_mega7_linux_asm; then
     MISS=$((MISS + 1))
   fi
 else
-  echo "boot-023-mega7-full-emit gate SKIP mega7 matrix emit_target check (no shux_asm)" >&2
+  echo "boot-023-mega7-full-emit gate SKIP mega7 matrix emit_target check (no xlang_asm)" >&2
 fi
 
 if [ "$MISS" -gt 0 ]; then
@@ -103,7 +103,7 @@ EMIT_FULL=0
 SKIP=1
 
 if boot023_mega7_linux_asm; then
-  echo "=== BOOT-023: full emit wave (Linux shux_asm) ==="
+  echo "=== BOOT-023: full emit wave (Linux xlang_asm) ==="
   chmod +x tests/run-parser-mega7-emit-wave.sh
   WAVE_OUT="/tmp/boot023_emit_wave_$$.log"
   if ./tests/run-parser-mega7-emit-wave.sh 2>&1 | tee "$WAVE_OUT"; then
@@ -118,7 +118,7 @@ if boot023_mega7_linux_asm; then
   fi
   rm -f "$WAVE_OUT"
 else
-  echo "boot-023-mega7-full-emit gate SKIP wave (Darwin or no shux_asm)" >&2
+  echo "boot-023-mega7-full-emit gate SKIP wave (Darwin or no xlang_asm)" >&2
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$PROMOTE_EMIT" -lt "$MIN_EMIT" ]; then

@@ -32,7 +32,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`process_nop_sigchld_impl`、`process_dup_stdio_posix_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_PROCESS_OS_GLUE_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X`
 - 前向声明：2 个 thin wrapper（`process_nop_sigchld` / `process_dup_stdio_posix`），rest 模式下供 rest 函数调用
 - 内部调用更新：`process_spawn_c` 取 `process_nop_sigchld` 地址传给 `signal()`；`process_spawn_io_c` 调用 `process_nop_sigchld` + `process_dup_stdio_posix`
 

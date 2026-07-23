@@ -4,8 +4,8 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function shux_panic_(has_msg: i32, msg_val: i32): void;
-export extern "C" function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+export extern "C" function xlang_panic_(has_msg: i32, msg_val: i32): void;
+export extern "C" function xlang_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 /** Exported function `std_runtime_crash_evidence_collect`.
  * Implements `std_runtime_crash_evidence_collect`.
@@ -16,7 +16,7 @@ export extern "C" function shux_crash_evidence_collect_c(has_msg: i32, msg_val: 
 #[no_mangle]
 export function std_runtime_crash_evidence_collect(has_msg: i32, msg_val: i32): void {
   unsafe {
-    shux_crash_evidence_collect_c(has_msg, msg_val);
+    xlang_crash_evidence_collect_c(has_msg, msg_val);
   }
 }
 
@@ -38,7 +38,7 @@ export function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): vo
 #[no_mangle]
 export function std_runtime_runtime_panic(): void {
   unsafe {
-    shux_panic_(0, 0);
+    xlang_panic_(0, 0);
   }
 }
 
@@ -49,7 +49,7 @@ export function std_runtime_runtime_panic(): void {
 #[no_mangle]
 export function runtime_panic(): void {
   unsafe {
-    shux_panic_(0, 0);
+    xlang_panic_(0, 0);
   }
 }
 
@@ -60,7 +60,7 @@ export function runtime_panic(): void {
 #[no_mangle]
 export function std_runtime_runtime_abort(): void {
   unsafe {
-    shux_panic_(0, 0);
+    xlang_panic_(0, 0);
   }
 }
 
@@ -71,6 +71,6 @@ export function std_runtime_runtime_abort(): void {
 #[no_mangle]
 export function runtime_abort(): void {
   unsafe {
-    shux_panic_(0, 0);
+    xlang_panic_(0, 0);
   }
 }

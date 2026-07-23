@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-socketio.sh — STD-SOCKETIO-001 manifest 与烟测辅助
 
-STD_SOCKETIO_PREFIX="${SHUX_STD_SOCKETIO_PREFIX:-shux: [SHUX_STD_SOCKETIO]}"
+STD_SOCKETIO_PREFIX="${XLANG_STD_SOCKETIO_PREFIX:-xlang: [XLANG_STD_SOCKETIO]}"
 
 std_socketio_symbols_ok() {
   local mod_x="$1"

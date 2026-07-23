@@ -28,7 +28,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`dynlib_win_load_library_w_utf8_impl`（Windows only）
-- thin+rest 宏边界：`SHUX_RUNTIME_DYNLIB_OS_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_DYNLIB_OS_FROM_X`
 - 内部调用更新：
   - `dynlib_os_open_c` 中 `dynlib_win_load_library_w_utf8` → `_impl`
   - `dynlib_os_win_path_smoke_c` 中 `dynlib_win_load_library_w_utf8` → `_impl`

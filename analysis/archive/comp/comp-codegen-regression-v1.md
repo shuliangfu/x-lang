@@ -24,7 +24,7 @@
 |------|----------|----------|
 | **x86_64** | Linux GHA、macOS Intel | 全 matrix + asm-73 hook |
 | **arm64** | Linux ARM GHA、macOS Apple Silicon | `any` 行全跑；asm hook SKIP |
-| **Windows MSYS2** | ci.yml windows job | `any` 行 + shux-c 链接 |
+| **Windows MSYS2** | ci.yml windows job | `any` 行 + xlang-c 链接 |
 
 矩阵 `arch` 列：`any` = 全平台；`x86_64` = 仅 x86_64 宿主。
 
@@ -41,7 +41,7 @@
 | float_f64 | 浮点 |
 | match_expr / slice_view | 控制流 / slice |
 | enum_suite | 枚举（hook） |
-| asm_compute | asm 后端（x86_64 + shux_asm） |
+| asm_compute | asm 后端（x86_64 + xlang_asm） |
 
 ---
 
@@ -52,7 +52,7 @@
 1. manifest：RFC + matrix  
 2. `policy=run`：`-o` 编译并运行，校验 `expected_exit`  
 3. `policy=hook`：调用已有 run-*.sh  
-4. 无 native shux → manifest + SKIP bench（与 portable gate 一致）
+4. 无 native xlang → manifest + SKIP bench（与 portable gate 一致）
 
 ---
 
@@ -60,7 +60,7 @@
 
 1. 新增 codegen 特性 → 增 matrix 行 + 烟测 `.x`  
 2. 改 asm 后端 → 确保 asm_compute hook 仍绿（Linux x86_64 CI）  
-3. 本地：`SHUX=./compiler/shux-c ./tests/run-codegen-regression-gate.sh`
+3. 本地：`XLANG=./compiler/xlang-c ./tests/run-codegen-regression-gate.sh`
 
 ---
 

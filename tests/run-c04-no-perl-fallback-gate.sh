@@ -2,12 +2,12 @@
 # C-04 v5：Makefile 生成 parser_gen.c / lsp_diag_gen.c 时禁止 perl 回退（须 codegen C-04 marker）。
 #
 # 用法：./tests/run-c04-no-perl-fallback-gate.sh
-# 环境：SHUX_C04_NO_PERL_FAIL=1 失败时硬退出
+# 环境：XLANG_C04_NO_PERL_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_C04_NO_PERL_FAIL:-0}
-LOG="/tmp/shux_c04_no_perl_$$.log"
+FAIL=${XLANG_C04_NO_PERL_FAIL:-0}
+LOG="/tmp/xlang_c04_no_perl_$$.log"
 
 echo "=== C-04 v5: Makefile no perl fallback (parser + lsp_diag) ==="
 
@@ -21,7 +21,7 @@ if grep -E 'parser_gen\.c:|lsp_diag_gen\.c:' compiler/Makefile | grep -q 'fix_sl
   exit 0
 fi
 
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c >/dev/null
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c >/dev/null
 rm -f compiler/parser_gen.c compiler/lsp_diag_gen.c 2>/dev/null || true
 
 if ! make -C compiler parser_gen.c lsp_diag_gen.c 2>"$LOG" | tee -a "$LOG"; then

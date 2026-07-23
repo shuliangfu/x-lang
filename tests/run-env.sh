@@ -6,20 +6,20 @@
 #
 set -e
 cd "$(dirname "$0")/.."
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
   make -C compiler -q ../std/env/env.o 2>/dev/null || make -C compiler ../std/env/env.o
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
 fi
 
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
 run_one() {
   local src="$1"
   local label="$2"
-  local exe="/tmp/shux_env_$$_${label}"
-  if ! $RUN_SHUX -L . "$src" -o "$exe" 2>&1; then
+  local exe="/tmp/xlang_env_$$_${label}"
+  if ! $RUN_XLANG build -L . "$src" -o "$exe" 2>&1; then
     echo "env test ($label): compile failed"
     rm -f "$exe"
     exit 1
@@ -38,4 +38,4 @@ run_one tests/env/main.x main
 run_one tests/env/env_iter.x env_iter
 run_one tests/env/platform_encoding.x platform_encoding
 echo "env test OK (all)"
-rm -f /tmp/shux_env_$$_*
+rm -f /tmp/xlang_env_$$_*

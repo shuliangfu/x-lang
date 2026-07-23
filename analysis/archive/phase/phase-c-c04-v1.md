@@ -19,13 +19,13 @@
 |------|------|
 | **lexer_gen.c** | 仍 `perl fix_slim_arena_gen_c.pl`（v2：codegen 原生 slim arena） |
 | **typeck_gen.c / codegen_gen.c / ast_gen2.c** | 同上 |
-| **lsp_io_gen.c** | shux-x 失败时回退 shux-c `-E-extern` |
+| **lsp_io_gen.c** | xlang-x 失败时回退 xlang-c `-E-extern` |
 | **lsp_codegen_extern.c** | C codegen 路径仍内嵌 extern 块（E-01 删 .h 时一并收） |
 
 ## 复现
 
 ```bash
-SHUX_C04_FAIL=1 ./tests/run-c04-e-extern-gate.sh
+XLANG_C04_FAIL=1 ./tests/run-c04-e-extern-gate.sh
 ```
 
 ## 延后（C-04 v2）

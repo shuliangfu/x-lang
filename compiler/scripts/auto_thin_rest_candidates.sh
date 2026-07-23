@@ -4,7 +4,7 @@
 # 目标（与方法论 §4.2 / §5 P1 对齐）：
 #   - 不自动落盘 .x / seed 修改
 #   - 只输出候选列表 + 风险标注，供人工评估
-#   - 已切割的 TU（已有 _thin.x 或 seed 有 SHUX_*_FROM_X 宏）标为 already_split
+#   - 已切割的 TU（已有 _thin.x 或 seed 有 XLANG_*_FROM_X 宏）标为 already_split
 #   - 不适合切割的 TU（无 #[no_mangle] / 纯数据文件）标为 not_candidate
 #
 # 判定规则（与方法论 §3.2 "不能只看符号交集" 对齐）：
@@ -101,7 +101,7 @@ rg -c '^\s*#\s*(if|ifdef|ifndef)' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '
 rg -c '\bva_list\b' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_VALIST_FILE" || true
 rg -c '\bargv\b' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_ARGV_FILE" || true
 rg -c '^[a-zA-Z_][a-zA-Z0-9_ \*]*\bimpl\b[[:space:]]*\(' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_IMPL_FILE" || true
-rg -c 'SHUX_[A-Z0-9_]+_FROM_X' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_MACRO_FILE" || true
+rg -c 'XLANG_[A-Z0-9_]+_FROM_X' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_MACRO_FILE" || true
 
 # 预计算：每个 seed 的行数 + 风险标记 + impl 计数 + 是否有 rest 宏
 # 输出 TSV: stem \t lines \t impl_count \t has_rest_macro \t risk_flags \t seed_path

@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# fix_asm_full_gen_c.pl — shux -E asm.x 产出 C 的宿主 cc 兼容补丁（G-06 build_seed_asm_host）
+# fix_asm_full_gen_c.pl — xlang -E asm.x 产出 C 的宿主 cc 兼容补丁（G-06 build_seed_asm_host）
 # 修复：固定数组字段顺序、float_val、enum 字段、import 限定调用、asm.types 残缺 emit、指针字段访问等。
 use strict;
 use warnings;

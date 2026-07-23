@@ -15,8 +15,8 @@
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 
-export extern function shu_target_cpu_detect_host(): u32;
-export extern function shu_target_cpu_generic_for_host(): u32;
+export extern function xlang_target_cpu_detect_host(): u32;
+export extern function xlang_target_cpu_generic_for_host(): u32;
 
 /** Exported function `driver_set_pending_target_cpu_features`.
  * Implements `driver_set_pending_target_cpu_features`.
@@ -62,6 +62,7 @@ export function tcp_tolower(c: u8): u8 {
  * @param lit8 u8
  * @return i32
  */
+#[no_mangle]
 export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, lit2: u8, lit3: u8, lit4: u8, lit5: u8, lit6: u8, lit7: u8, lit8: u8): i32 {
   let i: usize = 0;
   let want: u8 = 0;
@@ -89,6 +90,7 @@ export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, 
  * @param f u32
  * @return void
  */
+#[no_mangle]
 export function tcp_set_u32(out: *u32, f: u32): void {
   out[0] = f;
 }
@@ -101,6 +103,7 @@ export function tcp_set_u32(out: *u32, f: u32): void {
  * @param out *u32
  * @return i32
  */
+#[no_mangle]
 export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): i32 {
   let n: usize = 0;
   let f: u32 = 0;
@@ -110,13 +113,13 @@ export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): 
   n = end - base;
   /* native */
   if (n == 6 && tcp_eq_at(spec, base, 6, 110, 97, 116, 105, 118, 101, 0, 0, 0) != 0) {
-    unsafe { f = shu_target_cpu_detect_host(); }
+    unsafe { f = xlang_target_cpu_detect_host(); }
     tcp_set_u32(out, f);
     return 0;
   }
   /* generic */
   if (n == 7 && tcp_eq_at(spec, base, 7, 103, 101, 110, 101, 114, 105, 99, 0, 0) != 0) {
-    unsafe { f = shu_target_cpu_generic_for_host(); }
+    unsafe { f = xlang_target_cpu_generic_for_host(); }
     tcp_set_u32(out, f);
     return 0;
   }
@@ -184,15 +187,15 @@ export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): 
   return -1;
 }
 
-/** Exported function `shu_target_cpu_resolve`.
- * Implements `shu_target_cpu_resolve`.
+/** Exported function `xlang_target_cpu_resolve`.
+ * Implements `xlang_target_cpu_resolve`.
  * @param spec *u8
  * @param spec_len usize
  * @param out *u32
  * @return i32
  */
 #[no_mangle]
-export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
+export function xlang_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
   let start: usize = 0;
   let end: usize = 0;
   let f: u32 = 0;
@@ -200,7 +203,7 @@ export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i
     return -1;
   }
   if (spec == 0 as *u8 || spec_len == 0) {
-    unsafe { f = shu_target_cpu_detect_host(); }
+    unsafe { f = xlang_target_cpu_detect_host(); }
     tcp_set_u32(out, f);
     return 0;
   }
@@ -212,7 +215,7 @@ export function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i
     end = end - 1;
   }
   if (end <= start) {
-    unsafe { f = shu_target_cpu_detect_host(); }
+    unsafe { f = xlang_target_cpu_detect_host(); }
     tcp_set_u32(out, f);
     return 0;
   }
@@ -250,14 +253,14 @@ export function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u
   return tcp_eq_at(name, 0, 6, a0, a1, a2, a3, a4, a5, 0, 0, 0);
 }
 
-/** Exported function `shu_simd_is_vector_type_spelling`.
- * Implements `shu_simd_is_vector_type_spelling`.
+/** Exported function `xlang_simd_is_vector_type_spelling`.
+ * Implements `xlang_simd_is_vector_type_spelling`.
  * @param name *u8
  * @param name_len usize
  * @return i32
  */
 #[no_mangle]
-export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i32 {
+export function xlang_simd_is_vector_type_spelling(name: *u8, name_len: usize): i32 {
   if (name == 0 as *u8 || name_len == 0) {
     return 0;
   }
@@ -277,8 +280,8 @@ export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i3
   return 0;
 }
 
-/** Exported function `shu_simd_vector_lanes_esz_from_spelling`.
- * Implements `shu_simd_vector_lanes_esz_from_spelling`.
+/** Exported function `xlang_simd_vector_lanes_esz_from_spelling`.
+ * Implements `xlang_simd_vector_lanes_esz_from_spelling`.
  * @param name *u8
  * @param name_len usize
  * @param out_lanes *i32
@@ -286,13 +289,13 @@ export function shu_simd_is_vector_type_spelling(name: *u8, name_len: usize): i3
  * @return i32
  */
 #[no_mangle]
-export function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32 {
+export function xlang_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32 {
   let lanes: i32 = 4;
   let esz: i32 = 4;
   if (out_lanes == 0 as *i32 || out_esz == 0 as *i32) {
     return -1;
   }
-  if (shu_simd_is_vector_type_spelling(name, name_len) == 0) {
+  if (xlang_simd_is_vector_type_spelling(name, name_len) == 0) {
     return -1;
   }
   if (name_len == 5 && name[4] == 56) {

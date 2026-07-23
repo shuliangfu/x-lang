@@ -2,7 +2,7 @@
 # F-tar v1：std.tar 去 C（tar.c → tar.x；胶层 v2 已删，见 run-f-tar-v2-gate.sh）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_TAR_V1_FAIL:-0}
+FAIL=${XLANG_F_TAR_V1_FAIL:-0}
 DOC="analysis/phase-f-tar-v1.md"
 MANIFEST="tests/baseline/f-tar-v1-closure.tsv"
 die() { echo "f-tar-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'tar.x' compiler/Makefile || die "Makefile missing tar.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/tar/tar.o >/dev/null 2>&1 || die "make tar.o failed"
 else
-  echo "f-tar-v1 SKIP tar.o build (no shux-c)" >&2
+  echo "f-tar-v1 SKIP tar.o build (no xlang-c)" >&2
 fi
 for sub in run-std-tar-ustar-gate.sh run-std-tar-extended-gate.sh; do
   [ -f "tests/$sub" ] || continue

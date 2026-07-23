@@ -2,7 +2,7 @@
 # F-cache v2：std.cache 逻辑全量 .x（删除 cache_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_CACHE_V2_FAIL:-0}
+FAIL=${XLANG_F_CACHE_V2_FAIL:-0}
 DOC="analysis/phase-f-cache-v2.md"
 MANIFEST="tests/baseline/f-cache-v2-closure.tsv"
 die() { echo "f-cache-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -25,10 +25,10 @@ grep -q 'cache_pool_create_c' std/cache/cache.x || die "cache.x missing pool cre
 grep -q 'cache_smoke_c' std/cache/cache.x || die "cache.x missing smoke"
 grep -q 'cache_f_cache_v2_marker_c' std/cache/cache.x || die "cache.x missing v2 marker"
 grep -q 'F-cache v2' compiler/Makefile || die "Makefile missing F-cache v2 note"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/cache/cache.o >/dev/null 2>&1 || die "make cache.o failed"
 else
-  echo "f-cache-v2 SKIP cache.o build (no shux-c)" >&2
+  echo "f-cache-v2 SKIP cache.o build (no xlang-c)" >&2
 fi
 chmod +x tests/run-std-cache-gate.sh
 tests/run-std-cache-gate.sh || die "run-std-cache-gate failed"

@@ -1,73 +1,73 @@
 {
   // =============================================================================
-  // Shux 工作区默认配置（与 editors/vscode/package.json 默认值对齐，可按需覆盖）
+  // Xlang 工作区默认配置（与 editors/vscode/package.json 默认值对齐，可按需覆盖）
   // =============================================================================
 
   // --- 语言服务（LSP）---
-  // shux 可执行文件路径（相对工作区根）；LSP、运行、诊断均依赖此路径
-  "shux.serverPath": "compiler/shux",
+  // xlang 可执行文件路径（相对工作区根）；LSP、运行、诊断均依赖此路径
+  "xlang.serverPath": "compiler/xlang",
   // LSP 通信日志：off | messages | verbose（排查问题时改为 verbose）
-  "shux.server.trace": "off",
+  "xlang.server.trace": "off",
   // LSP 进程异常退出时是否自动重启
-  "shux.server.restartOnCrash": true,
+  "xlang.server.restartOnCrash": true,
 
   // --- 格式化 ---
-  // 是否启用 Shux 格式化（Format Document / 保存时格式化）
-  "shux.format.enabled": true,
+  // 是否启用 Xlang 格式化（Format Document / 保存时格式化）
+  "xlang.format.enabled": true,
   // 每级缩进空格数（insertSpaces 为 true 时生效）
-  "shux.format.tabSize": 2,
+  "xlang.format.tabSize": 2,
   // true=空格缩进，false=Tab 缩进
-  "shux.format.insertSpaces": true,
+  "xlang.format.insertSpaces": true,
   // 单行最大字符数（超出可换行，0 表示不限制）
-  "shux.format.maxLineLength": 100,
+  "xlang.format.maxLineLength": 100,
   // 文件末尾是否插入换行符
-  "shux.format.insertFinalNewline": true,
+  "xlang.format.insertFinalNewline": true,
   // 是否删除行尾空白
-  "shux.format.trimTrailingWhitespace": true,
+  "xlang.format.trimTrailingWhitespace": true,
   // 是否删除文件末尾多余空行
-  "shux.format.trimFinalNewlines": true,
+  "xlang.format.trimFinalNewlines": true,
 
-  // --- 编辑器功能开关（Shux 扩展提供）---
+  // --- 编辑器功能开关（Xlang 扩展提供）---
   // 文档大纲 / 符号列表（函数、结构体、枚举等）
-  "shux.features.symbols": true,
+  "xlang.features.symbols": true,
   // 代码折叠（{}、import 块等）
-  "shux.features.folding": true,
+  "xlang.features.folding": true,
   // 悬停提示（类型、文档等）
-  "shux.features.hover": true,
+  "xlang.features.hover": true,
   // CodeLens 总开关：main 上方「▶ Run」、struct「N fields」、enum「N variants」等
   // 须与下方 editor.codeLens 同时为 true，行内灰色提示才会显示
-  "shux.features.codeLens": true,
+  "xlang.features.codeLens": true,
   // 是否在 function / extern function 行上方显示灰色「fn」「extern fn」标签
   // false=不显示（推荐）；true=显示；不影响 ▶ Run 与 struct/enum 计数
-  "shux.features.codeLensFunctionLabels": false,
+  "xlang.features.codeLensFunctionLabels": false,
   // 函数调用时的参数签名提示
-  "shux.features.signatureHelp": true,
+  "xlang.features.signatureHelp": true,
   // 智能补全
-  "shux.features.completion": true,
+  "xlang.features.completion": true,
   // 输入时自动调整缩进（如换行后补全）
-  "shux.features.formatOnType": true,
+  "xlang.features.formatOnType": true,
   // import 路径等可点击跳转
-  "shux.features.documentLinks": true,
+  "xlang.features.documentLinks": true,
   // 状态栏显示 LSP 连接状态
-  "shux.features.statusBar": true,
+  "xlang.features.statusBar": true,
   // 智能扩展选区（Expand Selection）
-  "shux.features.selectionRange": true,
+  "xlang.features.selectionRange": true,
   // 失去焦点时自动格式化当前行（默认关，避免频繁改动）
-  "shux.features.formatOnBlur": false,
+  "xlang.features.formatOnBlur": false,
 
   // --- 编译器 / LSP 传参 ---
   // 诊断最低级别：error | warning | info
-  "shux.compiler.diagnosticLevel": "warning",
-  // 传给 shux --lsp 的额外命令行参数（字符串数组）
-  "shux.compiler.extraArgs": [],
+  "xlang.compiler.diagnosticLevel": "warning",
+  // 传给 xlang --lsp 的额外命令行参数（字符串数组）
+  "xlang.compiler.extraArgs": [],
   // 编译输出目录（相对工作区根）；留空用编译器默认
-  "shux.compiler.targetDir": "",
-  // import 解析库根（与 shux -L 一致）；用于跳转、跨模块符号
-  "shux.compiler.libRoots": [".", "compiler/src", "core", "std"],
-  // 启动 shux/LSP 时注入的环境变量（键值对象，如 SHUX_PATH）
-  "shux.compiler.envJson": {},
+  "xlang.compiler.targetDir": "",
+  // import 解析库根（与 xlang -L 一致）；用于跳转、跨模块符号
+  "xlang.compiler.libRoots": [".", "compiler/src", "core", "std"],
+  // 启动 xlang/LSP 时注入的环境变量（键值对象，如 XLANG_PATH）
+  "xlang.compiler.envJson": {},
 
-  // --- VS Code 编辑器全局（CodeLens 需此项 + shux.features.codeLens 同时开启）---
+  // --- VS Code 编辑器全局（CodeLens 需此项 + xlang.features.codeLens 同时开启）---
   // 编辑器是否显示 CodeLens 行（函数上方的灰色小字、▶ Run 等）
   "editor.codeLens": true,
 
@@ -84,15 +84,15 @@
    // --- .x 文件专用编辑器行为（语言 ID 为 x） ---
   "[x]": {
     // === 格式化 ===
-    // 默认格式化器：Shux 扩展
-    "editor.defaultFormatter": "shux.vscode-shux",
-    // 保存时格式化（与 shux.format.enabled 配合）
+    // 默认格式化器：Xlang 扩展
+    "editor.defaultFormatter": "xlang.vscode-xlang",
+    // 保存时格式化（与 xlang.format.enabled 配合）
     "editor.formatOnSave": true,
     // 保存模式：file=全文件 / modificationsIfAvailable=仅修改行（与 VCS 集成）
     "editor.formatOnSaveMode": "file",
     // 粘贴时格式化
     "editor.formatOnPaste": true,
-    // 输入时全格式化（建议关，shux.features.formatOnType 提供更精细的局部缩进）
+    // 输入时全格式化（建议关，xlang.features.formatOnType 提供更精细的局部缩进）
     "editor.formatOnType": false,
     // 自动修剪编辑器引入的多余空白（不影响用户手动对齐）
     "editor.trimAutoWhitespace": true,
@@ -164,7 +164,7 @@
     "editor.inlineSuggest.enabled": true,
 
     // === CodeLens / 语义 / 高亮 ===
-    // 显示 CodeLens（须与 shux.features.codeLens 同时开启）
+    // 显示 CodeLens（须与 xlang.features.codeLens 同时开启）
     "editor.codeLens": true,
     // 语义高亮（基于 LSP semanticTokens，比 regex 更准）
     "editor.semanticHighlighting.enabled": true,
@@ -192,7 +192,7 @@
     "editor.stickyScroll.scrollWithEditor": true,
 
     // === 显示 / 排版 ===
-    // 标尺（与 shux.format.maxLineLength 对齐，提示 100 列边界）
+    // 标尺（与 xlang.format.maxLineLength 对齐，提示 100 列边界）
     "editor.rulers": [100],
     // 自动换行（系统语言建议不换行，避免破坏结构）
     "editor.wordWrap": "off",

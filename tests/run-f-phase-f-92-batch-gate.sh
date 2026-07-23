@@ -2,11 +2,11 @@
 # F 阶段 §9.2 任务清单聚合门禁（F-06～F-12 + F-01/F-09）。
 #
 # 用法：./tests/run-f-phase-f-92-batch-gate.sh
-# 环境：SHUX_F_PHASE_F_92_FAIL=1 — 任一子 gate 失败时硬退出
+# 环境：XLANG_F_PHASE_F_92_FAIL=1 — 任一子 gate 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_PHASE_F_92_FAIL:-0}
+FAIL=${XLANG_F_PHASE_F_92_FAIL:-0}
 GATES=(
   run-std-c-inventory-gate.sh
   run-f06-runtime-std-o-cleanup-gate.sh
@@ -34,28 +34,28 @@ for g in "${GATES[@]}"; do
   echo "--- $g ---"
   case "$g" in
     run-f06-runtime-std-o-cleanup-gate.sh)
-      if ! SHUX_F06_RUNTIME_CLEANUP_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_F06_RUNTIME_CLEANUP_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f07-no-cc-std-migrated-gate.sh)
-      if ! SHUX_F07_NO_CC_MIGRATED_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_F07_NO_CC_MIGRATED_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f08-core-inventory-gate.sh)
-      if ! SHUX_F08_CORE_INVENTORY_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_F08_CORE_INVENTORY_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-no-handwritten-c-gate.sh)
-      if ! SHUX_NO_HANDWRITTEN_C_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_NO_HANDWRITTEN_C_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f10-test-x-portable-gate.sh)
-      if ! SHUX_F10_TEST_X_PORTABLE_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_F10_TEST_X_PORTABLE_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f11-selfhost-release-prep-gate.sh)
-      if ! SHUX_F11_SELFHOST_RELEASE_PREP_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_F11_SELFHOST_RELEASE_PREP_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f12-selfhost-doc-unified-gate.sh)
-      if ! SHUX_F12_SELFHOST_DOC_UNIFIED_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_F12_SELFHOST_DOC_UNIFIED_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f-std-zero-c-track-gate.sh)
-      if ! SHUX_F_STD_ZERO_C_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+      if ! XLANG_F_STD_ZERO_C_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     *)
       if ! "tests/$g"; then die "$g failed"; fi

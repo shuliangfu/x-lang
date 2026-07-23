@@ -8,7 +8,7 @@
 #   core_api_matrix_ok MATRIX_TSV
 #   core_api_emit_report status covered sym_miss gate_miss
 
-CORE_API_PREFIX="${SHUX_CORE_API_PREFIX:-shux: [SHUX_CORE_API]}"
+CORE_API_PREFIX="${XLANG_CORE_API_PREFIX:-xlang: [XLANG_CORE_API]}"
 
 # api 型 manifest：每行一个符号，须在 mod.x 存在 function 定义。
 core_api_validate_api_manifest() {

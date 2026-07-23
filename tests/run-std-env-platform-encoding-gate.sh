@@ -18,7 +18,7 @@ sym_miss="$(std_env_platform_encoding_symbols_ok "$MOD_X" "$ENV_IMPL" "$ENV_GLUE
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 C_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/env/env.o >/dev/null 2>&1 || true
   ENV_O="$(cd compiler && pwd)/../std/env/env.o"
   if [ -f "$ENV_O" ] && std_env_platform_encoding_run_c_smoke "$ENV_O"; then
@@ -28,13 +28,13 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     SKIP=1
   fi
 else
-  echo "std-env-platform-encoding gate SKIP c smoke (no shux-c)" >&2
+  echo "std-env-platform-encoding gate SKIP c smoke (no xlang-c)" >&2
   SKIP=1
 fi
 X_OK=0
-if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
-  std_env_platform_encoding_run_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ]; then
+  ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null
+  std_env_platform_encoding_run_smoke ./compiler/xlang-c "$SMOKE_X" && X_OK=1 || exit 1
   SKIP=0
 else
   [ "$SKIP" = "1" ] || SKIP=1

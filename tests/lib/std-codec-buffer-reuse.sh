@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-codec-buffer-reuse.sh — STD-139 manifest 与烟测辅助
 
-STD_CODEC_BR_PREFIX="${SHUX_STD139_CODEC_BUFFER_REUSE_PREFIX:-shux: [SHUX_STD139_CODEC_BUFFER_REUSE]}"
+STD_CODEC_BR_PREFIX="${XLANG_STD139_CODEC_BUFFER_REUSE_PREFIX:-xlang: [XLANG_STD139_CODEC_BUFFER_REUSE]}"
 
 # 遍历 manifest 校验 api/file/smoke 锚点。
 std_codec_buffer_reuse_symbols_ok() {
@@ -38,12 +38,12 @@ std_codec_buffer_reuse_symbols_ok() {
 
 # 编译并运行 buffer_reuse 烟测（F-04 v7+：codec→gzip 经 .x + 按需 -lz）。
 std_codec_buffer_reuse_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_codec_br_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_codec_br_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-codec-buffer-reuse FAIL: compile $src" >&2
-    "$shux" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" -o "$exe" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

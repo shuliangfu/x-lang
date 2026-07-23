@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
-# capture_bootstrap_seeds.sh — 用 LEGACY C 前端构建一次 shux，刷新 seeds/ 冷启动产物（G-06）
+# capture_bootstrap_seeds.sh — 用 LEGACY C 前端构建一次 xlang，刷新 seeds/ 冷启动产物（G-06）
 #
 # 用法（compiler 目录）：
-#   SHUX_LEGACY_C_FRONTEND=1 ./scripts/capture_bootstrap_seeds.sh
+#   XLANG_LEGACY_C_FRONTEND=1 ./scripts/capture_bootstrap_seeds.sh
 #
 # 产出：
-#   seeds/bootstrap_shuxc.<os>.<arch>（linux / darwin / freebsd）
+#   seeds/bootstrap_xlangc.<os>.<arch>（linux / darwin / freebsd）
 #   seeds/asm_backend_partial.<os>.<arch>.o
 #
 # CI：.github/workflows/bootstrap-seeds-capture.yml（linux/darwin/Alpine）
@@ -14,7 +14,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-export SHUX_LEGACY_C_FRONTEND=1
+export XLANG_LEGACY_C_FRONTEND=1
 
 has_real_partial_seed_mega() {
   _obj="$1"
@@ -34,8 +34,8 @@ make clean
 make bootstrap-driver-seed
 
 mkdir -p seeds
-./scripts/bootstrap_shuxc_create.sh ./shux
-cp -f bootstrap_shuxc "seeds/bootstrap_shuxc.${os}.${arch}"
+./scripts/bootstrap_xlangc_create.sh ./xlang
+cp -f bootstrap_xlangc "seeds/bootstrap_xlangc.${os}.${arch}"
 if has_real_partial_seed_mega build_asm/seed_host/asm_backend_partial.o; then
   cp -f build_asm/seed_host/asm_backend_partial.o "seeds/asm_backend_partial.${os}.${arch}.o"
 else
@@ -44,5 +44,5 @@ else
 fi
 
 echo "capture_bootstrap_seeds OK:"
-ls -la "seeds/bootstrap_shuxc.${os}.${arch}" 2>/dev/null
+ls -la "seeds/bootstrap_xlangc.${os}.${arch}" 2>/dev/null
 ls -la "seeds/asm_backend_partial.${os}.${arch}.o" 2>/dev/null || true

@@ -1,0 +1,155 @@
+# xlang.toml — X 语言 / X 语言项目配置文件
+#
+# ============================================================================
+# ⚠️  本文件为【Full 设计示例 / 语言仓库超集】，编译器尚未读取。
+#     构建仍由 compiler/Makefile + CLI + env 驱动。
+#     实现路线（Core vs Full、解析裂缝、阶段 0–4）：
+#       analysis/xlang-toml-实现分析.md
+#     与 build.x 正交分工：
+#       analysis/build-x-强大配置能力分析.md
+#
+# 现状裂缝（2026-07-21）：std/config 无 array-of-string / inline table；
+#   CFG_MAX_ENTRIES=64 可能装不下全文扁平键。用户模板应等 Core example，
+#   勿把 [tool.xlang] / 自举字段抄进应用项目。
+# ============================================================================
+#
+# 设计参考：Cargo.toml / pyproject.toml / go.mod
+# 解析能力：std/config (STD-086) 已支持 TOML 扁平键 + [section] + [a.b]
+#          嵌套 + [[array]] array-of-tables + 字符串/整数/bool；
+#          多源 merge（file → env → CLI）。不支持 inline table / 字符串数组（待扩）。
+#
+# 命名约定：键名一律用 kebab-case（与 Cargo.toml 一致）；XLANG 内部读取时
+# 归一化为 snake_case（如 build.default-target → build.default_target）。
+
+# ─── 项目版本（权威来源） ───────────────────────────────────
+# codegen 会把此版本嵌入 binary 的 .xlang_meta section，供 --version 与
+# runtime 自省使用。semver 格式：MAJOR.MINOR.PATCH[-pre][+build]。
+version = "0.3.2"
+
+# ─── 项目元数据 ─────────────────────────────────────────────
+[package]
+name = "xlang"                                        # 包名（未来包管理器使用）
+authors = ["shuliangfu"]                             # 作者列表
+license = "AGPL-3.0"                                 # 编译器主许可（SPDX 标识符）
+repository = "https://github.com/shuliangfu/xlang"
+edition = "2026"                                     # 语言版本/特性集（影响 parser/typeck 默认行为）
+description = "X 语言（X language）— systems language (no GC / zero-copy / self-hosting)"
+keywords = ["systems-language", "self-hosting", "asm-backend"]
+categories = ["compilers", "systems-programming"]
+
+# ─── 构建配置 ───────────────────────────────────────────────
+[build]
+# 目标三元组列表：支持多目标交叉编译（空 = 仅 host）。
+# 格式：<arch>-<os>[-<abi>]，如 x86_64-linux / aarch64-macos / x86_64-windows-gnu。
+target = ["x86_64-linux", "aarch64-macos"]
+default-target = "host"                              # 不指定 --target 时用 host 三元组
+backend = "asm"                                      # 自举后唯一后端（asm 直生 .o）；字段保留供未来 JIT/WASM 扩展
+optimization = 2                                     # 0-3 或 "debug" / "release" / "size"
+self-host = true                                     # 启用自举构建路径（g05 relink）
+link-std = true                                      # 链接 std（freestanding=false 时）
+link-rt = true                                       # 链接 runtime（panic / IO / threading）
+out-dir = "build"                                    # 输出目录（相对项目根）
+
+# ─── 特性开关 ───────────────────────────────────────────────
+# 对应 compiler/src/lexer/cfg_eval.x 的 #[cfg(feature = "...")] 评估。
+[features]
+default = ["std", "async"]
+std = true                                           # 启用标准库
+async = true                                         # 启用 async/await（CPS codegen）
+freestanding = false                                 # freestanding 模式（no_std + no_rt）
+simd = true                                          # 启用 SIMD intrinsics（x86_64 / arm64）
+threads = true                                       # 启用线程支持（pthread / Windows threads）
+debug-alloc = false                                  # 启用调试分配器（内存泄漏检测）
+overflow-checks = false                              # 算术溢出检查（debug 档位默认 true）
+
+# 自举专用特性（不进入产品 binary，仅影响构建流程）。
+bootstrap-seed = false                               # 使用 seed pin 而非 .x 真迁
+l4-cold-test = false                                 # L4 真冷测模式（全擦 .o + 重建）
+
+# ─── 依赖管理（未来，自举后启用包管理器） ───────────────────
+[dependencies]
+# 自举完成后启用：
+# "std-extra" = { version = "0.2", git = "https://github.com/..." }
+# "tree-sitter-xlang" = { path = "editors/tree-sitter-xlang", optional = true }
+
+[dev-dependencies]
+# 测试专用依赖：
+# "xlang-test-harness" = { version = "0.1" }
+
+# ─── 构建档位（profile） ────────────────────────────────────
+# 每个 profile 可被 `xlang build --profile <name>` 选中；未指定用 release。
+[profile.release]
+opt-level = 3                                        # 0-3
+lto = true                                           # 链接时优化（true / "thin" / "fat" / false）
+codegen-units = 1                                    # 单编译单元（最佳优化，最慢构建）
+panic = "abort"                                      # abort / unwind
+strip = true                                         # 剥离调试符号
+
+[profile.debug]
+opt-level = 0
+debug = true                                         # 生成调试信息（DWARF / CodeView）
+overflow-checks = true                               # 算术溢出检查
+
+[profile.bstrict]                                    # 自举 bstrict 专用档位
+inherits = "release"                                 # 继承 release 字段
+opt-level = 2                                        # 平衡 bstrict 速度与信号
+lto = false                                          # bstrict 不做 LTO（加快迭代）
+
+[profile.test]
+inherits = "debug"
+panic = "unwind"                                     # 测试需要 unwind 捕获 panic
+
+# ─── 工具链配置 ─────────────────────────────────────────────
+# 自举完成后 XLANG 完全脱离 C 编译器，只通过 extern "C" FFI 调用 C ABI；
+# 不配置 cc / cflags / ldflags 等 C 工具链字段。asm backend 是 XLANG 内部
+# 后端（直生 .o），也不需要外部 assembler / objcopy。
+[tool.xlang]
+prove-level = "L4"                                   # 证明级别 L1-L4（L4=真冷测）
+windows-hybrid = true                                # Windows 用 hybrid 桥接（PE weak 限制）
+seed-pin = "tip"                                     # seed pin 策略：tip / locked / regen
+
+# ─── 测试配置 ───────────────────────────────────────────────
+[test]
+gate = "bstrict"                                     # 测试闸门：smoke / bstrict / l4-cold
+parallel = 4                                         # 并行测试数
+timeout = 900                                        # 单测试超时（秒）
+exclude = []                                         # 排除的测试（如 macOS OOM 的 run-json.sh）
+
+# ─── 跨平台 target 矩阵 ─────────────────────────────────────
+# 每个 [[target]] 覆盖 [build] 全局默认；用于交叉编译特定 target 的 ABI /
+# features / linker-args。
+[[target]]
+triple = "x86_64-linux"
+abi = "sysv"
+features = ["std", "simd", "threads"]
+linker = "ld"
+
+[[target]]
+triple = "aarch64-macos"
+abi = "aapcs"
+features = ["std", "simd", "threads"]
+linker-args = ["-dead_strip", "-ffunction-sections"]
+
+[[target]]
+triple = "x86_64-windows"
+abi = "ms"
+features = ["std", "threads"]
+linker-args = ["--allow-multiple-definition"]        # PE weak 限制 workaround
+env = { "TEMP" = "C:/xlang_tmp" }                     # 短路径（Windows 工具链内部调用）
+
+# ─── Lint / 格式化 ──────────────────────────────────────────
+[lint]
+# 对应 xlang check / xlang fmt 的默认行为。
+deny = ["unsafe-without-理由"]                       # 拒绝的 lint（编译失败）
+warn = ["unused-import", "dead-code"]
+allow = ["xir_-prefix"]                              # 历史允许项
+
+[fmt]
+style = "4space"                                     # 4space / 2space / tab
+max-line-width = 100
+trailing-newline = true                              # 源文件末尾强制换行（parser workaround）
+
+# ─── 文档生成（未来） ───────────────────────────────────────
+[docs]
+output = "docs/api"                                  # 文档输出目录
+private = false                                      # 是否包含私有项

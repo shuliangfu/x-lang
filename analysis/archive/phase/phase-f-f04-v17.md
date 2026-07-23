@@ -17,14 +17,14 @@
 make -C compiler ../std/crypto/crypto.o   # ld -r(glue.o + crypto_main.o + aes_gcm_main.o)
 ```
 
-无 shux-c 时仅链 glue.o（缺 .x 符号；AEAD 烟测 SKIP）。
+无 xlang-c 时仅链 glue.o（缺 .x 符号；AEAD 烟测 SKIP）。
 
 ## 门禁
 
 ```bash
-SHUX_F04_CRYPTO_V17_FAIL=1 ./tests/run-f04-std-crypto-v17-gate.sh
-SHUX_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-gate.sh
-SHUX_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-aes-gcm-gate.sh
+XLANG_F04_CRYPTO_V17_FAIL=1 ./tests/run-f04-std-crypto-v17-gate.sh
+XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-gate.sh
+XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-aes-gcm-gate.sh
 ```
 
 ## 下一项

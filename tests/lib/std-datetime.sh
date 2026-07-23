@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-datetime.sh — STD-074 manifest 与烟测辅助
 
-STD_DATETIME_PREFIX="${SHUX_STD_DATETIME_PREFIX:-shux: [SHUX_STD_DATETIME]}"
+STD_DATETIME_PREFIX="${XLANG_STD_DATETIME_PREFIX:-xlang: [XLANG_STD_DATETIME]}"
 
 # 遍历 manifest 校验 symbol/file/smoke。
 std_datetime_symbols_ok() {
@@ -44,13 +44,13 @@ std_datetime_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_datetime_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-dt}"
-  local exe="/tmp/shux_std_datetime_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_datetime_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-datetime FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

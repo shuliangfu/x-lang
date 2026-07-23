@@ -4,7 +4,7 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32;
+export extern "C" function xlang_forward_main_to_main_entry(argc: i32, argv: *u8): i32;
 export extern "C" function driver_skip_codegen_dep_0_get(): i32;
 export extern "C" function driver_set_current_dep_path_for_codegen(path: *u8): void;
 

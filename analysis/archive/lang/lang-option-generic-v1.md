@@ -60,7 +60,7 @@ allow(padding) struct Option<T> {
 ```
 
 ```
-shux: [SHUX_LANG009_OPTION_GENERIC] status=ok golden=2 typeck=2 skip=0
+xlang: [XLANG_LANG009_OPTION_GENERIC] status=ok golden=2 typeck=2 skip=0
 ```
 
 ---
@@ -69,4 +69,4 @@ shux: [SHUX_LANG009_OPTION_GENERIC] status=ok golden=2 typeck=2 skip=0
 
 - 多类型参数 struct `Pair<A,B>`  
 - 泛型函数返回 `Option<T>`（T 为函数类型参数交叉引用）  
-- 跨模块 import 泛型 struct 单态化（仍走 shux-c 子集）
+- 跨模块 import 泛型 struct 单态化（仍走 xlang-c 子集）

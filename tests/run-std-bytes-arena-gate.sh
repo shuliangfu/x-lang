@@ -56,17 +56,17 @@ echo "std-bytes-arena manifest OK"
 
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-bytes-arena gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_bytes_arena_emit_report "fail" 0 0
     exit 1
   fi
-  if std_bytes_arena_run_smoke "$SHUX_BIN" "$SMOKE_X"; then
+  if std_bytes_arena_run_smoke "$XLANG_BIN" "$SMOKE_X"; then
     X_OK=1
   else
     std_bytes_arena_emit_report "fail" 0 0

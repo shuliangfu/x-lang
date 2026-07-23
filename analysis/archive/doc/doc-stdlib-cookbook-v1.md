@@ -26,7 +26,7 @@
 `write_batch_fd` + `read_batch_fd` 两段环回；全平台走 `std.io` 后端分派。
 
 ```bash
-SHUX=./compiler/shux-c ./compiler/shux-c -L . examples/cookbook/io_batch_rw.x -o /tmp/cb_io_batch
+XLANG=./compiler/xlang-c ./compiler/xlang-c -L . examples/cookbook/io_batch_rw.x -o /tmp/cb_io_batch
 /tmp/cb_io_batch; echo exit=$?
 ```
 
@@ -104,9 +104,9 @@ Arena64 + `string_view_concat_arena`（ZC-4）。
 ./tests/run-doc-stdlib-cookbook-gate.sh
 
 # 单食谱 typeck
-./compiler/shux-c check -L . examples/cookbook/io_batch_rw.x
+./compiler/xlang-c check -L . examples/cookbook/io_batch_rw.x
 
-# 领域烟测（native shux 时）
+# 领域烟测（native xlang 时）
 ./tests/run-std-io-api-gate.sh
 ./tests/run-std-net-api-gate.sh
 ./tests/run-zc4-gate.sh

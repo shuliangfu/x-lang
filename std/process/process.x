@@ -20,21 +20,21 @@
 // See implementation.
 
 /* See implementation. */
-extern function process_shux_argc_get(): i32;
+extern function process_xlang_argc_get(): i32;
 
 /* See implementation. */
-extern function process_shux_argv_get(i: i32): *u8;
+extern function process_xlang_argv_get(i: i32): *u8;
 
 /** Exported function `process_args_count_c`.
  * Implements `process_args_count_c`.
- * @param ) i32 { let _rc: i32 = 0; unsafe { _rc = process_shux_argc_get(
+ * @param ) i32 { let _rc: i32 = 0; unsafe { _rc = process_xlang_argc_get(
  * @return void
  */
-export function process_args_count_c(): i32 { let _rc: i32 = 0; unsafe { _rc = process_shux_argc_get(); } return _rc; }
+export function process_args_count_c(): i32 { let _rc: i32 = 0; unsafe { _rc = process_xlang_argc_get(); } return _rc; }
 
 /** Exported function `process_arg_c`.
  * Implements `process_arg_c`.
- * @param i i32): *u8 { let _rc: *u8 = 0; unsafe { _rc = process_shux_argv_get(i
+ * @param i i32): *u8 { let _rc: *u8 = 0; unsafe { _rc = process_xlang_argv_get(i
  * @return void
  */
-export function process_arg_c(i: i32): *u8 { let _rc: *u8 = 0; unsafe { _rc = process_shux_argv_get(i); } return _rc; }
+export function process_arg_c(i: i32): *u8 { let _rc: *u8 = 0; unsafe { _rc = process_xlang_argv_get(i); } return _rc; }

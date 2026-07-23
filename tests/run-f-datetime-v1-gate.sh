@@ -2,7 +2,7 @@
 # F-datetime v1：std.datetime 去 C（datetime.c → datetime.x + datetime_tz_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_DATETIME_V1_FAIL:-0}
+FAIL=${XLANG_F_DATETIME_V1_FAIL:-0}
 DOC="analysis/phase-f-datetime-v1.md"
 MANIFEST="tests/baseline/f-datetime-v1-closure.tsv"
 die() { echo "f-datetime-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -21,10 +21,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'datetime.x' compiler/Makefile || die "Makefile missing datetime.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/datetime/datetime.o >/dev/null 2>&1 || die "make datetime.o failed"
 else
-  echo "f-datetime-v1 SKIP datetime.o build (no shux-c)" >&2
+  echo "f-datetime-v1 SKIP datetime.o build (no xlang-c)" >&2
 fi
 for sub in run-std-datetime-gate.sh run-std-datetime-iana-gate.sh; do
   [ -f "tests/$sub" ] || continue

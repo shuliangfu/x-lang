@@ -1,10 +1,10 @@
 /* seeds/rt_lib_root_surface.from_x.c
  * G-02f rt_lib_root R2 full surface — isomorphic with src/runtime/rt_lib_root.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_lib_root.x) + hybrid rest seed
- *   seeds/rt_lib_root.from_x.c (-DSHUX_RT_LIB_ROOT_FROM_X) ld -r into runtime_driver_no_c
+ *   seeds/rt_lib_root.from_x.c (-DXLANG_RT_LIB_ROOT_FROM_X) ld -r into runtime_driver_no_c
  * R2: ptr_usable + default + roots_from_key from .x; rest FROM_X only decls+marker
  * Prove: full.x vs this seed → nm IDENTICAL (3 public symbols)
- * Regen: ./shux -E ... src/runtime/rt_lib_root.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_lib_root.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -26,6 +26,8 @@ extern int32_t driver_lib_roots_from_key(uint8_t * lib_key, uint8_t * * out_arr,
 extern int32_t driver_emit_lib_root_count(uint8_t * state);
 extern int32_t driver_emit_lib_root_len(uint8_t * state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t * state, int32_t i, uint8_t * dst, int32_t cap);
+/* wave227 G.7: env via public pure thin link_abi_getenv (wave222 → _impl). */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 int32_t driver_lib_root_ptr_usable(uint8_t * p) {
   if ((p ==((uint8_t *)(0)))) {
     return 0;
@@ -40,7 +42,8 @@ void driver_lib_root_default(uint8_t * root_buf) {
   (void)(((root_buf)[1] = 0));
   uint8_t * def = ((uint8_t *)(0));
   {
-    (void)((def = getenv((uint8_t[]){83, 72, 85, 88, 95, 76, 73, 66, 0 })));
+    /* wave227 G.7: public pure thin link_abi_getenv (not raw libc getenv). */
+    (void)((def = link_abi_getenv((uint8_t[]){83, 72, 85, 88, 95, 76, 73, 66, 0 })));
   }
   if ((driver_lib_root_ptr_usable(def) ==0)) {
     return;

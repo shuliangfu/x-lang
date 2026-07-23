@@ -10,20 +10,20 @@
 #include <string.h>
 #include <unistd.h>
 
-extern int shux_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_write_async(void);
-extern unsigned shux_io_poll_async_completions(unsigned timeout_ms);
+extern int xlang_io_submit_write_async(const uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_write_async(void);
+extern unsigned xlang_io_poll_async_completions(unsigned timeout_ms);
 
-#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)
+#define XLANG_IO_ASYNC_NOT_READY ((int32_t)-2)
 
 /** Linux io_uring：complete 返回 NOT_READY 时先 poll CQE 再重试。 */
 static int32_t io_write_async_complete_with_poll(void) {
-    int32_t n = shux_io_complete_write_async();
-    if (n == SHUX_IO_ASYNC_NOT_READY) {
+    int32_t n = xlang_io_complete_write_async();
+    if (n == XLANG_IO_ASYNC_NOT_READY) {
 #if defined(__linux__)
-        (void)shux_io_poll_async_completions(500);
+        (void)xlang_io_poll_async_completions(500);
 #endif
-        n = shux_io_complete_write_async();
+        n = xlang_io_complete_write_async();
     }
     return n;
 }
@@ -43,7 +43,7 @@ int main(void) {
         return 1;
     }
 
-    if (shux_io_submit_write_async(payload, 3, (size_t)(unsigned)fds[1]) < 0) {
+    if (xlang_io_submit_write_async(payload, 3, (size_t)(unsigned)fds[1]) < 0) {
         fprintf(stderr, "io_write_async: submit failed\n");
         return 2;
     }

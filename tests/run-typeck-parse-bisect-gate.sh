@@ -1,28 +1,28 @@
 #!/usr/bin/env bash
 # A-11 bisect：typeck.x 前缀 parse 指标，定位 num_defined 首次低于预期的 function 边界。
 # 用法：./tests/run-typeck-parse-bisect-gate.sh
-# 环境：SHUX_TYPECK_PARSE_BISECT_FAIL=1 任一步低于期望时硬失败（默认 track-only）
+# 环境：XLANG_TYPECK_PARSE_BISECT_FAIL=1 任一步低于期望时硬失败（默认 track-only）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_TYPECK_PARSE_BISECT_FAIL:-0}
-SHUX="${SHUX:-./compiler/shux_asm}"
+FAIL=${XLANG_TYPECK_PARSE_BISECT_FAIL:-0}
+XLANG="${XLANG:-./compiler/xlang_asm}"
 TYPECK_X="compiler/src/typeck/typeck.x"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 # 探测点：defined function 序号（不含 extern）
-PROBES="${SHUX_TYPECK_PARSE_BISECT_PROBES:-20 40 60 80 100 120 146}"
+PROBES="${XLANG_TYPECK_PARSE_BISECT_PROBES:-20 40 60 80 100 120 146}"
 
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   echo "typeck-parse-bisect-gate: N/A on Darwin"
   exit 0
 fi
 
-if [ ! -x "$SHUX" ]; then
-  echo "typeck-parse-bisect-gate: SKIP (no $SHUX)"
+if [ ! -x "$XLANG" ]; then
+  echo "typeck-parse-bisect-gate: SKIP (no $XLANG)"
   exit 0
 fi
 
-WORKDIR="/tmp/shux_typeck_bisect.$$"
+WORKDIR="/tmp/xlang_typeck_bisect.$$"
 mkdir -p "$WORKDIR"
 trap 'rm -rf "$WORKDIR"' EXIT
 
@@ -48,9 +48,9 @@ parse_defined_count() {
   rm -f "$out" "$log" 2>/dev/null || true
   (
     cd compiler
-    env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
-      SHUX_DEBUG_PIPE=1 SHUX_DEBUG_PARSE=1 \
-      "../$SHUX" build -backend asm -o "$out" $LIBROOT "$x"
+    env -u XLANG_ASM_START_FUNC XLANG_ASM_ENTRY_MODULE_ONLY=1 XLANG_ASM_BUILD_SKIP_TYPECK=1 \
+      XLANG_DEBUG_PIPE=1 XLANG_DEBUG_PARSE=1 \
+      "../$XLANG" build -backend asm -o "$out" $LIBROOT "$x"
   ) >"$log" 2>&1 || true
   local ndef nf
   ndef=$(sed -n 's/.*num_defined=\([0-9][0-9]*\).*/\1/p' "$log" | tail -1)

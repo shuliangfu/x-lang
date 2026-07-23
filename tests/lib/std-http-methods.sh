@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_http_methods_symbols_ok MOD_X HTTP_C TSV
-#   std_http_methods_run_smoke SHUX_BIN X TAG
+#   std_http_methods_run_smoke XLANG_BIN X TAG
 #   std_http_methods_emit_report status methods_ok skip
 
-STD_HTTP_METHODS_PREFIX="${SHUX_STD_HTTP_METHODS_PREFIX:-shux: [SHUX_STD_HTTP_METHODS]}"
+STD_HTTP_METHODS_PREFIX="${XLANG_STD_HTTP_METHODS_PREFIX:-xlang: [XLANG_STD_HTTP_METHODS]}"
 
 # 校验 manifest symbol/file/api；echo 缺失数，成功返回 0。
 std_http_methods_symbols_ok() {
@@ -49,17 +49,17 @@ std_http_methods_symbols_ok() {
 
 # 编译并运行烟测 .x（须已 ensure http.o）。
 std_http_methods_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_http_methods_${tag}_$$"
+  local exe="/tmp/xlang_std_http_methods_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-http-methods FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-http-methods FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

@@ -23,8 +23,8 @@
 ## 复现
 
 ```bash
-SHUX_F04_COMPRESS_GZIP_FAIL=1 ./tests/run-f04-std-compress-gzip-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=99
+XLANG_F04_COMPRESS_GZIP_FAIL=1 ./tests/run-f04-std-compress-gzip-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=99
 ./tests/run-std-compress-gate.sh
 ./tests/run-std-compress-stream-gate.sh
 ```

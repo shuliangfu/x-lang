@@ -53,7 +53,7 @@
     ],
     "only_x": ["runtime_log_os_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_RUNTIME_LOG_OS_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_LOG_OS_FROM_X",
   "impl_residuals": [
     "log_write_fd_impl",
     "log_apply_env_once_impl",

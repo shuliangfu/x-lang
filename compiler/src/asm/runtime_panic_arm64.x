@@ -5,7 +5,7 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function shux_crash_evidence_minimal_impl(has_msg: i32, msg_val: i32): void;
+export extern "C" function xlang_crash_evidence_minimal_impl(has_msg: i32, msg_val: i32): void;
 
 /** Exported function `runtime_panic_arm64_x_doc_anchor`.
  * Implements `runtime_panic_arm64_x_doc_anchor`.
@@ -18,8 +18,8 @@ export function runtime_panic_arm64_x_doc_anchor(): i32 {
 /* See implementation. */
 
 #[no_mangle]
-export function shux_crash_evidence_minimal(has_msg: i32, msg_val: i32): void {
+export function xlang_crash_evidence_minimal(has_msg: i32, msg_val: i32): void {
   unsafe {
-    shux_crash_evidence_minimal_impl(has_msg, msg_val);
+    xlang_crash_evidence_minimal_impl(has_msg, msg_val);
   }
 }

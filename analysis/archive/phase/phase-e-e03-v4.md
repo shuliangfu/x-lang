@@ -1,6 +1,6 @@
 # 阶段 E-03 v4（OBJS_CORE ABI TU 对齐）
 
-> **E-03 v4**：冷启动 `shux-c`（`OBJS_CORE`）链入与默认 bootstrap 相同的 **ABI 薄壳 TU**（`runtime_abi.o` / `runtime_io_abi.o` / `runtime_proc_abi.o`），避免 `runtime.o` 拆 TU 后 undefined 符号。
+> **E-03 v4**：冷启动 `xlang-c`（`OBJS_CORE`）链入与默认 bootstrap 相同的 **ABI 薄壳 TU**（`runtime_abi.o` / `runtime_io_abi.o` / `runtime_proc_abi.o`），避免 `runtime.o` 拆 TU 后 undefined 符号。
 
 ## v4 完成（✅）
 
@@ -22,5 +22,5 @@
 
 ```bash
 grep '^OBJS_CORE' compiler/Makefile
-SHUX_E03_V3_FAIL=1 ./tests/run-e03-v3-coldstart-track-gate.sh
+XLANG_E03_V3_FAIL=1 ./tests/run-e03-v3-coldstart-track-gate.sh
 ```

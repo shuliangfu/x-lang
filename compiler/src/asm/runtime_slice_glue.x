@@ -6,19 +6,19 @@
 // See implementation.
 
 /* See implementation. */
-export struct ShuxSliceI32 {
+export struct XlangSliceI32 {
   data: *i32;
   length: usize;
 }
 
 /* See implementation. */
-export struct ShuxSliceU8 {
+export struct XlangSliceU8 {
   data: *u8;
   length: usize;
 }
 
 /* See implementation. */
-export struct ShuxSliceU64 {
+export struct XlangSliceU64 {
   data: *u64;
   length: usize;
 }
@@ -37,11 +37,11 @@ export function runtime_slice_glue_x_doc_anchor(): i32 {
  * Implements `core_slice_i32_from_ptr_c`.
  * @param data *i32
  * @param length usize
- * @return ShuxSliceI32
+ * @return XlangSliceI32
  */
 #[no_mangle]
-export function core_slice_i32_from_ptr_c(data: *i32, length: usize): ShuxSliceI32 {
-  let s: ShuxSliceI32 = ShuxSliceI32 { data: data, length: length };
+export function core_slice_i32_from_ptr_c(data: *i32, length: usize): XlangSliceI32 {
+  let s: XlangSliceI32 = XlangSliceI32 { data: data, length: length };
   return s;
 }
 
@@ -49,11 +49,11 @@ export function core_slice_i32_from_ptr_c(data: *i32, length: usize): ShuxSliceI
  * Implements `core_slice_u8_from_ptr_c`.
  * @param data *u8
  * @param length usize
- * @return ShuxSliceU8
+ * @return XlangSliceU8
  */
 #[no_mangle]
-export function core_slice_u8_from_ptr_c(data: *u8, length: usize): ShuxSliceU8 {
-  let s: ShuxSliceU8 = ShuxSliceU8 { data: data, length: length };
+export function core_slice_u8_from_ptr_c(data: *u8, length: usize): XlangSliceU8 {
+  let s: XlangSliceU8 = XlangSliceU8 { data: data, length: length };
   return s;
 }
 
@@ -61,11 +61,11 @@ export function core_slice_u8_from_ptr_c(data: *u8, length: usize): ShuxSliceU8 
  * Implements `core_slice_u64_from_ptr_c`.
  * @param data *u64
  * @param length usize
- * @return ShuxSliceU64
+ * @return XlangSliceU64
  */
 #[no_mangle]
-export function core_slice_u64_from_ptr_c(data: *u64, length: usize): ShuxSliceU64 {
-  let s: ShuxSliceU64 = ShuxSliceU64 { data: data, length: length };
+export function core_slice_u64_from_ptr_c(data: *u64, length: usize): XlangSliceU64 {
+  let s: XlangSliceU64 = XlangSliceU64 { data: data, length: length };
   return s;
 }
 
@@ -75,12 +75,12 @@ export function core_slice_u64_from_ptr_c(data: *u64, length: usize): ShuxSliceU
  * @param total_len usize
  * @param start usize
  * @param len usize
- * @return ShuxSliceI32
+ * @return XlangSliceI32
  */
 #[no_mangle]
-export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): ShuxSliceI32 {
+export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): XlangSliceI32 {
   if (start >= total_len) {
-    let s: ShuxSliceI32 = ShuxSliceI32 { data: data, length: 0 };
+    let s: XlangSliceI32 = XlangSliceI32 { data: data, length: 0 };
     return s;
   }
   let avail: usize = total_len - start;
@@ -88,7 +88,7 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
   if (len > avail) {
     actual_len = avail;
   }
-  let s: ShuxSliceI32 = ShuxSliceI32 { data: data + start, length: actual_len };
+  let s: XlangSliceI32 = XlangSliceI32 { data: data + start, length: actual_len };
   return s;
 }
 
@@ -98,12 +98,12 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
  * @param total_len usize
  * @param start usize
  * @param len usize
- * @return ShuxSliceU8
+ * @return XlangSliceU8
  */
 #[no_mangle]
-export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): ShuxSliceU8 {
+export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): XlangSliceU8 {
   if (start >= total_len) {
-    let s: ShuxSliceU8 = ShuxSliceU8 { data: data, length: 0 };
+    let s: XlangSliceU8 = XlangSliceU8 { data: data, length: 0 };
     return s;
   }
   let avail: usize = total_len - start;
@@ -111,7 +111,7 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
   if (len > avail) {
     actual_len = avail;
   }
-  let s: ShuxSliceU8 = ShuxSliceU8 { data: data + start, length: actual_len };
+  let s: XlangSliceU8 = XlangSliceU8 { data: data + start, length: actual_len };
   return s;
 }
 
@@ -121,12 +121,12 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
  * @param total_len usize
  * @param start usize
  * @param len usize
- * @return ShuxSliceU64
+ * @return XlangSliceU64
  */
 #[no_mangle]
-export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): ShuxSliceU64 {
+export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): XlangSliceU64 {
   if (start >= total_len) {
-    let s: ShuxSliceU64 = ShuxSliceU64 { data: data, length: 0 };
+    let s: XlangSliceU64 = XlangSliceU64 { data: data, length: 0 };
     return s;
   }
   let avail: usize = total_len - start;
@@ -134,6 +134,6 @@ export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, 
   if (len > avail) {
     actual_len = avail;
   }
-  let s: ShuxSliceU64 = ShuxSliceU64 { data: data + start, length: actual_len };
+  let s: XlangSliceU64 = XlangSliceU64 { data: data + start, length: actual_len };
   return s;
 }

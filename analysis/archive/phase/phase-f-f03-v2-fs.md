@@ -25,7 +25,7 @@
 ## 复现
 
 ```bash
-SHUX_F03_FS_FAIL=1 ./tests/run-f03-std-fs-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=105
+XLANG_F03_FS_FAIL=1 ./tests/run-f03-std-fs-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=105
 ./tests/run-std-fs-dirmeta-gate.sh
 ```

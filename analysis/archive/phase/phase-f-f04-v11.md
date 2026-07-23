@@ -19,13 +19,13 @@
 | IPv4 TCP/UDP 核心 | connect/listen/accept、UDP batch 仍 net.c |
 | Windows IPv6 connect | v11 `net_ipv6_poll_writable` 为桩；listen 可用 |
 | io_uring | Linux connect/accept 仍走 net.c + io.o |
-| 无 shux | `net.o` 缺 v10/v11 符号 |
+| 无 xlang | `net.o` 缺 v10/v11 符号 |
 
 ## 复现
 
 ```bash
-SHUX_F04_NET_SLICE_V11_FAIL=1 ./tests/run-f04-std-net-slice-v11-gate.sh
-SHUX_F04_NET_DNS_ALPN_FAIL=1 ./tests/run-f04-std-net-dns-alpn-gate.sh
+XLANG_F04_NET_SLICE_V11_FAIL=1 ./tests/run-f04-std-net-slice-v11-gate.sh
+XLANG_F04_NET_DNS_ALPN_FAIL=1 ./tests/run-f04-std-net-dns-alpn-gate.sh
 ./tests/run-std-net-dns-gate.sh
 ./tests/run-net.sh
 ```

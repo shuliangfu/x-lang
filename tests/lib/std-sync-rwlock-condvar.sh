@@ -3,11 +3,11 @@
 #
 # 用法（source 后）：
 #   std_sync_rc_symbols_ok MOD_X SYNC_OS_GLUE TSV
-#   std_sync_rc_run_smoke SHUX_BIN X TAG
+#   std_sync_rc_run_smoke XLANG_BIN X TAG
 #   std_sync_rc_try_tsan SYNC_OS_GLUE
 #   std_sync_rc_emit_report status rwlock_ok condvar_ok main_ok tsan_ok skip
 
-STD_SYNC_RC_PREFIX="${SHUX_STD_SYNC_RWLOCK_CONDVAR_PREFIX:-shux: [SHUX_STD_SYNC_RWLOCK_CONDVAR]}"
+STD_SYNC_RC_PREFIX="${XLANG_STD_SYNC_RWLOCK_CONDVAR_PREFIX:-xlang: [XLANG_STD_SYNC_RWLOCK_CONDVAR]}"
 
 # 校验 manifest；C symbol 在 sync_os_glue.c。
 std_sync_rc_symbols_ok() {
@@ -50,17 +50,17 @@ std_sync_rc_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_sync_rc_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_sync_rc_${tag}_$$"
+  local exe="/tmp/xlang_std_sync_rc_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-sync-rwlock-condvar FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-sync-rwlock-condvar FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -80,7 +80,7 @@ std_sync_rc_run_smoke() {
 std_sync_rc_try_tsan() {
   local sync_os_glue="$1"
   local src="tests/sync/sync_tsan_ok.c"
-  local out="/tmp/shux_sync_tsan_ok_$$"
+  local out="/tmp/xlang_sync_tsan_ok_$$"
   # shellcheck source=tests/lib/safe-race.sh
   if [ -f tests/lib/safe-race.sh ]; then
     . tests/lib/safe-race.sh

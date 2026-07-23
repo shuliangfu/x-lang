@@ -24,7 +24,7 @@ extern function time_now_monotonic_ns_c(): i64;
 extern function test_call_i32_void_c(fn: usize): i32;
 extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
 /* See implementation. */
-extern "C" function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
@@ -53,7 +53,7 @@ export function test_f_zero_c_marker_c(): i32 {
 }
 
 /* See implementation. */
-export const TST_LIT_SUMMARY: u8[32] = [115, 104, 117, 120, 58, 32, 91, 83, 72, 85, 88, 95, 84, 69, 83, 84, 95, 83, 85, 77, 77, 65, 82, 89, 93, 32, 116, 111, 116, 97, 108, 61, 0];
+export const TST_LIT_SUMMARY: u8[34] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 84, 69, 83, 84, 95, 83, 85, 77, 77, 65, 82, 89, 93, 32, 116, 111, 116, 97, 108, 61, 0];
 export const TST_LIT_PASS: u8[7] = [32, 112, 97, 115, 115, 61, 0];
 export const TST_LIT_FAIL: u8[7] = [32, 102, 97, 105, 108, 61, 0];
 export const TST_LIT_SKIP: u8[7] = [32, 115, 107, 105, 112, 61, 0];
@@ -217,7 +217,7 @@ export function test_io_append_name(out: *u8, pos: i32, cap: i32, name: *u8, len
 export function test_io_write_stderr(buf: *u8, len: i32): i32 {
   let r: isize = 0 as isize;
   if (buf == 0 || len <= 0) { return -1; }
-  unsafe { r = shux_sys_write(2, buf, len as usize); }
+  unsafe { r = xlang_sys_write(2, buf, len as usize); }
   if (r != len as isize) { return -1; }
   return 0;
 }
@@ -227,7 +227,7 @@ export function test_io_write_stderr(buf: *u8, len: i32): i32 {
  * @return u32
  */
 export function test_fuzz_seed_c(): u32 {
-  let key: u8[15] = [83, 72, 85, 88, 95, 70, 85, 90, 90, 95, 83, 69, 69, 68, 0];
+  let key: u8[16] = [88, 76, 65, 78, 71, 95, 70, 85, 90, 90, 95, 83, 69, 69, 68, 0];
   let buf: u8[64];
   let n: i32 = 0;
   let v: u32 = 0;
@@ -249,7 +249,7 @@ export function test_fuzz_seed_c(): u32 {
 export function test_io_bench_line_c(name: *u8, len: i32, ns: i64): i32 {
   let line: u8[256];
   let pos: i32 = 0;
-  let pfx: u8[24] = [115, 104, 117, 120, 58, 32, 91, 83, 72, 85, 88, 95, 66, 69, 78, 67, 72, 93, 32, 110, 97, 109, 101, 61];
+  let pfx: u8[26] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 66, 69, 78, 67, 72, 93, 32, 110, 97, 109, 101, 61];
   let mid: u8[5] = [32, 110, 115, 61, 0];
   if (name == 0 || len <= 0) { return -1; }
   pos = test_io_append_cstr(&line[0], 0, 256, &pfx[0]);
@@ -276,7 +276,7 @@ export function test_io_runner_case_line_c(name: *u8, len: i32, exit_code: i32):
   let line: u8[256];
   let nbuf: u8[128];
   let pos: i32 = 0;
-  let pfx: u8[24] = [115, 104, 117, 120, 58, 32, 91, 83, 72, 85, 88, 95, 84, 69, 83, 84, 93, 32, 110, 97, 109, 101, 61, 0];
+  let pfx: u8[26] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 84, 69, 83, 84, 93, 32, 110, 97, 109, 101, 61, 0];
   let st_pass: u8[5] = [112, 97, 115, 115, 0];
   let st_fail: u8[5] = [102, 97, 105, 108, 0];
   let mid: u8[8] = [32, 115, 116, 97, 116, 117, 115, 61];
@@ -313,7 +313,7 @@ export function test_io_runner_skip_line_c(name: *u8, len: i32): i32 {
   let line: u8[256];
   let nbuf: u8[128];
   let pos: i32 = 0;
-  let pfx: u8[24] = [115, 104, 117, 120, 58, 32, 91, 83, 72, 85, 88, 95, 84, 69, 83, 84, 93, 32, 110, 97, 109, 101, 61, 0];
+  let pfx: u8[26] = [120, 108, 97, 110, 103, 58, 32, 91, 88, 76, 65, 78, 71, 95, 84, 69, 83, 84, 93, 32, 110, 97, 109, 101, 61, 0];
   let tail: u8[22] = [32, 115, 116, 97, 116, 117, 115, 61, 115, 107, 105, 112, 32, 99, 111, 100, 101, 61, 48, 10, 0, 0];
   test_io_copy_name(&nbuf[0], 128, name, len);
   pos = test_io_append_cstr(&line[0], 0, 256, &pfx[0]);

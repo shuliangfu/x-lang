@@ -360,7 +360,7 @@ export function runtime_diag_cli_usage_note(argv0: *u8): void {
   if (argv0 != 0 as *u8) {
     name = argv0;
   } else {
-    name = "shux";
+    name = "xlang";
   }
   note_kind = "note";
   msg[0] = 0;

@@ -29,7 +29,7 @@
     ],
     "only_x": []
   },
-  "rest_macro": "SHUX_RUNTIME_ASM_BUILD_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_ASM_BUILD_FROM_X",
   "impl_residuals": [],
   "direct_symbols": [
     "asm_driver_skip_codegen_dep_0_get",
@@ -38,7 +38,7 @@
   "forward_decls": [],
   "internal_call_rewrites": [],
   "known_limitations": [
-    "main 保留 seed：.x 无法表达 char** argv（Clang 强制 main 第二参数为 char **）；shux-c -E 生成的 uint8_t *argv 被 Clang 拒绝；.x 中 main 函数定义已删除，main 完全由 seed 提供"
+    "main 保留 seed：.x 无法表达 char** argv（Clang 强制 main 第二参数为 char **）；xlang-c -E 生成的 uint8_t *argv 被 Clang 拒绝；.x 中 main 函数定义已删除，main 完全由 seed 提供"
   ],
   "platform_notes": "纯 DIRECT 模式：2 个转发函数由 .x 提供。main 因 argv 语言限制保留 seed。rest 模式下 seed 仅提供 main",
   "delete_seed_gate": {

@@ -17,7 +17,7 @@ export extern "C" function calloc(n: usize, size: usize): *u8;
 export extern "C" function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8;
 
 /* See implementation. */
-export struct ShuxHeapArena64 {
+export struct XlangHeapArena64 {
   chunk: *u8;
   cap: usize;
   off: usize;
@@ -94,13 +94,13 @@ export function heap_alloc_zeroed_c(size: usize): *u8 {
 
 /** Exported function `heap_arena_init_c`.
  * Implements `heap_arena_init_c`.
- * @param a *ShuxHeapArena64
+ * @param a *XlangHeapArena64
  * @param cap usize
  * @return i32
  */
 #[no_mangle]
-export function heap_arena_init_c(a: *ShuxHeapArena64, cap: usize): i32 {
-  if (a == 0 as *ShuxHeapArena64) {
+export function heap_arena_init_c(a: *XlangHeapArena64, cap: usize): i32 {
+  if (a == 0 as *XlangHeapArena64) {
     return 0 - 1;
   }
   a.chunk = 0 as *u8;
@@ -122,14 +122,14 @@ export function heap_arena_init_c(a: *ShuxHeapArena64, cap: usize): i32 {
 
 /** Exported function `heap_arena64_alloc_c`.
  * Memory management helper `heap_arena64_alloc_c`.
- * @param a *ShuxHeapArena64
+ * @param a *XlangHeapArena64
  * @param size usize
  * @param align_bytes usize
  * @return *u8
  */
 #[no_mangle]
-export function heap_arena64_alloc_c(a: *ShuxHeapArena64, size: usize, align_bytes: usize): *u8 {
-  if (a == 0 as *ShuxHeapArena64) {
+export function heap_arena64_alloc_c(a: *XlangHeapArena64, size: usize, align_bytes: usize): *u8 {
+  if (a == 0 as *XlangHeapArena64) {
     return 0 as *u8;
   }
   if (a.chunk == 0 as *u8) {
@@ -159,12 +159,12 @@ export function heap_arena64_alloc_c(a: *ShuxHeapArena64, size: usize, align_byt
 
 /** Exported function `heap_arena64_deinit_c`.
  * Implements `heap_arena64_deinit_c`.
- * @param a *ShuxHeapArena64
+ * @param a *XlangHeapArena64
  * @return void
  */
 #[no_mangle]
-export function heap_arena64_deinit_c(a: *ShuxHeapArena64): void {
-  if (a == 0 as *ShuxHeapArena64) {
+export function heap_arena64_deinit_c(a: *XlangHeapArena64): void {
+  if (a == 0 as *XlangHeapArena64) {
     return;
   }
   heap_free_c(a.chunk);

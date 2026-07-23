@@ -25,7 +25,7 @@ for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$HASH_X" "$SMOKE_X" "$SM
   fi
 done
 
-for kw in STD-148 recommend_hasher_map SHUX_HASH_ALGO HASHER_XXHASH; do
+for kw in STD-148 recommend_hasher_map XLANG_HASH_ALGO HASHER_XXHASH; do
   if ! grep -qF -- "$kw" "$DOC" 2>/dev/null; then
     echo "std-hash-default-strategy gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -52,12 +52,12 @@ echo "std-hash-default-strategy registry OK"
 C_OK=0
 X_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
-if [ -z "$SHUX_BIN" ] && [ -x ./compiler/shux ]; then SHUX_BIN=./compiler/shux; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
+if [ -z "$XLANG_BIN" ] && [ -x ./compiler/xlang ]; then XLANG_BIN=./compiler/xlang; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
+if [ -n "$XLANG_BIN" ]; then
+  make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/hash/hash.o
@@ -68,20 +68,20 @@ if [ -n "$SHUX_BIN" ]; then
     std_hash_default_strategy_emit_report "fail" 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-hash-default-strategy gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_hash_default_strategy_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_hash_default_strategy_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "$HASH_O"; then
+  if std_hash_default_strategy_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "$HASH_O"; then
     X_OK=1
   else
     std_hash_default_strategy_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-hash-default-strategy gate SKIP c/x smoke (no native shux-c)" >&2
+  echo "std-hash-default-strategy gate SKIP c/x smoke (no native xlang-c)" >&2
   SKIP=1
 fi
 

@@ -1,0 +1,11 @@
+# D-05 单 xlang 发布盘点（manifest）
+# 列：item_id	layer	anchor	check_type	gate_or_notes
+bstrict_cp	makefile	bootstrap-driver-bstrict	grep	cp xlang_asm to TARGET
+bootstrap_driver	makefile	bootstrap-driver	grep	alias bstrict
+build_tool	doc	build.x	grep	build_tool ./xlang daily
+readme_daily	doc	README.md	grep	bootstrap-driver-bstrict daily
+selfhost_daily	doc	compiler/docs/SELFHOST.md	grep	D-05 daily xlang
+bootstrap_archaeology	script	compiler/bootstrap.sh	grep	archaeology or cold start
+d05_gate	gate	tests/run-d05-single-xlang-release-gate.sh	gate_ref	phase D closure
+bootstrap_xlang_smoke	gate	tests/run-bootstrap-xlang-gate.sh	gate_ref	related driver smoke
+release_precheck	gate	tests/run-eng-release-precheck.sh	gate_ref	ENG-004 optional

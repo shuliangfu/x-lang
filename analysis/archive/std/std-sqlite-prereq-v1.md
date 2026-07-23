@@ -71,7 +71,7 @@
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `draft_typeck` | `tests/std-sqlite/draft_typeck.x` | `shux check` 通过 |
+| `draft_typeck` | `tests/std-sqlite/draft_typeck.x` | `xlang check` 通过 |
 
 ---
 
@@ -80,12 +80,12 @@
 gate 输出 **`std-sqlite prereq gate OK`**；**runnable** report：
 
 ```
-shux: [SHUX_STD_SQLITE] status=ok apis=9 layers=4 typeck=ok|skip
+xlang: [XLANG_STD_SQLITE] status=ok apis=9 layers=4 typeck=ok|skip
 ```
 
 工具：`tests/lib/std-sqlite.sh`、`tests/run-std-sqlite.sh`、`tests/run-std-sqlite-prereq-gate.sh`；便携回归：`tests/run-portable-suite.sh`。
 
-无 native `shux` 时 manifest 仍过，typeck **SKIP**。
+无 native `xlang` 时 manifest 仍过，typeck **SKIP**。
 
 ---
 

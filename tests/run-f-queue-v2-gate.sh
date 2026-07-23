@@ -2,7 +2,7 @@
 # F-queue v2：std.queue 竞争烟测 F-ZC（queue_contention_os_glue.c → runtime_queue_contention.inc）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_QUEUE_V2_FAIL:-0}
+FAIL=${XLANG_F_QUEUE_V2_FAIL:-0}
 DOC="analysis/phase-f-queue-v2.md"
 MANIFEST="tests/baseline/f-queue-v2-closure.tsv"
 die() { echo "f-queue-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -27,10 +27,10 @@ grep -q 'queue_f_queue_v2_marker_c' std/queue/queue.x || die "queue.x missing v2
 grep -q 'queue_os_run_two_workers_c' compiler/seeds/runtime_queue_contention.from_x.c || die "runtime missing workers"
 grep -q 'queue_glue.c' compiler/Makefile && die "Makefile still references queue_glue.c"
 grep -q 'runtime_queue_contention' compiler/Makefile || die "Makefile missing runtime_queue_contention.o"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/queue/queue.o >/dev/null 2>&1 || die "make queue.o failed"
 else
-  echo "f-queue-v2 SKIP queue.o build (no shux-c)" >&2
+  echo "f-queue-v2 SKIP queue.o build (no xlang-c)" >&2
 fi
 chmod +x tests/run-std-queue-concurrent-gate.sh
 tests/run-std-queue-concurrent-gate.sh || die "run-std-queue-concurrent-gate failed"

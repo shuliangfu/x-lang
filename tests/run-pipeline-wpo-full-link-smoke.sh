@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# track-only：整颗 pipeline_wpo.o X 编排链入 strict_glue（SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1）。
+# track-only：整颗 pipeline_wpo.o X 编排链入 strict_glue（XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1）。
 # 链接 + return-value/hello 编译运行须成功（2026-06-10：+ pipeline_x_glue_support astpool 桥接）。
 # 用法：
 #   ./tests/run-pipeline-wpo-full-link-smoke.sh
-#   SHUX_PIPELINE_WPO_FULL_COMPILE_FAIL=1 ./tests/run-pipeline-wpo-full-link-smoke.sh  # 同默认（硬门禁）
+#   XLANG_PIPELINE_WPO_FULL_COMPILE_FAIL=1 ./tests/run-pipeline-wpo-full-link-smoke.sh  # 同默认（硬门禁）
 set -e
 cd "$(dirname "$0")/.."
 
@@ -14,13 +14,13 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-if [ ! -x compiler/shux ] && [ ! -x compiler/shux-x ]; then
-  echo "pipeline-wpo-full-link: SKIP (no seed shux)"
+if [ ! -x compiler/xlang ] && [ ! -x compiler/xlang-x ]; then
+  echo "pipeline-wpo-full-link: SKIP (no seed xlang)"
   exit 0
 fi
 
-chmod +x tests/ensure-wpo-build-asm-artifacts.sh compiler/scripts/relink_shux_asm_strict_glue.sh
-SHUX_WPO_REBUILD_ARTIFACTS_ONLY=1 ./tests/ensure-wpo-build-asm-artifacts.sh
+chmod +x tests/ensure-wpo-build-asm-artifacts.sh compiler/scripts/relink_xlang_asm_strict_glue.sh
+XLANG_WPO_REBUILD_ARTIFACTS_ONLY=1 ./tests/ensure-wpo-build-asm-artifacts.sh
 
 if [ ! -f compiler/build_asm/pipeline_wpo.o ]; then
   echo "pipeline-wpo-full-link: SKIP (no pipeline_wpo.o)"
@@ -30,14 +30,14 @@ fi
 echo "pipeline-wpo-full-link: relink strict_glue (whole pipeline_wpo.o) ..."
 rm -f compiler/build_asm/pipeline_strict_link_partial.o \
   compiler/build_asm/pipeline_wpo_helpers_partial.o \
-  compiler/build_asm/asm_shux_lsp_diag_stub.o \
+  compiler/build_asm/asm_xlang_lsp_diag_stub.o \
   compiler/build_asm/typeck_lsp_io_stub.o
 (
   cd compiler
-  export SHUX_ASM_STRICT_LINK_PIPELINE_WPO=1
-  export SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1
+  export XLANG_ASM_STRICT_LINK_PIPELINE_WPO=1
+  export XLANG_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1
   export STRICT_LINK_BUILD_ASM_PIPELINE=1
-  ./scripts/relink_shux_asm_strict_glue.sh 2>&1 | tee /tmp/pipeline_wpo_full_relink.log
+  ./scripts/relink_xlang_asm_strict_glue.sh 2>&1 | tee /tmp/pipeline_wpo_full_relink.log
 )
 
 if ! grep -q 'whole pipeline_wpo.o' /tmp/pipeline_wpo_full_relink.log; then
@@ -49,24 +49,24 @@ if ! grep -q 'pipeline_x glue support (FULL wpo' /tmp/pipeline_wpo_full_relink.l
   exit 1
 fi
 
-if [ ! -x compiler/shux_asm.strict_glue ]; then
-  echo "pipeline-wpo-full-link FAIL: shux_asm.strict_glue not built" >&2
+if [ ! -x compiler/xlang_asm.strict_glue ]; then
+  echo "pipeline-wpo-full-link FAIL: xlang_asm.strict_glue not built" >&2
   tail -n 8 /tmp/pipeline_wpo_full_relink.log >&2 || true
   exit 1
 fi
 
-if ! nm compiler/shux_asm.strict_glue 2>/dev/null | grep -qE ' T run_x_pipeline_impl$'; then
+if ! nm compiler/xlang_asm.strict_glue 2>/dev/null | grep -qE ' T run_x_pipeline_impl$'; then
   echo "pipeline-wpo-full-link FAIL: strict_glue missing T run_x_pipeline_impl" >&2
   exit 1
 fi
 
-OUT="/tmp/shux_wpo_full_rv"
+OUT="/tmp/xlang_wpo_full_rv"
 rm -f "$OUT"
 RC=0
 (
   cd compiler
   ulimit -s 65532 2>/dev/null || true
-  ./shux_asm.strict_glue ../tests/return-value/main.x -o "$OUT" -backend asm
+  ./xlang_asm.strict_glue ../tests/return-value/main.x -o "$OUT" -backend asm
 ) || RC=$?
 
 if [ "$RC" -ne 0 ] || [ ! -x "$OUT" ]; then
@@ -80,12 +80,12 @@ if [ "$RUN_RC" -ne 42 ]; then
   exit 1
 fi
 
-HELLO_OUT="/tmp/shux_wpo_full_hello"
+HELLO_OUT="/tmp/xlang_wpo_full_hello"
 rm -f "$HELLO_OUT"
 (
   cd compiler
   ulimit -s 65532 2>/dev/null || true
-  ./shux_asm.strict_glue -L "$(pwd)/.." ../examples/hello.x -o "$HELLO_OUT" -backend asm
+  ./xlang_asm.strict_glue -L "$(pwd)/.." ../examples/hello.x -o "$HELLO_OUT" -backend asm
 )
 if [ ! -x "$HELLO_OUT" ] || ! "$HELLO_OUT" | grep -q "Hello World"; then
   echo "pipeline-wpo-full-link FAIL: hello compile/run" >&2

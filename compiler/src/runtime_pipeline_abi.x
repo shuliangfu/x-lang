@@ -1,143 +1,421 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// G-02f-224：path_registry scan + seed_slots pure。
-// See implementation.
-// See implementation.
-// See implementation.
-// G-02f-228：pctx seed_dep_slots / import_paths_only / update_dep_slots_no_reset pure。
-// G-02f-229：get_entry_dir + import_path_to_file_path pure。
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// G-02f-235：merge_direct_then_transitive_deps pure（src/lens/path）。
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// R2 runtime_pipeline_abi pure authority (product PREFER hybrid wave45–wave58).
+// Product: g05_try_x_to_o this file + seeds/runtime_pipeline_abi.from_x.c rest
+//   (-DXLANG_RUNTIME_PIPELINE_ABI_FROM_X) ld -r → src/runtime_pipeline_abi.o
+// wave110: pure ImportEntry storage (structure debt) — multi-module malloc map + full
+//   pipeline_module_import_* API set (alloc/path/kind/binding/select + storage_release).
+//   G.7 single authority under product PREFER hybrid; ast_pool Cap demoted XLANG_WEAK cold.
+//   Layout ≡ C ImportEntry (340B) + per-module select rows/lens grow. Soft-reset when
+//   module.num_imports==0 (parse counters / module reset). Closes Cap residual ImportEntry
+//   storage under pure load_and_sync / path64 / collect / typeck import walks.
+// wave99: pure parser_copy_module_import_path64 thin → G.7 pipeline_module_import_path_copy
+//   + NUL scan len (≡ historical parser_gen body). parser_gen seed path64 demoted weak
+//   cold twin so pure hybrid owns product; wave110 pure owns path_copy storage.
+//   Closes Cap residual path64 under pure load_and_sync / load_import orch.
+// wave100: language residual Cap-fn-ptr — typeck same-module bare fn name → *u8;
+//   pure pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr use
+//   (fn as *u8) without g05 xlang_driver_*_thread_fn_ptr cast harness. Closes hard Cap
+//   residual "g05 &fn cast" on product pure path.
 
-export extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
-export extern "C" function typeck_ndep_slot(): *i32;
-export extern "C" function typeck_ndep_store_impl(n: i32): void;
-export extern "C" function driver_dep_seeded_slot(i: i32): *i32;
-export extern "C" function typeck_dep_module_get(i: i32): *u8;
-export extern "C" function typeck_dep_arena_get(i: i32): *u8;
-export extern "C" function typeck_dep_module_set_impl(i: i32, mod: *u8): void;
-export extern "C" function typeck_dep_arena_set_impl(i: i32, arena: *u8): void;
-export extern "C" function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void;
-export extern "C" function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void;
-export extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
-export extern "C" function driver_dep_path_registry_at(i: i32): *u8;
-export extern "C" function driver_dep_module_buf(i: i32): *u8;
-export extern "C" function driver_dep_arena_buf(i: i32): *u8;
+// wave98: product complex #if Cap residual — G.7 cfg_eval.x on product link (not
+//   bootstrap stub). Pure preprocess_eval_condition_c already routes complex ops to
+//   cfg_eval_expr_c; Makefile -E-extern used bare CFLAGS → Apple Clang -Werror
+//   parentheses-equality → silent stub pin (dual-auth vs cfg_eval.x). Root fix:
+//   PIPELINE_GEN_CFLAGS (+ -Wno-parentheses-equality) on cfg_eval_gen.c. Closes
+//   product hard Cap residual "cfg_eval complex body was stub under hybrid pure".
+// wave97: pure load_and_sync step5 typeck merge+wpo call surface → G.7 typeck.x
+//   authority (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts);
+//   remove export-extern typeck_typeck_* double-prefix hop (link-alias still serves
+//   other TUs). Closes Cap residual typeck merge+wpo call surface under pure load_and_sync.
+// wave96: pure pipeline_parse_into_buf orch under wave94 pure load_import
+//   (G.7 pure parser_parse_into_init + driver_parse_into_buf_rc + same-TU pure
+//   debug_trace + fixup on ok==0; non-zero ok → -1; buf_len<=0 → -1). glue
+//   XLANG_WEAK cold twin. Closes Cap residual parse_into_buf leaf under load_import.
+// wave95: pure pipeline_resolve_path_x / pipeline_read_file_x /
+//   pipeline_preprocess_loaded_into_ctx orch under wave94 pure load_import;
+//   Cap residual try_one_lib_root / try_entry_dir / path+loaded buf accessors /
+//   set_loaded_len / preprocess_x_buf + pure preprocess_len store; parse_into_buf
+//   wave96→pure. glue/ast_pool XLANG_WEAK cold twins (resolve/read already
+//   weak; preprocess_loaded now weak). Closes Cap residual resolve/read/pp leaves.
+// wave94: pure pipeline_load_import_from_disk_c orch + pure
+//   pipeline_sync_dep_slots_from_driver_c orch + same-TU pure
+//   pipeline_bind_import_dep_buffers + pipeline_sync_one_dep_slot;
+//   Cap residual (wave95–96→pure) resolve/read/preprocess/parse; typeck merge+wpo
+//   (wave97→typeck.x); path64 wave99→pure; glue/ast_pool XLANG_WEAK.
+//   Closes Cap residual disk-load + dep-sync leaves under wave93 load_and_sync.
+// wave93: pure pipeline_load_and_sync_direct_import_deps_c orch + same-TU pure
+//   pipeline_try_bind_seeded_import + pipeline_dep_ctx_realign_ndep_for_entry_c;
+//   Cap residual (wave94→pure) load_import/sync; typeck merge+wpo (wave97→typeck.x);
+//   path64 wave99→pure; ast_pool XLANG_WEAK cold twins.
+//   Closes Cap residual load_and_sync leaf under wave60 typeck_only orch.
+// wave92: pure pipeline_typeck_validate_struct_layouts_zero_padding_c /
+//   pipeline_typeck_patch_all_body_parent_links_c thin → G.7 typeck.x authority
+//   (typeck_validate_struct_layouts_zero_padding / typeck_patch_all_body_parent_links);
+//   glue XLANG_WEAK cold twins keep historical metrics/patch bodies for non-PREFER links.
+//   Closes Cap residual layout validate+patch helpers under pure dep-prerun light fallback.
+// wave91: pure pipeline_typeck_set_dep_ctx / get_dep_ctx (LP64 ptr BSS; glue XLANG_WEAK cold).
+//   Closes Cap residual set_dep_ctx leaf under wave89 pure dep-prerun orch; ast_pool enum
+//   fallback reads via get_dep_ctx (no static dual-auth g_typeck_dep_ctx).
+// wave90: pure pipeline_typeck_diag_soft_suppress_set / _get (i32 BSS; glue XLANG_WEAK cold).
+//   Closes Cap residual soft-suppress leaf under wave89 pure dep-prerun orch.
+// wave89: pure pipeline_typeck_dep_prerun_module_c orch (set_dep_ctx + soft_suppress +
+//   typeck_x_ast_library + layout validate/patch light fallback; glue XLANG_WEAK cold).
+//   Closes Cap residual typeck dep-prerun leaf used by wave60 typeck_only orch.
+// wave88: pure preprocess_eval_condition_c orch (trim + simple → pure define_has;
+//   complex ops → Cap residual cfg_eval_expr_c; glue XLANG_WEAK cold fallback).
+//   Closes Cap residual preprocess #if condition-eval leaf (x_buf already pure cross-TU).
+// wave85: pure preprocess_define_reset / add / has (-D table BSS; glue XLANG_WEAK cold fallback).
+// wave84: pure pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr thin
+//   (G.7 g05 xlang_driver_*_thread_fn_ptr function-address cast residual; product surface pure;
+//   seed cold twin under #ifndef FROM_X). Closes Cap residual always-seed Cap-fn-ptr leaf.
+// wave80: pure product_emit thin via export-extern asm_asm_codegen_elf_o (no same-TU -1 body).
+// wave45 root fix: never put the two-char end-comment marker inside block prose
+//   (historical char**/void* truncated parse → silent drop of all later export function).
+// wave46: pure merge/collect helpers (ptr/size slots, i32_store, module import cstr,
+//   collect_to_load_has, preprocess directive diag codes) — seed cold twins under FROM_X.
+// wave47: pure collect seed_to_load + enqueue_module_imports (strdup Cap residual then pure).
+// wave48: pure collect deps_process_one orch; Cap residual tmp_parse_and_enqueue;
+//   G.7 reuses load_one_direct_import_at for resolve/read/preprocess store.
+// wave49: pure collect paths_process_one orch; Cap residual paths_tmp_resolve_parse_enqueue
+//   (resolve/read/preprocess + G.7 tmp_parse_and_enqueue + free prep).
+// wave50: pure collect deps/paths transitive_impl orch (stack to_load[32] + process_one loop).
+// wave51: pure load_one_direct_import_at + load_direct_fail_cleanup orch;
+//   Cap residual then pure (wave55) xlang_load_one_direct_resolve_read_preprocess;
+//   G.7 paths_tmp reuses same resolve_read (no dual resolve/read/preprocess).
+// wave52: pure collect tmp_parse_and_enqueue orch (malloc/memset ensure + parse + G.7 enqueue).
+// wave53: pure collect paths_tmp_resolve_parse_enqueue orch (ensure tmp + resolve_read
+//   + G.7 pure tmp_parse + free prep).
+// wave54: pure collect strdup thin shell (malloc + scan len + byte copy + NUL; no libc strdup name).
+// wave55: pure resolve_read_preprocess orch (stack resolved[4096] + FileView u8[32]
+//   + pure resolve multi + runtime_read_file_view + pure preprocess + release + diags).
+// wave56: pure pipeline_run_x thread large-stack _impl orch (PipelineRunSuArgs stack pack;
+//   Cap-fn-ptr + G.7 driver_run_thread_on_large_stack; XLANG_DEBUG_PIPE notes cold-only).
+// wave57: pure asm elf_o large-stack _impl orch (AsmElfLargeArgs stack pack u8[48];
+//   Cap-fn-ptr + product_emit Cap residual; G.7 driver_run_thread_on_large_stack).
+// wave58: pure dep_prerun_parse_skip_typeck_impl orch (check_only + skip typeck/codegen
+//   flags + G.7 driver_pipeline_dep_ctx_* asm_entry_module_only + pure large_stack).
+// wave59: pure dep_prerun_parse_only_impl orch (parser_parse_into_init +
+//   pipeline_parse_set_main_from_buf_c; XLANG_ASM_DEBUG notes cold-only).
+// wave60: pure dep_prerun_typeck_only_impl orch (parse_set_main + load_sync deps +
+//   typeck_dep_prerun_module; XLANG_DEBUG_PIPE notes cold-only).
+// wave61: pure preprocess_raw_to_malloc_impl orch (scratch + define table + preprocess_x_buf
+//   + owned dup; Cap residual preprocess_* / pure diag helpers; oversized → pure fail).
+// wave62: pure one_ctx_for_dep_prerun_map_impl orch (tmp malloc arena/module + parse_into
+//   ok/allow -2 + import map via find_loaded; G.7 pctx_update / module import path).
+// wave63: pure typeck_module_entry_only / with_sidecar / pipeline_typeck_module_for_ctx_impl
+//   orch (Cap residual typeck_module C frontend + typeck_dep_module_ptrs_base BSS base).
+// wave64: pure pipeline_parse_into_bytes orch (G.7 pure parser_parse_into_init +
+//   G.7 pure driver_parse_into_buf_rc; non-zero ok → -1; cold twin under FROM_X).
+// wave65: pure pipeline_resolve_path_into_static orch (G.7 pure multi resolve +
+//   entry_dir_get (wave68 pure) / resolved_path_buf_slot (wave69 pure BSS); cold twin under FROM_X).
+// wave66: pure pipeline_read_file_stage_prep + pipeline_read_file_commit_prep orch
+//   (G.7 pure preprocess + stage clear/set/take (wave71 pure BSS) + Cap residual
+//   loaded_import_commit_from_owned; cold twins under FROM_X).
+// wave67: pure pipeline_dep_ctx_path_bufs_reset + pipeline_dep_ctx_copy_entry_dir orch
+//   (LP64 offsetof + LE store/byte copy; same layout as driver_abi wave19);
+//   pure pipeline_dep_ctx_set_use_asm_backend thin → G.7 driver_pipeline_dep_ctx_set_use_asm;
+//   cold twins under FROM_X.
+// wave68: pure pipeline_entry_dir_copy / set_dot / get orch (module BSS buf 512 +
+//   "." lit + is_dot flag; G.7 single authority for resolve_path / set_entry_dir;
+//   cold twins under FROM_X).
+// wave69: pure pipeline_resolved_path_buf_slot (module BSS buf 512; G.7 single authority
+//   for pure into_static + read_file_stage_prep path base; cold twin under FROM_X).
+// wave70: pure pipeline_dep_arena/module_slot_set/at (module BSS 32×LP64 ptr cells each;
+//   G.7 xlang_ptr_slot_* on raw u8[256]; single authority for pure set_dep_slots / get_dep_*;
+//   cold twins under FROM_X).
+// wave71: pure pipeline_rf_stage_prep_clear/set/take (module BSS ptr cell + size cell;
+//   G.7 xlang_ptr_slot_* / xlang_size_slot_*; single authority for pure stage_prep / commit_prep;
+//   cold twins under FROM_X).
+// wave72: pure pipeline_loaded_import_commit_from_owned / data / len_get (module BSS
+//   buf+len+cap cells; G.7 ptr/size slots + malloc ensure floor XLANG_PIPELINE_IMPORT_BUF_CAP;
+//   cold twins under FROM_X).
+// wave73: pure pipeline_diag_emitted_flag_slot (module BSS i32 flag; G.7 single authority for
+//   pure reset/note/get; cold twin under FROM_X).
+// wave74: pure driver_dep_* table BSS orch (arena/module/path_registry/seeded 32 slots;
+//   G.7 xlang_ptr_slot_* + pure seeded_slot; no cross-TU naked global — only accessors;
+//   cold twins under FROM_X).
+// wave75: pure entry_lib authority (xlang_cstr_typeck_lit / xlang_entry_lib_keyword_lit /
+//   xlang_entry_lib_name_from_path_impl + thin gate); module BSS stem_buf[128] + keyword lits;
+//   G.7 single path matches C seed order (keywords before std/stem — closes pure std/-first drift);
+//   cold twins under FROM_X).
+// wave76: pure xlang_cstr_offset (G.7 &s[off] → C &s[off] / s+off; closes Cap residual pointer
+//   arith leaf for pipe_dir_tail / pipe_strip_prefix_seg / driver -D parse); cold twin under FROM_X.
+// wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
+//   (G.7 xlang_ptr_slot_*; product hybrid writers only via accessors — rt_run_* pure +
+//   driver_typeck_*; cold seed naked C globals stay under #ifndef FROM_X for cold twins).
+// wave78: pure xlang_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null) + xlang_fputs_stdout
+//   (G.7 g05 xlang_driver_stdout_ptr + xlang_driver_fputs_opaque) + driver_asm_fp_is_stdout
+//   + driver_asm_fclose_file (G.7 g05 stdout_ptr compare + fclose_opaque); cold twins under FROM_X.
+// wave79: pure xlang_path_try_realpath_inplace (G.7 g05 xlang_driver_realpath_opaque + stack
+//   resolved[1024] + pipe_cstr_copy; fail → leave path unchanged; matches seed POSIX/APPLE
+//   realpath+snprintf and non-POSIX no-op via harness null); cold twin under FROM_X.
+// wave80: pure xlang_asm_codegen_elf_o_product_emit thin (export-extern asm_asm_codegen_elf_o only —
+//   remove same-TU weak -1 stub so call keeps external reloc → final strong bridge;
+//   seed cold twin under #ifndef FROM_X). Closes product_emit Cap residual leaf.
+// wave81: pure xlang_preprocess / xlang_preprocess_quiet / xlang_preprocess_with_path thin public
+//   surface (G.7 pure xlang_preprocess_raw_to_malloc_impl; product always X-pipeline path;
+//   seed cold twin keeps LEGACY preprocess_c_fallback under #ifndef FROM_X).
+// wave82: pure pipeline_debug_trace_named_func_bodies_impl orch (getenv + module func walk +
+//   G.7 pure pipeline_debug_body_func_match + stack msg via pipe_diag_msg_append_* + diag_report;
+//   no va_list reportf — cold twin keeps reportf). Closes soft residual always-seed body-trace
+//   leaf still called from pure public thin.
+// wave83: pure pipeline_sizeof_arena / pipeline_sizeof_module (fixed LP64 layout constants
+//   matching pipeline_glue sizeof; dual-end verified 16 / 68). Glue keeps weak cold fallback.
+// wave84: pure Cap-fn-ptr surface thin (pipeline_run_x_thread_fn_ptr /
+//   xlang_asm_codegen_elf_o_thread_fn_ptr) via g05 function-address opaques.
+// wave85: pure preprocess_define_reset / add / has (G.7 single -D table BSS;
+//   glue strict_stubs XLANG_WEAK cold fallback). Closes Cap residual define-table
+//   leaf of preprocess engine (x_buf / if_stack still Cap residual).
+// wave86: pure preprocess_if_stack_reset / len / push / pop / at / set_at
+//   (G.7 single fixed i32[32] BSS; ast_pool GrowVec XLANG_WEAK cold fallback).
+//   Closes Cap residual preprocess #if stack leaf (x_buf still Cap residual).
+// wave87: pure typeck_module_for_ctx route → typeck_x_ast / typeck_x_ast_library
+//   (G.7 single typeck authority; C typeck_module frontend deleted — was weak -1 only).
+//   Closes Cap residual typeck_module C frontend leaf.
+// wave88: pure preprocess_eval_condition_c (G.7 pure define_has simple path + Cap residual
+//   cfg_eval_expr_c for complex #if); glue XLANG_WEAK cold fallback.
+//   Closes Cap residual preprocess condition-eval leaf of preprocess.x engine path.
+// wave89: pure pipeline_typeck_dep_prerun_module_c (G.7 pure orch → typeck_x_ast_library +
+//   Cap residual set_dep_ctx / soft_suppress / validate / patch; glue XLANG_WEAK cold).
+//   Closes Cap residual typeck dep-prerun leaf (wave60 typeck_only no longer always-seed body).
+// wave90: pure soft_suppress set/get BSS (G.7 single flag; same-TU orch + diagnostic get).
+// wave91: pure set_dep_ctx / get_dep_ctx BSS (G.7 single ptr; same-TU orch + ast_pool get).
+// wave92: pure layout validate/patch_c thin → typeck.x (G.7; glue XLANG_WEAK cold).
+// wave97: pure load_and_sync step5 merge+wpo → typeck.x (G.7; no typeck_typeck_* hop).
+// Cap residual still: g05 &fn cast (language; g05 harness); preprocess_x_buf pure
+//   preprocess.x cross-TU; ImportEntry storage via pipeline_module_import_path_* (ast_pool).
+//   cfg_eval complex #if = permanent G.7 cross-TU call to cfg_eval.x (wave98 product
+//   link fixed; body no longer bootstrap stub when -E works).
+// PLATFORM: SHARED — pure link-name contract; verify mac + Ubuntu L2 PREFER hybrid.
+
+// wave73: pipeline_diag_emitted_flag_slot is pure export function below (pure BSS).
+// wave74: driver_dep_seeded_slot / *_ptr_set_impl / path_registry_* / *_buf are pure below.
+// wave75: xlang_cstr_typeck_lit / xlang_entry_lib_keyword_lit / name_from_path_impl pure below.
+// wave76: xlang_cstr_offset is pure export function below (not Cap residual).
+// wave77: typeck_ndep_slot / store_impl / typeck_dep_*_get/set_impl / ptrs_base pure below.
+// wave78: xlang_lsp_ptr_slot_clear / xlang_fputs_stdout / driver_asm_fp_is_stdout /
+//   driver_asm_fclose_file are pure export functions below.
+// wave79: xlang_path_try_realpath_inplace is pure export function below.
+// wave80: xlang_asm_codegen_elf_o_product_emit is pure export function below.
+// wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below.
+// wave83: pipeline_sizeof_arena / pipeline_sizeof_module are pure export functions below.
+// wave84: pipeline_run_x_thread_fn_ptr / xlang_asm_codegen_elf_o_thread_fn_ptr pure below.
+// wave85: preprocess_define_reset / add / has are pure export functions below.
+// wave86: preprocess_if_stack_* are pure export functions below (not Cap residual).
+// wave87: typeck_module_* / pipeline_typeck_module_for_ctx* pure below (route to typeck_x_ast).
+// wave88: preprocess_eval_condition_c is pure export function below (not Cap residual glue body).
+// wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual glue body).
+// wave90: pipeline_typeck_diag_soft_suppress_set / _get are pure export functions below.
+// wave91: pipeline_typeck_set_dep_ctx / get_dep_ctx are pure export functions below.
+// wave92: pipeline_typeck_validate_struct_layouts_zero_padding_c /
+//   pipeline_typeck_patch_all_body_parent_links_c are pure export functions below.
+// wave93: pipeline_load_and_sync_direct_import_deps_c / try_bind / realign pure below.
+// wave94: load_import_from_disk_c / sync_dep_slots_from_driver_c / bind / sync_one pure below.
+// wave96: pipeline_parse_into_buf is pure export function below (not Cap residual).
+// wave97: load_and_sync step5 merge+wpo call typeck.x authority below (not Cap residual hop).
 export extern "C" function strchr(s: *u8, c: i32): *u8;
+// wave88/98: complex #if → G.7 cfg_eval.x authority (surface cfg_eval_expr_c via
+// link_alias to lexer_cfg_eval_expr_c; product must not pin bootstrap stub — wave98).
+export extern "C" function cfg_eval_expr_c(start: *u8, len: i32): i32;
 export extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 export extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 export extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
-/* See implementation. */
-/* See implementation. */
-export extern "C" function typeck_module_entry_only(module: *u8): i32;
-export extern "C" function typeck_module_with_sidecar(module: *u8): i32;
+// wave63: typeck_module_entry_only / with_sidecar / for_ctx pure export functions below.
+// wave87: product force_c path no longer calls deleted C typeck_module (weak -1 stub).
+// G.7 authority = typeck_x_ast / typeck_x_ast_library (typeck.x → typeck_x.o).
+// pipeline_module_main_func_index chooses entry vs library (≡ pipeline_impl_typecheck).
+// PLATFORM: SHARED — same ABI as seed cold twins; pure owns null gates and X route.
+export extern "C" function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;
+export extern "C" function typeck_x_ast_library(module: *u8, arena: *u8, ctx: *u8): i32;
+// wave92: G.7 typeck.x layout/parent-link authority (same symbols as typeck_x.o product).
+// PLATFORM: SHARED — light fallback under pure dep-prerun routes here (not glue metrics fork).
+export extern "C" function typeck_validate_struct_layouts_zero_padding(module: *u8, arena: *u8): i32;
+export extern "C" function typeck_patch_all_body_parent_links(module: *u8, arena: *u8): void;
+// wave93–99 leaves under pure load_and_sync / load_import orch.
+// PLATFORM: SHARED — strong bodies remain in glue/parser for sub-leaves;
+//   wave94 pure owns load_import_from_disk_c / sync_dep_slots_from_driver_c /
+//   bind_import_dep_buffers / sync_one_dep_slot (same-TU; not export-extern);
+//   wave95 pure owns resolve_path_x / read_file_x / preprocess_loaded_into_ctx;
+//   wave96 pure owns pipeline_parse_into_buf (same-TU; not export-extern);
+//   wave97 pure load_and_sync step5 routes merge+wpo → typeck.x (below);
+//   wave99 pure owns parser_copy_module_import_path64 (below; not export-extern).
+// wave110: pipeline_module_import_path_copy is pure export below (ImportEntry storage).
+//   Do not export-extern Cap path_copy — dual authority with pure map.
+export extern "C" function ast_pipeline_dep_ctx_ndep(ctx: *u8): i32;
+export extern "C" function ast_pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
+// wave95 Cap residual under pure resolve/read/pp orch (G.7 try_* from pipeline.x
+// product surface; path/loaded accessors + set_loaded_len from ast_pool).
+// preprocess_x_buf already declared above (preprocess.x engine).
+export extern "C" function pipeline_loop_should_continue_lib_root_c(ctx: *u8, idx: i32): i32;
+export extern "C" function pipeline_resolve_path_try_one_lib_root(ctx: *u8, lib_idx: i32, import_path: *u8, path_len: i32): i32;
+export extern "C" function pipeline_resolve_path_try_entry_dir(ctx: *u8, import_path: *u8, path_len: i32): i32;
+export extern "C" function pipeline_dep_ctx_path_buf_ptr(ctx: *u8): *u8;
+export extern "C" function pipeline_dep_ctx_loaded_buf_ptr(ctx: *u8): *u8;
+export extern "C" function pipeline_dep_ctx_set_loaded_len(ctx: *u8, n: i64): void;
+export extern "C" function xlang_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
+// wave95 Cap residual under pure load_import orch (arena/prep ptr accessors).
+// wave96: pipeline_parse_into_buf is pure export function below (not export-extern).
+export extern "C" function pipeline_dep_ctx_arena_at(ctx: *u8, idx: i32): *u8;
+export extern "C" function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *u8): *u8;
+export extern "C" function pipeline_dep_ctx_preprocess_len_get(ctx: *u8): i32;
+// wave97: G.7 typeck.x merge/wpo authority (same symbols as typeck_x.o product).
+// PLATFORM: SHARED — pure load_and_sync step5 routes here (not typeck_typeck_* hop).
+export extern "C" function typeck_merge_dep_struct_layouts_into_entry(mod: *u8, arena: *u8, ctx: *u8): void;
+export extern "C" function typeck_wpo_unify_soa_layouts(entry: *u8, ctx: *u8): void;
+export extern "C" function pipeline_module_main_func_index(module: *u8): i32;
 export extern "C" function free(p: *u8): void;
+// wave52 pure tmp_parse orch: libc malloc/memset for large tmp arena/module ensure+zero.
+// PLATFORM: SHARED — same ABI as seed cold twin; free() still releases ownership.
+export extern "C" function malloc(n: usize): *u8;
+export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
+// wave54: xlang_collect_strdup is pure export function below (not Cap residual).
+// Do not export-extern libc strdup by name — conflicts with string.h after -E preamble.
+// wave52: xlang_collect_tmp_parse_and_enqueue is pure export function below (not Cap residual).
+// wave53: xlang_collect_paths_tmp_resolve_parse_enqueue is pure export function below.
+// wave55: xlang_load_one_direct_resolve_read_preprocess is pure export function below.
+// wave55 pure resolve_read: runtime file view (XlangRuntimeFileView 24B; pad 32 stack).
+// PLATFORM: SHARED — same ABI as fmt_check pure path; G.7 no second view layout.
+export extern "C" function runtime_read_file_view(path: *u8, out: *u8): i32;
+export extern "C" function runtime_release_file_view(view: *u8): void;
 export extern "C" function ast_module_free(mod: *u8): void;
-export extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
+// wave78: xlang_lsp_ptr_slot_clear is pure export function below (G.7 xlang_ptr_slot_set).
 /* See implementation. */
 export extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void;
 export extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
-export extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
-export extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
+// wave56: pipeline_run_x_thread_fn_impl is pure export function below.
+// wave57: xlang_asm_codegen_elf_o_thread_fn_impl is pure export function below.
+// wave80: product_emit is pure thin below (G.7 export-extern asm_asm_codegen_elf_o → bridge).
+// Cap residual always-seed: Cap-fn-ptr for asm large-stack only (wave57/wave80).
+// PLATFORM: SHARED — must not define same-TU body for asm_asm_codegen_elf_o (weak -1 was Cap trap).
+export extern "C" function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
+// wave84: Cap-fn-ptr product surfaces pure; wave100: no g05 &fn cast residual —
+//   typeck resolves same-module bare fn name to Cap-fn-ptr *u8; pure bodies use (fn as *u8).
+// PLATFORM: SHARED — g05 may still define dead xlang_driver_*_thread_fn_ptr helpers (optional).
+// wave56 pure pipeline large-stack orch: set entry source_len + run pipeline.
+export extern "C" function driver_set_pipeline_entry_source_len(len: i64): void;
+export extern "C" function pipeline_run_x_pipeline(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
+export extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
 
+// wave78: xlang_fputs_stdout / driver_asm_fp_is_stdout / driver_asm_fclose_file are pure below.
+// g05 prologue harness (same as driver_abi wave22/26): FILE* cast residual for pure .x.
+// PLATFORM: SHARED — static inline in g05_try_x_to_o prologue; not a second product authority.
+export extern "C" function xlang_driver_fputs_opaque(s: *u8, stream: *u8): i32;
+export extern "C" function xlang_driver_stdout_ptr(): *u8;
+export extern "C" function xlang_driver_fclose_opaque(stream: *u8): i32;
+// wave79: g05 harness — libc realpath char* cast residual (labi_path_io same clash avoidance).
+// PLATFORM: SHARED POSIX/APPLE call realpath; non-POSIX harness returns null (seed no-op).
+export extern "C" function xlang_driver_realpath_opaque(path: *u8, resolved: *u8): *u8;
+// wave75: xlang_import_dep_dir_from_path_impl removed — pure import_dep_dir is full body.
+/* wave45: do not export-extern pipeline_debug_trace_named_func_bodies here —
+ * pure export function below is the single authority (#[no_mangle]).
+ * A prior export extern + export function dual caused call sites to emit the
+ * mangled name while the def stayed short → UNDEF under hybrid. */
 /* See implementation. */
-export extern "C" function shux_fputs_stdout(s: *u8): void;
-export extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
-export extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
 /* See implementation. */
 /* See implementation. */
-/* See implementation. */
-export extern "C" function driver_asm_fp_is_stdout(fp: *u8): i32;
 export extern "C" function driver_asm_fflush_stdout(): void;
-export extern "C" function driver_asm_fclose_file(fp: *u8): void;
-/* See implementation. */
-export extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
-export extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
-export extern "C" function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void;
+// wave79: xlang_path_try_realpath_inplace is pure export function below (not Cap residual).
+// wave67: pipeline_dep_ctx_path_bufs_reset / copy_entry_dir are pure export functions below.
+// wave67: pipeline_dep_ctx_set_use_asm_backend is pure thin over G.7 driver authority.
+export extern "C" function driver_pipeline_dep_ctx_set_use_asm(ctx: *u8, v: i32): void;
 export extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
+/* wave61: xlang_preprocess_raw_to_malloc_impl is pure export function below.
+ * wave85: define_reset/add/has pure below (G.7 single -D table).
+ * wave86: if_stack_* pure below (G.7 fixed i32[32]; not export-extern).
+ * Cap residual: preprocess_x_buf (preprocess.x engine): */
+export extern "C" function preprocess_x_buf(src: *u8, src_len: i64, out_buf: *u8, out_cap: i32): i32;
+// PLATFORM: SHARED — same C ABI as seed cold twin; pure orch owns malloc/copy/diag gates.
+// wave74: driver_dep_seed_slots pure orch owns tables (no seed_slots_impl body required under hybrid).
+// wave75: xlang_entry_lib_name_from_path_impl / xlang_cstr_typeck_lit /
+//   xlang_entry_lib_keyword_lit are pure export functions below (not Cap residual).
+// wave70: pipeline_dep_arena/module_slot_set/at are pure export functions below (pure BSS 32×LP64).
+// PLATFORM: SHARED — G.7 single authority for pure set_dep_slots / get_dep_*; seed cold twins only.
 /* See implementation. */
-export extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
-export extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
-export extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
-export extern "C" function shux_cstr_typeck_lit(): *u8;
-export extern "C" function shux_entry_lib_keyword_lit(k: i32): *u8;
-export extern "C" function pipeline_dep_arena_slot_set(i: i32, p: *u8): void;
-export extern "C" function pipeline_dep_module_slot_set(i: i32, p: *u8): void;
-export extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
-export extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
-/* See implementation. */
-export extern "C" function pipeline_asm_debug_enabled_impl(): i32;
+// wave75: pipeline_asm_debug_enabled_impl removed — pure pipeline_asm_debug_enabled uses getenv.
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 /* See implementation. */
 
-/* See implementation. */
-export extern "C" function pipeline_resolve_path_into_static(path_c: *u8): void;
-/* See implementation. */
-export extern "C" function pipeline_read_file_stage_prep(): i32;
-export extern "C" function pipeline_read_file_commit_prep(): i32;
-/* See implementation. */
-export extern "C" function pipeline_loaded_import_data(): *u8;
-export extern "C" function pipeline_loaded_import_len_get(): i64;
-export extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32;
-export extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
-export extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
-export extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
-export extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
+// wave65: pipeline_resolve_path_into_static is pure export function below (not Cap residual).
+// wave68: pipeline_entry_dir_get / copy / set_dot are pure export functions below (pure BSS).
+// wave69: pipeline_resolved_path_buf_slot is pure export function below (pure BSS 512).
+// PLATFORM: SHARED — pure entry_dir + pure resolved_path for into_static orch.
+// wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
+// wave71: pipeline_rf_stage_prep_clear/set/take are pure export functions below (pure BSS).
+// wave72: pipeline_loaded_import_commit_from_owned / data / len_get are pure export functions below.
+// PLATFORM: SHARED — pure owns stage BSS + loaded_import ensure policy (single G.7 authority).
+// wave72 pure commit: libc memcpy for ensure-buffer fill (same ABI as seed cold twin).
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+// wave64: pipeline_parse_into_bytes is pure export function below (not Cap residual).
+// wave65: pipeline_resolve_path_into_static is pure export function below.
+// wave66: pipeline_read_file_stage_prep / commit_prep are pure export functions below.
+// wave56: xlang_pipeline_run_x_pipeline_large_stack_impl is pure export function below.
+// wave58: xlang_pipeline_dep_prerun_parse_skip_typeck_impl is pure export function below.
+// wave59: xlang_pipeline_dep_prerun_parse_only_impl is pure export function below.
+// wave60: xlang_pipeline_dep_prerun_typeck_only_impl is pure export function below.
+// wave93: pipeline_load_and_sync_direct_import_deps_c is pure export function below
+//   (same-TU try_bind + realign; Cap residual disk load / sync / typeck merge).
+// wave89: pipeline_typeck_dep_prerun_module_c is pure export function below (not Cap residual body).
+// wave90: soft_suppress set/get pure below (not export-extern Cap residual).
+// wave91: set_dep_ctx / get_dep_ctx pure below (not export-extern Cap residual).
+// wave92: layout validate/patch_c pure thin below → typeck.x (not export-extern Cap residual).
+// wave58 pure skip_typeck orch: G.7 driver flags + asm_entry field accessors (runtime_driver_abi).
+// PLATFORM: SHARED — same symbols as rt_run_asm_backend pure path.
+export extern "C" function driver_check_only_get(): i32;
+export extern "C" function driver_check_only_set(v: i32): void;
+export extern "C" function driver_x_pipeline_skip_typeck_set(v: i32): void;
+export extern "C" function driver_x_pipeline_skip_codegen_set(v: i32): void;
+export extern "C" function driver_pipeline_dep_ctx_get_asm_entry_module_only(ctx: *u8): i32;
+export extern "C" function driver_pipeline_dep_ctx_set_asm_entry_module_only(ctx: *u8, v: i32): void;
 /* See implementation. */
 export extern "C" function access(path: *u8, mode: i32): i32;
-export extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
+// wave76: xlang_cstr_offset is pure export function below (not Cap residual).
 /* See implementation. */
-export extern "C" function pipeline_entry_dir_copy(path: *u8): void;
-export extern "C" function pipeline_entry_dir_set_dot(): void;
-export extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
-/* See implementation. */
+// wave68: pipeline_entry_dir_copy / set_dot are pure export functions below (not Cap residual).
+// wave75: pipeline_set_dep_slots_impl removed — pure pipeline_set_dep_slots uses wave70 slots.
 /* See implementation. */
 /* See implementation. */
-export extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
-export extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
-export extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 /* See implementation. */
-export extern "C" function shux_module_num_imports(module: *u8): i32;
-export extern "C" function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32;
-export extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void;
+// wave67: pipeline_dep_ctx_set_use_asm_backend is pure export function below (G.7 driver thin).
+// wave62: xlang_pipeline_one_ctx_for_dep_prerun_map_impl is pure export function below.
+// wave83: pipeline_sizeof_arena / module are pure export functions below (not Cap residual).
+// Cap-struct-return parse ok unpack (driver residual):
+// PLATFORM: SHARED — same symbols as collect tmp_parse / driver_parse_into_buf_rc pure path.
+export extern "C" function driver_parse_into_buf_rc(arena: *u8, module: *u8, data: *u8, len: i32, out_main_idx: *i32): i32;
+// wave57: xlang_asm_codegen_elf_o_large_stack_impl is pure export function below.
 /* See implementation. */
-export extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
-export extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
-/** Load pointer slot i from a char**/void* array base (G.7 pair with shux_ptr_slot_set).
- * Returns null if arr is null or i < 0. PLATFORM: SHARED — argv/path slot load. */
-export extern "C" function shux_ptr_slot_get(arr: *u8, i: i32): *u8;
-export extern "C" function shux_i32_store(p: *i32, v: i32): void;
-/* See implementation. */
-export extern "C" function shux_size_slot_get(arr: *u8, i: i32): i64;
-export extern "C" function shux_size_slot_set(arr: *u8, i: i32, v: i64): void;
-export extern "C" function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
-export extern "C" function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32;
-export extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
+/* wave46: xlang_module_num_imports / import_path_cstr / ptr+size slots / i32_store
+ * are pure export function below (not export-extern Cap residual). */
+// wave51: xlang_load_one_direct_import_at + xlang_load_direct_fail_cleanup are pure orch below
+// (wave55 pure xlang_load_one_direct_resolve_read_preprocess for resolve+read+preprocess).
+// wave50: xlang_collect_deps_transitive_impl / xlang_collect_dep_paths_transitive_impl
+// are pure export function below (not export-extern Cap residual).
+// wave52: xlang_collect_tmp_parse_and_enqueue is pure export function below.
+// wave55: xlang_load_one_direct_resolve_read_preprocess is pure export function below.
+// wave82: pipeline_debug_trace_named_func_bodies_impl is pure export function below
+//   (not export-extern always-seed). Cap residual: module/ast accessors + getenv +
+//   pure pipe_diag_msg_append_* (same TU; product does not link driver_diag_append_*) +
+//   diag_report (no reportf).
+export extern "C" function pipeline_module_num_funcs(module: *u8): i32;
+export extern "C" function pipeline_module_func_name_len_at(module: *u8, fi: i32): i32;
+export extern "C" function pipeline_module_func_name_copy64(module: *u8, fi: i32, dst: *u8): void;
+export extern "C" function pipeline_module_func_body_ref_at(module: *u8, fi: i32): i32;
+export extern "C" function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_if_stmts(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_regions(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
+export extern "C" function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+/* wave235 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * Used by pipeline_asm_debug_enabled + pipeline_debug_trace_named_func_bodies_impl.
+ * PLATFORM: SHARED — product hybrid pipeline_abi pure uses same face as cold seed. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 
 /* See implementation. */
 
@@ -170,6 +448,46 @@ export function parser_get_module_import_path(module: *u8, idx: i32, path_buf: *
   unsafe {
     path_buf[0] = 0;
   }
+}
+
+/**
+ * Copy import path at index i into out[0..64) (NUL-terminated) and return path length.
+ * @param module *u8 — opaque AST module; null → out[0]=0 when out valid, return 0
+ * @param i i32 — import index (negative / OOB handled by G.7 path_copy / ImportEntry)
+ * @param out *u8 — destination buffer; capacity 64 bytes including NUL; null → 0
+ * @return i32 — byte length of path excluding NUL; 0 on null/missing path
+ * wave99 pure Cap residual close: G.7 single product authority for path64 surface.
+ * Body ≡ historical parser_gen: pipeline_module_import_path_copy(..., 64) + scan NUL.
+ * wave110: path_copy storage is pure ImportEntry map (not Cap residual).
+ * PLATFORM: SHARED — parser_gen path64 demoted weak cold twin; product pure hybrid owns.
+ */
+#[no_mangle]
+export function parser_copy_module_import_path64(module: *u8, i: i32, out: *u8): i32 {
+  if (out == 0 as *u8) {
+    return 0;
+  }
+  if (module == 0 as *u8) {
+    unsafe {
+      out[0] = 0;
+    }
+    return 0;
+  }
+  // G.7: ImportEntry path bytes live in ast_pool; this surface only copies + measures.
+  unsafe {
+    pipeline_module_import_path_copy(module, i, out, 64);
+  }
+  let path_len: i32 = 0;
+  while (path_len < 64) {
+    let ch: u8 = 0;
+    unsafe {
+      ch = out[path_len];
+    }
+    if (ch == 0) {
+      break;
+    }
+    path_len = path_len + 1;
+  }
+  return path_len;
 }
 
 /** Exported function `asm_skip_heavy_set_pipeline_ctx`.
@@ -211,17 +529,28 @@ export function pipeline_fill_soa_field_access_for_asm_emit(m: *u8, a: *u8): voi
 export function pipeline_module_fixup_with_arena_stmt_orders(m: *u8, a: *u8): void {
 }
 
-/** Exported function `asm_asm_codegen_elf_o`.
- * Implements `asm_asm_codegen_elf_o`.
- * @param m *u8
- * @param a *u8
- * @param c *u8
- * @param e *u8
- * @param o *u8
- * @return i32
+/* wave80: asm_asm_codegen_elf_o is export-extern only (see top of file).
+ * Historical pure weak body returned -1 and poisoned same-TU product emit;
+ * G.7 product_emit thin below keeps external reloc → user_asm_seed_bridge strong. */
+
+/**
+ * Product asm elf_o emit trampoline: true bridge emit for pure large-stack orch.
+ * @param module *u8 — AST module
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — PipelineDepCtx
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param out_buf *u8 — emit out buffer
+ * @return i32 — emit status from strong asm_asm_codegen_elf_o (bridge)
+ * wave80 pure Cap residual:
+ *   thin forward to export-extern asm_asm_codegen_elf_o (no same-TU body);
+ *   closes always-seed product_emit leaf; cold twin under seed #ifndef FROM_X.
+ * PLATFORM: SHARED — final link must provide strong user_asm_seed_bridge (or equiv).
  */
 #[no_mangle]
-export function asm_asm_codegen_elf_o(m: *u8, a: *u8, c: *u8, e: *u8, o: *u8): i32 {
+export function xlang_asm_codegen_elf_o_product_emit(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+  unsafe {
+    return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
+  }
   return 0 - 1;
 }
 
@@ -238,8 +567,12 @@ export function pipeline_parse_set_main_from_buf_c(m: *u8, a: *u8, d: *u8, len: 
   return 0;
 }
 
-/* See implementation. */
-
+/**
+ * Reset the pipeline "diag already emitted" sticky flag to 0.
+ * @return void
+ * wave73: pure G.7 pipeline_diag_emitted_flag_slot (pure BSS).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
 #[no_mangle]
 export function pipeline_diag_emitted_reset(): void {
   unsafe {
@@ -248,9 +581,11 @@ export function pipeline_diag_emitted_reset(): void {
   }
 }
 
-/** Exported function `pipeline_diag_emitted_note`.
- * Implements `pipeline_diag_emitted_note`.
+/**
+ * Set the pipeline "diag already emitted" sticky flag to 1.
  * @return void
+ * wave73: pure G.7 pipeline_diag_emitted_flag_slot (pure BSS).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_diag_emitted_note(): void {
@@ -260,9 +595,11 @@ export function pipeline_diag_emitted_note(): void {
   }
 }
 
-/** Exported function `pipeline_diag_emitted_get`.
- * Implements `pipeline_diag_emitted_get`.
- * @return i32
+/**
+ * Read the pipeline "diag already emitted" sticky flag (normalize to 0/1).
+ * @return i32 — 1 when any prior note was recorded; 0 when clear
+ * wave73: pure G.7 pipeline_diag_emitted_flag_slot (pure BSS).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_diag_emitted_get(): i32 {
@@ -487,7 +824,7 @@ export function typeck_driver_dep_arena_buf(i: i32): *u8 {
 
 /* See implementation. */
 #[no_mangle]
-export function shux_cstr_ends_with_dot_x(s: *u8): i32 {
+export function xlang_cstr_ends_with_dot_x(s: *u8): i32 {
   if (s == 0 as *u8) {
     return 0;
   }
@@ -513,7 +850,7 @@ export function shux_cstr_ends_with_dot_x(s: *u8): i32 {
 
 /* See implementation. */
 #[no_mangle]
-export function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
+export function xlang_asm_out_buf_is_object_magic(data: *u8): i32 {
   if (data == 0 as *u8) {
     return 0;
   }
@@ -557,13 +894,13 @@ export function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_import_path_is_file_path`.
- * Implements `shux_import_path_is_file_path`.
+/** Exported function `xlang_import_path_is_file_path`.
+ * Implements `xlang_import_path_is_file_path`.
  * @param import_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_import_path_is_file_path(import_path: *u8): i32 {
+export function xlang_import_path_is_file_path(import_path: *u8): i32 {
   if (import_path == 0 as *u8) {
     return 0;
   }
@@ -581,7 +918,7 @@ export function shux_import_path_is_file_path(import_path: *u8): i32 {
     if (strchr(import_path, 47) != 0 as *u8) {
       return 1;
     }
-    if (shux_cstr_ends_with_dot_x(import_path) != 0) {
+    if (xlang_cstr_ends_with_dot_x(import_path) != 0) {
       return 1;
     }
     return 0;
@@ -589,13 +926,13 @@ export function shux_import_path_is_file_path(import_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_std_dep_skip_x_typeck`.
- * Implements `shux_asm_user_std_dep_skip_x_typeck`.
+/** Exported function `xlang_asm_user_std_dep_skip_x_typeck`.
+ * Implements `xlang_asm_user_std_dep_skip_x_typeck`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
+export function xlang_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -611,13 +948,13 @@ export function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_std_net_dep_path`.
- * Implements `shux_asm_user_std_net_dep_path`.
+/** Exported function `xlang_asm_user_std_net_dep_path`.
+ * Implements `xlang_asm_user_std_net_dep_path`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
+export function xlang_asm_user_std_net_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -633,13 +970,13 @@ export function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_std_io_driver_dep_path`.
- * Implements `shux_asm_user_std_io_driver_dep_path`.
+/** Exported function `xlang_asm_user_std_io_driver_dep_path`.
+ * Implements `xlang_asm_user_std_io_driver_dep_path`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
+export function xlang_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
   if (dep_path == 0 as *u8) {
     return 0;
   }
@@ -655,18 +992,18 @@ export function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_user_dep_parse_skip_typeck_path`.
- * Implements `shux_asm_user_dep_parse_skip_typeck_path`.
+/** Exported function `xlang_asm_user_dep_parse_skip_typeck_path`.
+ * Implements `xlang_asm_user_dep_parse_skip_typeck_path`.
  * @param dep_path *u8
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
+export function xlang_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
   unsafe {
-    if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
+    if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
       return 1;
     }
-    if (shux_asm_user_std_io_driver_dep_path(dep_path) != 0) {
+    if (xlang_asm_user_std_io_driver_dep_path(dep_path) != 0) {
       return 1;
     }
     return 0;
@@ -674,14 +1011,14 @@ export function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
   return 0;
 }
 
-/** Exported function `shux_asm_out_buf_is_object`.
- * Implements `shux_asm_out_buf_is_object`.
+/** Exported function `xlang_asm_out_buf_is_object`.
+ * Implements `xlang_asm_out_buf_is_object`.
  * @param data *u8
  * @param len i64
  * @return i32
  */
 #[no_mangle]
-export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
+export function xlang_asm_out_buf_is_object(data: *u8, len: i64): i32 {
   if (data == 0 as *u8) {
     return 0;
   }
@@ -689,7 +1026,7 @@ export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
     return 0;
   }
   unsafe {
-    return shux_asm_out_buf_is_object_magic(data);
+    return xlang_asm_out_buf_is_object_magic(data);
   }
   return 0;
 }
@@ -697,25 +1034,25 @@ export function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
 /* See implementation. */
 
 #[no_mangle]
-export function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+export function xlang_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
   unsafe {
     if (n_lib_roots <= 0) {
       return main_entry_dir;
     }
-    return shux_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
+    return xlang_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
   }
   return main_entry_dir;
 }
 
-/** Exported function `shux_find_loaded_import_index`.
- * Implements `shux_find_loaded_import_index`.
+/** Exported function `xlang_find_loaded_import_index`.
+ * Implements `xlang_find_loaded_import_index`.
  * @param import_path *u8
  * @param all_paths *u8
  * @param n_all i32
  * @return i32
  */
 #[no_mangle]
-export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
+export function xlang_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (import_path == 0 as *u8) {
     return -1;
   }
@@ -725,18 +1062,18 @@ export function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, 
   if (n_all <= 0) {
     return -1;
   }
-  return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
+  return xlang_find_loaded_import_index_scan(import_path, all_paths, n_all);
 }
 
-/** Exported function `shux_merge_deps_path_already_out`.
- * Read path helper `shux_merge_deps_path_already_out`.
+/** Exported function `xlang_merge_deps_path_already_out`.
+ * Read path helper `xlang_merge_deps_path_already_out`.
  * @param path *u8
  * @param out_paths *u8
  * @param n_out i32
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
+export function xlang_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) {
     return 0;
   }
@@ -746,16 +1083,40 @@ export function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_ou
   if (n_out <= 0) {
     return 0;
   }
-  return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
+  return xlang_merge_deps_path_already_out_scan(path, out_paths, n_out);
 }
 
-// shux_emit_pipeline_glue_include: see function docblock below.
-/** Exported function `shux_emit_pipeline_glue_include`.
- * Implements `shux_emit_pipeline_glue_include`.
+/**
+ * Write NUL-terminated C string s to host stdout via fputs.
+ * @param s *u8 — C string; null → no-op
  * @return void
+ * wave78 pure: G.7 g05 xlang_driver_stdout_ptr + xlang_driver_fputs_opaque (FILE* cast residual
+ * lives in g05_try_x_to_o prologue; .x never names FILE*).
+ * Closes always-seed Cap soft residual for emit_pipeline_glue_include.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_emit_pipeline_glue_include(): void {
+export function xlang_fputs_stdout(s: *u8): void {
+  if (s == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let so: *u8 = xlang_driver_stdout_ptr();
+    if (so != 0 as *u8) {
+      xlang_driver_fputs_opaque(s, so);
+    }
+  }
+}
+
+// xlang_emit_pipeline_glue_include: see function docblock below.
+/**
+ * Emit the pipeline_glue.c include line to stdout (codegen glue surface).
+ * @return void
+ * G.7 pure xlang_fputs_stdout (wave78) owns stdout write.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_emit_pipeline_glue_include(): void {
   // "\n#include \"pipeline_glue.c\"\n"
   let s: u8[32] = [];
   s[0]=10;s[1]=35;s[2]=105;s[3]=110;s[4]=99;s[5]=108;s[6]=117;s[7]=100;
@@ -763,20 +1124,20 @@ export function shux_emit_pipeline_glue_include(): void {
   s[16]=105;s[17]=110;s[18]=101;s[19]=95;s[20]=103;s[21]=108;s[22]=117;s[23]=101;
   s[24]=46;s[25]=99;s[26]=34;s[27]=10;s[28]=0;
   unsafe {
-    shux_fputs_stdout(&s[0]);
+    xlang_fputs_stdout(&s[0]);
   }
 }
 
-// shux_import_dep_dir_from_path: see function docblock below.
-/** Exported function `shux_import_dep_dir_from_path`.
- * Implements `shux_import_dep_dir_from_path`.
+// xlang_import_dep_dir_from_path: see function docblock below.
+/** Exported function `xlang_import_dep_dir_from_path`.
+ * Implements `xlang_import_dep_dir_from_path`.
  * @param path *u8
  * @param dep_dir *u8
  * @param dep_dir_size i64
  * @return i32
  */
 #[no_mangle]
-export function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
+export function xlang_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (dep_dir == 0 as *u8) { return 0 - 1; }
   if (dep_dir_size == 0) { return 0 - 1; }
@@ -932,16 +1293,16 @@ export function driver_dep_seeded_clear_all(): void {
   driver_typeck_dep_sidecar_clear();
 }
 
-// shux_get_entry_dir: see function docblock below.
-/** Exported function `shux_get_entry_dir`.
- * Implements `shux_get_entry_dir`.
+// xlang_get_entry_dir: see function docblock below.
+/** Exported function `xlang_get_entry_dir`.
+ * Implements `xlang_get_entry_dir`.
  * @param input_path *u8
  * @param entry_dir *u8
  * @param size i64
  * @return void
  */
 #[no_mangle]
-export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
+export function xlang_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
   if (entry_dir == 0 as *u8) {
     return;
   }
@@ -992,11 +1353,52 @@ export function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): 
   }
 }
 
-// driver_asm_fclose_asm_out: see function docblock below.
-/** Exported function `driver_asm_fclose_asm_out`.
- * Implements `driver_asm_fclose_asm_out`.
- * @param fp *u8
+/**
+ * Return 1 if opaque stream fp is host stdout, else 0.
+ * @param fp *u8 — opaque FILE* as *u8; null → 0
+ * @return i32 — 1 when fp equals stdout, else 0
+ * wave78 pure: G.7 g05 xlang_driver_stdout_ptr identity compare (no FILE* in .x).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_asm_fp_is_stdout(fp: *u8): i32 {
+  if (fp == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let so: *u8 = xlang_driver_stdout_ptr();
+    if (fp == so) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * fclose an opaque non-stdout stream (null-safe).
+ * @param fp *u8 — opaque FILE* as *u8; null → no-op
  * @return void
+ * wave78 pure: G.7 g05 xlang_driver_fclose_opaque (FILE* cast residual in g05 prologue).
+ * Does not special-case stdout — callers use driver_asm_fclose_asm_out for that.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_asm_fclose_file(fp: *u8): void {
+  if (fp == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    xlang_driver_fclose_opaque(fp);
+  }
+}
+
+// driver_asm_fclose_asm_out: see function docblock below.
+/**
+ * Close asm output stream: fflush stdout when fp is null/stdout; else fclose.
+ * @param fp *u8 — opaque FILE* as *u8; null or stdout → fflush only
+ * @return void
+ * G.7 pure driver_asm_fp_is_stdout + driver_asm_fclose_file (wave78) + residual fflush.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function driver_asm_fclose_asm_out(fp: *u8): void {
@@ -1016,8 +1418,8 @@ export function driver_asm_fclose_asm_out(fp: *u8): void {
 /* See implementation. */
 
 // G-02f-229：lib_root + import（'.'→'/'）+ ".x"
-/** Exported function `shux_import_path_to_file_path`.
- * Implements `shux_import_path_to_file_path`.
+/** Exported function `xlang_import_path_to_file_path`.
+ * Implements `xlang_import_path_to_file_path`.
  * @param lib_root *u8
  * @param import_path *u8
  * @param path *u8
@@ -1025,7 +1427,7 @@ export function driver_asm_fclose_asm_out(fp: *u8): void {
  * @return void
  */
 #[no_mangle]
-export function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function xlang_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -1152,17 +1554,51 @@ export function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
   }
 }
 
-// shux_resolve_file_import_path: see function docblock below.
-/** Exported function `shux_resolve_file_import_path`.
- * Implements `shux_resolve_file_import_path`.
+/**
+ * Best-effort realpath into path in place; on failure leave path unchanged.
+ * @param path *u8 — mutable C string buffer; null → no-op
+ * @param path_size i64 — buffer capacity including trailing NUL; 0 → no-op
+ * @return void
+ * wave79 pure Cap residual orch:
+ *   stack resolved[1024] (matches seed char resolved[1024]);
+ *   G.7 g05 xlang_driver_realpath_opaque (libc realpath char* cast residual;
+ *   non-POSIX host returns null → no-op, matches seed #else);
+ *   success → G.7 pipe_cstr_copy into path with path_size cap (snprintf "%s" equiv).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function xlang_path_try_realpath_inplace(path: *u8, path_size: i64): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  unsafe {
+    // Match seed stack resolved[1024]; PATH_MAX on gold Linux is larger but seed pin is 1024.
+    let resolved: u8[1024] = [];
+    let r: *u8 = xlang_driver_realpath_opaque(path, &resolved[0]);
+    if (r != 0 as *u8) {
+      let cap: i32 = path_size as i32;
+      if (cap > 0) {
+        pipe_cstr_copy(path, cap, r);
+      }
+    }
+  }
+}
+
+// xlang_resolve_file_import_path: see function docblock below.
+/** Exported function `xlang_resolve_file_import_path`.
+ * Implements `xlang_resolve_file_import_path`.
  * @param entry_dir *u8
  * @param import_path *u8
  * @param path *u8
  * @param path_size i64
  * @return void
+ * G.7 pure xlang_path_try_realpath_inplace (wave79) owns realpath-in-place after join.
  */
 #[no_mangle]
-export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function xlang_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -1194,7 +1630,7 @@ export function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, 
         pipe_cstr_copy(path, cap, import_path);
       }
     }
-    shux_path_try_realpath_inplace(path, path_size);
+    xlang_path_try_realpath_inplace(path, path_size);
   }
 }
 
@@ -1235,20 +1671,170 @@ export function driver_dep_slot_for_path(path: *u8): i32 {
 
 /* See implementation. */
 
-// shux_preprocess_raw_to_malloc: see function docblock below.
-/** Exported function `shux_preprocess_raw_to_malloc`.
- * Memory management helper `shux_preprocess_raw_to_malloc`.
- * @param raw *u8
- * @param raw_len i64
- * @param out_src *u8
- * @param out_src_len *u8
- * @param path_diag *u8
- * @param defines *u8
- * @param ndefines i32
- * @return i32
+/**
+ * Preprocess raw source into an owned NUL-terminated malloc buffer.
+ * @param raw *u8 — source bytes; null only allowed when raw_len == 0
+ * @param raw_len i64 — byte count; must fit XLANG_PIPELINE_CTX_BUF_SIZE (4MiB)
+ * @param out_src *u8 — char** base as bytes; slot 0 set to owned prep (or null on fail)
+ * @param out_src_len *u8 — size_t* base as bytes; slot 0 set to output length (0 on fail)
+ * @param path_diag *u8 — path for preprocess diags; may be null
+ * @param defines *u8 — const char** define names base; may be null when ndefines == 0
+ * @param ndefines i32 — define count; < 0 rejected by thin gate
+ * @param emit_diag i32 — non-zero → emit PP/XP diags on failure
+ * @return i32 — 0 success; -1 fail (OOM / oversized / preprocess error / unclosed #if)
+ * wave61 pure Cap residual orch; wave85 pure owns -D define table;
+ * wave86 pure owns #if stack:
+ *   G.7 pure preprocess_define_reset / preprocess_define_add (same-TU pure BSS);
+ *   G.7 pure preprocess_if_stack_len (same-TU fixed stack; no GrowVec);
+ *   G.7 pure cross-TU preprocess_x_buf (preprocess.x engine; wave88 eval pure);
+ *   G.7 pure preprocess_eval_condition_c (simple) + Cap residual cfg_eval_expr_c (complex);
+ *   G.7 pure pipeline_diag_preprocess_* (no va_list reportf);
+ *   G.7 xlang_ptr_slot_set / xlang_size_slot_set for out slots (char** / size_t*);
+ *   oversized raw → pure pipeline_diag_preprocess_fail (fixed msg; seed reportf cold-only).
+ * PLATFORM: SHARED — same control flow as historical seed _impl.
  */
 #[no_mangle]
-export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
+export function xlang_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32 {
+  // Clear outs first (same as seed).
+  if (out_src != 0 as *u8) {
+    xlang_ptr_slot_set(out_src, 0, 0 as *u8);
+  }
+  if (out_src_len != 0 as *u8) {
+    xlang_size_slot_set(out_src_len, 0, 0);
+  }
+  // XLANG_PIPELINE_CTX_BUF_SIZE — fixed 4MiB pipeline ctx buffer (runtime_pipeline_abi.h).
+  let buf_cap: i32 = 4194304;
+  let buf_cap_i64: i64 = buf_cap as i64;
+  if (raw_len > buf_cap_i64) {
+    if (emit_diag != 0) {
+      // Cold twin uses reportf with sizes; pure keeps fixed PP002 fail (no va_list).
+      pipeline_diag_preprocess_fail(path_diag);
+    }
+    return 0 - 1;
+  }
+  let scratch: *u8 = 0 as *u8;
+  unsafe {
+    scratch = malloc(buf_cap as usize);
+  }
+  if (scratch == 0 as *u8) {
+    if (emit_diag != 0) {
+      // "scratch buffer"
+      let what: u8[16] = [];
+      what[0] = 115; what[1] = 99; what[2] = 114; what[3] = 97; what[4] = 116;
+      what[5] = 99; what[6] = 104; what[7] = 32; what[8] = 98; what[9] = 117;
+      what[10] = 102; what[11] = 102; what[12] = 101; what[13] = 114; what[14] = 0;
+      pipeline_diag_preprocess_alloc_fail(path_diag, &what[0]);
+    }
+    return 0 - 1;
+  }
+  // Reset define table then add caller defines (char** via ptr slots).
+  unsafe {
+    preprocess_define_reset();
+  }
+  let di: i32 = 0;
+  while (di < ndefines) {
+    if (defines != 0 as *u8) {
+      let dname: *u8 = xlang_ptr_slot_get(defines, di);
+      if (dname != 0 as *u8) {
+        unsafe {
+          preprocess_define_add(dname);
+        }
+      }
+    }
+    di = di + 1;
+  }
+  let n: i32 = 0;
+  unsafe {
+    // Authority preprocess engine; raw may be null only when raw_len == 0 (thin gate).
+    n = preprocess_x_buf(raw, raw_len, scratch, buf_cap);
+  }
+  if (n < 0) {
+    unsafe {
+      free(scratch);
+    }
+    if (emit_diag != 0) {
+      // Directive-level negative codes (-2..-7) prefer over unclosed-if (stack may be non-empty).
+      if (n <= (0 - 2)) {
+        pipeline_diag_preprocess_directive_code(path_diag, n);
+      } else {
+        let stack_n: i32 = 0;
+        unsafe {
+          stack_n = preprocess_if_stack_len();
+        }
+        if (stack_n != 0) {
+          pipeline_diag_preprocess_unclosed_if(path_diag);
+        } else {
+          pipeline_diag_preprocess_fail(path_diag);
+        }
+      }
+    }
+    return 0 - 1;
+  }
+  let stack_after: i32 = 0;
+  unsafe {
+    stack_after = preprocess_if_stack_len();
+  }
+  if (stack_after != 0) {
+    unsafe {
+      free(scratch);
+    }
+    if (emit_diag != 0) {
+      pipeline_diag_preprocess_unclosed_if(path_diag);
+    }
+    return 0 - 1;
+  }
+  // Owned output: n bytes + trailing NUL (byte copy; no memcpy short name).
+  let dup: *u8 = 0 as *u8;
+  unsafe {
+    dup = malloc((n + 1) as usize);
+  }
+  if (dup == 0 as *u8) {
+    unsafe {
+      free(scratch);
+    }
+    if (emit_diag != 0) {
+      // "output buffer"
+      let what2: u8[16] = [];
+      what2[0] = 111; what2[1] = 117; what2[2] = 116; what2[3] = 112; what2[4] = 117;
+      what2[5] = 116; what2[6] = 32; what2[7] = 98; what2[8] = 117; what2[9] = 102;
+      what2[10] = 102; what2[11] = 101; what2[12] = 114; what2[13] = 0;
+      pipeline_diag_preprocess_alloc_fail(path_diag, &what2[0]);
+    }
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  unsafe {
+    while (i < n) {
+      dup[i] = scratch[i];
+      i = i + 1;
+    }
+    dup[n] = 0;
+    free(scratch);
+  }
+  if (out_src != 0 as *u8) {
+    xlang_ptr_slot_set(out_src, 0, dup);
+  }
+  if (out_src_len != 0 as *u8) {
+    xlang_size_slot_set(out_src_len, 0, n as i64);
+  }
+  return 0;
+}
+
+/**
+ * Thin gate for preprocess raw→malloc (null/oversized rejects; emit_diag fixed 1).
+ * @param raw *u8 — source bytes; null with raw_len > 0 → -1
+ * @param raw_len i64 — byte count; < 0 → -1
+ * @param out_src *u8 — char** out base as bytes
+ * @param out_src_len *u8 — size_t* out base as bytes
+ * @param path_diag *u8 — path for diags
+ * @param defines *u8 — const char** define table
+ * @param ndefines i32 — define count; < 0 → -1
+ * @return i32 — 0 success; -1 fail
+ * wave61: body in pure xlang_preprocess_raw_to_malloc_impl.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
   if (raw_len < 0) {
     return 0 - 1;
   }
@@ -1261,9 +1847,122 @@ export function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *
     return 0 - 1;
   }
   unsafe {
-    return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
+    return xlang_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
   }
   return 0 - 1;
+}
+
+/**
+ * Public preprocess surface with path diags (owned malloc prep or null).
+ * @param source *u8 — source bytes; null → null (out_length cleared when non-null)
+ * @param source_len usize — byte count; 0 → pipe_cstr_len(source) (≡ seed strlen)
+ * @param path_diag *u8 — path for PP/XP diags; may be null
+ * @param defines *u8 — const char** define names base; used only when ndefines > 0
+ * @param ndefines i32 — define count
+ * @param out_length *u8 — size_t* out length as bytes; may be null
+ * @return *u8 — owned NUL-terminated prep (caller free); null on fail
+ * wave81 pure Cap residual thin:
+ *   G.7 pure xlang_preprocess_raw_to_malloc_impl with emit_diag=1 (product X-pipeline path);
+ *   LP64 stack out cells for char** / size_t* (same pattern as stage_prep);
+ *   seed cold twin keeps LEGACY preprocess_c_fallback under #ifndef FROM_X.
+ * PLATFORM: SHARED — matches seed XLANG_USE_X_PIPELINE && !LEGACY control flow.
+ */
+#[no_mangle]
+export function xlang_preprocess_with_path(source: *u8, source_len: usize, path_diag: *u8, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+  if (out_length != 0 as *u8) {
+    xlang_size_slot_set(out_length, 0, 0);
+  }
+  if (source == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let slen: i64 = source_len as i64;
+  if (slen == 0) {
+    slen = pipe_cstr_len(source) as i64;
+  }
+  // LP64 out cells for impl (char** / size_t*).
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&out_len[0], 0, 0);
+  let def_arg: *u8 = 0 as *u8;
+  if (ndefines > 0) {
+    def_arg = defines;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], path_diag, def_arg, ndefines, 1);
+  }
+  if (rc != 0) {
+    return 0 as *u8;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let olen: i64 = xlang_size_slot_get(&out_len[0], 0);
+  if (out_length != 0 as *u8) {
+    xlang_size_slot_set(out_length, 0, olen);
+  }
+  return prep;
+}
+
+/**
+ * Public preprocess surface quiet (no path diags; emit_diag=0).
+ * @param source *u8 — source bytes; null → null
+ * @param source_len usize — byte count; 0 → pipe_cstr_len(source)
+ * @param defines *u8 — const char** define names base; used only when ndefines > 0
+ * @param ndefines i32 — define count
+ * @param out_length *u8 — size_t* out length as bytes; may be null
+ * @return *u8 — owned prep or null
+ * wave81 pure Cap residual thin: G.7 pure raw_to_malloc_impl emit_diag=0 path_diag null.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_preprocess_quiet(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+  if (out_length != 0 as *u8) {
+    xlang_size_slot_set(out_length, 0, 0);
+  }
+  if (source == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let slen: i64 = source_len as i64;
+  if (slen == 0) {
+    slen = pipe_cstr_len(source) as i64;
+  }
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&out_len[0], 0, 0);
+  let def_arg: *u8 = 0 as *u8;
+  if (ndefines > 0) {
+    def_arg = defines;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_preprocess_raw_to_malloc_impl(source, slen, &out_prep[0], &out_len[0], 0 as *u8, def_arg, ndefines, 0);
+  }
+  if (rc != 0) {
+    return 0 as *u8;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let olen: i64 = xlang_size_slot_get(&out_len[0], 0);
+  if (out_length != 0 as *u8) {
+    xlang_size_slot_set(out_length, 0, olen);
+  }
+  return prep;
+}
+
+/**
+ * Public preprocess surface (default quiet).
+ * @param source *u8 — source bytes
+ * @param source_len usize — byte count; 0 → cstr len
+ * @param defines *u8 — const char** define table
+ * @param ndefines i32 — define count
+ * @param out_length *u8 — size_t* out length
+ * @return *u8 — owned prep or null
+ * wave81 pure Cap residual thin: G.7 pure xlang_preprocess_quiet.
+ * PLATFORM: SHARED — matches seed alias.
+ */
+#[no_mangle]
+export function xlang_preprocess(source: *u8, source_len: usize, defines: *u8, ndefines: i32, out_length: *u8): *u8 {
+  return xlang_preprocess_quiet(source, source_len, defines, ndefines, out_length);
 }
 
 // driver_dep_seed_slots: see function docblock below.
@@ -1330,60 +2029,20 @@ export function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
   return 0;
 }
 
-// shux_entry_lib_name_from_path: see function docblock below.
-/** Exported function `shux_entry_lib_name_from_path`.
- * Implements `shux_entry_lib_name_from_path`.
- * @param input_path *u8
- * @return *u8
+/**
+ * Thin gate: -E lib_prefix from entry path (null → "typeck"; else pure impl).
+ * @param input_path *u8 — entry .x path; null → static "typeck"
+ * @return *u8 — never null; keyword lit or stem BSS or "typeck"
+ * wave75: G.7 pure xlang_entry_lib_name_from_path_impl owns full keyword/std/core/basename
+ * order (matches seed cold twin; no pure std/-first dual path).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
+export function xlang_entry_lib_name_from_path(input_path: *u8): *u8 {
   if (input_path == 0 as *u8) {
-    unsafe {
-      return shux_cstr_typeck_lit();
-    }
-    return 0 as *u8;
+    return xlang_cstr_typeck_lit();
   }
-  unsafe {
-    // See implementation.
-    let stdn: u8[8] = [];
-    stdn[0]=115;stdn[1]=116;stdn[2]=100;stdn[3]=47;stdn[4]=0; // "std/"
-    if (pipe_cstr_contains(input_path, &stdn[0]) != 0) {
-      return shux_entry_lib_name_from_path_impl(input_path);
-    }
-    let k0: u8[8] = []; // main
-    k0[0]=109;k0[1]=97;k0[2]=105;k0[3]=110;k0[4]=0;
-    if (pipe_cstr_contains(input_path, &k0[0]) != 0) { return shux_entry_lib_keyword_lit(0); }
-    let k1: u8[8] = []; // build
-    k1[0]=98;k1[1]=117;k1[2]=105;k1[3]=108;k1[4]=100;k1[5]=0;
-    if (pipe_cstr_contains(input_path, &k1[0]) != 0) { return shux_entry_lib_keyword_lit(1); }
-    let k2: u8[16] = []; // pipeline
-    k2[0]=112;k2[1]=105;k2[2]=112;k2[3]=101;k2[4]=108;k2[5]=105;k2[6]=110;k2[7]=101;k2[8]=0;
-    if (pipe_cstr_contains(input_path, &k2[0]) != 0) { return shux_entry_lib_keyword_lit(2); }
-    let k3: u8[8] = []; // driver
-    k3[0]=100;k3[1]=114;k3[2]=105;k3[3]=118;k3[4]=101;k3[5]=114;k3[6]=0;
-    if (pipe_cstr_contains(input_path, &k3[0]) != 0) { return shux_entry_lib_keyword_lit(3); }
-    let k4: u8[16] = []; // codegen
-    k4[0]=99;k4[1]=111;k4[2]=100;k4[3]=101;k4[4]=103;k4[5]=101;k4[6]=110;k4[7]=0;
-    if (pipe_cstr_contains(input_path, &k4[0]) != 0) { return shux_entry_lib_keyword_lit(4); }
-    let k5: u8[8] = []; // typeck
-    k5[0]=116;k5[1]=121;k5[2]=112;k5[3]=101;k5[4]=99;k5[5]=107;k5[6]=0;
-    if (pipe_cstr_contains(input_path, &k5[0]) != 0) { return shux_entry_lib_keyword_lit(5); }
-    let k6: u8[8] = []; // parser
-    k6[0]=112;k6[1]=97;k6[2]=114;k6[3]=115;k6[4]=101;k6[5]=114;k6[6]=0;
-    if (pipe_cstr_contains(input_path, &k6[0]) != 0) { return shux_entry_lib_keyword_lit(6); }
-    let k7: u8[8] = []; // token
-    k7[0]=116;k7[1]=111;k7[2]=107;k7[3]=101;k7[4]=110;k7[5]=0;
-    if (pipe_cstr_contains(input_path, &k7[0]) != 0) { return shux_entry_lib_keyword_lit(7); }
-    let k8: u8[8] = []; // lexer
-    k8[0]=108;k8[1]=101;k8[2]=120;k8[3]=101;k8[4]=114;k8[5]=0;
-    if (pipe_cstr_contains(input_path, &k8[0]) != 0) { return shux_entry_lib_keyword_lit(8); }
-    let k9: u8[8] = []; // ast
-    k9[0]=97;k9[1]=115;k9[2]=116;k9[3]=0;
-    if (pipe_cstr_contains(input_path, &k9[0]) != 0) { return shux_entry_lib_keyword_lit(9); }
-    return shux_entry_lib_name_from_path_impl(input_path);
-  }
-  return 0 as *u8;
+  return xlang_entry_lib_name_from_path_impl(input_path);
 }
 
 /* See implementation. */
@@ -1500,12 +2159,44 @@ export function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_p
 
 /* ---- G-02f-56：resolve_path / read_file / parse loaded import ---- */
 
-// pipeline_resolve_path: see function docblock below.
-/** Exported function `pipeline_resolve_path`.
- * Implements `pipeline_resolve_path`.
- * @param path_ptr *u8
- * @param path_len i32
- * @return i32
+/**
+ * Resolve import logical path into the pipeline static resolved_path BSS buffer.
+ * Uses a single lib root "." and the current pipeline entry_dir (set via pipeline_set_entry_dir).
+ * @param path_c *u8 — NUL-terminated import path; null → no-op
+ * @return void
+ * wave65 pure Cap residual orch (wave69: resolved slot pure):
+ *   G.7 pure xlang_resolve_import_file_path_multi (file-path / -L / entry_dir fallbacks);
+ *   pure pipeline_entry_dir_get (wave68 BSS) + pure pipeline_resolved_path_buf_slot (wave69 BSS).
+ * Stack packs one LP64 ptr slot for lib_roots[1] = {"."} (same as historical seed).
+ * PLATFORM: SHARED — resolved buffer cap 512 matches historical seed pipeline_resolved_path_buf.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_into_static(path_c: *u8): void {
+  if (path_c == 0 as *u8) {
+    return;
+  }
+  // Single root "." — same as seed lib_roots[1] = { "." }.
+  let dot: u8[2] = [];
+  dot[0] = 46;
+  dot[1] = 0;
+  // LP64: one void* slot for multi(lib_roots, n=1, ...).
+  let roots: u8[8] = [];
+  unsafe {
+    xlang_ptr_slot_set(&roots[0], 0, &dot[0]);
+    let entry: *u8 = pipeline_entry_dir_get();
+    let rbuf: *u8 = pipeline_resolved_path_buf_slot();
+    // Cap 512 — pure g_pipe_resolved_path_buf (wave69; cold seed char[512]).
+    xlang_resolve_import_file_path_multi(&roots[0], 1, entry, path_c, rbuf, 512 as i64);
+  }
+}
+
+/**
+ * Copy path_ptr[0..path_len) into a local C string and resolve into static BSS.
+ * @param path_ptr *u8 — import path bytes; null → -1
+ * @param path_len i32 — max copy length; clamped to 1..64 (0 or negative → 64)
+ * @return i32 — 0 on success (always after null gate; multi writes last try path)
+ * wave65: body uses pure pipeline_resolve_path_into_static (no seed _impl).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
@@ -1530,15 +2221,120 @@ export function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
       k = k + 1;
     }
     path_c[k] = 0;
+    // G.7 pure into_static (wave65) — pure entry_dir + pure resolved BSS (wave68/69).
     pipeline_resolve_path_into_static(&path_c[0]);
   }
   return 0;
 }
 
-// pipeline_read_file: see function docblock below.
-/** Exported function `pipeline_read_file`.
- * Read path helper `pipeline_read_file`.
- * @return i32
+/**
+ * Read resolved_path BSS file, preprocess into owned prep, store in stage BSS.
+ * @return i32 — 0 success; -1 open fail / preprocess fail / null prep
+ * wave66 pure orch (wave69 resolved slot; wave71 pure stage clear/set):
+ *   pure pipeline_rf_stage_prep_clear / pipeline_rf_stage_prep_set (wave71 pure BSS);
+ *   pure pipeline_resolved_path_buf_slot (wave69 BSS; path written by resolve_path_into_static);
+ *   runtime_read_file_view into 32B stack XlangRuntimeFileView (G.7 same as wave55 load_one);
+ *   open fail → pure pipeline_diag_import_open_fail_once(null, path);
+ *   G.7 pure xlang_preprocess_raw_to_malloc (defines null, ndefines 0);
+ *   runtime_release_file_view always after read success;
+ *   null prep after preprocess ok → pure pipeline_diag_import_preprocess_fail.
+ * PLATFORM: SHARED — same semantics as historical seed stage_prep.
+ */
+#[no_mangle]
+export function pipeline_read_file_stage_prep(): i32 {
+  // Drop any prior stage prep (owned heap).
+  unsafe {
+    pipeline_rf_stage_prep_clear();
+  }
+  let path: *u8 = 0 as *u8;
+  unsafe {
+    path = pipeline_resolved_path_buf_slot();
+  }
+  // XlangRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
+  let view: u8[32] = [];
+  let z: i32 = 0;
+  while (z < 32) {
+    view[z] = 0;
+    z = z + 1;
+  }
+  let view_rc: i32 = 0;
+  unsafe {
+    view_rc = runtime_read_file_view(path, &view[0]);
+  }
+  if (view_rc != 0) {
+    // Historical seed: import_path null, resolved_path = BSS path.
+    pipeline_diag_import_open_fail_once(0 as *u8, path);
+    return 0 - 1;
+  }
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
+  // LP64 out cells for preprocess (char** / size_t*).
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&out_len[0], 0, 0);
+  let prep_rc: i32 = 0;
+  unsafe {
+    // defines null / ndefines 0 — same as historical stage_prep.
+    prep_rc = xlang_preprocess_raw_to_malloc(raw_data, raw_len, &out_prep[0], &out_len[0], path, 0 as *u8, 0);
+  }
+  unsafe {
+    runtime_release_file_view(&view[0]);
+  }
+  if (prep_rc != 0) {
+    return 0 - 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&out_len[0], 0);
+  if (prep == 0 as *u8) {
+    pipeline_diag_import_preprocess_fail(0 as *u8, path);
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_rf_stage_prep_set(prep, prep_len);
+  }
+  return 0;
+}
+
+/**
+ * Move stage prep into loaded_import BSS (ensure buffer + copy + free prep).
+ * @return i32 — 0 success; -1 empty stage or OOM on loaded buffer ensure
+ * wave66 pure orch (wave71 pure take + wave72 pure commit):
+ *   pure pipeline_rf_stage_prep_take (wave71 BSS) → owned prep on stack slots;
+ *   pure pipeline_loaded_import_commit_from_owned (wave72 ensure/memcpy/free).
+ * PLATFORM: SHARED — G.7 single ensure body in pure commit (no Cap residual twin under hybrid).
+ */
+#[no_mangle]
+export function pipeline_read_file_commit_prep(): i32 {
+  // LP64: out_prep is char**; out_len is size_t*.
+  let out_prep: u8[8] = [];
+  let out_len: u8[8] = [];
+  pipe_store_ptr_slot(&out_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&out_len[0], 0, 0);
+  let take_rc: i32 = 0;
+  unsafe {
+    // pure take expects char** / size_t* (slots as raw bytes).
+    take_rc = pipeline_rf_stage_prep_take(&out_prep[0], &out_len[0]);
+  }
+  if (take_rc != 0) {
+    return 0 - 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&out_prep[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&out_len[0], 0);
+  if (prep == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return pipeline_loaded_import_commit_from_owned(prep, prep_len);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Resolve-path then read/preprocess/commit into loaded_import (two-stage).
+ * @return i32 — 0 success; -1 if stage_prep or commit_prep fails
+ * wave66: body uses pure stage_prep + pure commit_prep (no seed _impl).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_read_file(): i32 {
@@ -1553,12 +2349,62 @@ export function pipeline_read_file(): i32 {
   return 0;
 }
 
-// pipeline_parse_into_loaded_import: see function docblock below.
-/** Exported function `pipeline_parse_into_loaded_import`.
- * Implements `pipeline_parse_into_loaded_import`.
- * @param arena *u8
- * @param module *u8
- * @return i32
+/**
+ * Parse source bytes into module via Cap residual parser_parse_into (ok unpack).
+ * @param arena *u8 — AST arena; null → -1
+ * @param module *u8 — AST module; null → -1
+ * @param data *u8 — source bytes; null → -1
+ * @param len i64 — byte length; negative or > INT32_MAX → -1; zero length allowed
+ * @return i32 — 0 if parser ok==0; -1 on null/oversized/any non-zero ok
+ * wave64 pure Cap residual orch:
+ *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
+ *   G.7 pure driver_parse_into_buf_rc (unpacks Cap-struct-return ParseIntoResult.ok).
+ * Contract: this API collapses every non-zero ok to -1 (including historical ok==-2).
+ *   Contrast one_ctx map_impl (wave62), which accepts ok==-2 for import-table scan.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32 {
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (data == 0 as *u8) {
+    return 0 - 1;
+  }
+  // INT32_MAX — driver_parse_into_buf_rc residual takes int32_t len.
+  let imax: i64 = 2147483647;
+  if (len < 0) {
+    return 0 - 1;
+  }
+  if (len > imax) {
+    return 0 - 1;
+  }
+  let len_i32: i32 = len as i32;
+  unsafe {
+    // Same order as historical seed: init then parse_into.
+    parser_parse_into_init(module, arena);
+    // Cap-struct-return residual unpacks ParseIntoResult.ok; null out_main_idx.
+    let pr_ok: i32 = driver_parse_into_buf_rc(arena, module, data, len_i32, 0 as *i32);
+    // Historical: only ok==0 is success; any other code (incl. -2) → -1.
+    if (pr_ok == 0) {
+      return 0;
+    }
+    return 0 - 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Parse the pipeline loaded-import buffer into module (after resolve/read/preprocess stages).
+ * @param arena *u8 — AST arena; null → -1
+ * @param module *u8 — AST module; null → -1
+ * @return i32 — 0 success, -1 null arena/module, empty loaded buffer, or parse fail
+ * wave64: body uses pure pipeline_parse_into_bytes after pure loaded buffer accessors.
+ * wave72: pure pipeline_loaded_import_data / pipeline_loaded_import_len_get (pure BSS).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {
@@ -1581,19 +2427,21 @@ export function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 
 
 /* See implementation. */
 
-// shux_pipeline_run_x_pipeline_large_stack: see function docblock below.
-/** Exported function `shux_pipeline_run_x_pipeline_large_stack`.
- * Implements `shux_pipeline_run_x_pipeline_large_stack`.
- * @param module *u8
- * @param arena *u8
- * @param source_data *u8
- * @param source_len i64
- * @param out_buf *u8
- * @param ctx *u8
- * @return i32
+// xlang_pipeline_run_x_pipeline_large_stack: see function docblock below.
+/**
+ * Thin gate for large-stack pipeline_run_x_pipeline (null / empty source rejected).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param source_data *u8 — source bytes; null → -1
+ * @param source_len i64 — byte length; <=0 → -1
+ * @param out_buf *u8 — codegen out buffer; may be null (pipeline accepts)
+ * @param ctx *u8 — PipelineDepCtx; may be null
+ * @return i32 — pipeline ec; -1 on thin reject
+ * wave56: body in pure xlang_pipeline_run_x_pipeline_large_stack_impl.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+export function xlang_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -1607,26 +2455,76 @@ export function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
+    return xlang_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
   }
   return 0 - 1;
 }
 
 /* See implementation. */
 
-// shux_pipeline_dep_prerun_parse_skip_typeck: see function docblock below.
-/** Exported function `shux_pipeline_dep_prerun_parse_skip_typeck`.
- * Implements `shux_pipeline_dep_prerun_parse_skip_typeck`.
- * @param dep_mod *u8
- * @param dep_arena *u8
- * @param src *u8
- * @param len i64
- * @param dep_out *u8
- * @param one_ctx *u8
- * @return i32
+/**
+ * Dep prerun: full parse on large stack, skip typeck and codegen.
+ * Saves/restores check_only + asm_entry_module_only; sets skip flags around large_stack.
+ * @param dep_mod *u8 — dep AST module; caller thin already null-checked
+ * @param dep_arena *u8 — dep AST arena
+ * @param src *u8 — source bytes
+ * @param len i64 — byte length
+ * @param dep_out *u8 — optional out buffer (pipeline accepts null)
+ * @param one_ctx *u8 — PipelineDepCtx; may be null (asm_entry field skipped)
+ * @return i32 — pipeline ec from pure large_stack
+ * wave58 pure Cap residual:
+ *   G.7 driver_check_only_get/set;
+ *   G.7 driver_x_pipeline_skip_typeck_set + skip_codegen_set;
+ *   G.7 driver_pipeline_dep_ctx_get/set_asm_entry_module_only (no C struct field access);
+ *   pure xlang_pipeline_run_x_pipeline_large_stack (wave56).
+ * PLATFORM: SHARED — same flag order as historical seed _impl.
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  unsafe {
+    let saved: i32 = driver_check_only_get();
+    let saved_entry_only: i32 = 0;
+    driver_check_only_set(1);
+    // Save/set asm_entry_module_only only when one_ctx is non-null (seed pctx branch).
+    if (one_ctx != 0 as *u8) {
+      saved_entry_only = driver_pipeline_dep_ctx_get_asm_entry_module_only(one_ctx);
+      driver_pipeline_dep_ctx_set_asm_entry_module_only(one_ctx, 1);
+    }
+    driver_x_pipeline_skip_typeck_set(1);
+    driver_x_pipeline_skip_codegen_set(1);
+    // G.7 pure large_stack surface (wave56); re-null-checks inside thin gate are fine.
+    let ec: i32 = xlang_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    driver_x_pipeline_skip_codegen_set(0);
+    driver_x_pipeline_skip_typeck_set(0);
+    if (one_ctx != 0 as *u8) {
+      driver_pipeline_dep_ctx_set_asm_entry_module_only(one_ctx, saved_entry_only);
+    }
+    // Restore check_only as 0/1 (seed: saved ? 1 : 0).
+    if (saved != 0) {
+      driver_check_only_set(1);
+    } else {
+      driver_check_only_set(0);
+    }
+    return ec;
+  }
+  return 0 - 1;
+}
+
+// xlang_pipeline_dep_prerun_parse_skip_typeck: see function docblock below.
+/**
+ * Thin gate for dep prerun parse-skip-typeck (null / empty source rejected).
+ * @param dep_mod *u8 — dep AST module; null → -1
+ * @param dep_arena *u8 — dep AST arena; null → -1
+ * @param src *u8 — source bytes; null → -1
+ * @param len i64 — byte length; <=0 → -1
+ * @param dep_out *u8 — optional out buffer
+ * @param one_ctx *u8 — PipelineDepCtx; may be null
+ * @return i32 — pipeline ec; -1 on thin reject
+ * wave58: body in pure xlang_pipeline_dep_prerun_parse_skip_typeck_impl.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -1640,21 +2538,70 @@ export function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_are
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    return xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
   }
   return 0 - 1;
 }
 
-/** Exported function `shux_pipeline_dep_prerun_parse_only`.
- * Implements `shux_pipeline_dep_prerun_parse_only`.
- * @param dep_mod *u8
- * @param dep_arena *u8
- * @param src *u8
- * @param len i64
- * @return i32
+/**
+ * Dep prerun parse-only body: init parse + set_main_from_buf (no typeck).
+ * Must use pipeline_parse_set_main_from_buf_c (parse_into_with_init_buf); a bare
+ * parser_parse_into slice path under-parses large std modules (ok=-2, ~2 funcs).
+ * @param dep_mod *u8 — dep AST module; caller thin already null-checked
+ * @param dep_arena *u8 — dep AST arena
+ * @param src *u8 — source bytes
+ * @param len i64 — byte length; > INT32_MAX → -1
+ * @return i32 — 0 on parse ok; -1 on null/oversized/parse fail
+ * wave59 pure Cap residual:
+ *   G.7 pure parser_parse_into_init (weak empty in this TU; strong parser wins final link);
+ *   G.7 pure pipeline_parse_set_main_from_buf_c surface (real body in pipeline_glue);
+ *   XLANG_ASM_DEBUG notes cold-only (seed twin keeps pipeline_asm_debug_enabled diags).
+ * PLATFORM: SHARED — same return mapping as historical seed _impl (parse_rc==0 → 0 else -1).
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
+export function xlang_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
+  if (dep_mod == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (src == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  // INT32_MAX — pipeline glue takes int32_t len.
+  let imax: i64 = 2147483647;
+  if (len > imax) {
+    return 0 - 1;
+  }
+  unsafe {
+    let len_i32: i32 = len as i32;
+    // Authority parse path for dep prerun (not bare parser_parse_into).
+    parser_parse_into_init(dep_mod, dep_arena);
+    let parse_rc: i32 = pipeline_parse_set_main_from_buf_c(dep_mod, dep_arena, src, len_i32);
+    if (parse_rc == 0) {
+      return 0;
+    }
+    return 0 - 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Thin gate for dep prerun parse-only (null / empty source rejected).
+ * @param dep_mod *u8 — dep AST module; null → -1
+ * @param dep_arena *u8 — dep AST arena; null → -1
+ * @param src *u8 — source bytes; null → -1
+ * @param len i64 — byte length; <=0 → -1
+ * @return i32 — 0 ok; -1 reject or parse fail
+ * wave59: body in pure xlang_pipeline_dep_prerun_parse_only_impl.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -1668,15 +2615,743 @@ export function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
+    return xlang_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
   }
   return 0 - 1;
 }
 
-/* ---- G-02f-59 / G-02f-239：dep prerun typeck ---- */
+/* ---- G-02f-59 / G-02f-239 / wave60：dep prerun typeck ---- */
 
+/**
+ * Dep prerun typeck-only body: parse + load/sync direct imports + typeck (no codegen).
+ * Does not walk run_x_pipeline (large modules drop ctx); uses C glue authorities.
+ * @param dep_mod *u8 — dep AST module; caller thin already null-checked
+ * @param dep_arena *u8 — dep AST arena
+ * @param src *u8 — source bytes
+ * @param len i64 — byte length; > INT32_MAX → -1
+ * @param dep_out *u8 — unused (historical signature; seed voids it)
+ * @param one_ctx *u8 — PipelineDepCtx; required for load + typeck
+ * @return i32 — 0 ok; -1 null/oversized; -2 parse fail; else load_rc / typeck_rc
+ * wave60 pure Cap residual; wave89 pure owns typeck_dep_prerun_module_c;
+ * wave93 pure owns load_and_sync_direct_import_deps_c:
+ *   G.7 pure pipeline_parse_set_main_from_buf_c surface (weak empty here; strong glue wins);
+ *   G.7 pure pipeline_load_and_sync_direct_import_deps_c (same-TU; Cap residual disk/sync/merge);
+ *   G.7 pure pipeline_typeck_dep_prerun_module_c (same-TU; layout helpers wave92 pure);
+ *   XLANG_DEBUG_PIPE notes cold-only (seed twin keeps getenv diags).
+ * PLATFORM: SHARED — same return mapping as historical seed _impl.
+ */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+export function xlang_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  // dep_out is public ABI only; historical seed voids it (no consumer on this path).
+  if (dep_mod == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (src == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  if (one_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  // INT32_MAX — pipeline glue takes int32_t len.
+  let imax: i64 = 2147483647;
+  if (len > imax) {
+    return 0 - 1;
+  }
+  unsafe {
+    let len_i32: i32 = len as i32;
+    // Authority parse path (same as seed; not bare parser_parse_into).
+    let parse_rc: i32 = pipeline_parse_set_main_from_buf_c(dep_mod, dep_arena, src, len_i32);
+    // Seed maps any non-zero parse to -2 (not -1).
+    if (parse_rc != 0) {
+      return 0 - 2;
+    }
+    let load_rc: i32 = pipeline_load_and_sync_direct_import_deps_c(dep_mod, dep_arena, one_ctx);
+    if (load_rc != 0) {
+      return load_rc;
+    }
+    // wave89: pure same-TU typeck dep prerun (skip codegen); return code is authority surface.
+    let tc_rc: i32 = pipeline_typeck_dep_prerun_module_c(dep_mod, dep_arena, one_ctx);
+    return tc_rc;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Dep-module typeck prerun: exploratory full library typeck, then light layout fallback.
+ * @param module *u8 — dep AST module; null → -5
+ * @param arena *u8 — dep AST arena; null → -5
+ * @param ctx *u8 — PipelineDepCtx; null → -5
+ * @return i32 — 0 ok; -5 null args; -7 zero-padding layout fail; else 0 after light fallback
+ * wave89 pure Cap residual: G.7 single product authority for pipeline_typeck_dep_prerun_module_c
+ * (historical strong body in pipeline_glue.c now XLANG_WEAK cold fallback).
+ * Steps (match historical C; XLANG_DEBUG_PIPE notes cold-only):
+ *   1) pipeline_typeck_set_dep_ctx(ctx) — wave91 pure same-TU BSS (dep_ctx for glue accessors);
+ *   2) soft_suppress_set(1) — wave90 pure same-TU BSS (suppress exploratory XT001 soft diags);
+ *   3) typeck_x_ast_library (G.7 typeck.x authority; same as wave87 library route);
+ *   4) soft_suppress_set(0);
+ *   5) tc==0 → 0; else wave92 pure validate zero-padding → -7; pure patch body parent links → 0.
+ * PLATFORM: SHARED — glue XLANG_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function pipeline_typeck_dep_prerun_module_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 5;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 5;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 5;
+  }
+  let tc: i32 = 0;
+  unsafe {
+    // wave91 pure same-TU: publish dep ctx for glue typeck accessors (get_dep_ctx).
+    pipeline_typeck_set_dep_ctx(ctx);
+    // wave90 pure same-TU: suppress soft XT001 during exploratory full typeck.
+    pipeline_typeck_diag_soft_suppress_set(1);
+    // G.7 typeck authority: library path (dep modules have no entry main).
+    tc = typeck_x_ast_library(module, arena, ctx);
+    pipeline_typeck_diag_soft_suppress_set(0);
+  }
+  if (tc == 0) {
+    return 0;
+  }
+  // Full typeck failed: light fallback — validate struct layout padding then patch parent links.
+  // wave92: same-TU pure thin → typeck.x (G.7; closes Cap residual glue-layout fork on product).
+  // XLANG_DEBUG_PIPE getenv/fprintf remains cold-only (seed/glue twin); pure skips notes.
+  let vrc: i32 = 0;
+  unsafe {
+    vrc = pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena);
+  }
+  if (vrc != 0) {
+    return 0 - 7;
+  }
+  unsafe {
+    pipeline_typeck_patch_all_body_parent_links_c(module, arena);
+  }
+  return 0;
+}
+
+/**
+ * Validate all module struct layouts for zero-padding consistency (light layout gate).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @return i32 — 0 ok; -1 null/layout metrics fail (typeck.x authority)
+ * wave92 pure Cap residual: G.7 thin → typeck_validate_struct_layouts_zero_padding
+ * (typeck.x → typeck_x.o). Historical C body in pipeline_glue called glue metrics fork
+ * (typeck_validate_struct_layouts_zero_padding_glue); product light fallback now shares
+ * the same typeck.x path as typeck_x_ast_library / typeck_x_ast_impl.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_typeck_validate_struct_layouts_zero_padding_c(module: *u8, arena: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  let rc: i32 = 0;
+  unsafe {
+    // G.7 typeck.x authority — single layout-validate path (not glue metrics fork).
+    rc = typeck_validate_struct_layouts_zero_padding(module, arena);
+  }
+  return rc;
+}
+
+/**
+ * Patch parent_ref chains on every function body block in the module.
+ * @param module *u8 — AST module; null → no-op
+ * @param arena *u8 — AST arena; null → no-op
+ * @return void
+ * wave92 pure Cap residual: G.7 thin → typeck_patch_all_body_parent_links
+ * (typeck.x → typeck_x.o; walks pipeline_module_num_funcs + body_ref +
+ * pipeline_patch_block_parent_links). Historical C body in pipeline_glue inlined the
+ * same walk via ast_ast_arena_patch_block_parent_links; product uses typeck.x only.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_typeck_patch_all_body_parent_links_c(module: *u8, arena: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (arena == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    // G.7 typeck.x authority — single parent-link patch path.
+    typeck_patch_all_body_parent_links(module, arena);
+  }
+}
+
+/**
+ * Bind import slot arena/module pointers from driver_dep publish buffers.
+ * @param ctx *u8 — PipelineDepCtx; null → no-op
+ * @param import_idx i32 — ctx slot index; <0 → no-op
+ * @return void
+ * wave94 pure Cap residual: G.7 single product authority for pipeline_bind_import_dep_buffers
+ * (historical strong body in ast_pool). Same pattern as pure try_bind (driver buf → set_*).
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_bind_import_dep_buffers(ctx: *u8, import_idx: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  if (import_idx < 0) {
+    return;
+  }
+  unsafe {
+    let a: *u8 = driver_dep_arena_buf(import_idx);
+    let m: *u8 = driver_dep_module_buf(import_idx);
+    ast_pipeline_dep_ctx_set_arena(ctx, import_idx, a);
+    ast_pipeline_dep_ctx_set_module(ctx, import_idx, m);
+  }
+}
+
+/**
+ * Align one dep slot path/module/arena with driver seed authority.
+ * @param module *u8 — entry AST module (for import path at dep_i); null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param dep_i i32 — dep slot index; <0 → -1
+ * @return i32 — 0 ok; -1 null/bad index
+ * wave94 pure Cap residual: G.7 single product authority for pipeline_sync_one_dep_slot
+ * (historical strong body in ast_pool). Pins path from entry import[dep_i], maps
+ * driver_dep_slot_for_path (fallback dep_i), then set_module/set_arena from that slot.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_sync_one_dep_slot(module: *u8, ctx: *u8, dep_i: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_i < 0) {
+    return 0 - 1;
+  }
+  let sync_path: u8[64] = [];
+  unsafe {
+    memset(&sync_path[0], 0, 64 as usize);
+    let _pl: i32 = parser_copy_module_import_path64(module, dep_i, &sync_path[0]);
+  }
+  let sync_slot: i32 = 0;
+  unsafe {
+    sync_slot = driver_dep_slot_for_path(&sync_path[0]);
+  }
+  if (sync_slot < 0) {
+    sync_slot = dep_i;
+  }
+  let pl: i32 = 0;
+  while (pl < 64) {
+    let b: u8 = 0;
+    unsafe {
+      b = sync_path[pl];
+    }
+    if (b == 0) {
+      break;
+    }
+    pl = pl + 1;
+  }
+  if (pl > 0) {
+    unsafe {
+      ast_pipeline_dep_ctx_set_import_path(ctx, dep_i, &sync_path[0], pl);
+    }
+  }
+  unsafe {
+    let m: *u8 = driver_dep_module_buf(sync_slot);
+    let a: *u8 = driver_dep_arena_buf(sync_slot);
+    ast_pipeline_dep_ctx_set_module(ctx, dep_i, m);
+    ast_pipeline_dep_ctx_set_arena(ctx, dep_i, a);
+  }
+  return 0;
+}
+
+/**
+ * Sync all dep slots from driver seed authority (entry-indexed only).
+ * @param module *u8 — entry AST module; null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 null; else first pipeline_sync_one_dep_slot rc
+ * Rules (match historical C; XLANG_DEBUG_PIPE notes cold-only):
+ *   - if n_entry_imports < ndep (BFS closure): skip entry-index sync (slots already
+ *     aligned by pctx_seed / load_and_sync keep-closure rebind); return 0
+ *   - else: loop dep_i 0..ndep-1 same-TU pure pipeline_sync_one_dep_slot
+ * wave94 pure Cap residual: G.7 single product authority for
+ * pipeline_sync_dep_slots_from_driver_c (historical body in pipeline_glue impl_c +
+ * strong _c dispatch). Product pure load_and_sync (wave93) calls this name.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_sync_dep_slots_from_driver_c(module: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let dep_sync_nd: i32 = 0;
+  let n_entry_imports: i32 = 0;
+  unsafe {
+    dep_sync_nd = ast_pipeline_dep_ctx_ndep(ctx);
+    // Strong parser_get_module_num_imports wins at final link over pure weak stub.
+    n_entry_imports = parser_get_module_num_imports(module);
+  }
+  // Closure seed: ndep > entry imports — skip entry-index re-sync (same invariant as
+  // load_and_sync keep-closure; entry-index sync would clobber transitive deps).
+  if (n_entry_imports >= 0) {
+    if (n_entry_imports < dep_sync_nd) {
+      return 0;
+    }
+  }
+  let dep_sync_i: i32 = 0;
+  while (dep_sync_i < dep_sync_nd) {
+    let sync_rc: i32 = 0;
+    unsafe {
+      sync_rc = pipeline_sync_one_dep_slot(module, ctx, dep_sync_i);
+    }
+    if (sync_rc != 0) {
+      return sync_rc;
+    }
+    dep_sync_i = dep_sync_i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Load one unseeded import from disk into ctx slot import_idx (resolve/read/pp/parse).
+ * @param module *u8 — entry AST module; null → -1
+ * @param arena *u8 — entry AST arena (unused; slot uses dep arena); null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param import_idx i32 — entry import index / ctx slot; <0 → -1
+ * @return i32 — 0 ok; -1 null; -7 resolve fail; -8 read fail; -9 preprocess fail; -10 parse fail
+ * Steps (match historical pipeline_load_import_from_disk_impl_c):
+ *   1) same-TU pure parser_copy_module_import_path64 (wave99)
+ *   2) same-TU pure pipeline_resolve_path_x (wave95)
+ *   3) same-TU pure pipeline_read_file_x (wave95)
+ *   4) same-TU pure pipeline_preprocess_loaded_into_ctx (wave95)
+ *   5) pin import path on same slot (path authority for later sync)
+ *   6) same-TU pure pipeline_bind_import_dep_buffers
+ *   7) same-TU pure pipeline_parse_into_buf (wave96)
+ * wave94 pure Cap residual: G.7 single product authority for pipeline_load_import_from_disk_c
+ * (historical glue strong _c → X thin / impl_c). Product pure load_and_sync calls this name.
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_load_import_from_disk_c(module: *u8, arena: *u8, ctx: *u8, import_idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (import_idx < 0) {
+    return 0 - 1;
+  }
+  let path_buf: u8[64] = [];
+  let path_len: i32 = 0;
+  unsafe {
+    memset(&path_buf[0], 0, 64 as usize);
+    path_len = parser_copy_module_import_path64(module, import_idx, &path_buf[0]);
+  }
+  let rr: i32 = 0;
+  unsafe {
+    rr = pipeline_resolve_path_x(ctx, &path_buf[0], path_len);
+  }
+  if (rr != 0) {
+    return 0 - 7;
+  }
+  unsafe {
+    rr = pipeline_read_file_x(ctx);
+  }
+  if (rr != 0) {
+    return 0 - 8;
+  }
+  unsafe {
+    rr = pipeline_preprocess_loaded_into_ctx(ctx);
+  }
+  if (rr != 0) {
+    return 0 - 9;
+  }
+  // Pin path on the same slot we parse into (authority for path de-dupe / sync).
+  if (path_len > 0) {
+    unsafe {
+      ast_pipeline_dep_ctx_set_import_path(ctx, import_idx, &path_buf[0], path_len);
+    }
+  }
+  unsafe {
+    pipeline_bind_import_dep_buffers(ctx, import_idx);
+  }
+  let dep_arena: *u8 = 0 as *u8;
+  let dep_module: *u8 = 0 as *u8;
+  let prep_buf: *u8 = 0 as *u8;
+  let prep_len: i32 = 0;
+  unsafe {
+    dep_arena = pipeline_dep_ctx_arena_at(ctx, import_idx);
+    dep_module = ast_pipeline_dep_ctx_module_at(ctx, import_idx);
+    prep_buf = pipeline_dep_ctx_preprocess_buf_ptr(ctx);
+    prep_len = pipeline_dep_ctx_preprocess_len_get(ctx);
+    rr = pipeline_parse_into_buf(dep_arena, dep_module, prep_buf, prep_len);
+  }
+  if (rr != 0) {
+    return 0 - 10;
+  }
+  return 0;
+}
+
+/**
+ * Bind one entry-import slot from a driver-seeded global slot when available.
+ * @param ctx *u8 — PipelineDepCtx; null → 0 (not bound)
+ * @param import_idx i32 — entry import index (ctx slot to fill); <0 → 0
+ * @param global_slot i32 — driver_dep slot for this path; <0 skips global path
+ * @return i32 — 1 if bound from seed; 0 if not seeded (caller must disk-load)
+ * wave93 pure Cap residual: G.7 single product authority for pipeline_try_bind_seeded_import
+ * (historical strong body in ast_pool). Uses pure driver_dep_seeded_get + module/arena buf
+ * and ast_pipeline_dep_ctx_set_*.
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_try_bind_seeded_import(ctx: *u8, import_idx: i32, global_slot: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  if (import_idx < 0) {
+    return 0;
+  }
+  // Prefer path-keyed global seed slot when seeded.
+  if (global_slot >= 0) {
+    if (driver_dep_seeded_get(global_slot) != 0) {
+      unsafe {
+        let a: *u8 = driver_dep_arena_buf(global_slot);
+        let m: *u8 = driver_dep_module_buf(global_slot);
+        ast_pipeline_dep_ctx_set_arena(ctx, import_idx, a);
+        ast_pipeline_dep_ctx_set_module(ctx, import_idx, m);
+      }
+      return 1;
+    }
+  }
+  // Fallback: entry-index aligned seed (import_idx == global slot).
+  if (driver_dep_seeded_get(import_idx) != 0) {
+    unsafe {
+      let a2: *u8 = driver_dep_arena_buf(import_idx);
+      let m2: *u8 = driver_dep_module_buf(import_idx);
+      ast_pipeline_dep_ctx_set_arena(ctx, import_idx, a2);
+      ast_pipeline_dep_ctx_set_module(ctx, import_idx, m2);
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Realign ctx.ndep before load_and_sync entry-import walk.
+ * @param module *u8 — entry AST module; null → no-op
+ * @param ctx *u8 — PipelineDepCtx; null → no-op
+ * @return void
+ * Rules (match historical C; XLANG_DEBUG_PIPE notes cold-only):
+ *   - ndep == n_imports → already entry-indexed; keep
+ *   - ndep > n_imports → BFS closure seed; keep full list (no re-pin)
+ *   - ndep < n_imports → incomplete; set ndep=0 so load_and_sync reloads from entry
+ * wave93 pure Cap residual: G.7 single product authority for
+ * pipeline_dep_ctx_realign_ndep_for_entry_c (historical strong body in ast_pool).
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_realign_ndep_for_entry_c(module: *u8, ctx: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let n_imp: i32 = 0;
+  let ndep: i32 = 0;
+  unsafe {
+    // Strong parser_get_module_num_imports wins at final link over pure weak stub.
+    n_imp = parser_get_module_num_imports(module);
+    ndep = ast_pipeline_dep_ctx_ndep(ctx);
+  }
+  if (ndep == n_imp) {
+    return;
+  }
+  if (ndep > n_imp) {
+    // Closure seed: keep full BFS list; load_and_sync skips entry-index re-pin.
+    return;
+  }
+  // Incomplete ndep — force reload via load_and_sync.
+  unsafe {
+    ast_pipeline_dep_ctx_set_ndep(ctx, 0);
+  }
+}
+
+/**
+ * Load and sync direct import deps for entry module (seed bind or disk load + merge).
+ * @param module *u8 — entry AST module; null → -1
+ * @param arena *u8 — entry AST arena; null → -1
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 null; else load_import / sync_dep_slots rc
+ * wave93 pure Cap residual: G.7 single product authority for
+ * pipeline_load_and_sync_direct_import_deps_c (historical strong body in ast_pool).
+ * Steps (match historical C; XLANG_DEBUG_PIPE notes cold-only):
+ *   1) same-TU pure realign_ndep_for_entry_c;
+ *   2) if ndep==0 && n_imports>0: entry walk — pin path, pure try_bind or same-TU pure
+ *      load_import_from_disk_c (wave94); set_ndep(n_imports);
+ *   3) else if n_imports>0:
+ *        - ndep > n_imports: keep BFS order; rebind module/arena/path from driver slots;
+ *        - else: entry re-pin + try_bind / load empty slots; bump ndep if needed;
+ *   4) same-TU pure pipeline_sync_dep_slots_from_driver_c (wave94);
+ *   5) if not all entry imports seeded: wave97 G.7 typeck.x merge layouts + wpo unify
+ *      (typeck_merge_dep_struct_layouts_into_entry / typeck_wpo_unify_soa_layouts;
+ *      not typeck_typeck_* double-prefix hop).
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_load_and_sync_direct_import_deps_c(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let n_imports: i32 = 0;
+  unsafe {
+    n_imports = parser_get_module_num_imports(module);
+  }
+  // Step 1: realign ndep (same-TU pure).
+  unsafe {
+    pipeline_dep_ctx_realign_ndep_for_entry_c(module, ctx);
+  }
+  let ndep0: i32 = 0;
+  unsafe {
+    ndep0 = ast_pipeline_dep_ctx_ndep(ctx);
+  }
+  let path_buf: u8[64] = [];
+  let i: i32 = 0;
+  let rc: i32 = 0;
+  if (ndep0 == 0) {
+    if (n_imports > 0) {
+      // Fresh entry walk: pin path + seed bind or disk load for each import.
+      i = 0;
+      while (i < n_imports) {
+        unsafe {
+          memset(&path_buf[0], 0, 64 as usize);
+          let _pl0: i32 = parser_copy_module_import_path64(module, i, &path_buf[0]);
+        }
+        let pl: i32 = 0;
+        // Count path bytes (cap 64) for set_import_path.
+        while (pl < 64) {
+          let b: u8 = 0;
+          unsafe {
+            b = path_buf[pl];
+          }
+          if (b == 0) {
+            break;
+          }
+          pl = pl + 1;
+        }
+        if (pl > 0) {
+          unsafe {
+            ast_pipeline_dep_ctx_set_import_path(ctx, i, &path_buf[0], pl);
+          }
+        }
+        let gs: i32 = 0;
+        unsafe {
+          gs = driver_dep_slot_for_path(&path_buf[0]);
+        }
+        let bound: i32 = 0;
+        unsafe {
+          bound = pipeline_try_bind_seeded_import(ctx, i, gs);
+        }
+        if (bound == 0) {
+          unsafe {
+            rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
+          }
+          if (rc != 0) {
+            return rc;
+          }
+        }
+        i = i + 1;
+      }
+      unsafe {
+        ast_pipeline_dep_ctx_set_ndep(ctx, n_imports);
+      }
+    }
+  } else {
+    if (n_imports > 0) {
+      let cur_ndep: i32 = ndep0;
+      if (cur_ndep > n_imports) {
+        // Keep BFS closure order; rebind from driver seed slots by BFS index.
+        i = 0;
+        while (i < cur_ndep) {
+          let seeded: i32 = 0;
+          unsafe {
+            seeded = driver_dep_seeded_get(i);
+          }
+          if (seeded != 0) {
+            unsafe {
+              let m: *u8 = driver_dep_module_buf(i);
+              let a: *u8 = driver_dep_arena_buf(i);
+              ast_pipeline_dep_ctx_set_module(ctx, i, m);
+              ast_pipeline_dep_ctx_set_arena(ctx, i, a);
+              let reg_path: *u8 = driver_dep_path_registry_at(i);
+              if (reg_path != 0 as *u8) {
+                let rpl: i32 = pipe_cstr_len(reg_path);
+                if (rpl > 63) {
+                  rpl = 63;
+                }
+                if (rpl > 0) {
+                  ast_pipeline_dep_ctx_set_import_path(ctx, i, reg_path, rpl);
+                }
+              }
+            }
+          }
+          i = i + 1;
+        }
+      } else {
+        // Entry-indexed or equal: re-pin paths from entry imports.
+        i = 0;
+        while (i < n_imports) {
+          unsafe {
+            memset(&path_buf[0], 0, 64 as usize);
+            let _pl1: i32 = parser_copy_module_import_path64(module, i, &path_buf[0]);
+          }
+          let pl2: i32 = 0;
+          while (pl2 < 64) {
+            let b2: u8 = 0;
+            unsafe {
+              b2 = path_buf[pl2];
+            }
+            if (b2 == 0) {
+              break;
+            }
+            pl2 = pl2 + 1;
+          }
+          if (pl2 > 0) {
+            unsafe {
+              ast_pipeline_dep_ctx_set_import_path(ctx, i, &path_buf[0], pl2);
+            }
+          }
+          let gs2: i32 = 0;
+          unsafe {
+            gs2 = driver_dep_slot_for_path(&path_buf[0]);
+          }
+          let bound2: i32 = 0;
+          unsafe {
+            bound2 = pipeline_try_bind_seeded_import(ctx, i, gs2);
+          }
+          if (bound2 == 0) {
+            // Unseeded under pre-set ndep: load only if module slot empty.
+            let cur_m: *u8 = 0 as *u8;
+            unsafe {
+              cur_m = ast_pipeline_dep_ctx_module_at(ctx, i);
+            }
+            if (cur_m == 0 as *u8) {
+              unsafe {
+                rc = pipeline_load_import_from_disk_c(module, arena, ctx, i);
+              }
+              if (rc != 0) {
+                return rc;
+              }
+            }
+          }
+          i = i + 1;
+        }
+        let nd_now: i32 = 0;
+        unsafe {
+          nd_now = ast_pipeline_dep_ctx_ndep(ctx);
+        }
+        if (nd_now < n_imports) {
+          unsafe {
+            ast_pipeline_dep_ctx_set_ndep(ctx, n_imports);
+          }
+        }
+      }
+    }
+  }
+  // Step 4: sync all dep slots from driver authority.
+  let sync_rc: i32 = 0;
+  unsafe {
+    sync_rc = pipeline_sync_dep_slots_from_driver_c(module, ctx);
+  }
+  if (sync_rc != 0) {
+    return sync_rc;
+  }
+  // Step 5: merge layouts only when at least one entry import is not fully seeded.
+  // Seeded std/core deps: merge on parse-only slots can SIGSEGV; layout from prebuilt .o.
+  let all_seeded: i32 = 0;
+  if (n_imports > 0) {
+    all_seeded = 1;
+  }
+  i = 0;
+  while (i < n_imports) {
+    unsafe {
+      memset(&path_buf[0], 0, 64 as usize);
+      let _pl2: i32 = parser_copy_module_import_path64(module, i, &path_buf[0]);
+    }
+    let gs3: i32 = 0;
+    unsafe {
+      gs3 = driver_dep_slot_for_path(&path_buf[0]);
+    }
+    let seed_gs: i32 = 0;
+    let seed_i: i32 = 0;
+    unsafe {
+      if (gs3 >= 0) {
+        seed_gs = driver_dep_seeded_get(gs3);
+      }
+      seed_i = driver_dep_seeded_get(i);
+    }
+    // Match C: unseeded if (gs invalid or not seeded) AND import_idx not seeded.
+    if (gs3 < 0) {
+      if (seed_i == 0) {
+        all_seeded = 0;
+        break;
+      }
+    } else {
+      if (seed_gs == 0) {
+        if (seed_i == 0) {
+          all_seeded = 0;
+          break;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  if (all_seeded == 0) {
+    unsafe {
+      // wave97: G.7 typeck.x authority — single merge/wpo path (not typeck_typeck_* hop).
+      typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
+      typeck_wpo_unify_soa_layouts(module, ctx);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Thin gate for dep prerun typeck-only (null / empty source / missing ctx rejected).
+ * @param dep_mod *u8 — dep AST module; null → -1
+ * @param dep_arena *u8 — dep AST arena; null → -1
+ * @param src *u8 — source bytes; null → -1
+ * @param len i64 — byte length; <=0 → -1
+ * @param dep_out *u8 — optional unused out (forwarded)
+ * @param one_ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — typeck path rc; -1 on thin reject
+ * wave60: body in pure xlang_pipeline_dep_prerun_typeck_only_impl.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
     return 0 - 1;
   }
@@ -1693,14 +3368,14 @@ export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u
     return 0 - 1;
   }
   unsafe {
-    return shux_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    return xlang_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
   }
   return 0 - 1;
 }
 
-// shux_pipeline_dep_prerun_for_asm_module_o: see function docblock below.
-/** Exported function `shux_pipeline_dep_prerun_for_asm_module_o`.
- * Implements `shux_pipeline_dep_prerun_for_asm_module_o`.
+// xlang_pipeline_dep_prerun_for_asm_module_o: see function docblock below.
+/** Exported function `xlang_pipeline_dep_prerun_for_asm_module_o`.
+ * Implements `xlang_pipeline_dep_prerun_for_asm_module_o`.
  * @param dep_mod *u8
  * @param dep_arena *u8
  * @param src *u8
@@ -1710,8 +3385,8 @@ export function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u
  * @return i32
  */
 #[no_mangle]
-export function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
-  return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+export function xlang_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  return xlang_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
 
 // pipe_path_readable: see function docblock below.
@@ -1868,11 +3543,38 @@ export function pipe_append_suffix(dst: *u8, cap: i32, off: i32, suf: *u8): void
   }
 }
 
+/**
+ * Byte-offset a C string pointer (null-safe; negative off → base).
+ * @param s *u8 — base C string or byte buffer; null → null
+ * @param off i32 — byte offset from s; off < 0 → return s unchanged
+ * @return *u8 — s+off (as &s[off]); null when s is null
+ * wave76 pure: G.7 single authority for pipe_dir_tail / pipe_strip_prefix_seg / driver -D
+ * parse (driver_abi imports this symbol). Codegen emits C `&((s)[off])` ≡ s+off on LP64.
+ * Historical Cap residual claimed ".x has no reliable pointer arithmetic"; pure index
+ * address-of closes that leaf without a C helper.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function xlang_cstr_offset(s: *u8, off: i32): *u8 {
+  if (s == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (off < 0) {
+    return s;
+  }
+  unsafe {
+    return &s[off];
+  }
+  return s;
+}
+
 // pipe_dir_tail: see function docblock below.
-/** Exported function `pipe_dir_tail`.
- * Implements `pipe_dir_tail`.
- * @param entry_dir *u8
- * @return *u8
+/**
+ * Basename segment of a directory path (bytes after last '/'; whole path if none).
+ * @param entry_dir *u8 — directory path; null → null
+ * @return *u8 — pointer into entry_dir at last slash+1 (or entry_dir); lifetime = entry_dir
+ * wave76: G.7 pure xlang_cstr_offset for tail pointer (no Cap residual).
+ * PLATFORM: SHARED.
  */
 export function pipe_dir_tail(entry_dir: *u8): *u8 {
   if (entry_dir == 0 as *u8) { return 0 as *u8; }
@@ -1885,7 +3587,7 @@ export function pipe_dir_tail(entry_dir: *u8): *u8 {
       i = i + 1;
     }
     if (last < 0) { return entry_dir; }
-    return shux_cstr_offset(entry_dir, last + 1);
+    return xlang_cstr_offset(entry_dir, last + 1);
   }
   return entry_dir;
 }
@@ -1909,15 +3611,15 @@ export function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
       i = i + 1;
     }
     if (import_path[tl] == 46) {
-      return shux_cstr_offset(import_path, tl + 1);
+      return xlang_cstr_offset(import_path, tl + 1);
     }
   }
   return import_path;
 }
 
-// shux_resolve_import_file_path_multi: see function docblock below.
-/** Exported function `shux_resolve_import_file_path_multi`.
- * Implements `shux_resolve_import_file_path_multi`.
+// xlang_resolve_import_file_path_multi: see function docblock below.
+/** Exported function `xlang_resolve_import_file_path_multi`.
+ * Implements `xlang_resolve_import_file_path_multi`.
  * @param lib_roots *u8
  * @param n_lib_roots i32
  * @param entry_dir *u8
@@ -1927,7 +3629,7 @@ export function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
  * @return void
  */
 #[no_mangle]
-export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+export function xlang_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -1945,8 +3647,8 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
     return;
   }
   // See implementation.
-  if (shux_import_path_is_file_path(import_path) != 0) {
-    shux_resolve_file_import_path(entry_dir, import_path, path, path_size);
+  if (xlang_import_path_is_file_path(import_path) != 0) {
+    xlang_resolve_file_import_path(entry_dir, import_path, path, path_size);
     if (pipe_path_readable(path) != 0) { return; }
     unsafe {
       if (import_path[0] != 47) {
@@ -1975,7 +3677,7 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
         if (use_root[0] == 0) { use_root = &dot[0]; }
       }
     }
-    shux_import_path_to_file_path(use_root, import_path, path, path_size);
+    xlang_import_path_to_file_path(use_root, import_path, path, path_size);
     if (pipe_path_readable(path) != 0) { return; }
     // See implementation.
     if (pipe_cstr_has_char(import_path, 46) == 0) {
@@ -1997,7 +3699,7 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
           pipe_append_suffix(path, cap, off, &modx[0]);
           if (pipe_path_readable(path) != 0) { return; }
         }
-        shux_import_path_to_file_path(use_root, import_path, path, path_size);
+        xlang_import_path_to_file_path(use_root, import_path, path, path_size);
         if (pipe_path_readable(path) != 0) { return; }
       }
     }
@@ -2042,11 +3744,1808 @@ export function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots:
 
 /* See implementation. */
 
-// pipeline_set_entry_dir: see function docblock below.
-/** Exported function `pipeline_set_entry_dir`.
- * Implements `pipeline_set_entry_dir`.
- * @param path *u8
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, entry_dir_buf) — layout authority runtime_pipeline_abi.h.
+ * PLATFORM: SHARED LP64 (Ubuntu x86_64 + Darwin arm64/x86_64).
+ */
+function pipe_pctx_off_entry_dir_buf(): i32 {
+  return 4;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, entry_dir_len).
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_entry_dir_len(): i32 {
+  return 516;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, num_lib_roots).
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_num_lib_roots(): i32 {
+  return 520;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, loaded_len) — ptrdiff_t / i64 cell.
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_loaded_len(): i32 {
+  return 4195344;
+}
+
+/**
+ * LP64 offsetof(ast_PipelineDepCtx, preprocess_len).
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_pctx_off_preprocess_len(): i32 {
+  return 8389656;
+}
+
+/**
+ * Store host LE i32 at base[off..off+3]. Null base or off negative → no-op.
+ * @param base *u8 — object base
+ * @param off i32 — byte offset
+ * @param v i32 — value
  * @return void
+ * G.7 same pattern as driver_abi_store_i32_le (wave19); local copy — not exported.
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+function pipe_store_i32_le(base: *u8, off: i32, v: i32): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  unsafe {
+    let u: u32 = v as u32;
+    base[off] = (u & 255) as u8;
+    base[off + 1] = ((u / 256) & 255) as u8;
+    base[off + 2] = ((u / 65536) & 255) as u8;
+    base[off + 3] = ((u / 16777216) & 255) as u8;
+  }
+}
+
+/**
+ * Load host LE i32 from base[off..off+3]. Null base or off negative → 0.
+ * @param base *u8 — object base
+ * @param off i32 — byte offset
+ * @return i32 — signed value (u32 reconstruct then cast)
+ * G.7 pair of pipe_store_i32_le; local — not exported.
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+function pipe_load_i32_le(base: *u8, off: i32): i32 {
+  if (base == 0 as *u8) {
+    return 0;
+  }
+  if (off < 0) {
+    return 0;
+  }
+  let b0: u32 = 0;
+  let b1: u32 = 0;
+  let b2: u32 = 0;
+  let b3: u32 = 0;
+  unsafe {
+    b0 = base[off] as u32;
+    b1 = base[off + 1] as u32;
+    b2 = base[off + 2] as u32;
+    b3 = base[off + 3] as u32;
+  }
+  let u: u32 = b0 + b1 * 256 + b2 * 65536 + b3 * 16777216;
+  return u as i32;
+}
+
+/**
+ * Store eight zero bytes at base[off..off+7] (clear ptrdiff_t / i64 cell).
+ * Null base or off negative → no-op. wave67 only needs clear (loaded_len=0).
+ * @param base *u8 — object base
+ * @param off i32 — byte offset
+ * @return void
+ * PLATFORM: SHARED LP64.
+ */
+function pipe_store_i64_zero(base: *u8, off: i32): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  if (off < 0) {
+    return;
+  }
+  pipe_store_i32_le(base, off, 0);
+  pipe_store_i32_le(base, off + 4, 0);
+}
+
+/**
+ * Clear PipelineDepCtx path/source length cells used by fill_ctx orch.
+ * @param ctx *u8 — opaque ast_PipelineDepCtx; null → no-op
+ * @return void
+ * wave67 pure: zeros loaded_len (i64), preprocess_len, entry_dir_len, num_lib_roots
+ *   via LP64 offsetof + LE store (no C struct in .x). Does not clear buffer bytes.
+ * PLATFORM: SHARED LP64 — cold twin under non-FROM_X keeps C field writes.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  pipe_store_i64_zero(ctx, pipe_pctx_off_loaded_len());
+  pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), 0);
+  pipe_store_i32_le(ctx, pipe_pctx_off_entry_dir_len(), 0);
+  pipe_store_i32_le(ctx, pipe_pctx_off_num_lib_roots(), 0);
+}
+
+/**
+ * Resolve import path into ctx.path_buf via lib_roots then entry_dir.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @param import_path *u8 — import path bytes; null → -1
+ * @param path_len i32 — path byte length; <=0 → -1
+ * @return i32 — 0 first successful probe; -1 null/miss
+ * Rules (match historical pipeline_resolve_path_x_impl_c / pipeline.x resolve_path_x):
+ *   - loop lib_i while pipeline_loop_should_continue_lib_root_c(ctx, lib_i);
+ *     on pipeline_resolve_path_try_one_lib_root == 0 return 0
+ *   - else pipeline_resolve_path_try_entry_dir; 0 → success else -1
+ * wave95 pure Cap residual: G.7 product authority for pipeline_resolve_path_x
+ * (historical glue weak → impl_c). Reuses G.7 try_one / try_entry product surface
+ * (pipeline.x pure helpers already linked; no second path-build body).
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_resolve_path_x(ctx: *u8, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (import_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (path_len <= 0) {
+    return 0 - 1;
+  }
+  let lib_i: i32 = 0;
+  while (1 == 1) {
+    let cont: i32 = 0;
+    unsafe {
+      cont = pipeline_loop_should_continue_lib_root_c(ctx, lib_i);
+    }
+    if (cont == 0) {
+      break;
+    }
+    let try_rc: i32 = 0;
+    unsafe {
+      try_rc = pipeline_resolve_path_try_one_lib_root(ctx, lib_i, import_path, path_len);
+    }
+    if (try_rc == 0) {
+      return 0;
+    }
+    lib_i = lib_i + 1;
+  }
+  let entry_rc: i32 = 0;
+  unsafe {
+    entry_rc = pipeline_resolve_path_try_entry_dir(ctx, import_path, path_len);
+  }
+  if (entry_rc == 0) {
+    return 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Read ctx.path_buf file into ctx.loaded_buf and set loaded_len.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 null / open-or-read fail
+ * Steps (match historical pipeline_read_file_x_impl_c):
+ *   1) Cap residual path_buf_ptr + loaded_buf_ptr
+ *   2) G.7 pure xlang_read_file_into_path (cap 4194304 = PIPELINE_SOURCE_BUF_CAP)
+ *   3) Cap residual pipeline_dep_ctx_set_loaded_len(n) on n>=0
+ * wave95 pure Cap residual: G.7 product authority for pipeline_read_file_x
+ * (historical glue weak → impl_c). PLATFORM: SHARED — glue XLANG_WEAK cold twin.
+ */
+#[no_mangle]
+export function pipeline_read_file_x(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let path: *u8 = 0 as *u8;
+  let buf: *u8 = 0 as *u8;
+  unsafe {
+    path = pipeline_dep_ctx_path_buf_ptr(ctx);
+    buf = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+  }
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  // PIPELINE_SOURCE_BUF_CAP — same as historical C / pipeline_loaded_buf_cap.
+  let cap: i64 = 4194304;
+  let n: i32 = 0;
+  unsafe {
+    n = xlang_read_file_into_path(path, buf, cap);
+  }
+  if (n < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipeline_dep_ctx_set_loaded_len(ctx, n as i64);
+  }
+  return 0;
+}
+
+/**
+ * Preprocess ctx.loaded_buf into ctx.preprocess_buf; set preprocess_len.
+ * @param ctx *u8 — PipelineDepCtx; null → -1
+ * @return i32 — 0 ok; -1 null; -9 preprocess_x_buf fail (match historical)
+ * Steps (match historical pipeline_preprocess_loaded_into_ctx):
+ *   1) Cap residual loaded_buf_ptr + preprocess_buf_ptr
+ *   2) pure load loaded_len via LP64 offsetof + xlang_size_slot_get
+ *      (offset 4195344 = slot index 524418; same as pipe_pctx_off_loaded_len)
+ *   3) G.7 pure cross-TU preprocess_x_buf (preprocess.x engine)
+ *   4) pure store preprocess_len via pipe_store_i32_le (wave67 offset)
+ * wave95 pure Cap residual: G.7 product authority for pipeline_preprocess_loaded_into_ctx
+ * (historical strong body in ast_pool). PLATFORM: SHARED — ast_pool XLANG_WEAK cold twin.
+ */
+#[no_mangle]
+export function pipeline_preprocess_loaded_into_ctx(ctx: *u8): i32 {
+  if (ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  let loaded: *u8 = 0 as *u8;
+  let prep: *u8 = 0 as *u8;
+  unsafe {
+    loaded = pipeline_dep_ctx_loaded_buf_ptr(ctx);
+    prep = pipeline_dep_ctx_preprocess_buf_ptr(ctx);
+  }
+  if (loaded == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (prep == 0 as *u8) {
+    return 0 - 1;
+  }
+  // loaded_len is ptrdiff_t/i64 at LP64 offset 4195344 = slot index 524418.
+  let loaded_len: i64 = 0;
+  unsafe {
+    loaded_len = xlang_size_slot_get(ctx, 524418);
+  }
+  // PIPELINE_SOURCE_BUF_CAP for out_cap.
+  let out_cap: i32 = 4194304;
+  let out_len: i32 = 0;
+  unsafe {
+    out_len = preprocess_x_buf(loaded, loaded_len, prep, out_cap);
+  }
+  if (out_len < 0) {
+    return 0 - 9;
+  }
+  // Match C: ctx->preprocess_len = out_len (i32 LE at pure offset).
+  pipe_store_i32_le(ctx, pipe_pctx_off_preprocess_len(), out_len);
+  return 0;
+}
+
+/**
+ * Parse source buffer into module (init + parse + post-parse fixup on success).
+ * @param arena *u8 — AST arena; null → -1
+ * @param module *u8 — AST module; null → -1
+ * @param buf *u8 — source bytes (typically preprocess_buf); null → -1
+ * @param buf_len i32 — byte length; <=0 → -1 (stricter than parse_into_bytes)
+ * @return i32 — 0 if parser ok==0 after fixup; -1 on null/empty/any non-zero ok
+ * Steps (match historical pipeline_parse_into_buf_impl_c):
+ *   1) G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link)
+ *   2) G.7 pure driver_parse_into_buf_rc (unpacks Cap-struct-return ParseIntoResult.ok)
+ *   3) on ok==0: same-TU pure debug_trace("parse_post") + fixup_stmt_orders +
+ *      debug_trace("parse_post_fixup")
+ *   4) ok==0 → 0; any other ok (incl. -2) → -1
+ * wave96 pure Cap residual: G.7 product authority for pipeline_parse_into_buf
+ * (historical glue weak → impl_c / pipeline.x thin → _c). Distinct from wave64
+ * pipeline_parse_into_bytes (allows len==0, no post fixup/trace).
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_parse_into_buf(arena: *u8, module: *u8, buf: *u8, buf_len: i32): i32 {
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  // Historical C: buf_len <= 0 → -1 (parse_into_bytes allows zero length).
+  if (buf_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    // Same order as historical impl_c: init then Cap-struct parse unpack.
+    parser_parse_into_init(module, arena);
+    let pr_ok: i32 = driver_parse_into_buf_rc(arena, module, buf, buf_len, 0 as *i32);
+    if (pr_ok == 0) {
+      // Match C post-success: optional body-trace + stmt_order fixup + re-trace.
+      pipeline_debug_trace_named_func_bodies("parse_post", module, arena);
+      pipeline_module_fixup_with_arena_stmt_orders(module, arena);
+      pipeline_debug_trace_named_func_bodies("parse_post_fixup", module, arena);
+      return 0;
+    }
+    return 0 - 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Copy entry_dir C string into pctx.entry_dir_buf (cap 512 incl NUL) and set entry_dir_len.
+ * @param ctx *u8 — opaque ast_PipelineDepCtx; null → no-op
+ * @param entry_dir *u8 — NUL-terminated path; null → no-op
+ * @return void
+ * wave67 pure: byte copy into ctx[entry_dir_buf_off..] then LE store entry_dir_len.
+ * Truncates at 511 payload bytes. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  if (entry_dir == 0 as *u8) {
+    return;
+  }
+  let el: i32 = 0;
+  unsafe {
+    while (el < 511) {
+      let c: u8 = entry_dir[el];
+      if (c == 0) {
+        break;
+      }
+      el = el + 1;
+    }
+  }
+  let base_off: i32 = pipe_pctx_off_entry_dir_buf();
+  let k: i32 = 0;
+  unsafe {
+    while (k < el) {
+      ctx[base_off + k] = entry_dir[k];
+      k = k + 1;
+    }
+    ctx[base_off + el] = 0;
+  }
+  pipe_store_i32_le(ctx, pipe_pctx_off_entry_dir_len(), el);
+}
+
+/**
+ * Store pctx.use_asm_backend = v (null ctx no-op).
+ * @param ctx *u8 — opaque ast_PipelineDepCtx
+ * @param v i32 — flag value
+ * @return void
+ * wave67 pure thin: G.7 single authority driver_pipeline_dep_ctx_set_use_asm
+ *   (driver_abi wave19 LE store). PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void {
+  unsafe {
+    driver_pipeline_dep_ctx_set_use_asm(ctx, v);
+  }
+}
+
+// wave68 pure entry_dir BSS (G.7 single authority for resolve_path / set_entry_dir).
+// PLATFORM: SHARED LP64 — same ABI as seed cold twins; hybrid pure owns these cells.
+let g_pipe_entry_dir_buf: u8[512] = [];
+let g_pipe_entry_dir_dot: u8[2] = [];
+let g_pipe_entry_dir_is_dot: i32 = 1;
+
+// wave69 pure resolved_path BSS (G.7 single authority for into_static + stage_prep path base).
+// PLATFORM: SHARED — same ABI as seed cold static char pipeline_resolved_path_buf[512].
+let g_pipe_resolved_path_buf: u8[512] = [];
+
+// wave70 pure dep arena/module slot BSS (G.7 single authority for set_dep_slots / get_dep_*).
+// PLATFORM: SHARED LP64 — 32 void* cells × 8B = 256B raw; same capacity as seed void*[32].
+let g_pipe_dep_arena_slots: u8[256] = [];
+let g_pipe_dep_module_slots: u8[256] = [];
+
+// wave71 pure stage-prep BSS (owned preprocess buffer pending commit into loaded_import).
+// PLATFORM: SHARED LP64 — one ptr cell + one size cell; same ABI as seed static char* + size_t.
+// G.7 single authority for pure stage_prep / commit_prep; free on clear releases ownership.
+let g_pipe_rf_stage_prep: u8[8] = [];
+let g_pipe_rf_stage_prep_len: u8[8] = [];
+
+// wave72 pure loaded-import BSS (committed source after stage prep commit).
+// PLATFORM: SHARED LP64 — buf ptr + len + cap size cells; same ABI as seed statics.
+// G.7 single authority for pure commit_from_owned / data / len_get / commit_prep path.
+// Cap floor XLANG_PIPELINE_IMPORT_BUF_CAP = 4194304 (runtime_pipeline_abi.h).
+let g_pipe_loaded_import_buf: u8[8] = [];
+let g_pipe_loaded_import_len: u8[8] = [];
+let g_pipe_loaded_import_cap: u8[8] = [];
+
+// wave73 pure diag-emitted sticky flag BSS (G.7 single authority for reset/note/get).
+// PLATFORM: SHARED — same ABI as seed static int pipeline_diag_emitted_flag (0/1 sticky).
+// Consumers (rt_run_asm_backend / rt_run_compiler_parsed pure) only call reset/get accessors;
+// no cross-TU raw global writes — safe pure BSS authority under hybrid PREFER.
+let g_pipe_diag_emitted_flag: i32 = 0;
+
+// wave74 pure driver_dep table BSS (G.7 single authority for seeded/publish/slot_for_path/buf).
+// PLATFORM: SHARED LP64 — 32 slots each; same capacity as seed XLANG_DRIVER_DEP_SLOT_MAX.
+// arena/module/path_registry = 32×void* (256B raw); seeded = 32×i32 (128B raw as i32[32]).
+// No cross-TU naked global — ast_pool/glue call driver_dep_*_buf / path_registry_at accessors only.
+let g_pipe_driver_dep_arena: u8[256] = [];
+let g_pipe_driver_dep_module: u8[256] = [];
+let g_pipe_driver_dep_path_registry: u8[256] = [];
+let g_pipe_driver_dep_seeded: i32[32] = [];
+
+// wave77 pure typeck dep sidecar BSS (G.7 single authority for C typeck_module sidecar + pure orch).
+// PLATFORM: SHARED LP64 — same capacity as seed typeck_dep_*_ptrs[32] + typeck_ndep.
+// Product hybrid: pure accessors only (rt_run_* pure + driver_typeck_* + pure set_dep/store);
+// no cross-TU naked global under PREFER FROM_X (cold seed naked globals under #ifndef FROM_X).
+// typeck_dep_module_ptrs_base returns &module table[0] as *u8 for Cap residual typeck_module void**.
+let g_pipe_typeck_ndep: i32 = 0;
+let g_pipe_typeck_dep_module_ptrs: u8[256] = [];
+let g_pipe_typeck_dep_arena_ptrs: u8[256] = [];
+
+// wave85 pure preprocess -D define table (G.7 single authority for product define_has/eval).
+// PLATFORM: SHARED — same capacity as glue PREPROCESS_MAX_DEFINES=128 × name[64].
+// Flat layout: slot i occupies bytes [i*64 .. i*64+63], NUL-terminated name (len 1..63).
+// Product hybrid: pure strong override of glue XLANG_WEAK cold fallback in strict_glue_stubs.
+// wave88: pure preprocess_eval_condition_c → same-TU preprocess_define_has (simple names);
+//   complex #if still Cap residual cfg_eval_expr_c (lexer/cfg_eval authority).
+let g_pipe_pp_defines: u8[8192] = [];
+let g_pipe_pp_ndefines: i32 = 0;
+
+// wave86 pure preprocess #if nesting stack (G.7 single authority for product if_stack).
+// PLATFORM: SHARED — fixed cap 32 i32 slots (historical fixed stack before ast_pool GrowVec).
+// Layout: g_pipe_pp_if_stack[0 .. n) live; g_pipe_pp_if_n = depth (0..32).
+// Product hybrid: pure override of ast_pool XLANG_WEAK GrowVec cold fallback
+// (pipeline_x.o / pipeline_glue_standalone.o embed the weak cold body).
+// preprocess.x thin wrappers + preprocess_x_buf call these by C link name.
+let g_pipe_pp_if_stack: i32[32] = [];
+let g_pipe_pp_if_n: i32 = 0;
+
+// wave90 pure typeck soft-suppress flag (G.7 single authority for XT001 soft diags).
+// PLATFORM: SHARED — same ABI as glue static g_pipeline_typeck_diag_soft_suppress (0/1).
+// Product hybrid: pure strong override of pipeline_glue XLANG_WEAK cold fallback.
+// Consumers: pure dep_prerun orch set(1)/set(0); diagnostic path get() skips soft XT001.
+// No cross-TU naked global — only set/get accessors (safe pure BSS under PREFER hybrid).
+let g_pipe_typeck_diag_soft_suppress: i32 = 0;
+
+// wave91 pure typeck dep_ctx pointer (G.7 single authority for enum-fallback accessors).
+// PLATFORM: SHARED — LP64 ptr cell via xlang_ptr_slot_* (same as wave70/74 pure BSS tables).
+// Product hybrid: pure strong override of pipeline_glue XLANG_WEAK cold fallback.
+// Consumers: pure dep_prerun + typeck_parsed_module_c set; ast_pool enum tag get.
+// No cross-TU naked global — only set/get accessors (closes dual-auth static in ast_pool).
+let g_pipe_typeck_dep_ctx: u8[8] = [];
+
+/**
+ * Set soft-suppress flag for exploratory typeck XT001 soft diags (0/1).
+ * @param v i32 — non-zero → suppress; zero → report normally
+ * @return void
+ * wave90 pure Cap residual: G.7 single product authority for soft-suppress flag
+ * (historical strong body in pipeline_glue.c now XLANG_WEAK cold fallback).
+ * PLATFORM: SHARED — diagnostic path uses get(); pure dep_prerun orch set(1)/set(0).
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_soft_suppress_set(v: i32): void {
+  if (v != 0) {
+    g_pipe_typeck_diag_soft_suppress = 1;
+  } else {
+    g_pipe_typeck_diag_soft_suppress = 0;
+  }
+}
+
+/**
+ * Read soft-suppress flag (1 = skip soft XT001 diags; 0 = report).
+ * @return i32 — 0 or 1
+ * wave90 pure Cap residual: G.7 single product authority (paired with set).
+ * PLATFORM: SHARED — runtime_driver_diagnostic_thin / glue cold twin get.
+ */
+#[no_mangle]
+export function pipeline_typeck_diag_soft_suppress_get(): i32 {
+  if (g_pipe_typeck_diag_soft_suppress != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Publish active PipelineDepCtx for typeck glue accessors (enum variant fallback).
+ * @param ctx *u8 — PipelineDepCtx pointer; null clears (no dep search)
+ * @return void
+ * wave91 pure Cap residual: G.7 single product authority for dep_ctx pointer
+ * (historical strong body + static g_typeck_dep_ctx in ast_pool.c now XLANG_WEAK cold
+ * fallback in pipeline_glue; readers use get_dep_ctx only).
+ * PLATFORM: SHARED — pure dep_prerun orch + typeck_parsed_module_c set before typeck.
+ */
+#[no_mangle]
+export function pipeline_typeck_set_dep_ctx(ctx: *u8): void {
+  unsafe {
+    // G.7 xlang_ptr_slot_set on pure LP64 cell (no naked *u8 module global).
+    xlang_ptr_slot_set(&g_pipe_typeck_dep_ctx[0], 0, ctx);
+  }
+}
+
+/**
+ * Read active PipelineDepCtx published by set_dep_ctx (null if unset).
+ * @return *u8 — PipelineDepCtx pointer or null
+ * wave91 pure Cap residual: G.7 single product authority (paired with set).
+ * PLATFORM: SHARED — ast_pool enum variant tag fallback / glue cold twin get.
+ */
+#[no_mangle]
+export function pipeline_typeck_get_dep_ctx(): *u8 {
+  unsafe {
+    return xlang_ptr_slot_get(&g_pipe_typeck_dep_ctx[0], 0);
+  }
+}
+
+// wave75 pure entry_lib lit + stem BSS (G.7 single authority for -E lib_prefix).
+// PLATFORM: SHARED — same string values as seed static lits / stem_buf[128].
+// Keyword order matches seed xlang_entry_lib_keyword_lit / strstr checks in name_from_path_impl.
+let g_pipe_cstr_typeck_lit: u8[7] = [116, 121, 112, 101, 99, 107, 0];
+let g_pipe_entry_lib_kw0: u8[5] = [109, 97, 105, 110, 0];
+let g_pipe_entry_lib_kw1: u8[6] = [98, 117, 105, 108, 100, 0];
+let g_pipe_entry_lib_kw2: u8[9] = [112, 105, 112, 101, 108, 105, 110, 101, 0];
+let g_pipe_entry_lib_kw3: u8[7] = [100, 114, 105, 118, 101, 114, 0];
+let g_pipe_entry_lib_kw4: u8[8] = [99, 111, 100, 101, 103, 101, 110, 0];
+let g_pipe_entry_lib_kw5: u8[7] = [116, 121, 112, 101, 99, 107, 0];
+let g_pipe_entry_lib_kw6: u8[7] = [112, 97, 114, 115, 101, 114, 0];
+let g_pipe_entry_lib_kw7: u8[6] = [116, 111, 107, 101, 110, 0];
+let g_pipe_entry_lib_kw8: u8[6] = [108, 101, 120, 101, 114, 0];
+let g_pipe_entry_lib_kw9: u8[4] = [97, 115, 116, 0];
+let g_pipe_entry_lib_stem_buf: u8[128] = [];
+
+/**
+ * Clear the pure -D define table (ndefines → 0; slot bytes left stale until overwrite).
+ * @return void
+ * wave85 pure Cap residual: G.7 single authority for product define table
+ * (historical always-seed body in runtime_driver_strict_glue_stubs).
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function preprocess_define_reset(): void {
+  g_pipe_pp_ndefines = 0;
+}
+
+/**
+ * Append one -D macro name into the pure define table.
+ * @param name *u8 — NUL-terminated C string; null / empty / len>=64 → no-op
+ * @return void
+ * wave85 pure Cap residual: matches glue preprocess_define_add
+ * (PREPROCESS_MAX_DEFINES=128, name slot 64 including NUL).
+ * PLATFORM: SHARED — same reject rules as historical C body.
+ */
+#[no_mangle]
+export function preprocess_define_add(name: *u8): void {
+  if (name == 0 as *u8) {
+    return;
+  }
+  if (g_pipe_pp_ndefines >= 128) {
+    return;
+  }
+  // Measure C string length (cap 64 so n>=64 rejects without over-read past slot).
+  let n: i32 = 0;
+  unsafe {
+    while (n < 64) {
+      if (name[n] == 0) {
+        break;
+      }
+      n = n + 1;
+    }
+  }
+  if (n == 0) {
+    return;
+  }
+  if (n >= 64) {
+    return;
+  }
+  let base: i32 = g_pipe_pp_ndefines * 64;
+  let k: i32 = 0;
+  unsafe {
+    while (k < n) {
+      g_pipe_pp_defines[base + k] = name[k];
+      k = k + 1;
+    }
+    g_pipe_pp_defines[base + n] = 0;
+  }
+  g_pipe_pp_ndefines = g_pipe_pp_ndefines + 1;
+}
+
+/**
+ * Return 1 if sym[0..sym_len) exactly matches a stored -D name (NUL-terminated slot).
+ * @param sym *u8 — symbol bytes (not required to be NUL-terminated beyond sym_len)
+ * @param sym_len i32 — byte length; <=0 → 0
+ * @return i32 — 1 if present, else 0
+ * wave85 pure Cap residual: G.7 single authority for preprocess_eval_condition_c
+ * simple-name path (wave88 pure orch; complex still Cap residual cfg_eval_expr_c).
+ * PLATFORM: SHARED — same compare semantics as historical C preprocess_define_has.
+ */
+#[no_mangle]
+export function preprocess_define_has(sym: *u8, sym_len: i32): i32 {
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym_len <= 0) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < g_pipe_pp_ndefines) {
+    let base: i32 = i * 64;
+    let k: i32 = 0;
+    let ok: i32 = 1;
+    while (k < sym_len) {
+      unsafe {
+        let tb: u8 = g_pipe_pp_defines[base + k];
+        if (tb != sym[k]) {
+          ok = 0;
+          break;
+        }
+        if (tb == 0) {
+          // Stored name shorter than sym_len → not equal.
+          ok = 0;
+          break;
+        }
+      }
+      k = k + 1;
+    }
+    if (ok != 0) {
+      // Exact match requires stored NUL immediately after sym_len bytes.
+      unsafe {
+        if (g_pipe_pp_defines[base + sym_len] == 0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Evaluate a preprocess #if / #elif condition for the pure preprocess.x engine path.
+ * @param cond *u8 — condition bytes (not required to be NUL-terminated beyond cond_len)
+ * @param cond_len i32 — byte length; null/<=0 → 0 (false)
+ * @return i32 — non-zero if condition is true, else 0
+ * wave88 pure Cap residual: G.7 single product authority for preprocess_eval_condition_c
+ * (historical always-seed body in runtime_driver_strict_glue_stubs).
+ * Steps (match historical C):
+ *   1) trim leading/trailing space/tab;
+ *   2) if empty after trim → 0;
+ *   3) if any complex op char (space/tab/=/!/(/)) → Cap residual cfg_eval_expr_c;
+ *   4) else same-TU pure preprocess_define_has (wave85 -D table).
+ * PLATFORM: SHARED — glue keeps XLANG_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
+  if (cond == 0 as *u8) {
+    return 0;
+  }
+  if (cond_len <= 0) {
+    return 0;
+  }
+  // Trim leading whitespace by advancing the base pointer one byte at a time.
+  let base: *u8 = cond;
+  let n: i32 = cond_len;
+  while (n > 0) {
+    let lead: u8 = 0;
+    unsafe {
+      lead = base[0];
+    }
+    if (lead != 32) {
+      if (lead != 9) {
+        break;
+      }
+    }
+    base = xlang_cstr_offset(base, 1);
+    n = n - 1;
+  }
+  // Trim trailing whitespace without moving base (shrink length only).
+  while (n > 0) {
+    let trail: u8 = 0;
+    unsafe {
+      trail = base[n - 1];
+    }
+    if (trail != 32) {
+      if (trail != 9) {
+        break;
+      }
+    }
+    n = n - 1;
+  }
+  if (n <= 0) {
+    return 0;
+  }
+  // Complex conditions (spaces / comparison / grouping) use Cap residual cfg_eval.
+  // Scan for any complex op char first; then one Cap residual call under unsafe (T001).
+  let k: i32 = 0;
+  let complex: i32 = 0;
+  while (k < n) {
+    let c: u8 = 0;
+    unsafe {
+      c = base[k];
+    }
+    // space, tab, '=', '!', '(', ')'
+    if (c == 32) {
+      complex = 1;
+      break;
+    }
+    if (c == 9) {
+      complex = 1;
+      break;
+    }
+    if (c == 61) {
+      complex = 1;
+      break;
+    }
+    if (c == 33) {
+      complex = 1;
+      break;
+    }
+    if (c == 40) {
+      complex = 1;
+      break;
+    }
+    if (c == 41) {
+      complex = 1;
+      break;
+    }
+    k = k + 1;
+  }
+  if (complex != 0) {
+    let er: i32 = 0;
+    unsafe {
+      // Cap residual: cfg_eval_expr_c is export-extern FFI (lexer/cfg_eval authority).
+      er = cfg_eval_expr_c(base, n);
+    }
+    if (er != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  // Simple identifier: true iff present in pure -D table (same-TU pure).
+  return preprocess_define_has(base, n);
+}
+
+/**
+ * Clear the pure #if nesting stack (depth → 0; slot values left stale until overwrite).
+ * @return void
+ * wave86 pure Cap residual: G.7 single authority for product preprocess #if stack
+ * (historical always-seed body in ast_pool GrowVec g_preprocess_if_stack).
+ * PLATFORM: SHARED — ast_pool keeps XLANG_WEAK cold fallback when pure not linked.
+ */
+#[no_mangle]
+export function preprocess_if_stack_reset(): void {
+  g_pipe_pp_if_n = 0;
+}
+
+/**
+ * Return current #if nesting depth (0 when empty).
+ * @return i32 — depth in 0..32
+ * wave86 pure Cap residual: matches historical preprocess_if_stack_len (GrowVec len).
+ * PLATFORM: SHARED — same non-negative depth contract as cold path.
+ */
+#[no_mangle]
+export function preprocess_if_stack_len(): i32 {
+  return g_pipe_pp_if_n;
+}
+
+/**
+ * Push one stack state value (active / skipped / else-taken codes from preprocess.x).
+ * @param v i32 — state code for this nesting level
+ * @return i32 — 0 on success; -1 if depth already at cap 32
+ * wave86 pure Cap residual: fixed-cap push (historical GrowVec grow-or-fail).
+ * PLATFORM: SHARED — cap 32 matches pre-GrowVec fixed stack; product #if nest rare > 8.
+ */
+#[no_mangle]
+export function preprocess_if_stack_push(v: i32): i32 {
+  if (g_pipe_pp_if_n >= 32) {
+    return -1;
+  }
+  unsafe {
+    let p: *i32 = &g_pipe_pp_if_stack[g_pipe_pp_if_n];
+    p[0] = v;
+  }
+  g_pipe_pp_if_n = g_pipe_pp_if_n + 1;
+  return 0;
+}
+
+/**
+ * Pop one nesting level (#endif). No-op when empty.
+ * @return void
+ * wave86 pure Cap residual: depth-- when depth > 0.
+ * PLATFORM: SHARED — same empty-safe pop as historical GrowVec path.
+ */
+#[no_mangle]
+export function preprocess_if_stack_pop(): void {
+  if (g_pipe_pp_if_n > 0) {
+    g_pipe_pp_if_n = g_pipe_pp_if_n - 1;
+  }
+}
+
+/**
+ * Read stack state at index i (0-based).
+ * @param i i32 — index; OOB or empty → 0
+ * @return i32 — stored state, or 0 when i invalid
+ * wave86 pure Cap residual: matches historical preprocess_if_stack_at OOB → 0.
+ * PLATFORM: SHARED — no grow; pure fixed table only.
+ */
+#[no_mangle]
+export function preprocess_if_stack_at(i: i32): i32 {
+  if (i < 0) {
+    return 0;
+  }
+  if (i >= g_pipe_pp_if_n) {
+    return 0;
+  }
+  unsafe {
+    let p: *i32 = &g_pipe_pp_if_stack[i];
+    return p[0];
+  }
+  return 0;
+}
+
+/**
+ * Write stack state at index i (must be in 0..depth-1).
+ * @param i i32 — index; OOB → no-op
+ * @param v i32 — new state code
+ * @return void
+ * wave86 pure Cap residual: matches historical preprocess_if_stack_set_at OOB no-op.
+ * PLATFORM: SHARED — pure fixed table only.
+ */
+#[no_mangle]
+export function preprocess_if_stack_set_at(i: i32, v: i32): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= g_pipe_pp_if_n) {
+    return;
+  }
+  unsafe {
+    let p: *i32 = &g_pipe_pp_if_stack[i];
+    p[0] = v;
+  }
+}
+
+/**
+ * Storage slot for pure get_ndep (points at g_pipe_typeck_ndep).
+ * @return *i32 — never null; LP64 i32 cell
+ * wave77 pure: G.7 single authority for typeck_ndep count; pure get_ndep / store path.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X returns &typeck_ndep.
+ */
+#[no_mangle]
+export function typeck_ndep_slot(): *i32 {
+  return &g_pipe_typeck_ndep;
+}
+
+/**
+ * Store final clamped typeck_ndep value into pure BSS (bounds owned by typeck_ndep_store orch).
+ * @param n i32 — already-clamped dep count [0,32]
+ * @return void
+ * wave77 pure: Cap residual was always-seed BSS write; pure owns the cell.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X writes seed typeck_ndep.
+ */
+#[no_mangle]
+export function typeck_ndep_store_impl(n: i32): void {
+  g_pipe_typeck_ndep = n;
+}
+
+/**
+ * Load typeck_dep_module_ptrs[i] from pure BSS (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → null
+ * @return *u8 — stored module pointer (may be null)
+ * wave77 pure: G.7 xlang_ptr_slot_get on g_pipe_typeck_dep_module_ptrs.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_module_get(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return xlang_ptr_slot_get(&g_pipe_typeck_dep_module_ptrs[0], i);
+}
+
+/**
+ * Load typeck_dep_arena_ptrs[i] from pure BSS (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → null
+ * @return *u8 — stored arena pointer (may be null)
+ * wave77 pure: G.7 xlang_ptr_slot_get on g_pipe_typeck_dep_arena_ptrs.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_arena_get(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return xlang_ptr_slot_get(&g_pipe_typeck_dep_arena_ptrs[0], i);
+}
+
+/**
+ * Store mod into typeck_dep_module_ptrs[i] pure BSS (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param mod *u8 — module pointer (may be null)
+ * @return void
+ * wave77 pure: G.7 xlang_ptr_slot_set; pure typeck_dep_module_set / pipeline_set_dep orch own bounds.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_module_set_impl(i: i32, mod: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  xlang_ptr_slot_set(&g_pipe_typeck_dep_module_ptrs[0], i, mod);
+}
+
+/**
+ * Store arena into typeck_dep_arena_ptrs[i] pure BSS (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param arena *u8 — arena pointer (may be null)
+ * @return void
+ * wave77 pure: G.7 xlang_ptr_slot_set; pure typeck_dep_arena_set / pipeline_set_dep orch own bounds.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function typeck_dep_arena_set_impl(i: i32, arena: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  xlang_ptr_slot_set(&g_pipe_typeck_dep_arena_ptrs[0], i, arena);
+}
+
+/**
+ * Base address of pure typeck_dep_module_ptrs table for Cap residual typeck_module void**.
+ * @return *u8 — never null; LP64 void*[32] raw base (cast to void** at call site)
+ * wave77 pure: pure BSS base; pure with_sidecar passes this when get_ndep() > 0.
+ * Historical Cap residual: seed BSS addr not takeable from pure .x — closed by pure table.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X returns seed array.
+ */
+#[no_mangle]
+export function typeck_dep_module_ptrs_base(): *u8 {
+  return &g_pipe_typeck_dep_module_ptrs[0];
+}
+
+/**
+ * Return static "typeck" C string (default -E lib prefix).
+ * @return *u8 — always non-null; points at g_pipe_cstr_typeck_lit
+ * wave75 pure: module BSS lit; matches seed xlang_cstr_typeck_lit return "typeck".
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function xlang_cstr_typeck_lit(): *u8 {
+  return &g_pipe_cstr_typeck_lit[0];
+}
+
+/**
+ * Return static keyword C string for entry_lib keyword index.
+ * @param k i32 — 0=main .. 9=ast; other → "typeck"
+ * @return *u8 — always non-null; pointer into module BSS keyword lits
+ * wave75 pure: G.7 single authority for keyword lits used by pure name_from_path_impl.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function xlang_entry_lib_keyword_lit(k: i32): *u8 {
+  if (k == 0) {
+    return &g_pipe_entry_lib_kw0[0];
+  }
+  if (k == 1) {
+    return &g_pipe_entry_lib_kw1[0];
+  }
+  if (k == 2) {
+    return &g_pipe_entry_lib_kw2[0];
+  }
+  if (k == 3) {
+    return &g_pipe_entry_lib_kw3[0];
+  }
+  if (k == 4) {
+    return &g_pipe_entry_lib_kw4[0];
+  }
+  if (k == 5) {
+    return &g_pipe_entry_lib_kw5[0];
+  }
+  if (k == 6) {
+    return &g_pipe_entry_lib_kw6[0];
+  }
+  if (k == 7) {
+    return &g_pipe_entry_lib_kw7[0];
+  }
+  if (k == 8) {
+    return &g_pipe_entry_lib_kw8[0];
+  }
+  if (k == 9) {
+    return &g_pipe_entry_lib_kw9[0];
+  }
+  return &g_pipe_cstr_typeck_lit[0];
+}
+
+/**
+ * Derive -E C lib_prefix from entry .x path (keywords / std_ / core_ / basename stem).
+ * @param input_path *u8 — entry path; null → "typeck" (caller may short-circuit)
+ * @return *u8 — static keyword lit or g_pipe_entry_lib_stem_buf; never null
+ * wave75 pure Cap residual orch (full body):
+ *   1) strstr-style keywords (main..ast) via pipe_cstr_contains + pure keyword_lit;
+ *   2) path-boundary "std/" → "std_" + segments (skip trailing mod; strip .x/.su);
+ *   3) path-boundary "core/" → "core_" + same segment rules;
+ *   4) basename stem without .x/.su;
+ *   5) default "typeck".
+ * G.7 single authority — matches seed order (keywords BEFORE std/ stem). Historical pure
+ * gate checked std/ first and could return std_* for paths that also contain "main".
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; stem reuses one 128B BSS cell.
+ */
+#[no_mangle]
+export function xlang_entry_lib_name_from_path_impl(input_path: *u8): *u8 {
+  if (input_path == 0 as *u8) {
+    return xlang_cstr_typeck_lit();
+  }
+  // Keyword substring checks — same order as seed strstr chain.
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw0[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(0);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw1[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(1);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw2[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(2);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw3[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(3);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw4[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(4);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw5[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(5);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw6[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(6);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw7[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(7);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw8[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(8);
+  }
+  if (pipe_cstr_contains(input_path, &g_pipe_entry_lib_kw9[0]) != 0) {
+    return xlang_entry_lib_keyword_lit(9);
+  }
+
+  // std/ at path boundary → std_ + segments (skip mod; strip .x/.su).
+  let std_after: i32 = 0 - 1;
+  let si: i32 = 0;
+  unsafe {
+    while (si < 4096) {
+      if (input_path[si] == 0) {
+        break;
+      }
+      let at_bound: i32 = 0;
+      if (si == 0) {
+        at_bound = 1;
+      } else {
+        if (input_path[si - 1] == 47) {
+          at_bound = 1;
+        }
+        if (input_path[si - 1] == 92) {
+          at_bound = 1;
+        }
+      }
+      if (at_bound != 0) {
+        // "std/"
+        if (input_path[si] == 115 && input_path[si + 1] == 116 && input_path[si + 2] == 100 && input_path[si + 3] == 47) {
+          std_after = si + 4;
+          break;
+        }
+      }
+      si = si + 1;
+    }
+  }
+  if (std_after >= 0) {
+    // "std_" prefix into stem_buf
+    g_pipe_entry_lib_stem_buf[0] = 115;
+    g_pipe_entry_lib_stem_buf[1] = 116;
+    g_pipe_entry_lib_stem_buf[2] = 100;
+    g_pipe_entry_lib_stem_buf[3] = 95;
+    let off: i32 = 4;
+    let p: i32 = std_after;
+    unsafe {
+      while (input_path[p] != 0 && off + 2 < 128) {
+        let seg_start: i32 = p;
+        while (input_path[p] != 0 && input_path[p] != 47 && input_path[p] != 92) {
+          p = p + 1;
+        }
+        let seg_len: i32 = p - seg_start;
+        // strip .su / .x
+        if (seg_len >= 3) {
+          if (input_path[seg_start + seg_len - 3] == 46 && input_path[seg_start + seg_len - 2] == 115 && input_path[seg_start + seg_len - 1] == 117) {
+            seg_len = seg_len - 3;
+          }
+        }
+        if (seg_len >= 2) {
+          if (input_path[seg_start + seg_len - 2] == 46 && input_path[seg_start + seg_len - 1] == 120) {
+            seg_len = seg_len - 2;
+          }
+        }
+        // skip "mod"
+        let is_mod: i32 = 0;
+        if (seg_len == 3) {
+          if (input_path[seg_start] == 109 && input_path[seg_start + 1] == 111 && input_path[seg_start + 2] == 100) {
+            is_mod = 1;
+          }
+        }
+        if (is_mod == 0 && seg_len > 0) {
+          if (off > 4 && off + seg_len + 1 < 128) {
+            g_pipe_entry_lib_stem_buf[off] = 95;
+            off = off + 1;
+          }
+          if (off + seg_len < 128) {
+            let k: i32 = 0;
+            while (k < seg_len) {
+              g_pipe_entry_lib_stem_buf[off + k] = input_path[seg_start + k];
+              k = k + 1;
+            }
+            off = off + seg_len;
+          }
+        }
+        if (input_path[p] != 0) {
+          p = p + 1;
+        }
+      }
+    }
+    if (off > 4) {
+      g_pipe_entry_lib_stem_buf[off] = 0;
+      return &g_pipe_entry_lib_stem_buf[0];
+    }
+  }
+
+  // core/ at path boundary → core_ + segments.
+  let core_after: i32 = 0 - 1;
+  let ci: i32 = 0;
+  unsafe {
+    while (ci < 4096) {
+      if (input_path[ci] == 0) {
+        break;
+      }
+      let at_bound2: i32 = 0;
+      if (ci == 0) {
+        at_bound2 = 1;
+      } else {
+        if (input_path[ci - 1] == 47) {
+          at_bound2 = 1;
+        }
+        if (input_path[ci - 1] == 92) {
+          at_bound2 = 1;
+        }
+      }
+      if (at_bound2 != 0) {
+        // "core/"
+        if (input_path[ci] == 99 && input_path[ci + 1] == 111 && input_path[ci + 2] == 114 && input_path[ci + 3] == 101 && input_path[ci + 4] == 47) {
+          core_after = ci + 5;
+          break;
+        }
+      }
+      ci = ci + 1;
+    }
+  }
+  if (core_after >= 0) {
+    g_pipe_entry_lib_stem_buf[0] = 99;
+    g_pipe_entry_lib_stem_buf[1] = 111;
+    g_pipe_entry_lib_stem_buf[2] = 114;
+    g_pipe_entry_lib_stem_buf[3] = 101;
+    g_pipe_entry_lib_stem_buf[4] = 95;
+    let off2: i32 = 5;
+    let p2: i32 = core_after;
+    unsafe {
+      while (input_path[p2] != 0 && off2 + 2 < 128) {
+        let seg_start2: i32 = p2;
+        while (input_path[p2] != 0 && input_path[p2] != 47 && input_path[p2] != 92) {
+          p2 = p2 + 1;
+        }
+        let seg_len2: i32 = p2 - seg_start2;
+        if (seg_len2 >= 3) {
+          if (input_path[seg_start2 + seg_len2 - 3] == 46 && input_path[seg_start2 + seg_len2 - 2] == 115 && input_path[seg_start2 + seg_len2 - 1] == 117) {
+            seg_len2 = seg_len2 - 3;
+          }
+        }
+        if (seg_len2 >= 2) {
+          if (input_path[seg_start2 + seg_len2 - 2] == 46 && input_path[seg_start2 + seg_len2 - 1] == 120) {
+            seg_len2 = seg_len2 - 2;
+          }
+        }
+        let is_mod2: i32 = 0;
+        if (seg_len2 == 3) {
+          if (input_path[seg_start2] == 109 && input_path[seg_start2 + 1] == 111 && input_path[seg_start2 + 2] == 100) {
+            is_mod2 = 1;
+          }
+        }
+        if (is_mod2 == 0 && seg_len2 > 0) {
+          if (off2 > 5 && off2 + seg_len2 + 1 < 128) {
+            g_pipe_entry_lib_stem_buf[off2] = 95;
+            off2 = off2 + 1;
+          }
+          if (off2 + seg_len2 < 128) {
+            let k2: i32 = 0;
+            while (k2 < seg_len2) {
+              g_pipe_entry_lib_stem_buf[off2 + k2] = input_path[seg_start2 + k2];
+              k2 = k2 + 1;
+            }
+            off2 = off2 + seg_len2;
+          }
+        }
+        if (input_path[p2] != 0) {
+          p2 = p2 + 1;
+        }
+      }
+    }
+    if (off2 > 5) {
+      g_pipe_entry_lib_stem_buf[off2] = 0;
+      return &g_pipe_entry_lib_stem_buf[0];
+    }
+  }
+
+  // basename stem without .x/.su
+  let last_slash: i32 = 0 - 1;
+  let bi: i32 = 0;
+  unsafe {
+    while (bi < 4096) {
+      if (input_path[bi] == 0) {
+        break;
+      }
+      if (input_path[bi] == 47 || input_path[bi] == 92) {
+        last_slash = bi;
+      }
+      bi = bi + 1;
+    }
+  }
+  let base: i32 = 0;
+  if (last_slash >= 0) {
+    base = last_slash + 1;
+  }
+  let last_dot: i32 = 0 - 1;
+  let di: i32 = base;
+  unsafe {
+    while (di < 4096) {
+      if (input_path[di] == 0) {
+        break;
+      }
+      if (input_path[di] == 46) {
+        last_dot = di;
+      }
+      di = di + 1;
+    }
+  }
+  if (last_dot > base) {
+    let is_x: i32 = 0;
+    unsafe {
+      if (input_path[last_dot] == 46 && input_path[last_dot + 1] == 120 && input_path[last_dot + 2] == 0) {
+        is_x = 1;
+      }
+      if (input_path[last_dot] == 46 && input_path[last_dot + 1] == 115 && input_path[last_dot + 2] == 117 && input_path[last_dot + 3] == 0) {
+        is_x = 1;
+      }
+    }
+    if (is_x != 0) {
+      let stem_len: i32 = last_dot - base;
+      if (stem_len > 0 && stem_len < 128) {
+        let k3: i32 = 0;
+        unsafe {
+          while (k3 < stem_len) {
+            g_pipe_entry_lib_stem_buf[k3] = input_path[base + k3];
+            k3 = k3 + 1;
+          }
+        }
+        g_pipe_entry_lib_stem_buf[stem_len] = 0;
+        return &g_pipe_entry_lib_stem_buf[0];
+      }
+    }
+  }
+  return xlang_cstr_typeck_lit();
+}
+
+/**
+ * Return address of the pipeline diag-emitted sticky flag (i32 cell).
+ * @return *i32 — always non-null; points at g_pipe_diag_emitted_flag
+ * wave73 pure: pure reset/note/get write/read this cell (0 clear / non-zero noted).
+ * Matches historical seed pipeline_diag_emitted_flag_slot → static int.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; hybrid pure owns this cell only.
+ */
+#[no_mangle]
+export function pipeline_diag_emitted_flag_slot(): *i32 {
+  return &g_pipe_diag_emitted_flag;
+}
+
+/**
+ * Return address of driver_dep seeded flag cell for slot i (i32).
+ * @param i i32 — slot index; OOB clamped to 0..31 (matches historical seed clamp)
+ * @return *i32 — always non-null; points at g_pipe_driver_dep_seeded[idx]
+ * wave74 pure: pure seeded_get/set write/read this cell; G.7 single authority.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; hybrid pure owns the table.
+ */
+#[no_mangle]
+export function driver_dep_seeded_slot(i: i32): *i32 {
+  let idx: i32 = i;
+  if (idx < 0) {
+    idx = 0;
+  }
+  if (idx >= 32) {
+    idx = 31;
+  }
+  return &g_pipe_driver_dep_seeded[idx];
+}
+
+/**
+ * Store arena pointer into driver_dep arena slot i (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → no-op
+ * @param arena *u8 — arena pointer (may be null to clear)
+ * @return void
+ * wave74 pure: G.7 xlang_ptr_slot_set on g_pipe_driver_dep_arena.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  xlang_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, arena);
+}
+
+/**
+ * Store module pointer into driver_dep module slot i (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param module *u8 — module pointer (may be null to clear)
+ * @return void
+ * wave74 pure: G.7 xlang_ptr_slot_set on g_pipe_driver_dep_module.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  xlang_ptr_slot_set(&g_pipe_driver_dep_module[0], i, module);
+}
+
+/**
+ * Store import-path pointer into driver_dep path registry slot i (capacity 32).
+ * @param i i32 — slot index; OOB → no-op
+ * @param path *u8 — logical import path pointer (lifetime until clear); null clears the slot
+ * @return void
+ * wave74 pure: G.7 xlang_ptr_slot_set on g_pipe_driver_dep_path_registry.
+ * Null path stores null so pure clear_slots can wipe registry (seed cold set rejected null
+ * and relied on clear_slots_impl direct assignment; pure set is the single clear path).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_path_registry_set(i: i32, path: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  xlang_ptr_slot_set(&g_pipe_driver_dep_path_registry[0], i, path);
+}
+
+/**
+ * Load path registry pointer at slot i.
+ * @param i i32 — slot index; OOB → null
+ * @return *u8 — stored path pointer (may be null)
+ * wave74 pure: G.7 xlang_ptr_slot_get on g_pipe_driver_dep_path_registry.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; used by pure slot_for_path_scan.
+ */
+#[no_mangle]
+export function driver_dep_path_registry_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return xlang_ptr_slot_get(&g_pipe_driver_dep_path_registry[0], i);
+}
+
+/**
+ * LP64 byte size of struct ast_ASTArena (handle shell; pools live in sidecar).
+ * @return usize — always 16 on SHARED LP64 product hosts
+ * wave83 pure Cap residual: fixed layout constant matching pipeline_glue
+ *   sizeof(struct ast_ASTArena). Dual-end verified mac arm64 + Ubuntu x86_64 (2026-07-22).
+ * Glue keeps a weak cold fallback so full-C bootstrap without pure still links.
+ * When the C struct layout changes, update this constant and re-verify dual-end.
+ * PLATFORM: SHARED LP64 — do not invent per-OS sizes; both gold hosts are LP64.
+ */
+#[no_mangle]
+export function pipeline_sizeof_arena(): usize {
+  return 16 as usize;
+}
+
+/**
+ * LP64 byte size of struct ast_Module (thin module header).
+ * @return usize — always 68 (0x44) on SHARED LP64 product hosts
+ * wave83 pure Cap residual: fixed layout constant matching pipeline_glue
+ *   sizeof(struct ast_Module). Dual-end verified mac arm64 + Ubuntu x86_64 (2026-07-22).
+ * Historical lsp_diag stub returned 40 — that was a stale thin layout; product truth is 68.
+ * Glue keeps a weak cold fallback. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_sizeof_module(): usize {
+  return 68 as usize;
+}
+
+/**
+ * Return (and lazily allocate) driver_dep arena buffer for slot i.
+ * @param i i32 — slot index; OOB → null
+ * @return *u8 — arena byte region (zeroed on first malloc); null on OOB/OOM
+ * wave74 pure: load slot; if null, malloc(pipeline_sizeof_arena)+memset0 then store.
+ * wave83: G.7 pure pipeline_sizeof_arena (fixed LP64 constant; no glue Cap residual call).
+ * Matches historical seed driver_dep_arena_buf (reuse pre-seeded pointers; no free on clear).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_arena_buf(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  let p: *u8 = xlang_ptr_slot_get(&g_pipe_driver_dep_arena[0], i);
+  if (p != 0 as *u8) {
+    return p;
+  }
+  let sz: usize = 0 as usize;
+  unsafe {
+    sz = pipeline_sizeof_arena();
+    p = malloc(sz);
+    if (p == 0 as *u8) {
+      return 0 as *u8;
+    }
+    memset(p, 0, sz);
+  }
+  xlang_ptr_slot_set(&g_pipe_driver_dep_arena[0], i, p);
+  return p;
+}
+
+/**
+ * Return (and lazily allocate) driver_dep module buffer for slot i.
+ * @param i i32 — slot index; OOB → null
+ * @return *u8 — module byte region (zeroed on first malloc); null on OOB/OOM
+ * wave74 pure: same pattern as driver_dep_arena_buf with pipeline_sizeof_module.
+ * wave83: G.7 pure pipeline_sizeof_module (fixed LP64 constant).
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function driver_dep_module_buf(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  let p: *u8 = xlang_ptr_slot_get(&g_pipe_driver_dep_module[0], i);
+  if (p != 0 as *u8) {
+    return p;
+  }
+  let sz: usize = 0 as usize;
+  unsafe {
+    sz = pipeline_sizeof_module();
+    p = malloc(sz);
+    if (p == 0 as *u8) {
+      return 0 as *u8;
+    }
+    memset(p, 0, sz);
+  }
+  xlang_ptr_slot_set(&g_pipe_driver_dep_module[0], i, p);
+  return p;
+}
+
+/**
+ * Free any owned stage-prep buffer and clear stage BSS cells to null/0.
+ * @return void
+ * wave71 pure: free(g_pipe_rf_stage_prep) then G.7 xlang_ptr_slot_set / xlang_size_slot_set zero.
+ * Matches historical seed pipeline_rf_stage_prep_clear (always free then null).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns these cells.
+ */
+#[no_mangle]
+export function pipeline_rf_stage_prep_clear(): void {
+  let p: *u8 = xlang_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
+  if (p != 0 as *u8) {
+    unsafe {
+      free(p);
+    }
+  }
+  xlang_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+}
+
+/**
+ * Store owned prep into stage BSS (does not free prior; caller must clear first).
+ * @param prep *u8 — owned heap buffer (or null for empty stage)
+ * @param prep_len i64 — byte length; if prep is null, stored len is forced to 0
+ * @return void
+ * wave71 pure: G.7 xlang_ptr_slot_set / xlang_size_slot_set on pure stage cells.
+ * Matches seed: prep may be null → stores empty (len 0).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_rf_stage_prep_set(prep: *u8, prep_len: i64): void {
+  xlang_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, prep);
+  if (prep == 0 as *u8) {
+    xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+    return;
+  }
+  xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, prep_len);
+}
+
+/**
+ * Move stage prep out without free (caller owns); clear stage BSS.
+ * @param out_prep *u8 — char** as raw bytes (LP64 8B slot); may be null (still clears)
+ * @param out_len *u8 — size_t* as raw bytes; may be null
+ * @return i32 — 0 if prep non-null; -1 if stage empty (null prep)
+ * wave71 pure: load cells → zero cells → write outs via G.7 ptr/size slot set.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; pure commit_prep uses this.
+ */
+#[no_mangle]
+export function pipeline_rf_stage_prep_take(out_prep: *u8, out_len: *u8): i32 {
+  let prep: *u8 = xlang_ptr_slot_get(&g_pipe_rf_stage_prep[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&g_pipe_rf_stage_prep_len[0], 0);
+  // Clear stage before writing outs (same order as historical seed).
+  xlang_ptr_slot_set(&g_pipe_rf_stage_prep[0], 0, 0 as *u8);
+  xlang_size_slot_set(&g_pipe_rf_stage_prep_len[0], 0, 0);
+  if (out_prep != 0 as *u8) {
+    xlang_ptr_slot_set(out_prep, 0, prep);
+  }
+  if (out_len != 0 as *u8) {
+    // Historical: out_len = prep ? prep_len : 0 after clear path already read prep_len.
+    if (prep == 0 as *u8) {
+      xlang_size_slot_set(out_len, 0, 0);
+    } else {
+      xlang_size_slot_set(out_len, 0, prep_len);
+    }
+  }
+  if (prep == 0 as *u8) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Ensure loaded-import BSS, copy owned prep into it, free prep.
+ * @param prep *u8 — owned heap source buffer; null → -1 (does not free)
+ * @param prep_len i64 — byte length to copy; may be 0 if prep non-null
+ * @return i32 — 0 success; -1 null prep or OOM (prep freed on OOM only)
+ * wave72 pure: G.7 xlang_ptr_slot_* / xlang_size_slot_* on g_pipe_loaded_import_*.
+ * Ensure policy (matches historical seed / XLANG_PIPELINE_IMPORT_BUF_CAP):
+ *   if prep_len > cap or buf null → free old buf; new_cap =
+ *     (prep_len < 4194304) ? 4194304 : (prep_len + 65536); malloc; OOM → free(prep) -1.
+ *   else reuse existing buf; memcpy prep_len bytes; set len; free(prep).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns cells.
+ */
+#[no_mangle]
+export function pipeline_loaded_import_commit_from_owned(prep: *u8, prep_len: i64): i32 {
+  if (prep == 0 as *u8) {
+    return 0 - 1;
+  }
+  let buf: *u8 = xlang_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
+  let cap: i64 = xlang_size_slot_get(&g_pipe_loaded_import_cap[0], 0);
+  // Reallocate when buffer missing or too small for prep_len (same order as seed).
+  if (prep_len > cap || buf == 0 as *u8) {
+    // free(NULL) is fine; seed always free then assign new cap before malloc.
+    unsafe {
+      free(buf);
+    }
+    // Cap floor 4194304 = XLANG_PIPELINE_IMPORT_BUF_CAP; else prep_len + 65536.
+    // Seed: prep_len < floor ? floor : prep_len + 65536  (i.e. >= floor → grow).
+    let floor_cap: i64 = 4194304;
+    let new_cap: i64 = floor_cap;
+    if (prep_len >= floor_cap) {
+      new_cap = prep_len + 65536;
+    }
+    // Seed sets cap before malloc; OOM leaves cap=new_cap and buf=null (len unchanged).
+    xlang_size_slot_set(&g_pipe_loaded_import_cap[0], 0, new_cap);
+    let fresh: *u8 = 0 as *u8;
+    unsafe {
+      fresh = malloc(new_cap as usize);
+    }
+    if (fresh == 0 as *u8) {
+      xlang_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, 0 as *u8);
+      unsafe {
+        free(prep);
+      }
+      return 0 - 1;
+    }
+    xlang_ptr_slot_set(&g_pipe_loaded_import_buf[0], 0, fresh);
+    buf = fresh;
+  }
+  unsafe {
+    // Copy prep into committed buffer; then transfer ownership of prep away (free).
+    memcpy(buf, prep, prep_len as usize);
+    free(prep);
+  }
+  xlang_size_slot_set(&g_pipe_loaded_import_len[0], 0, prep_len);
+  return 0;
+}
+
+/**
+ * Return pointer to committed loaded-import source bytes (or null if empty).
+ * @return *u8 — pipeline_loaded_import_buf; null when never committed / OOM cleared
+ * wave72 pure: G.7 xlang_ptr_slot_get on pure BSS. Matches seed null when buf null.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_loaded_import_data(): *u8 {
+  return xlang_ptr_slot_get(&g_pipe_loaded_import_buf[0], 0);
+}
+
+/**
+ * Return byte length of committed loaded-import buffer.
+ * @return i64 — size_t length cell (0 when empty / never committed)
+ * wave72 pure: G.7 xlang_size_slot_get on pure BSS. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function pipeline_loaded_import_len_get(): i64 {
+  return xlang_size_slot_get(&g_pipe_loaded_import_len[0], 0);
+}
+
+/**
+ * Return base of the pipeline resolved-path static buffer (cap 512 incl trailing NUL room).
+ * @return *u8 — always non-null; points at g_pipe_resolved_path_buf[0]
+ * wave69 pure: pure resolve_path_into_static writes here via multi resolve;
+ * pure read_file_stage_prep reads the path for open/preprocess diags.
+ * Cap 512 matches historical seed `static char pipeline_resolved_path_buf[512]`.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; hybrid pure owns this cell only.
+ */
+#[no_mangle]
+export function pipeline_resolved_path_buf_slot(): *u8 {
+  return &g_pipe_resolved_path_buf[0];
+}
+
+/**
+ * Store pointer p into pipeline dep-arena slot i (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → no-op
+ * @param p *u8 — arena pointer (may be null)
+ * @return void
+ * wave70 pure: G.7 xlang_ptr_slot_set on g_pipe_dep_arena_slots (32×LP64 LE cells).
+ * Matches seed bounds policy on set (reject OOB; do not trap).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; hybrid pure owns the table.
+ */
+#[no_mangle]
+export function pipeline_dep_arena_slot_set(i: i32, p: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  xlang_ptr_slot_set(&g_pipe_dep_arena_slots[0], i, p);
+}
+
+/**
+ * Store pointer p into pipeline dep-module slot i (capacity 32).
+ * @param i i32 — slot index; i < 0 or i >= 32 → no-op
+ * @param p *u8 — module pointer (may be null)
+ * @return void
+ * wave70 pure: G.7 xlang_ptr_slot_set on g_pipe_dep_module_slots (pair of arena table).
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_dep_module_slot_set(i: i32, p: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  xlang_ptr_slot_set(&g_pipe_dep_module_slots[0], i, p);
+}
+
+/**
+ * Load pipeline dep-arena slot i (capacity 32; historical seed had no OOB guard).
+ * @param i i32 — slot index; pure rejects i < 0 or i >= 32 → null (safer than seed raw index)
+ * @return *u8 — stored arena pointer (may be null)
+ * wave70 pure: G.7 xlang_ptr_slot_get on g_pipe_dep_arena_slots.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X; pure get_dep_* bounds first.
+ */
+#[no_mangle]
+export function pipeline_dep_arena_slot_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return xlang_ptr_slot_get(&g_pipe_dep_arena_slots[0], i);
+}
+
+/**
+ * Load pipeline dep-module slot i (capacity 32).
+ * @param i i32 — slot index; pure rejects OOB → null
+ * @return *u8 — stored module pointer (may be null)
+ * wave70 pure: G.7 xlang_ptr_slot_get on g_pipe_dep_module_slots.
+ * PLATFORM: SHARED LP64 — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_dep_module_slot_at(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  return xlang_ptr_slot_get(&g_pipe_dep_module_slots[0], i);
+}
+
+/**
+ * Copy NUL-terminated path into the pipeline entry_dir BSS buffer and select it.
+ * @param path *u8 — directory path; null → no-op (keeps prior selection)
+ * @return void
+ * wave68 pure: snprintf-equivalent byte copy into g_pipe_entry_dir_buf (cap 512 incl NUL).
+ * Clears is_dot so pipeline_entry_dir_get returns the buffer base.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_entry_dir_copy(path: *u8): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  let i: i32 = 0;
+  unsafe {
+    // Cap 511 data bytes + trailing NUL — matches seed snprintf into char[512].
+    while (i < 511) {
+      let c: u8 = path[i];
+      g_pipe_entry_dir_buf[i] = c;
+      if (c == 0) {
+        g_pipe_entry_dir_is_dot = 0;
+        return;
+      }
+      i = i + 1;
+    }
+    g_pipe_entry_dir_buf[511] = 0;
+    g_pipe_entry_dir_is_dot = 0;
+  }
+}
+
+/**
+ * Reset pipeline entry_dir selection to the static "." literal BSS.
+ * @return void
+ * wave68 pure: sets is_dot and ensures g_pipe_entry_dir_dot holds '.' + NUL.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
+ */
+#[no_mangle]
+export function pipeline_entry_dir_set_dot(): void {
+  g_pipe_entry_dir_is_dot = 1;
+  g_pipe_entry_dir_dot[0] = 46;
+  g_pipe_entry_dir_dot[1] = 0;
+}
+
+/**
+ * Return the active pipeline entry_dir C string (never null).
+ * @return *u8 — either g_pipe_entry_dir_dot (".") or g_pipe_entry_dir_buf; always NUL-terminated
+ * wave68 pure: is_dot selects lit vs copy buffer; default is_dot=1 matches seed ".".
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X; used by pure into_static orch.
+ */
+#[no_mangle]
+export function pipeline_entry_dir_get(): *u8 {
+  if (g_pipe_entry_dir_is_dot != 0) {
+    // First get before set_dot may see zeroed BSS — always materialize "." lit.
+    g_pipe_entry_dir_dot[0] = 46;
+    g_pipe_entry_dir_dot[1] = 0;
+    return &g_pipe_entry_dir_dot[0];
+  }
+  return &g_pipe_entry_dir_buf[0];
+}
+
+// pipeline_set_entry_dir: see function docblock below.
+/**
+ * Set pipeline resolve/read entry directory from path (null/empty → ".").
+ * @param path *u8 — NUL-terminated directory; null or empty → pure set_dot
+ * @return void
+ * Pure orch over pure entry_dir_copy / set_dot (wave68 BSS writers).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_set_entry_dir(path: *u8): void {
@@ -2063,12 +5562,14 @@ export function pipeline_set_entry_dir(path: *u8): void {
   }
 }
 
-// pipeline_set_dep_slots: see function docblock below.
-/** Exported function `pipeline_set_dep_slots`.
- * Implements `pipeline_set_dep_slots`.
- * @param arenas *u8
- * @param modules *u8
+/**
+ * Bulk-write all 32 dep arena/module slots from two void-star tables (or clear if null).
+ * @param arenas *u8 — void** base as bytes (32 cells); null → write null arenas
+ * @param modules *u8 — void** base as bytes (32 cells); null → write null modules
  * @return void
+ * Pure orch: load each cell via pipe_load_ptr_slot then G.7 pure pipeline_dep_*_slot_set
+ * (wave70 BSS; single authority — no direct second write into g_pipe_dep_*).
+ * PLATFORM: SHARED LP64.
  */
 #[no_mangle]
 export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
@@ -2083,6 +5584,7 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
       if (modules != 0 as *u8) {
         m = pipe_load_ptr_slot(modules, i);
       }
+      // G.7 pure wave70 slot writers — same cells pure get_dep_* / slot_at read.
       pipeline_dep_arena_slot_set(i, a);
       pipeline_dep_module_slot_set(i, m);
     }
@@ -2090,9 +5592,9 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
   }
 }
 
-// shux_pipeline_fill_ctx_path_buffers: see function docblock below.
-/** Exported function `shux_pipeline_fill_ctx_path_buffers`.
- * Implements `shux_pipeline_fill_ctx_path_buffers`.
+// xlang_pipeline_fill_ctx_path_buffers: see function docblock below.
+/** Exported function `xlang_pipeline_fill_ctx_path_buffers`.
+ * Implements `xlang_pipeline_fill_ctx_path_buffers`.
  * @param ctx *u8
  * @param entry_dir *u8
  * @param lib_roots *u8
@@ -2100,7 +5602,7 @@ export function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
+export function xlang_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -2150,9 +5652,9 @@ export function pipe_cstr_len(s: *u8): i32 {
   return i;
 }
 
-// shux_pipeline_pctx_seed_dep_slots: see function docblock below.
-/** Exported function `shux_pipeline_pctx_seed_dep_slots`.
- * Implements `shux_pipeline_pctx_seed_dep_slots`.
+// xlang_pipeline_pctx_seed_dep_slots: see function docblock below.
+/** Exported function `xlang_pipeline_pctx_seed_dep_slots`.
+ * Implements `xlang_pipeline_pctx_seed_dep_slots`.
  * @param ctx *u8
  * @param dep_mods *u8
  * @param dep_ar *u8
@@ -2161,7 +5663,7 @@ export function pipe_cstr_len(s: *u8): i32 {
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
+export function xlang_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -2196,16 +5698,16 @@ export function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_a
   }
 }
 
-// shux_pipeline_pctx_seed_dep_import_paths_only: see function docblock below.
-/** Exported function `shux_pipeline_pctx_seed_dep_import_paths_only`.
- * Implements `shux_pipeline_pctx_seed_dep_import_paths_only`.
+// xlang_pipeline_pctx_seed_dep_import_paths_only: see function docblock below.
+/** Exported function `xlang_pipeline_pctx_seed_dep_import_paths_only`.
+ * Implements `xlang_pipeline_pctx_seed_dep_import_paths_only`.
  * @param ctx *u8
  * @param import_paths *u8
  * @param n i32
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
+export function xlang_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -2227,25 +5729,148 @@ export function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_p
   }
 }
 
-// shux_pipeline_one_ctx_for_dep_prerun: see function docblock below.
-/** Exported function `shux_pipeline_one_ctx_for_dep_prerun`.
- * Implements `shux_pipeline_one_ctx_for_dep_prerun`.
- * @param ctx *u8
- * @param j i32
- * @param dep_mods *u8
- * @param dep_ars *u8
- * @param dep_paths *u8
- * @param ndep i32
- * @param dep_src *u8
- * @param dep_src_len i64
+/**
+ * Map one dep prerun ctx slots from dep's own import table (not entry full dep list).
+ * Allocates tmp arena/module, parses dep_src, filters dep_mods/ars/paths by import names,
+ * writes compact ctx slots [0..mapped). Hard parse fail falls back to full ndep slots.
+ * @param ctx *u8 — PipelineDepCtx*; null → no-op
+ * @param dep_mods *u8 — void star-star loaded dep modules base
+ * @param dep_ars *u8 — void star-star loaded dep arenas base
+ * @param dep_paths *u8 — char star-star loaded dep path keys base
+ * @param ndep i32 — loaded dep count (table width)
+ * @param dep_src *u8 — dep source bytes for import scan; caller thin already validated
+ * @param dep_src_len i64 — byte length; must be in (0, INT32_MAX]
  * @return void
+ * wave62 pure Cap residual orch:
+ *   G.7 pure pipeline_sizeof_arena / pipeline_sizeof_module (wave83 LP64 constants);
+ *   G.7 pure parser_parse_into_init (weak empty here; strong parser wins final link);
+ *   G.7 pure driver_parse_into_buf_rc (returns raw ok; allow 0 and -2 like historical seed);
+ *   G.7 pure xlang_module_num_imports / xlang_module_import_path_cstr /
+ *   xlang_find_loaded_import_index / xlang_pipeline_pctx_update_dep_slots_no_reset /
+ *   pipe_load_ptr_slot / pipe_cstr_len / ast_pipeline_dep_ctx_set_*.
+ * Why not pipeline_parse_into_bytes: that maps non-zero ok to -1 and loses ok==-2
+ * (under-parse still has usable import table). PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
+export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
     return;
   }
-  // See implementation.
+  let asz: usize = 0 as usize;
+  let msz: usize = 0 as usize;
+  unsafe {
+    asz = pipeline_sizeof_arena();
+    msz = pipeline_sizeof_module();
+  }
+  let tmp_arena: *u8 = 0 as *u8;
+  let tmp_module: *u8 = 0 as *u8;
+  unsafe {
+    tmp_arena = malloc(asz);
+    tmp_module = malloc(msz);
+  }
+  // OOM: fall back to full entry dep table (same as historical seed).
+  if (tmp_arena == 0 as *u8) {
+    if (tmp_module != 0 as *u8) {
+      unsafe {
+        free(tmp_module);
+      }
+    }
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    return;
+  }
+  if (tmp_module == 0 as *u8) {
+    unsafe {
+      free(tmp_arena);
+    }
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    return;
+  }
+  unsafe {
+    memset(tmp_arena, 0, asz);
+    memset(tmp_module, 0, msz);
+    // Init before parse_into_buf residual (same order as seed map_impl).
+    parser_parse_into_init(tmp_module, tmp_arena);
+  }
+  // INT32_MAX already gated by thin; cast for buf_rc ABI.
+  let len_i32: i32 = dep_src_len as i32;
+  let pr_ok: i32 = 0;
+  unsafe {
+    // Cap-struct-return residual unpacks ParseIntoResult.ok; null out_main_idx.
+    pr_ok = driver_parse_into_buf_rc(tmp_arena, tmp_module, dep_src, len_i32, 0 as *i32);
+  }
+  // Historical: accept ok==0 (full) and ok==-2 (under-parse; import table still usable).
+  // Any other non-zero → free tmp + full slots fallback.
+  if (pr_ok != 0) {
+    if (pr_ok != (0 - 2)) {
+      unsafe {
+        free(tmp_arena);
+        free(tmp_module);
+      }
+      xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+      return;
+    }
+  }
+  let n_imp: i32 = xlang_module_num_imports(tmp_module);
+  if (n_imp <= 0) {
+    unsafe {
+      free(tmp_arena);
+      free(tmp_module);
+      ast_pipeline_dep_ctx_set_ndep(ctx, 0);
+    }
+    return;
+  }
+  // Compact map: only imports that match a loaded dep path key (import_idx → ctx slot).
+  let mapped: i32 = 0;
+  let ii: i32 = 0;
+  while (ii < n_imp) {
+    let path_c: u8[65] = [];
+    xlang_module_import_path_cstr(tmp_module, ii, &path_c[0], 65);
+    let g: i32 = xlang_find_loaded_import_index(&path_c[0], dep_paths, ndep);
+    if (g < 0) {
+      ii = ii + 1;
+      continue;
+    }
+    unsafe {
+      let m: *u8 = pipe_load_ptr_slot(dep_mods, g);
+      let a: *u8 = pipe_load_ptr_slot(dep_ars, g);
+      ast_pipeline_dep_ctx_set_module(ctx, mapped, m);
+      ast_pipeline_dep_ctx_set_arena(ctx, mapped, a);
+      let p: *u8 = pipe_load_ptr_slot(dep_paths, g);
+      if (p != 0 as *u8) {
+        let pl: i32 = pipe_cstr_len(p);
+        ast_pipeline_dep_ctx_set_import_path(ctx, mapped, p, pl);
+      }
+    }
+    mapped = mapped + 1;
+    ii = ii + 1;
+  }
+  unsafe {
+    free(tmp_arena);
+    free(tmp_module);
+    ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
+  }
+}
+
+/**
+ * Thin gate for one-ctx dep prerun mapping (null/empty/oversized → full slots or ndep=0).
+ * @param ctx *u8 — PipelineDepCtx*; null → no-op
+ * @param j i32 — historical dep index; unused (kept for ABI)
+ * @param dep_mods *u8 — void star-star modules; null → ndep=0
+ * @param dep_ars *u8 — void star-star arenas; null → ndep=0
+ * @param dep_paths *u8 — char star-star paths; null → ndep=0
+ * @param ndep i32 — loaded count; <=0 → ndep=0
+ * @param dep_src *u8 — dep source for import scan; null/empty/oversized → full slots
+ * @param dep_src_len i64 — source length; <=0 or > INT32_MAX → full slots
+ * @return void
+ * wave62: body in pure xlang_pipeline_one_ctx_for_dep_prerun_map_impl after flags.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  // Historical signature keeps j; map path ignores it.
   let _j: i32 = j;
   unsafe {
     pipeline_dep_ctx_set_use_asm_backend(ctx, 0);
@@ -2267,36 +5892,36 @@ export function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods:
     return;
   }
   if (dep_src == 0 as *u8) {
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
   if (dep_src_len <= 0) {
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
-  // INT32_MAX
+  // INT32_MAX — parse_into_buf residual takes int32_t len.
   let imax: i64 = 2147483647;
   if (dep_src_len > imax) {
-    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
     return;
   }
   unsafe {
-    shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+    xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
   }
 }
 
 /* See implementation. */
 
-// shux_driver_asm_prepare_entry_elf_emit: see function docblock below.
-/** Exported function `shux_driver_asm_prepare_entry_elf_emit`.
- * Implements `shux_driver_asm_prepare_entry_elf_emit`.
+// xlang_driver_asm_prepare_entry_elf_emit: see function docblock below.
+/** Exported function `xlang_driver_asm_prepare_entry_elf_emit`.
+ * Implements `xlang_driver_asm_prepare_entry_elf_emit`.
  * @param module *u8
  * @param arena *u8
  * @param pctx *u8
  * @return void
  */
 #[no_mangle]
-export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
+export function xlang_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
   if (module == 0 as *u8) {
     return;
   }
@@ -2313,18 +5938,20 @@ export function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, 
   }
 }
 
-// shux_asm_codegen_elf_o_large_stack: see function docblock below.
-/** Exported function `shux_asm_codegen_elf_o_large_stack`.
- * Implements `shux_asm_codegen_elf_o_large_stack`.
- * @param module *u8
- * @param arena *u8
- * @param ctx *u8
- * @param elf_ctx *u8
- * @param out_buf *u8
- * @return i32
+// xlang_asm_codegen_elf_o_large_stack: see function docblock below.
+/**
+ * Thin gate → pure xlang_asm_codegen_elf_o_large_stack_impl (wave57).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena; null → -1
+ * @param ctx *u8 — PipelineDepCtx (may be null)
+ * @param elf_ctx *u8 — ElfCodegenCtx (may be null)
+ * @param out_buf *u8 — emit out buffer; null → -1
+ * @return i32 — emit ec from large-stack orch
+ * wave57: body in pure _impl; product emit via Cap residual (not same-TU weak stub).
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+export function xlang_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2335,28 +5962,222 @@ export function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx:
     return 0 - 1;
   }
   unsafe {
-    return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
+    return xlang_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
   }
   return 0 - 1;
 }
 
-// shux_load_direct_imports_for_asm_layout: see function docblock below.
-/** Exported function `shux_load_direct_imports_for_asm_layout`.
- * Implements `shux_load_direct_imports_for_asm_layout`.
- * @param module *u8
- * @param lib_roots *u8
- * @param n_lib_roots i32
- * @param entry_dir *u8
- * @param defines *u8
- * @param ndefines i32
- * @param dep_sources *u8
- * @param dep_lens *u8
- * @param dep_paths *u8
- * @param out_n *i32
- * @return i32
+/**
+ * Free dep_sources/dep_paths slots [0, mi) on load_direct failure (partial fill).
+ * @param dep_sources *u8 — char star-star prep sources; may be null (skip frees)
+ * @param dep_paths *u8 — char star-star owned keys; may be null (skip frees)
+ * @param mi i32 — exclusive upper bound of slots to free; mi<=0 → no-op
+ * @return void
+ * wave51 pure Cap residual orch: walk mi-1..0; free non-null slots; clear to null.
+ * G.7 single authority for fail cleanup (load_direct_imports layout + cold twin).
+ * PLATFORM: SHARED — pure link-name; free still libc.
  */
 #[no_mangle]
-export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
+export function xlang_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void {
+  let i: i32 = mi;
+  while (i > 0) {
+    i = i - 1;
+    if (dep_sources != 0 as *u8) {
+      let s: *u8 = pipe_load_ptr_slot(dep_sources, i);
+      if (s != 0 as *u8) {
+        unsafe {
+          free(s);
+        }
+        pipe_store_ptr_slot(dep_sources, i, 0 as *u8);
+      }
+    }
+    if (dep_paths != 0 as *u8) {
+      let p: *u8 = pipe_load_ptr_slot(dep_paths, i);
+      if (p != 0 as *u8) {
+        unsafe {
+          free(p);
+        }
+        pipe_store_ptr_slot(dep_paths, i, 0 as *u8);
+      }
+    }
+  }
+}
+
+/**
+ * Resolve import key, read file view, preprocess → owned prep (no dep slot store).
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param import_key *u8 — import path key C string; null → fail 1
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count; if <=0 pass null defines into preprocess
+ * @param out_prep *u8 — char star-star out cell (LP64 8B); null → fail 1; cleared on entry
+ * @param out_prep_len *u8 — size_t out cell as bytes; null → fail 1; cleared on entry
+ * @return i32 — 0 success (*out_prep owned, free with free); 1 fail (out cleared)
+ * wave55 pure Cap residual orch (was always-seed PATH_MAX+FILE view):
+ *   stack resolved[4096] (SHARED path cap; gold Linux PATH_MAX);
+ *   pure xlang_resolve_import_file_path_multi;
+ *   runtime_read_file_view into 32B stack XlangRuntimeFileView (G.7 same as fmt_check);
+ *   open fail → pure pipeline_diag_import_open_fail_once;
+ *   pure xlang_preprocess_raw_to_malloc(view.data, view.length, out_prep, out_prep_len, …);
+ *   runtime_release_file_view always after read success path;
+ *   null prep after preprocess ok → pure pipeline_diag_import_preprocess_fail.
+ * G.7 load_one + paths_tmp call this (single resolve/read/preprocess body). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_load_one_direct_resolve_read_preprocess(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, out_prep: *u8, out_prep_len: *u8): i32 {
+  if (import_key == 0 as *u8) {
+    return 1;
+  }
+  if (out_prep == 0 as *u8) {
+    return 1;
+  }
+  if (out_prep_len == 0 as *u8) {
+    return 1;
+  }
+  // Clear out cells first (same contract as seed cold twin).
+  pipe_store_ptr_slot(out_prep, 0, 0 as *u8);
+  xlang_size_slot_set(out_prep_len, 0, 0);
+  // Resolved path buffer: 4096 matches gold Linux PATH_MAX; pure stack (no BSS dual path).
+  let resolved: u8[4096] = [];
+  let zi: i32 = 0;
+  while (zi < 4096) {
+    resolved[zi] = 0;
+    zi = zi + 1;
+  }
+  unsafe {
+    xlang_resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_key, &resolved[0], 4096 as i64);
+  }
+  // XlangRuntimeFileView ABI: data@0 length@8 needs_free@16 needs_munmap@20 (24B; pad 32).
+  let view: u8[32] = [];
+  let z: i32 = 0;
+  while (z < 32) {
+    view[z] = 0;
+    z = z + 1;
+  }
+  let view_rc: i32 = 0;
+  unsafe {
+    view_rc = runtime_read_file_view(&resolved[0], &view[0]);
+  }
+  if (view_rc != 0) {
+    pipeline_diag_import_open_fail_once(import_key, &resolved[0]);
+    return 1;
+  }
+  let raw_data: *u8 = xlang_ptr_slot_get(&view[0], 0);
+  let raw_len: i64 = xlang_size_slot_get(&view[0], 1);
+  // defines: only pass table when ndefines > 0 (seed cold twin ternary).
+  let def_arg: *u8 = 0 as *u8;
+  if (ndefines > 0) {
+    def_arg = defines;
+  }
+  let prep_rc: i32 = 0;
+  unsafe {
+    prep_rc = xlang_preprocess_raw_to_malloc(raw_data, raw_len, out_prep, out_prep_len, &resolved[0], def_arg, ndefines);
+  }
+  unsafe {
+    runtime_release_file_view(&view[0]);
+  }
+  if (prep_rc != 0) {
+    // Preprocess failed: keep out cleared (preprocess may have written partial; re-clear).
+    pipe_store_ptr_slot(out_prep, 0, 0 as *u8);
+    xlang_size_slot_set(out_prep_len, 0, 0);
+    return 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(out_prep, 0);
+  if (prep == 0 as *u8) {
+    pipeline_diag_import_preprocess_fail(import_key, &resolved[0]);
+    xlang_size_slot_set(out_prep_len, 0, 0);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Resolve one import key, read+preprocess into prep, store dep_sources/lens/paths[mi].
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param import_key *u8 — import path key C string; null → fail 1
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources out; may be null (skip store)
+ * @param dep_lens *u8 — size_t array base as bytes; may be null (skip store)
+ * @param dep_paths *u8 — char star-star owned keys out; may be null (skip strdup store)
+ * @param mi i32 — slot index; mi < 0 → fail 1
+ * @return i32 — 0 success (slot written); 1 fail (no partial slot leave when paths OOM frees prep)
+ * wave51 pure Cap residual orch:
+ *   wave55 pure xlang_load_one_direct_resolve_read_preprocess → owned prep;
+ *   store prep + prep_len at mi;
+ *   wave54 pure xlang_collect_strdup(import_key) → dep_paths[mi];
+ *   OOM on key: free prep, clear source slot, return 1.
+ * G.7 process_one / load_direct_imports layout call this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32 {
+  if (import_key == 0 as *u8) {
+    return 1;
+  }
+  if (mi < 0) {
+    return 1;
+  }
+  // out_prep (char*) and out_prep_len (size_t) as 8-byte stack cells (LP64).
+  let prep_cell: u8[8] = [];
+  let prep_len_cell: u8[8] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, import_key, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&prep_len_cell[0], 0);
+  if (prep == 0 as *u8) {
+    return 1;
+  }
+  if (dep_sources != 0 as *u8) {
+    pipe_store_ptr_slot(dep_sources, mi, prep);
+  }
+  if (dep_lens != 0 as *u8) {
+    xlang_size_slot_set(dep_lens, mi, prep_len);
+  }
+  if (dep_paths != 0 as *u8) {
+    let key: *u8 = 0 as *u8;
+    unsafe {
+      key = xlang_collect_strdup(import_key);
+    }
+    if (key == 0 as *u8) {
+      unsafe {
+        free(prep);
+      }
+      if (dep_sources != 0 as *u8) {
+        pipe_store_ptr_slot(dep_sources, mi, 0 as *u8);
+      }
+      return 1;
+    }
+    pipe_store_ptr_slot(dep_paths, mi, key);
+  }
+  return 0;
+}
+
+// xlang_load_direct_imports_for_asm_layout: see function docblock below.
+/**
+ * Load all direct module imports into dep_sources/lens/paths for asm layout.
+ * @param module *u8 — AST module; null → -1
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources out slots
+ * @param dep_lens *u8 — size_t array base as bytes for prep lengths
+ * @param dep_paths *u8 — char star-star owned path keys out slots
+ * @param out_n *i32 — out live count; null → -1
+ * @return i32 — 0 success; 1 load fail (partial freed); -1 null args
+ * wave45+ pure orch; wave51 uses pure load_one + fail_cleanup. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2364,11 +6185,11 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
     return 0 - 1;
   }
   unsafe {
-    shux_i32_store(out_n, 0);
+    xlang_i32_store(out_n, 0);
   }
   let n_imports: i32 = 0;
   unsafe {
-    n_imports = shux_module_num_imports(module);
+    n_imports = xlang_module_num_imports(module);
   }
   if (n_imports <= 0) {
     return 0;
@@ -2380,16 +6201,16 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
     if (mi >= 32) { break; }
     let path_c: u8[65] = [];
     unsafe {
-      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+      xlang_module_import_path_cstr(module, i, &path_c[0], 65);
     }
     let rc: i32 = 0;
     unsafe {
-      rc = shux_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, &path_c[0], defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
+      rc = xlang_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, &path_c[0], defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
     }
     if (rc != 0) {
       unsafe {
-        shux_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
-        shux_i32_store(out_n, 0);
+        xlang_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
+        xlang_i32_store(out_n, 0);
       }
       return 1;
     }
@@ -2397,14 +6218,14 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
     i = i + 1;
   }
   unsafe {
-    shux_i32_store(out_n, mi);
+    xlang_i32_store(out_n, mi);
   }
   return 0;
 }
 
-// shux_merge_direct_then_transitive_dep_paths: see function docblock below.
-/** Exported function `shux_merge_direct_then_transitive_dep_paths`.
- * Implements `shux_merge_direct_then_transitive_dep_paths`.
+// xlang_merge_direct_then_transitive_dep_paths: see function docblock below.
+/** Exported function `xlang_merge_direct_then_transitive_dep_paths`.
+ * Implements `xlang_merge_direct_then_transitive_dep_paths`.
  * @param module *u8
  * @param n_imports i32
  * @param cpaths *u8
@@ -2414,7 +6235,7 @@ export function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: 
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
+export function xlang_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2437,7 +6258,7 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
     if (mi >= 32) { break; }
     let path_c: u8[65] = [];
     unsafe {
-      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+      xlang_module_import_path_cstr(module, i, &path_c[0], 65);
     }
     let found: i32 = 0 - 1;
     let kk: i32 = 0;
@@ -2462,7 +6283,7 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
     }
     unsafe {
       let pfound: *u8 = pipe_load_ptr_slot(cpaths, found);
-      shux_ptr_slot_set(out_paths, mi, pfound);
+      xlang_ptr_slot_set(out_paths, mi, pfound);
     }
     if (found < 32) {
       used[found] = 1;
@@ -2481,14 +6302,14 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
             cp2 = pipe_load_ptr_slot(cpaths, kj);
           }
           if (cp2 != 0 as *u8) {
-            if (shux_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
+            if (xlang_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
               used[kj] = 1;
             } else {
-              shux_ptr_slot_set(out_paths, mi, cp2);
+              xlang_ptr_slot_set(out_paths, mi, cp2);
               mi = mi + 1;
             }
           } else {
-            shux_ptr_slot_set(out_paths, mi, cp2);
+            xlang_ptr_slot_set(out_paths, mi, cp2);
             mi = mi + 1;
           }
         }
@@ -2497,16 +6318,16 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
     kj = kj + 1;
   }
   unsafe {
-    shux_i32_store(out_n, mi);
+    xlang_i32_store(out_n, mi);
   }
   return 0;
 }
 
 /* See implementation. */
 
-// shux_merge_direct_then_transitive_deps: see function docblock below.
-/** Exported function `shux_merge_direct_then_transitive_deps`.
- * Implements `shux_merge_direct_then_transitive_deps`.
+// xlang_merge_direct_then_transitive_deps: see function docblock below.
+/** Exported function `xlang_merge_direct_then_transitive_deps`.
+ * Implements `xlang_merge_direct_then_transitive_deps`.
  * @param module *u8
  * @param n_imports i32
  * @param cls *u8
@@ -2520,7 +6341,7 @@ export function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_impor
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
+export function xlang_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2543,7 +6364,7 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
     if (mi >= 32) { break; }
     let path_c: u8[65] = [];
     unsafe {
-      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+      xlang_module_import_path_cstr(module, i, &path_c[0], 65);
     }
     let found: i32 = 0 - 1;
     let kk: i32 = 0;
@@ -2577,15 +6398,15 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
         sfound = pipe_load_ptr_slot(cls, found);
       }
       if (clens != 0 as *u8) {
-        lfound = shux_size_slot_get(clens, found);
+        lfound = xlang_size_slot_get(clens, found);
       }
       if (out_src != 0 as *u8) {
-        shux_ptr_slot_set(out_src, mi, sfound);
+        xlang_ptr_slot_set(out_src, mi, sfound);
       }
       if (out_lens != 0 as *u8) {
-        shux_size_slot_set(out_lens, mi, lfound);
+        xlang_size_slot_set(out_lens, mi, lfound);
       }
-      shux_ptr_slot_set(out_paths, mi, pfound);
+      xlang_ptr_slot_set(out_paths, mi, pfound);
     }
     if (found < 32) {
       used[found] = 1;
@@ -2604,7 +6425,7 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
             cp2 = pipe_load_ptr_slot(cpaths, kj);
           }
           if (cp2 != 0 as *u8) {
-            if (shux_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
+            if (xlang_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
               used[kj] = 1;
             } else {
               let s2: *u8 = 0 as *u8;
@@ -2613,15 +6434,15 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
                 s2 = pipe_load_ptr_slot(cls, kj);
               }
               if (clens != 0 as *u8) {
-                l2 = shux_size_slot_get(clens, kj);
+                l2 = xlang_size_slot_get(clens, kj);
               }
               if (out_src != 0 as *u8) {
-                shux_ptr_slot_set(out_src, mi, s2);
+                xlang_ptr_slot_set(out_src, mi, s2);
               }
               if (out_lens != 0 as *u8) {
-                shux_size_slot_set(out_lens, mi, l2);
+                xlang_size_slot_set(out_lens, mi, l2);
               }
-              shux_ptr_slot_set(out_paths, mi, cp2);
+              xlang_ptr_slot_set(out_paths, mi, cp2);
               mi = mi + 1;
             }
           } else {
@@ -2631,15 +6452,15 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
               s3 = pipe_load_ptr_slot(cls, kj);
             }
             if (clens != 0 as *u8) {
-              l3 = shux_size_slot_get(clens, kj);
+              l3 = xlang_size_slot_get(clens, kj);
             }
             if (out_src != 0 as *u8) {
-              shux_ptr_slot_set(out_src, mi, s3);
+              xlang_ptr_slot_set(out_src, mi, s3);
             }
             if (out_lens != 0 as *u8) {
-              shux_size_slot_set(out_lens, mi, l3);
+              xlang_size_slot_set(out_lens, mi, l3);
             }
-            shux_ptr_slot_set(out_paths, mi, cp2);
+            xlang_ptr_slot_set(out_paths, mi, cp2);
             mi = mi + 1;
           }
         }
@@ -2648,14 +6469,14 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
     kj = kj + 1;
   }
   unsafe {
-    shux_i32_store(out_n, mi);
+    xlang_i32_store(out_n, mi);
   }
   return 0;
 }
 
-// shux_collect_deps_transitive: see function docblock below.
-/** Exported function `shux_collect_deps_transitive`.
- * Implements `shux_collect_deps_transitive`.
+// xlang_collect_deps_transitive: see function docblock below.
+/** Exported function `xlang_collect_deps_transitive`.
+ * Implements `xlang_collect_deps_transitive`.
  * @param module *u8
  * @param arena_sz i64
  * @param module_sz i64
@@ -2671,7 +6492,7 @@ export function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i
  * @return i32
  */
 #[no_mangle]
-export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
+export function xlang_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2680,23 +6501,23 @@ export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_
   }
   let nimp: i32 = 0;
   unsafe {
-    nimp = shux_module_num_imports(module);
+    nimp = xlang_module_num_imports(module);
   }
   if (nimp <= 0) {
     unsafe {
-      shux_i32_store(n_deps, 0);
+      xlang_i32_store(n_deps, 0);
     }
     return 0;
   }
   unsafe {
-    return shux_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
+    return xlang_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
   }
   return 0 - 1;
 }
 
-// shux_collect_dep_paths_transitive: see function docblock below.
-/** Exported function `shux_collect_dep_paths_transitive`.
- * Implements `shux_collect_dep_paths_transitive`.
+// xlang_collect_dep_paths_transitive: see function docblock below.
+/** Exported function `xlang_collect_dep_paths_transitive`.
+ * Implements `xlang_collect_dep_paths_transitive`.
  * @param module *u8
  * @param arena_sz i64
  * @param module_sz i64
@@ -2710,7 +6531,7 @@ export function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_
  * @return i32
  */
 #[no_mangle]
-export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
+export function xlang_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
@@ -2719,26 +6540,354 @@ export function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, mo
   }
   let nimp: i32 = 0;
   unsafe {
-    nimp = shux_module_num_imports(module);
+    nimp = xlang_module_num_imports(module);
   }
   if (nimp <= 0) {
     unsafe {
-      shux_i32_store(n_deps, 0);
+      xlang_i32_store(n_deps, 0);
     }
     return 0;
   }
   unsafe {
-    return shux_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, n_deps);
+    return xlang_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, n_deps);
   }
   return 0 - 1;
 }
 
-/** Exported function `pipeline_debug_trace_named_func_bodies`.
- * Implements `pipeline_debug_trace_named_func_bodies`.
- * @param phase *u8
- * @param module *u8
- * @param arena *u8
+/**
+ * Append a NUL-terminated C string into dst at offset at (wave82 body-trace msg builder).
+ * @param dst *u8 — destination buffer; null → return at unchanged
+ * @param cap i32 — buffer capacity including space for trailing NUL
+ * @param at i32 — current write offset
+ * @param src *u8 — source cstr; null → return at unchanged
+ * @return i32 — new write offset (NUL written at dst[returned] when room)
+ * G.7: product link does not export driver_diag_append_*; same-TU pipe_ helper avoids
+ * a second cross-module public append authority while matching diagnostic append semantics.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipe_diag_msg_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32 {
+  if (dst == 0 as *u8) {
+    return at;
+  }
+  if (src == 0 as *u8) {
+    return at;
+  }
+  let j: i32 = at;
+  let i: i32 = 0;
+  unsafe {
+    while (j + 1 < cap) {
+      let c: u8 = src[i];
+      if (c == 0) {
+        break;
+      }
+      dst[j] = c;
+      j = j + 1;
+      i = i + 1;
+    }
+    if (j < cap) {
+      dst[j] = 0;
+    }
+  }
+  return j;
+}
+
+/**
+ * Append a decimal i32 (optional leading '-') into dst at offset at (wave82).
+ * @param dst *u8 — destination buffer; null → return at unchanged
+ * @param cap i32 — buffer capacity
+ * @param at i32 — current write offset
+ * @param val i32 — value to append
+ * @return i32 — new write offset
+ * PLATFORM: SHARED — same digit order as driver_diag_append_i32.
+ */
+#[no_mangle]
+export function pipe_diag_msg_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
+  if (dst == 0 as *u8) {
+    return at;
+  }
+  if (at + 1 >= cap) {
+    return at;
+  }
+  let v: i32 = val;
+  unsafe {
+    if (v < 0) {
+      dst[at] = 45;
+      at = at + 1;
+      v = 0 - v;
+    }
+    // Collect up to 10 digits least-first then reverse-write.
+    let d0: i32 = 0;
+    let d1: i32 = 0;
+    let d2: i32 = 0;
+    let d3: i32 = 0;
+    let d4: i32 = 0;
+    let d5: i32 = 0;
+    let d6: i32 = 0;
+    let d7: i32 = 0;
+    let d8: i32 = 0;
+    let d9: i32 = 0;
+    let dn: i32 = 0;
+    if (v == 0) {
+      d0 = 0;
+      dn = 1;
+    } else {
+      let t: i32 = v;
+      while (t > 0) {
+        if (dn >= 10) {
+          break;
+        }
+        let dig: i32 = t % 10;
+        if (dn == 0) { d0 = dig; }
+        if (dn == 1) { d1 = dig; }
+        if (dn == 2) { d2 = dig; }
+        if (dn == 3) { d3 = dig; }
+        if (dn == 4) { d4 = dig; }
+        if (dn == 5) { d5 = dig; }
+        if (dn == 6) { d6 = dig; }
+        if (dn == 7) { d7 = dig; }
+        if (dn == 8) { d8 = dig; }
+        if (dn == 9) { d9 = dig; }
+        dn = dn + 1;
+        t = t / 10;
+      }
+    }
+    let k: i32 = dn;
+    while (k > 0) {
+      if (at + 1 >= cap) {
+        break;
+      }
+      k = k - 1;
+      let dig: i32 = 0;
+      if (k == 0) { dig = d0; }
+      if (k == 1) { dig = d1; }
+      if (k == 2) { dig = d2; }
+      if (k == 3) { dig = d3; }
+      if (k == 4) { dig = d4; }
+      if (k == 5) { dig = d5; }
+      if (k == 6) { dig = d6; }
+      if (k == 7) { dig = d7; }
+      if (k == 8) { dig = d8; }
+      if (k == 9) { dig = d9; }
+      dst[at] = (48 + dig) as u8;
+      at = at + 1;
+    }
+    if (at < cap) {
+      dst[at] = 0;
+    }
+  }
+  return at;
+}
+
+/**
+ * Append name[0..name_len) into dst at offset at (wave82).
+ * @param dst *u8 — destination buffer
+ * @param cap i32 — capacity
+ * @param at i32 — write offset
+ * @param name *u8 — name bytes; null → return at
+ * @param name_len i32 — byte count; <=0 → return at
+ * @return i32 — new write offset
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipe_diag_msg_append_name(dst: *u8, cap: i32, at: i32, name: *u8, name_len: i32): i32 {
+  if (dst == 0 as *u8) {
+    return at;
+  }
+  if (name == 0 as *u8) {
+    return at;
+  }
+  if (name_len <= 0) {
+    return at;
+  }
+  let n: i32 = 0;
+  unsafe {
+    while (n < name_len) {
+      if (at + 1 >= cap) {
+        break;
+      }
+      dst[at] = name[n];
+      at = at + 1;
+      n = n + 1;
+    }
+    if (at < cap) {
+      dst[at] = 0;
+    }
+  }
+  return at;
+}
+
+/**
+ * Pure body of XLANG_DEBUG_BODY_FUNC named-function body trace (wave82).
+ * @param phase *u8 — phase tag for note text; null → "?"
+ * @param module *u8 — AST module; null → no-op
+ * @param arena *u8 — AST arena; null → no-op
  * @return void
+ * wave82 pure Cap residual orch:
+ *   G.7 link_abi_getenv XLANG_DEBUG_BODY_FUNC gate (empty/'0' → no-op; wave235);
+ *   G.7 pipeline_module_num_funcs / func_name_* / body_ref_at (ast_pool Cap residual);
+ *   G.7 pure pipeline_debug_body_func_match (comma token filter);
+ *   G.7 ast_ast_block_num_* / final_expr_ref when body_ref > 0 else -1;
+ *   G.7 pure pipe_diag_msg_append_* + diag_report fixed "note" msg (no va_list reportf;
+ *   cold twin keeps historical reportf format string).
+ * PLATFORM: SHARED — same filter/match semantics as seed cold twin.
+ */
+#[no_mangle]
+export function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (arena == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let key: u8[24] = [];
+    // "XLANG_DEBUG_BODY_FUNC"
+    key[0] = 83; key[1] = 72; key[2] = 85; key[3] = 88; key[4] = 95;
+    key[5] = 68; key[6] = 69; key[7] = 66; key[8] = 85; key[9] = 71;
+    key[10] = 95; key[11] = 66; key[12] = 79; key[13] = 68; key[14] = 89;
+    key[15] = 95; key[16] = 70; key[17] = 85; key[18] = 78; key[19] = 67;
+    key[20] = 0;
+    // wave235 G.7: XLANG_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv).
+    let filter: *u8 = link_abi_getenv(&key[0]);
+    if (filter == 0 as *u8) {
+      return;
+    }
+    if (filter[0] == 0) {
+      return;
+    }
+    // '0' disables (same as pure pipeline_debug_body_func_match / seed).
+    if (filter[0] == 48) {
+      return;
+    }
+    let nf: i32 = pipeline_module_num_funcs(module);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      let raw_name: u8[64] = [];
+      let name: u8[65] = [];
+      let ni: i32 = 0;
+      while (ni < 64) {
+        raw_name[ni] = 0;
+        ni = ni + 1;
+      }
+      ni = 0;
+      while (ni < 65) {
+        name[ni] = 0;
+        ni = ni + 1;
+      }
+      let name_len: i32 = pipeline_module_func_name_len_at(module, fi);
+      if (name_len > 0) {
+        if (name_len <= 64) {
+          pipeline_module_func_name_copy64(module, fi, &raw_name[0]);
+          let ci: i32 = 0;
+          while (ci < name_len) {
+            name[ci] = raw_name[ci];
+            ci = ci + 1;
+          }
+          name[name_len] = 0;
+          if (pipeline_debug_body_func_match(filter, &name[0]) != 0) {
+            let body_ref: i32 = pipeline_module_func_body_ref_at(module, fi);
+            let c_n: i32 = 0 - 1;
+            let l_n: i32 = 0 - 1;
+            let if_n: i32 = 0 - 1;
+            let reg_n: i32 = 0 - 1;
+            let so_n: i32 = 0 - 1;
+            let fin_n: i32 = 0 - 1;
+            if (body_ref > 0) {
+              c_n = ast_ast_block_num_consts(arena, body_ref);
+              l_n = ast_ast_block_num_lets(arena, body_ref);
+              if_n = ast_ast_block_num_if_stmts(arena, body_ref);
+              reg_n = ast_ast_block_num_regions(arena, body_ref);
+              so_n = ast_ast_block_num_stmt_order(arena, body_ref);
+              fin_n = ast_ast_block_final_expr_ref(arena, body_ref);
+            }
+            // Build: body trace: phase=… fi=… body_ref=… name=… block(c=… l=… if=… reg=… so=… fin=…)
+            let msg: u8[320] = [];
+            let at: i32 = 0;
+            let cap: i32 = 320;
+            let lit: u8[32] = [];
+            // "body trace: phase="
+            lit[0] = 98; lit[1] = 111; lit[2] = 100; lit[3] = 121; lit[4] = 32;
+            lit[5] = 116; lit[6] = 114; lit[7] = 97; lit[8] = 99; lit[9] = 101;
+            lit[10] = 58; lit[11] = 32; lit[12] = 112; lit[13] = 104; lit[14] = 97;
+            lit[15] = 115; lit[16] = 101; lit[17] = 61; lit[18] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            if (phase != 0 as *u8) {
+              if (phase[0] != 0) {
+                at = pipe_diag_msg_append_cstr(&msg[0], cap, at, phase);
+              } else {
+                lit[0] = 63; lit[1] = 0; // "?"
+                at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+              }
+            } else {
+              lit[0] = 63; lit[1] = 0;
+              at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            }
+            // " fi="
+            lit[0] = 32; lit[1] = 102; lit[2] = 105; lit[3] = 61; lit[4] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, fi);
+            // " body_ref="
+            lit[0] = 32; lit[1] = 98; lit[2] = 111; lit[3] = 100; lit[4] = 121;
+            lit[5] = 95; lit[6] = 114; lit[7] = 101; lit[8] = 102; lit[9] = 61;
+            lit[10] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, body_ref);
+            // " name="
+            lit[0] = 32; lit[1] = 110; lit[2] = 97; lit[3] = 109; lit[4] = 101;
+            lit[5] = 61; lit[6] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_name(&msg[0], cap, at, &name[0], name_len);
+            // " block(c="
+            lit[0] = 32; lit[1] = 98; lit[2] = 108; lit[3] = 111; lit[4] = 99;
+            lit[5] = 107; lit[6] = 40; lit[7] = 99; lit[8] = 61; lit[9] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, c_n);
+            // " l="
+            lit[0] = 32; lit[1] = 108; lit[2] = 61; lit[3] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, l_n);
+            // " if="
+            lit[0] = 32; lit[1] = 105; lit[2] = 102; lit[3] = 61; lit[4] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, if_n);
+            // " reg="
+            lit[0] = 32; lit[1] = 114; lit[2] = 101; lit[3] = 103; lit[4] = 61;
+            lit[5] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, reg_n);
+            // " so="
+            lit[0] = 32; lit[1] = 115; lit[2] = 111; lit[3] = 61; lit[4] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, so_n);
+            // " fin="
+            lit[0] = 32; lit[1] = 102; lit[2] = 105; lit[3] = 110; lit[4] = 61;
+            lit[5] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            at = pipe_diag_msg_append_i32(&msg[0], cap, at, fin_n);
+            // ")"
+            lit[0] = 41; lit[1] = 0;
+            at = pipe_diag_msg_append_cstr(&msg[0], cap, at, &lit[0]);
+            let note_k: u8[8] = [];
+            note_k[0] = 110; note_k[1] = 111; note_k[2] = 116; note_k[3] = 101;
+            note_k[4] = 0;
+            diag_report(0 as *u8, 0, 0, &note_k[0], &msg[0], 0 as *u8);
+          }
+        }
+      }
+      fi = fi + 1;
+    }
+  }
+}
+
+/**
+ * Public thin: null-gate then G.7 pure pipeline_debug_trace_named_func_bodies_impl.
+ * @param phase *u8 — phase tag passed to impl; may be null
+ * @param module *u8 — AST module; null → no-op
+ * @param arena *u8 — AST arena; null → no-op
+ * @return void
+ * wave82: pure owns full body-trace orch (no always-seed _impl call).
+ * PLATFORM: SHARED — same ABI as seed cold twin under #ifndef FROM_X.
  */
 #[no_mangle]
 export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void {
@@ -2753,44 +6902,129 @@ export function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, 
   }
 }
 
-/* ---- G-02f-63 / G-02f-242：typeck_for_ctx / lsp free_loaded ---- */
+/* ---- G-02f-63 / G-02f-242 / wave63：typeck_for_ctx / lsp free_loaded ---- */
 
-// pipeline_typeck_module_for_ctx: see function docblock below.
-/** Exported function `pipeline_typeck_module_for_ctx`.
- * Implements `pipeline_typeck_module_for_ctx`.
- * @param module *u8
- * @param arena *u8
- * @param ctx *u8
- * @return i32
+/**
+ * Historical C typeck entry-only surface (no arena/ctx).
+ * @param module *u8 — AST module; null → -1
+ * @return i32 — always -1 when module non-null (X frontend needs arena+ctx)
+ * wave87: C typeck_module frontend deleted (weak -1 only). Callers with arena/ctx
+ * must use pipeline_typeck_module_for_ctx → typeck_x_ast. Keep symbol for cold/ABI.
+ * PLATFORM: SHARED — same fail-closed semantics as deleted C frontend stub.
+ */
+#[no_mangle]
+export function typeck_module_entry_only(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  // No arena/ctx: cannot invoke typeck_x_ast. Use pipeline_typeck_module_for_ctx.
+  return 0 - 1;
+}
+
+/**
+ * Historical C typeck sidecar surface (typeck_ndep BSS + typeck_module).
+ * @param module *u8 — AST module; null → -1
+ * @return i32 — always -1 when module non-null (X frontend uses PipelineDepCtx, not BSS)
+ * wave87: dep sidecar for deleted C typeck_module is obsolete; product deps live in ctx.
+ * PLATFORM: SHARED — fail-closed; G.7 authority is typeck_x_ast via for_ctx.
+ */
+#[no_mangle]
+export function typeck_module_with_sidecar(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Product typeck-for-ctx: route to typeck_x_ast authority (entry vs library).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — AST arena (required by typeck_x_ast*)
+ * @param ctx_void *u8 — PipelineDepCtx (required by typeck_x_ast*; holds import deps)
+ * @return i32 — 0 success, -1 failure (maps any non-zero typeck_x_ast* code to -1)
+ * wave87 pure Cap residual close: G.7 single authority typeck_x_ast / typeck_x_ast_library
+ *   (typeck.x); chooses library when pipeline_module_main_func_index < 0
+ *   (≡ pipeline_impl_typecheck / force_c branch). No C typeck_module.
+ * PLATFORM: SHARED — force_c and default product path share X frontend.
+ */
+#[no_mangle]
+export function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx_void: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  // Reject missing arena/ctx early (typeck_x_ast_library returns -5; keep for_ctx as 0/-1).
+  if (arena == 0 as *u8 || ctx_void == 0 as *u8) {
+    return 0 - 1;
+  }
+  let mi: i32 = 0;
+  unsafe {
+    mi = pipeline_module_main_func_index(module);
+  }
+  let rc: i32 = 0;
+  unsafe {
+    // Library modules (no main): typeck_x_ast_library; entry with main: typeck_x_ast.
+    if (mi < 0) {
+      rc = typeck_x_ast_library(module, arena, ctx_void);
+    } else {
+      rc = typeck_x_ast(module, arena, ctx_void);
+    }
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Thin gate for pipeline typeck-for-ctx (null module → -1).
+ * @param module *u8 — AST module; null → -1
+ * @param arena *u8 — passed through to typeck_x_ast*
+ * @param ctx *u8 — passed through to typeck_x_ast* (PipelineDepCtx)
+ * @return i32 — 0 success, -1 failure
+ * wave63/wave87: body in pure pipeline_typeck_module_for_ctx_impl after null gate.
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
-  // See implementation.
-  let _a: *u8 = arena;
-  let _c: *u8 = ctx;
-  let n: i32 = get_ndep();
-  unsafe {
-    if (n > 0) {
-      return typeck_module_with_sidecar(module);
-    }
-    return typeck_module_entry_only(module);
-  }
-  return 0 - 1;
+  return pipeline_typeck_module_for_ctx_impl(module, arena, ctx);
 }
 
-// shu_lsp_free_loaded_imports: see function docblock below.
-/** Exported function `shu_lsp_free_loaded_imports`.
- * Memory management helper `shu_lsp_free_loaded_imports`.
- * @param all_dep_mods *u8
- * @param all_dep_paths *u8
- * @param n_all i32
+/**
+ * Clear pointer table slot i to null (after free/ast_module_free of the old value).
+ * @param arr *u8 — void-star / char-star table base; null → no-op
+ * @param i i32 — index; i < 0 → no-op
  * @return void
+ * wave78 pure: G.7 thin → xlang_ptr_slot_set(arr, i, null); single authority for slot stores.
+ * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
+export function xlang_lsp_ptr_slot_clear(arr: *u8, i: i32): void {
+  if (arr == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  unsafe {
+    xlang_ptr_slot_set(arr, i, 0 as *u8);
+  }
+}
+
+// xlang_lsp_free_loaded_imports: see function docblock below.
+/**
+ * Free dep modules/paths written by xlang_lsp_resolve_and_load_imports (not entry module).
+ * @param all_dep_mods *u8 — void** module table base
+ * @param all_dep_paths *u8 — char** path table base
+ * @param n_all i32 — slot count; <=0 → no-op
+ * @return void
+ * G.7 pure xlang_lsp_ptr_slot_clear (wave78) nulls slots after free.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
   if (all_dep_mods == 0 as *u8) { return; }
   if (all_dep_paths == 0 as *u8) { return; }
   if (n_all <= 0) { return; }
@@ -2800,12 +7034,12 @@ export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u
       let p: *u8 = pipe_load_ptr_slot(all_dep_paths, i);
       if (p != 0 as *u8) {
         free(p);
-        shu_lsp_ptr_slot_clear(all_dep_paths, i);
+        xlang_lsp_ptr_slot_clear(all_dep_paths, i);
       }
       let m: *u8 = pipe_load_ptr_slot(all_dep_mods, i);
       if (m != 0 as *u8) {
         ast_module_free(m);
-        shu_lsp_ptr_slot_clear(all_dep_mods, i);
+        xlang_lsp_ptr_slot_clear(all_dep_mods, i);
       }
     }
     i = i + 1;
@@ -3074,16 +7308,1084 @@ export function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
   return a as *u8;
 }
 
-// shux_dep_prerun_entry_dir_pick: see function docblock below.
-/** Exported function `shux_dep_prerun_entry_dir_pick`.
- * Implements `shux_dep_prerun_entry_dir_pick`.
+/**
+ * Store little-endian pointer into base[i] (LP64 8-byte cell).
+ * Module-local pair of pipe_load_ptr_slot (no second G.7 path).
+ * @param base *u8 — table base; null → no-op
+ * @param i i32 — slot index; i < 0 → no-op
+ * @param val *u8 — pointer bits to store (may be null)
+ * @return void
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void {
+  if (base == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  let off: i32 = i * 8;
+  unsafe {
+    let m: usize = 256 as usize;
+    let b255: usize = 255 as usize;
+    let u0: usize = val as usize;
+    base[off] = (u0 & b255) as u8;
+    let u1: usize = u0 / m;
+    base[off + 1] = (u1 & b255) as u8;
+    let u2: usize = u1 / m;
+    base[off + 2] = (u2 & b255) as u8;
+    let u3: usize = u2 / m;
+    base[off + 3] = (u3 & b255) as u8;
+    let u4: usize = u3 / m;
+    base[off + 4] = (u4 & b255) as u8;
+    let u5: usize = u4 / m;
+    base[off + 5] = (u5 & b255) as u8;
+    let u6: usize = u5 / m;
+    base[off + 6] = (u6 & b255) as u8;
+    let u7: usize = u6 / m;
+    base[off + 7] = (u7 & b255) as u8;
+  }
+}
+
+/**
+ * Load size_t / i64 slot i from an array of LP64 8-byte cells (LE).
+ * @param arr *u8 — size_t* base as bytes; null → 0
+ * @param i i32 — index; i < 0 → 0
+ * @return i64 — cell value as signed i64 (path lengths fit)
+ * wave46 pure Cap residual; cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function xlang_size_slot_get(arr: *u8, i: i32): i64 {
+  if (arr == 0 as *u8) {
+    return 0;
+  }
+  if (i < 0) {
+    return 0;
+  }
+  // Same LE reconstruct as pipe_load_ptr_slot; cast pointer bits → i64 length.
+  let p: *u8 = pipe_load_ptr_slot(arr, i);
+  return p as i64;
+}
+
+/**
+ * Store size_t / i64 into arr[i] (LP64 8-byte LE cell).
+ * @param arr *u8 — size_t* base as bytes; null → no-op
+ * @param i i32 — index; i < 0 → no-op
+ * @param v i64 — value (path length / buffer size)
+ * @return void
+ * wave46 pure; pairs xlang_size_slot_get. PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function xlang_size_slot_set(arr: *u8, i: i32, v: i64): void {
+  if (arr == 0 as *u8) {
+    return;
+  }
+  if (i < 0) {
+    return;
+  }
+  pipe_store_ptr_slot(arr, i, v as *u8);
+}
+
+/**
+ * Write pointer p into char-star / void-star array slot i (G.7 product authority).
+ * @param arr *u8 — void** / char** table base as bytes; null → no-op
+ * @param i i32 — slot index; i < 0 → no-op
+ * @param p *u8 — pointer to store (may be null)
+ * @return void
+ * wave46 pure; driver_abi / fmt_check call this as Cap residual surface.
+ * PLATFORM: SHARED LP64 — single authority in this TU under PREFER hybrid.
+ */
+#[no_mangle]
+export function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void {
+  pipe_store_ptr_slot(arr, i, p);
+}
+
+/**
+ * Load pointer slot i from a char-star / void-star array base (G.7 pair with set).
+ * @param arr *u8 — table base; null → null
+ * @param i i32 — index; i < 0 → null
+ * @return *u8 — pointer at slot (may be null)
+ * wave46 pure. PLATFORM: SHARED LP64.
+ * Note: never put the two-char end-comment marker inside prose (truncates the block).
+ */
+#[no_mangle]
+export function xlang_ptr_slot_get(arr: *u8, i: i32): *u8 {
+  if (arr == 0 as *u8) {
+    return 0 as *u8;
+  }
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  return pipe_load_ptr_slot(arr, i);
+}
+
+/**
+ * Store i32 v through pointer p (null-safe).
+ * @param p *i32 — destination; null → no-op
+ * @param v i32 — value
+ * @return void
+ * wave46 pure Cap residual (merge out_n / n_deps). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_i32_store(p: *i32, v: i32): void {
+  if (p == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    p[0] = v;
+  }
+}
+
+/**
+ * Return module import count (null module → 0).
+ * @param module *u8 — opaque AST module; null → 0
+ * @return i32 — import count from parser authority
+ * wave46 pure thin over parser_get_module_num_imports (strong from parser_x at final link).
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_module_num_imports(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  return parser_get_module_num_imports(module);
+}
+
+/**
+ * Copy import path at idx into buf as a C string (NUL-terminated).
+ * @param module *u8 — opaque AST module; null → buf[0]=0 when buf valid
+ * @param idx i32 — import index
+ * @param buf *u8 — destination; null or cap<=0 → no-op
+ * @param cap i32 — capacity including NUL; copies min(path, cap-1)
+ * @return void
+ * wave46 pure: parser path bytes then copy loop (no libc). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void {
+  if (buf == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  unsafe {
+    buf[0] = 0;
+  }
+  if (module == 0 as *u8) {
+    return;
+  }
+  let path_buf: u8[64] = [];
+  unsafe {
+    parser_get_module_import_path(module, idx, &path_buf[0]);
+  }
+  let k: i32 = 0;
+  while (k < 64) {
+    let ch: u8 = 0;
+    unsafe {
+      ch = path_buf[k];
+    }
+    if (ch == 0) {
+      break;
+    }
+    if (k + 1 >= cap) {
+      break;
+    }
+    unsafe {
+      buf[k] = ch;
+    }
+    k = k + 1;
+  }
+  unsafe {
+    buf[k] = 0;
+  }
+}
+
+/**
+ * True if to_load[0..to_load_n) already contains path (C-string eq).
+ * @param to_load *u8 — char** queue base as bytes; null → 0
+ * @param to_load_n i32 — live count
+ * @param path *u8 — candidate C string; null → 0
+ * @return i32 — 1 if found, 0 otherwise
+ * wave46 pure; used by Cap residual collect enqueue. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_to_load_has(to_load: *u8, to_load_n: i32, path: *u8): i32 {
+  if (to_load == 0 as *u8) {
+    return 0;
+  }
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (to_load_n <= 0) {
+    return 0;
+  }
+  let t: i32 = 0;
+  while (t < to_load_n) {
+    let p: *u8 = pipe_load_ptr_slot(to_load, t);
+    if (p != 0 as *u8) {
+      if (pipe_cstr_eq(p, path) != 0) {
+        return 1;
+      }
+    }
+    t = t + 1;
+  }
+  return 0;
+}
+
+/**
+ * Owned C-string copy for collect queue / dep_paths keys (malloc + byte copy + trailing NUL).
+ * @param s *u8 — source NUL-terminated C string; null → null
+ * @return *u8 — newly owned copy (release with free()); null if s is null or OOM
+ * wave54 pure Cap residual thin shell:
+ *   null s → null; scan length until NUL; malloc(n+1); copy n bytes + trailing NUL.
+ * Do not name this libc strdup — string.h after -E preamble would conflict on the short name.
+ * G.7 seed_to_load / enqueue / load_one / paths_process_one call this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_strdup(s: *u8): *u8 {
+  if (s == 0 as *u8) {
+    return 0 as *u8;
+  }
+  // Count bytes before trailing NUL (same unbounded scan as libc strdup).
+  let n: i32 = 0;
+  unsafe {
+    while (s[n] != 0) {
+      n = n + 1;
+    }
+  }
+  let out: *u8 = 0 as *u8;
+  unsafe {
+    out = malloc((n + 1) as usize);
+  }
+  if (out == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let i: i32 = 0;
+  unsafe {
+    while (i < n) {
+      out[i] = s[i];
+      i = i + 1;
+    }
+    out[n] = 0;
+  }
+  return out;
+}
+
+/**
+ * Seed the collect to_load queue from module direct imports (owned strdup keys).
+ * @param module *u8 — opaque AST module; null → empty queue + 0
+ * @param to_load *u8 — char** queue base as bytes; null → fail 1
+ * @param to_load_n *i32 — out live count; null → fail 1; reset to 0 first
+ * @return i32 — 0 success; 1 OOM (queue freed and count cleared)
+ * wave47 pure Cap residual: G.7 reuses xlang_module_num_imports / import_path_cstr /
+ *   pipe_store_ptr_slot; wave54 pure xlang_collect_strdup for ownership (free on fail).
+ * Slot max = XLANG_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_seed_to_load(module: *u8, to_load: *u8, to_load_n: *i32): i32 {
+  if (to_load == 0 as *u8) {
+    return 1;
+  }
+  if (to_load_n == 0 as *i32) {
+    return 1;
+  }
+  unsafe {
+    to_load_n[0] = 0;
+  }
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  let slot_max: i32 = 32;
+  let n_imports: i32 = xlang_module_num_imports(module);
+  let j: i32 = 0;
+  while (j < n_imports) {
+    if (j >= slot_max) {
+      break;
+    }
+    let n: i32 = 0;
+    unsafe {
+      n = to_load_n[0];
+    }
+    if (n >= slot_max) {
+      break;
+    }
+    let path_c: u8[65] = [];
+    xlang_module_import_path_cstr(module, j, &path_c[0], 65);
+    let owned: *u8 = 0 as *u8;
+    unsafe {
+      owned = xlang_collect_strdup(&path_c[0]);
+    }
+    if (owned == 0 as *u8) {
+      // Free partial queue on OOM (same contract as seed cold twin).
+      while (n > 0) {
+        n = n - 1;
+        let p: *u8 = pipe_load_ptr_slot(to_load, n);
+        if (p != 0 as *u8) {
+          unsafe {
+            free(p);
+          }
+        }
+        pipe_store_ptr_slot(to_load, n, 0 as *u8);
+      }
+      unsafe {
+        to_load_n[0] = 0;
+      }
+      return 1;
+    }
+    pipe_store_ptr_slot(to_load, n, owned);
+    unsafe {
+      to_load_n[0] = n + 1;
+    }
+    j = j + 1;
+  }
+  return 0;
+}
+
+/**
+ * Ensure tmp arena/module, parse prep bytes into them, enqueue sub-imports onto to_load.
+ * @param tmp_arena *u8 — void star-star slot for reusable tmp arena; null → no-op
+ * @param tmp_module *u8 — void star-star slot for reusable tmp module; null → no-op
+ * @param arena_sz i64 — malloc size when *tmp_arena is null; must match ParseInto arena layout
+ * @param module_sz i64 — malloc size when first ensuring tmp; must match ParseInto module layout
+ * @param prep *u8 — owned prep source bytes (not freed here); null → no-op
+ * @param prep_len i64 — byte length of prep
+ * @param debug_path *u8 — path key for optional XLANG_DEBUG_PIPE note (cold twin only; pure ignores)
+ * @param to_load *u8 — char star-star queue base for sub-import keys
+ * @param to_load_n *i32 — live queue count (in/out)
+ * @param dep_paths *u8 — already-loaded keys as char star-star; may be null if n_loaded==0
+ * @param n_loaded i32 — count of committed dep_paths
+ * @return void
+ * wave52 pure Cap residual orch:
+ *   if *tmp_arena null → malloc arena_sz + module_sz into both slots;
+ *   if both live → memset zero, pipeline_parse_into_bytes, G.7 pure enqueue_module_imports.
+ *   OOM on malloc: leave null slots and return (same as cold twin skip parse).
+ * G.7 process_one / paths_tmp Cap residual call this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_tmp_parse_and_enqueue(tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, prep: *u8, prep_len: i64, debug_path: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
+  if (tmp_arena == 0 as *u8) {
+    return;
+  }
+  if (tmp_module == 0 as *u8) {
+    return;
+  }
+  if (prep == 0 as *u8) {
+    return;
+  }
+  // Silence unused debug_path in pure (cold twin may log under XLANG_DEBUG_PIPE).
+  if (debug_path == 0 as *u8) {
+  }
+  let ta: *u8 = pipe_load_ptr_slot(tmp_arena, 0);
+  let tm: *u8 = pipe_load_ptr_slot(tmp_module, 0);
+  // First use: allocate both buffers (same order as cold twin).
+  if (ta == 0 as *u8) {
+    unsafe {
+      ta = malloc(arena_sz as usize);
+      tm = malloc(module_sz as usize);
+    }
+    pipe_store_ptr_slot(tmp_arena, 0, ta);
+    pipe_store_ptr_slot(tmp_module, 0, tm);
+  }
+  // Historical: if either buffer missing, skip parse (path already registered upstream).
+  if (ta == 0 as *u8) {
+    return;
+  }
+  if (tm == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    memset(ta, 0, arena_sz as usize);
+    memset(tm, 0, module_sz as usize);
+  }
+  // ParseIntoResult lives in seed; pure only sees rc (unused beyond call).
+  let pr_rc: i32 = 0;
+  unsafe {
+    pr_rc = pipeline_parse_into_bytes(ta, tm, prep, prep_len);
+  }
+  if (pr_rc != 0) {
+    // Still enqueue whatever imports the partial/failed parse left (same as cold twin).
+  }
+  xlang_collect_enqueue_module_imports(tm, to_load, to_load_n, dep_paths, n_loaded);
+}
+
+/**
+ * Paths-only shell: ensure tmp, resolve+read+preprocess path_c, parse+enqueue, free prep.
+ * Called after paths_process_one has registered the owned dep_paths key.
+ * @param path_c *u8 — import key C string (not owned; not freed here); null → fail 1
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param tmp_arena *u8 — void star-star tmp arena slot; null → fail 1
+ * @param tmp_module *u8 — void star-star tmp module slot; null → fail 1
+ * @param arena_sz i64 — malloc size when first ensuring tmp arena
+ * @param module_sz i64 — malloc size when first ensuring tmp module
+ * @param to_load *u8 — char star-star queue base for sub-import keys
+ * @param to_load_n *i32 — live queue count (in/out)
+ * @param dep_paths *u8 — already-loaded keys as char star-star
+ * @param n_loaded i32 — count of committed dep_paths
+ * @return i32 — 0 continue (incl. tmp OOM skip parse); 1 resolve/preprocess fail
+ * wave53 pure Cap residual orch:
+ *   if *tmp_arena null → malloc arena_sz + module_sz into both slots;
+ *   if either buffer missing → return 0 (path already registered upstream; historical);
+ *   wave55 pure xlang_load_one_direct_resolve_read_preprocess → owned prep;
+ *   G.7 pure xlang_collect_tmp_parse_and_enqueue; free prep.
+ * G.7 paths_process_one calls this. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_paths_tmp_resolve_parse_enqueue(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): i32 {
+  if (path_c == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_arena == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_module == 0 as *u8) {
+    return 1;
+  }
+  // Historical early ensure (before resolve): if *tmp_arena null, allocate both.
+  let ta: *u8 = pipe_load_ptr_slot(tmp_arena, 0);
+  if (ta == 0 as *u8) {
+    let tm_new: *u8 = 0 as *u8;
+    unsafe {
+      ta = malloc(arena_sz as usize);
+      tm_new = malloc(module_sz as usize);
+    }
+    pipe_store_ptr_slot(tmp_arena, 0, ta);
+    pipe_store_ptr_slot(tmp_module, 0, tm_new);
+  }
+  ta = pipe_load_ptr_slot(tmp_arena, 0);
+  let tm: *u8 = pipe_load_ptr_slot(tmp_module, 0);
+  // Historical: if tmp unavailable, path stays registered and we skip parse (return 0).
+  if (ta == 0 as *u8) {
+    return 0;
+  }
+  if (tm == 0 as *u8) {
+    return 0;
+  }
+  // wave55 pure: stack PATH + FILE view + preprocess → owned prep (not stored in dep slots).
+  let prep_cell: u8[8] = [];
+  let prep_len_cell: u8[8] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_load_one_direct_resolve_read_preprocess(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, &prep_cell[0], &prep_len_cell[0]);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(&prep_cell[0], 0);
+  let prep_len: i64 = xlang_size_slot_get(&prep_len_cell[0], 0);
+  // G.7 pure: memset + parse_into_bytes + enqueue (tmp already live from ensure above).
+  unsafe {
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load, to_load_n, dep_paths, n_loaded);
+  }
+  // prep is owned only by this shell (paths-only does not keep sources); always free.
+  if (prep != 0 as *u8) {
+    unsafe {
+      free(prep);
+    }
+  }
+  return 0;
+}
+
+/**
+ * Process one owned to_load path into dep_sources/lens/paths and enqueue its sub-imports.
+ * @param path_c *u8 — owned C-string import key; consumed (freed) on all return paths
+ * @param lib_roots *u8 — char star-star lib roots for resolve; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources; written at slot *n
+ * @param dep_lens *u8 — size_t array base as bytes; written at slot *n
+ * @param dep_paths *u8 — char star-star owned keys; written at slot *n
+ * @param n *i32 — live loaded count (in/out); null → fail 1
+ * @param to_load *u8 — char star-star queue base; null → fail 1
+ * @param to_load_n *i32 — live queue count (in/out for enqueue); null → fail 1
+ * @param tmp_arena *u8 — void star-star tmp arena slot; null → fail 1
+ * @param tmp_module *u8 — void star-star tmp module slot; null → fail 1
+ * @param arena_sz i64 — malloc size for tmp arena when first needed
+ * @param module_sz i64 — malloc size for tmp module when first needed
+ * @return i32 — 0 continue; 1 fail (caller cleans queue + partial deps)
+ * wave48 pure Cap residual orch:
+ *   already-loaded → free path_c + 0;
+ *   G.7 load_one_direct_import_at stores prep/path at mi=*n (resolve/read/preprocess Cap);
+ *   free path_c; *n = mi+1;
+ *   wave52 pure xlang_collect_tmp_parse_and_enqueue for parse + enqueue.
+ * wave50: called from pure transitive_impl orch. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_deps_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
+  if (path_c == 0 as *u8) {
+    return 1;
+  }
+  if (n == 0 as *i32) {
+    return 1;
+  }
+  if (to_load == 0 as *u8) {
+    return 1;
+  }
+  if (to_load_n == 0 as *i32) {
+    return 1;
+  }
+  if (tmp_arena == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_module == 0 as *u8) {
+    return 1;
+  }
+  let mi: i32 = 0;
+  unsafe {
+    mi = n[0];
+  }
+  // Already loaded: drop owned path and continue (same as cold twin).
+  if (xlang_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
+    unsafe {
+      free(path_c);
+    }
+    return 0;
+  }
+  // Cap residual: resolve + read file view + preprocess → dep_sources/lens/paths[mi].
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, path_c, defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
+  }
+  unsafe {
+    free(path_c);
+  }
+  if (rc != 0) {
+    return 1;
+  }
+  let key: *u8 = pipe_load_ptr_slot(dep_paths, mi);
+  if (key == 0 as *u8) {
+    return 1;
+  }
+  unsafe {
+    n[0] = mi + 1;
+  }
+  let prep: *u8 = pipe_load_ptr_slot(dep_sources, mi);
+  let prep_len: i64 = xlang_size_slot_get(dep_lens, mi);
+  let n_loaded: i32 = mi + 1;
+  unsafe {
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, key, to_load, to_load_n, dep_paths, n_loaded);
+  }
+  return 0;
+}
+
+/**
+ * Paths-only process one owned to_load path into dep_paths and enqueue sub-imports.
+ * Unlike deps_process_one, does not keep prep sources/lens — only owned path keys.
+ * @param path_c *u8 — owned C-string import key; consumed (freed) on all return paths
+ * @param lib_roots *u8 — char star-star lib roots for resolve; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_paths *u8 — char star-star owned keys; written at slot *n
+ * @param n *i32 — live loaded count (in/out); null → fail 1
+ * @param to_load *u8 — char star-star queue base; null → fail 1
+ * @param to_load_n *i32 — live queue count (in/out for enqueue); null → fail 1
+ * @param tmp_arena *u8 — void star-star tmp arena slot; null → fail 1
+ * @param tmp_module *u8 — void star-star tmp module slot; null → fail 1
+ * @param arena_sz i64 — malloc size for tmp arena when first needed
+ * @param module_sz i64 — malloc size for tmp module when first needed
+ * @return i32 — 0 continue; 1 fail (caller cleans queue + partial paths)
+ * wave49 pure Cap residual orch:
+ *   already-loaded → free path_c + 0;
+ *   wave54 pure xlang_collect_strdup stores owned key at mi=*n; *n = mi+1;
+ *   wave53 pure xlang_collect_paths_tmp_resolve_parse_enqueue
+ *     (ensure tmp; Cap residual resolve/read/preprocess; G.7 pure tmp_parse; free prep);
+ *   free path_c. If tmp malloc fails residual no-ops success (path still registered).
+ * wave50: called from pure paths transitive_impl orch. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_paths_process_one(path_c: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n: *i32, to_load: *u8, to_load_n: *i32, tmp_arena: *u8, tmp_module: *u8, arena_sz: i64, module_sz: i64): i32 {
+  if (path_c == 0 as *u8) {
+    return 1;
+  }
+  if (n == 0 as *i32) {
+    return 1;
+  }
+  if (to_load == 0 as *u8) {
+    return 1;
+  }
+  if (to_load_n == 0 as *i32) {
+    return 1;
+  }
+  if (tmp_arena == 0 as *u8) {
+    return 1;
+  }
+  if (tmp_module == 0 as *u8) {
+    return 1;
+  }
+  let mi: i32 = 0;
+  unsafe {
+    mi = n[0];
+  }
+  // Already loaded: drop owned path and continue (same as cold twin).
+  if (xlang_find_loaded_import_index(path_c, dep_paths, mi) >= 0) {
+    unsafe {
+      free(path_c);
+    }
+    return 0;
+  }
+  // Register owned path key before resolve (fail paths leave key for caller cleanup).
+  let key: *u8 = 0 as *u8;
+  unsafe {
+    key = xlang_collect_strdup(path_c);
+  }
+  if (key == 0 as *u8) {
+    unsafe {
+      free(path_c);
+    }
+    return 1;
+  }
+  pipe_store_ptr_slot(dep_paths, mi, key);
+  unsafe {
+    n[0] = mi + 1;
+  }
+  let n_loaded: i32 = mi + 1;
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_collect_paths_tmp_resolve_parse_enqueue(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, tmp_arena, tmp_module, arena_sz, module_sz, to_load, to_load_n, dep_paths, n_loaded);
+  }
+  unsafe {
+    free(path_c);
+  }
+  return rc;
+}
+
+/**
+ * Transitive collect of dep sources/lens/paths: seed queue, drain via process_one, free leftovers.
+ * @param module *u8 — entry AST module; may be null (seed_to_load then empty)
+ * @param arena_sz i64 — tmp arena malloc size for first process_one that needs parse
+ * @param module_sz i64 — tmp module malloc size for first process_one that needs parse
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_sources *u8 — char star-star prep sources out slots
+ * @param dep_lens *u8 — size_t array base as bytes for prep lengths
+ * @param dep_paths *u8 — char star-star owned path keys out slots
+ * @param n_deps *i32 — out live count; null → fail 1
+ * @return i32 — 0 success; 1 fail (partial deps freed; queue/tmp freed)
+ * wave50 pure Cap residual orch:
+ *   stack char star-star to_load[32] as 256B + two void-star tmp cells as 16B
+ *   (G.7 same stack-ptr pattern as check_one_file argv);
+ *   G.7 xlang_collect_seed_to_load then drain with pure process_one;
+ *   success: free remaining queue + tmp, store *n_deps;
+ *   fail: free queue + tmp + dep_sources/paths[0..n).
+ * Slot max = XLANG_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
+  if (n_deps == 0 as *i32) {
+    return 1;
+  }
+  // char* to_load[32] as 32×8 pointer slots on stack (LP64).
+  let to_load: u8[256] = [];
+  let z: i32 = 0;
+  while (z < 256) {
+    to_load[z] = 0;
+    z = z + 1;
+  }
+  let to_load_n: i32 = 0;
+  // void* tmp_arena / tmp_module as two pointer cells (void star-star for process_one).
+  let tmp_cells: u8[16] = [];
+  z = 0;
+  while (z < 16) {
+    tmp_cells[z] = 0;
+    z = z + 1;
+  }
+  let n: i32 = 0;
+  let slot_max: i32 = 32;
+  if (xlang_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
+    // Fail: free any partial queue (seed_to_load already clears on OOM; still drain).
+    while (to_load_n > 0) {
+      to_load_n = to_load_n - 1;
+      let p: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+      if (p != 0 as *u8) {
+        unsafe {
+          free(p);
+        }
+      }
+      pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    }
+    return 1;
+  }
+  while (to_load_n > 0) {
+    if (n >= slot_max) {
+      break;
+    }
+    to_load_n = to_load_n - 1;
+    let path_c: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    let rc: i32 = 0;
+    unsafe {
+      rc = xlang_collect_deps_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
+    }
+    if (rc != 0) {
+      // Fail path: free remaining queue, tmp, and partial deps.
+      while (to_load_n > 0) {
+        to_load_n = to_load_n - 1;
+        let p2: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+        if (p2 != 0 as *u8) {
+          unsafe {
+            free(p2);
+          }
+        }
+        pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+      }
+      let ta: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+      let tm: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+      if (ta != 0 as *u8) {
+        unsafe {
+          free(ta);
+        }
+      }
+      if (tm != 0 as *u8) {
+        unsafe {
+          free(tm);
+        }
+      }
+      while (n > 0) {
+        n = n - 1;
+        let s: *u8 = pipe_load_ptr_slot(dep_sources, n);
+        let k: *u8 = pipe_load_ptr_slot(dep_paths, n);
+        if (s != 0 as *u8) {
+          unsafe {
+            free(s);
+          }
+        }
+        if (k != 0 as *u8) {
+          unsafe {
+            free(k);
+          }
+        }
+        pipe_store_ptr_slot(dep_sources, n, 0 as *u8);
+        pipe_store_ptr_slot(dep_paths, n, 0 as *u8);
+      }
+      return 1;
+    }
+  }
+  // Success: free leftover queue entries and tmp arena/module.
+  while (to_load_n > 0) {
+    to_load_n = to_load_n - 1;
+    let p3: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    if (p3 != 0 as *u8) {
+      unsafe {
+        free(p3);
+      }
+    }
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+  }
+  let ta_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+  let tm_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+  if (ta_ok != 0 as *u8) {
+    unsafe {
+      free(ta_ok);
+    }
+  }
+  if (tm_ok != 0 as *u8) {
+    unsafe {
+      free(tm_ok);
+    }
+  }
+  unsafe {
+    xlang_i32_store(n_deps, n);
+  }
+  return 0;
+}
+
+/**
+ * Paths-only transitive collect: seed queue, drain via paths_process_one, free leftovers.
+ * @param module *u8 — entry AST module; may be null (seed_to_load then empty)
+ * @param arena_sz i64 — tmp arena malloc size for first process_one that needs parse
+ * @param module_sz i64 — tmp module malloc size for first process_one that needs parse
+ * @param lib_roots *u8 — char star-star lib roots; may be null if n_lib_roots==0
+ * @param n_lib_roots i32 — lib root count
+ * @param entry_dir *u8 — entry directory C string; may be null
+ * @param defines *u8 — char star-star define names; may be null if ndefines==0
+ * @param ndefines i32 — define count
+ * @param dep_paths *u8 — char star-star owned path keys out slots
+ * @param n_deps *i32 — out live count; null → fail 1
+ * @return i32 — 0 success; 1 fail (partial paths freed; queue/tmp freed)
+ * wave50 pure Cap residual orch: same stack to_load + tmp_cells as deps transitive;
+ *   G.7 seed_to_load + pure paths_process_one; fail frees only dep_paths (no sources).
+ * Slot max = XLANG_DRIVER_DEP_SLOT_MAX (32). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
+  if (n_deps == 0 as *i32) {
+    return 1;
+  }
+  let to_load: u8[256] = [];
+  let z: i32 = 0;
+  while (z < 256) {
+    to_load[z] = 0;
+    z = z + 1;
+  }
+  let to_load_n: i32 = 0;
+  let tmp_cells: u8[16] = [];
+  z = 0;
+  while (z < 16) {
+    tmp_cells[z] = 0;
+    z = z + 1;
+  }
+  let n: i32 = 0;
+  let slot_max: i32 = 32;
+  if (xlang_collect_seed_to_load(module, &to_load[0], &to_load_n) != 0) {
+    while (to_load_n > 0) {
+      to_load_n = to_load_n - 1;
+      let p: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+      if (p != 0 as *u8) {
+        unsafe {
+          free(p);
+        }
+      }
+      pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    }
+    return 1;
+  }
+  while (to_load_n > 0) {
+    if (n >= slot_max) {
+      break;
+    }
+    to_load_n = to_load_n - 1;
+    let path_c: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+    let rc: i32 = 0;
+    unsafe {
+      rc = xlang_collect_paths_process_one(path_c, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, &n, &to_load[0], &to_load_n, &tmp_cells[0], &tmp_cells[8], arena_sz, module_sz);
+    }
+    if (rc != 0) {
+      while (to_load_n > 0) {
+        to_load_n = to_load_n - 1;
+        let p2: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+        if (p2 != 0 as *u8) {
+          unsafe {
+            free(p2);
+          }
+        }
+        pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+      }
+      let ta: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+      let tm: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+      if (ta != 0 as *u8) {
+        unsafe {
+          free(ta);
+        }
+      }
+      if (tm != 0 as *u8) {
+        unsafe {
+          free(tm);
+        }
+      }
+      while (n > 0) {
+        n = n - 1;
+        let k: *u8 = pipe_load_ptr_slot(dep_paths, n);
+        if (k != 0 as *u8) {
+          unsafe {
+            free(k);
+          }
+        }
+        pipe_store_ptr_slot(dep_paths, n, 0 as *u8);
+      }
+      return 1;
+    }
+  }
+  while (to_load_n > 0) {
+    to_load_n = to_load_n - 1;
+    let p3: *u8 = pipe_load_ptr_slot(&to_load[0], to_load_n);
+    if (p3 != 0 as *u8) {
+      unsafe {
+        free(p3);
+      }
+    }
+    pipe_store_ptr_slot(&to_load[0], to_load_n, 0 as *u8);
+  }
+  let ta_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 0);
+  let tm_ok: *u8 = pipe_load_ptr_slot(&tmp_cells[0], 1);
+  if (ta_ok != 0 as *u8) {
+    unsafe {
+      free(ta_ok);
+    }
+  }
+  if (tm_ok != 0 as *u8) {
+    unsafe {
+      free(tm_ok);
+    }
+  }
+  unsafe {
+    xlang_i32_store(n_deps, n);
+  }
+  return 0;
+}
+
+/**
+ * Enqueue sub-imports from a parsed tmp_module into to_load (skip loaded / already queued).
+ * @param tmp_module *u8 — parsed dep module; null → no-op
+ * @param to_load *u8 — char** queue base; null → no-op
+ * @param to_load_n *i32 — live queue count (in/out); null → no-op
+ * @param dep_paths *u8 — already-loaded import keys as char star-star; may be null if n_loaded==0
+ * @param n_loaded i32 — count of dep_paths already committed
+ * @return void
+ * wave47 pure Cap residual: G.7 reuses module_num_imports / import_path_cstr /
+ *   xlang_find_loaded_import_index / xlang_collect_to_load_has / pipe slots;
+ *   wave54 pure xlang_collect_strdup.
+ * OOM on one strdup: skip that import (same as cold twin continue). PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_collect_enqueue_module_imports(tmp_module: *u8, to_load: *u8, to_load_n: *i32, dep_paths: *u8, n_loaded: i32): void {
+  if (tmp_module == 0 as *u8) {
+    return;
+  }
+  if (to_load == 0 as *u8) {
+    return;
+  }
+  if (to_load_n == 0 as *i32) {
+    return;
+  }
+  let slot_max: i32 = 32;
+  let n_imp: i32 = 0;
+  unsafe {
+    n_imp = parser_get_module_num_imports(tmp_module);
+  }
+  if (n_imp <= 0) {
+    return;
+  }
+  let jj: i32 = 0;
+  while (jj < n_imp) {
+    if (jj >= slot_max) {
+      break;
+    }
+    let n: i32 = 0;
+    unsafe {
+      n = to_load_n[0];
+    }
+    if (n >= slot_max) {
+      break;
+    }
+    let sub_c: u8[65] = [];
+    xlang_module_import_path_cstr(tmp_module, jj, &sub_c[0], 65);
+    // Skip if already loaded or already queued.
+    if (xlang_find_loaded_import_index(&sub_c[0], dep_paths, n_loaded) >= 0) {
+      jj = jj + 1;
+      continue;
+    }
+    if (xlang_collect_to_load_has(to_load, n, &sub_c[0]) != 0) {
+      jj = jj + 1;
+      continue;
+    }
+    let owned: *u8 = 0 as *u8;
+    unsafe {
+      owned = xlang_collect_strdup(&sub_c[0]);
+    }
+    if (owned == 0 as *u8) {
+      jj = jj + 1;
+      continue;
+    }
+    pipe_store_ptr_slot(to_load, n, owned);
+    unsafe {
+      to_load_n[0] = n + 1;
+    }
+    jj = jj + 1;
+  }
+}
+
+/**
+ * Map preprocess_x_buf negative directive codes to fixed diag strings (PP002).
+ * @param path_diag *u8 — path for report; may be null
+ * @param code i32 — negative directive fail code (-2..-7 known; else generic fail)
+ * @return void
+ * wave46 pure: fixed msgs via stack byte lits + diag_report_with_code (no va_list).
+ * PLATFORM: SHARED — Cap residual was always-seed; hybrid pure authority.
+ */
+#[no_mangle]
+export function pipeline_diag_preprocess_directive_code(path_diag: *u8, code: i32): void {
+  // Known codes -2..-7; anything else → generic preprocess fail.
+  if (code != (0 - 2)) {
+    if (code != (0 - 3)) {
+      if (code != (0 - 4)) {
+        if (code != (0 - 5)) {
+          if (code != (0 - 6)) {
+            if (code != (0 - 7)) {
+              pipeline_diag_preprocess_fail(path_diag);
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+  pipeline_diag_emitted_note();
+  let kind: u8[24] = [];
+  let dcode: u8[8] = [];
+  // "preprocess error"
+  kind[0] = 112; kind[1] = 114; kind[2] = 101; kind[3] = 112;
+  kind[4] = 114; kind[5] = 111; kind[6] = 99; kind[7] = 101;
+  kind[8] = 115; kind[9] = 115; kind[10] = 32; kind[11] = 101;
+  kind[12] = 114; kind[13] = 114; kind[14] = 111; kind[15] = 114; kind[16] = 0;
+  // "PP002"
+  dcode[0] = 80; dcode[1] = 80; dcode[2] = 48; dcode[3] = 48; dcode[4] = 50; dcode[5] = 0;
+  let msg: u8[32] = [];
+  // Fill msg by code (ASCII byte tables; keep under ~63 lit cap).
+  if (code == (0 - 2)) {
+    // "#else without #if"
+    msg[0] = 35; msg[1] = 101; msg[2] = 108; msg[3] = 115; msg[4] = 101;
+    msg[5] = 32; msg[6] = 119; msg[7] = 105; msg[8] = 116; msg[9] = 104;
+    msg[10] = 111; msg[11] = 117; msg[12] = 116; msg[13] = 32; msg[14] = 35;
+    msg[15] = 105; msg[16] = 102; msg[17] = 0;
+  } else if (code == (0 - 3)) {
+    // "#endif without #if"
+    msg[0] = 35; msg[1] = 101; msg[2] = 110; msg[3] = 100; msg[4] = 105;
+    msg[5] = 102; msg[6] = 32; msg[7] = 119; msg[8] = 105; msg[9] = 116;
+    msg[10] = 104; msg[11] = 111; msg[12] = 117; msg[13] = 116; msg[14] = 32;
+    msg[15] = 35; msg[16] = 105; msg[17] = 102; msg[18] = 0;
+  } else if (code == (0 - 4)) {
+    // "#elseif without #if"
+    msg[0] = 35; msg[1] = 101; msg[2] = 108; msg[3] = 115; msg[4] = 101;
+    msg[5] = 105; msg[6] = 102; msg[7] = 32; msg[8] = 119; msg[9] = 105;
+    msg[10] = 116; msg[11] = 104; msg[12] = 111; msg[13] = 117; msg[14] = 116;
+    msg[15] = 32; msg[16] = 35; msg[17] = 105; msg[18] = 102; msg[19] = 0;
+  } else if (code == (0 - 5)) {
+    // "#elseif after #else"
+    msg[0] = 35; msg[1] = 101; msg[2] = 108; msg[3] = 115; msg[4] = 101;
+    msg[5] = 105; msg[6] = 102; msg[7] = 32; msg[8] = 97; msg[9] = 102;
+    msg[10] = 116; msg[11] = 101; msg[12] = 114; msg[13] = 32; msg[14] = 35;
+    msg[15] = 101; msg[16] = 108; msg[17] = 115; msg[18] = 101; msg[19] = 0;
+  } else if (code == (0 - 6)) {
+    // "duplicate #else"
+    msg[0] = 100; msg[1] = 117; msg[2] = 112; msg[3] = 108; msg[4] = 105;
+    msg[5] = 99; msg[6] = 97; msg[7] = 116; msg[8] = 101; msg[9] = 32;
+    msg[10] = 35; msg[11] = 101; msg[12] = 108; msg[13] = 115; msg[14] = 101;
+    msg[15] = 0;
+  } else {
+    // code == -7: "#if nesting too deep"
+    msg[0] = 35; msg[1] = 105; msg[2] = 102; msg[3] = 32; msg[4] = 110;
+    msg[5] = 101; msg[6] = 115; msg[7] = 116; msg[8] = 105; msg[9] = 110;
+    msg[10] = 103; msg[11] = 32; msg[12] = 116; msg[13] = 111; msg[14] = 111;
+    msg[15] = 32; msg[16] = 100; msg[17] = 101; msg[18] = 101; msg[19] = 112;
+    msg[20] = 0;
+  }
+  unsafe {
+    diag_report_with_code(path_diag, 0, 0, &kind[0], &dcode[0], &msg[0], 0 as *u8);
+  }
+}
+
+// xlang_dep_prerun_entry_dir_pick: see function docblock below.
+/** Exported function `xlang_dep_prerun_entry_dir_pick`.
+ * Implements `xlang_dep_prerun_entry_dir_pick`.
  * @param main_entry_dir *u8
  * @param lib_roots *u8
  * @param n_lib_roots i32
  * @return *u8
  */
 #[no_mangle]
-export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+export function xlang_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
   if (lib_roots == 0 as *u8) { return main_entry_dir; }
   if (n_lib_roots <= 0) { return main_entry_dir; }
   unsafe {
@@ -3095,15 +8397,15 @@ export function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *
   return main_entry_dir;
 }
 
-/** Exported function `shux_find_loaded_import_index_scan`.
- * Implements `shux_find_loaded_import_index_scan`.
+/** Exported function `xlang_find_loaded_import_index_scan`.
+ * Implements `xlang_find_loaded_import_index_scan`.
  * @param path *u8
  * @param all_paths *u8
  * @param n_all i32
  * @return i32
  */
 #[no_mangle]
-export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
+export function xlang_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
   if (path == 0 as *u8) { return 0 - 1; }
   if (all_paths == 0 as *u8) { return 0 - 1; }
   if (n_all <= 0) { return 0 - 1; }
@@ -3118,15 +8420,15 @@ export function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_
   return 0 - 1;
 }
 
-/** Exported function `shux_merge_deps_path_already_out_scan`.
- * Read path helper `shux_merge_deps_path_already_out_scan`.
+/** Exported function `xlang_merge_deps_path_already_out_scan`.
+ * Read path helper `xlang_merge_deps_path_already_out_scan`.
  * @param path *u8
  * @param out_paths *u8
  * @param n_out i32
  * @return i32
  */
 #[no_mangle]
-export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
+export function xlang_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
   if (path == 0 as *u8) { return 0; }
   if (out_paths == 0 as *u8) { return 0; }
   if (n_out <= 0) { return 0; }
@@ -3143,9 +8445,9 @@ export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8,
 
 /* See implementation. */
 
-// shux_pipeline_pctx_update_dep_slots_no_reset: see function docblock below.
-/** Exported function `shux_pipeline_pctx_update_dep_slots_no_reset`.
- * Implements `shux_pipeline_pctx_update_dep_slots_no_reset`.
+// xlang_pipeline_pctx_update_dep_slots_no_reset: see function docblock below.
+/** Exported function `xlang_pipeline_pctx_update_dep_slots_no_reset`.
+ * Implements `xlang_pipeline_pctx_update_dep_slots_no_reset`.
  * @param ctx *u8
  * @param dep_mods *u8
  * @param dep_ars *u8
@@ -3154,7 +8456,7 @@ export function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8,
  * @return void
  */
 #[no_mangle]
-export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
+export function xlang_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
@@ -3188,13 +8490,49 @@ export function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods:
 
 
 
-/* ---- G-02f-95 / G-02f-241：pipeline large-stack thread fns ---- */
+/* ---- G-02f-95 / G-02f-241 / wave56: pipeline large-stack thread fns pure ---- */
 
-// pipeline_run_x_thread_fn: see function docblock below.
-/** Exported function `pipeline_run_x_thread_fn`.
- * Read path helper `pipeline_run_x_thread_fn`.
- * @param arg *u8
- * @return *u8
+/**
+ * pthread entry body: run pipeline_run_x_pipeline and store ec into args.result.
+ * @param arg *u8 — PipelineRunSuArgs LP64 pack (56B):
+ *   module@0 arena@8 source_data@16 source_len@24 out_buf@32 ctx@40 result@48;
+ *   null → return null
+ * @return *u8 — always null (pthread start_routine contract)
+ * wave56 pure Cap residual:
+ *   load pack fields via pipe/size slots; driver_set_pipeline_entry_source_len;
+ *   pipeline_run_x_pipeline; store result as LE i64 cell at slot 6 (i32@48 + pad).
+ * XLANG_DEBUG_PIPE start/done notes stay cold-twin only (pure skips; same as tmp_parse).
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+#[no_mangle]
+export function pipeline_run_x_thread_fn_impl(arg: *u8): *u8 {
+  if (arg == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let module: *u8 = pipe_load_ptr_slot(arg, 0);
+  let arena: *u8 = pipe_load_ptr_slot(arg, 1);
+  let source_data: *u8 = pipe_load_ptr_slot(arg, 2);
+  let source_len: i64 = xlang_size_slot_get(arg, 3);
+  let out_buf: *u8 = pipe_load_ptr_slot(arg, 4);
+  let ctx: *u8 = pipe_load_ptr_slot(arg, 5);
+  unsafe {
+    driver_set_pipeline_entry_source_len(source_len);
+  }
+  let ec: i32 = 0;
+  unsafe {
+    ec = pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
+  }
+  // result i32 lives at byte 48 = slot index 6; write full LE cell (pad ok).
+  xlang_size_slot_set(arg, 6, ec as i64);
+  return 0 as *u8;
+}
+
+/**
+ * Thin pthread entry for large-stack pipeline_run_x_pipeline (null reject).
+ * @param arg *u8 — PipelineRunSuArgs pack; null → null
+ * @return *u8 — always null
+ * wave56: forwards to pure pipeline_run_x_thread_fn_impl.
+ * PLATFORM: SHARED — address taken by pure pipeline_run_x_thread_fn_ptr (wave84 g05 cast).
  */
 #[no_mangle]
 export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
@@ -3207,35 +8545,193 @@ export function pipeline_run_x_thread_fn(arg: *u8): *u8 {
   return 0 as *u8;
 }
 
-// shux_asm_codegen_elf_o_thread_fn: see function docblock below.
-/** Exported function `shux_asm_codegen_elf_o_thread_fn`.
- * Read path helper `shux_asm_codegen_elf_o_thread_fn`.
- * @param arg *u8
- * @return *u8
+/**
+ * Product Cap-fn-ptr surface: opaque *u8 address of pipeline_run_x_thread_fn.
+ * @return *u8 — function address as opaque byte pointer (never null when linked)
+ * wave84 pure product surface; wave100 language residual closed:
+ *   typeck types same-module bare function names as Cap-fn-ptr *u8; body is
+ *   (pipeline_run_x_thread_fn as *u8) — no g05 xlang_driver_* cast harness.
+ *   C backend emits ((uint8_t *)(pipeline_run_x_thread_fn)); seed cold twin keeps
+ *   (uint8_t *)(void *)fn under #ifndef FROM_X for full-C cold link.
+ * PLATFORM: SHARED — closes g05 &fn cast Cap residual on pure path.
  */
 #[no_mangle]
-export function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
+export function pipeline_run_x_thread_fn_ptr(): *u8 {
+  return (pipeline_run_x_thread_fn as *u8);
+}
+
+/**
+ * Large-stack orch: pack PipelineRunSuArgs, run thread_fn via Cap-fn-ptr, fallback current thread.
+ * @param module *u8 — AST module (caller thin already null-checked)
+ * @param arena *u8 — AST arena
+ * @param source_data *u8 — source bytes
+ * @param source_len i64 — byte length
+ * @param out_buf *u8 — codegen out buffer
+ * @param ctx *u8 — PipelineDepCtx
+ * @return i32 — pipeline ec; fallback path if result still sentinel -99
+ * wave56 pure Cap residual; wave84 pure owns Cap-fn-ptr surface (g05 &fn cast residual):
+ *   stack args[56] zeroed; set entry source_len; fill pack; result sentinel -99;
+ *   pure pipeline_run_x_thread_fn_ptr + G.7 driver_run_thread_on_large_stack;
+ *   if result still -99 → direct pipeline_run_x_pipeline (pthread create failed / skipped).
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function xlang_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+  let args: u8[56] = [];
+  let zi: i32 = 0;
+  while (zi < 56) {
+    args[zi] = 0;
+    zi = zi + 1;
+  }
+  unsafe {
+    driver_set_pipeline_entry_source_len(source_len);
+  }
+  pipe_store_ptr_slot(&args[0], 0, module);
+  pipe_store_ptr_slot(&args[0], 1, arena);
+  pipe_store_ptr_slot(&args[0], 2, source_data);
+  xlang_size_slot_set(&args[0], 3, source_len);
+  pipe_store_ptr_slot(&args[0], 4, out_buf);
+  pipe_store_ptr_slot(&args[0], 5, ctx);
+  // Sentinel -99: thread_fn overwrites on success; unchanged → current-thread fallback.
+  xlang_size_slot_set(&args[0], 6, 0 - 99);
+  let fn: *u8 = 0 as *u8;
+  unsafe {
+    fn = pipeline_run_x_thread_fn_ptr();
+  }
+  if (fn != 0 as *u8) {
+    unsafe {
+      driver_run_thread_on_large_stack(fn, &args[0]);
+    }
+  }
+  let result: i64 = xlang_size_slot_get(&args[0], 6);
+  if (result == (0 - 99) as i64) {
+    unsafe {
+      return pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
+    }
+  }
+  return result as i32;
+}
+
+// xlang_asm_codegen_elf_o_thread_fn: see function docblock below.
+/**
+ * Thin pthread entry for large-stack asm emit (null reject).
+ * @param arg *u8 — AsmElfLargeArgs pack; null → null
+ * @return *u8 — always null
+ * wave57: forwards to pure xlang_asm_codegen_elf_o_thread_fn_impl.
+ * PLATFORM: SHARED — address taken by pure xlang_asm_codegen_elf_o_thread_fn_ptr (wave84 g05 cast).
+ */
+#[no_mangle]
+export function xlang_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
   if (arg == 0 as *u8) {
     return 0 as *u8;
   }
   unsafe {
-    return shux_asm_codegen_elf_o_thread_fn_impl(arg);
+    return xlang_asm_codegen_elf_o_thread_fn_impl(arg);
   }
   return 0 as *u8;
 }
 
-// See implementation.
+/**
+ * Product Cap-fn-ptr surface: opaque *u8 address of xlang_asm_codegen_elf_o_thread_fn.
+ * @return *u8 — function address as opaque byte pointer (never null when linked)
+ * wave84 pure product surface; wave100 language residual closed:
+ *   same-module bare fn → *u8 (typeck); body (xlang_asm_codegen_elf_o_thread_fn as *u8);
+ *   no g05 xlang_driver_asm_elf_o_thread_fn_ptr cast. Seed cold twin under #ifndef FROM_X.
+ * PLATFORM: SHARED — closes g05 &fn cast Cap residual on pure path.
+ */
+#[no_mangle]
+export function xlang_asm_codegen_elf_o_thread_fn_ptr(): *u8 {
+  return (xlang_asm_codegen_elf_o_thread_fn as *u8);
+}
 
-export extern "C" function getenv(name: *u8): *u8;
+/**
+ * Pthread body: unpack AsmElfLargeArgs, Cap residual product emit, store result.
+ * @param arg *u8 — AsmElfLargeArgs LP64 pack (48B):
+ *   module@0 arena@8 ctx@16 elf_ctx@24 out_buf@32 result@40;
+ *   null → return null
+ * @return *u8 — always null (pthread start_routine contract)
+ * wave57 pure Cap residual orch; wave80 product_emit is pure G.7 thin (bridge reloc).
+ *   load pack via pipe/size slots; G.7 pure xlang_asm_codegen_elf_o_product_emit;
+ *   store result as LE i64 cell at slot 5 (i32@40 + pad).
+ * PLATFORM: SHARED LP64 little-endian.
+ */
+#[no_mangle]
+export function xlang_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8 {
+  if (arg == 0 as *u8) {
+    return 0 as *u8;
+  }
+  let module: *u8 = pipe_load_ptr_slot(arg, 0);
+  let arena: *u8 = pipe_load_ptr_slot(arg, 1);
+  let ctx: *u8 = pipe_load_ptr_slot(arg, 2);
+  let elf_ctx: *u8 = pipe_load_ptr_slot(arg, 3);
+  let out_buf: *u8 = pipe_load_ptr_slot(arg, 4);
+  let ec: i32 = 0;
+  unsafe {
+    ec = xlang_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
+  }
+  // result i32 lives at byte 40 = slot index 5; write full LE cell (pad ok).
+  xlang_size_slot_set(arg, 5, ec as i64);
+  return 0 as *u8;
+}
 
-/** Exported function `pipeline_asm_debug_enabled`.
- * Implements `pipeline_asm_debug_enabled`.
- * @return i32
+/**
+ * Large-stack orch: pack AsmElfLargeArgs, run thread_fn via Cap-fn-ptr, fallback emit.
+ * @param module *u8 — AST module (caller thin already null-checked)
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — PipelineDepCtx
+ * @param elf_ctx *u8 — ElfCodegenCtx
+ * @param out_buf *u8 — emit out buffer
+ * @return i32 — emit ec; fallback path if result still sentinel -99
+ * wave57 pure Cap residual orch; wave80 product_emit pure thin; wave84 pure Cap-fn-ptr surface:
+ *   stack args[48] zeroed; fill pack; result sentinel -99;
+ *   pure xlang_asm_codegen_elf_o_thread_fn_ptr (g05 &fn cast) + G.7 driver_run_thread_on_large_stack;
+ *   if result still -99 → G.7 pure product_emit (pthread create failed / skipped).
+ * PLATFORM: SHARED LP64.
+ */
+#[no_mangle]
+export function xlang_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+  let args: u8[48] = [];
+  let zi: i32 = 0;
+  while (zi < 48) {
+    args[zi] = 0;
+    zi = zi + 1;
+  }
+  pipe_store_ptr_slot(&args[0], 0, module);
+  pipe_store_ptr_slot(&args[0], 1, arena);
+  pipe_store_ptr_slot(&args[0], 2, ctx);
+  pipe_store_ptr_slot(&args[0], 3, elf_ctx);
+  pipe_store_ptr_slot(&args[0], 4, out_buf);
+  // Sentinel -99: thread_fn overwrites on success; unchanged → current-thread fallback.
+  xlang_size_slot_set(&args[0], 5, 0 - 99);
+  let fn: *u8 = 0 as *u8;
+  unsafe {
+    fn = xlang_asm_codegen_elf_o_thread_fn_ptr();
+  }
+  if (fn != 0 as *u8) {
+    unsafe {
+      driver_run_thread_on_large_stack(fn, &args[0]);
+    }
+  }
+  let result: i64 = xlang_size_slot_get(&args[0], 5);
+  if (result == (0 - 99) as i64) {
+    unsafe {
+      return xlang_asm_codegen_elf_o_product_emit(module, arena, ctx, elf_ctx, out_buf);
+    }
+  }
+  return result as i32;
+}
+
+/**
+ * Whether XLANG_ASM_DEBUG is set (asm pipeline debug notes gate).
+ * wave235 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @return i32 — 1 if env present (any value), 0 otherwise
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl
  */
 #[no_mangle]
 export function pipeline_asm_debug_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_DEBUG");
+    // wave235 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv).
+    let e: *u8 = link_abi_getenv("XLANG_ASM_DEBUG");
     if (e != 0) { return 1; }
   }
   return 0;
@@ -3306,5 +8802,1137 @@ export function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
     }
   }
   return 0;
+}
+
+// =============================================================================
+// wave110 pure ImportEntry storage (structure debt close under product PREFER)
+// =============================================================================
+// PLATFORM: SHARED LP64 — multi-module pointer-keyed map + malloc grow for entries
+// and select name rows. Mirrors ast_pool ModuleSidecar.imports + import_select_* .
+// Product hybrid: pure strong pipeline_module_import_* override Cap XLANG_WEAK cold.
+// Layout of one ImportEntry (340 bytes, packed LE, ≡ C typedef ImportEntry):
+//   path[256] @0 | path_len i32 @256 | kind i32 @260 | binding_name[64] @264
+//   | binding_name_len i32 @328 | select_base i32 @332 | select_count i32 @336
+// Module.num_imports lives at LP64 offsetof 8 (header field; parser authority read).
+// Soft-reset: when header num_imports==0, pure slot n_imports/sel_n forced 0 so
+// parse reset / module reset does not leave stale pure rows (Cap grow len cleared
+// separately; pure is single authority for product import storage after demote).
+// Caps: 128 module slots (product collect peak << MAX_MODULE_SIDECARS 512);
+// entry/select grow from 8, double until need (OOM → -1 / no-op like Cap).
+// =============================================================================
+
+let g_pipe_imp_mod: u8[1024] = [];
+let g_pipe_imp_n: i32[128] = [];
+let g_pipe_imp_cap: i32[128] = [];
+let g_pipe_imp_entries: u8[1024] = [];
+let g_pipe_imp_sel_n: i32[128] = [];
+let g_pipe_imp_sel_cap: i32[128] = [];
+let g_pipe_imp_sel_rows: u8[1024] = [];
+let g_pipe_imp_sel_lens: u8[1024] = [];
+
+/**
+ * Byte size of one ImportEntry (path 256 + 4 i32 fields + binding 64).
+ * @return i32 — 340
+ * PLATFORM: SHARED LP64 — must match C sizeof(ImportEntry).
+ */
+function pipe_imp_entry_size(): i32 {
+  return 340;
+}
+
+/**
+ * LP64 offsetof(struct ast_Module, num_imports).
+ * @return i32 — 8
+ * PLATFORM: SHARED LP64 — dual-end verified with sizeof Module=68.
+ */
+function pipe_imp_off_num_imports(): i32 {
+  return 8;
+}
+
+/**
+ * Write module.num_imports header field (null-safe).
+ * @param module *u8 — opaque ast_Module
+ * @param n i32 — live import count
+ * @return void
+ */
+function pipe_imp_set_header_n(module: *u8, n: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(module, pipe_imp_off_num_imports(), n);
+}
+
+/**
+ * Read module.num_imports header field (null → 0).
+ * @param module *u8 — opaque ast_Module
+ * @return i32 — header count
+ */
+function pipe_imp_get_header_n(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(module, pipe_imp_off_num_imports());
+}
+
+/**
+ * Find map slot for module pointer (exact key match).
+ * @param module *u8 — module key; null → -1
+ * @return i32 — slot 0..127 or -1
+ */
+function pipe_imp_find_slot(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  while (i < 128) {
+    let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
+    if (k == module) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Soft-reset pure counts when header num_imports is 0 (parse/module reset).
+ * Keeps malloc capacity; zeros live n_imports and select row count.
+ * @param module *u8 — module key
+ * @return void
+ */
+function pipe_imp_soft_sync(module: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (pipe_imp_get_header_n(module) != 0) {
+    return;
+  }
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  g_pipe_imp_n[s] = 0;
+  g_pipe_imp_sel_n[s] = 0;
+}
+
+/**
+ * Find or allocate a map slot for module.
+ * @param module *u8 — module key; null → -1
+ * @return i32 — slot or -1 if map full
+ */
+function pipe_imp_find_or_create(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  pipe_imp_soft_sync(module);
+  let found: i32 = pipe_imp_find_slot(module);
+  if (found >= 0) {
+    return found;
+  }
+  let i: i32 = 0;
+  while (i < 128) {
+    let k: *u8 = xlang_ptr_slot_get(&g_pipe_imp_mod[0], i);
+    if (k == 0 as *u8) {
+      xlang_ptr_slot_set(&g_pipe_imp_mod[0], i, module);
+      g_pipe_imp_n[i] = 0;
+      g_pipe_imp_cap[i] = 0;
+      g_pipe_imp_sel_n[i] = 0;
+      g_pipe_imp_sel_cap[i] = 0;
+      xlang_ptr_slot_set(&g_pipe_imp_entries[0], i, 0 as *u8);
+      xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], i, 0 as *u8);
+      xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], i, 0 as *u8);
+      return i;
+    }
+    i = i + 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Ensure entry table capacity >= need for slot (malloc grow, double).
+ * @param slot i32 — map slot
+ * @param need i32 — required live+push capacity
+ * @return i32 — 1 ok, 0 fail
+ */
+function pipe_imp_ensure_entries(slot: i32, need: i32): i32 {
+  if (slot < 0) {
+    return 0;
+  }
+  if (slot >= 128) {
+    return 0;
+  }
+  if (need <= 0) {
+    return 1;
+  }
+  let cap: i32 = g_pipe_imp_cap[slot];
+  if (cap >= need) {
+    return 1;
+  }
+  let new_cap: i32 = cap;
+  if (new_cap < 8) {
+    new_cap = 8;
+  }
+  while (new_cap < need) {
+    new_cap = new_cap * 2;
+  }
+  let esz: i32 = pipe_imp_entry_size();
+  let nbytes: usize = (new_cap * esz) as usize;
+  // extern malloc/memset/memcpy/free require unsafe (T001).
+  let np: *u8 = 0 as *u8;
+  unsafe {
+    np = malloc(nbytes);
+  }
+  if (np == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    memset(np, 0, nbytes);
+  }
+  let old: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
+  let old_n: i32 = g_pipe_imp_n[slot];
+  if (old != 0 as *u8) {
+    if (old_n > 0) {
+      let old_bytes: usize = (old_n * esz) as usize;
+      unsafe {
+        memcpy(np, old, old_bytes);
+      }
+    }
+    unsafe {
+      free(old);
+    }
+  }
+  xlang_ptr_slot_set(&g_pipe_imp_entries[0], slot, np);
+  g_pipe_imp_cap[slot] = new_cap;
+  return 1;
+}
+
+/**
+ * Ensure select row/lens capacity >= need for slot.
+ * @param slot i32 — map slot
+ * @param need i32 — required select row count
+ * @return i32 — 1 ok, 0 fail
+ */
+function pipe_imp_ensure_select(slot: i32, need: i32): i32 {
+  if (slot < 0) {
+    return 0;
+  }
+  if (slot >= 128) {
+    return 0;
+  }
+  if (need <= 0) {
+    return 1;
+  }
+  let cap: i32 = g_pipe_imp_sel_cap[slot];
+  if (cap >= need) {
+    return 1;
+  }
+  let new_cap: i32 = cap;
+  if (new_cap < 8) {
+    new_cap = 8;
+  }
+  while (new_cap < need) {
+    new_cap = new_cap * 2;
+  }
+  let row_bytes: usize = (new_cap * 64) as usize;
+  let lens_bytes: usize = (new_cap * 4) as usize;
+  let nrows: *u8 = 0 as *u8;
+  let nlens: *u8 = 0 as *u8;
+  unsafe {
+    nrows = malloc(row_bytes);
+    nlens = malloc(lens_bytes);
+  }
+  if (nrows == 0 as *u8) {
+    if (nlens != 0 as *u8) {
+      unsafe {
+        free(nlens);
+      }
+    }
+    return 0;
+  }
+  if (nlens == 0 as *u8) {
+    unsafe {
+      free(nrows);
+    }
+    return 0;
+  }
+  unsafe {
+    memset(nrows, 0, row_bytes);
+    memset(nlens, 0, lens_bytes);
+  }
+  let old_rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], slot);
+  let old_lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], slot);
+  let old_n: i32 = g_pipe_imp_sel_n[slot];
+  if (old_rows != 0 as *u8) {
+    if (old_n > 0) {
+      unsafe {
+        memcpy(nrows, old_rows, (old_n * 64) as usize);
+      }
+    }
+    unsafe {
+      free(old_rows);
+    }
+  }
+  if (old_lens != 0 as *u8) {
+    if (old_n > 0) {
+      unsafe {
+        memcpy(nlens, old_lens, (old_n * 4) as usize);
+      }
+    }
+    unsafe {
+      free(old_lens);
+    }
+  }
+  xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], slot, nrows);
+  xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], slot, nlens);
+  g_pipe_imp_sel_cap[slot] = new_cap;
+  return 1;
+}
+
+/**
+ * Pointer to ImportEntry byte base at idx for slot (null if OOB).
+ * @param slot i32 — map slot
+ * @param idx i32 — import index
+ * @return *u8 — entry base or null
+ */
+function pipe_imp_entry_at(slot: i32, idx: i32): *u8 {
+  if (slot < 0) {
+    return 0 as *u8;
+  }
+  if (idx < 0) {
+    return 0 as *u8;
+  }
+  if (idx >= g_pipe_imp_n[slot]) {
+    return 0 as *u8;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], slot);
+  if (base == 0 as *u8) {
+    return 0 as *u8;
+  }
+  // byte offset = idx * 340 via repeated add (no ptr+int in .x)
+  let off: i32 = idx * pipe_imp_entry_size();
+  // return base+off by reconstructing from raw address bits is unavailable;
+  // use index into flat table: xlang path indexes base[off + field]
+  // Callers pass (base, idx) pair — store base and use idx*esz offset in field ops.
+  return base;
+}
+
+/**
+ * Field offset of entry idx inside entries buffer.
+ * @param idx i32 — import index
+ * @return i32 — byte offset
+ */
+function pipe_imp_entry_off(idx: i32): i32 {
+  return idx * pipe_imp_entry_size();
+}
+
+/**
+ * Free pure import storage for one module and clear map slot.
+ * @param module *u8 — module key; null → no-op
+ * @return void
+ * wave110: called from Cap ast_pool_module_release (strong pure) and cold weak empty.
+ * PLATFORM: SHARED — product hybrid owns free of malloc tables.
+ */
+#[no_mangle]
+export function pipeline_module_import_storage_release(module: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  let e: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (e != 0 as *u8) {
+    unsafe {
+      free(e);
+    }
+  }
+  let r: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  if (r != 0 as *u8) {
+    unsafe {
+      free(r);
+    }
+  }
+  let l: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  if (l != 0 as *u8) {
+    unsafe {
+      free(l);
+    }
+  }
+  xlang_ptr_slot_set(&g_pipe_imp_mod[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_imp_entries[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_imp_sel_rows[0], s, 0 as *u8);
+  xlang_ptr_slot_set(&g_pipe_imp_sel_lens[0], s, 0 as *u8);
+  g_pipe_imp_n[s] = 0;
+  g_pipe_imp_cap[s] = 0;
+  g_pipe_imp_sel_n[s] = 0;
+  g_pipe_imp_sel_cap[s] = 0;
+}
+
+/**
+ * Allocate one ImportEntry for module; return index or -1.
+ * @param module *u8 — opaque ast_Module; null → -1
+ * @return i32 — new import index (>=0) or -1
+ * wave110 pure Cap residual: G.7 product authority (historical ast_pool GrowVec).
+ * Updates module.num_imports header ≡ Cap m->num_imports = sc->imports.len.
+ * PLATFORM: SHARED — Cap XLANG_WEAK cold twin for non-PREFER links.
+ */
+#[no_mangle]
+export function pipeline_module_import_alloc(module: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  let s: i32 = pipe_imp_find_or_create(module);
+  if (s < 0) {
+    return 0 - 1;
+  }
+  let n: i32 = g_pipe_imp_n[s];
+  if (pipe_imp_ensure_entries(s, n + 1) == 0) {
+    return 0 - 1;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0 - 1;
+  }
+  let off: i32 = pipe_imp_entry_off(n);
+  // zero new entry (340 bytes)
+  let k: i32 = 0;
+  while (k < 340) {
+    unsafe {
+      base[off + k] = 0;
+    }
+    k = k + 1;
+  }
+  g_pipe_imp_n[s] = n + 1;
+  pipe_imp_set_header_n(module, n + 1);
+  return n;
+}
+
+/**
+ * Set import path bytes at idx (len 1..255).
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param bytes *u8 — path bytes
+ * @param len i32 — byte length; <=0 or >255 → no-op
+ * @return void
+ * PLATFORM: SHARED — ≡ Cap pipeline_module_import_set_path.
+ */
+#[no_mangle]
+export function pipeline_module_import_set_path(module: *u8, idx: i32, bytes: *u8, len: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (bytes == 0 as *u8) {
+    return;
+  }
+  if (len <= 0) {
+    return;
+  }
+  if (len > 255) {
+    return;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  if (idx < 0) {
+    return;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return;
+  }
+  let off: i32 = pipe_imp_entry_off(idx);
+  let z: i32 = 0;
+  while (z < 256) {
+    unsafe {
+      base[off + z] = 0;
+    }
+    z = z + 1;
+  }
+  let i: i32 = 0;
+  while (i < len) {
+    unsafe {
+      base[off + i] = bytes[i];
+    }
+    i = i + 1;
+  }
+  pipe_store_i32_le(base, off + 256, len);
+}
+
+/**
+ * Import path length at idx.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @return i32 — path_len or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_path_len(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  if (idx < 0) {
+    return 0;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 256);
+}
+
+/**
+ * Copy import path to dst with trailing NUL (cap includes NUL).
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param dst *u8 — destination
+ * @param dst_cap i32 — capacity
+ * @return void
+ * wave110 pure: G.7 product path_copy authority (wave99 path64 thin consumer).
+ * PLATFORM: SHARED — Cap XLANG_WEAK cold twin.
+ */
+#[no_mangle]
+export function pipeline_module_import_path_copy(module: *u8, idx: i32, dst: *u8, dst_cap: i32): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  if (dst_cap <= 0) {
+    return;
+  }
+  unsafe {
+    dst[0] = 0;
+  }
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  if (idx < 0) {
+    return;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return;
+  }
+  let off: i32 = pipe_imp_entry_off(idx);
+  let n: i32 = pipe_load_i32_le(base, off + 256);
+  if (n >= dst_cap) {
+    n = dst_cap - 1;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      dst[i] = base[off + i];
+    }
+    i = i + 1;
+  }
+  unsafe {
+    dst[n] = 0;
+  }
+}
+
+/**
+ * Path byte at off for import idx.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param off i32 — byte offset in path
+ * @return u8 — byte or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_path_byte_at(module: *u8, idx: i32, off: i32): u8 {
+  if (module == 0 as *u8) {
+    return 0 as u8;
+  }
+  if (off < 0) {
+    return 0 as u8;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0 as u8;
+  }
+  if (idx < 0) {
+    return 0 as u8;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0 as u8;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0 as u8;
+  }
+  let eoff: i32 = pipe_imp_entry_off(idx);
+  let plen: i32 = pipe_load_i32_le(base, eoff + 256);
+  if (off >= plen) {
+    return 0 as u8;
+  }
+  if (off >= 256) {
+    return 0 as u8;
+  }
+  let b: u8 = 0;
+  unsafe {
+    b = base[eoff + off];
+  }
+  return b;
+}
+
+/**
+ * Set import kind at idx.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param kind i32 — kind code
+ * @return void
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_set_kind(module: *u8, idx: i32, kind: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  if (idx < 0) {
+    return;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 260, kind);
+}
+
+/**
+ * Import kind at idx.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @return i32 — kind or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_kind_at(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  if (idx < 0) {
+    return 0;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 260);
+}
+
+/**
+ * Set binding name at idx (len 1..64).
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param bytes *u8 — name bytes
+ * @param len i32 — length; <=0 or >64 → no-op
+ * @return void
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_set_binding_name(module: *u8, idx: i32, bytes: *u8, len: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (bytes == 0 as *u8) {
+    return;
+  }
+  if (len <= 0) {
+    return;
+  }
+  if (len > 64) {
+    return;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  if (idx < 0) {
+    return;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return;
+  }
+  let eoff: i32 = pipe_imp_entry_off(idx);
+  let z: i32 = 0;
+  while (z < 64) {
+    unsafe {
+      base[eoff + 264 + z] = 0;
+    }
+    z = z + 1;
+  }
+  let i: i32 = 0;
+  while (i < len) {
+    unsafe {
+      base[eoff + 264 + i] = bytes[i];
+    }
+    i = i + 1;
+  }
+  pipe_store_i32_le(base, eoff + 328, len);
+}
+
+/**
+ * Binding name length at idx.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @return i32 — length or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_binding_name_len(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  if (idx < 0) {
+    return 0;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 328);
+}
+
+/**
+ * Binding name byte at off.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param off i32 — offset in binding name
+ * @return u8 — byte or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_binding_name_byte_at(module: *u8, idx: i32, off: i32): u8 {
+  if (module == 0 as *u8) {
+    return 0 as u8;
+  }
+  if (off < 0) {
+    return 0 as u8;
+  }
+  if (off >= 64) {
+    return 0 as u8;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0 as u8;
+  }
+  if (idx < 0) {
+    return 0 as u8;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0 as u8;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0 as u8;
+  }
+  let eoff: i32 = pipe_imp_entry_off(idx);
+  let bl: i32 = pipe_load_i32_le(base, eoff + 328);
+  if (off >= bl) {
+    return 0 as u8;
+  }
+  let b: u8 = 0;
+  unsafe {
+    b = base[eoff + 264 + off];
+  }
+  return b;
+}
+
+/**
+ * Set select_count field only (does not grow select pool).
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param n i32 — select count
+ * @return void
+ * PLATFORM: SHARED — ≡ Cap set_select_count.
+ */
+#[no_mangle]
+export function pipeline_module_import_set_select_count(module: *u8, idx: i32, n: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return;
+  }
+  if (idx < 0) {
+    return;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return;
+  }
+  pipe_store_i32_le(base, pipe_imp_entry_off(idx) + 336, n);
+}
+
+/**
+ * Append one select name row for import idx.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param bytes *u8 — name bytes
+ * @param len i32 — length; capped to 63
+ * @return i32 — new select index within import or -1
+ * PLATFORM: SHARED — ≡ Cap append_select_name (dynamic grow, no 8-cap).
+ */
+#[no_mangle]
+export function pipeline_module_import_append_select_name(module: *u8, idx: i32, bytes: *u8, len: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (bytes == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  if (idx < 0) {
+    return 0 - 1;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_or_create(module);
+  if (s < 0) {
+    return 0 - 1;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0 - 1;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0 - 1;
+  }
+  let eoff: i32 = pipe_imp_entry_off(idx);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  if (scount == 0) {
+    pipe_store_i32_le(base, eoff + 332, g_pipe_imp_sel_n[s]);
+  }
+  let vi: i32 = g_pipe_imp_sel_n[s];
+  if (pipe_imp_ensure_select(s, vi + 1) == 0) {
+    return 0 - 1;
+  }
+  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  if (rows == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (lens == 0 as *u8) {
+    return 0 - 1;
+  }
+  let row_off: i32 = vi * 64;
+  let z: i32 = 0;
+  while (z < 64) {
+    unsafe {
+      rows[row_off + z] = 0;
+    }
+    z = z + 1;
+  }
+  let n: i32 = len;
+  if (n > 63) {
+    n = 63;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      rows[row_off + i] = bytes[i];
+    }
+    i = i + 1;
+  }
+  pipe_store_i32_le(lens, vi * 4, n);
+  g_pipe_imp_sel_n[s] = vi + 1;
+  pipe_store_i32_le(base, eoff + 336, scount + 1);
+  return scount;
+}
+
+/**
+ * select_count at import idx.
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @return i32 — count or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_select_count_at(module: *u8, idx: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  if (idx < 0) {
+    return 0;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(base, pipe_imp_entry_off(idx) + 336);
+}
+
+/**
+ * Set or grow-to select name at (idx, sel).
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param sel i32 — select index within import
+ * @param bytes *u8 — name bytes
+ * @param len i32 — length
+ * @return void
+ * PLATFORM: SHARED — ≡ Cap set_select_name (append until sel reachable).
+ */
+#[no_mangle]
+export function pipeline_module_import_set_select_name(module: *u8, idx: i32, sel: i32, bytes: *u8, len: i32): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (bytes == 0 as *u8) {
+    return;
+  }
+  if (len <= 0) {
+    return;
+  }
+  if (sel < 0) {
+    return;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_or_create(module);
+  if (s < 0) {
+    return;
+  }
+  if (idx < 0) {
+    return;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return;
+  }
+  let eoff: i32 = pipe_imp_entry_off(idx);
+  while (1 == 1) {
+    let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+    if (scount > sel) {
+      break;
+    }
+    let ap: i32 = pipeline_module_import_append_select_name(module, idx, bytes, len);
+    if (ap < 0) {
+      return;
+    }
+    // Cap: if sel < scount-1 after append return — only last append fills target.
+    scount = pipe_load_i32_le(base, eoff + 336);
+    if (sel < scount - 1) {
+      return;
+    }
+  }
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let abs: i32 = sbase + sel;
+  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  if (rows == 0 as *u8) {
+    return;
+  }
+  if (lens == 0 as *u8) {
+    return;
+  }
+  if (abs < 0) {
+    return;
+  }
+  if (abs >= g_pipe_imp_sel_n[s]) {
+    return;
+  }
+  let row_off: i32 = abs * 64;
+  let z: i32 = 0;
+  while (z < 64) {
+    unsafe {
+      rows[row_off + z] = 0;
+    }
+    z = z + 1;
+  }
+  let n: i32 = len;
+  if (n > 63) {
+    n = 63;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      rows[row_off + i] = bytes[i];
+    }
+    i = i + 1;
+  }
+  pipe_store_i32_le(lens, abs * 4, n);
+}
+
+/**
+ * Select name length at (idx, sel).
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param sel i32 — select index
+ * @return i32 — length or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_select_name_len(module: *u8, idx: i32, sel: i32): i32 {
+  if (module == 0 as *u8) {
+    return 0;
+  }
+  if (sel < 0) {
+    return 0;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0;
+  }
+  if (idx < 0) {
+    return 0;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0;
+  }
+  let eoff: i32 = pipe_imp_entry_off(idx);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  if (sel >= scount) {
+    return 0;
+  }
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let abs: i32 = sbase + sel;
+  if (abs < 0) {
+    return 0;
+  }
+  if (abs >= g_pipe_imp_sel_n[s]) {
+    return 0;
+  }
+  let lens: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_lens[0], s);
+  if (lens == 0 as *u8) {
+    return 0;
+  }
+  return pipe_load_i32_le(lens, abs * 4);
+}
+
+/**
+ * Select name byte at (idx, sel, off).
+ * @param module *u8 — module
+ * @param idx i32 — import index
+ * @param sel i32 — select index
+ * @param off i32 — byte offset
+ * @return u8 — byte or 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_module_import_select_name_byte_at(module: *u8, idx: i32, sel: i32, off: i32): u8 {
+  if (module == 0 as *u8) {
+    return 0 as u8;
+  }
+  if (sel < 0) {
+    return 0 as u8;
+  }
+  if (off < 0) {
+    return 0 as u8;
+  }
+  pipe_imp_soft_sync(module);
+  let s: i32 = pipe_imp_find_slot(module);
+  if (s < 0) {
+    return 0 as u8;
+  }
+  if (idx < 0) {
+    return 0 as u8;
+  }
+  if (idx >= g_pipe_imp_n[s]) {
+    return 0 as u8;
+  }
+  let base: *u8 = xlang_ptr_slot_get(&g_pipe_imp_entries[0], s);
+  if (base == 0 as *u8) {
+    return 0 as u8;
+  }
+  let eoff: i32 = pipe_imp_entry_off(idx);
+  let scount: i32 = pipe_load_i32_le(base, eoff + 336);
+  if (sel >= scount) {
+    return 0 as u8;
+  }
+  let sbase: i32 = pipe_load_i32_le(base, eoff + 332);
+  let abs: i32 = sbase + sel;
+  if (abs < 0) {
+    return 0 as u8;
+  }
+  if (abs >= g_pipe_imp_sel_n[s]) {
+    return 0 as u8;
+  }
+  let nlen: i32 = pipeline_module_import_select_name_len(module, idx, sel);
+  if (off >= nlen) {
+    return 0 as u8;
+  }
+  if (off >= 64) {
+    return 0 as u8;
+  }
+  let rows: *u8 = xlang_ptr_slot_get(&g_pipe_imp_sel_rows[0], s);
+  if (rows == 0 as *u8) {
+    return 0 as u8;
+  }
+  let b: u8 = 0;
+  unsafe {
+    b = rows[abs * 64 + off];
+  }
+  return b;
 }
 

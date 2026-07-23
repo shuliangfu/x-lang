@@ -24,7 +24,7 @@
 | `xxhash64_seed(ptr, len, seed)` | 一次性 xxHash64（指定 seed） |
 | `start_algo(HASHER_XXHASH)` | 增量 Hasher（与 STD-056 工厂 API 共用） |
 
-**常量**：`HASHER_XXHASH = 2`；环境变量 `SHUX_HASH_ALGO=xxhash` / `2` 可选。
+**常量**：`HASHER_XXHASH = 2`；环境变量 `XLANG_HASH_ALGO=xxhash` / `2` 可选。
 
 Tier-S API（`start` / `bytes`）**仍仅 SipHash**。
 

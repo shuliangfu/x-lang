@@ -14,7 +14,7 @@
 |----|------|------|
 | 设计文档原始估计（P0b 核心范围） | ~14 个 C 运行时调用 | ✅ 全部已标注 `extern "C"` |
 | 实测 `extern "C"` 声明总数（compiler + std） | **3035 个** | 多数为合法 C ABI（dispatch / runtime / libc 封装） |
-| 实测 `extern function`（X ABI 默认）总数 | **2431 个** | 多数为 SHUX 模块桥接，合法保持 X ABI |
+| 实测 `extern function`（X ABI 默认）总数 | **2431 个** | 多数为 XLANG 模块桥接，合法保持 X ABI |
 | 实测 `extern "x"`（显式 X ABI） | **0 个** | 设计允许，暂未使用 |
 | **调用点 unsafe 包裹违规** | **9 处** | 🔴 P0 契约违反（main.x 6 + asm_libroot/std/fs/mod.x 3） |
 | **声明/定义 ABI 不一致** | **3 处** | 🔴 main.x 声明 `extern "C"` vs runtime_io_abi.x 定义 X ABI |
@@ -35,7 +35,7 @@
 | ABI 类别 | 数量 | 说明 |
 |---------|------|------|
 | `extern "C" function`（C ABI） | **3035** | 调用 libc / 系统调用 / 被 C 调用的 dispatch 表 |
-| `extern function`（X ABI 默认） | **2431** | SHUX-to-SHUX 桥接（`pipeline_typeck_*_c` / `ast_*_c` 等） |
+| `extern function`（X ABI 默认） | **2431** | XLANG-to-XLANG 桥接（`pipeline_typeck_*_c` / `ast_*_c` 等） |
 | `extern "x" function`（显式 X ABI） | **0** | 语法槽位已就位，暂未使用 |
 | **合计 extern 声明** | **5466** | — |
 
@@ -91,7 +91,7 @@
 | `compiler/src/lsp/lsp_diag.x` | 25 | lsp 内部 | ✅ 合法 |
 | `std/channel/mod.x` | 23 | channel 桥接 | ✅ 合法 |
 
-**结论**：`extern function` 2431 个中，绝大多数是合法的 SHUX 模块桥接（按 [X-ABI-设计分析.md](X-ABI-设计分析.md) §3.2.1 「ABI 判定标准」走 X ABI）。**只有 std/ 下的若干 mod.x 文件（http/socketio/async/json/math/sqlite/atomic/arrow 等）是 C 库包装**，按语义契约应改为 `extern "C"`（~557 个，远期债）。
+**结论**：`extern function` 2431 个中，绝大多数是合法的 XLANG 模块桥接（按 [X-ABI-设计分析.md](X-ABI-设计分析.md) §3.2.1 「ABI 判定标准」走 X ABI）。**只有 std/ 下的若干 mod.x 文件（http/socketio/async/json/math/sqlite/atomic/arrow 等）是 C 库包装**，按语义契约应改为 `extern "C"`（~557 个，远期债）。
 
 ---
 
@@ -196,7 +196,7 @@ P1 激活 X ABI 专用调用约定后：
 
 `runtime_io_abi.x` 的 `fs_posix_*` 三个函数实际封装的是 libc `write`/`close`/`read`（POSIX 系统调用），按 [X-ABI-设计分析.md](X-ABI-设计分析.md) §3.2.1 ABI 判定标准应标 `extern "C"`：
 
-```shux
+```xlang
 // runtime_io_abi.x 当前（X ABI 默认，与声明不一致）
 export function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize { ... }
 
@@ -260,7 +260,7 @@ export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): is
 
 把 `driver_run_x_emit_c_set_path_and_run` 函数体内 6 处 `extern "C"` 调用包裹 unsafe。推荐用 thin unsafe wrap 模式（与 `driver/emit.x:178` 风格一致）：
 
-```shux
+```xlang
 // 当前（违规）
 let written: isize = fs_posix_write_c(fd, out.data, 262144);
 fs_posix_close_c(fd);
@@ -270,13 +270,13 @@ let written: isize = unsafe { fs_posix_write_c(fd, out.data, 262144) };
 unsafe { fs_posix_close_c(fd); }
 ```
 
-或者重构为函数级 unsafe wrap（如果 SHUX 支持 `unsafe fn` 语法糖）。
+或者重构为函数级 unsafe wrap（如果 XLANG 支持 `unsafe fn` 语法糖）。
 
 #### `compiler/asm_libroot/std/fs/mod.x` L22-39（3 处）
 
 把 `open`/`read`/`write` 三个封装函数体内直接 `return` 改为 `unsafe { return ...; }`（与同文件 L18 `fs_mod_close` 风格一致）：
 
-```shux
+```xlang
 // 当前（违规）
 function open(path: *u8): i32 {
   return fs_open_read_c(path);

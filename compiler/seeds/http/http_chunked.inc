@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 /** 不区分大小写比较子串（ASCII）。 */
-static int shu_http_ci_eq(const uint8_t *a, const uint8_t *b, int32_t n) {
+static int xlang_http_ci_eq(const uint8_t *a, const uint8_t *b, int32_t n) {
     int32_t i;
     for (i = 0; i < n; i++) {
         uint8_t ca = a[i];
@@ -42,10 +42,10 @@ int32_t http_has_chunked_encoding_c(const uint8_t *buf, int32_t len) {
     if (!buf || len < 20) return 0;
     if (http_headers_body_offset_c(buf, len, &hdr_end) != 0) return 0;
     while (off + 18 <= hdr_end) {
-        if (shu_http_ci_eq(buf + off, te, 18)) {
+        if (xlang_http_ci_eq(buf + off, te, 18)) {
             int32_t j = off + 18;
             while (j < hdr_end && (buf[j] == ' ' || buf[j] == '\t')) j++;
-            if (j + 7 <= hdr_end && shu_http_ci_eq(buf + j, (const uint8_t *)"chunked", 7))
+            if (j + 7 <= hdr_end && xlang_http_ci_eq(buf + j, (const uint8_t *)"chunked", 7))
                 return 1;
         }
         off++;
@@ -60,10 +60,10 @@ int32_t http_has_keep_alive_c(const uint8_t *buf, int32_t len) {
     if (!buf || len < 20) return 0;
     if (http_headers_body_offset_c(buf, len, &hdr_end) != 0) return 0;
     while (off + 11 <= hdr_end) {
-        if (shu_http_ci_eq(buf + off, conn, 11)) {
+        if (xlang_http_ci_eq(buf + off, conn, 11)) {
             int32_t j = off + 11;
             while (j < hdr_end && (buf[j] == ' ' || buf[j] == '\t')) j++;
-            if (j + 10 <= hdr_end && shu_http_ci_eq(buf + j, (const uint8_t *)"keep-alive", 10))
+            if (j + 10 <= hdr_end && xlang_http_ci_eq(buf + j, (const uint8_t *)"keep-alive", 10))
                 return 1;
         }
         off++;
@@ -72,7 +72,7 @@ int32_t http_has_keep_alive_c(const uint8_t *buf, int32_t len) {
 }
 
 /** 解析十六进制 chunk 大小行（至 \\r\\n）；写 *out_size，返回行后偏移，失败 -1。 */
-static int32_t shu_http_parse_chunk_size(const uint8_t *buf, int32_t len, int32_t off,
+static int32_t xlang_http_parse_chunk_size(const uint8_t *buf, int32_t len, int32_t off,
     int32_t *out_size) {
     int32_t size = 0;
     int32_t i = off;
@@ -108,7 +108,7 @@ int32_t http_decode_chunked_body_c(const uint8_t *buf, int32_t len, int32_t hdr_
     int32_t chunk_size;
     if (!buf || !out_body || hdr_end < 0 || hdr_end >= len || out_cap < 1) return -1;
     for (;;) {
-        off = shu_http_parse_chunk_size(buf, len, off, &chunk_size);
+        off = xlang_http_parse_chunk_size(buf, len, off, &chunk_size);
         if (off < 0) return -1;
         if (chunk_size == 0) return out_len;
         if (off + chunk_size + 2 > len) return -1;
@@ -144,10 +144,10 @@ int32_t http_is_upgrade_websocket_c(const uint8_t *buf, int32_t len) {
     if (!buf || len < 24) return 0;
     if (http_headers_body_offset_c(buf, len, &hdr_end) != 0) return 0;
     while (off + 8 <= hdr_end) {
-        if (shu_http_ci_eq(buf + off, upg, 8)) {
+        if (xlang_http_ci_eq(buf + off, upg, 8)) {
             int32_t j = off + 8;
             while (j < hdr_end && (buf[j] == ' ' || buf[j] == '\t')) j++;
-            if (j + 9 <= hdr_end && shu_http_ci_eq(buf + j, (const uint8_t *)"websocket", 9))
+            if (j + 9 <= hdr_end && xlang_http_ci_eq(buf + j, (const uint8_t *)"websocket", 9))
                 return 1;
         }
         off++;

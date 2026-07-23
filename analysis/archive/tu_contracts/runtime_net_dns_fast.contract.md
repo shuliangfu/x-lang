@@ -29,7 +29,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`net_dns_ai_addconfig_c_impl`, `net_dns_map_gai_error_c_impl`, `net_dns_ensure_wsa_c_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_NET_DNS_FAST_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_NET_DNS_FAST_FROM_X`
 - 内部调用更新：`net_resolve_ipv4_ex_c` 和 `net_resolve_ipv6_ex_c` 中 6 处调用更新为 `_impl`（避免循环调用 thin wrapper）
 
 ## 5. 验证状态

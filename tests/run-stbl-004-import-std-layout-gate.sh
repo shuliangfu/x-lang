@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STBL_IMPORT_STD_DOC:-analysis/stbl-import-std-layout-v1.md}"
-MANIFEST="${SHUX_STBL_IMPORT_STD_TSV:-tests/baseline/stbl-import-std-layout.tsv}"
+DOC="${XLANG_STBL_IMPORT_STD_DOC:-analysis/stbl-import-std-layout-v1.md}"
+MANIFEST="${XLANG_STBL_IMPORT_STD_TSV:-tests/baseline/stbl-import-std-layout.tsv}"
 LIB="tests/lib/stbl-import-std-layout.sh"
 PKG_LIB="tests/lib/tool-pkgmgr.sh"
 SMOKE_X="tests/import-std-layout/check_imports.x"
@@ -66,7 +66,7 @@ if [ "$RESOLVE_OK" -lt "$MIN_RESOLVE" ]; then
 fi
 echo "stbl-import-std resolve OK (${RESOLVE_OK}/${MIN_RESOLVE})"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -80,26 +80,26 @@ stdlib_cm_native_shu() {
 
 CHECK_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STBL-004: typeck smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STBL-004: typeck smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "stbl-import-std gate FAIL: check $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     stbl_import_std_emit_report "fail" "$RESOLVE_OK" 0 0
     exit 1
   fi
   CHECK_OK=1
   SKIP=0
 else
-  echo "stbl-import-std gate SKIP typeck (no native shux-c)" >&2
+  echo "stbl-import-std gate SKIP typeck (no native xlang-c)" >&2
 fi
 
 stbl_import_std_emit_report "ok" "$RESOLVE_OK" "$CHECK_OK" "$SKIP"

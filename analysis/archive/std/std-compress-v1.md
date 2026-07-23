@@ -54,7 +54,7 @@ make -C compiler compress-o-zlib-zstd # gzip + zstd（STD-007 推荐）
 
 ## 4. Gate 与 report
 
-gate 输出 **`std-compress gate OK`**；**runnable** report 含 `gzip=` / `zstd=`（`ok`/`skip`）。无 native `shux` 时 manifest 仍过。
+gate 输出 **`std-compress gate OK`**；**runnable** report 含 `gzip=` / `zstd=`（`ok`/`skip`）。无 native `xlang` 时 manifest 仍过。
 
 ---
 

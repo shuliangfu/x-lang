@@ -3,8 +3,8 @@
 #
 # 用法：./tests/run-perf-http.sh [--bench]
 # 环境：
-#   SHUX_PERF_FAIL_ON_HTTP_REGRESSION=1 — median ≤ http-perf.tsv + P99 ≤ latency.tsv
-#   SHUX_PERF_UPDATE_HTTP_BASELINE=1 — 刷新基线
+#   XLANG_PERF_FAIL_ON_HTTP_REGRESSION=1 — median ≤ http-perf.tsv + P99 ≤ latency.tsv
+#   XLANG_PERF_UPDATE_HTTP_BASELINE=1 — 刷新基线
 set -e
 cd "$(dirname "$0")/.."
 
@@ -14,15 +14,15 @@ cd "$(dirname "$0")/.."
 . tests/lib/build-std-c-o.sh
 
 HTTP_BENCH_PORT_DEFAULT=38460
-BASELINE="${SHUX_HTTP_PERF_BASELINE:-tests/baseline/http-perf.tsv}"
-LAT_BASELINE="${SHUX_HTTP_LAT_BASELINE:-tests/baseline/http-perf-latency.tsv}"
+BASELINE="${XLANG_HTTP_PERF_BASELINE:-tests/baseline/http-perf.tsv}"
+LAT_BASELINE="${XLANG_HTTP_LAT_BASELINE:-tests/baseline/http-perf-latency.tsv}"
 DO_BENCH=0
 [ "${1:-}" = "--bench" ] && DO_BENCH=1
-RUNS="${SHUX_HTTP_RUNS:-$([ "${CI:-0}" = "1" ] && echo 1 || echo 3)}"
-[ "${SHUX_PERF_FAIL_ON_HTTP_REGRESSION:-0}" = "1" ] && FAIL_REGRESS=1 || FAIL_REGRESS=0
-[ "${SHUX_PERF_UPDATE_HTTP_BASELINE:-0}" = "1" ] && UPDATE_BASE=1 || UPDATE_BASE=0
+RUNS="${XLANG_HTTP_RUNS:-$([ "${CI:-0}" = "1" ] && echo 1 || echo 3)}"
+[ "${XLANG_PERF_FAIL_ON_HTTP_REGRESSION:-0}" = "1" ] && FAIL_REGRESS=1 || FAIL_REGRESS=0
+[ "${XLANG_PERF_UPDATE_HTTP_BASELINE:-0}" = "1" ] && UPDATE_BASE=1 || UPDATE_BASE=0
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -50,9 +50,9 @@ bench_cleanup() {
   sleep 0.2
 }
 
-SHUX_BIN="${SHUX:-./compiler/shux}"
-if ! native_shu "$SHUX_BIN"; then
-  echo "run-perf-http SKIP: no native shux ($SHUX_BIN)"
+XLANG_BIN="${XLANG:-./compiler/xlang}"
+if ! native_xlang "$XLANG_BIN"; then
+  echo "run-perf-http SKIP: no native xlang ($XLANG_BIN)"
   exit 0
 fi
 
@@ -75,7 +75,7 @@ fi
 
 port="$(pick_free_port)"
 sed -e "s/${HTTP_BENCH_PORT_DEFAULT}/${port}/g" tests/bench/http_get_bench.x >"/tmp/http_get_bench_${port}.x"
-if ! "$SHUX_BIN" -L . "/tmp/http_get_bench_${port}.x" -o "$CLIENT_BIN" >/tmp/http_bench_compile.log 2>&1; then
+if ! "$XLANG_BIN" -L . "/tmp/http_get_bench_${port}.x" -o "$CLIENT_BIN" >/tmp/http_bench_compile.log 2>&1; then
   cat /tmp/http_bench_compile.log >&2
   exit 1
 fi
@@ -125,12 +125,12 @@ echo "run-perf-http: http_get_bench median_s=${median_s} p99_us=${median_p99}"
 if [ "$UPDATE_BASE" -eq 1 ]; then
   {
     echo "# STD-009 std.http 吞吐基线（秒）；门禁：median elapsed ≤ 本列"
-    echo "# 更新：SHUX_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench"
+    echo "# 更新：XLANG_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench"
     printf 'http_get_bench\t%s\n' "$median_s"
   } >"$BASELINE"
   {
     echo "# STD-009 HTTP GET P99 延迟上限（微秒）；门禁：p99 ≤ 本列"
-    echo "# 更新：SHUX_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench"
+    echo "# 更新：XLANG_PERF_UPDATE_HTTP_BASELINE=1 ./tests/run-perf-http.sh --bench"
     printf 'http_get_bench_p99\t%s\n' "$median_p99"
   } >"$LAT_BASELINE"
   echo "run-perf-http: updated $BASELINE and $LAT_BASELINE"

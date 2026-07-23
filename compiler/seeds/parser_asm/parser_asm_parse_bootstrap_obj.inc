@@ -2,7 +2,7 @@
  * parser_asm_parse_bootstrap_obj.c — experimental 链 parser_parse_bootstrap.o 独立 TU。
  *
  * 瘦 parser_x.o + PARSER_ASM_THIN_GLUE_NO_SEED_PARSE 时须强符号 parse_into_buf；
- * SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT 对全量 parser.x 真 emit 在 seed/shux_asm 上仍会 139，
+ * XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT 对全量 parser.x 真 emit 在 seed/xlang_asm 上仍会 139，
  * 故由本 TU #include seed slice，链接时 thin_c glue 解析 extern 依赖。
  * 勿与含 seed slice 的 parser_asm_thin_c.c 同链（experimental 已定义 NO_SEED_PARSE）。
  */

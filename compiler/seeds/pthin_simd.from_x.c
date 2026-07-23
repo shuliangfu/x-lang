@@ -1,6 +1,6 @@
 /* seeds/pthin_simd.from_x.c — G-02f-288 P2 parser thin P7 simd
  * Logic source: src/asm/pthin_simd.x
- * Hybrid: SHUX_PTHIN_SIMD_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_SIMD_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_simd_builtin_slice.inc
  */

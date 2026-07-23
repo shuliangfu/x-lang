@@ -72,13 +72,13 @@ allow(padding) struct TlsMbedtlsServerCtx {
 }
 
 /* See implementation. */
-let shu_tls_last_error: i32 = 0;
+let xlang_tls_last_error: i32 = 0;
 
 /* See implementation. */
 let TLS_BACKEND_NAME: u8[8] = [109, 101, 100, 116, 108, 115, 0, 0];
 
 /* See implementation. */
-let shu_net_tls_mbedtls_marker: u8[8] = [109, 101, 100, 116, 108, 115, 0, 0];
+let xlang_net_tls_mbedtls_marker: u8[8] = [109, 101, 100, 116, 108, 115, 0, 0];
 
 /* See implementation. */
 let ALPN_H2: u8[3] = [104, 50, 0];
@@ -94,7 +94,7 @@ extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
 extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
 extern function net_close_socket_c(fd: i32): i32;
 
-extern function shu_mbedtls_ssl_bind_fd_c(ssl: *u8, fd_ptr: *i32): void;
+extern function xlang_mbedtls_ssl_bind_fd_c(ssl: *u8, fd_ptr: *i32): void;
 
 extern "C" function psa_crypto_init(): i32;
 extern "C" function mbedtls_ssl_config_init(conf: *u8): void;
@@ -159,7 +159,7 @@ export function net_tls_backend_name_c(): *u8 {
  * See implementation.
  */
 export function net_tls_last_error_c(): i32 {
-  return shu_tls_last_error;
+  return xlang_tls_last_error;
 }
 
 /**
@@ -198,22 +198,22 @@ export function tls_mbedtls_handshake_loop(ssl: *u8): i32 {
 export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   let sess: *TlsMbedtlsSess = 0 as *TlsMbedtlsSess;
   let ret: i32 = 0;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (fd < 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   if (sni == 0 || sni[0] == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   if (tls_mbedtls_psa_init() != 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { sess = calloc(1, 1296) as *TlsMbedtlsSess; }
   if (sess == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   sess.fd = fd;
@@ -224,7 +224,7 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   }
   if (ret != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { mbedtls_ssl_conf_authmode(&sess.conf[0], MBEDTLS_SSL_VERIFY_NONE); }
@@ -232,24 +232,24 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
   unsafe { ret = mbedtls_ssl_setup(&sess.ssl[0], &sess.conf[0]); }
   if (ret != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   let _u_rc_0: i32 = 0;
   unsafe { _u_rc_0 = mbedtls_ssl_set_hostname(&sess.ssl[0], sni); }
   if (_u_rc_0 != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
-  unsafe { shu_mbedtls_ssl_bind_fd_c(&sess.ssl[0], &sess.fd); }
+  unsafe { xlang_mbedtls_ssl_bind_fd_c(&sess.ssl[0], &sess.fd); }
   unsafe { net_set_blocking_c(fd, 1); }
   if (tls_mbedtls_handshake_loop(&sess.ssl[0]) != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return sess as usize as i64;
 }
 
@@ -259,22 +259,22 @@ export function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
 export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
   let sess: *TlsMbedtlsSess = 0 as *TlsMbedtlsSess;
   let ret: i32 = 0;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (fd < 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   if (sni == 0 || sni[0] == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   if (tls_mbedtls_psa_init() != 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { sess = calloc(1, 1296) as *TlsMbedtlsSess; }
   if (sess == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   sess.fd = fd;
@@ -285,7 +285,7 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
   }
   if (ret != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { mbedtls_ssl_conf_authmode(&sess.conf[0], MBEDTLS_SSL_VERIFY_NONE); }
@@ -294,31 +294,31 @@ export function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8,
   unsafe { _u_rc_1 = mbedtls_ssl_conf_alpn_protocols(&sess.conf[0], &alpn_list.p0); }
   if (_u_rc_1 != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { mbedtls_ssl_init(&sess.ssl[0]); }
   unsafe { ret = mbedtls_ssl_setup(&sess.ssl[0], &sess.conf[0]); }
   if (ret != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   let _u_rc_2: i32 = 0;
   unsafe { _u_rc_2 = mbedtls_ssl_set_hostname(&sess.ssl[0], sni); }
   if (_u_rc_2 != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
-  unsafe { shu_mbedtls_ssl_bind_fd_c(&sess.ssl[0], &sess.fd); }
+  unsafe { xlang_mbedtls_ssl_bind_fd_c(&sess.ssl[0], &sess.fd); }
   unsafe { net_set_blocking_c(fd, 1); }
   if (tls_mbedtls_handshake_loop(&sess.ssl[0]) != 0) {
     tls_mbedtls_free_sess(sess);
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return sess as usize as i64;
 }
 
@@ -331,7 +331,7 @@ export function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32)
   let len: i32 = 0;
   let n: i32 = 0;
   if (sess == 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -1;
   }
   unsafe { sel = mbedtls_ssl_get_alpn_protocol(&sess.ssl[0]); }
@@ -371,7 +371,7 @@ export function net_tls_close_c(ctx_handle: i64): i32 {
   }
   unsafe { mbedtls_ssl_close_notify(&sess.ssl[0]); }
   tls_mbedtls_free_sess(sess);
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return 0;
 }
 
@@ -382,11 +382,11 @@ export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   if (buf == 0 || cap <= 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   loop {
@@ -396,10 +396,10 @@ export function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
     }
   }
   if (n <= 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return -1;
   }
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return n;
 }
 
@@ -410,11 +410,11 @@ export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
   let sess: *TlsMbedtlsSess = tls_mbedtls_sess_ptr(ctx_handle);
   let n: i32 = 0;
   if (sess == 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   if (buf == 0 || len <= 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return -2;
   }
   loop {
@@ -424,10 +424,10 @@ export function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
     }
   }
   if (n <= 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return -1;
   }
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   return n;
 }
 
@@ -436,7 +436,7 @@ export const ADDR_LOOPBACK: u32 = 0x7f000001;
 
 /* See implementation. */
 let LOCALHOST: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
-let ENV_SHUX_TLS_PORT: u8[20] = [83, 72, 85, 88, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
+let ENV_XLANG_TLS_PORT: u8[21] = [88, 76, 65, 78, 71, 95, 84, 76, 83, 95, 83, 77, 79, 75, 69, 95, 80, 79, 82, 84, 0];
 
 /**
  * See implementation.
@@ -450,7 +450,7 @@ export function net_tls_mbedtls_smoke_c(): i32 {
   if (name == 0 || name[0] != 109) {
     return 1;
   }
-  unsafe { port_env = getenv(&ENV_SHUX_TLS_PORT[0]); }
+  unsafe { port_env = getenv(&ENV_XLANG_TLS_PORT[0]); }
   if (port_env != 0) {
     unsafe { port = atoi(port_env); }
   }
@@ -499,18 +499,18 @@ export function tls_mbedtls_server_free(srv: *TlsMbedtlsServerCtx): void {
 export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   let srv: *TlsMbedtlsServerCtx = 0 as *TlsMbedtlsServerCtx;
   let ret: i32 = 0;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (cert_pem == 0 || cert_len <= 0 || key_pem == 0 || key_len <= 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   if (tls_mbedtls_psa_init() != 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { srv = calloc(1, 2448) as *TlsMbedtlsServerCtx; }
   if (srv == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { mbedtls_ssl_config_init(&srv.conf[0]); }
@@ -522,7 +522,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
   if (ret != 0) {
     tls_mbedtls_server_free(srv);
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   unsafe { mbedtls_ssl_conf_authmode(&srv.conf[0], MBEDTLS_SSL_VERIFY_NONE); }
@@ -532,7 +532,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
   if (_u_rc_3 != 0) {
     tls_mbedtls_server_free(srv);
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   let _u_rc_4: i32 = 0;
@@ -540,7 +540,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
   if (_u_rc_4 != 0) {
     tls_mbedtls_server_free(srv);
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   let _u_rc_5: i32 = 0;
@@ -548,7 +548,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
   if (_u_rc_5 != 0) {
     tls_mbedtls_server_free(srv);
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   let own_rc: i32 = 0;
@@ -556,7 +556,7 @@ export function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, ke
   if (own_rc != 0) {
     tls_mbedtls_server_free(srv);
     unsafe { free(srv as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   srv.ready = 1;
@@ -582,14 +582,14 @@ function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   let srv: *TlsMbedtlsServerCtx = srv_ctx_h as usize as *TlsMbedtlsServerCtx;
   let sess: *TlsMbedtlsSess = 0 as *TlsMbedtlsSess;
   let ret: i32 = 0;
-  shu_tls_last_error = 0;
+  xlang_tls_last_error = 0;
   if (srv == 0 || srv.ready == 0 || fd < 0) {
-    shu_tls_last_error = -2;
+    xlang_tls_last_error = -2;
     return 0 as i64;
   }
   unsafe { sess = calloc(1, 1296) as *TlsMbedtlsSess; }
   if (sess == 0) {
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   sess.fd = fd;
@@ -599,15 +599,15 @@ function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
   if (ret != 0) {
     unsafe { mbedtls_ssl_free(&sess.ssl[0]); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
-  unsafe { shu_mbedtls_ssl_bind_fd_c(&sess.ssl[0], &sess.fd); }
+  unsafe { xlang_mbedtls_ssl_bind_fd_c(&sess.ssl[0], &sess.fd); }
   unsafe { net_set_blocking_c(fd, 1); }
   if (tls_mbedtls_handshake_loop(&sess.ssl[0]) != 0) {
     unsafe { mbedtls_ssl_free(&sess.ssl[0]); }
     unsafe { free(sess as *u8); }
-    shu_tls_last_error = -1;
+    xlang_tls_last_error = -1;
     return 0 as i64;
   }
   return sess as usize as i64;

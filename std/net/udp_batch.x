@@ -37,16 +37,16 @@ extern function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u
 extern function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32;
 
 #[cfg(target_os = "linux")]
-extern function shu_net_udp_recvmmsg2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+extern function xlang_net_udp_recvmmsg2_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 
 #[cfg(target_os = "linux")]
-extern function shu_net_udp_sendmmsg2_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
+extern function xlang_net_udp_sendmmsg2_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a1: u32, port1: u32, p1: *u8, l1: usize, n: i32): i32;
 
 #[cfg(target_os = "linux")]
-extern function shu_net_udp_recvmmsg_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
+extern function xlang_net_udp_recvmmsg_buf_c(fd: i32, bufs: *NetBatchBuf, n: i32, timeout_ms: u32, out_sizes: *i32, out_addrs: *u32, out_ports: *u32): i32;
 
 #[cfg(target_os = "linux")]
-extern function shu_net_udp_sendmmsg_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32;
+extern function xlang_net_udp_sendmmsg_buf_c(fd: i32, addrs: *u32, ports: *u32, bufs: *NetBatchBuf, n: i32): i32;
 
 /**
  * See implementation.
@@ -56,7 +56,7 @@ export function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: us
   if (n <= 0 || n > UDP_BATCH_MAX || out_sizes == 0 || out_addrs == 0 || out_ports == 0) {
     return -1;
   }
-  unsafe { return shu_net_udp_recvmmsg2_c(fd, p0, l0, p1, l1, n, timeout_ms, out_sizes, out_addrs, out_ports); }
+  unsafe { return xlang_net_udp_recvmmsg2_c(fd, p0, l0, p1, l1, n, timeout_ms, out_sizes, out_addrs, out_ports); }
   return 0; // unreachable — typeck workaround
 }
 
@@ -102,7 +102,7 @@ export function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: u
   if (n <= 0 || n > UDP_BATCH_MAX) {
     return -1;
   }
-  unsafe { return shu_net_udp_sendmmsg2_c(fd, a0, port0, p0, l0, a1, port1, p1, l1, n); }
+  unsafe { return xlang_net_udp_sendmmsg2_c(fd, a0, port0, p0, l0, a1, port1, p1, l1, n); }
   return 0; // unreachable — typeck workaround
 }
 

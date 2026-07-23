@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD065_DOC:-analysis/std-sqlite-exec-deep-v1.md}"
-MANIFEST="${SHUX_STD065_TSV:-tests/baseline/std-sqlite-exec-deep.tsv}"
-VECTORS="${SHUX_STD065_VECTORS:-tests/baseline/std-sqlite-exec-deep-vectors.tsv}"
+DOC="${XLANG_STD065_DOC:-analysis/std-sqlite-exec-deep-v1.md}"
+MANIFEST="${XLANG_STD065_TSV:-tests/baseline/std-sqlite-exec-deep.tsv}"
+VECTORS="${XLANG_STD065_VECTORS:-tests/baseline/std-sqlite-exec-deep-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-exec-deep.sh"
@@ -76,7 +76,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-sqlite-exec-deep manifest OK"
 
-if [ "${SHUX_STD065_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_STD065_MANIFEST_ONLY:-0}" = "1" ]; then
   std_sqlite_exec_deep_emit_report "ok" 0 0 1
   echo "std-sqlite-exec-deep gate OK (manifest only)"
   exit 0
@@ -84,7 +84,7 @@ fi
 
 echo "=== STD-065: parent STD-057 manifest ==="
 chmod +x tests/run-std-sqlite-gate.sh
-SHUX_STD_SQLITE_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
+XLANG_STD_SQLITE_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
 
 TX_C=0
 TX_X=0
@@ -104,8 +104,8 @@ if std_sqlite_probe_libs; then
     exit 1
   fi
 
-  SHUX_BIN=""
-  stdlib_cm_native_shu() {
+  XLANG_BIN=""
+  stdlib_cm_native_xlang() {
     local f="$1"
     [ -n "$f" ] && [ -x "$f" ] || return 1
     case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -116,18 +116,18 @@ if std_sqlite_probe_libs; then
       *) return 0 ;;
     esac
   }
-  if stdlib_cm_native_shu ./compiler/shux-c; then
-    SHUX_BIN=./compiler/shux-c
-  elif stdlib_cm_native_shu ./compiler/shux; then
-    SHUX_BIN=./compiler/shux
+  if stdlib_cm_native_xlang ./compiler/xlang-c; then
+    XLANG_BIN=./compiler/xlang-c
+  elif stdlib_cm_native_xlang ./compiler/xlang; then
+    XLANG_BIN=./compiler/xlang
   fi
 
-  if [ -n "$SHUX_BIN" ]; then
-    echo "=== STD-065: .x tx smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if [ -n "$XLANG_BIN" ]; then
+    echo "=== STD-065: .x tx smoke (XLANG=$XLANG_BIN) ==="
+    if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
       echo "std-sqlite-exec-deep gate SKIP .x smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "tx"; then
+    elif std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "tx"; then
       TX_X=1
       SKIP=0
     else
@@ -135,7 +135,7 @@ if std_sqlite_probe_libs; then
       SKIP=1
     fi
   else
-    echo "std-sqlite-exec-deep gate SKIP .x smoke (no native shux)" >&2
+    echo "std-sqlite-exec-deep gate SKIP .x smoke (no native xlang)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o

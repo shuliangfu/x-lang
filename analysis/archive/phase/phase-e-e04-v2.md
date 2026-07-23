@@ -13,12 +13,12 @@
 | 链接 | 说明 |
 |------|------|
 | `DRIVER_SEED_OBJS` | 含 `src/runtime_abi.o` |
-| `build_shux_asm` B-strict | `ensure_runtime_abi_obj` + 链 `runtime_abi.o` |
+| `build_xlang_asm` B-strict | `ensure_runtime_abi_obj` + 链 `runtime_abi.o` |
 
 ## 复现
 
 ```bash
-SHUX_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
+XLANG_E04_FAIL=1 ./tests/run-e04-runtime-soft-gate.sh
 make -C compiler src/runtime_abi.o src/runtime_driver_no_c.o
 ```
 

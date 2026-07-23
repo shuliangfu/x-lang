@@ -3,7 +3,7 @@
  * Product PREFER_X_O: g05_try_x_to_o(rt_asm_stub.x) + rest seed marker under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (2 public: want_exe + asm_codegen_ast)
  * Cap residual: driver_asm_stub_gas_line_* + out_append_cstr in driver_abi
- * Regen: ./shux -E ... src/runtime/rt_asm_stub.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_asm_stub.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -21,13 +21,13 @@
 #include <errno.h>
 extern int32_t driver_asm_output_want_exe(uint8_t * path);
 extern int32_t asm_codegen_ast(uint8_t * module, uint8_t * arena, uint8_t * out);
-extern int32_t shux_output_want_exe(uint8_t * path);
+extern int32_t xlang_output_want_exe(uint8_t * path);
 extern uint8_t * driver_asm_stub_gas_line_at(int32_t i);
 extern int32_t driver_asm_stub_gas_line_count(void);
 extern int32_t driver_asm_stub_out_append_cstr(uint8_t * out, uint8_t * s);
 int32_t driver_asm_output_want_exe(uint8_t * path) {
   {
-    return shux_output_want_exe(path);
+    return xlang_output_want_exe(path);
   }
   return 0;
 }

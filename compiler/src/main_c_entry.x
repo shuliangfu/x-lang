@@ -5,7 +5,7 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32;
+export extern "C" function xlang_forward_main_to_main_entry(argc: i32, argv: *u8): i32;
 
 /** Exported function `main`.
  * Program/test entry point.
@@ -16,7 +16,7 @@ export extern "C" function shux_forward_main_to_main_entry(argc: i32, argv: *u8)
 #[no_mangle]
 export function main(argc: i32, argv: *u8): i32 {
   unsafe {
-    let r: i32 = shux_forward_main_to_main_entry(argc, argv);
+    let r: i32 = xlang_forward_main_to_main_entry(argc, argv);
     return r;
   }
   return 0;

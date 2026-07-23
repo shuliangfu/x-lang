@@ -21,8 +21,8 @@
 make -C compiler bootstrap-driver-seed
 make -C compiler bootstrap-driver-bstrict
 make -C compiler bootstrap-verify-stage2-bstrict   # 行为 + Step 4c 默认 STRICT 哈希
-SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
-SHUX_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
+XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
+XLANG_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
 ```
 
 ## 与 D-03 / D-04 / D-05 关系
@@ -31,7 +31,7 @@ SHUX_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
 |----|------|
 | **D-03** | 二进制 SHA256 金标准（文档引用 gate 命令） |
 | **D-04** | portable 子集两代 diff（文档引用 gate 命令） |
-| **D-05** | 发布单 `shux` 日常入口（`run-d05-single-shux-release-gate.sh`） | **v1 ✅** |
+| **D-05** | 发布单 `xlang` 日常入口（`run-d05-single-xlang-release-gate.sh`） | **v1 ✅** |
 
 ## 延后（D-06 v2）
 

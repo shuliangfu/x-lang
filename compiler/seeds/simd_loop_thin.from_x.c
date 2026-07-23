@@ -1,9 +1,9 @@
 /* seeds/simd_loop_thin.from_x.c
  * G-02f simd_loop L2 thin surface — isomorphic with src/asm/simd_loop_thin.x
- * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_SIMD_LOOP_THIN_FROM_X) ld -r
+ * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DXLANG_L2_SIMD_LOOP_THIN_FROM_X) ld -r
  * Cold full seed: seeds/simd_loop.from_x.c (unchanged)
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; _impl are U)
- * Regen: ./shux -E ... src/asm/simd_loop_thin.x | filter DBG + polish externs
+ * Regen: ./xlang -E ... src/asm/simd_loop_thin.x | filter DBG + polish externs
  */
 #include <stddef.h>
 #include <stdint.h>

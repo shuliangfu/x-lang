@@ -127,7 +127,7 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
   int32_t skip_asm_dep_codegen;
   if (!module || !arena || !out_buf || !ctx)
     return -1;
-  if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+  if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
     fprintf(stderr, ">> [ASM_ORCH] parse_entry_if_needed\n");
     fflush(stderr);
   }
@@ -140,7 +140,7 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
     /** driver_run_asm_backend 已 collect_deps + prerun + seed 槽；勿再调 build_asm X load/sync（hello 等 SIGSEGV）。 */
     load_rc = 0;
   } else {
-    if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+    if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
       fprintf(stderr, ">> [ASM_ORCH] load_and_sync_direct_import_deps\n");
       fflush(stderr);
     }
@@ -148,15 +148,15 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
   }
   if (load_rc != 0)
     return load_rc;
-  if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
+  if (getenv("XLANG_ASM_ENTRY_ONLY_DEBUG")) {
     fprintf(stderr, ">> [ASM_ORCH] typecheck_entry (check_only=%d skip_flag=%d skip_codegen=%d build_skip=%d)\n",
             (int)driver_check_only_get(), (int)driver_x_pipeline_skip_typeck_get(),
             (int)driver_x_pipeline_skip_codegen_get(), (int)driver_asm_build_skip_typeck());
     fflush(stderr);
   }
   /*
-   * 用户 asm -o：runtime 设 skip_typeck/skip_codegen；build_shux_asm 仅设 SHUX_ASM_BUILD_SKIP_TYPECK（勿再跑 .x typeck）。
-   * shux check：须始终跑 .x typeck（含 WPO-S3 post-scan）；勿因 skip_codegen 跳过。
+   * 用户 asm -o：runtime 设 skip_typeck/skip_codegen；build_xlang_asm 仅设 XLANG_ASM_BUILD_SKIP_TYPECK（勿再跑 .x typeck）。
+   * xlang check：须始终跑 .x typeck（含 WPO-S3 post-scan）；勿因 skip_codegen 跳过。
    */
   if (driver_check_only_get() != 0) {
     tc_rc = run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
@@ -174,8 +174,8 @@ int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *aren
       tc_rc = 0;
     } else if (driver_x_pipeline_skip_typeck_get() != 0 || driver_asm_build_skip_typeck() != 0) {
       /*
-       * 用户 -o（skip_typeck、非 SHUX_ASM_BUILD_SKIP_TYPECK）：入口仍须全量 typeck（ERR-01 负例等）。
-       * build_shux_asm 单模块 -o：仅 dep_prerun（§11.1 padding + parent link）。
+       * 用户 -o（skip_typeck、非 XLANG_ASM_BUILD_SKIP_TYPECK）：入口仍须全量 typeck（ERR-01 负例等）。
+       * build_xlang_asm 单模块 -o：仅 dep_prerun（§11.1 padding + parent link）。
        */
       if (driver_asm_build_skip_typeck() != 0) {
         tc_rc = pipeline_typeck_dep_prerun_module_c(module, arena, ctx);

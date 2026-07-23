@@ -2,7 +2,7 @@
 # F-backtrace v1：std.backtrace 去 C（backtrace.c → backtrace.x；胶层 v2 已拆，见 run-f-backtrace-v2-gate.sh）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_BACKTRACE_V1_FAIL:-0}
+FAIL=${XLANG_F_BACKTRACE_V1_FAIL:-0}
 DOC="analysis/phase-f-backtrace-v1.md"
 MANIFEST="tests/baseline/f-backtrace-v1-closure.tsv"
 die() { echo "f-backtrace-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'backtrace.x' compiler/Makefile || die "Makefile missing backtrace.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/backtrace/backtrace.o >/dev/null 2>&1 || die "make backtrace.o failed"
 else
-  echo "f-backtrace-v1 SKIP backtrace.o build (no shux-c)" >&2
+  echo "f-backtrace-v1 SKIP backtrace.o build (no xlang-c)" >&2
 fi
 for sub in run-std-backtrace-symbolicate-gate.sh run-std-backtrace-xplat-gate.sh; do
   [ -f "tests/$sub" ] || continue

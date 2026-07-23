@@ -36,7 +36,7 @@ nolibc_audit_runtime_freestanding_block() {
 nolibc_track_compiler_lc_mentions() {
   local n=0
   local f
-  for f in compiler/scripts/build_shux_asm.sh compiler/seeds/runtime.from_x.c; do
+  for f in compiler/scripts/build_xlang_asm.sh compiler/seeds/runtime.from_x.c; do
     if [ -f "$f" ] && grep -qE '[[:space:]]-lc([[:space:]]|$)|"-lc"' "$f" 2>/dev/null; then
       n=$((n + 1))
     fi

@@ -6,11 +6,11 @@
 #   std_simd_autovec_platform_key
 #   std_simd_autovec_perf_thresholds VECTORS platform_key
 #   std_simd_autovec_run_c_smoke
-#   std_simd_autovec_run_x_smoke SHUX_BIN X SIMD_O
-#   std_simd_autovec_run_perf SHUX_ASM dot_min ss_min
+#   std_simd_autovec_run_x_smoke XLANG_BIN X SIMD_O
+#   std_simd_autovec_run_perf XLANG_ASM dot_min ss_min
 #   std_simd_autovec_emit_report status c_ok su_ok perf_ok skip host
 
-STD153_PREFIX="${SHUX_STD153_SIMD_AUTovec_PREFIX:-shux: [SHUX_STD153_SIMD_AUTovec]}"
+STD153_PREFIX="${XLANG_STD153_SIMD_AUTovec_PREFIX:-xlang: [XLANG_STD153_SIMD_AUTovec]}"
 
 # 校验 manifest；echo 缺失数。
 std_simd_autovec_symbols_ok() {
@@ -91,7 +91,7 @@ std_simd_autovec_perf_thresholds() {
 # 编译并运行 C 烟测。
 std_simd_autovec_run_c_smoke() {
   local smoke_c="tests/std-simd/autovec_strategy_ok.c"
-  local exe="/tmp/shux_std153_simd_autovec_c_$$"
+  local exe="/tmp/xlang_std153_simd_autovec_c_$$"
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/simd/simd.o
@@ -116,11 +116,11 @@ std_simd_autovec_run_c_smoke() {
 
 # 编译并运行 .x 烟测。
 std_simd_autovec_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local simd_o="$3"
-  local exe="/tmp/shux_std153_simd_autovec_x_$$"
-  if ! "$shux" -L . "$src" -o "$exe" "$simd_o" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std153_simd_autovec_x_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" "$simd_o" >/dev/null 2>&1; then
     echo "std-simd-autovec FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -139,7 +139,7 @@ std_simd_autovec_run_x_smoke() {
 
 # 运行 dot + shuffle/select perf；阈值为 0 则 skip；bench 不可运行时不失败。
 std_simd_autovec_run_perf() {
-  local shux_asm="$1"
+  local xlang_asm="$1"
   local dot_min="$2"
   local ss_min="$3"
   local dot_ok=1
@@ -147,7 +147,7 @@ std_simd_autovec_run_perf() {
   if awk -v d="$dot_min" 'BEGIN { exit (d + 0 > 0.001) ? 0 : 1 }'; then
     set +e
     local dot_out
-    dot_out=$(SHUX="$shux_asm" SHUX_SIMD_DOT_MIN_RATIO="$dot_min" SHUX_SIMD_DOT_FAIL=1 \
+    dot_out=$(XLANG="$xlang_asm" XLANG_SIMD_DOT_MIN_RATIO="$dot_min" XLANG_SIMD_DOT_FAIL=1 \
       ./tests/run-perf-simd-dot.sh 2>&1)
     local dot_ec=$?
     set -e
@@ -165,7 +165,7 @@ std_simd_autovec_run_perf() {
   if awk -v s="$ss_min" 'BEGIN { exit (s + 0 > 0.001) ? 0 : 1 }'; then
     set +e
     local ss_out
-    ss_out=$(SHUX="$shux_asm" SHUX_SIMD_SS_MIN_RATIO="$ss_min" SHUX_SIMD_SS_FAIL=1 \
+    ss_out=$(XLANG="$xlang_asm" XLANG_SIMD_SS_MIN_RATIO="$ss_min" XLANG_SIMD_SS_FAIL=1 \
       ./tests/run-perf-simd-shuffle-select.sh 2>&1)
     local ss_ec=$?
     set -e

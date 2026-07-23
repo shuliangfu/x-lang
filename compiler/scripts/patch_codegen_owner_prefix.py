@@ -26,12 +26,12 @@ def main() -> int:
 
     if "codegen_type_dep_struct_owner_index" not in text:
         old_start = (
-            "SHUX_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into("
+            "XLANG_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into("
             "struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, "
             "int32_t type_ref, uint8_t * dst, int32_t dst_cap) {"
         )
         old_end = (
-            "SHUX_LIB_WEAK int32_t codegen_type_array_elem_is_u8("
+            "XLANG_LIB_WEAK int32_t codegen_type_array_elem_is_u8("
             "struct ast_ASTArena * arena, int32_t type_ref) {"
         )
         i0 = text.find(old_start)
@@ -39,7 +39,7 @@ def main() -> int:
         if i0 < 0 or i1 < 0 or i1 <= i0:
             print(f"prefix_into bounds not found {i0} {i1}", file=sys.stderr)
             return 1
-        new_block = r'''SHUX_LIB_WEAK int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDepCtx * ctx, uint8_t * bare_nm, int32_t bare_len) {
+        new_block = r'''XLANG_LIB_WEAK int32_t codegen_type_dep_struct_owner_index(struct ast_PipelineDepCtx * ctx, uint8_t * bare_nm, int32_t bare_len) {
   int32_t best_di = -1;
   int32_t best_export = 0;
   int32_t cur = -1;
@@ -96,7 +96,7 @@ def main() -> int:
   }
   return best_di;
 }
-SHUX_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref, uint8_t * dst, int32_t dst_cap) {
+XLANG_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref, uint8_t * dst, int32_t dst_cap) {
   int32_t name_len = 0;
   uint8_t ty_nm[64] = { 0 };
   int32_t owner = -1;
@@ -146,7 +146,7 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDep
         "int32_t codegen_type_dep_struct_owner_index("
         "struct ast_PipelineDepCtx * ctx, uint8_t * bare_nm, int32_t bare_len);\n"
     )
-    if "codegen_type_dep_struct_owner_index(" in text.split("SHUX_LIB_WEAK")[0]:
+    if "codegen_type_dep_struct_owner_index(" in text.split("XLANG_LIB_WEAK")[0]:
         pass
     else:
         pdecl = (
@@ -159,7 +159,7 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDep
             print("added owner_index prototype")
 
     old_defs = (
-        "SHUX_LIB_WEAK int32_t codegen_emit_module_struct_definitions("
+        "XLANG_LIB_WEAK int32_t codegen_emit_module_struct_definitions("
         "struct ast_Module * module, struct ast_ASTArena * arena, "
         "struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, "
         "int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {\n"
@@ -177,7 +177,7 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDep
         " }"
     )
     new_defs = (
-        "SHUX_LIB_WEAK int32_t codegen_emit_module_struct_definitions("
+        "XLANG_LIB_WEAK int32_t codegen_emit_module_struct_definitions("
         "struct ast_Module * module, struct ast_ASTArena * arena, "
         "struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, "
         "int32_t struct_prefix_len, struct ast_PipelineDepCtx * ctx) {\n"
@@ -213,13 +213,13 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDep
         print("WARN: emit_module_struct_definitions pattern not found", file=sys.stderr)
 
     # forward decls: insert owner skip after name_into
-    fwd = "SHUX_LIB_WEAK int32_t codegen_emit_module_struct_forward_declarations("
+    fwd = "XLANG_LIB_WEAK int32_t codegen_emit_module_struct_forward_declarations("
     fi = text.find(fwd)
     if fi >= 0 and "codegen_type_dep_struct_owner_index(ctx, (&((ty_nm)[0])), nl)" not in text[fi : fi + 2500]:
         # inject after first name_into in forward decls function
         marker = "(void)(pipeline_module_struct_layout_name_into(module, k, (&((ty_nm)[0]))));\n"
         # find within this function only
-        fend = text.find("SHUX_LIB_WEAK int32_t codegen_emit_dep_struct_forward_declarations", fi)
+        fend = text.find("XLANG_LIB_WEAK int32_t codegen_emit_dep_struct_forward_declarations", fi)
         chunk = text[fi:fend]
         if marker in chunk:
             inject = (
@@ -237,7 +237,7 @@ SHUX_LIB_WEAK int32_t codegen_type_dep_struct_prefix_into(struct ast_PipelineDep
             print("WARN: name_into marker not in forward decls", file=sys.stderr)
 
     # Patch dep_struct_forward to set current_codegen_dep_index and skip non-owned
-    dep_fwd_start = "SHUX_LIB_WEAK int32_t codegen_emit_dep_struct_forward_declarations(struct ast_PipelineDepCtx * ctx, struct codegen_CodegenOutBuf * out) {"
+    dep_fwd_start = "XLANG_LIB_WEAK int32_t codegen_emit_dep_struct_forward_declarations(struct ast_PipelineDepCtx * ctx, struct codegen_CodegenOutBuf * out) {"
     di = text.find(dep_fwd_start)
     if di >= 0 and "codegen_type_dep_struct_owner_index" not in text[di : di + 1200]:
         old_call = (

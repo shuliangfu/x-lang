@@ -68,12 +68,12 @@ if (-f $lex) {
 
   if ($s !~ /101, 120, 112, 111, 114, 116/) {
     my $block_kw = <<'BLOCK';
-  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword(data, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
   }
 BLOCK
     my $block_buf = <<'BLOCK';
-  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct shux_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+  if (len == 6 && lexer_match_keyword_buf(data, data_len, start, 6, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 101, 120, 112, 111, 114, 116 }, .length = 6 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_EXPORT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
   }
 BLOCK

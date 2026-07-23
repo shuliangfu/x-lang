@@ -246,7 +246,7 @@ export function io_read_ptr_backend(): i32 {
  * @return u8[]<io_read_ptr>
  */
 export function io_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
-  let s: ShuxSliceU8 = io_read_ptr_mod.io_read_ptr_slice(handle, timeout_ms);
+  let s: XlangSliceU8 = io_read_ptr_mod.io_read_ptr_slice(handle, timeout_ms);
   let out: u8[]<io_read_ptr>;
   out.data = s.data;
   out.length = s.length;
@@ -309,166 +309,166 @@ export function io_read_batch_provided(fd: i32, n: i32, timeout_ms: u32, out_bid
   return io_stubs_mod.io_read_batch_provided(fd, n, timeout_ms, out_bids, out_lens);
 }
 
-/** Exported function `shux_io_submit_read_async`.
- * Read path helper `shux_io_submit_read_async`.
+/** Exported function `xlang_io_submit_read_async`.
+ * Read path helper `xlang_io_submit_read_async`.
  * @param ptr *u8
  * @param len usize
  * @param handle usize
  * @return i32
  */
-export function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
-  return io_stubs_mod.shux_io_submit_read_async(ptr, len, handle);
+export function xlang_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
+  return io_stubs_mod.xlang_io_submit_read_async(ptr, len, handle);
 }
 
-/** Exported function `shux_io_complete_read_async`.
- * Read path helper `shux_io_complete_read_async`.
+/** Exported function `xlang_io_complete_read_async`.
+ * Read path helper `xlang_io_complete_read_async`.
  * @return i32
  */
-export function shux_io_complete_read_async(): i32 {
-  return io_stubs_mod.shux_io_complete_read_async();
+export function xlang_io_complete_read_async(): i32 {
+  return io_stubs_mod.xlang_io_complete_read_async();
 }
 
-/** Exported function `shux_io_complete_read_async_slot`.
- * Read path helper `shux_io_complete_read_async_slot`.
+/** Exported function `xlang_io_complete_read_async_slot`.
+ * Read path helper `xlang_io_complete_read_async_slot`.
  * @param slot i32
  * @return i32
  */
-export function shux_io_complete_read_async_slot(slot: i32): i32 {
-  return io_stubs_mod.shux_io_complete_read_async_slot(slot);
+export function xlang_io_complete_read_async_slot(slot: i32): i32 {
+  return io_stubs_mod.xlang_io_complete_read_async_slot(slot);
 }
 
-/** Exported function `shux_io_submit_write_async`.
- * Write path helper `shux_io_submit_write_async`.
+/** Exported function `xlang_io_submit_write_async`.
+ * Write path helper `xlang_io_submit_write_async`.
  * @param ptr *u8
  * @param len usize
  * @param handle usize
  * @return i32
  */
-export function shux_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
-  return io_stubs_mod.shux_io_submit_write_async(ptr, len, handle);
+export function xlang_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
+  return io_stubs_mod.xlang_io_submit_write_async(ptr, len, handle);
 }
 
-/** Exported function `shux_io_complete_write_async`.
- * Write path helper `shux_io_complete_write_async`.
+/** Exported function `xlang_io_complete_write_async`.
+ * Write path helper `xlang_io_complete_write_async`.
  * @return i32
  */
-export function shux_io_complete_write_async(): i32 {
-  return io_stubs_mod.shux_io_complete_write_async();
+export function xlang_io_complete_write_async(): i32 {
+  return io_stubs_mod.xlang_io_complete_write_async();
 }
 
-/** Exported function `shux_io_complete_write_async_slot`.
- * Write path helper `shux_io_complete_write_async_slot`.
+/** Exported function `xlang_io_complete_write_async_slot`.
+ * Write path helper `xlang_io_complete_write_async_slot`.
  * @param slot i32
  * @return i32
  */
-export function shux_io_complete_write_async_slot(slot: i32): i32 {
-  return io_stubs_mod.shux_io_complete_write_async_slot(slot);
+export function xlang_io_complete_write_async_slot(slot: i32): i32 {
+  return io_stubs_mod.xlang_io_complete_write_async_slot(slot);
 }
 
-/** Exported function `shux_io_poll_async_completions`.
- * Implements `shux_io_poll_async_completions`.
+/** Exported function `xlang_io_poll_async_completions`.
+ * Implements `xlang_io_poll_async_completions`.
  * @param timeout_ms u32
  * @return u32
  */
-export function shux_io_poll_async_completions(timeout_ms: u32): u32 {
-  return io_stubs_mod.shux_io_poll_async_completions(timeout_ms);
+export function xlang_io_poll_async_completions(timeout_ms: u32): u32 {
+  return io_stubs_mod.xlang_io_poll_async_completions(timeout_ms);
 }
 
-/** Exported function `shux_io_uring_is_available_c`.
- * Implements `shux_io_uring_is_available_c`.
+/** Exported function `xlang_io_uring_is_available_c`.
+ * Implements `xlang_io_uring_is_available_c`.
  * @return i32
  */
-export function shux_io_uring_is_available_c(): i32 {
-  return io_stubs_mod.shux_io_uring_is_available_c();
+export function xlang_io_uring_is_available_c(): i32 {
+  return io_stubs_mod.xlang_io_uring_is_available_c();
 }
 
 /* See implementation. */
 
-export function shux_io_register(ptr: *u8, len: usize, handle: usize): i32 {
+export function xlang_io_register(ptr: *u8, len: usize, handle: usize): i32 {
   if (handle >= 0) {
     /* handle currently unused. */
   }
   return io_register_buffer(ptr, len);
 }
 
-/** Exported function `shux_io_submit_read`.
- * Read path helper `shux_io_submit_read`.
+/** Exported function `xlang_io_submit_read`.
+ * Read path helper `xlang_io_submit_read`.
  * @param ptr *u8
  * @param len usize
  * @param handle usize
  * @param timeout_ms u32
  * @return i32
  */
-export function shux_io_submit_read(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
+export function xlang_io_submit_read(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
   let r: isize = io_read((handle as i32), ptr, len, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }
 
-/** Exported function `shux_io_submit_write`.
- * Write path helper `shux_io_submit_write`.
+/** Exported function `xlang_io_submit_write`.
+ * Write path helper `xlang_io_submit_write`.
  * @param ptr *u8
  * @param len usize
  * @param handle usize
  * @param timeout_ms u32
  * @return i32
  */
-export function shux_io_submit_write(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
+export function xlang_io_submit_write(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
   let r: isize = io_write((handle as i32), ptr, len, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }
 
-/** Exported function `shux_io_read_ptr`.
- * Read path helper `shux_io_read_ptr`.
+/** Exported function `xlang_io_read_ptr`.
+ * Read path helper `xlang_io_read_ptr`.
  * @param handle usize
  * @param timeout_ms u32
  * @return *u8
  */
-export function shux_io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
+export function xlang_io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
   return io_read_ptr(handle, timeout_ms);
 }
 
-/** Exported function `shux_io_read_ptr_len`.
- * Read path helper `shux_io_read_ptr_len`.
+/** Exported function `xlang_io_read_ptr_len`.
+ * Read path helper `xlang_io_read_ptr_len`.
  * @return i32
  */
-export function shux_io_read_ptr_len(): i32 {
+export function xlang_io_read_ptr_len(): i32 {
   return io_read_ptr_len();
 }
 
-/** Exported function `shux_io_read_ptr_gen`.
- * Read path helper `shux_io_read_ptr_gen`.
+/** Exported function `xlang_io_read_ptr_gen`.
+ * Read path helper `xlang_io_read_ptr_gen`.
  * @return u64
  */
-export function shux_io_read_ptr_gen(): u64 {
+export function xlang_io_read_ptr_gen(): u64 {
   return io_read_ptr_gen();
 }
 
-/** Exported function `shux_io_read_ptr_gen_valid`.
- * Read path helper `shux_io_read_ptr_gen_valid`.
+/** Exported function `xlang_io_read_ptr_gen_valid`.
+ * Read path helper `xlang_io_read_ptr_gen_valid`.
  * @param saved u64
  * @return i32
  */
-export function shux_io_read_ptr_gen_valid(saved: u64): i32 {
+export function xlang_io_read_ptr_gen_valid(saved: u64): i32 {
   return io_read_ptr_gen_valid(saved);
 }
 
-/** Exported function `shux_io_read_ptr_backend`.
- * Read path helper `shux_io_read_ptr_backend`.
+/** Exported function `xlang_io_read_ptr_backend`.
+ * Read path helper `xlang_io_read_ptr_backend`.
  * @return i32
  */
-export function shux_io_read_ptr_backend(): i32 {
+export function xlang_io_read_ptr_backend(): i32 {
   return io_read_ptr_backend();
 }
 
-/** Exported function `shux_io_read_ptr_slice`.
- * Read path helper `shux_io_read_ptr_slice`.
+/** Exported function `xlang_io_read_ptr_slice`.
+ * Read path helper `xlang_io_read_ptr_slice`.
  * @param handle usize
  * @param timeout_ms u32
- * @return ShuxSliceU8
+ * @return XlangSliceU8
  */
-export function shux_io_read_ptr_slice(handle: usize, timeout_ms: u32): ShuxSliceU8 {
+export function xlang_io_read_ptr_slice(handle: usize, timeout_ms: u32): XlangSliceU8 {
   return io_read_ptr_mod.io_read_ptr_slice(handle, timeout_ms);
 }
 
@@ -482,8 +482,8 @@ export function handle_from_fd(fd: i32, _unused: i32): usize {
   return (fd as usize);
 }
 
-/** Exported function `shux_io_read_fixed`.
- * Read path helper `shux_io_read_fixed`.
+/** Exported function `xlang_io_read_fixed`.
+ * Read path helper `xlang_io_read_fixed`.
  * @param handle usize
  * @param buf_index u32
  * @param offset usize
@@ -491,14 +491,14 @@ export function handle_from_fd(fd: i32, _unused: i32): usize {
  * @param timeout_ms u32
  * @return i32
  */
-export function shux_io_read_fixed(handle: usize, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
+export function xlang_io_read_fixed(handle: usize, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
   let r: isize = io_read_fixed((handle as i32), buf_index, offset, len, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }
 
-/** Exported function `shux_io_write_fixed`.
- * Write path helper `shux_io_write_fixed`.
+/** Exported function `xlang_io_write_fixed`.
+ * Write path helper `xlang_io_write_fixed`.
  * @param handle usize
  * @param buf_index u32
  * @param offset usize
@@ -506,14 +506,14 @@ export function shux_io_read_fixed(handle: usize, buf_index: u32, offset: usize,
  * @param timeout_ms u32
  * @return i32
  */
-export function shux_io_write_fixed(handle: usize, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
+export function xlang_io_write_fixed(handle: usize, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
   let r: isize = io_write_fixed((handle as i32), buf_index, offset, len, timeout_ms);
   if (r < 0) { return -1; }
   return (r as i32);
 }
 
-/** Exported function `shux_io_submit_read_batch`.
- * Read path helper `shux_io_submit_read_batch`.
+/** Exported function `xlang_io_submit_read_batch`.
+ * Read path helper `xlang_io_submit_read_batch`.
  * @param p0 *u8
  * @param l0 usize
  * @param p1 *u8
@@ -527,7 +527,7 @@ export function shux_io_write_fixed(handle: usize, buf_index: u32, offset: usize
  * @param timeout_ms u32
  * @return i32
  */
-export function shux_io_submit_read_batch(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, handle: usize, n: i32, timeout_ms: u32): i32 {
+export function xlang_io_submit_read_batch(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, handle: usize, n: i32, timeout_ms: u32): i32 {
   if (!(handle == 0 || handle >= 2)) {
     return -1;
   }
@@ -536,8 +536,8 @@ export function shux_io_submit_read_batch(p0: *u8, l0: usize, p1: *u8, l1: usize
   return (r as i32);
 }
 
-/** Exported function `shux_io_submit_write_batch`.
- * Write path helper `shux_io_submit_write_batch`.
+/** Exported function `xlang_io_submit_write_batch`.
+ * Write path helper `xlang_io_submit_write_batch`.
  * @param p0 *u8
  * @param l0 usize
  * @param p1 *u8
@@ -551,7 +551,7 @@ export function shux_io_submit_read_batch(p0: *u8, l0: usize, p1: *u8, l1: usize
  * @param timeout_ms u32
  * @return i32
  */
-export function shux_io_submit_write_batch(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, handle: usize, n: i32, timeout_ms: u32): i32 {
+export function xlang_io_submit_write_batch(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, handle: usize, n: i32, timeout_ms: u32): i32 {
   if (handle < 1) {
     return -1;
   }
@@ -600,43 +600,43 @@ export function submit_register_fixed_buffers_buf(bufs: *u8, nr: u32): i32 {
   return 0;
 }
 
-/** Exported function `shux_io_register_provided_buffers`.
- * Registration helper `shux_io_register_provided_buffers`.
+/** Exported function `xlang_io_register_provided_buffers`.
+ * Registration helper `xlang_io_register_provided_buffers`.
  * @param nr u32
  * @param bufsz u32
  * @return i32
  */
-export function shux_io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
+export function xlang_io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
   return io_register_provided_buffers(nr, bufsz);
 }
 
-/** Exported function `shux_io_unregister_provided_buffers`.
- * Registration helper `shux_io_unregister_provided_buffers`.
+/** Exported function `xlang_io_unregister_provided_buffers`.
+ * Registration helper `xlang_io_unregister_provided_buffers`.
  * @return void
  */
-export function shux_io_unregister_provided_buffers(): void {
+export function xlang_io_unregister_provided_buffers(): void {
   io_unregister_provided_buffers();
 }
 
-/** Exported function `shux_io_provided_buffer_ptr`.
- * Implements `shux_io_provided_buffer_ptr`.
+/** Exported function `xlang_io_provided_buffer_ptr`.
+ * Implements `xlang_io_provided_buffer_ptr`.
  * @param bid u32
  * @return *u8
  */
-export function shux_io_provided_buffer_ptr(bid: u32): *u8 {
+export function xlang_io_provided_buffer_ptr(bid: u32): *u8 {
   return io_provided_buffer_ptr(bid);
 }
 
-/** Exported function `shux_io_provided_buffer_size`.
- * Implements `shux_io_provided_buffer_size`.
+/** Exported function `xlang_io_provided_buffer_size`.
+ * Implements `xlang_io_provided_buffer_size`.
  * @return u32
  */
-export function shux_io_provided_buffer_size(): u32 {
+export function xlang_io_provided_buffer_size(): u32 {
   return io_provided_buffer_size();
 }
 
-/** Exported function `shux_io_read_batch_provided`.
- * Read path helper `shux_io_read_batch_provided`.
+/** Exported function `xlang_io_read_batch_provided`.
+ * Read path helper `xlang_io_read_batch_provided`.
  * @param handle usize
  * @param n i32
  * @param timeout_ms u32
@@ -644,7 +644,7 @@ export function shux_io_provided_buffer_size(): u32 {
  * @param out_lens *u32
  * @return i32
  */
-export function shux_io_read_batch_provided(handle: usize, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
+export function xlang_io_read_batch_provided(handle: usize, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
   if (!(handle == 0 || handle >= 2)) {
     return -1;
   }
@@ -653,15 +653,15 @@ export function shux_io_read_batch_provided(handle: usize, n: i32, timeout_ms: u
   return (r as i32);
 }
 
-/** Exported function `shux_io_read_provided`.
- * Read path helper `shux_io_read_provided`.
+/** Exported function `xlang_io_read_provided`.
+ * Read path helper `xlang_io_read_provided`.
  * @param handle usize
  * @param timeout_ms u32
  * @param out_bid *u32
  * @param out_len *u32
  * @return i32
  */
-export function shux_io_read_provided(handle: usize, timeout_ms: u32, out_bid: *u32, out_len: *u32): i32 {
+export function xlang_io_read_provided(handle: usize, timeout_ms: u32, out_bid: *u32, out_len: *u32): i32 {
   if (!(handle == 0 || handle >= 2)) {
     return -1;
   }

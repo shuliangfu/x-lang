@@ -7,10 +7,10 @@
 **验收**：
 
 ```bash
-cd compiler && make bootstrap-pipeline && make shux-sx && sh ./verify-selfhost-stage2.sh
+cd compiler && make bootstrap-pipeline && make xlang-sx && sh ./verify-selfhost-stage2.sh
 ```
 
-**最后验收**：2026-05-20 — `verify-selfhost-stage2.sh` 通过（shux-sx / shux-sx2 exit 42）。  
+**最后验收**：2026-05-20 — `verify-selfhost-stage2.sh` 通过（xlang-sx / xlang-sx2 exit 42）。  
 **正确性审计**：2026-07-14 — §九 静默硬顶；`bash compiler/scripts/audit_static_limits.sh`。
 
 ---
@@ -97,7 +97,7 @@ cd compiler && make bootstrap-pipeline && make shux-sx && sh ./verify-selfhost-s
 | P-B04 ✅ | `backend.x` | `locals[24]` | `asm_ctx_local_*` sidecar | 完成 |
 | P-B05 ✅ | `backend.x` | loop 栈 4 层 | 8 层 | 完成 |
 
-**Stage2 自举**：`verify-selfhost-stage2.sh` 已通过（shux-sx / shux-sx2 exit 42）。
+**Stage2 自举**：`verify-selfhost-stage2.sh` 已通过（xlang-sx / xlang-sx2 exit 42）。
 
 ---
 
@@ -145,7 +145,7 @@ X 自举与 C driver 镜像已对齐 **ast.x 瘦布局 + ast_pool.c sidecar**。
   ✅ P-A04           typeck import 层 → asm_qual_sym_*
   ✅ P-A05           imp_slot 与 num_imports 对齐
   ✅ P-A06 ~ P-A07   typeck/codegen import select、struct_lit 去 8 顶
-  ✅ 验收 bootstrap-pipeline + shux-sx + verify-selfhost-stage2
+  ✅ 验收 bootstrap-pipeline + xlang-sx + verify-selfhost-stage2
 
 批次 2（阶段 B）✅
   ✅ P-B01 ~ P-B02   parser 简化 call 路径
@@ -157,7 +157,7 @@ X 自举与 C driver 镜像已对齐 **ast.x 瘦布局 + ast_pool.c sidecar**。
 
 批次 3（阶段 C）✅
   ✅ P-C01 ~ P-C03   runtime.c / ast.h+parser.c / perl 别名同步
-  ✅ 验收 bootstrap-pipeline + shux-sx + verify-selfhost-stage2
+  ✅ 验收 bootstrap-pipeline + xlang-sx + verify-selfhost-stage2
 ```
 
 ---
@@ -215,7 +215,7 @@ X 自举与 C driver 镜像已对齐 **ast.x 瘦布局 + ast_pool.c sidecar**。
 | **`MODULE_ENUM_MAX_VARIANTS`** | **256**（原 64） | `ast_pool.c` `ModuleEnumEntry` | X parse 登记 enum 变体、typeck tag | 曾静默；**现 fprintf 诊断** | 🔴 已撞顶 → **已抬 + 可观测** |
 | **`AST_ENUM_MAX_VARIANTS`** | 32 | `ast.h` | legacy `ASTEnumDef` 文档常量 | N/A（**无数组定长引用**） | 🟢 非热路径；**勿当第二权威** |
 | `AST_STRUCT_MAX_FIELDS` | 64 | `ast.h` | C `field_offsets[64]` | 旧 C 布局 | 🟡 X 走 grow；C 路径少用 |
-| `SHUX_DRIVER_DEP_SLOT_MAX` | 32 | `runtime_pipeline_abi.h` | dep arena/module 槽 | 待撞顶实测 | 🟡 监控；优先诊断 |
+| `XLANG_DRIVER_DEP_SLOT_MAX` | 32 | `runtime_pipeline_abi.h` | dep arena/module 槽 | 待撞顶实测 | 🟡 监控；优先诊断 |
 | `AST_MODULE_MAX_TYPE_ALIASES` | 32 | `ast.h` | type alias | 查是否仍用 | 🟡 |
 | `AST_MODULE_MAX_TRAITS/IMPLS` | 16/32 | `ast.h` | trait/impl | 查是否仍用 | 🟡 |
 | `AST_MAX_GENERIC_PARAMS` | 8 | `ast.h` | 泛型参数 | 语言设计 | 🟢 不抬 |

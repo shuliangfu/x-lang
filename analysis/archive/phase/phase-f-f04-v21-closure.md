@@ -39,8 +39,8 @@ make -C compiler ../std/crypto/crypto.o
 ## 门禁
 
 ```bash
-SHUX_F04_CRYPTO_CLOSURE_FAIL=1 ./tests/run-f04-std-crypto-closure-gate.sh
-SHUX_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-gate.sh
+XLANG_F04_CRYPTO_CLOSURE_FAIL=1 ./tests/run-f04-std-crypto-closure-gate.sh
+XLANG_STD_CRYPTO_MANIFEST_ONLY=1 ./tests/run-std-crypto-gate.sh
 ```
 
 ## 下一项

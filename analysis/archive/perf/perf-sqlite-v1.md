@@ -26,4 +26,4 @@
 ./tests/run-perf-sqlite-gate.sh
 ```
 
-更新 baseline：`SHUX_PERF_UPDATE_SQLITE_BASELINE=1 ./tests/run-perf-sqlite-gate.sh`
+更新 baseline：`XLANG_PERF_UPDATE_SQLITE_BASELINE=1 ./tests/run-perf-sqlite-gate.sh`

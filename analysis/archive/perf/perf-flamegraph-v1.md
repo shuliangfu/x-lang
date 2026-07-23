@@ -13,7 +13,7 @@
 | **Top20 自动报告** | 对固定编译用例 `perf record`，输出 Top-20 符号 TSV |
 | **可复现矩阵** | manifest 锁定用例与命令，PR 可对比热点漂移 |
 | **零强依赖 SVG** | v1 以符号 Top-N 为主；系统有 FlameGraph 时可另存 SVG |
-| **CI 友好** | 无 Linux perf 或无 native shux 时 gate manifest 仍绿，hook SKIP |
+| **CI 友好** | 无 Linux perf 或无 native xlang 时 gate manifest 仍绿，hook SKIP |
 
 验收（NEXT PERF-005）：**Top20 热点报告自动生成** → manifest + runner + gate 烟测。
 
@@ -30,11 +30,11 @@
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `SHUX_PERF_FLAMEGRAPH_TOPN` | `20` | Top 行数 |
-| `SHUX_PERF_FLAMEGRAPH_FREQ` | `997` | 采样频率 Hz |
-| `SHUX_PERF_FLAMEGRAPH_CASE` | 空 | 仅跑指定 `case_id` |
-| `SHUX_PERF_FLAMEGRAPH_OUT_DIR` | `/tmp/shux-perf-flamegraph` | 报告输出目录 |
-| `SHUX_PERF_FLAMEGRAPH_PREFIX` | `shux: [SHUX_PERF_FLAMEGRAPH]` | stderr 摘要前缀 |
+| `XLANG_PERF_FLAMEGRAPH_TOPN` | `20` | Top 行数 |
+| `XLANG_PERF_FLAMEGRAPH_FREQ` | `997` | 采样频率 Hz |
+| `XLANG_PERF_FLAMEGRAPH_CASE` | 空 | 仅跑指定 `case_id` |
+| `XLANG_PERF_FLAMEGRAPH_OUT_DIR` | `/tmp/xlang-perf-flamegraph` | 报告输出目录 |
+| `XLANG_PERF_FLAMEGRAPH_PREFIX` | `xlang: [XLANG_PERF_FLAMEGRAPH]` | stderr 摘要前缀 |
 
 ---
 
@@ -44,9 +44,9 @@
 
 | case_id | 命令 | 用途 |
 |---------|------|------|
-| `check_typeck` | `shux check compiler/src/typeck/typeck.x` | typeck dogfood（gate 烟测） |
-| `loop_i32_compile` | `shux compile tests/bench/loop_i32.x` | 微基准全链路 |
-| `check_parser` | `shux check compiler/src/parser/parser.x` | parser 体量热点 |
+| `check_typeck` | `xlang check compiler/src/typeck/typeck.x` | typeck dogfood（gate 烟测） |
+| `loop_i32_compile` | `xlang compile tests/bench/loop_i32.x` | 微基准全链路 |
+| `check_parser` | `xlang check compiler/src/parser/parser.x` | parser 体量热点 |
 
 与 `compile-dogfood.tsv` 中 `check_typeck` / `check_parser` 对齐，便于 PERF-004 回归后对照 flamegraph。
 
@@ -67,8 +67,8 @@ check_typeck	2	9.11	check_expr_impl_mega
 ### 4.2 stderr 摘要
 
 ```text
-shux: [SHUX_PERF_FLAMEGRAPH] case=check_typeck top20_done rows=20
-shux: [SHUX_PERF_FLAMEGRAPH] case=check_typeck report=/tmp/shux-perf-flamegraph/check_typeck-top20.tsv
+xlang: [XLANG_PERF_FLAMEGRAPH] case=check_typeck top20_done rows=20
+xlang: [XLANG_PERF_FLAMEGRAPH] case=check_typeck report=/tmp/xlang-perf-flamegraph/check_typeck-top20.tsv
 ```
 
 汇总：`{OUT_DIR}/top20-summary.tsv`（所有用例拼接）。
@@ -82,11 +82,11 @@ shux: [SHUX_PERF_FLAMEGRAPH] case=check_typeck report=/tmp/shux-perf-flamegraph/
 ## 5. 用法
 
 ```bash
-# 全矩阵（Linux + perf + native shux）
+# 全矩阵（Linux + perf + native xlang）
 ./tests/run-perf-flamegraph.sh
 
 # 单用例
-SHUX=./compiler/shux-c SHUX_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-perf-flamegraph.sh
+XLANG=./compiler/xlang-c XLANG_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-perf-flamegraph.sh
 
 # 门禁
 ./tests/run-perf-flamegraph-gate.sh
@@ -94,7 +94,7 @@ SHUX=./compiler/shux-c SHUX_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-perf-f
 
 推荐流程（与 `doc-perf-tuning-v1.md` §3 编译调优联动）：
 
-1. `SHUX_COMPILE_PHASE_TIMING=1` 看 parse/typeck/codegen 哪段慢  
+1. `XLANG_COMPILE_PHASE_TIMING=1` 看 parse/typeck/codegen 哪段慢  
 2. 对慢阶段对应模块跑 flamegraph Top20  
 3. 对照 `typeck-hotpath-matrix.tsv` 中 `monitor`/`planned` 行开优化 PR  
 
@@ -105,9 +105,9 @@ SHUX=./compiler/shux-c SHUX_PERF_FLAMEGRAPH_CASE=check_typeck ./tests/run-perf-f
 `tests/run-perf-flamegraph-gate.sh`：
 
 1. RFC + manifest + `tests/lib/perf-flamegraph.sh` + runner 存在  
-2. 文档含 `perf record`、`Top20`、`SHUX_PERF_FLAMEGRAPH`  
+2. 文档含 `perf record`、`Top20`、`XLANG_PERF_FLAMEGRAPH`  
 3. profile_case ≥ `min_cases`；cross-ref 文件存在  
-4. Linux + perf + native shux：`check_typeck` 烟测须 `top20_done rows=20`  
+4. Linux + perf + native xlang：`check_typeck` 烟测须 `top20_done rows=20`  
 
 ---
 

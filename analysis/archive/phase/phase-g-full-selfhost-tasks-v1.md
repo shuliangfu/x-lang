@@ -3,7 +3,7 @@
 > **创建**：2026-06-21  
 > **目标**：仓库内 **零手写 `.c`/`.h`**（compiler + core + std）；Linux bootstrap **`-nostdlib` 硬绿**；`build.x` 替代 Makefile。  
 > **前提**：D+E+F v1 ✅（见 `NEXT.md` §0.1）。  
-> **终局哨兵**：`SHUX_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh`
+> **终局哨兵**：`XLANG_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh`
 
 ---
 
@@ -19,9 +19,9 @@
 **每批回归（必跑）**：
 
 ```bash
-SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
+XLANG_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 make -C compiler bootstrap-driver-bstrict
-SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
+XLANG_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
 ./tests/run-no-handwritten-c-gate.sh
 ```
 
@@ -34,7 +34,7 @@ SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
 | **0** | G-PLAN | 任务清单 + 门禁对齐 | — | ✅ 本文档 |
 | **1** | G-01 | `core/` 5→0 `.c` + 1 `.h` | 1～2 天 | ✅ |
 | **2** | G-03 | F-no-libc bootstrap 硬绿 | 2～4 天 | 🟡 path.o + net.o（10 子模块）asm 绿；gate hello 仍卡 test.o 重复链接 |
-| **3** | G-02a | 删 LEGACY 前端 C（仅 shux-c 用） | 3～5 天 | ⬜ 需 seed + B-strict 绿 |
+| **3** | G-02a | 删 LEGACY 前端 C（仅 xlang-c 用） | 3～5 天 | ⬜ 需 seed + B-strict 绿 |
 | **4** | G-02b | runtime ABI 七件套 → `.x` | 1～2 周 | ⬜ |
 | **5** | G-02c | LSP / driver / asm glue C | 1～2 周 | ⬜ |
 | **6** | G-02d | std 测试胶层 `runtime_*_glue.c` + http/ed25519 | 1 周 | ⬜ |
@@ -55,7 +55,7 @@ SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
 | G-01-03 | slice 纯 `.x` | `core/slice/slice.c` | `mod.x` 用字段赋值构造 slice | `run-core-slice-api-gate.sh` |
 | G-01-04 | mem 纯 `.x` | `core/mem/mem.c` | volatile 读写 + fence（`.x`/极薄 `.s`） | `run-core-mem-volatile-fence-gate.sh` |
 | G-01-05 | builtin 纯 `.x` | `core/builtin/builtin.c` | 已有 `mod.x` 实现；更新 codegen 映射 | `run-core-builtin-bitops-gate.sh` |
-| G-01-06 | 删 ABI 头 | `core/builtin/builtin_abi.h` | 迁 `compiler/include/shux_std_abi/` 或内联 | `run-builtin.sh` |
+| G-01-06 | 删 ABI 头 | `core/builtin/builtin_abi.h` | 迁 `compiler/include/xlang_std_abi/` 或内联 | `run-builtin.sh` |
 | G-01-07 | Makefile | `compiler/Makefile` | 去掉 `core/*/builtin.o` 等规则 | `run-std-c-inventory-gate.sh` |
 | G-01-08 | runtime 链 | `runtime_link_abi.c` | 去掉按需链 `core/*.o` | `run-boot-std-link-contract-gate.sh` |
 | G-01-09 | baseline | `f08-core-inventory.tsv` 等 | 刷新 F-09 whitelist | `run-f08-core-inventory-gate.sh` |
@@ -66,16 +66,16 @@ SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
 
 | # | 任务 | 说明 | Gate |
 |---|------|------|------|
-| G-03-01 | NL-07 v5 全链 | `SHUX_BOOTSTRAP_NOSTDLIB=1 build_shux_asm` 硬绿 | `run-nolibc-n07-v4-build-gate.sh` |
+| G-03-01 | NL-07 v5 全链 | `XLANG_BOOTSTRAP_NOSTDLIB=1 build_xlang_asm` 硬绿 | `run-nolibc-n07-v4-build-gate.sh` |
 | G-03-02 | 删 bootstrap 桩 C | `bootstrap_nostdlib_stubs.c` 等 | Stage2 哈希 |
-| G-03-03 | 去 `-lc/-lm` | `build_shux_asm.sh` 链接行 | `run-no-libc-gate.sh` |
+| G-03-03 | 去 `-lc/-lm` | `build_xlang_asm.sh` 链接行 | `run-no-libc-gate.sh` |
 | G-03-04 | libm 替代 | `typeck_f64_bits` 无 libm | `run-typeck-f64-gate.sh`（若有） |
 
 ---
 
 ## 4. 批次 3 — G-02a LEGACY 前端 C 删除
 
-> **阻塞**：须 G-06 预编译 seed 或 `.x` 完全替代 `shux-c -E` 冷启动。
+> **阻塞**：须 G-06 预编译 seed 或 `.x` 完全替代 `xlang-c -E` 冷启动。
 
 | # | 文件 | 替代 |
 |---|------|------|
@@ -146,9 +146,9 @@ Gate：`run-all-x.sh` 子集；各 `run-f-*-gate.sh`
 
 | ID | 任务 | Gate |
 |----|------|------|
-| G-04 | F-09 STRICT=0 | `SHUX_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh` |
-| G-05 | 根目录 + compiler Makefile 删/归档 | `./build_tool ./shux asm` 唯一入口 |
-| G-06 | `bootstrap_shuxc` 预编译入库；删 `shux-c` 构建 | `run-d01-stage0-to-stage1-gate.sh` |
+| G-04 | F-09 STRICT=0 | `XLANG_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh` |
+| G-05 | 根目录 + compiler Makefile 删/归档 | `./build_tool ./xlang asm` 唯一入口 |
+| G-06 | `bootstrap_xlangc` 预编译入库；删 `xlang-c` 构建 | `run-d01-stage0-to-stage1-gate.sh` |
 | G-07 | Tag + README | `run-f11-selfhost-release-prep-gate.sh` |
 | G-08 | Windows MSYS + Alpine | `run-bootstrap-bstrict-windows-gate.sh` |
 
@@ -176,24 +176,24 @@ Gate：`run-all-x.sh` 子集；各 `run-f-*-gate.sh`
 | 测试 | Linux Docker | 说明 |
 |------|--------------|------|
 | `make bootstrap-driver-seed` | ✅ 链接成功 | crt0 + `-nostartfiles` |
-| `./shux -h` | ✅ | `SHUX_ASM_USE_COMPILER_IMPL_C` on seed runtime |
-| `./shux min.x -o out` | ✅ | `function main(): i32 { return 0; }` → `num_funcs=1` |
-| `./shux -L .. hello.x` | ✅ | `return if` + `fmt.println("…")`；须重建 parser_asm_thin_glue + parser_x |
-| `./shux-c -L .. hello.x` | ✅ | C 前端路径，输出 `Hello World` |
-| `build_shux_asm` pipeline 二遍 | ✅ | `__text=6843B`（此前为 0） |
+| `./xlang -h` | ✅ | `XLANG_ASM_USE_COMPILER_IMPL_C` on seed runtime |
+| `./xlang min.x -o out` | ✅ | `function main(): i32 { return 0; }` → `num_funcs=1` |
+| `./xlang -L .. hello.x` | ✅ | `return if` + `fmt.println("…")`；须重建 parser_asm_thin_glue + parser_x |
+| `./xlang-c -L .. hello.x` | ✅ | C 前端路径，输出 `Hello World` |
+| `build_xlang_asm` pipeline 二遍 | ✅ | `__text=6843B`（此前为 0） |
 | `run-linux-a09-a11-gate` | 🟡 | B-strict/hello/hash 子集 ✅（Docker 2026-06-21）；全链 gate 待跑 |
 
 **本轮 hello ld + 运行修复（2026-06-21）**：
 
 1. **`runtime_asm_io_stubs.c`**：内建 `io_write/io_read`（Linux x86_64 syscall），F-03 无 `std/io/io.o` 时仍可链。
-2. **`runtime_link_abi.c`**：`runtime_*_glue.o` 仅当对应 `std/*.o` 存在时入链；`shux_asm_ld_prepare` 去掉预编译 sqlite/http 等 glue。
+2. **`runtime_link_abi.c`**：`runtime_*_glue.o` 仅当对应 `std/*.o` 存在时入链；`xlang_asm_ld_prepare` 去掉预编译 sqlite/http 等 glue。
 3. **`backend_call_dispatch.c`**：STRING_LIT 用 `jmp` 跳过尾挂字面量 + `lea [rip+disp]`，避免字面量落在指令流。
 4. **`parser_asm_primary_slice.c`**：`TOKEN_STRING` 的 `token_start` 已指向引号后首字节，去掉错误的 `+1`（修 `ello World`）。
 5. **`pipeline_glue.c`**：新增 `pipeline_expr_var_name_len_for_string_lit_c`（kind=59）。
 
 **Docker 实测**：`verify-selfhost-stage2-bstrict` ✅（return 42、hello、SHA256 金标准）；`B-strict OK — LINK_MODE=asm_only_strict`。
 
-**本轮 build_shux_asm 修复（glue 截断 + B-strict 重链）**：
+**本轮 build_xlang_asm 修复（glue 截断 + B-strict 重链）**：
 
 1. **`-E -E-extern` 薄 TU**：`ensure_asm_pipeline_glue_standalone_obj` / `ensure_asm_gen_driver_x_objs` 对 `pipeline.x` 改用 `-E-extern`（全量 `-E` 内联 std.io 截断 ~142KB、`exit=1`）。
 2. **`asm_strict_pipeline_selfhosted`**：`__text` 门槛 8192→6144；`resolve_path_.*su` 匹配 `resolve_path_probe_dot_x_and_mod`（实测 __text≈6843B）。
@@ -210,8 +210,8 @@ Gate：`run-all-x.sh` 子集；各 `run-f-*-gate.sh`
 4. **`TOKEN_STRING` 未实现（hello 阻塞）**：`parse_primary` 双次 `lexer_next` 跳过 `TOKEN_STRING`，`foo("…")` 实参 parse 失败 → impl 失败、buf 回退只认 `return int`；`return if` 整函数 skip。修复：`parser_asm_primary_slice.c` 第一次 `lexer_next` 后处理 `TOKEN_STRING`；`parser.x` `parse_body_lets` 增 `TOKEN_STRING` 分支；`parser_asm_one_function_buf_slice.c` buf 回退支持 `return if`。
 
 - Linux `bootstrap-driver-seed`：`crt0_x86_64` + `-e _start -nostartfiles`
-- seed runtime：`RUNTIME_DRIVER_NO_C_CFLAGS` 增加 `-DSHUX_ASM_USE_COMPILER_IMPL_C`
-- `build_shux_asm` experimental 链：补 `runtime_driver_abi/diagnostic` + support extra 桩
+- seed runtime：`RUNTIME_DRIVER_NO_C_CFLAGS` 增加 `-DXLANG_ASM_USE_COMPILER_IMPL_C`
+- `build_xlang_asm` experimental 链：补 `runtime_driver_abi/diagnostic` + support extra 桩
 3. **剩余**：`let s: u8[] = ""` 直字面量 let（非 hello 路径）；完整 `run-linux-a09-a11-gate` / G-03 NL-07 v5
 
 ---

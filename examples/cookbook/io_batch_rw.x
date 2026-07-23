@@ -9,7 +9,7 @@ const fs = import("std.fs");
  * @return i32
  */
 function main(): i32 {
-  /** "/tmp/shux_cookbook_io_batch\0" */
+  /** "/tmp/xlang_cookbook_io_batch\0" */
   let path: u8[26] =
   [47, 116, 109, 112, 47, 115, 104, 117, 95, 99, 111, 111, 107, 98, 111, 111, 107,
   95, 105, 111, 95, 98, 97, 116, 99, 104, 0];

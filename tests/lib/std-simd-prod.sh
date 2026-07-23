@@ -2,17 +2,17 @@
 # std-simd-prod.sh — STD-061 生产级 bench 共享辅助
 #
 # 用法（source 后）：
-#   std_simd_prod_native_asm SHUX_BIN
+#   std_simd_prod_native_asm XLANG_BIN
 #   std_simd_prod_emit_report status bench_ok bench_skip skip ratio
 
-STD_SIMD_PROD_PREFIX="${SHUX_STD061_PREFIX:-shux: [SHUX_STD061_SIMD_PROD]}"
+STD_SIMD_PROD_PREFIX="${XLANG_STD061_PREFIX:-xlang: [XLANG_STD061_SIMD_PROD]}"
 
-# 判断本机 shux_asm 可执行 shuffle/select bench。
+# 判断本机 xlang_asm 可执行 shuffle/select bench。
 std_simd_prod_native_asm() {
-  local f="${1:-./compiler/shux_asm}"
+  local f="${1:-./compiler/xlang_asm}"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$f" in
-    */shux-c|*/shux-x*) return 1 ;;
+    */xlang-c|*/xlang-x*) return 1 ;;
   esac
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;

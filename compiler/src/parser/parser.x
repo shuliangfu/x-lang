@@ -130,6 +130,7 @@ export extern function pipeline_module_func_set_return_type(module: *Module, fi:
 export extern function pipeline_module_func_set_body_ref(module: *Module, fi: i32, body_ref: i32): void;
 export extern function pipeline_module_func_set_body_expr_ref(module: *Module, fi: i32, body_expr_ref: i32): void;
 export extern function pipeline_module_func_set_is_extern(module: *Module, fi: i32, is_extern: i32): void;
+export extern function pipeline_module_func_is_extern_at(module: *Module, fi: i32): i32;
 export extern function pipeline_module_func_set_is_async(module: *Module, fi: i32, is_async: i32): void;
 export extern function pipeline_module_func_set_is_export(module: *Module, fi: i32, is_export: i32): void;
 export extern function pipeline_module_func_set_is_used(module: *Module, fi: i32, is_used: i32): void;
@@ -2683,7 +2684,7 @@ export function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, sour
         /**
          * Hoist-safe unsafe (block path): pin X→C otherwise does
          * append_unsafe(body_ref=0) before parse_block_into — force drops
-         * `unsafe { return shux_sys_*; }` (hello io_libc_* residual).
+         * `unsafe { return xlang_sys_*; }` (hello io_libc_* residual).
          * PLATFORM: SHARED.
          */
         let block_res_unsafe: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: lex_cur };
@@ -3276,16 +3277,20 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
     lex_from_result_ptr_into(&lex, &r);
     lexer.lexer_next_into(&r, lex, source);
     /* discard binding `let _`: lexer emits TOKEN_UNDERSCORE (ident_len=0) as name "_".
-     * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static. */
+     * Rejecting would abort parse_body_lets; skip may mis-parse body lets as top-level static.
+     * `let self`: TOKEN_SELF (keyword, ident_len=0) is a valid binding name "self" (phase 7.2
+     * receiver spelling re-used as ordinary local); same silent-drop class as param list. */
     if (r.tok.kind == token.TokenKind.TOKEN_UNDERSCORE) {
       is_discard_name = 1;
-    } else if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
+    } else if (r.tok.kind != token.TokenKind.TOKEN_IDENT && r.tok.kind != token.TokenKind.TOKEN_SELF) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
     }
     /* Assign after name token: hoist must not use LET/CONST token's ident_len/start. */
     name_len = r.tok.ident_len;
     if (is_discard_name != 0) {
       name_len = 1;
+    } else if (r.tok.kind == token.TokenKind.TOKEN_SELF) {
+      name_len = 4;
     }
     if (name_len <= 0 || name_len > 63) {
       lex_out.pos = lex.pos; lex_out.line = lex.line; lex_out.col = lex.col; return false;
@@ -4812,16 +4817,24 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
   if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
     lex_from_next_into(&lex, r);
   } else {
-    /* Param list: IDENT check → copy name → append (order must survive Cap let-hoist). */
+    /* Param list: IDENT or TOKEN_SELF (method/receiver keyword used as binding name).
+     * Root fix: lexer keywords `self` as TOKEN_SELF (ident_len=0); requiring IDENT only
+     * silently set_onefunc_fail → whole function dropped from AST (wave43).
+     * PLATFORM: SHARED — bind name "self" via token_start copy (len 4). */
     while (1 == 1) {
-      if (r.tok.kind != token.TokenKind.TOKEN_IDENT) {
+      if (r.tok.kind != token.TokenKind.TOKEN_IDENT && r.tok.kind != token.TokenKind.TOKEN_SELF) {
         set_onefunc_fail(out_ref, lex); return;
       }
-      plen_param = r.tok.ident_len;
+      // TOKEN_SELF has ident_len=0 in lexer; spelling is always 4 bytes "self".
+      if (r.tok.kind == token.TokenKind.TOKEN_SELF) {
+        plen_param = 4;
+      } else {
+        plen_param = r.tok.ident_len;
+      }
       if (plen_param <= 0 || plen_param > 31) {
         set_onefunc_fail(out_ref, lex); return;
       }
-      /* Clear row then copy IDENT bytes from token_start before append into sidecar pool. */
+      /* Clear row then copy binding-name bytes from token_start before append into sidecar pool. */
       zi_param = 0;
       while (zi_param < 32) {
         pname_row[zi_param] = 0;
@@ -5273,7 +5286,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (r.tok.kind != token.TokenKind.TOKEN_SEMICOLON) {
           expr_res_fi = ParseExprResult { ok: false, expr_ref: 0, next_lex: lex };
           parse_expr_into(arena, lex, source, &expr_res_fi);
-          /* Full expr required (incl. assign); empty step breaks typeck vs shux-c. */
+          /* Full expr required (incl. assign); empty step breaks typeck vs xlang-c. */
           if (!expr_res_fi.ok) {
             set_onefunc_fail(out, lex); return;
           }
@@ -6592,6 +6605,9 @@ allow(padding) struct ExternParseResult {
   abi_kind: i32;
   /* See implementation. */
   is_variadic: i32;
+  /* 1 when extern "C" function ... { body } is detected (body-bearing extern);
+   * 0 for pure declaration. Drives is_extern=0 + body parse in caller. */
+  has_body: i32;
 }
 
 /** Internal function `extern_parse_pool_ptr`.
@@ -6650,6 +6666,9 @@ function extern_parse_set_fail(out: *ExternParseResult, lex: Lexer): void {
   out.name_len = -1;
   out.return_ty_ref = 0;
   out.num_params = 0;
+  out.abi_kind = 0;
+  out.is_variadic = 0;
+  out.has_body = 0;
   let ni: i32 = 0;
   while (ni < 64) {
     out.name[ni] = empty64[ni];
@@ -7657,7 +7676,29 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
+      let num_funcs_before_extern: i32 = module.num_funcs;
       parse_one_extern_and_add_into(arena, module, iter_start, source, &lex);
+      /* Body-bearing extern (`extern "C" function ... { body }`): C seed set is_extern=0
+       * and left lex BEFORE '{'. Parse body via parse_block_into and set body_ref so
+       * codegen emits the body. Pure decl (is_extern=1) skips this branch. */
+      if (module.num_funcs > num_funcs_before_extern) {
+        let fi_ext: i32 = num_funcs_before_extern;
+        if (pipeline_module_func_is_extern_at(module, fi_ext) == 0) {
+          let r_brace: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+          lexer.lexer_next_into(&r_brace, lex, source);
+          if (r_brace.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+            let type_ref_extern: i32 = pipeline_module_func_return_type_at(module, fi_ext);
+            let block_res_extern: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: r_brace.next_lex };
+            parse_block_into(arena, r_brace.next_lex, source, type_ref_extern, &block_res_extern);
+            if (block_res_extern.ok) {
+              pipeline_module_func_set_body_ref(module, fi_ext, block_res_extern.block_ref);
+              lex = block_res_extern.next_lex;
+            } else {
+              skip_balanced_braces_into(&lex, lex, source);
+            }
+          }
+        }
+      }
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         skip_one_extern_into(&lex, lex, source);
       }
@@ -9741,7 +9782,30 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       continue;
     }
     if (r.tok.kind == token.TokenKind.TOKEN_EXTERN) {
+      let num_funcs_before_extern_buf: i32 = module.num_funcs;
       parse_one_extern_and_add_into_buf(arena, module, iter_start_buf, data, len, &lex);
+      /* Body-bearing extern (`extern "C" function ... { body }`): C seed set is_extern=0
+       * and left lex BEFORE '{'. Parse body via parse_block_into and set body_ref so
+       * codegen emits the body. Pure decl (is_extern=1) skips this branch. */
+      if (module.num_funcs > num_funcs_before_extern_buf) {
+        let fi_ext_buf: i32 = num_funcs_before_extern_buf;
+        if (pipeline_module_func_is_extern_at(module, fi_ext_buf) == 0) {
+          let slice_ext_buf: u8[] = parser_slice_from_buf(data, len);
+          let r_brace_buf: LexerResult = LexerResult { next_lex: lex, tok: token.Token { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 }, token_start: 0 };
+          lexer.lexer_next_into(&r_brace_buf, lex, slice_ext_buf);
+          if (r_brace_buf.tok.kind == token.TokenKind.TOKEN_LBRACE) {
+            let type_ref_extern_buf: i32 = pipeline_module_func_return_type_at(module, fi_ext_buf);
+            let block_res_extern_buf: ParseBlockResult = ParseBlockResult { ok: false, block_ref: 0, next_lex: r_brace_buf.next_lex };
+            parse_block_into(arena, r_brace_buf.next_lex, slice_ext_buf, type_ref_extern_buf, &block_res_extern_buf);
+            if (block_res_extern_buf.ok) {
+              pipeline_module_func_set_body_ref(module, fi_ext_buf, block_res_extern_buf.block_ref);
+              lex = block_res_extern_buf.next_lex;
+            } else {
+              skip_balanced_braces_into(&lex, lex, slice_ext_buf);
+            }
+          }
+        }
+      }
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         skip_one_extern_into_buf(&lex, iter_start_buf, data, len);
       }

@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_CORE_OR_DOC:-analysis/core-option-result-combinators-v1.md}"
-MANIFEST="${SHUX_CORE_OR_TSV:-tests/baseline/core-option-result.tsv}"
+DOC="${XLANG_CORE_OR_DOC:-analysis/core-option-result-combinators-v1.md}"
+MANIFEST="${XLANG_CORE_OR_TSV:-tests/baseline/core-option-result.tsv}"
 OPTION_X="core/option/mod.x"
 RESULT_X="core/result/mod.x"
 LIB="tests/lib/core-option-result.sh"
-PREFIX="shux: [SHUX_CORE_OPTION_RESULT]"
+PREFIX="xlang: [XLANG_CORE_OPTION_RESULT]"
 
 # shellcheck source=tests/lib/core-option-result.sh
 . tests/lib/core-option-result.sh
@@ -38,8 +38,8 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "core-option-result manifest OK"
 
-# 本机可执行 shux 时跑 check + 可选 runnable
-stdlib_cm_native_shu() {
+# 本机可执行 xlang 时跑 check + 可选 runnable
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -52,8 +52,8 @@ stdlib_cm_native_shu() {
 }
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if stdlib_cm_native_shu "$cand"; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if stdlib_cm_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi
@@ -64,21 +64,21 @@ resolve_shu() {
 OPT_OK=0
 RES_OK=0
 SKIP=1
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== CORE-002/003: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . tests/option/main.x >/dev/null 2>&1; then
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== CORE-002/003: typeck (XLANG=$XLANG_BIN) ==="
+  if "$XLANG_BIN" check -L . tests/option/main.x >/dev/null 2>&1; then
     OPT_OK=1
   else
     echo "core-option-result gate FAIL: option typeck" >&2
-    "$SHUX_BIN" check -L . tests/option/main.x 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . tests/option/main.x 2>&1 | tail -8 >&2 || true
     core_or_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHUX_BIN" check -L . tests/result/main.x >/dev/null 2>&1; then
+  if "$XLANG_BIN" check -L . tests/result/main.x >/dev/null 2>&1; then
     RES_OK=1
   else
     echo "core-option-result gate FAIL: result typeck" >&2
-    "$SHUX_BIN" check -L . tests/result/main.x 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . tests/result/main.x 2>&1 | tail -8 >&2 || true
     core_or_emit_report "fail" "$OPT_OK" 0 0
     exit 1
   fi
@@ -95,7 +95,7 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
     fi
   fi
 else
-  echo "core-option-result gate SKIP typeck (no native shux)" >&2
+  echo "core-option-result gate SKIP typeck (no native xlang)" >&2
 fi
 
 core_or_emit_report "ok" "$OPT_OK" "$RES_OK" "$SKIP"

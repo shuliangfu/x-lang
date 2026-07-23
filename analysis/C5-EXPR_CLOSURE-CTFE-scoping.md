@@ -2,7 +2,7 @@
 
 > **状态**：规划稿（scoping only），未启动实现
 > **来源**：[cap-candidates-2026-07-19.md](../.trae/documents/cap-candidates-2026-07-19.md):151-163 C5 子项「closure / lambda CTFE（前置 closure 支持）」
-> **铁律锚点**：[../AGENTS.md](../AGENTS.md)（根源 · G.7「禁止功能重复实现」· G.8 平台边界）· skill `shux-selfhost-product-gate` · [自举方法.md](自举方法.md)（Cap/R/L/M）
+> **铁律锚点**：[../AGENTS.md](../AGENTS.md)（根源 · G.7「禁止功能重复实现」· G.8 平台边界）· skill `xlang-selfhost-product-gate` · [自举方法.md](自举方法.md)（Cap/R/L/M）
 > **当波 tip**：`d7a2388e`（C5 EXPR_ENUM_VARIANT CTFE 收口；前 `a8a67708` / `229708f1`）
 > **作者结论**：**不启动**。C5 EXPR_CLOSURE 非单纯 fold 扩展，需先建 4 个前置层（fn 类型 / AST 节点 / typeck capture / codegen lowering），多波独立工程；建议本日转向更小 fold 扩展（EXPR_TERNARY / EXPR_IF / EXPR_BLOCK），closure 顺延至自举完成后或单开 RFC 立项。
 
@@ -10,7 +10,7 @@
 
 ## 0. 一句话结论
 
-SHUX 当前**无任何 closure 支持**（无 parser 语法、无 AST 节点、无类型系统支持、无 typeck、无 codegen、无 std、无测试、无 RFC）。C5 EXPR_CLOSURE CTFE 不是"加一个 fold handler"，而是"从零造 closure 子系统"，预计 4-6 波独立工程，**非本日可启动**。
+XLANG 当前**无任何 closure 支持**（无 parser 语法、无 AST 节点、无类型系统支持、无 typeck、无 codegen、无 std、无测试、无 RFC）。C5 EXPR_CLOSURE CTFE 不是"加一个 fold handler"，而是"从零造 closure 子系统"，预计 4-6 波独立工程，**非本日可启动**。
 
 ---
 
@@ -46,15 +46,15 @@ AST_TYPE_VOID
 - `compiler/codegen_gen.c:9538` — "multi-import closure"（模块依赖闭包）
 - `compiler/typeck_gen.c:6732` — "multi-import closure (ndep > n_imports)"
 - `compiler/pipeline_glue.c:24767` — "closure seed may order deps differently"
-- `compiler/seeds/rt_run_*` — `n_closure` / `shux_collect_deps_transitive` 全是依赖图
+- `compiler/seeds/rt_run_*` — `n_closure` / `xlang_collect_deps_transitive` 全是依赖图
 
 ### 1.4 函数指针现状（C-style，非一等函数）
 
-SHUX 通过 `*u8` 裸指针 + `extern "C"` ABI 实现 C-style 函数指针：
+XLANG 通过 `*u8` 裸指针 + `extern "C"` ABI 实现 C-style 函数指针：
 
-```shux
+```xlang
 // compiler/src/runtime_driver_abi_thin.x:50
-export extern "C" function shux_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
+export extern "C" function xlang_driver_call_fn_void_arg(fn: *u8, arg: *u8): void;
 ```
 
 - 这只是把函数地址当 `*u8` 传，**无 capture、无 environment、无类型签名**
@@ -93,7 +93,7 @@ Wave 5: EXPR_CLOSURE CTFE fold       ← 本 Cap C5 子项，依赖前 4 波
 
 ### Wave 1: fn 类型系统（`TYPE_FN`）— 估时 1.5 波
 
-**目标**：让 SHUX 能表达 `fn(i32, i32) -> i32` 类型；仅类型层，不含闭包。
+**目标**：让 XLANG 能表达 `fn(i32, i32) -> i32` 类型；仅类型层，不含闭包。
 
 产生点（最小集）：
 1. `compiler/include/ast.h` TypeKind 加 `AST_TYPE_FN`
@@ -112,7 +112,7 @@ Wave 5: EXPR_CLOSURE CTFE fold       ← 本 Cap C5 子项，依赖前 4 波
 
 ### Wave 2: EXPR_CLOSURE AST + parser 语法 — 估时 1.5 波
 
-**目标**：让 SHUX 能 parse `|x, y| expr` 或 `fn(x, y) expr` 闭包字面量；AST 节点落库但 typeck/codegen 暂不实装（编译报 "closures not yet supported"）。
+**目标**：让 XLANG 能 parse `|x, y| expr` 或 `fn(x, y) expr` 闭包字面量；AST 节点落库但 typeck/codegen 暂不实装（编译报 "closures not yet supported"）。
 
 候选语法（**未决，需 RFC 立项**）：
 - A. Rust 风格：`|x, y| expr` / `|x, y| { stmts; expr }`
@@ -167,13 +167,13 @@ Lowering 策略：
 1. `compiler/src/codegen/codegen.x` 加 closure emit
 2. `compiler/pipeline_glue.c` glue 层 closure emit（X pipeline）
 3. `compiler/seeds/codegen_gen.*` 镜像
-4. 与 `shux_driver_call_fn_void_arg` 模型对齐（避免造第二套函数指针 ABI — G.7 铁律）
+4. 与 `xlang_driver_call_fn_void_arg` 模型对齐（避免造第二套函数指针 ABI — G.7 铁律）
 5. ELF emit（asm_backend）路径：closure → 静态函数 + 静态捕获结构
 6. 加 lang-closure-codegen bstrict：by-value / by-ref / by-move 三 capture 模式的运行期验收
 
 **验收**：`let f = |x| x * 2; let r = f(21); return r;` → exit=42；mac+Ubuntu 双端 L2 + bstrict 全绿。
 
-**风险**：捕获结构体布局需对齐 SHUX ABI（与 X ABI P0b 同步）；递归闭包 / 互引闭包需 cycle 检测；与 WPO（whole-program optimize）的交互（closure 是否内联展开）。
+**风险**：捕获结构体布局需对齐 XLANG ABI（与 X ABI P0b 同步）；递归闭包 / 互引闭包需 cycle 检测；与 WPO（whole-program optimize）的交互（closure 是否内联展开）。
 
 ---
 
@@ -226,7 +226,7 @@ closure 整体顺延至自举完成后（per [自举进度.md](自举进度.md) 
 理由：
 - closure lowering 需要稳定的 codegen ABI（X ABI P2 完成后）
 - capture 借用分析需要 region 推断（与 `type-region-v1-rfc.md` 同期）
-- 自举前 SHUX 自身代码不依赖闭包（现有 std/fs/net 等都用 C-style `*u8` 函数指针）
+- 自举前 XLANG 自身代码不依赖闭包（现有 std/fs/net 等都用 C-style `*u8` 函数指针）
 
 ### 5.3 长期（自举完成后）
 
@@ -269,7 +269,7 @@ RFC 通过后再按 Wave 1-5 顺序推进。
 
 **决策**：**本波 scoping 完成后立即跑日终 L4 真冷全测**（mac + Ubuntu 双端）。
 
-- mac：`rm compiler/compiler/*.o compiler/std/*.o compiler/core/*.o` + `make` 重建 `shux`/`shux_asm`/`shux-c`/`bootstrap_shuxc` + `bootstrap-driver-seed` + g05 → `run-all-bstrict`
+- mac：`rm compiler/compiler/*.o compiler/std/*.o compiler/core/*.o` + `make` 重建 `xlang`/`xlang_asm`/`xlang-c`/`bootstrap_xlangc` + `bootstrap-driver-seed` + g05 → `run-all-bstrict`
 - Ubuntu：`git pull` → 同上 + g05 → `run-all-bstrict`
 - 验收：双端 `run-all-bstrict OK (125 scripts)` exit=0；lang-const 14/14
 
@@ -282,7 +282,7 @@ RFC 通过后再按 Wave 1-5 顺序推进。
 ## 8. 权威锚点
 
 - 类型系统：[compiler/include/ast.h](../compiler/include/ast.h):24-41 (TypeKind) / :56-115 (ExprKind)
-- 函数指针现状：[compiler/src/runtime_driver_abi_thin.x:50](../compiler/src/runtime_driver_abi_thin.x) `shux_driver_call_fn_void_arg`
+- 函数指针现状：[compiler/src/runtime_driver_abi_thin.x:50](../compiler/src/runtime_driver_abi_thin.x) `xlang_driver_call_fn_void_arg`
 - FFI callback RFC：[std-ffi-struct-callback-v1.md](std-ffi-struct-callback-v1.md)（FFI 路径，非语言闭包）
 - 本 Cap 来源：[.trae/documents/cap-candidates-2026-07-19.md:151-163](../.trae/documents/cap-candidates-2026-07-19.md) C5 子项
 - 当前 fold 状态：[compiler/pipeline_glue.c:13541-13622](../compiler/pipeline_glue.c) (whitelist) / :13709-14276 (fold handlers)

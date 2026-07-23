@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# perf_001_gate.sh — PERF-001 性能门禁：SHUX 自研后端中位数 ≤ C -O2
+# perf_001_gate.sh — PERF-001 性能门禁：XLANG 自研后端中位数 ≤ C -O2
 #
 # 用法：
 #   ./tests/bench/gate/perf_001_gate.sh [bench_name]
-#   SHUX=./compiler/shux_asm ./tests/bench/gate/perf_001_gate.sh loop_i32
+#   XLANG=./compiler/xlang_asm ./tests/bench/gate/perf_001_gate.sh loop_i32
 #
 # 默认 bench_name=loop_i32（tests/bench/loop_i32.c + .x 同源）
 # 时机：自举后激活硬门禁；自举前可运行供参考（ASM 后端 bug ①② 未修时结果不准）
@@ -13,8 +13,8 @@ cd "$(dirname "$0")/../../.."  # 到项目根
 
 BENCH="${1:-loop_i32}"
 BENCH_DIR="tests/bench"
-SHUX="${SHUX:-./compiler/shux_asm}"
-WORKDIR="${TMPDIR:-/tmp}/shux_perf"
+XLANG="${XLANG:-./compiler/xlang_asm}"
+WORKDIR="${TMPDIR:-/tmp}/xlang_perf"
 mkdir -p "$WORKDIR"
 
 WARMUP=3
@@ -29,8 +29,8 @@ if [ "$os" = "Darwin" ] && [ "$arch" = "arm64" ]; then
   exit 0
 fi
 
-if [ ! -x "$SHUX" ]; then
-  echo "perf-001: SKIP (no $SHUX)"
+if [ ! -x "$XLANG" ]; then
+  echo "perf-001: SKIP (no $XLANG)"
   exit 0
 fi
 
@@ -86,11 +86,11 @@ if ! "$cc" -O2 -std=c11 -o "$c_bin" "$c_src" 2>/dev/null; then
   exit 2
 fi
 
-# 编译 SHUX（stdout drain 防 hang）
+# 编译 XLANG（stdout drain 防 hang）
 x_bin="$WORKDIR/${BENCH}.x.bin"
-"$SHUX" -L . "$x_src" -o "$x_bin" 2>/dev/null | cat >/dev/null
+"$XLANG" -L . "$x_src" -o "$x_bin" 2>/dev/null | cat >/dev/null
 if [ ! -x "$x_bin" ]; then
-  echo "perf-001: SHUX compile failed"
+  echo "perf-001: XLANG compile failed"
   exit 2
 fi
 
@@ -113,7 +113,7 @@ x_p99=$(echo "$x_stats" | awk '{print $2}')
 echo "    C  median=${c_med}ms  P99=${c_p99}ms"
 echo "    X  median=${x_med}ms  P99=${x_p99}ms"
 
-# 硬门禁：SHUX 中位数 ≤ C 中位数（开发规范 v1 §4）
+# 硬门禁：XLANG 中位数 ≤ C 中位数（开发规范 v1 §4）
 if [ -z "$x_med" ] || [ -z "$c_med" ] || [ "$x_med" -eq 0 ] || [ "$c_med" -eq 0 ]; then
   echo "    [WARN] 采样为零，可能 DCE 抹除未用循环（反作弊防御失效）"
   exit 2

@@ -1,6 +1,6 @@
 /* seeds/pthin_expr_binop.from_x.c — G-02f-284 P2 parser thin P4 binop
  * Logic source: src/asm/pthin_expr_binop.x
- * Hybrid: SHUX_PTHIN_EXPR_BINOP_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_EXPR_BINOP_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_expr_binop_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).

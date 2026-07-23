@@ -22,10 +22,10 @@
 | 项 | v1 约定 |
 |----|---------|
 | 工具链 | `cc -fsanitize=address` + `detect_leaks=1` |
-| 编译 | `shux -fsanitize=address -L . <case>.x -o exe` |
+| 编译 | `xlang -fsanitize=address -L . <case>.x -o exe` |
 | 运行 | `ASAN_OPTIONS=detect_leaks=1:exitcode=23:halt_on_error=1` |
 | 平台 | **Linux** 夜跑主路径；macOS/Windows gate manifest only |
-| 探测器 | `SHUX_LEAK_PROBE=1` 时运行 `leak_probe.c` 校验 ASAN 能抓故意泄漏 |
+| 探测器 | `XLANG_LEAK_PROBE=1` 时运行 `leak_probe.c` 校验 ASAN 能抓故意泄漏 |
 
 与 SAFE-001 `run-sanitize-gate.sh`（编译期边界）互补：本任务覆盖 **堆/owned 指针运行时泄漏**。
 
@@ -48,7 +48,7 @@
 stderr 结构化行（OBS bracket 兼容）：
 
 ```
-shux: [SHUX_LEAK_NIGHTLY] status=ok cases_ok=3 cases_fail=0 leaks=0
+xlang: [XLANG_LEAK_NIGHTLY] status=ok cases_ok=3 cases_fail=0 leaks=0
 ```
 
 | 字段 | 含义 |
@@ -58,7 +58,7 @@ shux: [SHUX_LEAK_NIGHTLY] status=ok cases_ok=3 cases_fail=0 leaks=0
 | `cases_fail` | 失败用例数 |
 | `leaks` | 检出泄漏数（失败时 ≥1） |
 
-**每周**：取 `ci-nightly` Linux job 最近一次 `SHUX_LEAK_NIGHTLY` 行作为周报输入（cron 每日 02:00 UTC，聚合 7 天）。
+**每周**：取 `ci-nightly` Linux job 最近一次 `XLANG_LEAK_NIGHTLY` 行作为周报输入（cron 每日 02:00 UTC，聚合 7 天）。
 
 ---
 
@@ -73,7 +73,7 @@ shux: [SHUX_LEAK_NIGHTLY] status=ok cases_ok=3 cases_fail=0 leaks=0
 
 ```bash
 ./tests/run-safe-leak-nightly-gate.sh
-SHUX_LEAK_PROBE=1 ./tests/run-safe-leak-nightly.sh   # runnable 夜跑
+XLANG_LEAK_PROBE=1 ./tests/run-safe-leak-nightly.sh   # runnable 夜跑
 ```
 
 联动：`tests/run-safe-ffi-contract-gate.sh`（SAFE-004）、`tests/run-sanitize-gate.sh`（SAFE-001）。

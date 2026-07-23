@@ -14,15 +14,31 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// See implementation.
-//
-// See implementation.
-// See implementation.
-// See implementation.
-//
-// See implementation.
-// See implementation.
-
+/**
+ * Apache Arrow C ABI wrappers.
+ *
+ * All `arrow_*_c` functions below are thin wrappers over the Apache Arrow
+ * C library (libarrow) column / batch manipulation intrinsics. They are
+ * implemented in C (see seeds) and exposed to XLANG via `extern "C"`
+ * declarations.
+ *
+ * ABI: C (System V / AAPCS). Calling convention matches the C runtime
+ * and libarrow's published C ABI.
+ * PLATFORM: SHARED — libarrow is available on all targets
+ * (macOS arm64 / Ubuntu x86_64 / Windows MSYS2), with platform-specific
+ * SIMD dispatch handled inside the C implementation.
+ *
+ * Column model: ArrowColumn wraps a typed column handle (i64 opaque).
+ * ArrowBatch wraps a batch of columns (i64 opaque). All allocation /
+ * deallocation goes through arrow_column_*_destroy_c / arrow_batch_destroy_c.
+ *
+ * Type tags: ARROW_I32=1, ARROW_F32=2, ARROW_F64=3 (returned by
+ * arrow_column_type_c). Alignment: ARROW_ALIGN_BYTES=64 (cache-line).
+ *
+ * Unsafe contract: callers must wrap `arrow_*_c` calls in `unsafe { }`
+ * blocks. P0a semantic downgrade currently allows unwrapped calls; P1
+ * typeck enforcement (post-bootstrap) will reject unwrapped calls.
+ */
 const simd = import("std.simd");
 
 /* See implementation. */
@@ -45,35 +61,35 @@ export struct ArrowBatch {
   handle: i64;
 }
 
-extern function arrow_column_i32_create_c(capacity: i32): i64;
-extern function arrow_column_f32_create_c(capacity: i32): i64;
-extern function arrow_column_f64_create_c(capacity: i32): i64;
-extern function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64;
-extern function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64;
-extern function arrow_column_type_c(handle: i64): i32;
-extern function arrow_column_len_c(handle: i64): i32;
-extern function arrow_column_capacity_c(handle: i64): i32;
-extern function arrow_column_data_owned_c(handle: i64): i32;
-extern function arrow_column_null_bitmap_c(handle: i64): *u8;
-extern function arrow_column_is_valid_c(handle: i64, index: i32): i32;
-extern function arrow_column_i32_data_c(handle: i64): *i32;
-extern function arrow_column_f32_data_c(handle: i64): *f32;
-extern function arrow_column_f64_data_c(handle: i64): *f64;
-extern function arrow_column_i32_append_c(handle: i64, val: i32): i32;
-extern function arrow_column_i32_append_null_c(handle: i64, val: i32, is_valid: i32): i32;
-extern function arrow_column_f32_append_c(handle: i64, val: f32): i32;
-extern function arrow_column_f64_append_c(handle: i64, val: f64): i32;
-extern function arrow_column_destroy_c(handle: i64): void;
-extern function arrow_batch_create_c(max_cols: i32): i64;
-extern function arrow_batch_add_column_c(batch: i64, col: i64): i32;
-extern function arrow_batch_column_c(batch: i64, index: i32): i64;
-extern function arrow_batch_len_c(batch: i64): i32;
-extern function arrow_batch_destroy_c(batch: i64): void;
-extern function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
-extern function arrow_column_f32_sum_c(handle: i64, n: i32): f32;
-extern function arrow_column_f32_sum_valid_c(handle: i64, n: i32): f32;
-extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f32;
-extern function arrow_smoke_c(): i32;
+extern "C" function arrow_column_i32_create_c(capacity: i32): i64;
+extern "C" function arrow_column_f32_create_c(capacity: i32): i64;
+extern "C" function arrow_column_f64_create_c(capacity: i32): i64;
+extern "C" function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64;
+extern "C" function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64;
+extern "C" function arrow_column_type_c(handle: i64): i32;
+extern "C" function arrow_column_len_c(handle: i64): i32;
+extern "C" function arrow_column_capacity_c(handle: i64): i32;
+extern "C" function arrow_column_data_owned_c(handle: i64): i32;
+extern "C" function arrow_column_null_bitmap_c(handle: i64): *u8;
+extern "C" function arrow_column_is_valid_c(handle: i64, index: i32): i32;
+extern "C" function arrow_column_i32_data_c(handle: i64): *i32;
+extern "C" function arrow_column_f32_data_c(handle: i64): *f32;
+extern "C" function arrow_column_f64_data_c(handle: i64): *f64;
+extern "C" function arrow_column_i32_append_c(handle: i64, val: i32): i32;
+extern "C" function arrow_column_i32_append_null_c(handle: i64, val: i32, is_valid: i32): i32;
+extern "C" function arrow_column_f32_append_c(handle: i64, val: f32): i32;
+extern "C" function arrow_column_f64_append_c(handle: i64, val: f64): i32;
+extern "C" function arrow_column_destroy_c(handle: i64): void;
+extern "C" function arrow_batch_create_c(max_cols: i32): i64;
+extern "C" function arrow_batch_add_column_c(batch: i64, col: i64): i32;
+extern "C" function arrow_batch_column_c(batch: i64, index: i32): i64;
+extern "C" function arrow_batch_len_c(batch: i64): i32;
+extern "C" function arrow_batch_destroy_c(batch: i64): void;
+extern "C" function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
+extern "C" function arrow_column_f32_sum_c(handle: i64, n: i32): f32;
+extern "C" function arrow_column_f32_sum_valid_c(handle: i64, n: i32): f32;
+extern "C" function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f32;
+extern "C" function arrow_smoke_c(): i32;
 
 /** Exported function `new_i32`.
  * Implements `new_i32`.

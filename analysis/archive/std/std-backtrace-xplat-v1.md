@@ -30,7 +30,7 @@
 ## 3. 质量报告格式
 
 ```
-shux: [SHUX_BT_XPLAT] platform=Darwin gold=1 resolved=3 total=8
+xlang: [XLANG_BT_XPLAT] platform=Darwin gold=1 resolved=3 total=8
 ```
 
 ---
@@ -41,4 +41,4 @@ shux: [SHUX_BT_XPLAT] platform=Darwin gold=1 resolved=3 total=8
 ./tests/run-std-backtrace-xplat-gate.sh
 ```
 
-报告：`shux: [SHUX_STD147_BACKTRACE_XPLAT]`
+报告：`xlang: [XLANG_STD147_BACKTRACE_XPLAT]`

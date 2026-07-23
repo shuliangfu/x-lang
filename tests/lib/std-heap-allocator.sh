@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-heap-allocator.sh — STD-112 manifest 与烟测辅助
 
-STD_HEAP_ALLOC_PREFIX="${SHUX_STD112_HEAP_ALLOC_PREFIX:-shux: [SHUX_STD112_HEAP_ALLOC]}"
+STD_HEAP_ALLOC_PREFIX="${XLANG_STD112_HEAP_ALLOC_PREFIX:-xlang: [XLANG_STD112_HEAP_ALLOC]}"
 
 # 校验 manifest 中 api/file/smoke。
 std_heap_alloc_symbols_ok() {
@@ -36,13 +36,13 @@ std_heap_alloc_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_heap_alloc_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-alloc}"
-  local exe="/tmp/shux_std_heap_alloc_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_heap_alloc_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-heap-allocator FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

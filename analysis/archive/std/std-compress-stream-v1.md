@@ -33,7 +33,7 @@
 
 - 压缩：每块可小于输入总长；最后一块设 `is_last=1`；若 zlib 仍有尾数据，以 `in_len=0, is_last=1` 继续 drain 直至 `ended`。
 - 解压：按任意块大小喂入 gzip 帧；`Z_STREAM_END` 时内部标记 `ended`。
-- 未启用 `SHUX_USE_ZLIB` 时全部返回 -1；烟测以 exit 0 **skip**（与 STD-007 一致）。
+- 未启用 `XLANG_USE_ZLIB` 时全部返回 -1；烟测以 exit 0 **skip**（与 STD-007 一致）。
 
 v1 **仅 gzip 流**；zstd/brotli 流式留待后续 RFC。
 
@@ -46,7 +46,7 @@ v1 **仅 gzip 流**；zstd/brotli 流式留待后续 RFC。
 ```
 
 ```
-shux: [SHUX_STD_COMPRESS_STREAM] status=ok stream=1 skip=0
+xlang: [XLANG_STD_COMPRESS_STREAM] status=ok stream=1 skip=0
 ```
 
 烟测向量：`Hello, gz!!!`（12 字节）分 3×4 字节压缩，再以 5 字节块解压比对原文。

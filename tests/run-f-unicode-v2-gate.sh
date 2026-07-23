@@ -2,7 +2,7 @@
 # F-unicode v2：std.unicode 逻辑全量 .x（删除 unicode_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_UNICODE_V2_FAIL:-0}
+FAIL=${XLANG_F_UNICODE_V2_FAIL:-0}
 DOC="analysis/phase-f-unicode-v2.md"
 MANIFEST="tests/baseline/f-unicode-v2-closure.tsv"
 die() { echo "f-unicode-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -26,10 +26,10 @@ grep -q 'unicode_grapheme_next_c' std/unicode/unicode.x || die "unicode.x missin
 grep -q 'unicode_grapheme_case_smoke_c' std/unicode/unicode.x || die "unicode.x missing smoke"
 grep -q 'unicode_f_unicode_v2_marker_c' std/unicode/unicode.x || die "unicode.x missing v2 marker"
 grep -q 'F-unicode v2' compiler/Makefile || die "Makefile missing F-unicode v2 note"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/unicode/unicode.o >/dev/null 2>&1 || die "make unicode.o failed"
 else
-  echo "f-unicode-v2 SKIP unicode.o build (no shux-c)" >&2
+  echo "f-unicode-v2 SKIP unicode.o build (no xlang-c)" >&2
 fi
 for sub in run-std-unicode-nfc-gate.sh run-std-unicode-grapheme-case-gate.sh; do
   [ -f "tests/$sub" ] || continue

@@ -36,7 +36,7 @@
 2. **-o 后缀**：`.o` / `.obj` 触发 COFF；可执行 `-o prog.exe` 走 link 路径。
 3. **跨主机**：Linux/macOS 只验证 **COFF 对象可生成**；link+run 在 **MSYS CI** 执行。
 4. **最小样例**：`windows_min.x` 单函数 `return 42`，与 `main.x` 等价、专用于 manifest。
-5. **稳定 SKIP**：无 asm-capable shux（seed/C-only 构建）时 COFF emit 烟测 SKIP，不 fail manifest。
+5. **稳定 SKIP**：无 asm-capable xlang（seed/C-only 构建）时 COFF emit 烟测 SKIP，不 fail manifest。
 
 ---
 
@@ -80,7 +80,7 @@
 ```bash
 ./tests/run-comp-win-backend-gate.sh   # runnable：manifest + COFF emit
 ./tests/run-comp-win-backend.sh        # 最小样例 smoke
-./tests/run-asm.sh                     # 含 COFF 交叉烟测（SHUX_CI_FORCE_ASM=1）
+./tests/run-asm.sh                     # 含 COFF 交叉烟测（XLANG_CI_FORCE_ASM=1）
 ```
 
 **gate report**：stdout 须含 `comp-win-backend gate OK`；失败打印 `comp-win-backend FAIL:` 行。

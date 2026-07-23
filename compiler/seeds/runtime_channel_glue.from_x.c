@@ -114,10 +114,10 @@ int32_t channel_sync_init_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/runtime_channel_glue.x）提供 wrapper 调用 _impl */
 int32_t channel_sync_init(channel_i32_impl_t *c) { return channel_sync_init_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -134,10 +134,10 @@ void channel_sync_destroy_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_sync_destroy(channel_i32_impl_t *c) { channel_sync_destroy_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -152,10 +152,10 @@ void channel_lock_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_lock(channel_i32_impl_t *c) { channel_lock_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -170,10 +170,10 @@ void channel_unlock_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_unlock(channel_i32_impl_t *c) { channel_unlock_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -188,10 +188,10 @@ void channel_signal_not_empty_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_signal_not_empty(channel_i32_impl_t *c) { channel_signal_not_empty_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -206,10 +206,10 @@ void channel_signal_not_full_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_signal_not_full(channel_i32_impl_t *c) { channel_signal_not_full_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -224,10 +224,10 @@ void channel_broadcast_not_empty_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_broadcast_not_empty(channel_i32_impl_t *c) { channel_broadcast_not_empty_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -242,10 +242,10 @@ void channel_broadcast_not_full_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_broadcast_not_full(channel_i32_impl_t *c) { channel_broadcast_not_full_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -260,10 +260,10 @@ void channel_wait_not_empty_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_wait_not_empty(channel_i32_impl_t *c) { channel_wait_not_empty_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -278,10 +278,10 @@ void channel_wait_not_full_impl(channel_i32_impl_t *c) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_wait_not_full(channel_i32_impl_t *c) { channel_wait_not_full_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -303,10 +303,10 @@ void channel_timedwait_not_empty_impl(channel_i32_impl_t *c, int32_t ms) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) { channel_timedwait_not_empty_impl(c, ms); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -328,10 +328,10 @@ void channel_timedwait_not_full_impl(channel_i32_impl_t *c, int32_t ms) {
 #endif
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) { channel_timedwait_not_full_impl(c, ms); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -353,10 +353,10 @@ int32_t channel_unbounded_grow_impl(channel_i32_impl_t *c) {
     return 0;
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t channel_unbounded_grow(channel_i32_impl_t *c) { return channel_unbounded_grow_impl(c); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -533,10 +533,10 @@ int32_t channel_select_recv_case_live_impl(void *ch) {
     return live;
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t channel_select_recv_case_live(void *ch) { return channel_select_recv_case_live_impl(ch); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -554,10 +554,10 @@ int32_t channel_select_send_case_live_impl(void *ch) {
     return live;
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t channel_select_send_case_live(void *ch) { return channel_select_send_case_live_impl(ch); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -577,10 +577,10 @@ void channel_select_wait_recv_one_impl(void *ch) {
     channel_unlock(c);
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_select_wait_recv_one(void *ch) { channel_select_wait_recv_one_impl(ch); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -600,10 +600,10 @@ void channel_select_wait_send_one_impl(void *ch) {
     channel_unlock(c);
 }
 
-#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_CHANNEL_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 void channel_select_wait_send_one(void *ch) { channel_select_wait_send_one_impl(ch); }
-#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 

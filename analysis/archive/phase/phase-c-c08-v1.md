@@ -10,7 +10,7 @@
 | main.x 驱动 | `main_entry` + 子命令分发 | 同上 |
 | driver/*.x | fmt/check/test/compile/build/run/emit 七模块 | `run-c08-driver-x-gate.sh` |
 | build.x | 根构建策略 + `build_tool` 路径 | `run-c08-build-x-gate.sh` |
-| runtime 盘点 | `runtime.c` 大块仍 C；`.x` 已接 SHUX_USE_X_DRIVER | `run-c08-runtime-inventory-gate.sh` |
+| runtime 盘点 | `runtime.c` 大块仍 C；`.x` 已接 XLANG_USE_X_DRIVER | `run-c08-runtime-inventory-gate.sh` |
 
 ## 已迁 .x（v1 登记）
 

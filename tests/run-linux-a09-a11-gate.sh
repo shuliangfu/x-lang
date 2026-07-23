@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # A-09 + A-10 + A-11 + A-12：Linux x86_64 Docker 内 Stage2 全链 + SHA256 + L5 bstrict + typeck + arch 符号。
 # 用法（仓库根）：./tests/run-linux-a09-a11-gate.sh
-# 环境：SHUX_DOCKER_PLATFORM=linux/amd64（默认 Darwin/ARM64 宿主自动选 amd64）
+# 环境：XLANG_DOCKER_PLATFORM=linux/amd64（默认 Darwin/ARM64 宿主自动选 amd64）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -10,7 +10,7 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-DOCKER_PLATFORM="${SHUX_DOCKER_PLATFORM:-}"
+DOCKER_PLATFORM="${XLANG_DOCKER_PLATFORM:-}"
 if [ -z "$DOCKER_PLATFORM" ]; then
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64|Linux-aarch64|Linux-arm64)
@@ -23,10 +23,10 @@ if [ -n "$DOCKER_PLATFORM" ]; then
   DOCKER_PLATFORM_ARGS="--platform $DOCKER_PLATFORM"
 fi
 
-LOG="${SHUX_LINUX_A09_A11_LOG:-/tmp/shux-linux-a09-a11.log}"
+LOG="${XLANG_LINUX_A09_A11_LOG:-/tmp/xlang-linux-a09-a11.log}"
 echo "run-linux-a09-a11-gate: log=$LOG platform=${DOCKER_PLATFORM:-default}"
 
-LINUX_DEV_IMAGE="${SHUX_LINUX_DEV_IMAGE:-shux-linux-dev:22.04-amd64}"
+LINUX_DEV_IMAGE="${XLANG_LINUX_DEV_IMAGE:-xlang-linux-dev:22.04-amd64}"
 USE_DEV_IMAGE=0
 if docker image inspect "$LINUX_DEV_IMAGE" >/dev/null 2>&1; then
   USE_DEV_IMAGE=1
@@ -54,7 +54,7 @@ if [ "$USE_DEV_IMAGE" -eq 1 ]; then
     --memory=8g --shm-size=2g \
     -v "$(pwd):/src" \
     -w /src \
-    -e SHUX_CI_DOCKER=1 \
+    -e XLANG_CI_DOCKER=1 \
     "$LINUX_DEV_IMAGE" \
     bash -lc "$INNER" 2>&1 | tee "$LOG"
 else

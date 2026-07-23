@@ -1,7 +1,7 @@
 /**
- * Shux VSCode 扩展入口 — LSP 客户端 + 编辑器增强
+ * Xlang VSCode 扩展入口 — LSP 客户端 + 编辑器增强
  *
- * 诊断 / 跳转 / 补全 / 悬停 / 格式化 / 大纲：仅走 shux --lsp，不注册本地 LSP 回退 Provider。
+ * 诊断 / 跳转 / 补全 / 悬停 / 格式化 / 大纲：仅走 xlang --lsp，不注册本地 LSP 回退 Provider。
  */
 
 import * as path from 'path';
@@ -10,11 +10,11 @@ import type { LanguageClient, Trace } from 'vscode-languageclient/node';
 
 import { readEnvJsonSetting, readExtraArgsSetting, readLibRootsSetting } from './configSettings';
 import { getLibRootsEnvColon } from './importResolve';
-import { startShuxLanguageClient, stopShuxLanguageClient } from './lspClient';
-import { DEFAULT_SERVER_PATH, resolveServerCommand } from './shuxPath';
+import { startXlangLanguageClient, stopXlangLanguageClient } from './lspClient';
+import { DEFAULT_SERVER_PATH, resolveServerCommand } from './xlangPath';
 import { t, initI18n, onLocaleConfigChanged } from './i18n';
-import { ShuxWorkspaceSymbolProvider, invalidateWorkspaceSymbolCache } from './workspaceSymbol';
-import { refreshShuxStatusBar } from './statusbar';
+import { XlangWorkspaceSymbolProvider, invalidateWorkspaceSymbolCache } from './workspaceSymbol';
+import { refreshXlangStatusBar } from './statusbar';
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.OutputChannel | undefined;
@@ -25,7 +25,7 @@ let heavyFeaturesPromise: Promise<void> | undefined;
 let configChangeDebounce: ReturnType<typeof setTimeout> | undefined;
 let serverConfigSnapshot: string | undefined;
 
-/** 将 shux.server.trace 映射为 LanguageClient Trace */
+/** 将 xlang.server.trace 映射为 LanguageClient Trace */
 function traceFromString(s: string): Trace {
   const { Trace: TraceEnum } = require('vscode-languageclient/node') as typeof import('vscode-languageclient/node');
   switch (s) {
@@ -38,11 +38,11 @@ function traceFromString(s: string): Trace {
   }
 }
 
-/** 读取 shux.compiler.envJson 与 libRoots，构造 LSP 进程 env */
+/** 读取 xlang.compiler.envJson 与 libRoots，构造 LSP 进程 env */
 function buildServerEnv(): Record<string, string> | undefined {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   const env: Record<string, string> = { ...(process.env as Record<string, string>) };
-  env.SHUX_LSP_LIB_ROOTS = getLibRootsEnvColon();
+  env.XLANG_LSP_LIB_ROOTS = getLibRootsEnvColon();
 
   const envObj = readEnvJsonSetting(config, outputChannel);
   if (Object.keys(envObj).length > 0) {
@@ -51,9 +51,9 @@ function buildServerEnv(): Record<string, string> | undefined {
   return env;
 }
 
-/** 构造 shux --lsp 参数列表 */
+/** 构造 xlang --lsp 参数列表 */
 function buildServerArgs(): string[] {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   const baseArgs = ['--lsp'];
 
   const diagnosticLevel = config.get<string>('compiler.diagnosticLevel', 'warning');
@@ -83,7 +83,7 @@ function isFeatureEnabled(
 }
 
 function snapshotServerConfig(): string {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   return JSON.stringify({
     serverPath: config.get<string>('serverPath', DEFAULT_SERVER_PATH),
     extraArgs: readExtraArgsSetting(config),
@@ -98,7 +98,7 @@ function snapshotServerConfig(): string {
 
 /** 格式化 .x 文档（走 LSP documentFormattingProvider） */
 async function formatSuDocument(document: vscode.TextDocument): Promise<void> {
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   if (!config.get<boolean>('format.enabled', true)) {
     return;
   }
@@ -139,13 +139,13 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   }
 
   const [
-    { ShuxFoldingRangeProvider },
-    { ShuxCodeLensProvider },
-    { ShuxOnTypeFormattingProvider },
-    { ShuxDocumentLinkProvider },
-    { ShuxTaskProvider },
-    { registerShuxStatusBar, refreshShuxStatusBar },
-    { createShuxSelectionRangeProvider },
+    { XlangFoldingRangeProvider },
+    { XlangCodeLensProvider },
+    { XlangOnTypeFormattingProvider },
+    { XlangDocumentLinkProvider },
+    { XlangTaskProvider },
+    { registerXlangStatusBar, refreshXlangStatusBar },
+    { createXlangSelectionRangeProvider },
   ] = await Promise.all([
     import('./folding'),
     import('./codelens'),
@@ -156,19 +156,19 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     import('./selection'),
   ]);
 
-  const config = vscode.workspace.getConfiguration('shux');
+  const config = vscode.workspace.getConfiguration('xlang');
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
   if (!workspaceFolder) {
     outputChannel?.appendLine(
-      t('[Shux] No workspace folder: LSP not started. Open Folder to the shux repo root to enable diagnostics.')
+      t('[Xlang] No workspace folder: LSP not started. Open Folder to the xlang repo root to enable diagnostics.')
     );
     void vscode.window.showWarningMessage(
-      t('Shux requires a folder to start the language service (diagnostics, jump, etc.). Open Folder to the project root.')
+      t('Xlang requires a folder to start the language service (diagnostics, jump, etc.). Open Folder to the project root.')
     );
   } else {
     const serverPath = config.get<string>('serverPath', DEFAULT_SERVER_PATH);
-    client = await startShuxLanguageClient({
+    client = await startXlangLanguageClient({
       command: resolveServerCommand(serverPath),
       args: buildServerArgs(),
       cwd: workspaceFolder.uri.fsPath,
@@ -183,13 +183,13 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     context.subscriptions.push(
       vscode.languages.registerFoldingRangeProvider(
         { scheme: 'file', language: 'x' },
-        new ShuxFoldingRangeProvider()
+        new XlangFoldingRangeProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'codeLens')) {
-    const provider = new ShuxCodeLensProvider();
+    const provider = new XlangCodeLensProvider();
     codeLensProvider = provider;
     context.subscriptions.push(
       vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'x' }, provider)
@@ -197,14 +197,14 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   }
 
   context.subscriptions.push(
-    vscode.tasks.registerTaskProvider(ShuxTaskProvider.ShuxType, new ShuxTaskProvider())
+    vscode.tasks.registerTaskProvider(XlangTaskProvider.XlangType, new XlangTaskProvider())
   );
 
   if (isFeatureEnabled(config, 'formatOnType')) {
     context.subscriptions.push(
       vscode.languages.registerOnTypeFormattingEditProvider(
         { scheme: 'file', language: 'x' },
-        new ShuxOnTypeFormattingProvider(),
+        new XlangOnTypeFormattingProvider(),
         '{',
         '\n',
         '}',
@@ -217,19 +217,19 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     context.subscriptions.push(
       vscode.languages.registerDocumentLinkProvider(
         { scheme: 'file', language: 'x' },
-        new ShuxDocumentLinkProvider()
+        new XlangDocumentLinkProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'statusBar')) {
-    registerShuxStatusBar(context);
-    refreshShuxStatusBar(vscode.window.activeTextEditor);
+    registerXlangStatusBar(context);
+    refreshXlangStatusBar(vscode.window.activeTextEditor);
     context.subscriptions.push(
-      vscode.window.onDidChangeActiveTextEditor((e) => refreshShuxStatusBar(e)),
+      vscode.window.onDidChangeActiveTextEditor((e) => refreshXlangStatusBar(e)),
       vscode.workspace.onDidChangeTextDocument((e) => {
         if (e.document.languageId === 'x') {
-          refreshShuxStatusBar(vscode.window.activeTextEditor);
+          refreshXlangStatusBar(vscode.window.activeTextEditor);
         }
       })
     );
@@ -239,36 +239,36 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     context.subscriptions.push(
       vscode.languages.registerSelectionRangeProvider(
         { scheme: 'file', language: 'x' },
-        createShuxSelectionRangeProvider()
+        createXlangSelectionRangeProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'documentHighlight')) {
-    const { ShuxDocumentHighlightProvider } = await import('./documentHighlight');
+    const { XlangDocumentHighlightProvider } = await import('./documentHighlight');
     context.subscriptions.push(
       vscode.languages.registerDocumentHighlightProvider(
         { scheme: 'file', language: 'x' },
-        new ShuxDocumentHighlightProvider()
+        new XlangDocumentHighlightProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'codeAction')) {
-    const { ShuxCodeActionProvider } = await import('./codeAction');
+    const { XlangCodeActionProvider } = await import('./codeAction');
     context.subscriptions.push(
       vscode.languages.registerCodeActionsProvider(
         { scheme: 'file', language: 'x' },
-        new ShuxCodeActionProvider(),
+        new XlangCodeActionProvider(),
         { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix, vscode.CodeActionKind.Refactor] }
       )
     );
   }
 
-  /** 全局符号搜索（Ctrl+T）— 扩展侧本地实现，受 shux.features.workspaceSymbol 开关控制 */
+  /** 全局符号搜索（Ctrl+T）— 扩展侧本地实现，受 xlang.features.workspaceSymbol 开关控制 */
   if (isFeatureEnabled(config, 'workspaceSymbol')) {
     context.subscriptions.push(
-      vscode.languages.registerWorkspaceSymbolProvider(new ShuxWorkspaceSymbolProvider())
+      vscode.languages.registerWorkspaceSymbolProvider(new XlangWorkspaceSymbolProvider())
     );
 
     /** .x 文件保存时失效符号缓存，确保 Ctrl+T 搜索结果最新 */
@@ -283,7 +283,7 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
 
   registerConfigurationListener(context);
   heavyFeaturesReady = true;
-  outputChannel?.appendLine(t('[Shux] Editor enhancements and LSP are ready.'));
+  outputChannel?.appendLine(t('[Xlang] Editor enhancements and LSP are ready.'));
 }
 
 function ensureHeavyFeatures(context: vscode.ExtensionContext): Promise<void> {
@@ -294,7 +294,7 @@ function ensureHeavyFeatures(context: vscode.ExtensionContext): Promise<void> {
     heavyFeaturesPromise = loadHeavyFeatures(context).catch((err: unknown) => {
       heavyFeaturesPromise = undefined;
       const message = err instanceof Error ? err.message : String(err);
-      outputChannel?.appendLine(t('[Shux] Failed to load editor features: {0}', message));
+      outputChannel?.appendLine(t('[Xlang] Failed to load editor features: {0}', message));
       throw err;
     });
   }
@@ -306,7 +306,7 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration('shux')) {
+      if (!e.affectsConfiguration('xlang')) {
         return;
       }
 
@@ -324,9 +324,9 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
 
         const prevSnapshot = serverConfigSnapshot;
         serverConfigSnapshot = newSnapshot;
-        outputChannel?.appendLine(t('[Shux] Configuration change detected, applying...'));
+        outputChannel?.appendLine(t('[Xlang] Configuration change detected, applying...'));
 
-        const newConfig = vscode.workspace.getConfiguration('shux');
+        const newConfig = vscode.workspace.getConfiguration('xlang');
         const prev = JSON.parse(prevSnapshot ?? '{}') as Record<string, unknown>;
         const nextExtraArgs = readExtraArgsSetting(newConfig);
         const nextLibRoots = readLibRootsSetting(newConfig);
@@ -338,12 +338,12 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
         if (
           JSON.stringify(prev.extraArgs) !== JSON.stringify(nextExtraArgs) ||
           JSON.stringify(prev.libRoots) !== JSON.stringify(nextLibRoots) ||
-          e.affectsConfiguration('shux.compiler') ||
-          e.affectsConfiguration('shux.features')
+          e.affectsConfiguration('xlang.compiler') ||
+          e.affectsConfiguration('xlang.features')
         ) {
           codeLensProvider?.refresh();
           /** features.statusBar* 子开关变更时刷新状态栏显示 */
-          refreshShuxStatusBar(vscode.window.activeTextEditor);
+          refreshXlangStatusBar(vscode.window.activeTextEditor);
         }
 
         const restartKeysChanged =
@@ -360,13 +360,13 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
           const laterBtn = t('Later');
           void vscode.window
             .showInformationMessage(
-              t('Shux server config changed. Restart the language service to apply.'),
+              t('Xlang server config changed. Restart the language service to apply.'),
               restartBtn,
               laterBtn
             )
             .then((selection) => {
               if (selection === restartBtn) {
-                void vscode.commands.executeCommand('shux.restartServer');
+                void vscode.commands.executeCommand('xlang.restartServer');
               }
             });
         }
@@ -375,7 +375,7 @@ function registerConfigurationListener(context: vscode.ExtensionContext): void {
   );
 }
 
-async function openShuxSettingsSafe(): Promise<void> {
+async function openXlangSettingsSafe(): Promise<void> {
   const ws = vscode.workspace.workspaceFolders?.[0];
   if (ws) {
     const settingsUri = vscode.Uri.joinPath(ws.uri, '.vscode', 'settings.json');
@@ -387,18 +387,18 @@ async function openShuxSettingsSafe(): Promise<void> {
       // fall through
     }
   }
-  await vscode.commands.executeCommand('workbench.action.openSettings', 'shux');
+  await vscode.commands.executeCommand('workbench.action.openSettings', 'xlang');
 }
 
 function registerCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.openSettings', () => {
-      void openShuxSettingsSafe();
+    vscode.commands.registerCommand('xlang.openSettings', () => {
+      void openXlangSettingsSafe();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.restartServer', async () => {
+    vscode.commands.registerCommand('xlang.restartServer', async () => {
       await ensureHeavyFeatures(context);
       try {
         const wf = vscode.workspace.workspaceFolders?.[0];
@@ -406,10 +406,10 @@ function registerCommands(context: vscode.ExtensionContext): void {
           vscode.window.showWarningMessage(t('Please Open Folder to open a workspace before restarting LSP.'));
           return;
         }
-        outputChannel?.appendLine(t('[Shux] Restarting language server...'));
-        await stopShuxLanguageClient(client);
-        const config = vscode.workspace.getConfiguration('shux');
-        client = await startShuxLanguageClient({
+        outputChannel?.appendLine(t('[Xlang] Restarting language server...'));
+        await stopXlangLanguageClient(client);
+        const config = vscode.workspace.getConfiguration('xlang');
+        client = await startXlangLanguageClient({
           command: resolveServerCommand(config.get<string>('serverPath', DEFAULT_SERVER_PATH)),
           args: buildServerArgs(),
           cwd: wf.uri.fsPath,
@@ -418,24 +418,24 @@ function registerCommands(context: vscode.ExtensionContext): void {
           outputChannel: outputChannel!,
           restartOnCrash: config.get<boolean>('server.restartOnCrash', true),
         });
-        outputChannel?.appendLine(t('[Shux] Language server restarted.'));
-        vscode.window.showInformationMessage(t('Shux language service restarted.'));
+        outputChannel?.appendLine(t('[Xlang] Language server restarted.'));
+        vscode.window.showInformationMessage(t('Xlang language service restarted.'));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        outputChannel?.appendLine(t('[Shux] Restart failed: {0}', message));
-        vscode.window.showErrorMessage(t('Shux restart failed: {0}', message));
+        outputChannel?.appendLine(t('[Xlang] Restart failed: {0}', message));
+        vscode.window.showErrorMessage(t('Xlang restart failed: {0}', message));
       }
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.showServerOutput', () => {
+    vscode.commands.registerCommand('xlang.showServerOutput', () => {
       outputChannel?.show(true);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.refreshCodeLens', async () => {
+    vscode.commands.registerCommand('xlang.refreshCodeLens', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor || editor.document.languageId !== 'x') {
         vscode.window.showWarningMessage(t('Please open a .x file first.'));
@@ -443,13 +443,13 @@ function registerCommands(context: vscode.ExtensionContext): void {
       }
       await ensureHeavyFeatures(context);
       codeLensProvider?.refresh();
-      vscode.window.showInformationMessage(t('Shux CodeLens refreshed.'));
+      vscode.window.showInformationMessage(t('Xlang CodeLens refreshed.'));
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.runFile', async (uri?: vscode.Uri) => {
-      const { ShuxTaskProvider } = await import('./tasks');
+    vscode.commands.registerCommand('xlang.runFile', async (uri?: vscode.Uri) => {
+      const { XlangTaskProvider } = await import('./tasks');
       await ensureHeavyFeatures(context);
 
       const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
@@ -457,14 +457,14 @@ function registerCommands(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage(t('No file to run.'));
         return;
       }
-      const cfg = vscode.workspace.getConfiguration('shux');
+      const cfg = vscode.workspace.getConfiguration('xlang');
       const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
 
       const task = new vscode.Task(
-        { type: ShuxTaskProvider.ShuxType, task: 'run-codelens' },
+        { type: XlangTaskProvider.XlangType, task: 'run-codelens' },
         vscode.TaskScope.Workspace,
-        `shux run ${path.basename(targetUri.fsPath)}`,
-        'Shux',
+        `xlang run ${path.basename(targetUri.fsPath)}`,
+        'Xlang',
         new vscode.ProcessExecution(cmd, ['run', targetUri.fsPath], {
           cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(targetUri.fsPath),
         })
@@ -479,8 +479,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.buildFile', async (uri?: vscode.Uri) => {
-      const { ShuxTaskProvider } = await import('./tasks');
+    vscode.commands.registerCommand('xlang.buildFile', async (uri?: vscode.Uri) => {
+      const { XlangTaskProvider } = await import('./tasks');
       await ensureHeavyFeatures(context);
 
       const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
@@ -488,14 +488,14 @@ function registerCommands(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage(t('No file to build.'));
         return;
       }
-      const cfg = vscode.workspace.getConfiguration('shux');
+      const cfg = vscode.workspace.getConfiguration('xlang');
       const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
 
       const task = new vscode.Task(
-        { type: ShuxTaskProvider.ShuxType, task: 'build-file' },
+        { type: XlangTaskProvider.XlangType, task: 'build-file' },
         vscode.TaskScope.Workspace,
-        `shux build ${path.basename(targetUri.fsPath)}`,
-        'Shux',
+        `xlang build ${path.basename(targetUri.fsPath)}`,
+        'Xlang',
         new vscode.ProcessExecution(cmd, ['build', targetUri.fsPath], {
           cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(targetUri.fsPath),
         })
@@ -506,14 +506,14 @@ function registerCommands(context: vscode.ExtensionContext): void {
         panel: vscode.TaskPanelKind.Shared,
         clear: true,
       };
-      task.problemMatchers = ['$shux-parse', '$shux-typeck'];
+      task.problemMatchers = ['$xlang-parse', '$xlang-typeck'];
       await vscode.tasks.executeTask(task);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.checkFile', async (uri?: vscode.Uri) => {
-      const { ShuxTaskProvider } = await import('./tasks');
+    vscode.commands.registerCommand('xlang.checkFile', async (uri?: vscode.Uri) => {
+      const { XlangTaskProvider } = await import('./tasks');
       await ensureHeavyFeatures(context);
 
       const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
@@ -521,14 +521,14 @@ function registerCommands(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage(t('No file to check.'));
         return;
       }
-      const cfg = vscode.workspace.getConfiguration('shux');
+      const cfg = vscode.workspace.getConfiguration('xlang');
       const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
 
       const task = new vscode.Task(
-        { type: ShuxTaskProvider.ShuxType, task: 'check' },
+        { type: XlangTaskProvider.XlangType, task: 'check' },
         vscode.TaskScope.Workspace,
-        `shux check ${path.basename(targetUri.fsPath)}`,
-        'Shux',
+        `xlang check ${path.basename(targetUri.fsPath)}`,
+        'Xlang',
         new vscode.ProcessExecution(cmd, ['check', targetUri.fsPath], {
           cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(targetUri.fsPath),
         })
@@ -539,24 +539,24 @@ function registerCommands(context: vscode.ExtensionContext): void {
         panel: vscode.TaskPanelKind.Shared,
         clear: true,
       };
-      task.problemMatchers = ['$shux-parse', '$shux-typeck'];
+      task.problemMatchers = ['$xlang-parse', '$xlang-typeck'];
       await vscode.tasks.executeTask(task);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.buildProject', async () => {
-      const { ShuxTaskProvider } = await import('./tasks');
+    vscode.commands.registerCommand('xlang.buildProject', async () => {
+      const { XlangTaskProvider } = await import('./tasks');
       await ensureHeavyFeatures(context);
 
-      const cfg = vscode.workspace.getConfiguration('shux');
+      const cfg = vscode.workspace.getConfiguration('xlang');
       const cmd = resolveServerCommand(cfg.get<string>('serverPath', DEFAULT_SERVER_PATH));
 
       const task = new vscode.Task(
-        { type: ShuxTaskProvider.ShuxType, task: 'build' },
+        { type: XlangTaskProvider.XlangType, task: 'build' },
         vscode.TaskScope.Workspace,
-        'shux build',
-        'Shux',
+        'xlang build',
+        'Xlang',
         new vscode.ProcessExecution(cmd, ['build'], {
           cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
         })
@@ -567,13 +567,13 @@ function registerCommands(context: vscode.ExtensionContext): void {
         panel: vscode.TaskPanelKind.Shared,
         clear: true,
       };
-      task.problemMatchers = ['$shux-parse', '$shux-typeck'];
+      task.problemMatchers = ['$xlang-parse', '$xlang-typeck'];
       await vscode.tasks.executeTask(task);
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('shux.formatDocument', async () => {
+    vscode.commands.registerCommand('xlang.formatDocument', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor || editor.document.languageId !== 'x') {
         vscode.window.showWarningMessage(t('Please open a .x file first.'));
@@ -612,14 +612,14 @@ function scheduleHeavyFeaturesOnSu(context: vscode.ExtensionContext): void {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  outputChannel = vscode.window.createOutputChannel('Shux');
-  // 初始化 i18n（支持 shux.locale 配置覆盖）
+  outputChannel = vscode.window.createOutputChannel('Xlang');
+  // 初始化 i18n（支持 xlang.locale 配置覆盖）
   initI18n(context);
   context.subscriptions.push(onLocaleConfigChanged(context));
-  outputChannel.appendLine(t('[Shux] Extension activating (lightweight mode)...'));
+  outputChannel.appendLine(t('[Xlang] Extension activating (lightweight mode)...'));
   registerCommands(context);
   scheduleHeavyFeaturesOnSu(context);
-  outputChannel.appendLine(t('[Shux] Extension activated. Open a .x file to load LSP immediately.'));
+  outputChannel.appendLine(t('[Xlang] Extension activated. Open a .x file to load LSP immediately.'));
 }
 
 export function deactivate(): Thenable<void> | undefined {
@@ -627,7 +627,7 @@ export function deactivate(): Thenable<void> | undefined {
     clearTimeout(configChangeDebounce);
     configChangeDebounce = undefined;
   }
-  outputChannel?.appendLine(t('[Shux] Extension deactivated.'));
+  outputChannel?.appendLine(t('[Xlang] Extension deactivated.'));
   outputChannel?.dispose();
-  return stopShuxLanguageClient(client);
+  return stopXlangLanguageClient(client);
 }

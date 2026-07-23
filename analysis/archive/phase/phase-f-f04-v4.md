@@ -17,13 +17,13 @@
 
 | 项 | 说明 |
 |----|------|
-| gzip/brotli/zstd | 仍为 `.c`（gzip 仍 -DSHUX_USE_ZLIB 链 libz） |
+| gzip/brotli/zstd | 仍为 `.c`（gzip 仍 -DXLANG_USE_ZLIB 链 libz） |
 | 无 libz 环境 | deflate/inflate 链接需 -lz；无库时链接失败（同 heap -lc 模式） |
 
 ## 复现
 
 ```bash
-SHUX_F04_COMPRESS_ZLIB_FAIL=1 ./tests/run-f04-std-compress-zlib-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=100
+XLANG_F04_COMPRESS_ZLIB_FAIL=1 ./tests/run-f04-std-compress-zlib-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh   # total=100
 ./tests/run-std-compress-gate.sh
 ```

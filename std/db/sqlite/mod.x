@@ -14,14 +14,37 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// See implementation.
-//
-// See implementation.
-//
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+/**
+ * SQLite3 C ABI wrappers.
+ *
+ * All `db_*_c` functions below are thin wrappers over the SQLite3 C
+ * library (libsqlite3) connection / statement / cursor / pool
+ * management intrinsics. They are implemented in C (see seeds) and
+ * exposed to XLANG via `extern "C"` declarations.
+ *
+ * ABI: C (System V / AAPCS). Calling convention matches the C runtime
+ * and libsqlite3's published C ABI (sqlite3_open / sqlite3_prepare_v2
+ * / sqlite3_step / sqlite3_bind_* / sqlite3_column_* etc.).
+ * PLATFORM: SHARED — libsqlite3 is available on all targets
+ * (macOS arm64 / Ubuntu x86_64 / Windows MSYS2); when libsqlite3 is
+ * absent, a stub backend is substituted by ensure_std_c_o (see
+ * tests/lib/build-std-c-o.sh).
+ *
+ * Handle model:
+ *   - DbConn   wraps a sqlite3* connection (i64 opaque)
+ *   - DbStmt   wraps a sqlite3_stmt* prepared statement (i64 opaque)
+ *   - DbRowCursor wraps a query cursor (i64 opaque)
+ *   - DbPool   wraps a connection pool (i64 opaque)
+ *   - DbError  {code: i32, msg: *u8} last-error snapshot
+ *
+ * Error codes (DB_*): DB_OK=0, DB_ERR_NULL=-1, DB_ERR_OPEN=-2,
+ * DB_ERR_EXEC=-3, DB_ERR_BUSY=-4, DB_NOT_IMPL=-9; row codes:
+ * DB_ROW_OK=1, DB_ROW_DONE=0.
+ *
+ * Unsafe contract: callers must wrap `db_*_c` calls in `unsafe { }`
+ * blocks. P0a semantic downgrade currently allows unwrapped calls; P1
+ * typeck enforcement (post-bootstrap) will reject unwrapped calls.
+ */
 
 /* See implementation. */
 export const DB_OK: i32 = 0;
@@ -66,38 +89,38 @@ export struct DbPool {
   handle: i64;
 }
 
-extern function db_open_c(path: *u8): i64;
-extern function db_close_c(handle: i64): i32;
-extern function db_exec_c(handle: i64, sql: *u8): i32;
-extern function db_query_rows_c(handle: i64, sql: *u8): i32;
-extern function db_query_begin_c(handle: i64, sql: *u8): i64;
-extern function db_next_row_c(cursor: i64): i32;
-extern function db_row_col_i32_c(cursor: i64, col: i32): i32;
-extern function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32;
-extern function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32;
-extern function db_row_col_blob_len_c(cursor: i64, col: i32): i32;
-extern function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_buf: *u8, out_cap: i32): i32;
-extern function db_query_end_c(cursor: i64): i32;
-extern function db_begin_tx_c(handle: i64): i32;
-extern function db_commit_c(handle: i64): i32;
-extern function db_rollback_c(handle: i64): i32;
-extern function db_last_code_c(): i32;
-extern function db_last_error_msg_c(): *u8;
-extern function db_backend_name_c(): *u8;
-extern function db_changes_c(handle: i64): i32;
-extern function db_prepare_c(handle: i64, sql: *u8): i64;
-extern function db_prepare_cached_c(handle: i64, sql: *u8): i64;
-extern function db_stmt_bind_i32_c(stmt: i64, idx: i32, val: i32): i32;
-extern function db_stmt_bind_text_c(stmt: i64, idx: i32, text: *u8): i32;
-extern function db_stmt_step_c(stmt: i64): i32;
-extern function db_stmt_reset_c(stmt: i64): i32;
-extern function db_stmt_finalize_c(stmt: i64): i32;
-extern function db_stmt_cache_clear_c(handle: i64): i32;
-extern function db_pool_open_c(path: *u8, max_conns: i32): i64;
-extern function db_pool_close_c(pool: i64): i32;
-extern function db_pool_acquire_c(pool: i64): i64;
-extern function db_pool_release_c(pool: i64, conn: i64): i32;
-extern function db_pool_idle_c(pool: i64): i32;
+extern "C" function db_open_c(path: *u8): i64;
+extern "C" function db_close_c(handle: i64): i32;
+extern "C" function db_exec_c(handle: i64, sql: *u8): i32;
+extern "C" function db_query_rows_c(handle: i64, sql: *u8): i32;
+extern "C" function db_query_begin_c(handle: i64, sql: *u8): i64;
+extern "C" function db_next_row_c(cursor: i64): i32;
+extern "C" function db_row_col_i32_c(cursor: i64, col: i32): i32;
+extern "C" function db_row_col_text_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function db_row_col_blob_c(cursor: i64, col: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function db_row_col_blob_len_c(cursor: i64, col: i32): i32;
+extern "C" function db_row_col_blob_read_c(cursor: i64, col: i32, offset: i32, out_buf: *u8, out_cap: i32): i32;
+extern "C" function db_query_end_c(cursor: i64): i32;
+extern "C" function db_begin_tx_c(handle: i64): i32;
+extern "C" function db_commit_c(handle: i64): i32;
+extern "C" function db_rollback_c(handle: i64): i32;
+extern "C" function db_last_code_c(): i32;
+extern "C" function db_last_error_msg_c(): *u8;
+extern "C" function db_backend_name_c(): *u8;
+extern "C" function db_changes_c(handle: i64): i32;
+extern "C" function db_prepare_c(handle: i64, sql: *u8): i64;
+extern "C" function db_prepare_cached_c(handle: i64, sql: *u8): i64;
+extern "C" function db_stmt_bind_i32_c(stmt: i64, idx: i32, val: i32): i32;
+extern "C" function db_stmt_bind_text_c(stmt: i64, idx: i32, text: *u8): i32;
+extern "C" function db_stmt_step_c(stmt: i64): i32;
+extern "C" function db_stmt_reset_c(stmt: i64): i32;
+extern "C" function db_stmt_finalize_c(stmt: i64): i32;
+extern "C" function db_stmt_cache_clear_c(handle: i64): i32;
+extern "C" function db_pool_open_c(path: *u8, max_conns: i32): i64;
+extern "C" function db_pool_close_c(pool: i64): i32;
+extern "C" function db_pool_acquire_c(pool: i64): i64;
+extern "C" function db_pool_release_c(pool: i64, conn: i64): i32;
+extern "C" function db_pool_idle_c(pool: i64): i32;
 
 /** Exported function `open`.
  * Implements `open`.

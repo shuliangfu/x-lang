@@ -2,7 +2,7 @@
  * G-02f rt_parse_diag R2 full surface — isomorphic with src/runtime/rt_parse_diag.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_parse_diag.x) + rest seed empty under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (runtime_report_precise_parse_failure_if_known)
- * Regen: ./shux -E ... src/runtime/rt_parse_diag.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_parse_diag.x | filter DBG + polish prologue
  */
 #include <stddef.h>
 #include <stdint.h>

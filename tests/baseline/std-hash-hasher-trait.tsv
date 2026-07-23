@@ -5,7 +5,7 @@ read_path	section	## 1. 阅读路径	15min
 trait_doc	section	## 2. Hasher trait 抽象（v1）	start_algo
 algo_doc	section	## 3. 选型说明	SipHash
 verify	section	## 5. 门禁	gate
-api_default	api	default_hasher	std/hash/mod.x	SHUX_HASH_ALGO
+api_default	api	default_hasher	std/hash/mod.x	XLANG_HASH_ALGO
 api_start_algo	api	start_algo	std/hash/mod.x	工厂
 api_write_bytes	api	write_bytes_algo	std/hash/mod.x	写
 api_finish	api	finish_algo	std/hash/mod.x	完成

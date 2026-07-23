@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-24： .x — typeck_module / typeck_one_function （ -1）。
-// ：./shux-c -E → seeds/typeck_c_module_stubs.from_x.c（ __attribute__((weak))）。
+// ：./xlang-c -E → seeds/typeck_c_module_stubs.from_x.c（ __attribute__((weak))）。
 //  *u8  ASTModule** （C ABI ）。
 
 /** Function `typeck_module`.

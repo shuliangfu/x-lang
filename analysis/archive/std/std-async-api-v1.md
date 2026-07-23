@@ -27,7 +27,7 @@ import("std.async")       ← 用户/语言 codegen 稳定面（§3）
     └── scheduler.c    ← 协作帧、MPSC 环、CPS suspend、IO wake
 ```
 
-**v1 规则**：无栈协作调度 **单进程单线程默认可用**；`SHUX_ASYNC_WORKERS>1` 为预览（须 `-pthread`）。
+**v1 规则**：无栈协作调度 **单进程单线程默认可用**；`XLANG_ASYNC_WORKERS>1` 为预览（须 `-pthread`）。
 
 ---
 
@@ -48,7 +48,7 @@ import("std.async")       ← 用户/语言 codegen 稳定面（§3）
 |------|------|
 | `coop_pingpong(rounds)` | switch dispatch 双任务 ping-pong |
 | `coop_pingpong_jmp(rounds)` | computed-goto dispatch |
-| `SHUX_ASYNC_SUSPENDED` | CPS suspend 哨兵 `0x41535700` |
+| `XLANG_ASYNC_SUSPENDED` | CPS suspend 哨兵 `0x41535700` |
 
 ### 3.3 CPS / run / spawn（A3–A5）
 
@@ -91,7 +91,7 @@ import("std.async")       ← 用户/语言 codegen 稳定面（§3）
 与 STD-004 正交；perf 上限见 `tests/baseline/async-perf.tsv`：
 
 ```bash
-SHUX_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench
+XLANG_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench
 ```
 
 目标 stretch：2M steps ≤ **15ns/step**（~0.03s total）。
@@ -102,10 +102,10 @@ SHUX_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench
 
 | 变量 | 说明 |
 |------|------|
-| `SHUX_ASYNC_YIELD=1` | await 边界 yield（CPS suspend） |
-| `SHUX_ASYNC_IO_WAIT=1` | suspend 进 IO 等待队列 |
-| `SHUX_ASYNC_WORKERS=N` | 1..8 per-worker 就绪环 |
-| `SHUX_ASYNC_AFFINITY=1` | worker_drain 绑核（须链 std.thread） |
+| `XLANG_ASYNC_YIELD=1` | await 边界 yield（CPS suspend） |
+| `XLANG_ASYNC_IO_WAIT=1` | suspend 进 IO 等待队列 |
+| `XLANG_ASYNC_WORKERS=N` | 1..8 per-worker 就绪环 |
+| `XLANG_ASYNC_AFFINITY=1` | worker_drain 绑核（须链 std.thread） |
 
 ---
 
@@ -113,7 +113,7 @@ SHUX_PERF_FAIL_ON_ASYNC_REGRESSION=1 ./tests/run-perf-async.sh --bench
 
 | 能力 | Linux | macOS | Windows |
 |------|-------|-------|---------|
-| **1M coop ping-pong** | ✅ | ✅ | ✅ shux-c |
+| **1M coop ping-pong** | ✅ | ✅ | ✅ xlang-c |
 | **scheduler jmp asm** | ✅ x86_64 | skip | skip |
 | **import("std.async") 按需链 scheduler.o** | ✅ | ✅ | ✅ |
 | **await + IO async** | ✅ io_uring | ⚠️ kqueue | ⚠️ IOCP |

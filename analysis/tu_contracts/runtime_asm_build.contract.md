@@ -18,12 +18,12 @@
 - `asm_driver_set_current_dep_path_for_codegen`（DIRECT，转发 `driver_set_current_dep_path_for_codegen`）
 
 ### 3.2 当前仍由 seed/rest 提供
-- `main`（入口函数，调用 `shux_forward_main_to_main_entry`）
+- `main`（入口函数，调用 `xlang_forward_main_to_main_entry`）
 
 ## 4. ABI Manifest
 - _impl 残余列表：无
 - DIRECT 符号列表：`asm_driver_skip_codegen_dep_0_get`、`asm_driver_set_current_dep_path_for_codegen`
-- thin+rest 宏边界：`SHUX_RUNTIME_ASM_BUILD_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_ASM_BUILD_FROM_X`
 - 前向声明：无（rest 函数 main 不调用 thin 函数）
 
 ## 5. 验证状态
@@ -32,6 +32,6 @@
 - smoke/probe：pending
 
 ## 6. 备注
-- main 保留 seed：.x 无法表达 `char **argv`（Clang 强制 main 第二参数为 `char **`）。shux-c -E 生成的 `uint8_t *argv` 被 Clang 拒绝。.x 中 main 函数定义已删除，main 完全由 seed 提供
+- main 保留 seed：.x 无法表达 `char **argv`（Clang 强制 main 第二参数为 `char **`）。xlang-c -E 生成的 `uint8_t *argv` 被 Clang 拒绝。.x 中 main 函数定义已删除，main 完全由 seed 提供
 - 纯 DIRECT 模式：2 个转发函数由 .x 提供，seed 在 rest 模式下不提供这 2 个函数
-- 依赖：外部 TU `driver_skip_codegen_dep_0_get` / `driver_set_current_dep_path_for_codegen` / `shux_forward_main_to_main_entry`（driver/runtime TU）
+- 依赖：外部 TU `driver_skip_codegen_dep_0_get` / `driver_set_current_dep_path_for_codegen` / `xlang_forward_main_to_main_entry`（driver/runtime TU）

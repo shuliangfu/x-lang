@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # B-20 v1：runtime generated_c_needs_* 按需链扫描不再使用 fopen（改 read_file/POSIX）。
 # 用法：./tests/run-b20-generated-c-scan-gate.sh
-# 环境：SHUX_B20_GENERATED_C_SCAN_FAIL=1 失败时硬退出
+# 环境：XLANG_B20_GENERATED_C_SCAN_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_B20_GENERATED_C_SCAN_FAIL:-0}
+FAIL=${XLANG_B20_GENERATED_C_SCAN_FAIL:-0}
 RT="compiler/seeds/runtime.from_x.c"
 
 if [ ! -f "$RT" ]; then

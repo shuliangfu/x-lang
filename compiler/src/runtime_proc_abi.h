@@ -6,8 +6,8 @@
  * 与其它文件的关系：不依赖 C 前端；逐步从 runtime.c 拆出，为 invoke_ld 独立 TU 铺路。
  */
 
-#ifndef SHUX_RUNTIME_PROC_ABI_H
-#define SHUX_RUNTIME_PROC_ABI_H
+#ifndef XLANG_RUNTIME_PROC_ABI_H
+#define XLANG_RUNTIME_PROC_ABI_H
 
 #include <sys/types.h>
 
@@ -16,7 +16,7 @@
  * 参数：pid 子进程 id；status_out 非 NULL 时写入 wait 状态。
  * 返回值：0 成功；-1 失败（已 perror）。
  */
-int shu_waitpid_retry(pid_t pid, int *status_out);
+int xlang_waitpid_retry(pid_t pid, int *status_out);
 
 /**
  * 链接可选 std/*.o：路径可读且为常规文件时返回 path，否则 NULL。
@@ -25,4 +25,4 @@ int shu_waitpid_retry(pid_t pid, int *status_out);
  */
 const char *asm_link_obj_skip_missing(const char *path);
 
-#endif /* SHUX_RUNTIME_PROC_ABI_H */
+#endif /* XLANG_RUNTIME_PROC_ABI_H */

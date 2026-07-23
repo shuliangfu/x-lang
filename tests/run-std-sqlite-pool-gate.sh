@@ -3,9 +3,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD084_DOC:-analysis/std-sqlite-pool-v1.md}"
-MANIFEST="${SHUX_STD084_TSV:-tests/baseline/std-sqlite-pool.tsv}"
-VECTORS="${SHUX_STD084_VECTORS:-tests/baseline/std-sqlite-pool-vectors.tsv}"
+DOC="${XLANG_STD084_DOC:-analysis/std-sqlite-pool-v1.md}"
+MANIFEST="${XLANG_STD084_TSV:-tests/baseline/std-sqlite-pool.tsv}"
+VECTORS="${XLANG_STD084_VECTORS:-tests/baseline/std-sqlite-pool-vectors.tsv}"
 MOD_X="std/db/sqlite/mod.x"
 DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-pool.sh"
@@ -79,20 +79,20 @@ else
   SKIP=1
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ] && [ "$SKIP" -eq 0 ]; then
-  echo "=== STD-084: .x smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ] && [ "$SKIP" -eq 0 ]; then
+  echo "=== STD-084: .x smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-sqlite-pool gate SKIP .x smoke (typeck fail)" >&2
-  elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "pool"; then
+  elif std_sqlite_run_smoke "$XLANG_BIN" "$SMOKE_X" "pool"; then
     POOL_X=1
   else
     echo "std-sqlite-pool gate SKIP .x smoke (link/compile)" >&2
   fi
-elif [ -n "$SHUX_BIN" ]; then
+elif [ -n "$XLANG_BIN" ]; then
   echo "std-sqlite-pool: .x smoke SKIP (no libsqlite3)"
   SKIP=1
 fi

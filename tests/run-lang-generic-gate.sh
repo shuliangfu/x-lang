@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_LANG_GENERIC_DOC:-analysis/lang-generic-v1.md}"
-MANIFEST="${SHUX_LANG_GENERIC_MANIFEST:-tests/baseline/lang-generic.tsv}"
-PROTOTYPE="${SHUX_LANG_GENERIC_PROTOTYPE:-tests/baseline/lang-generic-prototype.tsv}"
+DOC="${XLANG_LANG_GENERIC_DOC:-analysis/lang-generic-v1.md}"
+MANIFEST="${XLANG_LANG_GENERIC_MANIFEST:-tests/baseline/lang-generic.tsv}"
+PROTOTYPE="${XLANG_LANG_GENERIC_PROTOTYPE:-tests/baseline/lang-generic-prototype.tsv}"
 MIN_LAYERS=6
 MIN_CASES=3
 MIN_CAPS=4

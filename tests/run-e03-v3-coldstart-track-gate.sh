@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# E-03 v3：shux-c OBJS_CORE 与 build_shux_asm SEED 冷启动 track gate（对照默认 bootstrap）。
+# E-03 v3：xlang-c OBJS_CORE 与 build_xlang_asm SEED 冷启动 track gate（对照默认 bootstrap）。
 #
 # 用法：./tests/run-e03-v3-coldstart-track-gate.sh
 # 环境：
-#   SHUX_E03_V3_FAIL=1              — 失败时硬退出
-#   SHUX_E03_V3_MANIFEST_ONLY=1     — 仅 manifest
+#   XLANG_E03_V3_FAIL=1              — 失败时硬退出
+#   XLANG_E03_V3_MANIFEST_ONLY=1     — 仅 manifest
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_E03_V3_FAIL:-0}
+FAIL=${XLANG_E03_V3_FAIL:-0}
 DOC="analysis/phase-e-e03-v3-coldstart.md"
 MF="tests/baseline/e03-coldstart-track.tsv"
 MAKEFILE="compiler/Makefile"
-BUILD="compiler/scripts/build_shux_asm.sh"
+BUILD="compiler/scripts/build_xlang_asm.sh"
 
 die() {
   echo "e03-v3 gate FAIL: $*" >&2
@@ -25,7 +25,7 @@ for f in "$DOC" "$MF" "$MAKEFILE" "$BUILD"; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-03 v3' "$DOC" || die "doc missing E-03 v3 marker"
-grep -q 'ensure_asm_driver_seed_c_objs' "$BUILD" || die "build_shux_asm missing ensure_asm_driver_seed_c_objs"
+grep -q 'ensure_asm_driver_seed_c_objs' "$BUILD" || die "build_xlang_asm missing ensure_asm_driver_seed_c_objs"
 grep -q '^OBJS_CORE' "$MAKEFILE" || die "Makefile missing OBJS_CORE"
 grep -q '^DRIVER_SEED_OBJS' "$MAKEFILE" || die "Makefile missing DRIVER_SEED_OBJS"
 
@@ -49,24 +49,24 @@ audit_track() {
         *runtime_proc_abi.o*) echo "$OBJS_CORE_LINE" | grep -q 'src/runtime_proc_abi\.o' || die "$id: OBJS_CORE missing runtime_proc_abi.o" ;;
         *) die "$id: unknown OBJS_CORE track path $path" ;;
       esac
-      echo "e03-v3 track OK: $id still in OBJS_CORE (shux-c cold start)"
+      echo "e03-v3 track OK: $id still in OBJS_CORE (xlang-c cold start)"
       ;;
-    bootstrap_shuxc)
+    bootstrap_xlangc)
       case "$path" in
-        *bootstrap_shuxc_create*) [ -f compiler/scripts/bootstrap_shuxc_create.sh ] || die "$id: missing bootstrap_shuxc_create.sh" ;;
-        *bootstrap_shuxc)
-          if [ ! -x compiler/bootstrap_shuxc ] && [ ! -x compiler/shux_asm ] && [ ! -x compiler/shux ]; then
-            die "$id: need bootstrap_shuxc or shux_asm to create seed"
+        *bootstrap_xlangc_create*) [ -f compiler/scripts/bootstrap_xlangc_create.sh ] || die "$id: missing bootstrap_xlangc_create.sh" ;;
+        *bootstrap_xlangc)
+          if [ ! -x compiler/bootstrap_xlangc ] && [ ! -x compiler/xlang_asm ] && [ ! -x compiler/xlang ]; then
+            die "$id: need bootstrap_xlangc or xlang_asm to create seed"
           fi
           ;;
-        *) die "$id: unknown bootstrap_shuxc path $path" ;;
+        *) die "$id: unknown bootstrap_xlangc path $path" ;;
       esac
-      echo "e03-v3 track OK: $id G-06 bootstrap_shuxc cold start"
+      echo "e03-v3 track OK: $id G-06 bootstrap_xlangc cold start"
       ;;
     SEED_OMIT)
       if grep -q 'ensure_asm_driver_seed_frontend_c_objs' "$BUILD" \
         && ! grep -q 'G-02a: omit C frontend seed' "$BUILD" 2>/dev/null; then
-        die "$id: build_shux_asm still compiles frontend .c in ensure_asm_driver_seed_frontend_c_objs"
+        die "$id: build_xlang_asm still compiles frontend .c in ensure_asm_driver_seed_frontend_c_objs"
       fi
       echo "e03-v3 track OK: $id SEED omit C frontend (G-02a)"
       ;;
@@ -79,7 +79,7 @@ audit_track() {
         *parser.c*) grep -q 'src/parser/parser.c' "$BUILD" || die "$id: SEED missing parser.c" ;;
         *) die "$id: unknown SEED track path $path" ;;
       esac
-      echo "e03-v3 track OK: $id still in build_shux_asm SEED (archaeology)"
+      echo "e03-v3 track OK: $id still in build_xlang_asm SEED (archaeology)"
       ;;
     absent)
       if echo "$DRIVER_SEED_LINE" | grep -q "$path"; then
@@ -120,7 +120,7 @@ done < "$MF"
 
 [ "$MISS" -eq 0 ] || die "$MISS manifest item(s) failed"
 
-if [ "${SHUX_E03_V3_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_E03_V3_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "e03-v3 coldstart track gate OK (manifest only)"
   exit 0
 fi
@@ -128,7 +128,7 @@ fi
 if [ -f tests/run-c06-x-frontend-default-gate.sh ]; then
   echo "=== E-03 v3: delegate C-06 x frontend default (contrast) ==="
   chmod +x tests/run-c06-x-frontend-default-gate.sh
-  SHUX_C06_FAIL="$FAIL" ./tests/run-c06-x-frontend-default-gate.sh || die "C-06 delegate failed"
+  XLANG_C06_FAIL="$FAIL" ./tests/run-c06-x-frontend-default-gate.sh || die "C-06 delegate failed"
 fi
 
 echo "e03-v3 coldstart track gate OK (OBJS_CORE/SEED track-only; default DRIVER_SEED soft-retired)"

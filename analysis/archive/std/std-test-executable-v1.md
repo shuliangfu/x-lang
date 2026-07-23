@@ -30,7 +30,7 @@
 
 1. `fuzz_seed` + `fuzz_next` 序列可复现  
 2. `bench_run_noop` 返回 `ns >= 0`  
-3. `bench_report` 输出 `shux: [SHUX_BENCH]`  
+3. `bench_report` 输出 `xlang: [XLANG_BENCH]`  
 4. `fuzz_run_noop` 返回 0  
 
 ---
@@ -41,4 +41,4 @@
 ./tests/run-std-test-executable-gate.sh
 ```
 
-报告：`shux: [SHUX_STD143_TEST_EXECUTABLE]`
+报告：`xlang: [XLANG_STD143_TEST_EXECUTABLE]`

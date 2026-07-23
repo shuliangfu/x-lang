@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-void shux_panic_(int has_msg, int msg_val);
+void xlang_panic_(int has_msg, int msg_val);
 struct std_heap_HeapTraceStats {
   uint64_t alloc_count;
   uint64_t free_count;
@@ -28,11 +28,11 @@ struct std_heap_libc_LibcArena64 {
 };
 
 struct std_io_ReadOnlySlice {
-  struct shux_slice_uint8_t data;
+  struct xlang_slice_uint8_t data;
 };
 
 struct std_io_WriteOnlySlice {
-  struct shux_slice_uint8_t data;
+  struct xlang_slice_uint8_t data;
 };
 
 struct std_io_ReadPtrView {
@@ -45,7 +45,7 @@ struct std_context_Context {
   int64_t handle;
 };
 
-struct std_io_read_ptr_ShuxSliceU8 {
+struct std_io_read_ptr_XlangSliceU8 {
   uint8_t * data;
   size_t length;
 };
@@ -78,7 +78,7 @@ struct std_error_ErrorChain;
 struct core_result_Result_i32;
 struct core_result_Result_u8;
 struct std_context_Context;
-struct std_io_read_ptr_ShuxSliceU8;
+struct std_io_read_ptr_XlangSliceU8;
 struct std_io_sync_Iovec;
 struct std_io_sync_PollFd;
 struct std_io_sync_IoBatchBuf;
@@ -286,45 +286,45 @@ extern int32_t std_io_driver_driver_read_ptr_len(void);
 extern uint64_t std_io_driver_driver_read_ptr_gen(void);
 extern int32_t std_io_driver_driver_read_ptr_gen_valid(uint64_t saved);
 extern int32_t std_io_driver_driver_read_ptr_backend(void);
-extern struct shux_slice_uint8_t std_io_driver_driver_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern struct xlang_slice_uint8_t std_io_driver_driver_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write(ptrdiff_t  buf, uint32_t  timeout_ms);
 extern int32_t std_io_driver_submit_read_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_read_batch_buf(size_t  handle, struct std_io_Buffer * bufs, int32_t n, uint32_t  timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t  handle, struct std_io_Buffer * bufs, int32_t n, uint32_t  timeout_ms);
-extern int32_t shux_io_register(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_register_buffers(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr);
-extern void shux_io_unregister_buffers(void);
-extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t shux_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern uint8_t * shux_io_read_ptr(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_read_ptr_len(void);
-extern uint64_t shux_io_read_ptr_gen(void);
-extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t shux_io_read_ptr_backend(void);
-extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_submit_read_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_register_buffers_buf(uint8_t * bufs, int32_t nr);
-extern ssize_t shux_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
-extern ssize_t shux_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void shux_io_unregister_provided_buffers(void);
-extern uint8_t * shux_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t shux_io_provided_buffer_size(void);
-extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
-extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_read_async(void);
-extern int32_t shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_write_async(void);
-extern int32_t shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t shux_io_uring_is_available_c(void);
+extern int32_t xlang_io_register(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_register_buffers(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr);
+extern void xlang_io_unregister_buffers(void);
+extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t xlang_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern uint8_t * xlang_io_read_ptr(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_read_ptr_len(void);
+extern uint64_t xlang_io_read_ptr_gen(void);
+extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t xlang_io_read_ptr_backend(void);
+extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_read_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_register_buffers_buf(uint8_t * bufs, int32_t nr);
+extern ssize_t xlang_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
+extern ssize_t xlang_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void xlang_io_unregister_provided_buffers(void);
+extern uint8_t * xlang_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t xlang_io_provided_buffer_size(void);
+extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
+extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
+extern int32_t xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_read_async(void);
+extern int32_t xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_write_async(void);
+extern int32_t xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t xlang_io_uring_is_available_c(void);
 extern int64_t ctx_background_c(void);
 extern int64_t ctx_with_cancel_c(int64_t parent);
 extern int64_t ctx_with_deadline_c(int64_t parent, int64_t deadline_ns);
@@ -423,8 +423,8 @@ extern int32_t std_io_ptr_backend(void);
 extern struct std_io_ReadPtrView std_io_ptr_view(size_t handle, uint32_t timeout_ms);
 extern int32_t std_io_ptr_view_valid(struct std_io_ReadPtrView v);
 extern struct std_io_ReadPtrView std_io_stdin_ptr_view(void);
-extern struct shux_slice_uint8_t std_io_ptr_slice(size_t handle, uint32_t timeout_ms);
-extern struct shux_slice_uint8_t std_io_stdin_slice(void);
+extern struct xlang_slice_uint8_t std_io_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern struct xlang_slice_uint8_t std_io_stdin_slice(void);
 extern uint8_t * std_io_read_stdin_ptr(void);
 extern int32_t std_io_write_stdout(uint8_t * ptr, size_t len);
 extern int32_t std_io_write_stderr_u8_ptr_usize(uint8_t * ptr, size_t len);
@@ -457,8 +457,8 @@ extern int32_t std_io_complete_write(void);
 extern int32_t std_io_complete_write_i32(int32_t slot);
 extern uint32_t std_io_poll_completions(uint32_t timeout_ms);
 extern int32_t std_io_uring_ok(void);
-extern int32_t std_io_read_slice(struct shux_slice_uint8_t buf, uint32_t timeout_ms);
-extern int32_t std_io_write_slice(struct shux_slice_uint8_t buf, uint32_t timeout_ms);
+extern int32_t std_io_read_slice(struct xlang_slice_uint8_t buf, uint32_t timeout_ms);
+extern int32_t std_io_write_slice(struct xlang_slice_uint8_t buf, uint32_t timeout_ms);
 extern int32_t std_io_print_i64_nl(int64_t v);
 extern int32_t std_io_print_i32(int32_t x);
 extern int32_t std_io_print_u32(uint32_t x);
@@ -481,11 +481,11 @@ size_t std_io_from_fd(int32_t fd, int32_t _unused) {
 }
 int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t * ptr, size_t len, uint32_t timeout_ms) {
   struct std_io_Buffer buf = (struct std_io_driver_Buffer){ .ptr = ptr, .len = len, .handle = handle };
-  return shux_io_submit_read_buf((intptr_t)(void*)&buf, timeout_ms);
+  return xlang_io_submit_read_buf((intptr_t)(void*)&buf, timeout_ms);
 }
 int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle, uint8_t * ptr, size_t len, uint32_t timeout_ms) {
   struct std_io_Buffer buf = (struct std_io_driver_Buffer){ .ptr = ptr, .len = len, .handle = handle };
-  return shux_io_submit_write_buf((intptr_t)(void*)&buf, timeout_ms);
+  return xlang_io_submit_write_buf((intptr_t)(void*)&buf, timeout_ms);
 }
 int32_t std_io_timeout_from_ctx(struct std_context_Context ctx) {
   if ((std_context_is_cancelled(ctx) !=0)) {
@@ -561,10 +561,10 @@ int32_t std_io_ptr_view_valid(struct std_io_ReadPtrView v) {
 struct std_io_ReadPtrView std_io_stdin_ptr_view(void) {
   return std_io_ptr_view(std_io_stdin(), ((uint32_t)(0)));
 }
-struct shux_slice_uint8_t std_io_ptr_slice(size_t handle, uint32_t timeout_ms) {
+struct xlang_slice_uint8_t std_io_ptr_slice(size_t handle, uint32_t timeout_ms) {
   return std_io_driver_driver_read_ptr_slice(handle, timeout_ms);
 }
-struct shux_slice_uint8_t std_io_stdin_slice(void) {
+struct xlang_slice_uint8_t std_io_stdin_slice(void) {
   return std_io_driver_driver_read_ptr_slice(std_io_stdin(), ((uint32_t)(0)));
 }
 uint8_t * std_io_read_stdin_ptr(void) {
@@ -613,60 +613,60 @@ int32_t std_io_print_u8_ptr_usize(uint8_t * ptr, size_t  len) {
   return std_io_write_stdout(ptr, len);
 }
 int32_t std_io_register_buffers_u8_ptr_usize_u8_ptr_usize_u8_ptr_usize_u8_ptr_usize_u32(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr) {
-  return std_io_core_shux_io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3, nr);
+  return std_io_core_xlang_io_register_buffers(p0, l0, p1, l1, p2, l2, p3, l3, nr);
 }
 int32_t std_io_register_buffers_Buffer_ptr_u32(struct std_io_Buffer * bufs, uint32_t nr) {
   return std_io_driver_submit_register_fixed_buffers_buf(bufs, nr);
 }
 int32_t std_io_read_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
-  return std_io_core_shux_io_read_fixed(std_io_from_fd(fd, 0), buf_index, offset, len, timeout_ms);
+  return std_io_core_xlang_io_read_fixed(std_io_from_fd(fd, 0), buf_index, offset, len, timeout_ms);
 }
 int32_t std_io_write_fixed_fd_impl(int32_t fd, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
-  return std_io_core_shux_io_write_fixed(std_io_from_fd(fd, 0), buf_index, offset, len, timeout_ms);
+  return std_io_core_xlang_io_write_fixed(std_io_from_fd(fd, 0), buf_index, offset, len, timeout_ms);
 }
 int32_t std_io_register_provided(uint32_t nr, uint32_t bufsz) {
-  return std_io_core_shux_io_register_provided_buffers(nr, bufsz);
+  return std_io_core_xlang_io_register_provided_buffers(nr, bufsz);
 }
 uint32_t std_io_provided_buffer_size(void) {
-  return std_io_core_shux_io_provided_buffer_size();
+  return std_io_core_xlang_io_provided_buffer_size();
 }
 int32_t std_io_read_provided_fd(int32_t fd, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len) {
-  return std_io_core_shux_io_read_provided(std_io_from_fd(fd, 0), timeout_ms, out_bid, out_len);
+  return std_io_core_xlang_io_read_provided(std_io_from_fd(fd, 0), timeout_ms, out_bid, out_len);
 }
 int32_t std_io_read_batch_provided_fd(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens) {
-  return std_io_core_shux_io_read_batch_provided(std_io_from_fd(fd, 0), n, timeout_ms, out_bids, out_lens);
+  return std_io_core_xlang_io_read_batch_provided(std_io_from_fd(fd, 0), n, timeout_ms, out_bids, out_lens);
 }
 int32_t std_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms) {
-  return std_io_core_shux_io_wait_readable(fds, n, timeout_ms);
+  return std_io_core_xlang_io_wait_readable(fds, n, timeout_ms);
 }
 int32_t std_io_read_async(size_t handle, uint8_t * ptr, size_t len) {
-  return std_io_core_shux_io_submit_read_async(ptr, len, handle);
+  return std_io_core_xlang_io_submit_read_async(ptr, len, handle);
 }
 int32_t std_io_complete_read(void) {
-  return std_io_core_shux_io_complete_read_async();
+  return std_io_core_xlang_io_complete_read_async();
 }
 int32_t std_io_complete_read_i32(int32_t slot) {
-  return std_io_core_shux_io_complete_read_async_slot(slot);
+  return std_io_core_xlang_io_complete_read_async_slot(slot);
 }
 int32_t std_io_write_async(size_t handle, uint8_t * ptr, size_t len) {
-  return std_io_core_shux_io_submit_write_async(ptr, len, handle);
+  return std_io_core_xlang_io_submit_write_async(ptr, len, handle);
 }
 int32_t std_io_complete_write(void) {
-  return std_io_core_shux_io_complete_write_async();
+  return std_io_core_xlang_io_complete_write_async();
 }
 int32_t std_io_complete_write_i32(int32_t slot) {
-  return std_io_core_shux_io_complete_write_async_slot(slot);
+  return std_io_core_xlang_io_complete_write_async_slot(slot);
 }
 uint32_t std_io_poll_completions(uint32_t timeout_ms) {
-  return std_io_core_shux_io_poll_async_completions(timeout_ms);
+  return std_io_core_xlang_io_poll_async_completions(timeout_ms);
 }
 int32_t std_io_uring_ok(void) {
-  return std_io_core_shux_io_uring_is_available_c();
+  return std_io_core_xlang_io_uring_is_available_c();
 }
-int32_t std_io_read_slice(struct shux_slice_uint8_t buf, uint32_t timeout_ms) {
+int32_t std_io_read_slice(struct xlang_slice_uint8_t buf, uint32_t timeout_ms) {
   return std_io_read_usize_u8_ptr_usize_u32(std_io_stdin(), (buf.data), (buf.length), timeout_ms);
 }
-int32_t std_io_write_slice(struct shux_slice_uint8_t buf, uint32_t timeout_ms) {
+int32_t std_io_write_slice(struct xlang_slice_uint8_t buf, uint32_t timeout_ms) {
   return std_io_write_usize_u8_ptr_usize_u32(std_io_stdout(), (buf.data), (buf.length), timeout_ms);
 }
 int32_t std_io_print_i64_nl(int64_t v) {
@@ -782,7 +782,7 @@ int32_t core_result_expect_or_panic(struct core_result_Result_i32 r) {
   if (((r.err) ==0)) {
     return (r.value);
   }
-  shux_panic_(0,0);
+  xlang_panic_(0,0);
 }
 struct core_result_Result_i32 core_result_or(struct core_result_Result_i32 r, struct core_result_Result_i32 other) {
   if (((r.err) ==0)) {
@@ -836,7 +836,7 @@ uint8_t core_result_expect_u8_or_panic(struct core_result_Result_u8 r) {
   if (((r.err) ==0)) {
     return (r.value);
   }
-  shux_panic_(0,0);
+  xlang_panic_(0,0);
 }
 struct core_result_Result_u8 core_result_map_u8(struct core_result_Result_u8 r, uint8_t mapped) {
   if (core_result_is_ok_u8(r)) {
@@ -934,105 +934,105 @@ extern int32_t std_io_backend_io_read_ptr_len(void);
 extern uint64_t std_io_backend_io_read_ptr_gen(void);
 extern int32_t std_io_backend_io_read_ptr_gen_valid(uint64_t saved);
 extern int32_t std_io_backend_io_read_ptr_backend(void);
-extern struct shux_slice_uint8_t std_io_backend_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern struct xlang_slice_uint8_t std_io_backend_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 extern int32_t std_io_backend_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
 extern void std_io_backend_io_unregister_provided_buffers(void);
 extern uint8_t * std_io_backend_io_provided_buffer_ptr(uint32_t bid);
 extern uint32_t std_io_backend_io_provided_buffer_size(void);
 extern ssize_t std_io_backend_io_read_provided(int32_t fd, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
 extern ssize_t std_io_backend_io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t std_io_backend_shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_backend_shux_io_complete_read_async(void);
-extern int32_t std_io_backend_shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t std_io_backend_shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_backend_shux_io_complete_write_async(void);
-extern int32_t std_io_backend_shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t std_io_backend_shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_uring_is_available_c(void);
-extern int32_t std_io_backend_shux_io_register(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_backend_shux_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern uint8_t * std_io_backend_shux_io_read_ptr(size_t handle, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_read_ptr_len(void);
-extern uint64_t std_io_backend_shux_io_read_ptr_gen(void);
-extern int32_t std_io_backend_shux_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t std_io_backend_shux_io_read_ptr_backend(void);
-extern struct std_io_read_ptr_ShuxSliceU8 std_io_backend_shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_backend_xlang_io_complete_read_async(void);
+extern int32_t std_io_backend_xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t std_io_backend_xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_backend_xlang_io_complete_write_async(void);
+extern int32_t std_io_backend_xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t std_io_backend_xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_uring_is_available_c(void);
+extern int32_t std_io_backend_xlang_io_register(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_backend_xlang_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern uint8_t * std_io_backend_xlang_io_read_ptr(size_t handle, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_read_ptr_len(void);
+extern uint64_t std_io_backend_xlang_io_read_ptr_gen(void);
+extern int32_t std_io_backend_xlang_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t std_io_backend_xlang_io_read_ptr_backend(void);
+extern struct std_io_read_ptr_XlangSliceU8 std_io_backend_xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 extern size_t std_io_backend_handle_from_fd(int32_t fd, int32_t _unused);
-extern int32_t std_io_backend_shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_submit_read_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_submit_write_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_read_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_write_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_backend_submit_read_batch_buf(size_t handle, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_backend_submit_write_batch_buf(size_t handle, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_backend_submit_register_fixed_buffers_buf(uint8_t * bufs, uint32_t nr);
-extern int32_t std_io_backend_shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void std_io_backend_shux_io_unregister_provided_buffers(void);
-extern uint8_t * std_io_backend_shux_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t std_io_backend_shux_io_provided_buffer_size(void);
-extern int32_t std_io_backend_shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t std_io_backend_shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
+extern int32_t std_io_backend_xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void std_io_backend_xlang_io_unregister_provided_buffers(void);
+extern uint8_t * std_io_backend_xlang_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t std_io_backend_xlang_io_provided_buffer_size(void);
+extern int32_t std_io_backend_xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
+extern int32_t std_io_backend_xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
 extern int32_t std_io_backend_io_backend_anchor(void);
-extern int32_t shux_io_register(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_register_buffers(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr);
-extern void shux_io_unregister_buffers(void);
-extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t shux_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern uint8_t * shux_io_read_ptr(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_read_ptr_len(void);
-extern uint64_t shux_io_read_ptr_gen(void);
-extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t shux_io_read_ptr_backend(void);
-extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_submit_read_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_register_buffers_buf(uint8_t * bufs, int32_t nr);
-extern ssize_t shux_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
-extern ssize_t shux_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void shux_io_unregister_provided_buffers(void);
-extern uint8_t * shux_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t shux_io_provided_buffer_size(void);
-extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
-extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_read_async(void);
-extern int32_t shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_write_async(void);
-extern int32_t shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t shux_io_uring_is_available_c(void);
-int32_t shux_io_register(uint8_t * ptr, size_t len, size_t handle) {
+extern int32_t xlang_io_register(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_register_buffers(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr);
+extern void xlang_io_unregister_buffers(void);
+extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t xlang_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern uint8_t * xlang_io_read_ptr(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_read_ptr_len(void);
+extern uint64_t xlang_io_read_ptr_gen(void);
+extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t xlang_io_read_ptr_backend(void);
+extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_read_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_register_buffers_buf(uint8_t * bufs, int32_t nr);
+extern ssize_t xlang_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
+extern ssize_t xlang_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void xlang_io_unregister_provided_buffers(void);
+extern uint8_t * xlang_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t xlang_io_provided_buffer_size(void);
+extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
+extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
+extern int32_t xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_read_async(void);
+extern int32_t xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_write_async(void);
+extern int32_t xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t xlang_io_uring_is_available_c(void);
+int32_t xlang_io_register(uint8_t * ptr, size_t len, size_t handle) {
   if ((handle >=0)) {
   }
   return std_io_backend_io_register_buffer(ptr, len);
 }
-void shux_io_unregister_buffers(void) {
+void xlang_io_unregister_buffers(void) {
   (void)(std_io_backend_io_unregister_buffers());
 }
-int32_t shux_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms) {
+int32_t xlang_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms) {
   return std_io_backend_io_wait_readable(fds, n, timeout_ms);
 }
-uint8_t * shux_io_read_ptr(size_t handle, uint32_t timeout_ms) {
+uint8_t * xlang_io_read_ptr(size_t handle, uint32_t timeout_ms) {
   return std_io_backend_io_read_ptr(handle, timeout_ms);
 }
-int32_t shux_io_read_ptr_len(void) {
+int32_t xlang_io_read_ptr_len(void) {
   return std_io_backend_io_read_ptr_len();
 }
-uint64_t shux_io_read_ptr_gen(void) {
+uint64_t xlang_io_read_ptr_gen(void) {
   return std_io_backend_io_read_ptr_gen();
 }
-int32_t shux_io_read_ptr_gen_valid(uint64_t saved) {
+int32_t xlang_io_read_ptr_gen_valid(uint64_t saved) {
   return std_io_backend_io_read_ptr_gen_valid(saved);
 }
-struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
+struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
   return std_io_backend_io_read_ptr_slice(handle, timeout_ms);
 }
-int32_t shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+int32_t xlang_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms) {
   int32_t fd = ((int32_t)(handle));
   if ((handle >=1)) {
     ssize_t r = std_io_backend_io_write(fd, ptr, len, timeout_ms);
@@ -1043,7 +1043,7 @@ int32_t shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t 
   }
   return -(1);
 }
-int32_t shux_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms) {
+int32_t xlang_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms) {
   int32_t fd = ((int32_t)(handle));
   if ((handle >=1)) {
     ssize_t r = std_io_backend_io_write_batch(fd, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, n, timeout_ms);
@@ -1054,28 +1054,28 @@ int32_t shux_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, 
   }
   return -(1);
 }
-int32_t shux_io_register_buffers_buf(uint8_t * bufs, int32_t nr) {
+int32_t xlang_io_register_buffers_buf(uint8_t * bufs, int32_t nr) {
   return std_io_backend_io_register_buffers_buf(bufs, nr);
 }
-ssize_t shux_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms) {
+ssize_t xlang_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms) {
   return std_io_backend_io_read_batch_buf(fd, bufs, n, timeout_ms);
 }
-ssize_t shux_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms) {
+ssize_t xlang_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms) {
   return std_io_backend_io_write_batch_buf(fd, bufs, n, timeout_ms);
 }
-int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz) {
+int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz) {
   return std_io_backend_io_register_provided_buffers(nr, bufsz);
 }
-void shux_io_unregister_provided_buffers(void) {
+void xlang_io_unregister_provided_buffers(void) {
   (void)(std_io_backend_io_unregister_provided_buffers());
 }
-uint8_t * shux_io_provided_buffer_ptr(uint32_t bid) {
+uint8_t * xlang_io_provided_buffer_ptr(uint32_t bid) {
   return std_io_backend_io_provided_buffer_ptr(bid);
 }
-uint32_t shux_io_provided_buffer_size(void) {
+uint32_t xlang_io_provided_buffer_size(void) {
   return std_io_backend_io_provided_buffer_size();
 }
-int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len) {
+int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len) {
   int32_t fd = ((int32_t)(handle));
   if (((handle ==0) || (handle >=2))) {
     ssize_t r = std_io_backend_io_read_provided(fd, timeout_ms, out_bid, out_len);
@@ -1086,7 +1086,7 @@ int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out
   }
   return -(1);
 }
-int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens) {
+int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens) {
   int32_t fd = ((int32_t)(handle));
   if (((handle ==0) || (handle >=2))) {
     ssize_t r = std_io_backend_io_read_batch_provided(fd, n, timeout_ms, out_bids, out_lens);
@@ -1097,32 +1097,32 @@ int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_m
   }
   return -(1);
 }
-int32_t shux_io_complete_read_async(void) {
-  return std_io_backend_shux_io_complete_read_async();
+int32_t xlang_io_complete_read_async(void) {
+  return std_io_backend_xlang_io_complete_read_async();
 }
-int32_t shux_io_complete_read_async_slot(int32_t slot) {
-  return std_io_backend_shux_io_complete_read_async_slot(slot);
+int32_t xlang_io_complete_read_async_slot(int32_t slot) {
+  return std_io_backend_xlang_io_complete_read_async_slot(slot);
 }
-int32_t shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle) {
-  return std_io_backend_shux_io_submit_write_async(ptr, len, handle);
+int32_t xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle) {
+  return std_io_backend_xlang_io_submit_write_async(ptr, len, handle);
 }
-int32_t shux_io_complete_write_async(void) {
-  return std_io_backend_shux_io_complete_write_async();
+int32_t xlang_io_complete_write_async(void) {
+  return std_io_backend_xlang_io_complete_write_async();
 }
-int32_t shux_io_complete_write_async_slot(int32_t slot) {
-  return std_io_backend_shux_io_complete_write_async_slot(slot);
+int32_t xlang_io_complete_write_async_slot(int32_t slot) {
+  return std_io_backend_xlang_io_complete_write_async_slot(slot);
 }
-uint32_t shux_io_poll_async_completions(uint32_t timeout_ms) {
-  return std_io_backend_shux_io_poll_async_completions(timeout_ms);
+uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms) {
+  return std_io_backend_xlang_io_poll_async_completions(timeout_ms);
 }
-int32_t shux_io_uring_is_available_c(void) {
-  return std_io_backend_shux_io_uring_is_available_c();
+int32_t xlang_io_uring_is_available_c(void) {
+  return std_io_backend_xlang_io_uring_is_available_c();
 }
-extern ssize_t shux_sys_read(int32_t fd, uint8_t * buf, size_t count);
-extern ssize_t shux_sys_write(int32_t fd, uint8_t * buf, size_t count);
-extern ssize_t shux_sys_readv(int32_t fd, uint8_t * iov, int32_t iovcnt);
-extern ssize_t shux_sys_writev(int32_t fd, uint8_t * iov, int32_t iovcnt);
-extern int32_t shux_sys_poll(uint8_t * fds, int32_t nfds, int32_t timeout);
+extern ssize_t xlang_sys_read(int32_t fd, uint8_t * buf, size_t count);
+extern ssize_t xlang_sys_write(int32_t fd, uint8_t * buf, size_t count);
+extern ssize_t xlang_sys_readv(int32_t fd, uint8_t * iov, int32_t iovcnt);
+extern ssize_t xlang_sys_writev(int32_t fd, uint8_t * iov, int32_t iovcnt);
+extern int32_t xlang_sys_poll(uint8_t * fds, int32_t nfds, int32_t timeout);
 extern ssize_t std_io_sync_io_libc_read(int32_t fd, uint8_t * buf, size_t count);
 extern ssize_t std_io_sync_io_libc_write(int32_t fd, uint8_t * buf, size_t count);
 extern ssize_t std_io_sync_io_libc_readv(int32_t fd, struct std_io_sync_Iovec * iov, int32_t iovcnt);
@@ -1146,21 +1146,21 @@ extern int32_t std_io_read_ptr_io_read_ptr_len(void);
 extern uint64_t std_io_read_ptr_io_read_ptr_gen(void);
 extern int32_t std_io_read_ptr_io_read_ptr_gen_valid(uint64_t saved);
 extern int32_t std_io_read_ptr_io_read_ptr_backend(void);
-extern struct std_io_read_ptr_ShuxSliceU8 std_io_read_ptr_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern struct std_io_read_ptr_XlangSliceU8 std_io_read_ptr_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 extern int32_t std_io_stubs_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
 extern void std_io_stubs_io_unregister_provided_buffers(void);
 extern uint8_t * std_io_stubs_io_provided_buffer_ptr(uint32_t bid);
 extern uint32_t std_io_stubs_io_provided_buffer_size(void);
 extern ssize_t std_io_stubs_io_read_provided(int32_t fd, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
 extern ssize_t std_io_stubs_io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t std_io_stubs_shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_stubs_shux_io_complete_read_async(void);
-extern int32_t std_io_stubs_shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t std_io_stubs_shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_stubs_shux_io_complete_write_async(void);
-extern int32_t std_io_stubs_shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t std_io_stubs_shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t std_io_stubs_shux_io_uring_is_available_c(void);
+extern int32_t std_io_stubs_xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_stubs_xlang_io_complete_read_async(void);
+extern int32_t std_io_stubs_xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t std_io_stubs_xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_stubs_xlang_io_complete_write_async(void);
+extern int32_t std_io_stubs_xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t std_io_stubs_xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t std_io_stubs_xlang_io_uring_is_available_c(void);
 extern ssize_t std_io_backend_io_read(int32_t fd, uint8_t * buf, size_t count, uint32_t timeout_ms);
 extern ssize_t std_io_backend_io_write(int32_t fd, uint8_t * buf, size_t count, uint32_t timeout_ms);
 extern ssize_t std_io_backend_io_read_batch(int32_t fd, uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, int32_t n, uint32_t timeout_ms);
@@ -1179,44 +1179,44 @@ extern int32_t std_io_backend_io_read_ptr_len(void);
 extern uint64_t std_io_backend_io_read_ptr_gen(void);
 extern int32_t std_io_backend_io_read_ptr_gen_valid(uint64_t saved);
 extern int32_t std_io_backend_io_read_ptr_backend(void);
-extern struct shux_slice_uint8_t std_io_backend_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern struct xlang_slice_uint8_t std_io_backend_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 extern int32_t std_io_backend_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
 extern void std_io_backend_io_unregister_provided_buffers(void);
 extern uint8_t * std_io_backend_io_provided_buffer_ptr(uint32_t bid);
 extern uint32_t std_io_backend_io_provided_buffer_size(void);
 extern ssize_t std_io_backend_io_read_provided(int32_t fd, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
 extern ssize_t std_io_backend_io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t std_io_backend_shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_backend_shux_io_complete_read_async(void);
-extern int32_t std_io_backend_shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t std_io_backend_shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_backend_shux_io_complete_write_async(void);
-extern int32_t std_io_backend_shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t std_io_backend_shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_uring_is_available_c(void);
-extern int32_t std_io_backend_shux_io_register(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_backend_shux_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern uint8_t * std_io_backend_shux_io_read_ptr(size_t handle, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_read_ptr_len(void);
-extern uint64_t std_io_backend_shux_io_read_ptr_gen(void);
-extern int32_t std_io_backend_shux_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t std_io_backend_shux_io_read_ptr_backend(void);
-extern struct std_io_read_ptr_ShuxSliceU8 std_io_backend_shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_backend_xlang_io_complete_read_async(void);
+extern int32_t std_io_backend_xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t std_io_backend_xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_backend_xlang_io_complete_write_async(void);
+extern int32_t std_io_backend_xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t std_io_backend_xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_uring_is_available_c(void);
+extern int32_t std_io_backend_xlang_io_register(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_backend_xlang_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern uint8_t * std_io_backend_xlang_io_read_ptr(size_t handle, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_read_ptr_len(void);
+extern uint64_t std_io_backend_xlang_io_read_ptr_gen(void);
+extern int32_t std_io_backend_xlang_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t std_io_backend_xlang_io_read_ptr_backend(void);
+extern struct std_io_read_ptr_XlangSliceU8 std_io_backend_xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 extern size_t std_io_backend_handle_from_fd(int32_t fd, int32_t _unused);
-extern int32_t std_io_backend_shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_submit_read_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t std_io_backend_shux_io_submit_write_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_read_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t std_io_backend_xlang_io_submit_write_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_backend_submit_read_batch_buf(size_t handle, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_backend_submit_write_batch_buf(size_t handle, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_backend_submit_register_fixed_buffers_buf(uint8_t * bufs, uint32_t nr);
-extern int32_t std_io_backend_shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void std_io_backend_shux_io_unregister_provided_buffers(void);
-extern uint8_t * std_io_backend_shux_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t std_io_backend_shux_io_provided_buffer_size(void);
-extern int32_t std_io_backend_shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t std_io_backend_shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
+extern int32_t std_io_backend_xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void std_io_backend_xlang_io_unregister_provided_buffers(void);
+extern uint8_t * std_io_backend_xlang_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t std_io_backend_xlang_io_provided_buffer_size(void);
+extern int32_t std_io_backend_xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
+extern int32_t std_io_backend_xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
 extern int32_t std_io_backend_io_backend_anchor(void);
 ssize_t std_io_backend_io_read(int32_t fd, uint8_t * buf, size_t count, uint32_t timeout_ms) {
   return std_io_sync_io_read(fd, buf, count, timeout_ms);
@@ -1275,9 +1275,9 @@ int32_t std_io_backend_io_read_ptr_gen_valid(uint64_t saved) {
 int32_t std_io_backend_io_read_ptr_backend(void) {
   return std_io_read_ptr_io_read_ptr_backend();
 }
-struct shux_slice_uint8_t std_io_backend_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
-  struct std_io_read_ptr_ShuxSliceU8 s = std_io_read_ptr_io_read_ptr_slice(handle, timeout_ms);
-  struct shux_slice_uint8_t out = { 0 };
+struct xlang_slice_uint8_t std_io_backend_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
+  struct std_io_read_ptr_XlangSliceU8 s = std_io_read_ptr_io_read_ptr_slice(handle, timeout_ms);
+  struct xlang_slice_uint8_t out = { 0 };
   (void)(((out.data) = (s.data)));
   (void)(((out.length) = (s.length)));
   return out;
@@ -1300,85 +1300,85 @@ ssize_t std_io_backend_io_read_provided(int32_t fd, uint32_t timeout_ms, uint32_
 ssize_t std_io_backend_io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens) {
   return std_io_stubs_io_read_batch_provided(fd, n, timeout_ms, out_bids, out_lens);
 }
-int32_t std_io_backend_shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle) {
-  return std_io_stubs_shux_io_submit_read_async(ptr, len, handle);
+int32_t std_io_backend_xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle) {
+  return std_io_stubs_xlang_io_submit_read_async(ptr, len, handle);
 }
-int32_t std_io_backend_shux_io_complete_read_async(void) {
-  return std_io_stubs_shux_io_complete_read_async();
+int32_t std_io_backend_xlang_io_complete_read_async(void) {
+  return std_io_stubs_xlang_io_complete_read_async();
 }
-int32_t std_io_backend_shux_io_complete_read_async_slot(int32_t slot) {
-  return std_io_stubs_shux_io_complete_read_async_slot(slot);
+int32_t std_io_backend_xlang_io_complete_read_async_slot(int32_t slot) {
+  return std_io_stubs_xlang_io_complete_read_async_slot(slot);
 }
-int32_t std_io_backend_shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle) {
-  return std_io_stubs_shux_io_submit_write_async(ptr, len, handle);
+int32_t std_io_backend_xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle) {
+  return std_io_stubs_xlang_io_submit_write_async(ptr, len, handle);
 }
-int32_t std_io_backend_shux_io_complete_write_async(void) {
-  return std_io_stubs_shux_io_complete_write_async();
+int32_t std_io_backend_xlang_io_complete_write_async(void) {
+  return std_io_stubs_xlang_io_complete_write_async();
 }
-int32_t std_io_backend_shux_io_complete_write_async_slot(int32_t slot) {
-  return std_io_stubs_shux_io_complete_write_async_slot(slot);
+int32_t std_io_backend_xlang_io_complete_write_async_slot(int32_t slot) {
+  return std_io_stubs_xlang_io_complete_write_async_slot(slot);
 }
-uint32_t std_io_backend_shux_io_poll_async_completions(uint32_t timeout_ms) {
-  return std_io_stubs_shux_io_poll_async_completions(timeout_ms);
+uint32_t std_io_backend_xlang_io_poll_async_completions(uint32_t timeout_ms) {
+  return std_io_stubs_xlang_io_poll_async_completions(timeout_ms);
 }
-int32_t std_io_backend_shux_io_uring_is_available_c(void) {
-  return std_io_stubs_shux_io_uring_is_available_c();
+int32_t std_io_backend_xlang_io_uring_is_available_c(void) {
+  return std_io_stubs_xlang_io_uring_is_available_c();
 }
-int32_t std_io_backend_shux_io_register(uint8_t * ptr, size_t len, size_t handle) {
+int32_t std_io_backend_xlang_io_register(uint8_t * ptr, size_t len, size_t handle) {
   if ((handle >=0)) {
   }
   return std_io_backend_io_register_buffer(ptr, len);
 }
-int32_t std_io_backend_shux_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+int32_t std_io_backend_xlang_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms) {
   ssize_t r = std_io_backend_io_read(((int32_t)(handle)), ptr, len, timeout_ms);
   if ((r < 0)) {
     return -(1);
   }
   return ((int32_t)(r));
 }
-int32_t std_io_backend_shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+int32_t std_io_backend_xlang_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms) {
   ssize_t r = std_io_backend_io_write(((int32_t)(handle)), ptr, len, timeout_ms);
   if ((r < 0)) {
     return -(1);
   }
   return ((int32_t)(r));
 }
-uint8_t * std_io_backend_shux_io_read_ptr(size_t handle, uint32_t timeout_ms) {
+uint8_t * std_io_backend_xlang_io_read_ptr(size_t handle, uint32_t timeout_ms) {
   return std_io_backend_io_read_ptr(handle, timeout_ms);
 }
-int32_t std_io_backend_shux_io_read_ptr_len(void) {
+int32_t std_io_backend_xlang_io_read_ptr_len(void) {
   return std_io_backend_io_read_ptr_len();
 }
-uint64_t std_io_backend_shux_io_read_ptr_gen(void) {
+uint64_t std_io_backend_xlang_io_read_ptr_gen(void) {
   return std_io_backend_io_read_ptr_gen();
 }
-int32_t std_io_backend_shux_io_read_ptr_gen_valid(uint64_t saved) {
+int32_t std_io_backend_xlang_io_read_ptr_gen_valid(uint64_t saved) {
   return std_io_backend_io_read_ptr_gen_valid(saved);
 }
-int32_t std_io_backend_shux_io_read_ptr_backend(void) {
+int32_t std_io_backend_xlang_io_read_ptr_backend(void) {
   return std_io_backend_io_read_ptr_backend();
 }
-struct std_io_read_ptr_ShuxSliceU8 std_io_backend_shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
+struct std_io_read_ptr_XlangSliceU8 std_io_backend_xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
   return std_io_read_ptr_io_read_ptr_slice(handle, timeout_ms);
 }
 size_t std_io_backend_handle_from_fd(int32_t fd, int32_t _unused) {
   return ((size_t)(fd));
 }
-int32_t std_io_backend_shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
+int32_t std_io_backend_xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
   ssize_t r = std_io_backend_io_read_fixed(((int32_t)(handle)), buf_index, offset, len, timeout_ms);
   if ((r < 0)) {
     return -(1);
   }
   return ((int32_t)(r));
 }
-int32_t std_io_backend_shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
+int32_t std_io_backend_xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms) {
   ssize_t r = std_io_backend_io_write_fixed(((int32_t)(handle)), buf_index, offset, len, timeout_ms);
   if ((r < 0)) {
     return -(1);
   }
   return ((int32_t)(r));
 }
-int32_t std_io_backend_shux_io_submit_read_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms) {
+int32_t std_io_backend_xlang_io_submit_read_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms) {
   if (!(((handle ==0) || (handle >=2)))) {
     return -(1);
   }
@@ -1388,7 +1388,7 @@ int32_t std_io_backend_shux_io_submit_read_batch(uint8_t * p0, size_t l0, uint8_
   }
   return ((int32_t)(r));
 }
-int32_t std_io_backend_shux_io_submit_write_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms) {
+int32_t std_io_backend_xlang_io_submit_write_batch(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, size_t handle, int32_t n, uint32_t timeout_ms) {
   if ((handle < 1)) {
     return -(1);
   }
@@ -1419,19 +1419,19 @@ int32_t std_io_backend_submit_register_fixed_buffers_buf(uint8_t * bufs, uint32_
   }
   return 0;
 }
-int32_t std_io_backend_shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz) {
+int32_t std_io_backend_xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz) {
   return std_io_backend_io_register_provided_buffers(nr, bufsz);
 }
-void std_io_backend_shux_io_unregister_provided_buffers(void) {
+void std_io_backend_xlang_io_unregister_provided_buffers(void) {
   (void)(std_io_backend_io_unregister_provided_buffers());
 }
-uint8_t * std_io_backend_shux_io_provided_buffer_ptr(uint32_t bid) {
+uint8_t * std_io_backend_xlang_io_provided_buffer_ptr(uint32_t bid) {
   return std_io_backend_io_provided_buffer_ptr(bid);
 }
-uint32_t std_io_backend_shux_io_provided_buffer_size(void) {
+uint32_t std_io_backend_xlang_io_provided_buffer_size(void) {
   return std_io_backend_io_provided_buffer_size();
 }
-int32_t std_io_backend_shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens) {
+int32_t std_io_backend_xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens) {
   if (!(((handle ==0) || (handle >=2)))) {
     return -(1);
   }
@@ -1441,7 +1441,7 @@ int32_t std_io_backend_shux_io_read_batch_provided(size_t handle, int32_t n, uin
   }
   return ((int32_t)(r));
 }
-int32_t std_io_backend_shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len) {
+int32_t std_io_backend_xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len) {
   if (!(((handle ==0) || (handle >=2)))) {
     return -(1);
   }
@@ -1460,14 +1460,14 @@ extern uint8_t * std_io_stubs_io_provided_buffer_ptr(uint32_t bid);
 extern uint32_t std_io_stubs_io_provided_buffer_size(void);
 extern ssize_t std_io_stubs_io_read_provided(int32_t fd, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
 extern ssize_t std_io_stubs_io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t std_io_stubs_shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_stubs_shux_io_complete_read_async(void);
-extern int32_t std_io_stubs_shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t std_io_stubs_shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t std_io_stubs_shux_io_complete_write_async(void);
-extern int32_t std_io_stubs_shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t std_io_stubs_shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t std_io_stubs_shux_io_uring_is_available_c(void);
+extern int32_t std_io_stubs_xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_stubs_xlang_io_complete_read_async(void);
+extern int32_t std_io_stubs_xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t std_io_stubs_xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t std_io_stubs_xlang_io_complete_write_async(void);
+extern int32_t std_io_stubs_xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t std_io_stubs_xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t std_io_stubs_xlang_io_uring_is_available_c(void);
 int32_t std_io_stubs_io_register_provided_buffers(uint32_t nr, uint32_t bufsz) {
   if (((nr > 0) || (bufsz > 0))) {
   }
@@ -1495,49 +1495,49 @@ ssize_t std_io_stubs_io_read_batch_provided(int32_t fd, int32_t n, uint32_t time
   }
   return ((ssize_t)(-(1)));
 }
-int32_t std_io_stubs_shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle) {
+int32_t std_io_stubs_xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle) {
   if ((((ptr !=0) && (len > 0)) && (handle >=0))) {
     return -(1);
   }
   return -(1);
 }
-int32_t std_io_stubs_shux_io_complete_read_async(void) {
+int32_t std_io_stubs_xlang_io_complete_read_async(void) {
   return -(1);
 }
-int32_t std_io_stubs_shux_io_complete_read_async_slot(int32_t slot) {
+int32_t std_io_stubs_xlang_io_complete_read_async_slot(int32_t slot) {
   if ((slot >=0)) {
     return -(1);
   }
   return -(1);
 }
-int32_t std_io_stubs_shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle) {
+int32_t std_io_stubs_xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle) {
   if ((((ptr !=0) && (len > 0)) && (handle >=0))) {
     return -(1);
   }
   return -(1);
 }
-int32_t std_io_stubs_shux_io_complete_write_async(void) {
+int32_t std_io_stubs_xlang_io_complete_write_async(void) {
   return -(1);
 }
-int32_t std_io_stubs_shux_io_complete_write_async_slot(int32_t slot) {
+int32_t std_io_stubs_xlang_io_complete_write_async_slot(int32_t slot) {
   if ((slot >=0)) {
     return -(1);
   }
   return -(1);
 }
-uint32_t std_io_stubs_shux_io_poll_async_completions(uint32_t timeout_ms) {
+uint32_t std_io_stubs_xlang_io_poll_async_completions(uint32_t timeout_ms) {
   if ((timeout_ms >=0)) {
   }
   return ((uint32_t)(0));
 }
-int32_t std_io_stubs_shux_io_uring_is_available_c(void) {
+int32_t std_io_stubs_xlang_io_uring_is_available_c(void) {
   return 0;
 }
-extern ssize_t shux_sys_read(int32_t fd, uint8_t * buf, size_t count);
-extern ssize_t shux_sys_write(int32_t fd, uint8_t * buf, size_t count);
-extern ssize_t shux_sys_readv(int32_t fd, uint8_t * iov, int32_t iovcnt);
-extern ssize_t shux_sys_writev(int32_t fd, uint8_t * iov, int32_t iovcnt);
-extern int32_t shux_sys_poll(uint8_t * fds, int32_t nfds, int32_t timeout);
+extern ssize_t xlang_sys_read(int32_t fd, uint8_t * buf, size_t count);
+extern ssize_t xlang_sys_write(int32_t fd, uint8_t * buf, size_t count);
+extern ssize_t xlang_sys_readv(int32_t fd, uint8_t * iov, int32_t iovcnt);
+extern ssize_t xlang_sys_writev(int32_t fd, uint8_t * iov, int32_t iovcnt);
+extern int32_t xlang_sys_poll(uint8_t * fds, int32_t nfds, int32_t timeout);
 extern ssize_t std_io_sync_io_libc_read(int32_t fd, uint8_t * buf, size_t count);
 extern ssize_t std_io_sync_io_libc_write(int32_t fd, uint8_t * buf, size_t count);
 extern ssize_t std_io_sync_io_libc_readv(int32_t fd, struct std_io_sync_Iovec * iov, int32_t iovcnt);
@@ -1561,7 +1561,7 @@ extern int32_t std_io_read_ptr_io_read_ptr_len(void);
 extern uint64_t std_io_read_ptr_io_read_ptr_gen(void);
 extern int32_t std_io_read_ptr_io_read_ptr_gen_valid(uint64_t saved);
 extern int32_t std_io_read_ptr_io_read_ptr_backend(void);
-extern struct std_io_read_ptr_ShuxSliceU8 std_io_read_ptr_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern struct std_io_read_ptr_XlangSliceU8 std_io_read_ptr_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 static const size_t IO_READ_PTR_BUF_SIZE = 65536;
 static uint8_t g_io_read_ptr_buf[65536];
 static int32_t g_io_read_ptr_len;
@@ -1594,9 +1594,9 @@ int32_t std_io_read_ptr_io_read_ptr_gen_valid(uint64_t saved) {
 int32_t std_io_read_ptr_io_read_ptr_backend(void) {
   return g_io_read_ptr_backend;
 }
-struct std_io_read_ptr_ShuxSliceU8 std_io_read_ptr_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
+struct std_io_read_ptr_XlangSliceU8 std_io_read_ptr_io_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
   uint8_t * p = std_io_read_ptr_io_read_ptr(handle, timeout_ms);
-  struct std_io_read_ptr_ShuxSliceU8 s = { 0 };
+  struct std_io_read_ptr_XlangSliceU8 s = { 0 };
   (void)(((s.data) = p));
   if ((p !=0)) {
     (void)(((s.length) = ((size_t)(g_io_read_ptr_len))));
@@ -1628,29 +1628,29 @@ static const int32_t IO_READV_BUF_MAX = 16;
 static uint8_t * io_fixed_ptr[8] = {((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0)), ((uint8_t *)(0))};
 static size_t io_fixed_len[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 static uint32_t io_fixed_nr;
-extern ssize_t shux_sys_read(int32_t fd, uint8_t * buf, size_t count);
-extern ssize_t shux_sys_write(int32_t fd, uint8_t * buf, size_t count);
-extern ssize_t shux_sys_readv(int32_t fd, uint8_t * iov, int32_t iovcnt);
-extern ssize_t shux_sys_writev(int32_t fd, uint8_t * iov, int32_t iovcnt);
-extern int32_t shux_sys_poll(uint8_t * fds, int32_t nfds, int32_t timeout);
+extern ssize_t xlang_sys_read(int32_t fd, uint8_t * buf, size_t count);
+extern ssize_t xlang_sys_write(int32_t fd, uint8_t * buf, size_t count);
+extern ssize_t xlang_sys_readv(int32_t fd, uint8_t * iov, int32_t iovcnt);
+extern ssize_t xlang_sys_writev(int32_t fd, uint8_t * iov, int32_t iovcnt);
+extern int32_t xlang_sys_poll(uint8_t * fds, int32_t nfds, int32_t timeout);
 ssize_t std_io_sync_io_libc_read(int32_t fd, uint8_t * buf, size_t count) {
-  return shux_sys_read(fd, buf, count);
+  return xlang_sys_read(fd, buf, count);
   return ((ssize_t)(0));
 }
 ssize_t std_io_sync_io_libc_write(int32_t fd, uint8_t * buf, size_t count) {
-  return shux_sys_write(fd, buf, count);
+  return xlang_sys_write(fd, buf, count);
   return ((ssize_t)(0));
 }
 ssize_t std_io_sync_io_libc_readv(int32_t fd, struct std_io_sync_Iovec * iov, int32_t iovcnt) {
-  return shux_sys_readv(fd, ((uint8_t *)(iov)), iovcnt);
+  return xlang_sys_readv(fd, ((uint8_t *)(iov)), iovcnt);
   return ((ssize_t)(0));
 }
 ssize_t std_io_sync_io_libc_writev(int32_t fd, struct std_io_sync_Iovec * iov, int32_t iovcnt) {
-  return shux_sys_writev(fd, ((uint8_t *)(iov)), iovcnt);
+  return xlang_sys_writev(fd, ((uint8_t *)(iov)), iovcnt);
   return ((ssize_t)(0));
 }
 int32_t std_io_sync_io_libc_poll(struct std_io_sync_PollFd * fds, int32_t nfds, int32_t timeout) {
-  return shux_sys_poll(((uint8_t *)(fds)), nfds, timeout);
+  return xlang_sys_poll(((uint8_t *)(fds)), nfds, timeout);
   return 0;
 }
 ssize_t std_io_sync_io_read(int32_t fd, uint8_t * buf, size_t count, uint32_t timeout_ms) {
@@ -1978,39 +1978,39 @@ int32_t std_io_sync_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_
   }
   return -(1);
 }
-extern int32_t shux_io_register(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_register_buffers(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr);
-extern void shux_io_unregister_buffers(void);
-extern int32_t shux_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t shux_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
-extern int32_t shux_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern uint8_t * shux_io_read_ptr(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_read_ptr_len(void);
-extern uint64_t shux_io_read_ptr_gen(void);
-extern int32_t shux_io_read_ptr_gen_valid(uint64_t saved);
-extern int32_t shux_io_read_ptr_backend(void);
-extern struct shux_slice_uint8_t shux_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
-extern int32_t shux_io_submit_read_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_register_buffers_buf(uint8_t * bufs, int32_t nr);
-extern ssize_t shux_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
-extern ssize_t shux_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
-extern int32_t shux_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
-extern void shux_io_unregister_provided_buffers(void);
-extern uint8_t * shux_io_provided_buffer_ptr(uint32_t bid);
-extern uint32_t shux_io_provided_buffer_size(void);
-extern int32_t shux_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
-extern int32_t shux_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
-extern int32_t shux_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_read_async(void);
-extern int32_t shux_io_complete_read_async_slot(int32_t slot);
-extern int32_t shux_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_write_async(void);
-extern int32_t shux_io_complete_write_async_slot(int32_t slot);
-extern uint32_t shux_io_poll_async_completions(uint32_t timeout_ms);
-extern int32_t shux_io_uring_is_available_c(void);
+extern int32_t xlang_io_register(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_register_buffers(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr);
+extern void xlang_io_unregister_buffers(void);
+extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_ms);
+extern int32_t xlang_io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_read(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern uint8_t * xlang_io_read_ptr(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_read_ptr_len(void);
+extern uint64_t xlang_io_read_ptr_gen(void);
+extern int32_t xlang_io_read_ptr_gen_valid(uint64_t saved);
+extern int32_t xlang_io_read_ptr_backend(void);
+extern struct xlang_slice_uint8_t xlang_io_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_write(uint8_t * ptr, size_t len, size_t handle, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_read_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_submit_write_batch(uint8_t * ptr0, size_t len0, uint8_t * ptr1, size_t len1, uint8_t * ptr2, size_t len2, uint8_t * ptr3, size_t len3, size_t handle, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_register_buffers_buf(uint8_t * bufs, int32_t nr);
+extern ssize_t xlang_io_read_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
+extern ssize_t xlang_io_write_batch_buf(int32_t fd, uint8_t * bufs, int32_t n, uint32_t timeout_ms);
+extern int32_t xlang_io_register_provided_buffers(uint32_t nr, uint32_t bufsz);
+extern void xlang_io_unregister_provided_buffers(void);
+extern uint8_t * xlang_io_provided_buffer_ptr(uint32_t bid);
+extern uint32_t xlang_io_provided_buffer_size(void);
+extern int32_t xlang_io_read_provided(size_t handle, uint32_t timeout_ms, uint32_t * out_bid, uint32_t * out_len);
+extern int32_t xlang_io_read_batch_provided(size_t handle, int32_t n, uint32_t timeout_ms, uint32_t * out_bids, uint32_t * out_lens);
+extern int32_t xlang_io_submit_read_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_read_async(void);
+extern int32_t xlang_io_complete_read_async_slot(int32_t slot);
+extern int32_t xlang_io_submit_write_async(uint8_t * ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_write_async(void);
+extern int32_t xlang_io_complete_write_async_slot(int32_t slot);
+extern uint32_t xlang_io_poll_async_completions(uint32_t timeout_ms);
+extern int32_t xlang_io_uring_is_available_c(void);
 extern int32_t std_io_driver_register(ptrdiff_t  buf);
 extern int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_Buffer * bufs, uint32_t  nr);
 extern int32_t std_io_driver_submit_read(ptrdiff_t  buf, uint32_t  timeout_ms);
@@ -2019,41 +2019,41 @@ extern int32_t std_io_driver_driver_read_ptr_len(void);
 extern uint64_t std_io_driver_driver_read_ptr_gen(void);
 extern int32_t std_io_driver_driver_read_ptr_gen_valid(uint64_t saved);
 extern int32_t std_io_driver_driver_read_ptr_backend(void);
-extern struct shux_slice_uint8_t std_io_driver_driver_read_ptr_slice(size_t handle, uint32_t timeout_ms);
+extern struct xlang_slice_uint8_t std_io_driver_driver_read_ptr_slice(size_t handle, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write(ptrdiff_t  buf, uint32_t  timeout_ms);
 extern int32_t std_io_driver_submit_read_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_write_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms);
 extern int32_t std_io_driver_submit_read_batch_buf(size_t  handle, struct std_io_Buffer * bufs, int32_t n, uint32_t  timeout_ms);
 extern int32_t std_io_driver_submit_write_batch_buf(size_t  handle, struct std_io_Buffer * bufs, int32_t n, uint32_t  timeout_ms);
 int32_t std_io_driver_submit_register_fixed_buffers_buf(struct std_io_Buffer * bufs, uint32_t  nr) {
-  return std_io_core_shux_io_register_buffers_buf(((uint8_t *)(bufs)), ((int32_t)(nr)));
+  return std_io_core_xlang_io_register_buffers_buf(((uint8_t *)(bufs)), ((int32_t)(nr)));
 }
 int32_t std_io_driver_driver_read_ptr_gen_valid(uint64_t saved) {
-  return std_io_core_shux_io_read_ptr_gen_valid(saved);
+  return std_io_core_xlang_io_read_ptr_gen_valid(saved);
 }
 int32_t std_io_driver_driver_read_ptr_backend(void) {
-  return std_io_core_shux_io_read_ptr_backend();
+  return std_io_core_xlang_io_read_ptr_backend();
 }
-struct shux_slice_uint8_t std_io_driver_driver_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
-  return std_io_core_shux_io_read_ptr_slice(handle, timeout_ms);
+struct xlang_slice_uint8_t std_io_driver_driver_read_ptr_slice(size_t handle, uint32_t timeout_ms) {
+  return std_io_core_xlang_io_read_ptr_slice(handle, timeout_ms);
 }
 int32_t std_io_driver_submit_read_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms) {
   size_t h = ((buffers)[0].handle);
-  return std_io_core_shux_io_submit_read_batch(((buffers)[0].ptr), ((buffers)[0].len), ((buffers)[1].ptr), ((buffers)[1].len), ((buffers)[2].ptr), ((buffers)[2].len), ((buffers)[3].ptr), ((buffers)[3].len), h, n, timeout_ms);
+  return std_io_core_xlang_io_submit_read_batch(((buffers)[0].ptr), ((buffers)[0].len), ((buffers)[1].ptr), ((buffers)[1].len), ((buffers)[2].ptr), ((buffers)[2].len), ((buffers)[3].ptr), ((buffers)[3].len), h, n, timeout_ms);
 }
 int32_t std_io_driver_submit_write_batch(struct std_io_Buffer * buffers, int32_t n, uint32_t timeout_ms) {
   size_t h = ((buffers)[0].handle);
-  return std_io_core_shux_io_submit_write_batch(((buffers)[0].ptr), ((buffers)[0].len), ((buffers)[1].ptr), ((buffers)[1].len), ((buffers)[2].ptr), ((buffers)[2].len), ((buffers)[3].ptr), ((buffers)[3].len), h, n, timeout_ms);
+  return std_io_core_xlang_io_submit_write_batch(((buffers)[0].ptr), ((buffers)[0].len), ((buffers)[1].ptr), ((buffers)[1].len), ((buffers)[2].ptr), ((buffers)[2].len), ((buffers)[3].ptr), ((buffers)[3].len), h, n, timeout_ms);
 }
 int32_t std_io_driver_submit_read_batch_buf(size_t  handle, struct std_io_Buffer * bufs, int32_t n, uint32_t  timeout_ms) {
-  ssize_t r = std_io_core_shux_io_read_batch_buf(((int32_t)(handle)), ((uint8_t *)(bufs)), n, timeout_ms);
+  ssize_t r = std_io_core_xlang_io_read_batch_buf(((int32_t)(handle)), ((uint8_t *)(bufs)), n, timeout_ms);
   if ((r < 0)) {
     return -(1);
   }
   return ((int32_t)(r));
 }
 int32_t std_io_driver_submit_write_batch_buf(size_t  handle, struct std_io_Buffer * bufs, int32_t n, uint32_t  timeout_ms) {
-  ssize_t r = std_io_core_shux_io_write_batch_buf(((int32_t)(handle)), ((uint8_t *)(bufs)), n, timeout_ms);
+  ssize_t r = std_io_core_xlang_io_write_batch_buf(((int32_t)(handle)), ((uint8_t *)(bufs)), n, timeout_ms);
   if ((r < 0)) {
     return -(1);
   }

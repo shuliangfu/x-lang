@@ -32,4 +32,4 @@
 
 `./tests/run-std-xplat-deep-boundary-gate.sh`
 
-报告：`shux: [SHUX_STD138_XPLAT_DEEP_BOUNDARY]`
+报告：`xlang: [XLANG_STD138_XPLAT_DEEP_BOUNDARY]`

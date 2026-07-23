@@ -161,14 +161,14 @@ export function io_register_buffers_buf_i32(bufs: isize, nr: i32): i32 {
   return io_register_buffers_buf(0 as *u8, nr);
 }
 
-/** Exported function `shux_io_register`.
- * Registration helper `shux_io_register`.
+/** Exported function `xlang_io_register`.
+ * Registration helper `xlang_io_register`.
  * @param ptr *u8
  * @param len usize
  * @param handle usize
  * @return i32
  */
 #[no_mangle]
-export function shux_io_register(ptr: *u8, len: usize, handle: usize): i32 {
+export function xlang_io_register(ptr: *u8, len: usize, handle: usize): i32 {
   return io_register_buffer(ptr, len);
 }

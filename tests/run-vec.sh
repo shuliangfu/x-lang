@@ -3,18 +3,18 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 # shellcheck source=lib/vec-asm-gcc-link.sh
 . "$(dirname "$0")/lib/vec-asm-gcc-link.sh"
-SHUX=${SHUX:-./compiler/shux}
-LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
+XLANG=${XLANG:-./compiler/xlang}
+LINK_XLANG="${XLANG_LINK_XLANG:-${RUN_XLANG:-$XLANG}}"
 
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-OUT="$OUT_DIR/shux_vec"
+OUT="$OUT_DIR/xlang_vec"
 
-if ! vec_link_exe "$LINK_SHUX" tests/vec/main.x "$OUT" 2>&1; then
+if ! vec_link_exe "$LINK_XLANG" tests/vec/main.x "$OUT" 2>&1; then
   echo "vec test: compile failed"
   rm -f "$OUT"
   exit 1

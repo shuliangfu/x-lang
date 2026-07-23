@@ -34,7 +34,7 @@ const io_sync = import("std.io.win32");
 export const IO_READ_PTR_BUF_SIZE: usize = 65536;
 
 /* See implementation. */
-allow(padding) struct ShuxSliceU8 { data: *u8; length: usize; }
+allow(padding) struct XlangSliceU8 { data: *u8; length: usize; }
 
 /* See implementation. */
 let g_io_read_ptr_buf: u8[65536] = [];
@@ -99,11 +99,11 @@ export function io_read_ptr_backend(): i32 {
  * Read path helper `io_read_ptr_slice`.
  * @param handle usize
  * @param timeout_ms u32
- * @return ShuxSliceU8
+ * @return XlangSliceU8
  */
-export function io_read_ptr_slice(handle: usize, timeout_ms: u32): ShuxSliceU8 {
+export function io_read_ptr_slice(handle: usize, timeout_ms: u32): XlangSliceU8 {
   let p: *u8 = io_read_ptr(handle, timeout_ms);
-  let s: ShuxSliceU8;
+  let s: XlangSliceU8;
   s.data = p;
   if (p != 0) {
     s.length = (g_io_read_ptr_len as usize);

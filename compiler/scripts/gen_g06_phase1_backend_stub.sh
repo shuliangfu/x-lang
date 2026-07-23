@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 # gen_g06_phase1_backend_stub.sh — G-06 冷启动：无 seed partial 时为 phase1 生成弱符号桩 .o
 #
-# bootstrap_shuxc 无法对当前 asm.x 做 -E；已入库 partial 缺失时，用本脚本从链接错误收集
-# backend/arch/peephole 未定义符号，生成 weak 桩，使 shux-seed-phase1 可链出并用 *_x.o 前端 -E asm.x。
+# bootstrap_xlangc 无法对当前 asm.x 做 -E；已入库 partial 缺失时，用本脚本从链接错误收集
+# backend/arch/peephole 未定义符号，生成 weak 桩，使 xlang-seed-phase1 可链出并用 *_x.o 前端 -E asm.x。
 #
 # 用法（compiler 目录）：
 #   ./scripts/gen_g06_phase1_backend_stub.sh
@@ -61,7 +61,7 @@ if [ ! -f src/x_seed_bridge.o ]; then
 fi
 
 # 从 make -n 取 phase1 链接命令（去掉 partial 参数）
-LINK_LINE=$(make -n bootstrap-driver-seed 2>/dev/null | grep ' -o shux-seed-phase1 ' | head -1)
+LINK_LINE=$(make -n bootstrap-driver-seed 2>/dev/null | grep ' -o xlang-seed-phase1 ' | head -1)
 if [ -z "$LINK_LINE" ]; then
   echo "gen_g06_phase1_backend_stub: cannot get phase1 link line from make -n" >&2
   exit 1

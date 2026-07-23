@@ -22,7 +22,7 @@
 | `case_qemu_min` | `riscv64_min.x` | 42 | COMP-012 最小样例 |
 | `case_qemu_binop` | `binop_return_four_add.x` | 10 | 加链 1+2+3+4 |
 
-流程：`shux -target riscv64` → link → `qemu-riscv64` 用户态执行。
+流程：`xlang -target riscv64` → link → `qemu-riscv64` 用户态执行。
 
 ---
 
@@ -33,7 +33,7 @@
 ```
 
 ```
-shux: [SHUX_COMP018_RISCV_QEMU] status=ok qemu_ok=2 qemu_skip=0 skip=1
+xlang: [XLANG_COMP018_RISCV_QEMU] status=ok qemu_ok=2 qemu_skip=0 skip=1
 ```
 
 无 `qemu-riscv64` / 交叉链接器时 manifest 仍须绿；runnable **SKIP**。

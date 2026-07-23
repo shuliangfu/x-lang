@@ -5,15 +5,15 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL_DEBUG_DOC:-analysis/tool-debug-symbols-v1.md}"
-MANIFEST="${SHUX_TOOL_DEBUG_MANIFEST:-tests/baseline/tool-debug-symbols.tsv}"
+DOC="${XLANG_TOOL_DEBUG_DOC:-analysis/tool-debug-symbols-v1.md}"
+MANIFEST="${XLANG_TOOL_DEBUG_MANIFEST:-tests/baseline/tool-debug-symbols.tsv}"
 MIN_RULES=6
 MIN_CASES=2
 
 # shellcheck source=tests/lib/tool-debug-symbols.sh
 . tests/lib/tool-debug-symbols.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -125,24 +125,24 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-debug-symbols manifest OK (rules=${RULE_N} cases=${CASE_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-  echo "=== TOOL-005: debug symbol hooks (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
+  echo "=== TOOL-005: debug symbol hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-debug-symbols.sh tests/run-backtrace.sh
-  SHUX="$SHUX_BIN" ./tests/run-debug-symbols.sh
-  SHUX="$SHUX_BIN" ./tests/run-backtrace.sh
+  XLANG="$XLANG_BIN" ./tests/run-debug-symbols.sh
+  XLANG="$XLANG_BIN" ./tests/run-backtrace.sh
   echo "tool-debug-symbols hooks OK"
 else
-  echo "tool-debug-symbols gate SKIP hooks (no native shux)" >&2
+  echo "tool-debug-symbols gate SKIP hooks (no native xlang)" >&2
 fi
 
 echo "tool-debug-symbols gate OK"

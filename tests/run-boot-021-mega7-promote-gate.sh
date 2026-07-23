@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_BOOT021_DOC:-analysis/boot-021-mega7-promote-v1.md}"
-MANIFEST="${SHUX_BOOT021_TSV:-tests/baseline/boot-021-mega7-promote.tsv}"
-WAVE="${SHUX_BOOT021_WAVE_TSV:-tests/baseline/parser-mega7-promote-wave.tsv}"
+DOC="${XLANG_BOOT021_DOC:-analysis/boot-021-mega7-promote-v1.md}"
+MANIFEST="${XLANG_BOOT021_TSV:-tests/baseline/boot-021-mega7-promote.tsv}"
+WAVE="${XLANG_BOOT021_WAVE_TSV:-tests/baseline/parser-mega7-promote-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 LIB="tests/lib/boot-021-mega7-promote.sh"
 MIN_ROWS=7
@@ -68,7 +68,7 @@ if [ "$ROW_N" -lt "$MIN_ROWS" ]; then
   exit 1
 fi
 
-# comp-parser-mega7-matrix B1–B7 须为 runnable（非 stub）；仅 Linux+shux_asm 时硬门禁
+# comp-parser-mega7-matrix B1–B7 须为 runnable（非 stub）；仅 Linux+xlang_asm 时硬门禁
 STUB_N=0
 if boot021_mega7_linux_asm; then
   while IFS=$'\t' read -r item_id kind phase status _hook _notes; do
@@ -85,7 +85,7 @@ if boot021_mega7_linux_asm; then
     MISS=$((MISS + STUB_N))
   fi
 else
-  echo "boot-021-mega7-promote gate SKIP mega7 matrix stub check (no shux_asm)" >&2
+  echo "boot-021-mega7-promote gate SKIP mega7 matrix stub check (no xlang_asm)" >&2
 fi
 
 if [ "$MISS" -gt 0 ]; then
@@ -99,7 +99,7 @@ PROMOTE_EMIT=0
 SKIP=1
 
 if boot021_mega7_linux_asm; then
-  echo "=== BOOT-021: promote wave (Linux shux_asm) ==="
+  echo "=== BOOT-021: promote wave (Linux xlang_asm) ==="
   chmod +x tests/run-parser-mega7-promote-wave.sh
   WAVE_OUT="/tmp/boot021_wave_$$.log"
   if ./tests/run-parser-mega7-promote-wave.sh 2>&1 | tee "$WAVE_OUT"; then
@@ -114,7 +114,7 @@ if boot021_mega7_linux_asm; then
   fi
   rm -f "$WAVE_OUT"
 else
-  echo "boot-021-mega7-promote gate SKIP wave (Darwin or no shux_asm)" >&2
+  echo "boot-021-mega7-promote gate SKIP wave (Darwin or no xlang_asm)" >&2
   RUNNABLE_OK=$ROW_N
 fi
 

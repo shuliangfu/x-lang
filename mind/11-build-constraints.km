@@ -83,10 +83,10 @@
                                         "data": {
                                             "id": "n0009",
                                             "created": 1784118410336,
-                                            "text": "g05_relink_shux.sh (链接 shux)",
+                                            "text": "g05_relink_xlang.sh (链接 xlang)",
                                             "expandState": "collapse",
-                                            "hyperlink": "compiler/scripts/g05_relink_shux.sh",
-                                            "hyperlinkTitle": "compiler/scripts/g05_relink_shux.sh"
+                                            "hyperlink": "compiler/scripts/g05_relink_xlang.sh",
+                                            "hyperlinkTitle": "compiler/scripts/g05_relink_xlang.sh"
                                         },
                                         "children": []
                                     }
@@ -96,10 +96,10 @@
                                 "data": {
                                     "id": "n0010",
                                     "created": 1784118410337,
-                                    "text": "g05_build_shux_asm.sh (构建 shux_asm)",
+                                    "text": "g05_build_xlang_asm.sh (构建 xlang_asm)",
                                     "expandState": "collapse",
-                                    "hyperlink": "compiler/scripts/g05_build_shux_asm.sh",
-                                    "hyperlinkTitle": "compiler/scripts/g05_build_shux_asm.sh"
+                                    "hyperlink": "compiler/scripts/g05_build_xlang_asm.sh",
+                                    "hyperlinkTitle": "compiler/scripts/g05_build_xlang_asm.sh"
                                 },
                                 "children": []
                             },
@@ -146,7 +146,7 @@
                                 "data": {
                                     "id": "n0015",
                                     "created": 1784118410342,
-                                    "text": "bootstrap_seed_pipeline_filtered.o + typeck_x.o + codegen_x.o + ... → shux",
+                                    "text": "bootstrap_seed_pipeline_filtered.o + typeck_x.o + codegen_x.o + ... → xlang",
                                     "expandState": "collapse"
                                 },
                                 "children": []
@@ -176,7 +176,7 @@
                                 "data": {
                                     "id": "n0018",
                                     "created": 1784118410345,
-                                    "text": "pipeline_x.o + typeck_x.o + codegen_x.o + ... → shux",
+                                    "text": "pipeline_x.o + typeck_x.o + codegen_x.o + ... → xlang",
                                     "expandState": "collapse"
                                 },
                                 "children": []
@@ -213,7 +213,7 @@
                                 "data": {
                                     "id": "n0022",
                                     "created": 1784118410349,
-                                    "text": "shux-c / shux_asm",
+                                    "text": "xlang-c / xlang_asm",
                                     "expandState": "collapse"
                                 },
                                 "children": []
@@ -298,7 +298,7 @@
                         "data": {
                             "id": "n0031",
                             "created": 1784118410358,
-                            "text": "shux -E 只能对 0 imports 的 .x 文件运行",
+                            "text": "xlang -E 只能对 0 imports 的 .x 文件运行",
                             "expandState": "collapse"
                         },
                         "children": []
@@ -307,7 +307,7 @@
                         "data": {
                             "id": "n0032",
                             "created": 1784118410359,
-                            "text": "shux -E 会丢弃含 && / || 的函数体; 需扁平化为 helper",
+                            "text": "xlang -E 会丢弃含 && / || 的函数体; 需扁平化为 helper",
                             "expandState": "collapse"
                         },
                         "children": []
@@ -316,7 +316,7 @@
                         "data": {
                             "id": "n0033",
                             "created": 1784118410360,
-                            "text": "shux -E 在 32-bit 平台跳过 u64; Ubuntu x86_64 用 usize",
+                            "text": "xlang -E 在 32-bit 平台跳过 u64; Ubuntu x86_64 用 usize",
                             "expandState": "collapse"
                         },
                         "children": []

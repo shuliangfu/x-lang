@@ -25,7 +25,7 @@
 | §3 主题 | 自举深化 + mega7 推进 | **Phase 3 首批收官** |
 | M2 mega7 | 🟡 | **✅** BOOT-020 里程碑 gate |
 | M3 WPO/isel | 🟡 | **✅** COMP-013/014 质量波次 |
-| M6 VS Code | 🟡 0.1.x | **✅** `vscode-shux` **0.2.0** |
+| M6 VS Code | 🟡 0.1.x | **✅** `vscode-xlang` **0.2.0** |
 | §4 亮点 | Phase 2 摘要 | **Phase 3** 泛型/自举/编译器/std/生态 |
 | §5 预览 | Q4 计划（已交付） | **2027-Q1** 第二批预览 |
 | manifest | `quarter_anchor=2026-Q3` | `quarter_anchor=2026-Q4` |
@@ -39,7 +39,7 @@
 ```
 
 ```
-shux: [SHUX_DOC010_ROADMAP_Q4] status=ok quarter=2026-Q4 roadmap_gate=1
+xlang: [XLANG_DOC010_ROADMAP_Q4] status=ok quarter=2026-Q4 roadmap_gate=1
 ```
 
 联动：`run-doc-public-roadmap-gate.sh`（DOC-005）须同步绿；遵循 DOC-005 `public quarterly` 流程。

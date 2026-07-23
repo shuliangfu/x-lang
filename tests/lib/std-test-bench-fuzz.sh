@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-test-bench-fuzz.sh — STD-054 manifest 与烟测辅助
 
-STD_TEST_BENCH_FUZZ_PREFIX="${SHUX_STD_TEST_BENCH_FUZZ_PREFIX:-shux: [SHUX_STD_TEST_BENCH_FUZZ]}"
+STD_TEST_BENCH_FUZZ_PREFIX="${XLANG_STD_TEST_BENCH_FUZZ_PREFIX:-xlang: [XLANG_STD_TEST_BENCH_FUZZ]}"
 
 std_test_bench_fuzz_symbols_ok() {
   local mod_x="$1"
@@ -41,13 +41,13 @@ std_test_bench_fuzz_symbols_ok() {
 }
 
 std_test_bench_fuzz_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_test_bf_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_test_bf_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-test-bench-fuzz FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -66,7 +66,7 @@ std_test_bench_fuzz_run_smoke() {
 std_test_bench_fuzz_run_c_smoke() {
   local test_o="$1"
   local src="tests/std-test/bench_fuzz_ok.c"
-  local out="/tmp/shux_std_test_bench_fuzz_$$"
+  local out="/tmp/xlang_std_test_bench_fuzz_$$"
   local comp_dir
   comp_dir="$(cd compiler && pwd)"
   if [ ! -f "$test_o" ]; then
@@ -81,21 +81,21 @@ std_test_bench_fuzz_run_c_smoke() {
     return 1
   fi
   set +e
-  "$out" 2>/tmp/shux_std_test_bench_fuzz_err_$$.log
+  "$out" 2>/tmp/xlang_std_test_bench_fuzz_err_$$.log
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ]; then
-    cat /tmp/shux_std_test_bench_fuzz_err_$$.log >&2 || true
-    rm -f "$out" /tmp/shux_std_test_bench_fuzz_err_$$.log
+    cat /tmp/xlang_std_test_bench_fuzz_err_$$.log >&2 || true
+    rm -f "$out" /tmp/xlang_std_test_bench_fuzz_err_$$.log
     echo "std-test-bench-fuzz FAIL: c smoke exit=$ec" >&2
     return 1
   fi
-  if ! grep -qF 'shux: [SHUX_BENCH] name=smoke' /tmp/shux_std_test_bench_fuzz_err_$$.log 2>/dev/null; then
-    rm -f "$out" /tmp/shux_std_test_bench_fuzz_err_$$.log
+  if ! grep -qF 'xlang: [XLANG_BENCH] name=smoke' /tmp/xlang_std_test_bench_fuzz_err_$$.log 2>/dev/null; then
+    rm -f "$out" /tmp/xlang_std_test_bench_fuzz_err_$$.log
     echo "std-test-bench-fuzz FAIL: missing bench report line" >&2
     return 1
   fi
-  rm -f "$out" /tmp/shux_std_test_bench_fuzz_err_$$.log
+  rm -f "$out" /tmp/xlang_std_test_bench_fuzz_err_$$.log
   return 0
 }
 

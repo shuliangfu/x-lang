@@ -7,7 +7,7 @@
  *
  * build_asm/driver_compile.o（EMIT_HEAVY 单编 compile.x）导出 run_compiler_full_x /
  * compile_dispatch_* 裸名；runtime.c 与 C-gen driver_compile_x.o 期望 driver_* 链接名。
- * ld -r 与本 TU 合并为 build_asm/driver_compile_link.o，供 relink_shux_asm_strict_glue 替换
+ * ld -r 与本 TU 合并为 build_asm/driver_compile_link.o，供 relink_xlang_asm_strict_glue 替换
  * driver_compile_x.o。
  */
 #include <stdint.h>

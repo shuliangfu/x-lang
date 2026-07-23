@@ -33,7 +33,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`net_ipv6_ensure_wsa_c_impl`、`net_ipv6_close_socket_c_impl`、`net_ipv6_set_nonblock_c_impl`、`net_ipv6_poll_writable_c_impl`、`net_ipv6_connect_retry_ok_c_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_NET_IPV6_FAST_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_NET_IPV6_FAST_FROM_X`
 - 前向声明：5 个 thin wrapper（`net_ipv6_ensure_wsa_c` / `close_socket_c` / `set_nonblock_c` / `poll_writable_c` / `connect_retry_ok_c`），rest 模式下供 `net_tcp_connect_ipv6_c` + `net_tcp_listen_ipv6_c` 调用，符号由 thin.o 提供
 - 内部调用更新：无（rest 函数调用 thin wrapper 符号，rest 模式下为 U 由 thin.o 解析）
 

@@ -9,15 +9,15 @@
 #
 # 运行时：
 #   默认硬跑 run-lang-unsafe-gate（2026-07-10 起：U1–U4 + S0 ub/region/struct 已硬绿）
-#   SHUX_G_FFI5_SKIP_LANG_UNSAFE=1 → 跳过（仅应急）
-#   SHUX_G_FFI5_LANG_UNSAFE_SOFT=1 → 失败仅 WARN（回退 soft 模式）
+#   XLANG_G_FFI5_SKIP_LANG_UNSAFE=1 → 跳过（仅应急）
+#   XLANG_G_FFI5_LANG_UNSAFE_SOFT=1 → 失败仅 WARN（回退 soft 模式）
 #
 # 用法：./tests/run-g-ffi-5-release-ci-gate.sh
-#   SHUX_G_FFI5_FAIL=1  硬失败（CI 默认建议 1）
+#   XLANG_G_FFI5_FAIL=1  硬失败（CI 默认建议 1）
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_G_FFI5_FAIL:-1}
-export SHUX_G_FFI5_FAIL="$FAIL"
+FAIL=${XLANG_G_FFI5_FAIL:-1}
+export XLANG_G_FFI5_FAIL="$FAIL"
 
 die() {
   echo "g-ffi-5 release-ci FAIL: $*" >&2
@@ -37,18 +37,18 @@ chmod +x \
 
 # 4：SAFE-003 清单（默认跳过嵌套 lang-unsafe，避免双重跑）
 if [ -f tests/run-safe-unsafe-audit-gate.sh ]; then
-  export SHUX_SAFE_SKIP_LANG_UNSAFE=1
+  export XLANG_SAFE_SKIP_LANG_UNSAFE=1
   ./tests/run-safe-unsafe-audit-gate.sh || die "safe-unsafe-audit"
 fi
 
-# 5：LANG-007 运行时套件（默认硬绿；应急 SHUX_G_FFI5_SKIP_LANG_UNSAFE=1）
-if [ "${SHUX_G_FFI5_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
-  echo "g-ffi-5 release-ci: skip lang-unsafe (SHUX_G_FFI5_SKIP_LANG_UNSAFE=1)"
+# 5：LANG-007 运行时套件（默认硬绿；应急 XLANG_G_FFI5_SKIP_LANG_UNSAFE=1）
+if [ "${XLANG_G_FFI5_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
+  echo "g-ffi-5 release-ci: skip lang-unsafe (XLANG_G_FFI5_SKIP_LANG_UNSAFE=1)"
 else
-  if [ -z "${SHUX:-}" ]; then
-    for cand in ./compiler/shux ./compiler/shux_asm ./compiler/shux-c; do
+  if [ -z "${XLANG:-}" ]; then
+    for cand in ./compiler/xlang ./compiler/xlang_asm ./compiler/xlang-c; do
       if [ -x "$cand" ]; then
-        export SHUX="$cand"
+        export XLANG="$cand"
         break
       fi
     done
@@ -58,7 +58,7 @@ else
   lu_rc=$?
   set -e
   if [ "$lu_rc" -ne 0 ]; then
-    if [ "${SHUX_G_FFI5_LANG_UNSAFE_SOFT:-0}" = "1" ]; then
+    if [ "${XLANG_G_FFI5_LANG_UNSAFE_SOFT:-0}" = "1" ]; then
       echo "g-ffi-5 release-ci: lang-unsafe soft-fail (rc=$lu_rc; SOFT=1)"
     else
       die "lang-unsafe (rc=$lu_rc)"

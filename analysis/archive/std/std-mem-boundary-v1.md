@@ -62,7 +62,7 @@
 manifest：`tests/baseline/std-mem-boundary.tsv`
 
 ```
-shux: [SHUX_STD_MEM_BOUNDARY] status=ok core_only=4 std_only=4 no_cross_import=1
+xlang: [XLANG_STD_MEM_BOUNDARY] status=ok core_only=4 std_only=4 no_cross_import=1
 ```
 
 ---

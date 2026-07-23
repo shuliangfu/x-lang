@@ -34,4 +34,4 @@ v1 仍默认 **seq_cst**；未新增带 Ordering 参数的重载。
 
 烟测：`tests/atomic/widen_16_64.x`
 
-报告：`shux: [SHUX_STD146_ATOMIC_WIDEN]`
+报告：`xlang: [XLANG_STD146_ATOMIC_WIDEN]`

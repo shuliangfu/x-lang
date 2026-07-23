@@ -1,15 +1,15 @@
 /**
- * Shux DocumentLinkProvider — 将 `import` 模块路径转成可跳转文件 URI
+ * Xlang DocumentLinkProvider — 将 `import` 模块路径转成可跳转文件 URI
  *
  * 解析语法：
  * - `const name = import("path");`
  *
- * 路径解析委托 importResolve.ts，与 shux 编译器 lib_roots + entry_dir 规则一致。
+ * 路径解析委托 importResolve.ts，与 xlang 编译器 lib_roots + entry_dir 规则一致。
  * 无法解析时不生成链接，避免出现「链接目标已丢失」。
  */
 
 import * as vscode from 'vscode';
-import { resolveShuxImportUri } from './importResolve';
+import { resolveXlangImportUri } from './importResolve';
 
 /**
  * 在 `text` 中判断「处理完下标 `[0,index)`」之后，`index` 处是否仍处于注释／字符串遮蔽。
@@ -132,7 +132,7 @@ function gatherImportOccurrences(documentText: string): ImportOccurrence[] {
   return out;
 }
 
-export class ShuxDocumentLinkProvider implements vscode.DocumentLinkProvider {
+export class XlangDocumentLinkProvider implements vscode.DocumentLinkProvider {
   /**
    * 枚举 import 路径并解析为可跳转 URI；解析失败的不生成链接。
    */
@@ -154,7 +154,7 @@ export class ShuxDocumentLinkProvider implements vscode.DocumentLinkProvider {
     const links: vscode.DocumentLink[] = [];
 
     for (const item of occ) {
-      const target = await resolveShuxImportUri(wf.uri, document.uri, item.dotted);
+      const target = await resolveXlangImportUri(wf.uri, document.uri, item.dotted);
       if (!target) {
         continue;
       }

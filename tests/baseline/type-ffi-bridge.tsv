@@ -11,7 +11,7 @@ layer_f1	layers	F1-scalar-map	compiler/src/codegen/codegen.c	scalar	int32_t
 layer_f2	layers	F2-pointer-bridge	compiler/src/codegen/codegen.c	pointer	*T
 layer_f3	layers	F3-extern-syntax	analysis/type-ffi-bridge-v1.md	extern	声明
 layer_f4	layers	F4-struct-by-value	compiler/src/codegen/codegen.c	struct	按值
-layer_f5	layers	F5-slice-codegen	compiler/src/codegen/codegen.c	slice	shux_slice
+layer_f5	layers	F5-slice-codegen	compiler/src/codegen/codegen.c	slice	xlang_slice
 layer_f6	layers	F6-coercion	compiler/src/typeck/typeck.c	coerce	*u8
 sym_ctype	symbol	c_type_to_buf	compiler/src/codegen/codegen.c	codegen	mapping
 sym_void_bridge	symbol	void*	compiler/src/typeck/typeck.c	typeck	*u8

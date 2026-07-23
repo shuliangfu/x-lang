@@ -10,9 +10,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MATRIX="${SHUX_LANG_UNSAFE_TSV:-tests/baseline/lang-unsafe-api.tsv}"
+MATRIX="${XLANG_LANG_UNSAFE_TSV:-tests/baseline/lang-unsafe-api.tsv}"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -49,47 +49,47 @@ if ! grep -q '"unsafe"' compiler/seeds/parser_asm/parser_asm_emit_heavy_stretch_
 fi
 echo "lang-unsafe manifest OK"
 
-# bstrict / W3：stage2 shux_asm(2) 用于 asm -o；但真机仅 git pull 源码后，陈旧 shux_asm2 可能落后于新刷出的 shux/shux_asm。
+# bstrict / W3：stage2 xlang_asm(2) 用于 asm -o；但真机仅 git pull 源码后，陈旧 xlang_asm2 可能落后于新刷出的 xlang/xlang_asm。
 # 因此默认选 native 候选里“最新”的一个，避免 gate 继续绑定旧 gen2。
-# 若调用方已设 SHUX，则绝不 make 重建（防内存打爆 / 超时）。
-SHUX_BIN=""
-if [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
-  SHUX_BIN="${SHUX}"
+# 若调用方已设 XLANG，则绝不 make 重建（防内存打爆 / 超时）。
+XLANG_BIN=""
+if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ]; then
+  XLANG_BIN="${XLANG}"
 else
-  # 仅在未指定 SHUX 时尝试轻量 ensure shux-c（-q 已最新则不重建）
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  for cand in ./compiler/shux_asm2 ./compiler/shux_asm ./compiler/shux; do
-    if [ -x "$cand" ] && native_shu "$cand"; then
-      if [ -z "$SHUX_BIN" ] || [ "$cand" -nt "$SHUX_BIN" ]; then
-        SHUX_BIN="$cand"
+  # 仅在未指定 XLANG 时尝试轻量 ensure xlang-c（-q 已最新则不重建）
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  for cand in ./compiler/xlang_asm2 ./compiler/xlang_asm ./compiler/xlang; do
+    if [ -x "$cand" ] && native_xlang "$cand"; then
+      if [ -z "$XLANG_BIN" ] || [ "$cand" -nt "$XLANG_BIN" ]; then
+        XLANG_BIN="$cand"
       fi
     fi
   done
-  if [ -z "$SHUX_BIN" ]; then
-    for cand in ./compiler/shux-c; do
-      if [ -x "$cand" ] && native_shu "$cand"; then
-        SHUX_BIN="$cand"
+  if [ -z "$XLANG_BIN" ]; then
+    for cand in ./compiler/xlang-c; do
+      if [ -x "$cand" ] && native_xlang "$cand"; then
+        XLANG_BIN="$cand"
         break
       fi
     done
   fi
 fi
-if [ -z "$SHUX_BIN" ] && [ "$(uname -s)" = Linux ] && [ -x ./compiler/shux-c ]; then
-  SHUX_BIN=./compiler/shux-c
+if [ -z "$XLANG_BIN" ] && [ "$(uname -s)" = Linux ] && [ -x ./compiler/xlang-c ]; then
+  XLANG_BIN=./compiler/xlang-c
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "lang-unsafe gate SKIP bench (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "lang-unsafe gate SKIP bench (no native xlang)" >&2
   exit 0
 fi
 
 # 单条 compile/run 超时（秒），避免 asm -o 挂死占满 CPU。
-SHUX_CASE_TIMEOUT="${SHUX_CASE_TIMEOUT:-120}"
+XLANG_CASE_TIMEOUT="${XLANG_CASE_TIMEOUT:-120}"
 run_timeout_case() {
   if command -v timeout >/dev/null 2>&1; then
-    timeout --signal=TERM --kill-after=15 "$SHUX_CASE_TIMEOUT" "$@" || {
+    timeout --signal=TERM --kill-after=15 "$XLANG_CASE_TIMEOUT" "$@" || {
       local ec=$?
-      [ "$ec" -eq 124 ] && echo "lang-unsafe FAIL: timeout after ${SHUX_CASE_TIMEOUT}s: $*" >&2
+      [ "$ec" -eq 124 ] && echo "lang-unsafe FAIL: timeout after ${XLANG_CASE_TIMEOUT}s: $*" >&2
       return "$ec"
     }
   else
@@ -101,14 +101,14 @@ run_x_case() {
   local script="$1"
   local want_ec="$2"
   local src="tests/unsafe/${script}"
-  local out="/tmp/shux_unsafe_${script%.x}"
+  local out="/tmp/xlang_unsafe_${script%.x}"
   if [ ! -f "$src" ]; then
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
   # LANG-007：relink seed 的 asm -o 路径 x parse 回归中；`-backend c` 与 check 同走 C 前端（unsafe 边界已覆盖）。
-  if ! run_timeout_case "$SHUX_BIN" -backend c -L . "$src" -o "$out" >/tmp/shux_unsafe_compile.log 2>&1; then
-    cat /tmp/shux_unsafe_compile.log >&2
+  if ! run_timeout_case "$XLANG_BIN" -backend c -L . "$src" -o "$out" >/tmp/xlang_unsafe_compile.log 2>&1; then
+    cat /tmp/xlang_unsafe_compile.log >&2
     return 1
   fi
   local ec=0
@@ -123,13 +123,13 @@ run_x_case() {
 compile_fail_case() {
   local script="$1"
   local src="tests/unsafe/${script}"
-  local err="/tmp/shux_unsafe_fail_compile.log"
+  local err="/tmp/xlang_unsafe_fail_compile.log"
   if [ ! -f "$src" ]; then
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
   # asm -o 历史上 skip_typeck 会漏掉 implicit padding；check 与 compile 的 typeck 路径对齐且更稳。
-  if run_timeout_case "$SHUX_BIN" check -L . "$src" >"$err" 2>&1; then
+  if run_timeout_case "$XLANG_BIN" check -L . "$src" >"$err" 2>&1; then
     echo "lang-unsafe FAIL $script: expected compile error" >&2
     return 1
   fi
@@ -142,7 +142,7 @@ compile_fail_case() {
 }
 
 FAILS=0
-echo "=== LANG-007: unsafe boundary smoke (SHUX=$SHUX_BIN) ==="
+echo "=== LANG-007: unsafe boundary smoke (XLANG=$XLANG_BIN) ==="
 
 while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
   [ -z "$case_id" ] && continue
@@ -166,12 +166,13 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      # struct 回归：typeck check 需 X pipeline 输出 "implicit padding"（shux-c 只输出 CHK001），
-      # 故 run-struct.sh 须用 ./compiler/shux；其他 hook 默认用 SHUX_BIN（shux-c seed）。
-      hook_env=(SHUX="$SHUX_BIN")
-      if [ "$script" = "run-struct.sh" ] && [ -x ./compiler/shux ]; then
-        hook_env=(SHUX=./compiler/shux)
-      fi
+      # PLATFORM: SHARED — hooks inherit XLANG_BIN (product path prefers xlang_asm when
+      # bstrict sets XLANG=./compiler/xlang_asm). Historical note: older xlang-c (LEGACY
+      # C frontend) only printed CHK001 for padding; product X-pipeline xlang/xlang_asm
+      # emit T001 "implicit padding". Do NOT force ./compiler/xlang: same-bytes binary
+      # under that path has been observed SIGKILL(137) on Darwin while xlang_asm works
+      # (stale inode / memory pressure); forcing bare xlang also fights caller's XLANG.
+      hook_env=(XLANG="$XLANG_BIN")
       if run_timeout_case env "${hook_env[@]}" "$hook"; then
         echo "lang-unsafe OK $case_id ($script)"
       else
@@ -192,7 +193,7 @@ fi
 
 echo "=== G-FFI-5: std/ffi + std/sys unsafe wrap hook ==="
 chmod +x tests/run-g-ffi-5-std-wrap-gate.sh 2>/dev/null || true
-if env SHUX="$SHUX_BIN" ./tests/run-g-ffi-5-std-wrap-gate.sh; then
+if env XLANG="$XLANG_BIN" ./tests/run-g-ffi-5-std-wrap-gate.sh; then
   echo "lang-unsafe G-FFI-5 hook OK"
 else
   echo "lang-unsafe gate FAIL: G-FFI-5 std wrap" >&2

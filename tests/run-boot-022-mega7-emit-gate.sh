@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_BOOT022_DOC:-analysis/boot-022-mega7-emit-v1.md}"
-MANIFEST="${SHUX_BOOT022_TSV:-tests/baseline/boot-022-mega7-emit.tsv}"
-WAVE="${SHUX_BOOT022_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
+DOC="${XLANG_BOOT022_DOC:-analysis/boot-022-mega7-emit-v1.md}"
+MANIFEST="${XLANG_BOOT022_TSV:-tests/baseline/boot-022-mega7-emit.tsv}"
+WAVE="${XLANG_BOOT022_WAVE_TSV:-tests/baseline/parser-mega7-emit-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 LIB="tests/lib/boot-022-mega7-emit.sh"
 MIN_EMIT=1
@@ -79,14 +79,14 @@ if [ "$ROW_N" -lt "$MIN_ROWS" ]; then
   exit 1
 fi
 
-# B1 须为 emit_target（仅 Linux+shux_asm 时硬门禁；Docker portable 无 shux_asm 则 SKIP）
+# B1 须为 emit_target（仅 Linux+xlang_asm 时硬门禁；Docker portable 无 xlang_asm 则 SKIP）
 if boot022_mega7_linux_asm; then
   if ! grep -F 'B1_parse_body_lets' "$MATRIX" 2>/dev/null | grep -qF 'emit_target'; then
     echo "boot-022 FAIL: B1_parse_body_lets not emit_target in mega7 matrix" >&2
     MISS=$((MISS + 1))
   fi
 else
-  echo "boot-022-mega7-emit gate SKIP mega7 matrix emit_target check (no shux_asm)" >&2
+  echo "boot-022-mega7-emit gate SKIP mega7 matrix emit_target check (no xlang_asm)" >&2
 fi
 
 if [ "$MISS" -gt 0 ]; then
@@ -100,7 +100,7 @@ EMIT_LEAD=""
 SKIP=1
 
 if boot022_mega7_linux_asm; then
-  echo "=== BOOT-022: emit wave (Linux shux_asm) ==="
+  echo "=== BOOT-022: emit wave (Linux xlang_asm) ==="
   chmod +x tests/run-parser-mega7-emit-wave.sh
   WAVE_OUT="/tmp/boot022_emit_wave_$$.log"
   if ./tests/run-parser-mega7-emit-wave.sh 2>&1 | tee "$WAVE_OUT"; then
@@ -115,7 +115,7 @@ if boot022_mega7_linux_asm; then
   fi
   rm -f "$WAVE_OUT"
 else
-  echo "boot-022-mega7-emit gate SKIP wave (Darwin or no shux_asm)" >&2
+  echo "boot-022-mega7-emit gate SKIP wave (Darwin or no xlang_asm)" >&2
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$PROMOTE_EMIT" -lt "$MIN_EMIT" ]; then

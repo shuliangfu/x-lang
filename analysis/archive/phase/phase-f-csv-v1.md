@@ -7,12 +7,12 @@
 | 项 | 前 | 后 |
 |----|----|-----|
 | 实现 | `csv.c`（271 行） | `csv.x` |
-| `csv.o` | `cc -c` | `shux -backend asm` |
+| `csv.o` | `cc -c` | `xlang -backend asm` |
 
 ## 门禁
 
 ```bash
-SHUX_F_CSV_V1_FAIL=1 ./tests/run-f-csv-v1-gate.sh
+XLANG_F_CSV_V1_FAIL=1 ./tests/run-f-csv-v1-gate.sh
 ./tests/run-std-csv-row-gate.sh
 ./tests/run-std-csv-stream-gate.sh
 ```

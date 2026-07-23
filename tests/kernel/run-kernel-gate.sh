@@ -5,7 +5,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 KERNEL_DIR="$SCRIPT_DIR"
 WORKDIR="${TMPDIR:-/tmp}"
-SHUX_C="$KERNEL_DIR/../../compiler/shux-c"
+XLANG_C="$KERNEL_DIR/../../compiler/xlang-c"
 PASS=0
 FAIL=0
 
@@ -39,7 +39,7 @@ run_test() {
 
 run_test "atomics.x" "A:0,5
 C:5,10"
-run_test "timer_isr.x" "Shux OS
+run_test "timer_isr.x" "Xlang OS
 T:1"
 run_test "context_switch.x" "S
 A
@@ -52,10 +52,10 @@ run_test "spinlock.x" "L:100"
 
 # extern_asm test: needs .s assembly linking (special build)
 echo "=== GATE: extern_asm.x ==="
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$KERNEL_DIR/extern_asm.x" > "$WORKDIR/extern_kernel.c"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$KERNEL_DIR/extern_asm.x" > "$WORKDIR/extern_kernel.c"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -fno-sanitize=all -fno-stack-protector -c -o "$WORKDIR/extern_kernel.o" "$WORKDIR/extern_kernel.c"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -fno-sanitize=all -c -o "$WORKDIR/asm_helper.o" "$KERNEL_DIR/asm_helper.s"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -nostdlib -fno-sanitize=all -T "$KERNEL_DIR/kernel.ld" -o "$WORKDIR/gate_extern_asm.elf" "$WORKDIR/extern_kernel.o" "$WORKDIR/asm_helper.o" "$WORKDIR/shux_freestanding_stubs.o" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -nostdlib -fno-sanitize=all -T "$KERNEL_DIR/kernel.ld" -o "$WORKDIR/gate_extern_asm.elf" "$WORKDIR/extern_kernel.o" "$WORKDIR/asm_helper.o" "$WORKDIR/xlang_freestanding_stubs.o" 2>&1
 rm -f "$WORKDIR/gate_extern_asm.serial"
 qemu-system-x86_64 -kernel "$WORKDIR/gate_extern_asm.elf" -no-reboot -display none -serial file:"$WORKDIR/gate_extern_asm.serial" &
 QPID=$!
@@ -75,10 +75,10 @@ fi
 
 # no_mangle_kernel test: needs .s assembly linking (like extern_asm)
 echo "=== GATE: no_mangle_kernel.x ==="
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$KERNEL_DIR/no_mangle_kernel.x" > "$WORKDIR/nm_kernel.c"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$XLANG_C" -E "$KERNEL_DIR/no_mangle_kernel.x" > "$WORKDIR/nm_kernel.c"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -fno-sanitize=all -fno-stack-protector -c -o "$WORKDIR/nm_kernel.o" "$WORKDIR/nm_kernel.c"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -fno-sanitize=all -c -o "$WORKDIR/nm_mul.o" "$KERNEL_DIR/asm_multiply.s"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -nostdlib -fno-sanitize=all -T "$KERNEL_DIR/kernel.ld" -o "$WORKDIR/gate_nm_kernel.elf" "$WORKDIR/nm_kernel.o" "$WORKDIR/nm_mul.o" "$WORKDIR/shux_freestanding_stubs.o" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" zig cc -target x86-linux-gnu -ffreestanding -nostdlib -fno-sanitize=all -T "$KERNEL_DIR/kernel.ld" -o "$WORKDIR/gate_nm_kernel.elf" "$WORKDIR/nm_kernel.o" "$WORKDIR/nm_mul.o" "$WORKDIR/xlang_freestanding_stubs.o" 2>&1
 rm -f "$WORKDIR/gate_nm_kernel.serial"
 qemu-system-x86_64 -kernel "$WORKDIR/gate_nm_kernel.elf" -no-reboot -display none -serial file:"$WORKDIR/gate_nm_kernel.serial" &
 QPID=$!
@@ -105,21 +105,21 @@ BT:00100645 0010067F 00100742 0010069A"
 run_test "showcase.x" "K:1,2097152"
 run_test "percpu.x" "P:12345"
 run_test "membarrier.x" "M:10,20"
-run_test "shuxos.x" "ShuxOS
+run_test "xlangos.x" "XlangOS
 T:1
 DONE"
 run_test "paging.x" "P:80000011,80"
 run_test "scheduler.x" "S12a!"
 run_test "gdt_syscall.x" "G:H30"
 run_test "usermode.x" "K:GISUU42"
-run_test "shuxos_v2.x" "ShuxOS2
+run_test "xlangos_v2.x" "XlangOS2
 T:1,5,5
 A:2097152,2097168
 P:80000011
 DONE"
 run_test "ramfs.x" "F:0,1,2,hello(2) test(4) [2]"
 run_test "keyboard.x" "K:hello
-shux"
+xlang"
 run_test "preempt.x" "S
 GP:20,10,0"
 run_test "pmm.x" "M:768,1048576,1052672,765,766,1052672"

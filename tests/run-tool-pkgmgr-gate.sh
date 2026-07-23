@@ -5,16 +5,16 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_TOOL_PKGMGR_DOC:-analysis/tool-pkgmgr-v1.md}"
-MANIFEST="${SHUX_TOOL_PKGMGR_MANIFEST:-tests/baseline/tool-pkgmgr.tsv}"
-CATALOG="${SHUX_TOOL_PKGMGR_CATALOG:-tests/baseline/tool-pkgmgr-catalog.tsv}"
+DOC="${XLANG_TOOL_PKGMGR_DOC:-analysis/tool-pkgmgr-v1.md}"
+MANIFEST="${XLANG_TOOL_PKGMGR_MANIFEST:-tests/baseline/tool-pkgmgr.tsv}"
+CATALOG="${XLANG_TOOL_PKGMGR_CATALOG:-tests/baseline/tool-pkgmgr-catalog.tsv}"
 MIN_RULES=6
 MIN_PACKAGES=8
 
 # shellcheck source=tests/lib/tool-pkgmgr.sh
 . tests/lib/tool-pkgmgr.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -27,8 +27,8 @@ native_shu() {
 }
 
 echo "=== TOOL-007: pkgmgr manifest ==="
-for f in "$DOC" "$MANIFEST" "$CATALOG" scripts/shux-deps-resolve.sh \
-  tests/fixtures/pkgmgr/shux.pkg.tsv tests/fixtures/pkgmgr/main.x; do
+for f in "$DOC" "$MANIFEST" "$CATALOG" scripts/xlang-deps-resolve.sh \
+  tests/fixtures/pkgmgr/xlang.pkg.tsv tests/fixtures/pkgmgr/main.x; do
   if [ ! -f "$f" ]; then
     echo "tool-pkgmgr gate FAIL: missing $f" >&2
     exit 1
@@ -146,25 +146,25 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "tool-pkgmgr manifest OK (rules=${RULE_N} packages=${PKG_N})"
 
-chmod +x scripts/shux-deps-resolve.sh tests/run-pkgmgr-resolve.sh
-./scripts/shux-deps-resolve.sh tests/fixtures/pkgmgr/shux.pkg.tsv
+chmod +x scripts/xlang-deps-resolve.sh tests/run-pkgmgr-resolve.sh
+./scripts/xlang-deps-resolve.sh tests/fixtures/pkgmgr/xlang.pkg.tsv
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-  echo "=== TOOL-007: pkgmgr hooks (SHUX=$SHUX_BIN) ==="
-  SHUX="$SHUX_BIN" ./tests/run-pkgmgr-resolve.sh
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
+  echo "=== TOOL-007: pkgmgr hooks (XLANG=$XLANG_BIN) ==="
+  XLANG="$XLANG_BIN" ./tests/run-pkgmgr-resolve.sh
   echo "tool-pkgmgr hooks OK"
 else
-  echo "tool-pkgmgr gate SKIP compile hook (no native shux)" >&2
+  echo "tool-pkgmgr gate SKIP compile hook (no native xlang)" >&2
 fi
 
 echo "tool-pkgmgr gate OK"

@@ -42,7 +42,7 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
-  - thin+rest 宏边界：`SHUX_ASYNC_ASM_POOL_FROM_X`
+  - thin+rest 宏边界：`XLANG_ASYNC_ASM_POOL_FROM_X`
   - rest 跨调用依赖：async_asm_pool_build_layout 调用 6 个 thin 函数（func_needs_cps/fn_id_from_name/expr_has_await/block_rest_refs_name/live_add/type_size_bytes）
 - 下一步补充：
   - arg_count / arg_shapes

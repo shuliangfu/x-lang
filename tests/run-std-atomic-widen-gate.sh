@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-atomic-widen-v1.md"
 MANIFEST="tests/baseline/std-atomic-widen-manifest.tsv"
 MOD_X="std/atomic/mod.x"
-ATOMIC_RUNTIME="${SHUX_STD_ATOMIC_IMPL:-compiler/seeds/runtime_atomic_glue.from_x.c}"
+ATOMIC_RUNTIME="${XLANG_STD_ATOMIC_IMPL:-compiler/seeds/runtime_atomic_glue.from_x.c}"
 LIB="tests/lib/std-atomic-widen.sh"
 SMOKE_X="tests/atomic/widen_16_64.x"
 
@@ -46,17 +46,17 @@ ATOMIC_RT_O="$(cd compiler && pwd)/runtime_atomic_glue.o"
 
 EXEC_OK=0
 SKIP=0
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-atomic-widen gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_atomic_widen_emit_report "fail" 0 0
     exit 1
   fi
-  if std_atomic_widen_run_smoke "$SHUX_BIN" "$SMOKE_X" "$ATOMIC_O" "$ATOMIC_RT_O"; then
+  if std_atomic_widen_run_smoke "$XLANG_BIN" "$SMOKE_X" "$ATOMIC_O" "$ATOMIC_RT_O"; then
     EXEC_OK=1
   else
     std_atomic_widen_emit_report "fail" 0 0

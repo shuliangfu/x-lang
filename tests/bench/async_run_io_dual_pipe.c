@@ -1,11 +1,11 @@
 /**
- * tests/bench/async_run_io_dual_pipe.c — 双 pipe + 两次 shux_async_run_i32 烟测
+ * tests/bench/async_run_io_dual_pipe.c — 双 pipe + 两次 xlang_async_run_i32 烟测
  *
  * 模拟两次 run read_chunk(fd)：各 pipe 经 seed push_i32(fd) 注入读端 fd。
  *
  * 编译：cc -std=c11 -o async_run_io_dual_pipe \
  *   tests/bench/async_run_io_dual_pipe.c std/io/io.o std/async/scheduler.o
- * 运行：SHUX_ASYNC_YIELD=1 ./async_run_io_dual_pipe
+ * 运行：XLANG_ASYNC_YIELD=1 ./async_run_io_dual_pipe
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -13,17 +13,17 @@
 #include <string.h>
 #include <unistd.h>
 
-#define SHUX_ASYNC_SUSPENDED ((int32_t)0x41535700)
-#define SHUX_IO_ASYNC_NOT_READY ((int32_t)-2)
+#define XLANG_ASYNC_SUSPENDED ((int32_t)0x41535700)
+#define XLANG_IO_ASYNC_NOT_READY ((int32_t)-2)
 
-extern int shux_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
-extern int32_t shux_io_complete_read_async_slot(int slot);
-extern int shux_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
-extern int32_t shux_async_run_i32(int32_t (*fn)(void));
-extern void shux_async_run_seed_reset(void);
-extern void shux_async_run_seed_push_i32(int32_t v);
-extern int shux_async_run_seed_valid(void);
-extern int32_t shux_async_run_seed_take_i32(void);
+extern int xlang_io_submit_read_async(uint8_t *ptr, size_t len, size_t handle);
+extern int32_t xlang_io_complete_read_async_slot(int slot);
+extern int xlang_async_cps_suspend_io(int32_t *phase, int32_t next_phase);
+extern int32_t xlang_async_run_i32(int32_t (*fn)(void));
+extern void xlang_async_run_seed_reset(void);
+extern void xlang_async_run_seed_push_i32(int32_t v);
+extern int xlang_async_run_seed_valid(void);
+extern int32_t xlang_async_run_seed_take_i32(void);
 
 static int g_read_fd;
 static uint8_t g_buf[16];
@@ -37,19 +37,19 @@ static int g_slot;
 static int32_t read_chunk_task(void) {
     int32_t n;
     if (g_step == 0) {
-        if (shux_async_run_seed_valid())
-            g_read_fd = shux_async_run_seed_take_i32();
+        if (xlang_async_run_seed_valid())
+            g_read_fd = xlang_async_run_seed_take_i32();
         g_step = 1;
         g_phase = 0;
-        g_slot = shux_io_submit_read_async(g_buf, sizeof(g_buf), (size_t)(unsigned)g_read_fd);
+        g_slot = xlang_io_submit_read_async(g_buf, sizeof(g_buf), (size_t)(unsigned)g_read_fd);
         if (g_slot < 0)
             return -1;
-        if (shux_async_cps_suspend_io(&g_phase, 1))
-            return SHUX_ASYNC_SUSPENDED;
+        if (xlang_async_cps_suspend_io(&g_phase, 1))
+            return XLANG_ASYNC_SUSPENDED;
     }
-    n = shux_io_complete_read_async_slot(g_slot);
-    if (n == SHUX_IO_ASYNC_NOT_READY)
-        n = shux_io_complete_read_async_slot(g_slot);
+    n = xlang_io_complete_read_async_slot(g_slot);
+    if (n == XLANG_IO_ASYNC_NOT_READY)
+        n = xlang_io_complete_read_async_slot(g_slot);
     return n;
 }
 
@@ -60,9 +60,9 @@ static int32_t run_read_on_fd(int read_fd) {
     g_step = 0;
     g_phase = 0;
     memset(g_buf, 0, sizeof(g_buf));
-    shux_async_run_seed_reset();
-    shux_async_run_seed_push_i32(read_fd);
-    return shux_async_run_i32(read_chunk_task);
+    xlang_async_run_seed_reset();
+    xlang_async_run_seed_push_i32(read_fd);
+    return xlang_async_run_i32(read_chunk_task);
 }
 
 /**
@@ -85,7 +85,7 @@ int main(void) {
     (void)close(fds_a[1]);
     (void)close(fds_b[1]);
 
-    setenv("SHUX_ASYNC_YIELD", "1", 1);
+    setenv("XLANG_ASYNC_YIELD", "1", 1);
 
     n1 = run_read_on_fd(fds_a[0]);
     n2 = run_read_on_fd(fds_b[0]);

@@ -2,30 +2,30 @@
 # typeck-parse-count-chunk.sh — A-11 分块 parse 指标（整文件 typeck.x 单次 parse 易 OOM）
 #
 # 将 typeck.x 按 function 定义切成多段，每段带完整 header（import/extern）+ stub main，
-# 用 SHUX_ASM_PARSE_METRIC_ONLY 只跑 parse，累加 num_defined（扣除每块 stub main）。
+# 用 XLANG_ASM_PARSE_METRIC_ONLY 只跑 parse，累加 num_defined（扣除每块 stub main）。
 #
 # 用法（仓库根）：
 #   ./tests/lib/typeck-parse-count-chunk.sh <compiler> [typeck.x]
 #
 # 环境：
-#   SHUX_TYPECK_PARSE_CHUNK_FUNCS  每块最多 function 个数（默认 20）
-#   SHUX_TYPECK_PARSE_CHUNK_LIBROOT  传给 -L（默认与 A-11 gate 一致）
+#   XLANG_TYPECK_PARSE_CHUNK_FUNCS  每块最多 function 个数（默认 20）
+#   XLANG_TYPECK_PARSE_CHUNK_LIBROOT  传给 -L（默认与 A-11 gate 一致）
 #
 # 成功时 stdout 打印累加后的 num_defined；失败返回 1。
 
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-# 连续 parse 指标会反复 exec shux；默认 nofile=1024 时约 90 次后 EMFILE → timeout SIGTERM。
+# 连续 parse 指标会反复 exec xlang；默认 nofile=1024 时约 90 次后 EMFILE → timeout SIGTERM。
 ulimit -n 8192 2>/dev/null || ulimit -n 4096 2>/dev/null || true
 
-COMP="${1:-./compiler/shux_asm}"
+COMP="${1:-./compiler/xlang_asm}"
 TYPECK_X="${2:-compiler/src/typeck/typeck.x}"
-CHUNK_FUNCS="${SHUX_TYPECK_PARSE_CHUNK_FUNCS:-10}"
-LIBROOT="${SHUX_TYPECK_PARSE_CHUNK_LIBROOT:--L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm}"
-WORKDIR="/tmp/shux_typeck_chunks.$$"
-OUT_BASE="/tmp/shux_typeck_chunk.$$"
-CHUNK_TIMEOUT="${SHUX_TYPECK_PARSE_CHUNK_TIMEOUT:-240}"
+CHUNK_FUNCS="${XLANG_TYPECK_PARSE_CHUNK_FUNCS:-10}"
+LIBROOT="${XLANG_TYPECK_PARSE_CHUNK_LIBROOT:--L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm}"
+WORKDIR="/tmp/xlang_typeck_chunks.$$"
+OUT_BASE="/tmp/xlang_typeck_chunk.$$"
+CHUNK_TIMEOUT="${XLANG_TYPECK_PARSE_CHUNK_TIMEOUT:-240}"
 
 if [ ! -x "$COMP" ] || [ ! -f "$TYPECK_X" ]; then
   echo "typeck-parse-count-chunk: need executable compiler and typeck.x" >&2

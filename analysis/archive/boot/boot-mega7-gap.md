@@ -60,7 +60,7 @@
 | 步骤 | 内容 | 验收 |
 |---|---|---|
 | C1 | MINIMAL 白名单保持绿色 | init + set_main_index |
-| C2 | 139 函数全量 emit | `SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1` 无 ret0 |
+| C2 | 139 函数全量 emit | `XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1` 无 ret0 |
 | C3 | gen1 X 编 gen2 parser 大体 | Stage2 三代一致性 |
 
 ---

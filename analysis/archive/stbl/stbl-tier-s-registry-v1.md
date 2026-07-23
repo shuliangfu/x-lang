@@ -45,7 +45,7 @@
 ```
 
 ```
-shux: [SHUX_STBL_TIER_S] status=ok covered=28 sym_miss=0
+xlang: [XLANG_STBL_TIER_S] status=ok covered=28 sym_miss=0
 ```
 
 便携回归：`tests/run-portable-suite.sh`

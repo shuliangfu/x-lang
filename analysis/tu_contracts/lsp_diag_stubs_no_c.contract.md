@@ -56,7 +56,7 @@
 - `lsp_get_document_len`
 - `lsp_get_document_ptr`
 - `lsp_set_document_from_body`
-- `shu_format_x_document`
+- `xlang_format_x_document`
 
 ### 3.3 thin/.x 独有导出（若非空，后续需审计）
 - `lsp_diag_stubs_no_c_x_doc_anchor`
@@ -66,7 +66,7 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：`json_escape_str_impl`、`lsp_diag_copy_text_impl`
-  - thin+rest 宏边界：`SHUX_LSP_DIAG_STUBS_NO_C_FROM_X`
+  - thin+rest 宏边界：`XLANG_LSP_DIAG_STUBS_NO_C_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape

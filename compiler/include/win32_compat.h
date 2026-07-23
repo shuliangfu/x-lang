@@ -1,6 +1,6 @@
 /* win32_compat.h — MinGW POSIX 兼容层 */
-#ifndef SHUX_WIN32_COMPAT_H
-#define SHUX_WIN32_COMPAT_H
+#ifndef XLANG_WIN32_COMPAT_H
+#define XLANG_WIN32_COMPAT_H
 
 #if defined(_WIN32) || defined(_WIN64)
 
@@ -25,7 +25,7 @@
 #include <process.h>
 #include <sys/stat.h>
 /* 注意：不要在此处 #include <windows.h>——它会引入 winnt.h 的 TOKEN_TYPE 等枚举，
- * 与 shux 自己的 TOKEN_TYPE 冲突。需要 Windows API（如 GetModuleFileNameA）的
+ * 与 xlang 自己的 TOKEN_TYPE 冲突。需要 Windows API（如 GetModuleFileNameA）的
  * 文件应在使用前局部 #include <windows.h>（用 NOGDI/NOUSER 减少 API 表面）。 */
 
 /* strndup — MinGW 无此函数 */
@@ -90,8 +90,8 @@ static inline char *realpath(const char *path, char *resolved) {
 
 /* setenv / unsetenv — MinGW lacks these POSIX functions.
  * Why: Historically defined inline here; now provided by shared header
- *      shux_posix_env.h (also pulled in via include/unistd.h). The shared
- *      header uses SHUX_POSIX_ENV_SHIM_DEFINED guard so any include order
+ *      xlang_posix_env.h (also pulled in via include/unistd.h). The shared
+ *      header uses XLANG_POSIX_ENV_SHIM_DEFINED guard so any include order
  *      (win32_compat.h before or after unistd.h) yields a single definition.
  *      The previous local definitions caused "redefinition of 'setenv'" /
  *      "redefinition of 'unsetenv'" errors when both win32_compat.h and
@@ -100,7 +100,7 @@ static inline char *realpath(const char *path, char *resolved) {
  *            existing env var. The shared shim honors this; the old local
  *            copy ignored `overwrite` (always overwrote) — POSIX violation.
  * PLATFORM: WINDOWS | MSYS | MINGW (pulls in shim); no-op on POSIX. */
-#include <shux_posix_env.h>
+#include <xlang_posix_env.h>
 
 /* strtok_r — MinGW 有 strtok_s */
 #ifndef strtok_r
@@ -165,4 +165,4 @@ static inline int pthread_attr_setguardsize(void *attr, size_t guardsize) {
 
 
 #endif /* _WIN32 || _WIN64 */
-#endif /* SHUX_WIN32_COMPAT_H */
+#endif /* XLANG_WIN32_COMPAT_H */

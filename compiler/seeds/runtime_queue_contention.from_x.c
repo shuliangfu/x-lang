@@ -15,10 +15,10 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <process.h>
 #include <windows.h>
-#define SHUX_QUEUE_WIN 1
+#define XLANG_QUEUE_WIN 1
 #else
 #include <pthread.h>
-#define SHUX_QUEUE_WIN 0
+#define XLANG_QUEUE_WIN 0
 #endif
 
 /** 烟测用 mutex 保护环形队列（与 queue.x QueueSmokeState 布局一致）。 */
@@ -30,7 +30,7 @@ typedef struct {
   int32_t head;
 } QueueSmokeState;
 
-#if SHUX_QUEUE_WIN
+#if XLANG_QUEUE_WIN
 typedef CRITICAL_SECTION queue_os_mutex_t;
 #else
 typedef pthread_mutex_t queue_os_mutex_t;
@@ -47,7 +47,7 @@ int32_t queue_smoke_at(QueueSmokeState *q, int32_t i);
 int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x);
 void *queue_os_worker_trampoline(void *arg);
 
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+#ifndef XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X
 /* G-02f-rest：rest→.x 迁移：_impl + thin wrapper 真迁 .x，PREFER_X_O 路径下整体跳过 */
 /** 逻辑下标 i 对应的物理下标。 */
 int32_t queue_smoke_at_impl(QueueSmokeState *q, int32_t i) {
@@ -67,7 +67,7 @@ int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
 
 
 
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+#ifndef XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X
 /* G-02f-rest：rest→.x 迁移：push_back _impl + thin wrapper + worker_push 真迁 .x */
 /** 队尾插入；失败 -1。 */
 int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
@@ -131,7 +131,7 @@ void *queue_os_mutex_create_c(void) {
     queue_os_mutex_t *m = (queue_os_mutex_t *)malloc(sizeof(queue_os_mutex_t));
     if (!m)
         return NULL;
-#if SHUX_QUEUE_WIN
+#if XLANG_QUEUE_WIN
     InitializeCriticalSection(m);
 #else
     if (pthread_mutex_init(m, NULL) != 0) {
@@ -146,7 +146,7 @@ void *queue_os_mutex_create_c(void) {
 void queue_os_mutex_destroy_c(void *mu) {
     if (!mu)
         return;
-#if SHUX_QUEUE_WIN
+#if XLANG_QUEUE_WIN
     DeleteCriticalSection((queue_os_mutex_t *)mu);
 #else
     pthread_mutex_destroy((queue_os_mutex_t *)mu);
@@ -158,7 +158,7 @@ void queue_os_mutex_destroy_c(void *mu) {
 void queue_os_mutex_lock_c(void *mu) {
     if (!mu)
         return;
-#if SHUX_QUEUE_WIN
+#if XLANG_QUEUE_WIN
     EnterCriticalSection((queue_os_mutex_t *)mu);
 #else
     pthread_mutex_lock((queue_os_mutex_t *)mu);
@@ -169,15 +169,15 @@ void queue_os_mutex_lock_c(void *mu) {
 void queue_os_mutex_unlock_c(void *mu) {
     if (!mu)
         return;
-#if SHUX_QUEUE_WIN
+#if XLANG_QUEUE_WIN
     LeaveCriticalSection((queue_os_mutex_t *)mu);
 #else
     pthread_mutex_unlock((queue_os_mutex_t *)mu);
 #endif
 }
 
-#if SHUX_QUEUE_WIN
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+#if XLANG_QUEUE_WIN
+#ifndef XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X
 /* G-02f-rest：rest→.x 迁移：Win32 trampoline 真迁 .x（PREFER_X_O 路径下跳过） */
 static unsigned __stdcall queue_os_worker_trampoline(void *arg) {
     (void)queue_contention_worker_push_c(arg);
@@ -185,7 +185,7 @@ static unsigned __stdcall queue_os_worker_trampoline(void *arg) {
 }
 #endif
 #else
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+#ifndef XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X
 /* G-02f-rest：rest→.x 迁移：_impl + thin wrapper 真迁 .x（PREFER_X_O 路径下跳过） */
 void *queue_os_worker_trampoline_impl(void *arg) {
     (void)queue_contention_worker_push_c(arg);
@@ -203,7 +203,7 @@ void *queue_os_worker_trampoline(void *arg) {
  * 返回值：0 成功，-1 失败。
  */
 int32_t queue_os_run_two_workers_c(void *ctx) {
-#if SHUX_QUEUE_WIN
+#if XLANG_QUEUE_WIN
     uintptr_t h0, h1;
     h0 = _beginthreadex(NULL, 0, queue_os_worker_trampoline, ctx, 0, NULL);
     h1 = _beginthreadex(NULL, 0, queue_os_worker_trampoline, ctx, 0, NULL);
@@ -227,7 +227,7 @@ int32_t queue_os_run_two_workers_c(void *ctx) {
     return 0;
 }
 
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+#ifndef XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X
 /* G-02f-rest：rest→.x 迁移：smoke 烟测真迁 .x（PREFER_X_O 路径下跳过） */
 /** STD-048：双线程并发 push 烟测；0 通过，-1 失败。 */
 int32_t sync_queue_contention_smoke_c(void) {

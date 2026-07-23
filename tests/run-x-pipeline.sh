@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 阶段 2.11 / 9.1：验证纯 .x 流水线（-x -E）对最小程序能跑通并产出 C。
 # 在仓库根目录执行：./tests/run-x-pipeline.sh
-# 要求：compiler 已 make，且 make bootstrap-pipeline + shux-x-pipeline 已生成 shux_x。
+# 要求：compiler 已 make，且 make bootstrap-pipeline + xlang-x-pipeline 已生成 xlang_x。
 
 set -e
 cd "$(dirname "$0")/.."
@@ -20,16 +20,16 @@ run_timeout() {
   fi
 }
 
-# 生成 shux_x（bootstrap-pipeline + 编译 pipeline_gen.c）整段限 120s，避免卡在 make
+# 生成 xlang_x（bootstrap-pipeline + 编译 pipeline_gen.c）整段限 120s，避免卡在 make
 make_ret=0
-run_timeout 120 bash -c 'make -C compiler bootstrap-pipeline 2>/dev/null || true; make -C compiler shux-x-pipeline 2>/dev/null || true' || make_ret=$?
+run_timeout 120 bash -c 'make -C compiler bootstrap-pipeline 2>/dev/null || true; make -C compiler xlang-x-pipeline 2>/dev/null || true' || make_ret=$?
 if [ "$make_ret" -eq 124 ]; then
-  echo "run-x-pipeline FAIL (make bootstrap-pipeline / shux-x-pipeline timed out after 120s)"
+  echo "run-x-pipeline FAIL (make bootstrap-pipeline / xlang-x-pipeline timed out after 120s)"
   exit 1
 fi
 
-if [ -x compiler/shux_x ]; then X_SHUX=compiler/shux_x; else X_SHUX=compiler/shux; fi
-[ -x "$X_SHUX" ] || { echo "compiler/shux_x and compiler/shux not found or not executable"; exit 1; }
+if [ -x compiler/xlang_x ]; then X_XLANG=compiler/xlang_x; else X_XLANG=compiler/xlang; fi
+[ -x "$X_XLANG" ] || { echo "compiler/xlang_x and compiler/xlang not found or not executable"; exit 1; }
 
 MIN_X="tests/x-pipeline/min.x"
 mkdir -p tests/x-pipeline
@@ -37,40 +37,40 @@ if [ ! -f "$MIN_X" ]; then
   printf 'function main(): i32 { return 0; }\n' > "$MIN_X"
 fi
 
-# 使用 compiler/shux 时可能为 C-only 构建（不支持 -x -E），先探测；不支持则跳过以免 make test 失败
-# 对 -x -E 加 60s 超时，避免 shux_x 在部分环境挂起（pipeline_run_x_pipeline_impl/typeck/codegen）。
+# 使用 compiler/xlang 时可能为 C-only 构建（不支持 -x -E），先探测；不支持则跳过以免 make test 失败
+# 对 -x -E 加 60s 超时，避免 xlang_x 在部分环境挂起（pipeline_run_x_pipeline_impl/typeck/codegen）。
 # 将 stderr 写入临时文件，失败时打印以便 CI 看到 -x -E 诊断（如 out_buf.len、前 16 字节 hex）。
 out=$(mktemp)
 err=$(mktemp)
 ec=0
-run_timeout 60 "$X_SHUX" -x -E "$MIN_X" > "$out" 2>"$err" || ec=$?
+run_timeout 60 "$X_XLANG" -x -E "$MIN_X" > "$out" 2>"$err" || ec=$?
 [ "$ec" -eq 142 ] && ec=124
 _show_stderr() { echo "--- stderr ---"; cat "$err" 2>/dev/null || true; rm -f "$err"; }
 if [ "$ec" -eq 124 ]; then
   rm -f "$out"
   _show_stderr
-  echo "run-x-pipeline FAIL (shux_x -x -E timed out after 60s)"
+  echo "run-x-pipeline FAIL (xlang_x -x -E timed out after 60s)"
   exit 1
 fi
 if [ "$ec" -ne 0 ]; then
-  if [ "$X_SHUX" = "compiler/shux" ]; then
+  if [ "$X_XLANG" = "compiler/xlang" ]; then
     rm -f "$out" "$err"
-    echo "run-x-pipeline SKIP (shux does not support -x -E; run make bootstrap-driver or use build_tool for full shux)"
+    echo "run-x-pipeline SKIP (xlang does not support -x -E; run make bootstrap-driver or use build_tool for full xlang)"
     exit 0
   fi
   if [ "$ec" -eq 126 ]; then
     rm -f "$out" "$err"
-    echo "run-x-pipeline SKIP (shux_x not runnable in this env, e.g. wrong libc in container; run make -C compiler clean first)"
+    echo "run-x-pipeline SKIP (xlang_x not runnable in this env, e.g. wrong libc in container; run make -C compiler clean first)"
     exit 0
   fi
-  echo "run-x-pipeline: $X_SHUX -x -E $MIN_X failed (exit $ec)"
+  echo "run-x-pipeline: $X_XLANG -x -E $MIN_X failed (exit $ec)"
   cat "$out" 2>/dev/null || true
   _show_stderr
   rm -f "$out"
   exit 1
 fi
 
-# 产出应含 return（有 return 即视为有效 C；#include 可有可无，shux_x 的 pipeline 可能不生成）
+# 产出应含 return（有 return 即视为有效 C；#include 可有可无，xlang_x 的 pipeline 可能不生成）
 if ! grep -q 'return' "$out"; then
   echo "run-x-pipeline: output missing return"
   cat "$out"

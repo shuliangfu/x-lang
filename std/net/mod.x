@@ -645,7 +645,7 @@ export function connect_many(addr: Ipv4Addr, port: u32, out: TcpStream[], timeou
  * @param ctx Context
  * @return i32
  */
-export function timeout_ms_from_ctx(ctx: Context): i32 {
+export function timeout_ms_from_ctx(ctx: context.Context): i32 {
   if (context.is_cancelled(ctx) != 0) {
     return err.net_err_cancelled();
   }
@@ -673,7 +673,7 @@ export function timeout_ms_from_ctx(ctx: Context): i32 {
  * @param ctx Context
  * @return i32
  */
-export function connect_ctx_fd(addr: Ipv4Addr, port: u32, ctx: Context): i32 {
+export function connect_ctx_fd(addr: Ipv4Addr, port: u32, ctx: context.Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -688,7 +688,7 @@ export function connect_ctx_fd(addr: Ipv4Addr, port: u32, ctx: Context): i32 {
  * @param ctx Context
  * @return i32
  */
-export function connect_ipv6_ctx_fd(addr: Ipv6Addr, port: u32, ctx: Context): i32 {
+export function connect_ipv6_ctx_fd(addr: Ipv6Addr, port: u32, ctx: context.Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -702,7 +702,7 @@ export function connect_ipv6_ctx_fd(addr: Ipv6Addr, port: u32, ctx: Context): i3
  * @param ctx Context
  * @return i32
  */
-export function accept_ctx_fd(listener: TcpListener, ctx: Context): i32 {
+export function accept_ctx_fd(listener: TcpListener, ctx: context.Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -718,7 +718,7 @@ export function accept_ctx_fd(listener: TcpListener, ctx: Context): i32 {
  * @param ctx Context
  * @return i32
  */
-export function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
+export function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: context.Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;
@@ -734,7 +734,7 @@ export function read_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context):
  * @param ctx Context
  * @return i32
  */
-export function write_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: Context): i32 {
+export function write_ctx(stream: TcpStream, ptr: *u8, len: usize, ctx: context.Context): i32 {
   let tm: i32 = timeout_ms_from_ctx(ctx);
   if (tm < 0) {
     return tm;

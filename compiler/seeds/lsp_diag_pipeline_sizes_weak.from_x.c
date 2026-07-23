@@ -1,5 +1,5 @@
 /* seeds/lsp_diag_pipeline_sizes_weak.from_x.c — G-02f-81
- * Non-product shux-c chain: sizeof + weak fill_paths stubs.
+ * Non-product xlang-c chain: sizeof + weak fill_paths stubs.
  * Product G05 uses seeds/lsp_diag_pipeline_sizes.from_x.c (nostub).
  * Promoted from compiler/src/lsp/lsp_diag_pipeline_sizes.inc.
  */
@@ -8,10 +8,10 @@
  *
  * G-02f-1：产品 G05 的 `lsp_diag_pipeline_sizes_nostub.o` 已改由
  * `src/lsp/lsp_diag_pipeline_sizes.x`（#[no_mangle]）→ `seeds/lsp_diag_pipeline_sizes.from_x.c` 提供；
- * 本 .inc 仅供 `lsp_diag_pipeline_sizes.o`（shux-c / 无 ctx 链）继续使用。
+ * 本 .inc 仅供 `lsp_diag_pipeline_sizes.o`（xlang-c / 无 ctx 链）继续使用。
  * 瘦 sizeof 常量须与 .x 一致：arena=16 / module=40 / dep_ctx=1368。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -99,23 +99,23 @@ size_t lsp_diag_pipeline_sizeof_module(void) { return sizeof(struct ast_Module);
 size_t lsp_diag_pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
 
 /**
- * shux-c / 无 pipeline_x 时的弱占位：返回 0 表示用瘦 struct 尺寸。
+ * xlang-c / 无 pipeline_x 时的弱占位：返回 0 表示用瘦 struct 尺寸。
  * bootstrap-driver 链 lsp_diag_pipeline_ctx.o 时由强符号覆盖为 pipeline_sizeof_dep_ctx()。
- * SHUX_LSP_PIPELINE_CTX_LINKED：bootstrap 同时链 ctx.o，本 TU 勿再导出占位（Cygwin 无 weak）。
+ * XLANG_LSP_PIPELINE_CTX_LINKED：bootstrap 同时链 ctx.o，本 TU 勿再导出占位（Cygwin 无 weak）。
  */
-#ifndef SHUX_LSP_PIPELINE_CTX_LINKED
+#ifndef XLANG_LSP_PIPELINE_CTX_LINKED
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
 size_t lsp_diag_x_alloc_dep_ctx_size(void) { return 0; }
 #else
-SHUX_WEAK size_t lsp_diag_x_alloc_dep_ctx_size(void) { return 0; }
+XLANG_WEAK size_t lsp_diag_x_alloc_dep_ctx_size(void) { return 0; }
 #endif
 
-/** shux-c 链接用占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。MSYS2/Cygwin 不支持 ELF weak。 */
+/** xlang-c 链接用占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。MSYS2/Cygwin 不支持 ELF weak。 */
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
 void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
                                       const char **lib_roots, int n_lib_roots) {
 #else
-SHUX_WEAK void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
+XLANG_WEAK void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
                                                             const char **lib_roots, int n_lib_roots) {
 #endif
     (void)ctx_void;
@@ -123,4 +123,4 @@ SHUX_WEAK void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entr
     (void)lib_roots;
     (void)n_lib_roots;
 }
-#endif /* !SHUX_LSP_PIPELINE_CTX_LINKED */
+#endif /* !XLANG_LSP_PIPELINE_CTX_LINKED */

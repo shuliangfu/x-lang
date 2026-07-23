@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-url-ipv6-host.sh — STD-134 manifest 与烟测辅助
 
-STD_URL_IPV6_HOST_PREFIX="${SHUX_STD134_URL_IPV6_HOST_PREFIX:-shux: [SHUX_STD134_URL_IPV6_HOST]}"
+STD_URL_IPV6_HOST_PREFIX="${XLANG_STD134_URL_IPV6_HOST_PREFIX:-xlang: [XLANG_STD134_URL_IPV6_HOST]}"
 
 # 校验 manifest 条目；echo 缺失数。
 std_url_ipv6_host_symbols_ok() {
@@ -45,10 +45,10 @@ std_url_ipv6_host_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_url_ipv6_host_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_url_ipv6_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_url_ipv6_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-url-ipv6-host FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -65,7 +65,7 @@ std_url_ipv6_host_run_smoke() {
 std_url_ipv6_host_run_c_smoke() {
   local url_o="$1"
   local src="tests/std-url/ipv6_host_smoke_ok.c"
-  local out="/tmp/shux_std_url_ipv6_c_$$"
+  local out="/tmp/xlang_std_url_ipv6_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

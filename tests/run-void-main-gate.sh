@@ -3,24 +3,24 @@
 # Cases: empty body fall-off; println (README / examples/hello.x shape).
 set -e
 cd "$(dirname "$0")/.."
-SHUX=${SHUX:-./compiler/shux_asm}
-if [ ! -x "$SHUX" ]; then
-  SHUX=./compiler/shux
+XLANG=${XLANG:-./compiler/xlang_asm}
+if [ ! -x "$XLANG" ]; then
+  XLANG=./compiler/xlang
 fi
-if [ ! -x "$SHUX" ]; then
-  echo "void-main gate FAIL: no shux_asm/shux" >&2
+if [ ! -x "$XLANG" ]; then
+  echo "void-main gate FAIL: no xlang_asm/xlang" >&2
   exit 1
 fi
 
 run_one() {
   local src="$1"
   local tag="$2"
-  local out="/tmp/shux_void_main_${tag}_$$"
+  local out="/tmp/xlang_void_main_${tag}_$$"
   rm -f "$out"
   # Prefer C backend link path for stable process exit code.
-  if "$SHUX" build -backend c -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
+  if "$XLANG" build -backend c -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
     :
-  elif "$SHUX" build -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
+  elif "$XLANG" build -L . "$src" -o "$out" 2>/tmp/void_main_${tag}_build.err; then
     :
   else
     echo "void-main gate FAIL: build $tag ($src)" >&2

@@ -15,7 +15,7 @@
  *
  * G-02e-7：原 parser_asm_link_alias.c 并入本 TU。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -41,7 +41,7 @@ struct parser_asm_parse_expr_result {
 };
 
 /** 与 parser_gen / pipeline_gen u8[] 切片 ABI 一致。 */
-struct shux_slice_uint8_t {
+struct xlang_slice_uint8_t {
   uint8_t *data;
   size_t length;
 };
@@ -68,23 +68,28 @@ struct ASTModule;
 struct ast_ASTArena;
 
 extern void parser_parse_expr_into(struct ast_ASTArena *arena, struct lexer_Lexer lex,
-                                   struct shux_slice_uint8_t *source, struct parser_ParseExprResult *out);
+                                   struct xlang_slice_uint8_t *source, struct parser_ParseExprResult *out);
 
 extern int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t i, uint8_t *out);
-extern int32_t parser_parse_one_function_ok_for_pipeline_glue(void *arena, struct shux_slice_uint8_t *source);
-extern int32_t parser_diag_token_after_collect_imports_glue(struct shux_slice_uint8_t *source, void *module);
-/* G-02f-116 / G-02f-333：debug_enabled 真体；hybrid 时作 _impl 供 .x thin 调用 */
-#ifndef SHUX_L2_PEL_THIN_FROM_X
-int parser_asm_parse_expr_debug_enabled(void)
-#else
-extern int parser_asm_parse_expr_debug_enabled(void);
-int parser_asm_parse_expr_debug_enabled_impl(void)
-#endif
-{
-  const char *v = getenv("SHUX_PARSER_ASM_DEBUG");
+extern int32_t parser_parse_one_function_ok_for_pipeline_glue(void *arena, struct xlang_slice_uint8_t *source);
+extern int32_t parser_diag_token_after_collect_imports_glue(struct xlang_slice_uint8_t *source, void *module);
+/* wave237 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed twin uses same face as product hybrid pure .x. */
+extern char *link_abi_getenv(const char *name);
+/* G-02f-116 / G-02f-333 / wave237：debug_enabled pure orch in .x (hybrid FROM_X);
+ * cold seed keeps same-semantics twin under #ifndef (no *_impl residual).
+ * Rules: null / empty / leading '0' → 0; any other non-empty → 1. */
+#ifndef XLANG_L2_PEL_THIN_FROM_X
+int parser_asm_parse_expr_debug_enabled(void) {
+  const char *v = link_abi_getenv("XLANG_PARSER_ASM_DEBUG");
   return v && *v && *v != '0';
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#else
+/* wave237: pure orch in .x; no rest *_impl rename for debug_enabled. */
+extern int parser_asm_parse_expr_debug_enabled(void);
+#endif
+/* G-02f-165 / wave237：逻辑源 .x（批折叠）；cold seed 保留同语义 C 供无 PREFER 冷路径。 */
 
 
 
@@ -137,7 +142,7 @@ void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm
   static int32_t parse_expr_debug_calls = 0;
   int debug_enabled;
   struct lexer_Lexer mega_lex;
-  struct shux_slice_uint8_t mega_src;
+  struct xlang_slice_uint8_t mega_src;
   struct parser_ParseExprResult mega_out;
   if (!source || !out) {
     return;
@@ -182,15 +187,15 @@ void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm
 
 #ifndef PARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 /** runtime 期望 parser_diag_token_after_collect_imports；委托 thin_c glue。 */
-int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module) {
+int32_t parser_diag_token_after_collect_imports(struct xlang_slice_uint8_t *source, void *module) {
   return parser_diag_token_after_collect_imports_glue(source, module);
 }
 #endif
 
 /**
- * seed ./shux 链无 parser_parse_bootstrap.o 时提供弱裸名桩；experimental 链入真 bootstrap .o 后覆盖。
+ * seed ./xlang 链无 parser_parse_bootstrap.o 时提供弱裸名桩；experimental 链入真 bootstrap .o 后覆盖。
  */
-SHUX_WEAK struct parser_ParseIntoResult parse_into_buf(void *arena, void *module, uint8_t *data,
+XLANG_WEAK struct parser_ParseIntoResult parse_into_buf(void *arena, void *module, uint8_t *data,
                                                                    int32_t len) {
   (void)arena;
   (void)module;
@@ -202,8 +207,8 @@ SHUX_WEAK struct parser_ParseIntoResult parse_into_buf(void *arena, void *module
   return r;
 }
 
-SHUX_WEAK struct parser_ParseIntoResult parse_into(void *arena, void *module,
-                                                                struct shux_slice_uint8_t *source) {
+XLANG_WEAK struct parser_ParseIntoResult parse_into(void *arena, void *module,
+                                                                struct xlang_slice_uint8_t *source) {
   (void)arena;
   (void)module;
   (void)source;
@@ -213,7 +218,7 @@ SHUX_WEAK struct parser_ParseIntoResult parse_into(void *arena, void *module,
   return r;
 }
 
-SHUX_WEAK void parse_into_set_main_index(void *module, int32_t main_idx) {
+XLANG_WEAK void parse_into_set_main_index(void *module, int32_t main_idx) {
   (void)module;
   (void)main_idx;
 }
@@ -233,24 +238,24 @@ int32_t parser_copy_module_import_path64(struct ASTModule *module, int32_t i, ui
 /**
  * pipeline 期望 (arena, source) 两参；委托 parse_one_function_ok_for_pipeline_glue。
  */
-int32_t parser_parse_one_function_ok_for_pipeline(void *arena, struct shux_slice_uint8_t *source) {
+int32_t parser_parse_one_function_ok_for_pipeline(void *arena, struct xlang_slice_uint8_t *source) {
   return parser_parse_one_function_ok_for_pipeline_glue(arena, source);
 }
 #endif
 
 /** runtime 期望 parser_parse_into_buf；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
-SHUX_WEAK struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data,
+XLANG_WEAK struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data,
                                                                           int32_t len) {
   return parse_into_buf(arena, module, data, len);
 }
 
 /** runtime 期望 parser_parse_into；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
-SHUX_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *module,
-                                                                       struct shux_slice_uint8_t *source) {
+XLANG_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *module,
+                                                                       struct xlang_slice_uint8_t *source) {
   return parse_into(arena, module, source);
 }
 
 /** runtime 期望 parser_parse_into_set_main_index；legacy .text / bootstrap .o 强符号覆盖弱默认。 */
-SHUX_WEAK void parser_parse_into_set_main_index(void *module, int32_t main_idx) {
+XLANG_WEAK void parser_parse_into_set_main_index(void *module, int32_t main_idx) {
   parse_into_set_main_index(module, main_idx);
 }

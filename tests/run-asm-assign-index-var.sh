@@ -3,13 +3,13 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 
 run_one() {
   local src="$1"
   local out="$2"
   local want="$3"
-  $SHUX "$src" -o "$out" 2>&1
+  $XLANG build "$src" -o "$out" 2>&1
   local exitcode=0
   "$out" >/dev/null 2>&1 || exitcode=$?
   [ "$exitcode" -ne "$want" ] && {
@@ -22,7 +22,7 @@ run_one() {
   fi
 }
 
-run_one tests/asm/assign_index_var_to_var.x /tmp/shux_asm_assign_index_var_to_var 15
-run_one tests/asm/assign_index_lit_to_var.x /tmp/shux_asm_assign_index_lit_to_var 15
+run_one tests/asm/assign_index_var_to_var.x /tmp/xlang_asm_assign_index_var_to_var 15
+run_one tests/asm/assign_index_lit_to_var.x /tmp/xlang_asm_assign_index_lit_to_var 15
 
 echo "asm assign index var OK"

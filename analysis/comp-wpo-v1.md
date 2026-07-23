@@ -24,24 +24,24 @@
 | 阶段 | 能力 | 实现锚点 | 烟测 |
 |------|------|----------|------|
 | **W1-reach-dce** | 全程序 call graph 可达 + dead export DCE | `codegen_wpo_reach_compute` | `run-wpo-dce-emit.sh` |
-| **W2-callgraph-s1** | JSON call graph 导出 | `SHUX_WPO_DUMP_CALLGRAPH` | `run-wpo-s1.sh` |
+| **W2-callgraph-s1** | JSON call graph 导出 | `XLANG_WPO_DUMP_CALLGRAPH` | `run-wpo-s1.sh` |
 | **W3-const-spec-s2** | 常量实参 call site + const fold | `wpo_const_spec.pl` | `run-wpo-s2.sh` |
 | **W4-stack-promote-s3** | struct 栈提升 / await asm | `typeck_wpo_post_scan` | `run-wpo-s3-gate.sh` |
-| **W5-pgo-s4** | `.text.hot` / unlikely 分区 | `SHUX_WPO_PGO_HOT` | `run-wpo-s4-gate.sh` |
+| **W5-pgo-s4** | `.text.hot` / unlikely 分区 | `XLANG_WPO_PGO_HOT` | `run-wpo-s4-gate.sh` |
 | **W6-optin-prototype** | `pipeline_wpo` strict_glue 可编可跑 | `pipeline_wpo.o` | `run-pipeline-wpo-optin-smoke.sh` |
 
 **whole program 模型（v1）**：
 
 1. typeck 后构建 **跨模块** reach（入口 `main` + import 依赖闭包）。
 2. codegen DCE 用 `CodegenWpoReach` 剔除 unreachable export（含库模块 dead fn）。
-3. **prototype 启用**：Linux x86_64 上 `shux_asm` + `ensure-wpo-build-asm-artifacts`；Darwin 烟测 SKIP。
+3. **prototype 启用**：Linux x86_64 上 `xlang_asm` + `ensure-wpo-build-asm-artifacts`；Darwin 烟测 SKIP。
 
 ```bash
-# 小规模 DCE（shux-c，任意主机可编时）
-./compiler/shux-c -E tests/wpo/dead_fn.x   # 无 dead_helper 体
+# 小规模 DCE（xlang-c，任意主机可编时）
+./compiler/xlang-c -E tests/wpo/dead_fn.x   # 无 dead_helper 体
 
 # call graph 导出
-SHUX_WPO_DUMP_CALLGRAPH=/tmp/cg.json ./compiler/shux-c check tests/wpo/dead_fn.x
+XLANG_WPO_DUMP_CALLGRAPH=/tmp/cg.json ./compiler/xlang-c check tests/wpo/dead_fn.x
 ```
 
 ---
@@ -76,8 +76,8 @@ SHUX_WPO_DUMP_CALLGRAPH=/tmp/cg.json ./compiler/shux-c check tests/wpo/dead_fn.x
 
 ## 5. 非目标（v1）
 
-- 跨 TU LTO 级 IPA（仅 Shux 模块图）
-- 默认对所有 `shux` 构建开启 asm WPO（仍 opt-in `shux_asm`）
+- 跨 TU LTO 级 IPA（仅 Xlang 模块图）
+- 默认对所有 `xlang` 构建开启 asm WPO（仍 opt-in `xlang_asm`）
 - Windows / riscv WPO 全链
 
 ---

@@ -20,26 +20,26 @@ sym_miss="$(std_unicode_gc_symbols_ok "$MOD_X" "$UNI_IMPL" "$MANIFEST" || true)"
 ensure_std_c_o ../std/unicode/unicode.o
 UNI_O="$(cd compiler && pwd)/../std/unicode/unicode.o"
 C_OK=0
-if cc -std=c11 -O1 -o /tmp/shux_unicode_gc_c "$UNI_O" -x c - <<'EOF' 2>/dev/null; then
+if cc -std=c11 -O1 -o /tmp/xlang_unicode_gc_c "$UNI_O" -x c - <<'EOF' 2>/dev/null; then
 #include <stdint.h>
 extern int32_t grapheme_case_smoke(void);
 int main(void){ return grapheme_case_smoke()!=0; }
 EOF
-  /tmp/shux_unicode_gc_c >/dev/null && C_OK=1
-  rm -f /tmp/shux_unicode_gc_c
+  /tmp/xlang_unicode_gc_c >/dev/null && C_OK=1
+  rm -f /tmp/xlang_unicode_gc_c
 else
   echo "std-unicode-grapheme-case gate SKIP c smoke (unicode.o link failed)" >&2
 fi
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
-  SHUX_BIN=./compiler/shux-c
-  [ -x "$SHUX_BIN" ] || SHUX_BIN=./compiler/shux
-  "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null
-  std_unicode_gc_run_smoke "$SHUX_BIN" "$SMOKE_X" && X_OK=1 || exit 1
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
+  XLANG_BIN=./compiler/xlang-c
+  [ -x "$XLANG_BIN" ] || XLANG_BIN=./compiler/xlang
+  "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null
+  std_unicode_gc_run_smoke "$XLANG_BIN" "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
-  echo "std-unicode-grapheme-case gate SKIP x smoke (no shux-c)" >&2
+  echo "std-unicode-grapheme-case gate SKIP x smoke (no xlang-c)" >&2
 fi
 std_unicode_gc_emit_report ok "$C_OK" "$X_OK" "$SKIP"
 echo "std-unicode-grapheme-case gate OK"

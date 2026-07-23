@@ -27,7 +27,7 @@
 | **M2-typeck** | 类型实参数量与形参绑定 | `typeck.c` generic call | ✅ |
 | **M3-monomorph** | 调用点单态化实例生成 | `codegen.c` `codegen_one_mono_instance` | ✅ |
 | **M4-local-call** | 同模块 `id<i32>(42)` | `tests/generic/main.x` | ✅ |
-| **M5-import-call** | 跨模块泛型 import 调用 | `tests/multi-file-generic/`（**shux-c**） | ✅ prototype |
+| **M5-import-call** | 跨模块泛型 import 调用 | `tests/multi-file-generic/`（**xlang-c**） | ✅ prototype |
 | **M6-benchmark** | 单态化热路径 microbench | `tests/bench/generic_id_i32.x` | ✅ prototype |
 
 **单态化（monomorph）模型**：编译期为每个 `(template, type_args)` 生成独立 C 函数；**零运行时泛型字典**，与 C++ 模板实例化同类。
@@ -41,7 +41,7 @@ function main(): i32 { return id<i32>(42); }  // → exit 42
 
 - 无 trait / 接口约束（见 LANG-004）
 - 无泛型 struct / enum（仅函数模板）
-- `.x` seed pipeline 的跨模块泛型单态化仍走 **shux-c**（M5）
+- `.x` seed pipeline 的跨模块泛型单态化仍走 **xlang-c**（M5）
 
 ---
 
@@ -51,10 +51,10 @@ function main(): i32 { return id<i32>(42); }  // → exit 42
 
 | capability | pipeline | 说明 |
 |------------|----------|------|
-| `mono_local` | shux / shux-c | 单文件 `id<T>` |
-| `typeck_arity` | shux / shux-c | 错误实参个数 → typeck error |
-| `mono_import` | shux-c | `import` + `id<i32>` |
-| `bench_loop` | shux / shux-c | `generic_id_i32.x` 循环调用 |
+| `mono_local` | xlang / xlang-c | 单文件 `id<T>` |
+| `typeck_arity` | xlang / xlang-c | 错误实参个数 → typeck error |
+| `mono_import` | xlang-c | `import` + `id<i32>` |
+| `bench_loop` | xlang / xlang-c | `generic_id_i32.x` 循环调用 |
 
 ---
 
@@ -64,7 +64,7 @@ function main(): i32 { return id<i32>(42); }  // → exit 42
 |---------|------|------|
 | `case_local_mono` | `tests/generic/main.x` | 编译运行 exit **42** |
 | `case_type_args` | `tests/generic/wrong_type_args.x` | typeck 报 `type arguments` |
-| `case_import_mono` | `tests/multi-file-generic/main.x` | shux-c 运行 exit **42** |
+| `case_import_mono` | `tests/multi-file-generic/main.x` | xlang-c 运行 exit **42** |
 
 ---
 
@@ -73,8 +73,8 @@ function main(): i32 { return id<i32>(42); }  // → exit 42
 `tests/bench/generic_id_i32.x`：循环 `id<i32>(i)` 累加，用于对比单态化后是否与手写 `i32` 循环同量级（**benchmark** 仅作回归锚点，不绑定绝对耗时）。
 
 ```bash
-# 本地 smoke（需 native shux）
-./compiler/shux tests/bench/generic_id_i32.x -o /tmp/shux_gen_bench && /tmp/shux_gen_bench
+# 本地 smoke（需 native xlang）
+./compiler/xlang tests/bench/generic_id_i32.x -o /tmp/xlang_gen_bench && /tmp/xlang_gen_bench
 ```
 
 ---

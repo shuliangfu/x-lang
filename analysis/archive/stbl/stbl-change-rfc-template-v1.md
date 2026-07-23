@@ -50,7 +50,7 @@
 manifest：`tests/baseline/stbl-change-rfc-template.tsv`
 
 ```
-shux: [SHUX_STBL_CHANGE_RFC] status=ok sections=7
+xlang: [XLANG_STBL_CHANGE_RFC] status=ok sections=7
 ```
 
 ---

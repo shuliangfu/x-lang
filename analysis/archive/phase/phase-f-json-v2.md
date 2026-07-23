@@ -13,13 +13,13 @@
 ## 门禁
 
 ```bash
-SHUX_F_JSON_V2_FAIL=1 ./tests/run-f-json-v2-gate.sh
+XLANG_F_JSON_V2_FAIL=1 ./tests/run-f-json-v2-gate.sh
 ./tests/run-std-json-gate.sh
 ./tests/run-std-json-object-array-gate.sh
 ./tests/run-std-json-serialize-gate.sh
 ./tests/run-std-json-typed-decode-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 
 ## 下一项

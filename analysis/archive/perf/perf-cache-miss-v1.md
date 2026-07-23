@@ -13,7 +13,7 @@
 | **热点 L1 可见** | SoA 列扫描路径 L1 miss 率可测、可 cap |
 | **SoA 优于 AoS** | 同 bench 下 SoA miss% < AoS（列主序收益） |
 | **共享 perf 库** | `tests/lib/perf-cache-miss.sh` 供 dod-soa / gate 复用 |
-| **可 grep** | `shux: [SHUX_CACHE_MISS]` 报告行 |
+| **可 grep** | `xlang: [XLANG_CACHE_MISS]` 报告行 |
 
 验收（NEXT PERF-006）：**热点路径 miss 降低** → baseline cap + dod-soa 挂钩 + gate。
 
@@ -26,16 +26,16 @@
 | 工具 | Linux `perf stat`（L1-dcache-loads/misses，回落 cache-references/misses） |
 | Bench | `tests/bench/dod_soa_sum_x.x` vs `dod_aos_sum_x.x` |
 | f32 | `dod_f32_soa_sum_x.x` vs `dod_f32_aos_sum_x.x` |
-| 默认 N | `SHUX_DOD_BENCH_N=4096` |
+| 默认 N | `XLANG_DOD_BENCH_N=4096` |
 
 环境：
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `SHUX_DOD_SOA_MAX_L1_MISS_PCT` | `1.0` | SoA i32 cap（%） |
-| `SHUX_DOD_SOA_FAIL` | `0` | `1` 时超 cap 硬失败 |
-| `SHUX_DOD_SOA_REQUIRE_L1` | `0` | CI Linux 可设 `1` 禁止 SKIP |
-| `SHUX_CACHE_MISS_PREFIX` | `shux: [SHUX_CACHE_MISS]` | 报告前缀 |
+| `XLANG_DOD_SOA_MAX_L1_MISS_PCT` | `1.0` | SoA i32 cap（%） |
+| `XLANG_DOD_SOA_FAIL` | `0` | `1` 时超 cap 硬失败 |
+| `XLANG_DOD_SOA_REQUIRE_L1` | `0` | CI Linux 可设 `1` 禁止 SKIP |
+| `XLANG_CACHE_MISS_PREFIX` | `xlang: [XLANG_CACHE_MISS]` | 报告前缀 |
 
 ---
 
@@ -51,7 +51,7 @@
 ## 4. 报告行
 
 ```text
-shux: [SHUX_CACHE_MISS] case=dod_soa_sum_x layout=soa l1_miss_pct=0.4200 cap_pct=1.0 ok=1
+xlang: [XLANG_CACHE_MISS] case=dod_soa_sum_x layout=soa l1_miss_pct=0.4200 cap_pct=1.0 ok=1
 ```
 
 实现：`perf_cm_report_emit()` in `tests/lib/perf-cache-miss.sh`；`run-perf-dod-soa.sh` 在 L1 测量后 emit。
@@ -60,8 +60,8 @@ shux: [SHUX_CACHE_MISS] case=dod_soa_sum_x layout=soa l1_miss_pct=0.4200 cap_pct
 
 ## 5. 治理流程
 
-1. 本地 / CI：`./tests/run-perf-dod-soa.sh`（Linux + native shux）  
-2. 超 cap：`SHUX_DOD_SOA_FAIL=1` 或调优 SoA layout / `align(64)`（DOD-CL-S1）  
+1. 本地 / CI：`./tests/run-perf-dod-soa.sh`（Linux + native xlang）  
+2. 超 cap：`XLANG_DOD_SOA_FAIL=1` 或调优 SoA layout / `align(64)`（DOD-CL-S1）  
 3. 新热点：增 `cache-miss-perf.tsv` 行 + manifest case  
 4. 门禁：`./tests/run-perf-cache-miss-gate.sh`
 

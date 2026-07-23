@@ -2,6 +2,6 @@
 # 列：item_id	kind	anchor	mod_path	notes
 tier_s_stable	start	SipHash	-	不变 API
 one_shot_fast	xxhash64	xxHash64	-	一次性
-env_default	default_hasher	SHUX_HASH_ALGO	-	环境
+env_default	default_hasher	XLANG_HASH_ALGO	-	环境
 recommend_map	recommend_hasher_map	SipHash	-	Map/Set
 recommend_fast	recommend_hasher_fast	xxHash64	-	内部快速

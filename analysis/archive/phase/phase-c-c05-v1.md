@@ -8,7 +8,7 @@
 |----|------|------|
 | lsp_diag.x | 诊断 JSON 响应；`pipeline_lsp_diag_parse_typeck_buf` | `run-c05-lsp-x-gate.sh` |
 | Makefile 链 | `bootstrap-driver-seed` 链 `lsp_diag_x.o` + alias | 同上 |
-| LSP 烟测 | `shux --lsp` initialize / diagnostics / format / definition | `run-lsp.sh`（委托） |
+| LSP 烟测 | `xlang --lsp` initialize / diagnostics / format / definition | `run-lsp.sh`（委托） |
 | 补全 | C1–C6 completion | `run-lsp-completion.sh`（登记） |
 
 ## 仍留 C（不阻塞 v1 ✅）
@@ -20,7 +20,7 @@
 
 ```bash
 make -C compiler bootstrap-driver-seed
-SHUX_C05_FAIL=1 ./tests/run-c05-lsp-x-gate.sh
+XLANG_C05_FAIL=1 ./tests/run-c05-lsp-x-gate.sh
 ```
 
 ## 延后（C-05 v2 / E-02）

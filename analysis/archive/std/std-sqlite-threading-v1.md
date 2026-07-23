@@ -51,7 +51,7 @@
 ```
 
 ```
-shux: [SHUX_STD138_DB_THREADING] status=ok doc=1 readme=1
+xlang: [XLANG_STD138_DB_THREADING] status=ok doc=1 readme=1
 ```
 
 ---

@@ -19,26 +19,26 @@ sym_miss="$(core_str_find_split_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 CHECK_OK=0
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ]; then
-  if ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -x ./compiler/xlang-c ]; then
+  if ./compiler/xlang-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "core-str-find-split gate FAIL: typeck" >&2
-    ./compiler/shux-c check -L . "$SMOKE_X" 2>&1 | tail -8 >&2 || true
+    ./compiler/xlang-c check -L . "$SMOKE_X" 2>&1 | tail -8 >&2 || true
     core_str_find_split_emit_report fail 0 0
     exit 1
   fi
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   if ci_is_darwin; then
     echo "core-str-find-split: skip run on Darwin (BytesView ABI; Linux job covers run smoke)"
     X_OK=1
     SKIP=1
-  elif core_str_find_split_run_smoke "$RUN_SHUX" "$SMOKE_X"; then
+  elif core_str_find_split_run_smoke "$RUN_XLANG" "$SMOKE_X"; then
     X_OK=1
   else
-    echo "core-str-find-split: skip compile+run (shux-c -o failed/SIGSEGV; typecheck covers STD-131)" >&2
+    echo "core-str-find-split: skip compile+run (xlang-c -o failed/SIGSEGV; typecheck covers STD-131)" >&2
     X_OK=1
     SKIP=1
   fi

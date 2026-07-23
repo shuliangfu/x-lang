@@ -13,7 +13,7 @@
 | **热点零 heap** | Arena/bump 路径禁止 per-op `malloc/calloc/realloc` |
 | **可测可 cap** | Linux `strace` 统计次数，baseline TSV 设上限 |
 | **共享库** | `tests/lib/perf-alloc-hotspot.sh` 供 bench / gate 复用 |
-| **可 grep** | `shux: [SHUX_ALLOC_HOTSPOT]` 报告行 |
+| **可 grep** | `xlang: [XLANG_ALLOC_HOTSPOT]` 报告行 |
 
 验收（NEXT PERF-007）：**alloc 次数与总量下降** → v1 以「热路径零 heap 调用」为可执行代理指标；总量治理随后续编译器/运行时埋点扩展。
 
@@ -32,10 +32,10 @@
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `SHUX_ALLOC_HOTSPOT_FAIL` | `0` | `1` 时超 cap 硬失败 |
-| `SHUX_ALLOC_HOTSPOT_REQUIRE_STRACE` | `0` | CI Linux 可设 `1` 禁止 SKIP |
-| `SHUX_ALLOC_HOTSPOT_PREFIX` | `shux: [SHUX_ALLOC_HOTSPOT]` | 报告前缀 |
-| `SHUX_ALLOC_HOTSPOT_BASELINE` | `tests/baseline/alloc-hotspot-perf.tsv` | cap 表 |
+| `XLANG_ALLOC_HOTSPOT_FAIL` | `0` | `1` 时超 cap 硬失败 |
+| `XLANG_ALLOC_HOTSPOT_REQUIRE_STRACE` | `0` | CI Linux 可设 `1` 禁止 SKIP |
+| `XLANG_ALLOC_HOTSPOT_PREFIX` | `xlang: [XLANG_ALLOC_HOTSPOT]` | 报告前缀 |
+| `XLANG_ALLOC_HOTSPOT_BASELINE` | `tests/baseline/alloc-hotspot-perf.tsv` | cap 表 |
 
 ---
 
@@ -52,7 +52,7 @@
 ## 4. 报告行
 
 ```text
-shux: [SHUX_ALLOC_HOTSPOT] case=string_arena_concat malloc=0 calloc=0 realloc=0 cap_malloc=0 cap_calloc=0 cap_realloc=0 ok=1
+xlang: [XLANG_ALLOC_HOTSPOT] case=string_arena_concat malloc=0 calloc=0 realloc=0 cap_malloc=0 cap_calloc=0 cap_realloc=0 ok=1
 ```
 
 实现：`perf_ah_report_emit()` in `tests/lib/perf-alloc-hotspot.sh`；`run-perf-string-arena.sh` 与 `run-perf-alloc-hotspot.sh` 在 strace 后 emit。
@@ -84,7 +84,7 @@ shux: [SHUX_ALLOC_HOTSPOT] case=string_arena_concat malloc=0 calloc=0 realloc=0 
 
 ## 7. 后续（v2 候选）
 
-- 编译器 AST pool：`malloc` 总量与峰值（`SHUX_COMPILE_ALLOC`）
+- 编译器 AST pool：`malloc` 总量与峰值（`XLANG_COMPILE_ALLOC`）
 - `malloc_usable_size` / sanitizer 统计字节量
 - 与 `PERF-008` syscall 批处理联合看板
 

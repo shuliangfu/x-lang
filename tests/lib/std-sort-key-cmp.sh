@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-sort-key-cmp.sh — STD-150 manifest 与烟测辅助
 
-STD150_PREFIX="${SHUX_STD150_SORT_KEY_CMP_PREFIX:-shux: [SHUX_STD150_SORT_KEY_CMP]}"
+STD150_PREFIX="${XLANG_STD150_SORT_KEY_CMP_PREFIX:-xlang: [XLANG_STD150_SORT_KEY_CMP]}"
 
 # 校验 manifest；echo 缺失数。
 std_sort_key_cmp_symbols_ok() {
@@ -79,7 +79,7 @@ std_sort_key_cmp_vectors_ok() {
 std_sort_key_cmp_run_c_smoke() {
   local sort_c="$1"
   local src="tests/std-sort/key_cmp_ok.c"
-  local out="/tmp/shux_sort_key_cmp_c_$$"
+  local out="/tmp/xlang_sort_key_cmp_c_$$"
   local sort_o
   sort_o="$(dirname "$sort_c")/sort.o"
   if [ ! -f "$sort_o" ]; then
@@ -103,13 +103,13 @@ std_sort_key_cmp_run_c_smoke() {
 }
 
 std_sort_key_cmp_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local sort_o="$3"
-  local exe="/tmp/shux_sort_key_cmp_x_$$"
-  if ! "$shux" -L . "$src" -o "$exe" "$sort_o" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_sort_key_cmp_x_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" "$sort_o" >/dev/null 2>&1; then
     echo "std-sort-key-cmp FAIL: compile $src" >&2
-    "$shux" -L . "$src" -o "$exe" "$sort_o" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" -o "$exe" "$sort_o" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-unicode-normalization.sh — STD-082 manifest 与烟测辅助
 
-STD_UNICODE_NORM_PREFIX="${SHUX_STD_UNICODE_NORM_PREFIX:-shux: [SHUX_STD_UNICODE_NORM]}"
+STD_UNICODE_NORM_PREFIX="${XLANG_STD_UNICODE_NORM_PREFIX:-xlang: [XLANG_STD_UNICODE_NORM]}"
 
 std_unicode_norm_symbols_ok() {
   local mod_x="$1"
@@ -40,13 +40,13 @@ std_unicode_norm_symbols_ok() {
 }
 
 std_unicode_norm_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-norm}"
-  local exe="/tmp/shux_std_unicode_norm_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_unicode_norm_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-unicode-norm FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi

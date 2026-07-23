@@ -5,10 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP_INCR_COMPILE_DOC:-analysis/comp-incr-compile-v1.md}"
-MANIFEST="${SHUX_COMP_INCR_COMPILE_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
-PROTOS="${SHUX_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
-BENCH="${SHUX_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
+DOC="${XLANG_COMP_INCR_COMPILE_DOC:-analysis/comp-incr-compile-v1.md}"
+MANIFEST="${XLANG_COMP_INCR_COMPILE_MANIFEST:-tests/baseline/comp-incr-compile.tsv}"
+PROTOS="${XLANG_INCR_COMPILE_PROTOS:-tests/baseline/comp-incr-compile-prototype.tsv}"
+BENCH="${XLANG_INCR_COMPILE_BENCH:-tests/baseline/comp-incr-compile-bench.tsv}"
 MIN_LAYERS=6
 MIN_PROTOS=6
 MIN_BENCHES=4
@@ -148,7 +148,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-incr-compile manifest OK (layers=${LAYER_N} protos=${PROTO_N} benches=${BENCH_N})"
 
-if [ "${SHUX_COMP_INCR_COMPILE_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_COMP_INCR_COMPILE_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "comp-incr-compile gate OK (manifest only)"
   exit 0
 fi

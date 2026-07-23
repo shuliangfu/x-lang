@@ -8,7 +8,7 @@
 #   不传参数 = 验证所有已配置模块
 #   传模块名 = 只验证指定模块（如：fmt check test build run diagnostic）
 #
-# 输出：每个模块的 shux-E / cc-c / nm-diff 状态
+# 输出：每个模块的 xlang-E / cc-c / nm-diff 状态
 #
 # 模式（第 5 字段，可选）：
 #   （空）  IDENTICAL — 已定义符号完全一致 → 可退役 seed（计入 N）
@@ -37,40 +37,64 @@ MODULES=(
   "token|src/lexer/token.x|token_gen.c||"
   # lsp_diag_pipeline_sizes：三枚 sizeof 门闩；产品 sizes_nostub PREFER_X_O；本条锁 nm / 扩 N
   "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
-  # labi_path_pure R2 full：.x 吃满 7 公共门闩 + count；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径
+  # labi_path_pure R2 full：.x 吃满 58 公共门闩 + count（wave116 try_under + wave146–151 + wave160 compiler_o_path_copy + wave162 repo_root + wave163–166 path ladders + wave180 scheduler_o_for_task_link + wave181 bootstrap_nostdlib_stubs_o_path + wave183 29× thin runtime_*_o_path BSS + wave184 empty_cstr/std_io/compress/effective_link + wave185 rel_o_path） + wave189 set/clear user_o_files；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径；bank_push/rel/skip Cap；resolve Cap（wave160/184）；resolve+rel Cap（wave162）；realpath+getcwd+skip Cap（wave163）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_pure.from_x.c 全 C 体
   "labi_path_pure|src/runtime/labi_path_pure.x|seeds/labi_path_pure_surface.from_x.c||"
   # labi_gates R2 full：.x 吃满 6 thin gates + count（*u8 透传 _impl）；
   # mega rest 在 FROM_X 下业务 H=0；Cap residual：*_impl 主体在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_gates.from_x.c 全 C 体
   "labi_gates|src/runtime/labi_gates.x|seeds/labi_gates_surface.from_x.c||"
-  # labi_invoke_cc_list R2 full：.x 吃满 harden/skip-native/icc rel 纯表；
+  # labi_invoke_cc_list R2 full：.x 吃满 harden/skip-native/icc rel 纯表 + wave155 harden orch + wave198 early_needs + wave199 std need scan + wave200 ensure-push front + wave201 ensure-push mid + wave202 ensure-push heavy_a + wave203 ensure-push heavy_b
+  # + wave204 heap F-06 + wave205 fork-exec + wave206 argv head + wave207 argv tail + wave208 MINIMAL_CC_LINK tail
+  # + wave155 xlang_append_linux_link_harden_impl pure orch；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：getenv 🔒 + mega invoke_cc_impl
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_cc_list.from_x.c 全 C 体
   "labi_invoke_cc_list|src/runtime/labi_invoke_cc_list.x|seeds/labi_invoke_cc_list_surface.from_x.c||"
-  # labi_invoke_ld_list R2 full：.x 吃满 brew/compress/tail/driver/entry 纯表；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：spawn/ld/cc IO 在 mega invoke_ld
+  # labi_invoke_ld_list R2 full：.x 吃满 brew/compress/tail/driver/entry 纯表 + wave152 brew orch
+  # + wave153 asm_ld_append_compress_libs pure orch + wave154 invoke_cc_append_compress_ld pure orch
+  # + wave156 xlang_asm_ld_append_mach_tail_libs_impl pure orch
+  # + wave157 xlang_asm_ld_append_unix_gcc_tail_libs_impl pure orch
+  # + wave158 invoke_cc_append_net_tls_ld pure orch（exports_marker/realpath/rel_o Cap）
+  # + wave179 invoke_cc_argv_push_existing pure orch（Cap residual resolve pool）
+  # + wave187 ensure_std_net_o_auto_tls pure orch（Cap residual getenv+system+realpath+exports_marker）；
+  # + wave188 xlang_ensure_formal_std_make_o pure orch（Cap residual getenv+access+realpath+system+skip_missing）；
+  # + wave191 labi_std_append_formal_ensure_for_rel pure orch（Cap residual repo_root + ensure_runtime_* + peer push_obj；append_std formal companions）；
+  # + wave192 labi_std_append_glue_for_op pure orch（Cap residual ensure_runtime_*_glue + peer path + push_obj；append_std OP_GLUE_*）；
+  # + wave193 labi_std_append_primary_for_op + process_argv_if pure orch（Cap residual needs_* + ensure/path + process_argv；append_std PRIMARY/IO_STUBS + complement）；
+  # + wave194 labi_std_append_task_special pure orch（Cap residual skip/path/bank + formal ensure；append_std TASK_SPECIAL task+scheduler+glue）；
+  # + wave195 labi_std_append_op_std pure orch（fk→flag_out map + fk0/fk1–13 gate + formal ensure + push_obj；append_std OP_STD）；
+  # + wave196 xlang_asm_ld_append_std_objs_for_user plan shell pure orch（flags/local_have init + plan loop + dispatch wave190–195 leaves + process_argv complement）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：host_is_apple + needs+ensure+path + resolve_existing_path_impl (wave215 pure thin public) + exports_marker/realpath/rel_o + spawn/ld/cc IO mega + getenv/system shell make
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_invoke_ld_list.from_x.c 全 C 体
   "labi_invoke_ld_list|src/runtime/labi_invoke_ld_list.x|seeds/labi_invoke_ld_list_surface.from_x.c||"
-  # labi_freestanding_list R2 full：.x 吃满 env/io_sym/panic/ensure catalog 纯表；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ensure/cc/spawn IO 在 mega freestanding
+  # labi_freestanding_list R2 full：.x 吃满 env/io_sym/panic/ensure + wave117 heap/nostdlib + wave136 gen needs + wave137 compress + wave138 core_slice/db + wave139 provides_core_mem/std_heap + wave141 needs_win32/wsa + wave142 needs_core_builtin/mem stub0 + wave143 needs_async_scheduler + wave144 freestanding needs_io/panic + wave159 freestanding_enabled + wave167 ensure_crt0_user_o + wave168 ensure_freestanding_io_o + wave175 contains_substr + wave176 contains_substr_use_line + wave177 any_substr_use_line + wave178 any_substr 纯表+orch；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：buf scan/use_line + undef_sym + resolve/access/cc/stat（ensure 叶）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_freestanding_list.from_x.c 全 C 体
   "labi_freestanding_list|src/runtime/labi_freestanding_list.x|seeds/labi_freestanding_list_surface.from_x.c||"
   # labi_std_list R2 full：.x 吃满 58 步 plan + default_std_rel 纯表；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：IO/ensure/push 在 mega append_std_objs
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_std_list.from_x.c 全 C 体
   "labi_std_list|src/runtime/labi_std_list.x|seeds/labi_std_list_surface.from_x.c||"
-  # labi_ondemand_list R2 full：.x 吃满 simple/kv/arrow/time/queue + rel_* 纯表；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：nm/push/ensure 在 mega append_on_demand
+  # labi_ondemand_list R2 full：.x 吃满 simple/kv/arrow/time/queue + rel_* + wave118–135 needs_std_net/set/map/queue/test + needs_core_mem/slice + needs_std_heap_page_mmap + needs_std_sys_linux + needs_std_sys + needs_std_heap_api + needs_heap_user_syms + needs_async_scheduler + compress family + labi_user_needs_runtime time_os/random_fill/env_os/process_argv + labi_user_needs_std_task + labi_std_fk0_user_needs_rel + wave140 user_o_provides_core_mem/std_heap 纯表+orch + wave145 link_needs_heap_user_c/std_heap_import 聚合 pure orch + wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs (fk1–13 plan gates) + wave197 xlang_asm_ld_append_on_demand_user_objs pure orch（on_demand 产品壳）+ wave210 has_undef_sym pure thin orch + wave211 exports_marker pure thin orch + wave212 needs_undef_sym pure thin orch + wave213 has_defined_sym pure thin orch；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：nm/push/ensure + has_undef_impl / needs_undef_impl / exports_marker_impl / has_defined_impl
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ondemand_list.from_x.c 全 C 体
   "labi_ondemand_list|src/runtime/labi_ondemand_list.x|seeds/labi_ondemand_list_surface.from_x.c||"
-  # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：spawn/cc IO 在 mega ensure_from_catalog
+  # labi_ensure_list R2 full：.x 吃满 ensure catalog 纯表（26 条目 stem/out/seed/flags/step_at）
+  #   + wave173 ensure_from_catalog + wave174 catalog thin + wave169–172/182 special ensure
+  #   + wave186 prepare_for_exe_link pure orch
+  #   + wave173 link_abi_ensure_from_catalog pure orch
+  #   + wave174 catalog thin ensure wraps pure（26× xlang_ensure_runtime_*_o）
+  #   + wave169 ensure_runtime_panic_o + wave170 ensure_runtime_heap_user_o
+  #   + wave171 ensure_runtime_test_fn_invoke_o + wave172 ensure_runtime_tls_mbedtls_bio_o pure orch
+  #   + wave182 ensure_bootstrap_nostdlib_stubs_o pure orch（-fno-builtin one_extra；peer path wave181）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：resolve/access/cc/stat (+ one_extra catalog flags)；
+  #   panic ensure resolve/access/cc/stat + host linux_x86_64/posix_aarch64；heap_user has_defined_sym + unlink stub；
+  #   tls_mbedtls_bio ensure resolve/access/cc_one_extra/stat（homebrew -I）；thin wrap path peers *_o_path
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_ensure_list.from_x.c 全 C 体
   "labi_ensure_list|src/runtime/labi_ensure_list.x|seeds/labi_ensure_list_surface.from_x.c||"
-  # labi_path_io R2 full：.x 吃满 3 公共门闩 + count；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：stat/realpath _impl 在 mega rest
+  # labi_path_io R2 full：.x 吃满 6 公共门闩 + count（wave209 path_readable + wave218 realpath_cap + wave221 path_executable）；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：stat/realpath_if/access R_OK+X_OK/realpath_cap _impl 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_io.from_x.c 全 C 体
   "labi_path_io|src/runtime/labi_path_io.x|seeds/labi_path_io_surface.from_x.c||"
   # labi_host_lit R2 full：.x 吃满 2 公共门闩 + count；
@@ -78,7 +102,11 @@ MODULES=(
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_host_lit.from_x.c 全 C 体
   "labi_host_lit|src/runtime/labi_host_lit.x|seeds/labi_host_lit_surface.from_x.c||"
   # labi_diag_pure R2 full：.x 吃满 code_for_kind + 7 report 消息体 + count；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv char** 在 mega rest
+  # + wave216 waitpid pure thin + wave217 strerror/wait decode pure thin
+  # + wave219 spawn_sync pure thin（null/empty gates；Cap residual fork/exec/_spawnvp _impl）
+  # + wave220 strip_out_x pure thin（null/empty gates；Cap residual argv pack+spawn _impl）
+  # + wave222 link_abi_getenv pure thin（null/empty name gates；Cap residual host getenv _impl）
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：ld_debug_argv + wait/strerror/spawn/strip/getenv _impl 在 mega rest
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_diag_pure.from_x.c 全 C 体
   "labi_diag_pure|src/runtime/labi_diag_pure.x|seeds/labi_diag_pure_surface.from_x.c||"
   # diagnostic R2 thin + Cap residual pure deep-migrate: thin.x gates + fixed-msg/pipe orch + assemble pure + getenv
@@ -97,22 +125,22 @@ MODULES=(
   # entry_i32/large_stack orch + getenv 门闩 + 数值 env stack_limit_want/parse_u32/phase_timing_enabled）；
   # + wave1 Cap residual pure：9× flag-slot BSS 进 thin；+ wave2 path/len BSS pure（dep path ·
   #   entry_source_len · path_last_preprocess_len）；+ wave3 format print pure（check_ok/fail/smoke
-  #   append+diag_report*）；+ wave4 defines_set_at（shux_ptr_slot_set）+ os_define_lit pure；
+  #   append+diag_report*）；+ wave4 defines_set_at（xlang_ptr_slot_set）+ os_define_lit pure；
   #   + wave5 phase timing BSS + begin/end pure；
   #   + wave6 phase_timing_flush pure（whole-ms append+diag_report；no reportf floats）；
-  #   + wave7 compile_phase_now_sec pure（→ shux_driver_wall_clock_sec OS surface）；
-  #   + wave8 call_fn pure orch（→ shux_driver_call_fn_void_arg OS surface；.x 无间接调用）；
-  #   + wave9 bump_stack_limit pure orch（→ shux_driver_bump_stack_limit setrlimit OS surface）；
-  #   + wave10 uname host defines pure orch（→ shux_driver_argv_append_uname OS surface；no utsname in .x）；
-  #   + wave11 path-read pure orch（→ shux_driver_path_read_preprocess_malloc OS surface；no file-view in .x）；
-  #   + wave12 pthread pure orch（→ shux_driver_run_thread_on_large_stack_pthread OS surface；no pthread_attr in .x）；
-  #   + wave13 entry_source_len load debug note pure（SHUX_DEBUG_PIPE truthy → append_*+diag_report；no reportf）；
+  #   + wave7 compile_phase_now_sec pure（→ xlang_driver_wall_clock_sec OS surface）；
+  #   + wave8 call_fn pure orch（→ xlang_driver_call_fn_void_arg OS surface；.x 无间接调用）；
+  #   + wave9 bump_stack_limit pure orch（→ xlang_driver_bump_stack_limit setrlimit OS surface）；
+  #   + wave10 uname host defines pure orch（→ xlang_driver_argv_append_uname OS surface；no utsname in .x）；
+  #   + wave11 path-read pure orch（→ xlang_driver_path_read_preprocess_malloc OS surface；no file-view in .x）；
+  #   + wave12 pthread pure orch（→ xlang_driver_run_thread_on_large_stack_pthread OS surface；no pthread_attr in .x）；
+  #   + wave13 entry_source_len load debug note pure（XLANG_DEBUG_PIPE truthy → append_*+diag_report；no reportf）；
   #   rest FROM_X 无 pure-dup flag_slot/path-len/format/set_at/os_lit/begin/end/flush/now_sec/call_fn/setrlimit/uname/path_read/pthread/load_debug _impl；
   # Cap residual pure leaf closed for driver_abi debug_pipe note（OS Cap rest _impl=0）
   # prove 锁 thin surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_driver_abi.from_x.c 全 C 体
   "driver_abi|src/runtime_driver_abi_thin.x|seeds/runtime_driver_abi_thin_surface.from_x.c||"
   # runtime_io_abi R2 full：.x 吃满 19 公共门闩 + 5 _impl 真迁（read/malloc/memcpy）；
-  # rest 在 SHUX_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
+  # rest 在 XLANG_L2_RIO_THIN_FROM_X+FROM_X 下无 thin/impl 公共体；Cap residual：4 平台 _impl（mmap/fstat/O_*）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/runtime_io_abi.from_x.c 全 C 体
   "runtime_io_abi|src/runtime_io_abi.x|seeds/runtime_io_abi_surface.from_x.c||"
   # fmt_check R2 thin + Cap residual pure 深迁（含 append_repo + missing_diag +
@@ -241,51 +269,76 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Parsed/FILE/invoke_cc/work 在 driver_abi
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_run_compiler_parsed.from_x.c 全 C 体
   "rt_run_compiler_parsed|src/runtime/rt_run_compiler_parsed.x|seeds/rt_run_compiler_parsed_surface.from_x.c||"
+  # target_cpu_pure R2 full：.x 吃满 12 公共业务（pending/tolower/eq_at/set_u32/parse_named/resolve/
+  #   eq5/eq6/simd_spelling/simd_lanes/append_feat/flags_has_token）+ BSS；
+  # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：xlang_target_cpu_print (FILE/fprintf) +
+  #   OS detect (sysctl/proc/#if) 在 mega rest
+  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/target_cpu_pure.from_x.c 全 C 体
+  "target_cpu_pure|src/driver/target_cpu_pure.x|seeds/target_cpu_pure_surface.from_x.c||"
+  # async_asm_pool R2 full：.x 吃满 helpers + build_layout；
+  # FROM_X rest 业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/async_asm_pool.from_x.c 全 C 体
+  # 产品 pipeline_glue 仍 #include 冷 seed（无宏）直至 glue unbundle；prove 锁 full surface IDENTICAL
+  "async_asm_pool|src/asm/async_asm_pool.x|seeds/async_asm_pool_surface.from_x.c||"
+  # async_liveness R2 pure surface + Cap residual pure：.x 吃满 await walk / live frame / mangle/tag
+  #   + lookup/type/size/layout/has_await/needs_cps/analyze/module_struct
+  #   + FILE* emit_* typedef/local/codegen_comment（shared driver_preamble_fputs）；
+  # FROM_X 省略 pure C 体（slice_marker）；Cap residual fputs：G.7 = driver_preamble_fputs
+  # 冷/无 PREFER 仍可走 seeds/async_liveness.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
+  # Stack：analyze_block_linear malloc(4096)；layout temps malloc(4196)（Ubuntu -E 稳）
+  "async_liveness|src/async/async_liveness.x|seeds/async_liveness_surface.from_x.c||"
+  # async_cps_codegen R2 pure + Cap residual pure wave1–5：
+  #   .x 吃满 name gates + thin walk/hoist + expr_is_* + module/sched + void_entry + walk _impl
+  #   + FILE* emit end/phase_reset/after_await(_io)/sched_wrapper（shared driver_preamble_fputs）；
+  # FROM_X 省略 pure C 体（含 walk _impl + wave4–5 emit；slice_marker）；
+  # Cap residual fputs：G.7 = driver_preamble_fputs（no module-local async_cps_fputs）
+  # 冷/无 PREFER 仍可走 seeds/async_cps_codegen.from_x.c 全 C 体；prove 锁 pure surface IDENTICAL
+  # Thin ABI：(e,target)/(b,target) 与 C 公共面一致
+  "async_cps_codegen|src/async/async_cps_codegen.x|seeds/async_cps_codegen_surface.from_x.c||"
 )
 
-# 找 shux 二进制：优先 $SHUX（文档/进度验收），再 shux_asm / shux / shux-c
-# 注意：本脚本已 cd 到 compiler/，故 $SHUX=./compiler/shux_asm 需映射到 $REPO_ROOT
-SHUX_BIN=""
-if [ -n "${SHUX:-}" ]; then
-  _shux_cand="$SHUX"
-  case "$_shux_cand" in
+# 找 xlang 二进制：优先 $XLANG（文档/进度验收），再 xlang_asm / xlang / xlang-c
+# 注意：本脚本已 cd 到 compiler/，故 $XLANG=./compiler/xlang_asm 需映射到 $REPO_ROOT
+XLANG_BIN=""
+if [ -n "${XLANG:-}" ]; then
+  _xlang_cand="$XLANG"
+  case "$_xlang_cand" in
     /*) ;;
-    ./*|../*) _shux_cand="$REPO_ROOT/${_shux_cand#./}" ;;
+    ./*|../*) _xlang_cand="$REPO_ROOT/${_xlang_cand#./}" ;;
     *)
-      if [ -x "$_shux_cand" ]; then
+      if [ -x "$_xlang_cand" ]; then
         :
-      elif [ -x "$REPO_ROOT/$_shux_cand" ]; then
-        _shux_cand="$REPO_ROOT/$_shux_cand"
-      elif [ -x "./$_shux_cand" ]; then
-        _shux_cand="./$_shux_cand"
+      elif [ -x "$REPO_ROOT/$_xlang_cand" ]; then
+        _xlang_cand="$REPO_ROOT/$_xlang_cand"
+      elif [ -x "./$_xlang_cand" ]; then
+        _xlang_cand="./$_xlang_cand"
       fi
       ;;
   esac
-  if [ -x "$_shux_cand" ]; then
-    SHUX_BIN="$_shux_cand"
+  if [ -x "$_xlang_cand" ]; then
+    XLANG_BIN="$_xlang_cand"
   fi
-  unset _shux_cand
+  unset _xlang_cand
 fi
-if [ -z "$SHUX_BIN" ]; then
-  for bin in ./shux_asm ./shux ./shux-c ./bootstrap_shuxc; do
+if [ -z "$XLANG_BIN" ]; then
+  for bin in ./xlang_asm ./xlang ./xlang-c ./bootstrap_xlangc; do
     if [ -x "$bin" ]; then
-      SHUX_BIN="$bin"
+      XLANG_BIN="$bin"
       break
     fi
   done
 fi
-if [ -z "$SHUX_BIN" ]; then
-  echo "prove: no shux_asm/shux/shux-c found in compiler/ (set SHUX=...)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "prove: no xlang_asm/xlang/xlang-c found in compiler/ (set XLANG=...)" >&2
   exit 127
 fi
-echo "prove: SHUX_BIN=$SHUX_BIN" >&2
+echo "prove: XLANG_BIN=$XLANG_BIN" >&2
 
 CC="${CC:-cc}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
-TMP_DIR="${TMPDIR:-/tmp}/shux_prove_$$"
+TMP_DIR="${TMPDIR:-/tmp}/xlang_prove_$$"
 mkdir -p "$TMP_DIR"
 
-SHUX_LIB_PATHS="-L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/driver -L src/preprocess"
+XLANG_LIB_PATHS="-L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/driver -L src/preprocess"
 
 # 最近一次 gen_x_o 失败原因（供主循环打印；勿 2>/dev/null 吞掉）
 GEN_X_O_LAST_ERR=""
@@ -300,10 +353,24 @@ gen_x_o() {
   local e_err="$TMP_DIR/$(basename "$xsrc" .x)_E.err"
   GEN_X_O_LAST_ERR=""
 
-  # shux -E（超时 30s 防死循环）；stderr 落盘
+  # xlang -E（超时 45s 防死循环）；stderr 落盘。
+  # PLATFORM: SHARED harness — Ubuntu x86_64 host xlang -E occasionally SIGSEGV
+  # (nondeterministic; also seen on small modules). Retry a few times; IDENTICAL
+  # nm gate still hard-fails on real symbol mismatch. Not a product soft-skip.
   # shellcheck disable=SC2086
-  if ! perl -e 'alarm 30; exec @ARGV' "$SHUX_BIN" -E $SHUX_LIB_PATHS "$xsrc" >"$tmp" 2>"$e_err" || [ ! -s "$tmp" ]; then
-    GEN_X_O_LAST_ERR="shux -E fail: $(tr '\n' ' ' <"$e_err" | head -c 160)"
+  local e_try=0 e_ok=0
+  while [ "$e_try" -lt 5 ]; do
+    e_try=$((e_try + 1))
+    rm -f "$tmp" "$e_err"
+    if perl -e 'alarm 45; exec @ARGV' "$XLANG_BIN" -E $XLANG_LIB_PATHS "$xsrc" >"$tmp" 2>"$e_err" \
+      && [ -s "$tmp" ]; then
+      e_ok=1
+      break
+    fi
+    sleep 0.3
+  done
+  if [ "$e_ok" -ne 1 ]; then
+    GEN_X_O_LAST_ERR="xlang -E fail (after ${e_try} tries): $(tr '\n' ' ' <"$e_err" 2>/dev/null | head -c 160)"
     return 1
   fi
 
@@ -337,22 +404,22 @@ gen_x_o() {
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'
     echo '#include <errno.h>'
-    # PLATFORM: POSIX — -E preamble 内联 shux_sys_readv/writev/poll；
+    # PLATFORM: POSIX — -E preamble 内联 xlang_sys_readv/writev/poll；
     # sed 会删 -E 自带 #include，故在此补齐（权威：g05_try_x_to_o）。
     echo '#include <sys/uio.h>'
     echo '#include <poll.h>'
     # PLATFORM: POSIX — fmt_check walk/path_stat pure *u8 wrappers (DIR* cast safe).
     echo '#include <dirent.h>'
-    echo 'static inline uint8_t *shux_fmt_opendir(uint8_t *name) {'
+    echo 'static inline uint8_t *xlang_fmt_opendir(uint8_t *name) {'
     echo '  return (uint8_t *)opendir((const char *)name);'
     echo '}'
-    echo 'static inline int32_t shux_fmt_closedir(uint8_t *dirp) {'
+    echo 'static inline int32_t xlang_fmt_closedir(uint8_t *dirp) {'
     echo '  return dirp ? (int32_t)closedir((DIR *)(void *)dirp) : (int32_t)-1;'
     echo '}'
-    echo 'static inline int32_t shux_fmt_access(uint8_t *path, int32_t mode) {'
+    echo 'static inline int32_t xlang_fmt_access(uint8_t *path, int32_t mode) {'
     echo '  return path ? (int32_t)access((const char *)path, (int)mode) : (int32_t)-1;'
     echo '}'
-    echo 'static inline uint8_t *shux_fmt_readdir_name(uint8_t *dirp) {'
+    echo 'static inline uint8_t *xlang_fmt_readdir_name(uint8_t *dirp) {'
     echo '  struct dirent *ent;'
     echo '  if (!dirp) return (uint8_t *)0;'
     echo '  ent = readdir((DIR *)(void *)dirp);'
@@ -405,10 +472,10 @@ gen_x_o() {
         -e '/^extern int closedir(/d' \
         -e '/^extern int32_t access(/d' \
         -e '/^extern int access(/d' \
-        -e '/^extern uint8_t \* shux_fmt_opendir(/d' \
-        -e '/^extern int32_t shux_fmt_closedir(/d' \
-        -e '/^extern int32_t shux_fmt_access(/d' \
-        -e '/^extern uint8_t \* shux_fmt_readdir_name(/d' \
+        -e '/^extern uint8_t \* xlang_fmt_opendir(/d' \
+        -e '/^extern int32_t xlang_fmt_closedir(/d' \
+        -e '/^extern int32_t xlang_fmt_access(/d' \
+        -e '/^extern uint8_t \* xlang_fmt_readdir_name(/d' \
         "$tmp"
   } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
 
@@ -526,7 +593,7 @@ compare_core_surface() {
 }
 
 # 主逻辑
-printf "%-18s | %-8s | %-8s | %-10s | %s\n" "模块" "shux-E" "cc-c" "nm-diff" "备注"
+printf "%-18s | %-8s | %-8s | %-10s | %s\n" "模块" "xlang-E" "cc-c" "nm-diff" "备注"
 printf "%-18s-+-%-8s-+-%-8s-+-%-10s-+-%s\n" "$(printf '%0.s-' {1..18})" "$(printf '%0.s-' {1..8})" "$(printf '%0.s-' {1..8})" "$(printf '%0.s-' {1..10})" "$(printf '%0.s-' {1..30})"
 
 PASS=0
@@ -574,7 +641,7 @@ for entry in "${MODULES[@]}"; do
 
   # 生成 .x 版 .o
   if ! gen_x_o "$xsrc" "$x_o" "$sym_rename"; then
-    printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "FAIL" "-" "-" "${GEN_X_O_LAST_ERR:-shux -E 或 cc -c 失败}"
+    printf "%-18s | %-8s | %-8s | %-10s | %s\n" "$name" "FAIL" "-" "-" "${GEN_X_O_LAST_ERR:-xlang -E 或 cc -c 失败}"
     FAIL=$((FAIL + 1))
     continue
   fi

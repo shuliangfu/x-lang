@@ -27,19 +27,19 @@ done
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 # F-03 v2/v3：io 已纯 .x，不再 build ../std/io/io.o
 make -C compiler ../std/process/process.o -q 2>/dev/null \
   || make -C compiler ../std/process/process.o
 
-if [ -z "${SHUX:-}" ]; then
-  if [ -x ./compiler/shux-c ]; then
-    SHUX=./compiler/shux-c
-  elif [ -x ./compiler/shux ]; then
-    SHUX=./compiler/shux
+if [ -z "${XLANG:-}" ]; then
+  if [ -x ./compiler/xlang-c ]; then
+    XLANG=./compiler/xlang-c
+  elif [ -x ./compiler/xlang ]; then
+    XLANG=./compiler/xlang
   else
     echo "run-io-unified-gate FAIL: no compiler" >&2
     exit 1
@@ -50,9 +50,9 @@ fi
 rm -f tests/bench/.io_batch_rw_smoke_tmp
 
 echo "=== IO unified: batch_rw_smoke.x ($(ci_host_summary)) ==="
-$RUN_SHUX -L . tests/io/batch_rw_smoke.x -o /tmp/shux_io_batch_rw_smoke 2>&1
+$RUN_XLANG build -L . tests/io/batch_rw_smoke.x -o /tmp/xlang_io_batch_rw_smoke 2>&1
 ec=0
-/tmp/shux_io_batch_rw_smoke || ec=$?
+/tmp/xlang_io_batch_rw_smoke || ec=$?
 rm -f tests/bench/.io_batch_rw_smoke_tmp
 if [ "$ec" -ne 0 ]; then
   echo "run-io-unified-gate FAIL: batch_rw_smoke exit=$ec" >&2
@@ -62,11 +62,11 @@ echo "io batch_rw_smoke OK"
 
 echo "=== IO unified: read_ptr_slice (M-5) ==="
 chmod +x tests/run-io-read-ptr-slice.sh
-SHUX="$RUN_SHUX" ./tests/run-io-read-ptr-slice.sh
+XLANG="$RUN_XLANG" ./tests/run-io-read-ptr-slice.sh
 
 echo "=== IO unified: std.io smoke (run-io.sh) ==="
 chmod +x tests/run-io.sh
-SHUX="$RUN_SHUX" ./tests/run-io.sh
+XLANG="$RUN_XLANG" ./tests/run-io.sh
 
 # Tier B：Linux io_uring 专有能力（无内核支持则 N/A exit 0）。
 if ci_is_linux; then
@@ -103,11 +103,11 @@ fi
 echo "=== IO unified: perf baseline (run-perf-io) ==="
 chmod +x tests/run-perf-io.sh
 if ci_is_linux; then
-  # 默认 regression；CI 原生 Linux x86_64 可经 env 追加 SHUX_PERF_FAIL_ON_IO_ZIG=1（L1 ≥ Zig）
-  IO_PERF_REGRESS="${SHUX_PERF_FAIL_ON_IO_REGRESSION:-1}"
-  IO_PERF_ZIG="${SHUX_PERF_FAIL_ON_IO_ZIG:-0}"
-  SHUX_PERF_FAIL_ON_IO_REGRESSION="$IO_PERF_REGRESS" \
-    SHUX_PERF_FAIL_ON_IO_ZIG="$IO_PERF_ZIG" \
+  # 默认 regression；CI 原生 Linux x86_64 可经 env 追加 XLANG_PERF_FAIL_ON_IO_ZIG=1（L1 ≥ Zig）
+  IO_PERF_REGRESS="${XLANG_PERF_FAIL_ON_IO_REGRESSION:-1}"
+  IO_PERF_ZIG="${XLANG_PERF_FAIL_ON_IO_ZIG:-0}"
+  XLANG_PERF_FAIL_ON_IO_REGRESSION="$IO_PERF_REGRESS" \
+    XLANG_PERF_FAIL_ON_IO_ZIG="$IO_PERF_ZIG" \
     ./tests/run-perf-io.sh --bench | tee /tmp/io_unified_perf.log
 else
   ./tests/run-perf-io.sh --bench | tee /tmp/io_unified_perf.log
@@ -117,16 +117,16 @@ grep -q 'io perf OK' /tmp/io_unified_perf.log
 if ci_is_linux && ci_io_uring_available; then
   echo "=== IO unified: ZC-1 net perf (Linux io_uring) ==="
   chmod +x tests/run-zc1-gate.sh
-  ZC1_ENV="SHUX_PERF_FAIL_ON_NET_REGRESSION=1 SHUX_PERF_FAIL_ON_ZC1=1"
-  if [ -n "${SHUX_CI_REQUIRE_ZC1:-}" ]; then
-    ZC1_ENV="${ZC1_ENV} SHUX_CI_REQUIRE_ZC1=1"
+  ZC1_ENV="XLANG_PERF_FAIL_ON_NET_REGRESSION=1 XLANG_PERF_FAIL_ON_ZC1=1"
+  if [ -n "${XLANG_CI_REQUIRE_ZC1:-}" ]; then
+    ZC1_ENV="${ZC1_ENV} XLANG_CI_REQUIRE_ZC1=1"
   fi
   # shellcheck disable=SC2086
   env ${ZC1_ENV} ./tests/run-zc1-gate.sh --perf | tee /tmp/io_unified_zc1_perf.log
   grep -qE 'ZC-1 gate OK|provided buffers N/A' /tmp/io_unified_zc1_perf.log
   grep -q 'ZC-1 provided vs batch OK' /tmp/io_unified_zc1_perf.log || {
-    if [ -n "${SHUX_CI_REQUIRE_ZC1:-}" ]; then
-      echo "run-io-unified-gate FAIL: ZC-1 -10% required (SHUX_CI_REQUIRE_ZC1=1)" >&2
+    if [ -n "${XLANG_CI_REQUIRE_ZC1:-}" ]; then
+      echo "run-io-unified-gate FAIL: ZC-1 -10% required (XLANG_CI_REQUIRE_ZC1=1)" >&2
       exit 1
     fi
     echo "io ZC-1 perf stretch N/A (no -10% on this runner)"
@@ -138,8 +138,8 @@ fi
 if iocp_backend_expected; then
   echo "=== IO unified: IOCP pipe perf (Windows) ==="
   chmod +x tests/run-perf-iocp.sh
-  SHUX_IOCP_RUNS="${SHUX_IOCP_RUNS:-1}" SHUX_IOCP_BENCH_ROUNDS="${SHUX_IOCP_BENCH_ROUNDS:-32768}" \
-    SHUX_PERF_FAIL_ON_IOCP_REGRESSION=1 ./tests/run-perf-iocp.sh --bench | tee /tmp/io_unified_iocp_perf.log
+  XLANG_IOCP_RUNS="${XLANG_IOCP_RUNS:-1}" XLANG_IOCP_BENCH_ROUNDS="${XLANG_IOCP_BENCH_ROUNDS:-32768}" \
+    XLANG_PERF_FAIL_ON_IOCP_REGRESSION=1 ./tests/run-perf-iocp.sh --bench | tee /tmp/io_unified_iocp_perf.log
   grep -q 'iocp perf OK' /tmp/io_unified_iocp_perf.log
 else
   echo "io IOCP perf N/A ($(ci_host_summary))"

@@ -3,11 +3,11 @@
 #
 # 用法（source 后）：
 #   std_async_io_cps_symbols_ok MOD_X IO_X SCHED_C IO_C TSV
-#   std_async_io_cps_run_smoke SHUX_BIN X TAG
-#   std_async_io_cps_check_emit SHUX_BIN X
+#   std_async_io_cps_run_smoke XLANG_BIN X TAG
+#   std_async_io_cps_check_emit XLANG_BIN X
 #   std_async_io_cps_emit_report status align_ok io_uring_ok emit_ok skip
 
-STD_ASYNC_IO_CPS_PREFIX="${SHUX_STD_ASYNC_IO_CPS_PREFIX:-shux: [SHUX_STD_ASYNC_IO_CPS]}"
+STD_ASYNC_IO_CPS_PREFIX="${XLANG_STD_ASYNC_IO_CPS_PREFIX:-xlang: [XLANG_STD_ASYNC_IO_CPS]}"
 
 # 校验 manifest symbol/file；echo 缺失数。
 std_async_io_cps_symbols_ok() {
@@ -49,17 +49,17 @@ std_async_io_cps_symbols_ok() {
 
 # 编译并运行烟测 .x。
 std_async_io_cps_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_async_io_cps_${tag}_$$"
+  local exe="/tmp/xlang_std_async_io_cps_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-async-io-cps FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-async-io-cps FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi
@@ -77,24 +77,24 @@ std_async_io_cps_run_smoke() {
 
 # 检查 await IO emit 含 suspend_io + async submit。
 std_async_io_cps_check_emit() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local out
   if [ ! -f "$src" ]; then
     echo "std-async-io-cps FAIL: missing emit src $src" >&2
     return 1
   fi
-  if ! out="$("$shux" -E "$src" 2>&1)"; then
+  if ! out="$("$xlang" -E "$src" 2>&1)"; then
     echo "std-async-io-cps FAIL: -E $src" >&2
     echo "$out" | tail -12 >&2
     return 1
   fi
-  if ! echo "$out" | grep -qF 'shux_async_cps_suspend_io'; then
-    echo "std-async-io-cps FAIL: emit missing shux_async_cps_suspend_io" >&2
+  if ! echo "$out" | grep -qF 'xlang_async_cps_suspend_io'; then
+    echo "std-async-io-cps FAIL: emit missing xlang_async_cps_suspend_io" >&2
     return 1
   fi
-  if ! echo "$out" | grep -qF 'shux_io_submit_read_async'; then
-    echo "std-async-io-cps FAIL: emit missing shux_io_submit_read_async" >&2
+  if ! echo "$out" | grep -qF 'xlang_io_submit_read_async'; then
+    echo "std-async-io-cps FAIL: emit missing xlang_io_submit_read_async" >&2
     return 1
   fi
   return 0

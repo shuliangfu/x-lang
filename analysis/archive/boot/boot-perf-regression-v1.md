@@ -25,7 +25,7 @@
 
 | tier | 含义 |
 |------|------|
-| `bootstrap_compiler` | 编译器重模块 `shux check`（自举热路径） |
+| `bootstrap_compiler` | 编译器重模块 `xlang check`（自举热路径） |
 | `microbench` | codegen microbench `-o` |
 | `ci_entry` | CI / 本地 push 入口（接线审计） |
 
@@ -47,7 +47,7 @@
 push/PR → .github/workflows/ci.yml
        → tests/run-ci-full-suite.sh
        → run-perf-compile-dogfood-gate.sh
-            ├─ Linux 原生：SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1（硬失败）
+            ├─ Linux 原生：XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1（硬失败）
             └─ macOS/Windows/Docker：软跑（manifest + timing 烟测）
 ```
 
@@ -63,7 +63,7 @@ push/PR → .github/workflows/ci.yml
 |------|------|
 | 数值基线 | `tests/baseline/compile-dogfood.tsv` |
 | 注册表 | `tests/baseline/perf-baseline-registry.tsv`（`compile-dogfood`） |
-| 更新 | `SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh` |
+| 更新 | `XLANG_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh` |
 | 评审 | ENG-001 checklist + version bump |
 
 CI slack（PERF-004）：GHA ×1.4；Docker ×1.65。
@@ -77,7 +77,7 @@ CI slack（PERF-004）：GHA ×1.4；Docker ×1.65。
 1. manifest：RFC + matrix + compile-dogfood + registry  
 2. `bootstrap_compiler` case 均在 dogfood TSV  
 3. `ci-full-suite` / `ci.yml` / `pre-push-p0` 接线存在  
-4. hook：`run-perf-compile-dogfood-gate.sh`（无 shux 时 manifest SKIP bench）
+4. hook：`run-perf-compile-dogfood-gate.sh`（无 xlang 时 manifest SKIP bench）
 
 ---
 

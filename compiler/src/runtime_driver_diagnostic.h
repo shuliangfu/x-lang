@@ -6,15 +6,15 @@
  * 与其它文件的关系：依赖 lsp_diag、runtime_driver_abi；不依赖 C 前端头。
  */
 
-#ifndef SHUX_RUNTIME_DRIVER_DIAGNOSTIC_H
-#define SHUX_RUNTIME_DRIVER_DIAGNOSTIC_H
+#ifndef XLANG_RUNTIME_DRIVER_DIAGNOSTIC_H
+#define XLANG_RUNTIME_DRIVER_DIAGNOSTIC_H
 
 #include <stdint.h>
 
 /** parse 失败（main_idx / num_funcs / arena_num_types）。 */
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 
-/** SHUX_PARSE_STRICT=1 时 parse_into_buf 单函数失败返回 -2。 */
+/** XLANG_PARSE_STRICT=1 时 parse_into_buf 单函数失败返回 -2。 */
 int32_t driver_parse_strict_enabled(void);
 
 /** parse_into_buf 跳过无法解析的 function 时打印诊断。 */
@@ -101,4 +101,4 @@ void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t snam
                                               int32_t hot_len, const uint8_t *cold, int32_t cold_len);
 void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
 
-#endif /* SHUX_RUNTIME_DRIVER_DIAGNOSTIC_H */
+#endif /* XLANG_RUNTIME_DRIVER_DIAGNOSTIC_H */

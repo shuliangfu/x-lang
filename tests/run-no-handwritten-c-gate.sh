@@ -3,19 +3,19 @@
 #
 # 用法：./tests/run-no-handwritten-c-gate.sh
 # 环境：
-#   SHUX_NO_HANDWRITTEN_C_FAIL=1       — 失败时硬退出
-#   SHUX_NO_HANDWRITTEN_C_UPDATE=1     — 刷新 tests/baseline/no-handwritten-c-whitelist.tsv
-#   SHUX_NO_HANDWRITTEN_C_STRICT=1     — 终局零 C 模式（当前必 FAIL，供 CI 预留）
-#   SHUX_NO_HANDWRITTEN_C_MANIFEST_ONLY=1 — 仅 manifest + 存量对比，跳过子 gate
+#   XLANG_NO_HANDWRITTEN_C_FAIL=1       — 失败时硬退出
+#   XLANG_NO_HANDWRITTEN_C_UPDATE=1     — 刷新 tests/baseline/no-handwritten-c-whitelist.tsv
+#   XLANG_NO_HANDWRITTEN_C_STRICT=1     — 终局零 C 模式（当前必 FAIL，供 CI 预留）
+#   XLANG_NO_HANDWRITTEN_C_MANIFEST_ONLY=1 — 仅 manifest + 存量对比，跳过子 gate
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NO_HANDWRITTEN_C_FAIL:-0}
-UPDATE=${SHUX_NO_HANDWRITTEN_C_UPDATE:-0}
-STRICT=${SHUX_NO_HANDWRITTEN_C_STRICT:-0}
-MANIFEST_ONLY=${SHUX_NO_HANDWRITTEN_C_MANIFEST_ONLY:-0}
+FAIL=${XLANG_NO_HANDWRITTEN_C_FAIL:-0}
+UPDATE=${XLANG_NO_HANDWRITTEN_C_UPDATE:-0}
+STRICT=${XLANG_NO_HANDWRITTEN_C_STRICT:-0}
+MANIFEST_ONLY=${XLANG_NO_HANDWRITTEN_C_MANIFEST_ONLY:-0}
 DOC="analysis/phase-f-f09-v1.md"
-BASELINE="${SHUX_NO_HANDWRITTEN_C_TSV:-tests/baseline/no-handwritten-c-whitelist.tsv}"
+BASELINE="${XLANG_NO_HANDWRITTEN_C_TSV:-tests/baseline/no-handwritten-c-whitelist.tsv}"
 
 # shellcheck source=tests/lib/no-handwritten-c-audit.sh
 . tests/lib/no-handwritten-c-audit.sh
@@ -64,14 +64,14 @@ if [ "$MANIFEST_ONLY" = "1" ]; then
 fi
 
 echo "=== F-09 v1: delegate run-std-c-inventory-gate ==="
-run_sub tests/run-std-c-inventory-gate.sh SHUX_STD_C_INVENTORY_FAIL
+run_sub tests/run-std-c-inventory-gate.sh XLANG_STD_C_INVENTORY_FAIL
 
 if [ -f tests/run-f04-std-crypto-closure-gate.sh ]; then
   echo "=== F-09 v1: delegate run-f04-std-crypto-closure-gate (manifest track) ==="
   chmod +x tests/run-f04-std-crypto-closure-gate.sh
-  if ! SHUX_F04_CRYPTO_CLOSURE_FAIL="$FAIL" \
-    SHUX_F04_CRYPTO_V16_FAIL=0 SHUX_F04_CRYPTO_V17_FAIL=0 \
-    SHUX_F04_CRYPTO_V18_FAIL=0 SHUX_F04_CRYPTO_V19_FAIL=0 \
+  if ! XLANG_F04_CRYPTO_CLOSURE_FAIL="$FAIL" \
+    XLANG_F04_CRYPTO_V16_FAIL=0 XLANG_F04_CRYPTO_V17_FAIL=0 \
+    XLANG_F04_CRYPTO_V18_FAIL=0 XLANG_F04_CRYPTO_V19_FAIL=0 \
     tests/run-f04-std-crypto-closure-gate.sh; then
     die "f04 crypto closure sub-gate failed"
   fi
@@ -79,13 +79,13 @@ fi
 
 if [ -f tests/run-f05-std-db-closure-gate.sh ]; then
   echo "=== F-09 v1: delegate run-f05-std-db-closure-gate ==="
-  run_sub tests/run-f05-std-db-closure-gate.sh SHUX_F05_DB_CLOSURE_FAIL
+  run_sub tests/run-f05-std-db-closure-gate.sh XLANG_F05_DB_CLOSURE_FAIL
 fi
 
 if [ -f tests/run-f-path-v1-gate.sh ]; then
   echo "=== F-09 v1: delegate run-f-path-v1-gate (manifest track) ==="
   chmod +x tests/run-f-path-v1-gate.sh
-  if ! SHUX_F_PATH_V1_FAIL="$FAIL" tests/run-f-path-v1-gate.sh; then
+  if ! XLANG_F_PATH_V1_FAIL="$FAIL" tests/run-f-path-v1-gate.sh; then
     die "f-path-v1 sub-gate failed"
   fi
 fi
@@ -96,7 +96,7 @@ echo "=== F-09 / G-02f: delegate run-g02f-src-no-inc-gate (src .inc=0) ==="
 if [ -f tests/run-f-uuid-v1-gate.sh ]; then
   echo "=== F-09 v1: delegate run-f-uuid-v1-gate (manifest track) ==="
   chmod +x tests/run-f-uuid-v1-gate.sh
-  if ! SHUX_F_UUID_V1_FAIL="$FAIL" tests/run-f-uuid-v1-gate.sh; then
+  if ! XLANG_F_UUID_V1_FAIL="$FAIL" tests/run-f-uuid-v1-gate.sh; then
     die "f-uuid-v1 sub-gate failed"
   fi
 fi
@@ -104,7 +104,7 @@ fi
 if [ -f tests/run-f-sort-v1-gate.sh ]; then
   echo "=== F-09 v1: delegate run-f-sort-v1-gate (manifest track) ==="
   chmod +x tests/run-f-sort-v1-gate.sh
-  if ! SHUX_F_SORT_V1_FAIL="$FAIL" tests/run-f-sort-v1-gate.sh; then
+  if ! XLANG_F_SORT_V1_FAIL="$FAIL" tests/run-f-sort-v1-gate.sh; then
     die "f-sort-v1 sub-gate failed"
   fi
 fi
@@ -112,9 +112,9 @@ fi
 if [ -f tests/run-e-soft-retire-gate.sh ]; then
   echo "=== F-09 v1: delegate run-e-soft-retire-gate (compiler C track) ==="
   chmod +x tests/run-e-soft-retire-gate.sh
-  if ! SHUX_E_SOFT_FAIL="$FAIL" SHUX_E_SOFT_MANIFEST_ONLY=1 tests/run-e-soft-retire-gate.sh; then
+  if ! XLANG_E_SOFT_FAIL="$FAIL" XLANG_E_SOFT_MANIFEST_ONLY=1 tests/run-e-soft-retire-gate.sh; then
     die "e-soft manifest sub-gate failed"
   fi
 fi
 
-echo "no-handwritten-c gate OK (F-09 v1 track; run SHUX_NO_HANDWRITTEN_C_STRICT=1 for zero-C终局)"
+echo "no-handwritten-c gate OK (F-09 v1 track; run XLANG_NO_HANDWRITTEN_C_STRICT=1 for zero-C终局)"

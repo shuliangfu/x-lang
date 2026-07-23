@@ -6,7 +6,7 @@ mapping_ctz	mapping	core_builtin_ctz_u32	__builtin_ctz
 mapping_popcount	mapping	core_builtin_popcount_u32	__builtin_popcount
 mapping_bswap	mapping	core_builtin_bswap_u32	__builtin_bswap32
 x_impl	file	core/builtin/mod.x	clz/ctz/popcount/rotl/rotr 纯 .x
-emit_probe	file	tests/builtin/main.x	SHUX_DEBUG_C 烟测
+emit_probe	file	tests/builtin/main.x	XLANG_DEBUG_C 烟测
 emit_grep_1	emit_grep	__builtin_clz	C emit
 emit_grep_2	emit_grep	__builtin_ctz	C emit
 emit_grep_3	emit_grep	__builtin_popcount	C emit

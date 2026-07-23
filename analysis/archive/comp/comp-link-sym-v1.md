@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）** — 在 BOOT-004 粗粒度 `link` 阶段之上，细化 **undefined / duplicate** 归因  
-> 关联：`analysis/boot-stage-diag-v1.md`、`compiler/scripts/relink_shux_asm_strict_glue.sh`、`tests/run-wpo-strict-link-gate.sh`
+> 关联：`analysis/boot-stage-diag-v1.md`、`compiler/scripts/relink_xlang_asm_strict_glue.sh`、`tests/run-wpo-strict-link-gate.sh`
 
 ---
 
@@ -27,8 +27,8 @@
 | **L2-duplicate** | 重复定义 | `duplicate symbol` / `multiple definition of` | fixture `duplicate_glue_typeck.log` |
 | **L3-platform** | Mach-O vs ELF 文案 | Darwin `_sym` / GNU `sym` 归一化 | `comp-link-sym-patterns.tsv` |
 | **L4-object** | 冲突 .o 归因 | log 中 `build_asm/*.o` / `*_glue.o` 路径 | fixture `duplicate_glue_typeck.log` |
-| **L5-known** | 已知拓扑模式 | typeck∩glue、parser_x 双链、WPO strict | `relink_shux_asm_strict_glue.sh` |
-| **L6-repro** | 复现 case 建议 | 输出 `SHUX_LINK_REPRO` | `comp-link-sym-cases.tsv` |
+| **L5-known** | 已知拓扑模式 | typeck∩glue、parser_x 双链、WPO strict | `relink_xlang_asm_strict_glue.sh` |
+| **L6-repro** | 复现 case 建议 | 输出 `XLANG_LINK_REPRO` | `comp-link-sym-cases.tsv` |
 
 **attribution 原则**：
 
@@ -37,7 +37,7 @@
 3. **再挂 hint**：`typeck_glue_dup`、`wpo_orchestration`、`parser_double_link` 等已知模式。
 4. **最后 repro**：对接 BOOT-003 `bstrict_build` / `wpo_strict_link` 等 case。
 
-与 BOOT-004 关系：BOOT-004 将 log 标为 `stage=link`；本 RFC 在同一 log 上输出 **细粒度 conflict report**（`SHUX_LINK_*` 变量）。
+与 BOOT-004 关系：BOOT-004 将 log 标为 `stage=link`；本 RFC 在同一 log 上输出 **细粒度 conflict report**（`XLANG_LINK_*` 变量）。
 
 ---
 
@@ -61,11 +61,11 @@
 ```bash
 . tests/lib/comp-link-sym.sh
 comp_link_sym_classify "$(cat ci.log)"
-# SHUX_LINK_KIND=undefined
-# SHUX_LINK_SYMBOL=parser_parse_into_buf
-# SHUX_LINK_HINT=missing_export
-# SHUX_LINK_REPRO=bstrict_build
-# SHUX_LINK_OBJECT=build_asm/typeck.o   # 若 log 含路径
+# XLANG_LINK_KIND=undefined
+# XLANG_LINK_SYMBOL=parser_parse_into_buf
+# XLANG_LINK_HINT=missing_export
+# XLANG_LINK_REPRO=bstrict_build
+# XLANG_LINK_OBJECT=build_asm/typeck.o   # 若 log 含路径
 ```
 
 **conflict report**（stderr 人类可读）：

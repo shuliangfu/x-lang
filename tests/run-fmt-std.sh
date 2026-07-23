@@ -5,14 +5,14 @@
 #
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler shux-c
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+make -C compiler -q 2>/dev/null || make -C compiler xlang-c
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
 run_one() {
   local x="$1"
-  local exe="/tmp/shux_fmt_std_$$_${su##*/}"
-  if ! $RUN_SHUX -L . "$x" -o "$exe" 2>&1; then
+  local exe="/tmp/xlang_fmt_std_$$_${su##*/}"
+  if ! $RUN_XLANG build -L . "$x" -o "$exe" 2>&1; then
     echo "fmt-std test: compile failed ($x)"
     rm -f "$exe"
     exit 1

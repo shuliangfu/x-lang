@@ -4,28 +4,28 @@
 set -e
 cd "$(dirname "$0")/.."
 
-if [ -n "$SHUX" ]; then
+if [ -n "$XLANG" ]; then
   :
-elif [ -x ./compiler/shux ]; then
-  SHUX=./compiler/shux
-elif [ -x ./compiler/shux-c ]; then
-  SHUX=./compiler/shux-c
+elif [ -x ./compiler/xlang ]; then
+  XLANG=./compiler/xlang
+elif [ -x ./compiler/xlang-c ]; then
+  XLANG=./compiler/xlang-c
 else
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  SHUX=./compiler/shux-c
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  XLANG=./compiler/xlang-c
 fi
 
-# shux_asm 实验链 -o 链接 slice 字段 codegen 不完整；非 x86_64 须 shux-c 避免 asm x86_64 .o。
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# xlang_asm 实验链 -o 链接 slice 字段 codegen 不完整；非 x86_64 须 xlang-c 避免 asm x86_64 .o。
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
-# slice 烟测不 import std.process；勿强编 process.o（arm64 上 shux-c 无 -backend asm）。
-$RUN_SHUX tests/slice/data_field.x -o /tmp/shux_slice_data_field 2>&1
-ec=0; /tmp/shux_slice_data_field >/dev/null 2>&1 || ec=$?
+# slice 烟测不 import std.process；勿强编 process.o（arm64 上 xlang-c 无 -backend asm）。
+$RUN_XLANG build tests/slice/data_field.x -o /tmp/xlang_slice_data_field 2>&1
+ec=0; /tmp/xlang_slice_data_field >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (slice data_field), got $ec"; exit 1; }
 
-$RUN_SHUX tests/slice/main.x -o /tmp/shux_slice_main 2>&1
-ec=0; /tmp/shux_slice_main >/dev/null 2>&1 || ec=$?
+$RUN_XLANG build tests/slice/main.x -o /tmp/xlang_slice_main 2>&1
+ec=0; /tmp/xlang_slice_main >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 20 ] && { echo "expected exit 20 (slice main s[1]), got $ec"; exit 1; }
 
 echo "slice field OK"

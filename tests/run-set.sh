@@ -8,14 +8,14 @@ make -C compiler -q ../std/heap/heap.o ../std/set/set.o 2>/dev/null \
   || make -C compiler ../std/heap/heap.o ../std/set/set.o
 ensure_runtime_panic_o
 ensure_runtime_process_argv_o
-# shellcheck source=lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 # shellcheck source=lib/collection-asm-gcc-link.sh
 . "$(dirname "$0")/lib/collection-asm-gcc-link.sh"
-SHUX=${SHUX:-./compiler/shux}
-LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
-exe="/tmp/shux_set_$$"
-if ! collection_link_exe "$LINK_SHUX" tests/set/main.x "$exe" set 2>&1; then
+XLANG=${XLANG:-./compiler/xlang}
+LINK_XLANG="${XLANG_LINK_XLANG:-${RUN_XLANG:-$XLANG}}"
+exe="/tmp/xlang_set_$$"
+if ! collection_link_exe "$LINK_XLANG" tests/set/main.x "$exe" set 2>&1; then
   echo "set test: compile failed"
   rm -f "$exe"
   exit 1

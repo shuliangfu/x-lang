@@ -44,7 +44,7 @@
 ```
 
 ```
-shux: [SHUX_STD084_DB_POOL] status=ok pool_c=1 pool_x=1 skip=0
+xlang: [XLANG_STD084_DB_POOL] status=ok pool_c=1 pool_x=1 skip=0
 ```
 
 ---

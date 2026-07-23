@@ -50,7 +50,7 @@
 ## F-path v1（去 C）
 
 - **`path.c` 已删除**；`path_sep_c` 内联于 `mod.x`（`#[cfg(target_os = "windows")]`）
-- 构建：`make -C compiler ../std/path/path.o`（`shux -backend asm mod.x`）
+- 构建：`make -C compiler ../std/path/path.o`（`xlang -backend asm mod.x`）
 - 门禁：`./tests/run-f-path-v1-gate.sh`
 
 运行：`./tests/run-path.sh`

@@ -82,7 +82,7 @@
 
 - **目标**：在需要「超越内核 socket 理论上限」的场景，接入 **DPDK、旁路网卡或自研内核模块**；std.net 的 API 不变，底层由舒 IO 的 Buffer + submit + completion 对接 bypass 或自研驱动。
 - **收益**：延迟与吞吐可超过任何「走内核 socket + io_uring」的栈，包括 Zig 的常见用法。
-- **实现要点**：见《高并发IO与多平台》§六、§七；平台分支 SHUX_OS_* 下选径，用户仍用同一套 connect/listen/accept 与 read/write。
+- **实现要点**：见《高并发IO与多平台》§六、§七；平台分支 XLANG_OS_* 下选径，用户仍用同一套 connect/listen/accept 与 read/write。
 
 **「换赛道」具体指什么？**
 
@@ -96,7 +96,7 @@
 
 - **完整接 DPDK/旁路**：属于**长期可选**。需要引入大依赖（DPDK 构建、PMD、大页等）或内核/驱动开发，且 DPDK 本身不提供「标准 TCP socket」——要么在 DPDK 上跑 lwIP 等栈，要么做裸包/自定义协议，工作量与当前 std.net 不在同一量级。
 - **当前可做**：
-  1. **抽象预留**：保持 std.net 与 std.io 的「Buffer + submit + completion」抽象，不把「内核 socket」写死；日后在平台或编译选项下可切换后端（如 `SHUX_NET_BACKEND=uring|dpdk|xdp`），而不改用户 API。
+  1. **抽象预留**：保持 std.net 与 std.io 的「Buffer + submit + completion」抽象，不把「内核 socket」写死；日后在平台或编译选项下可切换后端（如 `XLANG_NET_BACKEND=uring|dpdk|xdp`），而不改用户 API。
   2. **文档与接口约定**：在分析/设计中写明「阶段 6 后端」的接口契约（例如：connect/accept/read/write 由哪一层 C 或 .x 实现、如何与 Buffer 对接），便于以后接 DPDK/AF_XDP 时只换实现、不拆 API。
   3. **不落实现**：暂不引入 DPDK 或内核模块代码，也不在构建里加 DPDK 依赖；阶段 6 作为路线图占位与设计预留即可。
 

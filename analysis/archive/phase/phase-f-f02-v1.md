@@ -7,7 +7,7 @@
 | 项 | 说明 |
 |----|------|
 | `linux_mmap_rw` / `linux_munmap` / `linux_msync_sync` | `std/sys/linux.x` |
-| `mmap.x` | Linux 不再 `extern shux_sys_mmap_*_c` |
+| `mmap.x` | Linux 不再 `extern xlang_sys_mmap_*_c` |
 | 删除 | `std/sys/mmap.inc.c`、`compiler/Makefile` 中 `mmap.o` 规则 |
 | 烟测 | `tests/sys/linux_mmap_file_smoke.x` + `run-linux-mmap-file-gate.sh` |
 
@@ -25,13 +25,13 @@
 
 ```bash
 # 聚合门禁（manifest + F-01 + Linux 烟测委托）
-SHUX_F02_FAIL=1 ./tests/run-f02-std-sys-mmap-gate.sh
+XLANG_F02_FAIL=1 ./tests/run-f02-std-sys-mmap-gate.sh
 
 # Linux x86_64 hosted
-SHUX_LINUX_MMAP_FILE_FAIL=1 ./tests/run-linux-mmap-file-gate.sh
+XLANG_LINUX_MMAP_FILE_FAIL=1 ./tests/run-linux-mmap-file-gate.sh
 
 # F-01 存量（应 total=109）
-SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
+XLANG_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 ```
 
 ## 延后（F-03+）

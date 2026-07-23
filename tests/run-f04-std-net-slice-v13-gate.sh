@@ -2,11 +2,11 @@
 # F-04 v13：std.net IPv4 TCP 核心去 C 门禁。
 #
 # 用法：./tests/run-f04-std-net-slice-v13-gate.sh
-# 环境：SHUX_F04_NET_SLICE_V13_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_SLICE_V13_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_SLICE_V13_FAIL:-0}
+FAIL=${XLANG_F04_NET_SLICE_V13_FAIL:-0}
 DOC="analysis/phase-f-f04-v13.md"
 NET_C="std/net/net.c"
 
@@ -46,7 +46,7 @@ grep -q 'tcp.x' compiler/Makefile || die "Makefile missing tcp.x"
 if [ -f tests/run-f04-std-net-slice-v12-gate.sh ]; then
   echo "=== F-04 v13: delegate v12 gate ==="
   chmod +x tests/run-f04-std-net-slice-v12-gate.sh
-  if ! SHUX_F04_NET_SLICE_V12_FAIL="$FAIL" tests/run-f04-std-net-slice-v12-gate.sh; then
+  if ! XLANG_F04_NET_SLICE_V12_FAIL="$FAIL" tests/run-f04-std-net-slice-v12-gate.sh; then
     die "v12 sub-gate failed"
   fi
 fi

@@ -23,29 +23,29 @@ if ! grep -qF "i64_min_not_zero.x" "$BASELINE" 2>/dev/null; then
 fi
 echo "i64-ctfe manifest OK"
 
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 # shellcheck source=tests/lib/min-asm-gcc-link.sh
 . "$(dirname "$0")/lib/min-asm-gcc-link.sh"
-# P0 typeck：优先 B-strict relink 的 shux（含最新 typeck_x）；无则 shux-c seed。
-SHUX_BIN="${SHUX:-${TYPECK_SHUX:-./compiler/shux}}"
-if [ ! -x "$SHUX_BIN" ] && [ -x ./compiler/shux-c ]; then
-  SHUX_BIN=./compiler/shux-c
+# P0 typeck：优先 B-strict relink 的 xlang（含最新 typeck_x）；无则 xlang-c seed。
+XLANG_BIN="${XLANG:-${TYPECK_XLANG:-./compiler/xlang}}"
+if [ ! -x "$XLANG_BIN" ] && [ -x ./compiler/xlang-c ]; then
+  XLANG_BIN=./compiler/xlang-c
 fi
-if [ ! -x "$SHUX_BIN" ]; then
-  make -C compiler -q shux 2>/dev/null || make -C compiler shux
-  SHUX_BIN=./compiler/shux
+if [ ! -x "$XLANG_BIN" ]; then
+  make -C compiler -q xlang 2>/dev/null || make -C compiler xlang
+  XLANG_BIN=./compiler/xlang
 fi
 
-if ! "$SHUX_BIN" check -L . "$SRC" >/dev/null 2>&1; then
+if ! "$XLANG_BIN" check -L . "$SRC" >/dev/null 2>&1; then
   echo "i64-ctfe gate FAIL: typeck $SRC" >&2
-  "$SHUX_BIN" check -L . "$SRC" 2>&1 | tail -12 >&2 || true
+  "$XLANG_BIN" check -L . "$SRC" 2>&1 | tail -12 >&2 || true
   exit 1
 fi
 
-EXE="/tmp/shux_i64_ctfe_$$"
-LINK_SHUX="${SHUX_LINK_SHUX:-$SHUX_BIN}"
-if ! min_link_exe "$LINK_SHUX" "$SRC" "$EXE" 2>&1; then
+EXE="/tmp/xlang_i64_ctfe_$$"
+LINK_XLANG="${XLANG_LINK_XLANG:-$XLANG_BIN}"
+if ! min_link_exe "$LINK_XLANG" "$SRC" "$EXE" 2>&1; then
   echo "i64-ctfe gate FAIL: compile $SRC" >&2
   rm -f "$EXE"
   exit 1

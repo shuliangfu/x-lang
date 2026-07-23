@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 审计轨 T1–T4 |
 | 2 | 打开 `tests/baseline/eng-security-audit.tsv` |
 | 3 | `./tests/run-eng-security-audit-gate.sh` |
-| 4 | 夜跑 / 本地全量：`SHUX_SEC_AUDIT_PROBE=1 ./tests/run-eng-security-audit.sh` |
+| 4 | 夜跑 / 本地全量：`XLANG_SEC_AUDIT_PROBE=1 ./tests/run-eng-security-audit.sh` |
 
 ---
 
@@ -26,14 +26,14 @@
 | **T1-deps-inventory** | `eng-security-audit-inventory.txt` + `package.json` 锚点校验 | ✅ 清单 |
 | **T2-npm-audit** | `editors/vscode` 下 `npm audit --audit-level=high` | ✅ 周期性 |
 | **T3-secret-probe** | `git ls-files` 高置信密钥模式扫描 | ✅ 探测器 |
-| **T4-report** | `SHUX_SECURITY_AUDIT` 结构化报告 | ✅ runner |
+| **T4-report** | `XLANG_SECURITY_AUDIT` 结构化报告 | ✅ runner |
 
 **周期性策略**（v1）：
 
 | 项 | 约定 |
 |----|------|
 | 调度 | `ci-nightly.yml` Linux **periodic** 夜跑 + `run-portable-suite.sh` manifest gate |
-| 全量探测 | `SHUX_SEC_AUDIT_PROBE=1` 时执行 npm audit |
+| 全量探测 | `XLANG_SEC_AUDIT_PROBE=1` 时执行 npm audit |
 | 平台 | npm 不可用时 **SKIP** audit，inventory + secret 仍执行 |
 | 追溯 | 报告行含 `inventory=` / `npm=` / `secret=` 子状态 |
 
@@ -58,7 +58,7 @@
 runner 通过 `eng_sec_emit_report` 输出：
 
 ```
-shux: [SHUX_SECURITY_AUDIT] status=ok inventory=ok npm=skip secret=ok rows=9
+xlang: [XLANG_SECURITY_AUDIT] status=ok inventory=ok npm=skip secret=ok rows=9
 ```
 
 | 字段 | 含义 |
@@ -78,7 +78,7 @@ shux: [SHUX_SECURITY_AUDIT] status=ok inventory=ok npm=skip secret=ok rows=9
 | `tests/run-eng-security-audit-gate.sh` | manifest + 关键词 + 干跑烟测 |
 | `tests/run-eng-security-audit.sh` | 周期性扫描 runner |
 | `tests/lib/eng-security-audit.sh` | 共享库 |
-| `.github/workflows/ci-nightly.yml` | Linux 夜跑 `SHUX_SEC_AUDIT_PROBE=1` |
+| `.github/workflows/ci-nightly.yml` | Linux 夜跑 `XLANG_SEC_AUDIT_PROBE=1` |
 | `tests/run-portable-suite.sh` | 便携回归挂 gate |
 
 联动：`SAFE-003` unsafe 符号审计、`TOOL-008` lockfile 可重复构建。

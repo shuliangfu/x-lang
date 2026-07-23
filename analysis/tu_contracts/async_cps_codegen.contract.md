@@ -37,7 +37,7 @@
 ## 4. ABI Manifest
 - _impl 残余列表：`expr_references_run_async_impl`、`block_has_run_async_ref_impl`、`emit_hoisted_lets_impl`
 - DIRECT 符号列表：`async_cps_callee_is_io`、`async_cps_callee_is_future_wait_by_name`、`async_cps_callee_is_future_wait`
-- thin+rest 宏边界：`SHUX_ASYNC_CPS_CODEGEN_FROM_X`
+- thin+rest 宏边界：`XLANG_ASYNC_CPS_CODEGEN_FROM_X`
 - 前向声明：6 个 thin 函数（`block_has_run_async_ref` 已有 L18 + 5 个新增 L20-25：`emit_hoisted_lets` / `expr_references_run_async` / `async_cps_callee_is_io` / `async_cps_callee_is_future_wait_by_name` / `async_cps_callee_is_future_wait`），rest 模式下供 rest 函数调用
 - 内部调用更新：
   - `expr_references_run_async_impl` 调用 `expr_references_run_async` + `block_has_run_async_ref`（IMPL thin wrapper）

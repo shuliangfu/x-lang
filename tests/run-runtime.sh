@@ -4,16 +4,16 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler -q ../std/runtime/runtime.o 2>/dev/null || make -C compiler ../std/runtime/runtime.o
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
 
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 
 run_one() {
   local src="$1"
   local label="$2"
-  local exe="/tmp/shux_runtime_$$_${label}"
-  if ! $RUN_SHUX -L . "$src" -o "$exe" 2>&1; then
+  local exe="/tmp/xlang_runtime_$$_${label}"
+  if ! $RUN_XLANG build -L . "$src" -o "$exe" 2>&1; then
     echo "runtime test ($label): compile failed"
     rm -f "$exe"
     exit 1
@@ -31,4 +31,4 @@ run_one() {
 run_one tests/runtime/main.x ready
 run_one tests/exc/panic_hook_align.x panic_hook
 echo "runtime test OK (all)"
-rm -f /tmp/shux_runtime_$$_*
+rm -f /tmp/xlang_runtime_$$_*

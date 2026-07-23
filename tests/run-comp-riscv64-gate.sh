@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP_RISCV64_DOC:-analysis/comp-riscv64-v1.md}"
-MANIFEST="${SHUX_COMP_RISCV64_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
-MATRIX="${SHUX_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
+DOC="${XLANG_COMP_RISCV64_DOC:-analysis/comp-riscv64-v1.md}"
+MANIFEST="${XLANG_COMP_RISCV64_MANIFEST:-tests/baseline/comp-riscv64.tsv}"
+MATRIX="${XLANG_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 MIN_LAYERS=6
 MIN_CASES=6
 
@@ -148,7 +148,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-riscv64 manifest OK (layers=${LAYER_N} matrix=${CASE_M})"
 
-if [ "${SHUX_COMP_RISCV64_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_COMP_RISCV64_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "comp-riscv64 gate OK (manifest only)"
   exit 0
 fi

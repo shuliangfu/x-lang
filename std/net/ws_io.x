@@ -36,7 +36,7 @@ allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 extern "C" function send(fd: i32, buf: *u8, len: usize, flags: i32): isize;
 extern "C" function recv(fd: i32, buf: *u8, len: usize, flags: i32): isize;
 /* See implementation. */
-extern "C" function shux_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
+extern "C" function xlang_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
 extern function net_close_socket_c(fd: i32): i32;
 extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
 extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
@@ -66,7 +66,7 @@ export function ws_poll_writable(fd: i32, timeout_ms: u32): i32 {
   let pfd: PollFd = PollFd { fd: fd, events: 4, revents: 0 };
   let to: i32 = (timeout_ms == 0) ? -1 : (timeout_ms as i32);
   let n: i32 = 0;
-  unsafe { n = shux_sys_poll((&pfd) as *u8, 1, to); }
+  unsafe { n = xlang_sys_poll((&pfd) as *u8, 1, to); }
   if (n <= 0 || (pfd.revents & 24) != 0) {
     return -1;
   }
@@ -80,7 +80,7 @@ export function ws_poll_readable(fd: i32, timeout_ms: u32): i32 {
   let pfd: PollFd = PollFd { fd: fd, events: 1, revents: 0 };
   let to: i32 = (timeout_ms == 0) ? -1 : (timeout_ms as i32);
   let n: i32 = 0;
-  unsafe { n = shux_sys_poll((&pfd) as *u8, 1, to); }
+  unsafe { n = xlang_sys_poll((&pfd) as *u8, 1, to); }
   if (n <= 0 || (pfd.revents & 24) != 0) {
     return -1;
   }

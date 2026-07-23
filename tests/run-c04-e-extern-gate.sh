@@ -2,17 +2,17 @@
 # C-04 v1：-E-extern 聚合门禁（委托子 gate + manifest 审计）。
 #
 # 用法：./tests/run-c04-e-extern-gate.sh
-# 环境：SHUX_C04_FAIL=1 失败时硬退出
+# 环境：XLANG_C04_FAIL=1 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_C04_FAIL:-0}
+FAIL=${XLANG_C04_FAIL:-0}
 DOC="analysis/phase-c-c04-v1.md"
 MANIFEST="tests/baseline/c04-e-extern-manifest.tsv"
 MF="compiler/Makefile"
 
-# 探测 shux-c 是否为当前宿主可执行（macOS 上 Linux ELF 须 SKIP 子 gate）。
-c04_native_shux() {
+# 探测 xlang-c 是否为当前宿主可执行（macOS 上 Linux ELF 须 SKIP 子 gate）。
+c04_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -56,19 +56,19 @@ if grep -q 'lsp_io_extern\.h' "$MF" 2>/dev/null; then
   die "Makefile still -include lsp_io_extern.h"
 fi
 
-SHUX_BIN="./compiler/shux-c"
-[ -x "$SHUX_BIN" ] || SHUX_BIN="./compiler/shux"
-if ! c04_native_shux "$SHUX_BIN"; then
-  echo "c04 e-extern gate: SKIP sub-gates (no native shux-c; manifest audited — use Docker Linux)"
+XLANG_BIN="./compiler/xlang-c"
+[ -x "$XLANG_BIN" ] || XLANG_BIN="./compiler/xlang"
+if ! c04_native_xlang "$XLANG_BIN"; then
+  echo "c04 e-extern gate: SKIP sub-gates (no native xlang-c; manifest audited — use Docker Linux)"
   echo "c04 e-extern gate OK (manifest only)"
   exit 0
 fi
 
 echo "=== C-04: delegate sub-gates ==="
-run_sub tests/run-e-extern-import-gate.sh SHUX_E_EXTERN_IMPORT_FAIL
-run_sub tests/run-lexer-e-extern-gate.sh SHUX_LEXER_E_EXTERN_FAIL
-run_sub tests/run-pipeline-e-extern-gate.sh SHUX_PIPELINE_E_EXTERN_FAIL
-run_sub tests/run-parser-e-extern-gate.sh SHUX_PARSER_E_EXTERN_FAIL
-run_sub tests/run-c04-no-perl-fallback-gate.sh SHUX_C04_NO_PERL_FAIL
+run_sub tests/run-e-extern-import-gate.sh XLANG_E_EXTERN_IMPORT_FAIL
+run_sub tests/run-lexer-e-extern-gate.sh XLANG_LEXER_E_EXTERN_FAIL
+run_sub tests/run-pipeline-e-extern-gate.sh XLANG_PIPELINE_E_EXTERN_FAIL
+run_sub tests/run-parser-e-extern-gate.sh XLANG_PARSER_E_EXTERN_FAIL
+run_sub tests/run-c04-no-perl-fallback-gate.sh XLANG_C04_NO_PERL_FAIL
 
 echo "c04 e-extern gate OK (v1: parser/lsp_diag zero perl + lsp/pipeline -E-extern; lexer/typeck/codegen track)"

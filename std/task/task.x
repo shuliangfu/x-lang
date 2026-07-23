@@ -49,13 +49,13 @@ allow(padding) struct JoinSetMem {
   join_total: i64;
 }
 
-extern function shux_async_spawn_i32(fn: *u8, seed: i32): i32;
-extern function shux_async_run_seed_reset(): void;
-extern function shux_async_queue_reset(): void;
-extern function shux_async_run_drain_until_idle(): i32;
-extern function shux_async_run_seed_valid(): i32;
-extern function shux_async_run_seed_take_i32(): i32;
-extern function shux_async_bind_context_c(ctx_handle: i64): void;
+extern function xlang_async_spawn_i32(fn: *u8, seed: i32): i32;
+extern function xlang_async_run_seed_reset(): void;
+extern function xlang_async_queue_reset(): void;
+extern function xlang_async_run_drain_until_idle(): i32;
+extern function xlang_async_run_seed_valid(): i32;
+extern function xlang_async_run_seed_take_i32(): i32;
+extern function xlang_async_bind_context_c(ctx_handle: i64): void;
 extern function ctx_is_cancelled_c(handle: i64): i32;
 extern function ctx_cancel_c(handle: i64): void;
 extern function time_sleep_ns_c(ns: i64): void;
@@ -65,7 +65,7 @@ extern "C" function free(ptr: *u8): void;
 /**
  * See implementation.
  */
-extern function shux_async_task_echo_fn_ptr_c(): *u8;
+extern function xlang_async_task_echo_fn_ptr_c(): *u8;
 
 /** Exported function `task_f_task_v1_marker_c`.
  * Implements `task_f_task_v1_marker_c`.
@@ -129,8 +129,8 @@ export function tg_is_cancelled(g: *TaskGroupMem): i32 {
  */
 export function task_echo_fn_c(): i32 {
   let seed: i32 = 0;
-  unsafe { if (shux_async_run_seed_valid() != 0) {
-    seed = shux_async_run_seed_take_i32();
+  unsafe { if (xlang_async_run_seed_valid() != 0) {
+    seed = xlang_async_run_seed_take_i32();
   } }
   return seed * 10;
 }
@@ -140,7 +140,7 @@ export function task_echo_fn_c(): i32 {
  * @return *u8
  */
 export function task_echo_fn_ptr_c(): *u8 {
-  unsafe { return shux_async_task_echo_fn_ptr_c(); }
+  unsafe { return xlang_async_task_echo_fn_ptr_c(); }
   return 0 as *u8; // unreachable — typeck workaround
 }
 
@@ -210,7 +210,7 @@ export function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32 {
   if (g.spawned >= g.capacity) {
     return TASK_ERR_FULL;
   }
-  unsafe { spawn_r = shux_async_spawn_i32(fn, seed); }
+  unsafe { spawn_r = xlang_async_spawn_i32(fn, seed); }
   if (spawn_r != 0) {
     if (spawn_r == -2 || tg_is_cancelled(g) != 0) {
       return TASK_ERR_CANCELLED;
@@ -242,9 +242,9 @@ export function task_group_join_c(handle: i64): i32 {
     return TASK_OK;
   }
   if (g.ctx_handle != 0) {
-    unsafe { shux_async_bind_context_c(g.ctx_handle); }
+    unsafe { xlang_async_bind_context_c(g.ctx_handle); }
   }
-  unsafe { total = shux_async_run_drain_until_idle(); }
+  unsafe { total = xlang_async_run_drain_until_idle(); }
   if (total == -3) {
     return TASK_ERR_CANCELLED;
   }
@@ -351,7 +351,7 @@ export function join_set_spawn_c(handle: i64, fn: *u8, seed: i32): i32 {
   if (s.spawned >= s.capacity) {
     return TASK_ERR_FULL;
   }
-  unsafe { if (shux_async_spawn_i32(fn, seed) != 0) {
+  unsafe { if (xlang_async_spawn_i32(fn, seed) != 0) {
     return TASK_ERR_INVALID;
   } }
   s.spawned = s.spawned + 1;
@@ -375,7 +375,7 @@ export function join_set_join_c(handle: i64): i32 {
     s.join_total = 0 as i64;
     return TASK_OK;
   }
-  unsafe { total = shux_async_run_drain_until_idle(); }
+  unsafe { total = xlang_async_run_drain_until_idle(); }
   s.join_total = total as i64;
   s.joined = 1;
   s.spawned = 0;
@@ -413,12 +413,12 @@ export function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, ba
     return TASK_ERR_NULL;
   }
   while (attempt < max_attempts) {
-    unsafe { shux_async_run_seed_reset(); }
-    unsafe { shux_async_queue_reset(); }
-    unsafe { if (shux_async_spawn_i32(fn, seed) != 0) {
+    unsafe { xlang_async_run_seed_reset(); }
+    unsafe { xlang_async_queue_reset(); }
+    unsafe { if (xlang_async_spawn_i32(fn, seed) != 0) {
       return TASK_ERR_INVALID;
     } }
-    unsafe { total = shux_async_run_drain_until_idle(); }
+    unsafe { total = xlang_async_run_drain_until_idle(); }
     if (total >= 0) {
       return total;
     }
@@ -442,8 +442,8 @@ export function task_smoke_c(): i32 {
   if (grp == 0 || js == 0) {
     return 1;
   }
-  unsafe { shux_async_run_seed_reset(); }
-  unsafe { shux_async_queue_reset(); }
+  unsafe { xlang_async_run_seed_reset(); }
+  unsafe { xlang_async_queue_reset(); }
   if (task_group_spawn_c(grp, echo_fn, 2) != TASK_OK) {
     return 2;
   }
@@ -460,8 +460,8 @@ export function task_smoke_c(): i32 {
   if (task_group_check_leak_c(grp) != TASK_OK) {
     return 6;
   }
-  unsafe { shux_async_run_seed_reset(); }
-  unsafe { shux_async_queue_reset(); }
+  unsafe { xlang_async_run_seed_reset(); }
+  unsafe { xlang_async_queue_reset(); }
   if (join_set_spawn_c(js, echo_fn, 4) != TASK_OK) {
     return 7;
   }
@@ -469,8 +469,8 @@ export function task_smoke_c(): i32 {
   if (r != 40) {
     return 8;
   }
-  unsafe { shux_async_run_seed_reset(); }
-  unsafe { shux_async_queue_reset(); }
+  unsafe { xlang_async_run_seed_reset(); }
+  unsafe { xlang_async_queue_reset(); }
   r = task_supervise_retry_c(echo_fn, 5, 3, 0);
   if (r != 50) {
     return 9;

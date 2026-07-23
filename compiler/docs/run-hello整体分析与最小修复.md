@@ -4,7 +4,7 @@
 
 ## 一、目标与现状
 
-- **目标**：`./compiler/shux examples/hello.x -o /tmp/shux_hello` 能编译链接并运行，生成 C 中含 `main`，且不与 std.io 的 extern 冲突。
+- **目标**：`./compiler/xlang examples/hello.x -o /tmp/xlang_hello` 能编译链接并运行，生成 C 中含 `main`，且不与 std.io 的 extern 冲突。
 - **现状**：链接报 `Undefined symbols: _main`；生成的 C 里没有 `main`，因为 **entry 的 module.num_funcs 在 pipeline 内解析后仍为 0**。
 
 ---
@@ -20,7 +20,7 @@ run-hello 要成功
   → 内部是 parser.parse_into_buf(arena, module, data, len)
 ```
 
-**说明**：bootstrap 时 `shux-c ... pipeline.x -E > pipeline_gen.c` 会把 **parser 等 import 一起展开进 pipeline_gen.c**，故实际跑的是 **parser.x 的 parse_into_buf**（由 shux-c 的 codegen 生成），不是 parser.c。
+**说明**：bootstrap 时 `xlang-c ... pipeline.x -E > pipeline_gen.c` 会把 **parser 等 import 一起展开进 pipeline_gen.c**，故实际跑的是 **parser.x 的 parse_into_buf**（由 xlang-c 的 codegen 生成），不是 parser.c。
 
 **parser.parse_into_buf 对 hello.x 的行为：**
 
@@ -60,7 +60,7 @@ run-hello 要成功
 
 - **唯一问题**：codegen 在生成  
   `let x: u8[] = parser_slice_from_buf(data, len);`  
-  时，没有按「extern 返回 struct shux_slice_uint8_t」来生成 C，导致赋值错误、parser fallback 失败、entry num_funcs=0、没有 main。
+  时，没有按「extern 返回 struct xlang_slice_uint8_t」来生成 C，导致赋值错误、parser fallback 失败、entry num_funcs=0、没有 main。
 
 - **最小修复（已做）**：
 1. **codegen.c**：let 声明处对 extern 返回 slice 的兜底（见上）。
@@ -70,7 +70,7 @@ run-hello 要成功
 **当前状态（已通过 run-hello）**：以下修复已生效：
 
 - **pipeline.x**：emit 循环中当 `ctx.dep_paths[j] == NULL` 时（.x 驱动路径下自行加载 deps 未填 dep_paths），用 `get_module_import_path(module, j, ...)` 从 entry 的 j 号 import 补全到 `ctx.path_buf` 并设 `ctx.dep_paths[j]`，保证 codegen 能生成正确 C 前缀（如 std_io_）。
-- **runtime.c**：在 `write_io_net_abi_inline` 中增加 `std_io_print_str` 的弱符号定义（`__attribute__((weak))`），当 pipeline 未生成该定义时由内联 ABI 提供，保证 `shux -sx examples/hello.x -o /tmp/shux_hello` 链接通过；若 pipeline 日后生成定义则强符号优先。
+- **runtime.c**：在 `write_io_net_abi_inline` 中增加 `std_io_print_str` 的弱符号定义（`__attribute__((weak))`），当 pipeline 未生成该定义时由内联 ABI 提供，保证 `xlang -sx examples/hello.x -o /tmp/xlang_hello` 链接通过；若 pipeline 日后生成定义则强符号优先。
 - **pipeline.x**：codegen 前 emit 各 dep 的循环已改为 `while (j < ctx.ndep)`（不再用 `get_ndep()`），.x 驱动路径下会正确先 emit 各 dep 再 emit entry。
 
 **不再做的事**：
@@ -83,7 +83,7 @@ run-hello 要成功
 ## 五、建议执行顺序
 
 1. **确认当前状态**：保留上述三项修改；确认 run-hello 仍报 _main、且原因仍是 entry num_funcs=0（可临时打开 driver_diagnostic_after_entry_parse 一次验证）。
-2. **只做 codegen 修改**：在 **C 的 codegen.c** 中（bootstrap 时 shux-c 用 C 版 codegen 生成 pipeline_gen.c），找到「对 extern 调用结果赋给变量」的生成逻辑，当**被赋值的变量类型是 slice（u8[] 等）**时，用正确的 C 结构体类型和调用方式生成赋值（例如 `struct shux_slice_uint8_t var = parser_slice_from_buf(...);`）。
+2. **只做 codegen 修改**：在 **C 的 codegen.c** 中（bootstrap 时 xlang-c 用 C 版 codegen 生成 pipeline_gen.c），找到「对 extern 调用结果赋给变量」的生成逻辑，当**被赋值的变量类型是 slice（u8[] 等）**时，用正确的 C 结构体类型和调用方式生成赋值（例如 `struct xlang_slice_uint8_t var = parser_slice_from_buf(...);`）。
 3. **验证**：bootstrap 一次，再跑 run-hello，应得到有 main 的 C 且链接通过。
 4. **收尾**：若有临时诊断再关掉；提交时只包含「codegen 对 extern 返回 slice 的赋值」相关改动。
 

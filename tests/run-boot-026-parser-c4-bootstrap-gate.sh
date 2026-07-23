@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_BOOT026_DOC:-analysis/boot-026-parser-c4-bootstrap-v1.md}"
-MANIFEST="${SHUX_BOOT026_TSV:-tests/baseline/boot-026-parser-c4-bootstrap.tsv}"
-WAVE="${SHUX_BOOT026_WAVE_TSV:-tests/baseline/parser-c4-bootstrap-wave.tsv}"
+DOC="${XLANG_BOOT026_DOC:-analysis/boot-026-parser-c4-bootstrap-v1.md}"
+MANIFEST="${XLANG_BOOT026_TSV:-tests/baseline/boot-026-parser-c4-bootstrap.tsv}"
+WAVE="${XLANG_BOOT026_WAVE_TSV:-tests/baseline/parser-c4-bootstrap-wave.tsv}"
 MATRIX="tests/baseline/comp-parser-mega7-matrix.tsv"
 REPRO="tests/baseline/bootstrap-repro.tsv"
 LIB="tests/lib/boot-026-parser-c4-bootstrap.sh"
@@ -106,9 +106,9 @@ echo "boot-026-parser-c4-bootstrap manifest OK (rows=${ROW_N} hooks=${HOOK_N})"
 
 echo "=== BOOT-026: parent BOOT-025 manifest ==="
 chmod +x tests/run-boot-025-parser-gen12-consistency-gate.sh
-SHUX_BOOT025_MANIFEST_ONLY=1 ./tests/run-boot-025-parser-gen12-consistency-gate.sh
+XLANG_BOOT025_MANIFEST_ONLY=1 ./tests/run-boot-025-parser-gen12-consistency-gate.sh
 
-if [ "${SHUX_BOOT026_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_BOOT026_MANIFEST_ONLY:-0}" = "1" ]; then
   boot026_emit_report "ok" 0 0 1
   echo "boot-026-parser-c4-bootstrap gate OK (manifest only)"
   exit 0
@@ -119,7 +119,7 @@ C4_SU_PROBE=0
 SKIP=1
 
 if boot026_parser_linux_shu; then
-  echo "=== BOOT-026: X emit probe (Linux shux) ==="
+  echo "=== BOOT-026: X emit probe (Linux xlang) ==="
   chmod +x tests/run-parser-parse-bootstrap-x-emit-gate.sh
   X_LOG="/tmp/boot026_x_emit_$$.log"
   if ./tests/run-parser-parse-bootstrap-x-emit-gate.sh 2>&1 | tee "$X_LOG"; then
@@ -133,7 +133,7 @@ if boot026_parser_linux_shu; then
   fi
   rm -f "$X_LOG"
 else
-  echo "boot-026-parser-c4-bootstrap gate SKIP wave (Darwin or no compiler/shux)" >&2
+  echo "boot-026-parser-c4-bootstrap gate SKIP wave (Darwin or no compiler/xlang)" >&2
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$C4_MINIMAL_OK" -lt 1 ]; then

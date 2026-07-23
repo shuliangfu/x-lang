@@ -27,7 +27,7 @@
     "only_x": [],
     "only_seed": ["driver_argv0_basename_is"]
   },
-  "rest_macro": "SHUX_RT_UTIL_FROM_X",
+  "rest_macro": "XLANG_RT_UTIL_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

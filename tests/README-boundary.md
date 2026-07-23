@@ -11,7 +11,7 @@
 | **preprocess** | 已写全：`unclosed #if`、`#else/#endif/#elseif` 无 `#if`、`#elseif` 在 `#else` 后、重复 `#else`、多 `#endif` 等 7 类，均断言 stderr 含预期错误信息。 |
 | **parser** | 正例 `semicolon_required.x`；负例 `semicolon_missing.x`（缺分号）、`if_missing_paren.x`（if 后缺 `(`）。 |
 | **lexer** | 正例与 expected.txt 比对；负例 `invalid_char.x`（含 `$` 等非法字符，须编译失败）。 |
-| **typeck** | 正例 lexer/main.x；负例 `type_mismatch_assign.x`、`if_condition_not_bool.x`、`undefined_name.x`、`return_implicit.x`、`ternary_condition_not_bool.x`、`ternary_branches_mismatch.x`，均断言 stderr 含 `typeck error`。`SHUX=shux_x` 时脚本仅对 `return_implicit.x` 自动加 `-x`（与 .x typeck 隐式返回检查对齐）；其余负例仍走 shux_x 内嵌的 C 前端。设 `TYPECK_X=all` 可令所有负例带 `-x`（.x typeck 未全覆盖前慎用）。 |
+| **typeck** | 正例 lexer/main.x；负例 `type_mismatch_assign.x`、`if_condition_not_bool.x`、`undefined_name.x`、`return_implicit.x`、`ternary_condition_not_bool.x`、`ternary_branches_mismatch.x`，均断言 stderr 含 `typeck error`。`XLANG=xlang_x` 时脚本仅对 `return_implicit.x` 自动加 `-x`（与 .x typeck 隐式返回检查对齐）；其余负例仍走 xlang_x 内嵌的 C 前端。设 `TYPECK_X=all` 可令所有负例带 `-x`（.x typeck 未全覆盖前慎用）。 |
 | **struct** | 正例 `padding_allow` + 负例 `padding_no_allow.x`（无 allow(padding) 时隐式 padding 报 typeck error）。 |
 | **float** | 正例多文件 + `boundary.x` + 负例 `init_non_zero_int.x`（f32=1 非字面量/0 报 typeck error）。 |
 | **while** | 正例多文件 + 负例 `break_outside.x`（break 不在循环内报 typeck error）。 |

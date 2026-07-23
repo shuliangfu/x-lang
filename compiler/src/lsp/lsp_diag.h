@@ -5,8 +5,8 @@
  * LSP 层调用 lsp_diagnostics_collect 对当前文档跑解析并取 Diagnostic[] JSON。
  */
 
-#ifndef SHUX_LSP_DIAG_H
-#define SHUX_LSP_DIAG_H
+#ifndef XLANG_LSP_DIAG_H
+#define XLANG_LSP_DIAG_H
 
 #include <stdint.h>
 
@@ -46,7 +46,7 @@ void lsp_diag_add(int line, int col, int severity, const char *msg);
 void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg);
 
 /**
- * 统计当前收集器中 severity 等于给定值的诊断条数（用于 shux check CI profile）。
+ * 统计当前收集器中 severity 等于给定值的诊断条数（用于 xlang check CI profile）。
  */
 int lsp_diag_count_severity(int severity);
 
@@ -97,10 +97,10 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len, cons
 int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len, const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
 
 /**
- * shux fmt CLI：对 .x 源码做与 LSP formatting 相同的缩进/换行规范（tabSize=2、空格缩进、maxLineLength=100）。
+ * xlang fmt CLI：对 .x 源码做与 LSP formatting 相同的缩进/换行规范（tabSize=2、空格缩进、maxLineLength=100）。
  * 写入 out_buf，返回格式化后字节数；失败或越界返回 -1。
  */
-int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap);
+int xlang_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap);
 
 /** textDocument/completion：返回 CompletionItem[] JSON；无模块或失败时 result 为 []。 */
 int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,
@@ -119,4 +119,4 @@ int lsp_build_rename_response(int id_val, const uint8_t *body, int body_len,
                               const uint8_t *doc_buf, int doc_len,
                               uint8_t *out_buf, int out_cap);
 
-#endif /* SHUX_LSP_DIAG_H */
+#endif /* XLANG_LSP_DIAG_H */

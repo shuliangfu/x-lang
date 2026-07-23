@@ -17,7 +17,7 @@
 // mod.x — SLIR layer module entry (re-export)
 //
 // Module: ir/slir
-// Layer: SLIR (Shux Low IR; machine-independent extreme opts; immutable graph)
+// Layer: SLIR (Xlang Low IR; machine-independent extreme opts; immutable graph)
 // Phase: Phase 3-4
 // Responsibility: Aggregate slir/ exports
 //   (egraph / rules / cost / extract / saturate / conflict / superopt / soa / verify).

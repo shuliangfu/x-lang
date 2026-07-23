@@ -2,11 +2,11 @@
 # F-04 v3：std.net WebSocket 去 C 门禁（ws_codec/ws_io.x + 无 ws.inc.c）。
 #
 # 用法：./tests/run-f04-std-net-ws-gate.sh
-# 环境：SHUX_F04_NET_WS_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_NET_WS_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_NET_WS_FAIL:-0}
+FAIL=${XLANG_F04_NET_WS_FAIL:-0}
 DOC="analysis/phase-f-f04-v3.md"
 WS_CODEC="std/net/ws_codec.x"
 WS_IO="std/net/ws_io.x"
@@ -66,7 +66,7 @@ fi
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-04 v3: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

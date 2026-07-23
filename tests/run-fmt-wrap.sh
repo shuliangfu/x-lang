@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# shux fmt 折行回归：注释不折、代码在 ; / , / 空格处折、数组逗号后补空格、fmt 后须能 check 通过。
+# xlang fmt 折行回归：注释不折、代码在 ; / , / 空格处折、数组逗号后补空格、fmt 后须能 check 通过。
 set -e
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-SHUX=${SHUX:-./compiler/shux}
+XLANG=${XLANG:-./compiler/xlang}
 # fmt/check 必须用真实编译器二进制，禁止 bootstrap-link 的 -backend wrap。
 # wrap 把 -backend c 注入 `check`/`fmt` 后 pin/产品路径会 CHK001 假红；
-# 冷 L2 产品 shux_asm→shux 已对 fmt 产物静默 check 绿。
-case "$(basename "$SHUX")" in
-  shux-backend-wrap.sh|shux-min-link.sh)
-    SHUX="${SHUX_BACKEND_WRAP_REAL:-${SHUX_MIN_LINK_REAL:-./compiler/shux}}"
+# 冷 L2 产品 xlang_asm→xlang 已对 fmt 产物静默 check 绿。
+case "$(basename "$XLANG")" in
+  xlang-backend-wrap.sh|xlang-min-link.sh)
+    XLANG="${XLANG_BACKEND_WRAP_REAL:-${XLANG_MIN_LINK_REAL:-./compiler/xlang}}"
     ;;
 esac
-if [ ! -x "$SHUX" ] && [ -x ./compiler/shux_asm ]; then
-  SHUX=./compiler/shux_asm
-elif [ ! -x "$SHUX" ] && [ -x ./compiler/shux ]; then
-  SHUX=./compiler/shux
+if [ ! -x "$XLANG" ] && [ -x ./compiler/xlang_asm ]; then
+  XLANG=./compiler/xlang_asm
+elif [ ! -x "$XLANG" ] && [ -x ./compiler/xlang ]; then
+  XLANG=./compiler/xlang
 fi
 run_one_case() {
   local CASE=$1
@@ -24,7 +24,7 @@ run_one_case() {
   cp "$CASE" "$TMP"
   before=$(wc -l <"$CASE" | tr -d ' ')
 
-  out=$($SHUX fmt "$TMP" 2>&1) || { echo "fmt failed on $CASE: $out"; return 1; }
+  out=$($XLANG fmt "$TMP" 2>&1) || { echo "fmt failed on $CASE: $out"; return 1; }
 
   python3 compiler/scripts/scan_fmt_damage.py "$TMP" || {
     echo "scan_fmt_damage failed on fmt output ($CASE)"
@@ -48,7 +48,7 @@ run_one_case() {
     return 1
   fi
 
-  chk=$($SHUX check -L "$ROOT" "$TMP" 2>&1) || {
+  chk=$($XLANG check -L "$ROOT" "$TMP" 2>&1) || {
     echo "$chk"
     echo "check failed after fmt ($CASE)"
     return 1
@@ -58,7 +58,7 @@ run_one_case() {
     return 1
   fi
 
-  chk2=$($SHUX fmt --check "$TMP" 2>&1) || {
+  chk2=$($XLANG fmt --check "$TMP" 2>&1) || {
     echo "fmt --check failed after first fmt ($CASE): $chk2"
     return 1
   }
@@ -72,10 +72,10 @@ run_one_case() {
   return 0
 }
 
-if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+if [ -z "${XLANG_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler src/lsp/lsp_diag.o -q 2>/dev/null || true
   if [ -f compiler/build_asm/seed_host/asm_backend_partial.o ]; then
-    make -C compiler relink-shux -q 2>/dev/null || true
+    make -C compiler relink-xlang -q 2>/dev/null || true
   fi
 fi
 

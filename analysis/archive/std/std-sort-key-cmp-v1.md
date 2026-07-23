@@ -43,4 +43,4 @@ sort_stable_by_key(&items[0], len);
 ./tests/run-std-sort-key-cmp-gate.sh
 ```
 
-报告：`shux: [SHUX_STD150_SORT_KEY_CMP]`
+报告：`xlang: [XLANG_STD150_SORT_KEY_CMP]`

@@ -7,14 +7,14 @@ def main() -> int:
     p = Path(sys.argv[1] if len(sys.argv) > 1 else "codegen_gen.c")
     t = p.read_text()
 
-    # 1) Add static parent call ref near top after includes / first SHUX_LIB_WEAK block
+    # 1) Add static parent call ref near top after includes / first XLANG_LIB_WEAK block
     if "g_codegen_parent_call_expr_ref" not in t:
         # after first function or after globals
-        marker = "#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n"
+        marker = "#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n"
         if marker not in t:
-            marker = "#endif\n#ifndef SHUX_BUILTIN_INLINE_DECLS_GUARD\n"
-        # put after SHUX_LIB_WEAK define
-        idx = t.find("SHUX_LIB_WEAK")
+            marker = "#endif\n#ifndef XLANG_BUILTIN_INLINE_DECLS_GUARD\n"
+        # put after XLANG_LIB_WEAK define
+        idx = t.find("XLANG_LIB_WEAK")
         # find end of that #else/#endif block
         ins_at = t.find("\n", t.find("#endif", idx)) + 1
         t = (
@@ -81,7 +81,7 @@ def main() -> int:
         " }\n"
         "  return 0;\n"
         "}\n"
-        "SHUX_LIB_WEAK int32_t codegen_emit_import_module_const_field"
+        "XLANG_LIB_WEAK int32_t codegen_emit_import_module_const_field"
     )
     new_sym = (
         "  if (plen > 0 && codegen_c_prefix_redundant_with_name((&((pre)[0])), plen, "
@@ -106,7 +106,7 @@ def main() -> int:
         " }\n"
         "  return 0;\n"
         "}\n"
-        "SHUX_LIB_WEAK int32_t codegen_emit_import_module_const_field"
+        "XLANG_LIB_WEAK int32_t codegen_emit_import_module_const_field"
     )
     if old_sym not in t:
         print("WARN: import field symbol pattern not found", file=sys.stderr)

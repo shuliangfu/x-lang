@@ -3,11 +3,11 @@
 #
 # 用法（source 后）：
 #   tst004_sanitize_ensure_o rel_o
-#   tst004_sanitize_run_case SHUX_BIN src tag
+#   tst004_sanitize_run_case XLANG_BIN src tag
 #   tst004_sanitize_verify_manifest TSV
 #   tst004_sanitize_emit_report status cases_ok cases_fail skip
 
-TST004_SAN_PREFIX="${SHUX_TST004_SANITIZE_PREFIX:-shux: [SHUX_TST004_SANITIZE]}"
+TST004_SAN_PREFIX="${XLANG_TST004_SANITIZE_PREFIX:-xlang: [XLANG_TST004_SANITIZE]}"
 
 # shellcheck source=tests/lib/safe-leak.sh
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/safe-leak.sh"
@@ -23,10 +23,10 @@ tst004_sanitize_ensure_o() {
 
 # 以 ASAN 编译并运行单个 .x；成功 0，失败 1。
 tst004_sanitize_run_case() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-case}"
-  safe_leak_run_x "$shux" "$src" "$tag"
+  safe_leak_run_x "$xlang" "$src" "$tag"
 }
 
 # 校验 manifest 文件与 case 行；echo 缺失数。

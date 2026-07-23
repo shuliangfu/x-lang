@@ -3,18 +3,18 @@
 #
 # 用法：./tests/run-no-libc-link-gate.sh
 # 环境：
-#   SHUX_NOLIBC_LINK_FAIL=1           — 失败时硬退出
-#   SHUX_NOLIBC_LINK_MANIFEST_ONLY=1  — 仅 manifest + runtime 审计
-#   SHUX_NOLIBC_LINK_SKIP_SMOKE=1     — 跳过 heap/fs 烟测（聚合 gate 已跑时）
+#   XLANG_NOLIBC_LINK_FAIL=1           — 失败时硬退出
+#   XLANG_NOLIBC_LINK_MANIFEST_ONLY=1  — 仅 manifest + runtime 审计
+#   XLANG_NOLIBC_LINK_SKIP_SMOKE=1     — 跳过 heap/fs 烟测（聚合 gate 已跑时）
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_NOLIBC_LINK_FAIL:-0}
+FAIL=${XLANG_NOLIBC_LINK_FAIL:-0}
 DOC="analysis/phase-f-no-libc-v1.md"
 POLICY="tests/baseline/no-libc-link-policy.tsv"
 RT="compiler/seeds/runtime_link_abi.from_x.c"
 DRIVER="compiler/src/driver/compile.x"
-BUILD_ASM="compiler/scripts/build_shux_asm.sh"
+BUILD_ASM="compiler/scripts/build_xlang_asm.sh"
 
 die() {
   echo "nolibc-link gate FAIL: $*" >&2
@@ -40,17 +40,17 @@ grep -q 'freestanding' "$DRIVER" || die "driver compile.x missing -freestanding"
 TRACK=$(nolibc_track_compiler_lc_mentions)
 echo "nolibc-link track: compiler bootstrap files with -lc mentions = $TRACK (expected until F-07; not blocking v1)"
 
-if [ "${SHUX_NOLIBC_LINK_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_NOLIBC_LINK_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "nolibc-link gate OK (manifest + runtime audit)"
   exit 0
 fi
 
 # 委托 NL-03/04 烟测：实际链接产物无 libc.so（聚合 gate 可设 SKIP_SMOKE=1）
-if [ "${SHUX_NOLIBC_LINK_SKIP_SMOKE:-0}" != "1" ]; then
+if [ "${XLANG_NOLIBC_LINK_SKIP_SMOKE:-0}" != "1" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ]; then
     chmod +x tests/run-no-libc-heap-gate.sh tests/run-no-libc-fs-gate.sh
-    SHUX_NOLIBC_HEAP_FAIL="$FAIL" ./tests/run-no-libc-heap-gate.sh || die "heap smoke link failed"
-    SHUX_NOLIBC_FS_FAIL="$FAIL" ./tests/run-no-libc-fs-gate.sh || die "fs smoke link failed"
+    XLANG_NOLIBC_HEAP_FAIL="$FAIL" ./tests/run-no-libc-heap-gate.sh || die "heap smoke link failed"
+    XLANG_NOLIBC_FS_FAIL="$FAIL" ./tests/run-no-libc-fs-gate.sh || die "fs smoke link failed"
   else
     echo "nolibc-link gate: SKIP runtime smokes (need Linux x86_64)"
   fi

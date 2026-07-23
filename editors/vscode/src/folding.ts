@@ -1,5 +1,5 @@
 /**
- * Shux FoldingRangeProvider — 语义代码折叠
+ * Xlang FoldingRangeProvider — 语义代码折叠
  *
  * 支持折叠：
  * - 函数体（function / export function ... { ... }）
@@ -11,7 +11,7 @@
 
 import * as vscode from 'vscode';
 
-export class ShuxFoldingRangeProvider implements vscode.FoldingRangeProvider {
+export class XlangFoldingRangeProvider implements vscode.FoldingRangeProvider {
   public provideFoldingRanges(
     document: vscode.TextDocument,
     _context: vscode.FoldingContext,
@@ -28,7 +28,7 @@ export class ShuxFoldingRangeProvider implements vscode.FoldingRangeProvider {
     let inBlockComment = false;
     let commentStartLine = 0;
 
-    // 【Why】覆盖所有 SHUX 块起始关键字：export 前缀 + 主体关键字
+    // 【Why】覆盖所有 XLANG 块起始关键字：export 前缀 + 主体关键字
     // 【Invariant】region/with_arena/unsafe 折叠为 Region kind，其余为默认
     const blockStarters = /\b(function|struct|enum|trait|impl|type|if|else|while|for|loop|match|defer|region|with_arena|unsafe|export)\b/;
 

@@ -18,7 +18,7 @@
 
 ## 2. 证据包字段
 
-落盘文件（`$SHUXXX_CRASH_EVIDENCE_DIR/shux-crash-<pid>.txt`）：
+落盘文件（`$XLANGXX_CRASH_EVIDENCE_DIR/xlang-crash-<pid>.txt`）：
 
 | 字段 | 含义 |
 |------|------|
@@ -31,8 +31,8 @@
 stderr 摘要（可 grep / 回放定位）：
 
 ```
-shux: [SHUX_CRASH_EVIDENCE] panic=1 msg=42 frames=8 pid=12345
-shux: [SHUX_CRASH_EVIDENCE] bundle=/tmp/.../shux-crash-12345.txt
+xlang: [XLANG_CRASH_EVIDENCE] panic=1 msg=42 frames=8 pid=12345
+xlang: [XLANG_CRASH_EVIDENCE] bundle=/tmp/.../xlang-crash-12345.txt
 ```
 
 ---
@@ -41,14 +41,14 @@ shux: [SHUX_CRASH_EVIDENCE] bundle=/tmp/.../shux-crash-12345.txt
 
 | 变量 | 作用 |
 |------|------|
-| `SHUX_CRASH_EVIDENCE=1` | 启用收集（manual 或 panic 路径）；bundle 文件便于 **replay** 离线对照栈址。 |
-| `SHUX_CRASH_EVIDENCE_DIR` | 可选；设置则写入 bundle 文本文件 |
+| `XLANG_CRASH_EVIDENCE=1` | 启用收集（manual 或 panic 路径）；bundle 文件便于 **replay** 离线对照栈址。 |
+| `XLANG_CRASH_EVIDENCE_DIR` | 可选；设置则写入 bundle 文本文件 |
 
 ---
 
 ## 4. panic 挂钩
 
-`shux_panic_`（`compiler/src/asm/runtime_panic.c`）在 `abort` 前调用弱符号 `shux_crash_evidence_collect_c`；强实现位于 `std/backtrace/backtrace_glue.c`（链接 `backtrace.o` 时生效）。
+`xlang_panic_`（`compiler/src/asm/runtime_panic.c`）在 `abort` 前调用弱符号 `xlang_crash_evidence_collect_c`；强实现位于 `std/backtrace/backtrace_glue.c`（链接 `backtrace.o` 时生效）。
 
 ---
 
@@ -62,7 +62,7 @@ shux: [SHUX_CRASH_EVIDENCE] bundle=/tmp/.../shux-crash-12345.txt
 联动：`tests/run-ub.sh`（UB 收窄 panic 回归）。
 
 ```bash
-SHUX_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh   # runnable
+XLANG_CRASH_EVIDENCE=1 ./tests/run-safe-crash-evidence.sh   # runnable
 ./tests/run-safe-crash-evidence-gate.sh
 ```
 

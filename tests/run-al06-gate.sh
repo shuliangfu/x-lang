@@ -3,33 +3,33 @@
 set -e
 cd "$(dirname "$0")/.."
 
-# Prefer SHUX; fall back to existing binaries — never force cold make (OOM/hang risk).
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ] || [ ! -x "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux ./compiler/shux_asm ./compiler/shux-c; do
+# Prefer XLANG; fall back to existing binaries — never force cold make (OOM/hang risk).
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ] || [ ! -x "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang ./compiler/xlang_asm ./compiler/xlang-c; do
     if [ -x "$cand" ]; then
-      SHUX_BIN="$cand"
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
-if [ -z "$SHUX_BIN" ] || [ ! -x "$SHUX_BIN" ]; then
-  echo "al06-gate SKIP: no shux binary (set SHUX=...)" >&2
+if [ -z "$XLANG_BIN" ] || [ ! -x "$XLANG_BIN" ]; then
+  echo "al06-gate SKIP: no xlang binary (set XLANG=...)" >&2
   exit 0
 fi
-SHUX="$SHUX_BIN"
-echo "al06-gate: SHUX=$SHUX"
+XLANG="$XLANG_BIN"
+echo "al06-gate: XLANG=$XLANG"
 
 # Soft wall-clock per check (seconds)
-AL06_TIMEOUT="${SHUX_AL06_TIMEOUT:-30}"
+AL06_TIMEOUT="${XLANG_AL06_TIMEOUT:-30}"
 
 run_check() {
   local src="$1"
   if command -v timeout >/dev/null 2>&1; then
-    timeout --signal=TERM --kill-after=5 "$AL06_TIMEOUT" "$SHUX" check "$src" 2>&1 || true
+    timeout --signal=TERM --kill-after=5 "$AL06_TIMEOUT" "$XLANG" check "$src" 2>&1 || true
   else
     # portable soft timeout via perl
-    perl -e "alarm $AL06_TIMEOUT; exec @ARGV" "$SHUX" check "$src" 2>&1 || true
+    perl -e "alarm $AL06_TIMEOUT; exec @ARGV" "$XLANG" check "$src" 2>&1 || true
   fi
 }
 

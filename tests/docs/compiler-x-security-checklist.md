@@ -7,7 +7,7 @@
 
 ```bash
 # 从仓库根目录
-make -C compiler shux-c
+make -C compiler xlang-c
 ./tests/run-scope-borrow-gate.sh
 ./tests/run-al06-gate.sh
 ./tests/run-ub.sh
@@ -25,7 +25,7 @@ make -C compiler shux-c
 
 ```bash
 ./tests/run-i64-ctfe-gate.sh
-./tests/run-fmt.sh          # 或 SHUX_LINK_SHUX=./compiler/shux-c ./tests/run-fmt.sh
+./tests/run-fmt.sh          # 或 XLANG_LINK_XLANG=./compiler/xlang-c ./tests/run-fmt.sh
 ```
 
 ## Docker 与自举门禁（合并验收）

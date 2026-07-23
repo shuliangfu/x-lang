@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-csv-row.sh — STD-127 manifest 与烟测辅助（F-csv v1：csv.x）
 
-STD_CSV_ROW_PREFIX="${SHUX_STD_CSV_ROW_PREFIX:-shux: [SHUX_STD_CSV_ROW]}"
+STD_CSV_ROW_PREFIX="${XLANG_STD_CSV_ROW_PREFIX:-xlang: [XLANG_STD_CSV_ROW]}"
 
 # 校验 manifest；C symbol 在 csv.x。
 std_csv_row_symbols_ok() {
@@ -42,17 +42,17 @@ std_csv_row_symbols_ok() {
 }
 
 std_csv_row_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-csv_row}"
-  local exe="/tmp/shux_std_csv_row_${tag}_$$"
+  local exe="/tmp/xlang_std_csv_row_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-csv-row FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-csv-row FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -10 >&2 || true
     rm -f "$exe"
     return 1
   fi

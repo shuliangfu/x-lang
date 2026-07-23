@@ -3,8 +3,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SCHEMA_DOC:-analysis/std-schema-v1.md}"
-MANIFEST="${SHUX_STD_SCHEMA_MANIFEST:-tests/baseline/std-schema-manifest.tsv}"
+DOC="${XLANG_STD_SCHEMA_DOC:-analysis/std-schema-v1.md}"
+MANIFEST="${XLANG_STD_SCHEMA_MANIFEST:-tests/baseline/std-schema-manifest.tsv}"
 MOD_X="std/schema/mod.x"
 SCHEMA_X="std/schema/schema.x"
 LIB="tests/lib/std-schema.sh"
@@ -64,18 +64,18 @@ X_OK=0
 SKIP=0
 
 echo "=== STD-090: schema c smoke ==="
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/schema/schema.o ../std/json/json.o >/dev/null 2>&1
   make -C compiler ../std/csv/csv.o >/dev/null 2>&1 || true
   if [ -f std/csv/csv.o ] && [ -f std/json/json.o ] && [ -f std/schema/schema.o ]; then
-    if cc -std=c11 -O1 -o /tmp/shux_schema_smoke \
+    if cc -std=c11 -O1 -o /tmp/xlang_schema_smoke \
       "$SMOKE_C" std/schema/schema.o std/json/json.o std/csv/csv.o 2>/dev/null; then
-      if /tmp/shux_schema_smoke >/dev/null 2>&1; then C_OK=1; fi
-      rm -f /tmp/shux_schema_smoke
+      if /tmp/xlang_schema_smoke >/dev/null 2>&1; then C_OK=1; fi
+      rm -f /tmp/xlang_schema_smoke
     fi
   fi
 else
-  echo "std-schema gate SKIP c smoke (need shux-c for schema.x → schema.o)" >&2
+  echo "std-schema gate SKIP c smoke (need xlang-c for schema.x → schema.o)" >&2
   SKIP=1
 fi
 if [ "$C_OK" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
@@ -84,23 +84,23 @@ if [ "$C_OK" -eq 0 ] && [ "$SKIP" -eq 0 ]; then
   exit 1
 fi
 
-SHUX_BIN=""
-if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
+XLANG_BIN=""
+if [ -x ./compiler/xlang-c ]; then XLANG_BIN=./compiler/xlang-c; fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-090: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-090: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-schema gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_schema_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_schema_run_smoke "$SHUX_BIN" "$SMOKE_X" "decode"; then X_OK=1; else
+  if std_schema_run_smoke "$XLANG_BIN" "$SMOKE_X" "decode"; then X_OK=1; else
     std_schema_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-schema gate SKIP .x smoke (no shux)" >&2
+  echo "std-schema gate SKIP .x smoke (no xlang)" >&2
   SKIP=1
 fi
 

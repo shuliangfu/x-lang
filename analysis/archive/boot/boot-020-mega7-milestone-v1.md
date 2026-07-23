@@ -50,13 +50,13 @@ B1–B7 仍为 **stub**（阶段 B 待后续迭代）；本里程碑不阻塞 ST
 ```
 
 ```
-shux: [SHUX_BOOT020] status=ok symbol=1 mega7=1 skip=0
+xlang: [XLANG_BOOT020] status=ok symbol=1 mega7=1 skip=0
 ```
 
 Darwin 典型：
 
 ```
-shux: [SHUX_BOOT020] status=ok symbol=source mega7=1 skip=1
+xlang: [XLANG_BOOT020] status=ok symbol=source mega7=1 skip=1
 ```
 
 ---

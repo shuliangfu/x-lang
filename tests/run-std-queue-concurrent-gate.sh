@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_QUEUE_CONCURRENT_DOC:-analysis/std-queue-concurrent-v1.md}"
-MANIFEST="${SHUX_STD_QUEUE_CONCURRENT_TSV:-tests/baseline/std-queue-concurrent.tsv}"
+DOC="${XLANG_STD_QUEUE_CONCURRENT_DOC:-analysis/std-queue-concurrent-v1.md}"
+MANIFEST="${XLANG_STD_QUEUE_CONCURRENT_TSV:-tests/baseline/std-queue-concurrent.tsv}"
 MOD_X="std/queue/mod.x"
 QUEUE_C="std/queue/queue.x"
 CONTENTION_C="tests/queue/sync_queue_contention_ok.c"
@@ -74,7 +74,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-queue-concurrent manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -90,16 +90,16 @@ SYNC_OK=0
 MAIN_OK=0
 SMOKE_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-048: API rename grep (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-048: API rename grep (XLANG=$XLANG_BIN) ==="
   for sym in new push_back pop_front len deinit sync_new sync_push sync_try_pop sync_queue_len sync_deinit; do
     if ! grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null; then
       echo "std-queue-concurrent gate FAIL: mod missing function ${sym}" >&2
@@ -138,7 +138,7 @@ if [ -n "$SHUX_BIN" ]; then
   SMOKE_OK=1
   SKIP=1
 else
-  echo "std-queue-concurrent gate SKIP smoke (no native shux)" >&2
+  echo "std-queue-concurrent gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_queue_conc_emit_report "ok" "$SYNC_OK" "$MAIN_OK" "$SMOKE_OK" "$SKIP"

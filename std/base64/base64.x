@@ -25,7 +25,7 @@
 const types = import("core.types");
 
 /* See implementation. */
-export const SHU_B64_STREAM_MAGIC: u32 = 0x42345354;
+export const XLANG_B64_STREAM_MAGIC: u32 = 0x42345354;
 
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 extern "C" function memset(s: *u8, c: i32, n: usize): *u8;

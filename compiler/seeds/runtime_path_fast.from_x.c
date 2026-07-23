@@ -3,14 +3,14 @@
  * G-02f-98 pure path helper gates.
  * G-02f-rest：rest→.x 迁移完成；seed 中 16 个函数均由 .x 提供。
  *   PREFER_X_O 路径下 seed 整体跳过，进入 DIRECT 模式（无 ld -r）。
- *   冷启动路径下（shux-c 不可用）seed 完整编译，保持语义同源。
+ *   冷启动路径下（xlang-c 不可用）seed 完整编译，保持语义同源。
  */
 #include <stdint.h>
 /* thin+rest 切割：全部 16 个函数由 .x 提供，
  * rest 模式下跳过编译避免重复定义。
- * 宏边界：SHUX_RUNTIME_PATH_FAST_FROM_X
+ * 宏边界：XLANG_RUNTIME_PATH_FAST_FROM_X
  * 语义差异：.x path_sep_c 总是返回 '/'（47，posix 验收路径）；seed Win 分支返回 '\'（92）保留但 rest 模式下不生效。 */
-#ifndef SHUX_RUNTIME_PATH_FAST_FROM_X
+#ifndef XLANG_RUNTIME_PATH_FAST_FROM_X
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint8_t path_sep_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -268,4 +268,4 @@ int32_t std_path_resolve(uint8_t *out, int32_t out_max, uint8_t *base, int32_t b
     return std_path_clean(&tmp[0], jlen, out, out_max);
 }
 
-#endif /* SHUX_RUNTIME_PATH_FAST_FROM_X */
+#endif /* XLANG_RUNTIME_PATH_FAST_FROM_X */

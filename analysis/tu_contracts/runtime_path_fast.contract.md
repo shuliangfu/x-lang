@@ -46,7 +46,7 @@
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
   - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
-  - thin+rest 宏边界：`SHUX_RUNTIME_PATH_FAST_FROM_X`
+  - thin+rest 宏边界：`XLANG_RUNTIME_PATH_FAST_FROM_X`
   - 语义差异：.x path_sep_c 总是返回 '/'（47，posix 验收路径）；seed Win 分支返回 '\'（92）保留但 rest 模式下不生效（Win 非当前验收平台）
   - rest 跨调用依赖：std_path_* 调用 path_sep_c/path_is_sep_c/path_last_sep_c/path_last_dot_c（thin 提供，rest 模式下 extern 声明）
 - 下一步补充：

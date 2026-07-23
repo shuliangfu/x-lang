@@ -7,9 +7,9 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/next-yellow-clear-v1.md"
 MANIFEST="tests/baseline/next-yellow-clear.tsv"
-PREFIX="shux: [SHUX_NEXT_YELLOW_CLEAR]"
+PREFIX="xlang: [XLANG_NEXT_YELLOW_CLEAR]"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -64,13 +64,13 @@ echo "next-yellow-clear manifest OK"
 CHECK_OK=0
 RUN_OK=0
 SKIP=1
-SHUX_BIN=""
-for cand in ./compiler/shux-c ./compiler/shux; do
-  if native_shu "$cand"; then SHUX_BIN="$cand"; break; fi
+XLANG_BIN=""
+for cand in ./compiler/xlang-c ./compiler/xlang; do
+  if native_xlang "$cand"; then XLANG_BIN="$cand"; break; fi
 done
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== NEXT-YELLOW: typeck smokes (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== NEXT-YELLOW: typeck smokes (XLANG=$XLANG_BIN) ==="
   SMOKES=(
     tests/debug/diag_smoke.x
     tests/iterator/u64_roundtrip.x
@@ -85,19 +85,19 @@ if [ -n "$SHUX_BIN" ]; then
     tests/stub/sqlite_net_stub.x
   )
   for s in "${SMOKES[@]}"; do
-    if ! "$SHUX_BIN" check -L . "$s" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$s" >/dev/null 2>&1; then
       echo "next-yellow-clear FAIL: typeck $s" >&2
-      "$SHUX_BIN" check -L . "$s" 2>&1 | tail -6 >&2 || true
+      "$XLANG_BIN" check -L . "$s" 2>&1 | tail -6 >&2 || true
       echo "${PREFIX} status=fail check=0"
       exit 1
     fi
   done
   CHECK_OK=1
   SKIP=0
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
   make -C compiler -q ../core/builtin/builtin.o 2>/dev/null || make -C compiler ../core/builtin/builtin.o
-  # shellcheck source=tests/lib/bootstrap-link-shux.sh
-  . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
+  # shellcheck source=tests/lib/bootstrap-link-xlang.sh
+  . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
   RUN_LIST=(
     tests/vec/u16_roundtrip.x
     tests/map/iter_rehash.x
@@ -109,8 +109,8 @@ if [ -n "$SHUX_BIN" ]; then
   )
   RUN_OK=1
   for s in "${RUN_LIST[@]}"; do
-    out="/tmp/shux_yellow_$(basename "$s" .x)"
-    if $RUN_SHUX -L . "$s" -o "$out" 2>/tmp/shux_yellow_build.log; then
+    out="/tmp/xlang_yellow_$(basename "$s" .x)"
+    if $RUN_XLANG build -L . "$s" -o "$out" 2>/tmp/xlang_yellow_build.log; then
       ec=0
       "$out" >/dev/null 2>&1 || ec=$?
       if [ "$ec" -ne 0 ]; then
@@ -123,7 +123,7 @@ if [ -n "$SHUX_BIN" ]; then
     fi
   done
 else
-  echo "next-yellow-clear SKIP typeck (no native shux)" >&2
+  echo "next-yellow-clear SKIP typeck (no native xlang)" >&2
 fi
 
 echo "${PREFIX} status=ok check=${CHECK_OK} run=${RUN_OK} skip=${SKIP}"

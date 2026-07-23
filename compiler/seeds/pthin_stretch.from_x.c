@@ -1,6 +1,6 @@
 /* seeds/pthin_stretch.from_x.c — G-02f-290/318 P2 parser thin P9 stretch + suite
  * Logic source: src/asm/pthin_stretch.x
- * Hybrid: SHUX_PTHIN_STRETCH_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_STRETCH_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: emit_heavy_stretch_slice.inc (lite) + suite_slice.inc (~28k) — G-02f-318
  */

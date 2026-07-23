@@ -16,7 +16,7 @@ export extern "C" function pipeline_typeck_x_stack_escape_gate_from_src_c(src: *
 export extern "C" function driver_run_stack_esc_gate_on_large_stack(arg: *u8): void;
 
 /**
- * Args for the large-stack X stack-escape gate after `shux check` (layout matches seed C).
+ * Args for the large-stack X stack-escape gate after `xlang check` (layout matches seed C).
  * Fields: src / src_len — source buffer; result — out status (-99 = not yet set).
  */
 struct DriverStackEscGateArgs {

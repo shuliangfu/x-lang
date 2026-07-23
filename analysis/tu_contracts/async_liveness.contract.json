@@ -76,7 +76,7 @@
       "async_liveness_emit_frame_typedef"
     ]
   },
-  "rest_macro": "SHUX_ASYNC_LIVENESS_FROM_X",
+  "rest_macro": "XLANG_ASYNC_LIVENESS_FROM_X",
   "impl_residuals": [],
   "direct_symbols": [
     "expr_has_await",
@@ -114,8 +114,8 @@
   ],
   "internal_call_rewrites": [],
   "known_limitations": [
-    "frame_build_tag 为 rest 函数：.x 编译器静默跳过使用字符串字面量的函数（frame_build_tag 使用 \"fn\" 和 \"__shux_async_frame_\"），故始终由 seed 提供。frame_mangle_ident 不使用字符串字面量（用字节字面量 out[0]=102 表达 'f'），.x 能正常生成，保持 DIRECT",
-    "prove_x_o 需 SHUX_PROVE_SKIP_LINT=1 跳过预存 lint 问题（嵌套 if 和 &&/|| 操作符）"
+    "frame_build_tag 为 rest 函数：.x 编译器静默跳过使用字符串字面量的函数（frame_build_tag 使用 \"fn\" 和 \"__xlang_async_frame_\"），故始终由 seed 提供。frame_mangle_ident 不使用字符串字面量（用字节字面量 out[0]=102 表达 'f'），.x 能正常生成，保持 DIRECT",
+    "prove_x_o 需 XLANG_PROVE_SKIP_LINT=1 跳过预存 lint 问题（嵌套 if 和 &&/|| 操作符）"
   ],
   "platform_notes": "DIRECT 模式：18 个函数由 .x 提供。frame_build_tag 因字符串字面量限制保留 seed。rest 模式下 seed 提供 14 个 rest 函数。macOS merged 49 T；Ubuntu merged 49 T/W U=0",
   "delete_seed_gate": {

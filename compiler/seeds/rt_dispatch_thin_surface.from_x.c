@@ -1,10 +1,10 @@
 /* seeds/rt_dispatch_thin_surface.from_x.c
  * G-02f rt_dispatch R2 full surface — isomorphic with src/runtime/rt_dispatch_thin.x
  * Product PREFER_X_O: g05_try_x_to_o(full.x) + rest marker seed
- *   seeds/rt_dispatch_thin.from_x.c (-DSHUX_RT_DISPATCH_THIN_FROM_X) ld -r into runtime_driver_no_c
+ *   seeds/rt_dispatch_thin.from_x.c (-DXLANG_RT_DISPATCH_THIN_FROM_X) ld -r into runtime_driver_no_c
  * FROM_X rest business H=0 (marker only); Cap residual: sibling spawn in driver_abi
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface)
- * Regen: ./shux -E ... src/runtime/rt_dispatch_thin.x | filter DBG + polish externs
+ * Regen: ./xlang -E ... src/runtime/rt_dispatch_thin.x | filter DBG + polish externs
  */
 #include <stddef.h>
 #include <stdint.h>

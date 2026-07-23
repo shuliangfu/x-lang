@@ -9,14 +9,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_ENG_ROLLBACK_DOC:-analysis/eng-rollback-emergency-v1.md}"
-MANIFEST="${SHUX_ENG_ROLLBACK_TSV:-tests/baseline/eng-rollback-emergency.tsv}"
+DOC="${XLANG_ENG_ROLLBACK_DOC:-analysis/eng-rollback-emergency-v1.md}"
+MANIFEST="${XLANG_ENG_ROLLBACK_TSV:-tests/baseline/eng-rollback-emergency.tsv}"
 PLAYBOOK="tests/templates/eng-rollback-playbook.txt"
 LIB="tests/lib/eng-rollback-emergency.sh"
 DRILL="tests/run-eng-rollback-drill.sh"
 MIN_SEC=4
 SLA_MIN=30
-PREFIX="shux: [SHUX_ROLLBACK_DRILL]"
+PREFIX="xlang: [XLANG_ROLLBACK_DRILL]"
 
 # shellcheck source=tests/lib/eng-rollback-emergency.sh
 . tests/lib/eng-rollback-emergency.sh

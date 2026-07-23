@@ -13,7 +13,7 @@
 | **CPU/byte 下降** | 零拷贝（zero-copy）/ batch 路径 cycles/MiB 低于 naive 对照 |
 | **高并发可测** | mixed 256 连接 workload 有 cycles/MiB cap |
 | **共享库** | `tests/lib/perf-net-zc.sh` 供 net perf / gate 复用 |
-| **可 grep** | `shux: [SHUX_NET_ZC]` 报告行 |
+| **可 grep** | `xlang: [XLANG_NET_ZC]` 报告行 |
 
 验收（NEXT PERF-009）：**高并发下 CPU/byte 降低** → v1 以 Linux `perf stat cycles` / 传输字节为代理指标；provided echo 须优于 batch echo。
 
@@ -32,10 +32,10 @@
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `SHUX_NET_ZC_FAIL` | `0` | `1` 时超 cap 或 zc≥ref 硬失败 |
-| `SHUX_NET_ZC_REQUIRE_PERF` | `0` | CI Linux 可设 `1` 禁止 SKIP |
-| `SHUX_NET_ZC_PREFIX` | `shux: [SHUX_NET_ZC]` | 报告前缀 |
-| `SHUX_NET_ZC_BASELINE` | `tests/baseline/net-zc-perf.tsv` | cap 表 |
+| `XLANG_NET_ZC_FAIL` | `0` | `1` 时超 cap 或 zc≥ref 硬失败 |
+| `XLANG_NET_ZC_REQUIRE_PERF` | `0` | CI Linux 可设 `1` 禁止 SKIP |
+| `XLANG_NET_ZC_PREFIX` | `xlang: [XLANG_NET_ZC]` | 报告前缀 |
+| `XLANG_NET_ZC_BASELINE` | `tests/baseline/net-zc-perf.tsv` | cap 表 |
 
 ---
 
@@ -52,7 +52,7 @@
 ## 4. 报告行
 
 ```text
-shux: [SHUX_NET_ZC] case=net_echo_throughput_provided cycles=1234567890 bytes=33554432 cycles_per_mib=38654705.60 cap_cycles_per_mib=1500000000 ref_case=net_echo_throughput ref_cycles_per_mib=45000000.00 ok=1
+xlang: [XLANG_NET_ZC] case=net_echo_throughput_provided cycles=1234567890 bytes=33554432 cycles_per_mib=38654705.60 cap_cycles_per_mib=1500000000 ref_case=net_echo_throughput ref_cycles_per_mib=45000000.00 ok=1
 ```
 
 实现：`perf_nz_report_emit()` in `tests/lib/perf-net-zc.sh`。

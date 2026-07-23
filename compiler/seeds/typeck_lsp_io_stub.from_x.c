@@ -3,10 +3,10 @@
  * Compile: cc -c seeds/typeck_lsp_io_stub.from_x.c  (or cc_inc_tu wrap).
  */
 /**
- * typeck_lsp_io_stub.c — lsp_gen.c 期望的 typeck_* IO 符号桩（seed shux / strict_glue 共用）。
+ * typeck_lsp_io_stub.c — lsp_gen.c 期望的 typeck_* IO 符号桩（seed xlang / strict_glue 共用）。
  *
  * lsp_io_gen.c 走 -E-extern 时 read_message 等由 typeck 模块 mangling 提供；
- * asm-only / 空 lsp_io 生成物时本 TU 供链接，完整 LSP 仍用 bootstrap 全量 shux-x。
+ * asm-only / 空 lsp_io 生成物时本 TU 供链接，完整 LSP 仍用 bootstrap 全量 xlang-x。
  */
 #include <stddef.h>
 #include <stdint.h>

@@ -15,12 +15,12 @@ for f in "$MANIFEST" "$SRC"; do
     exit 1
   fi
 done
-if ! grep -qF "shux_append_linux_link_harden" compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
-  echo "link-hardening gate FAIL: runtime_link_abi.inc missing shux_append_linux_link_harden" >&2
+if ! grep -qF "xlang_append_linux_link_harden" compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
+  echo "link-hardening gate FAIL: runtime_link_abi.inc missing xlang_append_linux_link_harden" >&2
   exit 1
 fi
-if grep -qE '^static void shux_append_linux_link_harden\(' compiler/seeds/runtime.from_x.c 2>/dev/null; then
-  echo "link-hardening gate FAIL: runtime.c still defines shux_append_linux_link_harden (expected runtime_link_abi.inc)" >&2
+if grep -qE '^static void xlang_append_linux_link_harden\(' compiler/seeds/runtime.from_x.c 2>/dev/null; then
+  echo "link-hardening gate FAIL: runtime.c still defines xlang_append_linux_link_harden (expected runtime_link_abi.inc)" >&2
   exit 1
 fi
 echo "link-hardening manifest OK"
@@ -34,16 +34,16 @@ if ! command -v readelf >/dev/null 2>&1; then
   exit 0
 fi
 
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-SHUX_BIN="${SHUX:-${RUN_SHUX:-./compiler/shux-c}}"
-if [ ! -x "$SHUX_BIN" ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  SHUX_BIN=./compiler/shux-c
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+XLANG_BIN="${XLANG:-${RUN_XLANG:-./compiler/xlang-c}}"
+if [ ! -x "$XLANG_BIN" ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  XLANG_BIN=./compiler/xlang-c
 fi
 
-EXE="/tmp/shux_link_harden_$$"
-if ! "$SHUX_BIN" -L . "$SRC" -o "$EXE" >/dev/null 2>&1; then
+EXE="/tmp/xlang_link_harden_$$"
+if ! "$XLANG_BIN" -L . "$SRC" -o "$EXE" >/dev/null 2>&1; then
   echo "link-hardening gate FAIL: compile $SRC" >&2
   rm -f "$EXE"
   exit 1

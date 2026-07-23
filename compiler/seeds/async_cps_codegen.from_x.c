@@ -3,13 +3,26 @@
  * G-02f-120 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
- * Product: src/async/async_cps_codegen.o; logic still C until full .x port.
+ *
+ * R2 pure surface + Cap residual pure wave1–5（2026-07-21）：
+ *   io/future_wait/sched name gates + thin walk/hoist wrappers +
+ *   expr_is_* await classifiers + module/sched resolve + func_uses_void_entry +
+ *   walk _impl (expr/block run-async) + FILE* emit end/phase_reset/after_await/
+ *   sched_wrapper + begin / emit_param_statics / emit_hoisted_lets_impl
+ *   by src/async/async_cps_codegen.x（shared driver_preamble_fputs + type_to_c_buf）；
+ *   FROM_X 下 pure helper C 体（含 walk _impl + wave4–5 emit）省略。
+ * Cap residual（G.7 单一权威）：driver_preamble_fputs（runtime_driver_abi；opaque FILE*）。
+ * 冷启动/无 PREFER：完整 pure C 体 + 原生 FILE* fputs；-c 本文件（无宏）。
+ * 产品 PREFER（2026-07-21）：g05/Makefile full .x + rest (-DXLANG_ASYNC_CPS_CODEGEN_FROM_X)
+ *   ld -r → src/async/async_cps_codegen.o（独立 TU，非 pipeline_glue #include）。
+ * Prove：seeds/async_cps_codegen_surface.from_x.c nm IDENTICAL（pure surface）。
+ * PLATFORM: SHARED — pure helper 面跨平台；Ubuntu 金标 prove。
  */
 /**
  * async_cps_codegen.c — async CPS switch 状态机 emit 实现（A3）
  *
- * 文件职责：线性 async 函数体生成 switch(__shux_frame.__phase)；await 边界 suspend 或 fallthrough。
- * 约定：帧/let 用 static 持久化；SHUX_ASYNC_YIELD=1 时 await 边界 return SHUX_ASYNC_SUSPENDED。
+ * 文件职责：线性 async 函数体生成 switch(__xlang_frame.__phase)；await 边界 suspend 或 fallthrough。
+ * 约定：帧/let 用 static 持久化；XLANG_ASYNC_YIELD=1 时 await 边界 return XLANG_ASYNC_SUSPENDED。
  */
 #include "async_cps_codegen.h"
 #include <stdio.h>
@@ -25,8 +38,8 @@ int async_cps_callee_is_future_wait_by_name(const char *n);
 int async_cps_callee_is_future_wait(const struct ASTFunc *callee);
 
 /** 表达式是否含 run/spawn target==async_fn 的调用。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/async/async_cps_codegen.x）提供 public wrapper */
+/* Cap residual pure wave3：逻辑源 .x walk _impl；seed 保留同语义 C 供冷路径 */
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 int expr_references_run_async_impl(const struct ASTExpr *e, const struct ASTFunc *target) {
     if (!e || !target)
         return 0;
@@ -97,19 +110,12 @@ int expr_references_run_async_impl(const struct ASTExpr *e, const struct ASTFunc
     }
 }
 
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target) {
     return expr_references_run_async_impl(e, target);
 }
-#endif
-
-
-
 
 /** 块内是否含 run/spawn target 调用。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/async/async_cps_codegen.x）提供 public wrapper */
 int block_has_run_async_ref_impl(const struct ASTBlock *b, const struct ASTFunc *target) {
     if (!b || !target)
         return 0;
@@ -131,17 +137,18 @@ int block_has_run_async_ref_impl(const struct ASTBlock *b, const struct ASTFunc 
     return 0;
 }
 
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target) {
     return block_has_run_async_ref_impl(b, target);
 }
-#endif
+#endif /* !XLANG_ASYNC_CPS_CODEGEN_FROM_X */
 
 
 
 
 /** 模块内是否有 run/spawn async_fn() 引用（供 DCE/WPO 保留协程体）。 */
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave2：.x 真迁；冷路径仍 seed C */
 int async_cps_module_references_run_async(const struct ASTModule *m, const struct ASTFunc *async_fn) {
     if (!m || !async_fn)
         return 0;
@@ -160,7 +167,10 @@ int async_cps_func_uses_void_entry(const struct ASTFunc *f, const struct ASTModu
     (void)m;
     return f && f->is_async && async_liveness_func_needs_cps_frame(f);
 }
+#endif /* !XLANG_ASYNC_CPS_CODEGEN_FROM_X */
 
+/* Cap residual pure wave5：.x 真迁 begin / param_statics / hoist_impl；冷路径仍 seed C */
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 /** CPS async 形参 emit 为 static 局部（run seed 注入；勿用 C 形参 ABI）。 */
 void async_cps_codegen_emit_param_statics(const struct ASTFunc *f, FILE *out) {
     if (!f || !out)
@@ -191,15 +201,10 @@ void emit_hoisted_lets_impl(const struct ASTFunc *f, FILE *out) {
     }
 }
 
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
     emit_hoisted_lets_impl(f, out);
 }
-#endif
-
-
-
 
 void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
@@ -221,15 +226,15 @@ void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
                 has_seed_param = 1;
         }
         if (has_seed_param) {
-            fprintf(out, "  if (shux_async_run_seed_valid())\n");
-            fprintf(out, "    __shux_frame.__phase = 0;\n");
+            fprintf(out, "  if (xlang_async_run_seed_valid())\n");
+            fprintf(out, "    __xlang_frame.__phase = 0;\n");
         }
-        fprintf(out, "  /* SHUX_ASYNC_CPS switch=1 awaits=%d */\n", layout->num_awaits);
-        fprintf(out, "  switch (__shux_frame.__phase) {\n");
+        fprintf(out, "  /* XLANG_ASYNC_CPS switch=1 awaits=%d */\n", layout->num_awaits);
+        fprintf(out, "  switch (__xlang_frame.__phase) {\n");
         fprintf(out, "  default:\n");
         fprintf(out, "  case 0:\n");
         if (has_seed_param) {
-        fprintf(out, "    if (__shux_frame.__phase == 0 && shux_async_run_seed_valid()) {\n");
+        fprintf(out, "    if (__xlang_frame.__phase == 0 && xlang_async_run_seed_valid()) {\n");
         for (int pi = 0; pi < f->num_params; pi++) {
             const char *pname;
             const struct ASTType *pty;
@@ -238,37 +243,41 @@ void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
             pname = f->params[pi].name;
             pty = f->params[pi].type;
             if (pty->kind == AST_TYPE_U32)
-                fprintf(out, "      %s = shux_async_run_seed_take_u32();\n", pname);
+                fprintf(out, "      %s = xlang_async_run_seed_take_u32();\n", pname);
             else if (pty->kind == AST_TYPE_I64)
-                fprintf(out, "      %s = shux_async_run_seed_take_i64();\n", pname);
+                fprintf(out, "      %s = xlang_async_run_seed_take_i64();\n", pname);
             else if (pty->kind == AST_TYPE_USIZE)
-                fprintf(out, "      %s = shux_async_run_seed_take_usize();\n", pname);
+                fprintf(out, "      %s = xlang_async_run_seed_take_usize();\n", pname);
             else if (pty->kind == AST_TYPE_I32)
-                fprintf(out, "      %s = shux_async_run_seed_take_i32();\n", pname);
+                fprintf(out, "      %s = xlang_async_run_seed_take_i32();\n", pname);
         }
         fprintf(out, "    }\n");
         }
     }
     ctx->switch_open = 1;
 }
+#endif /* !XLANG_ASYNC_CPS_CODEGEN_FROM_X */
 
+/* Cap residual pure wave4：.x 真迁；冷路径仍 seed C */
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 void async_cps_codegen_end(AsyncCpsCodegenCtx *ctx, FILE *out) {
     if (!ctx || !out || !ctx->switch_open) return;
     fprintf(out, "    break;\n");
     fprintf(out, "  }\n");
     ctx->switch_open = 0;
 }
+#endif
 
-/** callee 是否为 IO-A5 await 目标（std.io 同步 API / shux_io_* C 入口）。 */
+/** callee 是否为 IO-A5 await 目标（std.io 同步 API / xlang_io_* C 入口）。 */
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_cps_codegen.x）提供完整实现 */
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_callee_is_io(const struct ASTFunc *callee) {
     const char *name;
     if (!callee || !callee->name || !callee->name[0])
         return 0;
     name = callee->name;
-    if (strncmp(name, "shux_io_", 7) == 0)
+    if (strncmp(name, "xlang_io_", 7) == 0)
         return 1;
     if (strcmp(name, "read") == 0 || strcmp(name, "write") == 0)
         return 1;
@@ -286,6 +295,8 @@ int async_cps_callee_is_io(const struct ASTFunc *callee) {
 #endif
 
 
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave1：.x 真迁；冷路径仍 seed C */
 int async_cps_expr_is_io_await(const struct ASTExpr *await_expr) {
     const struct ASTExpr *op;
     if (!await_expr || await_expr->kind != AST_EXPR_AWAIT)
@@ -357,11 +368,12 @@ int async_cps_expr_is_await_write(const struct ASTExpr *await_expr) {
         return 0;
     return op->value.call.num_args >= 3;
 }
+#endif /* !XLANG_ASYNC_CPS_CODEGEN_FROM_X */
 
 /** callee 是否为 Future 等待（future_wait / runtime_wait_future / C 符号）。 */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_cps_codegen.x）提供完整实现 */
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_callee_is_future_wait_by_name(const char *n) {
     if (!n || !n[0])
         return 0;
@@ -369,7 +381,7 @@ int async_cps_callee_is_future_wait_by_name(const char *n) {
         return 1;
     if (strcmp(n, "runtime_wait_future") == 0)
         return 1;
-    if (strcmp(n, "shux_async_future_wait_c") == 0)
+    if (strcmp(n, "xlang_async_future_wait_c") == 0)
         return 1;
     if (strcmp(n, "std_async_future_wait") == 0)
         return 1;
@@ -388,7 +400,7 @@ int async_cps_callee_is_future_wait_by_name(const char *n) {
 
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_cps_codegen.x）提供完整实现 */
-#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
@@ -399,6 +411,8 @@ int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
 
 
 /** await future_wait(...)：Pending 时走 suspend_io 循环（STD-041 Future 绑定）。 */
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave1：.x 真迁；冷路径仍 seed C */
 int async_cps_expr_is_await_future_wait(const struct ASTExpr *await_expr) {
     const struct ASTExpr *op;
     const struct ASTFunc *callee;
@@ -436,7 +450,10 @@ int async_cps_expr_is_await_future_wait(const struct ASTExpr *await_expr) {
     }
     return 0;
 }
+#endif /* !XLANG_ASYNC_CPS_CODEGEN_FROM_X */
 
+/* Cap residual pure wave4：.x 真迁 after_await / phase_reset / sched_wrapper；冷路径仍 seed C */
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 /** await 边界公共 emit：保存 live、推进 phase、开下一 case 并恢复 live。 */
 static int async_cps_codegen_after_await_impl(AsyncCpsCodegenCtx *ctx, FILE *out,
     const char *pad, const char *suspend_fn) {
@@ -451,17 +468,17 @@ static int async_cps_codegen_after_await_impl(AsyncCpsCodegenCtx *ctx, FILE *out
     for (int i = 0; i < layout->live.n; i++) {
         const char *v = layout->live.names[i];
         if (!v || !v[0]) continue;
-        fprintf(out, "%s__shux_frame.%s = %s;\n", p, v, v);
+        fprintf(out, "%s__xlang_frame.%s = %s;\n", p, v, v);
     }
-    fprintf(out, "%s__shux_frame.__phase = %d;\n", p, phase);
-    fprintf(out, "%sif (%s(&__shux_frame.__phase, %d)) return (int32_t)SHUX_ASYNC_SUSPENDED;\n",
+    fprintf(out, "%s__xlang_frame.__phase = %d;\n", p, phase);
+    fprintf(out, "%sif (%s(&__xlang_frame.__phase, %d)) return (int32_t)XLANG_ASYNC_SUSPENDED;\n",
         p, suspend_fn, phase);
-    fprintf(out, "%s/* SHUX_ASYNC_CPS fallthrough phase=%d */\n", p, phase);
+    fprintf(out, "%s/* XLANG_ASYNC_CPS fallthrough phase=%d */\n", p, phase);
     fprintf(out, "%scase %d:\n", p, phase);
     for (int i = 0; i < layout->live.n; i++) {
         const char *v = layout->live.names[i];
         if (!v || !v[0]) continue;
-        fprintf(out, "%s%s = __shux_frame.%s;\n", p, v, v);
+        fprintf(out, "%s%s = __xlang_frame.%s;\n", p, v, v);
     }
     return 0;
 }
@@ -469,35 +486,46 @@ static int async_cps_codegen_after_await_impl(AsyncCpsCodegenCtx *ctx, FILE *out
 
 
 int async_cps_codegen_after_await(AsyncCpsCodegenCtx *ctx, FILE *out, const char *pad) {
-    return async_cps_codegen_after_await_impl(ctx, out, pad, "shux_async_cps_suspend");
+    return async_cps_codegen_after_await_impl(ctx, out, pad, "xlang_async_cps_suspend");
 }
 
 int async_cps_codegen_after_await_io(AsyncCpsCodegenCtx *ctx, FILE *out, const char *pad) {
-    return async_cps_codegen_after_await_impl(ctx, out, pad, "shux_async_cps_suspend_io");
+    return async_cps_codegen_after_await_impl(ctx, out, pad, "xlang_async_cps_suspend_io");
 }
 
 void async_cps_codegen_emit_phase_reset(FILE *out, const char *pad) {
     const char *p = pad ? pad : "  ";
     if (!out) return;
-    fprintf(out, "%s__shux_frame.__phase = 0;\n", p);
+    fprintf(out, "%s__xlang_frame.__phase = 0;\n", p);
 }
 
 void async_cps_codegen_emit_sched_wrapper(const struct ASTFunc *f, const char *c_fname, FILE *out) {
     if (!f || !f->name || !c_fname || !out) return;
-    fprintf(out, "/* A4: scheduler entry shux_async_sched_%s */\n", f->name);
-    fprintf(out, "#ifndef SHUX_ASYNC_SCHED_RT_DECL\n");
-    fprintf(out, "#define SHUX_ASYNC_SCHED_RT_DECL\n");
-    fprintf(out, "extern int32_t shux_async_run_i32(int32_t (*fn)(void));\n");
+    fprintf(out, "/* A4: scheduler entry xlang_async_sched_%s */\n", f->name);
+    fprintf(out, "#ifndef XLANG_ASYNC_SCHED_RT_DECL\n");
+    fprintf(out, "#define XLANG_ASYNC_SCHED_RT_DECL\n");
+    fprintf(out, "extern int32_t xlang_async_run_i32(int32_t (*fn)(void));\n");
     fprintf(out, "#endif\n");
-    fprintf(out, "int32_t shux_async_sched_%s(void) {\n", f->name);
-    fprintf(out, "  return shux_async_run_i32((int32_t (*)(void))%s);\n", c_fname);
+    fprintf(out, "int32_t xlang_async_sched_%s(void) {\n", f->name);
+    fprintf(out, "  return xlang_async_run_i32((int32_t (*)(void))%s);\n", c_fname);
     fprintf(out, "}\n");
 }
+#endif /* !XLANG_ASYNC_CPS_CODEGEN_FROM_X */
 
+/* G.7 Cap residual：module-local async_cps_fputs removed.
+ * .x emit pure calls driver_preamble_fputs (authority in runtime_driver_abi seed).
+ * Cold full C path (no FROM_X) uses FILE* fputs/fprintf directly in emit_* above.
+ * PLATFORM: SHARED — single opaque FILE* fputs authority. */
+
+/* G-02f-20 thin+rest：DIRECT 模式，thin（.x）提供完整实现 */
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_is_sched_wrapper_name(const char *name) {
-    return name && strncmp(name, "shux_async_sched_", 16) == 0;
+    return name && strncmp(name, "xlang_async_sched_", 16) == 0;
 }
+#endif
 
+#ifndef XLANG_ASYNC_CPS_CODEGEN_FROM_X
+/* Cap residual pure wave2：.x 真迁；冷路径仍 seed C */
 struct ASTFunc *async_cps_resolve_sched_target(const struct ASTModule *m, const char *sched_name) {
     const char *async_name;
     if (!m || !sched_name || !async_cps_is_sched_wrapper_name(sched_name))
@@ -519,7 +547,7 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
     char sched_name[128];
     if (!m || !async_fn || !async_fn->name || !async_fn->is_async || !async_liveness_func_has_await(async_fn))
         return 0;
-    snprintf(sched_name, sizeof(sched_name), "shux_async_sched_%s", async_fn->name);
+    snprintf(sched_name, sizeof(sched_name), "xlang_async_sched_%s", async_fn->name);
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         struct ASTFunc *ef = m->funcs[i];
         if (ef && ef->is_extern && ef->name && strcmp(ef->name, sched_name) == 0)
@@ -527,3 +555,13 @@ int async_cps_module_has_sched_extern(const struct ASTModule *m, const struct AS
     }
     return 0;
 }
+#endif /* !XLANG_ASYNC_CPS_CODEGEN_FROM_X */
+
+#ifdef XLANG_ASYNC_CPS_CODEGEN_FROM_X
+/* R2 pure surface + Cap residual pure wave1–5 from .x (walk _impl + FILE* emit
+ * end/phase_reset/after_await/sched + begin/param_statics/hoist_impl).
+ * Cap residual fputs: G.7 authority = driver_preamble_fputs (not this TU). */
+int async_cps_codegen_slice_marker(void) {
+    return 0;
+}
+#endif /* XLANG_ASYNC_CPS_CODEGEN_FROM_X */

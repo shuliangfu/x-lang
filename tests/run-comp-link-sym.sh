@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/comp-link-sym.sh
 . tests/lib/comp-link-sym.sh
 
-CASES="${SHUX_LINK_SYM_CASES:-tests/baseline/comp-link-sym-cases.tsv}"
+CASES="${XLANG_LINK_SYM_CASES:-tests/baseline/comp-link-sym-cases.tsv}"
 FIX_DIR="tests/fixtures/comp-link-sym"
 
 echo "=== COMP-008: link symbol conflict smoke ==="
@@ -39,10 +39,10 @@ while IFS=$'\t' read -r case_id logfile exp_kind exp_symbol exp_hint exp_repro; 
   got_repro=""
   while IFS='=' read -r k v; do
     case "$k" in
-      SHUX_LINK_KIND) got_kind="$v" ;;
-      SHUX_LINK_SYMBOL) got_symbol="$v" ;;
-      SHUX_LINK_HINT) got_hint="$v" ;;
-      SHUX_LINK_REPRO) got_repro="$v" ;;
+      XLANG_LINK_KIND) got_kind="$v" ;;
+      XLANG_LINK_SYMBOL) got_symbol="$v" ;;
+      XLANG_LINK_HINT) got_hint="$v" ;;
+      XLANG_LINK_REPRO) got_repro="$v" ;;
     esac
   done < <(comp_link_sym_classify "$log" 2>/dev/null || true)
 

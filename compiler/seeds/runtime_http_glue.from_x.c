@@ -23,8 +23,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
-#define SHUX_HTTP_CLOSE(fd) closesocket((SOCKET)(fd))
-#define SHUX_HTTP_ERRNO WSAGetLastError()
+#define XLANG_HTTP_CLOSE(fd) closesocket((SOCKET)(fd))
+#define XLANG_HTTP_ERRNO WSAGetLastError()
 /* MinGW 无 POSIX poll()；WSAPoll 签名兼容（WSAPOLLFD 与 struct pollfd 布局一致） */
 #define poll WSAPoll
 #else
@@ -38,8 +38,8 @@
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
 #include <errno.h>
-#define SHUX_HTTP_CLOSE(fd) close(fd)
-#define SHUX_HTTP_ERRNO errno
+#define XLANG_HTTP_CLOSE(fd) close(fd)
+#define XLANG_HTTP_ERRNO errno
 #endif
 
 #include "http_chunked.inc"
@@ -73,9 +73,9 @@ int32_t http_parse_status_line_c(const uint8_t *line, int32_t len, int32_t *out_
 }
 
 /* 最大 host/path 长度，请求行+头约 2K 足够 */
-#define SHUX_HTTP_HOST_MAX  256
-#define SHUX_HTTP_PATH_MAX  2048
-#define SHUX_HTTP_REQ_MAX   (SHUX_HTTP_PATH_MAX + SHUX_HTTP_HOST_MAX + 64)
+#define XLANG_HTTP_HOST_MAX  256
+#define XLANG_HTTP_PATH_MAX  2048
+#define XLANG_HTTP_REQ_MAX   (XLANG_HTTP_PATH_MAX + XLANG_HTTP_HOST_MAX + 64)
 
 /** C 层 TLS 不可用错误码（map 到 std.net TLS_NOT_IMPL）。 */
 #define HTTP_ERR_TLS_NOT_IMPL (-1221)
@@ -145,10 +145,10 @@ int parse_http_url_impl(const uint8_t *url, int32_t url_len,
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int parse_http_url(const uint8_t *url, int32_t url_len, char *host_buf, int host_cap, char *port_buf, int port_cap, char *path_buf, int path_cap, int32_t *out_is_https) { return parse_http_url_impl(url, url_len, host_buf, host_cap, port_buf, port_cap, path_buf, path_cap, out_is_https); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -172,7 +172,7 @@ int http_format_request(const char *method, const char *path_buf, const char *ho
 int32_t http_set_timeouts(int fd, uint32_t timeout_ms);
 int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms);
 int32_t http_drain_request(int fd);
-int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket);
+int32_t xlang_http_send_all(int fd, const char *buf, int len, int is_socket);
 
 /** 关闭传输层（含 TLS 与 socket）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -183,15 +183,15 @@ void http_transport_close_impl(http_transport_t *tr) {
     tr->tls_ctx = 0;
   }
   if (tr->fd >= 0) {
-    SHUX_HTTP_CLOSE(tr->fd);
+    XLANG_HTTP_CLOSE(tr->fd);
     tr->fd = -1;
   }
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/http/runtime_http_glue.x）提供 wrapper 调用 _impl */
 void http_transport_close(http_transport_t *tr) { http_transport_close_impl(tr); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -206,10 +206,10 @@ int32_t http_transport_start_tls_impl(http_transport_t *tr, int32_t is_https, co
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) { return http_transport_start_tls_impl(tr, is_https, host); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -236,10 +236,10 @@ int32_t http_transport_send_all_impl(http_transport_t *tr, const char *data, int
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) { return http_transport_send_all_impl(tr, data, len); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -270,16 +270,16 @@ int32_t http_transport_recv_fill_impl(http_transport_t *tr, uint8_t *out_buf, in
   return total;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap, uint32_t timeout_ms) { return http_transport_recv_fill_impl(tr, out_buf, out_cap, timeout_ms); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
 
 /** 判定 HTTP 方法是否携带请求体（POST/PUT/PATCH）。 */
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-119：逻辑源 .x（真迁）；DIRECT 模式，rest 模式下 seed 不提供 */
 int http_method_has_body(const char *method) {
   if (!method)
@@ -287,7 +287,7 @@ int http_method_has_body(const char *method) {
   return (strcmp(method, "POST") == 0 || strcmp(method, "PUT") == 0 ||
           strcmp(method, "PATCH") == 0);
 }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -310,10 +310,10 @@ int http_format_request_impl(const char *method, const char *path_buf, const cha
   return req_len;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int http_format_request(const char *method, const char *path_buf, const char *host_buf, int32_t body_len, char *req, int req_cap) { return http_format_request_impl(method, path_buf, host_buf, body_len, req, req_cap); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -440,10 +440,10 @@ int32_t http_set_timeouts_impl(int fd, uint32_t timeout_ms) {
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_set_timeouts(int fd, uint32_t timeout_ms) { return http_set_timeouts_impl(fd, timeout_ms); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -470,7 +470,7 @@ int32_t http_connect_timeout_impl(int fd, const struct addrinfo *res, uint32_t t
 #if defined(_WIN32) || defined(_WIN64)
     if (WSAGetLastError() != WSAEWOULDBLOCK && WSAGetLastError() != WSAEINPROGRESS) return -1;
 #else
-    if (SHUX_HTTP_ERRNO != EINPROGRESS) return -1;
+    if (XLANG_HTTP_ERRNO != EINPROGRESS) return -1;
 #endif
   }
   if (timeout_ms > 0) {
@@ -501,10 +501,10 @@ done:
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) { return http_connect_timeout_impl(fd, res, timeout_ms); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -513,10 +513,10 @@ int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeou
 int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, int32_t url_len,
                                          const uint8_t *body, int32_t body_len, uint8_t *out_buf,
                                          int32_t out_cap, uint32_t timeout_ms) {
-  char host_buf[SHUX_HTTP_HOST_MAX];
+  char host_buf[XLANG_HTTP_HOST_MAX];
   char port_buf[8];
-  char path_buf[SHUX_HTTP_PATH_MAX];
-  char req[SHUX_HTTP_REQ_MAX];
+  char path_buf[XLANG_HTTP_PATH_MAX];
+  char req[XLANG_HTTP_REQ_MAX];
   int req_len;
   int32_t is_https = 0;
   int32_t tls_rc;
@@ -531,8 +531,8 @@ int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, i
   if (!method || !url || !out_buf || url_len <= 0 || out_cap <= 0) return -1;
   if (body_len < 0) body_len = 0;
   if (body_len > 0 && !body) return -1;
-  if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, sizeof(port_buf),
-                     path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
+  if (parse_http_url(url, url_len, host_buf, XLANG_HTTP_HOST_MAX, port_buf, sizeof(port_buf),
+                     path_buf, XLANG_HTTP_PATH_MAX, &is_https) != 0)
     return -1;
 
   tr.fd = -1;
@@ -664,7 +664,7 @@ int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, i
 #endif
   return total;
 }
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
                                          const uint8_t *body, int32_t body_len, uint8_t *out_buf,
@@ -674,7 +674,7 @@ int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_
   }
   return 0;
 }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 /** 带超时的 GET（STD-095）。 */
@@ -735,9 +735,9 @@ int32_t http_timeout_smoke_c(void) {
 /** HTTPS 是否可用（链入 std.net TLS 后端时为 1）。 */
 int32_t http_is_https_available_c(void) { return net_tls_is_available_c(); }
 
-/** HTTPS GET 烟测：须 SHUX_HTTPS_SMOKE_PORT + net-o-openssl；桩后端返回 0（SKIP）。 */
+/** HTTPS GET 烟测：须 XLANG_HTTPS_SMOKE_PORT + net-o-openssl；桩后端返回 0（SKIP）。 */
 int32_t http_https_smoke_c(void) {
-  const char *port_env = getenv("SHUX_HTTPS_SMOKE_PORT");
+  const char *port_env = getenv("XLANG_HTTPS_SMOKE_PORT");
   char url[128];
   uint8_t buf[512];
   int32_t n;
@@ -779,17 +779,17 @@ int32_t http_drain_request_impl(int fd) {
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_drain_request(int fd) { return http_drain_request_impl(fd); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
 
 /** 循环 send 直至 len 字节发完。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {
+int32_t xlang_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {
   int sent = 0;
   (void)is_socket;
   if (fd < 0 || !buf || len <= 0) return -1;
@@ -805,10 +805,10 @@ int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) 
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+#ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) { return shu_http_send_all_impl(fd, buf, len, is_socket); }
-#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+int32_t xlang_http_send_all(int fd, const char *buf, int len, int is_socket) { return xlang_http_send_all_impl(fd, buf, len, is_socket); }
+#endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -824,9 +824,9 @@ int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) { ret
 int32_t http_h2_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_len,
                           const uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap,
                           uint32_t timeout_ms) {
-  char host_buf[SHUX_HTTP_HOST_MAX];
+  char host_buf[XLANG_HTTP_HOST_MAX];
   char port_buf[8];
-  char path_buf[SHUX_HTTP_PATH_MAX];
+  char path_buf[XLANG_HTTP_PATH_MAX];
   uint8_t alpn_wire[16];
   int32_t is_https = 0;
   int32_t alpn_len;
@@ -853,8 +853,8 @@ int32_t http_h2_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_len
   }
   if (http2_network_is_available_c() == 0)
     return HTTP2_ERR_NETWORK;
-  if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, sizeof(port_buf),
-                     path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
+  if (parse_http_url(url, url_len, host_buf, XLANG_HTTP_HOST_MAX, port_buf, sizeof(port_buf),
+                     path_buf, XLANG_HTTP_PATH_MAX, &is_https) != 0)
     return -1;
   if (is_https == 0)
     return HTTP2_ERR_NETWORK;
@@ -996,9 +996,9 @@ int32_t http_request_method_h2_c(uint8_t method_u8, const uint8_t *url, int32_t 
 int32_t http_h2c_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_len,
                            const uint8_t *body, int32_t body_len, uint8_t *out_buf, int32_t out_cap,
                            uint32_t timeout_ms) {
-  char host_buf[SHUX_HTTP_HOST_MAX];
+  char host_buf[XLANG_HTTP_HOST_MAX];
   char port_buf[8];
-  char path_buf[SHUX_HTTP_PATH_MAX];
+  char path_buf[XLANG_HTTP_PATH_MAX];
   int32_t is_https = 0;
   int32_t rc;
   int32_t has_body;
@@ -1022,8 +1022,8 @@ int32_t http_h2c_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_le
   }
   if (http2_h2c_is_available_c() == 0)
     return HTTP2_ERR_H2C_NOT_IMPL;
-  if (parse_http_url(url, url_len, host_buf, SHUX_HTTP_HOST_MAX, port_buf, sizeof(port_buf),
-                     path_buf, SHUX_HTTP_PATH_MAX, &is_https) != 0)
+  if (parse_http_url(url, url_len, host_buf, XLANG_HTTP_HOST_MAX, port_buf, sizeof(port_buf),
+                     path_buf, XLANG_HTTP_PATH_MAX, &is_https) != 0)
     return -1;
   if (is_https != 0)
     return HTTP2_ERR_H2C_SCHEME;

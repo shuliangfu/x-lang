@@ -17,7 +17,7 @@
 // mod.x — SMIR layer module entry (re-export)
 //
 // Module: ir/smir
-// Layer: SMIR (Shux Mid IR; SSA + explicit ownership graph)
+// Layer: SMIR (Xlang Mid IR; SSA + explicit ownership graph)
 // Phase: Phase 2
 // Responsibility: Aggregate smir/ exports (ssa / ownership / inline / alias / verify).
 // Depends: ../shir / ../inst / ../contract / ../effect / ../abi

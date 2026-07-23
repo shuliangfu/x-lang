@@ -1,6 +1,6 @@
 /* seeds/pthin_glue.from_x.c — G-02f-319 P2 parser thin glue tail
  * Logic source: src/asm/pthin_glue.x
- * Hybrid: SHUX_PTHIN_GLUE_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_GLUE_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_glue_tail_slice.inc (~6.5k)
  */
@@ -84,6 +84,7 @@ struct parser_asm_extern_parse_result {
   int32_t num_params;
   int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
   int32_t is_variadic; /**< 变参：1=extern "C" function f(fmt: *u8, ...); 0=定参 */
+  int32_t has_body; /**< 1=extern "C" function ... { body }; 0=pure declaration */
 };
 
 struct parser_asm_onefunc_result {

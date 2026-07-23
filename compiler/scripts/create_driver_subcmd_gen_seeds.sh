@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # create_driver_subcmd_gen_seeds.sh — 冷启动用 driver 子命令 gen seed（G-06）
 #
-# fmt/check 可 -E；test/compile/build/run/emit 对 bootstrap_shuxc 解析失败时用薄桩 TU。
+# fmt/check 可 -E；test/compile/build/run/emit 对 bootstrap_xlangc 解析失败时用薄桩 TU。
 
 set -e
 cd "$(dirname "$0")/.."

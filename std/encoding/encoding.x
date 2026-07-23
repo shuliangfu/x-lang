@@ -243,12 +243,12 @@ export function encoding_ascii_to_upper_c(c: u8): u8 {
   return c;
 }
 
-/** Exported function `shu_hex_nibble`.
- * Implements `shu_hex_nibble`.
+/** Exported function `xlang_hex_nibble`.
+ * Implements `xlang_hex_nibble`.
  * @param c u8
  * @return i32
  */
-export function shu_hex_nibble(c: u8): i32 {
+export function xlang_hex_nibble(c: u8): i32 {
   if (c >= 48 && c <= 57) { return (c - 48) as i32; }
   if (c >= 97 && c <= 102) { return (c - 97 + 10) as i32; }
   if (c >= 65 && c <= 70) { return (c - 65 + 10) as i32; }
@@ -302,8 +302,8 @@ export function encoding_hex_decode_c(src: *u8, src_len: i32, out: *u8, out_cap:
   out_len = src_len / 2;
   if (out_cap < out_len) { return -1; }
   while (i < out_len) {
-    hi = shu_hex_nibble(src[i * 2]);
-    lo = shu_hex_nibble(src[i * 2 + 1]);
+    hi = xlang_hex_nibble(src[i * 2]);
+    lo = xlang_hex_nibble(src[i * 2 + 1]);
     if (hi < 0 || lo < 0) { return -1; }
     out[i] = ((hi << 4) | lo) as u8;
     i = i + 1;
@@ -311,12 +311,12 @@ export function encoding_hex_decode_c(src: *u8, src_len: i32, out: *u8, out_cap:
   return out_len;
 }
 
-/** Exported function `shu_b32_value`.
- * Implements `shu_b32_value`.
+/** Exported function `xlang_b32_value`.
+ * Implements `xlang_b32_value`.
  * @param c u8
  * @return i32
  */
-export function shu_b32_value(c: u8): i32 {
+export function xlang_b32_value(c: u8): i32 {
   if (c >= 65 && c <= 90) { return (c - 65) as i32; }
   if (c >= 50 && c <= 55) { return (c - 50 + 26) as i32; }
   if (c >= 97 && c <= 122) { return (c - 97) as i32; }
@@ -385,7 +385,7 @@ export function encoding_base32_decode_c(src: *u8, src_len: i32, out: *u8, out_c
   while (i < src_len) {
     c = src[i];
     if (c == 61) { break; }
-    v = shu_b32_value(c);
+    v = xlang_b32_value(c);
     if (v < 0) { return -1; }
     buffer = (buffer << 5) | v;
     bits = bits + 5;
@@ -400,12 +400,12 @@ export function encoding_base32_decode_c(src: *u8, src_len: i32, out: *u8, out_c
   return o;
 }
 
-/** Exported function `shu_percent_unreserved`.
- * Implements `shu_percent_unreserved`.
+/** Exported function `xlang_percent_unreserved`.
+ * Implements `xlang_percent_unreserved`.
  * @param c u8
  * @return i32
  */
-export function shu_percent_unreserved(c: u8): i32 {
+export function xlang_percent_unreserved(c: u8): i32 {
   if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57)) { return 1; }
   if (c == 45 || c == 46 || c == 95 || c == 126) { return 1; }
   return 0;
@@ -426,7 +426,7 @@ export function encoding_percent_encode_c(src: *u8, src_len: i32, out: *u8, out_
   if (src == 0 || out == 0 || src_len < 0) { return -1; }
   while (i < src_len) {
     c = src[i];
-    if (shu_percent_unreserved(c) != 0) {
+    if (xlang_percent_unreserved(c) != 0) {
       if (o + 1 > out_cap) { return -1; }
       out[o] = c;
       o = o + 1;
@@ -461,8 +461,8 @@ export function encoding_percent_decode_c(src: *u8, src_len: i32, out: *u8, out_
     c = src[i];
     if (c == 37) {
       if (i + 2 >= src_len) { return -1; }
-      hi = shu_hex_nibble(src[i + 1]);
-      lo = shu_hex_nibble(src[i + 2]);
+      hi = xlang_hex_nibble(src[i + 1]);
+      lo = xlang_hex_nibble(src[i + 2]);
       if (hi < 0 || lo < 0) { return -1; }
       if (o >= out_cap) { return -1; }
       out[o] = ((hi << 4) | lo) as u8;

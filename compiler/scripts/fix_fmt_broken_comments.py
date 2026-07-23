@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-修复 shux fmt 折行时丢失 // 或块注释 * 前缀导致的「伪代码行」。
+修复 xlang fmt 折行时丢失 // 或块注释 * 前缀导致的「伪代码行」。
 
 用法（仓库根目录）：
   python3 compiler/scripts/fix_fmt_broken_comments.py [目录...]

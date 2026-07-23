@@ -20,7 +20,7 @@ linux_mod	file	std/sys/linux.x	std/sys/linux.x	syscall
 macos_mod	file	std/sys/macos.x	std/sys/macos.x	posix
 freebsd_mod	file	std/sys/freebsd.x	std/sys/freebsd.x	posix
 win32_mod	file	std/sys/win32.x	std/sys/win32.x	kernel32
-symbol_shux_write	symbol	shux_sys_write	std/sys/mod.x	extern
+symbol_xlang_write	symbol	xlang_sys_write	std/sys/mod.x	extern
 readme	file	std/sys/README.md	std/sys/README.md	README
 smoke_x	smoke	tests/sys/sys_write_freestanding.x	freestanding
 smoke_linux_nr	smoke	tests/sys/linux_syscall_nr_smoke.x	v1

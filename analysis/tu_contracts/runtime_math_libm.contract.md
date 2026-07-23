@@ -31,7 +31,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`math_fenv_mask_to_fe_impl`、`math_fenv_fe_to_mask_impl`、`math_fenv_emit_cap_report_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_MATH_LIBM_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_MATH_LIBM_FROM_X`
 - 前向声明：4 个 thin 函数（`math_special_near` / `math_fenv_mask_to_fe` / `math_fenv_fe_to_mask` / `math_fenv_emit_cap_report`），rest 模式下供 rest 函数调用
 - 内部调用更新：
   - `math_special_smoke_c` 调用 `math_special_near`（DIRECT thin wrapper）
@@ -46,7 +46,7 @@
 
 ## 6. 备注
 - 混合 IMPL+DIRECT 模式：3 个 IMPL wrapper（fenv 系列）+ 1 个 DIRECT（math_special_near，G-02f-119 真迁 .x 完整实现）
-- 平台条件：`math_fenv_mask_to_fe` / `math_fenv_fe_to_mask` 及其 `_impl` 在 `#if SHUX_MATH_HAVE_FENV` 块内（macOS/Linux only）；`math_fenv_emit_cap_report` 及其 `_impl` 在 fenv `#endif` 之后（跨平台）
+- 平台条件：`math_fenv_mask_to_fe` / `math_fenv_fe_to_mask` 及其 `_impl` 在 `#if XLANG_MATH_HAVE_FENV` 块内（macOS/Linux only）；`math_fenv_emit_cap_report` 及其 `_impl` 在 fenv `#endif` 之后（跨平台）
 - `math_special_near` 为 DIRECT 模式：rest 模式下 seed 中 #ifndef 保护不定义，由 thin/.x 完整提供
 - 已知预存行为：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T。非本次切割引入
 - 依赖：libm（floor/ceil/trunc/round/sin/cos/tan/asin/acos/atan/atan2/sqrt/cbrt/pow/exp/log/fabs/fmin/fmax/erf/erfc/log1p/expm1）+ fenv（feclearexcept/feraiseexcept/fetestexcept）+ diag_reportf（weak stub）

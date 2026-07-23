@@ -50,7 +50,7 @@ arena64_deinit(&arena)        // 一次释放整块 chunk
 ./tests/run-std-bytes-arena-gate.sh
 ```
 
-报告：`shux: [SHUX_STD155_BYTES_ARENA]`
+报告：`xlang: [XLANG_STD155_BYTES_ARENA]`
 
 回归：保留 `run-std-bytes-gate.sh`（STD-072 堆路径不破）。
 

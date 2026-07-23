@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_URL_V1_FAIL=1 ./tests/run-f-url-v1-gate.sh
+XLANG_F_URL_V1_FAIL=1 ./tests/run-f-url-v1-gate.sh
 ./tests/run-std-url-gate.sh
 ./tests/run-std-url-ipv6-host-gate.sh
 ```

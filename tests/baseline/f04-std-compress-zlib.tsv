@@ -2,6 +2,6 @@
 # 列：item_id	kind	anchor	mod_path	notes
 symbol_deflate	symbol	compress_deflate_c	std/compress/zlib/libz.x	deflate C ABI
 symbol_inflate	symbol	compress_inflate_c	std/compress/zlib/libz.x	inflate C ABI
-symbol_marker	symbol	shu_compress_zlib_marker	std/compress/zlib/libz.x	-lz marker
+symbol_marker	symbol	xlang_compress_zlib_marker	std/compress/zlib/libz.x	-lz marker
 import_libz	symbol	import("std.compress.zlib.libz")	std/compress/zlib/mod.x	import 转发
 absent_c	absent	std/compress/zlib/zlib.c	删除 zlib.c

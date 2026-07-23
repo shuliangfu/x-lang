@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD061_DOC:-analysis/std-simd-prod-v1.md}"
-WAVE="${SHUX_STD061_WAVE_TSV:-tests/baseline/std-simd-prod-wave.tsv}"
-PARENT_DOC="${SHUX_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
+DOC="${XLANG_STD061_DOC:-analysis/std-simd-prod-v1.md}"
+WAVE="${XLANG_STD061_WAVE_TSV:-tests/baseline/std-simd-prod-wave.tsv}"
+PARENT_DOC="${XLANG_STD_SIMD_SHUFFLE_SELECT_DOC:-analysis/std-simd-shuffle-select-v1.md}"
 MOD_X="std/simd/mod.x"
 LIB="tests/lib/std-simd-prod.sh"
 MIN_BENCHES=3
@@ -32,7 +32,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$WAVE"
 
-for kw in 生产级 perf bench_shuffle_hot min_benches stub/Shu; do
+for kw in 生产级 perf bench_shuffle_hot min_benches stub/Xlang; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-simd-prod gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -83,10 +83,10 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "std-simd-prod manifest OK (benches=${BENCH_N})"
 
-SHUX_ASM="${SHUX:-}"
-for cand in ./compiler/shux_asm ./compiler/shux_asm.strict ./compiler/shux_asm_working; do
+XLANG_ASM="${XLANG:-}"
+for cand in ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm_working; do
   if std_simd_prod_native_asm "$cand"; then
-    SHUX_ASM="$cand"
+    XLANG_ASM="$cand"
     break
   fi
 done
@@ -96,20 +96,20 @@ BENCH_SKIP=0
 SKIP=1
 RATIO=""
 
-if [ -n "$SHUX_ASM" ] && command -v cc >/dev/null 2>&1; then
-  echo "=== STD-061: perf bench (SHUX=$SHUX_ASM) ==="
+if [ -n "$XLANG_ASM" ] && command -v cc >/dev/null 2>&1; then
+  echo "=== STD-061: perf bench (XLANG=$XLANG_ASM) ==="
   chmod +x tests/run-perf-simd-shuffle-select.sh
   PERF_LOG="/tmp/std_simd_prod_perf_$$.log"
   set +e
   set -o pipefail
-  SHUX="$SHUX_ASM" SHUX_SIMD_SS_FAIL=1 ./tests/run-perf-simd-shuffle-select.sh 2>&1 | tee "$PERF_LOG"
+  XLANG="$XLANG_ASM" XLANG_SIMD_SS_FAIL=1 ./tests/run-perf-simd-shuffle-select.sh 2>&1 | tee "$PERF_LOG"
   perf_ec=$?
   set +o pipefail
   set -e
   if [ "$perf_ec" -eq 0 ]; then
     BENCH_OK=1
     SKIP=0
-    RATIO=$(grep -E 'ratio \(stub/Shu\):' "$PERF_LOG" | tail -1 | sed -E 's/.*ratio \(stub\/Shu\): ([0-9.]+).*/\1/' || true)
+    RATIO=$(grep -E 'ratio \(stub/Xlang\):' "$PERF_LOG" | tail -1 | sed -E 's/.*ratio \(stub\/Xlang\): ([0-9.]+).*/\1/' || true)
     echo "std-simd-prod runnable OK perf"
   elif grep -qE 'SKIP:' "$PERF_LOG" 2>/dev/null; then
     BENCH_SKIP=1
@@ -121,7 +121,7 @@ if [ -n "$SHUX_ASM" ] && command -v cc >/dev/null 2>&1; then
   fi
   rm -f "$PERF_LOG"
 else
-  echo "std-simd-prod gate SKIP perf bench (no shux_asm or cc)" >&2
+  echo "std-simd-prod gate SKIP perf bench (no xlang_asm or cc)" >&2
   BENCH_SKIP=1
 fi
 

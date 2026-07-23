@@ -3,18 +3,18 @@
 #
 # 用法：
 #   ./tests/run-safe-race-detect.sh
-#   SHUX_RACE_PROBE=1 ./tests/run-safe-race-detect.sh
+#   XLANG_RACE_PROBE=1 ./tests/run-safe-race-detect.sh
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHUX_RACE_MANIFEST:-tests/baseline/safe-race-detect.tsv}"
+MANIFEST="${XLANG_RACE_MANIFEST:-tests/baseline/safe-race-detect.tsv}"
 DO_PROBE=0
-[ "${SHUX_RACE_PROBE:-0}" = "1" ] && DO_PROBE=1
+[ "${XLANG_RACE_PROBE:-0}" = "1" ] && DO_PROBE=1
 
 # shellcheck source=tests/lib/safe-race.sh
 . tests/lib/safe-race.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -26,11 +26,11 @@ native_shu() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
@@ -43,8 +43,8 @@ CASES_OK=0
 CASES_FAIL=0
 PROBE_STATUS="skip"
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "safe-race-detect SKIP cases (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "safe-race-detect SKIP cases (no native xlang)" >&2
 else
   while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
     [ -z "${item_id:-}" ] && continue
@@ -52,7 +52,7 @@ else
     case "$kind" in
       case)
         echo "── $item_id ($src) ──"
-        if safe_race_run_x "$SHUX_BIN" "$src" "$item_id"; then
+        if safe_race_run_x "$XLANG_BIN" "$src" "$item_id"; then
           CASES_OK=$((CASES_OK + 1))
         else
           CASES_FAIL=$((CASES_FAIL + 1))

@@ -1,19 +1,19 @@
 # 阶段 C-06 完成标准 v1（NEXT §6）
 
-> **目标**：`bootstrap-driver-seed` / `relink-shux` / `shux-x` **默认**只链 `-E-extern` 产出的 `*_x.o`，不链 C `parser.o` / `typeck.o` / `codegen.o`。
+> **目标**：`bootstrap-driver-seed` / `relink-xlang` / `xlang-x` **默认**只链 `-E-extern` 产出的 `*_x.o`，不链 C `parser.o` / `typeck.o` / `codegen.o`。
 
 ## v1 完成（✅）
 
 | 项 | 标准 |
 |----|------|
 | Makefile 变量 | `DRIVER_SEED_X_FRONTEND_OBJS` + 条件 `DRIVER_SEED_RUNTIME_O` |
-| 默认 runtime | `runtime_driver_no_c.o`（`-DSHUX_NO_C_FRONTEND`） |
+| 默认 runtime | `runtime_driver_no_c.o`（`-DXLANG_NO_C_FRONTEND`） |
 | 默认 support | `codegen_pipeline_stubs.o` + `typeck_f64_bits.o` |
 | 别名 | `typeck_x.o` / `lexer_x.o` / `ast_x.o` ← `*_x.o` / `ast_seed.o` |
-| 回退 | `SHUX_LEGACY_C_FRONTEND=1 make bootstrap-driver-seed` 恢复 C 双轨 |
+| 回退 | `XLANG_LEGACY_C_FRONTEND=1 make bootstrap-driver-seed` 恢复 C 双轨 |
 | Gate | `run-c06-x-frontend-default-gate.sh` |
 
 ## 延后
 
-- **OBJS_CORE**（`make all` → `shux-c`）仍链 C 前端 — 冷启动 seed 编译器；阶段 E 删除。
+- **OBJS_CORE**（`make all` → `xlang-c`）仍链 C 前端 — 冷启动 seed 编译器；阶段 E 删除。
 - **build_asm/*.o** 仍由 `.x` asm 后端产出；与 seed 链 orthogonal。

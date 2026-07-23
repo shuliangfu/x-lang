@@ -60,7 +60,7 @@
 ```
 
 manifest：`tests/baseline/core-types-i16-u16.tsv`  
-报告：`shux: [SHUX_CORE_TYPES_I16_U16] status=ok`
+报告：`xlang: [XLANG_CORE_TYPES_I16_U16] status=ok`
 
 ---
 

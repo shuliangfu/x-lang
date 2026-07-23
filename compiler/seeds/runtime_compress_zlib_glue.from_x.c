@@ -6,8 +6,8 @@
  *
  * 【Why 逻辑根源】zlib.h 中 deflateInit2/inflateInit2 是宏，展开为
  * deflateInit2_/inflateInit2_（带 ZLIB_VERSION 和 sizeof(z_stream) 参数）。
- * SHUX 生成 C 不包含 zlib.h，直接调用 deflateInit2 链接器找不到符号。
- * 此桩包含 zlib.h 后 #undef 宏，提供与 SHUX extern 声明同名的真实函数符号，
+ * XLANG 生成 C 不包含 zlib.h，直接调用 deflateInit2 链接器找不到符号。
+ * 此桩包含 zlib.h 后 #undef 宏，提供与 XLANG extern 声明同名的真实函数符号，
  * 内部调用 deflateInit2_/inflateInit2_ 完成宏展开等价行为。
  *
  * 【Invariant】包装函数签名与 libz.x 中 extern 声明完全一致；

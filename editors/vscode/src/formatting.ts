@@ -1,5 +1,5 @@
 /**
- * Shux OnTypeFormattingProvider — `.x` 编辑时轻量实时缩进
+ * Xlang OnTypeFormattingProvider — `.x` 编辑时轻量实时缩进
  *
  * 在语言配置 onEnterRules 之外用 TextEdit 细调三块场景：
  * 1) `{` 行后回车 → 新行比上行多一级缩进；
@@ -247,7 +247,7 @@ function findMatchingOpenBrace(doc: vscode.TextDocument, closingBraceOffset: num
   return undefined;
 }
 
-export class ShuxOnTypeFormattingProvider implements vscode.OnTypeFormattingEditProvider {
+export class XlangOnTypeFormattingProvider implements vscode.OnTypeFormattingEditProvider {
   /**
    * 根据刚键入字符（与 VS Code onTypeFormatting 钩子）推断缩进补丁。
    */

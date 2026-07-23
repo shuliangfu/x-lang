@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # §9.1 / P0#3：Codegen 语义债回归门禁
 #
-# 跑 W3 已知 workaround 对应 gate；默认允许 shux-c 回退（🟡）；
-# SHUX_CODEGEN_DEBT_STRICT=1 时任一项 FAIL 即 exit 1。
+# 跑 W3 已知 workaround 对应 gate；默认允许 xlang-c 回退（🟡）；
+# XLANG_CODEGEN_DEBT_STRICT=1 时任一项 FAIL 即 exit 1。
 #
 # 用法：./tests/run-codegen-semantic-debt-gate.sh
 set -euo pipefail
@@ -27,7 +27,7 @@ DEBT_CASES=(
   "result|run-result.sh|16B Result ABI"
 )
 
-STRICT="${SHUX_CODEGEN_DEBT_STRICT:-0}"
+STRICT="${XLANG_CODEGEN_DEBT_STRICT:-0}"
 FAIL=0
 WARN=0
 gate_progress "§9.1: codegen semantic debt (STRICT=$STRICT, ${#DEBT_CASES[@]} cases)"
@@ -40,7 +40,7 @@ run_debt() {
     return 1
   fi
   chmod +x "$path"
-  if SHUX_SKIP_SUBSCRIPT_MAKE=1 gate_progress_run "§9.1 $id ($note)" ./tests/"$script"; then
+  if XLANG_SKIP_SUBSCRIPT_MAKE=1 gate_progress_run "§9.1 $id ($note)" ./tests/"$script"; then
     return 0
   fi
   return 1

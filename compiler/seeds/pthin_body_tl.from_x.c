@@ -1,6 +1,6 @@
 /* seeds/pthin_body_tl.from_x.c — G-02f-327 P2 parser thin body_tl
  * Logic source: src/asm/pthin_body_tl.x
- * Hybrid: SHUX_PTHIN_BODY_TL_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_BODY_TL_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_body_tl_slice.inc (~971)
  * is_fn_sig_scalar + diag_first_ident + diag_skip_let_const_into + body_skip_into

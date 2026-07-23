@@ -2,11 +2,11 @@
 # F-sort v1：std.sort 去 C（sort.c → sort.x）。
 #
 # 用法：./tests/run-f-sort-v1-gate.sh
-# 环境：SHUX_F_SORT_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F_SORT_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_SORT_V1_FAIL:-0}
+FAIL=${XLANG_F_SORT_V1_FAIL:-0}
 DOC="analysis/phase-f-sort-v1.md"
 MANIFEST="tests/baseline/f-sort-v1-closure.tsv"
 
@@ -41,7 +41,7 @@ if grep -q 'std/sort/sort\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/sort/sort.c"
 fi
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/sort/sort.o >/dev/null 2>&1 || die "make sort.o failed"
   if strings ../std/sort/sort.o 2>/dev/null | grep -q 'sort_stable'; then
     echo "f-sort-v1: sort.o symbols OK"
@@ -49,7 +49,7 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     echo "f-sort-v1 SKIP symbol check (sort.o missing .x symbols)" >&2
   fi
 else
-  echo "f-sort-v1 SKIP sort.o build (no shux-c)" >&2
+  echo "f-sort-v1 SKIP sort.o build (no xlang-c)" >&2
 fi
 
 for sub in run-std-sort-stable-cmp-gate.sh run-std-sort-key-cmp-gate.sh; do
@@ -57,13 +57,13 @@ for sub in run-std-sort-stable-cmp-gate.sh run-std-sort-key-cmp-gate.sh; do
     echo "=== F-sort v1: delegate $sub (manifest) ==="
     chmod +x "tests/$sub"
     case "$sub" in
-      *stable-cmp*) export SHUX_STD_SORT_STABLE_CMP_MANIFEST_ONLY=1 ;;
-      *key-cmp*) export SHUX_STD_SORT_KEY_CMP_MANIFEST_ONLY=1 ;;
+      *stable-cmp*) export XLANG_STD_SORT_STABLE_CMP_MANIFEST_ONLY=1 ;;
+      *key-cmp*) export XLANG_STD_SORT_KEY_CMP_MANIFEST_ONLY=1 ;;
     esac
     if ! "tests/$sub"; then
       die "$sub failed"
     fi
-    unset SHUX_STD_SORT_STABLE_CMP_MANIFEST_ONLY SHUX_STD_SORT_KEY_CMP_MANIFEST_ONLY 2>/dev/null || true
+    unset XLANG_STD_SORT_STABLE_CMP_MANIFEST_ONLY XLANG_STD_SORT_KEY_CMP_MANIFEST_ONLY 2>/dev/null || true
   fi
 done
 

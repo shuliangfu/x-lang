@@ -22,7 +22,7 @@
 
 ## 2. 北极星目标（第九批）
 
-1. **parser C6 shux_asm2 CI 矩阵**：Linux/Darwin 双平台 native 二进制 + manifest 烟测（BOOT-028）。
+1. **parser C6 xlang_asm2 CI 矩阵**：Linux/Darwin 双平台 native 二进制 + manifest 烟测（BOOT-028）。
 2. **incr-compile bench tier 扩面**：`comp-incr-compile.tsv` bench 级 hook 与 timing 报告（COMP-022）。
 3. **std.db 预编译语句缓存**：`stmt_cache` 原型与重复查询烟测（STD-070）。
 4. **治理闭环**：第九批路线图 manifest + gate 与 `NEXT.md` §2.20 同步（PLAN-009）。
@@ -44,7 +44,7 @@
 
 | ID | 领域 | 待办 | 优先级 | Gate（计划） |
 |----|------|------|--------|--------------|
-| BOOT-028 | 自举 | parser C6 shux_asm2 CI 矩阵 | P0 | `run-boot-028-shux-asm2-ci-matrix-gate.sh` |
+| BOOT-028 | 自举 | parser C6 xlang_asm2 CI 矩阵 | P0 | `run-boot-028-xlang-asm2-ci-matrix-gate.sh` |
 | COMP-022 | 编译器 | incr-compile bench tier 扩面 | P1 | `run-comp-incr-compile-bench-gate.sh` |
 | STD-070 | 标准库 | `std.db` 预编译语句缓存 | P2 | `run-std-db-stmt-cache-gate.sh` |
 | PLAN-009 | 治理 | Phase 3 第九批路线图定版 | P2 | `run-phase3-roadmap-wave9-gate.sh` |
@@ -62,7 +62,7 @@
 草稿期望（`min_done=0`）：
 
 ```
-shux: [SHUX_PLAN009_PHASE3_W9] status=ok tasks=4 sections=5 done=0 draft=1
+xlang: [XLANG_PLAN009_PHASE3_W9] status=ok tasks=4 sections=5 done=0 draft=1
 ```
 
 定版后：`done=4`，报告行去掉 `draft`。

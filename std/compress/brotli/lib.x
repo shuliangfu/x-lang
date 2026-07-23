@@ -45,7 +45,7 @@ export function brotli_stream_hdr_bytes(): i32 {
 }
 
 /* See implementation. */
-export const SHU_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
+export const XLANG_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
 
 /* See implementation. */
 export const BROTLI_DEFAULT_QUALITY: i32 = 11;
@@ -107,18 +107,18 @@ extern function BrotliDecoderDecompressStream(state: *u8, available_in: *usize, 
   available_out: *usize, next_out: * *u8, total_out: *usize): i32;
 
 /* See implementation. */
-let shu_compress_brotli_marker: u8 = 1;
+let xlang_compress_brotli_marker: u8 = 1;
 
 /**
  * See implementation.
  */
-export function shu_brotli_stream_cast(state: *u8, state_cap: i32): *BrotliStream {
+export function xlang_brotli_stream_cast(state: *u8, state_cap: i32): *BrotliStream {
   let need: i32 = brotli_stream_state_bytes();
   if (state == 0 || state_cap < need) {
     return 0 as *BrotliStream;
   }
   let s: *BrotliStream = state as *BrotliStream;
-  if (s.hdr.magic != SHU_BROTLI_STREAM_MAGIC || s.hdr.inited == 0) {
+  if (s.hdr.magic != XLANG_BROTLI_STREAM_MAGIC || s.hdr.inited == 0) {
     return 0 as *BrotliStream;
   }
   return s;
@@ -210,7 +210,7 @@ export function compress_brotli_stream_init_compress_c(state: *u8, state_cap: i3
   }
   mem.mem_zero(state, need);
   let s: *BrotliStream = state as *BrotliStream;
-  s.hdr.magic = SHU_BROTLI_STREAM_MAGIC;
+  s.hdr.magic = XLANG_BROTLI_STREAM_MAGIC;
   s.hdr.mode = 0;
   unsafe { s.enc = BrotliEncoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8); }
   if (s.enc == 0) {
@@ -230,7 +230,7 @@ export function compress_brotli_stream_init_decompress_c(state: *u8, state_cap: 
   }
   mem.mem_zero(state, need);
   let s: *BrotliStream = state as *BrotliStream;
-  s.hdr.magic = SHU_BROTLI_STREAM_MAGIC;
+  s.hdr.magic = XLANG_BROTLI_STREAM_MAGIC;
   s.hdr.mode = 1;
   unsafe { s.dec = BrotliDecoderCreateInstance(0 as *u8, 0 as *u8, 0 as *u8); }
   if (s.dec == 0) {
@@ -248,7 +248,7 @@ export function compress_brotli_stream_compress_c(state: *u8, state_cap: i32, in
   if (in_consumed != 0) {
     in_consumed[0] = 0;
   }
-  let s: *BrotliStream = shu_brotli_stream_cast(state, state_cap);
+  let s: *BrotliStream = xlang_brotli_stream_cast(state, state_cap);
   if (s == 0 || s.hdr.mode != 0 || out == 0 || out_cap <= 0) {
     return -1;
   }
@@ -293,7 +293,7 @@ export function compress_brotli_stream_decompress_c(state: *u8, state_cap: i32, 
   if (in_consumed != 0) {
     in_consumed[0] = 0;
   }
-  let s: *BrotliStream = shu_brotli_stream_cast(state, state_cap);
+  let s: *BrotliStream = xlang_brotli_stream_cast(state, state_cap);
   if (s == 0 || s.hdr.mode != 1 || out == 0 || out_cap <= 0) {
     return -1;
   }
@@ -340,7 +340,7 @@ export function compress_brotli_stream_end_c(state: *u8, state_cap: i32): i32 {
     return 0;
   }
   let s: *BrotliStream = state as *BrotliStream;
-  if (s.hdr.magic != SHU_BROTLI_STREAM_MAGIC || s.hdr.inited == 0) {
+  if (s.hdr.magic != XLANG_BROTLI_STREAM_MAGIC || s.hdr.inited == 0) {
     return 0;
   }
   if (s.hdr.mode == 0 && s.enc != 0) {

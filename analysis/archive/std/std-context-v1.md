@@ -37,7 +37,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CONTEXT] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_CONTEXT] status=ok c_smoke=1 x=1 skip=0
 std-context gate OK
 ```
 

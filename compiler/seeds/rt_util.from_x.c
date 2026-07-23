@@ -1,6 +1,6 @@
 /* seeds/rt_util.from_x.c — G-02f-262 P2 R0 util 切片
  * Logic source: src/runtime/rt_util.x
- * Hybrid: SHUX_RT_UTIL_FROM_X + ld -r into runtime_driver_no_c.o
+ * Hybrid: XLANG_RT_UTIL_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2（2026-07-14）：driver_unlink_failed_output + driver_argv0_basename_is
  * 均由 .x 提供；FROM_X 下本文件仅前向声明（产品 rest 业务符号 H=0）。
@@ -11,7 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifndef SHUX_RT_UTIL_FROM_X
+#ifndef XLANG_RT_UTIL_FROM_X
 /** 编译/链接失败时删除 -o 目标，避免遗留半写入产物。 */
 void driver_unlink_failed_output(const char *out_path) {
   if (!out_path || !out_path[0])

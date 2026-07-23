@@ -76,7 +76,7 @@ int32_t sync_lock_diag_find_meta_idx_impl(void *m) {
     return -1;
 }
 
-#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+#ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t sync_lock_diag_find_meta_idx(void *m) {
     return sync_lock_diag_find_meta_idx_impl(m);
@@ -97,7 +97,7 @@ int32_t sync_lock_diag_get_order_impl(void *m) {
     return g_sync_meta[idx].order;
 }
 
-#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+#ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t sync_lock_diag_get_order(void *m) {
     return sync_lock_diag_get_order_impl(m);
@@ -273,7 +273,7 @@ void sync_lock_diag_clear_c(void) {
 /** 向 out[pos] 追加单字节；满则 -1。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
-#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+#ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8_t b) {
     if (out == NULL || pos < 0 || pos >= cap) {
         return -1;
@@ -289,7 +289,7 @@ int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8
 /** 向 out 追加 n 字节字面量。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
-#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+#ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
                                          const uint8_t *s, int32_t n) {
     int32_t i;
@@ -309,7 +309,7 @@ int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
 /** 将 i32 十进制追加到 out；失败 -1。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
-#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+#ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
     uint8_t tmp[16];
     int32_t n = 0;

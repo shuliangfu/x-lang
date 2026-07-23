@@ -25,11 +25,11 @@ extern void sync_lock_diag_after_unlock(void *m);
 #include <windows.h>
 
 /** Windows：互斥体为 CRITICAL_SECTION*，堆分配以便返回不透明指针。 */
-typedef CRITICAL_SECTION shu_mutex_impl_t;
+typedef CRITICAL_SECTION xlang_mutex_impl_t;
 
 /** 创建新互斥体；失败 NULL。 */
 void *sync_mutex_new_c(void) {
-    shu_mutex_impl_t *m = (shu_mutex_impl_t *)malloc(sizeof(shu_mutex_impl_t));
+    xlang_mutex_impl_t *m = (xlang_mutex_impl_t *)malloc(sizeof(xlang_mutex_impl_t));
     if (m == NULL) return NULL;
     InitializeCriticalSection(m);
     return (void *)m;
@@ -77,12 +77,12 @@ void sync_mutex_free_c(void *m) {
     free(m);
 }
 
-typedef SRWLOCK shu_rwlock_impl_t;
-typedef CONDITION_VARIABLE shu_condvar_impl_t;
+typedef SRWLOCK xlang_rwlock_impl_t;
+typedef CONDITION_VARIABLE xlang_condvar_impl_t;
 
 /** 创建 RwLock；失败 NULL。 */
 void *sync_rwlock_new_c(void) {
-    shu_rwlock_impl_t *rw = (shu_rwlock_impl_t *)malloc(sizeof(shu_rwlock_impl_t));
+    xlang_rwlock_impl_t *rw = (xlang_rwlock_impl_t *)malloc(sizeof(xlang_rwlock_impl_t));
     if (!rw) return NULL;
     InitializeSRWLock(rw);
     return (void *)rw;
@@ -123,7 +123,7 @@ void sync_rwlock_free_c(void *rw) {
 
 /** 创建 Condvar；失败 NULL。 */
 void *sync_condvar_new_c(void) {
-    shu_condvar_impl_t *cv = (shu_condvar_impl_t *)malloc(sizeof(shu_condvar_impl_t));
+    xlang_condvar_impl_t *cv = (xlang_condvar_impl_t *)malloc(sizeof(xlang_condvar_impl_t));
     if (!cv) return NULL;
     InitializeConditionVariable(cv);
     return (void *)cv;
@@ -185,11 +185,11 @@ int32_t sync_condvar_contention_smoke_c(void) {
 #include <time.h>
 
 /** POSIX：互斥体为 pthread_mutex_t*，堆分配以便返回不透明指针。 */
-typedef pthread_mutex_t shu_mutex_impl_t;
+typedef pthread_mutex_t xlang_mutex_impl_t;
 
 /** 创建新互斥体；失败 NULL。 */
 void *sync_mutex_new_c(void) {
-    shu_mutex_impl_t *m = (shu_mutex_impl_t *)malloc(sizeof(shu_mutex_impl_t));
+    xlang_mutex_impl_t *m = (xlang_mutex_impl_t *)malloc(sizeof(xlang_mutex_impl_t));
     if (m == NULL) return NULL;
     if (pthread_mutex_init(m, NULL) != 0) {
         free(m);
@@ -246,12 +246,12 @@ void sync_mutex_free_c(void *m) {
     free(m);
 }
 
-typedef pthread_rwlock_t shu_rwlock_impl_t;
-typedef pthread_cond_t shu_condvar_impl_t;
+typedef pthread_rwlock_t xlang_rwlock_impl_t;
+typedef pthread_cond_t xlang_condvar_impl_t;
 
 /** 创建 RwLock；失败 NULL。 */
 void *sync_rwlock_new_c(void) {
-    shu_rwlock_impl_t *rw = (shu_rwlock_impl_t *)malloc(sizeof(shu_rwlock_impl_t));
+    xlang_rwlock_impl_t *rw = (xlang_rwlock_impl_t *)malloc(sizeof(xlang_rwlock_impl_t));
     if (!rw) return NULL;
     if (pthread_rwlock_init(rw, NULL) != 0) {
         free(rw);
@@ -293,7 +293,7 @@ void sync_rwlock_free_c(void *rw) {
 
 /** 创建 Condvar；失败 NULL。 */
 void *sync_condvar_new_c(void) {
-    shu_condvar_impl_t *cv = (shu_condvar_impl_t *)malloc(sizeof(shu_condvar_impl_t));
+    xlang_condvar_impl_t *cv = (xlang_condvar_impl_t *)malloc(sizeof(xlang_condvar_impl_t));
     if (!cv) return NULL;
     if (pthread_cond_init(cv, NULL) != 0) {
         free(cv);
@@ -331,11 +331,11 @@ typedef struct {
     void *cv;
     void *mu;
     int32_t ready;
-} shu_cond_smoke_ctx_t;
+} xlang_cond_smoke_ctx_t;
 
 /** Condvar 烟测 waiter 线程入口。 */
-static void *shu_condvar_smoke_waiter(void *arg) {
-    shu_cond_smoke_ctx_t *ctx = (shu_cond_smoke_ctx_t *)arg;
+static void *xlang_condvar_smoke_waiter(void *arg) {
+    xlang_cond_smoke_ctx_t *ctx = (xlang_cond_smoke_ctx_t *)arg;
     if (sync_mutex_lock_c(ctx->mu) != 0) return (void *)(intptr_t)1;
     while (ctx->ready == 0) {
         if (sync_condvar_wait_c(ctx->cv, ctx->mu) != 0) {
@@ -366,7 +366,7 @@ int32_t sync_rwlock_contention_smoke_c(void) {
 
 /** Condvar 竞争烟测；成功 0。 */
 int32_t sync_condvar_contention_smoke_c(void) {
-    shu_cond_smoke_ctx_t ctx;
+    xlang_cond_smoke_ctx_t ctx;
     pthread_t tid;
     void *ret;
     ctx.cv = sync_condvar_new_c();
@@ -377,7 +377,7 @@ int32_t sync_condvar_contention_smoke_c(void) {
         sync_mutex_free_c(ctx.mu);
         return 1;
     }
-    if (pthread_create(&tid, NULL, shu_condvar_smoke_waiter, &ctx) != 0) {
+    if (pthread_create(&tid, NULL, xlang_condvar_smoke_waiter, &ctx) != 0) {
         sync_condvar_free_c(ctx.cv);
         sync_mutex_free_c(ctx.mu);
         return 2;

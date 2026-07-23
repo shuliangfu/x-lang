@@ -27,7 +27,7 @@
     "only_x": ["asm_pool_load_i32_le", "asm_pool_store_i32_le", "async_asm_pool_x_doc_anchor"],
     "only_seed": ["async_asm_pool_build_layout"]
   },
-  "rest_macro": "SHUX_ASYNC_ASM_POOL_FROM_X",
+  "rest_macro": "XLANG_ASYNC_ASM_POOL_FROM_X",
   "delete_seed_gate": {
     "allowed_now": false,
     "requirements": [

@@ -5,14 +5,14 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_PERF_ALLOC_HOTSPOT_DOC:-analysis/perf-alloc-hotspot-v1.md}"
-MANIFEST="${SHUX_PERF_ALLOC_HOTSPOT_TSV:-tests/baseline/perf-alloc-hotspot.tsv}"
-BASELINE="${SHUX_ALLOC_HOTSPOT_BASELINE:-tests/baseline/alloc-hotspot-perf.tsv}"
+DOC="${XLANG_PERF_ALLOC_HOTSPOT_DOC:-analysis/perf-alloc-hotspot-v1.md}"
+MANIFEST="${XLANG_PERF_ALLOC_HOTSPOT_TSV:-tests/baseline/perf-alloc-hotspot.tsv}"
+BASELINE="${XLANG_ALLOC_HOTSPOT_BASELINE:-tests/baseline/alloc-hotspot-perf.tsv}"
 LIB="tests/lib/perf-alloc-hotspot.sh"
 RUNNER="tests/run-perf-alloc-hotspot.sh"
 STRING_ARENA="tests/run-perf-string-arena.sh"
 MIN_CASES=2
-PREFIX="shux: [SHUX_ALLOC_HOTSPOT]"
+PREFIX="xlang: [XLANG_ALLOC_HOTSPOT]"
 
 # shellcheck source=tests/lib/perf-alloc-hotspot.sh
 . tests/lib/perf-alloc-hotspot.sh
@@ -122,7 +122,7 @@ echo "perf-alloc-hotspot manifest OK (cases=${CASES})"
 if perf_ah_strace_probe_ok; then
   echo "=== PERF-007: alloc hotspot strace smoke (advisory) ==="
   chmod +x "$RUNNER"
-  if SHUX_ALLOC_HOTSPOT_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_alloc_hotspot_smoke.log | tail -8; then
+  if XLANG_ALLOC_HOTSPOT_FAIL=0 ./"$RUNNER" 2>&1 | tee /tmp/perf_alloc_hotspot_smoke.log | tail -8; then
     if grep -qF "$PREFIX" /tmp/perf_alloc_hotspot_smoke.log; then
       echo "perf-alloc-hotspot strace smoke OK"
     else
@@ -137,7 +137,7 @@ if perf_ah_strace_probe_ok; then
     echo "perf-alloc-hotspot gate SKIP strace smoke (runner non-fatal)" >&2
   fi
 else
-  echo "perf-alloc-hotspot gate SKIP strace smoke (need Linux + strace + native shux)" >&2
+  echo "perf-alloc-hotspot gate SKIP strace smoke (need Linux + strace + native xlang)" >&2
 fi
 
 echo "perf-alloc-hotspot gate OK"

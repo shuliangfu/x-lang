@@ -34,7 +34,7 @@
 
 ## 3. 路径解析规则（v1）
 
-库根：`shux -L <root>`（可多次）；默认 `"."`。  
+库根：`xlang -L <root>`（可多次）；默认 `"."`。  
 逻辑入口：`resolve_import_file_path_multi`（`runtime.c`）。
 
 ### 3.1 查找顺序
@@ -60,7 +60,7 @@
 | 平台 | 行为 |
 |------|------|
 | Linux / macOS / Windows MSYS | 统一 POSIX 路径拼接；`-L .` 相对 repo 根 |
-| 失败 | `shux: cannot open import 'path' (tried ...)` — 三平台文案一致 |
+| 失败 | `xlang: cannot open import 'path' (tried ...)` — 三平台文案一致 |
 
 ---
 

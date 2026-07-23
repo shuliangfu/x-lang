@@ -17,27 +17,27 @@ fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
-if [ ! -x compiler/shux ]; then
-  echo "run-bootstrap-bstrict-linux: need seed shux (make -C compiler OPT=1 all)" >&2
+if [ ! -x compiler/xlang ]; then
+  echo "run-bootstrap-bstrict-linux: need seed xlang (make -C compiler OPT=1 all)" >&2
   exit 127
 fi
 
-# bootstrap-bstrict-ci 已用 asm_only_strict shux_asm 跑完白名单；勿再 bootstrap-driver-crt0
-# 覆盖 shux_asm（crt0/full_asm 链常缺符号或 SIGSEGV，与 B-strict 验收正交）。
-if [ -n "${SHUX_BSTRICT_SKIP_BUILD:-}" ] && [ -x compiler/shux_asm ]; then
-  echo "run-bootstrap-bstrict-linux: reuse bstrict shux_asm (SHUX_BSTRICT_SKIP_BUILD=1, skip crt0 rebuild)"
+# bootstrap-bstrict-ci 已用 asm_only_strict xlang_asm 跑完白名单；勿再 bootstrap-driver-crt0
+# 覆盖 xlang_asm（crt0/full_asm 链常缺符号或 SIGSEGV，与 B-strict 验收正交）。
+if [ -n "${XLANG_BSTRICT_SKIP_BUILD:-}" ] && [ -x compiler/xlang_asm ]; then
+  echo "run-bootstrap-bstrict-linux: reuse bstrict xlang_asm (XLANG_BSTRICT_SKIP_BUILD=1, skip crt0 rebuild)"
 else
   echo "run-bootstrap-bstrict-linux: make bootstrap-driver-crt0 ..."
   make -C compiler bootstrap-driver-crt0
 fi
 
-if [ ! -x compiler/shux_asm ]; then
-  echo "run-bootstrap-bstrict-linux: compiler/shux_asm missing after crt0 build" >&2
+if [ ! -x compiler/xlang_asm ]; then
+  echo "run-bootstrap-bstrict-linux: compiler/xlang_asm missing after crt0 build" >&2
   exit 1
 fi
 
 # full_asm 拓扑标签：build_asm 全域 __text 非空；parser.o 等偶发 asm emit 失败时 Q=0，
-# 但 asm_only_strict/crt0 shux_asm 仍可用——以 return-value 烟测为准，勿因 Q!=1 阻断 CI。
+# 但 asm_only_strict/crt0 xlang_asm 仍可用——以 return-value 烟测为准，勿因 Q!=1 阻断 CI。
 if [ -f compiler/build_asm/.asm_text_quality ]; then
   Q=$(cat compiler/build_asm/.asm_text_quality)
   if [ "$Q" = "1" ]; then
@@ -48,13 +48,13 @@ if [ -f compiler/build_asm/.asm_text_quality ]; then
 fi
 
 # crt0 产物烟测：return-value（无 X driver，能力子集）
-echo "run-bootstrap-bstrict-linux: smoke return-value via crt0 shux_asm ..."
-if ! compiler/shux_asm tests/return-value/main.x -o /tmp/shux_crt0_rv 2>/dev/null; then
-  echo "run-bootstrap-bstrict-linux: crt0 shux_asm compile return-value failed (expected on some hosts)" >&2
+echo "run-bootstrap-bstrict-linux: smoke return-value via crt0 xlang_asm ..."
+if ! compiler/xlang_asm tests/return-value/main.x -o /tmp/xlang_crt0_rv 2>/dev/null; then
+  echo "run-bootstrap-bstrict-linux: crt0 xlang_asm compile return-value failed (expected on some hosts)" >&2
   exit 1
 fi
 EX=0
-/tmp/shux_crt0_rv >/dev/null 2>&1 || EX=$?
+/tmp/xlang_crt0_rv >/dev/null 2>&1 || EX=$?
 if [ "$EX" -ne 42 ]; then
   echo "run-bootstrap-bstrict-linux: expected exit 42, got $EX" >&2
   exit 1

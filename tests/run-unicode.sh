@@ -2,9 +2,9 @@
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
-SHUX="${SHUX:-./compiler/shux}"
-exe="/tmp/shux_unicode_$$"
-if ! $SHUX build -L . tests/unicode/main.x -o "$exe" 2>&1; then echo "unicode test: compile failed"; rm -f "$exe"; exit 1; fi
+XLANG="${XLANG:-./compiler/xlang}"
+exe="/tmp/xlang_unicode_$$"
+if ! $XLANG build -L . tests/unicode/main.x -o "$exe" 2>&1; then echo "unicode test: compile failed"; rm -f "$exe"; exit 1; fi
 $exe 2>/dev/null; exitcode=$?
 rm -f "$exe"
 if [ "$exitcode" -ne 0 ]; then echo "unicode test: expected exit 0, got $exitcode"; exit 1; fi

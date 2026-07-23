@@ -33,7 +33,7 @@
 
 ## 4. ABI Manifest
 - _impl 残余列表：`arrow_f32_sum_kernel_impl`、`arrow_f32_dot_kernel_impl`、`arrow_i32_sum_valid_kernel_impl`、`arrow_f32_sum_valid_kernel_impl`
-- thin+rest 宏边界：`SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X`
+- thin+rest 宏边界：`XLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X`
 - 前向声明：4 个 thin wrapper（`arrow_f32_sum_kernel` / `arrow_f32_dot_kernel` / `arrow_i32_sum_valid_kernel` / `arrow_f32_sum_valid_kernel`），rest 模式下供 4 个 column 胶层函数调用，符号由 thin.o 提供
 - 内部调用更新：无（column 胶层函数调用 thin wrapper 符号，rest 模式下为 U 由 thin.o 解析）
 
@@ -46,5 +46,5 @@
 - IMPL 模式：4 个 thin wrapper 调用对应 `_impl`
 - 4 个 column 胶层函数调用 4 个 thin wrapper，rest 模式下 thin wrapper 为 U 符号由 thin.o 提供
 - 平台条件：`arrow_hsum_ps` 仅在 `#if defined(ARROW_HAVE_SSE2)` 块内定义（macOS arm64 无 SSE2 → 不编译；Ubuntu x86_64 有 SSE2 → 编译为 T 符号）。3 个 f32 kernel `_impl` 在 SSE2 分支调用 `arrow_hsum_ps`，NEON 分支用 `vgetq_lane_f32` 直接求和
-- 已知预存行为：`arrow_i32_sum_valid_kernel` 和 `runtime_arrow_simd_glue_x_doc_anchor` 在 Linux 上为 W（weak）符号——shux-c 编译器对 `#[no_mangle]` 属性处理不完整（`arrow_i32_sum_valid_kernel` 有 `#[no_mangle]` 但 gen.c 仍标记 weak；`doc_anchor` 无 `#[no_mangle]` 故 weak 正确）。macOS Mach-O 不支持 weak，均为 T 符号。非本次切割引入
+- 已知预存行为：`arrow_i32_sum_valid_kernel` 和 `runtime_arrow_simd_glue_x_doc_anchor` 在 Linux 上为 W（weak）符号——xlang-c 编译器对 `#[no_mangle]` 属性处理不完整（`arrow_i32_sum_valid_kernel` 有 `#[no_mangle]` 但 gen.c 仍标记 weak；`doc_anchor` 无 `#[no_mangle]` 故 weak 正确）。macOS Mach-O 不支持 weak，均为 T 符号。非本次切割引入
 - 依赖：SSE2（emmintrin.h）/ NEON（arm_neon.h）；无外部库依赖

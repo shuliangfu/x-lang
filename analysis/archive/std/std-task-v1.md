@@ -32,7 +32,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_TASK] status=ok c_smoke=1 x=1 skip=0
+xlang: [XLANG_STD_TASK] status=ok c_smoke=1 x=1 skip=0
 std-task gate OK
 ```
 

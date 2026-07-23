@@ -13,7 +13,7 @@
 | **指标可见** | ZC gate、syscall 上限、网络 cycles/MiB 一表汇总 |
 | **每日趋势** | `zc-dashboard-history.tsv` 按日记录 metric 值与 status |
 | **趋势图** | runner 输出 ASCII sparkline（▁▂▃▄▅▆▇█） |
-| **可 grep** | `shux: [SHUX_ZC_DASHBOARD]` 报告行 |
+| **可 grep** | `xlang: [XLANG_ZC_DASHBOARD]` 报告行 |
 
 验收：**每日（daily）更新并有趋势图** → v1 以 history TSV + sparkline + `--record` 工作流交付。
 
@@ -36,10 +36,10 @@
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `SHUX_ZC_DASHBOARD_RECORD` | `0` | `1` 时 `--record` 写入 history |
-| `SHUX_ZC_DASHBOARD_METRICS` | `tests/baseline/zc-dashboard-metrics.tsv` | 指标表 |
-| `SHUX_ZC_DASHBOARD_HISTORY` | `tests/baseline/zc-dashboard-history.tsv` | 日历史 |
-| `SHUX_ZC_DASHBOARD_PREFIX` | `shux: [SHUX_ZC_DASHBOARD]` | 报告前缀 |
+| `XLANG_ZC_DASHBOARD_RECORD` | `0` | `1` 时 `--record` 写入 history |
+| `XLANG_ZC_DASHBOARD_METRICS` | `tests/baseline/zc-dashboard-metrics.tsv` | 指标表 |
+| `XLANG_ZC_DASHBOARD_HISTORY` | `tests/baseline/zc-dashboard-history.tsv` | 日历史 |
+| `XLANG_ZC_DASHBOARD_PREFIX` | `xlang: [XLANG_ZC_DASHBOARD]` | 报告前缀 |
 
 ---
 
@@ -55,7 +55,7 @@
 ## 4. 报告行
 
 ```text
-shux: [SHUX_ZC_DASHBOARD] metric=zc5_splice_max value=20 cap=20 status=green trend=▅▅
+xlang: [XLANG_ZC_DASHBOARD] metric=zc5_splice_max value=20 cap=20 status=green trend=▅▅
 ```
 
 实现：`zcd_report_emit()` in `tests/lib/zc-dashboard.sh`。

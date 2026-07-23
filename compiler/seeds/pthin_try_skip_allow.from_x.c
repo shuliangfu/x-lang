@@ -1,6 +1,6 @@
 /* seeds/pthin_try_skip_allow.from_x.c — G-02f-322 P2 parser thin try_skip_allow
  * Logic source: src/asm/pthin_try_skip_allow.x
- * Hybrid: SHUX_PTHIN_TRY_SKIP_ALLOW_FROM_X + ld -r into parser_asm_thin_glue.o
+ * Hybrid: XLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X + ld -r into parser_asm_thin_glue.o
  *
  * Body: seeds/parser_asm/parser_asm_try_skip_allow_slice.inc (~1.6k)
  * write_try_skip_allow_result + try_skip_allow_padding + parse_into_try_skip_allow

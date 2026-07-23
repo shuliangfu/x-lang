@@ -2,15 +2,15 @@
 # SIMD-S2 门禁：std.simd Vec4f/Vec8i 编译 + 可选运行 smoke。
 # 用法：
 #   ./tests/run-simd-s2-gate.sh
-#   SHUX=./compiler/shux_asm ./tests/run-simd-s2-gate.sh
+#   XLANG=./compiler/xlang_asm ./tests/run-simd-s2-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-SHUX_BIN="${SHUX:-}"
-case "$SHUX_BIN" in
-  /*) SHUX_ABS="$SHUX_BIN" ;;
-  "") SHUX_ABS="" ;;
-  *) SHUX_ABS="$(pwd)/$SHUX_BIN" ;;
+XLANG_BIN="${XLANG:-}"
+case "$XLANG_BIN" in
+  /*) XLANG_ABS="$XLANG_BIN" ;;
+  "") XLANG_ABS="" ;;
+  *) XLANG_ABS="$(pwd)/$XLANG_BIN" ;;
 esac
 
 simd_s2_native_exe() {
@@ -25,12 +25,12 @@ simd_s2_native_exe() {
   esac
 }
 
-if [ -z "$SHUX_ABS" ] || ! simd_s2_native_exe "$SHUX_ABS"; then
-  SHUX_ABS=""
-  for cand in ./compiler/shux_asm ./compiler/shux; do
+if [ -z "$XLANG_ABS" ] || ! simd_s2_native_exe "$XLANG_ABS"; then
+  XLANG_ABS=""
+  for cand in ./compiler/xlang_asm ./compiler/xlang; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if simd_s2_native_exe "$abs"; then
-      SHUX_ABS="$abs"
+      XLANG_ABS="$abs"
       break
     fi
   done
@@ -38,16 +38,16 @@ fi
 
 echo "=== SIMD-S2: Vec4f / Vec8i compile smoke ==="
 
-if [ -z "$SHUX_ABS" ] || ! simd_s2_native_exe "$SHUX_ABS"; then
-  echo "simd-s2 gate SKIP (no native shux/shux_asm)"
+if [ -z "$XLANG_ABS" ] || ! simd_s2_native_exe "$XLANG_ABS"; then
+  echo "simd-s2 gate SKIP (no native xlang/xlang_asm)"
   exit 0
 fi
 
 SMOKE_SRC="tests/simd/vec4f_vec8i_smoke.x"
-SMOKE_O="/tmp/shux_simd_s2_smoke.o"
+SMOKE_O="/tmp/xlang_simd_s2_smoke.o"
 rm -f "$SMOKE_O"
 
-if ! SHUX="$SHUX_ABS" "$SHUX_ABS" "$SMOKE_SRC" -o "$SMOKE_O"; then
+if ! XLANG="$XLANG_ABS" "$XLANG_ABS" "$SMOKE_SRC" -o "$SMOKE_O"; then
   echo "simd-s2 FAIL: compile $SMOKE_SRC" >&2
   exit 1
 fi

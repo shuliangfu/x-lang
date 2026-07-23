@@ -7,10 +7,10 @@
 // See implementation.
 // See implementation.
 
-export extern "C" function shu_sha256_rotr32_impl(x: u32, n: u32): u32;
-export extern "C" function shu_sha256_ch_impl(x: u32, y: u32, z: u32): u32;
-export extern "C" function shu_sha256_maj_impl(x: u32, y: u32, z: u32): u32;
-export extern "C" function shu_sha256_block_impl(H: *u32, block: *u8): void;
+export extern "C" function xlang_sha256_rotr32_impl(x: u32, n: u32): u32;
+export extern "C" function xlang_sha256_ch_impl(x: u32, y: u32, z: u32): u32;
+export extern "C" function xlang_sha256_maj_impl(x: u32, y: u32, z: u32): u32;
+export extern "C" function xlang_sha256_block_impl(H: *u32, block: *u8): void;
 
 /** Exported function `runtime_crypto_inc_glue_x_doc_anchor`.
  * Implements `runtime_crypto_inc_glue_x_doc_anchor`.
@@ -26,47 +26,47 @@ export function runtime_crypto_inc_glue_x_doc_anchor(): i32 {
 
 
 #[no_mangle]
-export function shu_sha256_block(H: *u32, block: *u8): void {
+export function xlang_sha256_block(H: *u32, block: *u8): void {
   unsafe {
-    shu_sha256_block_impl(H, block);
+    xlang_sha256_block_impl(H, block);
   }
 }
 
-// shu_sha256_rotr32: see function docblock below.
+// xlang_sha256_rotr32: see function docblock below.
 
-/** Exported function `shu_sha256_rotr32`.
- * Implements `shu_sha256_rotr32`.
+/** Exported function `xlang_sha256_rotr32`.
+ * Implements `xlang_sha256_rotr32`.
  * @param x u32
  * @param n u32
  * @return u32
  */
 #[no_mangle]
-export function shu_sha256_rotr32(x: u32, n: u32): u32 {
+export function xlang_sha256_rotr32(x: u32, n: u32): u32 {
   n = n & 31;
   return (x >> n) | (x << (32 - n));
 }
 
-/** Exported function `shu_sha256_ch`.
- * Implements `shu_sha256_ch`.
+/** Exported function `xlang_sha256_ch`.
+ * Implements `xlang_sha256_ch`.
  * @param x u32
  * @param y u32
  * @param z u32
  * @return u32
  */
 #[no_mangle]
-export function shu_sha256_ch(x: u32, y: u32, z: u32): u32 {
+export function xlang_sha256_ch(x: u32, y: u32, z: u32): u32 {
   return (x & y) ^ ((~x) & z);
 }
 
-/** Exported function `shu_sha256_maj`.
- * Implements `shu_sha256_maj`.
+/** Exported function `xlang_sha256_maj`.
+ * Implements `xlang_sha256_maj`.
  * @param x u32
  * @param y u32
  * @param z u32
  * @return u32
  */
 #[no_mangle]
-export function shu_sha256_maj(x: u32, y: u32, z: u32): u32 {
+export function xlang_sha256_maj(x: u32, y: u32, z: u32): u32 {
   return (x & y) ^ (x & z) ^ (y & z);
 }
 

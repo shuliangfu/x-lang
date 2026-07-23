@@ -5,7 +5,7 @@
 # 键 C 闭合须七项全 PASS（WARN 仅 staging，不算闭合）。
 #
 # 用法：./tests/run-bootstrap-keyc-p0-gate.sh
-# 环境：SHUX_KEYC_P0_ALLOW_WARN=1 — 有 WARN 仍 exit 0（CI 渐进）
+# 环境：XLANG_KEYC_P0_ALLOW_WARN=1 — 有 WARN 仍 exit 0（CI 渐进）
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -31,12 +31,12 @@ FAIL=0
 run_p0_gate() {
   local id="$1" script="$2" strict="$3"
   local path="tests/$script"
-  local log="/tmp/shux_keyc_${id//[^a-zA-Z0-9]/_}.log"
+  local log="/tmp/xlang_keyc_${id//[^a-zA-Z0-9]/_}.log"
   echo ""
   echo "======== $id ($script) ========"
   # V4/V5：无 gen1/gen2 产物时 anti-collapse 由 gold 覆盖，此处 SKIP。
   if [ "$script" = "run-bootstrap-anti-collapse-gate.sh" ]; then
-    if [ ! -f compiler/shux_asm_stage1 ] || [ ! -f compiler/shux_asm2 ]; then
+    if [ ! -f compiler/xlang_asm_stage1 ] || [ ! -f compiler/xlang_asm2 ]; then
       echo "keyc-p0: $id SKIP (no stage1/2; V4/V5 见 bootstrap-gold)"
       SKIP=$((SKIP + 1))
       return
@@ -90,8 +90,8 @@ if [ "$FAIL" -gt 0 ]; then
   exit 1
 fi
 if [ "$WARN" -gt 0 ] || [ "$SKIP" -gt 0 ]; then
-  if [ "${SHUX_KEYC_P0_ALLOW_WARN:-0}" = "1" ]; then
-    echo "keyc-p0 gate OK with WARN/SKIP (SHUX_KEYC_P0_ALLOW_WARN=1; 键 C 未闭合)"
+  if [ "${XLANG_KEYC_P0_ALLOW_WARN:-0}" = "1" ]; then
+    echo "keyc-p0 gate OK with WARN/SKIP (XLANG_KEYC_P0_ALLOW_WARN=1; 键 C 未闭合)"
     exit 0
   fi
   echo "keyc-p0 gate INCOMPLETE: 键 C 须 PASS=7；当前 WARN=$WARN SKIP=$SKIP" >&2

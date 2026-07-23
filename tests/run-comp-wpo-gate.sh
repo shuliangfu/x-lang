@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP_WPO_DOC:-analysis/comp-wpo-v1.md}"
-MANIFEST="${SHUX_COMP_WPO_MANIFEST:-tests/baseline/comp-wpo.tsv}"
-PROTO="${SHUX_COMP_WPO_PROTO:-tests/baseline/comp-wpo-prototype.tsv}"
+DOC="${XLANG_COMP_WPO_DOC:-analysis/comp-wpo-v1.md}"
+MANIFEST="${XLANG_COMP_WPO_MANIFEST:-tests/baseline/comp-wpo.tsv}"
+PROTO="${XLANG_COMP_WPO_PROTO:-tests/baseline/comp-wpo-prototype.tsv}"
 MIN_STAGES=6
 MIN_CASES=4
 MIN_CAPS=6
@@ -153,7 +153,7 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "comp-wpo manifest OK (stages=${STAGE_N} cases=${CASE_N} caps=${CAP_N})"
 
-if [ "${SHUX_COMP_WPO_MANIFEST_ONLY:-0}" = "1" ]; then
+if [ "${XLANG_COMP_WPO_MANIFEST_ONLY:-0}" = "1" ]; then
   echo "comp-wpo gate OK (manifest only)"
   exit 0
 fi

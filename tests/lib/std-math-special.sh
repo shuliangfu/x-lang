@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-math-special.sh — STD-115 manifest 与烟测辅助
 
-STD_MATH_SPECIAL_PREFIX="${SHUX_STD115_MATH_SPECIAL_PREFIX:-shux: [SHUX_STD115_MATH_SPECIAL]}"
+STD_MATH_SPECIAL_PREFIX="${XLANG_STD115_MATH_SPECIAL_PREFIX:-xlang: [XLANG_STD115_MATH_SPECIAL]}"
 
 # 校验 manifest 中 api/symbol/file/smoke。
 std_math_special_symbols_ok() {
@@ -45,11 +45,11 @@ std_math_special_symbols_ok() {
 
 # 编译并运行 .x 烟测（x pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
 std_math_special_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  if ! "$shux" check -L . "$src" >/dev/null 2>&1; then
+  if ! "$xlang" check -L . "$src" >/dev/null 2>&1; then
     echo "std-math-special FAIL: typeck $src" >&2
-    "$shux" check -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" check -L . "$src" 2>&1 | tail -10 >&2 || true
     return 1
   fi
   return 0
@@ -57,12 +57,12 @@ std_math_special_run_x_smoke() {
 
 # C 烟测：special_smoke_ok.c + math.o + runtime_math_libm.o + process_argv + -lm。
 # PLATFORM: SHARED — math.o from math.x -E+cc always embeds rt_preamble weak
-# process_args_* which UNDEF process_shux_{argc,argv}_get (in runtime_process_argv.o).
+# process_args_* which UNDEF process_xlang_{argc,argv}_get (in runtime_process_argv.o).
 # Without that .o, L4 cold Ubuntu/mac link fails: process_args_count_c undefined.
 std_math_special_run_c_smoke() {
   local math_o="$1"
   local src="tests/std-math/special_smoke_ok.c"
-  local out="/tmp/shux_std_math_special_c_$$"
+  local out="/tmp/xlang_std_math_special_c_$$"
   local rt_o="compiler/runtime_math_libm.o"
   local pav_o="compiler/runtime_process_argv.o"
   if [ ! -f "$rt_o" ]; then

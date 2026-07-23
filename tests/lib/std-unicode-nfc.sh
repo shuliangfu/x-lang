@@ -3,10 +3,10 @@
 #
 # 用法（source 后）：
 #   std_unicode_nfc_symbols_ok MOD_X UNICODE_C TSV
-#   std_unicode_nfc_run_smoke SHUX_BIN X TAG
+#   std_unicode_nfc_run_smoke XLANG_BIN X TAG
 #   std_unicode_nfc_emit_report status nfc_ok main_ok skip
 
-STD_UNICODE_NFC_PREFIX="${SHUX_STD_UNICODE_NFC_PREFIX:-shux: [SHUX_STD_UNICODE_NFC]}"
+STD_UNICODE_NFC_PREFIX="${XLANG_STD_UNICODE_NFC_PREFIX:-xlang: [XLANG_STD_UNICODE_NFC]}"
 
 # 校验 manifest symbol/file/api；echo 缺失数。
 std_unicode_nfc_symbols_ok() {
@@ -49,17 +49,17 @@ std_unicode_nfc_symbols_ok() {
 
 # 编译并运行烟测 .x（须已 ensure unicode.o）。
 std_unicode_nfc_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-smoke}"
-  local exe="/tmp/shux_std_unicode_nfc_${tag}_$$"
+  local exe="/tmp/xlang_std_unicode_nfc_${tag}_$$"
   if [ ! -f "$src" ]; then
     echo "std-unicode-nfc FAIL: missing $src" >&2
     return 1
   fi
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-unicode-nfc FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -8 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -8 >&2 || true
     rm -f "$exe"
     return 1
   fi

@@ -14,11 +14,44 @@
 // limitations under the License.
 // Full text: LICENSE.Apache-2.0
 
-// See implementation.
-//
-// See implementation.
-// See implementation.
-// See implementation.
+/**
+ * JSON C ABI wrappers.
+ *
+ * All `json_*_c` functions below are thin wrappers over the JSON
+ * parser / serializer C implementation (see seeds). They are exposed
+ * to XLANG via `extern "C"` declarations.
+ *
+ * ABI: C (System V / AAPCS). Calling convention matches the C runtime
+ * (RFC 8259 grammar-driven recursive descent + cursor model + append
+ * buffer serializer).
+ * PLATFORM: SHARED — pure C, no platform-specific intrinsics; available
+ * on all targets (macOS arm64 / Ubuntu x86_64 / Windows MSYS2).
+ *
+ * Cursor model:
+ *   - JsonCursor { ptr: *u8, len: i32, off: i32 } tracks position
+ *     during streaming decode of a JSON document.
+ *   - Cursor enter/next/skip/value_type navigate object/array/value
+ *     structure without allocating intermediate AST nodes.
+ *
+ * Decoder categories:
+ *   - json_parse_*_c        : low-level value parsers (number/null/
+ *                             bool/string + string view + escape)
+ *   - json_cursor_*_c       : streaming cursor navigation
+ *   - json_decode_*_at_c    : typed positional decoders (i32/f64/bool/
+ *                             string)
+ *   - json_object_decode_*_c: object key-lookup decoders (i32/bool/
+ *                             string + dotted path variants)
+ *   - json_append_*_c       : serializer builders (object/array/comma/
+ *                             key/string value/number)
+ *
+ * Error codes: returns i32; 0 = OK, negative = error
+ *   (e.g. -1 invalid JSON, -2 truncated, -3 type mismatch,
+ *    -4 buffer overflow, -5 key not found).
+ *
+ * Unsafe contract: callers must wrap `json_*_c` calls in `unsafe { }`
+ * blocks. P0a semantic downgrade currently allows unwrapped calls; P1
+ * typeck enforcement (post-bootstrap) will reject unwrapped calls.
+ */
 
 /* See implementation. */
 export struct JsonCursor {
@@ -27,48 +60,48 @@ export struct JsonCursor {
   off: i32;
 }
 
-extern function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32;
-extern function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
-extern function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32;
-extern function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, consumed: *i32):
+extern "C" function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed: *i32): i32;
+extern "C" function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
+extern "C" function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32;
+extern "C" function json_parse_string_c(ptr: *u8, len: i32, out: *u8, out_cap: i32, consumed: *i32):
 i32;
-extern function json_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32;
-extern function json_append_null_c(buf: *u8, buf_cap: i32): i32;
-extern function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32;
-extern function json_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32;
-extern function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32;
-extern function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8;
-extern function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void;
-extern function json_cursor_enter_object_c(cur: *JsonCursor): i32;
-extern function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
+extern "C" function json_escape_c(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32;
+extern "C" function json_append_null_c(buf: *u8, buf_cap: i32): i32;
+extern "C" function json_append_bool_c(buf: *u8, buf_cap: i32, val: i32): i32;
+extern "C" function json_append_number_c(buf: *u8, buf_cap: i32, val: f64): i32;
+extern "C" function json_skip_value_c(ptr: *u8, len: i32, consumed: *i32): i32;
+extern "C" function json_parse_string_view_c(ptr: *u8, len: i32, out_len: *i32, consumed: *i32): *u8;
+extern "C" function json_cursor_init_c(cur: *JsonCursor, ptr: *u8, len: i32): void;
+extern "C" function json_cursor_enter_object_c(cur: *JsonCursor): i32;
+extern "C" function json_cursor_object_next_c(cur: *JsonCursor, key_buf: *u8, key_cap: i32,
   key_len: *i32): i32;
-extern function json_cursor_skip_value_c(cur: *JsonCursor): i32;
-extern function json_cursor_enter_array_c(cur: *JsonCursor): i32;
-extern function json_cursor_array_has_elem_c(cur: *JsonCursor): i32;
-extern function json_cursor_value_type_c(cur: *JsonCursor): i32;
-extern function json_decode_i32_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32;
-extern function json_decode_f64_at_c(ptr: *u8, len: i32, consumed: *i32, out: *f64): i32;
-extern function json_decode_bool_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32;
-extern function json_decode_string_at_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
+extern "C" function json_cursor_skip_value_c(cur: *JsonCursor): i32;
+extern "C" function json_cursor_enter_array_c(cur: *JsonCursor): i32;
+extern "C" function json_cursor_array_has_elem_c(cur: *JsonCursor): i32;
+extern "C" function json_cursor_value_type_c(cur: *JsonCursor): i32;
+extern "C" function json_decode_i32_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32;
+extern "C" function json_decode_f64_at_c(ptr: *u8, len: i32, consumed: *i32, out: *f64): i32;
+extern "C" function json_decode_bool_at_c(ptr: *u8, len: i32, consumed: *i32, out: *i32): i32;
+extern "C" function json_decode_string_at_c(ptr: *u8, len: i32, out: *u8, out_cap: i32,
   out_len: *i32, consumed: *i32): i32;
-extern function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32;
-extern function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32;
-extern function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *u8,
+extern "C" function json_object_decode_i32_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32;
+extern "C" function json_object_decode_bool_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *i32): i32;
+extern "C" function json_object_decode_string_c(cur: *JsonCursor, key: *u8, key_len: i32, out: *u8,
   out_cap: i32, out_len: *i32): i32;
-extern function json_object_decode_dotted_i32_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32;
-extern function json_object_decode_dotted_string_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *u8, out_cap: i32, out_len: *i32): i32;
-extern function json_object_decode_dotted_bool_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32;
-extern function json_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *f64): i32;
-extern function json_typed_decode_smoke_c(): i32;
-extern function json_append_object_c(buf: *u8, cap: i32, off: i32): i32;
-extern function json_append_object_end_c(buf: *u8, cap: i32, off: i32): i32;
-extern function json_append_array_c(buf: *u8, cap: i32, off: i32): i32;
-extern function json_append_array_end_c(buf: *u8, cap: i32, off: i32): i32;
-extern function json_append_comma_c(buf: *u8, cap: i32, off: i32): i32;
-extern function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32): i32;
-extern function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8,
+extern "C" function json_object_decode_dotted_i32_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32;
+extern "C" function json_object_decode_dotted_string_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *u8, out_cap: i32, out_len: *i32): i32;
+extern "C" function json_object_decode_dotted_bool_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *i32): i32;
+extern "C" function json_object_decode_dotted_f64_c(cur: *JsonCursor, path: *u8, path_len: i32, out: *f64): i32;
+extern "C" function json_typed_decode_smoke_c(): i32;
+extern "C" function json_append_object_c(buf: *u8, cap: i32, off: i32): i32;
+extern "C" function json_append_object_end_c(buf: *u8, cap: i32, off: i32): i32;
+extern "C" function json_append_array_c(buf: *u8, cap: i32, off: i32): i32;
+extern "C" function json_append_array_end_c(buf: *u8, cap: i32, off: i32): i32;
+extern "C" function json_append_comma_c(buf: *u8, cap: i32, off: i32): i32;
+extern "C" function json_append_key_c(buf: *u8, cap: i32, off: i32, key: *u8, key_len: i32): i32;
+extern "C" function json_append_string_value_c(buf: *u8, cap: i32, off: i32, val: *u8,
   val_len: i32): i32;
-extern function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32;
+extern "C" function json_append_number_at_c(buf: *u8, cap: i32, off: i32, val: f64): i32;
 
 // See implementation.
 

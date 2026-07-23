@@ -13,7 +13,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_DATETIME_V1_FAIL=1 ./tests/run-f-datetime-v1-gate.sh
+XLANG_F_DATETIME_V1_FAIL=1 ./tests/run-f-datetime-v1-gate.sh
 ./tests/run-std-datetime-gate.sh
 ./tests/run-std-datetime-iana-gate.sh
 ```

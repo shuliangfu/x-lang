@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 读者：编写 Shux 应用与标准库扩展的开发者  
+> 读者：编写 Xlang 应用与标准库扩展的开发者  
 > 深度 RFC：`LANG-007`、`EXC-001/002/003`、`SAFE-002/003`
 
 ---
@@ -21,11 +21,11 @@
 
 ## 2. 默认安全子集（S0）
 
-Shux **默认路径**在 S0 内运行，无需 `unsafe` 块（v1 尚无 `unsafe { }` 关键字块）。
+Xlang **默认路径**在 S0 内运行，无需 `unsafe` 块（v1 尚无 `unsafe { }` 关键字块）。
 
 | 构造 | 保证 | 违反时 |
 |------|------|--------|
-| `a[i]` / `s[i]` | 运行时 bounds check | `shux_panic_` |
+| `a[i]` / `s[i]` | 运行时 bounds check | `xlang_panic_` |
 | `/` `%` | 除零 check | panic |
 | `T[]<label>` | 编译期域匹配（TYPE-002） | typeck error |
 | struct 布局 | 无隐式 padding | typeck error |

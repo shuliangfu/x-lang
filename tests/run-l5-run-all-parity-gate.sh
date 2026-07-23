@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# A-10：L5 run-all parity — bstrict 白名单与 run-all.sh 同步 + shux_asm 白名单烟测。
+# A-10：L5 run-all parity — bstrict 白名单与 run-all.sh 同步 + xlang_asm 白名单烟测。
 #
 # 1) 校验 run-all-bstrict.sh 中每项均在 run-all.sh L5 whitelist 内
-# 2) 跑 run-all-bstrict.sh（123 项，compiler/shux_asm）
+# 2) 跑 run-all-bstrict.sh（123 项，compiler/xlang_asm）
 #
 # 用法：./tests/run-l5-run-all-parity-gate.sh
-# 环境：SHUX_BSTRICT_SKIP_BUILD=1 — 复用已有 shux_asm（bootstrap-ci 已构建时）
+# 环境：XLANG_BSTRICT_SKIP_BUILD=1 — 复用已有 xlang_asm（bootstrap-ci 已构建时）
 set -e
 cd "$(dirname "$0")/.."
 
@@ -39,14 +39,14 @@ if extra:
     print(f"l5-parity-gate: note — whitelist-only (not in bstrict yet): {', '.join(extra[:8])}{'...' if len(extra)>8 else ''}")
 PY
 
-if [ ! -x compiler/shux_asm ] && [ -z "${SHUX_BSTRICT_SKIP_BUILD:-}" ]; then
-  echo "l5-parity-gate: need shux_asm (make -C compiler bootstrap-driver-bstrict)" >&2
+if [ ! -x compiler/xlang_asm ] && [ -z "${XLANG_BSTRICT_SKIP_BUILD:-}" ]; then
+  echo "l5-parity-gate: need xlang_asm (make -C compiler bootstrap-driver-bstrict)" >&2
   exit 127
 fi
 
-echo "=== A-10: run-all-bstrict (L5 shux_asm whitelist) ==="
+echo "=== A-10: run-all-bstrict (L5 xlang_asm whitelist) ==="
 chmod +x tests/run-all-bstrict.sh
-export SHUX_BSTRICT_SKIP_BUILD="${SHUX_BSTRICT_SKIP_BUILD:-1}"
+export XLANG_BSTRICT_SKIP_BUILD="${XLANG_BSTRICT_SKIP_BUILD:-1}"
 ./tests/run-all-bstrict.sh
 
 echo "l5-run-all-parity-gate OK"

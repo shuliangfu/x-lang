@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 诊断层 E1–E6 |
 | 2 | 打开 `tests/baseline/lang-lifetime-diag-cases.tsv` |
 | 3 | `./tests/run-lang-lifetime-diag-gate.sh` |
-| 4 | `shux check tests/typeck/slice_lifetime/region_assign_escape.x` |
+| 4 | `xlang check tests/typeck/slice_lifetime/region_assign_escape.x` |
 
 ---
 

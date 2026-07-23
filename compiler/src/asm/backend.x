@@ -112,10 +112,10 @@ export extern function driver_diagnostic_asm_var_not_found(name: *u8, name_len: 
 export extern function driver_diagnostic_asm_set_current_func(name: *u8, name_len: i32): void;
 /* See implementation. */
 export extern function driver_freestanding_get(): i32;
-/** build_shux_asmï¼å¤§æ¨¡åæ¡© emit å¤å®ï¼ast_pool.cï¼é¡»å
+/** build_xlang_asmï¼å¤§æ¨¡åæ¡© emit å¤å®ï¼ast_pool.cï¼é¡»å
  asm_skip_heavy_set_pipeline_ctxï¼ã */
 export extern function asm_skip_heavy_module_func_body(module: *Module, arena: *ASTArena, func_index: i32): i32;
-/** SHUX_ASM_START_FUNCï¼è·³è¿ module å N ä¸ªå½æ°ç emitï¼è°è¯ç¨ï¼ã */
+/** XLANG_ASM_START_FUNCï¼è·³è¿ module å N ä¸ªå½æ°ç emitï¼è°è¯ç¨ï¼ã */
 export extern function asm_diag_start_func_skip(): i32;
 /** parser_gen / C ABIï¼å° cur_mod ç¬¬ i æ¡ import çé»è¾è·¯å¾åå
 ¥ out_bufï¼è³å¤ 64 å­èï¼å« NULï¼ã */
@@ -2955,7 +2955,7 @@ export function emit_for_loop_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, blo
 
 /**
  * ELF è·¯å¾ï¼æ stmt_order åå°åä½ï¼ç» pipeline_glue.c ç C for å¾ªç¯ + expr å¿«è·¯å¾ï¼ã
- * èªä¸¾ shux_asm ä¸ X ç while(i<nso) ç» shux-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä»
+ * èªä¸¾ xlang_asm ä¸ X ç while(i<nso) ç» xlang-c -E å¯è½åªè·ä¸è½®ï¼å¯¼è´ return 1+2 ä»
  emit å·¦æä½æ°ã
  */
 export function emit_block_body_elf(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, block_ref: i32, ctx: *AsmFuncCtx, ta: i32): i32 {
@@ -3164,7 +3164,7 @@ export function asm_codegen_ast(module: *Module, arena: *ASTArena, out: *Codegen
 }
 
 /**
- * build_shux_asm SKIP_TYPECK æ¡©ï¼ä»
+ * build_xlang_asm SKIP_TYPECK æ¡©ï¼ä»
  mov w0/x0/eax,#0 + epilogueï¼å¿ fill/emit_blockï¼å¤§æ¨¡åå®¿ä¸»æ  SIGSEGVï¼ã
  */
 export function emit_skip_heavy_stub_elf(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {

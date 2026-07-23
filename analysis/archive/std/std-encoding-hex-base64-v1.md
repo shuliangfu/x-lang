@@ -62,7 +62,7 @@
 ```
 
 ```
-shux: [SHUX_STD_ENCODING_HEX_B64] status=ok hex=1 b64=1 main=1 skip=0
+xlang: [XLANG_STD_ENCODING_HEX_B64] status=ok hex=1 b64=1 main=1 skip=0
 ```
 
 金样：`deadbeef` 往返；`foo` → `Zm9v` Base64 String 往返。

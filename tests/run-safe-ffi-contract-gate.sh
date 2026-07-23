@@ -3,21 +3,21 @@
 #
 # 1) safe-ffi-contract-v1.md + matrix
 # 2) 每个 case .x 存在且文档引用
-# 3) native shux：逐条编译运行 + run-ffi.sh hook
+# 3) native xlang：逐条编译运行 + run-ffi.sh hook
 #
 # 用法：./tests/run-safe-ffi-contract-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_SAFE_FFI_DOC:-analysis/safe-ffi-contract-v1.md}"
-MANIFEST="${SHUX_SAFE_FFI_MANIFEST:-tests/baseline/safe-ffi-contract.tsv}"
-MOD_X="${SHUX_SAFE_FFI_MOD:-std/ffi/mod.x}"
+DOC="${XLANG_SAFE_FFI_DOC:-analysis/safe-ffi-contract-v1.md}"
+MANIFEST="${XLANG_SAFE_FFI_MANIFEST:-tests/baseline/safe-ffi-contract.tsv}"
+MOD_X="${XLANG_SAFE_FFI_MOD:-std/ffi/mod.x}"
 MIN_CASES=8
 
 # shellcheck source=tests/lib/safe-ffi.sh
 . tests/lib/safe-ffi.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -120,20 +120,20 @@ if [ "$MISS" -gt 0 ]; then
 fi
 echo "safe-ffi-contract manifest OK (cases=${CASE_N})"
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
-  echo "=== SAFE-004: contract cases (SHUX=$SHUX_BIN) ==="
-  if [ ! -x ./compiler/shux-c ] && [ ! -x ./compiler/shux ]; then
-    make -C compiler shux-c
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
+  echo "=== SAFE-004: contract cases (XLANG=$XLANG_BIN) ==="
+  if [ ! -x ./compiler/xlang-c ] && [ ! -x ./compiler/xlang ]; then
+    make -C compiler xlang-c
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
@@ -148,7 +148,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
       [ -z "${case_id:-}" ] && continue
       case "$case_id" in
         case_*)
-          if safe_ffi_run_case "$SHUX_BIN" "$src" "$expect_rc" "$case_id"; then
+          if safe_ffi_run_case "$XLANG_BIN" "$src" "$expect_rc" "$case_id"; then
             echo "safe-ffi-contract OK $case_id"
           else
             FAIL=$((FAIL + 1))
@@ -168,7 +168,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
       [ -z "${case_id:-}" ] && continue
       case "$case_id" in
         case_*)
-          if "$SHUX_BIN" check -backend c -L . "$src" >/dev/null 2>&1; then
+          if "$XLANG_BIN" check -backend c -L . "$src" >/dev/null 2>&1; then
             echo "safe-ffi-contract check OK $case_id"
           else
             echo "safe-ffi-contract FAIL check $case_id ($src)" >&2
@@ -183,7 +183,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
     fi
   fi
 else
-  echo "safe-ffi-contract gate SKIP cases (no native shux)" >&2
+  echo "safe-ffi-contract gate SKIP cases (no native xlang)" >&2
 fi
 
 echo "safe-ffi-contract gate OK"

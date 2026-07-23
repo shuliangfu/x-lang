@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-math-fenv-capability.sh — STD-149 manifest 与烟测辅助
 
-STD149_PREFIX="${SHUX_STD149_MATH_FENV_CAP_PREFIX:-shux: [SHUX_STD149_MATH_FENV_CAP]}"
+STD149_PREFIX="${XLANG_STD149_MATH_FENV_CAP_PREFIX:-xlang: [XLANG_STD149_MATH_FENV_CAP]}"
 
 # 校验 manifest；echo 缺失数。
 std_math_fenv_cap_symbols_ok() {
@@ -76,13 +76,13 @@ std_math_fenv_cap_expect_available() {
   return 1
 }
 
-# C 能力烟测；校验 stderr 含 SHUX_MATH_FENV_CAP。
+# C 能力烟测；校验 stderr 含 XLANG_MATH_FENV_CAP。
 std_math_fenv_cap_run_c_smoke() {
   local math_c="$1"
   local expect_avail="$2"
   local src="tests/std-math/fenv_capability_ok.c"
-  local out="/tmp/shux_math_fenv_cap_c_$$"
-  local err="/tmp/shux_math_fenv_cap_err_$$.log"
+  local out="/tmp/xlang_math_fenv_cap_c_$$"
+  local err="/tmp/xlang_math_fenv_cap_err_$$.log"
   local rt_o="compiler/runtime_math_libm.o"
   if [ ! -f "$rt_o" ]; then
     make -C compiler -q runtime_math_libm.o 2>/dev/null || make -C compiler runtime_math_libm.o >/dev/null 2>&1 || true
@@ -106,7 +106,7 @@ std_math_fenv_cap_run_c_smoke() {
     echo "std-math-fenv-cap FAIL: C smoke exit=$ec" >&2
     return 1
   fi
-  if ! grep -qF 'shux: [SHUX_MATH_FENV_CAP]' "$err" 2>/dev/null; then
+  if ! grep -qF 'xlang: [XLANG_MATH_FENV_CAP]' "$err" 2>/dev/null; then
     cat "$err" >&2 || true
     rm -f "$err"
     echo "std-math-fenv-cap FAIL: missing cap line" >&2
@@ -126,11 +126,11 @@ std_math_fenv_cap_run_c_smoke() {
 
 # .x 烟测（x pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
 std_math_fenv_cap_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  if ! "$shux" check -L . "$src" >/dev/null 2>&1; then
+  if ! "$xlang" check -L . "$src" >/dev/null 2>&1; then
     echo "std-math-fenv-cap FAIL: typeck $src" >&2
-    "$shux" check -L . "$src" 2>&1 | tail -10 >&2 || true
+    "$xlang" check -L . "$src" 2>&1 | tail -10 >&2 || true
     return 1
   fi
   return 0

@@ -1,9 +1,9 @@
 /* seeds/backend_call_dispatch_thin.from_x.c
  * G-02f backend_call_dispatch L2 thin surface — isomorphic with src/asm/backend_call_dispatch_thin.x
- * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X) ld -r
+ * Product PREFER_X_O: g05_try_x_to_o(thin.x) + full seed rest (-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X) ld -r
  * Cold full seed: seeds/backend_call_dispatch.from_x.c (unchanged)
  * Prove: thin.x vs this seed → nm IDENTICAL (public surface; heavy CALL C tail are U)
- * Regen: ./shux -E ... src/asm/backend_call_dispatch_thin.x | filter DBG + polish externs
+ * Regen: ./xlang -E ... src/asm/backend_call_dispatch_thin.x | filter DBG + polish externs
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -36,7 +36,7 @@ extern int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(uint8_t * fnam
 extern int32_t glue_asm_prefix_is_fmt_or_debug(uint8_t * pre, int32_t pre_len);
 extern int32_t glue_asm_import_segment_at(uint8_t * module, int32_t imp_ix, int32_t want_seg, int32_t * ostr, int32_t * olen);
 extern int32_t glue_asm_build_import_binding_call_sym(uint8_t * pre, int32_t pre_len, uint8_t * field_name, int32_t field_len, uint8_t * out_name);
-extern int32_t glue_try_std_string_shux_redirect_sym_local(uint8_t * name, int32_t name_len, uint8_t * sym_out, int32_t out_cap);
+extern int32_t glue_try_std_string_xlang_redirect_sym_local(uint8_t * name, int32_t name_len, uint8_t * sym_out, int32_t out_cap);
 extern int32_t glue_try_std_encoding_redirect_sym_local(uint8_t * name, int32_t name_len, uint8_t * sym_out, int32_t out_cap);
 extern int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t * out, int32_t out_cap);
 extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(uint8_t * arena, uint8_t * elf_ctx, int32_t str_expr_ref, int32_t ta);
@@ -258,7 +258,7 @@ int32_t glue_asm_prefix_is_fmt_or_debug(uint8_t * pre, int32_t pre_len) {
 }
 extern int32_t glue_asm_import_segment_at_impl(uint8_t * module, int32_t imp_ix, int32_t want_seg, int32_t * ostr, int32_t * olen);
 extern int32_t glue_asm_build_import_binding_call_sym_impl(uint8_t * pre, int32_t pre_len, uint8_t * field_name, int32_t field_len, uint8_t * out_name);
-extern int32_t glue_try_std_string_shux_redirect_sym_local_impl(uint8_t * name, int32_t name_len, uint8_t * sym_out, int32_t out_cap);
+extern int32_t glue_try_std_string_xlang_redirect_sym_local_impl(uint8_t * name, int32_t name_len, uint8_t * sym_out, int32_t out_cap);
 int32_t glue_asm_import_segment_at(uint8_t * module, int32_t imp_ix, int32_t want_seg, int32_t * ostr, int32_t * olen) {
   {
     return glue_asm_import_segment_at_impl(module, imp_ix, want_seg, ostr, olen);
@@ -271,9 +271,9 @@ int32_t glue_asm_build_import_binding_call_sym(uint8_t * pre, int32_t pre_len, u
   }
   return (0 - 1);
 }
-int32_t glue_try_std_string_shux_redirect_sym_local(uint8_t * name, int32_t name_len, uint8_t * sym_out, int32_t out_cap) {
+int32_t glue_try_std_string_xlang_redirect_sym_local(uint8_t * name, int32_t name_len, uint8_t * sym_out, int32_t out_cap) {
   {
-    return glue_try_std_string_shux_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+    return glue_try_std_string_xlang_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
   }
   return 0;
 }

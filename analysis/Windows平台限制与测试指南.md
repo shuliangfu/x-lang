@@ -1,6 +1,6 @@
 # Windows 平台限制与测试指南
 
-> **文档目的**：记录 SHUX 项目在 Windows（MSYS2/MinGW）平台开发中遇到的所有平台限制、不支持特性、已知问题与修复、测试方法，避免后续开发时重复踩坑。
+> **文档目的**：记录 XLANG 项目在 Windows（MSYS2/MinGW）平台开发中遇到的所有平台限制、不支持特性、已知问题与修复、测试方法，避免后续开发时重复踩坑。
 >
 > **维护原则**：每次遇到新的 Windows 平台问题，必须在此文档追加记录，包含根因、修复方案、验证方法。
 >
@@ -42,20 +42,20 @@ int32_t platform_coff_write_coff_o_to_buf(void *a, void *b) { return -1; }
 
 ### 1.3 Win32 `CreateFileA` 不识别 MSYS2 路径映射
 
-**现象**：SHUX 编译器内部用 Win32 `CreateFileA` 打开文件，不识别 MSYS2 的 `/tmp/` 映射（`/tmp/` → `C:\Users\...\AppData\Local\Temp`），也不识别 `/c/...` POSIX 风格路径。报错：`IO001: cannot read file '/tmp/...'` 或 `ERROR_PATH_NOT_FOUND`。
+**现象**：XLANG 编译器内部用 Win32 `CreateFileA` 打开文件，不识别 MSYS2 的 `/tmp/` 映射（`/tmp/` → `C:\Users\...\AppData\Local\Temp`），也不识别 `/c/...` POSIX 风格路径。报错：`IO001: cannot read file '/tmp/...'` 或 `ERROR_PATH_NOT_FOUND`。
 
-**根因**：Win32 API 不经过 MSYS2 路径转换层；只接受 Windows 原生路径（`C:/shux_tmp/...`）或相对路径。
+**根因**：Win32 API 不经过 MSYS2 路径转换层；只接受 Windows 原生路径（`C:/xlang_tmp/...`）或相对路径。
 
 **修复**：
-- 传给 SHUX 编译器的文件路径必须用 Windows 原生格式（`C:/shux_tmp/...`）
+- 传给 XLANG 编译器的文件路径必须用 Windows 原生格式（`C:/xlang_tmp/...`）
 - 用 `cygpath -m` 强制 mixed-mode 路径转换
 - 或用相对路径（从 CWD 解析）
 
 **代码示例**：
 ```bash
-# 错误（SHUX 收到 /tmp/... → CreateFileA 失败）:
-SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke_$$.x"
-./shux.exe -c "$SMOKE_SRC"  # IO001
+# 错误（XLANG 收到 /tmp/... → CreateFileA 失败）:
+SMOKE_SRC="/tmp/xlang_bootstrap_seed_smoke_$$.x"
+./xlang.exe -c "$SMOKE_SRC"  # IO001
 
 # 正确（cygpath -m 强制 Windows 路径）:
 case "$(uname -s)" in
@@ -64,36 +64,36 @@ case "$(uname -s)" in
     ;;
   *) _TMP="/tmp" ;;
 esac
-SMOKE_SRC="${_TMP}/shux_bootstrap_seed_smoke_$$.x"
-./shux.exe -c "$SMOKE_SRC"  # OK
+SMOKE_SRC="${_TMP}/xlang_bootstrap_seed_smoke_$$.x"
+./xlang.exe -c "$SMOKE_SRC"  # OK
 ```
 
 ### 1.4 MSYS2 环境变量继承路径转换
 
 **现象**：MSYS2 bash 启动时自动转换 Windows 路径环境变量到 MSYS2 路径。即使设置 `MSYS_NO_PATHCONV=1`，**环境变量继承时的转换不受影响**。
 
-**根因**：`MSYS_NO_PATHCONV` 只控制命令行参数转换，不控制环境变量继承。`TEMP=C:/shux_tmp` 在子 bash 中可能变成 `TEMP=/c/shux_tmp`。
+**根因**：`MSYS_NO_PATHCONV` 只控制命令行参数转换，不控制环境变量继承。`TEMP=C:/xlang_tmp` 在子 bash 中可能变成 `TEMP=/c/xlang_tmp`。
 
 **修复**：用 `cygpath -m` 在使用时强制转换回 Windows 路径。
 
 ### 1.5 Device Guard / Smart App Control 阻止未签名 exe
 
-**现象**：新链接的 `shux.exe`（3.2MB 复杂 PE）被 Smart App Control (SAC) 阻止执行：
+**现象**：新链接的 `xlang.exe`（3.2MB 复杂 PE）被 Smart App Control (SAC) 阻止执行：
 ```
-'C:\...\shux.exe' 已被组织的 Device Guard 阻止
-bash: ./shux.exe: Permission denied
+'C:\...\xlang.exe' 已被组织的 Device Guard 阻止
+bash: ./xlang.exe: Permission denied
 ```
 
 **根因**：
 - Windows 11 启用 SAC + HVCI (Hypervisor-Protected Code Integrity)
 - SAC 基于云信誉 + 启发式检测，新链接的复杂 exe（含 JIT/codegen/汇编器）触发启发式
 - 未签名 + 无云信誉 → 阻止
-- 简单 hello.exe（64216 bytes）能通过，shux.exe（3.2MB）不能
+- 简单 hello.exe（64216 bytes）能通过，xlang.exe（3.2MB）不能
 
 **修复**：用 self-signed cert 签名 exe（一次性配置 + 每次链接后签名）：
 ```powershell
 # 1. 创建 cert（一次性，需管理员）
-New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=ShuxDevCert' `
+New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=XlangDevCert' `
   -CertStoreLocation 'Cert:\LocalMachine\My' `
   -KeyUsage DigitalSignature `
   -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3','2.5.29.19={text}')
@@ -106,14 +106,14 @@ $store = New-Object System.Security.Cryptography.X509Certificates.X509Store('Tru
 $store.Open('ReadWrite'); $store.Add($cert); $store.Close()
 
 # 3. 签名 exe（每次重新链接后）
-Set-AuthenticodeSignature -FilePath 'C:\...\shux.exe' -Certificate $cert
+Set-AuthenticodeSignature -FilePath 'C:\...\xlang.exe' -Certificate $cert
 ```
 
 **注意**：SAC 路径缓存可能让重新链接后未签名的 exe 也能执行（短期），但长期稳定需重新签名。
 
 ### 1.6 MinGW gcc 自动给 `-o` 目标加 `.exe` 后缀
 
-**现象**：`gcc -o shux_bootstrap_smoke_out` 实际生成 `shux_bootstrap_smoke_out.exe`，导致 `[ -x "$SMOKE_OUT" ]` 失败。
+**现象**：`gcc -o xlang_bootstrap_smoke_out` 实际生成 `xlang_bootstrap_smoke_out.exe`，导致 `[ -x "$SMOKE_OUT" ]` 失败。
 
 **修复**：Windows 上给 `-o` 目标加 `.exe` 后缀：
 ```bash
@@ -160,9 +160,9 @@ MAIN_LINK_FLAGS = -Wl,--stack,268435456  # 256MiB
 
 ### 1.10 TEMP 路径必须用短路径
 
-**现象**：`shux-c.exe` 内部调用 gcc 时，如果 TEMP 路径含空格或过长，路径会被截断。
+**现象**：`xlang-c.exe` 内部调用 gcc 时，如果 TEMP 路径含空格或过长，路径会被截断。
 
-**修复**：设置 `TEMP=C:/shux_tmp TMP=C:/shux_tmp`（短路径，无空格）。
+**修复**：设置 `TEMP=C:/xlang_tmp TMP=C:/xlang_tmp`（短路径，无空格）。
 
 ### 1.11 Windows rename 限制
 
@@ -179,7 +179,7 @@ rename(template, final_path);  // OK now
 
 ### 1.12 `system("make ...")` 调用产生"系统找不到指定的路径"
 
-**现象**：SHUX seed 代码中 `system("make -C ... compiler")` 调用在 Windows 上产生"系统找不到指定的路径"（非致命，8 次）。
+**现象**：XLANG seed 代码中 `system("make -C ... compiler")` 调用在 Windows 上产生"系统找不到指定的路径"（非致命，8 次）。
 
 **根因**：`system()` 在 Windows 上走 cmd.exe，cmd.exe 的 make 路径解析与 bash 不同。
 
@@ -189,7 +189,7 @@ rename(template, final_path);  // OK now
 
 **现象**：`ld.exe: cannot find -lc: No such file or directory` — asm-only link 失败。
 
-**状态**：非致命（make 有 fallback：`bootstrap-driver-bstrict: WARN build_shux_asm intermediate failed; seed ./shux OK`）。
+**状态**：非致命（make 有 fallback：`bootstrap-driver-bstrict: WARN build_xlang_asm intermediate failed; seed ./xlang OK`）。
 
 ---
 
@@ -208,14 +208,14 @@ rename(template, final_path);  // OK now
 | `5bcc62ac` | win32_read_file 硬编码 `/tmp/`，CreateFileA 不识别 | 改用相对路径 |
 | `0ecf72d8` | Device Guard 间歇阻止 `/tmp/` 下 .exe | gate 脚本 OUT 用 `${TEMP:-/tmp}` |
 | `30a5d463` | g05 脚本 `cc: command not found` | `CC="${G05_CC:-${CC:-cc}}"` |
-| `0d88f49a` | smoke SMOKE_SRC 用 `/tmp/`，SHUX IO001 | Windows 上用 `${TEMP:-/tmp}` |
-| `b06a1a40` | MSYS2 继承 TEMP 转成 `/c/...`，SHUX IO001 | 用 `cygpath -m` 强制 Windows 路径 |
+| `0d88f49a` | smoke SMOKE_SRC 用 `/tmp/`，XLANG IO001 | Windows 上用 `${TEMP:-/tmp}` |
+| `b06a1a40` | MSYS2 继承 TEMP 转成 `/c/...`，XLANG IO001 | 用 `cygpath -m` 强制 Windows 路径 |
 | `599b0f38` | gate 正则误匹配 info 行 "no cc -c pipeline_gen.c" | 排除 info 行 |
 
 ### 2.2 手动一次性配置（非代码修复）
 
-- **创建 ShuxDevCert 代码签名证书** + 添加到 Trusted Root / TrustedPublisher
-- **签名 shux.exe**（每次重新链接后需重新签名，或依赖 SAC 路径缓存）
+- **创建 XlangDevCert 代码签名证书** + 添加到 Trusted Root / TrustedPublisher
+- **签名 xlang.exe**（每次重新链接后需重新签名，或依赖 SAC 路径缓存）
 
 ### 2.3 未解决问题
 
@@ -225,7 +225,7 @@ rename(template, final_path);  // OK now
 
 **根因**：`compiler/scripts/g05_relink_env.sh` L30-73 只处理 Darwin 和 Linux，MINGW 落到 `*` 分支报错。
 
-**影响**：`relink-shux` 失败，`refresh-shux-asm-gate` 失败，`bootstrap-driver-bstrict` make 失败。但 `shux_asm` 在 `build_shux_asm.sh` 阶段已构建，gate 脚本仍能继续。
+**影响**：`relink-xlang` 失败，`refresh-xlang-asm-gate` 失败，`bootstrap-driver-bstrict` make 失败。但 `xlang_asm` 在 `build_xlang_asm.sh` 阶段已构建，gate 脚本仍能继续。
 
 **待修复**：添加 MINGW 分支：
 ```bash
@@ -250,9 +250,9 @@ MINGW*|MSYS*|CYGWIN*)
 
 #### 2.3.3 `win32-read-file-gate` 间歇 Permission denied
 
-**现象**：`C:/shux_tmp/shux_win32_read_file.1825.exe: Permission denied`（exit 126）
+**现象**：`C:/xlang_tmp/xlang_win32_read_file.1825.exe: Permission denied`（exit 126）
 
-**根因**：Device Guard 间歇阻止 `C:/shux_tmp/` 下新编译的 .exe（即使签名 cert 已配置）。
+**根因**：Device Guard 间歇阻止 `C:/xlang_tmp/` 下新编译的 .exe（即使签名 cert 已配置）。
 
 **状态**：间歇性，重跑可能通过。需调查是否需要重新签名 gate 编译的 .exe。
 
@@ -271,19 +271,19 @@ MINGW*|MSYS*|CYGWIN*)
 ### 3.1 环境变量组合（必须）
 
 ```bash
-export TEMP=C:/shux_tmp
-export TMP=C:/shux_tmp
+export TEMP=C:/xlang_tmp
+export TMP=C:/xlang_tmp
 export CC=gcc
-export SHUX_LEGACY_C_FRONTEND=1
+export XLANG_LEGACY_C_FRONTEND=1
 export SHELL=/usr/bin/bash
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*"
 ```
 
 **说明**：
-- `TEMP/TMP=C:/shux_tmp`：短路径，避免 gcc 调用时路径截断
+- `TEMP/TMP=C:/xlang_tmp`：短路径，避免 gcc 调用时路径截断
 - `CC=gcc`：Windows 无 cc
-- `SHUX_LEGACY_C_FRONTEND=1`：Windows 必须用 C 前端模式构建 shux-c.exe（shux.exe 是 stub）
+- `XLANG_LEGACY_C_FRONTEND=1`：Windows 必须用 C 前端模式构建 xlang-c.exe（xlang.exe 是 stub）
 - `SHELL=/usr/bin/bash`：避免 STATUS_DLL_INIT_FAILED (0xC0000142)
 - `MSYS_NO_PATHCONV=1`：阻止 MSYS2 自动转换命令行参数路径
 - `MSYS2_ARG_CONV_EXCL="*"`：排除所有参数的路径转换
@@ -295,42 +295,42 @@ export MSYS2_ARG_CONV_EXCL="*"
 ssh windows-server "\"C:/Program Files/Git/bin/bash.exe\" -lc 'command'"
 
 # 复杂脚本用 base64 / scp 传递（避免引号冲突）：
-scp script.sh windows-server:"C:/shux_tmp/script.sh"
-ssh windows-server "\"C:/Program Files/Git/bin/bash.exe\" -lc \"bash /c/shux_tmp/script.sh\""
+scp script.sh windows-server:"C:/xlang_tmp/script.sh"
+ssh windows-server "\"C:/Program Files/Git/bin/bash.exe\" -lc \"bash /c/xlang_tmp/script.sh\""
 ```
 
 ### 3.3 完整 gate 测试
 
 ```bash
 # 仓库根目录
-SHUX_WIN_BSTRICT=1 ./tests/run-bootstrap-bstrict-windows-gate.sh
+XLANG_WIN_BSTRICT=1 ./tests/run-bootstrap-bstrict-windows-gate.sh
 ```
 
 **gate 测试流程**：
-1. `make bootstrap-driver-bstrict`（构建 shux + shux_asm）
-2. smoke return-value 42（shux_asm 编译 main.x → 执行 → exit=42）
+1. `make bootstrap-driver-bstrict`（构建 xlang + xlang_asm）
+2. smoke return-value 42（xlang_asm 编译 main.x → 执行 → exit=42）
 3. `run-win32-write-gate.sh`（std.sys os_write_stdout via WriteFile）
 4. `run-win32-read-file-gate.sh`（std.sys os_read_file_into via ReadFile）
 5. C-03 检查（B-strict 模式不应 cc -c pipeline_gen.c）
 
-### 3.4 签名 shux.exe（每次重新链接后）
+### 3.4 签名 xlang.exe（每次重新链接后）
 
 ```powershell
 # 查看 cert thumbprint
-Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -eq 'CN=ShuxDevCert' } | Select-Object Thumbprint
+Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -eq 'CN=XlangDevCert' } | Select-Object Thumbprint
 
 # 签名
 $cert = Get-Item 'Cert:\LocalMachine\My\<THUMBPRINT>'
-Set-AuthenticodeSignature -FilePath 'C:\Users\shuliangfu\worker\shu\shux\compiler\shux.exe' -Certificate $cert
+Set-AuthenticodeSignature -FilePath 'C:\Users\shuliangfu\worker\xlang\x-lang\compiler\xlang.exe' -Certificate $cert
 
 # 验证签名
-Get-AuthenticodeSignature 'C:\...\shux.exe' | Select-Object Status, StatusMessage
+Get-AuthenticodeSignature 'C:\...\xlang.exe' | Select-Object Status, StatusMessage
 ```
 
 ### 3.5 路径处理最佳实践
 
 ```bash
-# 传给 SHUX 编译器的路径必须用 Windows 原生格式
+# 传给 XLANG 编译器的路径必须用 Windows 原生格式
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*)
     _TMP="$(cygpath -m "${TEMP:-/tmp}" 2>/dev/null || echo "${TEMP:-/tmp}")"
@@ -341,26 +341,26 @@ esac
 # bash 写入 Windows 路径 OK
 printf '%s\n' '...' > "${_TMP}/file.x"
 
-# SHUX 读取 Windows 路径 OK
-./shux.exe -c "${_TMP}/file.x"
+# XLANG 读取 Windows 路径 OK
+./xlang.exe -c "${_TMP}/file.x"
 ```
 
 ### 3.6 冷启动测试（L4）
 
 ```bash
 # 删除所有 .o 和二进制
-cd /c/Users/shuliangfu/worker/shu/shux/compiler
-rm -f *.o src/**/*.o build_asm/**/*.o shux shux.exe shux-c shux-c.exe shux_asm shux_asm.exe
+cd /c/Users/shuliangfu/worker/xlang/x-lang/compiler
+rm -f *.o src/**/*.o build_asm/**/*.o xlang xlang.exe xlang-c xlang-c.exe xlang_asm xlang_asm.exe
 
 # 重新构建
-make bootstrap-driver-seed SHUX_LEGACY_C_FRONTEND=1
-make bootstrap-driver-bstrict SHUX_LEGACY_C_FRONTEND=1
+make bootstrap-driver-seed XLANG_LEGACY_C_FRONTEND=1
+make bootstrap-driver-bstrict XLANG_LEGACY_C_FRONTEND=1
 
 # 签名（如果 SAC 阻止）
-powershell.exe -NoProfile -Command "Set-AuthenticodeSignature -FilePath 'C:\...\shux.exe' -Certificate (Get-Item 'Cert:\LocalMachine\My\<THUMBPRINT>')"
+powershell.exe -NoProfile -Command "Set-AuthenticodeSignature -FilePath 'C:\...\xlang.exe' -Certificate (Get-Item 'Cert:\LocalMachine\My\<THUMBPRINT>')"
 
 # 跑 gate
-SHUX_WIN_BSTRICT=1 ./tests/run-bootstrap-bstrict-windows-gate.sh
+XLANG_WIN_BSTRICT=1 ./tests/run-bootstrap-bstrict-windows-gate.sh
 ```
 
 ### 3.7 调试技巧
@@ -375,9 +375,9 @@ powershell.exe -NoProfile -Command "Get-MpComputerStatus | Select-Object RealTim
 # 查看 SAC 策略
 powershell.exe -NoProfile -Command "Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard | Select-Object SecurityServicesConfigured, SecurityServicesRunning, VirtualizationBasedSecurityStatus"
 
-# 保留 SHUX 生成的 C 文件
-SHUX_KEEP_C=1 ./shux.exe -backend c -o out.exe main.x
-# 查看生成的 C：out.c 或 /c/shux_tmp/shux_*.c
+# 保留 XLANG 生成的 C 文件
+XLANG_KEEP_C=1 ./xlang.exe -backend c -o out.exe main.x
+# 查看生成的 C：out.c 或 /c/xlang_tmp/xlang_*.c
 ```
 
 ---
@@ -389,7 +389,7 @@ SHUX_KEEP_C=1 ./shux.exe -backend c -o out.exe main.x
 - **注释必须英文**（2026-07-18 起）
 - **`#[no_mangle]` 紧贴函数定义**：属性直接位于 `export function` / `function` 上方，中间不得插入 docblock
 - **`extern function` 默认 X ABI**；C ABI 必须显式 `extern "C"` 并在调用时用 `unsafe`
-- **Windows 文件路径**：传给 SHUX 编译器的路径必须用 Windows 原生格式（`C:/...`）或相对路径，**禁止**用 `/tmp/` 或 `/c/...`
+- **Windows 文件路径**：传给 XLANG 编译器的路径必须用 Windows 原生格式（`C:/...`）或相对路径，**禁止**用 `/tmp/` 或 `/c/...`
 
 ### 4.2 C seed 文件
 
@@ -420,16 +420,16 @@ SHUX_KEEP_C=1 ./shux.exe -backend c -o out.exe main.x
 | 特性 | Linux (ELF) | macOS (Mach-O) | Windows (PE) |
 |------|-------------|-----------------|--------------|
 | weak 符号 | ✅ 支持 | ✅ 支持（weak_import） | ❌ 不支持（用强符号 + `--allow-multiple-definition`） |
-| 路径 `/tmp/` | ✅ | ✅ | ❌（用 `C:/shux_tmp/`） |
+| 路径 `/tmp/` | ✅ | ✅ | ❌（用 `C:/xlang_tmp/`） |
 | `cc` 命令 | ✅ | ✅ | ❌（用 `gcc`） |
 | 默认栈大小 | 8MiB（`ulimit -s`） | 8MiB | 2MiB（需 `--stack,256MiB`） |
 | rename 持有文件 | ✅ | ✅ | ❌（需先 close fd） |
 | exe 后缀 | 无 | 无 | `.exe`（gcc 自动加） |
 | 代码签名 | 可选 | 可选（codesign） | 必须（SAC 阻止未签名） |
 | `system()` 调用 | 直接 | 直接 | 走 cmd.exe（路径解析差异） |
-| SHUX 前端 | X pipeline | X pipeline | LEGACY_C_FRONTEND=1 |
-| `shux.exe` | N/A | N/A | stub（实际用 shux-c.exe） |
-| `-backend` 参数 | ✅ | ✅ | ❌（shux-c 不支持） |
+| XLANG 前端 | X pipeline | X pipeline | LEGACY_C_FRONTEND=1 |
+| `xlang.exe` | N/A | N/A | stub（实际用 xlang-c.exe） |
+| `-backend` 参数 | ✅ | ✅ | ❌（xlang-c 不支持） |
 
 ---
 
@@ -464,7 +464,7 @@ SHUX_KEEP_C=1 ./shux.exe -backend c -o out.exe main.x
 ### 6.5 链接失败 `cannot find -lc`
 
 - **非致命**：asm-only link 失败，make 有 fallback
-- **检查是否有 fallback 日志**：`WARN build_shux_asm intermediate failed; seed ./shux OK`
+- **检查是否有 fallback 日志**：`WARN build_xlang_asm intermediate failed; seed ./xlang OK`
 
 ---
 

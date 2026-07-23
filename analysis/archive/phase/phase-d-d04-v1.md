@@ -1,6 +1,6 @@
 # 阶段 D-04 完成标准 v1（NEXT §7）
 
-> **D-04 v1**：同一 `.x` 用例在 **Stage1**（`shux_asm_stage1`）与 **Stage2**（`shux_asm2`）上 **check / link+run 结果一致**——扩面 portable 子集，非全量 `run-portable-suite`。
+> **D-04 v1**：同一 `.x` 用例在 **Stage1**（`xlang_asm_stage1`）与 **Stage2**（`xlang_asm2`）上 **check / link+run 结果一致**——扩面 portable 子集，非全量 `run-portable-suite`。
 
 ## v1 完成（✅）
 
@@ -21,7 +21,7 @@
 
 ```bash
 # 须已有 stage1/stage2（verify-selfhost-stage2-bstrict 或 run-linux-a09-a11-gate）
-SHUX_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
+XLANG_D04_FAIL=1 ./tests/run-d04-stage2-portable-diff-gate.sh
 ```
 
 ## track-only / 平台

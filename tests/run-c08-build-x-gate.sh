@@ -6,8 +6,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "=== C-08 / G-05: build.x + daily entry policy ==="
-for f in build.x analysis/phase-c-c08-v1.md shux-build.sh \
-         compiler/scripts/g05_build_shux_asm.sh \
+for f in build.x analysis/phase-c-c08-v1.md xlang-build.sh \
+         compiler/scripts/g05_build_xlang_asm.sh \
          compiler/seeds/build_tool_libc_bridge.from_x.c; do
   [ -f "$f" ] || { echo "c08 build-x FAIL: missing $f" >&2; exit 1; }
 done
@@ -17,32 +17,32 @@ grep -q 'build_tool' build.x || { echo "c08 build-x FAIL: build.x missing build_
 grep -q 'build-tool' compiler/Makefile || { echo "c08 build-x FAIL: Makefile missing build-tool target" >&2; exit 1; }
 
 # G-05：统一入口与 build_tool
-grep -q 'build_tool' shux-build.sh || { echo "c08 build-x FAIL: shux-build.sh missing build_tool" >&2; exit 1; }
-grep -q 'g05_build_shux_asm' shux-build.sh || true  # optional mention in help
+grep -q 'build_tool' xlang-build.sh || { echo "c08 build-x FAIL: xlang-build.sh missing build_tool" >&2; exit 1; }
+grep -q 'g05_build_xlang_asm' xlang-build.sh || true  # optional mention in help
 
-# G-05 单点：libc bridge 必须调 g05 脚本（不再裸 make shux_asm 字符串作默认路径）
-grep -q 'g05_build_shux_asm.sh' compiler/seeds/build_tool_libc_bridge.from_x.c || {
-  echo "c08 build-x FAIL: build_tool_libc_bridge must invoke scripts/g05_build_shux_asm.sh" >&2
+# G-05 单点：libc bridge 必须调 g05 脚本（不再裸 make xlang_asm 字符串作默认路径）
+grep -q 'g05_build_xlang_asm.sh' compiler/seeds/build_tool_libc_bridge.from_x.c || {
+  echo "c08 build-x FAIL: build_tool_libc_bridge must invoke scripts/g05_build_xlang_asm.sh" >&2
   exit 1
 }
-# G-05 100%：默认走 prepare_and_relink，不再 exec make shux_asm
-grep -q 'g05_prepare_and_relink' compiler/scripts/g05_build_shux_asm.sh || {
-  echo "c08 build-x FAIL: g05_build_shux_asm.sh must call g05_prepare_and_relink" >&2
+# G-05 100%：默认走 prepare_and_relink，不再 exec make xlang_asm
+grep -q 'g05_prepare_and_relink' compiler/scripts/g05_build_xlang_asm.sh || {
+  echo "c08 build-x FAIL: g05_build_xlang_asm.sh must call g05_prepare_and_relink" >&2
   exit 1
 }
-grep -q 'bootstrap-driver-bstrict' compiler/scripts/g05_build_shux_asm.sh || {
-  echo "c08 build-x FAIL: g05_build_shux_asm.sh missing FULL=1 bstrict path" >&2
+grep -q 'bootstrap-driver-bstrict' compiler/scripts/g05_build_xlang_asm.sh || {
+  echo "c08 build-x FAIL: g05_build_xlang_asm.sh missing FULL=1 bstrict path" >&2
   exit 1
 }
-for s in g05_relink_shux.sh g05_prepare_and_relink.sh g05_build_shux_asm.sh \
+for s in g05_relink_xlang.sh g05_prepare_and_relink.sh g05_build_xlang_asm.sh \
          g05_relink_env.sh g05_ensure_relink_prereqs.sh; do
   [ -f "compiler/scripts/$s" ] || { echo "c08 build-x FAIL: missing compiler/scripts/$s" >&2; exit 1; }
 done
 # 产品路径零 make：prepare/ensure 不得调用 make 目标图
-if grep -E 'make[[:space:]]+g05-|make[[:space:]]+-s[[:space:]]+g05-|make[[:space:]]+g05-export|make[[:space:]]+g05-ensure|make[[:space:]]+shux_asm' \
+if grep -E 'make[[:space:]]+g05-|make[[:space:]]+-s[[:space:]]+g05-|make[[:space:]]+g05-export|make[[:space:]]+g05-ensure|make[[:space:]]+xlang_asm' \
      compiler/scripts/g05_prepare_and_relink.sh compiler/scripts/g05_ensure_relink_prereqs.sh \
      compiler/scripts/g05_relink_env.sh 2>/dev/null | grep -v '^[^:]*:[[:space:]]*#' >/dev/null; then
-  echo "c08 build-x FAIL: product-path g05 scripts must not invoke make g05-*/shux_asm" >&2
+  echo "c08 build-x FAIL: product-path g05 scripts must not invoke make g05-*/xlang_asm" >&2
   exit 1
 fi
 grep -q 'g05_relink_env' compiler/scripts/g05_prepare_and_relink.sh || {
@@ -62,15 +62,15 @@ grep -q 'g05_relink_env' compiler/Makefile || {
   echo "c08 build-x FAIL: Makefile g05-export-relink must delegate g05_relink_env.sh" >&2
   exit 1
 }
-# 薄包装：make shux_asm / relink-shux 须委托 shell
+# 薄包装：make xlang_asm / relink-xlang 须委托 shell
 grep -q 'g05_prepare_and_relink' compiler/Makefile || {
-  echo "c08 build-x FAIL: Makefile shux_asm/relink must delegate g05_prepare_and_relink" >&2
+  echo "c08 build-x FAIL: Makefile xlang_asm/relink must delegate g05_prepare_and_relink" >&2
   exit 1
 }
 
-# 根 Makefile 日常目标委托 shux-build.sh（G-05 物理收缩：顶层不再直调 compiler）
-grep -q 'shux-build.sh' Makefile || {
-  echo "c08 build-x FAIL: root Makefile must delegate to shux-build.sh" >&2
+# 根 Makefile 日常目标委托 xlang-build.sh（G-05 物理收缩：顶层不再直调 compiler）
+grep -q 'xlang-build.sh' Makefile || {
+  echo "c08 build-x FAIL: root Makefile must delegate to xlang-build.sh" >&2
   exit 1
 }
 grep -q 'G-05' Makefile || {
@@ -89,17 +89,17 @@ head -10 compiler/Makefile | grep -q 'G-05\|兜底\|build_tool' || {
   exit 1
 }
 
-# 可选：legacy 烟测（默认跳过；SHUX_G05_LEGACY_SMOKE=1 时尝试，失败不硬红除非 SHUX_G05_LEGACY_FAIL=1）
-if [ "${SHUX_G05_LEGACY_SMOKE:-}" = "1" ] && [ -x compiler/build_tool ]; then
-  echo "=== G-05 optional legacy smoke (SHUX_G05_LEGACY_SMOKE=1) ==="
+# 可选：legacy 烟测（默认跳过；XLANG_G05_LEGACY_SMOKE=1 时尝试，失败不硬红除非 XLANG_G05_LEGACY_FAIL=1）
+if [ "${XLANG_G05_LEGACY_SMOKE:-}" = "1" ] && [ -x compiler/build_tool ]; then
+  echo "=== G-05 optional legacy smoke (XLANG_G05_LEGACY_SMOKE=1) ==="
   set +e
-  (cd compiler && ./build_tool ./shux legacy)
+  (cd compiler && ./build_tool ./xlang legacy)
   leg_rc=$?
   set -e
   if [ "$leg_rc" -ne 0 ]; then
     echo "g05 legacy smoke: FAIL rc=$leg_rc (known-limited: -x -E / seeds; not daily path)"
-    if [ "${SHUX_G05_LEGACY_FAIL:-}" = "1" ]; then
-      echo "c08 build-x FAIL: legacy smoke hard-fail (SHUX_G05_LEGACY_FAIL=1)" >&2
+    if [ "${XLANG_G05_LEGACY_FAIL:-}" = "1" ]; then
+      echo "c08 build-x FAIL: legacy smoke hard-fail (XLANG_G05_LEGACY_FAIL=1)" >&2
       exit 1
     fi
   else
@@ -107,4 +107,4 @@ if [ "${SHUX_G05_LEGACY_SMOKE:-}" = "1" ] && [ -x compiler/build_tool ]; then
   fi
 fi
 
-echo "c08 build-x gate OK (G-05 entry + g05_build_shux_asm choke point)"
+echo "c08 build-x gate OK (G-05 entry + g05_build_xlang_asm choke point)"

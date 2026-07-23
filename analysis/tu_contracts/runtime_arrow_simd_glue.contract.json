@@ -41,7 +41,7 @@
     ],
     "only_x": ["runtime_arrow_simd_glue_x_doc_anchor"]
   },
-  "rest_macro": "SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_ARROW_SIMD_GLUE_FROM_X",
   "impl_residuals": [
     "arrow_f32_sum_kernel_impl",
     "arrow_f32_dot_kernel_impl",
@@ -56,7 +56,7 @@
   ],
   "internal_call_rewrites": [],
   "known_limitations": [
-    "预存行为（非本次切割引入）：arrow_i32_sum_valid_kernel 和 runtime_arrow_simd_glue_x_doc_anchor 在 Linux 上为 W（weak）符号——shux-c 编译器对 #[no_mangle] 属性处理不完整（arrow_i32_sum_valid_kernel 有 #[no_mangle] 但 gen.c 仍标记 weak；doc_anchor 无 #[no_mangle] 故 weak 正确）。macOS Mach-O 不支持 weak，均为 T 符号",
+    "预存行为（非本次切割引入）：arrow_i32_sum_valid_kernel 和 runtime_arrow_simd_glue_x_doc_anchor 在 Linux 上为 W（weak）符号——xlang-c 编译器对 #[no_mangle] 属性处理不完整（arrow_i32_sum_valid_kernel 有 #[no_mangle] 但 gen.c 仍标记 weak；doc_anchor 无 #[no_mangle] 故 weak 正确）。macOS Mach-O 不支持 weak，均为 T 符号",
     "平台条件符号：arrow_hsum_ps 仅在 #if defined(ARROW_HAVE_SSE2) 块内定义，macOS arm64 无 SSE2 不编译，Ubuntu x86_64 有 SSE2 编译为 T 符号"
   ],
   "platform_notes": "arrow_hsum_ps 仅 SSE2 平台编译；3 个 f32 kernel _impl 在 SSE2 分支调用 arrow_hsum_ps，NEON 分支用 vgetq_lane_f32 直接求和；4 个 column 胶层函数调用 thin wrapper，rest 模式下为 U 符号由 thin.o 提供",
@@ -66,7 +66,7 @@
       "provider boundary stabilized",
       "ld -r validated",
       "smoke or probe matched",
-      "shux-c #[no_mangle] weak 符号问题修复（独立 issue）",
+      "xlang-c #[no_mangle] weak 符号问题修复（独立 issue）",
       "no seed fallback on repeated builds"
     ]
   }

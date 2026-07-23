@@ -12,7 +12,7 @@
 ## 门禁
 
 ```bash
-SHUX_F_ELF_V1_FAIL=1 ./tests/run-f-elf-v1-gate.sh
+XLANG_F_ELF_V1_FAIL=1 ./tests/run-f-elf-v1-gate.sh
 ./tests/run-std-elf-parse-gate.sh
 ```
 

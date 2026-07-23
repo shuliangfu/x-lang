@@ -1,18 +1,18 @@
-# Contributing to Shux
+# Contributing to X language
 
 Thank you for considering a contribution.
 
 ## Layered licenses
 
-Shux uses **layered licensing** (see root [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)):
+Xlang uses **layered licensing** (see root [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)):
 
 | Area | License |
 |------|---------|
 | `compiler/`, `tools/`, root build scripts | **AGPL-3.0-or-later** |
 | `core/`, `std/` | **Apache-2.0** |
 | `examples/`, `tests/` (outside `compiler/`) | **Apache-2.0** |
-| `editors/vscode/` | **MIT** |
-| `editors/tree-sitter-shux/`, `editors/vim/` | **Apache-2.0** |
+| `editors/vscode/` | **Apache-2.0** |
+| `editors/tree-sitter-xlang/`, `editors/vim/` | **Apache-2.0** |
 
 By submitting a contribution (pull request, patch, or other submission), you
 agree that:
@@ -58,4 +58,4 @@ self-host/release green.
 ## Contact
 
 - License / commercial (compiler AGPL exemption): admin@shuliangfu.com
-- Project: https://github.com/shuliangfu/shux
+- Project: https://github.com/shuliangfu/xlang

@@ -12,7 +12,7 @@ layer_m1	layers	M1-syntax	analysis/lang-generic-v1.md	syntax	function
 layer_m2	layers	M2-typeck	compiler/src/typeck/typeck.c	typeck	generic
 layer_m3	layers	M3-monomorph	compiler/src/codegen/codegen.c	mono	codegen_one_mono_instance
 layer_m4	layers	M4-local-call	tests/generic/main.x	local	42
-layer_m5	layers	M5-import-call	tests/multi-file-generic/main.x	import	shux-c
+layer_m5	layers	M5-import-call	tests/multi-file-generic/main.x	import	xlang-c
 layer_m6	layers	M6-benchmark	tests/bench/generic_id_i32.x	bench	loop
 sym_mono	symbol	codegen_one_mono_instance	compiler/src/codegen/codegen.c	codegen	单态化
 case_local	case	case_local_mono	tests/generic/main.x	stable	exit42

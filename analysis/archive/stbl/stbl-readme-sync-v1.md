@@ -46,7 +46,7 @@
 - 便携回归：`tests/run-portable-suite.sh`
 
 ```
-shux: [SHUX_STBL_README] status=ok forbidden=0 anchors=7
+xlang: [XLANG_STBL_README] status=ok forbidden=0 anchors=7
 ```
 
 ---

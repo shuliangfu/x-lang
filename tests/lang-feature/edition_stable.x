@@ -1,7 +1,7 @@
 /**
  * See implementation.
  */
-#if SHUX_EDITION_2025
+#if XLANG_EDITION_2025
 /** Internal function `main`.
  * Program/test entry point.
  * @return i32

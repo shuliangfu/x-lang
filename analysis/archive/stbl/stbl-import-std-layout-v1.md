@@ -19,7 +19,7 @@
 
 ## 2. import 解析规则
 
-`import("std.io");` 中的路径为 **dotted 模块 ID**（与 TOOL-007 **K1-package-id** 一致）。编译器在 **lib_roots**（由 `-L` 与 `shux.pkg.tsv` 的 `lib_root` 行提供）上按序探测：
+`import("std.io");` 中的路径为 **dotted 模块 ID**（与 TOOL-007 **K1-package-id** 一致）。编译器在 **lib_roots**（由 `-L` 与 `xlang.pkg.tsv` 的 `lib_root` 行提供）上按序探测：
 
 | 优先级 | 模式 | 示例 `import("std.io")` | 物理路径（`lib_root=.`） |
 |--------|------|----------------------|--------------------------|
@@ -56,8 +56,8 @@
 |------|------|
 | **扁平 std** | 无 `stdlib/`；`std/<name>/mod.x` 为主模块文件 |
 | **core 同构** | `core/<name>/mod.x` 或 `core/<name>.x` |
-| **测试** | `shux check -L . tests/foo/main.x`；项目根为默认 lib_root |
-| **多根** | `shux -L . -L vendor/foo` — vendor 覆盖或补充 bundled |
+| **测试** | `xlang check -L . tests/foo/main.x`；项目根为默认 lib_root |
+| **多根** | `xlang -L . -L vendor/foo` — vendor 覆盖或补充 bundled |
 
 ---
 
@@ -96,8 +96,8 @@ gate 对 manifest 中每条 `resolve` 行执行 `tool_pkg_resolve_import` 校验
 
 | 工具 | 与 import / `-L` 关系 |
 |------|----------------------|
-| **TOOL-007** | `shux.pkg.tsv` 声明 `lib_root` 与 `require`；`shux-deps-resolve.sh` 用与 driver 一致的解析子集探测文件 |
-| **TOOL-008** | `shux.pkg.lock.tsv` 锁定 require 路径与 digest；`shux-deps-verify.sh` 保证可重复构建 |
+| **TOOL-007** | `xlang.pkg.tsv` 声明 `lib_root` 与 `require`；`xlang-deps-resolve.sh` 用与 driver 一致的解析子集探测文件 |
+| **TOOL-008** | `xlang.pkg.lock.tsv` 锁定 require 路径与 digest；`xlang-deps-verify.sh` 保证可重复构建 |
 | **STBL-001** | Tier-S manifest 登记各 `std.*` 的 `mod.x` 与 baseline TSV |
 
 v1 **无** 网络 registry；`core.*` / `std.*` 均为仓库 bundled。
@@ -112,10 +112,10 @@ v1 **无** 网络 registry；`core.*` / `std.*` 均为仓库 bundled。
 
 manifest：`tests/baseline/stbl-import-std-layout.tsv`
 
-烟测：`tests/import-std-layout/check_imports.x`（多 `std.*` import + `shux check -L .`）
+烟测：`tests/import-std-layout/check_imports.x`（多 `std.*` import + `xlang check -L .`）
 
 **report** 示例：
 
 ```
-shux: [SHUX_STBL_IMPORT_STD] status=ok resolve=12 check=1 skip=0
+xlang: [XLANG_STBL_IMPORT_STD] status=ok resolve=12 check=1 skip=0
 ```

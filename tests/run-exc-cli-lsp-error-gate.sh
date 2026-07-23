@@ -9,11 +9,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_EXC_CLI_LSP_DOC:-analysis/exc-cli-lsp-error-v1.md}"
-MATRIX="${SHUX_EXC_CLI_LSP_TSV:-tests/baseline/exc-cli-lsp-error.tsv}"
+DOC="${XLANG_EXC_CLI_LSP_DOC:-analysis/exc-cli-lsp-error-v1.md}"
+MATRIX="${XLANG_EXC_CLI_LSP_TSV:-tests/baseline/exc-cli-lsp-error.tsv}"
 MIN_ITEMS=10
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -102,31 +102,31 @@ echo "exc-cli-lsp-error manifest OK (items=${FOUND})"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux-x; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang-x; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "exc-cli-lsp-error gate SKIP golden (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "exc-cli-lsp-error gate SKIP golden (no native xlang)" >&2
   echo "exc-cli-lsp-error gate OK"
   exit 0
 fi
 
 FAILS=0
-echo "=== EXC-005: golden compile stderr (SHUX=$SHUX_BIN) ==="
+echo "=== EXC-005: golden compile stderr (XLANG=$XLANG_BIN) ==="
 while IFS=$'\t' read -r item_id kind anchor src notes; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*|min_items) continue ;; esac
   [ "$kind" = "golden" ] || continue
   want="$notes"
   echo "── compile golden: $src ──"
-  err=$("$SHUX_BIN" "$src" -o /tmp/shux_exc_cli_lsp_fail 2>&1) || true
+  err=$("$XLANG_BIN" "$src" -o /tmp/xlang_exc_cli_lsp_fail 2>&1) || true
   if ! echo "$err" | grep -qF "$want"; then
     echo "exc-cli-lsp-error FAIL compile: missing phrase '$want' in $src" >&2
     echo "$err" >&2
@@ -149,7 +149,7 @@ done < "$MATRIX"
 echo "=== EXC-005: golden check format ==="
 assign="tests/typeck/type_mismatch_assign.x"
 want="assignment type mismatch: expected i32, found bool"
-chk=$("$SHUX_BIN" check "$assign" 2>&1) && {
+chk=$("$XLANG_BIN" check "$assign" 2>&1) && {
   echo "exc-cli-lsp-error FAIL: check should fail on $assign" >&2
   FAILS=$((FAILS + 1))
 } || true

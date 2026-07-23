@@ -8,7 +8,7 @@
 // Runtime asm stub helpers (G.9 English; body is authoritative).
 // Runtime asm stub helpers (G.9 English; body is authoritative).
 
-export extern "C" function shux_output_want_exe(path: *u8): i32;
+export extern "C" function xlang_output_want_exe(path: *u8): i32;
 export extern "C" function driver_asm_stub_gas_line_at(i: i32): *u8;
 export extern "C" function driver_asm_stub_gas_line_count(): i32;
 export extern "C" function driver_asm_stub_out_append_cstr(out: *u8, s: *u8): i32;
@@ -21,7 +21,7 @@ export extern "C" function driver_asm_stub_out_append_cstr(out: *u8, s: *u8): i3
 #[no_mangle]
 export function driver_asm_output_want_exe(path: *u8): i32 {
   unsafe {
-    return shux_output_want_exe(path);
+    return xlang_output_want_exe(path);
   }
   return 0;
 }

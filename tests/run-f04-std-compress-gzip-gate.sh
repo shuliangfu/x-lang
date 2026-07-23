@@ -2,11 +2,11 @@
 # F-04 v5：std.compress gzip 去 C 门禁（libz.x + 无 gzip.c）。
 #
 # 用法：./tests/run-f04-std-compress-gzip-gate.sh
-# 环境：SHUX_F04_COMPRESS_GZIP_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F04_COMPRESS_GZIP_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F04_COMPRESS_GZIP_FAIL:-0}
+FAIL=${XLANG_F04_COMPRESS_GZIP_FAIL:-0}
 DOC="analysis/phase-f-f04-v5.md"
 GZIP_LIBZ="std/compress/gzip/libz.x"
 GZIP_MOD="std/compress/gzip/mod.x"
@@ -69,7 +69,7 @@ done
 if [ -f tests/run-std-c-inventory-gate.sh ]; then
   echo "=== F-04 v5: delegate run-std-c-inventory-gate (F-01) ==="
   chmod +x tests/run-std-c-inventory-gate.sh
-  if ! SHUX_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
+  if ! XLANG_STD_C_INVENTORY_FAIL="$FAIL" tests/run-std-c-inventory-gate.sh; then
     die "std-c-inventory sub-gate failed"
   fi
 fi

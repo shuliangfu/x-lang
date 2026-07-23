@@ -2,11 +2,11 @@
 # F-string v1：std.string 去 C（string.c → string.x）。
 #
 # 用法：./tests/run-f-string-v1-gate.sh
-# 环境：SHUX_F_STRING_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F_STRING_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_STRING_V1_FAIL:-0}
+FAIL=${XLANG_F_STRING_V1_FAIL:-0}
 DOC="analysis/phase-f-string-v1.md"
 MANIFEST="tests/baseline/f-string-v1-closure.tsv"
 
@@ -41,10 +41,10 @@ if grep -q 'std/string/string\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/string/string.c"
 fi
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/string/string.o >/dev/null 2>&1 || die "make string.o failed"
 else
-  echo "f-string-v1 SKIP string.o build (no shux-c)" >&2
+  echo "f-string-v1 SKIP string.o build (no xlang-c)" >&2
 fi
 
 echo "f-string-v1 std.string gate OK (F-string v1)"

@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_HTTP_H2_DOC:-analysis/std-http-h2-v0.md}"
-MANIFEST="${SHUX_STD_HTTP_H2_TSV:-tests/baseline/std-http-h2.tsv}"
+DOC="${XLANG_STD_HTTP_H2_DOC:-analysis/std-http-h2-v0.md}"
+MANIFEST="${XLANG_STD_HTTP_H2_TSV:-tests/baseline/std-http-h2.tsv}"
 MOD_X="std/http/mod.x"
 HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 H2_INC="compiler/seeds/http/http2.inc"
@@ -125,7 +125,7 @@ echo "std-http-h2 manifest OK"
 . tests/lib/build-std-c-o.sh
 ensure_std_c_o ../std/http/http.o
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -142,126 +142,126 @@ CLIENT_OK=0
 NETWORK_OK=0
 FLOW_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-HTTP-H2: typeck + smoke (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$WIRE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-HTTP-H2: typeck + smoke (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if ! "$XLANG_BIN" check -L . "$WIRE_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $WIRE_X" >&2
-    "$SHUX_BIN" check -L . "$WIRE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$WIRE_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$CLIENT_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$CLIENT_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $CLIENT_X" >&2
-    "$SHUX_BIN" check -L . "$CLIENT_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$CLIENT_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$DYN_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$DYN_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $DYN_X" >&2
-    "$SHUX_BIN" check -L . "$DYN_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$DYN_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$NETWORK_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$NETWORK_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $NETWORK_X" >&2
-    "$SHUX_BIN" check -L . "$NETWORK_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$NETWORK_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$FLOW_STATE_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$FLOW_STATE_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $FLOW_STATE_X" >&2
-    "$SHUX_BIN" check -L . "$FLOW_STATE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$FLOW_STATE_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$RECV_PUSH_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$RECV_PUSH_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $RECV_PUSH_X" >&2
-    "$SHUX_BIN" check -L . "$RECV_PUSH_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$RECV_PUSH_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$H2C_CLIENT_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$H2C_CLIENT_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $H2C_CLIENT_X" >&2
-    "$SHUX_BIN" check -L . "$H2C_CLIENT_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$H2C_CLIENT_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$STREAM_REG_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$STREAM_REG_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $STREAM_REG_X" >&2
-    "$SHUX_BIN" check -L . "$STREAM_REG_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$STREAM_REG_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$MS_CLIENT_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$MS_CLIENT_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $MS_CLIENT_X" >&2
-    "$SHUX_BIN" check -L . "$MS_CLIENT_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$MS_CLIENT_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$CONN_REUSE_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$CONN_REUSE_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $CONN_REUSE_X" >&2
-    "$SHUX_BIN" check -L . "$CONN_REUSE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$CONN_REUSE_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$CONN_POOL_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$CONN_POOL_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $CONN_POOL_X" >&2
-    "$SHUX_BIN" check -L . "$CONN_POOL_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$CONN_POOL_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$GLOBAL_POOL_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$GLOBAL_POOL_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $GLOBAL_POOL_X" >&2
-    "$SHUX_BIN" check -L . "$GLOBAL_POOL_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$GLOBAL_POOL_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_MS_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_MS_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_MS_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_MS_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_MS_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_PUSH_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_PUSH_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_PUSH_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_PUSH_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_PUSH_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_PUSH_TLS_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_PUSH_TLS_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_PUSH_TLS_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_PUSH_TLS_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_PUSH_TLS_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if std_http_h2_run_smoke "$SHUX_BIN" "$WIRE_X" "wire"; then
+  if std_http_h2_run_smoke "$XLANG_BIN" "$WIRE_X" "wire"; then
     SMOKE_OK=1
   else
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if std_http_h2_run_smoke "$SHUX_BIN" "$CLIENT_X" "client"; then
+  if std_http_h2_run_smoke "$XLANG_BIN" "$CLIENT_X" "client"; then
     CLIENT_OK=1
   else
     std_http_h2_emit_report "fail" "$SMOKE_OK" 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$DYN_X" "dyn"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$DYN_X" "dyn"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" 0 0 0
     exit 1
   fi
@@ -272,156 +272,156 @@ if [ -n "$SHUX_BIN" ]; then
     echo "std-http-h2 gate OK"
     exit 0
   fi
-  if std_http_h2_run_smoke "$SHUX_BIN" "$NETWORK_X" "network"; then
+  if std_http_h2_run_smoke "$XLANG_BIN" "$NETWORK_X" "network"; then
     NETWORK_OK=1
   else
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" 0 0 0
     exit 1
   fi
-  if std_http_h2_run_smoke "$SHUX_BIN" "$FLOW_STATE_X" "flow"; then
+  if std_http_h2_run_smoke "$XLANG_BIN" "$FLOW_STATE_X" "flow"; then
     :
   else
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$RECV_PUSH_X" "recv_push"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$RECV_PUSH_X" "recv_push"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$H2C_CLIENT_X" "h2c_client"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$H2C_CLIENT_X" "h2c_client"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$STREAM_REG_X" "stream_reg"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$STREAM_REG_X" "stream_reg"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$MS_CLIENT_X" "multistream"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$MS_CLIENT_X" "multistream"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$CONN_REUSE_X" "conn_reuse"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$CONN_REUSE_X" "conn_reuse"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$CONN_POOL_X" "conn_pool"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$CONN_POOL_X" "conn_pool"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$GLOBAL_POOL_X" "global_pool"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$GLOBAL_POOL_X" "global_pool"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_X" "h2_server"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_X" "h2_server"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_MS_X" "h2_server_ms"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_MS_X" "h2_server_ms"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_PUSH_X" "h2_server_push"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_PUSH_X" "h2_server_push"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_PUSH_TLS_X" "h2_server_push_tls"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_PUSH_TLS_X" "h2_server_push_tls"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_MS_PUSH_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_MS_PUSH_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_MS_PUSH_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_MS_PUSH_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_MS_PUSH_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_MS_PUSH_X" "h2_server_ms_push"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_MS_PUSH_X" "h2_server_ms_push"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_PUSH_SETTINGS_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_PUSH_SETTINGS_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_PUSH_SETTINGS_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_PUSH_SETTINGS_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_PUSH_SETTINGS_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_PUSH_SETTINGS_X" "h2_push_settings"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_PUSH_SETTINGS_X" "h2_push_settings"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_SETTINGS_FULL_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_SETTINGS_FULL_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_SETTINGS_FULL_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_SETTINGS_FULL_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_SETTINGS_FULL_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_SETTINGS_FULL_X" "h2_settings_full"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_SETTINGS_FULL_X" "h2_settings_full"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_HPACK_DYN_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_HPACK_DYN_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_HPACK_DYN_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_HPACK_DYN_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_HPACK_DYN_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_HPACK_DYN_X" "h2_server_hpack_dyn"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_HPACK_DYN_X" "h2_server_hpack_dyn"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SERVER_MAX_FRAME_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SERVER_MAX_FRAME_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $SERVER_MAX_FRAME_X" >&2
-    "$SHUX_BIN" check -L . "$SERVER_MAX_FRAME_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SERVER_MAX_FRAME_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$SERVER_MAX_FRAME_X" "h2_server_max_frame"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$SERVER_MAX_FRAME_X" "h2_server_max_frame"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$CONN_GOAWAY_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$CONN_GOAWAY_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $CONN_GOAWAY_X" >&2
-    "$SHUX_BIN" check -L . "$CONN_GOAWAY_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$CONN_GOAWAY_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$CONN_GOAWAY_X" "h2_conn_goaway"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$CONN_GOAWAY_X" "h2_conn_goaway"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$CONN_PING_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$CONN_PING_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $CONN_PING_X" >&2
-    "$SHUX_BIN" check -L . "$CONN_PING_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$CONN_PING_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$CONN_PING_X" "h2_conn_ping"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$CONN_PING_X" "h2_conn_ping"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$CONN_POOL_GOAWAY_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$CONN_POOL_GOAWAY_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $CONN_POOL_GOAWAY_X" >&2
-    "$SHUX_BIN" check -L . "$CONN_POOL_GOAWAY_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$CONN_POOL_GOAWAY_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$CONN_POOL_GOAWAY_X" "h2_pool_goaway"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$CONN_POOL_GOAWAY_X" "h2_pool_goaway"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$HTTP2_COMPLETE_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$HTTP2_COMPLETE_X" >/dev/null 2>&1; then
     echo "std-http-h2 gate FAIL: typeck $HTTP2_COMPLETE_X" >&2
-    "$SHUX_BIN" check -L . "$HTTP2_COMPLETE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$HTTP2_COMPLETE_X" 2>&1 | tail -10 >&2 || true
     std_http_h2_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if ! std_http_h2_run_smoke "$SHUX_BIN" "$HTTP2_COMPLETE_X" "h2_http2_complete"; then
+  if ! std_http_h2_run_smoke "$XLANG_BIN" "$HTTP2_COMPLETE_X" "h2_http2_complete"; then
     std_http_h2_emit_report "fail" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" 0 0
     exit 1
   fi
   FLOW_OK=1
   SKIP=0
 else
-  echo "std-http-h2 gate SKIP smoke (no native shux)" >&2
+  echo "std-http-h2 gate SKIP smoke (no native xlang)" >&2
 fi
 
 std_http_h2_emit_report "ok" "$SMOKE_OK" "$CLIENT_OK" "$NETWORK_OK" "$FLOW_OK" "$SKIP"

@@ -28,6 +28,6 @@
 # G-04: C frontend AST companion (5 files, depend on C ASTExpr/ASTBlock/ASTFunc struct layout)
 # G-04: 6 remaining simple ABI / libc bridges (2026-07-10 STRICT close)
 # - string_fast / heap_*: libc mem* / malloc / posix_memalign thin wrappers (P0b extern "C" 自举后可再评估迁 .x)
-# - std_runtime_fast: panic/abort 符号别名 → shux_panic_
+# - std_runtime_fast: panic/abort 符号别名 → xlang_panic_
 # - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
 # - preprocess_if_stack_bridge: 已删除（preprocess_if_stack_* 由 pipeline_x.o ast_pool.c 提供）

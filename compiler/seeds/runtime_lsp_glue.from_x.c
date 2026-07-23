@@ -20,12 +20,12 @@
  * 维护固定大小诊断列表；C parser fail() 与（启用时）.x 流水线的 driver_diagnostic_* 写入 lsp_diag_add。
  * textDocument/diagnostic 的 JSON-RPC 正文由 lsp_diag.x 的 lsp_build_diagnostics_response（parse_into_buf + typeck_x_ast）构建。
  *
- * 纯 JSON 外壳（initialize_result、response_with_result）可迁到 lsp.x，但默认 shux 的 OBJS 未链 lsp_x/io
- *（无 std io/heap），lsp_diag 仍须在本文件提供这些符号；自举目标（shux-x）链 lsp_gen 后可再拆。
+ * 纯 JSON 外壳（initialize_result、response_with_result）可迁到 lsp.x，但默认 xlang 的 OBJS 未链 lsp_x/io
+ *（无 std io/heap），lsp_diag 仍须在本文件提供这些符号；自举目标（xlang-x）链 lsp_gen 后可再拆。
  *
  * 为何大量逻辑仍保留为 C：直接调用 parser/lexer/typeck/ast 的 C API 与可变参 typeck 回调；迁 .x 见 docs/完全去掉C与H-前置清单.md §2。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 
 #include "lsp/lsp_diag.h"
 #include "parser/parser.h"
@@ -41,18 +41,18 @@
 #include <stdint.h>
 
 /** LSP import 图：由 runtime.c 提供，供跨模块 typeck 与跳转 URI。 */
-extern int shu_lsp_resolve_and_load_imports(struct ASTModule *mod, const char **lib_roots, int n_lib_roots,
+extern int xlang_lsp_resolve_and_load_imports(struct ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                           const char *entry_dir, struct ASTModule **dep_mods, int *ndep_out,
                                           struct ASTModule **all_dep_mods, char **all_dep_paths,
                                           char all_dep_fs[][512], int *n_all_out, int max_deps);
-extern void shu_lsp_free_loaded_imports(struct ASTModule **all_dep_mods, char **all_dep_paths, int n_all);
+extern void xlang_lsp_free_loaded_imports(struct ASTModule **all_dep_mods, char **all_dep_paths, int n_all);
 
 extern void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots);
 
 extern size_t lsp_diag_pipeline_sizeof_arena(void);
 extern size_t lsp_diag_pipeline_sizeof_module(void);
 extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
-/** bootstrap 链 pipeline 时返回真实 ctx 字节数；shux-c 弱符号回落瘦 struct。 */
+/** bootstrap 链 pipeline 时返回真实 ctx 字节数；xlang-c 弱符号回落瘦 struct。 */
 extern size_t lsp_diag_x_alloc_dep_ctx_size(void);
 
 /** 调试 LSP read_message 的 leftover 长度 n；LSP_READ_DEBUG 时打 stderr，便于确认 state 是否在两次调用间保留。 */
@@ -116,7 +116,7 @@ static int s_typeck_full = 0;  /* 1=缓存模块已全量 typeck，0=仅懒 type
 static char s_doc_uri[512];
 static char s_entry_fs_path[512];
 static char s_entry_dir[512];
-/** libRoots：默认与 VS Code shux.compiler.libRoots 对齐，可由 SHUX_LSP_LIB_ROOTS 覆盖（`:` 分隔）。 */
+/** libRoots：默认与 VS Code xlang.compiler.libRoots 对齐，可由 XLANG_LSP_LIB_ROOTS 覆盖（`:` 分隔）。 */
 static const char *s_lib_roots[8];
 static char s_lib_roots_storage[8][256];
 static int s_n_lib_roots;
@@ -146,7 +146,7 @@ static int s_refs_count[LSP_LINE_INDEX_MAX];
 /** 释放 import 依赖缓存（不含 entry 模块 s_cached_mod）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void lsp_free_import_cache(void) {
-    shu_lsp_free_loaded_imports(s_all_dep_mods, s_all_dep_paths, s_n_all_deps);
+    xlang_lsp_free_loaded_imports(s_all_dep_mods, s_all_dep_paths, s_n_all_deps);
     s_n_all_deps = 0;
     s_ndirect_deps = 0;
     memset(s_all_dep_mods, 0, sizeof(s_all_dep_mods));
@@ -283,13 +283,13 @@ void lsp_update_entry_dir(const char *fs_path) {
 
 
 
-/** 初始化 libRoots（环境变量 SHUX_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
+/** 初始化 libRoots（环境变量 XLANG_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void lsp_init_lib_roots_once(void) {
     int i;
     if (s_lib_roots_inited) return;
     s_lib_roots_inited = 1;
-    const char *env = getenv("SHUX_LSP_LIB_ROOTS");
+    const char *env = getenv("XLANG_LSP_LIB_ROOTS");
     if (env && env[0]) {
         char buf[1024];
         (void)snprintf(buf, sizeof(buf), "%s", env);
@@ -579,10 +579,10 @@ int json_escape_str(const char *msg, char *out, int out_cap) {
 
 /** 快速 32 位哈希：64 位状态 + 8 字节块 mix，折叠为 32 位；大文档缓存校验比 djb2 更快。 */
 /* G-02f-123/427：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 unsigned lsp_hash_source(const uint8_t *src, int len);
 #endif
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 unsigned lsp_hash_source(const uint8_t *src, int len) {
     uint64_t h = (uint64_t)(unsigned)len;
     int i = 0;
@@ -608,7 +608,7 @@ void lsp_typeck_entry_module(ASTModule *mod, int only_func_index) {
     s_ndirect_deps = 0;
     s_n_all_deps = 0;
     if (mod && mod->num_imports > 0) {
-        (void)shu_lsp_resolve_and_load_imports(mod, s_lib_roots, s_n_lib_roots, s_entry_dir,
+        (void)xlang_lsp_resolve_and_load_imports(mod, s_lib_roots, s_n_lib_roots, s_entry_dir,
                                              s_direct_deps, &s_ndirect_deps,
                                              s_all_dep_mods, s_all_dep_paths, s_all_dep_fs,
                                              &s_n_all_deps, LSP_MAX_IMPORTS);
@@ -779,10 +779,10 @@ static ASTModule *lsp_ensure_module(const uint8_t *source, int source_len, int c
 
 /** 判断 (line_1,col_1) 是否落在标识符 name 从 start_col 开始的列区间内（1-based，含首列）。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name);
 #endif
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name) {
     if (!name || start_line != line_1 || start_col <= 0) return 0;
     int len = (int)strlen(name);
@@ -808,10 +808,10 @@ int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
 
 /** 函数名是否覆盖光标（支持点击长标识符中间字符）。 */
 /* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 int func_name_covers(const struct ASTFunc *f, int line_1, int col_1);
 #endif
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int func_name_covers(const struct ASTFunc *f, int line_1, int col_1) {
     return f && f->name && col_in_ident_span(line_1, col_1, f->line, f->col, f->name);
 
@@ -1747,9 +1747,9 @@ extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32
                                        int32_t *out_line, int32_t *out_col);
 
 /**
- * 在 (line_0, col_0)（LSP 0-based）处查找"定义"；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
+ * 在 (line_0, col_0)（LSP 0-based）处查找"定义"；C 前端路径（xlang-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
  */
-SHUX_WEAK int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
+XLANG_WEAK int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
     if (!source || !out_line || !out_col || source_len < 0) return 0;
     s_def_target_func = NULL;
     ASTModule *mod = lsp_ensure_module(source, source_len, line_0 + 1);
@@ -1762,9 +1762,9 @@ SHUX_WEAK int lsp_definition_at(const uint8_t *source, int source_len, int line_
 #define LSP_REFs_MAX 128
 
 /**
- * 在 (line_0, col_0) 处确定目标函数并收集引用位置；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
+ * 在 (line_0, col_0) 处确定目标函数并收集引用位置；C 前端路径（xlang-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
  */
-SHUX_WEAK int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
+XLANG_WEAK int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
                       int *out_lines, int *out_cols, int max_refs) {
     if (!source || !out_lines || !out_cols || source_len < 0 || max_refs <= 0) return 0;
     ASTModule *mod = lsp_ensure_module(source, source_len, -1);
@@ -1789,9 +1789,9 @@ SHUX_WEAK int lsp_references_at(const uint8_t *source, int source_len, int line_
 #define LSP_HOVER_BUF_MAX 128
 
 /**
- * 在 (line_0, col_0) 处找表达式类型；C 前端路径（shux-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
+ * 在 (line_0, col_0) 处找表达式类型；C 前端路径（xlang-c）。bootstrap driver 由 lsp_diag_x_alias.c 强符号覆盖为 .x pipeline。
  */
-SHUX_WEAK int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
+XLANG_WEAK int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
     if (!source || !out_buf || out_cap <= 0 || source_len < 0) return 0;
     ASTModule *mod = lsp_ensure_module(source, source_len, line_0 + 1);
     if (!mod) return 0;
@@ -2100,9 +2100,9 @@ int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
         "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"enum\",\"interface\",\"struct\",\"typeParameter\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"macro\",\"keyword\",\"modifier\",\"comment\",\"string\",\"number\",\"regexp\",\"operator\"],\"tokenModifiers\":[\"declaration\",\"definition\",\"readonly\",\"static\",\"deprecated\",\"abstract\",\"async\",\"modification\",\"documentation\",\"defaultLibrary\"]},\"full\":true,\"range\":false},"
         "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
         "\"renameProvider\":true,"
-        "\"diagnosticProvider\":{\"identifier\":\"shux\",\"interFileDependencies\":false,\"workspaceDiagnostics\":false}"
+        "\"diagnosticProvider\":{\"identifier\":\"xlang\",\"interFileDependencies\":false,\"workspaceDiagnostics\":false}"
         "},"
-        "\"serverInfo\":{\"name\":\"shux\",\"version\":\"0.1.0\"}"
+        "\"serverInfo\":{\"name\":\"xlang\",\"version\":\"0.1.0\"}"
         "}";
     int len = 0;
     while (result[len] != '\0')
@@ -2142,7 +2142,7 @@ int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int re
 
 /** 在 body[0..len) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
 /* G-02f-122 / G-02f-255：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
     int key_len = 0;
     if (!body || !key || len < 0 || start < 0)
@@ -2358,10 +2358,10 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
  * 将标识符写入 esc，转义 JSON 中的 " 与 \\；返回写入长度（esc 以 NUL 结尾）。
  */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_json_escape_ident(const char *s, char *esc, int esc_cap);
 #endif
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
     int e = 0;
     if (!s || !esc || esc_cap < 4)
@@ -2586,10 +2586,10 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
 
 /** 在 body[start..] 中解析 key 对应的布尔值；1=true，0=false，未找到或无效返回 -1。 */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val);
 #endif
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val) {
     int k = lsp_find_key_after(body, len, start, key);
     if (k < 0 || !out_val) return -1;
@@ -2697,10 +2697,10 @@ void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_l
  */
 /** 行 [start, start+len) 内是否出现块注释结束符 \c *\/ 。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len);
 #endif
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
     for (int i = 0; i + 1 < len; i++) {
         if (doc[start + i] == '*' && doc[start + i + 1] == '/')
@@ -2717,10 +2717,10 @@ int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
  * 是否为块注释行（\c /** 、\c * 续行，或处于未闭合的块注释内）。
  */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block);
 #endif
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
     if (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '*')
         return 1;
@@ -2735,7 +2735,7 @@ int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content
 
 /* G-02f-423/424：L2 hybrid thin — PREFER_X_O 时 10 pure 由 lsp_fmt_pure_thin.x 提供。
  * 此处 extern 声明供 seed-rest 中其它函数（lsp_fmt_try_emit_op 等）调用。 */
-#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifdef XLANG_L2_LSP_FMT_THIN_FROM_X
 uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len);
 uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j);
 int lsp_fmt_is_atom_tail(uint8_t c);
@@ -2749,7 +2749,7 @@ int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *
 
 /** 输出缓冲中最后一个非空白字符；无则返回 0。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
     int k;
     for (k = out_len - 1; k >= 0; k--) {
@@ -2765,7 +2765,7 @@ uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
 
 /** 源码 [start+j) 之前最后一个非空白字符；无则返回 0。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
     int k;
     for (k = j - 1; k >= 0; k--) {
@@ -2782,7 +2782,7 @@ uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
 
 /** 标识符/数字尾字符，可作为二元运算符左操作数尾部。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_is_atom_tail(uint8_t c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ')' || c == ']' || c == '}';
 }
@@ -2792,7 +2792,7 @@ int lsp_fmt_is_atom_tail(uint8_t c) {
 
 /** 标识符/数字头或一元后缀，可作为二元运算符右操作数首部。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_is_atom_head(uint8_t c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
 }
@@ -2802,7 +2802,7 @@ int lsp_fmt_is_atom_head(uint8_t c) {
 
 /** 一元运算符左邻字符（含行首 0）。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_unary_lhs(uint8_t prev) {
   if (prev == 0)
     return 1;
@@ -2816,7 +2816,7 @@ int lsp_fmt_unary_lhs(uint8_t prev) {
 
 /** 源码 j 之前是否已有空白（避免 1 +  2 双空格）。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
     int k = j - 1;
     while (k >= 0) {
@@ -2836,7 +2836,7 @@ int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
 
 /** 源码 j 之后是否已有空白。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
     int k = j + 1;
     while (k < len) {
@@ -2856,7 +2856,7 @@ int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
 
 /** 在 out 中补一个前导空格（若需要且容量足够）。 */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     uint8_t last;
     if (lsp_fmt_src_ws_before(doc, start, j))
@@ -2875,7 +2875,7 @@ int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf,
 
 /** 在 out 中补一个后继空格（若需要且容量足够）。 */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
+#ifndef XLANG_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     int k;
     if (lsp_fmt_src_ws_after(doc, start, len, j))
@@ -3303,8 +3303,8 @@ int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, int inser
 
 
 
-/** shux fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
-int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
+/** xlang fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
+int xlang_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
     return lsp_format_document(doc, doc_len, 2, 1, 100, 1, 1, 1, out_buf, out_cap);
 }
 

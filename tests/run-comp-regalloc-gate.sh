@@ -5,9 +5,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_COMP_REGALLOC_DOC:-analysis/comp-regalloc-v1.md}"
-MANIFEST="${SHUX_COMP_REGALLOC_MANIFEST:-tests/baseline/comp-regalloc.tsv}"
-QUALITY="${SHUX_COMP_REGALLOC_QUALITY:-tests/baseline/comp-regalloc-quality.tsv}"
+DOC="${XLANG_COMP_REGALLOC_DOC:-analysis/comp-regalloc-v1.md}"
+MANIFEST="${XLANG_COMP_REGALLOC_MANIFEST:-tests/baseline/comp-regalloc.tsv}"
+QUALITY="${XLANG_COMP_REGALLOC_QUALITY:-tests/baseline/comp-regalloc-quality.tsv}"
 MIN_LAYERS=6
 MIN_CASES=4
 MIN_METRICS=9

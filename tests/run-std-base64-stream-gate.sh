@@ -5,11 +5,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD109_DOC:-analysis/std-base64-stream-v1.md}"
-MANIFEST="${SHUX_STD109_TSV:-tests/baseline/std-base64-stream.tsv}"
-VECTORS="${SHUX_STD109_VECTORS:-tests/baseline/std-base64-stream-vectors.tsv}"
+DOC="${XLANG_STD109_DOC:-analysis/std-base64-stream-v1.md}"
+MANIFEST="${XLANG_STD109_TSV:-tests/baseline/std-base64-stream.tsv}"
+VECTORS="${XLANG_STD109_VECTORS:-tests/baseline/std-base64-stream-vectors.tsv}"
 MOD_X="std/base64/mod.x"
-B64_X="${SHUX_STD_BASE64_IMPL:-std/base64/base64.x}"
+B64_X="${XLANG_STD_BASE64_IMPL:-std/base64/base64.x}"
 LIB="tests/lib/std-base64-stream.sh"
 SMOKE_X="tests/std-base64/stream.x"
 SMOKE_C="tests/std-base64/stream_smoke_ok.c"
@@ -72,7 +72,7 @@ echo "std-base64-stream manifest OK"
 C_OK=0
 X_OK=0
 SKIP=0
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/base64/base64.o
@@ -83,12 +83,12 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
     exit 1
   fi
 else
-  echo "std-base64-stream gate SKIP c/su smoke (no shux-c; manifest OK)" >&2
+  echo "std-base64-stream gate SKIP c/su smoke (no xlang-c; manifest OK)" >&2
   SKIP=1
 fi
 
-SHUX_BIN=""
-stdlib_cm_native_shu() {
+XLANG_BIN=""
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -99,21 +99,21 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-109: .x smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-109: .x smoke (XLANG=$XLANG_BIN) ==="
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-base64-stream gate FAIL: typeck $SMOKE_X" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_base64_stream_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_base64_stream_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "b64"; then
+  if std_base64_stream_run_x_smoke "$XLANG_BIN" "$SMOKE_X" "b64"; then
     X_OK=1
   else
     std_base64_stream_emit_report "fail" "$C_OK" 0 0

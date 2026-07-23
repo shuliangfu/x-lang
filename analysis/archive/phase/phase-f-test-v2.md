@@ -15,11 +15,11 @@
 ## 门禁
 
 ```bash
-SHUX_F_TEST_V2_FAIL=1 ./tests/run-f-test-v2-gate.sh
+XLANG_F_TEST_V2_FAIL=1 ./tests/run-f-test-v2-gate.sh
 ./tests/run-std-test-bench-fuzz-gate.sh
 ./tests/run-std-test-executable-gate.sh
 ./tests/run-std-test-runner-gate.sh
-SHUX_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
+XLANG_F_STD_DE_C_BATCH_FAIL=1 ./tests/run-f-std-de-c-batch-gate.sh
 ```
 
 ## 下一项

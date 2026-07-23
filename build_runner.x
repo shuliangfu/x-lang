@@ -24,23 +24,23 @@
 /* See implementation. */
 extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
 /* See implementation. */
-extern function build_run_step(step_id: i32, shu_path: *u8): i32;
+extern function build_run_step(step_id: i32, xlang_path: *u8): i32;
 /* See implementation. */
-extern function build_run_asm_build(shu_path: *u8): i32;
+extern function build_run_asm_build(xlang_path: *u8): i32;
 /* See implementation. */
 extern function build_get_step_count(): i32;
 extern function build_get_step_at(i: i32): i32;
 /* See implementation. */
 extern function build_use_asm_only(): i32;
 /* See implementation. */
-extern function build_copy_shux_asm(): i32;
+extern function build_copy_xlang_asm(): i32;
 
 /** Internal function `build_run_legacy_steps`.
  * Implements `build_run_legacy_steps`.
- * @param shu_path *u8
+ * @param xlang_path *u8
  * @return i32
  */
-function build_run_legacy_steps(shu_path: *u8): i32 {
+function build_run_legacy_steps(xlang_path: *u8): i32 {
   let n: i32 = build_get_step_count();
   let i: i32 = 0;
   while (i < n) {
@@ -48,7 +48,7 @@ function build_run_legacy_steps(shu_path: *u8): i32 {
     if (step_id < 0) {
       return 1;
     }
-    if (build_run_step(step_id, shu_path) != 0) {
+    if (build_run_step(step_id, xlang_path) != 0) {
       return 1;
     }
     i = i + 1;
@@ -90,42 +90,42 @@ function build_argv2_is_legacy(arg2: *u8, l2: i32): i32 {
  * @return i32
  */
 function entry(argc: i32, argv: *u8): i32 {
-  let shu_buf: u8[256] = [];
-  let len: i32 = driver_get_argv_i(argc, argv, 1, shu_buf, 256);
+  let xlang_buf: u8[256] = [];
+  let len: i32 = driver_get_argv_i(argc, argv, 1, xlang_buf, 256);
   if (len < 0) {
-    shu_buf[0] = 46;
-    shu_buf[1] = 47;
-    shu_buf[2] = 115;
-    shu_buf[3] = 104;
-    shu_buf[4] = 117;
+    xlang_buf[0] = 46;
+    xlang_buf[1] = 47;
+    xlang_buf[2] = 115;
+    xlang_buf[3] = 104;
+    xlang_buf[4] = 117;
     len = 5;
   }
   if (len < 256) {
-    shu_buf[len] = 0;
+    xlang_buf[len] = 0;
   }
   let arg2: u8[8] = [];
   let l2: i32 = driver_get_argv_i(argc, argv, 2, arg2, 8);
   if (build_argv2_is_asm(arg2, l2) != 0) {
-    if (build_run_asm_build(shu_buf) != 0) {
+    if (build_run_asm_build(xlang_buf) != 0) {
       return 1;
     }
     return 0;
   }
   if (build_argv2_is_legacy(arg2, l2) != 0) {
-    if (build_run_legacy_steps(shu_buf) != 0) {
+    if (build_run_legacy_steps(xlang_buf) != 0) {
       return 1;
     }
     return 0;
   }
   if (build_use_asm_only() != 0) {
-    if (build_run_asm_build(shu_buf) == 0) {
-      if (build_copy_shux_asm() != 0) {
+    if (build_run_asm_build(xlang_buf) == 0) {
+      if (build_copy_xlang_asm() != 0) {
         return 1;
       }
       return 0;
     }
   }
-  if (build_run_legacy_steps(shu_buf) != 0) {
+  if (build_run_legacy_steps(xlang_buf) != 0) {
     return 1;
   }
   return 0;

@@ -4,10 +4,10 @@
 # 用法（source 后）：
 #   tst002_count_cases X MIN
 #   tst002_verify_manifest TSV
-#   tst002_run_boundary SHUX_BIN X OUT
+#   tst002_run_boundary XLANG_BIN X OUT
 #   tst002_emit_report status heap_ok vec_ok map_ok proc_ok skip
 
-TST002_PREFIX="${SHUX_TST002_BOUNDARY_PREFIX:-shux: [SHUX_TST002_BOUNDARY]}"
+TST002_PREFIX="${XLANG_TST002_BOUNDARY_PREFIX:-xlang: [XLANG_TST002_BOUNDARY]}"
 
 # 统计「case N」注释行数；不足 min 时返回 1。
 tst002_count_cases() {
@@ -52,11 +52,11 @@ tst002_verify_manifest() {
 
 # 编译并运行边界烟测；成功返回 0。
 tst002_run_boundary() {
-  local shux="$1"
+  local xlang="$1"
   local x="$2"
   local out="$3"
   rm -f "$out"
-  if ! "$shux" -L . "$x" -o "$out" >/tmp/tst002_smoke.log 2>&1; then
+  if ! "$xlang" -L . "$x" -o "$out" >/tmp/tst002_smoke.log 2>&1; then
     cat /tmp/tst002_smoke.log >&2
     return 1
   fi

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-json-typed-decode.sh — STD-116 manifest 与烟测辅助
 
-STD_JSON_TYPED_PREFIX="${SHUX_STD116_JSON_TYPED_PREFIX:-shux: [SHUX_STD116_JSON_TYPED]}"
+STD_JSON_TYPED_PREFIX="${XLANG_STD116_JSON_TYPED_PREFIX:-xlang: [XLANG_STD116_JSON_TYPED]}"
 
 std_json_typed_symbols_ok() {
   local mod_x="$1"
@@ -33,10 +33,10 @@ std_json_typed_symbols_ok() {
 }
 
 std_json_typed_run_x_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_json_typed_$$"
-  "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
+  local exe="/tmp/xlang_std_json_typed_$$"
+  "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
   local ec=$?
@@ -47,7 +47,7 @@ std_json_typed_run_x_smoke() {
 
 std_json_typed_run_c_smoke() {
   local json_o="$1"
-  local out="/tmp/shux_std_json_typed_c_$$"
+  local out="/tmp/xlang_std_json_typed_c_$$"
   cc -std=c11 -O1 -o "$out" tests/json/typed_decode_smoke_ok.c "$json_o" 2>/dev/null || return 1
   set +e
   "$out" >/dev/null 2>&1

@@ -426,7 +426,7 @@
                                         "data": {
                                             "id": "n0042",
                                             "created": 1784118410369,
-                                            "text": "extern void shux_panic_(int, int)",
+                                            "text": "extern void xlang_panic_(int, int)",
                                             "expandState": "collapse"
                                         },
                                         "children": []

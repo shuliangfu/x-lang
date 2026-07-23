@@ -3,7 +3,7 @@
 # 用法：
 #   ./tests/run-zc-gates.sh
 #   ./tests/run-zc-gates.sh --perf   # ZC-1 追加 net perf -10%（Linux io_uring 实锤）
-#   SHUX=./compiler/shux_asm ./tests/run-zc-gates.sh
+#   XLANG=./compiler/xlang_asm ./tests/run-zc-gates.sh
 set -e
 cd "$(dirname "$0")/.."
 
@@ -28,14 +28,14 @@ chmod +x tests/run-zc1-gate.sh tests/run-zc2-gate.sh tests/run-zc3-gate.sh \
   tests/run-zc4-gate.sh tests/run-zc5-gate.sh
 
 if [ "$DO_ZC1_PERF" -eq 1 ]; then
-  SHUX="${SHUX:-}" ./tests/run-zc1-gate.sh --perf
+  XLANG="${XLANG:-}" ./tests/run-zc1-gate.sh --perf
 else
-  SHUX="${SHUX:-}" ./tests/run-zc1-gate.sh
+  XLANG="${XLANG:-}" ./tests/run-zc1-gate.sh
 fi
 
-SHUX="${SHUX:-}" ./tests/run-zc2-gate.sh
-SHUX="${SHUX:-}" ./tests/run-zc3-gate.sh
-SHUX="${SHUX:-}" ./tests/run-zc4-gate.sh
-SHUX="${SHUX:-}" ./tests/run-zc5-gate.sh
+XLANG="${XLANG:-}" ./tests/run-zc2-gate.sh
+XLANG="${XLANG:-}" ./tests/run-zc3-gate.sh
+XLANG="${XLANG:-}" ./tests/run-zc4-gate.sh
+XLANG="${XLANG:-}" ./tests/run-zc5-gate.sh
 
 echo "zc gates OK"

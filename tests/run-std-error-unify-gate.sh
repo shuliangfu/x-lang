@@ -3,19 +3,19 @@
 #
 # 1) std-error-unify-v1.md + matrix
 # 2) error_base_* / <mod>_err_* 符号；sidecar 存在
-# 3) native shux：tests/std/error_unify_smoke.x
+# 3) native xlang：tests/std/error_unify_smoke.x
 #
 # 用法：./tests/run-std-error-unify-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
-MATRIX="${SHUX_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
-ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.x}"
+DOC="${XLANG_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
+MATRIX="${XLANG_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
+ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
 MIN_MOD=6
 SMOKE="tests/std/error_unify_smoke.x"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -121,18 +121,18 @@ echo "std-error-unify manifest OK (modules=${MOD_N})"
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$SHUX_BIN" ]; then
-  echo "std-error-unify gate SKIP smoke (no native shux)" >&2
+if [ -z "$XLANG_BIN" ]; then
+  echo "std-error-unify gate SKIP smoke (no native xlang)" >&2
   echo "std-error-unify gate OK"
   exit 0
 fi
@@ -142,10 +142,10 @@ if [ ! -f "$SMOKE" ]; then
   exit 1
 fi
 
-OUT=/tmp/shux_std_error_unify
-echo "=== STD-011: error unify smoke (SHUX=$SHUX_BIN) ==="
-if ! "$SHUX_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/shux_std_error_unify_compile.log 2>&1; then
-  cat /tmp/shux_std_error_unify_compile.log >&2
+OUT=/tmp/xlang_std_error_unify
+echo "=== STD-011: error unify smoke (XLANG=$XLANG_BIN) ==="
+if ! "$XLANG_BIN" -L . "$SMOKE" -o "$OUT" >/tmp/xlang_std_error_unify_compile.log 2>&1; then
+  cat /tmp/xlang_std_error_unify_compile.log >&2
   exit 1
 fi
 EC=0

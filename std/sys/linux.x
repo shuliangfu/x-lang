@@ -26,43 +26,43 @@
 // - Linux arm64:  include/uapi/asm-generic/unistd.h
 
 /* See implementation. */
-extern function shux_sys_open(path: *u8, flags: i32, mode: i32): i32;
+extern function xlang_sys_open(path: *u8, flags: i32, mode: i32): i32;
 
 /* See implementation. */
-extern function shux_sys_read(fd: i32, buf: *u8, count: usize): isize;
+extern function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
 
 /* See implementation. */
-extern function shux_sys_close(fd: i32): i32;
+extern function xlang_sys_close(fd: i32): i32;
 
 /* See implementation. */
-extern function shux_sys_exit(code: i32): void;
+extern function xlang_sys_exit(code: i32): void;
 
 /* See implementation. */
-extern function shux_sys_write(fd: i32, buf: *u8, count: usize): isize;
+extern function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
 
 /* See implementation. */
-extern function shux_sys_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32;
+extern function xlang_sys_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32;
 
 /* See implementation. */
-extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern function xlang_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 
 /* See implementation. */
-extern function shux_sys_munmap(addr: *u8, len: usize): i32;
+extern function xlang_sys_munmap(addr: *u8, len: usize): i32;
 
 /* See implementation. */
-extern function shux_sys_socket(domain: i32, sock_type: i32, protocol: i32): i32;
+extern function xlang_sys_socket(domain: i32, sock_type: i32, protocol: i32): i32;
 
 /* See implementation. */
-extern function shux_sys_connect(sockfd: i32, addr: *u8, addrlen: i32): i32;
+extern function xlang_sys_connect(sockfd: i32, addr: *u8, addrlen: i32): i32;
 
 /* See implementation. */
-extern function shux_sys_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32;
+extern function xlang_sys_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32;
 
 /* See implementation. */
-extern function shux_sys_bind(sockfd: i32, addr: *u8, addrlen: i32): i32;
+extern function xlang_sys_bind(sockfd: i32, addr: *u8, addrlen: i32): i32;
 
 /* See implementation. */
-extern function shux_sys_listen(sockfd: i32, backlog: i32): i32;
+extern function xlang_sys_listen(sockfd: i32, backlog: i32): i32;
 
 // --- x86_64（System V AMD64 ABI：rax=nr, rdi/rsi/rdx/...=args）---
 
@@ -198,7 +198,7 @@ export function linux_syscall_read(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_read(fd, buf, len as usize) as i32;
+    return xlang_sys_read(fd, buf, len as usize) as i32;
   }
 }
 
@@ -207,7 +207,7 @@ export function linux_syscall_read(fd: i32, buf: *u8, len: i32): i32 {
  */
 export function linux_syscall_close(fd: i32): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_sys_close(fd); }
+  unsafe { _rc = xlang_sys_close(fd); }
   return _rc;
 }
 
@@ -222,7 +222,7 @@ export function linux_syscall_write(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_write(fd, buf, len as usize) as i32;
+    return xlang_sys_write(fd, buf, len as usize) as i32;
   }
 }
 
@@ -231,7 +231,7 @@ export function linux_syscall_write(fd: i32, buf: *u8, len: i32): i32 {
  */
 export function linux_syscall_exit(code: i32): void {
   unsafe {
-    shux_sys_exit(code);
+    xlang_sys_exit(code);
   }
 }
 
@@ -261,7 +261,7 @@ export function linux_syscall_openat(dirfd: i32, path: *u8, flags: i32, mode: i3
     return -1;
   }
   unsafe {
-    return shux_sys_openat(dirfd, path, flags, mode);
+    return xlang_sys_openat(dirfd, path, flags, mode);
   }
 }
 
@@ -273,7 +273,7 @@ export function linux_anonymous_mmap(len: usize, prot: i32, flags: i32): *u8 {
     return 0 as *u8;
   }
   unsafe {
-    return shux_sys_mmap(0 as *u8, len, prot, flags, -1, 0 as i64);
+    return xlang_sys_mmap(0 as *u8, len, prot, flags, -1, 0 as i64);
   }
 }
 
@@ -285,7 +285,7 @@ export function linux_syscall_munmap(addr: *u8, len: usize): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_munmap(addr, len);
+    return xlang_sys_munmap(addr, len);
   }
 }
 
@@ -298,7 +298,7 @@ export function linux_read_file_openat(dirfd: i32, path: *u8, buf: *u8, cap: i32
   }
   let fd: i32 = 0;
   unsafe {
-    fd = shux_sys_openat(dirfd, path, LINUX_O_RDONLY, 0);
+    fd = xlang_sys_openat(dirfd, path, LINUX_O_RDONLY, 0);
   }
   if (fd < 0) {
     return -1;
@@ -309,7 +309,7 @@ export function linux_read_file_openat(dirfd: i32, path: *u8, buf: *u8, cap: i32
     let dst: *u8 = (buf as *u8) + total;
     let r: i32 = 0;
     unsafe {
-      r = shux_sys_read(fd, dst, chunk as usize) as i32;
+      r = xlang_sys_read(fd, dst, chunk as usize) as i32;
     }
     if (r < 0) {
       linux_syscall_close(fd);
@@ -332,7 +332,7 @@ export function linux_syscall_open(path: *u8, flags: i32, mode: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_open(path, flags, mode);
+    return xlang_sys_open(path, flags, mode);
   }
 }
 
@@ -346,7 +346,7 @@ export function linux_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
   }
   let fd: i32 = 0;
   unsafe {
-    fd = shux_sys_open(path, LINUX_O_RDONLY, 0);
+    fd = xlang_sys_open(path, LINUX_O_RDONLY, 0);
   }
   if (fd < 0) {
     return -1;
@@ -357,7 +357,7 @@ export function linux_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
     let dst: *u8 = (buf as *u8) + total;
     let r: i32 = 0;
     unsafe {
-      r = shux_sys_read(fd, dst, chunk as usize) as i32;
+      r = xlang_sys_read(fd, dst, chunk as usize) as i32;
     }
     if (r < 0) {
       linux_syscall_close(fd);
@@ -386,7 +386,7 @@ export const LINUX_SOCK_DGRAM: i32 = 2;
  */
 export function linux_syscall_socket(domain: i32, sock_type: i32, protocol: i32): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_sys_socket(domain, sock_type, protocol); }
+  unsafe { _rc = xlang_sys_socket(domain, sock_type, protocol); }
   return _rc;
 }
 
@@ -398,7 +398,7 @@ export function linux_syscall_connect(sockfd: i32, addr: *u8, addrlen: i32): i32
     return -1;
   }
   unsafe {
-    return shux_sys_connect(sockfd, addr, addrlen);
+    return xlang_sys_connect(sockfd, addr, addrlen);
   }
 }
 
@@ -410,7 +410,7 @@ export function linux_syscall_bind(sockfd: i32, addr: *u8, addrlen: i32): i32 {
     return -1;
   }
   unsafe {
-    return shux_sys_bind(sockfd, addr, addrlen);
+    return xlang_sys_bind(sockfd, addr, addrlen);
   }
 }
 
@@ -419,7 +419,7 @@ export function linux_syscall_bind(sockfd: i32, addr: *u8, addrlen: i32): i32 {
  */
 export function linux_syscall_listen(sockfd: i32, backlog: i32): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_sys_listen(sockfd, backlog); }
+  unsafe { _rc = xlang_sys_listen(sockfd, backlog); }
   return _rc;
 }
 
@@ -428,7 +428,7 @@ export function linux_syscall_listen(sockfd: i32, backlog: i32): i32 {
  */
 export function linux_syscall_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32 {
   let _rc: i32 = 0;
-  unsafe { _rc = shux_sys_accept(sockfd, addr, addrlen); }
+  unsafe { _rc = xlang_sys_accept(sockfd, addr, addrlen); }
   return _rc;
 }
 

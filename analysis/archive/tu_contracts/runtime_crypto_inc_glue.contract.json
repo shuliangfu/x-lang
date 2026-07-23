@@ -58,7 +58,7 @@
       "crypto_block16_fill_c"
     ]
   },
-  "rest_macro": "SHUX_RUNTIME_CRYPTO_INC_GLUE_FROM_X",
+  "rest_macro": "XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X",
   "impl_residuals": ["shu_sha256_block_impl"],
   "forward_decls": [
     "shu_sha256_rotr32",

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-env-platform-encoding.sh — STD-132 manifest 与烟测辅助
 
-STD_ENV_PLATFORM_ENCODING_PREFIX="${SHUX_STD132_ENV_PLATFORM_ENCODING_PREFIX:-shux: [SHUX_STD132_ENV_PLATFORM_ENCODING]}"
+STD_ENV_PLATFORM_ENCODING_PREFIX="${XLANG_STD132_ENV_PLATFORM_ENCODING_PREFIX:-xlang: [XLANG_STD132_ENV_PLATFORM_ENCODING]}"
 
 # 校验 manifest 条目；echo 缺失数。
 std_env_platform_encoding_symbols_ok() {
@@ -46,10 +46,10 @@ std_env_platform_encoding_symbols_ok() {
 
 # 编译并运行 .x 烟测。
 std_env_platform_encoding_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
-  local exe="/tmp/shux_std_env_pe_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_env_pe_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-env-platform-encoding FAIL: compile $src" >&2
     rm -f "$exe"
     return 1
@@ -67,7 +67,7 @@ std_env_platform_encoding_run_c_smoke() {
   local env_o="$1"
   local runtime_env_o="${2:-compiler/runtime_env_os.o}"
   local src="tests/env/platform_encoding_smoke_ok.c"
-  local out="/tmp/shux_std_env_pe_c_$$"
+  local out="/tmp/xlang_std_env_pe_c_$$"
   if [ ! -f "$src" ]; then
     printf '%s\n' \
       '#include <stdint.h>' \

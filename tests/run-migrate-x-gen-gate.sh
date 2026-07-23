@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# parser/lexer/typeck/codegen/ast .x → gen.c → .o 跨平台门禁（仅 shux-c 生成 + cc 编译，勿 relink shux_asm）。
+# parser/lexer/typeck/codegen/ast .x → gen.c → .o 跨平台门禁（仅 xlang-c 生成 + cc 编译，勿 relink xlang_asm）。
 # Mac/Linux 均可跑；refresh gate 前置快速失败。
 # 用法：./tests/run-migrate-x-gen-gate.sh
-# 环境：SHUX_FORCE_MIGRATE_X_GEN=1 强制重编（忽略 mtime）；兼容 SHUX_FORCE_MIGRATE_X_GEN。
+# 环境：XLANG_FORCE_MIGRATE_X_GEN=1 强制重编（忽略 mtime）；兼容 XLANG_FORCE_MIGRATE_X_GEN。
 set -e
 cd "$(dirname "$0")/.."
 
-if [ ! -x ./compiler/shux-c ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+if [ ! -x ./compiler/xlang-c ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
 fi
 
 # M-3：ast/typeck/codegen 变更须与 parser 一并重编
@@ -26,10 +26,10 @@ X_OBJ=(
   compiler/ast_gen2.c
 )
 
-FORCE="${SHUX_FORCE_MIGRATE_X_GEN:-${SHUX_FORCE_MIGRATE_X_GEN:-0}}"
+FORCE="${XLANG_FORCE_MIGRATE_X_GEN:-${XLANG_FORCE_MIGRATE_X_GEN:-0}}"
 
 need_rebuild=0
-if [ "$FORCE" = "1" ] || [ "${SHUX_FORCE_REFRESH_ASM_GATE:-0}" = "1" ]; then
+if [ "$FORCE" = "1" ] || [ "${XLANG_FORCE_REFRESH_ASM_GATE:-0}" = "1" ]; then
   need_rebuild=1
 else
   for f in "${X_SRC[@]}"; do

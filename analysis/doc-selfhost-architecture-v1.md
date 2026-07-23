@@ -3,7 +3,7 @@
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
 > 读者：新加入编译器/自举链路的开发者  
-> 目标：**约 1 小时**理解从源码到 `shux_asm` 的主链路  
+> 目标：**约 1 小时**理解从源码到 `xlang_asm` 的主链路  
 > 深度细节：见 `compiler/docs/SELFHOST.md`（运维/验收）；本文件为**全景 + 导航**
 
 ---
@@ -14,7 +14,7 @@
 |------|------|------|
 | **0–10 min** | §2 目标 A/B/C + §3 总览图 | 知道「完全自举」指什么 |
 | **10–25 min** | §4 编译前端阶段 | 能说出 lexer→link 顺序 |
-| **25–40 min** | §5 构建主链 | 能画出 seed→shux_asm→stage2 |
+| **25–40 min** | §5 构建主链 | 能画出 seed→xlang_asm→stage2 |
 | **40–50 min** | §6 CI 与门禁 | 知道 push 前跑什么 |
 | **50–60 min** | §7 失败诊断 + §8 索引 | 会 `./tests/run-bootstrap-stage-diag.sh` |
 
@@ -25,10 +25,10 @@
 | 代号 | 含义 | 新人只需记住 |
 |------|------|--------------|
 | **A** | 用户 `.x` → 产物尽量不走 `cc -c` | 用户编译路径 asm 优先 |
-| **B** | 构建**编译器本身**时不 `cc -c pipeline_gen.c` | **`shux_asm` 链接拓扑** |
+| **B** | 构建**编译器本身**时不 `cc -c pipeline_gen.c` | **`xlang_asm` 链接拓扑** |
 | **C** | freestanding / 弱化 libc | Linux crt0 等，长期目标 |
 
-仓库内「完全自举」≈ **语义自举（shux 编 .x 前端）+ 目标 B 在平台上成立**。允许 C 冷启动种子 `shux-c`。
+仓库内「完全自举」≈ **语义自举（xlang 编 .x 前端）+ 目标 B 在平台上成立**。允许 C 冷启动种子 `xlang-c`。
 
 ---
 
@@ -43,16 +43,16 @@ flowchart TB
   end
 
   subgraph boot["自举构建路径（目标 B）"]
-    S1["seed: shux-c / shux"] --> S2["build_shux_asm.sh"]
-    S2 --> S3["shux_asm"]
+    S1["seed: xlang-c / xlang"] --> S2["build_xlang_asm.sh"]
+    S2 --> S3["xlang_asm"]
     S3 --> S4["bootstrap-verify / bstrict-ci"]
-    S4 --> S5["Stage2: shux_asm → shux_asm2"]
+    S4 --> S5["Stage2: xlang_asm → xlang_asm2"]
   end
 
   user -.->|"同一套 .x 前端"| boot
 ```
 
-**主链路关键词**：`seed` → `build_asm/*.o` → `shux_asm` → `run-bootstrap-bstrict-ci.sh` →（Linux）`stage2`。
+**主链路关键词**：`seed` → `build_asm/*.o` → `xlang_asm` → `run-bootstrap-bstrict-ci.sh` →（Linux）`stage2`。
 
 ---
 
@@ -78,7 +78,7 @@ flowchart TB
 
 | 拓扑 | 何时 | 关键环境变量 |
 |------|------|--------------|
-| **full_asm / asm_only_strict** | Linux/macOS __text 全绿 | `SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1` |
+| **full_asm / asm_only_strict** | Linux/macOS __text 全绿 | `XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1` |
 | **pipeline_x（B-hybrid）** | 回退 / 未全绿 | 无 SKIP_GEN，`-E` 生成 gen_driver |
 
 详见 `compiler/docs/SELFHOST.md` §4。
@@ -89,14 +89,14 @@ flowchart TB
 # 1) 语义自举烟测
 make -C compiler bootstrap-verify
 
-# 2) 生产 shux_asm（B-strict 默认）
+# 2) 生产 xlang_asm（B-strict 默认）
 make -C compiler bootstrap-driver-bstrict
 
 # 3) 全链 CI 等价（仓库根）
-SHUX=./compiler/shux_asm ./tests/run-bootstrap-bstrict-ci.sh
+XLANG=./compiler/xlang_asm ./tests/run-bootstrap-bstrict-ci.sh
 
 # 4) push 前（bstrict + asm-73 + perf）
-SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
+XLANG=./compiler/xlang_asm ./tests/run-pre-push-p0.sh
 ```
 
 ### 5.3 Stage2（两代一致性）
@@ -114,7 +114,7 @@ SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 |------|------|------|
 | **Tier P** | `tests/run-portable-suite.sh` | 全平台同一套 .x |
 | **Tier B** | `tests/run-ci-full-suite.sh` 中段 | IO/DOD/dogfood |
-| **Tier A** | Linux x86_64 | `build_shux_asm` + bstrict |
+| **Tier A** | Linux x86_64 | `build_xlang_asm` + bstrict |
 
 **自举相关 manifest（不必全记，知道 grep `run-bootstrap-*`）：**
 
@@ -136,10 +136,10 @@ SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 
 # 2) 自动分类
 ./tests/run-bootstrap-stage-diag.sh /tmp/boot.log
-# → SHUX_BOOT_STAGE=parser  SHUX_BOOT_REPRO=parser_second_pass
+# → XLANG_BOOT_STAGE=parser  XLANG_BOOT_REPRO=parser_second_pass
 
 # 3) 最小复现
-./tests/run-bootstrap-repro.sh "$SHUX_BOOT_REPRO"
+./tests/run-bootstrap-repro.sh "$XLANG_BOOT_REPRO"
 ```
 
 taxonomy 清单：`tests/baseline/bootstrap-failure-taxonomy.tsv`。
@@ -162,10 +162,10 @@ taxonomy 清单：`tests/baseline/bootstrap-failure-taxonomy.tsv`。
 ## 9. 自检（读完应能回答）
 
 1. 目标 B 与 B-hybrid 差别？  
-2. `shux_asm` 由哪条脚本产出？  
-3. parser 失败时 `SHUX_BOOT_STAGE` 通常是什么？  
+2. `xlang_asm` 由哪条脚本产出？  
+3. parser 失败时 `XLANG_BOOT_STAGE` 通常是什么？  
 4. push 前本地应跑哪条脚本？  
 
-答案：§2 / `build_shux_asm.sh` / `parser` / `run-pre-push-p0.sh`。
+答案：§2 / `build_xlang_asm.sh` / `parser` / `run-pre-push-p0.sh`。
 
 **DOC-002 状态：定版 ✅**

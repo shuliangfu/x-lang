@@ -21,7 +21,7 @@
 
 `-backend asm -o exe` 或 C 前端 `invoke_cc` 链接时，按固定顺序追加 **33 个 std 模块** + `io.o` + `runtime_panic.o` + `runtime_asm_io_stubs.o`（路径存在才链入）。
 
-实现：`get_std_*_o_path` / `get_io_o_path` + `shux_asm_ld_try_under_lib_roots("std/…/….o")`。
+实现：`get_std_*_o_path` / `get_io_o_path` + `xlang_asm_ld_try_under_lib_roots("std/…/….o")`。
 
 ### 2.2 按需（`asm_ld_append_on_demand_user_objs`）
 
@@ -35,8 +35,8 @@ C 后端：`generated_c_needs_async_scheduler` 扫描生成 `.c` 后链入 `sche
 
 | 对象 | 触发 |
 |------|------|
-| `compiler/freestanding_io.o` | `shux_sys_write`（`freestanding_user_o_needs_io`） |
-| `compiler/runtime_panic.o` | `shux_panic_`（`freestanding_user_o_needs_panic` / `freestanding_o_needs_undef_sym`） |
+| `compiler/freestanding_io.o` | `xlang_sys_write`（`freestanding_user_o_needs_io`） |
+| `compiler/runtime_panic.o` | `xlang_panic_`（`freestanding_user_o_needs_panic` / `freestanding_o_needs_undef_sym`） |
 
 ### 2.4 平台库标志（`ShuAsmLdStdLinkFlags`）
 
@@ -79,7 +79,7 @@ manifest：`tests/baseline/boot-std-link-contract.tsv`
 
 1. 每个 `getter` / `obj_rel` / `trigger` 在 `runtime.c` 存在  
 2. `STD_AND_PANIC_O` 与 manifest 一致  
-3. 可选：native `shux-c` 链接烟测  
+3. 可选：native `xlang-c` 链接烟测  
 
 ---
 

@@ -2,11 +2,11 @@
 # F-05 v3：std.db.sqlite 去 C 门禁。
 #
 # 用法：./tests/run-f05-std-db-sqlite-v3-gate.sh
-# 环境：SHUX_F05_DB_SQLITE_V3_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F05_DB_SQLITE_V3_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F05_DB_SQLITE_V3_FAIL:-0}
+FAIL=${XLANG_F05_DB_SQLITE_V3_FAIL:-0}
 DOC="analysis/phase-f-f05-v3.md"
 
 die() {
@@ -23,8 +23,8 @@ grep -q 'F-05 v3' "$DOC" || die "doc missing F-05 v3 marker"
 [ -f compiler/seeds/runtime_sqlite_glue.from_x.c ] || die "missing sqlite_glue.c"
 grep -q 'db_open_c' std/db/sqlite/sqlite.x || die "sqlite.x missing db_open_c"
 grep -q 'db_sqlite_exec_smoke_c' std/db/sqlite/sqlite.x || die "sqlite.x missing smoke"
-grep -q 'shu_sqlite3_open_c' compiler/seeds/runtime_sqlite_glue.from_x.c || die "glue missing open"
-grep -q 'shu_db_use_sqlite3_c' compiler/seeds/runtime_sqlite_glue.from_x.c || die "glue missing use probe"
+grep -q 'xlang_sqlite3_open_c' compiler/seeds/runtime_sqlite_glue.from_x.c || die "glue missing open"
+grep -q 'xlang_db_use_sqlite3_c' compiler/seeds/runtime_sqlite_glue.from_x.c || die "glue missing use probe"
 grep -q 'sqlite.x' compiler/Makefile || die "Makefile missing sqlite.x build"
 if grep -q 'std/db/sqlite/sqlite\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references sqlite.c"
@@ -50,7 +50,7 @@ EOF
   "$TMP/sqlite_smoke" || die "sqlite smoke run failed"
   echo "f05 sqlite smoke OK"
 else
-  echo "f05 sqlite smoke SKIP (sqlite.o missing .x symbols; need shux-c)"
+  echo "f05 sqlite smoke SKIP (sqlite.o missing .x symbols; need xlang-c)"
 fi
 
 if [ -f tests/run-std-sqlite-gate.sh ]; then

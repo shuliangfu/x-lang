@@ -78,7 +78,7 @@ return B * 2;  // → exit 10（见 tests/let-const/const_expr.x）
 | gate | `tests/run-lang-const-eval-gate.sh` |
 | hook | `tests/run-lang-const-eval.sh` |
 
-gate 输出 **`lang-const-eval gate OK`**；无 native `shux` 时 manifest 仍过、bench **SKIP**；有 native `shux` 时全量 **runnable** report。
+gate 输出 **`lang-const-eval gate OK`**；无 native `xlang` 时 manifest 仍过、bench **SKIP**；有 native `xlang` 时全量 **runnable** report。
 
 ---
 

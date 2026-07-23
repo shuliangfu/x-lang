@@ -2,7 +2,7 @@
  * G-02f rt_fs_open R2 full surface — isomorphic with src/runtime/rt_fs_open.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_fs_open.x) + rest seed empty under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (path_copy + read_path + open_write)
- * Regen: ./shux -E ... src/runtime/rt_fs_open.x | filter DBG + polish prologue
+ * Regen: ./xlang -E ... src/runtime/rt_fs_open.x | filter DBG + polish prologue
  * Note: O_CREAT/O_TRUNC numeric from host cfg at regen; product .x uses target_os cfg.
  * Track-L (2026-07-16): path helper keeps short name; .x has #[no_mangle] (was module mangle).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.

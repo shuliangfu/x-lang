@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
-MANIFEST="${SHUX_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
+DOC="${XLANG_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
+MANIFEST="${XLANG_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
 MAP_X="std/map/mod.x"
 VEC_X="std/vec/mod.x"
 HEAP_X="std/heap/mod.x"
@@ -38,7 +38,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-map-vec-extend manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -55,36 +55,36 @@ VEC_OK=0
 SKIP=1
 resolve_shu() {
   local cand
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if stdlib_cm_native_shu "$cand"; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if stdlib_cm_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi
   done
   return 1
 }
-if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
-  echo "=== STD-013/014: typeck (SHUX=$SHUX_BIN) ==="
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if "$SHUX_BIN" check -L . tests/map/boundary.x >/dev/null 2>&1; then
+if XLANG_BIN="$(resolve_shu 2>/dev/null)"; then
+  echo "=== STD-013/014: typeck (XLANG=$XLANG_BIN) ==="
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
+  if "$XLANG_BIN" check -L . tests/map/boundary.x >/dev/null 2>&1; then
     MAP_OK=1
   else
     echo "std-map-vec-extend gate FAIL: map boundary typeck" >&2
-    "$SHUX_BIN" check -L . tests/map/boundary.x 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . tests/map/boundary.x 2>&1 | tail -8 >&2 || true
     std_mve_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHUX_BIN" check -L . tests/vec/append_roundtrip.x >/dev/null 2>&1; then
+  if "$XLANG_BIN" check -L . tests/vec/append_roundtrip.x >/dev/null 2>&1; then
     VEC_OK=1
   else
     echo "std-map-vec-extend gate FAIL: vec append typeck" >&2
-    "$SHUX_BIN" check -L . tests/vec/append_roundtrip.x 2>&1 | tail -8 >&2 || true
+    "$XLANG_BIN" check -L . tests/vec/append_roundtrip.x 2>&1 | tail -8 >&2 || true
     std_mve_emit_report "fail" "$MAP_OK" 0 0
     exit 1
   fi
   SKIP=0
 else
-  echo "std-map-vec-extend gate SKIP typeck (no native shux-c)" >&2
+  echo "std-map-vec-extend gate SKIP typeck (no native xlang-c)" >&2
 fi
 
 std_mve_emit_report "ok" "$MAP_OK" "$VEC_OK" "$SKIP"

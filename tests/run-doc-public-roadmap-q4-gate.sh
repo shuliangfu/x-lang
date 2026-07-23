@@ -9,9 +9,9 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_DOC010_DOC:-analysis/doc-public-roadmap-q4-v1.md}"
+DOC="${XLANG_DOC010_DOC:-analysis/doc-public-roadmap-q4-v1.md}"
 ROADMAP="analysis/doc-public-roadmap-v1.md"
-MANIFEST="${SHUX_DOC010_TSV:-tests/baseline/doc-public-roadmap-q4.tsv}"
+MANIFEST="${XLANG_DOC010_TSV:-tests/baseline/doc-public-roadmap-q4.tsv}"
 DOC005_MANIFEST="tests/baseline/doc-public-roadmap.tsv"
 TEMPLATE="tests/templates/doc-public-roadmap-quarter.txt"
 LIB="tests/lib/doc-public-roadmap-q4.sh"

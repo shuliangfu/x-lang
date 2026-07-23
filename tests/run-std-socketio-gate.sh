@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SOCKETIO_DOC:-analysis/std-socketio-v1.md}"
-MANIFEST="${SHUX_STD_SOCKETIO_TSV:-tests/baseline/std-socketio.tsv}"
+DOC="${XLANG_STD_SOCKETIO_DOC:-analysis/std-socketio-v1.md}"
+MANIFEST="${XLANG_STD_SOCKETIO_TSV:-tests/baseline/std-socketio.tsv}"
 MOD_X="std/socketio/mod.x"
 SIO_X="std/socketio/socketio.x"
 SIO_README="std/socketio/README.md"
@@ -86,7 +86,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-socketio manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -100,30 +100,30 @@ stdlib_cm_native_shu() {
 
 SMOKE_OK=0
 SKIP=1
-if SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux-c && echo ./compiler/shux-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
-  SHUX_BIN=""
+  XLANG_BIN=""
 fi
 
-if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-SOCKETIO-001: typeck + smoke (SHUX=$SHUX_BIN) ==="
+if [ -n "$XLANG_BIN" ]; then
+  echo "=== STD-SOCKETIO-001: typeck + smoke (XLANG=$XLANG_BIN) ==="
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/socketio/socketio.o
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
   for smoke_x in "$FRAME_X" "$NODE_X" "$SERVER_X" "$NS_ACK_X" "$NS_ROUTER_X" "$NS_SESSIONS_X" "$WS_HUB_X" "$ROOM_X" "$HUB_SYNC_X" "$SESSION_SYNC_X" "$CLUSTER_SYNC_X" "$CLUSTER_ADAPTER_X" "$CLUSTER_RING_X" "$P3_COMPLETE_X"; do
-    if ! "$SHUX_BIN" check -L . "$smoke_x" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$smoke_x" >/dev/null 2>&1; then
       echo "std-socketio gate FAIL: typeck $smoke_x" >&2
-      "$SHUX_BIN" check -L . "$smoke_x" 2>&1 | tail -10 >&2 || true
+      "$XLANG_BIN" check -L . "$smoke_x" 2>&1 | tail -10 >&2 || true
       std_socketio_emit_report fail 0 1
       exit 1
     fi
-    exe="/tmp/shux_std_socketio_smoke_$$"
+    exe="/tmp/xlang_std_socketio_smoke_$$"
     set +e
-    link_log=$("$SHUX_BIN" -L . "$smoke_x" -o "$exe" 2>&1)
+    link_log=$("$XLANG_BIN" -L . "$smoke_x" -o "$exe" 2>&1)
     link_ec=$?
     set -e
     if [ "$link_ec" -eq 0 ]; then
@@ -147,7 +147,7 @@ if [ -n "$SHUX_BIN" ]; then
   SMOKE_OK=1
   SKIP=0
 else
-  echo "std-socketio gate SKIP smoke (no native shux-c)" >&2
+  echo "std-socketio gate SKIP smoke (no native xlang-c)" >&2
 fi
 
 std_socketio_emit_report ok "$SMOKE_OK" "$SKIP"

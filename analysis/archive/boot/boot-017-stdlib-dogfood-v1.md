@@ -8,14 +8,14 @@
 
 ## 1. 目标
 
-在 BOOT-013「全模块 `shux check` 正确性」之上，为 **55 个 core/std 模块**记录前端编译（check）**分模块耗时**，作为 PERF-004 的 std 侧 dogfood 扩展。
+在 BOOT-013「全模块 `xlang check` 正确性」之上，为 **55 个 core/std 模块**记录前端编译（check）**分模块耗时**，作为 PERF-004 的 std 侧 dogfood 扩展。
 
 | 目标 | 说明 |
 |------|------|
 | **分模块矩阵** | 与 `stdlib-check-matrix.tsv` 一一对应 |
-| **计时** | 每模块 `import` 探针 + `shux check -L .`；默认 `RUNS=1`（门禁），基线刷新 `RUNS=3` 取中位数 |
+| **计时** | 每模块 `import` 探针 + `xlang check -L .`；默认 `RUNS=1`（门禁），基线刷新 `RUNS=3` 取中位数 |
 | **基线** | `tests/baseline/stdlib-dogfood.tsv`（module_id → 秒上限） |
-| **不回退（可选）** | `SHUX_BOOT017_FAIL_ON_REGRESSION=1` 时 median ≤ 基线 |
+| **不回退（可选）** | `XLANG_BOOT017_FAIL_ON_REGRESSION=1` 时 median ≤ 基线 |
 
 ---
 
@@ -34,7 +34,7 @@
 ## 3. 报告格式
 
 ```
-shux: [SHUX_BOOT017_STDLIB_DOGFOOD] status=ok modules=55 slow=0 p50=0.042 p95=0.068 skip=0
+xlang: [XLANG_BOOT017_STDLIB_DOGFOOD] status=ok modules=55 slow=0 p50=0.042 p95=0.068 skip=0
 ```
 
 | 字段 | 含义 |
@@ -42,7 +42,7 @@ shux: [SHUX_BOOT017_STDLIB_DOGFOOD] status=ok modules=55 slow=0 p50=0.042 p95=0.
 | `modules` | 计时模块数 |
 | `slow` | 超基线模块数（`FAIL_REGRESSION=0` 时仅计数） |
 | `p50` / `p95` | 分模块耗时中位数 / 95 分位 |
-| `skip` | 无 native shux 时 1 |
+| `skip` | 无 native xlang 时 1 |
 
 ---
 
@@ -62,7 +62,7 @@ shux: [SHUX_BOOT017_STDLIB_DOGFOOD] status=ok modules=55 slow=0 p50=0.042 p95=0.
 ```bash
 ./tests/run-boot-017-stdlib-dogfood-gate.sh
 # 刷新基线：
-SHUX_BOOT017_UPDATE_BASELINE=1 SHUX_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh
+XLANG_BOOT017_UPDATE_BASELINE=1 XLANG_BOOT017_RUNS=3 ./tests/run-boot-017-stdlib-dogfood.sh
 ```
 
 ---

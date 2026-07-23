@@ -20,8 +20,8 @@
 // runtime_panic / runtime_abort / runtime_crash_evidence_collect_c；
 // See implementation.
 
-extern function shux_panic_(has_msg: i32, msg_val: i32): void;
-extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
+extern function xlang_panic_(has_msg: i32, msg_val: i32): void;
+extern function xlang_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 /** Exported function `runtime_crash_evidence_collect_c`.
  * Implements `runtime_crash_evidence_collect_c`.
@@ -30,7 +30,7 @@ extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
  * @return void
  */
 export function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void {
-  unsafe { shux_crash_evidence_collect_c(has_msg, msg_val); }
+  unsafe { xlang_crash_evidence_collect_c(has_msg, msg_val); }
 }
 
 /** Exported function `runtime_panic`.
@@ -38,7 +38,7 @@ export function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): vo
  * @return void
  */
 export function runtime_panic(): void {
-  unsafe { shux_panic_(0, 0); }
+  unsafe { xlang_panic_(0, 0); }
 }
 
 /** Exported function `runtime_abort`.
@@ -46,5 +46,5 @@ export function runtime_panic(): void {
  * @return void
  */
 export function runtime_abort(): void {
-  unsafe { shux_panic_(0, 0); }
+  unsafe { xlang_panic_(0, 0); }
 }

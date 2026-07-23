@@ -2,11 +2,11 @@
 # F-process v1：std.process 去 C（process.x + runtime 胶层）。
 #
 # 用法：./tests/run-f-process-v1-gate.sh
-# 环境：SHUX_F_PROCESS_V1_FAIL=1 — 失败时硬退出
+# 环境：XLANG_F_PROCESS_V1_FAIL=1 — 失败时硬退出
 set -e
 cd "$(dirname "$0")/.."
 
-FAIL=${SHUX_F_PROCESS_V1_FAIL:-0}
+FAIL=${XLANG_F_PROCESS_V1_FAIL:-0}
 DOC="analysis/phase-f-process-v1.md"
 MANIFEST="tests/baseline/f-process-v1-closure.tsv"
 
@@ -49,10 +49,10 @@ fi
 
 make -C compiler -q runtime_process_os_glue.o 2>/dev/null || make -C compiler runtime_process_os_glue.o >/dev/null 2>&1 || die "runtime_process_os_glue.o build failed"
 
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler runtime_process_argv.o ../std/process/process.o >/dev/null 2>&1 || die "make process.o failed"
 else
-  echo "f-process-v1 SKIP process.o build (no shux-c)" >&2
+  echo "f-process-v1 SKIP process.o build (no xlang-c)" >&2
 fi
 
 if [ -f tests/run-std-process-xplat-gate.sh ]; then

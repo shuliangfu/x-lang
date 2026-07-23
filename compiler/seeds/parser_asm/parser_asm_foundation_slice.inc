@@ -1,5 +1,5 @@
 /* parser_asm_foundation_slice.inc — G-02f-329 P20 expr foundation
- * Hybrid: SHUX_PTHIN_FOUNDATION_FROM_X via seeds/pthin_foundation.from_x.c
+ * Hybrid: XLANG_PTHIN_FOUNDATION_FROM_X via seeds/pthin_foundation.from_x.c
  * arena_expr_get / arena_expr_set / expr_set_common_zeros
  * lexer_init is in the seed TU (and default mega wrap) separately.
  */
@@ -22,8 +22,8 @@ static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_
   int trace_ty;
   int trace_hit;
   memcpy(&e, &ae, sizeof(e));
-  trace_name = getenv("SHUX_TRACE_EXPR_NAME");
-  trace_type = getenv("SHUX_TRACE_TYPE_REF");
+  trace_name = getenv("XLANG_TRACE_EXPR_NAME");
+  trace_type = getenv("XLANG_TRACE_TYPE_REF");
   trace_ty = 0;
   trace_hit = 0;
   if (trace_name && *trace_name && e.var_name_len > 0) {

@@ -28,20 +28,20 @@ if ! grep -qF "unsigned_wrap_ok.x" "$MANIFEST" 2>/dev/null; then
 fi
 echo "signed-overflow manifest OK"
 
-# shellcheck source=tests/lib/bootstrap-link-shux.sh
-. "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-SHUX_BIN="${SHUX:-${RUN_SHUX:-./compiler/shux-c}}"
-if [ ! -x "$SHUX_BIN" ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-  SHUX_BIN=./compiler/shux-c
+# shellcheck source=tests/lib/bootstrap-link-xlang.sh
+. "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
+XLANG_BIN="${XLANG:-${RUN_XLANG:-./compiler/xlang-c}}"
+if [ ! -x "$XLANG_BIN" ]; then
+  make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
+  XLANG_BIN=./compiler/xlang-c
 fi
 
-if ! "$SHUX_BIN" check -L . "$CASE" >/dev/null 2>&1; then
+if ! "$XLANG_BIN" check -L . "$CASE" >/dev/null 2>&1; then
   echo "signed-overflow gate FAIL: typeck $CASE" >&2
   exit 1
 fi
-EXE="/tmp/shux_unsigned_wrap_$$"
-if ! "$SHUX_BIN" -L . "$CASE" -o "$EXE" >/dev/null 2>&1; then
+EXE="/tmp/xlang_unsigned_wrap_$$"
+if ! "$XLANG_BIN" -L . "$CASE" -o "$EXE" >/dev/null 2>&1; then
   echo "signed-overflow gate FAIL: compile $CASE" >&2
   rm -f "$EXE"
   exit 1

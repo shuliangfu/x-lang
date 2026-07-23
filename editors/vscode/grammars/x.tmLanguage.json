@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Shux",
+  "name": "Xlang",
   "scopeName": "source.x",
   "patterns": [
     { "include": "#comments" },
@@ -29,7 +29,7 @@
           "comment": "属性 #[no_mangle] / #[cfg(...)] / #[repr(C)] / #[repr(compatible)] / #[soa] / #[alloc]",
           "match": "#\\[([a-zA-Z_][a-zA-Z0-9_]*(?:\\([^)]*\\))?)\\]",
           "captures": {
-            "0": { "name": "meta.attribute.shux" },
+            "0": { "name": "meta.attribute.xlang" },
             "1": { "name": "entity.other.attribute-name" }
           }
         },
@@ -37,7 +37,7 @@
           "comment": "allow(padding) 直接前缀形式（非 #[...] 属性）",
           "match": "\\ballow\\((padding)\\)",
           "captures": {
-            "0": { "name": "meta.attribute.shux" },
+            "0": { "name": "meta.attribute.xlang" },
             "1": { "name": "constant.other.attribute" }
           }
         }
@@ -89,7 +89,7 @@
           "comment": "结构体定义体：字段名与类型分色（支持 allow(padding) 前缀）",
           "begin": "(\\b(?:allow\\(padding\\)\\s+)?)(struct)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{",
           "beginCaptures": {
-            "1": { "name": "meta.attribute.shux" },
+            "1": { "name": "meta.attribute.xlang" },
             "2": { "name": "storage.type" },
             "3": { "name": "entity.name.type" }
           },

@@ -3,54 +3,54 @@
 # 阶段：typeck + heap alloc_f32 链 + push/len/deinit + vec3f_soa_sum_x 列扫描。
 # 用法：
 #   ./tests/run-dod-s2-gate.sh
-#   SHUX=./compiler/shux_asm ./tests/run-dod-s2-gate.sh
-#   SHUX_ABI_F32_XMM=1 SHUX=./compiler/shux_asm ./tests/run-dod-s2-gate.sh  # vec3f push gp/xmm + 禁 cvtsd2ss
+#   XLANG=./compiler/xlang_asm ./tests/run-dod-s2-gate.sh
+#   XLANG_ABI_F32_XMM=1 XLANG=./compiler/xlang_asm ./tests/run-dod-s2-gate.sh  # vec3f push gp/xmm + 禁 cvtsd2ss
 set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/dod-native-exe.sh
 source "$(dirname "$0")/lib/dod-native-exe.sh"
 
-SHUX_BIN="${SHUX:-}"
-case "$SHUX_BIN" in
-  /*) SHUX_ABS="$SHUX_BIN" ;;
-  "") SHUX_ABS="" ;;
-  *) SHUX_ABS="$(pwd)/$SHUX_BIN" ;;
+XLANG_BIN="${XLANG:-}"
+case "$XLANG_BIN" in
+  /*) XLANG_ABS="$XLANG_BIN" ;;
+  "") XLANG_ABS="" ;;
+  *) XLANG_ABS="$(pwd)/$XLANG_BIN" ;;
 esac
 
-if [ -z "$SHUX_ABS" ] || ! dod_native_exe "$SHUX_ABS"; then
-  SHUX_ABS=""
-  for cand in ./compiler/shux ./compiler/shux_asm; do
+if [ -z "$XLANG_ABS" ] || ! dod_native_exe "$XLANG_ABS"; then
+  XLANG_ABS=""
+  for cand in ./compiler/xlang ./compiler/xlang_asm; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
     if dod_native_exe "$abs"; then
-      SHUX_ABS="$abs"
+      XLANG_ABS="$abs"
       break
     fi
   done
 fi
 
-CHECK_SHUX="$SHUX_ABS"
-if [ -z "$CHECK_SHUX" ] && [ -x ./compiler/shux-c ]; then
-  CHECK_SHUX=./compiler/shux-c
+CHECK_XLANG="$XLANG_ABS"
+if [ -z "$CHECK_XLANG" ] && [ -x ./compiler/xlang-c ]; then
+  CHECK_XLANG=./compiler/xlang-c
 fi
 
-# dod-s2 是否走 xmm ABI（默认开；仅 SHUX_ABI_F32_XMM=0 为 legacy）。
+# dod-s2 是否走 xmm ABI（默认开；仅 XLANG_ABI_F32_XMM=0 为 legacy）。
 dod_s2_xmm_abi_active() {
-  [ "${SHUX_ABI_F32_XMM:-1}" != "0" ]
+  [ "${XLANG_ABI_F32_XMM:-1}" != "0" ]
 }
 
 echo "=== DOD-S2: std.vec Vec3f_soa / Vec3f_aos smoke ==="
 if dod_s2_xmm_abi_active; then
-  echo "dod-s2: f32 xmm ABI active (default; SHUX_ABI_F32_XMM=0 for legacy cvtsd2ss)"
+  echo "dod-s2: f32 xmm ABI active (default; XLANG_ABI_F32_XMM=0 for legacy cvtsd2ss)"
 else
-  echo "dod-s2: SHUX_ABI_F32_XMM=0 (legacy f64 widen + cvtsd2ss)"
+  echo "dod-s2: XLANG_ABI_F32_XMM=0 (legacy f64 widen + cvtsd2ss)"
 fi
 
-# shux_asm 编译：默认 xmm；legacy 时显式传 SHUX_ABI_F32_XMM=0。
+# xlang_asm 编译：默认 xmm；legacy 时显式传 XLANG_ABI_F32_XMM=0。
 dod_s2_shu_compile() {
   if dod_s2_xmm_abi_active; then
-    SHUX="$SHUX_ABS" "$SHUX_ABS" "$@"
+    XLANG="$XLANG_ABS" "$XLANG_ABS" "$@"
   else
-    env SHUX_ABI_F32_XMM=0 SHUX="$SHUX_ABS" "$SHUX_ABS" "$@"
+    env XLANG_ABI_F32_XMM=0 XLANG="$XLANG_ABS" "$XLANG_ABS" "$@"
   fi
 }
 
@@ -59,48 +59,48 @@ mkdir -p "$OUT_DIR"
 SMOKE_SRC="tests/vec/vec3f_soa_smoke.x"
 SUM_SRC="tests/vec/vec3f_soa_sum_smoke.x"
 MAIN_SRC="tests/vec/main.x"
-SMOKE_OUT="$OUT_DIR/shux_vec3f_soa_smoke"
-SUM_OUT="$OUT_DIR/shux_vec3f_soa_sum_smoke"
-MAIN_OUT="$OUT_DIR/shux_vec_main"
+SMOKE_OUT="$OUT_DIR/xlang_vec3f_soa_smoke"
+SUM_OUT="$OUT_DIR/xlang_vec3f_soa_sum_smoke"
+MAIN_OUT="$OUT_DIR/xlang_vec_main"
 rm -f "$SMOKE_OUT" "$SUM_OUT" "$MAIN_OUT"
 
-if [ -z "$CHECK_SHUX" ] && [ -z "$SHUX_ABS" ]; then
-  echo "dod-s2 gate SKIP (no shux/shux-c/shux_asm)"
+if [ -z "$CHECK_XLANG" ] && [ -z "$XLANG_ABS" ]; then
+  echo "dod-s2 gate SKIP (no xlang/xlang-c/xlang_asm)"
   exit 0
 fi
 
 # typeck：Vec3f_soa / Vec3f_aos API
-if [ -n "$CHECK_SHUX" ]; then
-  if "$CHECK_SHUX" check -L . "$SMOKE_SRC" >/dev/null 2>&1; then
+if [ -n "$CHECK_XLANG" ]; then
+  if "$CHECK_XLANG" check -L . "$SMOKE_SRC" >/dev/null 2>&1; then
     echo "dod-s2: vec3f_soa_smoke typeck OK"
   else
     echo "dod-s2 FAIL: typeck $SMOKE_SRC" >&2
-    "$CHECK_SHUX" check -L . "$SMOKE_SRC" 2>&1 || true
+    "$CHECK_XLANG" check -L . "$SMOKE_SRC" 2>&1 || true
     exit 1
   fi
-  if "$CHECK_SHUX" check -L . "$SUM_SRC" >/dev/null 2>&1; then
+  if "$CHECK_XLANG" check -L . "$SUM_SRC" >/dev/null 2>&1; then
     echo "dod-s2: vec3f_soa_sum_smoke typeck OK"
   else
     echo "dod-s2 FAIL: typeck $SUM_SRC" >&2
-    "$CHECK_SHUX" check -L . "$SUM_SRC" 2>&1 || true
+    "$CHECK_XLANG" check -L . "$SUM_SRC" 2>&1 || true
     exit 1
   fi
 else
   echo "dod-s2: typeck SKIP (no check-capable compiler)"
 fi
 
-if [ -z "$SHUX_ABS" ] || ! dod_native_exe "$SHUX_ABS"; then
-  echo "dod-s2: typeck-only OK (no native shux_asm for asm link/run)"
+if [ -z "$XLANG_ABS" ] || ! dod_native_exe "$XLANG_ABS"; then
+  echo "dod-s2: typeck-only OK (no native xlang_asm for asm link/run)"
   echo "dod-s2 gate OK"
   exit 0
 fi
 
-# F-03 v2：heap 已纯 .x，shux asm 链按需 -lc，不再 cc -c heap.c
+# F-03 v2：heap 已纯 .x，xlang asm 链按需 -lc，不再 cc -c heap.c
 
 # asm 链：Vec3f + std.heap f32 分配符号可链接
-if ! dod_s2_shu_compile -backend asm -L . "$SMOKE_SRC" -o "$SMOKE_OUT" 2>/tmp/shux_dod_s2_build.log; then
+if ! dod_s2_shu_compile -backend asm -L . "$SMOKE_SRC" -o "$SMOKE_OUT" 2>/tmp/xlang_dod_s2_build.log; then
   echo "dod-s2 FAIL: compile $SMOKE_SRC" >&2
-  tail -8 /tmp/shux_dod_s2_build.log 2>/dev/null || true
+  tail -8 /tmp/xlang_dod_s2_build.log 2>/dev/null || true
   exit 1
 fi
 if [ ! -x "$SMOKE_OUT" ]; then
@@ -132,9 +132,9 @@ if dod_s2_xmm_abi_active && command -v objdump >/dev/null 2>&1; then
 fi
 
 # heap SoA 列扫描：1+2+3=6（vec3f_soa_sum_x + addss）
-if ! dod_s2_shu_compile -backend asm -L . "$SUM_SRC" -o "$SUM_OUT" 2>/tmp/shux_dod_s2_sum_build.log; then
+if ! dod_s2_shu_compile -backend asm -L . "$SUM_SRC" -o "$SUM_OUT" 2>/tmp/xlang_dod_s2_sum_build.log; then
   echo "dod-s2 FAIL: compile $SUM_SRC" >&2
-  tail -8 /tmp/shux_dod_s2_sum_build.log 2>/dev/null || true
+  tail -8 /tmp/xlang_dod_s2_sum_build.log 2>/dev/null || true
   exit 1
 fi
 if [ ! -x "$SUM_OUT" ]; then
@@ -157,9 +157,9 @@ if command -v objdump >/dev/null 2>&1; then
 fi
 
 # std.vec 基础 API run（无 Vec 按值传参）
-if ! dod_s2_shu_compile -L . "$MAIN_SRC" -o "$MAIN_OUT" 2>/tmp/shux_dod_s2_main_build.log; then
+if ! dod_s2_shu_compile -L . "$MAIN_SRC" -o "$MAIN_OUT" 2>/tmp/xlang_dod_s2_main_build.log; then
   echo "dod-s2 FAIL: compile $MAIN_SRC" >&2
-  tail -8 /tmp/shux_dod_s2_main_build.log 2>/dev/null || true
+  tail -8 /tmp/xlang_dod_s2_main_build.log 2>/dev/null || true
   exit 1
 fi
 RC=0

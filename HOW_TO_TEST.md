@@ -11,13 +11,13 @@
 ## 构建步骤（按顺序，不能跳过）
 
 ```bash
-cd /path/to/shux
+cd /path/to/xlang
 
-# 1. 编译器构建（必须用 SHUX_LEGACY_C_FRONTEND=1）
-make -C compiler shux-c SHUX_LEGACY_C_FRONTEND=1 -B
+# 1. 编译器构建（必须用 XLANG_LEGACY_C_FRONTEND=1）
+make -C compiler xlang-c XLANG_LEGACY_C_FRONTEND=1 -B
 
-# 2. 预编译所有 std .o 文件（必须用 SHUX_COMPILE_STD_USE_C=1）
-make -C compiler std-objs SHUX_COMPILE_STD_USE_C=1
+# 2. 预编译所有 std .o 文件（必须用 XLANG_COMPILE_STD_USE_C=1）
+make -C compiler std-objs XLANG_COMPILE_STD_USE_C=1
 
 # 3. 预编译 core/slice/slice.o
 make -C compiler ../core/slice/slice.o
@@ -40,44 +40,44 @@ CI=1 ./tests/run-all.sh
 ## 从零开始（clean rebuild）
 
 ```bash
-cd /path/to/shux
+cd /path/to/xlang
 find . -name '*.o' -not -path './.git/*' -delete
-make -C compiler shux-c SHUX_LEGACY_C_FRONTEND=1 -B
-make -C compiler std-objs SHUX_COMPILE_STD_USE_C=1
+make -C compiler xlang-c XLANG_LEGACY_C_FRONTEND=1 -B
+make -C compiler std-objs XLANG_COMPILE_STD_USE_C=1
 make -C compiler ../core/slice/slice.o
 CI=1 ./tests/run-all.sh
 ```
 
 ## 常见错误及修复
 
-### `make all` 覆盖 shux-c
-run-all.sh 内部会跑 `make -C compiler all`，默认 target 会把 shux-c 覆盖成
-bootstrap_shuxc（.x pipeline，3.9MB），导致 62+ 测试失败。
-run-all.sh 自己会在后面用 `make -B SHUX_LEGACY_C_FRONTEND=1 shux-c` 恢复，
-但如果 std .o 是被覆盖期间用错误 shux-c 编译的，需要删掉重建：
+### `make all` 覆盖 xlang-c
+run-all.sh 内部会跑 `make -C compiler all`，默认 target 会把 xlang-c 覆盖成
+bootstrap_xlangc（.x pipeline，3.9MB），导致 62+ 测试失败。
+run-all.sh 自己会在后面用 `make -B XLANG_LEGACY_C_FRONTEND=1 xlang-c` 恢复，
+但如果 std .o 是被覆盖期间用错误 xlang-c 编译的，需要删掉重建：
 
 ```bash
 find std core -name '*.o' -delete
-make -C compiler shux-c SHUX_LEGACY_C_FRONTEND=1 -B
-make -C compiler std-objs SHUX_COMPILE_STD_USE_C=1
+make -C compiler xlang-c XLANG_LEGACY_C_FRONTEND=1 -B
+make -C compiler std-objs XLANG_COMPILE_STD_USE_C=1
 make -C compiler ../core/slice/slice.o
 ```
 
 ### Linux ntohl/ntohs 编译失败
 std/net 模块用了 `extern function ntohl(...)` 等声明。在 Linux 上 `ntohl` 在
-`arpa/inet.h` 中声明，但直接 `#include <arpa/inet.h>` 会与 shux 的
+`arpa/inet.h` 中声明，但直接 `#include <arpa/inet.h>` 会与 xlang 的
 `extern function bind(...)` 等声明冲突（签名不同）。
 解决方向：不全局 include，改为在生成的 C 里只声明 ntohl/ntohs 的原型，
-或让 shux 的 extern 声明与系统签名对齐。
+或让 xlang 的 extern 声明与系统签名对齐。
 
 ### macOS net 测试失败（bind EPERM）
 macOS 受管沙箱禁止 `bind()` 系统调用（纯 C 也 `Operation not permitted`）。
 这不是代码问题，需要在能联网的环境（如 ubuntu-server）跑。
 
 ## 构建产物说明
-- `compiler/shux-c` — 真正的 C 前端编译器（约 1MB），用 SHUX_LEGACY_C_FRONTEND=1 构建
-- `compiler/shux` — bootstrap-driver-seed（约 373KB），用于 typeck/check
-- `std/*/*.o` — std 库预编译目标文件，用 SHUX_COMPILE_STD_USE_C=1 构建
+- `compiler/xlang-c` — 真正的 C 前端编译器（约 1MB），用 XLANG_LEGACY_C_FRONTEND=1 构建
+- `compiler/xlang` — bootstrap-driver-seed（约 373KB），用于 typeck/check
+- `std/*/*.o` — std 库预编译目标文件，用 XLANG_COMPILE_STD_USE_C=1 构建
 - `core/slice/slice.o` — slice 构造薄封装，用 Makefile 规则构建
 
 ## 测试范围

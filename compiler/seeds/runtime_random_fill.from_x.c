@@ -63,7 +63,7 @@ BCRYPT_ALG_HANDLE random_get_alg_impl(void) {
     return g_random_alg;
 }
 
-#ifndef SHUX_RUNTIME_RANDOM_FILL_FROM_X
+#ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 BCRYPT_ALG_HANDLE random_get_alg(void) {
     return random_get_alg_impl();

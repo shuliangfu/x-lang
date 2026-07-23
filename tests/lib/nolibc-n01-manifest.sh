@@ -6,10 +6,10 @@
 #   nolibc_n01_audit_manifest tests/baseline/nolibc-n01-preparation.tsv || exit 1
 
 # P0 syscall 符号须在 freestanding_io_x86_64.s 中存在。
-NOLIBC_N01_P0_SYSCALLS="shux_sys_write shux_sys_read shux_sys_open shux_sys_close shux_sys_exit shux_sys_mmap shux_sys_munmap shux_sys_openat"
+NOLIBC_N01_P0_SYSCALLS="xlang_sys_write xlang_sys_read xlang_sys_open xlang_sys_close xlang_sys_exit xlang_sys_mmap xlang_sys_munmap xlang_sys_openat"
 
 # NL-02 socket syscall 符号。
-NOLIBC_N01_SOCKET_SYSCALLS="shux_sys_socket shux_sys_connect shux_sys_bind shux_sys_listen shux_sys_accept"
+NOLIBC_N01_SOCKET_SYSCALLS="xlang_sys_socket xlang_sys_connect xlang_sys_bind xlang_sys_listen xlang_sys_accept"
 
 # 审计 freestanding_io .s 是否包含给定符号列表（空格分隔）。
 nolibc_n01_audit_asm_syms() {
@@ -75,11 +75,11 @@ nolibc_n01_audit_manifest() {
   return 0
 }
 
-# 审计 linux.x 至少声明 shux_sys_write extern。
+# 审计 linux.x 至少声明 xlang_sys_write extern。
 nolibc_n01_audit_sys_linux() {
   local f="${1:-std/sys/linux.x}"
-  grep -q 'extern function shux_sys_write' "$f" || {
-    echo "nolibc-n01: $f missing shux_sys_write extern" >&2
+  grep -q 'extern function xlang_sys_write' "$f" || {
+    echo "nolibc-n01: $f missing xlang_sys_write extern" >&2
     return 1
   }
   return 0

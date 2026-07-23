@@ -19,9 +19,9 @@ export function asm_backend_compat_stubs_x_doc_anchor(): i32 {
 
 /* ---- G-02f-99 / G-02f-139：format ---- */
 
-// shu_format_u32_to_buf: see function docblock below.
-/** Exported function `shu_format_u32_to_buf`.
- * Implements `shu_format_u32_to_buf`.
+// xlang_format_u32_to_buf: see function docblock below.
+/** Exported function `xlang_format_u32_to_buf`.
+ * Implements `xlang_format_u32_to_buf`.
  * @param buf *u8
  * @param off i32
  * @param max i32
@@ -29,7 +29,7 @@ export function asm_backend_compat_stubs_x_doc_anchor(): i32 {
  * @return i32
  */
 #[no_mangle]
-export function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32 {
+export function xlang_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32 {
   if (buf == 0) { return 0 - 1; }
   if (max < 1) { return 0 - 1; }
   let tmp: u8[10] = [];
@@ -56,14 +56,14 @@ export function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32
   return num_digits;
 }
 
-/** Exported function `shu_elf_ctx_append_u32_le`.
- * Implements `shu_elf_ctx_append_u32_le`.
+/** Exported function `xlang_elf_ctx_append_u32_le`.
+ * Implements `xlang_elf_ctx_append_u32_le`.
  * @param elf_ctx *u8
  * @param word u32
  * @return i32
  */
 #[no_mangle]
-export function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
+export function xlang_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   let b0: u8 = (word & 255) as u8;
   let b1: u8 = ((word / 256) & 255) as u8;
@@ -80,25 +80,25 @@ export function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   return r;
 }
 
-/** Exported function `shu_arm64_mov_imm32_to_w0_c`.
- * Implements `shu_arm64_mov_imm32_to_w0_c`.
+/** Exported function `xlang_arm64_mov_imm32_to_w0_c`.
+ * Implements `xlang_arm64_mov_imm32_to_w0_c`.
  * @param elf_ctx *u8
  * @param imm32 i32
  * @return i32
  */
 #[no_mangle]
-export function shu_arm64_mov_imm32_to_w0_c(elf_ctx: *u8, imm32: i32): i32 {
+export function xlang_arm64_mov_imm32_to_w0_c(elf_ctx: *u8, imm32: i32): i32 {
   // See implementation.
   let u: u32 = imm32 as u32;
   let lo: u32 = u & 65535;
   let hi: u32 = (u / 65536) & 65535;
   // 0x52800000 | (lo << 5)
-  if (shu_elf_ctx_append_u32_le(elf_ctx, 1384120320 | (lo * 32)) != 0) {
+  if (xlang_elf_ctx_append_u32_le(elf_ctx, 1384120320 | (lo * 32)) != 0) {
     return 0 - 1;
   }
   if (hi != 0) {
     // 0x72800000 | (hi << 5)
-    if (shu_elf_ctx_append_u32_le(elf_ctx, 1920991232 | (hi * 32)) != 0) {
+    if (xlang_elf_ctx_append_u32_le(elf_ctx, 1920991232 | (hi * 32)) != 0) {
       return 0 - 1;
     }
   }

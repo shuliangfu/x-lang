@@ -4,7 +4,7 @@
 read_path	section	## 1. 阅读路径	analysis/safe-leak-nightly-v1.md	-	15min
 asan	section	## 2. ASAN/LSAN 策略	analysis/safe-leak-nightly-v1.md	-	detect_leaks
 cases	section	## 3. 夜跑用例矩阵	safe-leak-nightly.tsv	-	no_leak
-report	section	## 4. 报告格式	analysis/safe-leak-nightly-v1.md	-	SHUX_LEAK_NIGHTLY
+report	section	## 4. 报告格式	analysis/safe-leak-nightly-v1.md	-	XLANG_LEAK_NIGHTLY
 schedule	section	## 5. 调度与门禁	analysis/safe-leak-nightly-v1.md	-	ci-nightly
 case_heap	case	no_leak_heap	tests/leak/no_leak_heap.x	heap	alloc+free
 case_ffi	case	no_leak_ffi	tests/leak/no_leak_ffi.x	ffi	cstring

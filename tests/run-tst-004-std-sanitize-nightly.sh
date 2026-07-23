@@ -3,18 +3,18 @@
 #
 # 用法：./tests/run-tst-004-std-sanitize-nightly.sh
 # 环境：
-#   SHUX_TST004_FAIL_ON_ERROR=1 — 任一案失败则 exit 1（默认）
+#   XLANG_TST004_FAIL_ON_ERROR=1 — 任一案失败则 exit 1（默认）
 set -e
 cd "$(dirname "$0")/.."
 
-MANIFEST="${SHUX_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
+MANIFEST="${XLANG_TST004_TSV:-tests/baseline/tst-004-std-sanitize.tsv}"
 LIB="tests/lib/tst-004-std-sanitize.sh"
 # shellcheck source=tests/lib/tst-004-std-sanitize.sh
 . "$LIB"
 
-[ "${SHUX_TST004_FAIL_ON_ERROR:-1}" = "1" ] && FAIL_ON_ERR=1 || FAIL_ON_ERR=0
+[ "${XLANG_TST004_FAIL_ON_ERROR:-1}" = "1" ] && FAIL_ON_ERR=1 || FAIL_ON_ERR=0
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -26,11 +26,11 @@ native_shu() {
   esac
 }
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux; do
-    if native_shu "$cand"; then
-      SHUX_BIN="$cand"
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ]; then
+  for cand in ./compiler/xlang-c ./compiler/xlang; do
+    if native_xlang "$cand"; then
+      XLANG_BIN="$cand"
       break
     fi
   done
@@ -44,8 +44,8 @@ if ! safe_leak_asan_ok; then
   exit 0
 fi
 
-if [ -z "$SHUX_BIN" ] || ! native_shu "$SHUX_BIN"; then
-  echo "tst-004-sanitize-nightly SKIP: no native shux" >&2
+if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then
+  echo "tst-004-sanitize-nightly SKIP: no native xlang" >&2
   tst004_sanitize_emit_report skip 0 0 1
   exit 0
 fi
@@ -54,7 +54,7 @@ if [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/lib ]; then
   export LIBRARY_PATH="/opt/homebrew/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
 fi
 
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
 
 OK=0
 FAIL=0
@@ -63,7 +63,7 @@ while IFS=$'\t' read -r item_id kind _anchor src needs_o _notes; do
   case "$item_id" in
     case_*)
       tst004_sanitize_ensure_o "${needs_o:--}"
-      if tst004_sanitize_run_case "$SHUX_BIN" "$src" "$item_id"; then
+      if tst004_sanitize_run_case "$XLANG_BIN" "$src" "$item_id"; then
         echo "tst-004-sanitize-nightly OK $item_id"
         OK=$((OK + 1))
       else

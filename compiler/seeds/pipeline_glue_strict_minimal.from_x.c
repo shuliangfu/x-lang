@@ -13,7 +13,7 @@
  *
  * strict_core partial 已含 pipeline_x 几乎全部符号；本 TU 仅补 runtime 入口与裸名 parse_into_init。
  */
-#include <shux_weak.h>
+#include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <limits.h>
@@ -104,7 +104,7 @@ struct ast_Block {
   int32_t num_stmt_order;
   int32_t parent_block_ref;
 };
-struct shux_slice_uint8_t {
+struct xlang_slice_uint8_t {
   uint8_t *data;
   int32_t len;
 };
@@ -113,22 +113,22 @@ struct parser_ParseIntoResult {
   int32_t main_idx;
 };
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name,
+XLANG_WEAK void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name,
                                                                 int32_t name_len, int32_t num_generic_params,
                                                                 int32_t is_main) {
   extern void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name,
                                                    int32_t name_len, int32_t num_generic_params, int32_t is_main);
   driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+XLANG_WEAK void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
                                                               int32_t block_ref, uint8_t *pool, int32_t final_expr_ref) {
   extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
   extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
@@ -150,12 +150,12 @@ SHUX_WEAK void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, ui
                                        pool ? pipeline_onefunc_num_src_stmt_order(pool) : 0,
                                        0, 0, 0, 0, 0, final_expr_ref);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
+XLANG_WEAK void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
                                                                int32_t block_ref, uint8_t *pool) {
   extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
   extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
@@ -187,9 +187,9 @@ SHUX_WEAK void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, u
                                        arena ? ast_ast_block_num_stmt_order(arena, block_ref) : 0,
                                        arena ? ast_ast_block_final_expr_ref(arena, block_ref) : 0);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 // #region debug-point A:try-propagate-state
 /* G-02f-155：逻辑源 .x 门闩；seed 保留 curl/system 调试体（语言限制） */
@@ -201,7 +201,7 @@ void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32
   char url[256];
   char session[64];
   char cmd[2048];
-  const char *enabled = getenv("SHUX_DEBUG_RESULT_TRY");
+  const char *enabled = getenv("XLANG_DEBUG_RESULT_TRY");
   (void)arena;
   if (!enabled || enabled[0] == '\0' || enabled[0] == '0')
     return;
@@ -230,7 +230,7 @@ void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32
            url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
   (void)system(cmd);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 // #endregion
 
 enum ast_TypeKind {
@@ -548,9 +548,9 @@ extern int32_t pipeline_dep_ctx_scope_region_len_at(struct ast_PipelineDepCtx *c
 extern int32_t pipeline_block_set_let_type_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t let_idx,
                                               int32_t type_ref);
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_c(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                                     struct shux_slice_uint8_t *source);
+                                                                     struct xlang_slice_uint8_t *source);
 extern int32_t pipeline_parse_into_with_init_slice_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                                   struct shux_slice_uint8_t *source);
+                                                                   struct xlang_slice_uint8_t *source);
 extern int32_t pipeline_parse_scalars_ok_get(void);
 extern int32_t pipeline_parse_scalars_main_idx_get(void);
 extern void pipeline_module_set_main_func_index(struct ast_Module *module, int32_t idx);
@@ -595,22 +595,22 @@ static int32_t g_typeck_linear_moved_lens[TYPECK_LINEAR_MOVED_MAX];
 /** runtime 期望的程序入口名。 */
 extern int32_t driver_run_compiler_full(int32_t argc, char **argv);
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /** runtime 期望的程序入口名；weak 以便与 asm_experimental_symbol_bridge 共存（B-strict 链 build_asm/pipeline.o 时）。 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t main_entry(int32_t argc, char **argv) {
+XLANG_WEAK int32_t main_entry(int32_t argc, char **argv) {
   return driver_run_compiler_full(argc, argv);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
+XLANG_WEAK int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
   return driver_run_compiler_full(argc, (char **)argv);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 /* codegen_x_ast：唯一权威在 codegen_x.o（codegen.x）。
  * 禁止在此提供 weak return(-1) 桩——产品链同时有 codegen_x.o 与本 glue 时，
@@ -619,36 +619,36 @@ SHUX_WEAK int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
 /** runtime 调用的裸名 parse_into_init → partial 导出的 parser_parse_into_init。 */
 extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTArena *arena);
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁）；seed 保留 debug getenv 冷路径 */
-SHUX_WEAK int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi) {
+XLANG_WEAK int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi) {
   int32_t n = pipeline_module_func_num_generic_params_at(m, fi);
-  if (getenv("SHUX_DEBUG_FUNC_GENERIC_GET"))
+  if (getenv("XLANG_DEBUG_FUNC_GENERIC_GET"))
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "func generic get: fi=%d n=%d", (int)fi, (int)n);
   return n;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void parse_into_init(void *module, void *arena) {
   parser_parse_into_init((struct ast_Module *)module, (struct ast_ASTArena *)arena);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 /** strict minimal 不链 glue_standalone 时，runtime / pipeline_x 仍需要这两个默认桥接入口。 */
 extern int32_t pipeline_lsp_diag_parse_typeck_buf_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          uint8_t *source_data, int32_t source_len,
                                                          struct ast_PipelineDepCtx *ctx);
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                                    struct shux_slice_uint8_t *source,
+XLANG_WEAK int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                                    struct xlang_slice_uint8_t *source,
                                                                     struct ast_PipelineDepCtx *ctx) {
   int32_t ok;
   int32_t main_idx;
@@ -678,32 +678,32 @@ SHUX_WEAK int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *are
   }
   return tc;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                             struct shux_slice_uint8_t *source,
+XLANG_WEAK int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                             struct xlang_slice_uint8_t *source,
                                                              struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   uint8_t *source_data, int32_t source_len,
                                                                   struct ast_PipelineDepCtx *ctx) {
   return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module,
+XLANG_WEAK int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module,
                                                                    struct ast_ASTArena *arena, int32_t li,
                                                                    int32_t depth) {
   int32_t sz = 0;
@@ -714,12 +714,12 @@ SHUX_WEAK int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module,
     return 0;
   return sz;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module,
+XLANG_WEAK int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module,
                                                                     struct ast_ASTArena *arena, int32_t li,
                                                                     int32_t depth) {
   int32_t sz = 0;
@@ -730,12 +730,12 @@ SHUX_WEAK int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module
     return 1;
   return al > 0 ? al : 1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
+XLANG_WEAK int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena, int32_t elem_type_ref,
                                                                  int32_t array_len, int32_t depth) {
   uint8_t name[64];
@@ -783,23 +783,23 @@ SHUX_WEAK int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
   }
   return col > 0 ? col : 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 static struct ast_Module *g_typeck_entry_module_for_dep_map_strict_minimal;
 
-SHUX_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+XLANG_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
                                                                                      int32_t dep_return_type_ref,
                                                                                      struct ast_ASTArena *caller_arena,
                                                                                      struct ast_PipelineDepCtx *ctx);
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
+XLANG_WEAK void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
   g_typeck_entry_module_for_dep_map_strict_minimal = module;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, int32_t len) {
@@ -810,12 +810,12 @@ int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, i
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
@@ -854,10 +854,10 @@ int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *arena, i
   }
   return 1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Module *module, int32_t dep_ix,
@@ -875,10 +875,10 @@ int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Modu
   }
   return 1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct ast_Module *mod, uint8_t *name,
@@ -1103,10 +1103,10 @@ static int32_t pipeline_typeck_pick_func_index_by_name_args_strict_minimal(
     return best_ix;
   return first_match;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* W-heap-overload：call_expr_ref>0 时按实参类型分派（METHOD_CALL/CALL）。 */
@@ -1137,10 +1137,10 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_mini
     return ret_ty;
   return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, caller_arena, ctx);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct ast_Module *entry_mod,
@@ -1167,10 +1167,10 @@ int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct
   qlen = bl + 1 + nlen;
   return pipeline_type_find_or_alloc_named(caller_arena, qnm, qlen);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTArena *dep_arena,
@@ -1233,13 +1233,13 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTA
     return 0;
   return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+XLANG_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   int32_t kind;
   (void)g_typeck_entry_module_for_dep_map_strict_minimal;
   if (a == 0 || b == 0)
@@ -1272,12 +1272,12 @@ SHUX_WEAK int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, 
     return 1;
   }
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
+XLANG_WEAK int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
                                                                       int32_t addr_expr_ref, struct ast_Module *module,
                                                                       struct ast_PipelineDepCtx *ctx) {
   int32_t vnlen;
@@ -1319,9 +1319,9 @@ reject:
   driver_diagnostic_typeck_linear_addr_of(line, col);
   return -1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /**
  * strict minimal 链在 Darwin 上默认不链接 pipeline_glue_standalone.o，
@@ -1344,19 +1344,19 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
     return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op_ref, ctx, ta);
   }
   /* #region debug-point A:context-cg002-addr-of-fallback */
-  if (getenv("SHUX_ASM_DEBUG")) {
-    fprintf(stderr, "shux: addr_of elf fallback expr_ref=%d op_ref=%d op_kind=%d\n",
+  if (getenv("XLANG_ASM_DEBUG")) {
+    fprintf(stderr, "xlang: addr_of elf fallback expr_ref=%d op_ref=%d op_kind=%d\n",
             (int)expr_ref, (int)op_ref, (int)op_kind);
   }
   /* #endregion debug-point A:context-cg002-addr-of-fallback */
   return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
+XLANG_WEAK int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                                         int32_t call_expr_ref) {
   int32_t fx;
   int32_t callee_ref;
@@ -1385,40 +1385,40 @@ SHUX_WEAK int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m
   }
   return -1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m,
+XLANG_WEAK int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m,
                                                                                  struct ast_ASTArena *a,
                                                                                  int32_t call_expr_ref) {
   return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 /* G-02f-220：🔒 PipelineDepCtx.typeck_loop_depth 字段写 helper */
-SHUX_WEAK void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth) {
+XLANG_WEAK void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth) {
   if (!ctx)
     return;
   ctx->typeck_loop_depth = depth;
 }
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   int32_t li) {
   (void)module;
   (void)arena;
   (void)li;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
+XLANG_WEAK int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
   static const uint8_t lbl[] = "io_read_ptr";
   int32_t u8_ref;
   if (!arena)
@@ -1428,9 +1428,9 @@ SHUX_WEAK int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTAren
     return 0;
   return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留全局表实现供产品 cc */
 int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name, int32_t name_len) {
@@ -1442,20 +1442,20 @@ int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void pipeline_typeck_linear_reset_c(void) {
+XLANG_WEAK void pipeline_typeck_linear_reset_c(void) {
   g_typeck_linear_moved_n = 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref,
+XLANG_WEAK int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref,
                                                                int32_t expr_ref, uint8_t *name, int32_t name_len) {
   int32_t line;
   int32_t col;
@@ -1480,12 +1480,12 @@ SHUX_WEAK int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, i
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
+XLANG_WEAK int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
                                                                     int32_t init_ref) {
   if (!arena || decl_ref <= 0 || init_ref <= 0)
     return 0;
@@ -1495,9 +1495,9 @@ SHUX_WEAK int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *are
     return 1;
   return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
@@ -1520,10 +1520,10 @@ int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena
     return 0;
   return (ek != sk || memcmp(eb, sb, (size_t)ek) != 0) ? 1 : 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
@@ -1539,10 +1539,10 @@ int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *
              : 0;
 
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, struct ast_Module *mod,
@@ -1566,10 +1566,10 @@ int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, st
   }
   return 1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
@@ -1585,10 +1585,10 @@ void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *aren
   if (col)
     *col = pipeline_expr_col_at(arena, expr_ref);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTArena *arena, int32_t ancestor,
@@ -1611,10 +1611,10 @@ int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTArena *aren
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out,
@@ -1643,10 +1643,10 @@ int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int
       return 0;
   }
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -1665,10 +1665,10 @@ int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *module, str
     return 0;
   return pipeline_block_find_var_decl_block_ref(arena, site_block, name, name_len) > 0 ? 1 : 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -1687,13 +1687,13 @@ int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *mod
     return 0;
   return typeck_name_is_block_local_strict_minimal(module, arena, ctx, vbuf, vlen);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
                                                                           int32_t site_expr_ref, int32_t expect_ref,
                                                                           int32_t src_ref) {
   int32_t line;
@@ -1732,12 +1732,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTAren
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module,
                                                                                   struct ast_ASTArena *arena,
                                                                                   int32_t site_expr_ref,
                                                                                   int32_t left_ref, int32_t right_ref,
@@ -1790,12 +1790,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena,
                                                                                int32_t init_ref, int32_t decl_ty_ref,
                                                                                int32_t decl_kind, int32_t init_kind) {
   if (!arena || init_ref <= 0)
@@ -1823,16 +1823,16 @@ SHUX_WEAK int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_AST
   pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
   return 1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
+XLANG_WEAK void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
   lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t name_len, const char *lit) {
@@ -1842,11 +1842,11 @@ int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t
   lit_len = strlen(lit);
   return name_len == (int32_t)lit_len && memcmp(name, lit, lit_len) == 0 ? 1 : 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-143：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref,
@@ -2023,25 +2023,25 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_ASTArena *arena, int32_t init_ref) {
+XLANG_WEAK int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_ASTArena *arena, int32_t init_ref) {
   if (!arena || init_ref <= 0)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, init_ref) != (int32_t)ast_ExprKind_EXPR_ARRAY_LIT)
     return 0;
   return pipeline_expr_array_lit_num_elems_at(arena, init_ref) == 0 ? 1 : 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_asm_build_import_binding_call_sym_c(const uint8_t *pre, int32_t pre_len,
+XLANG_WEAK int32_t pipeline_asm_build_import_binding_call_sym_c(const uint8_t *pre, int32_t pre_len,
                                                                            const uint8_t *field_name, int32_t field_len,
                                                                            uint8_t *out_name) {
   int32_t pos;
@@ -2073,12 +2073,12 @@ SHUX_WEAK int32_t pipeline_asm_build_import_binding_call_sym_c(const uint8_t *pr
     return -1;
   return pos;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena *arena, int32_t block_ref,
+XLANG_WEAK int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                                           int32_t const_idx) {
   const char *names[64];
   char name_bufs[64][64];
@@ -2102,12 +2102,12 @@ SHUX_WEAK int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTAren
     return 1;
   return pipeline_typeck_const_expr_ref_strict_minimal(arena, init_ref, names, n);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* M-3：region 内未标注 T[] 继承当前域；换新 type_ref，禁止 in-place 改共享池节点。 */
-SHUX_WEAK int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
+XLANG_WEAK int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                                      int32_t let_idx,
                                                                      struct ast_PipelineDepCtx *ctx) {
   int32_t ty_ref;
@@ -2134,26 +2134,26 @@ SHUX_WEAK int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *ar
     return 0;
   return pipeline_block_set_let_type_ref(arena, block_ref, let_idx, stamped);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module,
+XLANG_WEAK void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module,
                                                                    struct ast_ASTArena *arena, int32_t li) {
   (void)module;
   (void)arena;
   (void)li;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc
  * 字面量完整长度 14/22/21/17；并兼容历史短 len 19/18/16 前缀匹配。 */
-SHUX_WEAK int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
+XLANG_WEAK int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
   static const uint8_t n0[] = "read_ptr_slice";
-  static const uint8_t n1[] = "shux_io_read_ptr_slice";
+  static const uint8_t n1[] = "xlang_io_read_ptr_slice";
   static const uint8_t n2[] = "driver_read_ptr_slice";
   static const uint8_t n3[] = "io_read_ptr_slice";
   if (!name || name_len <= 0)
@@ -2175,12 +2175,12 @@ SHUX_WEAK int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int3
     return 1;
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+XLANG_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
                                                                                       int32_t dep_return_type_ref,
                                                                                       struct ast_ASTArena *caller_arena,
                                                                                       struct ast_PipelineDepCtx *ctx) {
@@ -2210,12 +2210,12 @@ SHUX_WEAK int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t 
   }
   return pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena, dep_return_type_ref, caller_arena);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+XLANG_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int64_t value;
   int32_t ty;
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
@@ -2231,12 +2231,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *aren
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty);
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  int32_t expr_ref, int32_t return_type_ref,
                                                                  struct ast_PipelineDepCtx *ctx) {
   int32_t matched_ref;
@@ -2267,9 +2267,9 @@ SHUX_WEAK int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, 
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, return_type_ref);
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /*
@@ -2403,12 +2403,12 @@ int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
     return -1;
   return -1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module,
                                                                           struct ast_ASTArena *arena,
                                                                           int32_t site_expr_ref, int32_t left_ref,
                                                                           int32_t right_ref,
@@ -2453,12 +2453,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module 
   lsp_diag_report_typeck((int)line, (int)col, "scope borrow escape");
   return -1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module,
                                                                               struct ast_ASTArena *arena,
                                                                               int32_t site_expr_ref,
                                                                               int32_t left_ref,
@@ -2470,12 +2470,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Mod
   (void)ctx;
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena,
                                                                           int32_t ret_site_ref, int32_t op_ref,
                                                                           int32_t func_return_ref) {
   int32_t got_ref;
@@ -2517,7 +2517,7 @@ SHUX_WEAK int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTAren
  * M-3 AL-06：region 作用域内 return 未标注 T[] — 与 operand stamp 无关。
  * typeck.x 在类型匹配失败前调用；产品链须导出此符号（非 full pipeline_glue standalone）。
  */
-SHUX_WEAK int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
+XLANG_WEAK int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct ast_ASTArena *arena,
                                                                                   int32_t site_expr_ref,
                                                                                   int32_t return_type_ref,
                                                                                   struct ast_PipelineDepCtx *ctx) {
@@ -2539,9 +2539,9 @@ SHUX_WEAK int32_t pipeline_typeck_check_return_slice_region_in_scope_c(struct as
                          (const char *)ctx->typeck_scope_region_label);
   return -1;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_ASTArena *arena, uint8_t *name,
@@ -2580,13 +2580,13 @@ int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_
     return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module,
                                                                          struct ast_ASTArena *arena, int32_t expr_ref,
                                                                          int32_t return_type_ref,
                                                                          struct ast_PipelineDepCtx *ctx) {
@@ -2638,12 +2638,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, op_ty);
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena,
                                                                         int32_t call_expr_ref,
                                                                         struct ast_PipelineDepCtx *ctx) {
@@ -2680,12 +2680,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *m
   }
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* M-3 / MEM-C1：region 推 scope；with_arena 与 unsafe 分支对齐 full pipeline_glue。 */
-SHUX_WEAK int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t block_ref,
                                                                        int32_t region_idx, int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {
@@ -2722,8 +2722,8 @@ SHUX_WEAK int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *mo
   pipeline_dep_ctx_scope_region_pop_c(ctx);
   return rc;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal(int32_t kind) {
@@ -2731,8 +2731,8 @@ int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal(int32_t kind) {
     return 1;
   return kind >= (int32_t)ast_ExprKind_EXPR_ADD_ASSIGN && kind <= (int32_t)ast_ExprKind_EXPR_SHR_ASSIGN ? 1 : 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *lit) {
@@ -2742,15 +2742,15 @@ int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *l
   lit_len = strlen(lit);
   return len == (int32_t)lit_len && memcmp(buf, lit, lit_len) == 0 ? 1 : 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 
 
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena, int32_t expr_ref,
                                                                         int32_t return_type_ref,
                                                                         struct ast_PipelineDepCtx *ctx) {
@@ -2845,12 +2845,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *m
     pipeline_expr_set_resolved_type_ref(arena, expr_ref, field_ty);
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module,
                                                                      struct ast_ASTArena *arena, int32_t expr_ref,
                                                                      int32_t return_type_ref,
                                                                      struct ast_PipelineDepCtx *ctx) {
@@ -2893,12 +2893,12 @@ SHUX_WEAK int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *modu
     return pipeline_typeck_check_expr_try_propagate_c(module, arena, expr_ref, return_type_ref, ctx);
   return 0;
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module,
                                                                 struct ast_ASTArena *arena, int32_t expr_ref,
                                                                 int32_t return_type_ref,
                                                                 struct ast_PipelineDepCtx *ctx) {
@@ -2924,10 +2924,10 @@ SHUX_WEAK int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module,
     return pipeline_typeck_check_expr_match_c(module, arena, expr_ref, return_type_ref, ctx);
   return pipeline_typeck_check_expr_impl_mega_c(module, arena, expr_ref, return_type_ref, ctx);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
 
 /* G-02f-220：🔒 PipelineDepCtx.current_block_ref 字段写 helper（typeck.x 勿直写字段） */
-SHUX_WEAK int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref) {
+XLANG_WEAK int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref) {
   int32_t saved;
   if (!ctx)
     return 0;
@@ -2937,7 +2937,7 @@ SHUX_WEAK int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCt
 }
 
 /* G-02f-220：🔒 current_block_ref 恢复 */
-SHUX_WEAK void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx *ctx,
+XLANG_WEAK void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx *ctx,
                                                                     int32_t saved_block_ref) {
   if (!ctx)
     return;
@@ -2945,17 +2945,17 @@ SHUX_WEAK void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCt
 }
 
 /* G-02f-220：🔒 current_block_ref 触摸 */
-SHUX_WEAK void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx *ctx,
+XLANG_WEAK void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx *ctx,
                                                                         int32_t block_ref) {
   if (!ctx)
     return;
   ctx->current_block_ref = block_ref;
 }
 
-#ifndef SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
+#ifndef XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X
 /* G-02f-222 thin+rest：DIRECT 模式，thin 直接实现 */
 /* G-02f-220：逻辑源 .x（真迁，经 bind/restore）；seed 保留同语义 C 供产品 cc */
-SHUX_WEAK int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module,
+XLANG_WEAK int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena, int32_t block_ref,
                                                                  int32_t return_type_ref,
                                                                  struct ast_PipelineDepCtx *ctx) {
@@ -3093,4 +3093,4 @@ int32_t pipeline_codegen_emit_float_lit_c(struct codegen_CodegenOutBuf *out, dou
   }
   return codegen_emit_bytes_from_ptr(out, (uint8_t *)buf, n);
 }
-#endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */
+#endif /* XLANG_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */

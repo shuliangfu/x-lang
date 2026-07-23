@@ -23,7 +23,7 @@
 // See implementation.
 
 /* See implementation. */
-export const SHUX_NET_MAX_WORKERS: i32 = 64;
+export const XLANG_NET_MAX_WORKERS: i32 = 64;
 
 /* See implementation. */
 allow(padding) struct NetWorkerArg {
@@ -36,7 +36,7 @@ extern function thread_create_c(entry: usize, arg: usize): i64;
 
 extern function thread_join_c(thread_id: i64): i32;
 
-extern function shu_net_worker_accept_entry_ptr_c(): usize;
+extern function xlang_net_worker_accept_entry_ptr_c(): usize;
 
 /**
  * See implementation.
@@ -67,15 +67,15 @@ export function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeo
   if (listener_fd < 0 || nw <= 0) {
     return -1;
   }
-  if (nw > SHUX_NET_MAX_WORKERS) {
-    nw = SHUX_NET_MAX_WORKERS;
+  if (nw > XLANG_NET_MAX_WORKERS) {
+    nw = XLANG_NET_MAX_WORKERS;
   }
   i = 0;
   while (i < nw) {
     net_worker_arg_fill_c(net_worker_arg_slot_ptr_c(&args[0], i), listener_fd, timeout_ms, i);
     i = i + 1;
   }
-  unsafe { entry = shu_net_worker_accept_entry_ptr_c(); }
+  unsafe { entry = xlang_net_worker_accept_entry_ptr_c(); }
   i = 0;
   while (i < nw) {
     unsafe { tids[i] = thread_create_c(entry, net_worker_arg_slot_ptr_c(&args[0], i) as usize); }

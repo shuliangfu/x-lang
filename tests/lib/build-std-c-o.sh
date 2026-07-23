@@ -5,7 +5,7 @@
 
 # 探测本机是否可链 libsqlite3（与 tests/lib/std-sqlite-gate.sh 一致）。
 _std_c_o_probe_sqlite3() {
-  local out="/tmp/shux_sqlite_probe_$$"
+  local out="/tmp/xlang_sqlite_probe_$$"
   if ! cc -std=c11 -x c - -lsqlite3 -o "$out" 2>/dev/null <<'EOF'
 #include <sqlite3.h>
 int main(void) { return sqlite3_libversion() ? 0 : 1; }
@@ -18,7 +18,7 @@ EOF
   return 0
 }
 
-# F-07 v1：已迁移为纯 .x 的 std 模块禁止经 cc -c 构建 .o（须 shux -backend asm）。
+# F-07 v1：已迁移为纯 .x 的 std 模块禁止经 cc -c 构建 .o（须 xlang -backend asm）。
 _std_c_o_forbidden_migrated() {
   local repo_rel="$1"
   case "$repo_rel" in
@@ -32,7 +32,7 @@ _std_c_o_forbidden_migrated() {
     std/log/log.c|std/simd/simd.c|\
     std/security/security.c|std/context/context.c|std/trace/trace.c|std/sync/sync.c|\
     std/task/task.c|std/csv/csv.c|std/json/json.c|std/regex/regex.c|std/unicode/unicode.c|std/hash/hash.c|std/dynlib/dynlib.c|std/backtrace/backtrace.c|std/http/http.c|std/tar/tar.c|std/channel/channel.c|std/atomic/atomic.c|std/thread/thread.c|std/queue/queue.c|std/crypto/crypto.c|std/async/scheduler.c|std/async/future.c|std/cache/cache.c|std/config/config.c|std/datetime/datetime.c|std/elf/elf.c|std/test/test.c|std/url/url.c|std/schema/schema.c|std/socketio/socketio.c)
-      echo "ensure_std_c_o FORBIDDEN (F-07 v1/v2): $repo_rel is pure .x / deleted — use shux -backend asm, not cc -c" >&2
+      echo "ensure_std_c_o FORBIDDEN (F-07 v1/v2): $repo_rel is pure .x / deleted — use xlang -backend asm, not cc -c" >&2
       return 0
       ;;
   esac

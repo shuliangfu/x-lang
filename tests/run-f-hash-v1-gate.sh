@@ -2,7 +2,7 @@
 # F-hash v1：std.hash 去 C（hash.c → hash.x；v2 后逻辑全在 hash.x）。
 set -e
 cd "$(dirname "$0")/.."
-FAIL=${SHUX_F_HASH_V1_FAIL:-0}
+FAIL=${XLANG_F_HASH_V1_FAIL:-0}
 DOC="analysis/phase-f-hash-v1.md"
 MANIFEST="tests/baseline/f-hash-v1-closure.tsv"
 die() { echo "f-hash-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
   esac
 done < "$MANIFEST"
 grep -q 'hash.x' compiler/Makefile || die "Makefile missing hash.x"
-if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
+if [ -x ./compiler/xlang-c ] || [ -x ./compiler/xlang ]; then
   make -C compiler ../std/hash/hash.o >/dev/null 2>&1 || die "make hash.o failed"
 else
-  echo "f-hash-v1 SKIP hash.o build (no shux-c)" >&2
+  echo "f-hash-v1 SKIP hash.o build (no xlang-c)" >&2
 fi
 for sub in run-std-hash-hasher-trait-gate.sh run-std-hash-xxhash-gate.sh \
   run-std-hash-default-strategy-gate.sh; do

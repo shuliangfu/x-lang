@@ -1,11 +1,11 @@
 /* seeds/rt_stack_surface.from_x.c
  * G-02f rt_stack R2 full surface — isomorphic with src/runtime/rt_stack.x
  * Product PREFER_X_O: g05_try_x_to_o(rt_stack.x) + hybrid rest seed
- *   seeds/rt_stack.from_x.c (-DSHUX_RT_STACK_FROM_X) ld -r into runtime_driver_no_c
+ *   seeds/rt_stack.from_x.c (-DXLANG_RT_STACK_FROM_X) ld -r into runtime_driver_no_c
  * Hybrid rest seed: FROM_X 仅前向 + marker（业务 H=0）
  * Cap-fn-ptr residual: driver_run_stack_esc_gate_on_large_stack in driver_abi
  * Prove: full.x vs this seed → nm IDENTICAL (public surface)
- * Regen: ./shux -E ... src/runtime/rt_stack.x | filter DBG + polish externs
+ * Regen: ./xlang -E ... src/runtime/rt_stack.x | filter DBG + polish externs
  */
 #include <stddef.h>
 #include <stdint.h>

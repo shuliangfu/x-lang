@@ -25,10 +25,10 @@ w3_bstrict_fast_should_run() {
   esac
 }
 
-# 超时或 wall clock 截止后清理孤儿 shux，避免 fork 风暴占满 Codespace。
+# 超时或 wall clock 截止后清理孤儿 xlang，避免 fork 风暴占满 Codespace。
 w3_bstrict_cleanup_orphans() {
-  pkill -f '[/ ]compiler/shux' 2>/dev/null || true
-  pkill -f '[/ ]compiler/shux_asm' 2>/dev/null || true
-  pkill -f '[/ ]compiler/shux-c' 2>/dev/null || true
+  pkill -f '[/ ]compiler/xlang' 2>/dev/null || true
+  pkill -f '[/ ]compiler/xlang_asm' 2>/dev/null || true
+  pkill -f '[/ ]compiler/xlang-c' 2>/dev/null || true
   sleep 1
 }

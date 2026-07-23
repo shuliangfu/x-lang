@@ -5,12 +5,12 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DOC="${SHUX_STD_SYS_DOC:-analysis/std-sys-v0.md}"
-MANIFEST="${SHUX_STD_SYS_TSV:-tests/baseline/std-sys-manifest.tsv}"
+DOC="${XLANG_STD_SYS_DOC:-analysis/std-sys-v0.md}"
+MANIFEST="${XLANG_STD_SYS_TSV:-tests/baseline/std-sys-manifest.tsv}"
 MOD_X="std/sys/mod.x"
 SMOKE_X="tests/sys/sys_write_freestanding.x"
 MIN_APIS=5
-PREFIX="shux: [SHUX_BOOT029_STD_SYS]"
+PREFIX="xlang: [XLANG_BOOT029_STD_SYS]"
 
 LINUX_MOD="std/sys/linux.x"
 MACOS_MOD="std/sys/macos.x"
@@ -27,7 +27,7 @@ for f in "$DOC" "$MANIFEST" "$MOD_X" "$LINUX_MOD" "$MACOS_MOD" "$FREEBSD_MOD" "$
   fi
 done
 
-for kw in BOOT-029 os_write shux_sys_write freestanding linux.x macos.x macos_write; do
+for kw in BOOT-029 os_write xlang_sys_write freestanding linux.x macos.x macos_write; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-sys gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -75,35 +75,35 @@ RUN_MACOS=0
 SKIP_LINUX=1
 SKIP_MACOS=1
 
-SHUX_BIN="${SHUX:-}"
-if [ -z "$SHUX_BIN" ] && [ -x ./compiler/shux ]; then
-  SHUX_BIN=./compiler/shux
+XLANG_BIN="${XLANG:-}"
+if [ -z "$XLANG_BIN" ] && [ -x ./compiler/xlang ]; then
+  XLANG_BIN=./compiler/xlang
 fi
 
-if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
+if [ -n "$XLANG_BIN" ] && [ -x "$XLANG_BIN" ]; then
   TYPECK_FAIL=0
   # 公共烟测：os_write_stdout 双平台 #[cfg] 均有定义。
-  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+  if ! "$XLANG_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     TYPECK_FAIL=1
   fi
   HOSTOS="$(uname -s 2>/dev/null)"
   # Linux：mod 层 linux_syscall_* + std.sys.linux 子模块烟测。
   if [ "$HOSTOS" = "Linux" ]; then
-    if ! "$SHUX_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1; then
       TYPECK_FAIL=1
     fi
   fi
   # Darwin：再验 macOS mod 层 macos_write_* 烟测（Linux host 无此 #[cfg] 符号）。
   if [ "$HOSTOS" = "Darwin" ]; then
-    if ! "$SHUX_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$SMOKE_LINUX" >/dev/null 2>&1; then
       TYPECK_FAIL=1
     fi
-    if ! "$SHUX_BIN" check -L . "$SMOKE_MACOS" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$SMOKE_MACOS" >/dev/null 2>&1; then
       TYPECK_FAIL=1
     fi
   fi
   if [ "$HOSTOS" = "FreeBSD" ]; then
-    if ! "$SHUX_BIN" check -L . "$SMOKE_FREEBSD" >/dev/null 2>&1; then
+    if ! "$XLANG_BIN" check -L . "$SMOKE_FREEBSD" >/dev/null 2>&1; then
       TYPECK_FAIL=1
     fi
   fi
@@ -112,13 +112,13 @@ if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
     echo "std-sys typeck OK"
   else
     echo "std-sys gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -5 >&2 || true
+    "$XLANG_BIN" check -L . "$SMOKE_X" 2>&1 | tail -5 >&2 || true
     if [ "$HOSTOS" = "Linux" ]; then
-      "$SHUX_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
+      "$XLANG_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
     fi
     if [ "$HOSTOS" = "Darwin" ]; then
-      "$SHUX_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
-      "$SHUX_BIN" check -L . "$SMOKE_MACOS" 2>&1 | tail -5 >&2 || true
+      "$XLANG_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
+      "$XLANG_BIN" check -L . "$SMOKE_MACOS" 2>&1 | tail -5 >&2 || true
     fi
     echo "${PREFIX} status=fail"
     exit 1
@@ -126,15 +126,15 @@ if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
 fi
 
 if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] \
-   && [ -n "$SHUX_BIN" ] && "$SHUX_BIN" -freestanding -backend asm "$SMOKE_X" -o /tmp/shux_sys_write_smoke 2>/dev/null \
-   && [ -x /tmp/shux_sys_write_smoke ]; then
+   && [ -n "$XLANG_BIN" ] && "$XLANG_BIN" -freestanding -backend asm "$SMOKE_X" -o /tmp/xlang_sys_write_smoke 2>/dev/null \
+   && [ -x /tmp/xlang_sys_write_smoke ]; then
   SKIP_LINUX=0
   set +e
-  OUT=$(/tmp/shux_sys_write_smoke 2>/dev/null)
+  OUT=$(/tmp/xlang_sys_write_smoke 2>/dev/null)
   EX=$?
   set -e
-  rm -f /tmp/shux_sys_write_smoke
-  EXPECTED=$(printf 'Hello Shu!\n')
+  rm -f /tmp/xlang_sys_write_smoke
+  EXPECTED=$(printf 'Hello Xlang!\n')
   if [ "$EX" -eq 0 ] && [ "$OUT" = "$EXPECTED" ]; then
     RUN_LINUX=1
     echo "std-sys freestanding run OK"
@@ -144,19 +144,19 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86
     exit 1
   fi
 else
-  echo "std-sys gate SKIP freestanding run (need Linux x86_64 + shux -freestanding -backend asm)" >&2
+  echo "std-sys gate SKIP freestanding run (need Linux x86_64 + xlang -freestanding -backend asm)" >&2
 fi
 
-if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -n "$SHUX_BIN" ] \
-   && "$SHUX_BIN" "$SMOKE_MACOS" -o /tmp/shux_macos_write_smoke 2>/dev/null \
-   && [ -x /tmp/shux_macos_write_smoke ]; then
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -n "$XLANG_BIN" ] \
+   && "$XLANG_BIN" "$SMOKE_MACOS" -o /tmp/xlang_macos_write_smoke 2>/dev/null \
+   && [ -x /tmp/xlang_macos_write_smoke ]; then
   SKIP_MACOS=0
   set +e
-  OUT=$(/tmp/shux_macos_write_smoke 2>/dev/null)
+  OUT=$(/tmp/xlang_macos_write_smoke 2>/dev/null)
   EX=$?
   set -e
-  rm -f /tmp/shux_macos_write_smoke
-  EXPECTED=$(printf 'Hello Shu!\n')
+  rm -f /tmp/xlang_macos_write_smoke
+  EXPECTED=$(printf 'Hello Xlang!\n')
   if [ "$EX" -eq 0 ] && [ "$OUT" = "$EXPECTED" ]; then
     RUN_MACOS=1
     echo "std-sys macOS posix write run OK"
@@ -166,7 +166,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -n "$SHUX_BIN" ] \
     exit 1
   fi
 else
-  echo "std-sys gate SKIP macOS run (need Darwin + shux -o exe)" >&2
+  echo "std-sys gate SKIP macOS run (need Darwin + xlang -o exe)" >&2
 fi
 
 echo "${PREFIX} status=ok check=${CHECK_OK} run_linux=${RUN_LINUX} run_macos=${RUN_MACOS} skip_linux=${SKIP_LINUX} skip_macos=${SKIP_MACOS}"

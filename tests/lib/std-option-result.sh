@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # std-option-result.sh — STD-080/081 manifest 与烟测辅助
 
-STD_OPTION_RESULT_PREFIX="${SHUX_STD_OPTION_RESULT_PREFIX:-shux: [SHUX_STD_OPTION_RESULT]}"
+STD_OPTION_RESULT_PREFIX="${XLANG_STD_OPTION_RESULT_PREFIX:-xlang: [XLANG_STD_OPTION_RESULT]}"
 
 std_option_result_symbols_ok() {
   local mod_x="$1"
@@ -31,13 +31,13 @@ std_option_result_symbols_ok() {
 }
 
 std_option_result_run_smoke() {
-  local shux="$1"
+  local xlang="$1"
   local src="$2"
   local tag="${3:-or}"
-  local exe="/tmp/shux_std_option_result_${tag}_$$"
-  if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
+  local exe="/tmp/xlang_std_option_result_${tag}_$$"
+  if ! "$xlang" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-option-result FAIL: compile $src" >&2
-    "$shux" -L . "$src" 2>&1 | tail -12 >&2 || true
+    "$xlang" -L . "$src" 2>&1 | tail -12 >&2 || true
     rm -f "$exe"
     return 1
   fi
