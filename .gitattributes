@@ -1,5 +1,5 @@
-# 1. 把 .x 文件强制识别为 Shux（会显示在语言栏里）
-*.x linguist-language=Shux
+# 1. 把 .x 文件强制识别为 X language（会显示在语言栏里）
+*.x linguist-language=X language
 
 # 2. 如果你还想让它参与统计（推荐加上）
 *.x linguist-detectable=true

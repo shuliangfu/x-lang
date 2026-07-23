@@ -3,7 +3,7 @@
         "data": {
             "id": "n0001",
             "created": 1784118410328,
-            "text": "SHUX 编译器（主图索引）",
+            "text": "XLANG 编译器（主图索引）",
             "note": "主图只做导航。方法级细节在 mind/0x-*.km；查重复实现用 99-dual-authority-audit.km。",
             "expandState": "expand"
         },

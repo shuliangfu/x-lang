@@ -12647,11 +12647,11 @@
                                         "data": {
                                             "id": "m01062",
                                             "created": 1784118467267,
-                                            "text": "pipeline_asm_emit_shux_panic_call_elf_c",
+                                            "text": "pipeline_asm_emit_xlang_panic_call_elf_c",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/pipeline_glue.c",
                                             "hyperlinkTitle": "compiler/pipeline_glue.c",
-                                            "note": "compiler/pipeline_glue.c :: pipeline_asm_emit_shux_panic_call_elf_c"
+                                            "note": "compiler/pipeline_glue.c :: pipeline_asm_emit_xlang_panic_call_elf_c"
                                         },
                                         "children": []
                                     },
@@ -19262,7 +19262,7 @@
                                 "data": {
                                     "id": "m01613",
                                     "created": 1784118467818,
-                                    "text": "shux_asm_* (10)",
+                                    "text": "xlang_asm_* (10)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19272,11 +19272,11 @@
                                         "data": {
                                             "id": "m01614",
                                             "created": 1784118467819,
-                                            "text": "shux_asm_codegen_elf_o_thread_fn_impl",
+                                            "text": "xlang_asm_codegen_elf_o_thread_fn_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_codegen_elf_o_thread_fn_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_codegen_elf_o_thread_fn_impl"
                                         },
                                         "children": []
                                     },
@@ -19284,11 +19284,11 @@
                                         "data": {
                                             "id": "m01615",
                                             "created": 1784118467820,
-                                            "text": "shux_asm_codegen_elf_o_large_stack_impl",
+                                            "text": "xlang_asm_codegen_elf_o_large_stack_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_codegen_elf_o_large_stack_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_codegen_elf_o_large_stack_impl"
                                         },
                                         "children": []
                                     },
@@ -19296,11 +19296,11 @@
                                         "data": {
                                             "id": "m01616",
                                             "created": 1784118467821,
-                                            "text": "shux_asm_out_buf_is_object_magic",
+                                            "text": "xlang_asm_out_buf_is_object_magic",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_out_buf_is_object_magic"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_out_buf_is_object_magic"
                                         },
                                         "children": []
                                     },
@@ -19308,11 +19308,11 @@
                                         "data": {
                                             "id": "m01617",
                                             "created": 1784118467822,
-                                            "text": "shux_asm_user_std_dep_skip_x_typeck",
+                                            "text": "xlang_asm_user_std_dep_skip_x_typeck",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_user_std_dep_skip_x_typeck"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_user_std_dep_skip_x_typeck"
                                         },
                                         "children": []
                                     },
@@ -19320,11 +19320,11 @@
                                         "data": {
                                             "id": "m01618",
                                             "created": 1784118467823,
-                                            "text": "shux_asm_user_std_net_dep_path",
+                                            "text": "xlang_asm_user_std_net_dep_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_user_std_net_dep_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_user_std_net_dep_path"
                                         },
                                         "children": []
                                     },
@@ -19332,11 +19332,11 @@
                                         "data": {
                                             "id": "m01619",
                                             "created": 1784118467824,
-                                            "text": "shux_asm_user_std_io_driver_dep_path",
+                                            "text": "xlang_asm_user_std_io_driver_dep_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_user_std_io_driver_dep_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_user_std_io_driver_dep_path"
                                         },
                                         "children": []
                                     },
@@ -19344,11 +19344,11 @@
                                         "data": {
                                             "id": "m01620",
                                             "created": 1784118467825,
-                                            "text": "shux_asm_user_dep_parse_skip_typeck_path",
+                                            "text": "xlang_asm_user_dep_parse_skip_typeck_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_user_dep_parse_skip_typeck_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_user_dep_parse_skip_typeck_path"
                                         },
                                         "children": []
                                     },
@@ -19356,11 +19356,11 @@
                                         "data": {
                                             "id": "m01621",
                                             "created": 1784118467826,
-                                            "text": "shux_asm_out_buf_is_object",
+                                            "text": "xlang_asm_out_buf_is_object",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_out_buf_is_object"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_out_buf_is_object"
                                         },
                                         "children": []
                                     },
@@ -19368,11 +19368,11 @@
                                         "data": {
                                             "id": "m01622",
                                             "created": 1784118467827,
-                                            "text": "shux_asm_codegen_elf_o_large_stack",
+                                            "text": "xlang_asm_codegen_elf_o_large_stack",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_codegen_elf_o_large_stack"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_codegen_elf_o_large_stack"
                                         },
                                         "children": []
                                     },
@@ -19380,11 +19380,11 @@
                                         "data": {
                                             "id": "m01623",
                                             "created": 1784118467828,
-                                            "text": "shux_asm_codegen_elf_o_thread_fn",
+                                            "text": "xlang_asm_codegen_elf_o_thread_fn",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_asm_codegen_elf_o_thread_fn"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_asm_codegen_elf_o_thread_fn"
                                         },
                                         "children": []
                                     }
@@ -19394,7 +19394,7 @@
                                 "data": {
                                     "id": "m01624",
                                     "created": 1784118467829,
-                                    "text": "shux_collect_* (4)",
+                                    "text": "xlang_collect_* (4)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19404,11 +19404,11 @@
                                         "data": {
                                             "id": "m01625",
                                             "created": 1784118467830,
-                                            "text": "shux_collect_deps_transitive_impl",
+                                            "text": "xlang_collect_deps_transitive_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_collect_deps_transitive_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_collect_deps_transitive_impl"
                                         },
                                         "children": []
                                     },
@@ -19416,11 +19416,11 @@
                                         "data": {
                                             "id": "m01626",
                                             "created": 1784118467831,
-                                            "text": "shux_collect_dep_paths_transitive_impl",
+                                            "text": "xlang_collect_dep_paths_transitive_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_collect_dep_paths_transitive_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_collect_dep_paths_transitive_impl"
                                         },
                                         "children": []
                                     },
@@ -19428,11 +19428,11 @@
                                         "data": {
                                             "id": "m01627",
                                             "created": 1784118467832,
-                                            "text": "shux_collect_deps_transitive",
+                                            "text": "xlang_collect_deps_transitive",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_collect_deps_transitive"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_collect_deps_transitive"
                                         },
                                         "children": []
                                     },
@@ -19440,11 +19440,11 @@
                                         "data": {
                                             "id": "m01628",
                                             "created": 1784118467833,
-                                            "text": "shux_collect_dep_paths_transitive",
+                                            "text": "xlang_collect_dep_paths_transitive",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_collect_dep_paths_transitive"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_collect_dep_paths_transitive"
                                         },
                                         "children": []
                                     }
@@ -19454,7 +19454,7 @@
                                 "data": {
                                     "id": "m01629",
                                     "created": 1784118467834,
-                                    "text": "shux_cstr_* (3)",
+                                    "text": "xlang_cstr_* (3)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19464,11 +19464,11 @@
                                         "data": {
                                             "id": "m01630",
                                             "created": 1784118467835,
-                                            "text": "shux_cstr_typeck_lit",
+                                            "text": "xlang_cstr_typeck_lit",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_cstr_typeck_lit"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_cstr_typeck_lit"
                                         },
                                         "children": []
                                     },
@@ -19476,11 +19476,11 @@
                                         "data": {
                                             "id": "m01631",
                                             "created": 1784118467836,
-                                            "text": "shux_cstr_offset",
+                                            "text": "xlang_cstr_offset",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_cstr_offset"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_cstr_offset"
                                         },
                                         "children": []
                                     },
@@ -19488,11 +19488,11 @@
                                         "data": {
                                             "id": "m01632",
                                             "created": 1784118467837,
-                                            "text": "shux_cstr_ends_with_dot_x",
+                                            "text": "xlang_cstr_ends_with_dot_x",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_cstr_ends_with_dot_x"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_cstr_ends_with_dot_x"
                                         },
                                         "children": []
                                     }
@@ -19502,7 +19502,7 @@
                                 "data": {
                                     "id": "m01633",
                                     "created": 1784118467838,
-                                    "text": "shux_dep_* (2)",
+                                    "text": "xlang_dep_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19512,11 +19512,11 @@
                                         "data": {
                                             "id": "m01634",
                                             "created": 1784118467839,
-                                            "text": "shux_dep_prerun_entry_dir",
+                                            "text": "xlang_dep_prerun_entry_dir",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_dep_prerun_entry_dir"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_dep_prerun_entry_dir"
                                         },
                                         "children": []
                                     },
@@ -19524,11 +19524,11 @@
                                         "data": {
                                             "id": "m01635",
                                             "created": 1784118467840,
-                                            "text": "shux_dep_prerun_entry_dir_pick",
+                                            "text": "xlang_dep_prerun_entry_dir_pick",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_dep_prerun_entry_dir_pick"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_dep_prerun_entry_dir_pick"
                                         },
                                         "children": []
                                     }
@@ -19538,11 +19538,11 @@
                                 "data": {
                                     "id": "m01636",
                                     "created": 1784118467841,
-                                    "text": "shux_driver_asm_prepare_entry_elf_emit",
+                                    "text": "xlang_driver_asm_prepare_entry_elf_emit",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                    "note": "compiler/src/runtime_pipeline_abi.x :: shux_driver_asm_prepare_entry_elf_emit"
+                                    "note": "compiler/src/runtime_pipeline_abi.x :: xlang_driver_asm_prepare_entry_elf_emit"
                                 },
                                 "children": []
                             },
@@ -19550,11 +19550,11 @@
                                 "data": {
                                     "id": "m01637",
                                     "created": 1784118467842,
-                                    "text": "shux_emit_pipeline_glue_include",
+                                    "text": "xlang_emit_pipeline_glue_include",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                    "note": "compiler/src/runtime_pipeline_abi.x :: shux_emit_pipeline_glue_include"
+                                    "note": "compiler/src/runtime_pipeline_abi.x :: xlang_emit_pipeline_glue_include"
                                 },
                                 "children": []
                             },
@@ -19562,7 +19562,7 @@
                                 "data": {
                                     "id": "m01638",
                                     "created": 1784118467843,
-                                    "text": "shux_entry_* (3)",
+                                    "text": "xlang_entry_* (3)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19572,11 +19572,11 @@
                                         "data": {
                                             "id": "m01639",
                                             "created": 1784118467844,
-                                            "text": "shux_entry_lib_name_from_path_impl",
+                                            "text": "xlang_entry_lib_name_from_path_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_entry_lib_name_from_path_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_entry_lib_name_from_path_impl"
                                         },
                                         "children": []
                                     },
@@ -19584,11 +19584,11 @@
                                         "data": {
                                             "id": "m01640",
                                             "created": 1784118467845,
-                                            "text": "shux_entry_lib_keyword_lit",
+                                            "text": "xlang_entry_lib_keyword_lit",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_entry_lib_keyword_lit"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_entry_lib_keyword_lit"
                                         },
                                         "children": []
                                     },
@@ -19596,11 +19596,11 @@
                                         "data": {
                                             "id": "m01641",
                                             "created": 1784118467846,
-                                            "text": "shux_entry_lib_name_from_path",
+                                            "text": "xlang_entry_lib_name_from_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_entry_lib_name_from_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_entry_lib_name_from_path"
                                         },
                                         "children": []
                                     }
@@ -19610,7 +19610,7 @@
                                 "data": {
                                     "id": "m01642",
                                     "created": 1784118467847,
-                                    "text": "shux_find_* (2)",
+                                    "text": "xlang_find_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19620,11 +19620,11 @@
                                         "data": {
                                             "id": "m01643",
                                             "created": 1784118467848,
-                                            "text": "shux_find_loaded_import_index",
+                                            "text": "xlang_find_loaded_import_index",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_find_loaded_import_index"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_find_loaded_import_index"
                                         },
                                         "children": []
                                     },
@@ -19632,11 +19632,11 @@
                                         "data": {
                                             "id": "m01644",
                                             "created": 1784118467849,
-                                            "text": "shux_find_loaded_import_index_scan",
+                                            "text": "xlang_find_loaded_import_index_scan",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_find_loaded_import_index_scan"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_find_loaded_import_index_scan"
                                         },
                                         "children": []
                                     }
@@ -19646,11 +19646,11 @@
                                 "data": {
                                     "id": "m01645",
                                     "created": 1784118467850,
-                                    "text": "shux_fputs_stdout",
+                                    "text": "xlang_fputs_stdout",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                    "note": "compiler/src/runtime_pipeline_abi.x :: shux_fputs_stdout"
+                                    "note": "compiler/src/runtime_pipeline_abi.x :: xlang_fputs_stdout"
                                 },
                                 "children": []
                             },
@@ -19658,11 +19658,11 @@
                                 "data": {
                                     "id": "m01646",
                                     "created": 1784118467851,
-                                    "text": "shux_get_entry_dir",
+                                    "text": "xlang_get_entry_dir",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                    "note": "compiler/src/runtime_pipeline_abi.x :: shux_get_entry_dir"
+                                    "note": "compiler/src/runtime_pipeline_abi.x :: xlang_get_entry_dir"
                                 },
                                 "children": []
                             },
@@ -19670,11 +19670,11 @@
                                 "data": {
                                     "id": "m01647",
                                     "created": 1784118467852,
-                                    "text": "shux_i32_store",
+                                    "text": "xlang_i32_store",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                    "note": "compiler/src/runtime_pipeline_abi.x :: shux_i32_store"
+                                    "note": "compiler/src/runtime_pipeline_abi.x :: xlang_i32_store"
                                 },
                                 "children": []
                             },
@@ -19682,7 +19682,7 @@
                                 "data": {
                                     "id": "m01648",
                                     "created": 1784118467853,
-                                    "text": "shux_import_* (4)",
+                                    "text": "xlang_import_* (4)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19692,11 +19692,11 @@
                                         "data": {
                                             "id": "m01649",
                                             "created": 1784118467854,
-                                            "text": "shux_import_dep_dir_from_path_impl",
+                                            "text": "xlang_import_dep_dir_from_path_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_import_dep_dir_from_path_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_import_dep_dir_from_path_impl"
                                         },
                                         "children": []
                                     },
@@ -19704,11 +19704,11 @@
                                         "data": {
                                             "id": "m01650",
                                             "created": 1784118467855,
-                                            "text": "shux_import_path_is_file_path",
+                                            "text": "xlang_import_path_is_file_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_import_path_is_file_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_import_path_is_file_path"
                                         },
                                         "children": []
                                     },
@@ -19716,11 +19716,11 @@
                                         "data": {
                                             "id": "m01651",
                                             "created": 1784118467856,
-                                            "text": "shux_import_dep_dir_from_path",
+                                            "text": "xlang_import_dep_dir_from_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_import_dep_dir_from_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_import_dep_dir_from_path"
                                         },
                                         "children": []
                                     },
@@ -19728,11 +19728,11 @@
                                         "data": {
                                             "id": "m01652",
                                             "created": 1784118467857,
-                                            "text": "shux_import_path_to_file_path",
+                                            "text": "xlang_import_path_to_file_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_import_path_to_file_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_import_path_to_file_path"
                                         },
                                         "children": []
                                     }
@@ -19742,7 +19742,7 @@
                                 "data": {
                                     "id": "m01653",
                                     "created": 1784118467858,
-                                    "text": "shux_load_* (3)",
+                                    "text": "xlang_load_* (3)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19752,11 +19752,11 @@
                                         "data": {
                                             "id": "m01654",
                                             "created": 1784118467859,
-                                            "text": "shux_load_one_direct_import_at",
+                                            "text": "xlang_load_one_direct_import_at",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_load_one_direct_import_at"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_load_one_direct_import_at"
                                         },
                                         "children": []
                                     },
@@ -19764,11 +19764,11 @@
                                         "data": {
                                             "id": "m01655",
                                             "created": 1784118467860,
-                                            "text": "shux_load_direct_fail_cleanup",
+                                            "text": "xlang_load_direct_fail_cleanup",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_load_direct_fail_cleanup"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_load_direct_fail_cleanup"
                                         },
                                         "children": []
                                     },
@@ -19776,11 +19776,11 @@
                                         "data": {
                                             "id": "m01656",
                                             "created": 1784118467861,
-                                            "text": "shux_load_direct_imports_for_asm_layout",
+                                            "text": "xlang_load_direct_imports_for_asm_layout",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_load_direct_imports_for_asm_layout"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_load_direct_imports_for_asm_layout"
                                         },
                                         "children": []
                                     }
@@ -19790,7 +19790,7 @@
                                 "data": {
                                     "id": "m01657",
                                     "created": 1784118467862,
-                                    "text": "shux_merge_* (4)",
+                                    "text": "xlang_merge_* (4)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19800,11 +19800,11 @@
                                         "data": {
                                             "id": "m01658",
                                             "created": 1784118467863,
-                                            "text": "shux_merge_deps_path_already_out",
+                                            "text": "xlang_merge_deps_path_already_out",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_merge_deps_path_already_out"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_merge_deps_path_already_out"
                                         },
                                         "children": []
                                     },
@@ -19812,11 +19812,11 @@
                                         "data": {
                                             "id": "m01659",
                                             "created": 1784118467864,
-                                            "text": "shux_merge_direct_then_transitive_dep_paths",
+                                            "text": "xlang_merge_direct_then_transitive_dep_paths",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_merge_direct_then_transitive_dep_paths"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_merge_direct_then_transitive_dep_paths"
                                         },
                                         "children": []
                                     },
@@ -19824,11 +19824,11 @@
                                         "data": {
                                             "id": "m01660",
                                             "created": 1784118467865,
-                                            "text": "shux_merge_direct_then_transitive_deps",
+                                            "text": "xlang_merge_direct_then_transitive_deps",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_merge_direct_then_transitive_deps"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_merge_direct_then_transitive_deps"
                                         },
                                         "children": []
                                     },
@@ -19836,11 +19836,11 @@
                                         "data": {
                                             "id": "m01661",
                                             "created": 1784118467866,
-                                            "text": "shux_merge_deps_path_already_out_scan",
+                                            "text": "xlang_merge_deps_path_already_out_scan",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_merge_deps_path_already_out_scan"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_merge_deps_path_already_out_scan"
                                         },
                                         "children": []
                                     }
@@ -19850,7 +19850,7 @@
                                 "data": {
                                     "id": "m01662",
                                     "created": 1784118467867,
-                                    "text": "shux_module_* (2)",
+                                    "text": "xlang_module_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19860,11 +19860,11 @@
                                         "data": {
                                             "id": "m01663",
                                             "created": 1784118467868,
-                                            "text": "shux_module_num_imports",
+                                            "text": "xlang_module_num_imports",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_module_num_imports"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_module_num_imports"
                                         },
                                         "children": []
                                     },
@@ -19872,11 +19872,11 @@
                                         "data": {
                                             "id": "m01664",
                                             "created": 1784118467869,
-                                            "text": "shux_module_import_path_cstr",
+                                            "text": "xlang_module_import_path_cstr",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_module_import_path_cstr"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_module_import_path_cstr"
                                         },
                                         "children": []
                                     }
@@ -19886,11 +19886,11 @@
                                 "data": {
                                     "id": "m01665",
                                     "created": 1784118467870,
-                                    "text": "shux_path_try_realpath_inplace",
+                                    "text": "xlang_path_try_realpath_inplace",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                    "note": "compiler/src/runtime_pipeline_abi.x :: shux_path_try_realpath_inplace"
+                                    "note": "compiler/src/runtime_pipeline_abi.x :: xlang_path_try_realpath_inplace"
                                 },
                                 "children": []
                             },
@@ -19898,7 +19898,7 @@
                                 "data": {
                                     "id": "m01666",
                                     "created": 1784118467871,
-                                    "text": "shux_pipeline_* (15)",
+                                    "text": "xlang_pipeline_* (15)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19908,11 +19908,11 @@
                                         "data": {
                                             "id": "m01667",
                                             "created": 1784118467872,
-                                            "text": "shux_pipeline_run_x_pipeline_large_stack_impl",
+                                            "text": "xlang_pipeline_run_x_pipeline_large_stack_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_run_x_pipeline_large_stack_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_run_x_pipeline_large_stack_impl"
                                         },
                                         "children": []
                                     },
@@ -19920,11 +19920,11 @@
                                         "data": {
                                             "id": "m01668",
                                             "created": 1784118467873,
-                                            "text": "shux_pipeline_dep_prerun_parse_skip_typeck_impl",
+                                            "text": "xlang_pipeline_dep_prerun_parse_skip_typeck_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_dep_prerun_parse_skip_typeck_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_dep_prerun_parse_skip_typeck_impl"
                                         },
                                         "children": []
                                     },
@@ -19932,11 +19932,11 @@
                                         "data": {
                                             "id": "m01669",
                                             "created": 1784118467874,
-                                            "text": "shux_pipeline_dep_prerun_parse_only_impl",
+                                            "text": "xlang_pipeline_dep_prerun_parse_only_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_dep_prerun_parse_only_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_dep_prerun_parse_only_impl"
                                         },
                                         "children": []
                                     },
@@ -19944,11 +19944,11 @@
                                         "data": {
                                             "id": "m01670",
                                             "created": 1784118467875,
-                                            "text": "shux_pipeline_dep_prerun_typeck_only_impl",
+                                            "text": "xlang_pipeline_dep_prerun_typeck_only_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_dep_prerun_typeck_only_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_dep_prerun_typeck_only_impl"
                                         },
                                         "children": []
                                     },
@@ -19956,11 +19956,11 @@
                                         "data": {
                                             "id": "m01671",
                                             "created": 1784118467876,
-                                            "text": "shux_pipeline_one_ctx_for_dep_prerun_map_impl",
+                                            "text": "xlang_pipeline_one_ctx_for_dep_prerun_map_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_one_ctx_for_dep_prerun_map_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_one_ctx_for_dep_prerun_map_impl"
                                         },
                                         "children": []
                                     },
@@ -19968,11 +19968,11 @@
                                         "data": {
                                             "id": "m01672",
                                             "created": 1784118467877,
-                                            "text": "shux_pipeline_run_x_pipeline_large_stack",
+                                            "text": "xlang_pipeline_run_x_pipeline_large_stack",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_run_x_pipeline_large_stack"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_run_x_pipeline_large_stack"
                                         },
                                         "children": []
                                     },
@@ -19980,11 +19980,11 @@
                                         "data": {
                                             "id": "m01673",
                                             "created": 1784118467878,
-                                            "text": "shux_pipeline_dep_prerun_parse_skip_typeck",
+                                            "text": "xlang_pipeline_dep_prerun_parse_skip_typeck",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_dep_prerun_parse_skip_typeck"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_dep_prerun_parse_skip_typeck"
                                         },
                                         "children": []
                                     },
@@ -19992,11 +19992,11 @@
                                         "data": {
                                             "id": "m01674",
                                             "created": 1784118467879,
-                                            "text": "shux_pipeline_dep_prerun_parse_only",
+                                            "text": "xlang_pipeline_dep_prerun_parse_only",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_dep_prerun_parse_only"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_dep_prerun_parse_only"
                                         },
                                         "children": []
                                     },
@@ -20004,11 +20004,11 @@
                                         "data": {
                                             "id": "m01675",
                                             "created": 1784118467880,
-                                            "text": "shux_pipeline_dep_prerun_typeck_only",
+                                            "text": "xlang_pipeline_dep_prerun_typeck_only",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_dep_prerun_typeck_only"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_dep_prerun_typeck_only"
                                         },
                                         "children": []
                                     },
@@ -20016,11 +20016,11 @@
                                         "data": {
                                             "id": "m01676",
                                             "created": 1784118467881,
-                                            "text": "shux_pipeline_dep_prerun_for_asm_module_o",
+                                            "text": "xlang_pipeline_dep_prerun_for_asm_module_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_dep_prerun_for_asm_module_o"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_dep_prerun_for_asm_module_o"
                                         },
                                         "children": []
                                     },
@@ -20028,11 +20028,11 @@
                                         "data": {
                                             "id": "m01677",
                                             "created": 1784118467882,
-                                            "text": "shux_pipeline_fill_ctx_path_buffers",
+                                            "text": "xlang_pipeline_fill_ctx_path_buffers",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_fill_ctx_path_buffers"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_fill_ctx_path_buffers"
                                         },
                                         "children": []
                                     },
@@ -20040,11 +20040,11 @@
                                         "data": {
                                             "id": "m01678",
                                             "created": 1784118467883,
-                                            "text": "shux_pipeline_pctx_seed_dep_slots",
+                                            "text": "xlang_pipeline_pctx_seed_dep_slots",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_pctx_seed_dep_slots"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_pctx_seed_dep_slots"
                                         },
                                         "children": []
                                     },
@@ -20052,11 +20052,11 @@
                                         "data": {
                                             "id": "m01679",
                                             "created": 1784118467884,
-                                            "text": "shux_pipeline_pctx_seed_dep_import_paths_only",
+                                            "text": "xlang_pipeline_pctx_seed_dep_import_paths_only",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_pctx_seed_dep_import_paths_only"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_pctx_seed_dep_import_paths_only"
                                         },
                                         "children": []
                                     },
@@ -20064,11 +20064,11 @@
                                         "data": {
                                             "id": "m01680",
                                             "created": 1784118467885,
-                                            "text": "shux_pipeline_one_ctx_for_dep_prerun",
+                                            "text": "xlang_pipeline_one_ctx_for_dep_prerun",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_one_ctx_for_dep_prerun"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_one_ctx_for_dep_prerun"
                                         },
                                         "children": []
                                     },
@@ -20076,11 +20076,11 @@
                                         "data": {
                                             "id": "m01681",
                                             "created": 1784118467886,
-                                            "text": "shux_pipeline_pctx_update_dep_slots_no_reset",
+                                            "text": "xlang_pipeline_pctx_update_dep_slots_no_reset",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_pipeline_pctx_update_dep_slots_no_reset"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_pipeline_pctx_update_dep_slots_no_reset"
                                         },
                                         "children": []
                                     }
@@ -20090,7 +20090,7 @@
                                 "data": {
                                     "id": "m01682",
                                     "created": 1784118467887,
-                                    "text": "shux_preprocess_* (2)",
+                                    "text": "xlang_preprocess_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -20100,11 +20100,11 @@
                                         "data": {
                                             "id": "m01683",
                                             "created": 1784118467888,
-                                            "text": "shux_preprocess_raw_to_malloc_impl",
+                                            "text": "xlang_preprocess_raw_to_malloc_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_preprocess_raw_to_malloc_impl"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_preprocess_raw_to_malloc_impl"
                                         },
                                         "children": []
                                     },
@@ -20112,11 +20112,11 @@
                                         "data": {
                                             "id": "m01684",
                                             "created": 1784118467889,
-                                            "text": "shux_preprocess_raw_to_malloc",
+                                            "text": "xlang_preprocess_raw_to_malloc",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_preprocess_raw_to_malloc"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_preprocess_raw_to_malloc"
                                         },
                                         "children": []
                                     }
@@ -20126,11 +20126,11 @@
                                 "data": {
                                     "id": "m01685",
                                     "created": 1784118467890,
-                                    "text": "shux_ptr_slot_set",
+                                    "text": "xlang_ptr_slot_set",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                    "note": "compiler/src/runtime_pipeline_abi.x :: shux_ptr_slot_set"
+                                    "note": "compiler/src/runtime_pipeline_abi.x :: xlang_ptr_slot_set"
                                 },
                                 "children": []
                             },
@@ -20138,7 +20138,7 @@
                                 "data": {
                                     "id": "m01686",
                                     "created": 1784118467891,
-                                    "text": "shux_resolve_* (2)",
+                                    "text": "xlang_resolve_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -20148,11 +20148,11 @@
                                         "data": {
                                             "id": "m01687",
                                             "created": 1784118467892,
-                                            "text": "shux_resolve_file_import_path",
+                                            "text": "xlang_resolve_file_import_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_resolve_file_import_path"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_resolve_file_import_path"
                                         },
                                         "children": []
                                     },
@@ -20160,11 +20160,11 @@
                                         "data": {
                                             "id": "m01688",
                                             "created": 1784118467893,
-                                            "text": "shux_resolve_import_file_path_multi",
+                                            "text": "xlang_resolve_import_file_path_multi",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_resolve_import_file_path_multi"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_resolve_import_file_path_multi"
                                         },
                                         "children": []
                                     }
@@ -20174,7 +20174,7 @@
                                 "data": {
                                     "id": "m01689",
                                     "created": 1784118467894,
-                                    "text": "shux_size_* (2)",
+                                    "text": "xlang_size_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -20184,11 +20184,11 @@
                                         "data": {
                                             "id": "m01690",
                                             "created": 1784118467895,
-                                            "text": "shux_size_slot_get",
+                                            "text": "xlang_size_slot_get",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_size_slot_get"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_size_slot_get"
                                         },
                                         "children": []
                                     },
@@ -20196,11 +20196,11 @@
                                         "data": {
                                             "id": "m01691",
                                             "created": 1784118467896,
-                                            "text": "shux_size_slot_set",
+                                            "text": "xlang_size_slot_set",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shux_size_slot_set"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_size_slot_set"
                                         },
                                         "children": []
                                     }

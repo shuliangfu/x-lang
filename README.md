@@ -5,7 +5,7 @@
 
 | Item | Description |
 |------|-------------|
-| **Language** | **X language** (中文：**X 语言**) |
+| **Language** | **X language** |
 | **Short / toolchain** | `xlang` — compiler CLI, package id, and repo short name |
 | **Compiler** | `xlang` / `xlang_asm` (product binary after bootstrap) |
 | **Source extension** | `.x` |

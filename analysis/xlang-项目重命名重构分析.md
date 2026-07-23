@@ -25,7 +25,7 @@
 
 | 项 | 值 | 备注 |
 |----|-----|------|
-| **语言 / 项目品牌** | 中文 **X 语言** · 英文 **X language**（CLI / 包名 / 仓库短名仍小写 `xlang`） | 取代 Shux / X 语言 |
+| **语言 / 项目品牌** | 中文 **X 语言** · 英文 **X language**（CLI / 包名 / 仓库短名仍小写 `xlang`） | 取代 X language / X 语言 |
 | **主域名** | **`xlang.dev`** | 取代规划中的 `xlang.dev` 作为**现行权威** |
 | **源文件扩展名** | **保持 `.x`** | 已与品牌「X」一致；改扩展名爆炸半径极大，**本波不做** |
 | **诊断码** | **保持 `XP***` / `XT***` / `BLD***` 等** | 与「X 语言」一致；不必改为 `XL***` |
@@ -42,7 +42,7 @@
 | **配置文件** | `xlang.toml` → **`xlang.toml`** | 包/工具约定；可过渡期双读 |
 | **环境变量前缀** | `XLANG_*` / `XLANG=` → **`XLANG_*` / `XLANG=`** | 测试与 Makefile 大量依赖；过渡期可双认 |
 | **构建入口脚本** | `xlang-build.sh` → **`xlang-build.sh`** | 根目录入口 |
-| **GitHub 仓库** | `github.com/shuliangfu/xlang` → **`…/xlang`**（或保留旧名 redirect） | 需单独操作；可后置 |
+| **GitHub 仓库** | `github.com/shuliangfu/shux` → **`…/xlang`**（或保留旧名 redirect） | 需单独操作；可后置 |
 | **本机目录** | `…/shu/shux` → **`…/shu/shux`**（可选） | **不进 git**；三机路径要同步改文档与 skill |
 | **ABI 符号前缀** | **`xlang_*` → `xlang_*`（产品链全量）** | 见 §3.3；**最贵、必须整波 + 真冷** |
 | **兼容别名窗口** | **1 个过渡阶段**（双名可执行 / 双 env 可读） | 防脚本一夜全红；窗口结束后删旧名 |
@@ -94,7 +94,7 @@
 | 链接/运行时符号前缀 `xlang_*` | **数千级引用**（`xlang_sys_` / `xlang_link_` / `xlang_asm_*` / `xlang_panic_*` / `xlang_io_*` …） | **ABI 真链**；改错 = 全量 UNDEF |
 | 编辑器 / tree-sitter | `editors/vscode` · `editors/vim` · `editors/tree-sitter-xlang` | 扩展 ID、配置键 `xlang.*` |
 | 配置 | `xlang.toml`、`package.name = "xlang"` | 设计超集；编译器尚未全读 |
-| 远端 | `origin = github.com/shuliangfu/xlang.git` | 仓库改名另步 |
+| 远端 | `origin = github.com/shuliangfu/shux.git` | 仓库改名另步 |
 | 外部 skill | `~/.grok/skills/xlang-selfhost-product-gate/` | **不在仓库内**，必须单独迁 |
 
 ### 2.1 产品命令面（必须改对的「入口集合」）

@@ -510,8 +510,8 @@ def patch_string_lit_dispatch(src: str) -> tuple[str, bool]:
 
 def insert_allow_legacy_helpers(src: str) -> tuple[str, bool]:
     """Insert typeck_set/get_allow_legacy_extern_calls once (strong symbols for -E)."""
-    if "XLANG_ALLOW_LEGACY_EXTERN" in src or "SHUX_ALLOW_LEGACY_EXTERN" in src:
-        # SHUX_ALLOW: legacy marker if a stale gen slipped through; still skip re-insert.
+    if "XLANG_ALLOW_LEGACY_EXTERN" in src or "XLANG_ALLOW_LEGACY_EXTERN" in src:
+        # XLANG_ALLOW: legacy marker if a stale gen slipped through; still skip re-insert.
         return src, False
     # Place after first includes block / before first function if possible
     marker = "/* XLANG_ALLOW_LEGACY_EXTERN"

@@ -1205,7 +1205,7 @@
                                 "data": {
                                     "id": "m00112",
                                     "created": 1784118466317,
-                                    "text": "shux_path_has_sep / shux_path_last_sep",
+                                    "text": "xlang_path_has_sep / xlang_path_last_sep",
                                     "expandState": "collapse"
                                 },
                                 "children": []
@@ -1269,7 +1269,7 @@
                                 "data": {
                                     "id": "m00118",
                                     "created": 1784118466323,
-                                    "text": "shux_panic_ (panic 函数)",
+                                    "text": "xlang_panic_ (panic 函数)",
                                     "expandState": "collapse"
                                 },
                                 "children": []
@@ -4464,7 +4464,7 @@
                                 "data": {
                                     "id": "m00387",
                                     "created": 1784118466592,
-                                    "text": "shux_get_* (2)",
+                                    "text": "xlang_get_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime.x",
                                     "hyperlinkTitle": "compiler/src/runtime.x"
@@ -4474,11 +4474,11 @@
                                         "data": {
                                             "id": "m00388",
                                             "created": 1784118466593,
-                                            "text": "shux_get_tmp_prefix_impl",
+                                            "text": "xlang_get_tmp_prefix_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime.x",
                                             "hyperlinkTitle": "compiler/src/runtime.x",
-                                            "note": "compiler/src/runtime.x :: shux_get_tmp_prefix_impl"
+                                            "note": "compiler/src/runtime.x :: xlang_get_tmp_prefix_impl"
                                         },
                                         "children": []
                                     },
@@ -4486,11 +4486,11 @@
                                         "data": {
                                             "id": "m00389",
                                             "created": 1784118466594,
-                                            "text": "shux_get_tmp_prefix",
+                                            "text": "xlang_get_tmp_prefix",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime.x",
                                             "hyperlinkTitle": "compiler/src/runtime.x",
-                                            "note": "compiler/src/runtime.x :: shux_get_tmp_prefix"
+                                            "note": "compiler/src/runtime.x :: xlang_get_tmp_prefix"
                                         },
                                         "children": []
                                     }
@@ -4500,11 +4500,11 @@
                                 "data": {
                                     "id": "m00390",
                                     "created": 1784118466595,
-                                    "text": "shux_output_want_exe",
+                                    "text": "xlang_output_want_exe",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime.x",
                                     "hyperlinkTitle": "compiler/src/runtime.x",
-                                    "note": "compiler/src/runtime.x :: shux_output_want_exe"
+                                    "note": "compiler/src/runtime.x :: xlang_output_want_exe"
                                 },
                                 "children": []
                             },
@@ -4512,11 +4512,11 @@
                                 "data": {
                                     "id": "m00391",
                                     "created": 1784118466596,
-                                    "text": "shux_smoke_diag_enabled",
+                                    "text": "xlang_smoke_diag_enabled",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime.x",
                                     "hyperlinkTitle": "compiler/src/runtime.x",
-                                    "note": "compiler/src/runtime.x :: shux_smoke_diag_enabled"
+                                    "note": "compiler/src/runtime.x :: xlang_smoke_diag_enabled"
                                 },
                                 "children": []
                             },
@@ -6049,11 +6049,11 @@
                                 "data": {
                                     "id": "m00519",
                                     "created": 1784118466724,
-                                    "text": "shux_cstr_offset",
+                                    "text": "xlang_cstr_offset",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_driver_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_driver_abi.x",
-                                    "note": "compiler/src/runtime_driver_abi.x :: shux_cstr_offset"
+                                    "note": "compiler/src/runtime_driver_abi.x :: xlang_cstr_offset"
                                 },
                                 "children": []
                             },
@@ -6061,11 +6061,11 @@
                                 "data": {
                                     "id": "m00520",
                                     "created": 1784118466725,
-                                    "text": "shux_read_file_into_path",
+                                    "text": "xlang_read_file_into_path",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_driver_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_driver_abi.x",
-                                    "note": "compiler/src/runtime_driver_abi.x :: shux_read_file_into_path"
+                                    "note": "compiler/src/runtime_driver_abi.x :: xlang_read_file_into_path"
                                 },
                                 "children": []
                             }
@@ -7466,7 +7466,7 @@
                                 "data": {
                                     "id": "m00637",
                                     "created": 1784118466842,
-                                    "text": "shux_append_* (2)",
+                                    "text": "xlang_append_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -7476,11 +7476,11 @@
                                         "data": {
                                             "id": "m00638",
                                             "created": 1784118466843,
-                                            "text": "shux_append_linux_link_harden_impl",
+                                            "text": "xlang_append_linux_link_harden_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_append_linux_link_harden_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_append_linux_link_harden_impl"
                                         },
                                         "children": []
                                     },
@@ -7488,11 +7488,11 @@
                                         "data": {
                                             "id": "m00639",
                                             "created": 1784118466844,
-                                            "text": "shux_append_linux_link_harden",
+                                            "text": "xlang_append_linux_link_harden",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_append_linux_link_harden"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_append_linux_link_harden"
                                         },
                                         "children": []
                                     }
@@ -7502,7 +7502,7 @@
                                 "data": {
                                     "id": "m00640",
                                     "created": 1784118466845,
-                                    "text": "shux_asm_* (24)",
+                                    "text": "xlang_asm_* (24)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -7512,11 +7512,11 @@
                                         "data": {
                                             "id": "m00641",
                                             "created": 1784118466846,
-                                            "text": "shux_asm_ld_bank_push_impl",
+                                            "text": "xlang_asm_ld_bank_push_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_bank_push_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_bank_push_impl"
                                         },
                                         "children": []
                                     },
@@ -7524,11 +7524,11 @@
                                         "data": {
                                             "id": "m00642",
                                             "created": 1784118466847,
-                                            "text": "shux_asm_ld_effective_link_argv0_impl",
+                                            "text": "xlang_asm_ld_effective_link_argv0_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_effective_link_argv0_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_effective_link_argv0_impl"
                                         },
                                         "children": []
                                     },
@@ -7536,11 +7536,11 @@
                                         "data": {
                                             "id": "m00643",
                                             "created": 1784118466848,
-                                            "text": "shux_asm_ld_append_mach_tail_libs_impl",
+                                            "text": "xlang_asm_ld_append_mach_tail_libs_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_mach_tail_libs_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_mach_tail_libs_impl"
                                         },
                                         "children": []
                                     },
@@ -7548,11 +7548,11 @@
                                         "data": {
                                             "id": "m00644",
                                             "created": 1784118466849,
-                                            "text": "shux_asm_ld_append_unix_gcc_tail_libs_impl",
+                                            "text": "xlang_asm_ld_append_unix_gcc_tail_libs_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_unix_gcc_tail_libs_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_unix_gcc_tail_libs_impl"
                                         },
                                         "children": []
                                     },
@@ -7560,11 +7560,11 @@
                                         "data": {
                                             "id": "m00645",
                                             "created": 1784118466850,
-                                            "text": "shux_asm_ld_lib_root_ptr_usable_impl",
+                                            "text": "xlang_asm_ld_lib_root_ptr_usable_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_lib_root_ptr_usable_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_lib_root_ptr_usable_impl"
                                         },
                                         "children": []
                                     },
@@ -7572,11 +7572,11 @@
                                         "data": {
                                             "id": "m00646",
                                             "created": 1784118466851,
-                                            "text": "shux_asm_ld_lib_root_default_impl",
+                                            "text": "xlang_asm_ld_lib_root_default_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_lib_root_default_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_lib_root_default_impl"
                                         },
                                         "children": []
                                     },
@@ -7584,11 +7584,11 @@
                                         "data": {
                                             "id": "m00647",
                                             "created": 1784118466852,
-                                            "text": "shux_asm_nostdlib_minimal_selfcontained_exe_link_impl",
+                                            "text": "xlang_asm_nostdlib_minimal_selfcontained_exe_link_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_nostdlib_minimal_selfcontained_exe_link_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_nostdlib_minimal_selfcontained_exe_link_impl"
                                         },
                                         "children": []
                                     },
@@ -7596,11 +7596,11 @@
                                         "data": {
                                             "id": "m00648",
                                             "created": 1784118466853,
-                                            "text": "shux_asm_ld_effective_link_argv0",
+                                            "text": "xlang_asm_ld_effective_link_argv0",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_effective_link_argv0"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_effective_link_argv0"
                                         },
                                         "children": []
                                     },
@@ -7608,11 +7608,11 @@
                                         "data": {
                                             "id": "m00649",
                                             "created": 1784118466854,
-                                            "text": "shux_asm_ld_bank_push",
+                                            "text": "xlang_asm_ld_bank_push",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_bank_push"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_bank_push"
                                         },
                                         "children": []
                                     },
@@ -7620,11 +7620,11 @@
                                         "data": {
                                             "id": "m00650",
                                             "created": 1784118466855,
-                                            "text": "shux_asm_ld_append_mach_tail_libs",
+                                            "text": "xlang_asm_ld_append_mach_tail_libs",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_mach_tail_libs"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_mach_tail_libs"
                                         },
                                         "children": []
                                     },
@@ -7632,11 +7632,11 @@
                                         "data": {
                                             "id": "m00651",
                                             "created": 1784118466856,
-                                            "text": "shux_asm_ld_append_unix_gcc_tail_libs",
+                                            "text": "xlang_asm_ld_append_unix_gcc_tail_libs",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_unix_gcc_tail_libs"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_unix_gcc_tail_libs"
                                         },
                                         "children": []
                                     },
@@ -7644,11 +7644,11 @@
                                         "data": {
                                             "id": "m00652",
                                             "created": 1784118466857,
-                                            "text": "shux_asm_user_o_has_undef_syms_impl",
+                                            "text": "xlang_asm_user_o_has_undef_syms_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_user_o_has_undef_syms_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_user_o_has_undef_syms_impl"
                                         },
                                         "children": []
                                     },
@@ -7656,11 +7656,11 @@
                                         "data": {
                                             "id": "m00653",
                                             "created": 1784118466858,
-                                            "text": "shux_asm_ld_prepare_for_exe_link_impl",
+                                            "text": "xlang_asm_ld_prepare_for_exe_link_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_prepare_for_exe_link_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_prepare_for_exe_link_impl"
                                         },
                                         "children": []
                                     },
@@ -7668,11 +7668,11 @@
                                         "data": {
                                             "id": "m00654",
                                             "created": 1784118466859,
-                                            "text": "shux_asm_invoke_ld_platform_impl",
+                                            "text": "xlang_asm_invoke_ld_platform_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_invoke_ld_platform_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_invoke_ld_platform_impl"
                                         },
                                         "children": []
                                     },
@@ -7680,11 +7680,11 @@
                                         "data": {
                                             "id": "m00655",
                                             "created": 1784118466860,
-                                            "text": "shux_asm_ld_append_std_objs_impl",
+                                            "text": "xlang_asm_ld_append_std_objs_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_std_objs_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_std_objs_impl"
                                         },
                                         "children": []
                                     },
@@ -7692,11 +7692,11 @@
                                         "data": {
                                             "id": "m00656",
                                             "created": 1784118466861,
-                                            "text": "shux_asm_ld_append_on_demand_user_objs_impl",
+                                            "text": "xlang_asm_ld_append_on_demand_user_objs_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_on_demand_user_objs_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_on_demand_user_objs_impl"
                                         },
                                         "children": []
                                     },
@@ -7704,11 +7704,11 @@
                                         "data": {
                                             "id": "m00657",
                                             "created": 1784118466862,
-                                            "text": "shux_asm_user_o_has_undef_syms",
+                                            "text": "xlang_asm_user_o_has_undef_syms",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_user_o_has_undef_syms"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_user_o_has_undef_syms"
                                         },
                                         "children": []
                                     },
@@ -7716,11 +7716,11 @@
                                         "data": {
                                             "id": "m00658",
                                             "created": 1784118466863,
-                                            "text": "shux_asm_ld_prepare_for_exe_link",
+                                            "text": "xlang_asm_ld_prepare_for_exe_link",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_prepare_for_exe_link"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_prepare_for_exe_link"
                                         },
                                         "children": []
                                     },
@@ -7728,11 +7728,11 @@
                                         "data": {
                                             "id": "m00659",
                                             "created": 1784118466864,
-                                            "text": "shux_asm_invoke_ld_platform",
+                                            "text": "xlang_asm_invoke_ld_platform",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_invoke_ld_platform"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_invoke_ld_platform"
                                         },
                                         "children": []
                                     },
@@ -7740,11 +7740,11 @@
                                         "data": {
                                             "id": "m00660",
                                             "created": 1784118466865,
-                                            "text": "shux_asm_ld_append_std_objs",
+                                            "text": "xlang_asm_ld_append_std_objs",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_std_objs"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_std_objs"
                                         },
                                         "children": []
                                     },
@@ -7752,11 +7752,11 @@
                                         "data": {
                                             "id": "m00661",
                                             "created": 1784118466866,
-                                            "text": "shux_asm_ld_append_on_demand_user_objs",
+                                            "text": "xlang_asm_ld_append_on_demand_user_objs",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_append_on_demand_user_objs"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_append_on_demand_user_objs"
                                         },
                                         "children": []
                                     },
@@ -7764,11 +7764,11 @@
                                         "data": {
                                             "id": "m00662",
                                             "created": 1784118466867,
-                                            "text": "shux_asm_ld_lib_root_default",
+                                            "text": "xlang_asm_ld_lib_root_default",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_lib_root_default"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_lib_root_default"
                                         },
                                         "children": []
                                     },
@@ -7776,11 +7776,11 @@
                                         "data": {
                                             "id": "m00663",
                                             "created": 1784118466868,
-                                            "text": "shux_asm_nostdlib_minimal_selfcontained_exe_link",
+                                            "text": "xlang_asm_nostdlib_minimal_selfcontained_exe_link",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_nostdlib_minimal_selfcontained_exe_link"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_nostdlib_minimal_selfcontained_exe_link"
                                         },
                                         "children": []
                                     },
@@ -7788,11 +7788,11 @@
                                         "data": {
                                             "id": "m00664",
                                             "created": 1784118466869,
-                                            "text": "shux_asm_ld_lib_root_ptr_usable",
+                                            "text": "xlang_asm_ld_lib_root_ptr_usable",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_asm_ld_lib_root_ptr_usable"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_asm_ld_lib_root_ptr_usable"
                                         },
                                         "children": []
                                     }
@@ -7802,7 +7802,7 @@
                                 "data": {
                                     "id": "m00665",
                                     "created": 1784118466870,
-                                    "text": "shux_cc_* (4)",
+                                    "text": "xlang_cc_* (4)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -7812,11 +7812,11 @@
                                         "data": {
                                             "id": "m00666",
                                             "created": 1784118466871,
-                                            "text": "shux_cc_compile_sync_impl",
+                                            "text": "xlang_cc_compile_sync_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_cc_compile_sync_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_cc_compile_sync_impl"
                                         },
                                         "children": []
                                     },
@@ -7824,11 +7824,11 @@
                                         "data": {
                                             "id": "m00667",
                                             "created": 1784118466872,
-                                            "text": "shux_cc_compile_sync_ex_impl",
+                                            "text": "xlang_cc_compile_sync_ex_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_cc_compile_sync_ex_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_cc_compile_sync_ex_impl"
                                         },
                                         "children": []
                                     },
@@ -7836,11 +7836,11 @@
                                         "data": {
                                             "id": "m00668",
                                             "created": 1784118466873,
-                                            "text": "shux_cc_compile_sync",
+                                            "text": "xlang_cc_compile_sync",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_cc_compile_sync"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_cc_compile_sync"
                                         },
                                         "children": []
                                     },
@@ -7848,11 +7848,11 @@
                                         "data": {
                                             "id": "m00669",
                                             "created": 1784118466874,
-                                            "text": "shux_cc_compile_sync_ex",
+                                            "text": "xlang_cc_compile_sync_ex",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_cc_compile_sync_ex"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_cc_compile_sync_ex"
                                         },
                                         "children": []
                                     }
@@ -7862,7 +7862,7 @@
                                 "data": {
                                     "id": "m00670",
                                     "created": 1784118466875,
-                                    "text": "shux_debug_* (2)",
+                                    "text": "xlang_debug_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -7872,11 +7872,11 @@
                                         "data": {
                                             "id": "m00671",
                                             "created": 1784118466876,
-                                            "text": "shux_debug_hello_stage1_report_impl",
+                                            "text": "xlang_debug_hello_stage1_report_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_debug_hello_stage1_report_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_debug_hello_stage1_report_impl"
                                         },
                                         "children": []
                                     },
@@ -7884,11 +7884,11 @@
                                         "data": {
                                             "id": "m00672",
                                             "created": 1784118466877,
-                                            "text": "shux_debug_hello_stage1_report",
+                                            "text": "xlang_debug_hello_stage1_report",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_debug_hello_stage1_report"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_debug_hello_stage1_report"
                                         },
                                         "children": []
                                     }
@@ -7898,11 +7898,11 @@
                                 "data": {
                                     "id": "m00673",
                                     "created": 1784118466878,
-                                    "text": "shux_empty_cstr",
+                                    "text": "xlang_empty_cstr",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                    "note": "compiler/src/runtime_link_abi.x :: shux_empty_cstr"
+                                    "note": "compiler/src/runtime_link_abi.x :: xlang_empty_cstr"
                                 },
                                 "children": []
                             },
@@ -7910,7 +7910,7 @@
                                 "data": {
                                     "id": "m00674",
                                     "created": 1784118466879,
-                                    "text": "shux_ensure_* (64)",
+                                    "text": "xlang_ensure_* (64)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -7920,11 +7920,11 @@
                                         "data": {
                                             "id": "m00675",
                                             "created": 1784118466880,
-                                            "text": "shux_ensure_runtime_arrow_simd_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_arrow_simd_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_arrow_simd_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_arrow_simd_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -7932,11 +7932,11 @@
                                         "data": {
                                             "id": "m00676",
                                             "created": 1784118466881,
-                                            "text": "shux_ensure_runtime_asm_io_stubs_o_impl",
+                                            "text": "xlang_ensure_runtime_asm_io_stubs_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_asm_io_stubs_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_asm_io_stubs_o_impl"
                                         },
                                         "children": []
                                     },
@@ -7944,11 +7944,11 @@
                                         "data": {
                                             "id": "m00677",
                                             "created": 1784118466882,
-                                            "text": "shux_ensure_runtime_atomic_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_atomic_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_atomic_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_atomic_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -7956,11 +7956,11 @@
                                         "data": {
                                             "id": "m00678",
                                             "created": 1784118466883,
-                                            "text": "shux_ensure_runtime_backtrace_platform_o_impl",
+                                            "text": "xlang_ensure_runtime_backtrace_platform_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_backtrace_platform_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_backtrace_platform_o_impl"
                                         },
                                         "children": []
                                     },
@@ -7968,11 +7968,11 @@
                                         "data": {
                                             "id": "m00679",
                                             "created": 1784118466884,
-                                            "text": "shux_ensure_runtime_channel_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_channel_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_channel_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_channel_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -7980,11 +7980,11 @@
                                         "data": {
                                             "id": "m00680",
                                             "created": 1784118466885,
-                                            "text": "shux_ensure_runtime_compress_zlib_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_compress_zlib_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_compress_zlib_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_compress_zlib_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -7992,11 +7992,11 @@
                                         "data": {
                                             "id": "m00681",
                                             "created": 1784118466886,
-                                            "text": "shux_ensure_runtime_crypto_inc_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_crypto_inc_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_crypto_inc_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_crypto_inc_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8004,11 +8004,11 @@
                                         "data": {
                                             "id": "m00682",
                                             "created": 1784118466887,
-                                            "text": "shux_ensure_runtime_dynlib_os_o_impl",
+                                            "text": "xlang_ensure_runtime_dynlib_os_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_dynlib_os_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_dynlib_os_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8016,11 +8016,11 @@
                                         "data": {
                                             "id": "m00683",
                                             "created": 1784118466888,
-                                            "text": "shux_ensure_runtime_ed25519_ref10_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_ed25519_ref10_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_ed25519_ref10_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_ed25519_ref10_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8028,11 +8028,11 @@
                                         "data": {
                                             "id": "m00684",
                                             "created": 1784118466889,
-                                            "text": "shux_ensure_runtime_env_os_o_impl",
+                                            "text": "xlang_ensure_runtime_env_os_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_env_os_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_env_os_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8040,11 +8040,11 @@
                                         "data": {
                                             "id": "m00685",
                                             "created": 1784118466890,
-                                            "text": "shux_ensure_runtime_heap_user_o_impl",
+                                            "text": "xlang_ensure_runtime_heap_user_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_heap_user_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_heap_user_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8052,11 +8052,11 @@
                                         "data": {
                                             "id": "m00686",
                                             "created": 1784118466891,
-                                            "text": "shux_ensure_runtime_http_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_http_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_http_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_http_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8064,11 +8064,11 @@
                                         "data": {
                                             "id": "m00687",
                                             "created": 1784118466892,
-                                            "text": "shux_ensure_runtime_kv_mmap_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_kv_mmap_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_kv_mmap_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_kv_mmap_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8076,11 +8076,11 @@
                                         "data": {
                                             "id": "m00688",
                                             "created": 1784118466893,
-                                            "text": "shux_ensure_runtime_log_os_o_impl",
+                                            "text": "xlang_ensure_runtime_log_os_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_log_os_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_log_os_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8088,11 +8088,11 @@
                                         "data": {
                                             "id": "m00689",
                                             "created": 1784118466894,
-                                            "text": "shux_ensure_runtime_math_libm_o_impl",
+                                            "text": "xlang_ensure_runtime_math_libm_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_math_libm_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_math_libm_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8100,11 +8100,11 @@
                                         "data": {
                                             "id": "m00690",
                                             "created": 1784118466895,
-                                            "text": "shux_ensure_runtime_net_udp_batch_o_impl",
+                                            "text": "xlang_ensure_runtime_net_udp_batch_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_net_udp_batch_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_net_udp_batch_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8112,11 +8112,11 @@
                                         "data": {
                                             "id": "m00691",
                                             "created": 1784118466896,
-                                            "text": "shux_ensure_runtime_net_workers_o_impl",
+                                            "text": "xlang_ensure_runtime_net_workers_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_net_workers_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_net_workers_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8124,11 +8124,11 @@
                                         "data": {
                                             "id": "m00692",
                                             "created": 1784118466897,
-                                            "text": "shux_ensure_runtime_panic_o_impl",
+                                            "text": "xlang_ensure_runtime_panic_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_panic_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_panic_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8136,11 +8136,11 @@
                                         "data": {
                                             "id": "m00693",
                                             "created": 1784118466898,
-                                            "text": "shux_ensure_runtime_process_argv_o_impl",
+                                            "text": "xlang_ensure_runtime_process_argv_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_process_argv_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_process_argv_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8148,11 +8148,11 @@
                                         "data": {
                                             "id": "m00694",
                                             "created": 1784118466899,
-                                            "text": "shux_ensure_runtime_process_os_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_process_os_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_process_os_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_process_os_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8160,11 +8160,11 @@
                                         "data": {
                                             "id": "m00695",
                                             "created": 1784118466900,
-                                            "text": "shux_ensure_runtime_queue_contention_o_impl",
+                                            "text": "xlang_ensure_runtime_queue_contention_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_queue_contention_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_queue_contention_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8172,11 +8172,11 @@
                                         "data": {
                                             "id": "m00696",
                                             "created": 1784118466901,
-                                            "text": "shux_ensure_runtime_random_fill_o_impl",
+                                            "text": "xlang_ensure_runtime_random_fill_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_random_fill_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_random_fill_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8184,11 +8184,11 @@
                                         "data": {
                                             "id": "m00697",
                                             "created": 1784118466902,
-                                            "text": "shux_ensure_runtime_scheduler_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_scheduler_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_scheduler_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_scheduler_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8196,11 +8196,11 @@
                                         "data": {
                                             "id": "m00698",
                                             "created": 1784118466903,
-                                            "text": "shux_ensure_runtime_sqlite_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_sqlite_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_sqlite_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_sqlite_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8208,11 +8208,11 @@
                                         "data": {
                                             "id": "m00699",
                                             "created": 1784118466904,
-                                            "text": "shux_ensure_runtime_sync_lock_diag_tls_o_impl",
+                                            "text": "xlang_ensure_runtime_sync_lock_diag_tls_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_sync_lock_diag_tls_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_sync_lock_diag_tls_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8220,11 +8220,11 @@
                                         "data": {
                                             "id": "m00700",
                                             "created": 1784118466905,
-                                            "text": "shux_ensure_runtime_sync_os_o_impl",
+                                            "text": "xlang_ensure_runtime_sync_os_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_sync_os_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_sync_os_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8232,11 +8232,11 @@
                                         "data": {
                                             "id": "m00701",
                                             "created": 1784118466906,
-                                            "text": "shux_ensure_runtime_test_fn_invoke_o_impl",
+                                            "text": "xlang_ensure_runtime_test_fn_invoke_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_test_fn_invoke_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_test_fn_invoke_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8244,11 +8244,11 @@
                                         "data": {
                                             "id": "m00702",
                                             "created": 1784118466907,
-                                            "text": "shux_ensure_runtime_thread_glue_o_impl",
+                                            "text": "xlang_ensure_runtime_thread_glue_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_thread_glue_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_thread_glue_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8256,11 +8256,11 @@
                                         "data": {
                                             "id": "m00703",
                                             "created": 1784118466908,
-                                            "text": "shux_ensure_runtime_time_os_o_impl",
+                                            "text": "xlang_ensure_runtime_time_os_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_time_os_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_time_os_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8268,11 +8268,11 @@
                                         "data": {
                                             "id": "m00704",
                                             "created": 1784118466909,
-                                            "text": "shux_ensure_runtime_tls_mbedtls_bio_o_impl",
+                                            "text": "xlang_ensure_runtime_tls_mbedtls_bio_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_tls_mbedtls_bio_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_tls_mbedtls_bio_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8280,11 +8280,11 @@
                                         "data": {
                                             "id": "m00705",
                                             "created": 1784118466910,
-                                            "text": "shux_ensure_crt0_user_o_impl",
+                                            "text": "xlang_ensure_crt0_user_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_crt0_user_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_crt0_user_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8292,11 +8292,11 @@
                                         "data": {
                                             "id": "m00706",
                                             "created": 1784118466911,
-                                            "text": "shux_ensure_freestanding_io_o_impl",
+                                            "text": "xlang_ensure_freestanding_io_o_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_freestanding_io_o_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_freestanding_io_o_impl"
                                         },
                                         "children": []
                                     },
@@ -8304,11 +8304,11 @@
                                         "data": {
                                             "id": "m00707",
                                             "created": 1784118466912,
-                                            "text": "shux_ensure_runtime_arrow_simd_glue_o",
+                                            "text": "xlang_ensure_runtime_arrow_simd_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_arrow_simd_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_arrow_simd_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8316,11 +8316,11 @@
                                         "data": {
                                             "id": "m00708",
                                             "created": 1784118466913,
-                                            "text": "shux_ensure_runtime_asm_io_stubs_o",
+                                            "text": "xlang_ensure_runtime_asm_io_stubs_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_asm_io_stubs_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_asm_io_stubs_o"
                                         },
                                         "children": []
                                     },
@@ -8328,11 +8328,11 @@
                                         "data": {
                                             "id": "m00709",
                                             "created": 1784118466914,
-                                            "text": "shux_ensure_runtime_atomic_glue_o",
+                                            "text": "xlang_ensure_runtime_atomic_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_atomic_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_atomic_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8340,11 +8340,11 @@
                                         "data": {
                                             "id": "m00710",
                                             "created": 1784118466915,
-                                            "text": "shux_ensure_runtime_backtrace_platform_o",
+                                            "text": "xlang_ensure_runtime_backtrace_platform_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_backtrace_platform_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_backtrace_platform_o"
                                         },
                                         "children": []
                                     },
@@ -8352,11 +8352,11 @@
                                         "data": {
                                             "id": "m00711",
                                             "created": 1784118466916,
-                                            "text": "shux_ensure_runtime_channel_glue_o",
+                                            "text": "xlang_ensure_runtime_channel_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_channel_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_channel_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8364,11 +8364,11 @@
                                         "data": {
                                             "id": "m00712",
                                             "created": 1784118466917,
-                                            "text": "shux_ensure_runtime_compress_zlib_glue_o",
+                                            "text": "xlang_ensure_runtime_compress_zlib_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_compress_zlib_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_compress_zlib_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8376,11 +8376,11 @@
                                         "data": {
                                             "id": "m00713",
                                             "created": 1784118466918,
-                                            "text": "shux_ensure_runtime_crypto_inc_glue_o",
+                                            "text": "xlang_ensure_runtime_crypto_inc_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_crypto_inc_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_crypto_inc_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8388,11 +8388,11 @@
                                         "data": {
                                             "id": "m00714",
                                             "created": 1784118466919,
-                                            "text": "shux_ensure_runtime_dynlib_os_o",
+                                            "text": "xlang_ensure_runtime_dynlib_os_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_dynlib_os_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_dynlib_os_o"
                                         },
                                         "children": []
                                     },
@@ -8400,11 +8400,11 @@
                                         "data": {
                                             "id": "m00715",
                                             "created": 1784118466920,
-                                            "text": "shux_ensure_runtime_ed25519_ref10_glue_o",
+                                            "text": "xlang_ensure_runtime_ed25519_ref10_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_ed25519_ref10_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_ed25519_ref10_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8412,11 +8412,11 @@
                                         "data": {
                                             "id": "m00716",
                                             "created": 1784118466921,
-                                            "text": "shux_ensure_runtime_env_os_o",
+                                            "text": "xlang_ensure_runtime_env_os_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_env_os_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_env_os_o"
                                         },
                                         "children": []
                                     },
@@ -8424,11 +8424,11 @@
                                         "data": {
                                             "id": "m00717",
                                             "created": 1784118466922,
-                                            "text": "shux_ensure_runtime_heap_user_o",
+                                            "text": "xlang_ensure_runtime_heap_user_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_heap_user_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_heap_user_o"
                                         },
                                         "children": []
                                     },
@@ -8436,11 +8436,11 @@
                                         "data": {
                                             "id": "m00718",
                                             "created": 1784118466923,
-                                            "text": "shux_ensure_runtime_http_glue_o",
+                                            "text": "xlang_ensure_runtime_http_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_http_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_http_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8448,11 +8448,11 @@
                                         "data": {
                                             "id": "m00719",
                                             "created": 1784118466924,
-                                            "text": "shux_ensure_runtime_kv_mmap_glue_o",
+                                            "text": "xlang_ensure_runtime_kv_mmap_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_kv_mmap_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_kv_mmap_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8460,11 +8460,11 @@
                                         "data": {
                                             "id": "m00720",
                                             "created": 1784118466925,
-                                            "text": "shux_ensure_runtime_log_os_o",
+                                            "text": "xlang_ensure_runtime_log_os_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_log_os_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_log_os_o"
                                         },
                                         "children": []
                                     },
@@ -8472,11 +8472,11 @@
                                         "data": {
                                             "id": "m00721",
                                             "created": 1784118466926,
-                                            "text": "shux_ensure_runtime_math_libm_o",
+                                            "text": "xlang_ensure_runtime_math_libm_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_math_libm_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_math_libm_o"
                                         },
                                         "children": []
                                     },
@@ -8484,11 +8484,11 @@
                                         "data": {
                                             "id": "m00722",
                                             "created": 1784118466927,
-                                            "text": "shux_ensure_runtime_net_udp_batch_o",
+                                            "text": "xlang_ensure_runtime_net_udp_batch_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_net_udp_batch_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_net_udp_batch_o"
                                         },
                                         "children": []
                                     },
@@ -8496,11 +8496,11 @@
                                         "data": {
                                             "id": "m00723",
                                             "created": 1784118466928,
-                                            "text": "shux_ensure_runtime_net_workers_o",
+                                            "text": "xlang_ensure_runtime_net_workers_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_net_workers_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_net_workers_o"
                                         },
                                         "children": []
                                     },
@@ -8508,11 +8508,11 @@
                                         "data": {
                                             "id": "m00724",
                                             "created": 1784118466929,
-                                            "text": "shux_ensure_runtime_panic_o",
+                                            "text": "xlang_ensure_runtime_panic_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_panic_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_panic_o"
                                         },
                                         "children": []
                                     },
@@ -8520,11 +8520,11 @@
                                         "data": {
                                             "id": "m00725",
                                             "created": 1784118466930,
-                                            "text": "shux_ensure_runtime_process_argv_o",
+                                            "text": "xlang_ensure_runtime_process_argv_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_process_argv_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_process_argv_o"
                                         },
                                         "children": []
                                     },
@@ -8532,11 +8532,11 @@
                                         "data": {
                                             "id": "m00726",
                                             "created": 1784118466931,
-                                            "text": "shux_ensure_runtime_process_os_glue_o",
+                                            "text": "xlang_ensure_runtime_process_os_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_process_os_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_process_os_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8544,11 +8544,11 @@
                                         "data": {
                                             "id": "m00727",
                                             "created": 1784118466932,
-                                            "text": "shux_ensure_runtime_queue_contention_o",
+                                            "text": "xlang_ensure_runtime_queue_contention_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_queue_contention_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_queue_contention_o"
                                         },
                                         "children": []
                                     },
@@ -8556,11 +8556,11 @@
                                         "data": {
                                             "id": "m00728",
                                             "created": 1784118466933,
-                                            "text": "shux_ensure_runtime_random_fill_o",
+                                            "text": "xlang_ensure_runtime_random_fill_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_random_fill_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_random_fill_o"
                                         },
                                         "children": []
                                     },
@@ -8568,11 +8568,11 @@
                                         "data": {
                                             "id": "m00729",
                                             "created": 1784118466934,
-                                            "text": "shux_ensure_runtime_scheduler_glue_o",
+                                            "text": "xlang_ensure_runtime_scheduler_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_scheduler_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_scheduler_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8580,11 +8580,11 @@
                                         "data": {
                                             "id": "m00730",
                                             "created": 1784118466935,
-                                            "text": "shux_ensure_runtime_sqlite_glue_o",
+                                            "text": "xlang_ensure_runtime_sqlite_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_sqlite_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_sqlite_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8592,11 +8592,11 @@
                                         "data": {
                                             "id": "m00731",
                                             "created": 1784118466936,
-                                            "text": "shux_ensure_runtime_sync_lock_diag_tls_o",
+                                            "text": "xlang_ensure_runtime_sync_lock_diag_tls_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_sync_lock_diag_tls_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_sync_lock_diag_tls_o"
                                         },
                                         "children": []
                                     },
@@ -8604,11 +8604,11 @@
                                         "data": {
                                             "id": "m00732",
                                             "created": 1784118466937,
-                                            "text": "shux_ensure_runtime_sync_os_o",
+                                            "text": "xlang_ensure_runtime_sync_os_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_sync_os_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_sync_os_o"
                                         },
                                         "children": []
                                     },
@@ -8616,11 +8616,11 @@
                                         "data": {
                                             "id": "m00733",
                                             "created": 1784118466938,
-                                            "text": "shux_ensure_runtime_test_fn_invoke_o",
+                                            "text": "xlang_ensure_runtime_test_fn_invoke_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_test_fn_invoke_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_test_fn_invoke_o"
                                         },
                                         "children": []
                                     },
@@ -8628,11 +8628,11 @@
                                         "data": {
                                             "id": "m00734",
                                             "created": 1784118466939,
-                                            "text": "shux_ensure_runtime_thread_glue_o",
+                                            "text": "xlang_ensure_runtime_thread_glue_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_thread_glue_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_thread_glue_o"
                                         },
                                         "children": []
                                     },
@@ -8640,11 +8640,11 @@
                                         "data": {
                                             "id": "m00735",
                                             "created": 1784118466940,
-                                            "text": "shux_ensure_runtime_time_os_o",
+                                            "text": "xlang_ensure_runtime_time_os_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_time_os_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_time_os_o"
                                         },
                                         "children": []
                                     },
@@ -8652,11 +8652,11 @@
                                         "data": {
                                             "id": "m00736",
                                             "created": 1784118466941,
-                                            "text": "shux_ensure_runtime_tls_mbedtls_bio_o",
+                                            "text": "xlang_ensure_runtime_tls_mbedtls_bio_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_runtime_tls_mbedtls_bio_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_runtime_tls_mbedtls_bio_o"
                                         },
                                         "children": []
                                     },
@@ -8664,11 +8664,11 @@
                                         "data": {
                                             "id": "m00737",
                                             "created": 1784118466942,
-                                            "text": "shux_ensure_crt0_user_o",
+                                            "text": "xlang_ensure_crt0_user_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_crt0_user_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_crt0_user_o"
                                         },
                                         "children": []
                                     },
@@ -8676,11 +8676,11 @@
                                         "data": {
                                             "id": "m00738",
                                             "created": 1784118466943,
-                                            "text": "shux_ensure_freestanding_io_o",
+                                            "text": "xlang_ensure_freestanding_io_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_ensure_freestanding_io_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_ensure_freestanding_io_o"
                                         },
                                         "children": []
                                     }
@@ -8690,11 +8690,11 @@
                                 "data": {
                                     "id": "m00739",
                                     "created": 1784118466944,
-                                    "text": "shux_forward_main_to_main_entry",
+                                    "text": "xlang_forward_main_to_main_entry",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                    "note": "compiler/src/runtime_link_abi.x :: shux_forward_main_to_main_entry"
+                                    "note": "compiler/src/runtime_link_abi.x :: xlang_forward_main_to_main_entry"
                                 },
                                 "children": []
                             },
@@ -8702,7 +8702,7 @@
                                 "data": {
                                     "id": "m00740",
                                     "created": 1784118466945,
-                                    "text": "shux_freestanding_* (2)",
+                                    "text": "xlang_freestanding_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -8712,11 +8712,11 @@
                                         "data": {
                                             "id": "m00741",
                                             "created": 1784118466946,
-                                            "text": "shux_freestanding_user_o_needs_panic",
+                                            "text": "xlang_freestanding_user_o_needs_panic",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_freestanding_user_o_needs_panic"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_freestanding_user_o_needs_panic"
                                         },
                                         "children": []
                                     },
@@ -8724,11 +8724,11 @@
                                         "data": {
                                             "id": "m00742",
                                             "created": 1784118466947,
-                                            "text": "shux_freestanding_user_o_needs_io",
+                                            "text": "xlang_freestanding_user_o_needs_io",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_freestanding_user_o_needs_io"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_freestanding_user_o_needs_io"
                                         },
                                         "children": []
                                     }
@@ -8738,11 +8738,11 @@
                                 "data": {
                                     "id": "m00743",
                                     "created": 1784118466948,
-                                    "text": "shux_generated_c_needs_async_scheduler",
+                                    "text": "xlang_generated_c_needs_async_scheduler",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                    "note": "compiler/src/runtime_link_abi.x :: shux_generated_c_needs_async_scheduler"
+                                    "note": "compiler/src/runtime_link_abi.x :: xlang_generated_c_needs_async_scheduler"
                                 },
                                 "children": []
                             },
@@ -8750,7 +8750,7 @@
                                 "data": {
                                     "id": "m00744",
                                     "created": 1784118466949,
-                                    "text": "shux_host_* (2)",
+                                    "text": "xlang_host_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -8760,11 +8760,11 @@
                                         "data": {
                                             "id": "m00745",
                                             "created": 1784118466950,
-                                            "text": "shux_host_is_linux",
+                                            "text": "xlang_host_is_linux",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_host_is_linux"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_host_is_linux"
                                         },
                                         "children": []
                                     },
@@ -8772,11 +8772,11 @@
                                         "data": {
                                             "id": "m00746",
                                             "created": 1784118466951,
-                                            "text": "shux_host_is_apple_aarch64",
+                                            "text": "xlang_host_is_apple_aarch64",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_host_is_apple_aarch64"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_host_is_apple_aarch64"
                                         },
                                         "children": []
                                     }
@@ -8786,7 +8786,7 @@
                                 "data": {
                                     "id": "m00747",
                                     "created": 1784118466952,
-                                    "text": "shux_invoke_* (4)",
+                                    "text": "xlang_invoke_* (4)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -8796,11 +8796,11 @@
                                         "data": {
                                             "id": "m00748",
                                             "created": 1784118466953,
-                                            "text": "shux_invoke_ld_for_exe_impl",
+                                            "text": "xlang_invoke_ld_for_exe_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_invoke_ld_for_exe_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_invoke_ld_for_exe_impl"
                                         },
                                         "children": []
                                     },
@@ -8808,11 +8808,11 @@
                                         "data": {
                                             "id": "m00749",
                                             "created": 1784118466954,
-                                            "text": "shux_invoke_ld_for_exe",
+                                            "text": "xlang_invoke_ld_for_exe",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_invoke_ld_for_exe"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_invoke_ld_for_exe"
                                         },
                                         "children": []
                                     },
@@ -8820,11 +8820,11 @@
                                         "data": {
                                             "id": "m00750",
                                             "created": 1784118466955,
-                                            "text": "shux_invoke_cc_impl",
+                                            "text": "xlang_invoke_cc_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_invoke_cc_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_invoke_cc_impl"
                                         },
                                         "children": []
                                     },
@@ -8832,11 +8832,11 @@
                                         "data": {
                                             "id": "m00751",
                                             "created": 1784118466956,
-                                            "text": "shux_invoke_cc",
+                                            "text": "xlang_invoke_cc",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_invoke_cc"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_invoke_cc"
                                         },
                                         "children": []
                                     }
@@ -8846,7 +8846,7 @@
                                 "data": {
                                     "id": "m00752",
                                     "created": 1784118466957,
-                                    "text": "shux_link_* (5)",
+                                    "text": "xlang_link_* (5)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -8856,11 +8856,11 @@
                                         "data": {
                                             "id": "m00753",
                                             "created": 1784118466958,
-                                            "text": "shux_link_obj_needs_undef_sym_impl",
+                                            "text": "xlang_link_obj_needs_undef_sym_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_link_obj_needs_undef_sym_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_link_obj_needs_undef_sym_impl"
                                         },
                                         "children": []
                                     },
@@ -8868,11 +8868,11 @@
                                         "data": {
                                             "id": "m00754",
                                             "created": 1784118466959,
-                                            "text": "shux_link_perror_impl",
+                                            "text": "xlang_link_perror_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_link_perror_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_link_perror_impl"
                                         },
                                         "children": []
                                     },
@@ -8880,11 +8880,11 @@
                                         "data": {
                                             "id": "m00755",
                                             "created": 1784118466960,
-                                            "text": "shux_link_freestanding_enabled",
+                                            "text": "xlang_link_freestanding_enabled",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_link_freestanding_enabled"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_link_freestanding_enabled"
                                         },
                                         "children": []
                                     },
@@ -8892,11 +8892,11 @@
                                         "data": {
                                             "id": "m00756",
                                             "created": 1784118466961,
-                                            "text": "shux_link_obj_needs_undef_sym",
+                                            "text": "xlang_link_obj_needs_undef_sym",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_link_obj_needs_undef_sym"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_link_obj_needs_undef_sym"
                                         },
                                         "children": []
                                     },
@@ -8904,11 +8904,11 @@
                                         "data": {
                                             "id": "m00757",
                                             "created": 1784118466962,
-                                            "text": "shux_link_perror",
+                                            "text": "xlang_link_perror",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_link_perror"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_link_perror"
                                         },
                                         "children": []
                                     }
@@ -8918,7 +8918,7 @@
                                 "data": {
                                     "id": "m00758",
                                     "created": 1784118466963,
-                                    "text": "shux_linux_* (4)",
+                                    "text": "xlang_linux_* (4)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -8928,11 +8928,11 @@
                                         "data": {
                                             "id": "m00759",
                                             "created": 1784118466964,
-                                            "text": "shux_linux_host_gcc_path_impl",
+                                            "text": "xlang_linux_host_gcc_path_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_linux_host_gcc_path_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_linux_host_gcc_path_impl"
                                         },
                                         "children": []
                                     },
@@ -8940,11 +8940,11 @@
                                         "data": {
                                             "id": "m00760",
                                             "created": 1784118466965,
-                                            "text": "shux_linux_ld_child_path_impl",
+                                            "text": "xlang_linux_ld_child_path_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_linux_ld_child_path_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_linux_ld_child_path_impl"
                                         },
                                         "children": []
                                     },
@@ -8952,11 +8952,11 @@
                                         "data": {
                                             "id": "m00761",
                                             "created": 1784118466966,
-                                            "text": "shux_linux_host_gcc_path",
+                                            "text": "xlang_linux_host_gcc_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_linux_host_gcc_path"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_linux_host_gcc_path"
                                         },
                                         "children": []
                                     },
@@ -8964,11 +8964,11 @@
                                         "data": {
                                             "id": "m00762",
                                             "created": 1784118466967,
-                                            "text": "shux_linux_ld_child_path",
+                                            "text": "xlang_linux_ld_child_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_linux_ld_child_path"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_linux_ld_child_path"
                                         },
                                         "children": []
                                     }
@@ -8978,7 +8978,7 @@
                                 "data": {
                                     "id": "m00763",
                                     "created": 1784118466968,
-                                    "text": "shux_output_* (2)",
+                                    "text": "xlang_output_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -8988,11 +8988,11 @@
                                         "data": {
                                             "id": "m00764",
                                             "created": 1784118466969,
-                                            "text": "shux_output_is_elf_o",
+                                            "text": "xlang_output_is_elf_o",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_output_is_elf_o"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_output_is_elf_o"
                                         },
                                         "children": []
                                     },
@@ -9000,11 +9000,11 @@
                                         "data": {
                                             "id": "m00765",
                                             "created": 1784118466970,
-                                            "text": "shux_output_want_exe",
+                                            "text": "xlang_output_want_exe",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_output_want_exe"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_output_want_exe"
                                         },
                                         "children": []
                                     }
@@ -9014,7 +9014,7 @@
                                 "data": {
                                     "id": "m00766",
                                     "created": 1784118466971,
-                                    "text": "shux_path_* (4)",
+                                    "text": "xlang_path_* (4)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -9024,11 +9024,11 @@
                                         "data": {
                                             "id": "m00767",
                                             "created": 1784118466972,
-                                            "text": "shux_path_is_nonempty_regular_file_impl",
+                                            "text": "xlang_path_is_nonempty_regular_file_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_path_is_nonempty_regular_file_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_path_is_nonempty_regular_file_impl"
                                         },
                                         "children": []
                                     },
@@ -9036,11 +9036,11 @@
                                         "data": {
                                             "id": "m00768",
                                             "created": 1784118466973,
-                                            "text": "shux_path_is_nonempty_regular_file",
+                                            "text": "xlang_path_is_nonempty_regular_file",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_path_is_nonempty_regular_file"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_path_is_nonempty_regular_file"
                                         },
                                         "children": []
                                     },
@@ -9048,11 +9048,11 @@
                                         "data": {
                                             "id": "m00769",
                                             "created": 1784118466974,
-                                            "text": "shux_path_has_sep",
+                                            "text": "xlang_path_has_sep",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_path_has_sep"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_path_has_sep"
                                         },
                                         "children": []
                                     },
@@ -9060,11 +9060,11 @@
                                         "data": {
                                             "id": "m00770",
                                             "created": 1784118466975,
-                                            "text": "shux_path_last_sep",
+                                            "text": "xlang_path_last_sep",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_path_last_sep"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_path_last_sep"
                                         },
                                         "children": []
                                     }
@@ -9074,7 +9074,7 @@
                                 "data": {
                                     "id": "m00771",
                                     "created": 1784118466976,
-                                    "text": "shux_runtime_* (8)",
+                                    "text": "xlang_runtime_* (8)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -9084,11 +9084,11 @@
                                         "data": {
                                             "id": "m00772",
                                             "created": 1784118466977,
-                                            "text": "shux_runtime_asm_io_stubs_o_path_impl",
+                                            "text": "xlang_runtime_asm_io_stubs_o_path_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_asm_io_stubs_o_path_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_asm_io_stubs_o_path_impl"
                                         },
                                         "children": []
                                     },
@@ -9096,11 +9096,11 @@
                                         "data": {
                                             "id": "m00773",
                                             "created": 1784118466978,
-                                            "text": "shux_runtime_process_argv_o_path_impl",
+                                            "text": "xlang_runtime_process_argv_o_path_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_process_argv_o_path_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_process_argv_o_path_impl"
                                         },
                                         "children": []
                                     },
@@ -9108,11 +9108,11 @@
                                         "data": {
                                             "id": "m00774",
                                             "created": 1784118466979,
-                                            "text": "shux_runtime_o_realpath_if_exists_impl",
+                                            "text": "xlang_runtime_o_realpath_if_exists_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_o_realpath_if_exists_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_o_realpath_if_exists_impl"
                                         },
                                         "children": []
                                     },
@@ -9120,11 +9120,11 @@
                                         "data": {
                                             "id": "m00775",
                                             "created": 1784118466980,
-                                            "text": "shux_runtime_compiler_o_path_copy_impl",
+                                            "text": "xlang_runtime_compiler_o_path_copy_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_compiler_o_path_copy_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_compiler_o_path_copy_impl"
                                         },
                                         "children": []
                                     },
@@ -9132,11 +9132,11 @@
                                         "data": {
                                             "id": "m00776",
                                             "created": 1784118466981,
-                                            "text": "shux_runtime_asm_io_stubs_o_path",
+                                            "text": "xlang_runtime_asm_io_stubs_o_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_asm_io_stubs_o_path"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_asm_io_stubs_o_path"
                                         },
                                         "children": []
                                     },
@@ -9144,11 +9144,11 @@
                                         "data": {
                                             "id": "m00777",
                                             "created": 1784118466982,
-                                            "text": "shux_runtime_process_argv_o_path",
+                                            "text": "xlang_runtime_process_argv_o_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_process_argv_o_path"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_process_argv_o_path"
                                         },
                                         "children": []
                                     },
@@ -9156,11 +9156,11 @@
                                         "data": {
                                             "id": "m00778",
                                             "created": 1784118466983,
-                                            "text": "shux_runtime_o_realpath_if_exists",
+                                            "text": "xlang_runtime_o_realpath_if_exists",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_o_realpath_if_exists"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_o_realpath_if_exists"
                                         },
                                         "children": []
                                     },
@@ -9168,11 +9168,11 @@
                                         "data": {
                                             "id": "m00779",
                                             "created": 1784118466984,
-                                            "text": "shux_runtime_compiler_o_path_copy",
+                                            "text": "xlang_runtime_compiler_o_path_copy",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_runtime_compiler_o_path_copy"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_runtime_compiler_o_path_copy"
                                         },
                                         "children": []
                                     }
@@ -9182,7 +9182,7 @@
                                 "data": {
                                     "id": "m00780",
                                     "created": 1784118466985,
-                                    "text": "shux_spawn_* (2)",
+                                    "text": "xlang_spawn_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -9192,11 +9192,11 @@
                                         "data": {
                                             "id": "m00781",
                                             "created": 1784118466986,
-                                            "text": "shux_spawn_sync_impl",
+                                            "text": "xlang_spawn_sync_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_spawn_sync_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_spawn_sync_impl"
                                         },
                                         "children": []
                                     },
@@ -9204,11 +9204,11 @@
                                         "data": {
                                             "id": "m00782",
                                             "created": 1784118466987,
-                                            "text": "shux_spawn_sync",
+                                            "text": "xlang_spawn_sync",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_spawn_sync"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_spawn_sync"
                                         },
                                         "children": []
                                     }
@@ -9218,7 +9218,7 @@
                                 "data": {
                                     "id": "m00783",
                                     "created": 1784118466988,
-                                    "text": "shux_std_* (2)",
+                                    "text": "xlang_std_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -9228,11 +9228,11 @@
                                         "data": {
                                             "id": "m00784",
                                             "created": 1784118466989,
-                                            "text": "shux_std_io_o_path",
+                                            "text": "xlang_std_io_o_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_std_io_o_path"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_std_io_o_path"
                                         },
                                         "children": []
                                     },
@@ -9240,11 +9240,11 @@
                                         "data": {
                                             "id": "m00785",
                                             "created": 1784118466990,
-                                            "text": "shux_std_compress_o_path",
+                                            "text": "xlang_std_compress_o_path",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shux_std_compress_o_path"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_std_compress_o_path"
                                         },
                                         "children": []
                                     }

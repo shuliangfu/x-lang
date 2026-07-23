@@ -305,11 +305,11 @@ compiler/xlang-c
 compiler/xlang-x
 compiler/bootstrap_xlangc
 compiler/xlang-seed-phase1
-compiler/shux
-compiler/shux_asm
-compiler/shux-c
-compiler/shux_*
-compiler/shux-*
+compiler/xlang
+compiler/xlang_asm
+compiler/xlang-c
+compiler/xlang_*
+compiler/xlang-*
 compiler/xlang_*
 compiler/xlang-*
 !compiler/xlang_x_stubs.c

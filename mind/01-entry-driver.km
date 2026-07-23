@@ -360,7 +360,7 @@
                                                         "data": {
                                                             "id": "m00035",
                                                             "created": 1784118466240,
-                                                            "text": "driver_try_compile_via_shu_c_sibling (shux-c 回退)",
+                                                            "text": "driver_try_compile_via_shu_c_sibling (xlang-c 回退)",
                                                             "expandState": "collapse"
                                                         },
                                                         "children": []
@@ -1545,11 +1545,11 @@
                                 "data": {
                                     "id": "m00136",
                                     "created": 1784118466341,
-                                    "text": "shux_forward_main_to_main_entry",
+                                    "text": "xlang_forward_main_to_main_entry",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/main_c_entry.x",
                                     "hyperlinkTitle": "compiler/src/main_c_entry.x",
-                                    "note": "compiler/src/main_c_entry.x :: shux_forward_main_to_main_entry"
+                                    "note": "compiler/src/main_c_entry.x :: xlang_forward_main_to_main_entry"
                                 },
                                 "children": []
                             },
@@ -4277,11 +4277,11 @@
                                 "data": {
                                     "id": "m00363",
                                     "created": 1784118466568,
-                                    "text": "shux_path_is_absolute",
+                                    "text": "xlang_path_is_absolute",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/driver/fmt_check_cmd.x",
                                     "hyperlinkTitle": "compiler/src/driver/fmt_check_cmd.x",
-                                    "note": "compiler/src/driver/fmt_check_cmd.x :: shux_path_is_absolute"
+                                    "note": "compiler/src/driver/fmt_check_cmd.x :: xlang_path_is_absolute"
                                 },
                                 "children": []
                             },
