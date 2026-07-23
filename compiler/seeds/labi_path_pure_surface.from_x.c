@@ -1,7 +1,7 @@
 /* seeds/labi_path_pure_surface.from_x.c
  * G-02f labi_path_pure R2 full surface — isomorphic with src/runtime/labi_path_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_path_pure.x) + mega rest under FROM_X
- * Prove: full.x vs this seed → nm IDENTICAL (58→60 public gates + count; wave183 29× thin + wave184 empty/effective + wave185 rel_o + wave189 set/clear user_o)
+ * Prove: full.x vs this seed → nm IDENTICAL (wave183 29× thin + wave184 empty/effective + wave185 rel_o + wave189 set/clear user_o + wave253/258 user_env path + push_minimal companion)
  * Cap residual: Windows #if path sep mega cold; link_abi_getenv Cap (wave223 G.7); skip_missing+bank_push Cap;
  *   link_abi_realpath_cap Cap (wave146; also wave164–166/180/181 path ladders + task→sched);
  *   bank_push Cap (wave147);
@@ -105,6 +105,7 @@ extern uint8_t * xlang_runtime_time_os_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_queue_contention_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_dynlib_os_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_env_os_o_path(uint8_t * argv0);
+extern uint8_t * xlang_runtime_link_abi_user_env_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_backtrace_platform_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_log_os_o_path(uint8_t * argv0);
 extern uint8_t * xlang_runtime_math_libm_o_path(uint8_t * argv0);
@@ -178,6 +179,9 @@ static uint8_t g_labi_queue_contention_o_path_buf[4096];
 static uint8_t g_labi_dynlib_os_o_path_buf[4096];
 #undef g_labi_env_os_o_path_buf
 static uint8_t g_labi_env_os_o_path_buf[4096];
+/* wave253/258: thin durable BSS for runtime_link_abi_user_env.o companion face. */
+#undef g_labi_link_abi_user_env_o_path_buf
+static uint8_t g_labi_link_abi_user_env_o_path_buf[4096];
 #undef g_labi_backtrace_platform_o_path_buf
 static uint8_t g_labi_backtrace_platform_o_path_buf[4096];
 #undef g_labi_log_os_o_path_buf
@@ -1029,6 +1033,7 @@ uint8_t * xlang_std_async_scheduler_o_path(uint8_t * argv0) {
   }
   return &((g_labi_async_scheduler_o_path_buf)[0]);
 }
+/* wave150/253/258: push_minimal pure orch (surface ≡ .x; always attempt user_env companion). */
 void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la) {
   uint8_t * io_p = 0;
   uint8_t * proc_p = 0;
@@ -1044,7 +1049,15 @@ void link_abi_asm_ld_push_minimal_runtime_objs(uint8_t * link_argv0, uint8_t * *
   }
   int32_t _pn = link_abi_asm_ld_push_obj(panic_p, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
   if ((_pn ==0)) {
-    return;
+    /* continue: missing panic does not block user_env companion (wave258 ≡ cold twin) */
+  }
+  /* wave253/258: companion user-domain face (weak; residual declare-only; panic C strong wins). */
+  {
+    uint8_t * ue_p = 0;
+    (void)((ue_p = xlang_runtime_link_abi_user_env_o_path(link_argv0)));
+    int32_t _ue = link_abi_asm_ld_push_obj(ue_p, link_argv0, ((uint8_t *)"\x63\x6f\x6d\x70\x69\x6c\x65\x72\x2f\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6c\x69\x6e\x6b\x5f\x61\x62\x69\x5f\x75\x73\x65\x72\x5f\x65\x6e\x76\x2e\x6f"), lib_roots, n_lib_roots, bank, argv, la, max_la, 0);
+    if ((_ue ==0)) {
+    }
   }
 }
 void xlang_asm_ld_append_user_extra_o_files(uint8_t * * argv, int32_t * la, int32_t max_la) {
@@ -1396,6 +1409,15 @@ uint8_t * xlang_runtime_env_os_o_path(uint8_t * argv0) {
     (void)(((g_labi_env_os_o_path_buf)[0] = 0));
   }
   return &((g_labi_env_os_o_path_buf)[0]);
+}
+/* wave253/258: thin durable path for runtime_link_abi_user_env.o (companion face). */
+uint8_t * xlang_runtime_link_abi_user_env_o_path(uint8_t * argv0) {
+  (void)(((g_labi_link_abi_user_env_o_path_buf)[0] = 0));
+  int32_t rc = xlang_runtime_compiler_o_path_copy(argv0, ((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x6c\x69\x6e\x6b\x5f\x61\x62\x69\x5f\x75\x73\x65\x72\x5f\x65\x6e\x76\x2e\x6f"), &((g_labi_link_abi_user_env_o_path_buf)[0]), 4096);
+  if ((rc !=0)) {
+    (void)(((g_labi_link_abi_user_env_o_path_buf)[0] = 0));
+  }
+  return &((g_labi_link_abi_user_env_o_path_buf)[0]);
 }
 uint8_t * xlang_runtime_backtrace_platform_o_path(uint8_t * argv0) {
   (void)(((g_labi_backtrace_platform_o_path_buf)[0] = 0));

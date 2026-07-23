@@ -1330,22 +1330,22 @@ export function xlang_std_async_scheduler_o_path(argv0: *u8): *u8 {
 }
 
 /**
- * Push nostdlib minimal runtime .o set: io_stubs + process_argv + panic.
+ * Push nostdlib minimal runtime .o set: io_stubs + process_argv + panic + user_env companion.
  * hello / freestanding product paths still need std_fmt_print stubs and panic even when
  * no std/*.o is scanned; omit only when resolve fails (push_obj silent skip).
  * @param link_argv0 *u8 — compiler argv0 for Cap residual primary path helpers (may be null)
  * @param lib_roots **u8 — lib root table for try_under (null-safe in push_obj)
  * @param n_lib_roots i32 — root count
- * @param bank *u8 — ShuAsmLdPathBank* for durable path copy (may be null)
+ * @param bank *u8 — path bank for durable path copy (may be null)
  * @param argv **u8 — ld argv table
  * @param la *i32 — in/out argv length
  * @param max_la i32 — argv capacity
- * @return void — always attempts three push_obj; each may no-op if resolve fails
- * Pure orch: Cap residual *_o_path primary (io/process) + pure peer panic_o_path (wave163)
- *   + pure peer push_obj ×3 (wave148).
- * Peer pure (wave183): xlang_runtime_asm_io_stubs_o_path / process_argv_o_path
- *   (compiler-dir / cwd resolve; static buffers; empty → primary unused).
+ * @return void — always attempts four push_obj; each may no-op if resolve fails
+ * Pure orch: pure peer *_o_path (io/process/panic/user_env) + pure peer push_obj ×4 (wave148/253).
+ * Peer pure (wave183/253): xlang_runtime_asm_io_stubs_o_path / process_argv_o_path /
+ *   panic_o_path / link_abi_user_env_o_path (compiler-dir BSS; empty → primary unused).
  * Why (wave150): hybrid still had always-mega C body over pure push_obj leaves.
+ * wave258: do not early-return on panic miss — always attempt user_env (≡ cold twin G.7).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
  * Track-L: #[no_mangle] keeps surface short name.
@@ -1374,9 +1374,10 @@ export function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_r
   }
   let _pn: i32 = link_abi_asm_ld_push_obj(panic_p, link_argv0, "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
   if (_pn == 0) {
-    return;
+    // continue: missing panic does not block user_env companion (wave258 ≡ cold twin)
   }
-  // wave253: companion user-domain face (weak; residual declare-only; panic C strong wins).
+  // wave253/258: companion user-domain face (weak; residual declare-only; panic C strong wins).
+  // Always attempt after panic — do not gate on panic push status (cold twin / G.7 dual-authority).
   let ue_p: *u8 = xlang_runtime_link_abi_user_env_o_path(link_argv0);
   let _ue: i32 = link_abi_asm_ld_push_obj(ue_p, link_argv0, "compiler/runtime_link_abi_user_env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, 0 as *i32);
   if (_ue == 0) {
