@@ -58,4 +58,4 @@ self-host/release green.
 ## Contact
 
 - License / commercial (compiler AGPL exemption): admin@shuliangfu.com
-- Project: https://github.com/shuliangfu/xlang
+- Project: https://github.com/shuliangfu/x-lang

@@ -41,7 +41,7 @@
 | **配置文件** | `xlang.toml` → **`xlang.toml`** | 包/工具约定；可过渡期双读 |
 | **环境变量前缀** | `XLANG_*` / `XLANG=` → **`XLANG_*` / `XLANG=`** | 测试与 Makefile 大量依赖；过渡期可双认 |
 | **构建入口脚本** | `xlang-build.sh` → **`xlang-build.sh`** | 根目录入口 |
-| **GitHub 仓库** | `github.com/shuliangfu/xlang` → **`…/xlang`**（或保留旧名 redirect） | 需单独操作；可后置 |
+| **GitHub 仓库** | `github.com/shuliangfu/xlang` → **`github.com/shuliangfu/x-lang`**（已落地；旧 URL redirect） | 2026-07-23 已改名；文档/许可/remote 已同步 |
 | **本机目录** | **`…/xlang/x-lang`**（已落地） | mac/Ubuntu/Windows 同构；**不进 git**；文档与 skill 已同步 |
 | **ABI 符号前缀** | **`xlang_*` → `xlang_*`（产品链全量）** | 见 §3.3；**最贵、必须整波 + 真冷** |
 | **兼容别名窗口** | **1 个过渡阶段**（双名可执行 / 双 env 可读） | 防脚本一夜全红；窗口结束后删旧名 |
@@ -93,7 +93,7 @@
 | 链接/运行时符号前缀 `xlang_*` | **数千级引用**（`xlang_sys_` / `xlang_link_` / `xlang_asm_*` / `xlang_panic_*` / `xlang_io_*` …） | **ABI 真链**；改错 = 全量 UNDEF |
 | 编辑器 / tree-sitter | `editors/vscode` · `editors/vim` · `editors/tree-sitter-xlang` | 扩展 ID、配置键 `xlang.*` |
 | 配置 | `xlang.toml`、`package.name = "xlang"` | 设计超集；编译器尚未全读 |
-| 远端 | `origin = github.com/shuliangfu/xlang.git` | 仓库改名另步 |
+| 远端 | `origin = github.com/shuliangfu/x-lang.git` | **已落地**（mac / Ubuntu remote 已 set-url） |
 | 外部 skill | `~/.grok/skills/xlang-selfhost-product-gate/` | **不在仓库内**，必须单独迁 |
 
 ### 2.1 产品命令面（必须改对的「入口集合」）
@@ -234,8 +234,8 @@ XLANG_<REST>  →  XLANG_<REST>
 
 | 位置 | 动作 |
 |------|------|
-| **GitHub repo** | Settings → Rename → `xlang`；确认 Pages/Actions/secrets；旧 URL GitHub 会 redirect |
-| **git remote** | 三机 `git remote set-url origin …/xlang.git` |
+| **GitHub repo** | **已改名** → `x-lang`（`https://github.com/shuliangfu/x-lang`）；旧 `xlang` URL 由 GitHub redirect |
+| **git remote** | 三机 `git remote set-url origin https://github.com/shuliangfu/x-lang.git`（**mac/Ubuntu 已做**；Windows 按需） |
 | **本机路径** | mac `/Users/…/xlang/x-lang`；Ubuntu `/home/…/xlang/x-lang`；Windows `C:\Users\…\xlang\x-lang`（MSYS2 `/c/Users/…/xlang/x-lang`）；**skill 已同步** |
 | **SSH 文档** | skill「环境与跨机同步」全文替换目录名与二进制名 |
 | **`~/.grok/skills/xlang-selfhost-product-gate/`** | 目录可改名 `xlang-selfhost-product-gate`；内容全量替换；**Agents.md 交叉引用** |
