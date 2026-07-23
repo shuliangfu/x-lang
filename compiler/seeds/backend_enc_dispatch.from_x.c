@@ -147,6 +147,10 @@ int32_t backend_enc_subss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
 int32_t backend_enc_divss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f32 bits in eax → truncated i64 in rax (REX.W cvttss2si); freestanding `as i64/u64` (wave303). */
+int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f64 bits in rax → truncated i64 in rax (REX.W cvttsd2si); freestanding `as i64/u64` (wave303). */
+int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -919,6 +923,45 @@ int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCode
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvttsd2si_eax_xmm0, 4);
+}
+#endif
+
+/**
+ * x86：eax 中 f32 位型截断为 i64 到 rax（REX.W cvttss2si）。
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `return (f32) as i64/u64/usize/isize` (wave303).
+ * Root: EXPR_AS only wired f32→i32 (eax form); 64-bit targets re-emitted IEEE bits → run=0.
+ * Encoding: movd xmm0,eax (66 0F 6E C0) ; cvttss2si rax,xmm0 (F3 48 0F 2C C0).
+ * Note: ISA is signed convert; values outside i64 range leave-off (same class as int→float).
+ */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
+  static const uint8_t cvttss2si_rax_xmm0[5] = {0xf3, 0x48, 0x0f, 0x2c, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_eax, 4) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvttss2si_rax_xmm0, 5);
+}
+#endif
+
+/**
+ * x86：rax 中 f64 位型截断为 i64 到 rax（REX.W cvttsd2si）。
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `return (f64) as i64/u64/usize/isize` (wave303).
+ * Root: only f64→i32 eax form existed; 64-bit targets re-emitted bits → freestanding run=0.
+ * Encoding: movq xmm0,rax (66 REX.W 0F 6E C0) ; cvttsd2si rax,xmm0 (F2 48 0F 2C C0).
+ */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
+  static const uint8_t cvttsd2si_rax_xmm0[5] = {0xf2, 0x48, 0x0f, 0x2c, 0xc0};
+  if (ta != 0 || !elf_ctx)
+    return -1;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
+    return -1;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvttsd2si_rax_xmm0, 5);
 }
 #endif
 

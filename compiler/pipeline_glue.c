@@ -1356,6 +1356,10 @@ extern int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodeg
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** f64 bits in rax → truncated i32 in eax (cvttsd2si); freestanding `as i32` (wave291). */
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f32 bits in eax → truncated i64 in rax (REX.W cvttss2si); freestanding `as i64/u64` (wave303). */
+extern int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** f64 bits in rax → truncated i64 in rax (REX.W cvttsd2si); freestanding `as i64/u64` (wave303). */
+extern int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** i64/u64 in rax → f32 bits in eax (REX.W cvtsi2ss); freestanding `as f32` (wave299). */
@@ -2160,31 +2164,41 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
   if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14 &&
       pipeline_expr_kind_ord_at(arena, op) == 1)
     return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, tgt, 0);
-  /** f32 → i32：cvttss2si（SoA 列扫描 return s as i32 等）。 */
-  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 0 &&
-      pipeline_type_kind_ord_at(arena, pipeline_expr_resolved_type_ref(arena, op)) == 14) {
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
-      return -1;
-    return backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx, ta);
-  }
   /**
-   * f64 → i32：cvttsd2si (wave291 Cap residual pure).
+   * f32 / f64 → integer truncate (wave291 i32; wave303 u32 + 64-bit REX.W).
    * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
-   * Root: prior path re-emitted IEEE f64 bits in rax; process exit uses eax (low 32),
-   * which is 0 for many finite doubles (6.0, 42.0, 1.5+2.5, …) → freestanding run=0
-   * while mac host-gcc -o hid the gap. G.7: complete EXPR_AS authority next to f32 path.
-   * Detect: TYPE_F64 resolved, FLOAT_LIT, or scalar-f64 binop/var (glue f64 authority).
+   * Root (wave291): f64→i32 re-emitted IEEE bits; eax low 32 is 0 for many finite doubles.
+   * Root (wave303): f32→u32/i64/u64 (and f64 same) only had i32 eax path; other targets
+   * re-emitted bits → freestanding run=0 (mac host-gcc hid). G.7: complete EXPR_AS
+   * float→int authority next to existing cvttss2si/cvttsd2si eax forms.
+   * Kinds: 0=i32, 3=u32 (eax form); 4=u64, 5=i64, 6=usize, 7=isize (REX.W rax form).
+   * Note: ISA is signed convert; values outside signed destination range leave-off.
    */
-  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 0) {
+  if (tgt > 0) {
+    int32_t tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
     int32_t src_tr = pipeline_expr_resolved_type_ref(arena, op);
     int32_t src_kind = src_tr > 0 ? pipeline_type_kind_ord_at(arena, src_tr) : -1;
     int32_t op_ko = pipeline_expr_kind_ord_at(arena, op);
-    /* kind 15 = TYPE_F64; kind 1 = EXPR_FLOAT_LIT (same as glue_emit_float_lit path). */
-    if (src_kind == 15 || (src_kind <= 0 && op_ko == 1) ||
-        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
-      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
-        return -1;
-      return backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx, ta);
+    int32_t src_is_f32 = (src_kind == 14);
+    int32_t src_is_f64 = (src_kind == 15 || (src_kind <= 0 && op_ko == 1) ||
+                         glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op));
+    if (src_is_f32 || src_is_f64) {
+      /* 32-bit integer targets: cvtt*2si → eax. */
+      if (tgt_kind == 0 || tgt_kind == 3) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        if (src_is_f32)
+          return backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx, ta);
+        return backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx, ta);
+      }
+      /* 64-bit integer targets: REX.W cvtt*2si → rax (wave303). */
+      if (tgt_kind == 4 || tgt_kind == 5 || tgt_kind == 6 || tgt_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        if (src_is_f32)
+          return backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx, ta);
+        return backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx, ta);
+      }
     }
   }
   /**

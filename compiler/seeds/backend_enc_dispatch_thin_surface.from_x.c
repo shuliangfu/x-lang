@@ -134,6 +134,8 @@ extern int32_t backend_enc_subss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_divss_rax_rbx_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(uint8_t * elf_ctx, int32_t ta);
@@ -2282,6 +2284,47 @@ int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t 
       return (0 - 1);
     }
     return backend_enc_append_u32_le_c_impl(elf_ctx, 3224113138);
+  }
+  return (0 - 1);
+}
+/* wave303: f32→i64 freestanding cast (REX.W cvttss2si). */
+int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 739199219) !=0)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u8_c_impl(elf_ctx, 192);
+  }
+  return (0 - 1);
+}
+/* wave303: f64→i64 freestanding cast (REX.W cvttsd2si). */
+int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 1846495334) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u8_c_impl(elf_ctx, 192) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 739199218) !=0)) {
+      return (0 - 1);
+    }
+    return backend_enc_append_u8_c_impl(elf_ctx, 192);
   }
   return (0 - 1);
 }

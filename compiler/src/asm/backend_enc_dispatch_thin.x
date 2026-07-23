@@ -2672,6 +2672,71 @@ export function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i
   return 0 - 1;
 }
 
+/**
+ * Truncate f32 bits in eax to i64 in rax (REX.W cvttss2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f32 `as i64/u64` (wave303 Cap residual).
+ * Encoding: movd xmm0,eax; cvttss2si rax,xmm0 F3 48 0F 2C C0.
+ * thin first4 u32 le of F3 48 0F 2C = 0x2c0f48f3 = 739199219 (exact; do not miscompute).
+ */
+#[no_mangle]
+export function backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    /* movd xmm0,eax: 66 0f 6e c0 → 3228438374 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) != 0) {
+      return 0 - 1;
+    }
+    /* cvttss2si rax,xmm0: f3 48 0f 2c → u32 le 0x2c0f48f3 = 739199219 ; + c0 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 739199219) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c_impl(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Truncate f64 bits in rax to i64 in rax (REX.W cvttsd2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding f64 `as i64/u64` (wave303 Cap residual).
+ * Encoding: movq xmm0,rax; cvttsd2si rax,xmm0 F2 48 0F 2C C0.
+ * thin first4 u32 le of F2 48 0F 2C = 0x2c0f48f2 = 739199218 (exact; do not miscompute).
+ */
+#[no_mangle]
+export function backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    /* movq xmm0,rax: 66 48 0f 6e + c0 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 1846495334) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c_impl(elf_ctx, 192) != 0) {
+      return 0 - 1;
+    }
+    /* cvttsd2si rax,xmm0: f2 48 0f 2c → u32 le 0x2c0f48f2 = 739199218 ; + c0 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 739199218) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c_impl(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * Implements `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * @param elf_ctx *u8

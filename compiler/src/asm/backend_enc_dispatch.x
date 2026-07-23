@@ -2481,6 +2481,56 @@ export function backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i
   return 0 - 1;
 }
 
+/**
+ * Truncate f32 bits in eax to i64 in rax (REX.W cvttss2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as i64/u64/usize/isize` from f32 (wave303).
+ * Encoding: movd xmm0,eax (66 0F 6E C0) ; cvttss2si rax,xmm0 (F3 48 0F 2C C0).
+ */
+#[no_mangle]
+export function backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* movd xmm0, eax — 66 0f 6e c0 */
+    let m: u8[4] = [];
+    m[0] = 102; m[1] = 15; m[2] = 110; m[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &m[0], 4) != 0) { return 0 - 1; }
+    /* cvttss2si rax, xmm0 — f3 48 0f 2c c0 */
+    let a: u8[5] = [];
+    a[0] = 243; a[1] = 72; a[2] = 15; a[3] = 44; a[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 5);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Truncate f64 bits in rax to i64 in rax (REX.W cvttsd2si).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as i64/u64/usize/isize` from f64 (wave303).
+ * Encoding: movq xmm0,rax (66 REX.W 0F 6E C0) ; cvttsd2si rax,xmm0 (F2 48 0F 2C C0).
+ */
+#[no_mangle]
+export function backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* movq xmm0, rax — 66 48 0f 6e c0 */
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 110; q[4] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5) != 0) { return 0 - 1; }
+    /* cvttsd2si rax, xmm0 — f2 48 0f 2c c0 */
+    let a: u8[5] = [];
+    a[0] = 242; a[1] = 72; a[2] = 15; a[3] = 44; a[4] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 5);
+  }
+  return 0 - 1;
+}
+
 /** Exported function `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * Implements `backend_enc_cvtsd2ss_eax_from_f64_bits_arch`.
  * @param elf_ctx *u8
