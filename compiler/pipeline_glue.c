@@ -12474,11 +12474,16 @@ static int32_t glue_emit_binop_sub_rax_minus_rbx_elf_c(struct ast_ASTArena *aren
 }
 
 /**
- * f64 MUL → mulsd; f32 MUL → mulss; else integer imul.
+ * f64 MUL → mulsd; f32 MUL → mulss; mixed f32*f64 → promote f32 then mulsd; else imul.
  * PLATFORM: SHARED cast/arith semantics / LINUX+MACOS x86_64 emit.
  * wave294 Cap residual pure: freestanding f32 `*` used imul on IEEE bits → run=0
  * (mac host-gcc hid). G.7: complete next to addss path + mulsd family.
- * Mixed f32*f64 leave-off (needs promote); both sides same scalar class required.
+ * wave296 Cap residual pure: mixed f32*f64 fell to imul (operands different IEEE
+ * widths). Authority: reuse backend_enc_cvtss2sd_rax_from_f32_bits_arch + mulsd;
+ * placement of left/right in rax/rbx is not fixed after commutative loads — mixed
+ * is handled only via pipeline_asm_emit_binop_mul_elf_c fixed placement path.
+ * This helper still accepts mixed when caller has already promoted both to f64 bits
+ * in rax/rbx (then both-f64 branch); or pure same-class sides.
  */
 static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -12491,6 +12496,68 @@ static int32_t glue_emit_binop_mul_rax_rbx_elf_c(struct ast_ASTArena *arena,
       glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref))
     return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
   return backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
+}
+
+/**
+ * wave296: freestanding mixed f32*f64 (or f64*f32) mul with fixed register placement.
+ * Emits left→rax, push; right→rax; pop rbx (left=rbx, right=rax); promotes the f32
+ * side via cvtss2sd (reuse wave293 encoder on rax; rbx via mov swap); then mulsd.
+ * @return 0 ok; -1 emit fail; -2 not mixed (caller falls through).
+ * PLATFORM: LINUX+MACOS x86_64 emit / SHARED type semantics.
+ */
+static int32_t glue_try_emit_mixed_f32_f64_mul_elf_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                      struct backend_AsmFuncCtx *ctx, int32_t left_ref,
+                                                      int32_t right_ref, int32_t ta) {
+  int32_t lf32;
+  int32_t rf32;
+  int32_t lf64;
+  int32_t rf64;
+  int32_t mixed;
+  if (ta != 0 || !arena || !elf_ctx || !ctx)
+    return -2;
+  lf32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
+  rf32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref);
+  lf64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
+  rf64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref);
+  /* Pure same-class: not mixed (caller uses mulss/mulsd). */
+  if (lf32 && rf32)
+    return -2;
+  if (lf64 && rf64 && !lf32 && !rf32)
+    return -2;
+  mixed = ((lf32 && rf64) || (lf64 && rf32)) ? 1 : 0;
+  if (!mixed)
+    return -2;
+  /* Fixed placement: left in rbx, right in rax (same stack order as commutative slow). */
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  /* Promote f32 side to f64 IEEE bits (cvtss2sd authority = wave293 encoder). */
+  if (lf32) {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  if (rf32) {
+    if (backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  if (backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  glue_binop_var_slot_cache_invalidate_rax();
+  return 0;
 }
 
 static int32_t pipeline_asm_emit_binop_sub_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -12563,6 +12630,16 @@ static int32_t pipeline_asm_emit_binop_mul_elf_c(struct ast_ASTArena *arena, str
                                                    int32_t ta) {
   int32_t lit_imm;
   int32_t vr;
+  int32_t mixed_rc;
+  /**
+   * wave296: mixed f32*f64 before commutative/left-assoc (placement not fixed there).
+   * Promote f32 side (cvtss2sd) then mulsd; typeck result is f64 (f64-before-f32).
+   */
+  mixed_rc = glue_try_emit_mixed_f32_f64_mul_elf_c(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+  if (mixed_rc == 0)
+    return 0;
+  if (mixed_rc == -1)
+    return -1;
   /**
    * Integer lit fast path only when neither side is scalar f32/f64
    * (else mulss/mulsd need full IEEE bits in GPRs).

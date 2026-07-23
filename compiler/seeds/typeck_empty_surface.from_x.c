@@ -4924,11 +4924,13 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
         if (((lko ==ord_i64) || (rko ==ord_i64))) {
           (void)((out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i64)));
         } else {
-          if (((lko ==ord_f32) || (rko ==ord_f32))) {
-            (void)((out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f32)));
+          /* wave296 Cap residual: f64 before f32 (usual arithmetic conversion).
+           * f32*f64 must resolve as f64 — not f32. G.7 ≡ typeck.x / typeck_gen / ast_pool. */
+          if (((lko ==ord_f64) || (rko ==ord_f64))) {
+            (void)((out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f64)));
           } else {
-            if (((lko ==ord_f64) || (rko ==ord_f64))) {
-              (void)((out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f64)));
+            if (((lko ==ord_f32) || (rko ==ord_f32))) {
+              (void)((out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f32)));
             } else {
               if (type_refs_equal(arena, lt_ar, rt_ar)) {
                 (void)((out_ar = lt_ar));

@@ -8087,10 +8087,11 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     out_ar = lt_ar;
   } else if (out_ar == 0 && (lko == 5 || rko == 5)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 5);
+  } else if (out_ar == 0 && (lko == 15 || rko == 15)) {
+    /* wave296: f64 before f32 (usual arithmetic conversion); G.7 ≡ typeck.x / typeck_gen. */
+    out_ar = pipeline_type_ensure_by_kind_ord(arena, 15);
   } else if (out_ar == 0 && (lko == 14 || rko == 14)) {
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 14);
-  } else if (out_ar == 0 && (lko == 15 || rko == 15)) {
-    out_ar = pipeline_type_ensure_by_kind_ord(arena, 15);
   } else if (out_ar == 0 && pipeline_typeck_type_refs_equal_c(arena, lt_ar, rt_ar) != 0) {
     out_ar = lt_ar;
   } else if (out_ar == 0 && typeck_integer_widen_ok_ord_c(lko, rko)) {
