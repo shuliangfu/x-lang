@@ -2525,6 +2525,32 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
 }
 
 /**
+ * Convert i64/u64 (value in i64 range) in rax to f32 bits in eax (REX.W cvtsi2ss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding `as f32` from u64/i64 (wave299 Cap residual).
+ * Encoding: cvtsi2ss xmm0,rax (F3 48 0F 2A C0) ; movd eax,xmm0 (66 0F 7E C0).
+ * Note: ISA is signed convert; unsigned >2^63-1 leave-off for a dedicated sequence.
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    /* cvtsi2ss xmm0, rax — f3 48 0f 2a c0 */
+    let a: u8[5] = [];
+    a[0] = 243; a[1] = 72; a[2] = 15; a[3] = 42; a[4] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 5) != 0) { return 0 - 1; }
+    /* movd eax, xmm0 — 66 0f 7e c0 */
+    let m: u8[4] = [];
+    m[0] = 102; m[1] = 15; m[2] = 126; m[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &m[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
  * Convert i32 in eax to f64 bits in rax (cvtsi2sd).
  * @param elf_ctx *u8 — ELF codegen context
  * @param ta i32 — target arch; 0 = x86_64 only

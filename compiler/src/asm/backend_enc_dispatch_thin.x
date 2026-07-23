@@ -2725,6 +2725,37 @@ export function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i
 }
 
 /**
+ * Convert i64/u64 (value in i64 range) in rax to f32 bits in eax (REX.W cvtsi2ss).
+ * @param elf_ctx *u8 — ELF codegen context
+ * @param ta i32 — target arch; 0 = x86_64 only
+ * @return i32 — 0 ok, -1 unsupported arch / null ctx
+ * PLATFORM: LINUX+MACOS x86_64 — freestanding u64/i64 `as f32` (wave299 Cap residual).
+ * Encoding: cvtsi2ss xmm0,rax F3 48 0F 2A C0; movd eax,xmm0 66 0F 7E C0.
+ * thin first4 u32 le of F3 48 0F 2A = 0x2a0f48f3 = 705644787 (exact; do not miscompute).
+ */
+#[no_mangle]
+export function backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    /* cvtsi2ss xmm0,rax: f3 48 0f 2a → u32 le 0x2a0f48f3 = 705644787 ; + c0 */
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 705644787) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c_impl(elf_ctx, 192) != 0) {
+      return 0 - 1;
+    }
+    /* movd eax,xmm0: 66 0f 7e c0 = 0xc07e0f66 = 3229486950 */
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
+/**
  * Convert i32 in eax to f64 bits in rax (cvtsi2sd).
  * @param elf_ctx *u8 — ELF codegen context
  * @param ta i32 — target arch; 0 = x86_64 only

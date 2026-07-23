@@ -1358,6 +1358,8 @@ extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+/** i64/u64 in rax → f32 bits in eax (REX.W cvtsi2ss); freestanding `as f32` (wave299). */
+extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** i32 in eax → f64 bits in rax (cvtsi2sd); freestanding `as f64` (wave292). */
 extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 /** i64/u64 in rax → f64 bits in rax (REX.W cvtsi2sd); freestanding `as f64` (wave295). */
@@ -2184,6 +2186,19 @@ static int32_t pipeline_asm_emit_as_elf_impl(struct ast_ASTArena *arena, struct 
         if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
           return -1;
         return backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
+      }
+      /**
+       * u64/i64/usize/isize → f32：REX.W cvtsi2ss (wave299 Cap residual pure).
+       * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 emit.
+       * Root: TYPE_F32 path only handled i32/u32; 64-bit kinds re-emitted integer bits
+       * or used 32-bit cvtsi2ss xmm0,eax → freestanding run=0 (mac host-gcc hid).
+       * G.7: complete EXPR_AS→f32 next to i32 cvtsi2ss / wave295 i64→f64.
+       * Note: ISA signed convert; values >2^63-1 leave-off for unsigned sequence.
+       */
+      if (src_kind == 4 || src_kind == 5 || src_kind == 6 || src_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, op, ctx, ta) != 0)
+          return -1;
+        return backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
       }
       /**
        * f64 → f32：cvtsd2ss (wave293 Cap residual pure).

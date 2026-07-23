@@ -136,6 +136,7 @@ extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(uint8_t * elf_ctx, i
 extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(uint8_t * elf_ctx, int32_t ta);
 extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(uint8_t * elf_ctx, int32_t ta);
@@ -2317,6 +2318,27 @@ int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(uint8_t * elf_ctx, int32_t ta) {
       return (0 - 1);
     }
     return backend_enc_append_u32_le_c_impl(elf_ctx, -1065480346);
+  }
+  return (0 - 1);
+}
+/* wave299: i64/u64→f32 freestanding cast (REX.W cvtsi2ss). */
+int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(uint8_t * elf_ctx, int32_t ta) {
+  if ((ta !=0)) {
+    return (0 - 1);
+  }
+  if ((elf_ctx ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  {
+    /* f3 48 0f 2a = 0x2a0f48f3 = 705644787u ; + c0 → cvtsi2ss xmm0,rax */
+    if ((backend_enc_append_u32_le_c_impl(elf_ctx, 705644787) !=0)) {
+      return (0 - 1);
+    }
+    if ((backend_enc_append_u8_c_impl(elf_ctx, 192) !=0)) {
+      return (0 - 1);
+    }
+    /* movd eax,xmm0: 66 0f 7e c0 = 3229486950u */
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
   }
   return (0 - 1);
 }
