@@ -10,7 +10,7 @@ struct preprocess_ParseDirectiveResult { int32_t kind; int32_t sym_len; };
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED orch / host getenv residual via single face.
  * Compiler-only gen seed pin (CRASH_EVIDENCE inline) — not user program template
- * (runtime.from_x.c fprintf CRASH_EVIDENCE templates stay raw getenv for user C). */
+ * (runtime.from_x.c fprintf CRASH_EVIDENCE user C templates use link_abi_getenv since wave254). */
 extern char *link_abi_getenv(const char *name);
 extern int getpid(void);
 static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {

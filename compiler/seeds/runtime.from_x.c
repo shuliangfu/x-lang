@@ -1,4 +1,6 @@
 /* seeds/runtime.from_x.c — wave243 getenv→link_abi_getenv; wave247 residual system→link_abi_system;
+ * wave254: user C CRASH_EVIDENCE fprintf templates emit link_abi_getenv (not raw getenv);
+ * product -o resolves face via panic strong / user_env weak (wave251–253).
  * G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
@@ -2368,13 +2370,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "#ifdef _WIN32\n#define XLANG_LIB_WEAK\n#else\n#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n");
             codegen_emit_fmt_json_helpers_once(stdout);
             codegen_emit_builtin_inline_decls(stdout);
+            /* wave254 G.7: user C template uses link_abi_getenv face (not raw libc getenv).
+             * Product -o resolves via panic strong / user_env weak (wave251–253).
+             * PLATFORM: SHARED — single face name in emitted user C. */
+            fprintf(stdout, "extern char *link_abi_getenv(const char *name);\n");
             fprintf(stdout, "extern int getpid(void);\n");
             fprintf(stdout, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-            fprintf(stdout, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
+            fprintf(stdout, "  const char *_ev = link_abi_getenv(\"XLANG_CRASH_EVIDENCE\");\n");
             fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(stdout, "  int _pid = (int)getpid();\n");
             fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-            fprintf(stdout, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(stdout, "  const char *_dir = link_abi_getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
             fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
             fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
@@ -2648,13 +2654,17 @@ int RUN_CC_FUNC(int argc, char **argv) {
             codegen_emit_fmt_json_helpers_once(cf);
             codegen_emit_builtin_inline_decls(cf);
             fprintf(cf, "#include <string.h>\n");
+            /* wave254 G.7: user C template uses link_abi_getenv face (not raw libc getenv).
+             * Product -o resolves via panic strong / user_env weak (wave251–253).
+             * PLATFORM: SHARED — single face name in emitted user C. */
+            fprintf(cf, "extern char *link_abi_getenv(const char *name);\n");
             fprintf(cf, "extern int getpid(void);\n");
             fprintf(cf, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-            fprintf(cf, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
+            fprintf(cf, "  const char *_ev = link_abi_getenv(\"XLANG_CRASH_EVIDENCE\");\n");
             fprintf(cf, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(cf, "  int _pid = (int)getpid();\n");
             fprintf(cf, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-            fprintf(cf, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+            fprintf(cf, "  const char *_dir = link_abi_getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
             fprintf(cf, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(cf, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
             fprintf(cf, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
@@ -7449,13 +7459,17 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     fprintf(stdout, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
     fprintf(stdout, "#ifdef _WIN32\n#define XLANG_LIB_WEAK\n#else\n#define XLANG_LIB_WEAK __attribute__((weak))\n#endif\n");
     codegen_emit_builtin_inline_decls(stdout);
+    /* wave254 G.7: user C template uses link_abi_getenv face (not raw libc getenv).
+     * Product -o resolves via panic strong / user_env weak (wave251–253).
+     * PLATFORM: SHARED — single face name in emitted user C. */
+    fprintf(stdout, "extern char *link_abi_getenv(const char *name);\n");
     fprintf(stdout, "extern int getpid(void);\n");
     fprintf(stdout, "static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
-    fprintf(stdout, "  const char *_ev = getenv(\"XLANG_CRASH_EVIDENCE\");\n");
+    fprintf(stdout, "  const char *_ev = link_abi_getenv(\"XLANG_CRASH_EVIDENCE\");\n");
     fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
     fprintf(stdout, "  int _pid = (int)getpid();\n");
     fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
-    fprintf(stdout, "  const char *_dir = getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
+    fprintf(stdout, "  const char *_dir = link_abi_getenv(\"XLANG_CRASH_EVIDENCE_DIR\");\n");
     fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/xlang-crash-%%d.txt\", _dir, _pid);\n");
     fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
     fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
