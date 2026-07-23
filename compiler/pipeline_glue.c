@@ -10625,9 +10625,32 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
   }
   if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
     int32_t op_ref;
+    int32_t tgt;
+    int32_t tgt_k;
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     if (op_ref <= 0)
       return -2;
+    /*
+     * wave301 Cap residual pure: peel only integer-result AS (e.g. u8[i] as i32).
+     * Float-target AS must not peel — dual-slot would load raw integer/source bits
+     * and skip cvtsi2ss / cvtsi2sd / cvtsd2ss / cvtss2sd from pipeline_asm_emit_as_elf.
+     * Soft residual after wave299/300: `(u64 as f32) * f32_var` run=0 while bare
+     * `(u64 as f32) as i32` stayed green. G.7: complete loader authority next to
+     * emit_as (reuse pipeline_asm_emit_as_elf_impl; no new encoder / no second cast path).
+     * PLATFORM: SHARED cast semantics / LINUX+MACOS x86_64 freestanding exposes; mac host-gcc hid.
+     */
+    tgt = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
+    if (tgt > 0) {
+      tgt_k = pipeline_type_kind_ord_at(arena, tgt);
+      if (tgt_k == GLUE_TYPE_KIND_F32_ORD || tgt_k == GLUE_TYPE_KIND_F64_ORD) {
+        glue_binop_var_slot_cache_clear();
+        if (pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+          return -1;
+        if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        return 0;
+      }
+    }
     return glue_try_binop_load_operand_elf_c(arena, elf_ctx, op_ref, ctx, ta, to_rbx);
   }
   return -2;
