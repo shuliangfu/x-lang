@@ -76,6 +76,10 @@ void closedir_win(DIR *d) {
  *            Historical #ifndef _WIN32 guard removed — shim is a no-op
  *            on POSIX and provides needed declarations on Windows. */
 #include <unistd.h>
+/* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold seed residual uses same face as thin.x / full.x. */
+extern char *link_abi_getenv(const char *name);
 #ifdef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t driver_check_quiet_ok_get(void);
 int fmt_walk_skip_dot_name(const char *name);
@@ -587,11 +591,13 @@ void check_argv_append_default_libs_for_path(const char *path, char **check_argv
 
 /**
  * SHUX_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
+ * wave234 G.7: env via link_abi_getenv (not raw getenv).
  */
 /* pure 权威：thin.x check_lint_fail_on_warnings；冷启动保留 _impl + public */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_lint_fail_on_warnings_impl(void) {
-  const char *v = getenv("SHUX_LINT_CI_FAIL_ON");
+  /* wave234 G.7: SHUX_LINT_CI_FAIL_ON via link_abi_getenv (not raw getenv). */
+  const char *v = link_abi_getenv("SHUX_LINT_CI_FAIL_ON");
   return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
 }
 
@@ -1247,7 +1253,8 @@ int driver_run_fmt_impl(int argc, char **argv) {
     if (failed)
         return 1;
 
-    if (!check_mode && formatted > 0 && getenv("SHUX_FMT_VERBOSE"))
+    /* wave234 G.7: SHUX_FMT_VERBOSE via link_abi_getenv (not raw getenv). */
+    if (!check_mode && formatted > 0 && link_abi_getenv("SHUX_FMT_VERBOSE"))
         diag_reportf(NULL, 0, 0, "info", NULL,
                      "Formatted %d file%s", formatted, formatted == 1 ? "" : "s");
 

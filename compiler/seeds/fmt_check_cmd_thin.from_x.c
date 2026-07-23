@@ -21,6 +21,10 @@
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 #error "Generated code needs C11. Compile with -std=gnu11 or -std=c11."
 #endif
+/* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — cold/surface twin of fmt_check_cmd_thin.x. */
+extern uint8_t * link_abi_getenv(uint8_t * name);
 static inline ssize_t shux_sys_read(int32_t fd, uint8_t *buf, size_t count) {
   return read((int)fd, (void *)buf, count);
 }
@@ -876,7 +880,8 @@ int32_t fmt_check_lib_buf_store(int32_t i, uint8_t * path) {
 }
 int32_t check_lint_fail_on_warnings(void) {
   {
-    uint8_t * v = getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4c\x49\x4e\x54\x5f\x43\x49\x5f\x46\x41\x49\x4c\x5f\x4f\x4e"));
+    /* wave234 G.7: SHUX_LINT_CI_FAIL_ON via link_abi_getenv (not raw getenv). */
+    uint8_t * v = link_abi_getenv(((uint8_t *)"\x53\x48\x55\x58\x5f\x4c\x49\x4e\x54\x5f\x43\x49\x5f\x46\x41\x49\x4c\x5f\x4f\x4e"));
     if ((v ==((uint8_t *)(0)))) {
       return 0;
     }
@@ -1981,7 +1986,8 @@ int32_t driver_run_fmt(int32_t argc, uint8_t * argv) {
   if ((check_mode ==0)) {
     if ((formatted > 0)) {
       {
-        uint8_t * ev = getenv(&((g_fmt_lit_fmt_verbose_env)[0]));
+        /* wave234 G.7: SHUX_FMT_VERBOSE via link_abi_getenv (not raw getenv). */
+        uint8_t * ev = link_abi_getenv(&((g_fmt_lit_fmt_verbose_env)[0]));
         if ((ev !=((uint8_t *)(0)))) {
           (void)(diag_report(((uint8_t *)(0)), 0, 0, &((g_fmt_lit_info)[0]), &((g_fmt_lit_formatted_files)[0]), ((uint8_t *)(0))));
         }

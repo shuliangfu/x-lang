@@ -72,7 +72,10 @@
 //
 
 export extern "C" function strstr(hay: *u8, needle: *u8): *u8;
-export extern "C" function getenv(name: *u8): *u8;
+/* wave234 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product hybrid fmt_check thin → seed rest uses same face. */
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 export extern "C" function getcwd(buf: *u8, size: i32): *u8;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function strncmp(a: *u8, b: *u8, n: i32): i32;
@@ -769,15 +772,18 @@ export extern "C" function shux_fmt_closedir(dirp: *u8): i32;
 export extern "C" function shux_fmt_access(path: *u8, mode: i32): i32;
 export extern "C" function shux_fmt_readdir_name(dirp: *u8): *u8;
 
-// pure：SHUX_LINT_CI_FAIL_ON=warn|warning
-/** Exported function `check_lint_fail_on_warnings`.
- * Implements `check_lint_fail_on_warnings`.
- * @return i32
+/**
+ * Whether `shux check` should fail on warning-level diagnostics.
+ * Truthy when SHUX_LINT_CI_FAIL_ON is "warn" or "warning".
+ * wave234 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
+ * @return i32 — 1 if warnings are fatal, 0 otherwise
+ * PLATFORM: SHARED — host residual only link_abi_getenv_impl
  */
 #[no_mangle]
 export function check_lint_fail_on_warnings(): i32 {
   unsafe {
-    let v: *u8 = getenv("SHUX_LINT_CI_FAIL_ON");
+    // wave234 G.7: SHUX_LINT_CI_FAIL_ON via link_abi_getenv (not raw getenv).
+    let v: *u8 = link_abi_getenv("SHUX_LINT_CI_FAIL_ON");
     if (v == 0 as *u8) {
       return 0;
     }
@@ -2118,7 +2124,8 @@ export function driver_run_fmt(argc: i32, argv: *u8): i32 {
   if (check_mode == 0) {
     if (formatted > 0) {
       unsafe {
-        let ev: *u8 = getenv(&g_fmt_lit_fmt_verbose_env[0]);
+        // wave234 G.7: SHUX_FMT_VERBOSE via link_abi_getenv (not raw getenv).
+        let ev: *u8 = link_abi_getenv(&g_fmt_lit_fmt_verbose_env[0]);
         if (ev != 0 as *u8) {
           diag_report(0 as *u8, 0, 0, &g_fmt_lit_info[0], &g_fmt_lit_formatted_files[0], 0 as *u8);
         }
