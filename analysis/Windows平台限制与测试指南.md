@@ -321,7 +321,7 @@ Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -eq 'CN=XlangDev
 
 # 签名
 $cert = Get-Item 'Cert:\LocalMachine\My\<THUMBPRINT>'
-Set-AuthenticodeSignature -FilePath 'C:\Users\shuliangfu\worker\shu\xlang\compiler\xlang.exe' -Certificate $cert
+Set-AuthenticodeSignature -FilePath 'C:\Users\shuliangfu\worker\xlang\x-lang\compiler\xlang.exe' -Certificate $cert
 
 # 验证签名
 Get-AuthenticodeSignature 'C:\...\xlang.exe' | Select-Object Status, StatusMessage
@@ -349,7 +349,7 @@ printf '%s\n' '...' > "${_TMP}/file.x"
 
 ```bash
 # 删除所有 .o 和二进制
-cd /c/Users/shuliangfu/worker/shu/xlang/compiler
+cd /c/Users/shuliangfu/worker/xlang/x-lang/compiler
 rm -f *.o src/**/*.o build_asm/**/*.o xlang xlang.exe xlang-c xlang-c.exe xlang_asm xlang_asm.exe
 
 # 重新构建

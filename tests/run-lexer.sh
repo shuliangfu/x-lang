@@ -2,7 +2,7 @@
 # 文件职责：阶段 1 词法测试——对 tests/lexer/main.x 运行 xlang，将输出与 tests/lexer/expected.txt 逐行比对。
 # 与其它文件的关系：由 compiler/Makefile 的 test 目标调用；依赖 compiler/xlang、tests/lexer/main.x、tests/lexer/expected.txt。
 # 使用 xlang-c（C 版编译器）以保证无 -o 时输出 token 列表 + parse/typeck OK；若当前 xlang 为 pipeline 版则无该行为。
-# 当 SHU 已设置（test_x/run-all-x）时仅用 compiler/xlang（xlang_x），不构建 xlang-c，并跳过依赖 token 输出的比对。
+# 当 XLANG 已设置（test_x/run-all-x）时仅用 compiler/xlang（xlang_x），不构建 xlang-c，并跳过依赖 token 输出的比对。
 
 set -e
 cd "$(dirname "$0")/.."

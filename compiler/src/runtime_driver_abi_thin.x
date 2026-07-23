@@ -5407,7 +5407,7 @@ export extern "C" function xlang_driver_exec_scan_out_path_opaque(argc: i32, arg
  * Cap residual: run product exe and wait for exit status (spawn/fork/exec).
  * @param exe *u8 — NUL-terminated path; null → 1
  * @return i32 — process exit code, or 1 on spawn/wait failure
- * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+shu_waitpid_retry. Always-seed.
+ * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+xlang_waitpid_retry. Always-seed.
  */
 export extern "C" function xlang_driver_exec_spawn_wait(exe: *u8): i32;
 /**
@@ -5459,7 +5459,7 @@ export function driver_exec_compiled_body(argc: i32, argv_opaque: *u8): i32 {
 // Wave44 owns print_usage_write (see below). PLATFORM: SHARED orch;
 // WINDOWS \\ sep + spawnvp vs POSIX / + fork in residual.
 
-/** Module BSS for sibling path "dir/xlang-c"; capacity matches cold char shu_c[512]. */
+/** Module BSS for sibling path "dir/xlang-c"; capacity matches cold char xlang_c[512]. */
 let g_driver_sibling_path_buf: u8[512] = [];
 
 /**
@@ -5528,7 +5528,7 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
     i = i + 1;
   }
   if (last < 0) {
-    // Bare name: cold strcpy(shu_c, "xlang-c").
+    // Bare name: cold strcpy(xlang_c, "xlang-c").
     driver_open_out_cstr_copy(out, cap, "xlang-c");
     return 0;
   }
@@ -5548,7 +5548,7 @@ export function driver_sibling_path_from_self(self: *u8, out: *u8, cap: i32): i3
 }
 
 /**
- * Try spawn same-dir xlang-c sibling with the caller's argv (dispatch via shu-c).
+ * Try spawn same-dir xlang-c sibling with the caller's argv (dispatch via xlang-c).
  * @param argc i32 — argv length; argc < 2 → -1 (need argv0 + at least one more)
  * @param argv_opaque *u8 — opaque char** from entry; null → -1
  * @return i32 — child exit status if delegated; -1 if not delegated

@@ -1,6 +1,6 @@
 # run-all L5：seed / xlang_asm / xlang-c 白名单矩阵
 
-`tests/run-all.sh` 在 `XLANG_RUN_ALL_BOOTSTRAP_XLANG` 或 `XLANG_BSTRICT_RUN_ALL` 下，**白名单内**脚本用 `SHU`（seed 或 `xlang_asm`），其余仍用 `xlang-c`。
+`tests/run-all.sh` 在 `XLANG_RUN_ALL_BOOTSTRAP_XLANG` 或 `XLANG_BSTRICT_RUN_ALL` 下，**白名单内**脚本用 `XLANG`（seed 或 `xlang_asm`），其余仍用 `xlang-c`。
 
 **L5 真 parity（2026-05-27）**：不设上述 env，全脚本均用 seed：
 

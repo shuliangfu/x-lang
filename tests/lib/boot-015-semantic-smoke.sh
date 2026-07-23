@@ -2,8 +2,8 @@
 # boot-015-semantic-smoke.sh — BOOT-015：vec/map/heap 语义自举 smoke 辅助
 #
 # 用法（source 后）：
-#   boot015_check_one SHU tests/vec/main.x
-#   boot015_link_run_one SHU tests/vec/main.x OUT_PATH
+#   boot015_check_one XLANG tests/vec/main.x
+#   boot015_link_run_one XLANG tests/vec/main.x OUT_PATH
 #   boot015_emit_report status check_ok link_ok skip
 
 BOOT015_PREFIX="${XLANG_BOOT015_PREFIX:-xlang: [XLANG_BOOT015]}"

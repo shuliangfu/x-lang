@@ -9,7 +9,7 @@
 // See implementation.
 
 export extern "C" function driver_get_pending_target_cpu_features(): u32;
-export extern "C" function shu_target_cpu_detect_host(): u32;
+export extern "C" function xlang_target_cpu_detect_host(): u32;
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
@@ -113,7 +113,7 @@ export function glue_simd_loop_cpu_features_c(): u32 {
   unsafe {
     let feats: u32 = driver_get_pending_target_cpu_features();
     if (feats != 0) { return feats; }
-    return shu_target_cpu_detect_host();
+    return xlang_target_cpu_detect_host();
   }
   return 0;
 }

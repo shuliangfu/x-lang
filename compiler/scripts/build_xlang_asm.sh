@@ -2,7 +2,7 @@
 # build_xlang_asm.sh — 用 asm 后端构建 xlang（Goal 2：.x → 目标文件 .o，不经 -E C 翻译）
 # 用法：在 compiler 目录下执行 XLANG=./xlang ./scripts/build_xlang_asm.sh
 # 或由 build_tool 调用：./build_tool ./xlang asm（策略见仓库根目录 build.x 注释）。
-# 依赖：SHU 已支持 -backend asm；宿主 cc 用于链接桩、-E 产物与最终链接 xlang_asm。
+# 依赖：XLANG 已支持 -backend asm；宿主 cc 用于链接桩、-E 产物与最终链接 xlang_asm。
 # crt0 / runtime_panic / typeck_f64_bits 由本脚本内 ensure_asm_link_objs 用 cc 生成，不依赖 make。
 #
 # 回退链接（非 Linux crt0 路径）：runtime_asm_build 调 main_entry（main.x 经 -E 的 C 符号名）；runtime_driver 依赖
@@ -2605,7 +2605,7 @@ asm_strict_driver_selfhosted() {
   return 0
 }
 
-# Stage2 二遍自举：SHU 已是 xlang_asm 时仍用 driver_compile_x（gen1 拓扑），直至 gen2 driver X 链稳定。
+# Stage2 二遍自举：XLANG 已是 xlang_asm 时仍用 driver_compile_x（gen1 拓扑），直至 gen2 driver X 链稳定。
 asm_strict_bootstrap_round2() {
   if [ -n "${XLANG_ASM_STRICT_FORCE_DRIVER_X:-}" ]; then
   return 0
@@ -5680,7 +5680,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # strict 产物自编译大模块（>150KiB 入口仍 SIGSEGV；bootstrap experimental 第二遍已通过）。
   if ! rebuild_typeck_parser_backend_second_pass; then
   if [ -n "${XLANG_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-  build_xlang_asm_warn "B-strict self-compile second pass failed (bootstrap xlang_asm + smoke OK; retry with seed SHU for -backend asm)"
+  build_xlang_asm_warn "B-strict self-compile second pass failed (bootstrap xlang_asm + smoke OK; retry with seed XLANG for -backend asm)"
   fi
   fi
   # M8a：strict 重链后的 xlang_asm 已含新 parser.o，再重编 arm64_enc/lsp/asm（勿用 experimental，其仍链旧 parser）。

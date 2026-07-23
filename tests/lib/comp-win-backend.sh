@@ -19,7 +19,7 @@ comp_win_backend_is_msys() {
 }
 
 # 本机可执行的 xlang（与 asm 烟测一致）。
-comp_win_backend_native_shu() {
+comp_win_backend_native_xlang() {
   local f="${1:-./compiler/xlang}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -53,7 +53,7 @@ comp_win_backend_pick_xlang() {
   local cand
   for cand in ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm.experimental \
               ./compiler/xlang ./compiler/xlang-c; do
-    if comp_win_backend_native_shu "$cand" && comp_win_backend_asm_capable "$cand"; then
+    if comp_win_backend_native_xlang "$cand" && comp_win_backend_asm_capable "$cand"; then
       echo "$cand"
       return 0
     fi

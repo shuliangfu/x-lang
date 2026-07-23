@@ -7,7 +7,7 @@
  * build_runtime.inc — build.x（Zig build.zig 类比）的 C 执行后端
  *
  * 职责：提供 main() 按 ../build.x 的 build_get_step_count() 与 build_get_step_at()（见 build_runtime.inc 与 build.x）顺序执行；
- * build_run_step(step_id, shu_path) 跑「默认路径」（.x → *_gen.c → cc）；build_run_asm_build() 调 scripts/build_xlang_asm.sh（机器码路径）。
+ * build_run_step(step_id, xlang_path) 跑「默认路径」（.x → *_gen.c → cc）；build_run_asm_build() 调 scripts/build_xlang_asm.sh（机器码路径）。
  * argv[1]=xlang 可执行路径，argv[2]=asm 时只做 asm 路径、不跑默认步骤。
  * 约定：在 compiler 目录运行 build_tool；具体命令字符串集中在本文件，策略与路线图写在 build.x 顶注释。
  * 长期目标：Makefile 仅兜底；日常以 ./build_tool ./xlang 与 ./build_tool ./xlang asm 为准（见 build.x「去掉 Makefile 的爬梯」）。
@@ -32,7 +32,7 @@ void build_runtime_info(const char *msg);
 void build_runtime_warn(const char *msg);
 int build_patch_pipeline_gen_c(void);
 int build_patch_driver_gen_c(void);
-int build_run_legacy_steps(const char *shu_path);
+int build_run_legacy_steps(const char *xlang_path);
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void build_runtime_info_impl(const char *msg) {
@@ -160,7 +160,7 @@ int build_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
 static const char *const build_literals[] = {
   /* 0: step 0 全命令（含 std_fs_shim.o 供 pipeline/driver 的 std.fs 符号） */
   "cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/main.o seeds/main.from_x.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/runtime.o seeds/runtime.from_x.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_FRONTEND -DXLANG_USE_X_PREPROCESS -c -o src/runtime_driver.o seeds/runtime.from_x.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o std_fs.o src/std_fs_shim.c && sh scripts/cc_inc_tu.sh seeds/preprocess_shim.from_x.c preprocess_shim.o",
-  /* 1: step 1 后缀（前接 shu_path） */
+  /* 1: step 1 后缀（前接 xlang_path） */
   " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c",
   /* 2: step 2 */
   "cc -Wall -Wextra -I. -Iinclude -Isrc -c pipeline_gen.c -o pipeline_x.o",
@@ -275,7 +275,7 @@ int build_get_shu_path(char *buf, int max, int argc, char **argv) {
 /**
  * 执行单步构建命令；由 main 按 build.x 的步骤顺序调用。step_id 含义见 build.x 注释。
  */
-int build_run_step(int step_id, const char *shu_path) {
+int build_run_step(int step_id, const char *xlang_path) {
   char cmd[4096];
   const char *cc = "cc";
   const char *cflags = "-Wall -Wextra -I. -Iinclude -Isrc";
@@ -307,7 +307,7 @@ int build_run_step(int step_id, const char *shu_path) {
     /* 阶段 3.2：用 -E -E-extern 生成瘦 parser_gen.c/typeck_gen.c/codegen_gen.c（仅类型+入口模块，依赖用 extern），再编成 _x.o。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c",
-      shu_path);
+      xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     /* -E-extern 已生成 parser_* 符号，不再追加 ABI 包装，避免重复定义。 */
@@ -318,35 +318,35 @@ int build_run_step(int step_id, const char *shu_path) {
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c && "
       "%s %s -c typeck_gen.c -o typeck_x.o",
-      shu_path, cc, cflags);
+      xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c && "
       "%s %s -c codegen_gen.c -o codegen_x.o",
-      shu_path, cc, cflags);
+      xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     /* 阶段 3：生成并编 ast_x.o、token_x.o、lexer_x.o，供 parser/typeck/codegen 与 pipeline 链接。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -E -E-extern src/ast/ast.x > ast_gen.c && %s %s -c ast_gen.c -o ast_x.o",
-      shu_path, cc, cflags);
+      xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c && %s %s -c token_gen.c -o token_x.o",
-      shu_path, cc, cflags);
+      xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c && %s %s -c lexer_gen.c -o lexer_x.o",
-      shu_path, cc, cflags);
+      xlang_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     /* 6.4：preprocess.x 生成 preprocess_gen.c（codegen 对 slice 形参已生成 ->，无补丁），编成 preprocess_x.o。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c",
-      shu_path);
+      xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd), "%s %s -c preprocess_gen.c -o preprocess_x.o", cc, cflags);
@@ -358,7 +358,7 @@ int build_run_step(int step_id, const char *shu_path) {
      * 阶段 3：C 版 xlang 无 -x，一律用 -E -E-extern 生成瘦 pipeline_gen.c，避免与 parser_x/typeck_x/codegen_x 重复符号。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c",
-      shu_path);
+      xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     return build_patch_pipeline_gen_c() == 0 ? 0 : -1;
@@ -371,7 +371,7 @@ int build_run_step(int step_id, const char *shu_path) {
   case 3:
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.x > driver_gen.c",
-      shu_path);
+      xlang_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
   case 4:
@@ -397,7 +397,7 @@ int build_run_step(int step_id, const char *shu_path) {
 }
 
 /**
- * 完全自举 asm 路径：执行 XLANG=<shu_path> ./scripts/build_xlang_asm.sh。
+ * 完全自举 asm 路径：执行 XLANG=<xlang_path> ./scripts/build_xlang_asm.sh。
  * 返回 0 成功，非 0 为 system() 的退出状态（非零即失败）。供 main / build_runner 调用。
  *
  * 语义与「是否仍 cc -c pipeline_gen」以 compiler/docs/SELFHOST.md 为准（Target B-partial /
@@ -406,24 +406,24 @@ int build_run_step(int step_id, const char *shu_path) {
  * __text 非空后自动选 `full_asm`；M7 默认 `XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1` → asm_only_strict。
  * 不在此重复脚本细节，避免与 build_xlang_asm.sh 漂移。
  */
-int build_run_asm_build(const char *shu_path) {
+int build_run_asm_build(const char *xlang_path) {
   char cmd[4096];
   /* M7：与 make bootstrap-driver-bstrict 一致，默认 B-strict（SKIP_GEN）。 */
   int n = snprintf(cmd, sizeof(cmd),
                    "XLANG_ASM_EXPERIMENTAL_SKIP_GEN=1 XLANG=%s ./scripts/build_xlang_asm.sh",
-                   shu_path ? shu_path : "./xlang");
+                   xlang_path ? xlang_path : "./xlang");
   if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
   return system(cmd);
 }
 
 /** 执行 build.x 配置的 legacy 逐步（生成 *_gen.c 并链接 xlang）。返回 0 成功。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int build_run_legacy_steps_impl(const char *shu_path) {
+int build_run_legacy_steps_impl(const char *xlang_path) {
   int n = (int)build_get_step_count();
   for (int i = 0; i < n; i++) {
     int step_id = (int)build_get_step_at((int32_t)i);
     if (step_id < 0) return 1;
-    if (build_run_step(step_id, shu_path) != 0) return 1;
+    if (build_run_step(step_id, xlang_path) != 0) return 1;
   }
   return 0;
 }
@@ -434,7 +434,7 @@ void build_runtime_info(const char *msg) { build_runtime_info_impl(msg); }
 void build_runtime_warn(const char *msg) { build_runtime_warn_impl(msg); }
 int build_patch_pipeline_gen_c(void) { return build_patch_pipeline_gen_c_impl(); }
 int build_patch_driver_gen_c(void) { return build_patch_driver_gen_c_impl(); }
-int build_run_legacy_steps(const char *shu_path) { return build_run_legacy_steps_impl(shu_path); }
+int build_run_legacy_steps(const char *xlang_path) { return build_run_legacy_steps_impl(xlang_path); }
 #endif /* XLANG_BUILD_RUNTIME_FROM_X */
 
 
@@ -448,26 +448,26 @@ int entry(int argc, char **argv) {
 }
 #else
 int main(int argc, char **argv) {
-  char shu_path[256];
+  char xlang_path[256];
   if (argc >= 2 && argv[1] && argv[1][0]) {
-    size_t n = sizeof(shu_path) - 1;
+    size_t n = sizeof(xlang_path) - 1;
     size_t len = strlen(argv[1]);
     if (len > n) len = n;
-    memcpy(shu_path, argv[1], len);
-    shu_path[len] = '\0';
+    memcpy(xlang_path, argv[1], len);
+    xlang_path[len] = '\0';
   } else {
-    memcpy(shu_path, "./xlang", 5);
-    shu_path[5] = '\0';
+    memcpy(xlang_path, "./xlang", 5);
+    xlang_path[5] = '\0';
   }
   /* 显式 asm：只跑脚本，失败即退出（不回退）。 */
   if (argc >= 3 && argv[2] && strcmp(argv[2], "asm") == 0)
-    return build_run_asm_build(shu_path) != 0 ? 1 : 0;
+    return build_run_asm_build(xlang_path) != 0 ? 1 : 0;
   /* 显式 legacy：只跑 -E 逐步，忽略 build_use_asm_only。 */
   if (argc >= 3 && argv[2] && strcmp(argv[2], "legacy") == 0)
-    return build_run_legacy_steps(shu_path) != 0 ? 1 : 0;
+    return build_run_legacy_steps(xlang_path) != 0 ? 1 : 0;
   /* build.x build_use_asm_only()==1：先试 asm（不生成 pipeline_gen/driver_gen）；失败则回退 legacy。 */
   if (build_use_asm_only() != 0) {
-    int ar = build_run_asm_build(shu_path);
+    int ar = build_run_asm_build(xlang_path);
     if (ar == 0) {
       (void)system("cp -f xlang_asm xlang");
       build_runtime_info("asm path OK; ./xlang updated from xlang_asm");
@@ -475,6 +475,6 @@ int main(int argc, char **argv) {
     }
     build_runtime_warn("asm build failed; falling back to legacy C codegen steps");
   }
-  return build_run_legacy_steps(shu_path) != 0 ? 1 : 0;
+  return build_run_legacy_steps(xlang_path) != 0 ? 1 : 0;
 }
 #endif /* !BUILD_TOOL_X_ENTRY */

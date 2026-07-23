@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 阶段 3 类型检查测试：正例含 typeck OK；负例（边界）须报 typeck error 且退出码非 0
-# 当 SHU 已设置（test_x/run-all-x）时仅用 compiler/xlang（xlang_x），不构建 xlang-c，并跳过依赖「typeck OK」输出的正例。
+# 当 XLANG 已设置（test_x/run-all-x）时仅用 compiler/xlang（xlang_x），不构建 xlang-c，并跳过依赖「typeck OK」输出的正例。
 #
 # xlang_x 默认须加 -x 才走 .x 流水线；return_implicit.x 在 .x typeck 与 C 对齐时，对 xlang_x 自动加 -x。
 # 若将来 .x typeck 覆盖全部负例，可设 TYPECK_X=all 使所有负例均带 -x（未覆盖前部分用例可能误通过）。

@@ -81,7 +81,7 @@ if [ "$HOSTOS" = "FreeBSD" ] && "$XLANG" check -L . "$SMOKE" >/dev/null 2>&1 \
   EX=$?
   set -e
   rm -f /tmp/xlang_freebsd_write_smoke
-  EXPECTED=$(printf 'Hello Shu!\n')
+  EXPECTED=$(printf 'Hello Xlang!\n')
   if [ "$EX" -ne 0 ] || [ "$OUT" != "$EXPECTED" ]; then
     echo "freebsd-platform FAIL: host run exit=$EX out='$OUT'" >&2
     [ "$FAIL" = "1" ] && exit 1

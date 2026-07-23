@@ -63,7 +63,7 @@ int link_abi_buf_contains_substr_use_line(const char *data, size_t data_len, con
 /* Peer pure (host_lit) used by wave159 freestanding_enabled cold twin. */
 int xlang_host_is_linux(void);
 /* Cap residual (wave167/168 ensure cold twin; mega always provides). */
-int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 int link_abi_path_readable(const char *path);
 int xlang_cc_compile_sync(const char *src, const char *out_o, const char *inc0, const char *inc1,
                          const char *inc2, int from_asm_s);
@@ -919,7 +919,7 @@ int xlang_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
   have = asm_link_obj_skip_missing(o_path);
   if (have != NULL)
     return 0;
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail(out_base ? out_base : "crt0_user.o", NULL);
     return -1;
@@ -989,7 +989,7 @@ int xlang_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
   have = asm_link_obj_skip_missing(o_path);
   if (have != NULL)
     return 0;
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail(out_base ? out_base : "freestanding_io.o", NULL);
     return -1;

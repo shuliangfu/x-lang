@@ -8,12 +8,12 @@
  *   skip/rel/bank/diag Cap (wave148 push_obj); call_ensure Cap (wave149 push_glue);
  *   peer pure thin runtime_*_o_path (wave183 BSS; was Cap residual wave150/161);
  *   table+access Cap (wave151 append_user_extra);
- *   shu_resolve_compiler_dir Cap (wave160 compiler_o_path_copy; wave181 bootstrap stubs path);
+ *   xlang_resolve_compiler_dir Cap (wave160 compiler_o_path_copy; wave181 bootstrap stubs path);
  *   resolve+rel_o_path Cap (wave162 repo_root);
  *   realpath_if_exists+getcwd+skip Cap (wave163 panic_o_path);
  *   realpath_cap+getcwd Cap (wave164–166 crt0_user / freestanding_io / async_scheduler_o_path);
  *   path_readable+realpath_cap Cap (wave180 scheduler_o_for_task_link);
- *   realpath_cap+shu_resolve_compiler_dir Cap (wave181 bootstrap_nostdlib_stubs_o_path)
+ *   realpath_cap+xlang_resolve_compiler_dir Cap (wave181 bootstrap_nostdlib_stubs_o_path)
  *   resolve Cap (wave184 effective_link_argv0; empty path stubs pure)
  *   realpath_cap+getcwd+cstr_dup+skip Cap (wave185 rel_o_path heap; pure orch)
  *   reset/push Cap (wave189 set/clear user_o_files; pure argv .o scan)
@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <unistd.h> /* getcwd */
 extern int32_t link_abi_path_readable(uint8_t * path);
-extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
+extern int32_t xlang_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * link_abi_cstr_dup(uint8_t * s);
 /* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
@@ -227,7 +227,7 @@ extern uint8_t * link_abi_user_extra_o_at(int32_t i);
 extern void link_abi_user_extra_o_reset(void);
 extern int32_t link_abi_user_extra_o_push(uint8_t * p);
 extern int32_t link_abi_path_readable(uint8_t * path);
-extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
+extern int32_t xlang_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern uint8_t * xlang_runtime_o_realpath_if_exists(uint8_t * path, uint8_t * resolved);
 int32_t labi_suffix_eq2(uint8_t * s, int32_t n, uint8_t a0, uint8_t a1) {
   if ((n < 2)) {
@@ -1097,7 +1097,7 @@ int32_t xlang_runtime_compiler_o_path_copy(uint8_t * argv0, uint8_t * leaf, uint
   (void)(((out)[0] = 0));
   uint8_t comp_dir[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp_dir)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp_dir)[0]), 4096)));
   if ((rc !=0)) {
     return -1;
   }
@@ -1131,7 +1131,7 @@ uint8_t * xlang_repo_root_from_argv0(uint8_t * argv0) {
   (void)(((g_labi_repo_root_buf)[0] = 0));
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc ==0)) {
     if (((comp)[0] !=0)) {
       int32_t n = 0;
@@ -1277,7 +1277,7 @@ uint8_t * xlang_bootstrap_nostdlib_stubs_o_path(uint8_t * argv0) {
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc ==0)) {
     int32_t dn = 0;
     while (((comp)[dn] !=0)) {
@@ -1570,7 +1570,7 @@ uint8_t * xlang_asm_ld_effective_link_argv0(uint8_t * link_argv0, uint8_t * syn_
   (void)(((syn_buf)[0] = 0));
   uint8_t comp_dir[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(0, &((comp_dir)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(0, &((comp_dir)[0]), 4096)));
   if ((rc !=0)) {
     return ((uint8_t *)(0));
   }

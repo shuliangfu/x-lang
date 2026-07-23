@@ -41,11 +41,11 @@
 #include <stdint.h>
 
 /** LSP import 图：由 runtime.c 提供，供跨模块 typeck 与跳转 URI。 */
-extern int shu_lsp_resolve_and_load_imports(struct ASTModule *mod, const char **lib_roots, int n_lib_roots,
+extern int xlang_lsp_resolve_and_load_imports(struct ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                           const char *entry_dir, struct ASTModule **dep_mods, int *ndep_out,
                                           struct ASTModule **all_dep_mods, char **all_dep_paths,
                                           char all_dep_fs[][512], int *n_all_out, int max_deps);
-extern void shu_lsp_free_loaded_imports(struct ASTModule **all_dep_mods, char **all_dep_paths, int n_all);
+extern void xlang_lsp_free_loaded_imports(struct ASTModule **all_dep_mods, char **all_dep_paths, int n_all);
 
 extern void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots);
 
@@ -146,7 +146,7 @@ static int s_refs_count[LSP_LINE_INDEX_MAX];
 /** 释放 import 依赖缓存（不含 entry 模块 s_cached_mod）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void lsp_free_import_cache(void) {
-    shu_lsp_free_loaded_imports(s_all_dep_mods, s_all_dep_paths, s_n_all_deps);
+    xlang_lsp_free_loaded_imports(s_all_dep_mods, s_all_dep_paths, s_n_all_deps);
     s_n_all_deps = 0;
     s_ndirect_deps = 0;
     memset(s_all_dep_mods, 0, sizeof(s_all_dep_mods));
@@ -608,7 +608,7 @@ void lsp_typeck_entry_module(ASTModule *mod, int only_func_index) {
     s_ndirect_deps = 0;
     s_n_all_deps = 0;
     if (mod && mod->num_imports > 0) {
-        (void)shu_lsp_resolve_and_load_imports(mod, s_lib_roots, s_n_lib_roots, s_entry_dir,
+        (void)xlang_lsp_resolve_and_load_imports(mod, s_lib_roots, s_n_lib_roots, s_entry_dir,
                                              s_direct_deps, &s_ndirect_deps,
                                              s_all_dep_mods, s_all_dep_paths, s_all_dep_fs,
                                              &s_n_all_deps, LSP_MAX_IMPORTS);
@@ -3304,7 +3304,7 @@ int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, int inser
 
 
 /** xlang fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
-int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
+int xlang_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
     return lsp_format_document(doc, doc_len, 2, 1, 100, 1, 1, 1, out_buf, out_cap);
 }
 

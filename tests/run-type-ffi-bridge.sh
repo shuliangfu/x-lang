@@ -13,14 +13,14 @@ cd "$(dirname "$0")/.."
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if type_ffi_native_shu "$cand"; then
+    if type_ffi_native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$XLANG_BIN" ] || ! type_ffi_native_shu "$XLANG_BIN"; then
+if [ -z "$XLANG_BIN" ] || ! type_ffi_native_xlang "$XLANG_BIN"; then
   echo "type-ffi-bridge SKIP (no native xlang, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "type-ffi-bridge OK"
   exit 0

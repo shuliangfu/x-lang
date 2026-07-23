@@ -108,7 +108,7 @@ if [ -x ./compiler/xlang-c ] && ! ./compiler/xlang-c check -L . tests/regex/lite
   echo "std-regex gate: rebuild xlang-c (C frontend) for match API" >&2
   XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c >/dev/null 2>&1 || true
 fi
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -120,9 +120,9 @@ stdlib_cm_native_shu() {
     *) return 0 ;;
   esac
 }
-if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 

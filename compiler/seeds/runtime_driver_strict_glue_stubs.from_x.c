@@ -116,7 +116,7 @@ XLANG_WEAK void driver_print_usage_c(void) {
   (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1u);
 }
 
-XLANG_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
+XLANG_WEAK int xlang_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                                          const char *entry_dir, const char **defines, int ndefines,
                                                          int allow_legacy_extern, ASTModule **dep_mods, int *ndep_out,
                                                          ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][512],
@@ -138,7 +138,7 @@ XLANG_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_r
   return -1;
 }
 
-XLANG_WEAK int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
+XLANG_WEAK int xlang_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                                            const char *entry_dir, ASTModule **dep_mods, int *ndep_out,
                                                            ASTModule **all_dep_mods, char **all_dep_paths,
                                                            char all_dep_fs[][512], int *n_all_out, int max_deps) {

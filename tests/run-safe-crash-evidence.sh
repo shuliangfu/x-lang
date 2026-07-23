@@ -15,7 +15,7 @@ mkdir -p "$OUT_DIR"
 export XLANG_CRASH_EVIDENCE="${XLANG_CRASH_EVIDENCE:-1}"
 export XLANG_CRASH_EVIDENCE_DIR="$OUT_DIR"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -28,7 +28,7 @@ native_shu() {
 }
 
 XLANG_BIN="${XLANG:-./compiler/xlang}"
-if ! native_shu "$XLANG_BIN"; then
+if ! native_xlang "$XLANG_BIN"; then
   echo "safe-crash-evidence SKIP: no native xlang"
   safe_crash_emit_report skip "" 0
   exit 0

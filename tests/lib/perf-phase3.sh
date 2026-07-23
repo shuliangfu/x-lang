@@ -4,7 +4,7 @@
 PERF_PHASE3_PREFIX="${XLANG_PERF_PHASE3_PREFIX:-xlang: [XLANG_PERF_PHASE3]}"
 
 # 判断 xlang 是否可在本机执行。
-perf_phase3_native_shu() {
+perf_phase3_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in

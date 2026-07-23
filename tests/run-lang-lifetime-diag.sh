@@ -13,14 +13,14 @@ MATRIX="${XLANG_LANG_LIFETIME_DIAG_CASES:-tests/baseline/lang-lifetime-diag-case
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if lang_lifetime_diag_native_shu "$cand"; then
+    if lang_lifetime_diag_native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$XLANG_BIN" ] || ! lang_lifetime_diag_native_shu "$XLANG_BIN"; then
+if [ -z "$XLANG_BIN" ] || ! lang_lifetime_diag_native_xlang "$XLANG_BIN"; then
   echo "lang-lifetime-diag SKIP (no native xlang, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "lang-lifetime-diag OK"
   exit 0

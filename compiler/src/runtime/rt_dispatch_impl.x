@@ -66,7 +66,7 @@ export extern "C" function driver_compile_state_alloc_c(): *RtDispatchState;
 export extern "C" function driver_compile_state_free_c(state: *RtDispatchState): void;
 export extern "C" function driver_compile_parse_argv_impl_c(
   argc: i32, argv: *u8, state: *RtDispatchState): i32;
-export extern "C" function shu_target_cpu_print(out: *u8, features: u32): void;
+export extern "C" function xlang_target_cpu_print(out: *u8, features: u32): void;
 export extern "C" function driver_stdio_stdout(): *u8;
 
 export extern "C" function driver_dispatch_lib_roots_from_key(lib_key: *u8, n_out: *i32): *u8;
@@ -445,7 +445,7 @@ export function driver_run_compiler_full_x_impl_c(argc: i32, argv: *u8): i32 {
   if (state.print_target_cpu != 0) {
     unsafe {
       out = driver_stdio_stdout();
-      shu_target_cpu_print(out, state.target_cpu_features as u32);
+      xlang_target_cpu_print(out, state.target_cpu_features as u32);
       driver_compile_state_free_c(state);
     }
     return 0;

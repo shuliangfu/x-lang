@@ -59,7 +59,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-tar-extended manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -75,7 +75,7 @@ C_OK=0
 X_OK=0
 SKIP=0
 XLANG_BIN=""
-if stdlib_cm_native_shu ./compiler/xlang-c; then XLANG_BIN=./compiler/xlang-c; fi
+if stdlib_cm_native_xlang ./compiler/xlang-c; then XLANG_BIN=./compiler/xlang-c; fi
 
 if [ -n "$XLANG_BIN" ]; then
   if std_tar_extended_run_c_smoke; then

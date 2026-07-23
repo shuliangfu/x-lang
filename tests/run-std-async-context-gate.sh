@@ -12,7 +12,7 @@ SMOKE_CANCEL="tests/async/context_cancel_drain.x"
 SMOKE_SPAWN="tests/async/spawn_context_inherit.x"
 PREFIX="xlang: [XLANG_STD090_ASYNC_CTX]"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -85,9 +85,9 @@ else
 fi
 
 XLANG_BIN=""
-if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 

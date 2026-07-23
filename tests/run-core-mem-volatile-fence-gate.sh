@@ -11,7 +11,7 @@ MANIFEST="tests/baseline/core-mem-volatile-fence.tsv"
 SMOKE_X="tests/core-mem/volatile_fence.x"
 PREFIX="xlang: [XLANG_CORE017_MEM_VOLATILE]"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -60,9 +60,9 @@ C_OK=0
 X_OK=0
 SKIP=0
 XLANG_BIN=""
-if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 if [ -n "$XLANG_BIN" ]; then

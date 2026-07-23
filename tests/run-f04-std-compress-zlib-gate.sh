@@ -24,7 +24,7 @@ grep -q 'F-04 v4' "$DOC" || die "doc missing F-04 v4 marker"
 [ ! -f std/compress/zlib/zlib.c ] || die "zlib.c should be deleted"
 grep -q 'compress_deflate_c' "$ZLIB_LIBZ" || die "libz missing compress_deflate_c"
 grep -q 'compress_inflate_c' "$ZLIB_LIBZ" || die "libz missing compress_inflate_c"
-grep -q 'shu_compress_zlib_marker' "$ZLIB_LIBZ" || die "libz missing marker"
+grep -q 'xlang_compress_zlib_marker' "$ZLIB_LIBZ" || die "libz missing marker"
 grep -q 'import("std.compress.zlib.libz")' "$ZLIB_MOD" || die "mod.x missing libz import"
 if grep -q 'extern function compress_deflate_c' "$ZLIB_MOD" 2>/dev/null; then
   die "mod.x still extern compress_deflate_c"

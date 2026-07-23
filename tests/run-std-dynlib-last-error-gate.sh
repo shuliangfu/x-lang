@@ -14,7 +14,7 @@ SMOKE_X="tests/dynlib/last_error.x"
 SMOKE_C="tests/dynlib/last_error_smoke.c"
 PREFIX="xlang: [XLANG_STD096_DYNLIB_ERR]"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -47,9 +47,9 @@ C_OK=0
 X_OK=0
 SKIP=0
 XLANG_BIN=""
-if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 fi
 

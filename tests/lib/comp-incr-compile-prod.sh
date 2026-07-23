@@ -2,17 +2,17 @@
 # comp-incr-compile-prod.sh — COMP-021 incr-compile prod tier 烟测辅助
 #
 # 用法（source 后）：
-#   comp_incr_prod_native_shu
+#   comp_incr_prod_native_xlang
 #   comp_incr_prod_hook_runnable HOOK_SCRIPT
 #   comp_incr_prod_emit_report status prod_ok prod_run prod_skip skip
 
 COMP021_PREFIX="${XLANG_COMP021_PREFIX:-xlang: [XLANG_COMP021_INCR_PROD]}"
 
 # 复用 COMP-020 native xlang 探测。
-comp_incr_prod_native_shu() {
+comp_incr_prod_native_xlang() {
   # shellcheck source=tests/lib/comp-incr-compile-wave.sh
   . tests/lib/comp-incr-compile-wave.sh
-  comp_incr_wave_native_shu
+  comp_incr_wave_native_xlang
 }
 
 # 判断 prod hook 在本机是否应尝试 runnable。
@@ -20,7 +20,7 @@ comp_incr_prod_hook_runnable() {
   local hook="$1"
   case "$hook" in
     run-comp-incr-compile.sh|run-obs-compile-phase-timing-gate.sh)
-      comp_incr_prod_native_shu
+      comp_incr_prod_native_xlang
       ;;
     run-comp-incr-compile-gate.sh|run-comp-incr-compile-wave-gate.sh)
       return 0

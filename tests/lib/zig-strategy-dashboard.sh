@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# zig-strategy-dashboard.sh — PERF-011 共享：Shu vs Zig 战略看板、趋势 sparkline、报告行
+# zig-strategy-dashboard.sh — PERF-011 共享：Xlang vs Zig 战略看板、趋势 sparkline、报告行
 #
 # 用法（source 后）：
-#   zsd_ahead_pct shu_sec zig_sec
+#   zsd_ahead_pct xlang_sec zig_sec
 #   zsd_status ahead_pct target_pct
 #   zsd_sparkline case_id [history_tsv]
 #   zsd_history_months [history_tsv]
@@ -102,7 +102,7 @@ zsd_report_emit() {
   local status="$6"
   local trend="$7"
   local prefix="${XLANG_ZIG_STRATEGY_PREFIX:-xlang: [XLANG_ZIG_STRATEGY]}"
-  printf '%s case=%s shu_sec=%s zig_sec=%s ahead_pct=%s target_pct=%s status=%s trend=%s\n' \
+  printf '%s case=%s xlang_sec=%s zig_sec=%s ahead_pct=%s target_pct=%s status=%s trend=%s\n' \
     "$prefix" "$case_id" "$xlang" "$zig" "$ahead" "$target" "$status" "$trend" >&2
 }
 

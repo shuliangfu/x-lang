@@ -8,7 +8,7 @@ allow(padding) struct B64Stream {
   dec_pending: u8[4]
 }
 
-const SHU_B64_STREAM_MAGIC: u32 = 0x42345354;
+const XLANG_B64_STREAM_MAGIC: u32 = 0x42345354;
 const B64_STREAM_STATE_BYTES: i32 = 28;
 
 extern function memset(s: *u8, c: i32, n: usize): *u8;
@@ -23,7 +23,7 @@ function b64_stream_cast(state: *u8, state_cap: i32): *B64Stream {
   let need: i32 = B64_STREAM_STATE_BYTES;
   if (state == 0 || state_cap < need) { return 0 as *B64Stream; }
   let s: *B64Stream = state as *B64Stream;
-  if (s.magic != SHU_B64_STREAM_MAGIC) { return 0 as *B64Stream; }
+  if (s.magic != XLANG_B64_STREAM_MAGIC) { return 0 as *B64Stream; }
   return s;
 }
 
@@ -40,7 +40,7 @@ function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   if (state == 0 || state_cap < need) { return -1; }
   unsafe { memset(state, 0, need); }
   s = state as *B64Stream;
-  s.magic = SHU_B64_STREAM_MAGIC;
+  s.magic = XLANG_B64_STREAM_MAGIC;
   s.is_url = (url != 0) ? 1 : 0;
   s.is_enc = 1;
   return 0;

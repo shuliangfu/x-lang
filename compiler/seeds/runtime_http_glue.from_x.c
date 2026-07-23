@@ -172,7 +172,7 @@ int http_format_request(const char *method, const char *path_buf, const char *ho
 int32_t http_set_timeouts(int fd, uint32_t timeout_ms);
 int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms);
 int32_t http_drain_request(int fd);
-int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket);
+int32_t xlang_http_send_all(int fd, const char *buf, int len, int is_socket);
 
 /** 关闭传输层（含 TLS 与 socket）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -789,7 +789,7 @@ int32_t http_drain_request(int fd) { return http_drain_request_impl(fd); }
 
 /** 循环 send 直至 len 字节发完。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {
+int32_t xlang_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {
   int sent = 0;
   (void)is_socket;
   if (fd < 0 || !buf || len <= 0) return -1;
@@ -807,7 +807,7 @@ int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) 
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) { return shu_http_send_all_impl(fd, buf, len, is_socket); }
+int32_t xlang_http_send_all(int fd, const char *buf, int len, int is_socket) { return xlang_http_send_all_impl(fd, buf, len, is_socket); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 

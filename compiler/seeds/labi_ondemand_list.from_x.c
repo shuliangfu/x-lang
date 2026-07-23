@@ -1086,7 +1086,7 @@ const char *labi_od_zlib_undef_sym_at(int i) {
     return "_uncompress";
   return NULL;
 }
-const char *labi_od_compress_zlib_marker(void) { return "shu_compress_zlib_marker"; }
+const char *labi_od_compress_zlib_marker(void) { return "xlang_compress_zlib_marker"; }
 
 int labi_od_zstd_undef_sym_count(void) { return 2; }
 const char *labi_od_zstd_undef_sym_at(int i) {
@@ -1098,7 +1098,7 @@ const char *labi_od_zstd_undef_sym_at(int i) {
     return "_ZSTD";
   return NULL;
 }
-const char *labi_od_compress_zstd_marker(void) { return "shu_compress_zstd_marker"; }
+const char *labi_od_compress_zstd_marker(void) { return "xlang_compress_zstd_marker"; }
 
 int labi_od_brotli_undef_sym_count(void) { return 2; }
 const char *labi_od_brotli_undef_sym_at(int i) {
@@ -1110,7 +1110,7 @@ const char *labi_od_brotli_undef_sym_at(int i) {
     return "BrotliDecoderDecompress";
   return NULL;
 }
-const char *labi_od_compress_brotli_marker(void) { return "shu_compress_brotli_marker"; }
+const char *labi_od_compress_brotli_marker(void) { return "xlang_compress_brotli_marker"; }
 
 /* Pure orch: zlib marker + exact UNDEF table + Cap residual. PLATFORM: SHARED. */
 int link_abi_obj_needs_zlib(const char *obj_o) {

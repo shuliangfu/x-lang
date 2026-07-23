@@ -285,7 +285,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             char c_entry_dir[512];
             xlang_get_entry_dir(input_path, c_entry_dir, sizeof(c_entry_dir));
             if (c_mod->num_imports > 0 &&
-                shu_c_resolve_and_load_imports(c_mod, lib_roots_arr, n_lib_roots, c_entry_dir,
+                xlang_c_resolve_and_load_imports(c_mod, lib_roots_arr, n_lib_roots, c_entry_dir,
                     ndefines > 0 ? defines : NULL, ndefines, 0, dep_mods, &ndep, all_dep_mods, all_dep_paths,
                     NULL, &n_all, MAX_ALL_DEPS) != 0) {
                 ast_module_free(c_mod);
@@ -406,7 +406,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                         } else {
                             int status = 0;
                             #endif
-                        if (shu_waitpid_retry(cpid, &status) != 0 ||
+                        if (xlang_waitpid_retry(cpid, &status) != 0 ||
                                 !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                                 diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
                                             "cc -c failed for library module", NULL);

@@ -184,7 +184,7 @@ ci_require_cmd zig
 echo "── perf baseline ──"
 if ci_is_linux; then
   PERF_BASELINE_ENV="XLANG_PERF_FAIL_ON_ZIG=1"
-  # L2 B-CMP：GHA 原生 ubuntu 须 Shu -O3 不劣于 C-O3（1.0×）；stretch 0.95× 见 run-bcmp-stretch-gate.sh
+  # L2 B-CMP：GHA 原生 ubuntu 须 Xlang -O3 不劣于 C-O3（1.0×）；stretch 0.95× 见 run-bcmp-stretch-gate.sh
   if ci_is_linux_x64 && ! ci_is_docker; then
     PERF_BASELINE_ENV="${PERF_BASELINE_ENV} XLANG_PERF_FAIL_ON_C_O3=1 XLANG_PERF_C_O3_RATIO=1.0"
   fi

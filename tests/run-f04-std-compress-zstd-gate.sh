@@ -26,7 +26,7 @@ grep -q 'F-04 v7' "$DOC" || die "doc missing F-04 v7 marker"
 [ ! -f std/compress/zstd/zstd.c ] || die "zstd.c should be deleted"
 grep -q 'compress_zstd_compress_c' "$ZSTD_LIB" || die "zstd_lib missing compress_zstd_compress_c"
 grep -q 'compress_zstd_stream_compress_c' "$ZSTD_LIB" || die "zstd_lib missing stream compress"
-grep -q 'shu_compress_zstd_marker' "$ZSTD_LIB" || die "zstd_lib missing marker"
+grep -q 'xlang_compress_zstd_marker' "$ZSTD_LIB" || die "zstd_lib missing marker"
 grep -q 'import("std.compress.zstd.lib")' "$ZSTD_MOD" || die "mod.x missing lib import"
 if grep -q 'extern function compress_zstd_compress_c' "$ZSTD_MOD" 2>/dev/null; then
   die "mod.x still extern compress_zstd_compress_c"

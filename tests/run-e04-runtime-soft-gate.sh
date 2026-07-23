@@ -119,8 +119,8 @@ for f in "$DOC_V33" "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v33' "$DOC_V33" || die "doc missing E-04 v33 marker"
-grep -q 'shu_c_resolve_and_load_imports' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.from_x.c missing shu_c_resolve_and_load_imports"
-grep -q 'shu_lsp_resolve_and_load_imports' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.from_x.c missing shu_lsp_resolve_and_load_imports"
+grep -q 'xlang_c_resolve_and_load_imports' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.from_x.c missing xlang_c_resolve_and_load_imports"
+grep -q 'xlang_lsp_resolve_and_load_imports' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.from_x.c missing xlang_lsp_resolve_and_load_imports"
 grep -q 'runtime_c_import.o' "$MF" || die "Makefile OBJS_CORE missing runtime_c_import.o"
 grep -q 'driver_source_has_top_level_import_path' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_source_has_top_level_import_path"
 grep -q 'xlang_merge_deps_path_already_out' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing xlang_merge_deps_path_already_out"
@@ -130,13 +130,13 @@ fi
 if grep -qE '^static int resolve_and_load_imports\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines resolve_and_load_imports"
 fi
-if grep -qE '^int shu_lsp_resolve_and_load_imports\(' "$RUNTIME" 2>/dev/null; then
-  die "runtime.c still defines shu_lsp_resolve_and_load_imports"
+if grep -qE '^int xlang_lsp_resolve_and_load_imports\(' "$RUNTIME" 2>/dev/null; then
+  die "runtime.c still defines xlang_lsp_resolve_and_load_imports"
 fi
 if grep -qE '^int driver_source_has_top_level_import_path\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines driver_source_has_top_level_import_path"
 fi
-grep -q 'shu_c_resolve_and_load_imports' "$RUNTIME" || die "runtime.c should call shu_c_resolve_and_load_imports"
+grep -q 'xlang_c_resolve_and_load_imports' "$RUNTIME" || die "runtime.c should call xlang_c_resolve_and_load_imports"
 
 echo "=== E-04 v32: xlang_preprocess in pipeline_abi (runtime XLANG_RUNTIME_PREPROCESS macro) ==="
 for f in "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
@@ -166,7 +166,7 @@ grep -q 'xlang_import_dep_dir_from_path' "$PIPELINE_ABI_C" || die "runtime_pipel
 grep -q 'xlang_driver_asm_prepare_entry_elf_emit' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing xlang_driver_asm_prepare_entry_elf_emit"
 grep -q 'xlang_asm_codegen_elf_o_large_stack' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing xlang_asm_codegen_elf_o_large_stack"
 grep -q 'pipeline_typeck_module_for_ctx' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing pipeline_typeck_module_for_ctx"
-grep -q 'shu_lsp_free_loaded_imports' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shu_lsp_free_loaded_imports"
+grep -q 'xlang_lsp_free_loaded_imports' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing xlang_lsp_free_loaded_imports"
 if grep -qE '^static void driver_asm_prepare_entry_elf_emit\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines driver_asm_prepare_entry_elf_emit"
 fi
@@ -176,8 +176,8 @@ fi
 if grep -qE '^int32_t pipeline_typeck_module_for_ctx\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines pipeline_typeck_module_for_ctx"
 fi
-if grep -qE '^void shu_lsp_free_loaded_imports\(' "$RUNTIME" 2>/dev/null; then
-  die "runtime.c still defines shu_lsp_free_loaded_imports"
+if grep -qE '^void xlang_lsp_free_loaded_imports\(' "$RUNTIME" 2>/dev/null; then
+  die "runtime.c still defines xlang_lsp_free_loaded_imports"
 fi
 grep -q 'xlang_asm_codegen_elf_o_large_stack' "$RUNTIME" || die "runtime.c should call xlang_asm_codegen_elf_o_large_stack"
 grep -q 'xlang_import_dep_dir_from_path' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.inc should call xlang_import_dep_dir_from_path"
@@ -459,8 +459,8 @@ grep -q 'xlang_asm_invoke_ld_platform' "$LINK_ABI_C" || die "runtime_link_abi.fr
 if grep -qE '^static int asm_invoke_ld_platform\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines asm_invoke_ld_platform"
 fi
-if grep -qE '^static int shu_ld_freestanding_enabled\(' "$RUNTIME" 2>/dev/null; then
-  die "runtime.c still defines shu_ld_freestanding_enabled"
+if grep -qE '^static int xlang_ld_freestanding_enabled\(' "$RUNTIME" 2>/dev/null; then
+  die "runtime.c still defines xlang_ld_freestanding_enabled"
 fi
 
 echo "=== E-04 v14: invoke_ld prepare + tail -l* + nm self-contained in runtime_link_abi ==="
@@ -562,10 +562,10 @@ for f in "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v8' "$DOC_V8" || die "doc missing E-04 v8 marker"
-grep -q 'shu_resolve_compiler_dir' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shu_resolve_compiler_dir"
+grep -q 'xlang_resolve_compiler_dir' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing xlang_resolve_compiler_dir"
 grep -q 'xlang_asm_ld_effective_link_argv0' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing xlang_asm_ld_effective_link_argv0"
-if grep -qE '^static (int shu_resolve_compiler_dir|const char \*xlang_asm_ld_effective_link_argv0)\(' "$RUNTIME" 2>/dev/null; then
-  die "runtime.c still defines shu_resolve_compiler_dir or xlang_asm_ld_effective_link_argv0"
+if grep -qE '^static (int xlang_resolve_compiler_dir|const char \*xlang_asm_ld_effective_link_argv0)\(' "$RUNTIME" 2>/dev/null; then
+  die "runtime.c still defines xlang_resolve_compiler_dir or xlang_asm_ld_effective_link_argv0"
 fi
 
 echo "=== E-04 v7: Linux link hardening in runtime_link_abi ==="
@@ -619,8 +619,8 @@ grep -q 'src/runtime_proc_abi.o' "$MF" || die "Makefile missing runtime_proc_abi
 grep -q 'ensure_runtime_proc_abi_obj' "$BUILD" || die "build_xlang_asm missing ensure_runtime_proc_abi_obj"
 grep -q 'runtime_proc_abi.h' "$RUNTIME" || die "runtime.c should include runtime_proc_abi.h"
 
-if grep -q '^static int shu_waitpid_retry(' "$RUNTIME" 2>/dev/null; then
-  die "runtime.c still defines shu_waitpid_retry (expected runtime_proc_abi.c)"
+if grep -q '^static int xlang_waitpid_retry(' "$RUNTIME" 2>/dev/null; then
+  die "runtime.c still defines xlang_waitpid_retry (expected runtime_proc_abi.c)"
 fi
 if ! sed -n '/^DRIVER_SEED_OBJS =/,/^$/p' "$MF" | grep -q 'src/runtime_proc_abi.o'; then
   die "DRIVER_SEED_OBJS missing src/runtime_proc_abi.o"

@@ -61,13 +61,13 @@ if re.search(r"\bStrView\b", s) and need_bare_view and "typedef struct StrView S
 elif re.search(r"\bStrView\b", s) and need_std_view and "typedef struct std_string_StrView StrView" not in s:
     extra.append("typedef struct std_string_StrView StrView;\n")
 # init_globals 可能引用 dep 全局（heap trace / mem fence）；库 .o 不定义它们 → 补 BSS
-if "shu_heap_trace_on" in s and "int32_t shu_heap_trace_on" not in s:
+if "xlang_heap_trace_on" in s and "int32_t xlang_heap_trace_on" not in s:
     extra.append(
-        "int32_t shu_heap_trace_on;\n"
-        "uint64_t shu_heap_trace_alloc_count;\n"
-        "uint64_t shu_heap_trace_free_count;\n"
-        "uint64_t shu_heap_trace_realloc_count;\n"
-        "uint64_t shu_heap_trace_bytes;\n"
+        "int32_t xlang_heap_trace_on;\n"
+        "uint64_t xlang_heap_trace_alloc_count;\n"
+        "uint64_t xlang_heap_trace_free_count;\n"
+        "uint64_t xlang_heap_trace_realloc_count;\n"
+        "uint64_t xlang_heap_trace_bytes;\n"
         "uint64_t g_mem_fence_seq;\n"
     )
 # entry-only 对 heap 有 U 且本 TU 无定义时才补弱桩（勿与 co-emit 的真体重定义）

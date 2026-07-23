@@ -65,7 +65,7 @@
   "internal_call_rewrites": [],
   "known_limitations": [
     "main/entry 保留 seed：argv 语言限制（.x 无法表达 char **argv）+ #ifdef BUILD_TOOL_X_ENTRY 条件编译",
-    "签名修复：.x 中 build_patch_pipeline_gen_c/build_patch_driver_gen_c 原为 (path: *u8)，seed 为 (void)，已修复 .x 为无参数；build_run_legacy_steps 原为 ()，seed 为 (const char *shu_path)，已修复 .x 为 (shu_path: *u8)"
+    "签名修复：.x 中 build_patch_pipeline_gen_c/build_patch_driver_gen_c 原为 (path: *u8)，seed 为 (void)，已修复 .x 为无参数；build_run_legacy_steps 原为 ()，seed 为 (const char *xlang_path)，已修复 .x 为 (xlang_path: *u8)"
   ],
   "platform_notes": "IMPL 模式：5 个 wrapper 由 .x 提供，调用 seed 中 _impl。macOS merged 19 T + libc/外部 U；Ubuntu merged 19 T/W U=0",
   "delete_seed_gate": {

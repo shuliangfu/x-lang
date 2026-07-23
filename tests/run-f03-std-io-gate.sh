@@ -47,7 +47,7 @@ if [ -f tests/run-std-c-inventory-gate.sh ]; then
   fi
 fi
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -61,7 +61,7 @@ stdlib_cm_native_shu() {
 resolve_shu() {
   local cand
   for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm; do
-    if stdlib_cm_native_shu "$cand"; then
+    if stdlib_cm_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi

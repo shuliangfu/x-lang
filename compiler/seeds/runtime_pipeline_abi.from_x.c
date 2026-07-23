@@ -86,7 +86,7 @@
  *   cold twin under #ifndef FROM_X).
  * wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
  *   (G.7 xlang_ptr_slot_*; product hybrid writers only via accessors; cold twins under #ifndef FROM_X).
- * wave78: pure shu_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null) + xlang_fputs_stdout
+ * wave78: pure xlang_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null) + xlang_fputs_stdout
  *   (G.7 g05 stdout_ptr + fputs_opaque) + driver_asm_fp_is_stdout + driver_asm_fclose_file
  *   (G.7 g05 stdout compare + fclose_opaque); cold twins under #ifndef FROM_X.
  * wave79: pure xlang_path_try_realpath_inplace (G.7 g05 realpath_opaque + stack 1024 +
@@ -178,7 +178,7 @@ extern void preprocess_define_add(const char *name);
 
 /* G-02f-63 helper protos */
 int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void);
-void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all);
+void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all);
 
 /* G-02f-62 helper protos */
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena);
@@ -356,7 +356,7 @@ int xlang_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots,
     char *dep_paths[], int32_t mi);
 void xlang_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi);
 /* wave78 pure soft residual — pure emit/fclose_asm_out / free_loaded_imports call under hybrid. */
-void shu_lsp_ptr_slot_clear(void **arr, int32_t i);
+void xlang_lsp_ptr_slot_clear(void **arr, int32_t i);
 void xlang_fputs_stdout(const char *s);
 int driver_asm_fp_is_stdout(FILE *fp);
 void driver_asm_fclose_file(FILE *fp);
@@ -3840,18 +3840,18 @@ int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-/** 释放 shu_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths（不含 entry 模块本身）。 */
-/* wave78: hybrid pure owns shu_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null); cold twin under
+/** 释放 xlang_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths（不含 entry 模块本身）。 */
+/* wave78: hybrid pure owns xlang_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null); cold twin under
  * #ifndef FROM_X. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
-void shu_lsp_ptr_slot_clear(void **arr, int32_t i) {
+void xlang_lsp_ptr_slot_clear(void **arr, int32_t i) {
     if (!arr || i < 0)
         return;
     arr[i] = NULL;
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
-void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all) {
+void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all) {
     int i;
 
     for (i = 0; i < n_all; i++) {
@@ -3868,7 +3868,7 @@ void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths,
 
 /* G-02f-227：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
-void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
+void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
   if (all_dep_mods == NULL) {
     return;
   }
@@ -3879,7 +3879,7 @@ void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_de
     return;
   }
   {
-    shu_lsp_free_loaded_imports_impl((void **)all_dep_mods, all_dep_paths, n_all);
+    xlang_lsp_free_loaded_imports_impl((void **)all_dep_mods, all_dep_paths, n_all);
   }
 }
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */

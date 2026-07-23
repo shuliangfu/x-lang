@@ -50,7 +50,7 @@ extern int32_t glue_simd_x86_cmp_rax_rbx_c(uint8_t * elf_ctx);
 extern int32_t glue_emit_runtime_strip_loop_c(uint8_t * arena, uint8_t * elf_ctx, uint8_t * ctx, int32_t ta, int32_t assign_body_ref, int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a, int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes, uint32_t feats);
 extern int32_t glue_emit_f32_soa_sum_strip_c(uint8_t * arena, uint8_t * elf_ctx, uint8_t * ctx, int32_t ta, int32_t assign_body_ref, int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n, int32_t n_lit, int32_t lanes, uint32_t feats);
 extern uint32_t driver_get_pending_target_cpu_features(void);
-extern uint32_t shu_target_cpu_detect_host(void);
+extern uint32_t xlang_target_cpu_detect_host(void);
 extern int32_t pipeline_expr_kind_ord_at(uint8_t * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_index_index_ref(uint8_t * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_var_name_len(uint8_t * arena, int32_t expr_ref);
@@ -141,7 +141,7 @@ uint32_t glue_simd_loop_cpu_features_c(void) {
     if ((feats !=0)) {
       return feats;
     }
-    return shu_target_cpu_detect_host();
+    return xlang_target_cpu_detect_host();
   }
   return 0;
 }

@@ -30,12 +30,12 @@
  * 探测当前宿主机 CPU 特性（Linux /proc/cpuinfo、macOS sysctl、编译期宏兜底）。
  * 返回 feature 位掩码；探测失败时返回 0。
  */
-uint32_t shu_target_cpu_detect_host(void);
+uint32_t xlang_target_cpu_detect_host(void);
 
 /**
  * 当前宿主架构下的 generic baseline（x86_64→SSE2，arm64→NEON，riscv64→0）。
  */
-uint32_t shu_target_cpu_generic_for_host(void);
+uint32_t xlang_target_cpu_generic_for_host(void);
 
 /**
  * 解析 `-target-cpu` 规格字符串。
@@ -44,10 +44,10 @@ uint32_t shu_target_cpu_generic_for_host(void);
  * @param out      输出 feature 掩码
  * @return 0 成功，-1 未知规格
  */
-int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
+int xlang_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
 
 /** 将 feature 掩码以稳定键值行打印到 out（供 `--print-target-cpu` 与门禁解析）。 */
-void shu_target_cpu_print(FILE *out, uint32_t features);
+void xlang_target_cpu_print(FILE *out, uint32_t features);
 
 /** driver 分派前暂存已解析 feature（lib_key→state 不可直传 pctx 时用）。 */
 void driver_set_pending_target_cpu_features(uint32_t features);
@@ -59,13 +59,13 @@ uint32_t driver_get_pending_target_cpu_features(void);
  * SIMD-S2：判断 TYPE_NAMED 拼写是否为标准向量类型（i32x4、Vec4f、Vec8i 等）。
  * @return 1 是向量拼写，0 否
  */
-int shu_simd_is_vector_type_spelling(const char *name, size_t name_len);
+int xlang_simd_is_vector_type_spelling(const char *name, size_t name_len);
 
 /**
  * SIMD-S2：从向量类型拼写推断 lane 数与元素字节宽。
  * @return 0 成功，-1 非向量拼写
  */
-int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
+int xlang_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
                                             int32_t *out_esz);
 
 #endif /* XLANG_TARGET_CPU_H */

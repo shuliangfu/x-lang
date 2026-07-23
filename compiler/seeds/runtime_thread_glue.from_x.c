@@ -19,24 +19,24 @@
 #include <sched.h>
 #include <string.h>
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
-void shu_cpu_zero(cpu_set_t *set);
-void shu_cpu_set(unsigned int cpu, cpu_set_t *set);
+void xlang_cpu_zero(cpu_set_t *set);
+void xlang_cpu_set(unsigned int cpu, cpu_set_t *set);
 /* 手写 cpu_set 清零与置位，避免依赖 CPU_ZERO/CPU_SET/CPU_ZERO_S/CPU_SET_S 的链接符号（部分 glibc 会未定义） */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_thread_glue.x）提供 public wrapper */
-void shu_cpu_zero_impl(cpu_set_t *set) {
+void xlang_cpu_zero_impl(cpu_set_t *set) {
     memset(set, 0, sizeof(cpu_set_t));
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void shu_cpu_zero(cpu_set_t *set) {
-    shu_cpu_zero_impl(set);
+void xlang_cpu_zero(cpu_set_t *set) {
+    xlang_cpu_zero_impl(set);
 }
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_thread_glue.x）提供 public wrapper */
-void shu_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
+void xlang_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
     if (cpu < sizeof(cpu_set_t) * 8) {
         size_t idx = cpu / (8 * sizeof(unsigned long));
         size_t bit = cpu % (8 * sizeof(unsigned long));
@@ -45,8 +45,8 @@ void shu_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
 }
 #ifndef XLANG_RUNTIME_THREAD_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
-    shu_cpu_set_impl(cpu, set);
+void xlang_cpu_set(unsigned int cpu, cpu_set_t *set) {
+    xlang_cpu_set_impl(cpu, set);
 }
 #endif
 
@@ -56,11 +56,11 @@ void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
 #include <windows.h>
 #include <stdlib.h>
 /* Windows：用 CreateThread + WaitForSingleObject；thread_id 存 HANDLE。 */
-typedef HANDLE shu_thread_t;
+typedef HANDLE xlang_thread_t;
 #define XLANG_THREAD_ID_INVALID ((int64_t)(uintptr_t)NULL)
 #else
 #include <pthread.h>
-typedef pthread_t shu_thread_t;
+typedef pthread_t xlang_thread_t;
 #define XLANG_THREAD_ID_INVALID ((int64_t)0)
 #if defined(__APPLE__)
 #include <sys/qos.h>
@@ -77,9 +77,9 @@ int64_t thread_self_c(void) {
 }
 
 #if defined(_WIN32) || defined(_WIN64)
-struct shu_thread_params { void *(*entry)(void *); void *arg; };
+struct xlang_thread_params { void *(*entry)(void *); void *arg; };
 static DWORD WINAPI thread_wrap(LPVOID arg) {
-    struct shu_thread_params *p = (struct shu_thread_params *)arg;
+    struct xlang_thread_params *p = (struct xlang_thread_params *)arg;
     void *(*entry)(void *) = p->entry;
     void *a = p->arg;
     free(p);
@@ -95,7 +95,7 @@ int64_t thread_create_c(void *entry, void *arg) {
     if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
-        struct shu_thread_params *params = (struct shu_thread_params *)malloc(sizeof(struct shu_thread_params));
+        struct xlang_thread_params *params = (struct xlang_thread_params *)malloc(sizeof(struct xlang_thread_params));
         if (!params) return XLANG_THREAD_ID_INVALID;
         params->entry = (void *(*)(void *))entry;
         params->arg = arg;
@@ -121,7 +121,7 @@ int64_t thread_create_with_stack_c(void *entry, void *arg, size_t stack_size) {
     if (entry == NULL) return XLANG_THREAD_ID_INVALID;
 #if defined(_WIN32) || defined(_WIN64)
     {
-        struct shu_thread_params *params = (struct shu_thread_params *)malloc(sizeof(struct shu_thread_params));
+        struct xlang_thread_params *params = (struct xlang_thread_params *)malloc(sizeof(struct xlang_thread_params));
         if (!params) return XLANG_THREAD_ID_INVALID;
         params->entry = (void *(*)(void *))entry;
         params->arg = arg;
@@ -186,8 +186,8 @@ int32_t thread_set_affinity_self_c(int32_t cpu_index) {
 #elif defined(__linux__)
     {
         cpu_set_t set;
-        shu_cpu_zero(&set);
-        shu_cpu_set((unsigned)cpu_index, &set);
+        xlang_cpu_zero(&set);
+        xlang_cpu_set((unsigned)cpu_index, &set);
         if (pthread_setaffinity_np(pthread_self(), sizeof(set), &set) != 0) return -1;
         return 0;
     }
@@ -212,8 +212,8 @@ int32_t thread_set_affinity_c(int64_t thread_id, int32_t cpu_index) {
 #elif defined(__linux__)
     {
         cpu_set_t set;
-        shu_cpu_zero(&set);
-        shu_cpu_set((unsigned)cpu_index, &set);
+        xlang_cpu_zero(&set);
+        xlang_cpu_set((unsigned)cpu_index, &set);
         if (pthread_setaffinity_np((pthread_t)(uintptr_t)thread_id, sizeof(set), &set) != 0) return -1;
         return 0;
     }
@@ -274,18 +274,18 @@ uintptr_t std_thread_thread_dummy_entry_ptr_c(void) { return thread_dummy_entry_
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <stdlib.h>
 
-#define SHU_THREAD_POOL_CAP 128
-#define SHU_THREAD_POOL_MAX_WORKERS 8
+#define XLANG_THREAD_POOL_CAP 128
+#define XLANG_THREAD_POOL_MAX_WORKERS 8
 
 typedef struct {
     void *(*entry)(void *);
     void *arg;
-} shu_pool_job_t;
+} xlang_pool_job_t;
 
 static pthread_mutex_t g_pool_mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t g_pool_not_empty = PTHREAD_COND_INITIALIZER;
 static pthread_cond_t g_pool_idle = PTHREAD_COND_INITIALIZER;
-static shu_pool_job_t g_pool_q[SHU_THREAD_POOL_CAP];
+static xlang_pool_job_t g_pool_q[XLANG_THREAD_POOL_CAP];
 static int g_pool_head;
 static int g_pool_tail;
 static int g_pool_count;
@@ -293,13 +293,13 @@ static int g_pool_workers;
 static int g_pool_started;
 static int g_pool_stop_req;
 static int g_pool_in_flight;
-static pthread_t g_pool_tids[SHU_THREAD_POOL_MAX_WORKERS];
+static pthread_t g_pool_tids[XLANG_THREAD_POOL_MAX_WORKERS];
 
 /** worker 主循环：取队列任务执行，stop 时退出。 */
-static void *shu_thread_pool_worker(void *arg) {
+static void *xlang_thread_pool_worker(void *arg) {
     (void)arg;
     for (;;) {
-        shu_pool_job_t job;
+        xlang_pool_job_t job;
         pthread_mutex_lock(&g_pool_mu);
         while (g_pool_count == 0 && !g_pool_stop_req) {
             pthread_cond_wait(&g_pool_not_empty, &g_pool_mu);
@@ -309,7 +309,7 @@ static void *shu_thread_pool_worker(void *arg) {
             break;
         }
         job = g_pool_q[g_pool_head];
-        g_pool_head = (g_pool_head + 1) % SHU_THREAD_POOL_CAP;
+        g_pool_head = (g_pool_head + 1) % XLANG_THREAD_POOL_CAP;
         g_pool_count--;
         g_pool_in_flight++;
         pthread_mutex_unlock(&g_pool_mu);
@@ -364,7 +364,7 @@ int32_t thread_pool_start_c(int32_t workers) {
     return -1;
 #else
     int i;
-    if (workers < 1 || workers > SHU_THREAD_POOL_MAX_WORKERS) {
+    if (workers < 1 || workers > XLANG_THREAD_POOL_MAX_WORKERS) {
         return -1;
     }
     pthread_mutex_lock(&g_pool_mu);
@@ -379,7 +379,7 @@ int32_t thread_pool_start_c(int32_t workers) {
     g_pool_stop_req = 0;
     g_pool_workers = workers;
     for (i = 0; i < workers; i++) {
-        if (pthread_create(&g_pool_tids[i], NULL, shu_thread_pool_worker, NULL) != 0) {
+        if (pthread_create(&g_pool_tids[i], NULL, xlang_thread_pool_worker, NULL) != 0) {
             g_pool_stop_req = 1;
             pthread_cond_broadcast(&g_pool_not_empty);
             while (--i >= 0) {
@@ -403,14 +403,14 @@ int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg) {
     (void)arg;
     return -1;
 #else
-    shu_pool_job_t job;
+    xlang_pool_job_t job;
     if (!g_pool_started || entry == 0) {
         return -1;
     }
     job.entry = (void *(*)(void *))entry;
     job.arg = (void *)arg;
     pthread_mutex_lock(&g_pool_mu);
-    while (g_pool_count >= SHU_THREAD_POOL_CAP && !g_pool_stop_req) {
+    while (g_pool_count >= XLANG_THREAD_POOL_CAP && !g_pool_stop_req) {
         pthread_cond_wait(&g_pool_idle, &g_pool_mu);
     }
     if (g_pool_stop_req) {
@@ -418,7 +418,7 @@ int32_t thread_pool_submit_c(uintptr_t entry, uintptr_t arg) {
         return -1;
     }
     g_pool_q[g_pool_tail] = job;
-    g_pool_tail = (g_pool_tail + 1) % SHU_THREAD_POOL_CAP;
+    g_pool_tail = (g_pool_tail + 1) % XLANG_THREAD_POOL_CAP;
     g_pool_count++;
     pthread_cond_signal(&g_pool_not_empty);
     pthread_mutex_unlock(&g_pool_mu);

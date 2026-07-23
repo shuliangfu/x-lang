@@ -32,7 +32,7 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$WAVE"
 
-for kw in 生产级 perf bench_shuffle_hot min_benches stub/Shu; do
+for kw in 生产级 perf bench_shuffle_hot min_benches stub/Xlang; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-simd-prod gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -109,7 +109,7 @@ if [ -n "$XLANG_ASM" ] && command -v cc >/dev/null 2>&1; then
   if [ "$perf_ec" -eq 0 ]; then
     BENCH_OK=1
     SKIP=0
-    RATIO=$(grep -E 'ratio \(stub/Shu\):' "$PERF_LOG" | tail -1 | sed -E 's/.*ratio \(stub\/Shu\): ([0-9.]+).*/\1/' || true)
+    RATIO=$(grep -E 'ratio \(stub/Xlang\):' "$PERF_LOG" | tail -1 | sed -E 's/.*ratio \(stub\/Xlang\): ([0-9.]+).*/\1/' || true)
     echo "std-simd-prod runnable OK perf"
   elif grep -qE 'SKIP:' "$PERF_LOG" 2>/dev/null; then
     BENCH_SKIP=1

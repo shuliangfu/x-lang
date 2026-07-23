@@ -139,11 +139,11 @@ XLANG_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gat
 |------|------|------|
 | **L3** | `XLANG=./compiler/xlang-c ./tests/run-all.sh` | C 前端发布基线 |
 | **L4** | `XLANG=./compiler/xlang XLANG_RUN_ALL_BOOTSTRAP_XLANG=1 ./tests/run-all.sh` | M1：seed 做 check/typeck/smoke，多数 `-o` 经 `XLANG_LINK_XLANG=xlang-c` |
-| **L5** | 同上，但 `run_shu_for_script` 白名单外脚本也用 seed | 真 parity：缩小白名单；已用 seed 链路的子集含 `run-multi-file`、`run-multi-func`、`run-toplevel-let`、`run-let-const` 等 |
+| **L5** | 同上，但 `run_xlang_for_script` 白名单外脚本也用 seed | 真 parity：缩小白名单；已用 seed 链路的子集含 `run-multi-file`、`run-multi-func`、`run-toplevel-let`、`run-let-const` 等 |
 
 **L5 相关实现（2026-05）**：`user_asm_seed_bridge.c` 在 `asm_codegen_elf_o` 前编入各 dep；`asm_export_func_symbol_name` + `pipeline_module_num_funcs`；用户 `-o` exe 不再对本地 import 强制 `asm_entry_module_only`。**std.io 族**：pipeline/bridge 跳过整库 asm emit；`runtime_asm_io_stubs.o` + `io.o` 链入；ARM64 支持 9+ 参 call（`io_register_buffers_4`）。`XLANG=./compiler/xlang ./tests/run-io.sh` 除 `read_ptr.x` 外已通过。
 
-**`run_shu_for_script` 白名单（bootstrap 下仍用 seed `SHU`，其余 `-o` 用 `XLANG_LINK_XLANG`/`xlang-c`）**：
+**`run_xlang_for_script` 白名单（bootstrap 下仍用 seed `XLANG`，其余 `-o` 用 `XLANG_LINK_XLANG`/`xlang-c`）**：
 
 | 仍用 seed | 仍用 xlang-c（示例） |
 |-----------|-------------------|

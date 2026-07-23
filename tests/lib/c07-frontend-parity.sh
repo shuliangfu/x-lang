@@ -8,7 +8,7 @@
 
 # 判断可执行文件是否可在当前宿主运行（Mach-O/ELF 架构匹配）。
 # 参数：$1 = 编译器二进制路径；返回 0 可运行，1 不可。
-c07_native_shu() {
+c07_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(ci_host_os)-$(ci_host_arch)" in
@@ -27,16 +27,16 @@ c07_resolve_compilers() {
   C07_REF="${C07_REF:-./compiler/xlang-c}"
   if [ -z "${C07_CAND:-}" ]; then
     for cand in ./compiler/xlang_asm ./compiler/xlang; do
-      if c07_native_shu "$cand"; then
+      if c07_native_xlang "$cand"; then
         C07_CAND="$cand"
         break
       fi
     done
   fi
-  if ! c07_native_shu "$C07_REF"; then
+  if ! c07_native_xlang "$C07_REF"; then
     return 1
   fi
-  if [ -z "${C07_CAND:-}" ] || ! c07_native_shu "$C07_CAND"; then
+  if [ -z "${C07_CAND:-}" ] || ! c07_native_xlang "$C07_CAND"; then
     return 2
   fi
   return 0

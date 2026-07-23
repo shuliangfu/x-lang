@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # seed 链全量回归：bootstrap-driver-seed 后 XLANG=./compiler/xlang 跑 run-all。
-# x86_64 CI 必跑；arm64/Darwin 上 -o 链接部分用例走 xlang-c（run-all 内 run_shu_for_script 已分流）。
+# x86_64 CI 必跑；arm64/Darwin 上 -o 链接部分用例走 xlang-c（run-all 内 run_xlang_for_script 已分流）。
 # 用法：./tests/run-all-seed.sh
 
 set -e

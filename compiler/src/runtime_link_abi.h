@@ -55,7 +55,7 @@ typedef struct ShuAsmLdStdLinkFlags {
  * 参数：argv0 可选；out_dir/out_dir_sz 输出缓冲。
  * 返回值：0 成功，-1 失败。
  */
-int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 
 /**
  * link_argv0 为空时合成 «compiler-dir/xlang» 供 std/*.o 路径解析。

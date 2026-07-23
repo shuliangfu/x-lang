@@ -12,7 +12,7 @@ MATRIX="${XLANG_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.
 ONE_CASE="${1:-}"
 
 # 判断本机可执行的 xlang 二进制格式
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -25,13 +25,13 @@ native_shu() {
 }
 
 resolve_shu() {
-  if [ -n "${XLANG:-}" ] && native_shu "$XLANG"; then
+  if [ -n "${XLANG:-}" ] && native_xlang "$XLANG"; then
     echo "$XLANG"
     return 0
   fi
   local cand
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi

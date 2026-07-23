@@ -4,8 +4,8 @@
 # 用法（source 后）：
 #   std_compress_has_api MOD fn
 #   std_compress_try_libs          # 尝试 rebuild compress.o（zlib/zstd）
-#   std_compress_run_smoke SHU src tag
-#   std_compress_probe_roundtrip SHU src  # 打印 ok|skip|fail
+#   std_compress_run_smoke XLANG src tag
+#   std_compress_probe_roundtrip XLANG src  # 打印 ok|skip|fail
 
 # 检查 mod.x 是否导出指定函数。
 std_compress_has_api() {
@@ -21,7 +21,7 @@ std_compress_try_libs() {
   return 0
 }
 
-std_compress_native_shu() {
+std_compress_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -34,13 +34,13 @@ std_compress_native_shu() {
 }
 
 std_compress_resolve_shu() {
-  if [ -n "${XLANG:-}" ] && std_compress_native_shu "$XLANG"; then
+  if [ -n "${XLANG:-}" ] && std_compress_native_xlang "$XLANG"; then
     echo "$XLANG"
     return 0
   fi
   local cand
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if std_compress_native_shu "$cand"; then
+    if std_compress_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi

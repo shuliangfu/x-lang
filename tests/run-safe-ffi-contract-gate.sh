@@ -17,7 +17,7 @@ MIN_CASES=8
 # shellcheck source=tests/lib/safe-ffi.sh
 . tests/lib/safe-ffi.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -123,14 +123,14 @@ echo "safe-ffi-contract manifest OK (cases=${CASE_N})"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== SAFE-004: contract cases (XLANG=$XLANG_BIN) ==="
   if [ ! -x ./compiler/xlang-c ] && [ ! -x ./compiler/xlang ]; then
     make -C compiler xlang-c

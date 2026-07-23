@@ -6,7 +6,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
-# -o 链接走 RUN_XLANG（bootstrap 下非 x86_64 为 xlang-c）；typeck 负例仍用 seed SHU。
+# -o 链接走 RUN_XLANG（bootstrap 下非 x86_64 为 xlang-c）；typeck 负例仍用 seed XLANG。
 LINK_XLANG="$RUN_XLANG"
 TYPECK_XLANG="${TYPECK_XLANG:-$XLANG}"
 

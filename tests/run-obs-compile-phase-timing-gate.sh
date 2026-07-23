@@ -20,7 +20,7 @@ SMOKE_FIX="tests/bench/loop_i32.x"
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -109,7 +109,7 @@ echo "obs-compile-phase-timing manifest OK (host=$(ci_host_summary), items=${FOU
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

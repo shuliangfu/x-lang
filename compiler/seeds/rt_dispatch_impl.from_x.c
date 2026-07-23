@@ -91,7 +91,7 @@ extern void driver_bump_stack_limit(void);
 extern DriverCompileStateSU *driver_compile_state_alloc_c(void);
 extern void driver_compile_state_free_c(DriverCompileStateSU *state);
 extern int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv, DriverCompileStateSU *state);
-extern void shu_target_cpu_print(FILE *out, uint32_t features);
+extern void xlang_target_cpu_print(FILE *out, uint32_t features);
 
 /** asm 后端：lib_key sidecar → lib_roots，委托 driver_run_asm_backend。 */
 int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
@@ -132,9 +132,9 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 #if !defined(XLANG_NO_C_FRONTEND)
   if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
       !driver_asm_entry_module_only_from_env()) {
-    int shu_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
-    if (shu_c_rc >= 0)
-      return shu_c_rc;
+    int xlang_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
+    if (xlang_c_rc >= 0)
+      return xlang_c_rc;
   }
 #endif
   return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
@@ -258,7 +258,7 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
     return 1;
   }
   if (state->print_target_cpu) {
-    shu_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
+    xlang_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
     driver_compile_state_free_c(state);
     return 0;
   }

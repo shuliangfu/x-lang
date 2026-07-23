@@ -67,7 +67,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-http-chunked manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -83,9 +83,9 @@ CHUNKED_OK=0
 KEEPALIVE_OK=0
 TYPECK_OK=0
 SKIP=1
-if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
 else
   XLANG_BIN=""

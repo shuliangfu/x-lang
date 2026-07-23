@@ -16,7 +16,7 @@ MIN_SYMBOLS=6
 # shellcheck source=tests/lib/core-fmt-f64-special.sh
 . tests/lib/core-fmt-f64-special.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -89,13 +89,13 @@ CHECK_OK=0
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   if "$XLANG_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
     CHECK_OK=1

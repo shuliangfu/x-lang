@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
 
-# 与 run-async.sh 一致：外部已设 SHU（CI macOS 传 xlang-c）时保留；否则 xlang 优先。
+# 与 run-async.sh 一致：外部已设 XLANG（CI macOS 传 xlang-c）时保留；否则 xlang 优先。
 if [ -z "${XLANG:-}" ]; then
   if [ -x ./compiler/xlang ]; then
     XLANG=./compiler/xlang
@@ -125,11 +125,11 @@ bench_async_case() {
 
   med=$(median_real "$exe")
   ns_per_op=$(awk -v t="$med" 'BEGIN { if (t>0) printf "%.1f", t*1e9/2000000.0; else print "nan" }')
-  echo "Shu ${name} median real: ${med}s (~${ns_per_op} ns/step, target B-ASYNC ≤15ns)"
+  echo "Xlang ${name} median real: ${med}s (~${ns_per_op} ns/step, target B-ASYNC ≤15ns)"
 
   printf '\n| %s | median (s) | ns/step |\n' "$name"
   printf '|---|------------|--------|\n'
-  printf '| Shu | %s | %s |\n' "$med" "$ns_per_op"
+  printf '| Xlang | %s | %s |\n' "$med" "$ns_per_op"
   printf '\n'
 
   check_async_regress "$name" "$med"

@@ -1193,21 +1193,21 @@ int32_t driver_target_arg_os_kind(const char *target) {
  */
 int xlang_driver_argv_append_uname(const char **defines, int ndefines, int max_defines) {
     struct utsname u;
-    static char shu_os_def[80], shu_arch_def[80];
+    static char xlang_os_def[80], xlang_arch_def[80];
     if (!defines)
         return ndefines;
     if (ndefines + 2 > max_defines)
         return ndefines;
     if (uname(&u) != 0)
         return ndefines;
-    snprintf(shu_os_def, sizeof shu_os_def, "XLANG_OS_%s", u.sysname);
-    snprintf(shu_arch_def, sizeof shu_arch_def, "XLANG_ARCH_%s", u.machine);
-    for (char *p = shu_os_def + 7; *p; p++)
+    snprintf(xlang_os_def, sizeof xlang_os_def, "XLANG_OS_%s", u.sysname);
+    snprintf(xlang_arch_def, sizeof xlang_arch_def, "XLANG_ARCH_%s", u.machine);
+    for (char *p = xlang_os_def + 7; *p; p++)
         *p = driver_ascii_toupper(*p);
-    for (char *p = shu_arch_def + 9; *p; p++)
+    for (char *p = xlang_arch_def + 9; *p; p++)
         *p = driver_ascii_toupper(*p);
-    defines[ndefines++] = shu_os_def;
-    defines[ndefines++] = shu_arch_def;
+    defines[ndefines++] = xlang_os_def;
+    defines[ndefines++] = xlang_arch_def;
     return ndefines;
 }
 
@@ -1873,7 +1873,7 @@ extern void runtime_diag_errno_path(const char *file, const char *kind, const ch
 extern const char *driver_exec_scan_out_path(int argc, char **argv);
 extern int driver_exec_path_is_non_exe(const char *exe);
 #if !defined(_WIN32) && !defined(_WIN64)
-extern int shu_waitpid_retry(pid_t pid, int *status_out);
+extern int xlang_waitpid_retry(pid_t pid, int *status_out);
 #endif
 
 /* Permanent Cap residual: *u8 argv_opaque → char** + G.7 scan_out_path.
@@ -1887,7 +1887,7 @@ uint8_t *xlang_driver_exec_scan_out_path_opaque(int32_t argc, uint8_t *argv_opaq
 
 /* Permanent OS residual: wait for product exe (spawn/fork/exec).
  * Pure wave42 owns null/non_exe orch; this is process boundary only.
- * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+shu_waitpid_retry. */
+ * PLATFORM: WINDOWS _spawnvp; POSIX fork+execv+xlang_waitpid_retry. */
 int32_t xlang_driver_exec_spawn_wait(uint8_t *exe) {
     const char *path;
     if (exe == NULL)
@@ -1923,7 +1923,7 @@ int32_t xlang_driver_exec_spawn_wait(uint8_t *exe) {
         }
         {
             int st = 0;
-            if (shu_waitpid_retry(pid, &st) != 0)
+            if (xlang_waitpid_retry(pid, &st) != 0)
                 return 1;
             if (WIFEXITED(st))
                 return (int32_t)WEXITSTATUS(st);
@@ -3761,19 +3761,19 @@ uint8_t *xlang_driver_sibling_argv0_get(uint8_t *argv_opaque) {
  * PLATFORM: WINDOWS _spawnvp; POSIX fork+execvp+waitpid. */
 int32_t xlang_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *argv_opaque) {
     char **av;
-    char *shu_c;
+    char *xlang_c;
     (void)argc;
     if (path == NULL || argv_opaque == NULL)
         return -1;
-    shu_c = (char *)(void *)path;
+    xlang_c = (char *)(void *)path;
     av = (char **)(void *)argv_opaque;
-    if (access(shu_c, X_OK) != 0)
+    if (access(xlang_c, X_OK) != 0)
         return -1;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
         intptr_t rc;
-        av[0] = shu_c;
-        rc = _spawnvp(_P_WAIT, shu_c, (const char *const *)av);
+        av[0] = xlang_c;
+        rc = _spawnvp(_P_WAIT, xlang_c, (const char *const *)av);
         if (rc == -1)
             return -1;
         return (int32_t)rc;
@@ -3784,8 +3784,8 @@ int32_t xlang_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *
         if (pid < 0)
             return -1;
         if (pid == 0) {
-            av[0] = shu_c;
-            execvp(shu_c, av);
+            av[0] = xlang_c;
+            execvp(xlang_c, av);
             _exit(127);
         }
         {
@@ -3808,7 +3808,7 @@ int32_t xlang_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *
  * Cold twin：自洽 path build + G.7 basename + residual access_spawn（无 pure BSS）。
  */
 int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
-    char shu_c[512];
+    char xlang_c[512];
     char **av = (char **)(void *)argv;
     const char *self;
     const char *slash;
@@ -3827,15 +3827,15 @@ int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
 #endif
     if (slash) {
         size_t dir_len = (size_t)(slash - self);
-        if (dir_len >= sizeof(shu_c) - 8)
+        if (dir_len >= sizeof(xlang_c) - 8)
             return -1;
-        memcpy(shu_c, self, dir_len);
-        shu_c[dir_len] = '\0';
-        strcat(shu_c, "/xlang-c");
+        memcpy(xlang_c, self, dir_len);
+        xlang_c[dir_len] = '\0';
+        strcat(xlang_c, "/xlang-c");
     } else {
-        strcpy(shu_c, "xlang-c");
+        strcpy(xlang_c, "xlang-c");
     }
-    return xlang_driver_sibling_access_spawn((uint8_t *)(void *)shu_c, argc, argv);
+    return xlang_driver_sibling_access_spawn((uint8_t *)(void *)xlang_c, argc, argv);
 }
 #endif
 

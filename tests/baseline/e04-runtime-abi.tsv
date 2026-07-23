@@ -13,8 +13,8 @@ e04_runtime_diag_ref	abi_sym	runtime.c:runtime_driver_diagnostic	active	E-04 v34
 e04_objs_core_driver_diag	E-04	compiler/Makefile	active	xlang-c + seed	grep	runtime_driver_diagnostic\.o
 e04_v33_doc	doc	analysis/phase-e-e04-v33.md	active	n/a	grep	E-04 v33
 e04_c_import_tu	abi_tu	compiler/seeds/runtime_c_import.from_x.c	active	xlang-c only	exists	C import load
-e04_c_import_resolve	abi_sym	runtime_c_import.from_x.c:shu_c_resolve_and_load_imports	active	run_compiler_c	grep	shu_c_resolve_and_load_imports
-e04_c_import_lsp	abi_sym	runtime_c_import.from_x.c:shu_lsp_resolve_and_load_imports	active	lsp_diag	grep	shu_lsp_resolve_and_load_imports
+e04_c_import_resolve	abi_sym	runtime_c_import.from_x.c:xlang_c_resolve_and_load_imports	active	run_compiler_c	grep	xlang_c_resolve_and_load_imports
+e04_c_import_lsp	abi_sym	runtime_c_import.from_x.c:xlang_lsp_resolve_and_load_imports	active	lsp_diag	grep	xlang_lsp_resolve_and_load_imports
 e04_driver_top_level_import	abi_sym	runtime_driver_abi.from_x.c:driver_source_has_top_level_import_path	active	compile.x	grep	driver_source_has_top_level_import_path
 e04_pipeline_merge_deps	abi_sym	runtime_pipeline_abi.from_x.c:xlang_merge_deps_path_already_out	active	asm layout	grep	xlang_merge_deps_path_already_out
 e04_objs_core_c_import	E-04	compiler/Makefile	active	xlang-c cold start	grep	runtime_c_import\.o
@@ -26,7 +26,7 @@ e04_pipeline_import_dep_dir	abi_sym	runtime_pipeline_abi.from_x.c:xlang_import_d
 e04_pipeline_asm_prepare_elf	abi_sym	runtime_pipeline_abi.from_x.c:xlang_driver_asm_prepare_entry_elf_emit	active	asm elf_o	grep	xlang_driver_asm_prepare_entry_elf_emit
 e04_pipeline_asm_elf_large	abi_sym	runtime_pipeline_abi.from_x.c:xlang_asm_codegen_elf_o_large_stack	active	asm backend	grep	xlang_asm_codegen_elf_o_large_stack
 e04_pipeline_typeck_for_ctx	abi_sym	runtime_pipeline_abi.from_x.c:pipeline_typeck_module_for_ctx	active	asm typecheck	grep	pipeline_typeck_module_for_ctx
-e04_pipeline_lsp_free_imports	abi_sym	runtime_pipeline_abi.from_x.c:shu_lsp_free_loaded_imports	active	lsp_diag	grep	shu_lsp_free_loaded_imports
+e04_pipeline_lsp_free_imports	abi_sym	runtime_pipeline_abi.from_x.c:xlang_lsp_free_loaded_imports	active	lsp_diag	grep	xlang_lsp_free_loaded_imports
 e04_v30_doc	doc	analysis/phase-e-e04-v30.md	active	n/a	grep	E-04 v30
 e04_pipeline_set_entry_dir	abi_sym	runtime_pipeline_abi.from_x.c:pipeline_set_entry_dir	active	pipeline.x	grep	pipeline_set_entry_dir
 e04_pipeline_read_file	abi_sym	runtime_pipeline_abi.from_x.c:pipeline_read_file	active	import load	grep	pipeline_read_file
@@ -141,7 +141,7 @@ e04_v9_doc	doc	analysis/phase-e-e04-v9.md	active	n/a	grep	E-04 v9
 e04_link_panic_o	abi_sym	runtime_link_abi.from_x.c:xlang_runtime_panic_o_path	active	invoke_cc/asm_ld	grep	xlang_runtime_panic_o_path
 e04_link_async_sched	abi_sym	runtime_link_abi.from_x.c:xlang_std_async_scheduler_o_path	active	task/scheduler	grep	xlang_std_async_scheduler_o_path
 e04_v8_doc	doc	analysis/phase-e-e04-v8.md	active	n/a	grep	E-04 v8
-e04_link_compiler_dir	abi_sym	runtime_link_abi.from_x.c:shu_resolve_compiler_dir	active	runtime panic/io	grep	shu_resolve_compiler_dir
+e04_link_compiler_dir	abi_sym	runtime_link_abi.from_x.c:xlang_resolve_compiler_dir	active	runtime panic/io	grep	xlang_resolve_compiler_dir
 e04_link_effective_argv0	abi_sym	runtime_link_abi.from_x.c:xlang_asm_ld_effective_link_argv0	active	invoke_ld	grep	xlang_asm_ld_effective_link_argv0
 e04_v7_doc	doc	analysis/phase-e-e04-v7.md	active	n/a	grep	E-04 v7
 e04_link_harden	abi_sym	runtime_link_abi.from_x.c:xlang_append_linux_link_harden	active	invoke_cc/asm_ld	grep	xlang_append_linux_link_harden
@@ -174,7 +174,7 @@ e04_abi_target_arch	abi_sym	runtime_abi.c:driver_resolve_target_arch	active	comp
 e04_io_read_malloc	abi_sym	runtime_io_abi.from_x.c:runtime_read_file_malloc	active	runtime.c macro	grep	runtime_read_file_malloc
 e04_io_read_into	abi_sym	runtime_io_abi.from_x.c:xlang_read_file_into_path	active	ast_pool extern	grep	xlang_read_file_into_path
 e04_io_write_bytes	abi_sym	runtime_io_abi.from_x.c:xlang_write_path_bytes	active	runtime fmt	grep	xlang_write_path_bytes
-e04_proc_waitpid	abi_sym	runtime_proc_abi.c:shu_waitpid_retry	active	invoke_cc/ld	grep	shu_waitpid_retry
+e04_proc_waitpid	abi_sym	runtime_proc_abi.c:xlang_waitpid_retry	active	invoke_cc/ld	grep	xlang_waitpid_retry
 e04_proc_link_skip	abi_sym	runtime_proc_abi.c:asm_link_obj_skip_missing	active	invoke_cc/ld	grep	asm_link_obj_skip_missing
 e04_seed_links_abi	E-04	compiler/Makefile	active	runtime_abi.o	grep	src/runtime_abi.o
 e04_seed_links_io	E-04	compiler/Makefile	active	runtime_io_abi.o	grep	src/runtime_io_abi.o

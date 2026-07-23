@@ -24,7 +24,7 @@
  *   + scheduler_o_for_task_link (wave180 pure task.o→scheduler.o rewrite; Cap residual
  *     path_readable + realpath_cap; static 4096/4096 BSS)
  *   + xlang_bootstrap_nostdlib_stubs_o_path (wave181 pure cwd realpath + compiler-dir/leaf;
- *     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS)
+ *     Cap residual realpath_cap + xlang_resolve_compiler_dir; static 4096/4096 BSS)
  *   + 29× thin xlang_runtime_*_o_path (wave183 pure BSS + compiler_o_path_copy;
  *     asm_io_stubs … ed25519_ref10_glue; static 4096 BSS each)
  *   + xlang_empty_cstr / xlang_std_io_o_path / xlang_std_compress_o_path /
@@ -70,7 +70,7 @@ int link_abi_user_extra_o_count(void);
 const char *link_abi_user_extra_o_at(int i);
 int link_abi_path_readable(const char *path);
 /* Cap residual used by wave160 compiler_o_path_copy / wave162 repo_root cold twin (mega always provides). */
-int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 /* Cap residual used by wave163 panic_o_path cold twin (path_io / libc). */
 const char *xlang_runtime_o_realpath_if_exists(const char *path, char *resolved);
 char *getcwd(char *buf, size_t size);
@@ -441,7 +441,7 @@ int xlang_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char
   if (!out || out_sz == 0 || !leaf || !leaf[0])
     return -1;
   out[0] = '\0';
-  if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
+  if (xlang_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
     return -1;
   dn = 0;
   while (comp_dir[dn] != 0)
@@ -475,7 +475,7 @@ const char *xlang_repo_root_from_argv0(const char *argv0) {
   char *last;
   const char *proc_o;
   g_labi_repo_root_buf[0] = '\0';
-  if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) == 0 && comp[0]) {
+  if (xlang_resolve_compiler_dir(argv0, comp, sizeof comp) == 0 && comp[0]) {
     n = 0;
     while (comp[n] != 0)
       n = n + 1;
@@ -880,7 +880,7 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
 }
 
 /* wave181: bootstrap_nostdlib_stubs_o_path pure orch (cold twin ≡ .x;
- * Cap residual realpath_cap + shu_resolve_compiler_dir). */
+ * Cap residual realpath_cap + xlang_resolve_compiler_dir). */
 static char g_labi_bootstrap_nostdlib_stubs_o_path_buf[4096];
 static char g_labi_bootstrap_nostdlib_stubs_o_path_resolved[4096];
 
@@ -899,7 +899,7 @@ const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
                               g_labi_bootstrap_nostdlib_stubs_o_path_resolved);
   if (hit)
     return hit;
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc == 0) {
     dn = 0;
     while (comp[dn] != 0)
@@ -1195,7 +1195,7 @@ const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_
   if (!syn_buf || syn_sz == 0)
     return NULL;
   syn_buf[0] = '\0';
-  if (shu_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
+  if (xlang_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
     return NULL;
   dn = strlen(comp_dir);
   /* "%s/xlang" → dn + 1 + 4 + NUL; fail if need >= syn_sz (mega size_t). */

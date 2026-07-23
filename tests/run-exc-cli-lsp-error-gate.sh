@@ -13,7 +13,7 @@ DOC="${XLANG_EXC_CLI_LSP_DOC:-analysis/exc-cli-lsp-error-v1.md}"
 MATRIX="${XLANG_EXC_CLI_LSP_TSV:-tests/baseline/exc-cli-lsp-error.tsv}"
 MIN_ITEMS=10
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -105,7 +105,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang-x; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

@@ -62,7 +62,7 @@ if [ "$rc" -ne 0 ]; then
   exit 0
 fi
 
-EXPECTED=$(printf 'Hello Shu!\n')
+EXPECTED=$(printf 'Hello Xlang!\n')
 if [ "$OUT" != "$EXPECTED" ]; then
   echo "win32-write-gate FAIL: stdout='$OUT' expected='$EXPECTED'" >&2
   [ "$FAIL" = "1" ] && exit 1

@@ -67,7 +67,7 @@ async_io_uring_skip_na() {
   return 1
 }
 
-# 选用可执行编译器：外部已设 SHU（如 CI 传入 xlang-c）时保留；否则 xlang（seed）优先，缺失时 xlang-c。
+# 选用可执行编译器：外部已设 XLANG（如 CI 传入 xlang-c）时保留；否则 xlang（seed）优先，缺失时 xlang-c。
 if [ -z "${XLANG:-}" ]; then
   if [ -x ./compiler/xlang ]; then
     XLANG=./compiler/xlang

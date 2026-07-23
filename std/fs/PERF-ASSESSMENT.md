@@ -94,9 +94,9 @@
 - **std.io**：Reader/Writer 抽象、通用流接口；**标准库本身不内置 io_uring/kqueue/IOCP**，高性能事件循环依赖社区库（如 libxev、zig-aio）提供 io_uring/kqueue/IOCP 后端。
 - **特点**：API 清晰、零分配设计、跨平台；高性能 IO 需额外依赖或自研。
 
-### 5.2 Shu 与 Zig 对比
+### 5.2 X 语言与 Zig 对比
 
-| 维度 | Zig | Shu（std.fs + std.io） |
+| 维度 | Zig | X 语言（std.fs + std.io） |
 |------|-----|------------------------|
 | **高性能 IO 后端** | 标准库无，需 libxev/zig-aio 等 | **标准库内置** io_uring（Linux）、kqueue（macOS）、IOCP（Windows），统一 Buffer + submit + completion |
 | **mmap 三平台** | posix.mmap，Windows 支持在演进 | **已支持** Linux/macOS/Windows（含 CreateFileMapping/MapViewOfFile） |
@@ -109,7 +109,7 @@
 
 ### 5.3 能否比肩？能否超越？
 
-- **比肩**：**可以**。在「三平台、大文件、高性能、零拷贝与批量化」维度上，Shu 的 std.fs + std.io 已覆盖 Zig std 已提供或常用的能力，并在「标准库内建 io_uring/kqueue/IOCP」「mmap/无缓冲/readv4 三平台」「错误码与打开模式」等点上与 Zig 相当或更齐全（Zig 需依赖社区库才能达到同等后端）。
-- **超越**：**在「开箱即用」与「标准库内高性能后端」意义上可以认为超越**。Zig 标准库不包含 io_uring/kqueue/IOCP，用户需选型并集成 libxev、zig-aio 等；Shu 标准库直接提供三平台高性能后端与统一 API，无需额外依赖即可达到与 Zig+libxev 同级的 IO 路径。在「语言表现力、生态、工具链成熟度」上 Zig 仍更成熟，此处仅就 **std.fs / std.io 的能力与内置高性能后端** 论。
+- **比肩**：**可以**。在「三平台、大文件、高性能、零拷贝与批量化」维度上，X 语言的 std.fs + std.io 已覆盖 Zig std 已提供或常用的能力，并在「标准库内建 io_uring/kqueue/IOCP」「mmap/无缓冲/readv4 三平台」「错误码与打开模式」等点上与 Zig 相当或更齐全（Zig 需依赖社区库才能达到同等后端）。
+- **超越**：**在「开箱即用」与「标准库内高性能后端」意义上可以认为超越**。Zig 标准库不包含 io_uring/kqueue/IOCP，用户需选型并集成 libxev、zig-aio 等；X 语言标准库直接提供三平台高性能后端与统一 API，无需额外依赖即可达到与 Zig+libxev 同级的 IO 路径。在「语言表现力、生态、工具链成熟度」上 Zig 仍更成熟，此处仅就 **std.fs / std.io 的能力与内置高性能后端** 论。
 
-**结论**：Shu 的 io/fs 在**能力与内置高性能后端**上可与 Zig 比肩，在**开箱即用的高性能 IO（无需第三方事件循环）**上可视为超越 Zig 标准库；与「Zig + libxev/zig-aio」相比属同一水平，各有取舍。
+**结论**：X 语言的 io/fs 在**能力与内置高性能后端**上可与 Zig 比肩，在**开箱即用的高性能 IO（无需第三方事件循环）**上可视为超越 Zig 标准库；与「Zig + libxev/zig-aio」相比属同一水平，各有取舍。

@@ -24,10 +24,10 @@ grep -q 'F-04 v9' "$DOC" || die "doc missing F-04 v9 marker"
 [ -f "$TLS_X" ] || die "missing tls_mbedtls.x"
 [ -f "$TLS_BIO" ] || die "missing tls_mbedtls_bio.c"
 [ ! -f std/net/tls_mbedtls.inc.c ] || die "tls_mbedtls.inc.c should be deleted"
-grep -q 'shu_net_tls_mbedtls_marker' "$TLS_X" || die "tls_mbedtls.x missing marker"
+grep -q 'xlang_net_tls_mbedtls_marker' "$TLS_X" || die "tls_mbedtls.x missing marker"
 grep -q 'net_tls_connect_client_c' "$TLS_X" || die "tls_mbedtls.x missing connect"
 grep -q 'net_tls_mbedtls_smoke_c' "$TLS_X" || die "tls_mbedtls.x missing smoke"
-grep -q 'shu_mbedtls_ssl_bind_fd_c' "$TLS_BIO" || die "bio.c missing bind"
+grep -q 'xlang_mbedtls_ssl_bind_fd_c' "$TLS_BIO" || die "bio.c missing bind"
 if grep -q 'tls_mbedtls.inc.c' "$NET_C" 2>/dev/null; then
   die "net.c still references tls_mbedtls.inc.c"
 fi

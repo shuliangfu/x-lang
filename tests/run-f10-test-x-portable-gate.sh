@@ -7,7 +7,7 @@ DOC="analysis/phase-f-f10-v1.md"
 MANIFEST="tests/baseline/f10-test-x-portable.tsv"
 die() { echo "f10-test-x-portable gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -34,11 +34,11 @@ grep -q '^test_x:' compiler/Makefile || die "Makefile missing test_x"
 grep -q 'test_x' compiler/Makefile || die "compiler Makefile missing test_x"
 
 XLANG_BIN=""
-if XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
+if XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c || true)"; then
   :
-elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang && echo ./compiler/xlang || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang && echo ./compiler/xlang || true)"; then
   :
-elif XLANG_BIN="$(stdlib_cm_native_shu ./compiler/xlang_asm && echo ./compiler/xlang_asm || true)"; then
+elif XLANG_BIN="$(stdlib_cm_native_xlang ./compiler/xlang_asm && echo ./compiler/xlang_asm || true)"; then
   :
 fi
 

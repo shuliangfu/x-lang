@@ -40,9 +40,9 @@ uint32_t crypto_rotr32_c(uint32_t x, uint32_t n);
 uint32_t crypto_rotl32_c(uint32_t x, uint32_t n);
 uint32_t crypto_sha256_k256_c(int32_t i);
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 _impl 调用 */
-uint32_t shu_sha256_rotr32(uint32_t x, uint32_t n);
-uint32_t shu_sha256_ch(uint32_t x, uint32_t y, uint32_t z);
-uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z);
+uint32_t xlang_sha256_rotr32(uint32_t x, uint32_t n);
+uint32_t xlang_sha256_ch(uint32_t x, uint32_t y, uint32_t z);
+uint32_t xlang_sha256_maj(uint32_t x, uint32_t y, uint32_t z);
 
 /** i32 减法 a - b；seed asm 字面量减变量 emit 失败（如 64 - klen）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -55,22 +55,22 @@ int32_t crypto_i32_sub_c(int32_t a, int32_t b) {
 
 /* ---------- SHA-256 / HMAC-SHA256（seed asm 单文件仅首函数可 emit；完整实现放 C） ---------- */
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_sha256_rotr32(uint32_t x, uint32_t n) {
+uint32_t xlang_sha256_rotr32(uint32_t x, uint32_t n) {
   n &= 31u;
   return (x >> n) | (x << (32u - n));
 }
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
+uint32_t xlang_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
   return (x & y) ^ ((~x) & z);
 }
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
+uint32_t xlang_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
   return (x & y) ^ (x & z) ^ (y & z);
 }
 #endif /* XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_crypto_inc_glue.x）提供 public wrapper */
-void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
+void xlang_sha256_block_impl(uint32_t *H, const uint8_t *block) {
   uint32_t W[64];
   int i;
   for (i = 0; i < 16; i++) {
@@ -83,17 +83,17 @@ void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
     uint32_t w7 = W[i - 7];
     uint32_t w15 = W[i - 15];
     uint32_t w16 = W[i - 16];
-    uint32_t s0 = shu_sha256_rotr32(w15, 7) ^ shu_sha256_rotr32(w15, 18) ^ (w15 >> 3);
-    uint32_t s1 = shu_sha256_rotr32(w2, 17) ^ shu_sha256_rotr32(w2, 19) ^ (w2 >> 10);
+    uint32_t s0 = xlang_sha256_rotr32(w15, 7) ^ xlang_sha256_rotr32(w15, 18) ^ (w15 >> 3);
+    uint32_t s1 = xlang_sha256_rotr32(w2, 17) ^ xlang_sha256_rotr32(w2, 19) ^ (w2 >> 10);
     W[i] = s1 + w7 + s0 + w16;
   }
   uint32_t a = H[0], b = H[1], c = H[2], d = H[3];
   uint32_t e = H[4], f = H[5], g = H[6], h = H[7];
   for (i = 0; i < 64; i++) {
-    uint32_t t1 = h + (shu_sha256_rotr32(e, 6) ^ shu_sha256_rotr32(e, 11) ^ shu_sha256_rotr32(e, 25))
-                + shu_sha256_ch(e, f, g) + crypto_sha256_k256_c(i) + W[i];
-    uint32_t t2 = (shu_sha256_rotr32(a, 2) ^ shu_sha256_rotr32(a, 13) ^ shu_sha256_rotr32(a, 22))
-                + shu_sha256_maj(a, b, c);
+    uint32_t t1 = h + (xlang_sha256_rotr32(e, 6) ^ xlang_sha256_rotr32(e, 11) ^ xlang_sha256_rotr32(e, 25))
+                + xlang_sha256_ch(e, f, g) + crypto_sha256_k256_c(i) + W[i];
+    uint32_t t2 = (xlang_sha256_rotr32(a, 2) ^ xlang_sha256_rotr32(a, 13) ^ xlang_sha256_rotr32(a, 22))
+                + xlang_sha256_maj(a, b, c);
     h = g; g = f; f = e; e = d + t1;
     d = c; c = b; b = a; a = t1 + t2;
   }
@@ -103,8 +103,8 @@ void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
 
 #ifndef XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void shu_sha256_block(uint32_t *H, const uint8_t *block) {
-  shu_sha256_block_impl(H, block);
+void xlang_sha256_block(uint32_t *H, const uint8_t *block) {
+  xlang_sha256_block_impl(H, block);
 }
 #endif
 
@@ -129,7 +129,7 @@ void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
   p = msg;
   rem = len;
   while (rem >= 64) {
-    shu_sha256_block_impl(H, p);
+    xlang_sha256_block_impl(H, p);
     p += 64;
     rem -= 64;
   }
@@ -143,7 +143,7 @@ void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
     while (pad_len < 64) {
       block[pad_len++] = 0;
     }
-    shu_sha256_block_impl(H, block);
+    xlang_sha256_block_impl(H, block);
     pad_len = 0;
     memset(block, 0, 56);
   } else {
@@ -159,7 +159,7 @@ void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
   block[61] = (uint8_t)(total_bits >> 16);
   block[62] = (uint8_t)(total_bits >> 8);
   block[63] = (uint8_t)total_bits;
-  shu_sha256_block_impl(H, block);
+  xlang_sha256_block_impl(H, block);
   for (hi = 0; hi < 8; hi++) {
     out[hi * 4] = (uint8_t)(H[hi] >> 24);
     out[hi * 4 + 1] = (uint8_t)(H[hi] >> 16);

@@ -52,12 +52,12 @@ int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
  * - XLANG_BUILD_TOOL_FULL=1：脚本内 `make bootstrap-driver-bstrict`
  *
  * 勿只跑 build_xlang_asm.sh（会留下未 refresh 的 strict 大二进制）。
- * shu_path 保留参数以兼容 build_runner；宿主路径由脚本/Makefile 使用 ./xlang。
+ * xlang_path 保留参数以兼容 build_runner；宿主路径由脚本/Makefile 使用 ./xlang。
  */
-int32_t build_run_asm_build(uint8_t *shu_path) {
+int32_t build_run_asm_build(uint8_t *xlang_path) {
   char cmd[512];
   int n;
-  (void)shu_path;
+  (void)xlang_path;
   /* FULL 由脚本读环境；此处只调单点出口，便于日后无 make 实现。 */
   n = snprintf(cmd, sizeof(cmd), "sh scripts/g05_build_xlang_asm.sh");
   if (n < 0 || (size_t)n >= sizeof(cmd)) {

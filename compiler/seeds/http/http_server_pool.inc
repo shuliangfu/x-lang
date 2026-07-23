@@ -263,7 +263,7 @@ static int32_t http_get_on_fd_c(int fd, const char *host, const char *path,
                      "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n",
                      path, host);
   if (req_len <= 0 || req_len >= (int)sizeof(req)) return -1;
-  if (shu_http_send_all(fd, req, req_len, 0) != 0) return -1;
+  if (xlang_http_send_all(fd, req, req_len, 0) != 0) return -1;
   total = 0;
   hdr_end = -1;
   body_len = -1;

@@ -9,7 +9,7 @@ meta	zig_opt_fallback	-O ReleaseFast
 meta	reference_host	Linux/x86_64
 meta	reference_date	2026-06-17
 meta	runs	3
-meta	shu_compile_shu	./compiler/xlang-c
+meta	xlang_compile_shu	./compiler/xlang-c
 meta	notes	CI 安装见 tests/run-ci-full-suite.sh ci_install_zig；本地 tarball XLANG_CI_ZIG_VERSION=0.13.0
 case	loop_i32	microbench	loop_i32.zig		15	P0 microbench
 case	mem_copy	microbench	mem_copy.zig		15	P0 microbench

@@ -24,7 +24,7 @@ grep -q 'F-05 v2' "$DOC" || die "doc missing F-05 v2 marker"
 grep -q 'db_kv_open_c' std/db/kv/kv.x || die "kv.x missing db_kv_open_c"
 grep -q 'db_kv_smoke_c' std/db/kv/kv.x || die "kv.x missing smoke"
 [ ! -f std/db/kv/kv_mmap_glue.c ] || die "kv_mmap_glue.c should be deleted (F-ZC)"
-grep -q 'shu_kv_mmap_file_c' compiler/seeds/runtime_kv_mmap_glue.from_x.c || die "glue missing mmap"
+grep -q 'xlang_kv_mmap_file_c' compiler/seeds/runtime_kv_mmap_glue.from_x.c || die "glue missing mmap"
 grep -q 'runtime_kv_mmap_glue' compiler/Makefile || die "Makefile missing runtime_kv_mmap_glue"
 grep -q 'kv.x' compiler/Makefile || die "Makefile missing kv.x build"
 if grep -q 'std/db/kv/kv\.c' compiler/Makefile 2>/dev/null; then

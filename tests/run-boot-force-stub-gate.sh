@@ -19,7 +19,7 @@ MIN_STUB=6
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -105,7 +105,7 @@ echo "boot-force-stub glue OK"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

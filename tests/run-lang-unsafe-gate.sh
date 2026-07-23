@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 MATRIX="${XLANG_LANG_UNSAFE_TSV:-tests/baseline/lang-unsafe-api.tsv}"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -59,7 +59,7 @@ else
   # 仅在未指定 XLANG 时尝试轻量 ensure xlang-c（-q 已最新则不重建）
   make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c
   for cand in ./compiler/xlang_asm2 ./compiler/xlang_asm ./compiler/xlang; do
-    if [ -x "$cand" ] && native_shu "$cand"; then
+    if [ -x "$cand" ] && native_xlang "$cand"; then
       if [ -z "$XLANG_BIN" ] || [ "$cand" -nt "$XLANG_BIN" ]; then
         XLANG_BIN="$cand"
       fi
@@ -67,7 +67,7 @@ else
   done
   if [ -z "$XLANG_BIN" ]; then
     for cand in ./compiler/xlang-c; do
-      if [ -x "$cand" ] && native_shu "$cand"; then
+      if [ -x "$cand" ] && native_xlang "$cand"; then
         XLANG_BIN="$cand"
         break
       fi

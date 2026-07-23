@@ -22,7 +22,7 @@ RUNS="${XLANG_HTTP_RUNS:-$([ "${CI:-0}" = "1" ] && echo 1 || echo 3)}"
 [ "${XLANG_PERF_FAIL_ON_HTTP_REGRESSION:-0}" = "1" ] && FAIL_REGRESS=1 || FAIL_REGRESS=0
 [ "${XLANG_PERF_UPDATE_HTTP_BASELINE:-0}" = "1" ] && UPDATE_BASE=1 || UPDATE_BASE=0
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -51,7 +51,7 @@ bench_cleanup() {
 }
 
 XLANG_BIN="${XLANG:-./compiler/xlang}"
-if ! native_shu "$XLANG_BIN"; then
+if ! native_xlang "$XLANG_BIN"; then
   echo "run-perf-http SKIP: no native xlang ($XLANG_BIN)"
   exit 0
 fi

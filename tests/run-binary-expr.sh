@@ -10,7 +10,7 @@ XLANG=${XLANG:-./compiler/xlang}
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 LINK_XLANG="$RUN_XLANG"
-if [ -x ./compiler/xlang_asm2 ] && ci_native_shu ./compiler/xlang_asm2; then
+if [ -x ./compiler/xlang_asm2 ] && ci_native_xlang ./compiler/xlang_asm2; then
   LINK_XLANG=./compiler/xlang_asm2
 fi
 

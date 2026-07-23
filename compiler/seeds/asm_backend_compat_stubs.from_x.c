@@ -7,7 +7,7 @@
  * asm_backend_compat_stubs.c — pipeline_glue 与 asm_backend_partial.o 的符号桥
  *
  * pipeline_glue.c（编入 pipeline_x.o）仍引用若干 backend_* 名，全量 asm.x -E 后部分已改名或未导出；
- * 本 TU 提供薄转发，使 bootstrap-driver-seed / shu_stage2 在 macOS arm64 上可链通。
+ * 本 TU 提供薄转发，使 bootstrap-driver-seed / xlang_stage2 在 macOS arm64 上可链通。
  */
 #include <xlang_weak.h>
 #include <stdint.h>
@@ -48,12 +48,12 @@ XLANG_WEAK int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *p
 /** 内部 u32 格式化，避免依赖 build_asm/types.o 的 format_u32_to_buf。 G-02f-99 gate. */
 /* Forward declarations: when XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X is defined,
    the .x implementations provide these symbols via thin .o. */
-int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u);
-int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
-int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
+int32_t xlang_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u);
+int32_t xlang_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
+int32_t xlang_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X
-int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u) {
+int32_t xlang_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u) {
   static const uint8_t digit_chars[10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
   uint8_t tmp[10];
   int32_t num_digits = 0;
@@ -103,13 +103,13 @@ XLANG_WEAK int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int
       return -1;
     buf[off] = (uint8_t)'-';
     {
-      int32_t n = shu_format_u32_to_buf(buf, off + 1, max - 1, u);
+      int32_t n = xlang_format_u32_to_buf(buf, off + 1, max - 1, u);
       if (n < 0)
         return -1;
       return n + 1;
     }
   }
-  return shu_format_u32_to_buf(buf, off, max, (uint32_t)val);
+  return xlang_format_u32_to_buf(buf, off, max, (uint32_t)val);
 }
 
 /**
@@ -127,7 +127,7 @@ XLANG_WEAK int32_t asm_types_format_i32_to_buf(uint8_t *buf, int32_t off, int32_
 
 /** types.format_u32_to_buf → asm_types_format_u32_to_buf（partial seed -E 路径）。 */
 XLANG_WEAK int32_t asm_types_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t u) {
-  return shu_format_u32_to_buf(buf, off, max, (uint32_t)u);
+  return xlang_format_u32_to_buf(buf, off, max, (uint32_t)u);
 }
 
 /** types.format_u32_hex8_to_buf：8 位十六进制，与 types.x 一致。 */
@@ -218,7 +218,7 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
  */
 /* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X
-int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+int32_t xlang_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
   uint8_t bytes[4];
   if (!elf_ctx)
     return -1;
@@ -234,14 +234,14 @@ int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
  * arm64 MOVZ/MOVK 将 imm32 装入 w0；绕过 partial.o，避免 type_kind_ordinal 首条 cmp 时 Abort。
  */
 /* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
+int32_t xlang_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
   uint32_t lo;
   uint32_t hi;
   lo = (uint32_t)imm32 & 65535u;
   hi = ((uint32_t)imm32 >> 16) & 65535u;
-  if (shu_elf_ctx_append_u32_le(elf_ctx, 0x52800000u | (lo << 5)) != 0)
+  if (xlang_elf_ctx_append_u32_le(elf_ctx, 0x52800000u | (lo << 5)) != 0)
     return -1;
-  if (hi != 0 && shu_elf_ctx_append_u32_le(elf_ctx, 0x72800000u | (hi << 5)) != 0)
+  if (hi != 0 && xlang_elf_ctx_append_u32_le(elf_ctx, 0x72800000u | (hi << 5)) != 0)
     return -1;
   return 0;
 }
@@ -296,7 +296,7 @@ int32_t backend_emit_expr_elf_slow(struct ast_ASTArena *arena, struct platform_e
  */
 int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta) {
   if (ta == 1)
-    return shu_arm64_mov_imm32_to_w0_c(elf_ctx, imm32);
+    return xlang_arm64_mov_imm32_to_w0_c(elf_ctx, imm32);
   if (ta == 2)
     return arch_riscv64_enc_enc_ret_imm32(elf_ctx, imm32);
   return arch_x86_64_enc_enc_ret_imm32(elf_ctx, imm32);

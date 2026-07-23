@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 CAP_FILE="${XLANG_PERF_COLDSTART_CAP:-$ROOT/tests/baseline/coldstart-perf.tsv}"
 
 # 本机可执行 xlang（与 perf-compile-dogfood gate 一致）。
-perf_coldstart_native_shu() {
+perf_coldstart_native_xlang() {
   local f="${1:-./compiler/xlang}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in

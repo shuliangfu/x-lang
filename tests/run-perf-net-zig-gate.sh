@@ -2,8 +2,8 @@
 # PERF-003：网络并发对标 Zig 门禁（连接 accept + echo 吞吐 + mixed P99）
 #
 # 检查：
-#   1) Shu client median ≤ Zig -O2（XLANG_PERF_FAIL_ON_NET_ZIG=1）
-#   2) Shu median ≤ tests/baseline/net-perf.tsv（XLANG_PERF_FAIL_ON_NET_REGRESSION=1）
+#   1) Xlang client median ≤ Zig -O2（XLANG_PERF_FAIL_ON_NET_ZIG=1）
+#   2) Xlang median ≤ tests/baseline/net-perf.tsv（XLANG_PERF_FAIL_ON_NET_REGRESSION=1）
 #   3) mixed P99 ≤ tests/baseline/net-perf-latency.tsv（XLANG_PERF_FAIL_ON_NET_P99=1）
 #
 # 用法：./tests/run-perf-net-zig-gate.sh
@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/zig-baseline.sh
 . "$(dirname "$0")/lib/zig-baseline.sh"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -49,7 +49,7 @@ echo "net-perf manifest OK"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

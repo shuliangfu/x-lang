@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 XLANG_BIN="${XLANG:-}"
 for cand in ./compiler/xlang_asm ./compiler/xlang; do
-  if comp_isel_native_shu "$cand"; then
+  if comp_isel_native_xlang "$cand"; then
     XLANG_BIN="$cand"
     break
   fi

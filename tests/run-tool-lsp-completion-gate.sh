@@ -14,7 +14,7 @@ MIN_HITS=6
 # shellcheck source=tests/lib/tool-lsp-completion.sh
 . tests/lib/tool-lsp-completion.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -150,14 +150,14 @@ echo "tool-lsp-completion manifest OK (tiers=${TIER_N} cases=${CASE_N} expects=$
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN" && "$XLANG_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN" && "$XLANG_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
   echo "=== TOOL-003: LSP completion hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-lsp-completion.sh tests/run-lsp.sh
   XLANG="$XLANG_BIN" ./tests/run-lsp-completion.sh

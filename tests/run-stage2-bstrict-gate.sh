@@ -17,7 +17,7 @@ fi
 
 # shellcheck source=tests/lib/comp-riscv64.sh
 . tests/lib/comp-riscv64.sh
-if [ ! -x compiler/xlang_asm ] || ! comp_riscv64_native_shu compiler/xlang_asm; then
+if [ ! -x compiler/xlang_asm ] || ! comp_riscv64_native_xlang compiler/xlang_asm; then
   echo "stage2-bstrict-gate SKIP (no native xlang_asm; seed/C-only build — native Linux GHA covers)"
   echo "stage2-bstrict-gate OK (SKIP no native xlang_asm)"
   exit 0

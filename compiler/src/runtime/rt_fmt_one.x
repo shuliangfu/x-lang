@@ -10,7 +10,7 @@ export extern "C" function runtime_read_file_malloc(path: *u8, out_len: *usize):
 export extern "C" function free(p: *u8): void;
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
-export extern "C" function shu_format_x_document(
+export extern "C" function xlang_format_x_document(
   doc: *u8, doc_len: i32, out_buf: *u8, out_cap: i32): i32;
 export extern "C" function driver_fmt_check_only_get(): i32;
 export extern "C" function xlang_write_path_bytes(path: *u8, data: *u8, len: usize): i32;
@@ -182,7 +182,7 @@ export function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
   }
 
   unsafe {
-    fmt_len = shu_format_x_document(raw, raw_len as i32, out, cap as i32);
+    fmt_len = xlang_format_x_document(raw, raw_len as i32, out, cap as i32);
   }
   if (fmt_len < 0) {
     unsafe {

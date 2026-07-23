@@ -2,8 +2,8 @@
 """c2x_socketio.py — socketio_glue.c → socketio.x（F-socketio v2）。"""
 import re
 
-SRC = "/home/shuliangfu/worker/shu/xlang/std/socketio/socketio_glue.c"
-DST = "/home/shuliangfu/worker/shu/xlang/std/socketio/socketio.x"
+SRC = "/home/shuliangfu/worker/xlang/x-lang/std/socketio/socketio_glue.c"
+DST = "/home/shuliangfu/worker/xlang/x-lang/std/socketio/socketio.x"
 
 STRUCT_MAP = {
     "sio_ns_router_t": "SioNsRouterMem",

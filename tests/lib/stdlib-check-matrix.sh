@@ -18,7 +18,7 @@ stdlib_cm_mod_to_path() {
 }
 
 # 判断 xlang 是否可在本机执行（避免 Linux ELF 在 macOS 上误判）。
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -34,12 +34,12 @@ stdlib_cm_native_shu() {
 stdlib_cm_resolve_shu() {
   local cand
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if stdlib_cm_native_shu "$cand"; then
+    if stdlib_cm_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi
   done
-  if [ -n "${XLANG:-}" ] && stdlib_cm_native_shu "$XLANG"; then
+  if [ -n "${XLANG:-}" ] && stdlib_cm_native_xlang "$XLANG"; then
     echo "$XLANG"
     return 0
   fi

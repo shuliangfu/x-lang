@@ -11,7 +11,7 @@ echo "=== perf P1 gate: compute baseline (Zig) ==="
 XLANG_PERF_FAIL_ON_ZIG=1 ./tests/run-perf-baseline.sh --bench | tee /tmp/perf_p1_baseline.log
 grep -q 'perf baseline OK' /tmp/perf_p1_baseline.log
 
-echo "=== perf P1 gate: B-CMP (Shu -O3 codegen-fair vs C -O3, 1.0×) ==="
+echo "=== perf P1 gate: B-CMP (Xlang -O3 codegen-fair vs C -O3, 1.0×) ==="
 chmod +x tests/run-bcmp-gate.sh
 ./tests/run-bcmp-gate.sh | tee /tmp/perf_p1_bcmp.log
 

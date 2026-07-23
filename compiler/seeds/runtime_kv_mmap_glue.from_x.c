@@ -25,7 +25,7 @@
  * mmap 映射文件（O_RDWR|O_CREAT；不足 min_size 则 ftruncate）。
  * 成功返回映射地址（intptr），失败返回 0；out_size 写入映射长度。
  */
-int64_t shu_kv_mmap_file_c(const uint8_t *path, size_t min_size, size_t *out_size) {
+int64_t xlang_kv_mmap_file_c(const uint8_t *path, size_t min_size, size_t *out_size) {
     int fd;
     struct stat st;
     void *p;
@@ -60,7 +60,7 @@ int64_t shu_kv_mmap_file_c(const uint8_t *path, size_t min_size, size_t *out_siz
 }
 
 /** munmap(addr, len)；成功 0，失败 -1。 */
-int32_t shu_kv_munmap_c(int64_t addr, size_t len) {
+int32_t xlang_kv_munmap_c(int64_t addr, size_t len) {
     if (addr == 0) {
         return -1;
     }
@@ -68,7 +68,7 @@ int32_t shu_kv_munmap_c(int64_t addr, size_t len) {
 }
 
 /** msync MS_SYNC；成功 0，失败 -1。 */
-int32_t shu_kv_msync_c(int64_t addr, size_t len) {
+int32_t xlang_kv_msync_c(int64_t addr, size_t len) {
     if (addr == 0) {
         return -1;
     }

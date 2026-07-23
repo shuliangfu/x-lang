@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   core_mem_intrinsic_mappings_ok CODEGEN_C TSV
-#   core_mem_intrinsic_emit_ok SHU X_FILE TSV
+#   core_mem_intrinsic_emit_ok XLANG X_FILE TSV
 #   core_mem_intrinsic_emit_report status found total
 
 CORE_MEM_INTRINSIC_PREFIX="${XLANG_CORE_MEM_INTRINSIC_PREFIX:-xlang: [XLANG_CORE_MEM_INTRINSIC]}"
@@ -43,7 +43,7 @@ core_mem_intrinsic_emit_ok() {
   local total=0
   local anchor
   rm -f "$gen_c"
-  # 链接可能因 runtime 符号缺失失败；只要生成 C 已写入 shu_debug.c 即可验 intrinsic。
+  # 链接可能因 runtime 符号缺失失败；只要生成 C 已写入 xlang_debug.c 即可验 intrinsic。
   XLANG_DEBUG_C=1 "$xlang" -L . "$su_file" -o "/tmp/xlang_core_mem_intrinsic_$$" >/dev/null 2>&1 || true
   if [ ! -f "$gen_c" ]; then
     echo "core-mem-intrinsic FAIL: XLANG_DEBUG_C did not write $gen_c for $su_file" >&2

@@ -15,7 +15,7 @@ ERR_MOD="${XLANG_STD_ERROR_MOD:-std/error/mod.x}"
 MIN_ITEMS=8
 SMOKE="tests/exc/error_chain_smoke.x"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -91,7 +91,7 @@ ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

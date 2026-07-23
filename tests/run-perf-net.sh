@@ -2,8 +2,8 @@
 # L0 网络性能基线（NEXT N1/N2/N3/N4 + PERF-003）：accept_many + echo + mixed + UDP
 # 用法：./tests/run-perf-net.sh [--bench]
 # 门禁（可选）：
-#   XLANG_PERF_FAIL_ON_NET_REGRESSION=1 — Shu default asm ≤ tests/baseline/net-perf.tsv
-#   XLANG_PERF_FAIL_ON_NET_ZIG=1 — Shu client median ≤ Zig -O2（echo + mixed）
+#   XLANG_PERF_FAIL_ON_NET_REGRESSION=1 — Xlang default asm ≤ tests/baseline/net-perf.tsv
+#   XLANG_PERF_FAIL_ON_NET_ZIG=1 — Xlang client median ≤ Zig -O2（echo + mixed）
 #   XLANG_PERF_FAIL_ON_NET_P99=1 — mixed P99 ≤ tests/baseline/net-perf-latency.tsv
 #   XLANG_PERF_FAIL_ON_ZC1=1 — Linux：provided echo 须比 batch 中位数快 ≥10%
 #   XLANG_PERF_UPDATE_NET_BASELINE=1 — 用本次 median 刷新 net-perf.tsv / net-perf-latency.tsv
@@ -135,23 +135,23 @@ median_accept_pair() {
   local c_server="$2"
   local tag="$3"
   local client="$4"
-  local i vals med port shu_exe
+  local i vals med port xlang_exe
   vals=""
-  shu_exe="/tmp/bench_net_shu_${tag}"
+  xlang_exe="/tmp/bench_net_shu_${tag}"
   sed -e "s/net_bench_conns: i32 = 4096/net_bench_conns: i32 = ${NET_BENCH_CONNS}/" \
       "$su_template" >"/tmp/bench_net_accept.x"
-  if ! ./compiler/xlang build -L . "/tmp/bench_net_accept.x" -o "$shu_exe" >/tmp/bench_net_compile.log 2>&1; then
+  if ! ./compiler/xlang build -L . "/tmp/bench_net_accept.x" -o "$xlang_exe" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     echo "nan"
     return 1
   fi
   port=$(pick_free_port)
-  time_accept_pair "$shu_exe" "$client" "$port" >/dev/null 2>&1 || true
-  time_accept_pair "$shu_exe" "$client" "$port" >/dev/null 2>&1 || true
+  time_accept_pair "$xlang_exe" "$client" "$port" >/dev/null 2>&1 || true
+  time_accept_pair "$xlang_exe" "$client" "$port" >/dev/null 2>&1 || true
   for i in $(seq 1 "$RUNS"); do
     bench_cleanup_stale
     port=$(pick_free_port)
-    vals=$( ( time time_accept_pair "$shu_exe" "$client" "$port" ) 2>&1 | extract_real_sec; printf '\n%s' "$vals" )
+    vals=$( ( time time_accept_pair "$xlang_exe" "$client" "$port" ) 2>&1 | extract_real_sec; printf '\n%s' "$vals" )
     sleep 0.25
   done
   med=$(printf '%s\n' "$vals" | sed '/^$/d' | sort -n | awk '{
@@ -208,14 +208,14 @@ net_case_median_from_meds() {
 
 check_net_regress() {
   local name="$1"
-  local shu_med="$2"
-  if [ "$PERF_FAIL_REGRESS" -eq 1 ] && [ "$shu_med" != "nan" ]; then
+  local xlang_med="$2"
+  if [ "$PERF_FAIL_REGRESS" -eq 1 ] && [ "$xlang_med" != "nan" ]; then
     cap=$(net_baseline_cap "$name")
     if [ -n "$cap" ]; then
-      if awk -v xlang="$shu_med" -v cap="$cap" 'BEGIN { exit (xlang <= cap + 0.000001) ? 0 : 1 }'; then
-        echo "net perf baseline OK: ${name} ${shu_med}s <= cap ${cap}s"
+      if awk -v xlang="$xlang_med" -v cap="$cap" 'BEGIN { exit (xlang <= cap + 0.000001) ? 0 : 1 }'; then
+        echo "net perf baseline OK: ${name} ${xlang_med}s <= cap ${cap}s"
       else
-        echo "net perf baseline FAIL: ${name} ${shu_med}s > cap ${cap}s" >&2
+        echo "net perf baseline FAIL: ${name} ${xlang_med}s > cap ${cap}s" >&2
         exit 1
       fi
     fi
@@ -251,13 +251,13 @@ check_net_p99_regress() {
 
 check_net_zig() {
   local name="$1"
-  local shu_med="$2"
+  local xlang_med="$2"
   local zig_med="$3"
-  if [ "$PERF_FAIL_ZIG" -eq 1 ] && [ "$shu_med" != "nan" ] && [ "$zig_med" != "nan" ]; then
-    if awk -v xlang="$shu_med" -v zig="$zig_med" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "net zig OK: ${name} Shu ${shu_med}s <= Zig ${zig_med}s"
+  if [ "$PERF_FAIL_ZIG" -eq 1 ] && [ "$xlang_med" != "nan" ] && [ "$zig_med" != "nan" ]; then
+    if awk -v xlang="$xlang_med" -v zig="$zig_med" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
+      echo "net zig OK: ${name} Xlang ${xlang_med}s <= Zig ${zig_med}s"
     else
-      echo "net zig FAIL: ${name} Shu ${shu_med}s > Zig ${zig_med}s" >&2
+      echo "net zig FAIL: ${name} Xlang ${xlang_med}s > Zig ${zig_med}s" >&2
       exit 1
     fi
   fi
@@ -285,12 +285,12 @@ bench_net_accept_case() {
   fi
 
   XLANG_MED=$(median_accept_pair "$x" "$c_server" "$tag" "$CLIENT")
-  echo "Shu (default asm) ${name} median real: ${XLANG_MED}s"
+  echo "Xlang (default asm) ${name} median real: ${XLANG_MED}s"
 
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (default asm) | %s |\n' "$XLANG_MED"
+  printf '| Xlang (default asm) | %s |\n' "$XLANG_MED"
   printf '| C -O2 accept loop | %s |\n' "$C_MED"
   printf '\n'
 
@@ -369,7 +369,7 @@ bench_net_echo_case() {
   echo "=== tests/bench/${name} (4×4KiB×1024 echo @ 127.0.0.1:<dynamic>, default ${NET_ECHO_PORT_DEFAULT}) ==="
 
   XLANG_MED=$(median_echo_pair "$su_client" "$c_server" "$c_client" "$tag" 1)
-  echo "Shu (stream_*_batch) ${name} median real: ${XLANG_MED}s"
+  echo "Xlang (stream_*_batch) ${name} median real: ${XLANG_MED}s"
 
   C_MED=$(median_echo_pair "$su_client" "$c_server" "$c_client" "$tag" 0)
   echo "C -O2 readv/writev ${name} median real: ${C_MED}s"
@@ -384,7 +384,7 @@ bench_net_echo_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (stream_*_batch) | %s |\n' "$XLANG_MED"
+  printf '| Xlang (stream_*_batch) | %s |\n' "$XLANG_MED"
   printf '| C -O2 readv/writev | %s |\n' "$C_MED"
   printf '| Zig -O2 echo client | %s |\n' "$ZIG_MED"
   printf '\n'
@@ -492,7 +492,7 @@ bench_net_mixed_case() {
     cat /tmp/bench_net_compile.log >&2
   elif [ -x "/tmp/bench_net_shu_${tag}" ]; then
     XLANG_PAIR=$(median_mixed_client "/tmp/bench_net_shu_${tag}" "$c_server" "${tag}s_")
-    echo "Shu mixed ${name} median real/p99: ${XLANG_PAIR}"
+    echo "Xlang mixed ${name} median real/p99: ${XLANG_PAIR}"
   fi
 
   if cc -O2 "$c_client" -o "/tmp/bench_net_c_${tag}" 2>/dev/null && [ -x "/tmp/bench_net_c_${tag}" ]; then
@@ -517,7 +517,7 @@ bench_net_mixed_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 | P99 (us) 中位数 |\n' "$name"
   printf '|---|----------------|-----------------|\n'
-  printf '| Shu mixed client | %s | %s |\n' "$XLANG_MED" "$XLANG_P99"
+  printf '| Xlang mixed client | %s | %s |\n' "$XLANG_MED" "$XLANG_P99"
   printf '| C -O2 mixed client | %s | %s |\n' "$C_MED" "$C_P99"
   printf '| Zig -O2 mixed client | %s | %s |\n' "$ZIG_MED" "$ZIG_P99"
   printf '\n'
@@ -542,7 +542,7 @@ bench_net_echo_provided_case() {
   echo "=== tests/bench/${name} (ZC-1 provided read + batch write @ 127.0.0.1:<dynamic>) ==="
 
   XLANG_MED=$(median_echo_pair "$su_client" "$c_server" tests/bench/net_echo_throughput.c "$tag" 1)
-  echo "Shu (stream_read_batch_provided) ${name} median real: ${XLANG_MED}s"
+  echo "Xlang (stream_read_batch_provided) ${name} median real: ${XLANG_MED}s"
 
   BATCH_MED=$(net_case_median_from_meds net_echo_throughput || true)
   if [ -z "$BATCH_MED" ]; then
@@ -566,7 +566,7 @@ bench_net_echo_provided_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (provided read) | %s |\n' "$XLANG_MED"
+  printf '| Xlang (provided read) | %s |\n' "$XLANG_MED"
   printf '\n'
 
   check_net_regress "$name" "$XLANG_MED"
@@ -689,12 +689,12 @@ bench_net_udp_case() {
   echo "C -O2 recvmmsg/sendmmsg ${name} median real: ${C_MED}s"
 
   XLANG_MED=$(median_udp_pair "$x" "$c_server" "$tag" "$CLIENT" 1)
-  echo "Shu (udp_*_many_buf) ${name} median real: ${XLANG_MED}s"
+  echo "Xlang (udp_*_many_buf) ${name} median real: ${XLANG_MED}s"
 
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (udp_*_many_buf) | %s |\n' "$XLANG_MED"
+  printf '| Xlang (udp_*_many_buf) | %s |\n' "$XLANG_MED"
   printf '| C -O2 recvmmsg/sendmmsg | %s |\n' "$C_MED"
   printf '\n'
 

@@ -16993,11 +16993,11 @@
                                 "data": {
                                     "id": "m01424",
                                     "created": 1784118467629,
-                                    "text": "shu_pipeline_check_only",
+                                    "text": "xlang_pipeline_check_only",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/pipeline_glue.c",
                                     "hyperlinkTitle": "compiler/pipeline_glue.c",
-                                    "note": "compiler/pipeline_glue.c :: shu_pipeline_check_only"
+                                    "note": "compiler/pipeline_glue.c :: xlang_pipeline_check_only"
                                 },
                                 "children": []
                             },
@@ -19226,7 +19226,7 @@
                                 "data": {
                                     "id": "m01610",
                                     "created": 1784118467815,
-                                    "text": "shu_lsp_* (2)",
+                                    "text": "xlang_lsp_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -19236,11 +19236,11 @@
                                         "data": {
                                             "id": "m01611",
                                             "created": 1784118467816,
-                                            "text": "shu_lsp_ptr_slot_clear",
+                                            "text": "xlang_lsp_ptr_slot_clear",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shu_lsp_ptr_slot_clear"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_lsp_ptr_slot_clear"
                                         },
                                         "children": []
                                     },
@@ -19248,11 +19248,11 @@
                                         "data": {
                                             "id": "m01612",
                                             "created": 1784118467817,
-                                            "text": "shu_lsp_free_loaded_imports",
+                                            "text": "xlang_lsp_free_loaded_imports",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x",
-                                            "note": "compiler/src/runtime_pipeline_abi.x :: shu_lsp_free_loaded_imports"
+                                            "note": "compiler/src/runtime_pipeline_abi.x :: xlang_lsp_free_loaded_imports"
                                         },
                                         "children": []
                                     }

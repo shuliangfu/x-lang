@@ -64,7 +64,7 @@ int driver_run_compiler_full(int argc, char **argv) {
  * 🔒 fork/exec/_spawnvp。
  */
 int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
-  char shu_c[512];
+  char xlang_c[512];
   const char *self;
   const char *slash;
   if (argc < 2 || !argv || !argv[0])
@@ -83,20 +83,20 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
 #endif
   if (slash) {
     size_t dir_len = (size_t)(slash - self);
-    if (dir_len >= sizeof(shu_c) - 8)
+    if (dir_len >= sizeof(xlang_c) - 8)
       return -1;
-    memcpy(shu_c, self, dir_len);
-    shu_c[dir_len] = '\0';
-    strcat(shu_c, "/xlang-c");
+    memcpy(xlang_c, self, dir_len);
+    xlang_c[dir_len] = '\0';
+    strcat(xlang_c, "/xlang-c");
   } else {
-    strcpy(shu_c, "xlang-c");
+    strcpy(xlang_c, "xlang-c");
   }
-  if (access(shu_c, X_OK) != 0)
+  if (access(xlang_c, X_OK) != 0)
     return -1;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
   {
-    argv[0] = shu_c;
-    intptr_t rc = _spawnvp(_P_WAIT, shu_c, (const char *const *)argv);
+    argv[0] = xlang_c;
+    intptr_t rc = _spawnvp(_P_WAIT, xlang_c, (const char *const *)argv);
     if (rc == -1)
       return -1;
     return (int)rc;
@@ -107,8 +107,8 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     if (pid < 0)
       return -1;
     if (pid == 0) {
-      argv[0] = shu_c;
-      execvp(shu_c, argv);
+      argv[0] = xlang_c;
+      execvp(xlang_c, argv);
       _exit(127);
     }
     {

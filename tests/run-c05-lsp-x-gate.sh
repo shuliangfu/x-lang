@@ -23,7 +23,7 @@ die() {
 }
 
 # 探测二进制是否为当前宿主可执行格式。
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -52,16 +52,16 @@ if [ "${XLANG_C05_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-if ! native_shu "$XLANG_BIN"; then
+if ! native_xlang "$XLANG_BIN"; then
   for cand in ./compiler/xlang ./compiler/xlang-x ./compiler/xlang-c; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if ! native_shu "$XLANG_BIN"; then
+if ! native_xlang "$XLANG_BIN"; then
   echo "c05 lsp-x gate: SKIP smoke (no native xlang; manifest OK)"
   exit 0
 fi

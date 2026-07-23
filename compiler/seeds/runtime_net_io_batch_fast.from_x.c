@@ -51,9 +51,9 @@ typedef struct XlangBuffer {
 } XlangBuffer;
 
 #if defined(__linux__) && defined(__GLIBC__)
-extern int shu_net_udp_recvmmsg_buf_c(int32_t fd, XlangBuffer *bufs, int n, uint32_t timeout_ms,
+extern int xlang_net_udp_recvmmsg_buf_c(int32_t fd, XlangBuffer *bufs, int n, uint32_t timeout_ms,
                                       int32_t *out_sizes, uint32_t *out_addrs, uint32_t *out_ports);
-extern int shu_net_udp_sendmmsg_buf_c(int32_t fd, const uint32_t *addrs_u32, const uint32_t *ports,
+extern int xlang_net_udp_sendmmsg_buf_c(int32_t fd, const uint32_t *addrs_u32, const uint32_t *ports,
                                       const XlangBuffer *bufs, int n);
 #endif
 
@@ -66,7 +66,7 @@ int32_t net_udp_recv_many_buf_c(int32_t fd, XlangBuffer *bufs, int32_t n, uint32
 #if defined(__linux__) && defined(__GLIBC__)
     if (n <= 0 || n > 8 || !bufs || !out_sizes || !out_addrs || !out_ports)
         return -1;
-    return (int32_t)shu_net_udp_recvmmsg_buf_c(fd, bufs, (int)n, timeout_ms, out_sizes, out_addrs, out_ports);
+    return (int32_t)xlang_net_udp_recvmmsg_buf_c(fd, bufs, (int)n, timeout_ms, out_sizes, out_addrs, out_ports);
 #else
     (void)fd;
     (void)bufs;
@@ -84,7 +84,7 @@ int32_t net_udp_send_many_buf_c(int32_t fd, uint32_t *addrs, uint32_t *ports, Xl
 #if defined(__linux__) && defined(__GLIBC__)
     if (n <= 0 || n > 8 || !addrs || !ports || !bufs)
         return -1;
-    return (int32_t)shu_net_udp_sendmmsg_buf_c(fd, addrs, ports, bufs, (int)n);
+    return (int32_t)xlang_net_udp_sendmmsg_buf_c(fd, addrs, ports, bufs, (int)n);
 #else
     (void)fd;
     (void)addrs;

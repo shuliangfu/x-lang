@@ -36,7 +36,7 @@ extern int32_t driver_run_test(int32_t argc, uint8_t * * argv);
 extern int32_t driver_get_argv_i(int32_t argc, uint8_t * * argv, int32_t i, uint8_t * buf, int32_t max);
 extern void runtime_diag_errno_path(uint8_t * file, uint8_t * kind, uint8_t * op, uint8_t * path);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
-extern void shu_target_cpu_print(uint8_t * out, uint32_t features);
+extern void xlang_target_cpu_print(uint8_t * out, uint32_t features);
 extern uint8_t * xlang_repo_root_from_argv0(uint8_t * argv0);
 extern uint8_t * driver_stdio_stdout(void);
 extern void driver_print_usage_write(void);
@@ -276,7 +276,7 @@ int32_t driver_print_target_cpu_features_c(int32_t features) {
   uint8_t * out = ((uint8_t *)(0));
   {
     (void)((out = driver_stdio_stdout()));
-    (void)(shu_target_cpu_print(out, ((uint32_t)(features))));
+    (void)(xlang_target_cpu_print(out, ((uint32_t)(features))));
   }
   return 0;
 }

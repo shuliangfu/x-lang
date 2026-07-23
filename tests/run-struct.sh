@@ -32,11 +32,11 @@ esac
 # W3/lang-unsafe 已验证 xlang_asm2 可绿（与 lang-unsafe-gate XLANG_BIN 策略一致）。
 # bootstrap-min：保留 RUN_XLANG（xlang-min-link gcc 回退），勿覆盖为裸 xlang_asm。
 if [ -z "${XLANG_BOOTSTRAP_MIN:-}" ]; then
-  if [ -x ./compiler/xlang_asm2 ] && ci_native_shu ./compiler/xlang_asm2; then
+  if [ -x ./compiler/xlang_asm2 ] && ci_native_xlang ./compiler/xlang_asm2; then
     LINK_XLANG=./compiler/xlang_asm2
     STRUCT_LINK_BACKEND_ARGS=""
     STRUCT_CODEGEN_BACKEND_ARGS="-backend c"
-  elif [ -x ./compiler/xlang_asm ] && ci_native_shu ./compiler/xlang_asm; then
+  elif [ -x ./compiler/xlang_asm ] && ci_native_xlang ./compiler/xlang_asm; then
     LINK_XLANG=./compiler/xlang_asm
     STRUCT_LINK_BACKEND_ARGS=""
     STRUCT_CODEGEN_BACKEND_ARGS="-backend c"
@@ -52,7 +52,7 @@ struct_link_o() {
   set -e
   if [ "$ec" -ne 0 ] && [ -z "${XLANG_BOOTSTRAP_MIN:-}" ] \
       && [ "$LINK_XLANG" != "./compiler/xlang-c" ] \
-      && [ -x ./compiler/xlang-c ] && ci_native_shu ./compiler/xlang-c; then
+      && [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c; then
     ./compiler/xlang-c -L . "$x" -o "$out" 2>&1
     ec=$?
   fi

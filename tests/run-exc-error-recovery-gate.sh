@@ -14,7 +14,7 @@ MATRIX="${XLANG_EXC_ERROR_RECOVERY_TSV:-tests/baseline/exc-error-recovery-cases.
 RUNNER="tests/lib/exc-error-recovery.sh"
 MIN_CASES=30
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -110,7 +110,7 @@ chmod +x "$RUNNER" 2>/dev/null || true
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

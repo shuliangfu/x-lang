@@ -1,8 +1,8 @@
 (lldb) target create "./xlang-c"
-Current executable set to '/home/shuliangfu/worker/shu/xlang/compiler/xlang-c' (arm64).
+Current executable set to '/home/shuliangfu/worker/xlang/x-lang/compiler/xlang-c' (arm64).
 (lldb) settings set -- target.run-args  "-E" "-L" ".." "../std/json/json.x"
 (lldb) run
-Process 72165 launched: '/home/shuliangfu/worker/shu/xlang/compiler/xlang-c' (arm64)
+Process 72165 launched: '/home/shuliangfu/worker/xlang/x-lang/compiler/xlang-c' (arm64)
 Process 72165 stopped
 * thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=2, address=0x16f603ff0)
     frame #0: 0x000000010014b434 xlang-c`ast_ast_arena_init + 4

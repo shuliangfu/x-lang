@@ -128,7 +128,7 @@ int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) 
   return arm64_enc_u32_le(elf_ctx, 3596551104u);
 }
 
-/** Strong: MOVZ/MOVK w0 (same encoding as shu_arm64_mov_imm32_to_w0_c). */
+/** Strong: MOVZ/MOVK w0 (same encoding as xlang_arm64_mov_imm32_to_w0_c). */
 int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
   uint32_t lo;
   uint32_t hi;

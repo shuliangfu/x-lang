@@ -22,7 +22,7 @@ echo "=== F-04 v8: std.net tls_openssl remove tls_openssl.inc.c ==="
 grep -q 'F-04 v8' "$DOC" || die "doc missing F-04 v8 marker"
 [ -f "$TLS_X" ] || die "missing tls_openssl.x"
 [ ! -f std/net/tls_openssl.inc.c ] || die "tls_openssl.inc.c should be deleted"
-grep -q 'shu_net_tls_openssl_marker' "$TLS_X" || die "tls_openssl.x missing marker"
+grep -q 'xlang_net_tls_openssl_marker' "$TLS_X" || die "tls_openssl.x missing marker"
 grep -q 'net_tls_connect_client_c' "$TLS_X" || die "tls_openssl.x missing connect"
 grep -q 'net_tls_openssl_smoke_c' "$TLS_X" || die "tls_openssl.x missing smoke"
 if grep -q 'tls_openssl.inc.c' "$NET_C" 2>/dev/null; then

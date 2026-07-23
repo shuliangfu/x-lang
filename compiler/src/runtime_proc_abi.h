@@ -16,7 +16,7 @@
  * 参数：pid 子进程 id；status_out 非 NULL 时写入 wait 状态。
  * 返回值：0 成功；-1 失败（已 perror）。
  */
-int shu_waitpid_retry(pid_t pid, int *status_out);
+int xlang_waitpid_retry(pid_t pid, int *status_out);
 
 /**
  * 链接可选 std/*.o：路径可读且为常规文件时返回 path，否则 NULL。

@@ -37,8 +37,8 @@ d04_stage_binaries_ready() {
   local s2="${XLANG_D04_STAGE2:-compiler/xlang_asm2}"
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
   [ -x "$s1" ] && [ -x "$s2" ] || return 1
-  comp_riscv64_native_shu "$s1" || return 1
-  comp_riscv64_native_shu "$s2" || return 1
+  comp_riscv64_native_xlang "$s1" || return 1
+  comp_riscv64_native_xlang "$s2" || return 1
   return 0
 }
 

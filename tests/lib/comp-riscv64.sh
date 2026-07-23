@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 RISCV_TARGET="${XLANG_RISCV_TARGET:-riscv64}"
 
 # 本机可执行 xlang。
-comp_riscv64_native_shu() {
+comp_riscv64_native_xlang() {
   local f="${1:-./compiler/xlang}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -41,7 +41,7 @@ comp_riscv64_pick_xlang() {
   local cand
   for cand in ./compiler/xlang_asm ./compiler/xlang_asm.strict ./compiler/xlang_asm.experimental \
               ./compiler/xlang ./compiler/xlang-c; do
-    if comp_riscv64_native_shu "$cand" && comp_riscv64_asm_capable "$cand"; then
+    if comp_riscv64_native_xlang "$cand" && comp_riscv64_asm_capable "$cand"; then
       echo "$cand"
       return 0
     fi

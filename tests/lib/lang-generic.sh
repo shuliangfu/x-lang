@@ -2,7 +2,7 @@
 # lang-generic.sh — LANG-003 泛型单态化共享辅助
 
 # 判断本机能否直接执行给定 xlang 二进制（避免 Darwin 上误跑 Linux ELF）。
-lang_generic_native_shu() {
+lang_generic_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in

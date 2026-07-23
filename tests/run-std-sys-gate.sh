@@ -134,7 +134,7 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86
   EX=$?
   set -e
   rm -f /tmp/xlang_sys_write_smoke
-  EXPECTED=$(printf 'Hello Shu!\n')
+  EXPECTED=$(printf 'Hello Xlang!\n')
   if [ "$EX" -eq 0 ] && [ "$OUT" = "$EXPECTED" ]; then
     RUN_LINUX=1
     echo "std-sys freestanding run OK"
@@ -156,7 +156,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ -n "$XLANG_BIN" ] \
   EX=$?
   set -e
   rm -f /tmp/xlang_macos_write_smoke
-  EXPECTED=$(printf 'Hello Shu!\n')
+  EXPECTED=$(printf 'Hello Xlang!\n')
   if [ "$EX" -eq 0 ] && [ "$OUT" = "$EXPECTED" ]; then
     RUN_MACOS=1
     echo "std-sys macOS posix write run OK"

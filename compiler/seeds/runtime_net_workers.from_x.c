@@ -16,7 +16,7 @@
 #define XLANG_NET_ACCEPT_BATCH 64
 
 /** worker 线程参数（与 workers.x NetWorkerArg ABI 一致）。 */
-struct shu_net_worker_arg {
+struct xlang_net_worker_arg {
     int32_t listener_fd;
     uint32_t timeout_ms;
     int32_t worker_index;
@@ -36,8 +36,8 @@ XLANG_WEAK int32_t thread_set_affinity_self_c(int32_t cpu_index) {
 /**
  * worker 线程体：绑核（若可用）后循环 accept_many 并 close。
  */
-static void *shu_net_worker_accept_loop(void *arg) {
-    struct shu_net_worker_arg *a = (struct shu_net_worker_arg *)arg;
+static void *xlang_net_worker_accept_loop(void *arg) {
+    struct xlang_net_worker_arg *a = (struct xlang_net_worker_arg *)arg;
 #if defined(__GNUC__) || defined(__clang__)
     (void)thread_set_affinity_self_c(a->worker_index);
 #endif
@@ -54,6 +54,6 @@ static void *shu_net_worker_accept_loop(void *arg) {
 /**
  * 返回 accept worker 线程入口地址，供 thread_create_c 使用。
  */
-uintptr_t shu_net_worker_accept_entry_ptr_c(void) {
-    return (uintptr_t)shu_net_worker_accept_loop;
+uintptr_t xlang_net_worker_accept_entry_ptr_c(void) {
+    return (uintptr_t)xlang_net_worker_accept_loop;
 }

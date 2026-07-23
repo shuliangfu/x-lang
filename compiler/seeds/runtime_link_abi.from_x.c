@@ -33,7 +33,7 @@ void xlang_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const c
 int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
 void xlang_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 /* G-02f-69 mega link helpers */
-int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target, int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots, int driver_freestanding);
 void xlang_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
 void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
@@ -79,8 +79,8 @@ void labi_std_append_op_std(const char *link_argv0, const char *user_o, const ch
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have);
 /* G-02f-68 / wave216: pure thin public (L1) + Cap residual _impl always. */
-int shu_waitpid_retry(pid_t pid, int *status_out);
-int shu_waitpid_retry_impl(pid_t pid, int *status_out);
+int xlang_waitpid_retry(pid_t pid, int *status_out);
+int xlang_waitpid_retry_impl(pid_t pid, int *status_out);
 /* Cap residual always (wave215): skip_missing + multi-slot realpath pool body. */
 const char *invoke_cc_argv_resolve_existing_path_impl(const char *path);
 int xlang_asm_user_o_has_undef_syms(const char *o_path);
@@ -281,7 +281,7 @@ int xlang_cc_compile_sync_ex(const char *src, const char *out_o,
         }
         {
             int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
+            if (xlang_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0)
                 return -1;
@@ -349,7 +349,7 @@ int xlang_cc_compile_sync_one_extra(const char *src, const char *out_o,
 /**
  * Cap residual (wave219): synchronous spawn body.
  * Pure orch (labi_diag_pure L1) owns public thin null/empty gates; _impl is always mega.
- * POSIX: fork+execvp+waitpid (via public shu_waitpid_retry); Windows: _spawnvp(_P_WAIT).
+ * POSIX: fork+execvp+waitpid (via public xlang_waitpid_retry); Windows: _spawnvp(_P_WAIT).
  * G.7 single spawn authority for invoke_cc / ld / strip (no second fork path).
  * PLATFORM: SHARED residual / POSIX fork / WINDOWS _spawnvp.
  */
@@ -372,7 +372,7 @@ int xlang_spawn_sync_impl(const char *prog, const char *const *argv) {
         }
         {
             int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
+            if (xlang_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0)
                 return -1;
@@ -997,7 +997,7 @@ void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *loca
  * 返回值：0 成功，-1 失败。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz) {
+int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz) {
     char buf[PATH_MAX];
     buf[0] = '\0';
     if (!out_dir || out_dir_sz < 2)
@@ -1083,7 +1083,7 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
  * 参数：link_argv0 调用方 argv[0]；syn_buf/syn_sz 合成路径缓冲。
  * 返回值：有效 link argv0 或 NULL。
  * wave184: pure orch in labi_path_pure L0 (hybrid FROM_X / cold twin include).
- * Cap residual: shu_resolve_compiler_dir. PLATFORM: SHARED.
+ * Cap residual: xlang_resolve_compiler_dir. PLATFORM: SHARED.
  */
 #ifndef XLANG_LABI_PATH_PURE_FROM_X
 const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
@@ -1094,7 +1094,7 @@ const char *xlang_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_
     if (!syn_buf || syn_sz == 0)
         return NULL;
     syn_buf[0] = '\0';
-    if (shu_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
+    if (xlang_resolve_compiler_dir(NULL, comp_dir, sizeof comp_dir) != 0)
         return NULL;
     nn = snprintf(syn_buf, syn_sz, "%s/xlang", comp_dir);
     if (nn < 0 || (size_t)nn >= syn_sz)
@@ -1145,7 +1145,7 @@ const char *xlang_std_compress_o_path(const char *argv0);
 
 /**
  * Derive repo root from the product host binary path.
- * Authority (G.7): shu_resolve_compiler_dir (compiler/) → parent = repo root.
+ * Authority (G.7): xlang_resolve_compiler_dir (compiler/) → parent = repo root.
  * PLATFORM: SHARED — must not depend on formal std/*.o existing.
  *
  * Why: after L4 wipe, std/process/process.o is gone. The old path walked
@@ -1158,7 +1158,7 @@ const char *xlang_std_compress_o_path(const char *argv0);
  * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
  * Pure: BSS memcpy + path_last_sep strip; Cap residual resolve + rel_o_path.
  *
- * @param argv0 optional xlang path (also used by shu_resolve_compiler_dir fallback)
+ * @param argv0 optional xlang path (also used by xlang_resolve_compiler_dir fallback)
  * @return static buffer with repo root, or empty string
  */
 #ifndef XLANG_LABI_PATH_PURE_FROM_X
@@ -1170,7 +1170,7 @@ const char *xlang_repo_root_from_argv0(const char *argv0) {
     int k;
     buf[0] = '\0';
     /* Primary: compiler dir from self/exe or argv0 → parent is repo root. */
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) == 0 && comp[0]) {
+    if (xlang_resolve_compiler_dir(argv0, comp, sizeof comp) == 0 && comp[0]) {
         if (strlen(comp) < sizeof(buf)) {
             memcpy(buf, comp, strlen(comp) + 1);
             last = xlang_path_last_sep(buf);
@@ -1532,10 +1532,10 @@ const char *xlang_freestanding_io_o_path(const char *argv0) {
 const char *xlang_freestanding_io_o_path(const char *argv0);
 #endif
 /* wave160: xlang_runtime_compiler_o_path_copy pure orch lives in labi_path_pure
- * (Cap residual shu_resolve_compiler_dir + pure byte join compiler-dir/leaf).
+ * (Cap residual xlang_resolve_compiler_dir + pure byte join compiler-dir/leaf).
  * Cold twin via L0 seed / mega #ifndef below; hybrid FROM_X → L0 pure .x.
  * Why: hybrid still had always-mega C body for path join after platform resolve.
- * Cap residual stays: shu_resolve_compiler_dir (#if LINUX/MACOS/WINDOWS).
+ * Cap residual stays: xlang_resolve_compiler_dir (#if LINUX/MACOS/WINDOWS).
  * PLATFORM: SHARED orch. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_LABI_PATH_PURE_FROM_X
@@ -1549,7 +1549,7 @@ int xlang_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char
     if (!out || out_sz == 0 || !leaf || !leaf[0])
         return -1;
     out[0] = '\0';
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
+    if (xlang_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
         return -1;
     dn = 0;
     while (comp_dir[dn] != 0)
@@ -1581,7 +1581,7 @@ int xlang_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char
  * cold path defines via #ifndef below (static PATH_MAX BSS + compiler_o_path_copy).
  * Why: hybrid still had always-mega C bodies for 29 thin runtime path leaves after wave161
  * G.7 join through compiler_o_path_copy (resolve+snprintf already removed).
- * Cap residual: shu_resolve_compiler_dir inside peer compiler_o_path_copy only.
+ * Cap residual: xlang_resolve_compiler_dir inside peer compiler_o_path_copy only.
  * PLATFORM: SHARED orch. */
 #ifndef XLANG_LABI_PATH_PURE_FROM_X
 /**
@@ -2962,7 +2962,7 @@ int link_abi_generated_c_contains_any_substr_use_line(const char *c_path, const 
  * Same object as compiler nostdlib bag; freestanding user link pulls it on demand.
  * wave181: pure orch in labi_path_pure.x (hybrid L0);
  * mega cold twin under #ifndef XLANG_LABI_PATH_PURE_FROM_X.
- * Cap residual: link_abi_realpath_cap + shu_resolve_compiler_dir (pure owns leaf join).
+ * Cap residual: link_abi_realpath_cap + xlang_resolve_compiler_dir (pure owns leaf join).
  */
 #ifndef XLANG_LABI_PATH_PURE_FROM_X
 const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
@@ -2973,7 +2973,7 @@ const char *xlang_bootstrap_nostdlib_stubs_o_path(const char *argv0) {
     buf[0] = resolved[0] = '\0';
     if (realpath("compiler/src/asm/bootstrap_nostdlib_stubs.o", resolved) != NULL)
         return resolved;
-    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) == 0) {
+    if (xlang_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) == 0) {
         nn = snprintf(buf, sizeof buf, "%s/src/asm/bootstrap_nostdlib_stubs.o", comp_dir);
         if (nn > 0 && (size_t)nn < sizeof buf) {
             if (realpath(buf, resolved) != NULL)
@@ -4391,7 +4391,7 @@ int xlang_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const 
         perror("gcc (nostdlib minimal user.o)");
         _exit(127);
     }
-    if (shu_waitpid_retry(pid, &status) != 0)
+    if (xlang_waitpid_retry(pid, &status) != 0)
         return -1;
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
         link_diag_tool_status("ld", status);
@@ -5217,7 +5217,7 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
             }
             {
                 int status;
-                if (shu_waitpid_retry(pid, &status) != 0)
+                if (xlang_waitpid_retry(pid, &status) != 0)
                     return -1;
                 if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                     link_diag_tool_status("ld", status);
@@ -5291,7 +5291,7 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
         }
         {
             int status;
-            if (shu_waitpid_retry(pid, &status) != 0)
+            if (xlang_waitpid_retry(pid, &status) != 0)
                 return -1;
             if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                 link_diag_tool_status("ld", status);
@@ -5451,7 +5451,7 @@ int labi_gates_count(void);
  * Pure orch (labi_diag_pure L1) owns public thin; _impl is always mega.
  * PLATFORM: POSIX — waitpid; Windows product uses _spawnvp paths that skip this.
  */
-int shu_waitpid_retry_impl(pid_t pid, int *status_out) {
+int xlang_waitpid_retry_impl(pid_t pid, int *status_out) {
     int st = 0;
     for (;;) {
         pid_t w = waitpid(pid, &st, 0);
@@ -5473,17 +5473,17 @@ int shu_waitpid_retry_impl(pid_t pid, int *status_out) {
     }
 }
 
-/* wave216: shu_waitpid_retry pure orch lives in labi_diag_pure.x (hybrid L1);
+/* wave216: xlang_waitpid_retry pure orch lives in labi_diag_pure.x (hybrid L1);
  * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.
- * Pure: thin public; Cap residual shu_waitpid_retry_impl (waitpid+EINTR+strerror).
+ * Pure: thin public; Cap residual xlang_waitpid_retry_impl (waitpid+EINTR+strerror).
  * Why: hybrid still had waitpid body always mega C (wait+strerror+diag).
  * PLATFORM: SHARED orch / POSIX wait residual. */
 #ifndef XLANG_LABI_DIAG_PURE_FROM_X
-int shu_waitpid_retry(pid_t pid, int *status_out) {
-    return shu_waitpid_retry_impl(pid, status_out);
+int xlang_waitpid_retry(pid_t pid, int *status_out) {
+    return xlang_waitpid_retry_impl(pid, status_out);
 }
 #else
-int shu_waitpid_retry(pid_t pid, int *status_out);
+int xlang_waitpid_retry(pid_t pid, int *status_out);
 #endif
 
 

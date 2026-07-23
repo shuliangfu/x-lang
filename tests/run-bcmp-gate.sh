@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# L2 B-CMP CI 门禁：Shu -O3 codegen-fair 中位数须 ≤ XLANG_PERF_C_O3_RATIO× C -O3（默认 1.0×）。
+# L2 B-CMP CI 门禁：Xlang -O3 codegen-fair 中位数须 ≤ XLANG_PERF_C_O3_RATIO× C -O3（默认 1.0×）。
 # GHA 原生 ubuntu x64 由 run-ci-full-suite.sh 调用；本地 push 前自检同参。
 # 用法：
 #   ./tests/run-bcmp-gate.sh

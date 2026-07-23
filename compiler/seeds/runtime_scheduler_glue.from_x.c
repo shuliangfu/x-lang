@@ -67,11 +67,11 @@ XLANG_WEAK void ctx_free_c(int64_t handle) {
 #define XLANG_ASYNC_TRACE_PREFIX "xlang: [XLANG_ASYNC_RUNTIME_TRACE]"
 
 /** v1 事件 kind 字符串（manifest event_kind 锚点）。 */
-static const char shu_async_trace_kind_task_run[] = "task_run";
-static const char shu_async_trace_kind_suspend[] = "suspend";
-static const char shu_async_trace_kind_io_wake[] = "io_wake";
-static const char shu_async_trace_kind_poll[] = "poll_completions";
-static const char shu_async_trace_kind_idle[] = "drain_idle";
+static const char xlang_async_trace_kind_task_run[] = "task_run";
+static const char xlang_async_trace_kind_suspend[] = "suspend";
+static const char xlang_async_trace_kind_io_wake[] = "io_wake";
+static const char xlang_async_trace_kind_poll[] = "poll_completions";
+static const char xlang_async_trace_kind_idle[] = "drain_idle";
 
 typedef struct {
     const char *kind;
@@ -79,19 +79,19 @@ typedef struct {
     uint32_t extra;
     uint64_t us;
     void *fn;
-} shu_async_trace_event_t;
+} xlang_async_trace_event_t;
 
-static shu_async_trace_event_t shu_async_trace_ring[XLANG_ASYNC_TRACE_RING_CAP];
-static unsigned shu_async_trace_ring_n;
-static unsigned shu_async_trace_events_total;
-static unsigned shu_async_trace_sample_tick;
+static xlang_async_trace_event_t xlang_async_trace_ring[XLANG_ASYNC_TRACE_RING_CAP];
+static unsigned xlang_async_trace_ring_n;
+static unsigned xlang_async_trace_events_total;
+static unsigned xlang_async_trace_sample_tick;
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
-int shu_async_runtime_trace_enabled(void);
-unsigned shu_async_trace_topn(void);
-unsigned shu_async_trace_sample_rate(void);
-uint64_t shu_async_trace_slow_us(void);
-uint64_t shu_async_trace_now_us(void);
+int xlang_async_runtime_trace_enabled(void);
+unsigned xlang_async_trace_topn(void);
+unsigned xlang_async_trace_sample_rate(void);
+uint64_t xlang_async_trace_slow_us(void);
+uint64_t xlang_async_trace_now_us(void);
 void xlang_async_init_workers(void);
 int xlang_async_bound_ctx_cancelled(void);
 int xlang_async_take_suspend_io_flag(void);
@@ -105,7 +105,7 @@ uint32_t xlang_async_q_occupancy(uint32_t head, uint32_t tail);
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_scheduler_glue.x）直接实现 */
-int shu_async_runtime_trace_enabled(void) {
+int xlang_async_runtime_trace_enabled(void) {
   const char *e = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE");
   return e && e[0] && !(e[0] == '0' && e[1] == '\0');
 }
@@ -117,7 +117,7 @@ int shu_async_runtime_trace_enabled(void) {
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
-unsigned shu_async_trace_topn(void) {
+unsigned xlang_async_trace_topn(void) {
   const char *e = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_TOPN");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 20;
   if (v < 1)
@@ -134,7 +134,7 @@ unsigned shu_async_trace_topn(void) {
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
-unsigned shu_async_trace_sample_rate(void) {
+unsigned xlang_async_trace_sample_rate(void) {
   const char *e = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_SAMPLE");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 1;
   if (v < 1)
@@ -149,7 +149,7 @@ unsigned shu_async_trace_sample_rate(void) {
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
-uint64_t shu_async_trace_slow_us(void) {
+uint64_t xlang_async_trace_slow_us(void) {
   const char *e = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_SLOW_US");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 500;
   if (v < 0)
@@ -162,7 +162,7 @@ uint64_t shu_async_trace_slow_us(void) {
 
 /** 单调时钟微秒（trace 耗时）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint64_t shu_async_trace_now_us_impl(void) {
+uint64_t xlang_async_trace_now_us_impl(void) {
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
         return 0;
@@ -171,7 +171,7 @@ uint64_t shu_async_trace_now_us_impl(void) {
 
 #ifndef XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-uint64_t shu_async_trace_now_us(void) { return shu_async_trace_now_us_impl(); }
+uint64_t xlang_async_trace_now_us(void) { return xlang_async_trace_now_us_impl(); }
 #endif /* XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
@@ -181,20 +181,20 @@ uint64_t shu_async_trace_now_us(void) { return shu_async_trace_now_us_impl(); }
  * 记录一条 trace 事件（采样 + 慢路径必录；ring 满时丢弃最慢旧项）。
  * kind 须为 "task_run" / "suspend" / "io_wake" / "poll_completions" / "drain_idle"。
  */
-void shu_async_trace_push(const char *kind, uint32_t worker, uint32_t extra, uint64_t us, void *fn) {
+void xlang_async_trace_push(const char *kind, uint32_t worker, uint32_t extra, uint64_t us, void *fn) {
     unsigned i;
     unsigned min_i = 0;
     uint64_t min_us;
-    if (!shu_async_runtime_trace_enabled() || !kind)
+    if (!xlang_async_runtime_trace_enabled() || !kind)
         return;
-    shu_async_trace_events_total++;
-    if (us < shu_async_trace_slow_us()) {
-        shu_async_trace_sample_tick++;
-        if (shu_async_trace_sample_tick % shu_async_trace_sample_rate() != 0)
+    xlang_async_trace_events_total++;
+    if (us < xlang_async_trace_slow_us()) {
+        xlang_async_trace_sample_tick++;
+        if (xlang_async_trace_sample_tick % xlang_async_trace_sample_rate() != 0)
             return;
     }
-    if (shu_async_trace_ring_n < XLANG_ASYNC_TRACE_RING_CAP) {
-        shu_async_trace_event_t *ev = &shu_async_trace_ring[shu_async_trace_ring_n++];
+    if (xlang_async_trace_ring_n < XLANG_ASYNC_TRACE_RING_CAP) {
+        xlang_async_trace_event_t *ev = &xlang_async_trace_ring[xlang_async_trace_ring_n++];
         ev->kind = kind;
         ev->worker = worker;
         ev->extra = extra;
@@ -202,62 +202,57 @@ void shu_async_trace_push(const char *kind, uint32_t worker, uint32_t extra, uin
         ev->fn = fn;
         return;
     }
-    min_us = shu_async_trace_ring[0].us;
+    min_us = xlang_async_trace_ring[0].us;
     for (i = 1; i < XLANG_ASYNC_TRACE_RING_CAP; i++) {
-        if (shu_async_trace_ring[i].us < min_us) {
-            min_us = shu_async_trace_ring[i].us;
+        if (xlang_async_trace_ring[i].us < min_us) {
+            min_us = xlang_async_trace_ring[i].us;
             min_i = i;
         }
     }
     if (us <= min_us)
         return;
-    shu_async_trace_ring[min_i].kind = kind;
-    shu_async_trace_ring[min_i].worker = worker;
-    shu_async_trace_ring[min_i].extra = extra;
-    shu_async_trace_ring[min_i].us = us;
-    shu_async_trace_ring[min_i].fn = fn;
+    xlang_async_trace_ring[min_i].kind = kind;
+    xlang_async_trace_ring[min_i].worker = worker;
+    xlang_async_trace_ring[min_i].extra = extra;
+    xlang_async_trace_ring[min_i].us = us;
+    xlang_async_trace_ring[min_i].fn = fn;
 }
 
 /** flush：stderr 输出 summary + Top-N 慢事件（按 us 降序）。 */
-void shu_async_runtime_trace_flush(void) {
+void xlang_async_runtime_trace_flush(void) {
     unsigned n;
     unsigned topn;
     unsigned i;
     unsigned j;
-    shu_async_trace_event_t tmp;
-    if (!shu_async_runtime_trace_enabled())
+    xlang_async_trace_event_t tmp;
+    if (!xlang_async_runtime_trace_enabled())
         return;
-    n = shu_async_trace_ring_n;
-    topn = shu_async_trace_topn();
+    n = xlang_async_trace_ring_n;
+    topn = xlang_async_trace_topn();
     if (topn > n)
         topn = n;
     /* 简单降序排序（n ≤ 64）。 */
     for (i = 0; i + 1 < n; i++) {
         for (j = i + 1; j < n; j++) {
-            if (shu_async_trace_ring[j].us > shu_async_trace_ring[i].us) {
-                tmp = shu_async_trace_ring[i];
-                shu_async_trace_ring[i] = shu_async_trace_ring[j];
-                shu_async_trace_ring[j] = tmp;
+            if (xlang_async_trace_ring[j].us > xlang_async_trace_ring[i].us) {
+                tmp = xlang_async_trace_ring[i];
+                xlang_async_trace_ring[i] = xlang_async_trace_ring[j];
+                xlang_async_trace_ring[j] = tmp;
             }
         }
     }
     fprintf(stderr, "%s summary events=%u slow_top=%u\n",
-            XLANG_ASYNC_TRACE_PREFIX, shu_async_trace_events_total, topn);
+            XLANG_ASYNC_TRACE_PREFIX, xlang_async_trace_events_total, topn);
     for (i = 0; i < topn; i++) {
         fprintf(stderr, "%s rank=%u kind=%s worker=%u us=%llu extra=%u fn=%p\n",
-                XLANG_ASYNC_TRACE_PREFIX, i + 1, shu_async_trace_ring[i].kind,
-                (unsigned)shu_async_trace_ring[i].worker,
-                (unsigned long long)shu_async_trace_ring[i].us,
-                (unsigned)shu_async_trace_ring[i].extra, shu_async_trace_ring[i].fn);
+                XLANG_ASYNC_TRACE_PREFIX, i + 1, xlang_async_trace_ring[i].kind,
+                (unsigned)xlang_async_trace_ring[i].worker,
+                (unsigned long long)xlang_async_trace_ring[i].us,
+                (unsigned)xlang_async_trace_ring[i].extra, xlang_async_trace_ring[i].fn);
     }
-    shu_async_trace_ring_n = 0;
-    shu_async_trace_events_total = 0;
-    shu_async_trace_sample_tick = 0;
-}
-
-/** 烟测别名（async_runtime_trace_smoke.c）。 */
-void xlang_async_runtime_trace_flush(void) {
-    shu_async_runtime_trace_flush();
+    xlang_async_trace_ring_n = 0;
+    xlang_async_trace_events_total = 0;
+    xlang_async_trace_sample_tick = 0;
 }
 
 /** 就绪队列容量（2 的幂便于取模；保留 1 空槽区分满/空）。 */
@@ -511,18 +506,18 @@ uint32_t xlang_async_q_occupancy(uint32_t head, uint32_t tail) {
 typedef struct {
     int32_t phase;
     int64_t ops;
-} shu_coop_frame_t;
+} xlang_coop_frame_t;
 
-/* thin+rest Group C：依赖 shu_coop_frame_t 的 thin 前向声明 */
-int shu_coop_frame_step_jmp(shu_coop_frame_t *f);
-int shu_coop_frame_step_switch(shu_coop_frame_t *f);
+/* thin+rest Group C：依赖 xlang_coop_frame_t 的 thin 前向声明 */
+int xlang_coop_frame_step_jmp(xlang_coop_frame_t *f);
+int xlang_coop_frame_step_switch(xlang_coop_frame_t *f);
 
 /**
  * 单任务一步（computed goto 跳转表）：phase 0↔1 交替并 ops++。
  * 返回 0=可继续，1=结束（本 bench 永不返回 1）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shu_coop_frame_step_jmp_impl(shu_coop_frame_t *f) {
+int xlang_coop_frame_step_jmp_impl(xlang_coop_frame_t *f) {
     if (!f)
         return 1;
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
@@ -560,7 +555,7 @@ coop_done:
 
 #ifndef XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int shu_coop_frame_step_jmp(shu_coop_frame_t *f) { return shu_coop_frame_step_jmp_impl(f); }
+int xlang_coop_frame_step_jmp(xlang_coop_frame_t *f) { return xlang_coop_frame_step_jmp_impl(f); }
 #endif /* XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
@@ -571,21 +566,21 @@ int shu_coop_frame_step_jmp(shu_coop_frame_t *f) { return shu_coop_frame_step_jm
  * 返回总 ops（应为 2*rounds）。
  */
 int64_t xlang_async_coop_pingpong_jmp(int64_t rounds) {
-    shu_coop_frame_t ping = {0, 0};
-    shu_coop_frame_t pong = {0, 0};
+    xlang_coop_frame_t ping = {0, 0};
+    xlang_coop_frame_t pong = {0, 0};
     int64_t i;
     if (rounds <= 0)
         return 0;
     for (i = 0; i < rounds; i++) {
-        (void)shu_coop_frame_step_jmp(&ping);
-        (void)shu_coop_frame_step_jmp(&pong);
+        (void)xlang_coop_frame_step_jmp(&ping);
+        (void)xlang_coop_frame_step_jmp(&pong);
     }
     return ping.ops + pong.ops;
 }
 
 /** A1：switch 版单帧步进（对照 jmp 路径开销）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shu_coop_frame_step_switch_impl(shu_coop_frame_t *f) {
+int xlang_coop_frame_step_switch_impl(xlang_coop_frame_t *f) {
     if (!f)
         return 1;
     switch (f->phase) {
@@ -606,7 +601,7 @@ int shu_coop_frame_step_switch_impl(shu_coop_frame_t *f) {
 
 #ifndef XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X
 /* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int shu_coop_frame_step_switch(shu_coop_frame_t *f) { return shu_coop_frame_step_switch_impl(f); }
+int xlang_coop_frame_step_switch(xlang_coop_frame_t *f) { return xlang_coop_frame_step_switch_impl(f); }
 #endif /* XLANG_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
@@ -616,14 +611,14 @@ int shu_coop_frame_step_switch(shu_coop_frame_t *f) { return shu_coop_frame_step
  * A1：双任务 switch dispatch ping-pong（与 jmp 版同语义，便于 A/B）。
  */
 int64_t xlang_async_coop_pingpong(int64_t rounds) {
-    shu_coop_frame_t ping = {0, 0};
-    shu_coop_frame_t pong = {0, 0};
+    xlang_coop_frame_t ping = {0, 0};
+    xlang_coop_frame_t pong = {0, 0};
     int64_t i;
     if (rounds <= 0)
         return 0;
     for (i = 0; i < rounds; i++) {
-        (void)shu_coop_frame_step_switch(&ping);
-        (void)shu_coop_frame_step_switch(&pong);
+        (void)xlang_coop_frame_step_switch(&ping);
+        (void)xlang_coop_frame_step_switch(&pong);
     }
     return ping.ops + pong.ops;
 }
@@ -760,7 +755,7 @@ void xlang_async_io_wake(unsigned n) {
     uint64_t dt;
     if (limit == 0)
         limit = (unsigned)xlang_async_io_wait_n;
-    t0 = shu_async_trace_now_us();
+    t0 = xlang_async_trace_now_us();
     while (xlang_async_io_wait_n > 0 && moved < limit) {
         xlang_async_task_fn_t fn = xlang_async_io_wait[--xlang_async_io_wait_n];
         if (xlang_async_task_submit(fn) != 0) {
@@ -769,9 +764,9 @@ void xlang_async_io_wake(unsigned n) {
         }
         moved++;
     }
-    dt = shu_async_trace_now_us() - t0;
+    dt = xlang_async_trace_now_us() - t0;
     if (moved > 0)
-        shu_async_trace_push(shu_async_trace_kind_io_wake, xlang_async_tls_worker, moved, dt, NULL);
+        xlang_async_trace_push(xlang_async_trace_kind_io_wake, xlang_async_tls_worker, moved, dt, NULL);
 }
 
 /** IO-A5：唤醒全部 IO 等待任务。 */
@@ -886,13 +881,13 @@ int32_t xlang_async_drain_queue_impl(xlang_async_task_queue_t *q, uint32_t worke
         if (!fn)
             continue;
         {
-            uint64_t t0 = shu_async_trace_now_us();
+            uint64_t t0 = xlang_async_trace_now_us();
             r = fn();
-            shu_async_trace_push(shu_async_trace_kind_task_run, worker_id, 0,
-                                 shu_async_trace_now_us() - t0, (void *)(uintptr_t)fn);
+            xlang_async_trace_push(xlang_async_trace_kind_task_run, worker_id, 0,
+                                 xlang_async_trace_now_us() - t0, (void *)(uintptr_t)fn);
         }
         if (r == XLANG_ASYNC_SUSPENDED) {
-            shu_async_trace_push(shu_async_trace_kind_suspend, worker_id, 0, 0,
+            xlang_async_trace_push(xlang_async_trace_kind_suspend, worker_id, 0, 0,
                                  (void *)(uintptr_t)fn);
             if (xlang_async_io_wait_enabled() || xlang_async_take_suspend_io_flag()) {
                 if (xlang_async_io_wait_push(fn) != 0)
@@ -937,7 +932,7 @@ int32_t xlang_async_scheduler_drain(void) {
         if (r != 0)
             last = r;
     }
-    shu_async_runtime_trace_flush();
+    xlang_async_runtime_trace_flush();
     return last;
 }
 
@@ -955,21 +950,21 @@ int32_t xlang_async_run_drain_until_idle(void) {
         for (w = 0; w < n; w++) {
             int32_t dr = xlang_async_drain_queue(&xlang_async_worker_q[w], w, &batch);
             if (dr == XLANG_ASYNC_ERR_CTX_ABORT) {
-                shu_async_runtime_trace_flush();
+                xlang_async_runtime_trace_flush();
                 return XLANG_ASYNC_ERR_CTX_ABORT;
             }
         }
         sum += batch;
         if (xlang_async_scheduler_pending() == 0 && xlang_async_io_waiters_pending() == 0) {
-            shu_async_runtime_trace_flush();
+            xlang_async_runtime_trace_flush();
             return sum;
         }
         {
-            uint64_t t0 = shu_async_trace_now_us();
+            uint64_t t0 = xlang_async_trace_now_us();
             polled = xlang_io_poll_async_completions(50);
             if (polled > 0) {
-                shu_async_trace_push(shu_async_trace_kind_poll, xlang_async_tls_worker, stall,
-                                     shu_async_trace_now_us() - t0, NULL);
+                xlang_async_trace_push(xlang_async_trace_kind_poll, xlang_async_tls_worker, stall,
+                                     xlang_async_trace_now_us() - t0, NULL);
             }
         }
         if (polled > 0) {
@@ -992,10 +987,10 @@ int32_t xlang_async_run_drain_until_idle(void) {
             xlang_async_io_wake_all();
 #endif
         stall++;
-        shu_async_trace_push(shu_async_trace_kind_idle, xlang_async_tls_worker, stall, 0, NULL);
+        xlang_async_trace_push(xlang_async_trace_kind_idle, xlang_async_tls_worker, stall, 0, NULL);
         /* 有界退出：poll=0 且仅 wake_all 时最多 64 轮（避免 CI 8min 挂死）。 */
         if (stall >= 64u) {
-            shu_async_runtime_trace_flush();
+            xlang_async_runtime_trace_flush();
             return sum;
         }
     }

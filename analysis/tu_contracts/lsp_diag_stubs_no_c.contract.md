@@ -56,7 +56,7 @@
 - `lsp_get_document_len`
 - `lsp_get_document_ptr`
 - `lsp_set_document_from_body`
-- `shu_format_x_document`
+- `xlang_format_x_document`
 
 ### 3.3 thin/.x 独有导出（若非空，后续需审计）
 - `lsp_diag_stubs_no_c_x_doc_anchor`

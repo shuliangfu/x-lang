@@ -23,11 +23,11 @@ p0_gate_log() {
 
 # 未设 XLANG 时优先 xlang-c（V6 smoke 已验 -c/-o；避 stage1 OOM/SIGSEGV）。
 p0_gate_default_seed() {
-  if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ] && ci_native_shu "${XLANG}"; then
+  if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ] && ci_native_xlang "${XLANG}"; then
     echo "${XLANG}"
     return 0
   fi
-  if [ -x ./compiler/xlang-c ] && ci_native_shu ./compiler/xlang-c; then
+  if [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c; then
     echo ./compiler/xlang-c
     return 0
   fi
@@ -53,21 +53,21 @@ p0_gate_run_typeck_prefer_seed() {
 # XLANG_P0_SKIP_STAGE1=1 时仅 seed/xlang-c（省 7+ 分钟 stage1 OOM 重试）。
 p0_gate_typeck_candidates() {
   local cand
-  if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ] && ci_native_shu "${XLANG}"; then
+  if [ -n "${XLANG:-}" ] && [ -x "${XLANG}" ] && ci_native_xlang "${XLANG}"; then
     echo "${XLANG}"
   fi
   if [ "${XLANG_P0_SKIP_STAGE1:-0}" = "1" ]; then
-    [ -x ./compiler/xlang-c ] && ci_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c
+    [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c
     return 0
   fi
   # macOS 上 xlang_asm_stage1 会吃 60G+ 内存（asm 后端无内存限制），强制跳过
   if [ "$(uname)" = "Darwin" ]; then
-    [ -x ./compiler/xlang-c ] && ci_native_shu ./compiler/xlang-c && echo ./compiler/xlang-c
+    [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c && echo ./compiler/xlang-c
     return 0
   fi
   for cand in ./compiler/xlang_asm_stage1 ./compiler/xlang_asm2 ./compiler/xlang_asm \
               ./compiler/xlang ./compiler/xlang-c; do
-    if [ -x "$cand" ] && ci_native_shu "$cand"; then
+    if [ -x "$cand" ] && ci_native_xlang "$cand"; then
       echo "$cand"
     fi
   done

@@ -14,7 +14,7 @@ MAX_RATIO="1.0"
 
 XLANG_BIN=""
 for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm; do
-  if comp_incr_compile_native_shu "$cand"; then
+  if comp_incr_compile_native_xlang "$cand"; then
     XLANG_BIN="$cand"
     break
   fi

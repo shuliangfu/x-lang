@@ -9,7 +9,7 @@
 
 export extern "C" function http_set_timeouts_impl(fd: i32, timeout_ms: u32): i32;
 export extern "C" function http_connect_timeout_impl(fd: i32, res: *u8, timeout_ms: u32): i32;
-export extern "C" function shu_http_send_all_impl(fd: i32, buf: *u8, len: i32, is_socket: i32): i32;
+export extern "C" function xlang_http_send_all_impl(fd: i32, buf: *u8, len: i32, is_socket: i32): i32;
 export extern "C" function parse_http_url_impl(url: *u8, url_len: i32, host_buf: *u8, host_cap: i32, port_buf: *u8,
                                         port_cap: i32, path_buf: *u8, path_cap: i32, out_is_https: *i32): i32;
 export extern "C" function http_transport_close_impl(tr: *u8): void;
@@ -50,8 +50,8 @@ export function http_connect_timeout(fd: i32, res: *u8, timeout_ms: u32): i32 {
   return 0 - 1;
 }
 
-/** Exported function `shu_http_send_all`.
- * Implements `shu_http_send_all`.
+/** Exported function `xlang_http_send_all`.
+ * Implements `xlang_http_send_all`.
  * @param fd i32
  * @param buf *u8
  * @param len i32
@@ -59,8 +59,8 @@ export function http_connect_timeout(fd: i32, res: *u8, timeout_ms: u32): i32 {
  * @return i32
  */
 #[no_mangle]
-export function shu_http_send_all(fd: i32, buf: *u8, len: i32, is_socket: i32): i32 {
-  unsafe { return shu_http_send_all_impl(fd, buf, len, is_socket); }
+export function xlang_http_send_all(fd: i32, buf: *u8, len: i32, is_socket: i32): i32 {
+  unsafe { return xlang_http_send_all_impl(fd, buf, len, is_socket); }
   return 0 - 1;
 }
 

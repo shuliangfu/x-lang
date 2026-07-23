@@ -14,10 +14,10 @@
  *
  * R2 full（2026-07-20）：公共业务符号由 full .x 提供（12 函数 + BSS）：
  *   driver_set_pending + driver_get_pending + tcp_tolower + tcp_eq_at + tcp_set_u32
- *   + tcp_parse_named + shu_target_cpu_resolve + tcp_eq5 + tcp_eq6
- *   + shu_simd_is_vector_type_spelling + shu_simd_vector_lanes_esz_from_spelling
+ *   + tcp_parse_named + xlang_target_cpu_resolve + tcp_eq5 + tcp_eq6
+ *   + xlang_simd_is_vector_type_spelling + xlang_simd_vector_lanes_esz_from_spelling
  *   + append_feat_name + flags_has_token
- * Cap residual（mega rest 冷路径）：shu_target_cpu_print (FILE/fprintf) +
+ * Cap residual（mega rest 冷路径）：xlang_target_cpu_print (FILE/fprintf) +
  *   OS detect (sysctl/proc/#if platform) 在本文件 #endif 后始终编译。
  * FROM_X 下本文件业务 H=0（仅 extern 声明 + slice marker）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
@@ -76,11 +76,11 @@ int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *
     return -1;
   n = end - base;
   if (n == 6 && tcp_eq_at(spec, base, 6, (const uint8_t *)"native") != 0) {
-    *out = shu_target_cpu_detect_host();
+    *out = xlang_target_cpu_detect_host();
     return 0;
   }
   if (n == 7 && tcp_eq_at(spec, base, 7, (const uint8_t *)"generic") != 0) {
-    *out = shu_target_cpu_generic_for_host();
+    *out = xlang_target_cpu_generic_for_host();
     return 0;
   }
   if (n == 4 && tcp_eq_at(spec, base, 4, (const uint8_t *)"sse2") != 0) {
@@ -135,14 +135,14 @@ int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *
   return -1;
 }
 
-int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
+int xlang_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   const uint8_t *s = (const uint8_t *)spec;
   size_t start = 0;
   size_t end;
   if (!out)
     return -1;
   if (!spec || spec_len == 0) {
-    *out = shu_target_cpu_detect_host();
+    *out = xlang_target_cpu_detect_host();
     return 0;
   }
   end = spec_len;
@@ -151,7 +151,7 @@ int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t'))
     end--;
   if (end <= start) {
-    *out = shu_target_cpu_detect_host();
+    *out = xlang_target_cpu_detect_host();
     return 0;
   }
   return tcp_parse_named(s, start, end, out);
@@ -181,7 +181,7 @@ int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t
   return tcp_eq_at(name, 0, 6, lit);
 }
 
-int shu_simd_is_vector_type_spelling(const char *name, size_t name_len) {
+int xlang_simd_is_vector_type_spelling(const char *name, size_t name_len) {
   const uint8_t *n = (const uint8_t *)name;
   if (!name || name_len == 0)
     return 0;
@@ -210,14 +210,14 @@ int shu_simd_is_vector_type_spelling(const char *name, size_t name_len) {
   return 0;
 }
 
-int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
+int xlang_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
                                             int32_t *out_esz) {
   const uint8_t *n = (const uint8_t *)name;
   int32_t lanes = 4;
   int32_t esz = 4;
   if (!out_lanes || !out_esz)
     return -1;
-  if (!shu_simd_is_vector_type_spelling(name, name_len))
+  if (!xlang_simd_is_vector_type_spelling(name, name_len))
     return -1;
   if (name_len == 5 && name[4] == '8')
     lanes = 8;
@@ -276,12 +276,12 @@ extern uint8_t tcp_tolower(uint8_t c);
 extern int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit);
 extern void tcp_set_u32(uint32_t *out, uint32_t f);
 extern int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out);
-extern int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
+extern int xlang_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
 extern int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4);
 extern int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
                        uint8_t a5);
-extern int shu_simd_is_vector_type_spelling(const char *name, size_t name_len);
-extern int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
+extern int xlang_simd_is_vector_type_spelling(const char *name, size_t name_len);
+extern int xlang_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
                                                     int32_t *out_esz);
 extern void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name);
 extern int flags_has_token(const char *hay, const char *token);
@@ -296,7 +296,7 @@ int target_cpu_pure_slice_marker(void) {
 
 /* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
 
-void shu_target_cpu_print(FILE *out, uint32_t features) {
+void xlang_target_cpu_print(FILE *out, uint32_t features) {
   char list[256];
   size_t pos = 0;
 
@@ -325,7 +325,7 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
     append_feat_name(list, sizeof(list), &pos, "rvv");
   fprintf(out, "target_cpu_features=0x%08x\n", features);
   fprintf(out, "target_cpu_features_list=%s\n", list[0] ? list : "(none)");
-  fprintf(out, "target_cpu_host_features=0x%08x\n", shu_target_cpu_detect_host());
+  fprintf(out, "target_cpu_host_features=0x%08x\n", xlang_target_cpu_detect_host());
 }
 
 /* --- G-02f-6：OS detect（原 target_cpu.inc 语言限制 #if / sysctl /proc）--- */
@@ -349,7 +349,7 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
  * 编译期宏兜底（交叉编译或无 /proc/cpuinfo 时仍给出合理缺省）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_target_cpu_detect_x86_macro_fallback(void) {
+uint32_t xlang_target_cpu_detect_x86_macro_fallback(void) {
     uint32_t f = XLANG_CPU_FEAT_SSE2;
 #if defined(__SSE4_1__)
     f |= XLANG_CPU_FEAT_SSE41;
@@ -379,14 +379,14 @@ uint32_t shu_target_cpu_detect_x86_macro_fallback(void) {
  * Linux x86：解析 /proc/cpuinfo 首条 flags 行。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_target_cpu_detect_x86_linux(void) {
+uint32_t xlang_target_cpu_detect_x86_linux(void) {
     FILE *fp;
     char line[512];
     uint32_t f = 0;
 
     fp = fopen("/proc/cpuinfo", "r");
     if (!fp)
-        return shu_target_cpu_detect_x86_macro_fallback();
+        return xlang_target_cpu_detect_x86_macro_fallback();
     while (fgets(line, (int)sizeof(line), fp)) {
         if (strncmp(line, "flags", 5) != 0)
             continue;
@@ -410,7 +410,7 @@ uint32_t shu_target_cpu_detect_x86_linux(void) {
     }
     fclose(fp);
     if (f == 0)
-        f = shu_target_cpu_detect_x86_macro_fallback();
+        f = xlang_target_cpu_detect_x86_macro_fallback();
     return f;
 }
 #endif
@@ -418,7 +418,7 @@ uint32_t shu_target_cpu_detect_x86_linux(void) {
 #if defined(__APPLE__)
 /** macOS x86：sysctl machdep.cpu.leaf7_features / machdep.cpu.feature_bits。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_target_cpu_detect_x86_macos(void) {
+uint32_t xlang_target_cpu_detect_x86_macos(void) {
     uint64_t leaf7 = 0;
     uint64_t feat = 0;
     size_t sz;
@@ -443,19 +443,19 @@ uint32_t shu_target_cpu_detect_x86_macos(void) {
             f |= XLANG_CPU_FEAT_POPCNT;
     }
     if (f == 0)
-        f = shu_target_cpu_detect_x86_macro_fallback();
+        f = xlang_target_cpu_detect_x86_macro_fallback();
     return f;
 }
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-uint32_t shu_target_cpu_detect_x86(void) {
+uint32_t xlang_target_cpu_detect_x86(void) {
 #if defined(__linux__)
-    return shu_target_cpu_detect_x86_linux();
+    return xlang_target_cpu_detect_x86_linux();
 #elif defined(__APPLE__)
-    return shu_target_cpu_detect_x86_macos();
+    return xlang_target_cpu_detect_x86_macos();
 #else
-    return shu_target_cpu_detect_x86_macro_fallback();
+    return xlang_target_cpu_detect_x86_macro_fallback();
 #endif
 }
 #endif /* x86 */
@@ -467,7 +467,7 @@ uint32_t shu_target_cpu_detect_x86(void) {
  * Linux arm64：/proc/cpuinfo Features 行（asimd=NEON，sve=SVE）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_target_cpu_detect_arm64_linux(void) {
+uint32_t xlang_target_cpu_detect_arm64_linux(void) {
     FILE *fp;
     char line[512];
     uint32_t f = XLANG_CPU_FEAT_NEON;
@@ -492,7 +492,7 @@ uint32_t shu_target_cpu_detect_arm64_linux(void) {
 #if defined(__APPLE__)
 /** macOS arm64：NEON 为 mandatory；SVE 通过 hw.optional.arm.FEAT_SVE 探测。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_target_cpu_detect_arm64_macos(void) {
+uint32_t xlang_target_cpu_detect_arm64_macos(void) {
     uint32_t f = XLANG_CPU_FEAT_NEON;
     int sve = 0;
     size_t sz = sizeof(sve);
@@ -504,11 +504,11 @@ uint32_t shu_target_cpu_detect_arm64_macos(void) {
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-uint32_t shu_target_cpu_detect_arm64(void) {
+uint32_t xlang_target_cpu_detect_arm64(void) {
 #if defined(__linux__)
-    return shu_target_cpu_detect_arm64_linux();
+    return xlang_target_cpu_detect_arm64_linux();
 #elif defined(__APPLE__)
-    return shu_target_cpu_detect_arm64_macos();
+    return xlang_target_cpu_detect_arm64_macos();
 #else
     return XLANG_CPU_FEAT_NEON;
 #endif
@@ -520,7 +520,7 @@ uint32_t shu_target_cpu_detect_arm64(void) {
 #if defined(__linux__)
 /** Linux riscv64：isa 行含 'v' 时认为有 RVV。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint32_t shu_target_cpu_detect_riscv64_linux(void) {
+uint32_t xlang_target_cpu_detect_riscv64_linux(void) {
     FILE *fp;
     char line[256];
     uint32_t f = 0;
@@ -548,28 +548,28 @@ uint32_t shu_target_cpu_detect_riscv64_linux(void) {
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-uint32_t shu_target_cpu_detect_riscv64(void) {
+uint32_t xlang_target_cpu_detect_riscv64(void) {
 #if defined(__linux__)
-    return shu_target_cpu_detect_riscv64_linux();
+    return xlang_target_cpu_detect_riscv64_linux();
 #else
     return 0;
 #endif
 }
 #endif /* riscv64 */
 
-uint32_t shu_target_cpu_detect_host(void) {
+uint32_t xlang_target_cpu_detect_host(void) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    return shu_target_cpu_detect_x86();
+    return xlang_target_cpu_detect_x86();
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    return shu_target_cpu_detect_arm64();
+    return xlang_target_cpu_detect_arm64();
 #elif defined(__riscv) && __riscv_xlen == 64
-    return shu_target_cpu_detect_riscv64();
+    return xlang_target_cpu_detect_riscv64();
 #else
     return 0;
 #endif
 }
 
-uint32_t shu_target_cpu_generic_for_host(void) {
+uint32_t xlang_target_cpu_generic_for_host(void) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     return XLANG_CPU_FEAT_SSE2;
 #elif defined(__aarch64__) || defined(_M_ARM64)

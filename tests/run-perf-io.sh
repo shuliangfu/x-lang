@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# I/O 性能基线（NEXT I1/I2/I3/I4）：mmap / read_batch_fd(4段) / write，对比 Shu / C -O2 / Zig -O2
+# I/O 性能基线（NEXT I1/I2/I3/I4）：mmap / read_batch_fd(4段) / write，对比 Xlang / C -O2 / Zig -O2
 # 用法：./tests/run-perf-io.sh [--bench]
 # 门禁（可选）：
-#   XLANG_PERF_FAIL_ON_IO_ZIG=1 — Shu default asm ≤ Zig -O2
-#   XLANG_PERF_FAIL_ON_IO_REGRESSION=1 — Shu default asm ≤ tests/baseline/io-perf.tsv
+#   XLANG_PERF_FAIL_ON_IO_ZIG=1 — Xlang default asm ≤ Zig -O2
+#   XLANG_PERF_FAIL_ON_IO_REGRESSION=1 — Xlang default asm ≤ tests/baseline/io-perf.tsv
 #   XLANG_PERF_UPDATE_BASELINE=1 — 用本次 median 刷新 io-perf.tsv
 set -e
 cd "$(dirname "$0")/.."
@@ -185,7 +185,7 @@ bench_io_sendfile_case() {
   echo "=== tests/bench/${name} (${BENCH_MB}MiB file→socket sendfile @ 127.0.0.1:<dynamic>) ==="
 
   XLANG_ASM_MED=$(median_shu_sendfile)
-  echo "Shu (default asm) ${name} median real: ${XLANG_ASM_MED}s"
+  echo "Xlang (default asm) ${name} median real: ${XLANG_ASM_MED}s"
 
   if command -v cc >/dev/null 2>&1; then
     C_MED=$(median_c_sendfile)
@@ -200,16 +200,16 @@ bench_io_sendfile_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (default asm) | %s |\n' "$XLANG_ASM_MED"
+  printf '| Xlang (default asm) | %s |\n' "$XLANG_ASM_MED"
   printf '| C -O2 | %s |\n' "$C_MED"
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
   printf '\n'
 
   if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
     if awk -v xlang="$XLANG_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "io perf gate OK: ${name} Shu asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
+      echo "io perf gate OK: ${name} Xlang asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
     else
-      echo "io perf gate FAIL: ${name} Shu asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
+      echo "io perf gate FAIL: ${name} Xlang asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
       PERF_IO_FAILS=$((PERF_IO_FAILS + 1))
     fi
   fi
@@ -270,12 +270,12 @@ bench_io_splice_case() {
   echo "=== tests/bench/${name} (${BENCH_MB}MiB file→socket fs_pipe_splice @ 127.0.0.1:<dynamic>) ==="
 
   XLANG_ASM_MED=$(median_shu_splice)
-  echo "Shu (default asm) ${name} median real: ${XLANG_ASM_MED}s"
+  echo "Xlang (default asm) ${name} median real: ${XLANG_ASM_MED}s"
 
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (default asm) | %s |\n' "$XLANG_ASM_MED"
+  printf '| Xlang (default asm) | %s |\n' "$XLANG_ASM_MED"
   printf '\n'
 
   check_io_baseline_regress "$name" "$XLANG_ASM_MED" "nan"
@@ -300,18 +300,18 @@ io_baseline_cap() {
   awk -F'\t' -v n="$name" '$1==n && $1 !~ /^#/ { print $2; exit }' "${XLANG_PERF_IO_BASELINE:-tests/baseline/io-perf.tsv}"
 }
 
-# 门禁：Shu median（asm 或 c）须 ≤ baseline cap。
+# 门禁：Xlang median（asm 或 c）须 ≤ baseline cap。
 check_io_baseline_regress() {
   local name="$1"
   local xlang_asm_med="$2"
-  local shu_c_med="$3"
+  local xlang_c_med="$3"
   local med_gate cap
   if [ "$PERF_FAIL_REGRESS" -ne 1 ]; then
     return 0
   fi
   med_gate="$xlang_asm_med"
-  if [ "$med_gate" = "nan" ] && [ "$shu_c_med" != "nan" ]; then
-    med_gate="$shu_c_med"
+  if [ "$med_gate" = "nan" ] && [ "$xlang_c_med" != "nan" ]; then
+    med_gate="$xlang_c_med"
   fi
   if [ "$med_gate" = "nan" ]; then
     return 0
@@ -385,7 +385,7 @@ bench_io_case() {
   if [ -x "/tmp/bench_io_shu_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     XLANG_ASM_MED=$(median_real "/tmp/bench_io_shu_${tag}")
-    echo "Shu (default asm) ${name} median real: ${XLANG_ASM_MED}s"
+    echo "Xlang (default asm) ${name} median real: ${XLANG_ASM_MED}s"
   fi
 
   if [ "$PERF_COMPILE_XLANG" != "./compiler/xlang-c" ] \
@@ -393,7 +393,7 @@ bench_io_case() {
     && [ -x "/tmp/bench_io_shu_c_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     XLANG_C_MED=$(median_real "/tmp/bench_io_shu_c_${tag}")
-    echo "Shu (-backend c) ${name} median real: ${XLANG_C_MED}s"
+    echo "Xlang (-backend c) ${name} median real: ${XLANG_C_MED}s"
   elif [ "$PERF_COMPILE_XLANG" = "./compiler/xlang-c" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
     XLANG_C_MED="$XLANG_ASM_MED"
   fi
@@ -402,7 +402,7 @@ bench_io_case() {
     if compiler/xlang_asm -L . "$x" -o "/tmp/bench_io_asm_${tag}" 2>&1 && [ -x "/tmp/bench_io_asm_${tag}" ]; then
       [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
       ASM_MED=$(median_real "/tmp/bench_io_asm_${tag}")
-      echo "Shu asm (xlang_asm) ${name} median real: ${ASM_MED}s"
+      echo "Xlang asm (xlang_asm) ${name} median real: ${ASM_MED}s"
     fi
   fi
 
@@ -425,18 +425,18 @@ bench_io_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (default asm) | %s |\n' "$XLANG_ASM_MED"
-  printf '| Shu (-backend c) | %s |\n' "$XLANGXX_C_MED"
-  printf '| Shu asm (xlang_asm) | %s |\n' "$ASM_MED"
+  printf '| Xlang (default asm) | %s |\n' "$XLANG_ASM_MED"
+  printf '| Xlang (-backend c) | %s |\n' "$XLANGXX_C_MED"
+  printf '| Xlang asm (xlang_asm) | %s |\n' "$ASM_MED"
   printf '| C -O2 | %s |\n' "$C_MED"
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
   printf '\n'
 
   if [ "$PERF_FAIL_IO" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
     if awk -v xlang="$XLANG_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "io perf gate OK: ${name} Shu asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
+      echo "io perf gate OK: ${name} Xlang asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
     else
-      echo "io perf gate FAIL: ${name} Shu asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
+      echo "io perf gate FAIL: ${name} Xlang asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
       PERF_IO_FAILS=$((PERF_IO_FAILS + 1))
     fi
   fi

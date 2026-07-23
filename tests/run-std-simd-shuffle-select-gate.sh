@@ -81,7 +81,7 @@ if [ "${sym_miss:-0}" -gt 0 ]; then
 fi
 echo "std-simd-shuffle-select manifest OK"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -96,7 +96,7 @@ stdlib_cm_native_shu() {
 # SIMD shuffle/select 需 asm 后端；xlang-c 无法为 Vec 函数体生成 C。
 stdlib_cm_native_simd_asm() {
   local f="$1"
-  stdlib_cm_native_shu "$f" || return 1
+  stdlib_cm_native_xlang "$f" || return 1
   case "$f" in
     */xlang-c|*/xlang-x*) return 1 ;;
   esac
@@ -125,7 +125,7 @@ if cand="$(stdlib_cm_pick_xlang_asm)"; then
   XLANG_ASM="$cand"
 fi
 for cand in ./compiler/xlang-c ./compiler/xlang; do
-  if stdlib_cm_native_shu "$cand"; then
+  if stdlib_cm_native_xlang "$cand"; then
     XLANG_TYPECK="$cand"
     break
   fi

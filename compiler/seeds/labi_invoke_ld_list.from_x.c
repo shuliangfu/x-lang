@@ -236,8 +236,8 @@ const char *labi_ld_flag_lcrypto(void) { return "-lcrypto"; }
 const char *labi_ld_flag_lmbedtls(void) { return "-lmbedtls"; }
 const char *labi_ld_flag_lmbedx509(void) { return "-lmbedx509"; }
 const char *labi_ld_flag_lmbedcrypto(void) { return "-lmbedcrypto"; }
-const char *labi_net_tls_openssl_marker(void) { return "shu_net_tls_openssl_marker"; }
-const char *labi_net_tls_mbedtls_marker(void) { return "shu_net_tls_mbedtls_marker"; }
+const char *labi_net_tls_openssl_marker(void) { return "xlang_net_tls_openssl_marker"; }
+const char *labi_net_tls_mbedtls_marker(void) { return "xlang_net_tls_mbedtls_marker"; }
 const char *labi_rel_tls_openssl_o(void) { return "std/net/tls_openssl.o"; }
 const char *labi_rel_tls_mbedtls_o(void) { return "std/net/tls_mbedtls.o"; }
 

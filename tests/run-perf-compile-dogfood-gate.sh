@@ -3,7 +3,7 @@
 #
 # 检查：
 #   1) manifest：compile-dogfood.tsv + 8 个源路径
-#   2) Shu median ≤ tests/baseline/compile-dogfood.tsv（默认 XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1）
+#   2) Xlang median ≤ tests/baseline/compile-dogfood.tsv（默认 XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=1）
 #
 # 用法：./tests/run-perf-compile-dogfood-gate.sh
 # 烟测（不硬失败）：XLANG_PERF_FAIL_ON_COMPILE_REGRESSION=0 ./tests/run-perf-compile-dogfood-gate.sh
@@ -15,7 +15,7 @@ BASELINE="${XLANG_PERF_COMPILE_BASELINE:-tests/baseline/compile-dogfood.tsv}"
 FAIL_REG="${XLANG_PERF_FAIL_ON_COMPILE_REGRESSION:-1}"
 
 # 判断 xlang/xlang-c 是否可在本机 exec（与 perf-io-zig gate 一致）。
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -73,7 +73,7 @@ echo "compile-dogfood manifest OK (8 cases)"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

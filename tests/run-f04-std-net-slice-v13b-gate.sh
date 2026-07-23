@@ -25,13 +25,13 @@ grep -q 'F-04 v13b' "$DOC" || die "doc missing F-04 v13b marker"
 [ ! -f std/net/udp_batch_glue.c ] || die "net_udp_batch_glue.c should be deleted"
 grep -q 'net_udp_recv_many_c' std/net/udp_batch.x || die "batch.x missing recv_many"
 grep -q 'net_udp_send_many_buf_c' std/net/udp_batch.x || die "batch.x missing send_many_buf"
-grep -q 'shu_net_udp_recvmmsg2_c' "$NET_RUNTIME" || die "runtime missing recvmmsg2"
+grep -q 'xlang_net_udp_recvmmsg2_c' "$NET_RUNTIME" || die "runtime missing recvmmsg2"
 for sym in net_udp_recv_many_c net_udp_send_many_c net_udp_recv_many_buf_c net_udp_send_many_buf_c; do
   if [ -f "$NET_C" ] && grep -qE "^int ${sym}\\(" "$NET_C" 2>/dev/null; then
     die "net.c still defines $sym"
   fi
 done
-if [ -f "$NET_C" ] && grep -q 'shu_net_set_addr_port' "$NET_C" 2>/dev/null; then
+if [ -f "$NET_C" ] && grep -q 'xlang_net_set_addr_port' "$NET_C" 2>/dev/null; then
   die "net.c still has UDP batch helpers"
 fi
 grep -q 'udp_batch.x' compiler/Makefile || die "Makefile missing udp_batch.x"

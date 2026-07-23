@@ -9,7 +9,7 @@ DOC="analysis/next-yellow-clear-v1.md"
 MANIFEST="tests/baseline/next-yellow-clear.tsv"
 PREFIX="xlang: [XLANG_NEXT_YELLOW_CLEAR]"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -66,7 +66,7 @@ RUN_OK=0
 SKIP=1
 XLANG_BIN=""
 for cand in ./compiler/xlang-c ./compiler/xlang; do
-  if native_shu "$cand"; then XLANG_BIN="$cand"; break; fi
+  if native_xlang "$cand"; then XLANG_BIN="$cand"; break; fi
 done
 
 if [ -n "$XLANG_BIN" ]; then

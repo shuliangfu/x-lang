@@ -13,7 +13,7 @@ MIN_RULES=6
 # shellcheck source=tests/lib/tool-fmt.sh
 . tests/lib/tool-fmt.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -125,14 +125,14 @@ echo "tool-fmt manifest OK (cases=${CASE_N} rules=${RULE_N})"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   echo "=== TOOL-001: fmt hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-fmt-cmd.sh tests/run-fmt-check-cmd.sh tests/run-fmt-wrap.sh

@@ -105,7 +105,7 @@ if std_sqlite_probe_libs; then
   fi
 
   XLANG_BIN=""
-  stdlib_cm_native_shu() {
+  stdlib_cm_native_xlang() {
     local f="$1"
     [ -n "$f" ] && [ -x "$f" ] || return 1
     case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -116,9 +116,9 @@ if std_sqlite_probe_libs; then
       *) return 0 ;;
     esac
   }
-  if stdlib_cm_native_shu ./compiler/xlang-c; then
+  if stdlib_cm_native_xlang ./compiler/xlang-c; then
     XLANG_BIN=./compiler/xlang-c
-  elif stdlib_cm_native_shu ./compiler/xlang; then
+  elif stdlib_cm_native_xlang ./compiler/xlang; then
     XLANG_BIN=./compiler/xlang
   fi
 

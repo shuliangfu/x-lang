@@ -2,19 +2,19 @@
 # comp-incr-compile-wave.sh — COMP-020 incr-compile wave tier 烟测扩面辅助
 #
 # 用法（source 后）：
-#   comp_incr_wave_native_shu
+#   comp_incr_wave_native_xlang
 #   comp_incr_wave_hook_runnable HOOK_SCRIPT
 #   comp_incr_wave_emit_report status wave_ok wave_run wave_skip skip
 
 COMP020_PREFIX="${XLANG_COMP020_PREFIX:-xlang: [XLANG_COMP020_INCR_WAVE]}"
 
 # 复用 COMP-007 native xlang 探测。
-comp_incr_wave_native_shu() {
+comp_incr_wave_native_xlang() {
   # shellcheck source=tests/lib/comp-incr-compile.sh
   . tests/lib/comp-incr-compile.sh
   local cand
   for cand in ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm; do
-    if comp_incr_compile_native_shu "$cand"; then
+    if comp_incr_compile_native_xlang "$cand"; then
       return 0
     fi
   done
@@ -26,7 +26,7 @@ comp_incr_wave_hook_runnable() {
   local hook="$1"
   case "$hook" in
     run-comp-incr-compile.sh|run-obs-compile-phase-timing-gate.sh)
-      comp_incr_wave_native_shu
+      comp_incr_wave_native_xlang
       ;;
     run-comp-incr-compile-gate.sh)
       return 0

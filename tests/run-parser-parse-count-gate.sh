@@ -2,7 +2,7 @@
 # track/CI：asm pipeline 编 parser.x 时 pipeline num_funcs 须 ≥150；stretch 全量 module parse 目标 466。
 # 用法：./tests/run-parser-parse-count-gate.sh
 # 环境：XLANG_PARSER_PARSE_COUNT_FAIL=1 低于 MIN 时硬失败；XLANG_PARSER_PARSE_COUNT_MIN 默认 150
-#       XLANG_PARSER_PARSE_COUNT_TARGET 默认 466（full module parse）；SHU 默认 xlang_asm
+#       XLANG_PARSER_PARSE_COUNT_TARGET 默认 466（full module parse）；XLANG 默认 xlang_asm
 set -e
 cd "$(dirname "$0")/.."
 

@@ -42,7 +42,7 @@ bcmp_cc_o3() {
   cc -std=gnu11 -O3 -march=native -mtune=native -DNDEBUG "$@"
 }
 
-# B-CMP：用 Shu 生成 .c 再最小 cc 链（与 C 参照同级，避免全量 std 链干扰 microbench）。
+# B-CMP：用 Xlang 生成 .c 再最小 cc 链（与 C 参照同级，避免全量 std 链干扰 microbench）。
 bcmp_compile_shu_codegen() {
   local x="$1"
   local out="$2"
@@ -106,14 +106,14 @@ bench_case() {
   fi
   if [ -x "/tmp/bench_shu_${tag}" ]; then
     XLANG_ASM_MED=$(median_real "/tmp/bench_shu_${tag}")
-    echo "Shu (-O${XLANG_BENCH_OPT}) ${name} median real: ${XLANG_ASM_MED}s"
+    echo "Xlang (-O${XLANG_BENCH_OPT}) ${name} median real: ${XLANG_ASM_MED}s"
   fi
 
   if [ "$PERF_COMPILE_XLANG" != "./compiler/xlang-c" ] \
     && $PERF_COMPILE_XLANG -O "$XLANG_BENCH_OPT" "$x" -backend c -o "/tmp/bench_shu_c_${tag}" 2>&1 \
     && [ -x "/tmp/bench_shu_c_${tag}" ]; then
     XLANG_C_MED=$(median_real "/tmp/bench_shu_c_${tag}")
-    echo "Shu (-backend c) ${name} median real: ${XLANG_C_MED}s"
+    echo "Xlang (-backend c) ${name} median real: ${XLANG_C_MED}s"
   elif [ "$PERF_COMPILE_XLANG" = "./compiler/xlang-c" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
     XLANG_C_MED="$XLANG_ASM_MED"
   fi
@@ -128,9 +128,9 @@ bench_case() {
       && [ -x "/tmp/bench_asm_${tag}" ]; then
       ASM_MED=$(median_real "/tmp/bench_asm_${tag}")
       if [ "${#asm_bcmp_env[@]}" -gt 0 ]; then
-        echo "Shu asm (-O${XLANG_BENCH_OPT}, freestanding) ${name} median real: ${ASM_MED}s"
+        echo "Xlang asm (-O${XLANG_BENCH_OPT}, freestanding) ${name} median real: ${ASM_MED}s"
       else
-        echo "Shu asm (-O${XLANG_BENCH_OPT}) ${name} median real: ${ASM_MED}s"
+        echo "Xlang asm (-O${XLANG_BENCH_OPT}) ${name} median real: ${ASM_MED}s"
       fi
     fi
   fi
@@ -156,9 +156,9 @@ bench_case() {
   printf '\n'
   printf '| %s | real (s) 中位数 |\n' "$name"
   printf '|---|----------------|\n'
-  printf '| Shu (-O%s) | %s |\n' "$XLANG_BENCH_OPT" "$XLANG_ASM_MED"
-  printf '| Shu (-backend c, -O%s) | %s |\n' "$XLANG_BENCH_OPT" "$XLANGXX_C_MED"
-  printf '| Shu asm (-O%s) | %s |\n' "$XLANG_BENCH_OPT" "$ASM_MED"
+  printf '| Xlang (-O%s) | %s |\n' "$XLANG_BENCH_OPT" "$XLANG_ASM_MED"
+  printf '| Xlang (-backend c, -O%s) | %s |\n' "$XLANG_BENCH_OPT" "$XLANGXX_C_MED"
+  printf '| Xlang asm (-O%s) | %s |\n' "$XLANG_BENCH_OPT" "$ASM_MED"
   printf '| C -O2 | %s |\n' "$C_MED"
   printf '| C -O3 | %s |\n' "$C_O3_MED"
   printf '| Zig -O2 | %s |\n' "$ZIG_MED"
@@ -167,22 +167,22 @@ bench_case() {
   # P2 门禁：default asm 中位数须 ≤ Zig -O2（zig 不可用时跳过）
   if [ "$PERF_FAIL_ZIG" -eq 1 ] && [ "$ZIG_MED" != "nan" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
     if awk -v xlang="$XLANG_ASM_MED" -v zig="$ZIG_MED" 'BEGIN { exit (xlang <= zig + 0.000001) ? 0 : 1 }'; then
-      echo "perf gate OK: ${name} Shu asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
+      echo "perf gate OK: ${name} Xlang asm ${XLANG_ASM_MED}s <= Zig ${ZIG_MED}s"
     else
-      echo "perf gate FAIL: ${name} Shu asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
+      echo "perf gate FAIL: ${name} Xlang asm ${XLANG_ASM_MED}s > Zig ${ZIG_MED}s" >&2
       PERF_ZIG_FAILS=$((PERF_ZIG_FAILS + 1))
     fi
   fi
 
-  # L2 B-CMP：Shu -O3 中位数须 ≤ ratio× C -O3（cc 不可用时跳过）
+  # L2 B-CMP：Xlang -O3 中位数须 ≤ ratio× C -O3（cc 不可用时跳过）
   if [ "$PERF_FAIL_C_O3" -eq 1 ] && [ "$C_O3_MED" != "nan" ] && [ "$XLANG_ASM_MED" != "nan" ]; then
     if awk -v xlang="$XLANG_ASM_MED" -v c="$C_O3_MED" -v r="$C_O3_RATIO" 'BEGIN {
       slack = (r + 0 >= 0.999) ? 0.002 : 0
       exit (xlang <= c * r + slack + 0.000001) ? 0 : 1
     }'; then
-      echo "perf B-CMP OK: ${name} Shu -O${XLANG_BENCH_OPT} ${XLANG_ASM_MED}s <= ${C_O3_RATIO}× C-O3 ${C_O3_MED}s"
+      echo "perf B-CMP OK: ${name} Xlang -O${XLANG_BENCH_OPT} ${XLANG_ASM_MED}s <= ${C_O3_RATIO}× C-O3 ${C_O3_MED}s"
     else
-      echo "perf B-CMP FAIL: ${name} Shu -O${XLANG_BENCH_OPT} ${XLANG_ASM_MED}s > ${C_O3_RATIO}× C-O3 ${C_O3_MED}s" >&2
+      echo "perf B-CMP FAIL: ${name} Xlang -O${XLANG_BENCH_OPT} ${XLANG_ASM_MED}s > ${C_O3_RATIO}× C-O3 ${C_O3_MED}s" >&2
       PERF_C_O3_FAILS=$((PERF_C_O3_FAILS + 1))
     fi
   fi

@@ -296,7 +296,7 @@ int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
  * 参数：doc 输入；doc_len 长度；out_buf 输出缓冲；out_cap 容量。
  * 返回值：写入字节数；失败 -1。
  */
-int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
+int xlang_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
     if (!doc || doc_len <= 0 || !out_buf || out_cap <= doc_len)
         return -1;
     memcpy(out_buf, doc, (size_t)doc_len);

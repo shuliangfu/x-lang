@@ -8,7 +8,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 ulimit -s 16384 2>/dev/null || true
 
 # 本机可执行 xlang 探测（Docker 优先 xlang-c，避免 bind-mount Mach-O xlang SIGSEGV）
-_option_native_shu() {
+_option_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -21,15 +21,15 @@ _option_native_shu() {
 }
 
 XLANG="${XLANG:-}"
-if [ -z "$XLANG" ] || ! _option_native_shu "$XLANG"; then
+if [ -z "$XLANG" ] || ! _option_native_xlang "$XLANG"; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if _option_native_shu "$cand"; then
+    if _option_native_xlang "$cand"; then
       XLANG="$cand"
       break
     fi
   done
 fi
-if [ -z "$XLANG" ] || ! _option_native_shu "$XLANG"; then
+if [ -z "$XLANG" ] || ! _option_native_xlang "$XLANG"; then
   echo "option: no native xlang" >&2
   exit 1
 fi

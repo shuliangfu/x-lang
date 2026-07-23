@@ -14,7 +14,7 @@ MIN_PACKAGES=8
 # shellcheck source=tests/lib/tool-pkgmgr.sh
 . tests/lib/tool-pkgmgr.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -152,14 +152,14 @@ chmod +x scripts/xlang-deps-resolve.sh tests/run-pkgmgr-resolve.sh
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== TOOL-007: pkgmgr hooks (XLANG=$XLANG_BIN) ==="
   XLANG="$XLANG_BIN" ./tests/run-pkgmgr-resolve.sh
   echo "tool-pkgmgr hooks OK"

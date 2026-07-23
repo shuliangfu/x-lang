@@ -18,7 +18,7 @@ boot025_gen12_linux_asm() {
   if ci_is_docker && [ ! -x "./compiler/xlang_asm" ]; then
     return 1
   fi
-  comp_riscv64_native_shu "./compiler/xlang_asm" || return 1
+  comp_riscv64_native_xlang "./compiler/xlang_asm" || return 1
   [ -x "./compiler/xlang" ] || [ -x "./compiler/xlang-x" ] || return 1
   return 0
 }

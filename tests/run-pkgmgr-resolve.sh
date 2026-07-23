@@ -12,7 +12,7 @@ chmod +x scripts/xlang-deps-resolve.sh
 ./scripts/xlang-deps-resolve.sh "$MANIFEST"
 
 XLANG="${XLANG:-./compiler/xlang}"
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -24,7 +24,7 @@ native_shu() {
   esac
 }
 
-if [ -n "$XLANG" ] && native_shu "$XLANG"; then
+if [ -n "$XLANG" ] && native_xlang "$XLANG"; then
   make -C compiler -q 2>/dev/null || make -C compiler
   EXE="/tmp/xlang_pkgmgr_demo_$$"
   if ! "$XLANG" build -L . "$MAIN" -o "$EXE" 2>&1; then

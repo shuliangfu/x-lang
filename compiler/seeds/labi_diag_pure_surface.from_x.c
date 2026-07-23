@@ -5,7 +5,7 @@
  * Cap residual: link_diag_ld_debug_argv → mega _impl (char**);
  *   link_diag_strerror_current_impl (errno+strerror; wave217);
  *   link_diag_wait_*_impl (WIF*; wave217);
- *   shu_waitpid_retry_impl (waitpid+EINTR+strerror; wave216);
+ *   xlang_waitpid_retry_impl (waitpid+EINTR+strerror; wave216);
  *   xlang_spawn_sync_impl (fork/exec/wait or _spawnvp; wave219);
  *   invoke_cc_strip_out_x_impl (strip argv pack + spawn; wave220);
  *   link_abi_getenv_impl (host getenv; wave222);
@@ -180,11 +180,11 @@ typedef struct { float e[4]; } f32x4_t;
 typedef struct { float e[8]; } f32x8_t;
 typedef struct { float e[16]; } f32x16_t;
 #endif
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
+typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
-static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
+__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
 #define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
 extern void io_unregister_buffers(void);
 extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
@@ -203,10 +203,10 @@ extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t off
 extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
 extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
 extern int32_t xlang_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
-static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
+static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
+static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
 static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
 #define xlang_io_register(buf) xlang_io_register_buf(buf)
@@ -484,7 +484,7 @@ extern void link_diag_runtime_obj_build_status(uint8_t * obj_name, int32_t statu
 extern void link_diag_errno(uint8_t * kind, uint8_t * op);
 extern void link_diag_errno_path(uint8_t * kind, uint8_t * op, uint8_t * path);
 extern void xlang_link_perror(uint8_t * msg);
-extern int32_t shu_waitpid_retry(int64_t pid, int32_t * status_out);
+extern int32_t xlang_waitpid_retry(int64_t pid, int32_t * status_out);
 extern int32_t labi_diag_pure_count(void);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
 extern void link_diag_ld_debug_argv_impl(uint8_t * label, uint8_t * argv);
@@ -492,7 +492,7 @@ extern void link_diag_ld_debug_argv_impl(uint8_t * label, uint8_t * argv);
 extern uint8_t * link_diag_strerror_current_impl(void);
 extern int32_t link_diag_wait_is_signaled_impl(int32_t status);
 extern int32_t link_diag_wait_code_impl(int32_t status);
-extern int32_t shu_waitpid_retry_impl(int64_t pid, int32_t * status_out);
+extern int32_t xlang_waitpid_retry_impl(int64_t pid, int32_t * status_out);
 /* Cap residual mega always _impl (wave219); pure public thin defined below.
  * argv as uint8_t* matches product .x *u8 opaque char** width (export **u8 drops body). */
 extern int32_t xlang_spawn_sync_impl(uint8_t * prog, uint8_t * argv);
@@ -972,10 +972,10 @@ int32_t link_diag_wait_code(int32_t status) {
   }
   return (0 - 1);
 }
-/* wave216: shu_waitpid_retry pure thin (surface pin ≡ .x). */
-int32_t shu_waitpid_retry(int64_t pid, int32_t * status_out) {
+/* wave216: xlang_waitpid_retry pure thin (surface pin ≡ .x). */
+int32_t xlang_waitpid_retry(int64_t pid, int32_t * status_out) {
   {
-    return shu_waitpid_retry_impl(pid, status_out);
+    return xlang_waitpid_retry_impl(pid, status_out);
   }
   return (0 - 1);
 }

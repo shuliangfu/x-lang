@@ -95,8 +95,8 @@ med=$(printf '%s\n' "$vals" | sed '/^$/d' | sort -n | awk '{
   if (NR==0) { print "nan"; exit }
   if (NR%2) print a[(NR+1)/2]; else print (a[NR/2]+a[NR/2+1])/2
 }')
-echo "Shu IOCP pipe batch median real: ${med}s"
-printf '\n| iocp_pipe_batch | real (s) 中位数 |\n|---|----------------|\n| Shu (IOCP batch) | %s |\n\n' "$med"
+echo "Xlang IOCP pipe batch median real: ${med}s"
+printf '\n| iocp_pipe_batch | real (s) 中位数 |\n|---|----------------|\n| Xlang (IOCP batch) | %s |\n\n' "$med"
 
 check_iocp_regress iocp_pipe_batch "$med"
 

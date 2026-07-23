@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 全量回归套件：运行所有 run-*.sh（与 compiler/Makefile 的 test 目标一致）。
 # 自举测试不跑：run-x-pipeline、run-x-multi-file、run-asm、run-without-c、run-bootstrap-verify 均不执行。
-# 入口：./tests/run-all.sh；不设 SHU 时 make all 后优先 export XLANG=./compiler/xlang-c（与 Makefile test_c 一致），避免本机 compiler/xlang 为 seed 时子脚本误用 .x 路径。
+# 入口：./tests/run-all.sh；不设 XLANG 时 make all 后优先 export XLANG=./compiler/xlang-c（与 Makefile test_c 一致），避免本机 compiler/xlang 为 seed 时子脚本误用 .x 路径。
 
 set -e
 cd "$(dirname "$0")/.."
@@ -117,7 +117,7 @@ if [ -n "$XLANG" ]; then
         # stdlib-import 等用 xlang-c 链多模块可执行；seed 仅 check/typeck。
         # -B 重建确保 xlang-c 是真正 C 前端（bootstrap-driver-seed 可能触发依赖重建覆盖）。
         make -B -C compiler XLANG_LEGACY_C_FRONTEND=1 xlang-c 2>/dev/null || true
-        # 可执行链接/退出码回归优先 xlang-c；typeck/check 仍用 SHU（seed）。
+        # 可执行链接/退出码回归优先 xlang-c；typeck/check 仍用 XLANG（seed）。
         if [ -x ./compiler/xlang-c ]; then
             export XLANG_LINK_XLANG=./compiler/xlang-c
         fi
@@ -133,7 +133,7 @@ if [ -n "$XLANG" ]; then
     make -C compiler std-objs XLANG_COMPILE_STD_USE_C=1 2>/dev/null || true
     # 预编译 core .o（XLANG_SKIP_SUBSCRIPT_MAKE=1 时子脚本跳过 make，需入口预构建）
     make -C compiler ../core/slice/slice.o 2>/dev/null || true
-    # SHU 与 compiler/xlang 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：XLANG=./compiler/xlang）。
+    # XLANG 与 compiler/xlang 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：XLANG=./compiler/xlang）。
     if [ -f compiler/xlang ] && [ compiler/xlang -ef "$XLANG" ]; then
         :
     elif [ -f compiler/xlang ]; then
@@ -145,7 +145,7 @@ if [ -n "$XLANG" ]; then
         # bak restore is handled by top-level EXIT trap (_run_all_on_exit).
     fi
 else
-    # 无 SHU 时默认使用 C 流水线：仅构建 all（C 版 xlang），子脚本不构建 bootstrap-driver-seed
+    # 无 XLANG 时默认使用 C 流水线：仅构建 all（C 版 xlang），子脚本不构建 bootstrap-driver-seed
     export RUN_ALL_USE_C=1
     make -C compiler -q all 2>/dev/null || make -C compiler all
     # 与 Makefile test_c 一致：子脚本用 xlang-c 走纯 C 前端，避免本机 compiler/xlang 已是
@@ -179,7 +179,7 @@ RUN_FAILED_SCRIPTS=""
 RUN_BSTRICT_SKIP_COUNT=0
 # bootstrap seed 下：typeck/check/lexer/preprocess 用 seed；其余 -o 走 xlang-c（L5 白名单仅 B-strict/xlang_asm 门禁用）。
 # L5 白名单增量与三链矩阵：tests/docs/run-all-l5-whitelist.md
-# 白名单脚本列表（run_shu_for_script / XLANG_BSTRICT_RUN_ALL 门禁共用）。
+# 白名单脚本列表（run_xlang_for_script / XLANG_BSTRICT_RUN_ALL 门禁共用）。
 run_all_l5_whitelist_case() {
     case "$1" in
         run-lexer.sh|run-typeck.sh|run-check.sh|run-types-gate.sh|run-stdlib-import.sh|run-import.sh|run-std.sh|run-hello.sh|run-io.sh|run-http.sh|run-tar.sh|run-json.sh|run-csv.sh|run-net.sh|run-process.sh|run-set.sh|run-queue.sh|run-vec.sh|run-heap.sh|run-fs.sh|run-path.sh|run-map.sh|run-error.sh|run-compress.sh|run-thread.sh|run-fmt.sh|run-fmt-std.sh|run-debug.sh|run-io-driver.sh|run-multi-file-generic.sh|run-env.sh|run-crypto.sh|run-log.sh|run-stdtest.sh|run-channel.sh|run-backtrace.sh|run-hash.sh|run-math.sh|run-sort.sh|run-unicode.sh|run-dynlib.sh|run-random.sh|run-runtime.sh|run-abi-layout.sh|run-ub.sh|run-safe-leak-nightly-gate.sh|run-signed-overflow-gate.sh|run-lexer-bounds-gate.sh|run-layout-overflow-gate.sh|run-link-hardening-gate.sh|run-std-mem-safe-gate.sh|run-lang-unsafe-gate.sh|run-scope-borrow-gate.sh|run-al06-gate.sh|run-type-borrow-conflict-gate.sh|run-i64-ctfe-gate.sh|run-safe-unsafe-audit-gate.sh|run-target.sh|run-fmt-cmd.sh|run-test-cmd.sh|run-multi-file.sh|run-multi-func.sh|run-toplevel-let.sh|run-let-const.sh|run-return-value.sh|run-return-expr.sh|run-struct.sh|run-parser.sh|run-for.sh|run-array.sh|run-pointer.sh|run-if-expr.sh|run-enum-asm.sh|run-match.sh|run-enum.sh|run-dual-chain-struct-return.sh|run-float.sh|run-slice.sh|run-defer.sh|run-vector.sh|run-asm-binop-var.sh|run-asm-binop-block-var.sh|run-asm-binop-cfg-merge.sh|run-asm-binop-field-index.sh|run-asm-binop-nested-var.sh|run-asm-binop-index-lit.sh|run-asm-index-var.sh|run-asm-vector-var.sh|run-asm-assign-var.sh|run-asm-assign-index-binop.sh|run-asm-assign-index-lit.sh|run-asm-assign-index-lit-to-index.sh|run-asm-binop-block-var.sh|run-asm-assign-index-var.sh|run-asm-assign-index-expr.sh|run-asm-assign-index-block.sh|run-asm-assign-index-param.sh|run-asm-binop-div-index.sh|run-asm-cmp-index-binop.sh|run-panic.sh|run-result.sh|run-bool.sh|run-while.sh|run-option.sh|run-binary-expr.sh|run-compound-assign.sh|run-ternary.sh|run-boundary-encodings.sh|run-pool-limits.sh|run-preprocess.sh|run-goto.sh|run-mem.sh|run-string.sh|run-core-types.sh|run-builtin.sh|run-generic.sh|run-trait.sh|run-encoding.sh|run-base64.sh|run-time.sh|run-sync.sh|run-atomic.sh|run-ffi.sh|run-safe-ffi-contract-gate.sh)
@@ -188,7 +188,7 @@ run_all_l5_whitelist_case() {
     esac
     return 1
 }
-run_shu_for_script() {
+run_xlang_for_script() {
     local script="$1"
     # bootstrap seed（非 B-strict）：仅 typeck/check/lexer/preprocess 用 seed；其余 -o 一律 xlang-c（ubuntu seed asm 全链路易 SIGSEGV/ld 失败）。
     if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -z "${XLANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/xlang-c ]; then
@@ -203,7 +203,7 @@ run_shu_for_script() {
             ;;
         esac
     fi
-    # 非 x86_64 bootstrap：可执行 -o 优先 xlang-c；typeck/check/lexer 仍用 seed SHU 验 .x 流水线。
+    # 非 x86_64 bootstrap：可执行 -o 优先 xlang-c；typeck/check/lexer 仍用 seed XLANG 验 .x 流水线。
     case "$(uname -m 2>/dev/null)" in
       x86_64|amd64) ;;
       *)
@@ -218,7 +218,7 @@ run_shu_for_script() {
         fi
         ;;
     esac
-    # B-strict：白名单脚本一律用 SHU（xlang_asm），其余仍 xlang-c（与 L4 拓扑相同，仅编译器二进制不同）。
+    # B-strict：白名单脚本一律用 XLANG（xlang_asm），其余仍 xlang-c（与 L4 拓扑相同，仅编译器二进制不同）。
     if [ -n "${XLANG_BSTRICT_RUN_ALL:-}" ] && [ -x ./compiler/xlang-c ]; then
         if run_all_l5_whitelist_case "$script"; then
             echo "$XLANG"
@@ -250,7 +250,7 @@ run() {
             ;;
         esac
     fi
-    run_shu=$(run_shu_for_script "$script")
+    run_shu=$(run_xlang_for_script "$script")
     if [ ! -f "tests/$script" ]; then
         echo "run-all FAIL: missing tests/$script" >&2
         exit 1

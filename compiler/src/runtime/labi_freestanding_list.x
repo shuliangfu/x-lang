@@ -56,7 +56,7 @@ export extern "C" function link_abi_buf_contains_substr_use_line(data: *u8, data
 // Peer pure (labi_host_lit L thin → Cap residual _impl #if __linux__).
 export extern "C" function xlang_host_is_linux(): i32;
 // Cap residual (wave167/168 ensure pure orch): resolve / access / cc / skip-stat.
-export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
+export extern "C" function xlang_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 export extern "C" function link_abi_path_readable(path: *u8): i32;
 export extern "C" function xlang_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32;
 export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
@@ -2162,7 +2162,7 @@ export function xlang_link_freestanding_enabled(driver_freestanding: i32): i32 {
  * Pure orch: peer freestanding_enabled + pure table out_base/src_rel/stem + pure byte join
  *   (no snprintf Cap) after Cap residual resolve; Cap residual path_readable + cc_compile_sync
  *   + skip_missing (stat) + path pure crt0 ladder + peer diags.
- * Cap residual: shu_resolve_compiler_dir (PLATFORM #if body); link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir (PLATFORM #if body); link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
  * Why (wave167): hybrid still had always-mega C body for freestanding crt0 ensure path ladder
  *   (tables already pure; only orch+join stayed mega over access/cc Cap).
@@ -2195,7 +2195,7 @@ export function xlang_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): 
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     // Match mega: diag with out_base (fallback leaf name if table null).
@@ -2312,7 +2312,7 @@ export function xlang_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): 
  * Pure orch: peer freestanding_enabled + pure table out_base/src_rel/stem(1) + pure byte join
  *   (no snprintf Cap) after Cap residual resolve; Cap residual path_readable + cc_compile_sync
  *   + skip_missing (stat) + path pure freestanding_io ladder + peer diags.
- * Cap residual: shu_resolve_compiler_dir (PLATFORM #if body); link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir (PLATFORM #if body); link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
  * Why (wave168): hybrid still had always-mega C body for freestanding_io ensure path ladder
  *   (tables already pure wave276; o_path pure wave165; only orch+join stayed mega over access/cc Cap).
@@ -2345,7 +2345,7 @@ export function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: 
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     // Match mega: diag with out_base (fallback leaf name if table null).

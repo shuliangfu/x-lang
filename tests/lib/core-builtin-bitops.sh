@@ -4,7 +4,7 @@
 # 用法（source 后）：
 #   core_builtin_mappings_ok CODEGEN_C TSV
 #   core_builtin_c_impl_ok BUILTIN_C TSV
-#   core_builtin_emit_ok SHU X_FILE TSV
+#   core_builtin_emit_ok XLANG X_FILE TSV
 #   core_builtin_emit_report status found total
 
 CORE_BUILTIN_PREFIX="${XLANG_CORE_BUILTIN_BITOPS_PREFIX:-xlang: [XLANG_CORE_BUILTIN_BITOPS]}"

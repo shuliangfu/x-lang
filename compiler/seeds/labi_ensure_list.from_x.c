@@ -32,7 +32,7 @@
 #ifndef XLANG_LABI_ENSURE_LIST_FROM_X
 
 /* Cap residual peers used by wave173 catalog ensure + wave169/170/171/172 special ensure pure orch (cold twin). */
-int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
+int xlang_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz);
 int link_abi_path_readable(const char *path);
 int xlang_cc_compile_sync(const char *src, const char *out_o, const char *inc0, const char *inc1,
                          const char *inc2, int from_asm_s);
@@ -355,7 +355,7 @@ int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx, const char 
   have = asm_link_obj_skip_missing(product_path);
   if (have != NULL)
     return 0;
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     const char *hint = NULL;
     if (catalog_idx == 0)
@@ -484,7 +484,7 @@ int xlang_ensure_runtime_panic_o(const char *argv0) {
   have = asm_link_obj_skip_missing(o_path);
   if (have != NULL)
     return 0;
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: make -C compiler runtime_panic.o");
     return -1;
@@ -619,7 +619,7 @@ int xlang_ensure_runtime_heap_user_o(const char *argv0) {
       return 0;
     (void)unlink(existing);
   }
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail("runtime_heap_user.o", NULL);
     return -1;
@@ -715,7 +715,7 @@ int xlang_ensure_runtime_test_fn_invoke_o(const char *argv0) {
   have = asm_link_obj_skip_missing(existing);
   if (have != NULL)
     return 0;
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o",
                                        "try: make -C compiler runtime_test_fn_invoke.o");
@@ -813,7 +813,7 @@ int xlang_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
   have = asm_link_obj_skip_missing(existing);
   if (have != NULL)
     return 0;
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail("runtime_tls_mbedtls_bio.o", NULL);
     return -1;
@@ -912,7 +912,7 @@ int xlang_ensure_bootstrap_nostdlib_stubs_o(const char *argv0) {
     if (have != NULL)
       return 0;
   }
-  rc = shu_resolve_compiler_dir(argv0, comp, sizeof comp);
+  rc = xlang_resolve_compiler_dir(argv0, comp, sizeof comp);
   if (rc != 0) {
     link_diag_runtime_obj_resolve_fail("bootstrap_nostdlib_stubs.o", NULL);
     return -1;

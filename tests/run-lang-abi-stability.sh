@@ -16,14 +16,14 @@ echo "lang-abi-stability OK layout"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang_asm ./compiler/xlang-c ./compiler/xlang; do
-    if lang_abi_native_shu "$cand"; then
+    if lang_abi_native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && lang_abi_native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && lang_abi_native_xlang "$XLANG_BIN"; then
   if [ -x tests/run-abi-f32-xmm-gate.sh ]; then
     echo "=== LANG-005: f32 xmm ABI (optional) ==="
     chmod +x tests/run-abi-f32-xmm-gate.sh

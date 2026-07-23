@@ -42,7 +42,7 @@ SKIP=1
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if perf_phase3_native_shu "$cand"; then
+    if perf_phase3_native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi

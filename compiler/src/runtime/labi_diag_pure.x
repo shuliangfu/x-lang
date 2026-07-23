@@ -31,7 +31,7 @@ export extern "C" function link_diag_wait_is_signaled_impl(status: i32): i32;
 export extern "C" function link_diag_wait_code_impl(status: i32): i32;
 
 /* Cap residual (wave216): waitpid + EINTR retry + strerror report (mega always). */
-export extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
+export extern "C" function xlang_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
 
 /* Cap residual (wave219): host spawn body (POSIX fork+execvp+waitpid / Windows _spawnvp).
  * Public pure thin owns null/empty gates under hybrid L1. argv is NULL-terminated
@@ -757,22 +757,22 @@ export function link_diag_wait_code(status: i32): i32 {
 
 /**
  * Wait for child `pid`; retry on EINTR; optional status store.
- * Thin pure public: Cap residual `shu_waitpid_retry_impl` holds waitpid loop,
+ * Thin pure public: Cap residual `xlang_waitpid_retry_impl` holds waitpid loop,
  * errno capture, libc strerror, and process-error reportf.
  * @param pid i64 — child process id (POSIX pid_t width on product hosts)
  * @param status_out *i32 — optional wait status out; null allowed (impl skips store)
  * @return i32 — 0 success, -1 waitpid failure after non-EINTR error
  * Pure orch: ≡ mega public thin before Cap residual waitpid body (wave216).
- * Why (wave216): hybrid still had shu_waitpid_retry body always mega C
+ * Why (wave216): hybrid still had xlang_waitpid_retry body always mega C
  * (waitpid+EINTR+strerror+diag); G.7 single public authority under L1 hybrid.
- * Cap residual: shu_waitpid_retry_impl (mega always).
+ * Cap residual: xlang_waitpid_retry_impl (mega always).
  * PLATFORM: SHARED orch; residual is POSIX waitpid (Windows spawn paths skip).
  * Track-L: #[no_mangle] keeps short surface name for spawn/ld/cc callers.
  */
 #[no_mangle]
-export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
+export function xlang_waitpid_retry(pid: i64, status_out: *i32): i32 {
   unsafe {
-    return shu_waitpid_retry_impl(pid, status_out);
+    return xlang_waitpid_retry_impl(pid, status_out);
   }
   return 0 - 1;
 }
@@ -781,7 +781,7 @@ export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
  * Synchronously run prog with argv (PATH lookup); wait for exit 0.
  * Thin pure public: null/empty prog or null argv → -1 without residual.
  * Cap residual `xlang_spawn_sync_impl` holds fork+execvp+waitpid (POSIX) or
- * `_spawnvp` (Windows). Uses public `shu_waitpid_retry` inside residual.
+ * `_spawnvp` (Windows). Uses public `xlang_waitpid_retry` inside residual.
  * @param prog *u8 — program name for PATH lookup; null/empty rejected at pure gate
  * @param argv *u8 — opaque pointer to NULL-terminated argv vector (C char** width);
  *   typed *u8 so product codegen emits the body (see export-extern note above)
@@ -894,7 +894,7 @@ export function link_abi_system(cmd: *u8): i32 {
 
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
  * wave111: xlang_link_perror is extra pure orch (not counted in the original 9).
- * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9).
+ * wave216: xlang_waitpid_retry pure thin is extra (not counted in the original 9).
  * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra.
  * wave219: xlang_spawn_sync pure thin is extra (not counted in the original 9).
  * wave220: invoke_cc_strip_out_x pure thin is extra (not counted in the original 9).

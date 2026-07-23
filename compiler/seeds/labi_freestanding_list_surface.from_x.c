@@ -161,11 +161,11 @@ typedef struct { float e[4]; } f32x4_t;
 typedef struct { float e[8]; } f32x8_t;
 typedef struct { float e[16]; } f32x16_t;
 #endif
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;
+typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;
 extern int io_register_buffer(uint8_t *ptr, size_t len);
 extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);
-__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
-static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }
+__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }
+static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }
 #define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))
 extern void io_unregister_buffers(void);
 extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
@@ -184,10 +184,10 @@ extern int32_t xlang_io_read_fixed(size_t handle, uint32_t buf_index, size_t off
 extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);
 extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);
 extern int32_t xlang_io_read_ptr_len(void);
-typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
-static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
-static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
-static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
+static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }
+static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
+static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }
 static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }
 static inline int32_t std_io_driver_submit_write_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_write_buf((intptr_t)buf, (int32_t)timeout_ms); }
 #define xlang_io_register(buf) xlang_io_register_buf(buf)
@@ -533,7 +533,7 @@ extern int32_t link_abi_buf_contains_substr_use_line(uint8_t * data, size_t data
 extern int32_t xlang_host_is_linux(void);
 /* wave223 G.7: env lookup authority = public pure thin link_abi_getenv (labi_diag_pure). */
 extern uint8_t * link_abi_getenv(uint8_t * name);
-extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
+extern int32_t xlang_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t xlang_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
@@ -1883,7 +1883,7 @@ int32_t xlang_ensure_crt0_user_o(uint8_t * argv0, int32_t driver_freestanding) {
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     uint8_t * name = out_base;
     if ((name ==0)) {
@@ -1982,7 +1982,7 @@ int32_t xlang_ensure_freestanding_io_o(uint8_t * argv0, int32_t driver_freestand
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     uint8_t * name = out_base;
     if ((name ==0)) {

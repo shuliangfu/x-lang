@@ -1967,7 +1967,7 @@ DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
 DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
 # Why: runtime_driver_strict_glue_stubs.o provides C API weak/strong stubs
 #      (typeck_module, typeck_one_function, parse, preprocess_*, codegen_*,
-#      lsp_*, shu_c_resolve_and_load_imports, etc.) that satisfy U refs from
+#      lsp_*, xlang_c_resolve_and_load_imports, etc.) that satisfy U refs from
 #      runtime_driver.o / rt_preamble.o / lsp_diag.o / parser_x.o / pipeline_x.o /
 #      preprocess_x.o / backend_try_inline_dispatch.o. Without this .o the
 #      link fails on Windows MSYS/MinGW with 40+ "undefined reference" errors.
@@ -2061,7 +2061,7 @@ DRIVER_SEED_GLUE_PREFIX =
 #      have no real impl so no duplicate. PLATFORM: SHARED.
 # PLATFORM: SHARED — Windows-critical; no-op on ELF/Darwin.
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O) src/runtime_driver_strict_glue_stubs.o
-# LSP_DIAG_LINK_O：fmt 命令依赖 shu_format_x_document 的真实实现，必须链入 lsp_diag.o
+# LSP_DIAG_LINK_O：fmt 命令依赖 xlang_format_x_document 的真实实现，必须链入 lsp_diag.o
 # 而非 lsp_diag_stubs_no_c.o（no-op stub 会让 fmt 静默无操作）。
 # 历史：E-02 v1 误注 "lsp_diag.c 已删" 但文件实存；链接 stub 导致 fmt 不生效。
 # 修复日期：2026-07-04。
@@ -2925,8 +2925,8 @@ build-via-tool: build-tool
 	./build_tool ./$(TARGET)
 	@echo "build-via-tool OK（xlang 已由 build_tool 产出）"
 
-# 阶段 8.1/8.2：用 seed 产出 shu₁（C 生成 pipeline_gen.c/driver_gen.c 再链接）；用 shu₁ 再编得到 shu₂。两代跑 run-all 一致即自举验证通过。
-# 注：asm 链接就绪（Goal 2）后可改为 bootstrap-driver，则 shu₁ 为 asm 版，实现「无 C 生成」自举。
+# 阶段 8.1/8.2：用 seed 产出 xlang₁（C 生成 pipeline_gen.c/driver_gen.c 再链接）；用 xlang₁ 再编得到 xlang₂。两代跑 run-all 一致即自举验证通过。
+# 注：asm 链接就绪（Goal 2）后可改为 bootstrap-driver，则 xlang₁ 为 asm 版，实现「无 C 生成」自举。
 # 与 bootstrap-driver-seed 一致；std.io 纯 .x（F-03 v2/v3）。
 # bootstrap-self 末尾：stage2 对 return-value -o /tmp/out_self 可与 run-return-value.sh 一致产出 Mach-O/ELF；若为 C 源码则用 cc -x c 链出临时 bin（勿假定 -o *.c 必为 C）。
 bootstrap-self: bootstrap-driver-seed
@@ -3047,7 +3047,7 @@ bootstrap-x-compiler: xlang-x-pipeline
 	$(CC) $(CFLAGS) -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN -o $(TARGET)_x_stage2 $(OBJS) typeck_x_x.o codegen_x_x.o
 	@echo "bootstrap-x-compiler OK (.x 流水线生成 typeck/codegen C 并链接 xlang_x_stage2)"
 
-# 自举测试（不含 run-all）：seed 构建 xlang，再用 xlang 自编得到 shu_stage2，stage2 跑 return-value 返回 42 即通过。用于快速验证「xlang 能编译自己」。
+# 自举测试（不含 run-all）：seed 构建 xlang，再用 xlang 自编得到 xlang_stage2，stage2 跑 return-value 返回 42 即通过。用于快速验证「xlang 能编译自己」。
 bootstrap-test: bootstrap-self
 	@echo "Bootstrap tests OK (self-compilation: xlang1 -> xlang2)"
 

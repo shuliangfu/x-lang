@@ -21,13 +21,13 @@
 // See implementation.
 
 /* See implementation. */
-export const SHU_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
+export const XLANG_GZIP_STREAM_MAGIC: u32 = 0x475a5354;
 
 /* See implementation. */
-export const SHU_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
+export const XLANG_BROTLI_STREAM_MAGIC: u32 = 0x42525354;
 
 /* See implementation. */
-export const SHU_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
+export const XLANG_ZSTD_STREAM_MAGIC: u32 = 0x5a535452;
 
 /* See implementation. */
 allow(padding) struct CompressStreamHdr {

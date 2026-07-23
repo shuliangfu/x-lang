@@ -809,7 +809,7 @@
                                 "data": {
                                     "id": "m00076",
                                     "created": 1784118466281,
-                                    "text": "shu_lsp_free_loaded_imports",
+                                    "text": "xlang_lsp_free_loaded_imports",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_pipeline_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_pipeline_abi.x"
@@ -7394,7 +7394,7 @@
                                 "data": {
                                     "id": "m00631",
                                     "created": 1784118466836,
-                                    "text": "shu_resolve_* (2)",
+                                    "text": "xlang_resolve_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -7404,11 +7404,11 @@
                                         "data": {
                                             "id": "m00632",
                                             "created": 1784118466837,
-                                            "text": "shu_resolve_compiler_dir_impl",
+                                            "text": "xlang_resolve_compiler_dir_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shu_resolve_compiler_dir_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_resolve_compiler_dir_impl"
                                         },
                                         "children": []
                                     },
@@ -7416,11 +7416,11 @@
                                         "data": {
                                             "id": "m00633",
                                             "created": 1784118466838,
-                                            "text": "shu_resolve_compiler_dir",
+                                            "text": "xlang_resolve_compiler_dir",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shu_resolve_compiler_dir"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_resolve_compiler_dir"
                                         },
                                         "children": []
                                     }
@@ -7430,7 +7430,7 @@
                                 "data": {
                                     "id": "m00634",
                                     "created": 1784118466839,
-                                    "text": "shu_waitpid_* (2)",
+                                    "text": "xlang_waitpid_* (2)",
                                     "expandState": "collapse",
                                     "hyperlink": "compiler/src/runtime_link_abi.x",
                                     "hyperlinkTitle": "compiler/src/runtime_link_abi.x"
@@ -7440,11 +7440,11 @@
                                         "data": {
                                             "id": "m00635",
                                             "created": 1784118466840,
-                                            "text": "shu_waitpid_retry_impl",
+                                            "text": "xlang_waitpid_retry_impl",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shu_waitpid_retry_impl"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_waitpid_retry_impl"
                                         },
                                         "children": []
                                     },
@@ -7452,11 +7452,11 @@
                                         "data": {
                                             "id": "m00636",
                                             "created": 1784118466841,
-                                            "text": "shu_waitpid_retry",
+                                            "text": "xlang_waitpid_retry",
                                             "expandState": "collapse",
                                             "hyperlink": "compiler/src/runtime_link_abi.x",
                                             "hyperlinkTitle": "compiler/src/runtime_link_abi.x",
-                                            "note": "compiler/src/runtime_link_abi.x :: shu_waitpid_retry"
+                                            "note": "compiler/src/runtime_link_abi.x :: xlang_waitpid_retry"
                                         },
                                         "children": []
                                     }

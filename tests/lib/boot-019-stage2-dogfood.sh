@@ -2,8 +2,8 @@
 # boot-019-stage2-dogfood.sh — BOOT-019：Stage2 parser/typeck dogfood 辅助
 #
 # 用法（source 后）：
-#   boot019_check_one SHU tests/parser/two_functions.x
-#   boot019_link_run_one SHU tests/option/main.x OUT_PATH [EXPECTED_EXIT]
+#   boot019_check_one XLANG tests/parser/two_functions.x
+#   boot019_link_run_one XLANG tests/option/main.x OUT_PATH [EXPECTED_EXIT]
 #   boot019_expected_exit tests/option/main.x  # 烟测约定退出码
 #   boot019_emit_report status check_ok link_ok skip
 

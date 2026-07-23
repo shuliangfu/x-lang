@@ -24,7 +24,7 @@ export extern "C" function driver_get_argv_i(argc: i32, argv: **u8, i: i32, buf:
 export extern "C" function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8): void;
 export extern "C" function diag_report_with_code(
   file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-export extern "C" function shu_target_cpu_print(out: *u8, features: u32): void;
+export extern "C" function xlang_target_cpu_print(out: *u8, features: u32): void;
 export extern "C" function xlang_repo_root_from_argv0(argv0: *u8): *u8;
 export extern "C" function driver_stdio_stdout(): *u8;
 export extern "C" function driver_print_usage_write(): void;
@@ -313,7 +313,7 @@ export function driver_print_target_cpu_features_c(features: i32): i32 {
   let out: *u8 = 0 as *u8;
   unsafe {
     out = driver_stdio_stdout();
-    shu_target_cpu_print(out, features as u32);
+    xlang_target_cpu_print(out, features as u32);
   }
   return 0;
 }

@@ -25,19 +25,19 @@ case "$(uname -m 2>/dev/null)" in
     ;;
 esac
 RUN_XLANG="${XLANG_LINK_XLANG:-${XLANG:-./compiler/xlang}}"
-if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -z "${XLANG_LINK_XLANG:-}" ] && [ -x ./compiler/xlang-c ] && ci_native_shu ./compiler/xlang-c; then
+if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -z "${XLANG_LINK_XLANG:-}" ] && [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c; then
   RUN_XLANG=./compiler/xlang-c
 fi
 # xlang/xlang_asm：slice .length 等 -o codegen 不完整；refresh xlang_asm 在非 x86_64 上 asm 产出 EM:62。
 # 未显式 XLANG_LINK_XLANG 时，-o 可执行链接一律 xlang-c（ZC-3 / Docker / run-all 一致）。
-if [ -x ./compiler/xlang-c ] && [ -z "${XLANG_LINK_XLANG:-}" ] && ci_native_shu ./compiler/xlang-c; then
+if [ -x ./compiler/xlang-c ] && [ -z "${XLANG_LINK_XLANG:-}" ] && ci_native_xlang ./compiler/xlang-c; then
   case "$(basename "${XLANG:-}")" in
     xlang|xlang_asm) RUN_XLANG=./compiler/xlang-c ;;
   esac
 fi
 # bootstrap arm64：xlang_asm -o 负例 typeck 易 OOM；与 run-check 一致走 xlang-c。
 TYPECK_XLANG="${XLANG:-./compiler/xlang}"
-if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang-c ] && ci_native_shu ./compiler/xlang-c; then
+if [ -n "${XLANG_RUN_ALL_BOOTSTRAP_XLANG:-}" ] && [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c; then
   case "$(uname -m 2>/dev/null)" in
     x86_64|amd64) ;;
     *) TYPECK_XLANG=./compiler/xlang-c ;;
@@ -66,13 +66,13 @@ fi
 # W3 / B-strict：stage2 xlang_asm(2) 可用于 asm -o；未显式 XLANG_LINK_XLANG 时优先于 xlang-c（seed -o 易 SIGSEGV）。
 # refresh-xlang-asm-gate 后 xlang_asm 常新于 xlang_asm2（未跑 stage2）；勿用陈旧 gen2。
 if [ -z "${XLANG_LINK_XLANG:-}" ]; then
-  if [ -x ./compiler/xlang_asm2 ] && ci_native_shu ./compiler/xlang_asm2; then
+  if [ -x ./compiler/xlang_asm2 ] && ci_native_xlang ./compiler/xlang_asm2; then
     RUN_XLANG=./compiler/xlang_asm2
-    if [ -x ./compiler/xlang_asm ] && ci_native_shu ./compiler/xlang_asm \
+    if [ -x ./compiler/xlang_asm ] && ci_native_xlang ./compiler/xlang_asm \
        && [ ./compiler/xlang_asm -nt ./compiler/xlang_asm2 ]; then
       RUN_XLANG=./compiler/xlang_asm
     fi
-  elif [ -x ./compiler/xlang_asm ] && ci_native_shu ./compiler/xlang_asm; then
+  elif [ -x ./compiler/xlang_asm ] && ci_native_xlang ./compiler/xlang_asm; then
     RUN_XLANG=./compiler/xlang_asm
   fi
 fi

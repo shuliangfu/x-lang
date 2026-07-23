@@ -1104,7 +1104,7 @@ linear_consume %1                    // 契约: %1 consumed, 无需 drop
 
 ### 8.2 与 X ABI 设计的关系
 
-IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shuliangfu/worker/shu/xlang/analysis/X-ABI-设计分析.md) 的决策：
+IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shuliangfu/worker/xlang/x-lang/analysis/X-ABI-设计分析.md) 的决策：
 
 - `extern function`（默认 X ABI）→ `x_abi_call`（可内联）；
 - `extern "C"` → `c_abi_call`（FFI 边界，禁止内联，需 `unsafe`）。
@@ -1124,14 +1124,14 @@ IR 层的 ABI 区分直接映射到 [X ABI 设计分析](file:///home/shuliangfu
 ### 9.2 Differential Fuzzing + Oracle
 
 - 生成随机 `.x` 程序，同时跑旧 C 后端和新 IR 后端，比对执行结果；
-- 对齐 [内核级语言 §11.1](file:///home/shuliangfu/worker/shu/xlang/analysis/内核级语言.md) 差分测试；
+- 对齐 [内核级语言 §11.1](file:///home/shuliangfu/worker/xlang/x-lang/analysis/内核级语言.md) 差分测试；
 - 三个 oracle：C 后端结果、IR 解释器结果、IR codegen 结果——三者必须一致。
 
 ### 9.3 Performance Oracle 门控
 
 - 任何优化 Pass 必须通过 Performance Oracle 验证才有资格合入主线；
 - 性能不提升或回归的 Pass 被自动拒绝；
-- 基准集对齐 [性能基准测试](file:///home/shuliangfu/worker/shu/xlang/性能基准测试.md) 四层框架。
+- 基准集对齐 [性能基准测试](file:///home/shuliangfu/worker/xlang/x-lang/性能基准测试.md) 四层框架。
 
 ### 9.4 分层验证
 

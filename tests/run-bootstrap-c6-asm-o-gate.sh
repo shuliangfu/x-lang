@@ -27,7 +27,7 @@ grep -qF "C6" "$DOC" || { gate_progress "FAIL: doc missing C6"; exit 1; }
 
 # shellcheck source=tests/lib/ci-host.sh
 source tests/lib/ci-host.sh
-if [ ! -x "$ASM" ] || ! ci_native_shu "$ASM"; then
+if [ ! -x "$ASM" ] || ! ci_native_xlang "$ASM"; then
   gate_progress "bootstrap-c6-asm-o-gate SKIP (no native xlang_asm)"
   exit 0
 fi

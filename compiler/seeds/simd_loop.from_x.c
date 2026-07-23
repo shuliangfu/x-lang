@@ -440,7 +440,7 @@ uint32_t glue_simd_loop_cpu_features_c_impl(void) {
     feats = driver_get_pending_target_cpu_features();
     if (feats != 0)
         return feats;
-    return shu_target_cpu_detect_host();
+    return xlang_target_cpu_detect_host();
 }
 #ifndef XLANG_L2_SIMD_LOOP_THIN_FROM_X
 uint32_t glue_simd_loop_cpu_features_c(void) {

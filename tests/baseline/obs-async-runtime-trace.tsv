@@ -9,11 +9,11 @@ env_slow_us	XLANG_ASYNC_RUNTIME_TRACE_SLOW_US	XLANG_ASYNC_RUNTIME_TRACE_SLOW_US	
 output_prefix	stderr_line	xlang: [XLANG_ASYNC_RUNTIME_TRACE]	grep 锚点
 field_summary	output_field	summary events=	摘要行
 field_rank	output_field	rank=	明细行
-impl_flush	runtime_fn	shu_async_runtime_trace_flush	runtime_scheduler_glue.inc
-impl_push	runtime_fn	shu_async_trace_push	runtime_scheduler_glue.inc 内部
+impl_flush	runtime_fn	xlang_async_runtime_trace_flush	runtime_scheduler_glue.inc
+impl_push	runtime_fn	xlang_async_trace_push	runtime_scheduler_glue.inc 内部
 hook_task_run	event_kind	task_run	drain fn()
 hook_suspend	event_kind	suspend	SUSPENDED
-hook_io_wake	event_kind	io_wake	shu_async_io_wake
+hook_io_wake	event_kind	io_wake	xlang_async_io_wake
 hook_poll	event_kind	poll_completions	io poll
 hook_idle	event_kind	drain_idle	空转 stall
 smoke_harness	file	tests/bench/async_runtime_trace_smoke.c	C 烟测

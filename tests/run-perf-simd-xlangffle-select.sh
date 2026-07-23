@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # STD-061：shuffle/select 生产路径 vs 标量桩基线 perf 对比
 #
-# ratio = stub_time / shu_time（≥ MIN_RATIO 即 Shu 不慢于桩）
+# ratio = stub_time / xlang_time（≥ MIN_RATIO 即 Xlang 不慢于桩）
 # 用法：./tests/run-perf-simd-shuffle-select.sh
 set -e
 cd "$(dirname "$0")/.."
@@ -78,7 +78,7 @@ fi
 
 X_MED=$(median_real "$X_EXE")
 STUB_MED=$(median_real "$STUB_EXE")
-echo "Shu asm median real:  ${X_MED}s"
+echo "Xlang asm median real:  ${X_MED}s"
 echo "stub scalar median:   ${STUB_MED}s"
 
 if [ "$X_MED" = "nan" ] || [ "$STUB_MED" = "nan" ]; then
@@ -87,7 +87,7 @@ if [ "$X_MED" = "nan" ] || [ "$STUB_MED" = "nan" ]; then
 fi
 
 RATIO=$(awk -v stub="$STUB_MED" -v xlang="$X_MED" 'BEGIN { if (xlang <= 0) print 0; else print stub / xlang }')
-echo "simd-shuffle-select-perf ratio (stub/Shu): ${RATIO} (need >= ${MIN_RATIO})"
+echo "simd-shuffle-select-perf ratio (stub/Xlang): ${RATIO} (need >= ${MIN_RATIO})"
 
 if awk -v r="$RATIO" -v m="$MIN_RATIO" 'BEGIN { exit (r + 0.000001 >= m) ? 0 : 1 }'; then
   echo "simd-shuffle-select-perf OK"

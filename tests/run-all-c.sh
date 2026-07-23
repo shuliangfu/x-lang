@@ -13,6 +13,6 @@ if [ ! -x compiler/xlang-c ]; then
     exit 1
 fi
 echo "run-all-c: running full test suite via run-all.sh (RUN_ALL_USE_C, xlang-c; no bootstrap-driver-seed)"
-# 不设 SHU：run-all.sh 走 RUN_ALL_USE_C 路径（make all + xlang-c），不 bootstrap-driver-seed
+# 不设 XLANG：run-all.sh 走 RUN_ALL_USE_C 路径（make all + xlang-c），不 bootstrap-driver-seed
 ./tests/run-all.sh
 echo "run-all-c: all tests OK (C compiler)"

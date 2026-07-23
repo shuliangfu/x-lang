@@ -13,14 +13,14 @@ BENCH="${XLANG_TYPE_ZC_BENCH:-tests/baseline/type-zero-cost-bench.tsv}"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if type_zero_cost_native_shu "$cand"; then
+    if type_zero_cost_native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$XLANG_BIN" ] || ! type_zero_cost_native_shu "$XLANG_BIN"; then
+if [ -z "$XLANG_BIN" ] || ! type_zero_cost_native_xlang "$XLANG_BIN"; then
   echo "type-zero-cost SKIP (no native xlang, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "type-zero-cost OK"
   exit 0

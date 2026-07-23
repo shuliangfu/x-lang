@@ -4,7 +4,7 @@
 /**
  * runtime_c_import.c — xlang-c C 前端 import 递归加载（Phase E-04 v33）
  *
- * 文件职责：load_one_import / resolve_and_load_imports / shu_lsp_resolve_and_load_imports；
+ * 文件职责：load_one_import / resolve_and_load_imports / xlang_lsp_resolve_and_load_imports；
  *           自 runtime.c 迁出，供 xlang-c 与带 C 前端的 runtime_driver 路径链接。
  * 所属模块：compiler 运行时；bootstrap driver seed（NO_C）不链本 TU。
  * 与其它文件的关系：依赖 runtime_pipeline_abi（路径/preprocess）、preprocess.o、lexer/parser/typeck。
@@ -33,7 +33,7 @@
  */
 static ASTModule *load_one_import(const char *import_path, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char **defines, int ndefines, int allow_legacy_extern, ASTModule **all_dep_mods, char **all_dep_paths,
-    char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all, int max_all) {
+    char all_dep_fs[][XLANG_C_IMPORT_PATH_FS_CAP], int *n_all, int max_all) {
     int idx = xlang_find_loaded_import_index(import_path, all_dep_paths, *n_all);
 
     if (idx >= 0)
@@ -106,10 +106,10 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
             }
         }
         {
-            ASTModule *deps[SHU_C_MAX_ALL_DEPS];
+            ASTModule *deps[XLANG_C_MAX_ALL_DEPS];
             int ndeps = 0;
 
-            for (int j = 0; j < dep->num_imports && ndeps < SHU_C_MAX_ALL_DEPS; j++) {
+            for (int j = 0; j < dep->num_imports && ndeps < XLANG_C_MAX_ALL_DEPS; j++) {
                 idx = xlang_find_loaded_import_index(dep->import_paths[j], all_dep_paths, *n_all);
                 if (idx >= 0)
                     deps[ndeps++] = all_dep_mods[idx];
@@ -144,16 +144,16 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
             return NULL;
         }
         if (all_dep_fs)
-            (void)snprintf(all_dep_fs[*n_all], SHU_C_IMPORT_PATH_FS_CAP, "%s", path);
+            (void)snprintf(all_dep_fs[*n_all], XLANG_C_IMPORT_PATH_FS_CAP, "%s", path);
         (*n_all)++;
         return dep;
     }
 }
 
 /** 解析并 typeck 全部 import（含传递依赖）。 */
-int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
+int xlang_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char **defines, int ndefines, int allow_legacy_extern, ASTModule **dep_mods, int *ndep_out,
-    ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out,
+    ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][XLANG_C_IMPORT_PATH_FS_CAP], int *n_all_out,
     int max_deps) {
     int n_all = 0;
 
@@ -180,11 +180,11 @@ int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n
 }
 
 /** LSP：解析并 typeck 全部 import，可选记录 fs 路径。 */
-int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
+int xlang_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     ASTModule **dep_mods, int *ndep_out, ASTModule **all_dep_mods, char **all_dep_paths,
-    char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps) {
+    char all_dep_fs[][XLANG_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps) {
     if (!mod || !dep_mods || !ndep_out || !all_dep_mods || !all_dep_paths || !n_all_out || max_deps <= 0)
         return -1;
-    return shu_c_resolve_and_load_imports(mod, lib_roots, n_lib_roots, entry_dir, NULL, 0, 0, dep_mods, ndep_out,
+    return xlang_c_resolve_and_load_imports(mod, lib_roots, n_lib_roots, entry_dir, NULL, 0, 0, dep_mods, ndep_out,
         all_dep_mods, all_dep_paths, all_dep_fs, n_all_out, max_deps);
 }

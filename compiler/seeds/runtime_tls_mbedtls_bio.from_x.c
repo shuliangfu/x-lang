@@ -16,14 +16,14 @@
 #include <errno.h>
 #include <sys/socket.h>
 
-/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 shu_mbedtls_ssl_bind_fd_c 取地址 */
-int shu_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len);
-int shu_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len);
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 xlang_mbedtls_ssl_bind_fd_c 取地址 */
+int xlang_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len);
+int xlang_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len);
 
 /** mbedTLS BIO send：非阻塞时映射 EAGAIN → WANT_WRITE。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-21 thin+rest：_impl 实现；thin（src/asm/runtime_tls_mbedtls_bio.x）提供 public wrapper */
-int shu_mbedtls_bio_send_impl(void *ctx, const unsigned char *buf, size_t len) {
+int xlang_mbedtls_bio_send_impl(void *ctx, const unsigned char *buf, size_t len) {
     int fd = *(int *)ctx;
     ssize_t r = send(fd, buf, len, 0);
     if (r < 0) {
@@ -36,15 +36,15 @@ int shu_mbedtls_bio_send_impl(void *ctx, const unsigned char *buf, size_t len) {
 
 #ifndef XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int shu_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len) {
-    return shu_mbedtls_bio_send_impl(ctx, buf, len);
+int xlang_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len) {
+    return xlang_mbedtls_bio_send_impl(ctx, buf, len);
 }
 #endif
 
 /** mbedTLS BIO recv：EOF / EAGAIN 映射 mbedTLS 错误码。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-21 thin+rest：_impl 实现；thin（src/asm/runtime_tls_mbedtls_bio.x）提供 public wrapper */
-int shu_mbedtls_bio_recv_impl(void *ctx, unsigned char *buf, size_t len) {
+int xlang_mbedtls_bio_recv_impl(void *ctx, unsigned char *buf, size_t len) {
     int fd = *(int *)ctx;
     ssize_t r = recv(fd, buf, len, 0);
     if (r < 0) {
@@ -59,8 +59,8 @@ int shu_mbedtls_bio_recv_impl(void *ctx, unsigned char *buf, size_t len) {
 
 #ifndef XLANG_RUNTIME_TLS_MBEDTLS_BIO_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int shu_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
-    return shu_mbedtls_bio_recv_impl(ctx, buf, len);
+int xlang_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
+    return xlang_mbedtls_bio_recv_impl(ctx, buf, len);
 }
 #endif
 
@@ -72,9 +72,9 @@ int shu_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
 /**
  * 将 mbedTLS ssl 上下文绑定到已连接 TCP fd（阻塞握手用）。
  */
-void shu_mbedtls_ssl_bind_fd_c(mbedtls_ssl_context *ssl, int *fd) {
+void xlang_mbedtls_ssl_bind_fd_c(mbedtls_ssl_context *ssl, int *fd) {
 #if !defined(_WIN32) && !defined(_WIN64)
-    mbedtls_ssl_set_bio(ssl, fd, shu_mbedtls_bio_send, shu_mbedtls_bio_recv, NULL);
+    mbedtls_ssl_set_bio(ssl, fd, xlang_mbedtls_bio_send, xlang_mbedtls_bio_recv, NULL);
 #else
     (void)ssl;
     (void)fd;

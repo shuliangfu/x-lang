@@ -2,7 +2,7 @@
 # lang-abi-stability.sh — LANG-005 ABI 稳定承诺共享辅助
 
 # 判断本机能否直接执行给定 xlang 二进制。
-lang_abi_native_shu() {
+lang_abi_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in

@@ -2329,13 +2329,13 @@ export function labi_od_zlib_undef_sym_at(i: i32): *u8 {
 }
 
 /**
- * shu_compress_zlib_marker export name for package marker gate.
- * @return *u8 — static C string "shu_compress_zlib_marker"
+ * xlang_compress_zlib_marker export name for package marker gate.
+ * @return *u8 — static C string "xlang_compress_zlib_marker"
  * PLATFORM: SHARED
  */
 #[no_mangle]
 export function labi_od_compress_zlib_marker(): *u8 {
-  let p: *u8 = "shu_compress_zlib_marker";
+  let p: *u8 = "xlang_compress_zlib_marker";
   return p;
 }
 
@@ -2374,13 +2374,13 @@ export function labi_od_zstd_undef_sym_at(i: i32): *u8 {
 }
 
 /**
- * shu_compress_zstd_marker export name for package marker gate.
- * @return *u8 — static C string "shu_compress_zstd_marker"
+ * xlang_compress_zstd_marker export name for package marker gate.
+ * @return *u8 — static C string "xlang_compress_zstd_marker"
  * PLATFORM: SHARED
  */
 #[no_mangle]
 export function labi_od_compress_zstd_marker(): *u8 {
-  let p: *u8 = "shu_compress_zstd_marker";
+  let p: *u8 = "xlang_compress_zstd_marker";
   return p;
 }
 
@@ -2418,13 +2418,13 @@ export function labi_od_brotli_undef_sym_at(i: i32): *u8 {
 }
 
 /**
- * shu_compress_brotli_marker export name for package marker gate.
- * @return *u8 — static C string "shu_compress_brotli_marker"
+ * xlang_compress_brotli_marker export name for package marker gate.
+ * @return *u8 — static C string "xlang_compress_brotli_marker"
  * PLATFORM: SHARED
  */
 #[no_mangle]
 export function labi_od_compress_brotli_marker(): *u8 {
-  let p: *u8 = "shu_compress_brotli_marker";
+  let p: *u8 = "xlang_compress_brotli_marker";
   return p;
 }
 

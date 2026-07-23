@@ -150,9 +150,9 @@ XLANG_WEAK int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle) {
 }
 
 /** driver 侧 Buffer 描述符注册。 */
-typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
+typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;
 int32_t xlang_io_register_buf(intptr_t buf) {
-  const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
+  const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
   return xlang_io_register(b->ptr, b->len, b->handle);

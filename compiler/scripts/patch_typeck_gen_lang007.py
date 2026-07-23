@@ -415,7 +415,7 @@ STRING_LIT_HELPER_BODY = (
     "  (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(u8r)) {   return (-1);\n"
     " } else (__tmp = 0) ; __tmp; }));\n"
     "  /* Default *u8 (not u8[]): call-arg typeck still passes func return type as expected, so\n"
-    "   * string args to *u8 must not become TYPE_SLICE (codegen would emit shulang_slice compound). */\n"
+    "   * string args to *u8 must not become TYPE_SLICE (codegen would emit xlang_slice compound). */\n"
     "  (slice_u8 = (typeck_find_or_alloc_ptr_type_ref(arena, u8r)));\n"
     "  (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(slice_u8))) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, slice_u8));\n"
     " } else (__tmp = 0) ; __tmp; }));\n"

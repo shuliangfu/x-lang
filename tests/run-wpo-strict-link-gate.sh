@@ -22,7 +22,7 @@ fi
 # shellcheck source=tests/lib/comp-riscv64.sh
 . tests/lib/comp-riscv64.sh
 # seed/C-only 或 bind-mount Mach-O：无 native xlang_asm 时 SKIP（native Linux GHA 覆盖 strict_glue）。
-if { [ ! -x compiler/xlang_asm ] || ! comp_riscv64_native_shu compiler/xlang_asm; } \
+if { [ ! -x compiler/xlang_asm ] || ! comp_riscv64_native_xlang compiler/xlang_asm; } \
   && [ ! -x "$COMPILER" ]; then
   echo "run-wpo-strict-link-gate SKIP (no native xlang_asm/strict_glue; seed/C-only build)"
   echo "run-wpo-strict-link-gate OK (SKIP no asm chain)"

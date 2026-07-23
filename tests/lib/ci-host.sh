@@ -86,7 +86,7 @@ ci_host_summary() {
 
 # 判断可执行文件是否可在当前宿主运行（Mach-O/ELF 架构匹配）。
 # 参数：$1 = 编译器二进制路径；返回 0 可运行，1 不可。
-ci_native_shu() {
+ci_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(ci_host_os)-$(ci_host_arch)" in

@@ -24,7 +24,7 @@
  * E-05 v2：`XLANG_NO_C_FRONTEND` 时不 `#include` lexer/parser/typeck/codegen/ast C 前端头；仍保留 preprocess/target_cpu/lsp_diag。
  * E-04 v2：argv/target ABI 原语已拆至 `runtime_abi.c`（`driver_get_argv_i` 等）；本文件仍承载 pipeline/driver 主体。
  * E-04 v3：POSIX 文件 I/O 已拆至 `runtime_io_abi.c`（`runtime_read_file_malloc` / `xlang_read_file_into_path` 等）。
- * E-04 v4：进程/链接辅助已拆至 `runtime_proc_abi.c`（`shu_waitpid_retry` / `asm_link_obj_skip_missing`）。
+ * E-04 v4：进程/链接辅助已拆至 `runtime_proc_abi.c`（`xlang_waitpid_retry` / `asm_link_obj_skip_missing`）。
  * E-04 v5：invoke_cc 链接 argv 辅助已拆至 `runtime_link_abi.c`（`invoke_cc_argv_push_existing` 等）；invoke_cc 主体 v17 已迁入 link_abi。
  * E-04 v6：compress/net TLS 链接辅助已拆至 `runtime_link_abi.c`（`invoke_cc_append_compress_ld` 等）。
  * E-04 v7：Linux 链接硬化（PIE/NX/RELRO）已拆至 `runtime_link_abi.c`（`xlang_append_linux_link_harden`）。
@@ -580,11 +580,11 @@ int write_io_net_abi_inline(FILE *cf) {
         "  return (int32_t)poll((struct pollfd *)(void *)fds, (nfds_t)nfds, (int)timeout);\n"
         "}\n"
         "#endif\n",
-        "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n",
+        "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n",
         "extern int io_register_buffer(uint8_t *ptr, size_t len);\n",
         "extern int io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, unsigned nr);\n",
-        "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n",
-        "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n",
+        "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n",
+        "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n",
         "#define io_register_buffers_buf(bufs, nr) io_register_buffers_buf_i32((intptr_t)(void *)(bufs), (nr))\n",
         "extern void io_unregister_buffers(void);\n",
         "extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);\n",
@@ -603,10 +603,10 @@ int write_io_net_abi_inline(FILE *cf) {
         "extern int32_t xlang_io_write_fixed(size_t handle, uint32_t buf_index, size_t offset, size_t len, uint32_t timeout_m);\n",
         "extern uint8_t *xlang_io_read_ptr(size_t handle, unsigned timeout_ms);\n",
         "extern int32_t xlang_io_read_ptr_len(void);\n",
-        "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n",
-        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
-        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
-        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n",
+        "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n",
+        "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_read)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
+        "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return (xlang_io_submit_write)((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n",
         /* 勿定义 std_io_driver_submit_read/write 同名 inline：co-emit driver 会生成 Buffer 形参强符号。
          * 仅提供 via_ptr 与短名宏；全名调用走 co-emit 定义。 */
         "static inline int32_t std_io_driver_submit_read_via_ptr(ptrdiff_t buf, uint32_t timeout_ms) { return xlang_io_submit_read_buf((intptr_t)buf, (int32_t)timeout_ms); }\n",
@@ -1658,14 +1658,14 @@ int RUN_CC_FUNC(int argc, char **argv) {
     if (ndefines + 2 <= MAX_DEFINES) {
         struct utsname u;
         /* utsname.sysname/machine can be up to 65 bytes; "XLANG_OS_"=7, "XLANG_ARCH_"=9, so 80 suffices */
-        static char shu_os_def[80], shu_arch_def[80];
+        static char xlang_os_def[80], xlang_arch_def[80];
         if (uname(&u) == 0) {
-            (void)snprintf(shu_os_def, sizeof(shu_os_def), "XLANG_OS_%s", u.sysname);
-            (void)snprintf(shu_arch_def, sizeof(shu_arch_def), "XLANG_ARCH_%s", u.machine);
-            for (char *p = shu_os_def + 7; *p; p++) *p = (char)toupper((unsigned char)*p);
-            for (char *p = shu_arch_def + 9; *p; p++) *p = (char)toupper((unsigned char)*p);
-            defines[ndefines++] = shu_os_def;
-            defines[ndefines++] = shu_arch_def;
+            (void)snprintf(xlang_os_def, sizeof(xlang_os_def), "XLANG_OS_%s", u.sysname);
+            (void)snprintf(xlang_arch_def, sizeof(xlang_arch_def), "XLANG_ARCH_%s", u.machine);
+            for (char *p = xlang_os_def + 7; *p; p++) *p = (char)toupper((unsigned char)*p);
+            for (char *p = xlang_arch_def + 9; *p; p++) *p = (char)toupper((unsigned char)*p);
+            defines[ndefines++] = xlang_os_def;
+            defines[ndefines++] = xlang_arch_def;
         }
     }
     if (n_lib_roots == 0) {
@@ -2261,7 +2261,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
     ASTModule *all_dep_mods[MAX_ALL_DEPS];
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
-    if (mod->num_imports > 0 && shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir,
+    if (mod->num_imports > 0 && xlang_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir,
             ndefines > 0 ? defines : NULL, ndefines, emit_c_only ? 1 : 0, dep_mods, &ndep, all_dep_mods,
             all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
@@ -2371,13 +2371,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
                 fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
                 fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-                fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-                fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-                fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-                fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
-                fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
-                fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
+                fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
+                fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+                fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+                fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
+                fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             }
             if (emit_extern_imports) {
                 codegen_set_eextern_entry_path(input_path);
@@ -2542,7 +2542,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         _exit(127);
                     } else {
                         int status = 0;
-                        if (shu_waitpid_retry(cpid, &status) != 0 ||
+                        if (xlang_waitpid_retry(cpid, &status) != 0 ||
                             !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                             diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
                                         "cc -c failed for library module", NULL);
@@ -2678,13 +2678,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
              * 对齐补 weak 桩（返回 0=注册成功占位），使纯 .x io 烟测自包含，无需链 runtime_asm_io_stubs.o
              *（强桩会覆盖 submit_write 的 fwrite 弱实现，破坏 write_stdout）。 */
             fprintf(cf, "__attribute__((weak)) int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return 0; }\n");
-            fprintf(cf, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-            fprintf(cf, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-            fprintf(cf, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-            fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
-            fprintf(cf, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
-            fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
+            fprintf(cf, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
+            fprintf(cf, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+            fprintf(cf, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+            fprintf(cf, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
+            fprintf(cf, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
             /* codegen 跳过 std.io.print(ptr,len)；C 前端链 io.o 时由弱符号提供，避免 hello 等 Undefined _std_io_print_u8_ptr_usize。 */
             fprintf(cf, "__attribute__((weak)) int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {\n");
             fprintf(cf, "  if (!ptr || len == 0) return 0;\n");
@@ -3491,7 +3491,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
         }
         {
             int st = 0;
-            if (shu_waitpid_retry(pid, &st) != 0)
+            if (xlang_waitpid_retry(pid, &st) != 0)
                 return 1;
             if (WIFEXITED(st))
                 return WEXITSTATUS(st);
@@ -4650,7 +4650,7 @@ int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
     if (mod->num_imports > 0 &&
-        shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, 0, dep_mods, &ndep,
+        xlang_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, 0, dep_mods, &ndep,
             all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
         return 1;
@@ -4737,7 +4737,7 @@ int driver_c_typeck_entry_impl(const char *input_path, char *src, const char **l
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
     if (mod->num_imports > 0 &&
-        shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, 0, dep_mods, &ndep,
+        xlang_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir_buf, NULL, 0, 0, dep_mods, &ndep,
             all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
         return 1;
@@ -5128,7 +5128,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             char c_entry_dir[512];
             xlang_get_entry_dir(input_path, c_entry_dir, sizeof(c_entry_dir));
             if (c_mod->num_imports > 0 &&
-                shu_c_resolve_and_load_imports(c_mod, lib_roots_arr, n_lib_roots, c_entry_dir,
+                xlang_c_resolve_and_load_imports(c_mod, lib_roots_arr, n_lib_roots, c_entry_dir,
                     ndefines > 0 ? defines : NULL, ndefines, 0, dep_mods, &ndep, all_dep_mods, all_dep_paths,
                     NULL, &n_all, MAX_ALL_DEPS) != 0) {
                 ast_module_free(c_mod);
@@ -5262,7 +5262,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
                             _exit(127);
                         } else {
                             int status = 0;
-                            if (shu_waitpid_retry(cpid, &status) != 0 ||
+                            if (xlang_waitpid_retry(cpid, &status) != 0 ||
                                 !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                                 diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
                                             "cc -c failed for library module", NULL);
@@ -6158,7 +6158,7 @@ int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t
 /** C 后端 C 桥：供 compile.x 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
 /** 含 import 时 seed 的 X codegen 易重复符号；若同目录有 xlang-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
 int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
-    char shu_c[512];
+    char xlang_c[512];
     const char *self;
     const char *slash;
     if (argc < 2 || !argv || !argv[0])
@@ -6177,20 +6177,20 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
 #endif
     if (slash) {
         size_t dir_len = (size_t)(slash - self);
-        if (dir_len >= sizeof(shu_c) - 8)
+        if (dir_len >= sizeof(xlang_c) - 8)
             return -1;
-        memcpy(shu_c, self, dir_len);
-        shu_c[dir_len] = '\0';
-        strcat(shu_c, "/xlang-c");
+        memcpy(xlang_c, self, dir_len);
+        xlang_c[dir_len] = '\0';
+        strcat(xlang_c, "/xlang-c");
     } else {
-        strcpy(shu_c, "xlang-c");
+        strcpy(xlang_c, "xlang-c");
     }
-    if (access(shu_c, X_OK) != 0)
+    if (access(xlang_c, X_OK) != 0)
         return -1;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
-        argv[0] = shu_c;
-        intptr_t rc = _spawnvp(_P_WAIT, shu_c, (const char *const *)argv);
+        argv[0] = xlang_c;
+        intptr_t rc = _spawnvp(_P_WAIT, xlang_c, (const char *const *)argv);
         if (rc == -1)
             return -1;
         return (int)rc;
@@ -6200,8 +6200,8 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     if (pid < 0)
         return -1;
     if (pid == 0) {
-        argv[0] = shu_c;
-        execvp(shu_c, argv);
+        argv[0] = xlang_c;
+        execvp(xlang_c, argv);
         _exit(127);
     }
     {
@@ -6249,9 +6249,9 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 #if !defined(XLANG_NO_C_FRONTEND)
     if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
         !driver_asm_entry_module_only_from_env()) {
-        int shu_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
-        if (shu_c_rc >= 0)
-            return shu_c_rc;
+        int xlang_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
+        if (xlang_c_rc >= 0)
+            return xlang_c_rc;
     }
 #endif
     return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
@@ -6814,7 +6814,7 @@ void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state);
 /* G-02f-298 R7-lite → rt_run_exec hybrid */
 #ifndef XLANG_RT_RUN_EXEC_FROM_X
 int32_t driver_print_target_cpu_features_c(int32_t features) {
-    shu_target_cpu_print(stdout, (uint32_t)features);
+    xlang_target_cpu_print(stdout, (uint32_t)features);
     return 0;
 }
 #else
@@ -6842,11 +6842,11 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
         spec = (const char *)state->target_cpu_buf;
         spec_len = (size_t)state->target_cpu_len;
     }
-    if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
+    if (xlang_target_cpu_resolve(spec, spec_len, &feats) != 0) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "unknown -target-cpu '%.*s'; using generic baseline",
                      (int)spec_len, spec ? spec : "");
-        feats = shu_target_cpu_generic_for_host();
+        feats = xlang_target_cpu_generic_for_host();
     }
     state->target_cpu_features = (int32_t)feats;
 }
@@ -7230,7 +7230,7 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
         return 1;
     }
     if (state->print_target_cpu) {
-        shu_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
+        xlang_target_cpu_print(stdout, (uint32_t)state->target_cpu_features);
         driver_compile_state_free_c(state);
         return 0;
     }
@@ -7393,7 +7393,7 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     ASTModule *all_dep_mods[MAX_ALL_DEPS];
     char *all_dep_paths[MAX_ALL_DEPS];
     int ndep = 0, n_all = 0;
-    if (mod->num_imports > 0 && shu_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
+    if (mod->num_imports > 0 && xlang_c_resolve_and_load_imports(mod, lib_roots_arr, n_lib_roots, entry_dir, NULL, 0,
             1, dep_mods, &ndep, all_dep_mods, all_dep_paths, NULL, &n_all, MAX_ALL_DEPS) != 0) {
         ast_module_free(mod);
         free(src);
@@ -7449,13 +7449,13 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
         fprintf(stdout, "extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
         fprintf(stdout, "extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
         fprintf(stdout, "extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
-        fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
-        fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
-        fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
-        fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_batch_buf_t;\n");
-        fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const shu_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
-        fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const shu_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
+        fprintf(stdout, "typedef struct { void *ptr; size_t len; size_t handle; } xlang_buffer_abi_t;\n");
+        fprintf(stdout, "static inline int32_t xlang_io_register_buf(intptr_t buf) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "static inline int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_m) { const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf; return xlang_io_submit_write((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
+        fprintf(stdout, "typedef struct { uint8_t *ptr; size_t len; size_t handle; } xlang_batch_buf_t;\n");
+        fprintf(stdout, "__attribute__((weak)) int io_register_buffers_buf_c(const xlang_batch_buf_t *bufs, int nr) { (void)bufs; (void)nr; return -1; }\n");
+        fprintf(stdout, "static inline int io_register_buffers_buf_i32(intptr_t bufs, int nr) { return io_register_buffers_buf_c((const xlang_batch_buf_t *)(uintptr_t)bufs, nr); }\n");
     }
     int ec = 0;
     char emitted_type_buf[128][CODEGEN_EMITTED_TYPE_NAME_MAX];
@@ -7985,7 +7985,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
                      "out of memory while formatting '%s'", pathbuf);
         return 1;
     }
-    fmt_len = shu_format_x_document((const uint8_t *)raw_view.data, (int)raw_view.length, out, (int)cap);
+    fmt_len = xlang_format_x_document((const uint8_t *)raw_view.data, (int)raw_view.length, out, (int)cap);
     if (fmt_len < 0) {
         free(out);
         runtime_release_file_view(&raw_view);

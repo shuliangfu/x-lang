@@ -6,7 +6,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-# 可执行链接优先 xlang-c；无 xlang-c 时回退 SHU / xlang。
+# 可执行链接优先 xlang-c；无 xlang-c 时回退 XLANG / xlang。
 stdlib_import_pick_link_shu() {
   # 产品冷链：优先 XLANG / XLANG_LINK_XLANG（xlang_asm）；勿默认 pin xlang-c
   if [ -n "${XLANG_LINK_XLANG:-}" ] && [ -x "${XLANG_LINK_XLANG}" ]; then

@@ -14,7 +14,7 @@
 #include "runtime_diag_codes.h"
 #include "runtime_io_abi.h"
 
-extern int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap);
+extern int xlang_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap);
 extern int32_t driver_fmt_check_only_get(void);
 extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                    const char *detail, const char *fmt, ...);
@@ -52,7 +52,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
                            "out of memory while formatting '%s'", pathbuf);
     return 1;
   }
-  fmt_len = shu_format_x_document((const uint8_t *)raw_view.data, (int)raw_view.length, out, (int)cap);
+  fmt_len = xlang_format_x_document((const uint8_t *)raw_view.data, (int)raw_view.length, out, (int)cap);
   if (fmt_len < 0) {
     free(out);
     runtime_release_file_view(&raw_view);

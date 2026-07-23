@@ -78,7 +78,7 @@ extern void driver_bump_stack_limit(void);
 extern struct RtDispatchState * driver_compile_state_alloc_c(void);
 extern void driver_compile_state_free_c(struct RtDispatchState * state);
 extern int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t * argv, struct RtDispatchState * state);
-extern void shu_target_cpu_print(uint8_t * out, uint32_t features);
+extern void xlang_target_cpu_print(uint8_t * out, uint32_t features);
 extern uint8_t * driver_stdio_stdout(void);
 extern uint8_t * driver_dispatch_lib_roots_from_key(uint8_t * lib_key, int32_t * n_out);
 extern uint8_t * driver_dispatch_lib_root_at(uint8_t * roots, int32_t i);
@@ -390,7 +390,7 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t * argv) {
   if (((state->print_target_cpu) !=0)) {
     {
       (void)((out = driver_stdio_stdout()));
-      (void)(shu_target_cpu_print(out, ((uint32_t)((state->target_cpu_features)))));
+      (void)(xlang_target_cpu_print(out, ((uint32_t)((state->target_cpu_features)))));
       (void)(driver_compile_state_free_c(state));
     }
     return 0;

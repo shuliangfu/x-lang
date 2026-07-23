@@ -2,7 +2,7 @@
  * G-02f target_cpu_pure R2 full surface — isomorphic with src/driver/target_cpu_pure.x
  * Product PREFER_X_O: g05_try_x_to_o(target_cpu_pure.x) + mega rest under FROM_X
  * Prove: full.x vs this seed -> nm IDENTICAL (12 public business funcs + BSS)
- * Cap residual: shu_target_cpu_print (FILE star / fprintf) + OS detect (sysctl / proc / #if) in mega rest
+ * Cap residual: xlang_target_cpu_print (FILE star / fprintf) + OS detect (sysctl / proc / #if) in mega rest
  * Regen: ./xlang -E ... src/driver/target_cpu_pure.x | filter DBG + polish prologue
  * NOTE: must use ./xlang (not xlang-x); xlang-x adds driver_ prefix to non-#[no_mangle] funcs.
  */
@@ -15,11 +15,11 @@ extern uint8_t tcp_tolower(uint8_t c);
 extern int32_t tcp_eq_at(uint8_t * name, size_t base, size_t n, uint8_t lit0, uint8_t lit1, uint8_t lit2, uint8_t lit3, uint8_t lit4, uint8_t lit5, uint8_t lit6, uint8_t lit7, uint8_t lit8);
 extern void tcp_set_u32(uint32_t * out, uint32_t f);
 extern int32_t tcp_parse_named(uint8_t * spec, size_t base, size_t end, uint32_t * out);
-extern int32_t shu_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out);
+extern int32_t xlang_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out);
 extern int32_t tcp_eq5(uint8_t * name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4);
 extern int32_t tcp_eq6(uint8_t * name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4, uint8_t a5);
-extern int32_t shu_simd_is_vector_type_spelling(uint8_t * name, size_t name_len);
-extern int32_t shu_simd_vector_lanes_esz_from_spelling(uint8_t * name, size_t name_len, int32_t * out_lanes, int32_t * out_esz);
+extern int32_t xlang_simd_is_vector_type_spelling(uint8_t * name, size_t name_len);
+extern int32_t xlang_simd_vector_lanes_esz_from_spelling(uint8_t * name, size_t name_len, int32_t * out_lanes, int32_t * out_esz);
 extern void append_feat_name(uint8_t * buf, size_t cap, size_t * pos, uint8_t * name);
 extern int32_t flags_has_token(uint8_t * hay, uint8_t * token);
 #undef g_driver_pending_target_cpu_features
@@ -27,8 +27,8 @@ static uint32_t g_driver_pending_target_cpu_features = 0;
 static void init_globals(void) {
   g_driver_pending_target_cpu_features = 0;
 }
-extern uint32_t shu_target_cpu_detect_host(void);
-extern uint32_t shu_target_cpu_generic_for_host(void);
+extern uint32_t xlang_target_cpu_detect_host(void);
+extern uint32_t xlang_target_cpu_generic_for_host(void);
 void driver_set_pending_target_cpu_features(uint32_t features) {
   (void)((g_driver_pending_target_cpu_features = features));
 }
@@ -90,12 +90,12 @@ int32_t tcp_parse_named(uint8_t * spec, size_t base, size_t end, uint32_t * out)
   }
   (void)((n = (end - base)));
   if (((n ==6) && (tcp_eq_at(spec, base, 6, 110, 97, 116, 105, 118, 101, 0, 0, 0) !=0))) {
-    (void)((f = shu_target_cpu_detect_host()));
+    (void)((f = xlang_target_cpu_detect_host()));
     (void)(tcp_set_u32(out, f));
     return 0;
   }
   if (((n ==7) && (tcp_eq_at(spec, base, 7, 103, 101, 110, 101, 114, 105, 99, 0, 0) !=0))) {
-    (void)((f = shu_target_cpu_generic_for_host()));
+    (void)((f = xlang_target_cpu_generic_for_host()));
     (void)(tcp_set_u32(out, f));
     return 0;
   }
@@ -149,7 +149,7 @@ int32_t tcp_parse_named(uint8_t * spec, size_t base, size_t end, uint32_t * out)
   }
   return -1;
 }
-int32_t shu_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out) {
+int32_t xlang_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out) {
   size_t start = 0;
   size_t end = 0;
   uint32_t f = 0;
@@ -157,7 +157,7 @@ int32_t shu_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out) 
     return -1;
   }
   if (((spec ==0) || (spec_len ==0))) {
-    (void)((f = shu_target_cpu_detect_host()));
+    (void)((f = xlang_target_cpu_detect_host()));
     (void)(tcp_set_u32(out, f));
     return 0;
   }
@@ -169,7 +169,7 @@ int32_t shu_target_cpu_resolve(uint8_t * spec, size_t spec_len, uint32_t * out) 
     (void)((end = (end - 1)));
   }
   if ((end <=start)) {
-    (void)((f = shu_target_cpu_detect_host()));
+    (void)((f = xlang_target_cpu_detect_host()));
     (void)(tcp_set_u32(out, f));
     return 0;
   }
@@ -181,7 +181,7 @@ int32_t tcp_eq5(uint8_t * name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, 
 int32_t tcp_eq6(uint8_t * name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4, uint8_t a5) {
   return tcp_eq_at(name, 0, 6, a0, a1, a2, a3, a4, a5, 0, 0, 0);
 }
-int32_t shu_simd_is_vector_type_spelling(uint8_t * name, size_t name_len) {
+int32_t xlang_simd_is_vector_type_spelling(uint8_t * name, size_t name_len) {
   if (((name ==0) || (name_len ==0))) {
     return 0;
   }
@@ -218,13 +218,13 @@ int32_t shu_simd_is_vector_type_spelling(uint8_t * name, size_t name_len) {
   }
   return 0;
 }
-int32_t shu_simd_vector_lanes_esz_from_spelling(uint8_t * name, size_t name_len, int32_t * out_lanes, int32_t * out_esz) {
+int32_t xlang_simd_vector_lanes_esz_from_spelling(uint8_t * name, size_t name_len, int32_t * out_lanes, int32_t * out_esz) {
   int32_t lanes = 4;
   int32_t esz = 4;
   if (((out_lanes ==0) || (out_esz ==0))) {
     return -1;
   }
-  if ((shu_simd_is_vector_type_spelling(name, name_len) ==0)) {
+  if ((xlang_simd_is_vector_type_spelling(name, name_len) ==0)) {
     return -1;
   }
   if (((name_len ==5) && ((name)[4] ==56))) {

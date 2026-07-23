@@ -18,7 +18,7 @@ MIN_APIS=10
 # shellcheck source=tests/lib/std-json.sh
 . tests/lib/std-json.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -129,14 +129,14 @@ echo "std-json manifest OK (apis=${API_N})"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== STD-008: std.json smoke (XLANG=$XLANG_BIN) ==="
   make -C compiler -q xlang-c 2>/dev/null || XLANG_LEGACY_C_FRONTEND=1 make -C compiler xlang-c 2>/dev/null || true
   # shellcheck source=tests/lib/build-std-c-o.sh

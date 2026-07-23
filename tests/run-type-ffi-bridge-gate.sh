@@ -110,16 +110,16 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
 done < "$MANIFEST"
 
 MAP_N=0
-while IFS=$'\t' read -r shu_type c_type extern_ok notes; do
-  [ -z "${shu_type:-}" ] && continue
-  case "$shu_type" in \#*|min_*) continue ;; esac
+while IFS=$'\t' read -r xlang_type c_type extern_ok notes; do
+  [ -z "${xlang_type:-}" ] && continue
+  case "$xlang_type" in \#*|min_*) continue ;; esac
   MAP_N=$((MAP_N + 1))
-  if ! grep -qF "$shu_type" "$DOC" 2>/dev/null && [ "$shu_type" != "ptr_star" ] && [ "$shu_type" != "ptr_u8_bridge" ] && [ "$shu_type" != "slice_arr" ]; then
-    echo "type-ffi-bridge FAIL: doc missing mapping $shu_type" >&2
+  if ! grep -qF "$xlang_type" "$DOC" 2>/dev/null && [ "$xlang_type" != "ptr_star" ] && [ "$xlang_type" != "ptr_u8_bridge" ] && [ "$xlang_type" != "slice_arr" ]; then
+    echo "type-ffi-bridge FAIL: doc missing mapping $xlang_type" >&2
     MISS=$((MISS + 1))
   fi
-  if ! type_ffi_mapping_in_codegen "$shu_type" "$c_type"; then
-    echo "type-ffi-bridge FAIL: codegen missing mapping for $shu_type -> $c_type" >&2
+  if ! type_ffi_mapping_in_codegen "$xlang_type" "$c_type"; then
+    echo "type-ffi-bridge FAIL: codegen missing mapping for $xlang_type -> $c_type" >&2
     MISS=$((MISS + 1))
   fi
 done < "$MAP"

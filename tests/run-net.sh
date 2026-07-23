@@ -17,13 +17,13 @@ fi
 ensure_std_c_o ../std/net/net.o
 # net.o 合并 workers.x，链入时依赖 thread.o
 ensure_std_c_o ../std/thread/thread.o
-# Linux UDP batch / accept workers 胶层（net.o 内引用 shu_net_* / thread_create_c）
+# Linux UDP batch / accept workers 胶层（net.o 内引用 xlang_net_* / thread_create_c）
 ensure_runtime_net_udp_batch_o
 ensure_runtime_net_workers_o
 ensure_runtime_asm_io_stubs_o
 ensure_runtime_panic_o
 ensure_runtime_process_argv_o
-# ws.inc.c 内 shu_ws_fill_random16 依赖 random_fill_bytes_c
+# ws.inc.c 内 xlang_ws_fill_random16 依赖 random_fill_bytes_c
 ensure_std_c_o ../std/random/random.o
 # shellcheck source=lib/bootstrap-link-xlang.sh
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"

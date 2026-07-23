@@ -17,7 +17,7 @@ MIN_REC=12
 # shellcheck source=tests/lib/doc-cookbook.sh
 . tests/lib/doc-cookbook.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -120,14 +120,14 @@ echo "doc-stdlib-cookbook manifest OK (sections=${SEC} recipes=${REC})"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== DOC-001: recipe typeck smoke ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   CHECK_FAIL=0

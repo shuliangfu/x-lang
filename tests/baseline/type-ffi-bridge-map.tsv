@@ -1,5 +1,5 @@
 # TYPE-004 Shu → C type mapping（FFI bridge）
-# 列：shu_type	c_type	extern_ok	notes
+# 列：xlang_type	c_type	extern_ok	notes
 # min_mappings	12
 i32	int32_t	yes	scalar
 u32	uint32_t	yes	scalar

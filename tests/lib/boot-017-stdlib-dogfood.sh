@@ -9,7 +9,7 @@
 BOOT017_PREFIX="${XLANG_BOOT017_PREFIX:-xlang: [XLANG_BOOT017_STDLIB_DOGFOOD]}"
 
 # 判断 xlang 是否可在本机执行。
-boot017_native_shu() {
+boot017_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -25,12 +25,12 @@ boot017_native_shu() {
 boot017_resolve_shu() {
   local cand
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if boot017_native_shu "$cand"; then
+    if boot017_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi
   done
-  if [ -n "${XLANG:-}" ] && boot017_native_shu "$XLANG"; then
+  if [ -n "${XLANG:-}" ] && boot017_native_xlang "$XLANG"; then
     echo "$XLANG"
     return 0
   fi

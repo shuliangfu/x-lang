@@ -21,7 +21,7 @@ boot023_mega7_linux_asm() {
   fi
   local cand
   for cand in ./compiler/xlang_asm ./compiler/xlang_asm.experimental; do
-    if comp_riscv64_native_shu "$cand"; then
+    if comp_riscv64_native_xlang "$cand"; then
       return 0
     fi
   done

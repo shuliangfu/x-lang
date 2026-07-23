@@ -12,26 +12,26 @@
 #include "ast.h"
 
 /** 传递 import 列表上限（与 runtime.c MAX_ALL_DEPS 一致）。pipeline.x 链 std 时 >32。 */
-#define SHU_C_MAX_ALL_DEPS 128
+#define XLANG_C_MAX_ALL_DEPS 128
 
 /** import 对应 .x 文件路径缓冲容量。 */
-#define SHU_C_IMPORT_PATH_FS_CAP 512
+#define XLANG_C_IMPORT_PATH_FS_CAP 512
 
 /**
  * 解析并 typeck 全部 import（含传递依赖）；填入 direct dep 与 all_dep 列表。
  * 参数语义同原 runtime.c resolve_and_load_imports。
  * 返回值：0 成功；-1 失败且已释放已写入的 all_dep_*。
  */
-int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
+int xlang_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char **defines, int ndefines, int allow_legacy_extern, ASTModule **dep_mods, int *ndep_out,
-    ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out,
+    ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][XLANG_C_IMPORT_PATH_FS_CAP], int *n_all_out,
     int max_deps);
 
 /**
  * LSP 专用：解析并 typeck 全部 import 依赖，并记录各模块 .x 路径（跨文件 Location.uri）。
  */
-int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
+int xlang_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     ASTModule **dep_mods, int *ndep_out, ASTModule **all_dep_mods, char **all_dep_paths,
-    char all_dep_fs[][SHU_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps);
+    char all_dep_fs[][XLANG_C_IMPORT_PATH_FS_CAP], int *n_all_out, int max_deps);
 
 #endif /* XLANG_RUNTIME_C_IMPORT_H */

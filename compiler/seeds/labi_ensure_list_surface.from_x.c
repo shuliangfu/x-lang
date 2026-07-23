@@ -54,7 +54,7 @@ extern int32_t xlang_ensure_runtime_arrow_simd_glue_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_sqlite_glue_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_crypto_inc_glue_o(uint8_t * argv0);
 extern int32_t xlang_ensure_runtime_ed25519_ref10_glue_o(uint8_t * argv0);
-extern int32_t shu_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
+extern int32_t xlang_resolve_compiler_dir(uint8_t * argv0, uint8_t * out_dir, int64_t out_dir_sz);
 extern int32_t link_abi_path_readable(uint8_t * path);
 extern int32_t xlang_cc_compile_sync(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s);
 extern int32_t xlang_cc_compile_sync_one_extra(uint8_t * src, uint8_t * out_o, uint8_t * inc0, uint8_t * inc1, uint8_t * inc2, int32_t from_asm_s, uint8_t * extra0);
@@ -527,7 +527,7 @@ int32_t link_abi_ensure_from_catalog(uint8_t * argv0, int32_t catalog_idx, uint8
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     uint8_t * hint = 0;
     if ((catalog_idx ==0)) {
@@ -716,7 +716,7 @@ int32_t xlang_ensure_runtime_panic_o(uint8_t * argv0) {
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     uint8_t * hint = ((uint8_t *)"\x74\x72\x79\x3a\x20\x6d\x61\x6b\x65\x20\x2d\x43\x20\x63\x6f\x6d\x70\x69\x6c\x65\x72\x20\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f");
     (void)(link_diag_runtime_obj_resolve_fail(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x70\x61\x6e\x69\x63\x2e\x6f"), hint));
@@ -916,7 +916,7 @@ int32_t xlang_ensure_runtime_heap_user_o(uint8_t * argv0) {
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     (void)(link_diag_runtime_obj_resolve_fail(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x68\x65\x61\x70\x5f\x75\x73\x65\x72\x2e\x6f"), 0));
     return -1;
@@ -1042,7 +1042,7 @@ int32_t xlang_ensure_runtime_test_fn_invoke_o(uint8_t * argv0) {
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     (void)(link_diag_runtime_obj_resolve_fail(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f"), ((uint8_t *)"\x74\x72\x79\x3a\x20\x6d\x61\x6b\x65\x20\x2d\x43\x20\x63\x6f\x6d\x70\x69\x6c\x65\x72\x20\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x65\x73\x74\x5f\x66\x6e\x5f\x69\x6e\x76\x6f\x6b\x65\x2e\x6f")));
     return -1;
@@ -1168,7 +1168,7 @@ int32_t xlang_ensure_runtime_tls_mbedtls_bio_o(uint8_t * argv0) {
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     (void)(link_diag_runtime_obj_resolve_fail(((uint8_t *)"\x72\x75\x6e\x74\x69\x6d\x65\x5f\x74\x6c\x73\x5f\x6d\x62\x65\x64\x74\x6c\x73\x5f\x62\x69\x6f\x2e\x6f"), 0));
     return -1;
@@ -1300,7 +1300,7 @@ int32_t xlang_ensure_bootstrap_nostdlib_stubs_o(uint8_t * argv0) {
   }
   uint8_t comp[4096] = {};
   int32_t rc = 0;
-  (void)((rc = shu_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
+  (void)((rc = xlang_resolve_compiler_dir(argv0, &((comp)[0]), 4096)));
   if ((rc !=0)) {
     (void)(link_diag_runtime_obj_resolve_fail(((uint8_t *)"bootstrap_nostdlib_stubs.o"), 0));
     return -1;

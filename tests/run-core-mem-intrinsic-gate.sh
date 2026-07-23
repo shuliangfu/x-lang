@@ -47,7 +47,7 @@ fi
 echo "core-mem-intrinsic manifest OK (mappings=${MIN_MAP})"
 
 # 解析本机可执行 xlang-c（与 BOOT-013 一致，避免 Darwin 误判 Linux ELF）。
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -61,12 +61,12 @@ stdlib_cm_native_shu() {
 resolve_emit_shu() {
   local cand
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if stdlib_cm_native_shu "$cand"; then
+    if stdlib_cm_native_xlang "$cand"; then
       echo "$cand"
       return 0
     fi
   done
-  if [ -n "${XLANG:-}" ] && stdlib_cm_native_shu "$XLANG"; then
+  if [ -n "${XLANG:-}" ] && stdlib_cm_native_xlang "$XLANG"; then
     echo "$XLANG"
     return 0
   fi
@@ -77,10 +77,10 @@ EMIT_TOTAL=4
 if XLANG_BIN="$(resolve_emit_shu 2>/dev/null)"; then
   echo "=== CORE-008: runnable XLANG_DEBUG_C emit (XLANG=$XLANG_BIN) ==="
   make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null || true
-  if ! stdlib_cm_native_shu "$XLANG_BIN"; then
+  if ! stdlib_cm_native_xlang "$XLANG_BIN"; then
     XLANG_BIN="$(resolve_emit_shu 2>/dev/null || true)"
   fi
-  if [ -n "${XLANG_BIN:-}" ] && stdlib_cm_native_shu "$XLANG_BIN"; then
+  if [ -n "${XLANG_BIN:-}" ] && stdlib_cm_native_xlang "$XLANG_BIN"; then
   found="$(core_mem_intrinsic_emit_ok "$XLANG_BIN" "$EMIT_X" "$MANIFEST" || true)"
   if [ "${found:-0}" -lt "$EMIT_TOTAL" ]; then
     core_mem_intrinsic_emit_report "fail" "${found:-0}" "$EMIT_TOTAL"

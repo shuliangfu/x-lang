@@ -61,10 +61,10 @@ function build_patch_after_step(step_id: i32): i32 {
 /** Internal function `build_run_step`.
  * Implements `build_run_step`.
  * @param step_id i32
- * @param shu_path *u8
+ * @param xlang_path *u8
  * @return i32
  */
-function build_run_step(step_id: i32, shu_path: *u8): i32 {
+function build_run_step(step_id: i32, xlang_path: *u8): i32 {
   let cmd: u8[4096] = [];
   let off: i32 = 0;
   if (step_id == 0) {
@@ -86,7 +86,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     47,112,105,112,101,108,105,110,101,47,112,105,112,101,108,105,
     110,101,46,120,32,62,32,112,105,112,101,108,105,110,101,
     95,103,101,110,46,99];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L1, 149);
     if (off < 0) { return -1; }
@@ -115,7 +115,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     115,115,32,45,120,32,45,69,32,115,114,99,47,109,97,105,
     110,46,120,32,62,32,100,114,105,118,101,114,95,103,101,
     110,46,99];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L3, 130);
     if (off < 0) { return -1; }
@@ -147,7 +147,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     120,32,45,69,32,115,114,99,47,112,97,114,115,101,114,47,
     112,97,114,115,101,114,46,120,32,62,32,112,97,114,115,
     101,114,95,103,101,110,46,99];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L6_0, 71);
     if (off < 0) { return -1; }
@@ -167,7 +167,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     32,45,73,105,110,99,108,117,100,101,32,45,73,115,114,99,
     32,45,99,32,116,121,112,101,99,107,95,103,101,110,46,99,
     32,45,111,32,116,121,112,101,99,107,95,120,46,111];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L6_2, 141);
     if (off < 0) { return -1; }
@@ -184,7 +184,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     45,73,105,110,99,108,117,100,101,32,45,73,115,114,99,32,
     45,99,32,99,111,100,101,103,101,110,95,103,101,110,46,99,
     32,45,111,32,99,111,100,101,103,101,110,95,120,46,111];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L6_3, 174);
     if (off < 0) { return -1; }
@@ -196,7 +196,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     101,120,116,114,97,32,45,73,46,32,45,73,105,110,99,108,
     117,100,101,32,45,73,115,114,99,32,45,99,32,97,115,116,
     95,103,101,110,46,99,32,45,111,32,97,115,116,95,120,46,111];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L6_4, 96);
     if (off < 0) { return -1; }
@@ -210,7 +210,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     110,99,108,117,100,101,32,45,73,115,114,99,32,45,99,32,
     116,111,107,101,110,95,103,101,110,46,99,32,45,111,32,116,
     111,107,101,110,95,120,46,111];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L6_5, 119);
     if (off < 0) { return -1; }
@@ -224,7 +224,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     110,99,108,117,100,101,32,45,73,115,114,99,32,45,99,32,
     108,101,120,101,114,95,103,101,110,46,99,32,45,111,32,108,
     101,120,101,114,95,120,46,111];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L6_6, 119);
     if (off < 0) { return -1; }
@@ -235,7 +235,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
     115,115,47,112,114,101,112,114,111,99,101,115,115,46,120,
     32,62,32,112,114,101,112,114,111,99,101,115,115,95,103,101,
     110,46,99];
-    off = copy_path(cmd, 4096, 0, shu_path);
+    off = copy_path(cmd, 4096, 0, xlang_path);
     if (off < 0) { return -1; }
     off = append_lit(cmd, 4096, off, L6_7, 66);
     if (off < 0) { return -1; }
@@ -257,7 +257,7 @@ function build_run_step(step_id: i32, shu_path: *u8): i32 {
  * See implementation.
  * See implementation.
  */
-extern function build_run_asm_build(shu_path: *u8): i32;
+extern function build_run_asm_build(xlang_path: *u8): i32;
 extern function build_copy_xlang_asm(): i32;
 
 /** Internal function `build_patch_pipeline_gen_c`.

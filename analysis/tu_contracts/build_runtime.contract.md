@@ -33,7 +33,7 @@
 
 ## 6. 备注
 - IMPL 模式切割：5 个 wrapper 由 .x 提供，调用 seed 中的 _impl
-- 签名修复：.x 中 `build_patch_pipeline_gen_c`/`build_patch_driver_gen_c` 原为 `(path: *u8)`，seed 为 `(void)`，已修复 .x 为无参数；`build_run_legacy_steps` 原为 `()`，seed 为 `(const char *shu_path)`，已修复 .x 为 `(shu_path: *u8)`
+- 签名修复：.x 中 `build_patch_pipeline_gen_c`/`build_patch_driver_gen_c` 原为 `(path: *u8)`，seed 为 `(void)`，已修复 .x 为无参数；`build_run_legacy_steps` 原为 `()`，seed 为 `(const char *xlang_path)`，已修复 .x 为 `(xlang_path: *u8)`
 - main/entry 保留 seed：argv 语言限制（.x 无法表达 `char **argv`），且有 `#ifdef BUILD_TOOL_X_ENTRY` 条件编译
 - 调用处保持调用 thin wrapper 名（`build_patch_pipeline_gen_c()` 等），不直接调用 _impl
 - 类型擦除：.x 侧 `*u8` 表达 `const char*` 参数，ABI 兼容

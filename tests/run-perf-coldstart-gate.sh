@@ -124,7 +124,7 @@ echo "perf-coldstart manifest OK (layers=${LAYER_N} metrics=${METRIC_N})"
 chmod +x tests/run-perf-coldstart.sh
 XLANG_GATE=""
 for cand in ./compiler/xlang ./compiler/xlang-c; do
-  if perf_coldstart_native_shu "$cand"; then
+  if perf_coldstart_native_xlang "$cand"; then
     XLANG_GATE="$cand"
     break
   fi

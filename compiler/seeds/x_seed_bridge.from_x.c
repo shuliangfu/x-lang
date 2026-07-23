@@ -280,10 +280,10 @@ typedef struct {
   uint8_t *ptr;
   size_t len;
   size_t handle;
-} shu_buffer_abi_t;
+} xlang_buffer_abi_t;
 
 int32_t xlang_io_register_buf(intptr_t buf) {
-  const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
+  const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
   return xlang_io_register(b->ptr, b->len, b->handle);
@@ -298,7 +298,7 @@ int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned t
 }
 
 int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_ms) {
-  const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
+  const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
   return xlang_io_submit_read(b->ptr, b->len, b->handle, (unsigned)timeout_ms);
@@ -313,7 +313,7 @@ int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned 
 }
 
 int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms) {
-  const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
+  const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
   return xlang_io_submit_write(b->ptr, b->len, b->handle, (unsigned)timeout_ms);

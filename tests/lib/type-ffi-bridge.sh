@@ -2,7 +2,7 @@
 # type-ffi-bridge.sh — TYPE-004 FFI 类型桥接共享辅助
 
 # 判断本机能否直接执行给定 xlang 二进制。
-type_ffi_native_shu() {
+type_ffi_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -15,7 +15,7 @@ type_ffi_native_shu() {
   esac
 }
 
-# 校验 mapping 表中 shu_type 在 codegen 有对应 C 类型子串。
+# 校验 mapping 表中 xlang_type 在 codegen 有对应 C 类型子串。
 type_ffi_mapping_in_codegen() {
   local xlang="$1"
   local cty="$2"

@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 . "${ROOT}/tests/lib/ci-host.sh"
 
 # 判断本机能否执行指定编译器二进制。
-comp_incr_compile_native_shu() {
+comp_incr_compile_native_xlang() {
   local f="${1:-./compiler/xlang-c}"
   [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in

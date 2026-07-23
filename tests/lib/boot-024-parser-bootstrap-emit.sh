@@ -22,11 +22,11 @@ boot024_parser_linux_shu() {
   fi
   local cand
   for cand in ./compiler/xlang_asm ./compiler/xlang_asm.experimental; do
-    if comp_riscv64_native_shu "$cand"; then
+    if comp_riscv64_native_xlang "$cand"; then
       return 0
     fi
   done
-  comp_riscv64_native_shu "./compiler/xlang"
+  comp_riscv64_native_xlang "./compiler/xlang"
 }
 
 # 从 bisect 日志解析 MINIMAL PASS 行。

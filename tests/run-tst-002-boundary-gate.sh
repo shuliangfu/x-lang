@@ -65,7 +65,7 @@ if [ "$BOUNDARY_N" -lt 4 ]; then
 fi
 echo "tst-002-boundary manifest OK (modules=${BOUNDARY_N} min_cases=${MIN_CASES})"
 
-stdlib_cm_native_shu() {
+stdlib_cm_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -85,7 +85,7 @@ SKIP=1
 XLANG_BIN=""
 
 for cand in ./compiler/xlang-c ./compiler/xlang; do
-  if stdlib_cm_native_shu "$cand"; then
+  if stdlib_cm_native_xlang "$cand"; then
     XLANG_BIN="$cand"
     break
   fi

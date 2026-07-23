@@ -11,14 +11,14 @@ cd "$(dirname "$0")/.."
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if lang_generic_native_shu "$cand"; then
+    if lang_generic_native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -z "$XLANG_BIN" ] || ! lang_generic_native_shu "$XLANG_BIN"; then
+if [ -z "$XLANG_BIN" ] || ! lang_generic_native_xlang "$XLANG_BIN"; then
   echo "lang-generic SKIP (no native xlang, host=$(uname -s)/$(uname -m 2>/dev/null))"
   echo "lang-generic OK"
   exit 0
@@ -31,7 +31,7 @@ chmod +x tests/run-generic.sh tests/run-multi-file-generic.sh
 XLANG="$XLANG_BIN" ./tests/run-generic.sh
 
 # 跨模块泛型仅 xlang-c prototype 路径稳定。
-if [ -x ./compiler/xlang-c ] && lang_generic_native_shu ./compiler/xlang-c; then
+if [ -x ./compiler/xlang-c ] && lang_generic_native_xlang ./compiler/xlang-c; then
   ./tests/run-multi-file-generic.sh
 else
   echo "lang-generic SKIP multi-file (no native xlang-c)"

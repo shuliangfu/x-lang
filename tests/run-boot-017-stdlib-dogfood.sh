@@ -105,7 +105,7 @@ if len(modules) < 55:
     sys.exit(1)
 
 baseline = load_baseline(baseline_path, modules)
-tmpdir = tempfile.mkdtemp(prefix="shu_boot017_")
+tmpdir = tempfile.mkdtemp(prefix="xlang_boot017_")
 failures = 0
 check_fail = 0
 rows = []

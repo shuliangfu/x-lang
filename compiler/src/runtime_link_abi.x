@@ -985,7 +985,7 @@ export function link_abi_obj_needs_zlib(obj_o: *u8): i32 {
     if (obj_o[0] == 0) {
       return 0;
     }
-    if (link_abi_obj_exports_marker(obj_o, "shu_compress_zlib_marker") != 0) {
+    if (link_abi_obj_exports_marker(obj_o, "xlang_compress_zlib_marker") != 0) {
       return 1;
     }
     if (link_abi_obj_has_undef_sym(obj_o, "_compress2") != 0) {
@@ -1019,7 +1019,7 @@ export function link_abi_obj_needs_zstd(obj_o: *u8): i32 {
     if (obj_o[0] == 0) {
       return 0;
     }
-    if (link_abi_obj_exports_marker(obj_o, "shu_compress_zstd_marker") != 0) {
+    if (link_abi_obj_exports_marker(obj_o, "xlang_compress_zstd_marker") != 0) {
       return 1;
     }
     if (link_abi_obj_has_undef_sym(obj_o, "ZSTD_") != 0) {
@@ -1047,7 +1047,7 @@ export function link_abi_obj_needs_brotli(obj_o: *u8): i32 {
     if (obj_o[0] == 0) {
       return 0;
     }
-    if (link_abi_obj_exports_marker(obj_o, "shu_compress_brotli_marker") != 0) {
+    if (link_abi_obj_exports_marker(obj_o, "xlang_compress_brotli_marker") != 0) {
       return 1;
     }
     if (link_abi_obj_has_undef_sym(obj_o, "BrotliEncoderCompress") != 0) {
@@ -1918,7 +1918,7 @@ export function xlang_asm_ld_append_unix_gcc_tail_libs(compress_o: *u8, user_o: 
 export extern "C" function xlang_ensure_crt0_user_o_impl(argv0: *u8, driver_freestanding: i32): i32;
 
 export extern "C" function xlang_ensure_freestanding_io_o_impl(argv0: *u8, driver_freestanding: i32): i32;
-export extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
+export extern "C" function xlang_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
 export extern "C" function xlang_asm_user_o_has_undef_syms_impl(o_path: *u8): i32;
 export extern "C" function asm_ld_append_compress_libs_impl(compress_o: *u8, user_o: *u8, argv: *u8, la: *i32, max_la: i32): void;
 export extern "C" function invoke_cc_append_compress_ld_impl(argv: *u8, i: *i32, argv_cap: i32, compress_o: *u8, user_o: *u8): void;
@@ -2340,7 +2340,7 @@ export function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: 
   return 0 - 1;
 }
 
-export extern "C" function shu_resolve_compiler_dir_impl(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
+export extern "C" function xlang_resolve_compiler_dir_impl(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 export extern "C" function xlang_asm_invoke_ld_platform_impl(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, driver_freestanding: i32): i32;
 export extern "C" function xlang_asm_ld_append_std_objs_impl(link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void;
 export extern "C" function xlang_asm_ld_append_on_demand_user_objs_impl(link_argv0: *u8, user_o: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void;
@@ -2348,7 +2348,7 @@ export extern "C" function invoke_cc_append_net_tls_ld_impl(argv: *u8, i: *i32, 
 export extern "C" function ensure_std_net_o_auto_tls_impl(repo_root: *u8): void;
 
 /* wave216: public pure thin authority is labi_diag_pure.x (hybrid L1).
- * Cap residual shu_waitpid_retry_impl stays mega always (waitpid+EINTR+strerror).
+ * Cap residual xlang_waitpid_retry_impl stays mega always (waitpid+EINTR+strerror).
  * Cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X in mega / labi_diag cold seed.
  * This mega logical .x keeps a matching thin so regen/selfhost does not re-open
  * an always-full public body (G.7 single Cap residual = _impl). */
@@ -2361,9 +2361,9 @@ export extern "C" function ensure_std_net_o_auto_tls_impl(repo_root: *u8): void;
  * PLATFORM: SHARED orch / POSIX wait residual via _impl.
  */
 #[no_mangle]
-export function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
+export function xlang_waitpid_retry(pid: i64, status_out: *i32): i32 {
   unsafe {
-    return shu_waitpid_retry_impl(pid, status_out);
+    return xlang_waitpid_retry_impl(pid, status_out);
   }
   return 0 - 1;
 }
@@ -2479,7 +2479,7 @@ export extern "C" function xlang_append_linux_link_harden_impl(argv: *u8, la: *i
 /* See implementation. */
 
 #[no_mangle]
-export function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32 {
+export function xlang_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32 {
   if (out_dir == 0 as *u8) {
     return 0 - 1;
   }
@@ -2487,7 +2487,7 @@ export function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i
     return 0 - 1;
   }
   unsafe {
-    return shu_resolve_compiler_dir_impl(argv0, out_dir, out_dir_sz);
+    return xlang_resolve_compiler_dir_impl(argv0, out_dir, out_dir_sz);
   }
   return 0 - 1;
 }

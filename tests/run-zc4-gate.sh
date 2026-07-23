@@ -36,7 +36,7 @@ zc4_native_exe() {
 }
 
 # 从候选列表选首个 native 编译器；typeck 与 import std.string/heap 用户链均优先 xlang-c。
-zc4_pick_native_shu() {
+zc4_pick_native_xlang() {
   local cand abs
   for cand in "$@"; do
     case "$cand" in /*) abs="$cand" ;; *) abs="$(pwd)/$cand" ;; esac
@@ -48,7 +48,7 @@ zc4_pick_native_shu() {
   return 1
 }
 
-CHECK_XLANG="$(zc4_pick_native_shu ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm)" || CHECK_XLANG=""
+CHECK_XLANG="$(zc4_pick_native_xlang ./compiler/xlang-c ./compiler/xlang ./compiler/xlang_asm)" || CHECK_XLANG=""
 
 if [ -z "$CHECK_XLANG" ]; then
   if make -C compiler -q xlang-c 2>/dev/null || make -C compiler xlang-c 2>/dev/null; then
@@ -64,9 +64,9 @@ if [ -z "$CHECK_XLANG" ]; then
 fi
 
 # 编译/运行：import std.string/heap 时 xlang_asm co-emit 暂缺 .x 符号，须 xlang-c（CI 可 XLANG=xlang_asm 跑 typeck 上下文）
-RUN_XLANG="$(zc4_pick_native_shu ./compiler/xlang-c ./compiler/xlang)" || RUN_XLANG=""
+RUN_XLANG="$(zc4_pick_native_xlang ./compiler/xlang-c ./compiler/xlang)" || RUN_XLANG=""
 if [ -z "$RUN_XLANG" ]; then
-  RUN_XLANG="$(zc4_pick_native_shu ./compiler/xlang_asm)" || RUN_XLANG="$CHECK_XLANG"
+  RUN_XLANG="$(zc4_pick_native_xlang ./compiler/xlang_asm)" || RUN_XLANG="$CHECK_XLANG"
 fi
 if [ -n "$XLANG_ABS" ] && zc4_native_exe "$XLANG_ABS" ] && [ -z "${XLANG_ZC4_FORCE_COMPILE_ASM:-}" ]; then
   case "$XLANG_ABS" in *xlang_asm*) ;; *) RUN_XLANG="$XLANG_ABS" ;; esac

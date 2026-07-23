@@ -8,7 +8,7 @@
  * wave111：xlang_link_perror pure orch（prefix + paren split）
  * wave112：tool_status / obj_build_status pure orch（append_i32 + wait Cap residual）
  * wave113：link_diag_errno / _path pure orch（append + code_for_kind + report_with_code）
- * wave216：shu_waitpid_retry pure thin（Cap residual waitpid+EINTR+strerror _impl）
+ * wave216：xlang_waitpid_retry pure thin（Cap residual waitpid+EINTR+strerror _impl）
  * wave217：strerror_current + wait_is_signaled + wait_code pure thin（_impl Cap residual）
  * wave219：xlang_spawn_sync pure thin（Cap residual fork/exec/wait 或 _spawnvp _impl）
  * wave220：invoke_cc_strip_out_x pure thin（Cap residual argv pack + spawn _impl）
@@ -18,7 +18,7 @@
  *   link_diag_ld_debug_argv_impl（char** 🔒）
  *   link_diag_strerror_current_impl（errno + strerror 🔒；wave217）
  *   link_diag_wait_is_signaled_impl / link_diag_wait_code_impl（WIF* 🔒；wave217）
- *   shu_waitpid_retry_impl（waitpid+EINTR+strerror 🔒；wave216）
+ *   xlang_waitpid_retry_impl（waitpid+EINTR+strerror 🔒；wave216）
  *   xlang_spawn_sync_impl（fork+execvp+wait / _spawnvp 🔒；wave219）
  *   invoke_cc_strip_out_x_impl（strip argv pack + spawn 🔒；wave220）
  *   link_abi_getenv_impl（host getenv 🔒；wave222）
@@ -44,7 +44,7 @@ extern int link_diag_wait_is_signaled_impl(int status);
 extern int link_diag_wait_code_impl(int status);
 /* Cap residual (wave216): waitpid + EINTR + strerror. PLATFORM: POSIX.
  * Signature uses int64_t to match pure .x i64 / surface pin (pid_t on host). */
-extern int shu_waitpid_retry_impl(int64_t pid, int *status_out);
+extern int xlang_waitpid_retry_impl(int64_t pid, int *status_out);
 /* Cap residual (wave219): host spawn. PLATFORM: POSIX fork / WINDOWS _spawnvp.
  * argv is NULL-terminated; pure owns null/empty gates. */
 extern int xlang_spawn_sync_impl(const char *prog, const char *const *argv);
@@ -354,10 +354,10 @@ int link_diag_wait_code(int status) {
   return link_diag_wait_code_impl(status);
 }
 
-/* wave216 cold twin of pure shu_waitpid_retry (thin → Cap residual _impl).
+/* wave216 cold twin of pure xlang_waitpid_retry (thin → Cap residual _impl).
  * PLATFORM: SHARED orch / POSIX wait residual. */
-int shu_waitpid_retry(int64_t pid, int *status_out) {
-  return shu_waitpid_retry_impl(pid, status_out);
+int xlang_waitpid_retry(int64_t pid, int *status_out) {
+  return xlang_waitpid_retry_impl(pid, status_out);
 }
 
 /* wave219 cold twin of pure xlang_spawn_sync (null/empty gates + Cap residual spawn).
@@ -425,7 +425,7 @@ void xlang_link_perror(const char *msg);
 const char *link_diag_strerror_current(void);
 int link_diag_wait_is_signaled(int status);
 int link_diag_wait_code(int status);
-int shu_waitpid_retry(int64_t pid, int *status_out);
+int xlang_waitpid_retry(int64_t pid, int *status_out);
 int xlang_spawn_sync(const char *prog, const char *const *argv);
 void invoke_cc_strip_out_x(const char *out_path);
 const char *link_abi_getenv(const char *name);

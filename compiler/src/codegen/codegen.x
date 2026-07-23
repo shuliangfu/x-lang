@@ -1366,7 +1366,7 @@ export function codegen_is_std_io_driver_bridge_name(name: *u8, name_len: i32): 
  *
  * Returns 1 to skip emit, 0 to emit.
  *
- * Contract: match tables use full "xlang_io_*" (with 'x'), never historic "shu_io_*".
+ * Contract: match tables use full "xlang_io_*" (with 'x'), never historic "shu_io_*" brand.
  * Batch names are checked before short submit_read/write prefixes.
  * PLATFORM: SHARED — link-name contract; Cap force + pin product matrix.
  */
@@ -11072,7 +11072,7 @@ export function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOu
              * - Non-array mutable let: decl-site ONLY when init is C static-const
              *   (pipeline_expr_is_c_static_const_init: pure lit trees, e.g. -1).
              *   Why: library/dep TUs have no main, so init_globals never runs; BSS zero-init
-             *   would wipe sentinels like shu_heap_trace_on = -1 (heap_trace never enables).
+             *   would wipe sentinels like xlang_heap_trace_on = -1 (heap_trace never enables).
              *   VAR-dependent inits (e.g. let b = a + 2) are illegal as C static initializers
              *   and must remain init_globals-only (two_lets / run-toplevel-let).
              *   init_globals may still re-assign pure lits on entry co-emit (idempotent).

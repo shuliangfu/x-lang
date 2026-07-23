@@ -14,7 +14,7 @@ LIB="tests/lib/tst-004-std-sanitize.sh"
 
 [ "${XLANG_TST004_FAIL_ON_ERROR:-1}" = "1" ] && FAIL_ON_ERR=1 || FAIL_ON_ERR=0
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -29,7 +29,7 @@ native_shu() {
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
@@ -44,7 +44,7 @@ if ! safe_leak_asan_ok; then
   exit 0
 fi
 
-if [ -z "$XLANG_BIN" ] || ! native_shu "$XLANG_BIN"; then
+if [ -z "$XLANG_BIN" ] || ! native_xlang "$XLANG_BIN"; then
   echo "tst-004-sanitize-nightly SKIP: no native xlang" >&2
   tst004_sanitize_emit_report skip 0 0 1
   exit 0

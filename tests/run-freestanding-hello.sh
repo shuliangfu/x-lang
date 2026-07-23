@@ -96,7 +96,7 @@ EOF
 /** musl 烟测桩：等价 tests/freestanding/hello/main.x（crt0_user 经 call main 进入） */
 extern long xlang_sys_write(int fd, const void *buf, unsigned long len);
 int main(void) {
-  static const char msg[] = "Hello Shu!\n";
+  static const char msg[] = "Hello Xlang!\n";
   if (xlang_sys_write(1, msg, 11) != 11) {
     return 1;
   }
@@ -117,12 +117,12 @@ EOF
     echo "run-freestanding-hello: musl hello expected exit 0, got $EX"
     exit 1
   fi
-  EXPECTED=$(printf 'Hello Shu!\n')
+  EXPECTED=$(printf 'Hello Xlang!\n')
   if [ "$OUT" != "$EXPECTED" ]; then
-    echo "run-freestanding-hello: musl hello stdout mismatch (expected 'Hello Shu!\\n', got '$OUT')"
+    echo "run-freestanding-hello: musl hello stdout mismatch (expected 'Hello Xlang!\\n', got '$OUT')"
     exit 1
   fi
-  echo "run-freestanding-hello: musl hello OK (stdout 'Hello Shu!', syscall write)"
+  echo "run-freestanding-hello: musl hello OK (stdout 'Hello Xlang!', syscall write)"
 }
 
 # 探测 xlang 是否具备 -freestanding + -backend asm 链入能力
@@ -179,12 +179,12 @@ if [ "$EX" -ne 0 ]; then
   echo "run-freestanding-hello: hello expected exit 0, got $EX"
   exit 1
 fi
-EXPECTED=$(printf 'Hello Shu!\n')
+EXPECTED=$(printf 'Hello Xlang!\n')
 if [ "$OUT" != "$EXPECTED" ]; then
-  echo "run-freestanding-hello: hello stdout mismatch (expected 'Hello Shu!\\n', got '$OUT')"
+  echo "run-freestanding-hello: hello stdout mismatch (expected 'Hello Xlang!\\n', got '$OUT')"
   exit 1
 fi
-echo "run-freestanding-hello: hello OK (stdout 'Hello Shu!', syscall write)"
+echo "run-freestanding-hello: hello OK (stdout 'Hello Xlang!', syscall write)"
 freestanding_trim_ok "$HELLO" 1 0
 
 echo "run-freestanding-hello OK"

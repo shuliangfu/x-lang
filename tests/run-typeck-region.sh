@@ -22,7 +22,7 @@ fi
 # CHECK_XLANG 可能是绝对路径（zc gate 传入），用 basename 识别 seed/asm 编译器。
 _typeck_base=$(basename "$TYPECK_XLANG")
 if [ "$_typeck_base" = "xlang" ] || [ "$_typeck_base" = "xlang_asm" ]; then
-  if [ -x ./compiler/xlang-c ] && ci_native_shu ./compiler/xlang-c; then
+  if [ -x ./compiler/xlang-c ] && ci_native_xlang ./compiler/xlang-c; then
     EMIT_XLANG=./compiler/xlang-c
   else
     EMIT_XLANG="$TYPECK_XLANG"

@@ -35,8 +35,8 @@ extern void diag_reportf(const char *file, int line, int col, const char *kind, 
                          ...);
 extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                   const char *msg, const char *detail);
-extern void shu_target_cpu_print(FILE *out, uint32_t features);
-extern int shu_waitpid_retry(pid_t pid, int *status_out);
+extern void xlang_target_cpu_print(FILE *out, uint32_t features);
+extern int xlang_waitpid_retry(pid_t pid, int *status_out);
 extern const char *xlang_repo_root_from_argv0(const char *argv0);
 /* wave226 G.7: bash test shell via public pure thin link_abi_system (wave224 → _impl host system). */
 extern int link_abi_system(const char *cmd);
@@ -105,7 +105,7 @@ int runtime_test_status_to_rc(const char *script, int st) {
 
 /** X run_compiler_full_x：`--print-target-cpu` 早退打印 feature。 */
 int32_t driver_print_target_cpu_features_c(int32_t features) {
-  shu_target_cpu_print(stdout, (uint32_t)features);
+  xlang_target_cpu_print(stdout, (uint32_t)features);
   return 0;
 }
 
@@ -181,7 +181,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
     }
     {
       int st = 0;
-      if (shu_waitpid_retry(pid, &st) != 0)
+      if (xlang_waitpid_retry(pid, &st) != 0)
         return 1;
       if (WIFEXITED(st))
         return WEXITSTATUS(st);

@@ -35,7 +35,7 @@
 // PLATFORM: SHARED tables / orch; LINUX x86_64 asm prefer; POSIX aarch64 arm64 seed.
 
 // Cap residual (wave169/170/171/172 special ensure pure orch): resolve / access / cc / skip-stat.
-export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
+export extern "C" function xlang_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 export extern "C" function link_abi_path_readable(path: *u8): i32;
 export extern "C" function xlang_cc_compile_sync(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32): i32;
 // Cap residual (wave172 mbedtls_bio): pack one pure flag string into compile_sync_ex table.
@@ -557,7 +557,7 @@ export function labi_ensure_catalog_step_at(
  * Flags (≡ mega LABI_ENS_FLAG_*): 0 NONE → compile_sync; 1 PIE → one_extra "-fPIE";
  *   2 SQLITE → one_extra "-DXLANG_DB_USE_SQLITE3"; 3 HTTP_SEEDS → pack single
  *   "-I{comp}/seeds/http" via one_extra (≡ mega separate -I + path argv entries).
- * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir; link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync / xlang_cc_compile_sync_one_extra (spawn/cc); asm_link_obj_skip_missing.
  * Why (wave173): hybrid still had always-mega C body for generic catalog ensure after special
  *   ensure leaves pure (wave169–172). Tables were pure; orch/spawn/cc stayed mega.
@@ -597,7 +597,7 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     // Hints only for catalog 0/1 (≡ mega step_at / thin historic make tips).
@@ -819,7 +819,7 @@ export function link_abi_ensure_from_catalog(argv0: *u8, catalog_idx: i32, produ
  * Pure orch: peer panic_o_path (wave163) + pure byte joins (no snprintf Cap) after Cap residual
  *   resolve; Cap residual host #if prefer + path_readable + cc_compile_sync + skip_missing (stat)
  *   + peer diags (resolve_fail / missing_under / build_status / missing).
- * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir; link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat);
  *   link_abi_host_is_linux_x86_64 / link_abi_host_is_posix_aarch64 (PLATFORM #if body).
  * Why (wave169): hybrid still had always-mega C body for special panic ensure after panic
@@ -844,7 +844,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     let hint: *u8 = "try: make -C compiler runtime_panic.o";
@@ -1065,7 +1065,7 @@ export function xlang_ensure_runtime_panic_o(argv0: *u8): i32 {
  * Pure orch: peer heap_user_o_path + pure byte joins (no snprintf Cap) after Cap residual
  *   resolve; Cap residual has_defined_sym (nm) + unlink stub + path_readable + cc_compile_sync
  *   + skip_missing (stat) + peer diags (resolve_fail / source_missing / build_status / missing).
- * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir; link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat);
  *   xlang_link_obj_has_defined_sym (popen/nm); unlink (POSIX remove stub).
  * Why (wave170): hybrid still had always-mega C body for special heap_user ensure after
@@ -1106,7 +1106,7 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with null hint for heap_user.
@@ -1254,7 +1254,7 @@ export function xlang_ensure_runtime_heap_user_o(argv0: *u8): i32 {
  * Pure orch: peer test_fn_invoke_o_path + pure byte joins (no snprintf Cap) after Cap residual
  *   resolve; Cap residual path_readable + cc_compile_sync + skip_missing (stat) + peer diags
  *   (resolve_fail / source_missing / build_status / missing).
- * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir; link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync (spawn/cc); asm_link_obj_skip_missing (stat).
  * Why (wave171): hybrid still had always-mega C body for special test_fn_invoke ensure after
  *   heap_user pure (wave170). Mega used wrap.c+#include seed; pure uses direct seed compile
@@ -1278,7 +1278,7 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with make hint for test_fn_invoke.
@@ -1426,7 +1426,7 @@ export function xlang_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
  * Pure orch: peer tls_mbedtls_bio_o_path + pure byte joins (no snprintf Cap) after Cap residual
  *   resolve; Cap residual path_readable + cc_compile_sync_one_extra + skip_missing (stat) + peer diags
  *   (resolve_fail with null hint / source_missing / build_status / missing).
- * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir; link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync_one_extra (spawn/cc + homebrew -I pack); asm_link_obj_skip_missing (stat).
  * Why (wave172): hybrid still had always-mega C body for special tls_mbedtls_bio ensure after
  *   test_fn_invoke pure (wave171). Mega used snprintf + compile_sync_ex(extra_flags homebrew -I);
@@ -1450,7 +1450,7 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     // Match mega: resolve_fail with null hint (Makefile best-effort fallback elsewhere).
@@ -1601,7 +1601,7 @@ export function xlang_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
  * Pure orch: peer bootstrap_nostdlib_stubs_o_path + pure byte joins (no snprintf Cap) after
  *   Cap residual resolve; Cap residual path_readable + cc_compile_sync_one_extra(-fno-builtin)
  *   + skip_missing (stat) + peer diags (resolve_fail / source_missing / build_status / missing).
- * Cap residual: shu_resolve_compiler_dir; link_abi_path_readable (access R_OK);
+ * Cap residual: xlang_resolve_compiler_dir; link_abi_path_readable (access R_OK);
  *   xlang_cc_compile_sync_one_extra (spawn/cc + -fno-builtin); asm_link_obj_skip_missing (stat).
  * Why (wave182): hybrid still had always-mega C body for ensure_bootstrap after path pure
  *   (wave181). Mega used system("cc -c -O2 -fno-builtin -I…"); pure uses Cap residual
@@ -1633,7 +1633,7 @@ export function xlang_ensure_bootstrap_nostdlib_stubs_o(argv0: *u8): i32 {
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc != 0) {
     unsafe {

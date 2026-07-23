@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 MATRIX="${XLANG_LANG_IMPORT_TSV:-tests/baseline/lang-import-crossplatform.tsv}"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -45,7 +45,7 @@ make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
@@ -59,7 +59,7 @@ fi
 
 # 链接优先 xlang-c（与 run-stdlib-import 一致，跨平台稳定）。
 LINK_XLANG="$XLANG_BIN"
-if [ -x ./compiler/xlang-c ] && native_shu ./compiler/xlang-c; then
+if [ -x ./compiler/xlang-c ] && native_xlang ./compiler/xlang-c; then
   LINK_XLANG=./compiler/xlang-c
 fi
 

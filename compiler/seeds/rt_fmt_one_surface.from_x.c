@@ -23,7 +23,7 @@ extern int32_t rt_fmt_path_copy_nul(uint8_t * path, int32_t path_len, uint8_t * 
 extern int32_t rt_fmt_path_ends_x(uint8_t * path_buf, int32_t path_len);
 extern int32_t driver_fmt_one_file(uint8_t * path, int32_t path_len);
 extern uint8_t * runtime_read_file_malloc(uint8_t * path, size_t * out_len);
-extern int32_t shu_format_x_document(uint8_t * doc, int32_t doc_len, uint8_t * out_buf, int32_t out_cap);
+extern int32_t xlang_format_x_document(uint8_t * doc, int32_t doc_len, uint8_t * out_buf, int32_t out_cap);
 extern int32_t driver_fmt_check_only_get(void);
 extern int32_t xlang_write_path_bytes(uint8_t * path, uint8_t * data, size_t len);
 extern void diag_report_with_code(uint8_t * file, int32_t line, int32_t col, uint8_t * kind, uint8_t * code, uint8_t * msg, uint8_t * detail);
@@ -167,7 +167,7 @@ int32_t driver_fmt_one_file(uint8_t * path, int32_t path_len) {
     return 1;
   }
   {
-    (void)((fmt_len = shu_format_x_document(raw, ((int32_t)(raw_len)), out, ((int32_t)(cap)))));
+    (void)((fmt_len = xlang_format_x_document(raw, ((int32_t)(raw_len)), out, ((int32_t)(cap)))));
   }
   if ((fmt_len < 0)) {
     {

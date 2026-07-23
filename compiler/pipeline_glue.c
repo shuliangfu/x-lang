@@ -678,13 +678,13 @@ void pipeline_driver_diagnostic_pipe_marker(int32_t id) {
 
 extern int32_t driver_check_only_get(void);
 
-int32_t shu_pipeline_check_only(void) {
+int32_t xlang_pipeline_check_only(void) {
   return driver_check_only_get();
 }
 
 /** 兼容旧 glue 名。 */
 int32_t pipeline_shu_pipeline_check_only(void) {
-  return shu_pipeline_check_only();
+  return xlang_pipeline_check_only();
 }
 
 int32_t typeck_driver_typeck_skip_large_entry(void) {
@@ -2686,7 +2686,7 @@ static int32_t glue_vector_type_lanes_esz_c(struct ast_ASTArena *arena, int32_t 
     int32_t spell_lanes = 0;
     int32_t spell_esz = 0;
     if (t->name_len > 0 &&
-        shu_simd_vector_lanes_esz_from_spelling((const char *)t->name, (size_t)t->name_len, &spell_lanes,
+        xlang_simd_vector_lanes_esz_from_spelling((const char *)t->name, (size_t)t->name_len, &spell_lanes,
                                                 &spell_esz) == 0) {
       *out_lanes = spell_lanes;
       *out_esz = spell_esz;
@@ -3196,7 +3196,7 @@ static int32_t glue_try_hw_vector_add_binop_elf_c(struct ast_ASTArena *arena,
     return -1;
   feats = glue_simd_emit_cpu_features_c();
   if (feats == 0)
-    feats = shu_target_cpu_detect_host();
+    feats = xlang_target_cpu_detect_host();
   if (glue_vector_elem_is_f32_c(arena, type_ref)) {
     if (binop_ko == 6)
       return simd_enc_try_hw_vector_fmul_rbp(elf_ctx, off_a, off_b, dst_off, lanes, esz, ta, feats);
@@ -3405,7 +3405,7 @@ int32_t pipeline_asm_simd_try_inline_shuffle_call_elf_c(struct ast_ASTArena *are
     if (glue_shuffle_pshufd_imm8_from_mask_c(arena, arg1, lanes, &imm8) == 0) {
       feats = glue_simd_emit_cpu_features_c();
       if (feats == 0)
-        feats = shu_target_cpu_detect_host();
+        feats = xlang_target_cpu_detect_host();
       if (simd_enc_try_pshufd_rbp(elf_ctx, src_off, stack_slot_off, imm8, lanes, ta, feats) == 0)
         return 1;
     }
@@ -3532,7 +3532,7 @@ int32_t pipeline_asm_simd_try_inline_select_call_elf_c(struct ast_ASTArena *aren
   if (!hw_env || hw_env[0] != '0') {
     feats = glue_simd_emit_cpu_features_c();
     if (feats == 0)
-      feats = shu_target_cpu_detect_host();
+      feats = xlang_target_cpu_detect_host();
     if (simd_enc_try_hw_vector_select_rbp(elf_ctx, off_m, off_a, off_b, stack_slot_off, lanes, is_f32, ta, feats) == 0)
       return 1;
   }
@@ -4074,7 +4074,7 @@ int32_t pipeline_asm_simd_try_inline_fma3_call_elf_c(struct ast_ASTArena *arena,
     return 0;
   feats = glue_simd_emit_cpu_features_c();
   if (feats == 0)
-    feats = shu_target_cpu_detect_host();
+    feats = xlang_target_cpu_detect_host();
   if (simd_enc_try_hw_vector_fma_rbp(elf_ctx, off_a, off_b, off_c, stack_slot_off, lanes, esz, ta, feats) == 0)
     return 1;
   return 0;

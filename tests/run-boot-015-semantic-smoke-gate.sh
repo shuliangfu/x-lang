@@ -18,7 +18,7 @@ MIN_SMOKE=3
 # shellcheck source=tests/lib/boot-015-semantic-smoke.sh
 . tests/lib/boot-015-semantic-smoke.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -109,7 +109,7 @@ echo "boot-015-semantic-smoke manifest OK (smokes=${SMOKE})"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
@@ -119,7 +119,7 @@ fi
 CHECK_OK=0
 LINK_OK=0
 SKIP=1
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== BOOT-015: bootstrap subset runner (XLANG=$XLANG_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   chmod +x "$RUNNER"

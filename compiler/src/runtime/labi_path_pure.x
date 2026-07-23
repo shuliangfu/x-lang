@@ -35,7 +35,7 @@
 //   - scheduler_o_for_task_link (wave180; pure task.o→scheduler.o path rewrite + Cap residual
 //     path_readable + realpath_cap; static 4096/4096 BSS; explicit_scheduler short-circuit)
 //   - xlang_bootstrap_nostdlib_stubs_o_path (wave181; pure cwd realpath + compiler-dir/leaf join;
-//     Cap residual realpath_cap + shu_resolve_compiler_dir; static 4096/4096 BSS; LINUX freestanding)
+//     Cap residual realpath_cap + xlang_resolve_compiler_dir; static 4096/4096 BSS; LINUX freestanding)
 //   - 29× thin xlang_runtime_*_o_path (wave183; pure BSS + compiler_o_path_copy peer;
 //     asm_io_stubs / process_argv / process_os_glue … ed25519_ref10_glue; static 4096 BSS each)
 //   - xlang_empty_cstr / xlang_std_io_o_path / xlang_std_compress_o_path /
@@ -86,7 +86,7 @@ export extern "C" function link_abi_user_extra_o_push(p: *u8): i32;
 export extern "C" function link_abi_path_readable(path: *u8): i32;
 // Cap residual (wave160): platform resolve of compiler/ dir (readlink / _NSGetExecutablePath /
 // realpath argv0). Pure owns the leaf join into caller buffer (no snprintf Cap).
-export extern "C" function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
+export extern "C" function xlang_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
 // Cap residual (wave163 panic ladder): path_io peer pure realpath+skip; host getcwd.
 // realpath_if_exists lives in labi_path_io (hybrid L3); getcwd is libc Cap.
 export extern "C" function xlang_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8;
@@ -1449,9 +1449,9 @@ export function xlang_asm_ld_append_user_extra_o_files(argv: **u8, la: *i32, max
  * @param out *u8 — caller buffer for joined path; null → -1
  * @param out_sz i64 — out capacity in bytes; 0 → -1; must fit dir + '/' + leaf + NUL
  * @return i32 — 0 on success (out NUL-terminated); -1 on resolve fail / overflow / bad args
- * Pure orch: null/empty guards + Cap residual shu_resolve_compiler_dir into 4096 stack
+ * Pure orch: null/empty guards + Cap residual xlang_resolve_compiler_dir into 4096 stack
  *   + pure byte join (no snprintf Cap; ≡ mega snprintf("%s/%s", dir, leaf)).
- * Cap residual: shu_resolve_compiler_dir (PLATFORM LINUX/MACOS/WINDOWS #if body stays mega).
+ * Cap residual: xlang_resolve_compiler_dir (PLATFORM LINUX/MACOS/WINDOWS #if body stays mega).
  * Why (wave160): hybrid still had always-mega C body for compiler-dir/leaf join after
  *   platform resolve (path residual first clean leaf after freestanding_enabled).
  * Note: out_sz uses i64 (ABI with size_t callers); compare joins as i64.
@@ -1478,7 +1478,7 @@ export function xlang_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *
   let comp_dir: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp_dir[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp_dir[0], 4096);
   }
   if (rc != 0) {
     return -1;
@@ -1515,12 +1515,12 @@ export function xlang_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *
 
 /**
  * Derive repo root from the product host binary path.
- * Authority (G.7): Cap residual shu_resolve_compiler_dir (compiler/) → parent = repo root;
+ * Authority (G.7): Cap residual xlang_resolve_compiler_dir (compiler/) → parent = repo root;
  * warm-tree fallback strips std/process/process.o three seps via Cap residual rel_o_path.
  * @param argv0 *u8 — optional product host path (also resolve fallback); may be null
  * @return *u8 — static g_labi_repo_root_buf with repo root, or empty string (never null)
  * Pure orch: pure memcpy into BSS + pure path_last_sep strip; no snprintf.
- * Cap residual: shu_resolve_compiler_dir (PLATFORM LINUX/MACOS/WINDOWS #if) +
+ * Cap residual: xlang_resolve_compiler_dir (PLATFORM LINUX/MACOS/WINDOWS #if) +
  *   xlang_rel_o_path_from_argv0 (realpath/getcwd ladder for process.o warm path).
  * Why (wave162): hybrid still had always-mega C body for repo-root derivation after
  *   wave160/161 path residual (compiler-dir join + thin *_o_path). L4 wipe loses process.o
@@ -1537,7 +1537,7 @@ export function xlang_repo_root_from_argv0(argv0: *u8): *u8 {
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc == 0) {
     if (comp[0] != 0) {
@@ -1720,13 +1720,13 @@ export function scheduler_o_for_task_link(task_o: *u8, explicit_scheduler: *u8):
  * Resolve path of bootstrap_nostdlib_stubs.o (mmap bump malloc/free face for freestanding).
  * Ladder (≡ mega xlang_bootstrap_nostdlib_stubs_o_path):
  *   1) realpath cwd-relative `compiler/src/asm/bootstrap_nostdlib_stubs.o`
- *   2) Cap residual shu_resolve_compiler_dir + pure join `comp/src/asm/bootstrap_nostdlib_stubs.o`
+ *   2) Cap residual xlang_resolve_compiler_dir + pure join `comp/src/asm/bootstrap_nostdlib_stubs.o`
  *      then realpath; if realpath fails still return joined buf (≡ mega)
  *   3) empty buf on total fail
  * @param argv0 *u8 — optional product host path for resolve fallback; may be null
  * @return *u8 — static resolved (realpath hit) or buf (joined/empty); never null
  * Pure orch: pure byte join compiler-dir/leaf (no snprintf); Cap residual
- *   link_abi_realpath_cap + shu_resolve_compiler_dir.
+ *   link_abi_realpath_cap + xlang_resolve_compiler_dir.
  * Why (wave181): hybrid still had always-mega C body for nostdlib stubs path
  *   (realpath + snprintf after resolve). Soft residual after wave180 task→scheduler.
  * Note: export signature must stay single-line (multi-line export drops the function).
@@ -1751,7 +1751,7 @@ export function xlang_bootstrap_nostdlib_stubs_o_path(argv0: *u8): *u8 {
   let comp: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(argv0, &comp[0], 4096);
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
   }
   if (rc == 0) {
     let dn: i32 = 0;
@@ -2487,9 +2487,9 @@ export function xlang_std_compress_o_path(argv0: *u8): *u8 {
  * @param syn_buf *u8 — caller buffer for synthetic path; required when link_argv0 empty
  * @param syn_sz i64 — capacity of syn_buf in bytes (incl. NUL); 0 → fail
  * @return *u8 — link_argv0 when non-empty; else syn_buf with compiler-dir/xlang; null on fail
- * Pure orch: null/empty gates + Cap residual shu_resolve_compiler_dir(null) + pure byte join
+ * Pure orch: null/empty gates + Cap residual xlang_resolve_compiler_dir(null) + pure byte join
  *   comp_dir + "/xlang" into syn_buf (no snprintf Cap). Matches mega effective_link_argv0.
- * Cap residual: shu_resolve_compiler_dir only (PLATFORM LINUX/MACOS/WINDOWS resolve).
+ * Cap residual: xlang_resolve_compiler_dir only (PLATFORM LINUX/MACOS/WINDOWS resolve).
  * Why (wave184): hybrid still had always-mega C body (resolve + snprintf join).
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch — hybrid L0 pure; mega cold twin under #ifndef PATH_PURE_FROM_X.
@@ -2514,7 +2514,7 @@ export function xlang_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8,
   let comp_dir: u8[4096] = [];
   let rc: i32 = 0;
   unsafe {
-    rc = shu_resolve_compiler_dir(0 as *u8, &comp_dir[0], 4096);
+    rc = xlang_resolve_compiler_dir(0 as *u8, &comp_dir[0], 4096);
   }
   if (rc != 0) {
     return 0 as *u8;

@@ -281,8 +281,8 @@ int32_t xlang_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx
 /** 使用 typeck_ndep / typeck_dep_module_ptrs 对入口模块做 C typecheck（大模块 asm 构建用）。 */
 int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void);
 
-/** 释放 shu_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths。 */
-void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all);
+/** 释放 xlang_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths。 */
+void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all);
 
 /**
  * 对 .x 源码做条件编译预处理（malloc 结果，调用方 free）。

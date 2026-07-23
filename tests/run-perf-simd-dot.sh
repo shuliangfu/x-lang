@@ -87,7 +87,7 @@ fi
 
 X_MED=$(median_real "$X_EXE")
 C_MED=$(median_real "$C_EXE")
-echo "Shu asm median real: ${X_MED}s"
+echo "Xlang asm median real: ${X_MED}s"
 echo "C -O2 median real:   ${C_MED}s"
 
 if [ "$X_MED" = "nan" ] || [ "$C_MED" = "nan" ]; then
@@ -95,9 +95,9 @@ if [ "$X_MED" = "nan" ] || [ "$C_MED" = "nan" ]; then
   exit 0
 fi
 
-# perf ratio = C_time / Shu_time（≥ MIN_RATIO 即 Shu 不慢于 MIN_RATIO× C）
+# perf ratio = C_time / Xlang_time（≥ MIN_RATIO 即 Xlang 不慢于 MIN_RATIO× C）
 RATIO=$(awk -v c="$C_MED" -v s="$X_MED" 'BEGIN { if (s <= 0) print 0; else print c / s }')
-echo "simd-dot perf ratio (C/Shu): ${RATIO} (need >= ${MIN_RATIO})"
+echo "simd-dot perf ratio (C/Xlang): ${RATIO} (need >= ${MIN_RATIO})"
 
 if awk -v r="$RATIO" -v m="$MIN_RATIO" 'BEGIN { exit (r + 0.000001 >= m) ? 0 : 1 }'; then
   echo "simd-dot perf OK"

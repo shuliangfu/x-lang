@@ -2,14 +2,14 @@
 # perf-sqlite.sh — PERF-170 SQLite stub/loop 烟测辅助
 #
 # 用法（source 后）：
-#   perf_sqlite_native_shu
+#   perf_sqlite_native_xlang
 #   perf_sqlite_median_real exe runs
 #   perf_sqlite_emit_report status check_ok run_ok skip
 
 PERF_SQL_PREFIX="${XLANG_PERF_SQL_PREFIX:-xlang: [XLANG_PERF_SQL]}"
 
 # 判断 xlang 是否可在本机执行。
-perf_sqlite_native_shu() {
+perf_sqlite_native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in

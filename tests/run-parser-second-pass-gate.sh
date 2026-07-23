@@ -62,7 +62,7 @@ fi
 . tests/lib/comp-riscv64.sh
 COMP_PATH="compiler/$COMP_IN"
 [ -x "$COMP_PATH" ] || COMP_PATH="$COMP_IN"
-if [ ! -x "$COMP_PATH" ] || ! comp_riscv64_native_shu "$COMP_PATH"; then
+if [ ! -x "$COMP_PATH" ] || ! comp_riscv64_native_xlang "$COMP_PATH"; then
   echo "parser-second-pass-gate: SKIP (no native $COMP_IN; seed/C-only build)"
   echo "parser-second-pass-gate OK (SKIP no native xlang_asm)"
   exit 0

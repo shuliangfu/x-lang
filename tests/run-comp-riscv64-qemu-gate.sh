@@ -100,7 +100,7 @@ XLANG_COMP016_MANIFEST_ONLY=1 ./tests/run-comp-riscv64-wave-gate.sh
 
 XLANG_BIN=""
 for cand in ./compiler/xlang ./compiler/xlang-c; do
-  if comp_riscv64_native_shu "$cand"; then
+  if comp_riscv64_native_xlang "$cand"; then
     XLANG_BIN="$cand"
     break
   fi

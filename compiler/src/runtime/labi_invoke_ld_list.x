@@ -592,25 +592,25 @@ export function labi_ld_flag_lmbedcrypto(): *u8 {
 
 /**
  * TLS OpenSSL backend marker symbol name (wave158; Cap residual exports_marker needle).
- * @return *u8 — always "shu_net_tls_openssl_marker"
+ * @return *u8 — always "xlang_net_tls_openssl_marker"
  * PLATFORM: SHARED — F-04 v8 marker in std/net/tls_openssl.o (not net.o).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_net_tls_openssl_marker(): *u8 {
-  let p: *u8 = "shu_net_tls_openssl_marker";
+  let p: *u8 = "xlang_net_tls_openssl_marker";
   return p;
 }
 
 /**
  * TLS mbedTLS backend marker symbol name (wave158; Cap residual exports_marker needle).
- * @return *u8 — always "shu_net_tls_mbedtls_marker"
+ * @return *u8 — always "xlang_net_tls_mbedtls_marker"
  * PLATFORM: SHARED — F-04 v9 marker in std/net/tls_mbedtls.o (not net.o).
  * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function labi_net_tls_mbedtls_marker(): *u8 {
-  let p: *u8 = "shu_net_tls_mbedtls_marker";
+  let p: *u8 = "xlang_net_tls_mbedtls_marker";
   return p;
 }
 

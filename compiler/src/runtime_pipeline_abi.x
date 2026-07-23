@@ -145,7 +145,7 @@
 // wave77: pure typeck_ndep / typeck_dep_* table BSS + slot/get/set_impl / ptrs_base
 //   (G.7 xlang_ptr_slot_*; product hybrid writers only via accessors — rt_run_* pure +
 //   driver_typeck_*; cold seed naked C globals stay under #ifndef FROM_X for cold twins).
-// wave78: pure shu_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null) + xlang_fputs_stdout
+// wave78: pure xlang_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null) + xlang_fputs_stdout
 //   (G.7 g05 xlang_driver_stdout_ptr + xlang_driver_fputs_opaque) + driver_asm_fp_is_stdout
 //   + driver_asm_fclose_file (G.7 g05 stdout_ptr compare + fclose_opaque); cold twins under FROM_X.
 // wave79: pure xlang_path_try_realpath_inplace (G.7 g05 xlang_driver_realpath_opaque + stack
@@ -195,7 +195,7 @@
 // wave75: xlang_cstr_typeck_lit / xlang_entry_lib_keyword_lit / name_from_path_impl pure below.
 // wave76: xlang_cstr_offset is pure export function below (not Cap residual).
 // wave77: typeck_ndep_slot / store_impl / typeck_dep_*_get/set_impl / ptrs_base pure below.
-// wave78: shu_lsp_ptr_slot_clear / xlang_fputs_stdout / driver_asm_fp_is_stdout /
+// wave78: xlang_lsp_ptr_slot_clear / xlang_fputs_stdout / driver_asm_fp_is_stdout /
 //   driver_asm_fclose_file are pure export functions below.
 // wave79: xlang_path_try_realpath_inplace is pure export function below.
 // wave80: xlang_asm_codegen_elf_o_product_emit is pure export function below.
@@ -280,7 +280,7 @@ export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 export extern "C" function runtime_read_file_view(path: *u8, out: *u8): i32;
 export extern "C" function runtime_release_file_view(view: *u8): void;
 export extern "C" function ast_module_free(mod: *u8): void;
-// wave78: shu_lsp_ptr_slot_clear is pure export function below (G.7 xlang_ptr_slot_set).
+// wave78: xlang_lsp_ptr_slot_clear is pure export function below (G.7 xlang_ptr_slot_set).
 /* See implementation. */
 export extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
 export extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
@@ -7001,7 +7001,7 @@ export function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8
  * PLATFORM: SHARED — cold twin under seed #ifndef FROM_X.
  */
 #[no_mangle]
-export function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void {
+export function xlang_lsp_ptr_slot_clear(arr: *u8, i: i32): void {
   if (arr == 0 as *u8) {
     return;
   }
@@ -7013,18 +7013,18 @@ export function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void {
   }
 }
 
-// shu_lsp_free_loaded_imports: see function docblock below.
+// xlang_lsp_free_loaded_imports: see function docblock below.
 /**
- * Free dep modules/paths written by shu_lsp_resolve_and_load_imports (not entry module).
+ * Free dep modules/paths written by xlang_lsp_resolve_and_load_imports (not entry module).
  * @param all_dep_mods *u8 — void** module table base
  * @param all_dep_paths *u8 — char** path table base
  * @param n_all i32 — slot count; <=0 → no-op
  * @return void
- * G.7 pure shu_lsp_ptr_slot_clear (wave78) nulls slots after free.
+ * G.7 pure xlang_lsp_ptr_slot_clear (wave78) nulls slots after free.
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
+export function xlang_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
   if (all_dep_mods == 0 as *u8) { return; }
   if (all_dep_paths == 0 as *u8) { return; }
   if (n_all <= 0) { return; }
@@ -7034,12 +7034,12 @@ export function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u
       let p: *u8 = pipe_load_ptr_slot(all_dep_paths, i);
       if (p != 0 as *u8) {
         free(p);
-        shu_lsp_ptr_slot_clear(all_dep_paths, i);
+        xlang_lsp_ptr_slot_clear(all_dep_paths, i);
       }
       let m: *u8 = pipe_load_ptr_slot(all_dep_mods, i);
       if (m != 0 as *u8) {
         ast_module_free(m);
-        shu_lsp_ptr_slot_clear(all_dep_mods, i);
+        xlang_lsp_ptr_slot_clear(all_dep_mods, i);
       }
     }
     i = i + 1;

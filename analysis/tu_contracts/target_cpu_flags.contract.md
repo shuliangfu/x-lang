@@ -28,13 +28,13 @@
 ### 3.2 当前仍由 seed/rest 提供
 - `append_feat_name`
 - `flags_has_token`
-- `shu_simd_is_vector_type_spelling`
-- `shu_simd_vector_lanes_esz_from_spelling`
-- `shu_target_cpu_detect_arm64`
-- `shu_target_cpu_detect_host`
-- `shu_target_cpu_generic_for_host`
-- `shu_target_cpu_print`
-- `shu_target_cpu_resolve`
+- `xlang_simd_is_vector_type_spelling`
+- `xlang_simd_vector_lanes_esz_from_spelling`
+- `xlang_target_cpu_detect_arm64`
+- `xlang_target_cpu_detect_host`
+- `xlang_target_cpu_generic_for_host`
+- `xlang_target_cpu_print`
+- `xlang_target_cpu_resolve`
 - `tcp_eq_at`
 - `tcp_parse_named`
 - （平台相关：x86/riscv detect 函数条件编译）

@@ -32,7 +32,7 @@ for f in \
 done
 echo "g-ffi-5 manifest OK"
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -82,7 +82,7 @@ if [ "${XLANG_G_FFI5_TYPECK:-0}" = "1" ]; then
   elif [ -x ./compiler/xlang_asm ]; then
     XLANG_BIN=./compiler/xlang_asm
   fi
-  if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+  if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
     echo "=== G-FFI-5: optional typeck (XLANG=$XLANG_BIN) ==="
     CHECK_SRCS=(
       std/ffi/mod.x

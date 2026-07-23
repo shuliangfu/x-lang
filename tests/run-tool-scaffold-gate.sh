@@ -15,7 +15,7 @@ EXPECT_EXIT=42
 # shellcheck source=tests/lib/tool-scaffold.sh
 . tests/lib/tool-scaffold.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -132,14 +132,14 @@ echo "tool-scaffold manifest OK (rules=${RULE_N} files=${FILES_N} expect_exit=${
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== TOOL-006: scaffold hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-tool-scaffold.sh scripts/xlang-new.sh
   XLANG="$XLANG_BIN" XLANG_SCAFFOLD_EXPECT_EXIT="$EXPECT_EXIT" ./tests/run-tool-scaffold.sh

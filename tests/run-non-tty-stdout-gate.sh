@@ -9,13 +9,13 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/gate-progress.sh
 source tests/lib/gate-progress.sh
 
-SHU="${XLANG_C9_BIN:-./compiler/xlang}"
+XLANG_COMPILER="${XLANG_C9_BIN:-./compiler/xlang}"
 TIMEOUT_SEC="${XLANG_C9_TIMEOUT:-20}"
 TMP_X="/tmp/xlang_c9_non_tty_$$.x"
 TMP_OUT="/tmp/xlang_c9_non_tty_$$.o"
 TMP_LOG="/tmp/xlang_c9_non_tty_$$.log"
 
-[ -x "$SHU" ] || { gate_progress "FAIL: missing compiler $SHU"; exit 1; }
+[ -x "$XLANG_COMPILER" ] || { gate_progress "FAIL: missing compiler $XLANG_COMPILER"; exit 1; }
 
 cleanup() {
   rm -f "$TMP_X" "$TMP_OUT" "$TMP_LOG"
@@ -28,7 +28,7 @@ function main(): i32 { return 0; }
 EOF
 
 set +e
-timeout "$TIMEOUT_SEC" "$SHU" -L . "$TMP_X" -o "$TMP_OUT" >"$TMP_LOG" 2>&1
+timeout "$TIMEOUT_SEC" "$XLANG_COMPILER" -L . "$TMP_X" -o "$TMP_OUT" >"$TMP_LOG" 2>&1
 ec=$?
 set -e
 

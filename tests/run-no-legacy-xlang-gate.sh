@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Xlang 硬切验收：禁止 .su / Shulang / shu-c / SHU_ 等遗留品牌（§12、§13）。
+# Xlang 硬切验收：禁止 .su / Shulang / shu-c / shu_ / SHUX 等遗留品牌（§12、§13）。
 # 合法名：Xlang、.x、compiler/xlang、xlang-c、X 流水线 gate（run-all-x 等）。
 # 纳入 run-all；失败即 exit 1。
 
@@ -47,13 +47,13 @@ if rg -q 'xlang{3,}' --glob '!tests/run-no-legacy-xlang-gate.sh' compiler tests 
   rg -n 'xlang{3,}' compiler tests scripts 2>/dev/null | head -10 | sed 's/^/  /'
 fi
 
-# 6) 旧 IO/async ABI（shu_io_ / __shu_frame / shu_async_）；排除生成 C、baseline、命名规范文档
+# 6) 旧 IO/async ABI（xlang_io_ / __shu_frame / xlang_async_）；排除生成 C、baseline、命名规范文档
   if rg -q '\bshu_io_|\b__shu_frame\b|\bshu_async_' \
   --glob '!*_gen*.c' --glob '!*.base' --glob '!tests/baseline/*' --glob '!tests/run-no-legacy-xlang-gate.sh' \
   --glob '!std/标准库api命名规范.md' --glob '!core/核心库api命名规范.md' \
   --glob '!std/async/mod.x' --glob '!compiler/seeds/runtime_scheduler_glue.from_x.c' \
   compiler core std tests scripts tools editors 2>/dev/null; then
-  bad "legacy shu_io / __shu_frame / shu_async ABI names remain (non-doc)"
+  bad "legacy xlang_io / __shu_frame / xlang_async ABI names remain (non-doc)"
   rg -n '\bshu_io_|\b__shu_frame\b|\bshu_async_' \
     --glob '!*_gen*.c' --glob '!*.base' --glob '!tests/baseline/*' --glob '!tests/run-no-legacy-xlang-gate.sh' \
     --glob '!std/标准库api命名规范.md' --glob '!core/核心库api命名规范.md' \

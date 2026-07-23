@@ -10,18 +10,18 @@ source tests/lib/gate-progress.sh
 # shellcheck source=tests/lib/ci-host.sh
 source tests/lib/ci-host.sh
 
-SHU="${XLANG_C2_BIN:-./compiler/xlang}"
+XLANG_COMPILER="${XLANG_C2_BIN:-./compiler/xlang}"
 SRC="tests/generic/wrong_type_args.x"
 
 [ -f "$SRC" ] || { gate_progress "FAIL: missing $SRC"; exit 1; }
-[ -x "$SHU" ] || { gate_progress "FAIL: missing compiler $SHU"; exit 1; }
-if ! ci_native_shu "$SHU"; then
+[ -x "$XLANG_COMPILER" ] || { gate_progress "FAIL: missing compiler $XLANG_COMPILER"; exit 1; }
+if ! ci_native_xlang "$XLANG_COMPILER"; then
   gate_progress "typeck-generic-args-gate SKIP (no native xlang)"
   exit 0
 fi
 
 set +e
-ERR=$("$SHU" -L . "$SRC" 2>&1)
+ERR=$("$XLANG_COMPILER" -L . "$SRC" 2>&1)
 EC=$?
 set -e
 

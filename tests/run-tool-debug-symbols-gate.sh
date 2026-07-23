@@ -13,7 +13,7 @@ MIN_CASES=2
 # shellcheck source=tests/lib/tool-debug-symbols.sh
 . tests/lib/tool-debug-symbols.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -128,14 +128,14 @@ echo "tool-debug-symbols manifest OK (rules=${RULE_N} cases=${CASE_N})"
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
   done
 fi
 
-if [ -n "$XLANG_BIN" ] && native_shu "$XLANG_BIN"; then
+if [ -n "$XLANG_BIN" ] && native_xlang "$XLANG_BIN"; then
   echo "=== TOOL-005: debug symbol hooks (XLANG=$XLANG_BIN) ==="
   chmod +x tests/run-debug-symbols.sh tests/run-backtrace.sh
   XLANG="$XLANG_BIN" ./tests/run-debug-symbols.sh

@@ -38,7 +38,7 @@ else
   echo "compiler/xlang_x or compiler/xlang not found"
   exit 1
 fi
-# 自举两代对比（XLANG=shu_stage1/2）时 -x -E 多文件路径尚有 bug(139)，暂跳过以免阻塞 check-7.2
+# 自举两代对比（XLANG=xlang_stage1/2）时 -x -E 多文件路径尚有 bug(139)，暂跳过以免阻塞 check-7.2
 if [ -n "${XLANG:-}" ]; then echo "run-x-multi-file SKIP (XLANG set, -x -E multi-file known issue)"; exit 0; fi
 
 # 标准输出进 $out，stderr 进 $err，失败时打印 stderr 以便 CI 看到 -x -E 诊断（如 out_buf.len、前 16 字节 hex）

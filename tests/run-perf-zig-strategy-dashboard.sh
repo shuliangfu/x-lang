@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PERF-011：超越 Zig 战略看板 — 采集 Shu/Zig median、趋势 sparkline、可选 --record
+# PERF-011：超越 Zig 战略看板 — 采集 Xlang/Zig median、趋势 sparkline、可选 --record
 #
 # 用法：
 #   ./tests/run-perf-zig-strategy-dashboard.sh
@@ -129,23 +129,23 @@ while IFS=$'\t' read -r case_id category su_src zig_src target_pct notes; do
   fi
 
   tag="zsd_${case_id}"
-  shu_out="/tmp/${tag}_shu"
+  xlang_out="/tmp/${tag}_shu"
   zig_out="/tmp/${tag}_zig"
-  rm -f "$shu_out" "$zig_out"
+  rm -f "$xlang_out" "$zig_out"
 
   XLANG_MED="nan"
   ZIG_MED="nan"
 
   if [ "$category" = "net" ]; then
-    if ! $PERF_COMPILE_XLANG -L . "$su_path" -o "$shu_out" 2>/dev/null \
+    if ! $PERF_COMPILE_XLANG -L . "$su_path" -o "$xlang_out" 2>/dev/null \
       || ! zig_build_exe_o2 "$zig_path" "$zig_out"; then
       echo "zig-strategy SKIP: $case_id compile (net)" >&2
       continue
     fi
-    XLANG_MED=$(zsd_median_net_client "$shu_out" "$RUNS")
+    XLANG_MED=$(zsd_median_net_client "$xlang_out" "$RUNS")
     ZIG_MED=$(zsd_median_net_client "$zig_out" "$RUNS")
   else
-    if ! $PERF_COMPILE_XLANG -O2 "$su_path" -o "$shu_out" 2>/dev/null; then
+    if ! $PERF_COMPILE_XLANG -O2 "$su_path" -o "$xlang_out" 2>/dev/null; then
       echo "zig-strategy SKIP: $case_id xlang compile" >&2
       continue
     fi
@@ -153,7 +153,7 @@ while IFS=$'\t' read -r case_id category su_src zig_src target_pct notes; do
       echo "zig-strategy SKIP: $case_id zig compile" >&2
       continue
     fi
-    XLANG_MED=$(zig_baseline_median_real "$shu_out" "$RUNS")
+    XLANG_MED=$(zig_baseline_median_real "$xlang_out" "$RUNS")
     ZIG_MED=$(zig_baseline_median_real "$zig_out" "$RUNS")
   fi
 

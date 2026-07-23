@@ -8,7 +8,7 @@ XLANG=${XLANG:-./compiler/xlang}
 . "$(dirname "$0")/lib/bootstrap-link-xlang.sh"
 LINK_XLANG="$RUN_XLANG"
 # panic -o：bootstrap 默认 xlang-c 对 main.x 易 SIGSEGV；xlang_asm2 已绿（与 run-struct 一致）。
-if [ -x ./compiler/xlang_asm2 ] && ci_native_shu ./compiler/xlang_asm2; then
+if [ -x ./compiler/xlang_asm2 ] && ci_native_xlang ./compiler/xlang_asm2; then
   LINK_XLANG=./compiler/xlang_asm2
 fi
 

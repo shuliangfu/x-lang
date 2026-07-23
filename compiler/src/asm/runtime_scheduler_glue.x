@@ -8,8 +8,8 @@
 // See implementation.
 
 // See implementation.
-export extern "C" function shu_async_runtime_trace_enabled_impl(): i32;
-export extern "C" function shu_async_trace_now_us_impl(): u64;
+export extern "C" function xlang_async_runtime_trace_enabled_impl(): i32;
+export extern "C" function xlang_async_trace_now_us_impl(): u64;
 /* wave230 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED — product hybrid scheduler pure env gates. */
@@ -30,8 +30,8 @@ export function runtime_scheduler_glue_x_doc_anchor(): i32 {
 
 
 #[no_mangle]
-export function shu_async_trace_now_us(): u64 {
-  unsafe { return shu_async_trace_now_us_impl(); }
+export function xlang_async_trace_now_us(): u64 {
+  unsafe { return xlang_async_trace_now_us_impl(); }
 }
 
 
@@ -39,8 +39,8 @@ export function shu_async_trace_now_us(): u64 {
 export extern "C" function xlang_async_bound_ctx_cancelled_impl(): i32;
 export extern "C" function xlang_async_take_suspend_io_flag_impl(): i32;
 // See implementation.
-export extern "C" function shu_coop_frame_step_jmp_impl(frame: *u8): i32;
-export extern "C" function shu_coop_frame_step_switch_impl(frame: *u8): i32;
+export extern "C" function xlang_coop_frame_step_jmp_impl(frame: *u8): i32;
+export extern "C" function xlang_coop_frame_step_switch_impl(frame: *u8): i32;
 
 /* See implementation. */
 
@@ -59,24 +59,24 @@ export function xlang_async_take_suspend_io_flag(): i32 {
 }
 
 
-/** Exported function `shu_coop_frame_step_jmp`.
- * Implements `shu_coop_frame_step_jmp`.
+/** Exported function `xlang_coop_frame_step_jmp`.
+ * Implements `xlang_coop_frame_step_jmp`.
  * @param frame *u8
  * @return i32
  */
 #[no_mangle]
-export function shu_coop_frame_step_jmp(frame: *u8): i32 {
-  unsafe { return shu_coop_frame_step_jmp_impl(frame); }
+export function xlang_coop_frame_step_jmp(frame: *u8): i32 {
+  unsafe { return xlang_coop_frame_step_jmp_impl(frame); }
 }
 
-/** Exported function `shu_coop_frame_step_switch`.
- * Implements `shu_coop_frame_step_switch`.
+/** Exported function `xlang_coop_frame_step_switch`.
+ * Implements `xlang_coop_frame_step_switch`.
  * @param frame *u8
  * @return i32
  */
 #[no_mangle]
-export function shu_coop_frame_step_switch(frame: *u8): i32 {
-  unsafe { return shu_coop_frame_step_switch_impl(frame); }
+export function xlang_coop_frame_step_switch(frame: *u8): i32 {
+  unsafe { return xlang_coop_frame_step_switch_impl(frame); }
 }
 
 // See implementation.
@@ -156,7 +156,7 @@ export function xlang_async_q_occupancy(head: u32, tail: u32): u32 {
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function shu_async_runtime_trace_enabled(): i32 {
+export function xlang_async_runtime_trace_enabled(): i32 {
   unsafe {
     // wave230 G.7: XLANG_ASYNC_RUNTIME_TRACE via link_abi_getenv.
     let e: *u8 = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE");
@@ -236,7 +236,7 @@ export function env_parse_u32_default(e: *u8, defv: u32): u32 {
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function shu_async_trace_topn(): u32 {
+export function xlang_async_trace_topn(): u32 {
   unsafe {
     // wave230 G.7: XLANG_ASYNC_RUNTIME_TRACE_TOPN via link_abi_getenv.
     let e: *u8 = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_TOPN");
@@ -254,7 +254,7 @@ export function shu_async_trace_topn(): u32 {
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function shu_async_trace_sample_rate(): u32 {
+export function xlang_async_trace_sample_rate(): u32 {
   unsafe {
     // wave230 G.7: XLANG_ASYNC_RUNTIME_TRACE_SAMPLE via link_abi_getenv.
     let e: *u8 = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_SAMPLE");
@@ -271,7 +271,7 @@ export function shu_async_trace_sample_rate(): u32 {
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function shu_async_trace_slow_us(): u64 {
+export function xlang_async_trace_slow_us(): u64 {
   unsafe {
     // wave230 G.7: XLANG_ASYNC_RUNTIME_TRACE_SLOW_US via link_abi_getenv.
     let e: *u8 = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_SLOW_US");

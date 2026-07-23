@@ -43,7 +43,7 @@
 | **环境变量前缀** | `XLANG_*` / `XLANG=` → **`XLANG_*` / `XLANG=`** | 测试与 Makefile 大量依赖；过渡期可双认 |
 | **构建入口脚本** | `xlang-build.sh` → **`xlang-build.sh`** | 根目录入口 |
 | **GitHub 仓库** | `github.com/shuliangfu/xlang` → **`…/xlang`**（或保留旧名 redirect） | 需单独操作；可后置 |
-| **本机目录** | `…/shu/xlang` → **`…/shu/xlang`**（可选） | **不进 git**；三机路径要同步改文档与 skill |
+| **本机目录** | **`…/xlang/x-lang`**（已落地） | mac/Ubuntu/Windows 同构；**不进 git**；文档与 skill 已同步 |
 | **ABI 符号前缀** | **`xlang_*` → `xlang_*`（产品链全量）** | 见 §3.3；**最贵、必须整波 + 真冷** |
 | **兼容别名窗口** | **1 个过渡阶段**（双名可执行 / 双 env 可读） | 防脚本一夜全红；窗口结束后删旧名 |
 
@@ -237,7 +237,7 @@ XLANG_<REST>  →  XLANG_<REST>
 |------|------|
 | **GitHub repo** | Settings → Rename → `xlang`；确认 Pages/Actions/secrets；旧 URL GitHub 会 redirect |
 | **git remote** | 三机 `git remote set-url origin …/xlang.git` |
-| **本机路径** | mac `/Users/…/shu/xlang`；Ubuntu `/home/…/shu/xlang`；Windows 同构；**skill 路径表同步** |
+| **本机路径** | mac `/Users/…/xlang/x-lang`；Ubuntu `/home/…/xlang/x-lang`；Windows `C:\Users\…\xlang\x-lang`（MSYS2 `/c/Users/…/xlang/x-lang`）；**skill 已同步** |
 | **SSH 文档** | skill「环境与跨机同步」全文替换目录名与二进制名 |
 | **`~/.grok/skills/xlang-selfhost-product-gate/`** | 目录可改名 `xlang-selfhost-product-gate`；内容全量替换；**Agents.md 交叉引用** |
 | **Cursor / VSCode 用户设置** | `xlang.serverPath` → `xlang.serverPath`（扩展发布 major） |

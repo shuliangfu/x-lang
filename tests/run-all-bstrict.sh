@@ -164,7 +164,7 @@ _w3_stat_skip=0
 _w3_stat_fail=0
 _w3_stat_timeout=0
 
-# 与 run-xlang-asm-gate + run-all.sh run_shu_for_script 白名单核心项对齐
+# 与 run-xlang-asm-gate + run-all.sh run_xlang_for_script 白名单核心项对齐
 BSTRICT_SCRIPTS=(
   run-lexer.sh
   run-typeck.sh

@@ -64,8 +64,8 @@ extern int drv_eq_asm_word(const char *buf, int len);
 extern int drv_eq_c_word(const char *buf, int len);
 extern int drv_path_ends_x(const char *buf, int len);
 extern int drv_target_has_arm(const char *buf, int len);
-extern int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
-extern uint32_t shu_target_cpu_generic_for_host(void);
+extern int xlang_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
+extern uint32_t xlang_target_cpu_generic_for_host(void);
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
 extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
@@ -436,9 +436,9 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
     spec = (const char *)state->target_cpu_buf;
     spec_len = (size_t)state->target_cpu_len;
   }
-  if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
+  if (xlang_target_cpu_resolve(spec, spec_len, &feats) != 0) {
     diag_report_with_code(NULL, 0, 0, "note", NULL, "unknown -target-cpu; using generic baseline", NULL);
-    feats = shu_target_cpu_generic_for_host();
+    feats = xlang_target_cpu_generic_for_host();
   }
   state->target_cpu_features = (int32_t)feats;
 }

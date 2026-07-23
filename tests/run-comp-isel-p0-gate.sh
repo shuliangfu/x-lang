@@ -97,7 +97,7 @@ P0_OK=0
 P0_SKIP=0
 SKIP=1
 
-if comp_isel_native_shu "$XLANG_ASM"; then
+if comp_isel_native_xlang "$XLANG_ASM"; then
   echo "=== COMP-014: run P0 hooks (XLANG=$XLANG_ASM) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   while IFS=$'\t' read -r item_id kind anchor _src tier _notes; do

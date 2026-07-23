@@ -13,7 +13,7 @@ MATRIX="${XLANG_RISCV64_MATRIX:-tests/baseline/comp-riscv64-matrix.tsv}"
 
 XLANG_BIN=""
 for cand in ./compiler/xlang ./compiler/xlang-c; do
-  if comp_riscv64_native_shu "$cand"; then
+  if comp_riscv64_native_xlang "$cand"; then
     XLANG_BIN="$cand"
     break
   fi

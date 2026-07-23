@@ -14,7 +14,7 @@ MATRIX="${XLANG_CODEGEN_REGRESSION_TSV:-tests/baseline/codegen-regression-matrix
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
 
-native_shu() {
+native_xlang() {
   local f="$1"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -54,7 +54,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 XLANG_BIN="${XLANG:-}"
 if [ -z "$XLANG_BIN" ]; then
   for cand in ./compiler/xlang-c ./compiler/xlang; do
-    if native_shu "$cand"; then
+    if native_xlang "$cand"; then
       XLANG_BIN="$cand"
       break
     fi
@@ -110,7 +110,7 @@ while IFS=$'\t' read -r case_id src arch policy want_ec notes; do
     hook)
       # asm hook 优先 xlang_asm
       hook_shu="$XLANG_BIN"
-      if [ "$src" = "run-asm-73-gate.sh" ] && [ -x ./compiler/xlang_asm ] && native_shu ./compiler/xlang_asm; then
+      if [ "$src" = "run-asm-73-gate.sh" ] && [ -x ./compiler/xlang_asm ] && native_xlang ./compiler/xlang_asm; then
         hook_shu=./compiler/xlang_asm
       fi
       hook="tests/${src}"
