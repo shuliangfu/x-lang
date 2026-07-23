@@ -18,6 +18,7 @@
  * 【Invariant】全部返回 C 字符串字面量（rodata），与 labi_invoke_cc_list.from_x.c 冷路径一致。
  * Prove: full.x vs this seed → nm IDENTICAL (harden/skip-native/icc rel pure table
  *   + wave155/198/199/200/201/202/203/204/205/206/207/208 pure orch).
+ * wave260: product g05 L5 default PREFER full .x (cold seed = fallback only).
  * Cap residual: generated_c_needs_* + ensure/path/push peers + host_is_* + net_tls_ld
  *   + xlang_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status
  *   + asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at}

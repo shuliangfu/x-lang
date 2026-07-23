@@ -3,6 +3,8 @@
 //
 // link_abi L5 invoke_cc pure table + orch (G.9 English; body is authoritative).
 // Hybrid macro XLANG_LABI_INVOKE_CC_LIST_FROM_X (FROM_X rest business H=0, marker only).
+// wave260: g05 L5 default PREFER_X_O=1 full .x (was cold-seed-only for historic STRING_LIT
+// stack compound; host durable rodata now; cold seed remains fallback).
 // R2 full pure:
 //   - labi_linux_harden_flag_{count,at}
 //   - labi_invoke_cc_skip_native_env_{count,at} + invoke_cc_skip_native_tuning

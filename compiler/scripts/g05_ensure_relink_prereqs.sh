@@ -518,20 +518,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_labi_l5_o" ]; then
-          # L5 labi_invoke_cc_list：默认冷 seed（rodata 字符串字面量）。
-          # 【Why】.x STRING_LIT 曾发栈 compound，return 后悬空 → invoke_cc argv 乱码。
-          # 仅当显式 XLANG_G05_PREFER_X_O_LABI=1 且 host STRING_LIT 已 rodata 时才 prefer .x。
-          if [ "${XLANG_G05_PREFER_X_O_LABI:-0}" = "1" ] && [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l5_x" ]; then
+          # L5 labi_invoke_cc_list：PREFER_X_O=1 时 full .x（R2 pure orch + flag tables；H=0）；失败回退 seed 冷 C。
+          # wave260: default prefer .x (aligned L0/L4/L6)；historical leave-off was stack STRING_LIT
+          # compound dangling after return → argv garbage. Host STRING_LIT is durable rodata now
+          # (prove nm IDENTICAL + matrix with prefer .x). Legacy XLANG_G05_PREFER_X_O_LABI ignored
+          # (prefer follows XLANG_G05_PREFER_X_O only, same as sibling labi layers).
+          # PLATFORM: SHARED g05 hybrid gate · Ubuntu gold + mac L2.
+          if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l5_x" ]; then
             if g05_try_x_to_o "$_labi_l5_x" "$_labi_l5_o"; then
               _labi_l5_ok=1
-              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_x (opt-in prefer .x)"
+              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_x (R2 full prefer .x)"
             fi
           fi
           if [ "$_labi_l5_ok" = "0" ] && [ -f "$_labi_l5_seed" ]; then
             # shellcheck disable=SC2086
             if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l5_o" "$_labi_l5_seed"; then
               _labi_l5_ok=1
-              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_seed (cold seed rodata; default)"
+              echo "g05_ensure: L5 invoke_cc list ← $_labi_l5_seed (cold seed fallback)"
             fi
           fi
         fi
