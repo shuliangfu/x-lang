@@ -1127,6 +1127,11 @@ static int32_t g_lexer_invalid_escape = 0;
 static int32_t g_lexer_invalid_escape_line = 0;
 static int32_t g_lexer_invalid_escape_col = 0;
 static int32_t g_lexer_invalid_escape_reported = 0;
+/* wave283 Cap residual: L011 string literal capacity overflow sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_string_lit_overflow = 0;
+static int32_t g_lexer_string_lit_overflow_line = 0;
+static int32_t g_lexer_string_lit_overflow_col = 0;
+static int32_t g_lexer_string_lit_overflow_reported = 0;
 
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
@@ -1222,6 +1227,17 @@ void lexer_invalid_escape_reset(void) {
 }
 int32_t lexer_invalid_escape_pending(void) {
   return g_lexer_invalid_escape;
+}
+
+/* wave283 Cap residual: L011 string lit capacity overflow (G.7 ≡ lexer.x). */
+void lexer_string_lit_overflow_reset(void) {
+  g_lexer_string_lit_overflow = 0;
+  g_lexer_string_lit_overflow_line = 0;
+  g_lexer_string_lit_overflow_col = 0;
+  g_lexer_string_lit_overflow_reported = 0;
+}
+int32_t lexer_string_lit_overflow_pending(void) {
+  return g_lexer_string_lit_overflow;
 }
 static void lexer_note_incomplete_bin(int32_t line, int32_t col) {
   if (g_lexer_incomplete_bin == 0) {
@@ -1325,6 +1341,26 @@ static void lexer_note_invalid_escape(int32_t line, int32_t col) {
     char code[] = "L010";
     char msg[] = "invalid escape sequence";
     diag_report_with_code(NULL, g_lexer_invalid_escape_line, g_lexer_invalid_escape_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
+/* wave283 Cap residual: L011 string literal too long (G.7 ≡ lexer.x export). */
+void lexer_note_string_lit_overflow(int32_t line, int32_t col) {
+  if (g_lexer_string_lit_overflow == 0) {
+    g_lexer_string_lit_overflow = 1;
+    g_lexer_string_lit_overflow_line = line;
+    g_lexer_string_lit_overflow_col = col;
+  }
+  if (g_lexer_string_lit_overflow_reported != 0) {
+    return;
+  }
+  g_lexer_string_lit_overflow_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L011";
+    char msg[] = "string literal too long";
+    diag_report_with_code(NULL, g_lexer_string_lit_overflow_line, g_lexer_string_lit_overflow_col,
                           (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
   }
 }

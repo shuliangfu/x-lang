@@ -32,6 +32,7 @@ enum {
   PARSER_ASM_EXPR_STRING_LIT = 59
 };
 
+extern void lexer_note_string_lit_overflow(int32_t line, int32_t col);
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *source);
 extern void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
@@ -1634,11 +1635,14 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
       int32_t nlen = r.tok.ident_len;
       int32_t ri = 0;
       int32_t wi = 0;
-      if (nlen > 63)
-        nlen = 63;
+      /* wave283: full span; L011 if semantic bytes would exceed 63 (not silent truncate). */
       if (nlen < 0)
         nlen = 0;
-      while (ri < nlen && wi < 63) {
+      while (ri < nlen) {
+        if (wi >= 63) {
+          lexer_note_string_lit_overflow(e.line, e.col);
+          break;
+        }
         uint8_t c = 0;
         if (q0 + (size_t)ri < source->length)
           c = source->data[q0 + (size_t)ri];
@@ -1711,13 +1715,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
         if (wi_adj > 63)
           wi_adj = 63;
         nlen_adj = nr.tok.ident_len;
-        if (nlen_adj > 63)
-          nlen_adj = 63;
         if (nlen_adj < 0)
           nlen_adj = 0;
         q0_adj = nr.token_start;
         ri_adj = 0;
-        while (ri_adj < nlen_adj && wi_adj < 63) {
+        while (ri_adj < nlen_adj) {
+          if (wi_adj >= 63) {
+            lexer_note_string_lit_overflow(e.line, e.col);
+            break;
+          }
           uint8_t c2 = 0;
           if (q0_adj + (size_t)ri_adj < source->length)
             c2 = source->data[q0_adj + (size_t)ri_adj];

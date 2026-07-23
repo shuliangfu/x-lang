@@ -5213,6 +5213,16 @@ export extern "C" function lexer_invalid_escape_reset(): void;
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_invalid_escape_pending(): i32;
+/**
+ * wave283: reset sticky string-literal capacity overflow (L011) before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_string_lit_overflow_reset(): void;
+/**
+ * wave283: non-zero if string decode would exceed Expr.var_name cap 63 (L011).
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_string_lit_overflow_pending(): i32;
 
 #[no_mangle]
 export function driver_parse_into_buf_rc(
@@ -5230,7 +5240,7 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
-  // wave269–wave281: clear sticky L001–L010 state for this entry.
+  // wave269–wave283: clear sticky L001–L011 state for this entry.
   unsafe {
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
@@ -5242,6 +5252,7 @@ export function driver_parse_into_buf_rc(
     lexer_invalid_digit_sep_reset();
     lexer_invalid_type_suffix_reset();
     lexer_invalid_escape_reset();
+    lexer_string_lit_overflow_reset();
   }
   let rc: i32 = 0;
   unsafe {
@@ -5251,7 +5262,7 @@ export function driver_parse_into_buf_rc(
   // string lex hit EOF without closer (L002), illegal/unknown byte (L003),
   // incomplete hex (L004), incomplete float exp (L005), incomplete binary (L006),
   // incomplete octal (L007), invalid digit separator (L008), invalid type suffix (L009),
-  // or invalid string escape (L010).
+  // invalid string escape (L010), or string literal capacity overflow (L011).
   unsafe {
     if (lexer_unclosed_block_comment_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
@@ -5308,6 +5319,12 @@ export function driver_parse_into_buf_rc(
       return -1;
     }
     if (lexer_invalid_escape_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_string_lit_overflow_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
         out_main_idx[0] = -1;
       }

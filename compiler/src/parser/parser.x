@@ -3504,10 +3504,9 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           se.line = r.tok.line;
           se.col = r.tok.col;
           expr_set_common_zeros(&se);
+          /* wave283: use full token span (no silent nlen clamp). Cap is 63 semantic
+           * bytes in Expr.var_name; overflow → sticky L011 (not truncate). */
           let nlen: i32 = r.tok.ident_len;
-          if (nlen > 63) {
-            nlen = 63;
-          }
           if (nlen < 0) {
             nlen = 0;
           }
@@ -3516,7 +3515,12 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
           let q0: usize = r.token_start;
           let ri: i32 = 0;
           let wi: i32 = 0;
-          while (ri < nlen && wi < 63) {
+          while (ri < nlen) {
+            if (wi >= 63) {
+              // wave283 Cap residual: hard L011 (silent truncate was soft residual).
+              lexer.lexer_note_string_lit_overflow(se.line, se.col);
+              break;
+            }
             let c: u8 = 0;
             if (q0 + (ri as usize) < source.length) {
               c = source[q0 + (ri as usize)];
@@ -3574,10 +3578,9 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         lexer.lexer_next_into(&r, lex, source);
         /**
          * wave282: C-style adjacent string-literal concatenation at parse time.
-         * Soft residual: 2nd+ TOKEN_STRING after let-init STRING was left as a bare
-         * expr-stmt and silently dropped (only the first literal entered the AST).
-         * Append-decode each following TOKEN_STRING into the same EXPR_STRING_LIT
-         * (var_name cap 63, same truncate rule as a single literal).
+         * Soft residual closed: 2nd+ TOKEN_STRING after let-init STRING was bare
+         * expr-stmt and silently dropped. Append-decode into same EXPR_STRING_LIT.
+         * wave283: combined semantic length must not exceed 63 (L011 hard; not truncate).
          * PLATFORM: SHARED — G.7 ≡ parser_gen seed + primary_slice.
          */
         while (r.tok.kind == token.TokenKind.TOKEN_STRING && str_ref != 0) {
@@ -3590,15 +3593,16 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             wi_adj = 63;
           }
           let nlen_adj: i32 = r.tok.ident_len;
-          if (nlen_adj > 63) {
-            nlen_adj = 63;
-          }
           if (nlen_adj < 0) {
             nlen_adj = 0;
           }
           let q0_adj: usize = r.token_start;
           let ri_adj: i32 = 0;
-          while (ri_adj < nlen_adj && wi_adj < 63) {
+          while (ri_adj < nlen_adj) {
+            if (wi_adj >= 63) {
+              lexer.lexer_note_string_lit_overflow(se_adj.line, se_adj.col);
+              break;
+            }
             let c2: u8 = 0;
             if (q0_adj + (ri_adj as usize) < source.length) {
               c2 = source[q0_adj + (ri_adj as usize)];
@@ -4519,11 +4523,11 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
  * (L002 sticky), illegal character (L003 sticky), incomplete hex (L004 sticky),
  * incomplete float exponent (L005 sticky), incomplete binary (L006 sticky),
  * incomplete octal (L007 sticky), invalid digit separator (L008 sticky),
- * invalid type suffix (L009 sticky), or invalid string escape (L010 sticky),
- * force parse fail.
+ * invalid type suffix (L009 sticky), invalid string escape (L010 sticky),
+ * or string-literal capacity overflow (L011 sticky), force parse fail.
  * Product -o paths call parser_parse_into_buf directly (not only driver_parse_into_buf_rc).
  * @param r ParseIntoResult — candidate result from parse_into / parse_into_buf
- * @return ParseIntoResult — ok=-1 when L001–L010 pending; else r unchanged
+ * @return ParseIntoResult — ok=-1 when L001–L011 pending; else r unchanged
  * PLATFORM: SHARED
  */
 export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoResult {
@@ -4556,6 +4560,9 @@ export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoRes
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_invalid_escape_pending() != 0) {
+      return ParseIntoResult { ok: -1, main_idx: -1 }
+    }
+    if (lexer.lexer_string_lit_overflow_pending() != 0) {
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
   }
@@ -4608,6 +4615,10 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
   }
   // wave281: invalid string escape (`\q`, incomplete `\x`) is hard fail (not silent keep).
   if (lexer.lexer_invalid_escape_pending() != 0) {
+    return ParseIntoResult { ok: -1, main_idx: -1 }
+  }
+  // wave283: string lit >63 semantic bytes is hard fail (not silent truncate).
+  if (lexer.lexer_string_lit_overflow_pending() != 0) {
     return ParseIntoResult { ok: -1, main_idx: -1 }
   }
   if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
@@ -7665,7 +7676,7 @@ export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  // wave269–wave281: clear L001–L010 sticky before scanning this source buffer.
+  // wave269–wave283: clear L001–L011 sticky before scanning this source buffer.
   lexer.lexer_unclosed_block_comment_reset();
   lexer.lexer_unclosed_string_reset();
   lexer.lexer_illegal_char_reset();
@@ -7676,6 +7687,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   lexer.lexer_invalid_digit_sep_reset();
   lexer.lexer_invalid_type_suffix_reset();
   lexer.lexer_invalid_escape_reset();
+  lexer.lexer_string_lit_overflow_reset();
   /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
@@ -9775,7 +9787,7 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  // wave269–wave281: clear L001–L010 sticky before scanning this source buffer.
+  // wave269–wave283: clear L001–L011 sticky before scanning this source buffer.
   lexer.lexer_unclosed_block_comment_reset();
   lexer.lexer_unclosed_string_reset();
   lexer.lexer_illegal_char_reset();
@@ -9786,6 +9798,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   lexer.lexer_invalid_digit_sep_reset();
   lexer.lexer_invalid_type_suffix_reset();
   lexer.lexer_invalid_escape_reset();
+  lexer.lexer_string_lit_overflow_reset();
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };

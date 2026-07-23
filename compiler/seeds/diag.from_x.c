@@ -123,6 +123,11 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "Used when a string escape is not one of the product set `\\n \\t \\r \\0 \\\\ \\\" \\xHH` "
      "(for example `\\q`, incomplete `\\x`, or `\\xG`). "
      "Typical action: use a supported escape or write the byte as `\\xHH`."},
+    {"L011", "lexer error", "Lexer found a string literal that exceeds AST storage capacity.",
+     "Used when a decoded string literal (including C-style adjacent concatenation) would exceed "
+     "63 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. "
+     "Typical action: shorten the literal, split into multiple strings with runtime concat "
+     "(std.string), or await a future larger AST string pool."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

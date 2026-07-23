@@ -187,6 +187,20 @@ let g_lexer_invalid_escape_line: i32 = 0;
 let g_lexer_invalid_escape_col: i32 = 0;
 let g_lexer_invalid_escape_reported: i32 = 0;
 
+/**
+ * wave283 Cap residual: sticky string-literal capacity overflow for the current parse.
+ * EXPR_STRING_LIT stores semantic bytes in Expr.var_name (cap 63 content + NUL).
+ * Prior soft residual: decode loops clamped source length / stopped at wi<63 and
+ * silently truncated longer literals (and adjacent concat past 63) → wrong programs.
+ * Set when a decode write would exceed 63 semantic bytes; product parse must hard-fail.
+ * Cleared by lexer_string_lit_overflow_reset at each product parse entry.
+ * PLATFORM: SHARED — AST layout stay 64; raise layout is a separate leaf.
+ */
+let g_lexer_string_lit_overflow: i32 = 0;
+let g_lexer_string_lit_overflow_line: i32 = 0;
+let g_lexer_string_lit_overflow_col: i32 = 0;
+let g_lexer_string_lit_overflow_reported: i32 = 0;
+
 
 /**
  * Clear unclosed block-comment sticky state (call once per parse entry).
@@ -396,6 +410,27 @@ export function lexer_invalid_escape_reset(): void {
  */
 export function lexer_invalid_escape_pending(): i32 {
   return g_lexer_invalid_escape;
+}
+
+/**
+ * Clear string-literal capacity-overflow sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_string_lit_overflow_reset(): void {
+  g_lexer_string_lit_overflow = 0;
+  g_lexer_string_lit_overflow_line = 0;
+  g_lexer_string_lit_overflow_col = 0;
+  g_lexer_string_lit_overflow_reported = 0;
+}
+
+/**
+ * Whether a string-literal decode would exceed Expr.var_name capacity (63 bytes).
+ * @return i32 — 1 when sticky L011 pending, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_string_lit_overflow_pending(): i32 {
+  return g_lexer_string_lit_overflow;
 }
 
 /**
@@ -1153,6 +1188,85 @@ function lexer_note_invalid_escape(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_invalid_escape_line,
       g_lexer_invalid_escape_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L011 once for string-literal content exceeding AST capacity.
+ * Cap is 63 semantic bytes (Expr.var_name[64] with trailing NUL). Called from
+ * parser decode authorities (parser.x let-init, primary_slice, parser_gen seed)
+ * when a write would exceed the cap — not silent truncate.
+ * @param line i32 — 1-based line of the string literal (open quote / overflow site)
+ * @param col i32 — 1-based column of the string literal
+ * @return void
+ * PLATFORM: SHARED — exported so parser/seed decode can call (G.7 sticky face).
+ */
+export function lexer_note_string_lit_overflow(line: i32, col: i32): void {
+  if (g_lexer_string_lit_overflow == 0) {
+    g_lexer_string_lit_overflow = 1;
+    g_lexer_string_lit_overflow_line = line;
+    g_lexer_string_lit_overflow_col = col;
+  }
+  if (g_lexer_string_lit_overflow_reported != 0) {
+    return;
+  }
+  g_lexer_string_lit_overflow_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L011"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 49;
+  code[3] = 49;
+  code[4] = 0;
+  // msg = "string literal too long"
+  let msg: u8[32] = [];
+  msg[0] = 115;
+  msg[1] = 116;
+  msg[2] = 114;
+  msg[3] = 105;
+  msg[4] = 110;
+  msg[5] = 103;
+  msg[6] = 32;
+  msg[7] = 108;
+  msg[8] = 105;
+  msg[9] = 116;
+  msg[10] = 101;
+  msg[11] = 114;
+  msg[12] = 97;
+  msg[13] = 108;
+  msg[14] = 32;
+  msg[15] = 116;
+  msg[16] = 111;
+  msg[17] = 111;
+  msg[18] = 32;
+  msg[19] = 108;
+  msg[20] = 111;
+  msg[21] = 110;
+  msg[22] = 103;
+  msg[23] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_string_lit_overflow_line,
+      g_lexer_string_lit_overflow_col,
       &kind[0],
       &code[0],
       &msg[0],

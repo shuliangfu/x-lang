@@ -1,5 +1,8 @@
 #include <stdint.h>
 
+extern void lexer_string_lit_overflow_reset(void);
+extern int32_t lexer_string_lit_overflow_pending(void);
+extern void lexer_note_string_lit_overflow(int32_t line, int32_t col);
 extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);
 extern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);
 extern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);
@@ -3240,16 +3243,18 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
             (void)(((se.col) = ((r.tok).col)));
             (void)(parser_expr_set_common_zeros(&(se)));
             int32_t nlen = ((r.tok).ident_len);
-            if ((nlen > 63)) {
-              (void)((nlen = 63));
-            }
+            /* wave283: full span; L011 on overflow (not silent truncate). */
             if ((nlen < 0)) {
               (void)((nlen = 0));
             }
             size_t q0 = (r.token_start);
             int32_t ri = 0;
             int32_t wi = 0;
-            while (((ri < nlen) && (wi < 63))) {
+            while ((ri < nlen)) {
+              if ((wi >= 63)) {
+                lexer_note_string_lit_overflow((se.line), (se.col));
+                break;
+              }
               uint8_t c = 0;
               if (((q0 + ((size_t)(ri))) < (source->length))) {
                 (void)((c = (source)->data[(q0 + ((size_t)(ri)))]));
@@ -3359,13 +3364,14 @@ int parser_parse_body_lets_into(struct ast_ASTArena * arena, struct lexer_Lexer 
             if ((wi_adj > 63)) {
               (void)((wi_adj = 63));
             }
-            if ((nlen_adj > 63)) {
-              (void)((nlen_adj = 63));
-            }
             if ((nlen_adj < 0)) {
               (void)((nlen_adj = 0));
             }
-            while (((ri_adj < nlen_adj) && (wi_adj < 63))) {
+            while ((ri_adj < nlen_adj)) {
+              if ((wi_adj >= 63)) {
+                lexer_note_string_lit_overflow((se_adj.line), (se_adj.col));
+                break;
+              }
               uint8_t c2 = 0;
               if (((q0_adj + ((size_t)(ri_adj))) < (source->length))) {
                 (void)((c2 = (source)->data[(q0_adj + ((size_t)(ri_adj)))]));
@@ -3994,6 +4000,10 @@ struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parse
   if (lexer_invalid_escape_pending() != 0) {
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   }
+  /* wave283: string lit capacity overflow hard fail (not silent truncate). */
+  if (lexer_string_lit_overflow_pending() != 0) {
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  }
   if (lexer_incomplete_bin_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if (lexer_incomplete_oct_pending() != 0)
@@ -4027,6 +4037,9 @@ struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   /* wave281: invalid string escape hard fail (not silent keep). */
   if (lexer_invalid_escape_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  /* wave283: string lit capacity overflow hard fail (not silent truncate). */
+  if (lexer_string_lit_overflow_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if ((fail_tok ==((int32_t)(130)))) {
     return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
@@ -5959,6 +5972,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     lexer_invalid_digit_sep_reset();
     lexer_invalid_type_suffix_reset();
     lexer_invalid_escape_reset();
+  lexer_string_lit_overflow_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7466,6 +7480,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     lexer_invalid_digit_sep_reset();
     lexer_invalid_type_suffix_reset();
     lexer_invalid_escape_reset();
+  lexer_string_lit_overflow_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
