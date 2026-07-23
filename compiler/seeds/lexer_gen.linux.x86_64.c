@@ -787,6 +787,11 @@ static int32_t g_lexer_illegal_ch = 0;
 static int32_t g_lexer_illegal_ch_line = 0;
 static int32_t g_lexer_illegal_ch_col = 0;
 static int32_t g_lexer_illegal_ch_reported = 0;
+/* wave273 Cap residual: sticky incomplete hex state (≡ lexer.x). */
+static int32_t g_lexer_incomplete_hex = 0;
+static int32_t g_lexer_incomplete_hex_line = 0;
+static int32_t g_lexer_incomplete_hex_col = 0;
+static int32_t g_lexer_incomplete_hex_reported = 0;
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
   g_lexer_unclosed_line = 0;
@@ -813,6 +818,15 @@ void lexer_illegal_char_reset(void) {
 }
 int32_t lexer_illegal_char_pending(void) {
   return g_lexer_illegal_ch;
+}
+void lexer_incomplete_hex_reset(void) {
+  g_lexer_incomplete_hex = 0;
+  g_lexer_incomplete_hex_line = 0;
+  g_lexer_incomplete_hex_col = 0;
+  g_lexer_incomplete_hex_reported = 0;
+}
+int32_t lexer_incomplete_hex_pending(void) {
+  return g_lexer_incomplete_hex;
 }
 static void lexer_note_unclosed_block_comment(int32_t line, int32_t col) {
   if (g_lexer_unclosed_bc == 0) {
@@ -891,6 +905,33 @@ static void lexer_note_illegal_char(int32_t line, int32_t col) {
     msg[10] = 'a'; msg[11] = 'r'; msg[12] = 'a'; msg[13] = 'c'; msg[14] = 't';
     msg[15] = 'e'; msg[16] = 'r'; msg[17] = 0;
     diag_report_with_code(NULL, g_lexer_illegal_ch_line, g_lexer_illegal_ch_col,
+                          kind, code, msg, NULL);
+  }
+}
+static void lexer_note_incomplete_hex(int32_t line, int32_t col) {
+  if (g_lexer_incomplete_hex == 0) {
+    g_lexer_incomplete_hex = 1;
+    g_lexer_incomplete_hex_line = line;
+    g_lexer_incomplete_hex_col = col;
+  }
+  if (g_lexer_incomplete_hex_reported != 0)
+    return;
+  g_lexer_incomplete_hex_reported = 1;
+  /* kind="lexer error" code="L004" msg="incomplete hex literal" */
+  {
+    char kind[16];
+    char code[8];
+    char msg[32];
+    kind[0] = 'l'; kind[1] = 'e'; kind[2] = 'x'; kind[3] = 'e'; kind[4] = 'r';
+    kind[5] = ' '; kind[6] = 'e'; kind[7] = 'r'; kind[8] = 'r'; kind[9] = 'o';
+    kind[10] = 'r'; kind[11] = 0;
+    code[0] = 'L'; code[1] = '0'; code[2] = '0'; code[3] = '4'; code[4] = 0;
+    msg[0] = 'i'; msg[1] = 'n'; msg[2] = 'c'; msg[3] = 'o'; msg[4] = 'm';
+    msg[5] = 'p'; msg[6] = 'l'; msg[7] = 'e'; msg[8] = 't'; msg[9] = 'e';
+    msg[10] = ' '; msg[11] = 'h'; msg[12] = 'e'; msg[13] = 'x'; msg[14] = ' ';
+    msg[15] = 'l'; msg[16] = 'i'; msg[17] = 't'; msg[18] = 'e'; msg[19] = 'r';
+    msg[20] = 'a'; msg[21] = 'l'; msg[22] = 0;
+    diag_report_with_code(NULL, g_lexer_incomplete_hex_line, g_lexer_incomplete_hex_col,
                           kind, code, msg, NULL);
   }
 }
@@ -1111,11 +1152,22 @@ XLANG_LIB_WEAK void lexer_next_body_into(struct lexer_LexerResult * restrict out
   int64_t ival = 0;
   (l = (lexer_advance_one(l, c)));
   if (c == 48 && (l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 120 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 88) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  /* wave273: require ≥1 hex digit after 0x/0X (≡ lexer.x L004). */
   uint64_t hval = ((uint64_t)(0));
+  int32_t hex_digits = 0;
   while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
     uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
     (l = (lexer_advance_one(l, hd)));
+    hex_digits = hex_digits + 1;
+  }
+  if (hex_digits == 0) {
+    lexer_note_incomplete_hex(line0, col0);
+    struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    (void)(lexer_write_next_lex_into(out, l));
+    (void)(lexer_write_tok_into(out, tok_eof));
+    ((out)->token_start = (start));
+    return;
   }
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_INT, .line = line0, .col = col0, .int_val = ((int64_t)(hval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
   (void)(lexer_write_next_lex_into(out, l));
@@ -1541,11 +1593,19 @@ XLANG_LIB_WEAK struct lexer_LexerResult lexer_next_body(struct lexer_Lexer l, st
   int64_t ival = 0;
   (l = (lexer_advance_one(l, c)));
   if (c == 48 && (l).pos < (data)->length && ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 120 || ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]) == 88) {   (l = (lexer_advance_one(l, ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))));
+  /* wave273: require ≥1 hex digit after 0x/0X (≡ lexer.x L004). */
   uint64_t hval = ((uint64_t)(0));
+  int32_t hex_digits = 0;
   while ((l).pos < (data)->length && lexer_is_hex_digit(((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]))) {
     uint8_t hd = ((l).pos < 0 || (size_t)((l).pos) >= (data)->length ? (xlang_panic_(1, 0), (data)->data[0]) : (data)->data[(l).pos]);
     (hval = (hval * 16 + ((uint64_t)(lexer_hex_digit_value(hd)))));
     (l = (lexer_advance_one(l, hd)));
+    hex_digits = hex_digits + 1;
+  }
+  if (hex_digits == 0) {
+    lexer_note_incomplete_hex(line0, col0);
+    struct token_Token tok_eof = (struct token_Token){ .kind = token_TokenKind_TOKEN_EOF, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
+    return (struct lexer_LexerResult){ .next_lex = l, .tok = tok_eof, .token_start = start };
   }
   struct token_Token tok = (struct token_Token){ .kind = token_TokenKind_TOKEN_INT, .line = line0, .col = col0, .int_val = ((int64_t)(hval)), .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return (struct lexer_LexerResult){ .next_lex = l, .tok = tok, .token_start = start };

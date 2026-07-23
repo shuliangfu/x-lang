@@ -99,6 +99,19 @@ let g_lexer_illegal_ch_col: i32 = 0;
 let g_lexer_illegal_ch_reported: i32 = 0;
 
 /**
+ * wave273 Cap residual: sticky incomplete hex-literal state for the current parse.
+ * Set when `0x`/`0X` is followed by zero hex digits (e.g. `0x;`, `0xGG` after the prefix).
+ * Prior behavior emitted TOKEN_INT(0) silently → wrong program (`return 0x;` run=0) or soft
+ * P001 "no functions" when a following non-hex letter derailed parse and dropped the function.
+ * Cleared by lexer_incomplete_hex_reset at each product parse entry.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_incomplete_hex: i32 = 0;
+let g_lexer_incomplete_hex_line: i32 = 0;
+let g_lexer_incomplete_hex_col: i32 = 0;
+let g_lexer_incomplete_hex_reported: i32 = 0;
+
+/**
  * Clear unclosed block-comment sticky state (call once per parse entry).
  * @return void
  * PLATFORM: SHARED
@@ -159,6 +172,27 @@ export function lexer_illegal_char_reset(): void {
  */
 export function lexer_illegal_char_pending(): i32 {
   return g_lexer_illegal_ch;
+}
+
+/**
+ * Clear incomplete-hex sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_hex_reset(): void {
+  g_lexer_incomplete_hex = 0;
+  g_lexer_incomplete_hex_line = 0;
+  g_lexer_incomplete_hex_col = 0;
+  g_lexer_incomplete_hex_reported = 0;
+}
+
+/**
+ * Whether lex saw `0x`/`0X` with zero following hex digits.
+ * @return i32 — 1 if pending hard fail, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_incomplete_hex_pending(): i32 {
+  return g_lexer_incomplete_hex;
 }
 
 /**
@@ -375,6 +409,81 @@ function lexer_note_illegal_char(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_illegal_ch_line,
       g_lexer_illegal_ch_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L004 once for an incomplete hex literal (`0x` / `0X` with no digits).
+ * @param line i32 — 1-based line of the leading `0`
+ * @param col i32 — 1-based column of the leading `0`
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_incomplete_hex(line: i32, col: i32): void {
+  if (g_lexer_incomplete_hex == 0) {
+    g_lexer_incomplete_hex = 1;
+    g_lexer_incomplete_hex_line = line;
+    g_lexer_incomplete_hex_col = col;
+  }
+  if (g_lexer_incomplete_hex_reported != 0) {
+    return;
+  }
+  g_lexer_incomplete_hex_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L004"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 52;
+  code[4] = 0;
+  // msg = "incomplete hex literal"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 110;
+  msg[2] = 99;
+  msg[3] = 111;
+  msg[4] = 109;
+  msg[5] = 112;
+  msg[6] = 108;
+  msg[7] = 101;
+  msg[8] = 116;
+  msg[9] = 101;
+  msg[10] = 32;
+  msg[11] = 104;
+  msg[12] = 101;
+  msg[13] = 120;
+  msg[14] = 32;
+  msg[15] = 108;
+  msg[16] = 105;
+  msg[17] = 116;
+  msg[18] = 101;
+  msg[19] = 114;
+  msg[20] = 97;
+  msg[21] = 108;
+  msg[22] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_incomplete_hex_line,
+      g_lexer_incomplete_hex_col,
       &kind[0],
       &code[0],
       &msg[0],
@@ -2142,12 +2251,25 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let ival: i64 = 0;
     l = advance_one(l, c);
     if (c == 48 && l.pos < data.length && (data[l.pos] == 120 || data[l.pos] == 88)) {
+      // wave273 Cap residual: `0x`/`0X` requires ≥1 hex digit. Zero digits was silent
+      // TOKEN_INT(0) (wrong) or left a following letter that soft-dropped the function (P001).
       l = advance_one(l, data[l.pos]);
       let hval: u64 = (0 as u64);
+      let hex_digits: i32 = 0;
       while (l.pos < data.length && is_hex_digit(data[l.pos])) {
         let hd: u8 = data[l.pos];
         hval = hval * 16 + (hex_digit_value(hd) as u64);
         l = advance_one(l, hd);
+        hex_digits = hex_digits + 1;
+      }
+      if (hex_digits == 0) {
+        lexer_note_incomplete_hex(line0, col0);
+        let tok_eof: token.Token = token.Token { kind: 0, line: line0, col: col0, int_val: 0,
+          float_val: 0.0, ident: 0, ident_len: 0 };
+        write_next_lex_into(out, l);
+        write_tok_into(out, tok_eof);
+        out.token_start = start;
+        return;
       }
       let tok: token.Token = token.Token { kind: 80, line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: 0, ident_len: 0 };

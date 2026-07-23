@@ -98,6 +98,9 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"L003", "lexer error", "Lexer found an illegal character.",
      "Used when a source byte is not a recognized token introducer (for example `$`, bare `'`, or other non-ASCII/punct noise). "
      "Typical action: remove or replace the illegal character; character literals are not part of the product lexical surface."},
+    {"L004", "lexer error", "Lexer found an incomplete hex literal.",
+     "Used when a hex integer introducer `0x` or `0X` is not followed by at least one hex digit (0-9, a-f, A-F). "
+     "Typical action: complete the literal (e.g. `0x0`, `0xFF`) or remove the incomplete `0x` prefix."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},
