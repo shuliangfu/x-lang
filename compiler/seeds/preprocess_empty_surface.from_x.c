@@ -35,9 +35,10 @@ extern int32_t preprocess_x(struct xlang_slice_uint8_t source, struct xlang_slic
 extern int32_t preprocess_x_buf(uint8_t * source_buf, ssize_t source_len, uint8_t * out_buf, int32_t out_cap);
 static int32_t g_pp_kind;
 static int32_t g_pp_sym_len;
-/* wave265: 512→4096; wave266: non-directive stream when full (≡ preprocess.x). */
+/* wave265: line 512→4096; wave266 stream; wave268 cond 256→4096 (≡ preprocess.x). */
 static uint8_t g_pp_line_buf[4096];
-static uint8_t g_pp_cond[256];
+/* wave268: cond 256→4096 (≡ preprocess.x / g_pp_line_buf). */
+static uint8_t g_pp_cond[4096];
 
 /* PLATFORM: SHARED — wave267 removes looks_like_directive; overflow uses parse+kind. */
 static void init_globals(void) {
@@ -323,7 +324,7 @@ int32_t parse_copy_cond_from_line(uint8_t * cond, uint8_t * line_buf, int32_t po
   int32_t s = 0;
   while ((pos < line_len)) {
     uint8_t ch = (line_buf)[pos];
-    if ((s >=255)) {
+    if ((s >=4095)) {
       break;
     }
     if (pp_is_eol(ch)) {

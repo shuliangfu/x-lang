@@ -40,9 +40,11 @@ let g_pp_sym_len: i32 = 0;
 /* See implementation. */
 /* wave265: line-oriented buffer 512→4096 (silent truncate at 511 → P001).
  * wave266: non-directive overflow streams; cap still 4096 for directive parse.
- * wave267: known directive on buffer-full → early apply + drain (no silent drop). */
+ * wave267: known directive on buffer-full → early apply + drain (no silent drop).
+ * wave268: #if/#elseif cond buffer 256→4096 (silent truncate at 255 after long
+ *   line support left conditions mis-copied / kind=0 when leading ws ate the cap). */
 let g_pp_line_buf: u8[4096] = [];
-let g_pp_cond: u8[256] = [];
+let g_pp_cond: u8[4096] = [];
 
 /**
  * See implementation.
@@ -389,12 +391,20 @@ export struct ParseDirectiveResult {
 }
 
 /**
- * See implementation.
+ * Copy the #if/#elseif condition bytes from line_buf[pos..) into cond.
+ * @param cond u8[4096] — destination; max content length 4095 (wave268)
+ * @param line_buf u8[4096] — full directive line (wave265 cap)
+ * @param pos i32 — first condition byte (after keyword + ws)
+ * @param line_len i32 — valid length of line_buf
+ * @return i32 — condition length after trailing ws/CR strip; 0 if empty
+ * PLATFORM: SHARED — cap must match g_pp_cond / line max so long conditions
+ * after wave265 lines are not silently truncated mid-expression.
  */
-export function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[4096], pos: i32, line_len: i32): i32 {
+export function parse_copy_cond_from_line(cond: u8[4096], line_buf: u8[4096], pos: i32, line_len: i32): i32 {
   let s: i32 = 0;
   while (pos < line_len) {
-    if (s >= 255) {
+    // wave268: 255 → 4095 (align with line_buf content max).
+    if (s >= 4095) {
       break;
     }
     let ch: u8 = line_buf[pos];
@@ -421,11 +431,14 @@ export function parse_copy_cond_from_line(cond: u8[256], line_buf: u8[4096], pos
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Parse one directive line into g_pp_kind / g_pp_sym_len and cond bytes.
+ * @param line_buf u8[4096] — line without requiring trailing LF
+ * @param line_len i32 — valid prefix length
+ * @param cond u8[4096] — out: condition text for #if/#elseif (wave268 cap)
+ * @return void — sets module g_pp_kind (0=none) and g_pp_sym_len
+ * PLATFORM: SHARED — kinds 1/4 need cond; empty cond after copy leaves kind=0.
  */
-export function parse_directive_into(line_buf: u8[4096], line_len: i32, cond: u8[256]): void {
+export function parse_directive_into(line_buf: u8[4096], line_len: i32, cond: u8[4096]): void {
   let pos: i32 = 0;
   g_pp_kind = 0;
   g_pp_sym_len = 0;
@@ -538,6 +551,11 @@ export function parse_directive_into(line_buf: u8[4096], line_len: i32, cond: u8
  * wave266 Cap residual: when a non-directive line exceeds 4095 bytes, the
  * filled prefix is flushed (if keeping) and the rest of the line streams
  * byte-by-byte into out_buf until LF — no silent drop for product source.
+ *
+ * wave268 Cap residual: #if/#elseif condition buffer is 4096 (max 4095),
+ * matching the line cap. Prior cond[256] silently truncated at 255; long
+ * leading whitespace before a token could yield empty cond → kind=0 and
+ * the directive was treated as body (stack not pushed).
  *
  * wave267 Cap residual: when the buffer fills on a *known* directive
  * (#if/#elseif/#else/#endif), parse+apply immediately from the 4095-byte

@@ -40,8 +40,8 @@ extern void preprocess_if_stack_set_at(int32_t i, int32_t v);
 extern int32_t preprocess_eval_condition_c(uint8_t * cond, int32_t cond_len);
 int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val);
 int preprocess_line_keeping();
-int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[4096], int32_t pos, int32_t line_len);
-void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[256]);
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[4096], uint8_t line_buf[4096], int32_t pos, int32_t line_len);
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[4096]);
 int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uint8_t * out_buf);
 int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
 /* 失败码：-2 else without #if；-3 endif without；-4 elseif without；-5 elseif after else；-6 duplicate else；-7 nesting */
@@ -109,25 +109,25 @@ int preprocess_line_keeping() {
   int32_t top = preprocess_if_stack_at(depth - 1);
   return top == 1 || top == 2;
 }
-int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[4096], int32_t pos, int32_t line_len) {
+int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[4096], uint8_t line_buf[4096], int32_t pos, int32_t line_len) {
   int32_t s = 0;
-  while (pos < line_len && s < 255) {
+  while (pos < line_len && s < 4095) {
     uint8_t ch = (pos < 0 || (pos) >= 4096 ? (xlang_panic_(1, 0), (line_buf)[0]) : (line_buf)[pos]);
     (void)(({ int32_t __tmp = 0; if (ch == 10 || ch == 13) {   break;
  } else (__tmp = 0) ; __tmp; }));
-    ((s < 0 || (s) >= 256 ? (xlang_panic_(1, 0), 0) : ((cond)[s] = ch, 0)));
+    ((s < 0 || (s) >= 4096 ? (xlang_panic_(1, 0), 0) : ((cond)[s] = ch, 0)));
     ++s;
     ++pos;
   }
   while (s > 0) {
-    uint8_t tail = (s - 1 < 0 || (s - 1) >= 256 ? (xlang_panic_(1, 0), (cond)[0]) : (cond)[s - 1]);
+    uint8_t tail = (s - 1 < 0 || (s - 1) >= 4096 ? (xlang_panic_(1, 0), (cond)[0]) : (cond)[s - 1]);
     (void)(({ int32_t __tmp = 0; if (tail != 32 && tail != 9 && tail != 13) {   break;
  } else (__tmp = 0) ; __tmp; }));
     (s = (s - 1));
   }
   return s;
 }
-void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[256]) {
+void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[4096], int32_t line_len, uint8_t cond[4096]) {
   int32_t pos = 0;
   ((out)->kind = (0));
   ((out)->sym_len = (0));
@@ -231,7 +231,7 @@ int32_t preprocess_x(struct xlang_slice_uint8_t * source, struct xlang_slice_uin
         line_len = 0;
         ++pos;
       } else {
-        uint8_t cond[256] = { 0 };
+        uint8_t cond[4096] = { 0 };
         struct preprocess_ParseDirectiveResult res = { .kind = 0, .sym_len = 0 };
         (void)(preprocess_parse_directive_into((&(res)), line_buf, line_len, cond));
         int32_t kind = (res).kind;
@@ -398,7 +398,7 @@ int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint
         line_len = 0;
         ++pos;
       } else {
-        uint8_t cond[256] = { 0 };
+        uint8_t cond[4096] = { 0 };
         struct preprocess_ParseDirectiveResult res = { .kind = 0, .sym_len = 0 };
         (void)(preprocess_parse_directive_into((&(res)), line_buf, line_len, cond));
         int32_t kind = (res).kind;
