@@ -4565,6 +4565,9 @@ export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoRes
     if (lexer.lexer_string_lit_overflow_pending() != 0) {
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
+    if (lexer.lexer_ident_too_long_pending() != 0) {
+      return ParseIntoResult { ok: -1, main_idx: -1 }
+    }
   }
   return r;
 }
@@ -4619,6 +4622,10 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
   }
   // wave283: string lit >63 semantic bytes is hard fail (not silent truncate).
   if (lexer.lexer_string_lit_overflow_pending() != 0) {
+    return ParseIntoResult { ok: -1, main_idx: -1 }
+  }
+  // wave284: identifier span >63 is hard fail (not silent clamp / XP003).
+  if (lexer.lexer_ident_too_long_pending() != 0) {
     return ParseIntoResult { ok: -1, main_idx: -1 }
   }
   if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
@@ -7688,6 +7695,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   lexer.lexer_invalid_type_suffix_reset();
   lexer.lexer_invalid_escape_reset();
   lexer.lexer_string_lit_overflow_reset();
+  lexer.lexer_ident_too_long_reset();
   /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
@@ -9799,6 +9807,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   lexer.lexer_invalid_type_suffix_reset();
   lexer.lexer_invalid_escape_reset();
   lexer.lexer_string_lit_overflow_reset();
+  lexer.lexer_ident_too_long_reset();
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };

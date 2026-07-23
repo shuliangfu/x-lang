@@ -201,6 +201,21 @@ let g_lexer_string_lit_overflow_line: i32 = 0;
 let g_lexer_string_lit_overflow_col: i32 = 0;
 let g_lexer_string_lit_overflow_reported: i32 = 0;
 
+/**
+ * wave284 Cap residual: sticky identifier/name capacity overflow for the current parse.
+ * AST name slots (Func.name, LetDecl.name, Expr.var_name for vars, field/method names)
+ * are fixed `name[64]` with content cap 63 (primary_slice and name64 copies).
+ * Prior soft residual: idents longer than 63 were TOKEN_IDENT with full span, then
+ * silent clamp to 63 / XP003 / typeck mismatch without a hard L0xx → wrong or opaque fail.
+ * Set when a non-keyword ident span length exceeds 63; product parse must hard-fail.
+ * Cleared by lexer_ident_too_long_reset at each product parse entry.
+ * PLATFORM: SHARED — layout raise is leave-off; this leaf only honest-fails.
+ */
+let g_lexer_ident_too_long: i32 = 0;
+let g_lexer_ident_too_long_line: i32 = 0;
+let g_lexer_ident_too_long_col: i32 = 0;
+let g_lexer_ident_too_long_reported: i32 = 0;
+
 
 /**
  * Clear unclosed block-comment sticky state (call once per parse entry).
@@ -431,6 +446,27 @@ export function lexer_string_lit_overflow_reset(): void {
  */
 export function lexer_string_lit_overflow_pending(): i32 {
   return g_lexer_string_lit_overflow;
+}
+
+/**
+ * Clear identifier-too-long sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED — wave284 Cap residual pure
+ */
+export function lexer_ident_too_long_reset(): void {
+  g_lexer_ident_too_long = 0;
+  g_lexer_ident_too_long_line = 0;
+  g_lexer_ident_too_long_col = 0;
+  g_lexer_ident_too_long_reported = 0;
+}
+
+/**
+ * Whether a non-keyword identifier span exceeds AST name capacity (63 bytes).
+ * @return i32 — 1 when sticky L012 pending, else 0
+ * PLATFORM: SHARED — wave284 Cap residual pure
+ */
+export function lexer_ident_too_long_pending(): i32 {
+  return g_lexer_ident_too_long;
 }
 
 /**
@@ -1267,6 +1303,81 @@ export function lexer_note_string_lit_overflow(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_string_lit_overflow_line,
       g_lexer_string_lit_overflow_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L012 once for an identifier longer than AST name capacity.
+ * Cap is 63 bytes (name[64] slots; primary_slice / name64 copies use content max 63).
+ * Called from try_keyword / try_keyword_buf when falling through to TOKEN_IDENT with
+ * span length > 63 — produce-point authority (G.7); not silent clamp / XP003.
+ * @param line i32 — 1-based line of the identifier start
+ * @param col i32 — 1-based column of the identifier start
+ * @return void
+ * PLATFORM: SHARED — wave284 Cap residual pure
+ */
+function lexer_note_ident_too_long(line: i32, col: i32): void {
+  if (g_lexer_ident_too_long == 0) {
+    g_lexer_ident_too_long = 1;
+    g_lexer_ident_too_long_line = line;
+    g_lexer_ident_too_long_col = col;
+  }
+  if (g_lexer_ident_too_long_reported != 0) {
+    return;
+  }
+  g_lexer_ident_too_long_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L012"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 49;
+  code[3] = 50;
+  code[4] = 0;
+  // msg = "identifier too long"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 100;
+  msg[2] = 101;
+  msg[3] = 110;
+  msg[4] = 116;
+  msg[5] = 105;
+  msg[6] = 102;
+  msg[7] = 105;
+  msg[8] = 101;
+  msg[9] = 114;
+  msg[10] = 32;
+  msg[11] = 116;
+  msg[12] = 111;
+  msg[13] = 111;
+  msg[14] = 32;
+  msg[15] = 108;
+  msg[16] = 111;
+  msg[17] = 110;
+  msg[18] = 103;
+  msg[19] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_ident_too_long_line,
+      g_lexer_ident_too_long_col,
       &kind[0],
       &code[0],
       &msg[0],
@@ -2159,6 +2270,10 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     }
     return t;
   }
+  // wave284 Cap residual: AST name slots cap 63; long idents hard-fail L012 (not silent clamp / XP003).
+  if (len > 63) {
+    lexer_note_ident_too_long(line0, col0);
+  }
   let t: token.Token = token.Token {
     kind: 59,
     line: line0,
@@ -2314,6 +2429,10 @@ i32): token.Token {
     let t: token.Token = token.Token { kind: 52, line: line0, col: col0, int_val: 0,
       float_val: 0.0, ident: 0, ident_len: 0 }
     return t;
+  }
+  // wave284 Cap residual: G.7 mirror try_keyword — L012 when non-keyword span > 63.
+  if (len > 63) {
+    lexer_note_ident_too_long(line0, col0);
   }
   let t: token.Token = token.Token { kind: 59, line: line0, col: col0, int_val: 0,
     float_val: 0.0, ident: 0, ident_len: len }

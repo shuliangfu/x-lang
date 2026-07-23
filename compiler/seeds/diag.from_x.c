@@ -128,6 +128,10 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "63 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. "
      "Typical action: shorten the literal, split into multiple strings with runtime concat "
      "(std.string), or await a future larger AST string pool."},
+    {"L012", "lexer error", "Lexer found an identifier that exceeds AST name storage capacity.",
+     "Used when a non-keyword identifier span is longer than 63 bytes (AST name[64] content cap). "
+     "Prior soft residual could silent-clamp names or fail with opaque XP003/typeck mismatch. "
+     "Typical action: shorten the identifier, or await a future larger AST name layout."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

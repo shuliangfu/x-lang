@@ -81,6 +81,7 @@ int lexer_is_digit(uint8_t c);
 int lexer_is_alnum_underscore(uint8_t c);
 int lexer_match_keyword(struct xlang_slice_uint8_t * data, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword);
 int lexer_match_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, int32_t len, struct xlang_slice_uint8_t * keyword);
+static void lexer_note_ident_too_long(int32_t line, int32_t col);
 struct token_Token lexer_try_keyword(struct xlang_slice_uint8_t * data, size_t start, size_t len, int32_t line0, int32_t col0);
 struct token_Token lexer_try_keyword_buf(uint8_t * restrict data, int32_t data_len, size_t start, size_t len, int32_t line0, int32_t col0);
 struct lexer_Lexer lexer_skip_repr_c_attr_if_present(struct lexer_Lexer lex, struct xlang_slice_uint8_t * data);
@@ -352,6 +353,9 @@ XLANG_LIB_WEAK struct token_Token lexer_try_keyword(struct xlang_slice_uint8_t *
   if (len == 2 && lexer_match_keyword(data, start, 2, &((struct xlang_slice_uint8_t){ .data = (uint8_t[]){ 97, 115 }, .length = 2 }))) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_AS, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
+  if (len > 63) {
+    lexer_note_ident_too_long(line0, col0);
+  }
   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IDENT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
   return t;
 }
@@ -440,6 +444,9 @@ XLANG_LIB_WEAK struct token_Token lexer_try_keyword_buf(uint8_t * restrict data,
   if (len == 1 && start < ((size_t)(data_len)) && (data)[start] == 95) {   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_UNDERSCORE, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 };
   return t;
  }
+  if (len > 63) {
+    lexer_note_ident_too_long(line0, col0);
+  }
   struct token_Token t = (struct token_Token){ .kind = token_TokenKind_TOKEN_IDENT, .line = line0, .col = col0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = len };
   return t;
 }
@@ -852,6 +859,12 @@ static int32_t g_lexer_string_lit_overflow_line = 0;
 static int32_t g_lexer_string_lit_overflow_col = 0;
 static int32_t g_lexer_string_lit_overflow_reported = 0;
 
+/* wave284 Cap residual: L012 identifier too long sticky (G.7 ≡ lexer.x). */
+static int32_t g_lexer_ident_too_long = 0;
+static int32_t g_lexer_ident_too_long_line = 0;
+static int32_t g_lexer_ident_too_long_col = 0;
+static int32_t g_lexer_ident_too_long_reported = 0;
+
 void lexer_unclosed_block_comment_reset(void) {
   g_lexer_unclosed_bc = 0;
   g_lexer_unclosed_line = 0;
@@ -1088,6 +1101,36 @@ void lexer_note_string_lit_overflow(int32_t line, int32_t col) {
     char code[] = "L011";
     char msg[] = "string literal too long";
     diag_report_with_code(NULL, g_lexer_string_lit_overflow_line, g_lexer_string_lit_overflow_col,
+                          (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
+  }
+}
+
+/* wave284 Cap residual: L012 identifier capacity overflow (G.7 ≡ lexer.x). */
+void lexer_ident_too_long_reset(void) {
+  g_lexer_ident_too_long = 0;
+  g_lexer_ident_too_long_line = 0;
+  g_lexer_ident_too_long_col = 0;
+  g_lexer_ident_too_long_reported = 0;
+}
+int32_t lexer_ident_too_long_pending(void) {
+  return g_lexer_ident_too_long;
+}
+/* wave284 Cap residual: L012 identifier too long (G.7 ≡ lexer.x). */
+static void lexer_note_ident_too_long(int32_t line, int32_t col) {
+  if (g_lexer_ident_too_long == 0) {
+    g_lexer_ident_too_long = 1;
+    g_lexer_ident_too_long_line = line;
+    g_lexer_ident_too_long_col = col;
+  }
+  if (g_lexer_ident_too_long_reported != 0) {
+    return;
+  }
+  g_lexer_ident_too_long_reported = 1;
+  {
+    char kind[] = "lexer error";
+    char code[] = "L012";
+    char msg[] = "identifier too long";
+    diag_report_with_code(NULL, g_lexer_ident_too_long_line, g_lexer_ident_too_long_col,
                           (uint8_t *)kind, (uint8_t *)code, (uint8_t *)msg, (uint8_t *)0);
   }
 }

@@ -3,6 +3,8 @@
 extern void lexer_string_lit_overflow_reset(void);
 extern int32_t lexer_string_lit_overflow_pending(void);
 extern void lexer_note_string_lit_overflow(int32_t line, int32_t col);
+extern void lexer_ident_too_long_reset(void);
+extern int32_t lexer_ident_too_long_pending(void);
 extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);
 extern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);
 extern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);
@@ -4004,6 +4006,10 @@ struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parse
   if (lexer_string_lit_overflow_pending() != 0) {
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   }
+  /* wave284: identifier span >63 hard fail (not silent clamp / XP003). */
+  if (lexer_ident_too_long_pending() != 0) {
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  }
   if (lexer_incomplete_bin_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if (lexer_incomplete_oct_pending() != 0)
@@ -4040,6 +4046,9 @@ struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   /* wave283: string lit capacity overflow hard fail (not silent truncate). */
   if (lexer_string_lit_overflow_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  /* wave284: identifier span >63 hard fail (not silent clamp / XP003). */
+  if (lexer_ident_too_long_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if ((fail_tok ==((int32_t)(130)))) {
     return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
@@ -5973,6 +5982,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     lexer_invalid_type_suffix_reset();
     lexer_invalid_escape_reset();
   lexer_string_lit_overflow_reset();
+  lexer_ident_too_long_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7481,6 +7491,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     lexer_invalid_type_suffix_reset();
     lexer_invalid_escape_reset();
   lexer_string_lit_overflow_reset();
+  lexer_ident_too_long_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
