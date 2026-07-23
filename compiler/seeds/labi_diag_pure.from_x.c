@@ -13,6 +13,7 @@
  * wave219：shux_spawn_sync pure thin（Cap residual fork/exec/wait 或 _spawnvp _impl）
  * wave220：invoke_cc_strip_out_x pure thin（Cap residual argv pack + spawn _impl）
  * wave222：link_abi_getenv pure thin（Cap residual host getenv _impl）
+ * wave224：link_abi_system pure thin（Cap residual host system _impl）
  * Cap residual（mega rest 常驻）：
  *   link_diag_ld_debug_argv_impl（char** 🔒）
  *   link_diag_strerror_current_impl（errno + strerror 🔒；wave217）
@@ -21,6 +22,7 @@
  *   shux_spawn_sync_impl（fork+execvp+wait / _spawnvp 🔒；wave219）
  *   invoke_cc_strip_out_x_impl（strip argv pack + spawn 🔒；wave220）
  *   link_abi_getenv_impl（host getenv 🔒；wave222）
+ *   link_abi_system_impl（host system 🔒；wave224）
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega _impl 并存）。
  *
@@ -51,6 +53,8 @@ extern int shux_spawn_sync_impl(const char *prog, const char *const *argv);
 extern void invoke_cc_strip_out_x_impl(const char *out_path);
 /* Cap residual (wave222): host getenv. PLATFORM: SHARED — process environment. */
 extern const char *link_abi_getenv_impl(const char *name);
+/* Cap residual (wave224): host system. PLATFORM: SHARED — shell / process boundary. */
+extern int link_abi_system_impl(const char *cmd);
 /* Public pure thin (defined later under cold #ifndef; used by errno/tool orch). */
 const char *link_diag_strerror_current(void);
 int link_diag_wait_is_signaled(int status);
@@ -388,6 +392,16 @@ const char *link_abi_getenv(const char *name) {
   return link_abi_getenv_impl(name);
 }
 
+/* wave224 cold twin of pure link_abi_system (null/empty gates + Cap residual system).
+ * PLATFORM: SHARED orch / host libc system residual. */
+int link_abi_system(const char *cmd) {
+  if (cmd == NULL)
+    return -1;
+  if (cmd[0] == 0)
+    return -1;
+  return link_abi_system_impl(cmd);
+}
+
 int labi_diag_pure_count(void) {
   return 9;
 }
@@ -415,6 +429,7 @@ int shu_waitpid_retry(int64_t pid, int *status_out);
 int shux_spawn_sync(const char *prog, const char *const *argv);
 void invoke_cc_strip_out_x(const char *out_path);
 const char *link_abi_getenv(const char *name);
+int link_abi_system(const char *cmd);
 int labi_diag_pure_count(void);
 #endif
 

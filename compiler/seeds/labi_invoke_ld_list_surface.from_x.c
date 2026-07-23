@@ -20,7 +20,8 @@
  *   + wave196 shux_asm_ld_append_std_objs_for_user plan shell pure orch)
  * Cap residual: host_is_apple; needs + ensure + path; resolve_existing_path_impl pool;
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0; spawn/ld/cc IO mega;
- *   getenv / system / access / skip_missing for ensure_std_net + formal_std_make (wave187/188);
+ *   link_abi_getenv / link_abi_system / path_executable / skip_missing for ensure_std_net + formal_std_make
+ *     (wave187/188 Cap residual; wave221 X_OK pure; wave222 getenv pure; wave224 system pure);
  *   repo_root + ensure_runtime_* + push_obj for wave191 formal companions;
  *   ensure_runtime_*_glue + path peers for wave192 OP_GLUE_* leaves;
  *   needs + primary ensure/path + process_argv for wave193 primary/complement;
@@ -49,9 +50,11 @@ extern uint8_t * link_abi_realpath_cap(uint8_t * path, uint8_t * out);
 extern uint8_t * shux_rel_o_path_from_argv0(uint8_t * argv0, uint8_t * rel);
 /* Cap residual (wave187/188 ensure shell make surface).
  * wave221: X_OK via link_abi_path_executable pure thin.
- * wave222: env via link_abi_getenv pure thin. */
+ * wave222: env via link_abi_getenv pure thin.
+ * wave224: shell make via link_abi_system pure thin. */
 extern uint8_t * link_abi_getenv(uint8_t * name);
-extern int32_t system(uint8_t * cmd);
+/* wave224 G.7: shell make authority = public pure thin link_abi_system (labi_diag_pure). */
+extern int32_t link_abi_system(uint8_t * cmd);
 extern int32_t strcmp(uint8_t * a, uint8_t * b);
 extern int32_t link_abi_path_executable(uint8_t * path);
 extern uint8_t * asm_link_obj_skip_missing(uint8_t * path);
@@ -1005,7 +1008,7 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
     int32_t ok = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x73\x74\x75\x62"));
     if ((ok !=0)) {
       {
-        int32_t _s = system(&((cmd)[0]));
+        int32_t _s = link_abi_system(&((cmd)[0]));
       }
     }
     return;
@@ -1061,7 +1064,7 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
     int32_t ok2 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6f\x70\x65\x6e\x73\x73\x6c"));
     if ((ok2 !=0)) {
       {
-        int32_t _s2 = system(&((cmd)[0]));
+        int32_t _s2 = link_abi_system(&((cmd)[0]));
       }
     }
     return;
@@ -1072,7 +1075,7 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
     int32_t ok3 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6d\x62\x65\x64\x74\x6c\x73"));
     if ((ok3 !=0)) {
       {
-        int32_t _s3 = system(&((cmd)[0]));
+        int32_t _s3 = link_abi_system(&((cmd)[0]));
       }
     }
     return;
@@ -1085,12 +1088,12 @@ void ensure_std_net_o_auto_tls(uint8_t * repo_root) {
   int32_t ok4 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6f\x70\x65\x6e\x73\x73\x6c"));
   if ((ok4 !=0)) {
     int32_t rc = 0;
-    (void)((rc = system(&((cmd)[0]))));
+    (void)((rc = link_abi_system(&((cmd)[0]))));
     if ((rc !=0)) {
       int32_t ok5 = labi_net_tls_build_make_cmd(&((cmd)[0]), 640, repo_root, ((uint8_t *)"\x6e\x65\x74\x2d\x6f\x2d\x6d\x62\x65\x64\x74\x6c\x73"));
       if ((ok5 !=0)) {
         {
-          int32_t _s5 = system(&((cmd)[0]));
+          int32_t _s5 = link_abi_system(&((cmd)[0]));
         }
       }
     }
@@ -1248,7 +1251,7 @@ int32_t shux_ensure_formal_std_make_o(uint8_t * repo_root, uint8_t * rel_from_re
     return 0;
   }
   {
-    int32_t _s = system(&((cmd)[0]));
+    int32_t _s = link_abi_system(&((cmd)[0]));
   }
   uint8_t * have1 = 0;
   (void)((have1 = asm_link_obj_skip_missing(&((abs)[0]))));

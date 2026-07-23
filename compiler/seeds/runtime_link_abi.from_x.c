@@ -462,6 +462,33 @@ const char *link_abi_getenv(const char *name) {
 const char *link_abi_getenv(const char *name);
 #endif
 
+/**
+ * Cap residual (wave224): host system(cmd) → shell status or -1.
+ * Pure orch (wave224 labi_diag_pure L1) owns null/empty cmd gates; _impl is always mega.
+ * PLATFORM: SHARED — host libc system (shell make / process boundary).
+ * Product ensure orch (ensure_std_net net-o-*; formal_std SHUX make).
+ */
+int link_abi_system_impl(const char *cmd) {
+    if (!cmd || !cmd[0])
+        return -1;
+    return system(cmd);
+}
+
+/* wave224: link_abi_system pure orch lives in labi_diag_pure.x (hybrid L1);
+ * mega cold twin under #ifndef SHUX_LABI_DIAG_PURE_FROM_X.
+ * Pure: null/empty cmd gates; Cap residual link_abi_system_impl (system) always mega.
+ * Why: hybrid still had formal_std / ensure_std_net raw system under product ensure.
+ * PLATFORM: SHARED orch. */
+#ifndef SHUX_LABI_DIAG_PURE_FROM_X
+int link_abi_system(const char *cmd) {
+    if (!cmd || !cmd[0])
+        return -1;
+    return link_abi_system_impl(cmd);
+}
+#else
+int link_abi_system(const char *cmd);
+#endif
+
 
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-268 L1 diag pure：code_for_kind 真迁在 L1 leaf；rest 非 hybrid 自带 */

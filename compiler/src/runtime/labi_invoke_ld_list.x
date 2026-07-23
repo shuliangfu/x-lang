@@ -31,10 +31,11 @@
 //   - invoke_cc_argv_push_existing (wave179; pure gates/dedup/append; Cap residual resolve pool)
 //   - invoke_cc_argv_resolve_existing_path (wave215; pure null/empty gates; Cap residual
 //     resolve_existing_path_impl = skip_missing + multi-slot realpath pool)
-//   - ensure_std_net_o_auto_tls (wave187; pure mode/path orch; Cap residual getenv+system+
-//     realpath_cap+exports_marker; shell make net-o-* stays Cap residual)
+//   - ensure_std_net_o_auto_tls (wave187; pure mode/path orch; Cap residual
+//     link_abi_getenv+link_abi_system+realpath_cap+exports_marker; wave222/224 pure faces)
 //   - shux_ensure_formal_std_make_o (wave188; pure path/SHUX/make-cmd orch; Cap residual
-//     getenv+access+realpath_cap+system+asm_link_obj_skip_missing; shell make Cap residual)
+//     link_abi_getenv+path_executable+realpath_cap+link_abi_system+skip_missing;
+//     wave221 X_OK / wave222 getenv / wave224 system pure faces)
 //   - labi_std_append_formal_ensure_for_rel (wave191; pure formal ensure+companions orch for
 //     append_std OP_STD; Cap residual repo_root + ensure_runtime_* + peer push_obj)
 //   - labi_std_append_glue_for_op (wave192; pure OP_GLUE_* ensure+path+push orch for
@@ -55,8 +56,8 @@
 //   wave215 pure owns public resolve null/empty gates);
 //   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
 //   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
-//   link_abi_getenv / system / path_executable for ensure_std_net + formal_std_make
-//     (wave187/188 Cap; wave221 X_OK pure; wave222 getenv pure);
+//   link_abi_getenv / link_abi_system / path_executable for ensure_std_net + formal_std_make
+//     (wave187/188 Cap; wave221 X_OK pure; wave222 getenv pure; wave224 system pure);
 //   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
 //   needs + primary ensure/path + process_argv for wave193 primary/complement;
 //   task/scheduler path peers + bank_push for wave194 TASK_SPECIAL;
@@ -124,12 +125,14 @@ export extern "C" function link_abi_realpath_cap(path: *u8, out: *u8): *u8;
 // Cap residual (wave158): resolve rel path under argv0/repo_root (tls_openssl.o etc.).
 export extern "C" function shux_rel_o_path_from_argv0(argv0: *u8, rel: *u8): *u8;
 
-// Cap residual (wave187/188 ensure shell make): host system / skip_missing.
+// Cap residual (wave187/188 ensure shell make): host shell make / skip_missing.
 // PLATFORM: SHARED — SHUX_NET_TLS net-o-* + formal std make (SHUX_FORMAL_STD_ENSURE reentrancy).
 // wave222: env lookup is public pure thin link_abi_getenv (labi_diag_pure L1 hybrid);
 // Cap residual host getenv stays mega as link_abi_getenv_impl.
+// wave224: shell make is public pure thin link_abi_system (labi_diag_pure L1 hybrid);
+// Cap residual host system stays mega as link_abi_system_impl.
 export extern "C" function link_abi_getenv(name: *u8): *u8;
-export extern "C" function system(cmd: *u8): i32;
+export extern "C" function link_abi_system(cmd: *u8): i32;
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 // wave221: product host binary X_OK probe is public pure thin link_abi_path_executable
 // (labi_path_io L3 hybrid); Cap residual access X_OK stays mega as _impl.
@@ -1631,11 +1634,13 @@ export function labi_net_tls_join_repo_rel(path_buf: *u8, cap: i32, repo_root: *
  * @param repo_root *u8 — absolute repository root; null/empty → no-op
  * @return void — best-effort make; marker short-circuit when already built
  * Pure orch: mode strcmp + pure path join + pure make-cmd join.
- * Cap residual: link_abi_getenv (SHUX_NET_TLS pure thin → _impl; wave222); system(make);
- *   link_abi_realpath_cap; link_abi_obj_exports_marker (nm/marker probe).
+ * Cap residual: link_abi_getenv (SHUX_NET_TLS pure thin → _impl; wave222);
+ *   link_abi_system (make shell pure thin → _impl; wave224); link_abi_realpath_cap;
+ *   link_abi_obj_exports_marker (nm/marker probe).
  * Why (wave187): hybrid still had always-mega C body for auto TLS ensure orch
  *   (getenv + marker probe + system make). Soft residual after wave158 net_tls ld append.
  * wave222: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
+ * wave224: raw system closed — public pure thin link_abi_system owns shell make.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc_impl call sites.
@@ -1673,7 +1678,8 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
     let ok: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-stub");
     if (ok != 0) {
       unsafe {
-        let _s: i32 = system(&cmd[0]);
+        // wave224 G.7: public pure thin link_abi_system (not raw libc system).
+        let _s: i32 = link_abi_system(&cmd[0]);
       }
     }
     return;
@@ -1751,7 +1757,8 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
     let ok2: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-openssl");
     if (ok2 != 0) {
       unsafe {
-        let _s2: i32 = system(&cmd[0]);
+        // wave224 G.7: public pure thin link_abi_system (not raw libc system).
+        let _s2: i32 = link_abi_system(&cmd[0]);
       }
     }
     return;
@@ -1765,7 +1772,8 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
     let ok3: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-mbedtls");
     if (ok3 != 0) {
       unsafe {
-        let _s3: i32 = system(&cmd[0]);
+        // wave224 G.7: public pure thin link_abi_system (not raw libc system).
+        let _s3: i32 = link_abi_system(&cmd[0]);
       }
     }
     return;
@@ -1782,13 +1790,15 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
   if (ok4 != 0) {
     let rc: i32 = 0;
     unsafe {
-      rc = system(&cmd[0]);
+      // wave224 G.7: public pure thin link_abi_system (not raw libc system).
+      rc = link_abi_system(&cmd[0]);
     }
     if (rc != 0) {
       let ok5: i32 = labi_net_tls_build_make_cmd(&cmd[0], 640, repo_root, "net-o-mbedtls");
       if (ok5 != 0) {
         unsafe {
-          let _s5: i32 = system(&cmd[0]);
+          // wave224 G.7: public pure thin link_abi_system (not raw libc system).
+          let _s5: i32 = link_abi_system(&cmd[0]);
         }
       }
     }
@@ -1855,12 +1865,14 @@ export function labi_formal_std_build_make_cmd(cmd: *u8, cap: i32, shux_bin: *u8
  * @return i32 — 1 if object exists after ensure, 0 otherwise
  * Pure orch: path join + SHUX discovery loop + make-cmd join (G.7 labi_net_tls_* helpers).
  * Cap residual: link_abi_getenv (pure thin → _impl; wave222); link_abi_path_executable
- *   (X_OK pure thin → _impl; wave221); link_abi_realpath_cap; system(make);
+ *   (X_OK pure thin → _impl; wave221); link_abi_realpath_cap;
+ *   link_abi_system (make shell pure thin → _impl; wave224);
  *   asm_link_obj_skip_missing (stat existence).
  * Why (wave188): hybrid still had always-mega C body for formal_std_make (getenv+access+
  *   realpath+system make orch). Soft residual sibling of wave187 ensure_std_net.
  * wave221: raw access(X_OK) closed — public pure thin path_executable owns X_OK probe.
  * wave222: raw getenv closed — public pure thin link_abi_getenv owns env lookup.
+ * wave224: raw system closed — public pure thin link_abi_system owns shell make.
  * Note: export signature must stay single-line (multi-line export drops the function).
  * PLATFORM: SHARED orch — system/make is host shell (LINUX/MACOS product hosts).
  * Track-L: #[no_mangle] keeps surface short name for invoke_cc / on_demand call sites.
@@ -2002,14 +2014,15 @@ export function shux_ensure_formal_std_make_o(repo_root: *u8, rel_from_repo: *u8
   if (shux_bin[0] == 0) {
     return 0;
   }
-  // freestanding system() = fork+execvp sh -c; PATH fixed in invoke_cc child too.
+  // freestanding host system residual = fork+execvp sh -c; PATH fixed in invoke_cc child too.
+  // wave224 G.7: public pure thin link_abi_system (not raw libc system).
   let cmd: u8[768] = [];
   let ok: i32 = labi_formal_std_build_make_cmd(&cmd[0], 768, &shux_bin[0], repo_root, make_target);
   if (ok == 0) {
     return 0;
   }
   unsafe {
-    let _s: i32 = system(&cmd[0]);
+    let _s: i32 = link_abi_system(&cmd[0]);
   }
   let have1: *u8 = 0 as *u8;
   unsafe {

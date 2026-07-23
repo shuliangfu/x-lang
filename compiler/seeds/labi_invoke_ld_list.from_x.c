@@ -21,10 +21,10 @@
  *   invoke_cc_argv_push_existing (wave179 pure orch; Cap residual resolve pool)
  *   invoke_cc_argv_resolve_existing_path (wave215 pure thin; Cap residual
  *     resolve_existing_path_impl = skip_missing + multi-slot realpath pool)
- *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual link_abi_getenv+system+
- *     realpath_cap+exports_marker; shell make net-o-* Cap residual; wave222 getenv pure)
+ *   ensure_std_net_o_auto_tls (wave187 pure orch; Cap residual link_abi_getenv+link_abi_system+
+ *     realpath_cap+exports_marker; shell make net-o-* Cap residual; wave222 getenv pure; wave224 system pure)
  *   shux_ensure_formal_std_make_o (wave188 pure orch; Cap residual link_abi_getenv+
- *     path_executable+realpath_cap+system+skip_missing; wave221 X_OK pure; wave222 getenv pure)
+ *     path_executable+realpath_cap+link_abi_system+skip_missing; wave221 X_OK pure; wave222 getenv pure; wave224 system pure)
  *   labi_std_append_formal_ensure_for_rel (wave191 pure orch; Cap residual repo_root +
  *     ensure_runtime_* + peer push_obj; formal ensure companions for append_std OP_STD)
  *   labi_std_append_glue_for_op (wave192 pure orch; Cap residual ensure_runtime_*_glue +
@@ -43,8 +43,8 @@
  *   invoke_cc_argv_resolve_existing_path_impl (skip+realpath pool; wave215 pure owns public gates);
  *   exports_marker / realpath_cap / shux_rel_o_path_from_argv0;
  *   spawn/ld/cc IO; contains_substr / undef_sym / path_io / wait / strerror / ld_debug_argv;
- *   link_abi_getenv / system / path_executable for ensure_std_net + formal_std_make
- *     (wave187/188 Cap residual; wave221 X_OK pure; wave222 getenv pure);
+ *   link_abi_getenv / link_abi_system / path_executable for ensure_std_net + formal_std_make
+ *     (wave187/188 Cap residual; wave221 X_OK pure; wave222 getenv pure; wave224 system pure);
  *   runtime ensure/path peers for wave191 formal companions + wave192 glue leaves;
  *   needs + primary ensure/path + process_argv for wave193 primary/complement;
  *   task/scheduler path peers + bank for wave194 TASK_SPECIAL;
@@ -76,11 +76,12 @@ const char *invoke_cc_argv_resolve_existing_path(const char *path);
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
 const char *link_abi_realpath_cap(const char *path, char *out);
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
-/* Cap residual (wave187/188 ensure shell make): system / skip_missing.
+/* Cap residual (wave187/188 ensure shell make): skip_missing (+ shell via link_abi_system).
  * wave221: X_OK via public pure thin link_abi_path_executable.
- * wave222: env via public pure thin link_abi_getenv (labi_diag_pure L1). */
+ * wave222: env via public pure thin link_abi_getenv (labi_diag_pure L1).
+ * wave224: shell make via public pure thin link_abi_system (labi_diag_pure L1). */
 const char *link_abi_getenv(const char *name);
-int system(const char *cmd);
+int link_abi_system(const char *cmd);
 int link_abi_path_executable(const char *path);
 const char *asm_link_obj_skip_missing(const char *path);
 /* Peer pure / Cap residual (wave191 formal companions + wave192 OP_GLUE_* leaves). */
@@ -497,8 +498,8 @@ int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *
 }
 
 /* wave187: ensure_std_net_o_auto_tls pure orch (cold twin ≡ .x).
- * Cap residual: getenv + system + realpath_cap + exports_marker.
- * Pure helpers + mode orch. PLATFORM: SHARED.
+ * Cap residual: link_abi_getenv + link_abi_system + realpath_cap + exports_marker.
+ * Pure helpers + mode orch. PLATFORM: SHARED. wave222/224 pure faces.
  */
 int labi_net_tls_buf_append(char *dst, int cap, int pos, const char *src) {
   int i = 0;
@@ -570,7 +571,7 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
   mk_mb = labi_net_tls_mbedtls_marker();
   if (strcmp(mode, "stub") == 0) {
     if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-stub"))
-      (void)system(cmd);
+      (void)link_abi_system(cmd); /* wave224 G.7 */
     return;
   }
   if (labi_net_tls_join_repo_rel(path_buf, 4096, repo_root, "std/net/tls_openssl.o")) {
@@ -593,27 +594,27 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
   }
   if (strcmp(mode, "openssl") == 0) {
     if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-openssl"))
-      (void)system(cmd);
+      (void)link_abi_system(cmd); /* wave224 G.7 */
     return;
   }
   if (strcmp(mode, "mbedtls") == 0) {
     if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-mbedtls"))
-      (void)system(cmd);
+      (void)link_abi_system(cmd); /* wave224 G.7 */
     return;
   }
   if (strcmp(mode, "auto") != 0)
     return;
   if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-openssl")) {
-    if (system(cmd) != 0) {
+    if (link_abi_system(cmd) != 0) { /* wave224 G.7 */
       if (labi_net_tls_build_make_cmd(cmd, 640, repo_root, "net-o-mbedtls"))
-        (void)system(cmd);
+        (void)link_abi_system(cmd); /* wave224 G.7 */
     }
   }
 }
 
 /* wave188: shux_ensure_formal_std_make_o pure orch (cold twin ≡ .x).
- * Cap residual: getenv + access + realpath_cap + system + asm_link_obj_skip_missing.
- * Pure path/SHUX/make-cmd join. PLATFORM: SHARED.
+ * Cap residual: link_abi_getenv + path_executable + realpath_cap + link_abi_system + skip_missing.
+ * Pure path/SHUX/make-cmd join. PLATFORM: SHARED. wave221/222/224 pure faces.
  */
 int labi_formal_std_build_make_cmd(char *cmd, int cap, const char *shux_bin,
                                    const char *repo_root, const char *make_target) {
@@ -706,7 +707,7 @@ int shux_ensure_formal_std_make_o(const char *repo_root, const char *rel_from_re
     return 0;
   if (!labi_formal_std_build_make_cmd(cmd, 768, shux_bin, repo_root, make_target))
     return 0;
-  (void)system(cmd);
+  (void)link_abi_system(cmd); /* wave224 G.7 */
   return asm_link_obj_skip_missing(abs) ? 1 : 0;
 }
 

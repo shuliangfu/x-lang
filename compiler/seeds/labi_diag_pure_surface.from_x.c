@@ -9,9 +9,10 @@
  *   shux_spawn_sync_impl (fork/exec/wait or _spawnvp; wave219);
  *   invoke_cc_strip_out_x_impl (strip argv pack + spawn; wave220);
  *   link_abi_getenv_impl (host getenv; wave222);
+ *   link_abi_system_impl (host system; wave224);
  *   wave111 perror; wave112 tool/obj status; wave113 errno/_path pure orch;
  *   wave217 strerror_current + wait_* pure thin; wave219 spawn_sync pure thin;
- *   wave220 strip_out_x pure thin; wave222 getenv pure thin
+ *   wave220 strip_out_x pure thin; wave222 getenv pure thin; wave224 system pure thin
  * Regen: ./shux -E ... src/runtime/labi_diag_pure.x | filter DBG + polish prologue
  * Track-L (2026-07-16): labi_diag_append keeps short name; .x has #[no_mangle] (was module mangle).
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
@@ -499,6 +500,8 @@ extern int32_t shux_spawn_sync_impl(uint8_t * prog, uint8_t * argv);
 extern void invoke_cc_strip_out_x_impl(uint8_t * out_path);
 /* Cap residual mega always _impl (wave222); pure public thin defined below. */
 extern uint8_t * link_abi_getenv_impl(uint8_t * name);
+/* Cap residual mega always _impl (wave224); pure public thin defined below. */
+extern int32_t link_abi_system_impl(uint8_t * cmd);
 /* Public pure thin (defined later in this TU; used by errno/tool/obj orch above). */
 uint8_t * link_diag_strerror_current(void);
 int32_t link_diag_wait_is_signaled(int32_t status);
@@ -1016,6 +1019,19 @@ uint8_t * link_abi_getenv(uint8_t * name) {
     return link_abi_getenv_impl(name);
   }
   return ((uint8_t *)(0));
+}
+/* wave224: link_abi_system pure thin (surface pin ≡ .x; null/empty gates + Cap residual). */
+int32_t link_abi_system(uint8_t * cmd) {
+  if ((cmd ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  if (((cmd)[0] ==0)) {
+    return (0 - 1);
+  }
+  {
+    return link_abi_system_impl(cmd);
+  }
+  return (0 - 1);
 }
 int32_t labi_diag_pure_count(void) {
   return 9;

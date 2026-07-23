@@ -51,6 +51,10 @@ export extern "C" function invoke_cc_strip_out_x_impl(out_path: *u8): void;
  * PLATFORM: SHARED residual — host libc getenv (process environment block). */
 export extern "C" function link_abi_getenv_impl(name: *u8): *u8;
 
+/* Cap residual (wave224): host system(cmd) only; pure owns null/empty cmd gates.
+ * PLATFORM: SHARED residual — host libc system (shell make / process boundary). */
+export extern "C" function link_abi_system_impl(cmd: *u8): i32;
+
 /** Diag pure helper; see signature and body for contracts. */
 #[no_mangle]
 export function labi_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
@@ -861,13 +865,41 @@ export function link_abi_getenv(name: *u8): *u8 {
   return 0 as *u8;
 }
 
+/**
+ * Run a host shell command (host system Cap residual).
+ * Thin pure public: null/empty cmd → -1 without residual.
+ * @param cmd *u8 — NUL-terminated shell command; null/empty rejected at pure gate
+ * @return i32 — host system status, or -1 if rejected / residual failure
+ * Pure orch: ≡ mega null/empty gates before Cap residual system (wave224).
+ * Cap residual: link_abi_system_impl (host system; mega always).
+ * Why (wave224): ensure_std_net / formal_std_make still used raw system under hybrid;
+ * G.7 single public authority under L1 hybrid (sibling of link_abi_getenv libc face).
+ * Product ensure orch (net-o-* make / formal SHUX make) uses this face.
+ * PLATFORM: SHARED orch; residual is host libc system (shell / process boundary).
+ * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
+ */
+#[no_mangle]
+export function link_abi_system(cmd: *u8): i32 {
+  if (cmd == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (cmd[0] == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return link_abi_system_impl(cmd);
+  }
+  return 0 - 1;
+}
+
 /* Pure audit: public L1 gates in this slice (code_for_kind + 8 report).
  * wave111: shux_link_perror is extra pure orch (not counted in the original 9).
  * wave216: shu_waitpid_retry pure thin is extra (not counted in the original 9).
  * wave217: strerror_current + wait_is_signaled + wait_code pure thin are extra.
  * wave219: shux_spawn_sync pure thin is extra (not counted in the original 9).
  * wave220: invoke_cc_strip_out_x pure thin is extra (not counted in the original 9).
- * wave222: link_abi_getenv pure thin is extra (not counted in the original 9). */
+ * wave222: link_abi_getenv pure thin is extra (not counted in the original 9).
+ * wave224: link_abi_system pure thin is extra (not counted in the original 9). */
 #[no_mangle]
 export function labi_diag_pure_count(): i32 {
   return 9;
