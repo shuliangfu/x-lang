@@ -12,6 +12,15 @@
 #include <xlang_weak.h>
 #include "diag.h"
 
+/* wave246 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED — product ast_pool residual raw getenv call sites migrate to this face
+ * (DEBUG_PIPE / ASM_DEBUG / TRACE / WPO / emit-heavy / bootstrap-emit gates; same G.7
+ * pattern as wave240 pipeline_glue). Textually #include'd into pipeline_glue /
+ * pipeline_glue_standalone; redeclaration is compatible with glue's wave240 extern.
+ */
+extern char *link_abi_getenv(const char *name);
+
 #ifndef AST_POOL_GROW
 #define AST_POOL_GROW 4096
 #endif
@@ -870,9 +879,9 @@ struct ast_Expr pipeline_arena_expr_get_copy(struct ast_ASTArena *a, int32_t ref
 
 void pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e) {
   struct ast_Expr *ep = pipeline_arena_expr_ptr(a, ref);
-  const char *trace_expr = getenv("XLANG_TRACE_EXPR_SET");
-  const char *trace_name = getenv("XLANG_TRACE_EXPR_NAME");
-  const char *trace_type = getenv("XLANG_TRACE_TYPE_REF");
+  const char *trace_expr = link_abi_getenv("XLANG_TRACE_EXPR_SET");
+  const char *trace_name = link_abi_getenv("XLANG_TRACE_EXPR_NAME");
+  const char *trace_type = link_abi_getenv("XLANG_TRACE_TYPE_REF");
   int trace_hit = 0;
   if (trace_expr && *trace_expr && atoi(trace_expr) == ref)
     trace_hit = 1;
@@ -948,7 +957,7 @@ struct ast_Block pipeline_arena_block_get_copy(struct ast_ASTArena *a, int32_t r
 
 void pipeline_arena_block_set_copy(struct ast_ASTArena *a, int32_t ref, struct ast_Block b) {
   struct ast_Block *bp = pipeline_arena_block_ptr(a, ref);
-  const char *dbg_block_set = getenv("XLANG_DEBUG_BLOCK_SET");
+  const char *dbg_block_set = link_abi_getenv("XLANG_DEBUG_BLOCK_SET");
   if (bp) {
     if (dbg_block_set && dbg_block_set[0] && atoi(dbg_block_set) == ref) {
       diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1516,7 +1525,7 @@ int32_t pipeline_visibility_mode(void) {
   const char *e;
   if (cached >= 0)
     return cached;
-  e = getenv("XLANG_VISIBILITY");
+  e = link_abi_getenv("XLANG_VISIBILITY");
   if (!e || !e[0] || strcmp(e, "strict") == 0)
     cached = 0; /* compat: parser doesn't set is_export yet; revert to 2 when fixed */
   else if (strcmp(e, "warn") == 0)
@@ -1591,7 +1600,7 @@ void pipeline_lint_set_source_buf(const uint8_t *data, int32_t len) {
 }
 
 static int pipeline_unused_private_enabled(void) {
-  const char *e = getenv("XLANG_UNUSED_PRIVATE");
+  const char *e = link_abi_getenv("XLANG_UNUSED_PRIVATE");
   if (e && e[0]) {
     if (e[0] == '0' && e[1] == '\0')
       return 0;
@@ -1811,7 +1820,7 @@ void pipeline_module_func_set_num_generic_params(struct ast_Module *m, int32_t f
   struct ast_Func *f = module_func_at(m, fi);
   if (f && n >= 0)
     f->num_generic_params = n;
-  if (f && getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
+  if (f && link_abi_getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_FUNC_GENERIC_SLOT] set fi=%d n=%d name=%.*s\n",
             (int)fi, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0), (const char *)f->name);
     fflush(stderr);
@@ -1833,7 +1842,7 @@ int32_t pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t
   f = module_func_at(m, func_index);
   if (!f)
     return 0;
-  if (getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
+  if (link_abi_getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_FUNC_GENERIC_SLOT] get fi=%d n=%d name=%.*s\n",
             (int)func_index, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0),
             (const char *)f->name);
@@ -2175,7 +2184,7 @@ int32_t pipeline_block_append_let(struct ast_ASTArena *a, int32_t br, uint8_t *n
   const char *dbg_append_block;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  dbg_append_block = getenv("XLANG_DEBUG_APPEND_BLOCK");
+  dbg_append_block = link_abi_getenv("XLANG_DEBUG_APPEND_BLOCK");
   idx = block_pool_append_pos(a, br, &sc->lets, offsetof(struct ast_Block, let_base), b->num_lets);
   if (idx < 0)
     return -1;
@@ -2505,7 +2514,7 @@ int32_t pipeline_block_append_while(struct ast_ASTArena *a, int32_t br, int32_t 
   memset(wl, 0, sizeof(*wl));
   wl->cond_ref = cond_ref;
   wl->body_ref = body_ref;
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: append_while br=%d cond=%d body=%d wi=%d\n", (int)br, (int)cond_ref, (int)body_ref,
             (int)(idx - b->loop_base));
   b->num_loops++;
@@ -3766,7 +3775,7 @@ void pipeline_module_type_alias_set(struct ast_Module *m, int32_t idx, uint8_t *
     ta->name[i] = 0;
   ta->name_len = name_len;
   ta->target_type_ref = target_type_ref;
-  if (getenv("XLANG_DEBUG_PIPE") != NULL) {
+  if (link_abi_getenv("XLANG_DEBUG_PIPE") != NULL) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] type_alias_set idx=%d len=%d target=%d\n", (int)idx, (int)name_len,
             (int)target_type_ref);
   }
@@ -3972,14 +3981,14 @@ void pipeline_block_with_arena_fixup_stmt_order(struct ast_ASTArena *a, int32_t 
     }
   }
   if (wa_ri < 0 || inner <= 0 || inner == br) {
-    if (getenv("XLANG_ASM_DEBUG") && b->num_regions > 0)
+    if (link_abi_getenv("XLANG_ASM_DEBUG") && b->num_regions > 0)
       fprintf(stderr, "xlang: wa_fixup skip br=%d wa_ri=%d inner=%d nso=%d\n", (int)br, (int)wa_ri, (int)inner,
               (int)b->num_stmt_order);
     return;
   }
   for (i = 0; i < b->num_stmt_order; i++) {
     if (pipeline_block_stmt_order_kind(a, br, i) == 6) {
-      if (getenv("XLANG_ASM_DEBUG")) {
+      if (link_abi_getenv("XLANG_ASM_DEBUG")) {
         struct ast_Block *ib = inner > 0 ? block_at(a, inner) : NULL;
         fprintf(stderr, "xlang: wa_fixup ok br=%d inner=%d in_nso=%d in_nif=%d\n", (int)br, (int)inner,
                 ib ? (int)ib->num_stmt_order : -1, ib ? (int)ib->num_if_stmts : -1);
@@ -3987,7 +3996,7 @@ void pipeline_block_with_arena_fixup_stmt_order(struct ast_ASTArena *a, int32_t 
       return;
     }
   }
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: wa_fixup apply br=%d wa_ri=%d inner=%d old_nso=%d\n", (int)br, (int)wa_ri, (int)inner,
             (int)b->num_stmt_order);
   abs = b->stmt_order_base;
@@ -4068,7 +4077,7 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(struct ast_ASTArena *a, int32_
     if (so)
       *so = neu[i];
   }
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: if_rebuild br=%d nif=%d old_if_in_order=%d new_nso=%d\n", (int)br, (int)nif, (int)if_in_order,
             (int)nn);
 }
@@ -4085,7 +4094,7 @@ void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct a
     if (br <= 0)
       continue;
     b = block_at(a, br);
-    if (getenv("XLANG_ASM_DEBUG") && b && b->num_regions > 0)
+    if (link_abi_getenv("XLANG_ASM_DEBUG") && b && b->num_regions > 0)
       fprintf(stderr, "xlang: wa_fixup scan fi=%d br=%d nreg=%d nso=%d\n", (int)fi, (int)br, (int)b->num_regions,
               (int)b->num_stmt_order);
     pipeline_block_with_arena_fixup_stmt_order(a, br);
@@ -4122,7 +4131,7 @@ void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct
   struct ast_Block *main_blk;
   if (!m || !a || m->num_top_level_lets <= 0)
     return;
-  dbg_hoist = getenv("XLANG_DEBUG_TOPLEVEL_HOIST");
+  dbg_hoist = link_abi_getenv("XLANG_DEBUG_TOPLEVEL_HOIST");
   mi = m->main_func_index;
   if (mi < 0) {
     /* 库模块 -o .o 无 main：并入首个可 emit 的非 extern 函数体（与 C static 全局等价）。 */
@@ -4283,7 +4292,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
   pipeline_fill_array_lit_types_for_skipped_typeck(m, a);
   pipeline_fill_soa_field_access_for_asm_emit(m, a);
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: backend_asm_codegen fill done, calling mega_body_c\n");
   glue_wpo_mono_reset_pending();
   /** dep+entry 顺序写入同一 elf_ctx：为 tail_join/loop 等局部标签分配唯一 scope。 */
@@ -4292,7 +4301,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   pipeline_asm_emit_set_module(m);
   pipeline_asm_emit_set_arena(a);
   pipeline_asm_emit_set_elf_ctx(elf_ctx);
-  if (getenv("XLANG_ASM_DEBUG") && m && asm_module_is_parser_emit_heavy(m))
+  if (link_abi_getenv("XLANG_ASM_DEBUG") && m && asm_module_is_parser_emit_heavy(m))
     fprintf(stderr, "xlang: seed_mega parser nfunc=%d elf_ctx=%p code_len=%d\n", (int)m->num_funcs, (void *)elf_ctx,
             elf_ctx ? (int)elf_ctx->code_len : -1);
   rc = pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m, a, elf_ctx, pipeline_ctx);
@@ -5128,7 +5137,7 @@ void pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena *a, int32_t br,
   for (i = 0; i < count; i++) {
     int32_t cond_ref = pipeline_onefunc_while_cond_ref(out, i);
     int32_t body_ref = pipeline_onefunc_while_body_ref(out, i);
-    if (getenv("XLANG_ASM_DEBUG"))
+    if (link_abi_getenv("XLANG_ASM_DEBUG"))
       fprintf(stderr, "xlang: fill_while_from_onefunc i=%d cond=%d body=%d\n", (int)i, (int)cond_ref, (int)body_ref);
     pipeline_block_append_while(a, br, cond_ref, body_ref);
   }
@@ -5136,7 +5145,7 @@ void pipeline_block_fill_whiles_from_onefunc(struct ast_ASTArena *a, int32_t br,
 
 void pipeline_block_fill_fors_from_onefunc(struct ast_ASTArena *a, int32_t br, uint8_t *out, int32_t count) {
   int32_t i;
-  if (getenv("XLANG_ASM_DEBUG"))
+  if (link_abi_getenv("XLANG_ASM_DEBUG"))
     fprintf(stderr, "xlang: fill_fors br=%d count=%d\n", (int)br, (int)count);
   for (i = 0; i < count; i++) {
     pipeline_block_append_for(a, br, pipeline_onefunc_for_init_ref(out, i), pipeline_onefunc_for_cond_ref(out, i),
@@ -6595,7 +6604,7 @@ int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast
   /* L7 / LSP：锚定 unused private 波浪线到定义处 */
   pipeline_lint_set_source_buf(data, len);
   pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, &ok, &main_idx);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c ok=%d main_idx=%d num_funcs=%d\n", (int)ok,
             (int)main_idx, (int)pipeline_module_num_funcs(module));
   if (ok != 0) {
@@ -6603,7 +6612,7 @@ int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast
     return -2;
   }
   pipeline_module_set_main_func_index(module, main_idx);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=%d\n",
             (int)pipeline_module_main_func_index(module));
   return 0;
@@ -6623,7 +6632,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   /** parse 未产出任何函数时 main_func_index 可能仍为 0（memset）；强制走 library typeck 避免 typeck_x_ast -11。 */
   if (pipeline_module_num_funcs(module) == 0)
     pipeline_module_set_main_func_index(module, -1);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typeck_parsed_module_c main_idx=%d num_funcs=%d\n",
             (int)pipeline_module_main_func_index(module), (int)pipeline_module_num_funcs(module));
   /* 【Why 根源】产品入口 typeck_parsed_module_c 原先未 set active module，
@@ -6634,7 +6643,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   if (pipeline_module_main_func_index(module) < 0) {
     int32_t tc_lib = typeck_typeck_x_ast_library(module, arena, ctx);
     if (tc_lib != 0) {
-      if (getenv("XLANG_DEBUG_PIPE"))
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typeck library rc=%d ctx=%p ndep=%d\n", (int)tc_lib, (void *)ctx,
                 (int)pipeline_dep_ctx_ndep(ctx));
       driver_diagnostic_typeck_fail();
@@ -6717,14 +6726,14 @@ XLANG_WEAK void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *mod
     return;
   if (ndep > n_imp) {
     /* Closure seed: keep full BFS list; load_and_sync skips entry-index re-pin. */
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr,
               "xlang: [XLANG_DEBUG_PIPE] realign keep closure ndep=%d (entry imports=%d)\n",
               (int)ndep, (int)n_imp);
     return;
   }
   /* ndep < n_imp: incomplete — force reload via load_and_sync. */
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr,
             "xlang: [XLANG_DEBUG_PIPE] realign ndep %d -> entry imports %d (incomplete, zero)\n",
             (int)ndep, (int)n_imp);
@@ -6834,7 +6843,7 @@ XLANG_WEAK int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module
        * (layout drift) so module_at returns NULL even after seed; bind via this
        * TU's pipeline_dep_ctx_set_module (paired with module_at, G.7).
        */
-      if (getenv("XLANG_DEBUG_PIPE"))
+      if (link_abi_getenv("XLANG_DEBUG_PIPE"))
         fprintf(stderr,
                 "xlang: [XLANG_DEBUG_PIPE] keep closure seed ndep=%d (entry imports=%d); rebind from driver slots\n",
                 (int)cur_ndep, (int)n_imports);
@@ -7076,7 +7085,7 @@ int32_t run_x_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct 
                                                struct ast_PipelineDepCtx *ctx) {
   if (!module || !arena || !ctx)
     return -1;
-  if (getenv("XLANG_DEBUG_PIPE")) {
+  if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] typecheck_entry_emit ctx=%p ndep=%d num_funcs=%d\n", (void *)ctx,
             (int)pipeline_dep_ctx_ndep(ctx), (int)pipeline_module_num_funcs(module));
     fflush(stderr);
@@ -7123,7 +7132,7 @@ static void pipeline_debug_dump_std_heap_trace_call(struct ast_Module *dep_mod, 
   int32_t n_imp, j, expr_ref;
   if (!dep_mod || !arena || !ctx || !dep_path_buf)
     return;
-  if (!getenv("XLANG_DEBUG_PIPE"))
+  if (!link_abi_getenv("XLANG_DEBUG_PIPE"))
     return;
   if (strcmp((const char *)dep_path_buf, "std.heap") != 0)
     return;
@@ -7260,7 +7269,7 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
   if (!out_buf || !ctx || dep_j < 0)
     return -1;
   if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, dep_j) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE")) {
+    if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
       memset(dep_path_buf, 0, sizeof(dep_path_buf));
       pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dep_path_buf);
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip duplicate dep emit j=%d path=%s\n", (int)dep_j,
@@ -7270,13 +7279,13 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
   }
   memset(dep_path_buf, 0, sizeof(dep_path_buf));
   pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dep_path_buf);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit j=%d path=%s use_asm=%d funcs=%d\n", (int)dep_j,
             (char *)dep_path_buf, (int)use_asm_backend,
             dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
   pipeline_debug_dump_std_heap_trace_call(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), ctx, dep_j, dep_path_buf);
   if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip dep emit j=%d path=%s\n", (int)dep_j, (char *)dep_path_buf);
     return 0;
   }
@@ -7284,7 +7293,7 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
    * 【Why】co-emit wrapper（std_json_* 调 json_*_c）+ 链 json.o → 双权威 duplicate；
    *   仅 co-emit 则缺 _c 桩。base64/csv/heap/http 同形。core.mem 仍 co-emit（mem 测自洽）。 */
   if (pipeline_codegen_std_dep_link_only(dep_path_buf) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip dep emit (prebuilt .o) j=%d path=%s\n", (int)dep_j,
               (char *)dep_path_buf);
     return 0;
@@ -7296,13 +7305,13 @@ int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct c
     if (use_asm_backend != 0) {
       if (skip_asm_dep_codegen == 0 &&
           asm_asm_codegen_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx) != 0) {
-        if (getenv("XLANG_DEBUG_PIPE"))
+        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
           fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit asm fail j=%d path=%s\n", (int)dep_j,
                   (char *)dep_path_buf);
         return -6;
       }
     } else if (codegen_codegen_x_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx, dep_j) != 0) {
-      if (getenv("XLANG_DEBUG_PIPE")) {
+      if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
         fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep emit c fail j=%d path=%s last_func_idx=%d out_len=%zu\n",
                 (int)dep_j, (char *)dep_path_buf, (int)ctx->current_func_index, (size_t)out_buf->len);
       }
@@ -7449,12 +7458,12 @@ int32_t run_x_pipeline_codegen_one_dep_c(struct ast_Module *module, struct codeg
   memset(dep_path_buf, 0, sizeof(dep_path_buf));
   pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
   dep_mod = pipeline_dep_ctx_module_at(ctx, dep_j);
-  if (getenv("XLANG_DEBUG_PIPE"))
+  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
     fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] dep codegen j=%d path=%s funcs=%d\n", (int)dep_j,
             (char *)dep_path_buf, dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
   /** bootstrap partial：前端模块勿整库 C emit（符号由 *_x.o 提供）。 */
   if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
-    if (getenv("XLANG_DEBUG_PIPE"))
+    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
       fprintf(stderr, "xlang: [XLANG_DEBUG_PIPE] skip dep codegen j=%d path=%s\n", (int)dep_j,
               (char *)dep_path_buf);
     driver_set_current_dep_path_for_codegen(NULL);
@@ -7520,7 +7529,7 @@ int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTA
   j = 0;
   while (j < ndep) {
     if (pipeline_dep_ctx_has_earlier_same_import_path_c(ctx, j) != 0) {
-      if (getenv("XLANG_DEBUG_PIPE")) {
+      if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
         uint8_t dup_path_buf[64];
         memset(dup_path_buf, 0, sizeof(dup_path_buf));
         pipeline_dep_ctx_import_path_copy64(ctx, j, dup_path_buf);
@@ -8247,7 +8256,7 @@ _Static_assert(kPipelineElfCtxCodeDataOff == (int)sizeof(PipelineElfCtxAccess),
 
 /** XLANG_WPO_PGO_HOT=1 时启用 .text.hot 双段 emit。 */
 int32_t pipeline_elf_pgo_hot_enabled(void) {
-  const char *e = getenv("XLANG_WPO_PGO_HOT");
+  const char *e = link_abi_getenv("XLANG_WPO_PGO_HOT");
   if (!e || e[0] == '\0')
     return 0;
   if (e[0] == '0' && (e[1] == '\0' || e[1] == '\n'))
@@ -10406,7 +10415,7 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
         patch_shndx = PIPELINE_ELF_SHNX_TEXT_HOT;
         target_shndx = PIPELINE_ELF_SHNX_TEXT_HOT;
       } else {
-        if (getenv("XLANG_ASM_DEBUG")) {
+        if (link_abi_getenv("XLANG_ASM_DEBUG")) {
           fprintf(stderr,
                   "xlang: elf patch shndx mismatch p=%d patch_sh=%d target_sh=%d rel=%d tgt=%d code_len=%d hot=%d\n",
                   (int)p, (int)patch_shndx, (int)target_shndx, (int)rel32_offset, (int)target_offset,
@@ -11613,7 +11622,7 @@ int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t na
   if (name_len == 21 && codegen_name_prefix_eq(name, name_len, "std_string_string_new", 21))
     return 1;
   /** bootstrap -E：seed_mega 体过大；XLANG_EMIT_SEED_MEGA=1 时仍尝试 X emit（build_seed_asm_host）。 */
-  if (!getenv("XLANG_EMIT_SEED_MEGA")) {
+  if (!link_abi_getenv("XLANG_EMIT_SEED_MEGA")) {
     if (name_len == 25 && memcmp(name, "asm_codegen_ast_seed_mega", 25) == 0)
       return 1;
     if (name_len == 32 && memcmp(name, "asm_codegen_ast_to_elf_seed_mega", 32) == 0)
@@ -11624,7 +11633,7 @@ int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t na
 
 /** codegen.x：XLANG_EMIT_SEED_MEGA=1 时 bootstrap -E 仍 emit seed_mega。 */
 int32_t pipeline_codegen_emit_seed_mega_enabled(void) {
-  const char *e = getenv("XLANG_EMIT_SEED_MEGA");
+  const char *e = link_abi_getenv("XLANG_EMIT_SEED_MEGA");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 
@@ -12198,7 +12207,7 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
     {
       int32_t sz = asm_slot_bytes_named_in_mod(arena, type_ref, mod);
       if (sz > 0) {
-        if (getenv("XLANG_ASM_EMIT_TRACE")) {
+        if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
           uint8_t nm[64];
           int32_t nl = pipeline_type_named_name_into(arena, type_ref, nm);
           fprintf(stderr, "xlang: local_slot struct %.*s sz=%d\n", (int)nl, nm, (int)sz);
@@ -12651,7 +12660,7 @@ void asm_diag_trace_func(uint8_t *name, int32_t name_len) {
 
 /** 读 XLANG_ASM_EMIT_ABORT_LO/HI：调试二分定位 Abort 区间（默认见上常量）。 */
 static int32_t asm_emit_heavy_abort_lo(void) {
-  const char *e = getenv("XLANG_ASM_EMIT_ABORT_LO");
+  const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_LO");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
@@ -12663,7 +12672,7 @@ static int32_t asm_emit_heavy_abort_lo(void) {
 }
 
 static int32_t asm_emit_heavy_abort_hi(void) {
-  const char *e = getenv("XLANG_ASM_EMIT_ABORT_HI");
+  const char *e = link_abi_getenv("XLANG_ASM_EMIT_ABORT_HI");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
@@ -12753,13 +12762,13 @@ int32_t asm_module_top_level_const_lit_i32(struct ast_Module *m, struct ast_ASTA
 
 /** XLANG_ASM_BUILD_SKIP_TYPECK=1 时 build_xlang_asm 走桩路径，避免无 typeck 的大模块 asm emit 栈溢出。 */
 static int32_t asm_env_build_skip_typeck(void) {
-  const char *e = getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
+  const char *e = link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
 /** XLANG_ASM_STRICT_ORCHESTRATION=1 时 C 编排链才跳过 pipeline 大函数 emit（默认 build_asm 须落真机器码）。 */
 static int32_t asm_env_strict_orchestration(void) {
-  const char *e = getenv("XLANG_ASM_STRICT_ORCHESTRATION");
+  const char *e = link_abi_getenv("XLANG_ASM_STRICT_ORCHESTRATION");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
@@ -12821,7 +12830,7 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
    * XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1：experimental 编 parser_parse_bootstrap.o 须 parse_into* 真 emit。
    */
   if (asm_module_is_parser_selfhost(m)) {
-    if (getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != NULL) {
+    if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") != NULL) {
       static const asm_boot_parse_sym_t k_boot_parse_minimal[] = {
           {"parse_into_init", 15},
           {"parse_into_set_main_index", 25},
@@ -12836,7 +12845,7 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
       const asm_boot_parse_sym_t *k_boot_parse;
       int32_t k_boot_n;
       int32_t bi;
-      if (getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+      if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
         k_boot_parse = k_boot_parse_minimal;
         k_boot_n = (int32_t)(sizeof(k_boot_parse_minimal) / sizeof(k_boot_parse_minimal[0]));
       } else {
@@ -12893,7 +12902,7 @@ void asm_skip_heavy_set_pipeline_ctx(struct ast_PipelineDepCtx *ctx) {
 
 /** XLANG_ASM_ENTRY_EMIT_HEAVY=1 时 ENTRY_MODULE_ONLY 真 emit（typeck 第二遍）；仅跳过 pipeline typecheck。 */
 static int32_t asm_env_entry_emit_heavy(void) {
-  const char *e = getenv("XLANG_ASM_ENTRY_EMIT_HEAVY");
+  const char *e = link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY");
   return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
 }
 
@@ -13865,7 +13874,7 @@ static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
 static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, const char *why) {
   uint8_t fn[64];
   int32_t fl;
-  if (!getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
+  if (!link_abi_getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
     return;
   fl = pipeline_module_func_name_len_at(m, fi);
   pipeline_module_func_name_copy64(m, fi, fn);
@@ -13875,13 +13884,13 @@ static void asm_parser_emit_heavy_dbg_real(struct ast_Module *m, int32_t fi, con
 
 /** 调试/二分：XLANG_PARSER_EMIT_HEAVY_BISECT_N=N 上限 func_index；STUB_ONLY=1 仅 delegate 桩。 */
 static int32_t asm_parser_emit_heavy_bisect_max_index(void) {
-  const char *stub = getenv("XLANG_PARSER_EMIT_HEAVY_STUB_ONLY");
+  const char *stub = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_STUB_ONLY");
   char *end = NULL;
   long v;
   const char *e;
   if (stub != NULL && stub[0] != '\0' && stub[0] != '0')
     return 0;
-  e = getenv("XLANG_PARSER_EMIT_HEAVY_BISECT_N");
+  e = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_BISECT_N");
   if (!e || e[0] == '\0')
     return 2147483647;
   v = strtol(e, &end, 10);
@@ -13894,7 +13903,7 @@ static int32_t asm_parser_emit_heavy_bisect_max_index(void) {
 
 /** XLANG_PARSER_EMIT_HEAVY_SLOT_MAX=N 覆盖槽位 fallback 上限（默认 8）。 */
 static int32_t asm_parser_emit_heavy_slot_max(void) {
-  const char *e = getenv("XLANG_PARSER_EMIT_HEAVY_SLOT_MAX");
+  const char *e = link_abi_getenv("XLANG_PARSER_EMIT_HEAVY_SLOT_MAX");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
@@ -13916,7 +13925,7 @@ static int32_t asm_parser_mega_bisect_skip_stub(struct ast_Module *m, int32_t fu
   size_t blen;
   if (!m || func_index < 0 || !name || len <= 0)
     return 0;
-  b = getenv("XLANG_ASM_PARSER_MEGA_BISECT");
+  b = link_abi_getenv("XLANG_ASM_PARSER_MEGA_BISECT");
   if (!b || b[0] == '\0')
     return 0;
   blen = strlen(b);
@@ -13946,11 +13955,11 @@ static int32_t asm_parser_bootstrap_mega_emit_allowed(struct ast_Module *m, int3
   const asm_boot_parse_sym_t *k;
   int32_t kn;
   int32_t i;
-  if (!m || func_index < 0 || getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == NULL)
+  if (!m || func_index < 0 || link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == NULL)
     return 0;
   if (!pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)name, len))
     return 0;
-  if (getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
+  if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != NULL) {
     k = k_min;
     kn = (int32_t)(sizeof(k_min) / sizeof(k_min[0]));
   } else {
@@ -14962,16 +14971,16 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
  * XLANG_ASM_ALLOW_START_FUNC=1 时 build 路径也生效（手工二分 emit 用）。
  */
 int32_t asm_diag_start_func_skip(void) {
-  const char *e = getenv("XLANG_ASM_START_FUNC");
-  const char *allow = getenv("XLANG_ASM_ALLOW_START_FUNC");
+  const char *e = link_abi_getenv("XLANG_ASM_START_FUNC");
+  const char *allow = link_abi_getenv("XLANG_ASM_ALLOW_START_FUNC");
   char *end = NULL;
   long v;
   if (!e || e[0] == '\0')
     return 0;
   /* build_xlang_asm 默认清除 START_FUNC；未显式 ALLOW 时 ENTRY skip 模式忽略，避免 pipeline 56 func 全跳过。 */
   if ((allow == NULL || allow[0] == '\0' || allow[0] == '0') && asm_env_build_skip_typeck() != 0 &&
-      getenv("XLANG_ASM_ENTRY_MODULE_ONLY") != NULL) {
-    const char *em = getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
+      link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY") != NULL) {
+    const char *em = link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
     if (em && em[0] != '\0' && em[0] != '0')
       return 0;
   }
@@ -14989,7 +14998,7 @@ void asm_diag_trace_func_body(struct ast_ASTArena *arena, int32_t body_ref) {
   struct ast_Block *b;
   if (!arena || body_ref <= 0)
     return;
-  trace = getenv("XLANG_ASM_BODY_TRACE");
+  trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   b = block_at(arena, body_ref);
@@ -15006,7 +15015,7 @@ void asm_diag_trace_func_body(struct ast_ASTArena *arena, int32_t body_ref) {
 
 /** XLANG_ASM_BODY_TRACE=1：仅打印 body_ref 数值（在 pipeline_asm_module_func_body_ref_at 前后对照）。 */
 void asm_diag_trace_body_ref(int32_t body_ref) {
-  const char *trace = getenv("XLANG_ASM_BODY_TRACE");
+  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   fprintf(stderr, "asm_body_ref=%d\n", (int)body_ref);
@@ -15015,7 +15024,7 @@ void asm_diag_trace_body_ref(int32_t body_ref) {
 
 /** XLANG_ASM_BODY_TRACE=1：emit 阶段标记（1=fill 后 2=prologue 后 3=emit_body 后）。 */
 void asm_diag_trace_emit_phase(int32_t phase) {
-  const char *trace = getenv("XLANG_ASM_BODY_TRACE");
+  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   fprintf(stderr, "asm_emit_phase=%d\n", (int)phase);
@@ -15027,7 +15036,7 @@ void asm_diag_trace_func_idx(int32_t func_idx, uint8_t *name, int32_t name_len) 
   int32_t i;
   if (!name || name_len <= 0)
     return;
-  trace = getenv("XLANG_ASM_FUNC_TRACE");
+  trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
   if (!trace || trace[0] == '\0' || trace[0] == '0')
     return;
   if (func_idx >= 0)
@@ -16209,9 +16218,9 @@ static int32_t asm_wpo_pgo_depth_of(struct ast_Module *m, int32_t fi) {
 /** 读 XLANG_ASM_WPO_DCE：未设或非 "0" 时启用 asm WPO DCE；设为 0 时关闭（A/B __text bench）。
  * XLANG_WPO_NO_FOLD=1 时亦关闭：对照 bench 须保留 lane0/scale 等 callee 定义，避免 reach 漏边导致 UNDEF。 */
 static int32_t asm_wpo_dce_env_enabled(void) {
-  if (getenv("XLANG_WPO_NO_FOLD"))
+  if (link_abi_getenv("XLANG_WPO_NO_FOLD"))
     return 0;
-  const char *e = getenv("XLANG_ASM_WPO_DCE");
+  const char *e = link_abi_getenv("XLANG_ASM_WPO_DCE");
   if (!e || e[0] == '\0')
     return 1;
   if (e[0] == '0' && (e[1] == '\0' || e[1] == '\n'))
