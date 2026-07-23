@@ -3,6 +3,11 @@
  * G-02f-106 helper gates.
  * G-02f-101 hex2/gold_anchor gates.
  * Product: runtime_backtrace_platform.o; logic still C until full .x port.
+ *
+ * wave252 G.7: CRASH_EVIDENCE env via public face link_abi_getenv (not raw libc getenv).
+ * Weak user-domain twin when Linux x86_64 freestanding panic.s has no face; strong twin
+ * may come from runtime_panic C seed (wave251). Never g05 host bag.
+ * PLATFORM: SHARED — user/STD_AND_PANIC residual face.
  */
 /**
  * runtime_backtrace_platform.c — 调用栈平台胶层（F-ZC：自 std/backtrace/backtrace_platform_glue.c 迁入）
@@ -21,6 +26,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include "diag.h"
+/* wave252: weak face twin for residual getenv (see header). */
+#define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
+#include <xlang_user_link_abi_getenv.h>
 #if defined(__unix__) || defined(__APPLE__)
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
@@ -404,7 +412,8 @@ int32_t backtrace_xplat_quality_c(void) {
  * 强符号覆盖 runtime_panic.c 内弱默认实现。
  */
 void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
-  const char *en = getenv("XLANG_CRASH_EVIDENCE");
+  /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+  const char *en = link_abi_getenv("XLANG_CRASH_EVIDENCE");
   uint8_t buf[512];
   int32_t n;
   int32_t pid = 0;
@@ -419,7 +428,7 @@ void xlang_crash_evidence_collect_c(int has_msg, int msg_val) {
   fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val,
           n, pid);
   {
-    const char *dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+    const char *dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
     if (dir && dir[0]) {
       char path[1024];
       FILE *f;

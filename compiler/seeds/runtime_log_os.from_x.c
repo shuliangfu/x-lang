@@ -2,6 +2,10 @@
  * G-02f-112 helper gates.
  * G-02f-105 helper gates.
  * Product: runtime_log_os.o; logic still C until full .x port.
+ *
+ * wave252 G.7: XLANG_LOG_MIN_LEVEL via public face link_abi_getenv (not raw getenv).
+ * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
+ * PLATFORM: SHARED — user/STD_AND_PANIC residual face; never g05 host bag.
  */
 /**
  * runtime_log_os.c — F-log OS 胶层（F-ZC：自 std/log/log_os_glue.c 迁入）
@@ -12,6 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+/* wave252: weak face twin for residual getenv (see header). */
+#define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
+#include <xlang_user_link_abi_getenv.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
@@ -87,7 +94,8 @@ int32_t log_emit_bytes(const void *buf, size_t len);
 void log_apply_env_once_impl(void) {
   if (s_env_applied) return;
   s_env_applied = 1;
-  const char *v = getenv("XLANG_LOG_MIN_LEVEL");
+  /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+  const char *v = link_abi_getenv("XLANG_LOG_MIN_LEVEL");
   if (v && v[0]) {
     int l = atoi(v);
     if (l >= 0 && l <= 3) s_min_level = (int32_t)l;

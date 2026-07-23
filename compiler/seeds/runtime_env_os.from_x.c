@@ -2,6 +2,11 @@
  * G-02f-123 true .x pure helpers.
  * G-02f-103 helper gates.
  * Product: runtime_env_os.o; logic still C until full .x port.
+ *
+ * wave252 G.7: POSIX getenv residual via public face link_abi_getenv (not raw getenv).
+ * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
+ * Windows path keeps GetEnvironmentVariableA (PLATFORM: WINDOWS).
+ * PLATFORM: SHARED face name / POSIX host residual via face; never g05 host bag.
  */
 /**
  * runtime_env_os.c — 环境变量 OS 胶层（F-ZC：自 std/env/env_os_glue.c 迁入）
@@ -11,6 +16,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+/* wave252: weak face twin for residual getenv (see header). */
+#define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
+#include <xlang_user_link_abi_getenv.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -98,7 +106,8 @@ int32_t env_getenv_c(const uint8_t * restrict key, int32_t key_len, uint8_t * re
     }
 #else
     {
-        const char *v = getenv(key_buf);
+        /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+        const char *v = link_abi_getenv(key_buf);
         if (ENV_UNLIKELY(v == NULL)) return -1;
         size_t len = strlen(v);
         if (ENV_LIKELY(len < (size_t)out_cap)) {
@@ -125,19 +134,21 @@ uint8_t *env_getenv_ptr_c(const uint8_t * restrict key, int32_t key_len, int32_t
 #endif
     if (env_build_key(key, key_len, key_buf) != 0) return NULL;
 
-    const char *v = getenv(key_buf);
+    /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+    const char *v = link_abi_getenv(key_buf);
     if (v == NULL) return NULL;
     if (out_len) *out_len = (int32_t)strlen(v);
     return (uint8_t *)v;
 }
 
 /**
- * 零拷贝 getenv（key 须 NUL 结尾）：直接 getenv，无 key 拷贝。
+ * 零拷贝 getenv（key 须 NUL 结尾）：直接 face 查找，无 key 拷贝。
  */
 ENV_HOT
 uint8_t *env_getenv_z_c(const uint8_t *key_z, int32_t *out_len) {
     if (key_z == NULL) return NULL;
-    const char *v = getenv((const char *)key_z);
+    /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+    const char *v = link_abi_getenv((const char *)key_z);
     if (v == NULL) return NULL;
     if (out_len) *out_len = (int32_t)strlen(v);
     return (uint8_t *)v;
@@ -158,7 +169,8 @@ int32_t env_getenv_exists_c(const uint8_t * restrict key, int32_t key_len) {
 #if defined(_WIN32) || defined(_WIN64)
     return GetEnvironmentVariableA(key_buf, NULL, 0) != 0 ? 1 : 0;
 #else
-    return getenv(key_buf) != NULL ? 1 : 0;
+    /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
+    return link_abi_getenv(key_buf) != NULL ? 1 : 0;
 #endif
 }
 
@@ -275,11 +287,12 @@ int32_t env_temp_dir_c(uint8_t *out, int32_t out_cap) {
         }
         cached_valid = 0;
 
+        /* wave252 G.7: env via public face link_abi_getenv (not raw libc getenv). */
         const char *p = NULL;
-        const char *tmd = getenv("TMPDIR");
+        const char *tmd = link_abi_getenv("TMPDIR");
         if (tmd && tmd[0]) p = tmd;
-        if (!p) { tmd = getenv("TEMP"); if (tmd && tmd[0]) p = tmd; }
-        if (!p) { tmd = getenv("TMP"); if (tmd && tmd[0]) p = tmd; }
+        if (!p) { tmd = link_abi_getenv("TEMP"); if (tmd && tmd[0]) p = tmd; }
+        if (!p) { tmd = link_abi_getenv("TMP"); if (tmd && tmd[0]) p = tmd; }
         if (!p) p = fallback;
         size_t len = strlen(p);
         if (len >= (size_t)out_cap) return -1;

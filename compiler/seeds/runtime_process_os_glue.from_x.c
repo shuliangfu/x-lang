@@ -1,6 +1,10 @@
 /* seeds/runtime_process_os_glue.from_x.c — G-02f-18 product TU
  * G-02f-103 helper gates.
  * Product: runtime_process_os_glue.o; logic still C until full .x port.
+ *
+ * wave252 G.7: process_getenv via public face link_abi_getenv (not raw getenv).
+ * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
+ * PLATFORM: SHARED — user/STD_AND_PANIC residual face; never g05 host bag.
  */
 /**
  * runtime_process_os_glue.c — 进程 OS 胶层（F-ZC：自 std/process/process_os_glue.c 迁入）
@@ -35,17 +39,19 @@
 
 #include <stddef.h>
 #include <stdint.h>
-
-#if defined(_WIN32) || defined(_WIN64)
 #include <stdlib.h>
 #include <string.h>
+/* wave252: weak face twin for residual getenv (see header). */
+#define XLANG_USER_LINK_ABI_GETENV_PROVIDE_WEAK_TWIN 1
+#include <xlang_user_link_abi_getenv.h>
+/* wave252 G.7: single face — XLANG_GETENV routes through link_abi_getenv. */
+#define XLANG_GETENV(name) link_abi_getenv((const char *)(name))
+
+#if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
 #include <fcntl.h>
 #include <windows.h>
-#define XLANG_GETENV(name) getenv((const char *)(name))
 #else
-#include <stdlib.h>
-#include <string.h>
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW
  *            (read/write/close/lseek/open/pread/pwrite/setenv/unsetenv).
  *            macOS/Linux delegate to system <unistd.h> via #include_next.
@@ -62,7 +68,6 @@
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
-#define XLANG_GETENV(name) getenv((const char *)(name))
 extern char **environ;
 #endif
 
