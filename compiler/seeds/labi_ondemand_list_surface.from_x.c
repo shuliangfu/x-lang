@@ -2,7 +2,9 @@
  * G-02f labi_ondemand_list R2 full surface — isomorphic with src/runtime/labi_ondemand_list.x
  * Product PREFER_X_O: g05_try_x_to_o(labi_ondemand_list.x) + mega rest under FROM_X
  * Prove: full.x vs this seed → nm IDENTICAL (on_demand tables + wave118–134 needs + wave135 fk0 + wave140 provides + wave145 link_needs + wave190 labi_std_fk_gate_sym_* + labi_std_fk_user_needs fk1–13 plan gates + wave197 append_on_demand_user_objs shell + helpers)
- * Cap residual: ensure/skip/path + freestanding_get + undef_sym / exports_marker / has_undef_sym / has_defined_sym probes in mega
+ * Cap residual: ensure/skip/path + freestanding_get + needs_undef / exports_marker /
+ *   has_undef_impl (wave210) / has_defined_sym probes in mega
+ * Prove: full.x vs this seed → nm IDENTICAL (+ wave210 has_undef_sym pure thin)
  * Regen: ./shux_asm -E ... src/runtime/labi_ondemand_list.x | filter DBG + polish prologue
  * PLATFORM: SHARED — symbol contract; Ubuntu gold + mac prove.
  */
@@ -136,7 +138,28 @@ extern int32_t shux_link_obj_needs_undef_sym(uint8_t * user_o, uint8_t * sym);
 extern int32_t link_abi_ld_argv_entry_is_obj(uint8_t * s);
 extern int32_t shux_link_obj_has_defined_sym(uint8_t * o_path, uint8_t * sym);
 extern int32_t link_abi_obj_exports_marker(uint8_t * obj_o, uint8_t * marker);
-extern int32_t link_abi_obj_has_undef_sym(uint8_t * obj_o, uint8_t * sym);
+/* Cap residual (wave210): nm/popen UNDEF body; pure owns null/empty gates. */
+extern int32_t link_abi_obj_has_undef_sym_impl(uint8_t * obj_o, uint8_t * sym);
+
+/* wave210: link_abi_obj_has_undef_sym pure orch (surface pin ≡ .x). */
+int32_t link_abi_obj_has_undef_sym(uint8_t * obj_o, uint8_t * sym) {
+  if ((obj_o == ((uint8_t *)(0)))) {
+    return 0;
+  }
+  if (((obj_o)[0] == 0)) {
+    return 0;
+  }
+  if ((sym == ((uint8_t *)(0)))) {
+    return 0;
+  }
+  if (((sym)[0] == 0)) {
+    return 0;
+  }
+  {
+    return link_abi_obj_has_undef_sym_impl(obj_o, sym);
+  }
+  return 0;
+}
 
 /* wave197 Cap residual / peer pure externs for on_demand shell surface */
 extern int32_t link_abi_asm_ld_push_obj(uint8_t * primary, uint8_t * link_argv0, uint8_t * rel, uint8_t * * lib_roots, int32_t n_lib_roots, uint8_t * bank, uint8_t * * argv, int32_t * la, int32_t max_la, int32_t * flag_out);

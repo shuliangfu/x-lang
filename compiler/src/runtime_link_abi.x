@@ -3117,14 +3117,32 @@ export function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32 {
   return 0;
 }
 
-/** Exported function `link_abi_obj_has_undef_sym`.
- * Implements `link_abi_obj_has_undef_sym`.
- * @param obj_o *u8
- * @param sym *u8
- * @return i32
+/**
+ * Return 1 iff .o has an UNDEF line containing sym (host nm); null/empty → 0 without residual.
+ * @param obj_o *u8 — path to .o; null/empty rejected at pure gate
+ * @param sym *u8 — symbol name or prefix needle; null/empty rejected at pure gate
+ * @return i32 — 1 if UNDEF line hits, else 0
+ * Authority (G.7 / wave210): product pure orch is labi_ondemand_list.x
+ * `link_abi_obj_has_undef_sym` (same gates + Cap residual _impl). This mega .x twin
+ * stays isomorphic for logical-source fold; product hybrid uses L8b pure.
+ * Cap residual: link_abi_obj_has_undef_sym_impl (realpath + nm + " U " + needle).
+ * PLATFORM: SHARED orch; residual nm/popen is host.
+ * Track-L: #[no_mangle] keeps surface short name.
  */
 #[no_mangle]
 export function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  if (obj_o[0] == 0) {
+    return 0;
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym[0] == 0) {
+    return 0;
+  }
   unsafe {
     return link_abi_obj_has_undef_sym_impl(obj_o, sym);
   }

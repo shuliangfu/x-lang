@@ -36,7 +36,10 @@
 //   wave197 shux_asm_ld_append_on_demand_user_objs pure orch
 //     (product on_demand shell: pure needs/provides + pure push/path peers;
 //      Cap residual ensure/skip/path + freestanding_get + undef_sym).
-// Cap residual: ensure/skip/path Cap inside shell peers; undef_sym / marker / has_undef / has_defined Cap.
+//   wave210 link_abi_obj_has_undef_sym pure thin orch
+//     (null/empty gates; Cap residual link_abi_obj_has_undef_sym_impl = nm/popen).
+// Cap residual: ensure/skip/path Cap inside shell peers; needs_undef / marker /
+//   has_undef_impl / has_defined Cap (wave210 pure owns has_undef public gates).
 // PLATFORM: SHARED — no asm co-emit of option/result/debug (Ubuntu hang); link formal .o only.
 // Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
 // core_option=6 core_result=7 core_debug=8 core_slice=9.
@@ -75,14 +78,46 @@ export extern "C" function shux_link_obj_has_defined_sym(o_path: *u8, sym: *u8):
 export extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
 
 /**
- * Cap residual: nm UNDEF substring probe (popen nm + " U " + sym needle).
- * Used by compress pure orch (exact lib symbols and zstd prefix needles).
- * @param obj_o *u8 — path to .o; null/empty → 0
- * @param sym *u8 — symbol name or prefix needle; null/empty → 0
+ * Cap residual (wave210): host nm/popen UNDEF substring probe body.
+ * Pure orch owns null/empty gates; _impl is always mega (realpath + nm + " U " + needle).
+ * @param obj_o *u8 — path to .o (caller already rejected null/empty)
+ * @param sym *u8 — symbol name or prefix needle (caller already rejected null/empty)
  * @return i32 — 1 if any UNDEF line contains needle
  * PLATFORM: SHARED — always mega C (popen/nm Cap); zstd uses prefix needles ZSTD_ / _ZSTD
  */
-export extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
+export extern "C" function link_abi_obj_has_undef_sym_impl(obj_o: *u8, sym: *u8): i32;
+
+/**
+ * Return 1 iff .o has an UNDEF line containing sym (host nm); null/empty → 0 without residual.
+ * @param obj_o *u8 — path to .o; null/empty rejected at pure gate
+ * @param sym *u8 — symbol name or prefix needle; null/empty rejected at pure gate
+ * @return i32 — 1 if UNDEF line hits, else 0
+ * Pure orch: ≡ mega null/empty gates before Cap residual nm/popen (wave210).
+ * Cap residual: link_abi_obj_has_undef_sym_impl (realpath + `nm` + " U " + needle).
+ * Why (wave210): hybrid still had has_undef_sym body always mega C (gates+nm).
+ * Used by compress pure orch (exact lib symbols and zstd prefix needles).
+ * PLATFORM: SHARED orch; residual nm/popen is host (POSIX; Windows hybrid via tools).
+ * Track-L: #[no_mangle] keeps surface short name matching Cap residual callers.
+ */
+#[no_mangle]
+export function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  if (obj_o[0] == 0) {
+    return 0;
+  }
+  if (sym == 0 as *u8) {
+    return 0;
+  }
+  if (sym[0] == 0) {
+    return 0;
+  }
+  unsafe {
+    return link_abi_obj_has_undef_sym_impl(obj_o, sym);
+  }
+  return 0;
+}
 
 /* ===== wave197 Cap residual / peer pure for on_demand product shell ===== */
 export extern "C" function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: **u8, n_lib_roots: i32, bank: *u8, argv: **u8, la: *i32, max_la: i32, flag_out: *i32): i32;

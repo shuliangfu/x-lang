@@ -32,7 +32,8 @@
  *   + wave197 shux_asm_ld_append_on_demand_user_objs pure orch
  *     (product on_demand shell; Cap residual ensure/skip/path + freestanding_get + undef_sym)
  * Cap residual：ensure/skip/path Cap inside shell peers；
- *   undef_sym / exports_marker / has_undef_sym / has_defined_sym 探针仍 mega（pure orch Cap）。
+ *   needs_undef / exports_marker / has_defined_sym 探针仍 mega；
+ *   wave210：has_undef_sym pure thin orch（null/empty）；_impl = nm/popen 常驻 mega。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -48,9 +49,10 @@
 int shux_link_obj_needs_undef_sym(const char *user_o, const char *sym);
 /* Cap residual (mega always): nm defined T/t probe used by pure provides orch. */
 int shux_link_obj_has_defined_sym(const char *o_path, const char *sym);
-/* Cap residual (mega always): compress package marker + UNDEF/prefix probes. */
+/* Cap residual (mega always): compress package marker probe. */
 int link_abi_obj_exports_marker(const char *obj_o, const char *marker);
-int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym);
+/* Cap residual (wave210): nm/popen UNDEF body; pure owns null/empty gates. */
+int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym);
 /* wave145 aggregate orch Cap: path pure suffix scan (authority labi_path_pure). */
 int link_abi_ld_argv_entry_is_obj(const char *s);
 
@@ -90,6 +92,14 @@ void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const ch
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la);
 
 #ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
+
+/* wave210: has_undef_sym pure orch cold twin (null/empty gates + Cap residual nm).
+ * PLATFORM: SHARED orch; residual link_abi_obj_has_undef_sym_impl always mega. */
+int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
+  if (!obj_o || !obj_o[0] || !sym || !sym[0])
+    return 0;
+  return link_abi_obj_has_undef_sym_impl(obj_o, sym);
+}
 
 /* Simple groups: string=0 core_types=1 encoding=2 base64=3 csv=4 schema=5
  * core_option=6 core_result=7 core_debug=8 core_slice=9.
