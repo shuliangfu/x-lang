@@ -3793,15 +3793,20 @@ int32_t parser_diag_fail_at_token_kind_buf(uint8_t * data, int32_t len) {
   return 0;
 }
 /* wave269: L001 unclosed block comment sticky pending (lexer.x).
- * wave271: L002 unclosed string literal sticky pending (lexer.x). */
+ * wave271: L002 unclosed string literal sticky pending (lexer.x).
+ * wave272: L003 illegal character sticky pending (lexer.x). */
 extern void lexer_unclosed_block_comment_reset(void);
 extern int32_t lexer_unclosed_block_comment_pending(void);
 extern void lexer_unclosed_string_reset(void);
 extern int32_t lexer_unclosed_string_pending(void);
+extern void lexer_illegal_char_reset(void);
+extern int32_t lexer_illegal_char_pending(void);
 struct parser_ParseIntoResult parser_parse_into_apply_unclosed_gate(struct parser_ParseIntoResult r) {
   if (lexer_unclosed_block_comment_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if (lexer_unclosed_string_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  if (lexer_illegal_char_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   return r;
 }
@@ -3811,6 +3816,9 @@ struct parser_ParseIntoResult parser_parse_into_result_empty_module_or_fail_tok(
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   /* wave271: unclosed string at EOF is hard fail (not empty-module success / soft P001). */
   if (lexer_unclosed_string_pending() != 0)
+    return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
+  /* wave272: illegal/unknown byte is hard fail (not soft P001 "no functions"). */
+  if (lexer_illegal_char_pending() != 0)
     return (struct parser_ParseIntoResult){ .ok = -1, .main_idx = -1 };
   if ((fail_tok ==((int32_t)(130)))) {
     return (struct parser_ParseIntoResult){ .ok = -(2), .main_idx = -(1) };
@@ -5735,6 +5743,7 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
     /* wave269: clear L001 sticky before scanning this source buffer. */
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
+    lexer_illegal_char_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };
@@ -7234,6 +7243,7 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
     /* wave269: clear L001 sticky before scanning this source buffer. */
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
+    lexer_illegal_char_reset();
     struct lexer_Lexer lex = lexer_init();
     int32_t main_idx = -(1);
     struct parser_CollectImportsResult import_res = (struct parser_CollectImportsResult){ .lex = lex };

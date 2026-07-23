@@ -95,6 +95,9 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"L002", "lexer error", "Lexer found an unclosed string literal.",
      "Used when a double-quoted string reaches end-of-file without a closing quote. "
      "Typical action: add the matching `\"` at the end of the string (multi-line strings are allowed if closed)."},
+    {"L003", "lexer error", "Lexer found an illegal character.",
+     "Used when a source byte is not a recognized token introducer (for example `$`, bare `'`, or other non-ASCII/punct noise). "
+     "Typical action: remove or replace the illegal character; character literals are not part of the product lexical surface."},
     {"IMP001", "import error", "Import path could not be opened from the resolved candidate path.",
      "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, "
      "library roots, and the resolved on-disk file path shown in the diagnostic."},

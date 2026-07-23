@@ -86,6 +86,19 @@ let g_lexer_unclosed_str_col: i32 = 0;
 let g_lexer_unclosed_str_reported: i32 = 0;
 
 /**
+ * wave272 Cap residual: sticky illegal/unknown character state for the current parse.
+ * Set when punct fallthrough sees a byte that is not a known operator/punct introducer
+ * (e.g. `$`, bare `'`, backticks). Prior behavior returned TOKEN_EOF silently after
+ * advancing past the byte → soft P001 "no functions" / empty module / BLD001.
+ * Cleared by lexer_illegal_char_reset at each product parse entry.
+ * PLATFORM: SHARED — language lexical contract.
+ */
+let g_lexer_illegal_ch: i32 = 0;
+let g_lexer_illegal_ch_line: i32 = 0;
+let g_lexer_illegal_ch_col: i32 = 0;
+let g_lexer_illegal_ch_reported: i32 = 0;
+
+/**
  * Clear unclosed block-comment sticky state (call once per parse entry).
  * @return void
  * PLATFORM: SHARED
@@ -125,6 +138,27 @@ export function lexer_unclosed_string_reset(): void {
  */
 export function lexer_unclosed_string_pending(): i32 {
   return g_lexer_unclosed_str;
+}
+
+/**
+ * Clear illegal-character sticky state (call once per parse entry).
+ * @return void
+ * PLATFORM: SHARED
+ */
+export function lexer_illegal_char_reset(): void {
+  g_lexer_illegal_ch = 0;
+  g_lexer_illegal_ch_line = 0;
+  g_lexer_illegal_ch_col = 0;
+  g_lexer_illegal_ch_reported = 0;
+}
+
+/**
+ * Whether lex hit a byte that is not a recognized token introducer.
+ * @return i32 — 1 if pending hard fail, else 0
+ * PLATFORM: SHARED
+ */
+export function lexer_illegal_char_pending(): i32 {
+  return g_lexer_illegal_ch;
 }
 
 /**
@@ -271,6 +305,76 @@ function lexer_note_unclosed_string(line: i32, col: i32): void {
       0 as *u8,
       g_lexer_unclosed_str_line,
       g_lexer_unclosed_str_col,
+      &kind[0],
+      &code[0],
+      &msg[0],
+      0 as *u8);
+  }
+}
+
+/**
+ * Record and report L003 once for an illegal/unknown source byte.
+ * @param line i32 — 1-based line of the illegal byte
+ * @param col i32 — 1-based column of the illegal byte
+ * @return void
+ * PLATFORM: SHARED — stack byte lits only (no va_list); dual-host product matrix.
+ */
+function lexer_note_illegal_char(line: i32, col: i32): void {
+  if (g_lexer_illegal_ch == 0) {
+    g_lexer_illegal_ch = 1;
+    g_lexer_illegal_ch_line = line;
+    g_lexer_illegal_ch_col = col;
+  }
+  if (g_lexer_illegal_ch_reported != 0) {
+    return;
+  }
+  g_lexer_illegal_ch_reported = 1;
+  // kind = "lexer error"
+  let kind: u8[16] = [];
+  kind[0] = 108;
+  kind[1] = 101;
+  kind[2] = 120;
+  kind[3] = 101;
+  kind[4] = 114;
+  kind[5] = 32;
+  kind[6] = 101;
+  kind[7] = 114;
+  kind[8] = 114;
+  kind[9] = 111;
+  kind[10] = 114;
+  kind[11] = 0;
+  // code = "L003"
+  let code: u8[8] = [];
+  code[0] = 76;
+  code[1] = 48;
+  code[2] = 48;
+  code[3] = 51;
+  code[4] = 0;
+  // msg = "illegal character"
+  let msg: u8[32] = [];
+  msg[0] = 105;
+  msg[1] = 108;
+  msg[2] = 108;
+  msg[3] = 101;
+  msg[4] = 103;
+  msg[5] = 97;
+  msg[6] = 108;
+  msg[7] = 32;
+  msg[8] = 99;
+  msg[9] = 104;
+  msg[10] = 97;
+  msg[11] = 114;
+  msg[12] = 97;
+  msg[13] = 99;
+  msg[14] = 116;
+  msg[15] = 101;
+  msg[16] = 114;
+  msg[17] = 0;
+  unsafe {
+    diag_report_with_code(
+      0 as *u8,
+      g_lexer_illegal_ch_line,
+      g_lexer_illegal_ch_col,
       &kind[0],
       &code[0],
       &msg[0],
@@ -2421,8 +2525,10 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     out.token_start = start;
     return;
   }
-  // Unknown byte: keep TOKEN_EOF placeholder (same as historical fallthrough).
-  // Re-bind tok so typeck does not hit the long-chain fallthrough edge case.
+  // wave272 Cap residual: unknown byte was silent TOKEN_EOF → soft P001 / BLD001.
+  // Hard diag L003 + sticky flag → product parse entry returns fail (mirror L001/L002).
+  // Still advance past the byte and emit TOKEN_EOF so the token stream terminates.
+  lexer_note_illegal_char(line0, col0);
   let unk: token.Token = token.Token {
     kind: 0,
     line: line0,

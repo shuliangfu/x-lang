@@ -4409,11 +4409,11 @@ export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
 }
 
 /**
- * wave269/wave271: if lexer saw unclosed block comment (L001) or unclosed string
- * (L002 sticky), force parse fail.
+ * wave269/wave271/wave272: if lexer saw unclosed block comment (L001), unclosed string
+ * (L002 sticky), or illegal character (L003 sticky), force parse fail.
  * Product -o paths call parser_parse_into_buf directly (not only driver_parse_into_buf_rc).
  * @param r ParseIntoResult — candidate result from parse_into / parse_into_buf
- * @return ParseIntoResult — ok=-1 when L001 or L002 pending; else r unchanged
+ * @return ParseIntoResult — ok=-1 when L001/L002/L003 pending; else r unchanged
  * PLATFORM: SHARED
  */
 export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoResult {
@@ -4422,6 +4422,9 @@ export function parse_into_apply_unclosed_gate(r: ParseIntoResult): ParseIntoRes
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
     if (lexer.lexer_unclosed_string_pending() != 0) {
+      return ParseIntoResult { ok: -1, main_idx: -1 }
+    }
+    if (lexer.lexer_illegal_char_pending() != 0) {
       return ParseIntoResult { ok: -1, main_idx: -1 }
     }
   }
@@ -4442,6 +4445,10 @@ export function parse_into_result_empty_module_or_fail_tok(fail_tok: i32): Parse
   }
   // wave271: unclosed "..." at EOF is hard fail (not empty-module success / soft P001).
   if (lexer.lexer_unclosed_string_pending() != 0) {
+    return ParseIntoResult { ok: -1, main_idx: -1 }
+  }
+  // wave272: illegal/unknown byte is hard fail (not soft P001 "no functions").
+  if (lexer.lexer_illegal_char_pending() != 0) {
     return ParseIntoResult { ok: -1, main_idx: -1 }
   }
   if (fail_tok == (token.TokenKind.TOKEN_STRING as i32)) {
@@ -7499,9 +7506,10 @@ export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  // wave269/wave271: clear L001/L002 sticky before scanning this source buffer.
+  // wave269/wave271/wave272: clear L001/L002/L003 sticky before scanning this source buffer.
   lexer.lexer_unclosed_block_comment_reset();
   lexer.lexer_unclosed_string_reset();
+  lexer.lexer_illegal_char_reset();
   /* See implementation. */
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
@@ -9601,9 +9609,10 @@ export function parse_into_try_skip_allow_from_buf(lex: Lexer, r: LexerResult, d
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  // wave269/wave271: clear L001/L002 sticky before scanning this source buffer.
+  // wave269/wave271/wave272: clear L001/L002/L003 sticky before scanning this source buffer.
   lexer.lexer_unclosed_block_comment_reset();
   lexer.lexer_unclosed_string_reset();
+  lexer.lexer_illegal_char_reset();
   let lex: Lexer = lexer.lexer_init();
   let main_idx: i32 = -1;
   let import_res: CollectImportsResult = CollectImportsResult { lex: lex };

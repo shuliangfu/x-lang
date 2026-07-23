@@ -5133,6 +5133,16 @@ export extern "C" function lexer_unclosed_string_reset(): void;
  * PLATFORM: SHARED
  */
 export extern "C" function lexer_unclosed_string_pending(): i32;
+/**
+ * wave272: reset sticky illegal-character state before each product parse.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_illegal_char_reset(): void;
+/**
+ * wave272: non-zero if lexer saw an unknown/illegal source byte.
+ * PLATFORM: SHARED
+ */
+export extern "C" function lexer_illegal_char_pending(): i32;
 
 #[no_mangle]
 export function driver_parse_into_buf_rc(
@@ -5150,17 +5160,18 @@ export function driver_parse_into_buf_rc(
   if (data == 0 as *u8) {
     return -1;
   }
-  // wave269/wave271: clear sticky L001/L002 state for this entry (nested import parse too).
+  // wave269/wave271/wave272: clear sticky L001/L002/L003 state for this entry.
   unsafe {
     lexer_unclosed_block_comment_reset();
     lexer_unclosed_string_reset();
+    lexer_illegal_char_reset();
   }
   let rc: i32 = 0;
   unsafe {
     rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
   }
-  // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted)
-  // or string lex hit EOF without closer (L002 already emitted).
+  // Hard-fail when skip swallowed to EOF with unclosed /* ... (L001 already emitted),
+  // string lex hit EOF without closer (L002), or illegal/unknown byte (L003).
   unsafe {
     if (lexer_unclosed_block_comment_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
@@ -5169,6 +5180,12 @@ export function driver_parse_into_buf_rc(
       return -1;
     }
     if (lexer_unclosed_string_pending() != 0) {
+      if (out_main_idx != 0 as *i32) {
+        out_main_idx[0] = -1;
+      }
+      return -1;
+    }
+    if (lexer_illegal_char_pending() != 0) {
       if (out_main_idx != 0 as *i32) {
         out_main_idx[0] = -1;
       }
