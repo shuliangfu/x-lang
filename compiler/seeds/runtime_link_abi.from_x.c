@@ -1113,9 +1113,10 @@ const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
 /* wave116：pure orch in labi_path_pure.x (hybrid L0);
  * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
  * Pure: join root/rel without snprintf; Cap residual skip_missing + bank_push.
- * PLATFORM: SHARED. */
+ * bank is opaque void* (≡ pure .x *u8 / cold twin labi_path_pure / invoke_ld_list decls).
+ * PLATFORM: SHARED — G.7 single signature; L4 cold TU must not mix ShuAsmLdPathBank* vs void*. */
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank) {
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank) {
     int i;
     char tmp[PATH_MAX];
     if (!rel || (uintptr_t)rel < 4096u)
@@ -1142,12 +1143,12 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
         }
         if (!asm_link_obj_skip_missing(tmp))
             continue;
-        return shux_asm_ld_bank_push(bank, tmp);
+        return shux_asm_ld_bank_push((ShuAsmLdPathBank *)bank, tmp);
     }
     return NULL;
 }
 #else
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank);
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 #endif
 
 /**
@@ -3950,14 +3951,15 @@ int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path);
 /* wave147：pure orch in labi_path_pure.x (hybrid L0);
  * mega cold twin under #ifndef SHUX_LABI_PATH_PURE_FROM_X.
  * Pure: capacity + has_obj dedup + append; Cap residual bank_push.
- * PLATFORM: SHARED — G.7 single authority; dual-end L2. */
+ * bank is opaque void* (≡ pure .x *u8 / cold twin / invoke_ld_list decls).
+ * PLATFORM: SHARED — G.7 single authority; L4 cold TU signature unify. */
 #ifndef SHUX_LABI_PATH_PURE_FROM_X
-void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la,
+void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la,
     const char *p) {
     if (!p || !p[0] || !la || *la >= max_la - 1)
         return;
     if (bank) {
-        const char *bp = shux_asm_ld_bank_push(bank, p);
+        const char *bp = shux_asm_ld_bank_push((ShuAsmLdPathBank *)bank, p);
         if (bp)
             p = bp;
     }
@@ -3966,7 +3968,7 @@ void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv,
     argv[(*la)++] = p;
 }
 #else
-void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la,
+void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la,
     const char *p);
 #endif
 

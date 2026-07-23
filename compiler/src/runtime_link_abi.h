@@ -93,9 +93,10 @@ const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
 
 /**
  * 在每个 lib root 下尝试 rel（如 std/io/io.o）；命中则拷入 bank 并返回指针。
- * 参数：rel 相对路径；lib_roots/n_lib_roots -L 根；bank 路径持久化。
+ * 参数：rel 相对路径；lib_roots/n_lib_roots -L 根；bank 路径持久化（opaque void*，≡ pure .x *u8）。
+ * PLATFORM: SHARED — G.7 single signature with labi_path_pure / cold twins (L4 cold TU).
  */
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank);
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 
 /**
  * runtime_panic.o 路径；优先 cwd（compiler/runtime_panic.o），再 argv0 目录。

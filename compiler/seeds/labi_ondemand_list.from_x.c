@@ -62,8 +62,9 @@ int link_abi_ld_argv_entry_is_obj(const char *s);
 int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out);
-void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, const char *p);
-const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank);
+/* bank opaque void* ≡ pure labi_path_pure / invoke_ld_list (G.7; L4 cold TU). */
+void link_abi_asm_ld_argv_push_stable(void *bank, const char **argv, int *la, int max_la, const char *p);
+const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_roots, int n_lib_roots, void *bank);
 const char *asm_link_obj_skip_missing(const char *path);
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel);
 const char *shux_repo_root_from_argv0(const char *argv0);
