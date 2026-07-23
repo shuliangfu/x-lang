@@ -253,6 +253,8 @@ export extern function pipeline_typeck_block_impl_restore_ctx_c(ctx: *PipelineDe
 export extern function pipeline_typeck_block_impl_touch_ctx_block_c(ctx: *PipelineDepCtx, block_ref: i32): void;
 /* See implementation. */
 export extern function pipeline_expr_int_val_at(arena: *ASTArena, expr_ref: i32): i32;
+/** Full i64 EXPR_LIT bits (wave307: u64/usize coerce must not use i32 truncation). */
+export extern function pipeline_expr_int64_val_at(arena: *ASTArena, expr_ref: i32): i64;
 export extern function pipeline_expr_field_access_is_enum_variant(arena: *ASTArena, expr_ref: i32): i32;
 /* See implementation. */
 export extern function pipeline_expr_set_field_access_enum_variant(arena: *ASTArena, expr_ref: i32,
@@ -3841,11 +3843,26 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
 * See implementation.
 * See implementation.
 */
+/**
+ * Coerce bare EXPR_LIT into a declared let/const type.
+ * @param arena *ASTArena — type/expr arena
+ * @param init_ref i32 — initializer EXPR_LIT ref
+ * @param decl_ty_ref i32 — declared type ref to stamp onto the lit
+ * @param decl_kind i32 — TypeKind ordinal of the declaration
+ * @param init_kind i32 — ExprKind ordinal of the initializer
+ * @return i32 — 1 if retyped, 0 if no coerce
+ * PLATFORM: SHARED — wave307 Cap residual: use full i64 lit bits via
+ * pipeline_expr_int64_val_at. Prior i32 truncation made u64max (stored as -1)
+ * and i64max (low32 all-ones) fail `int_val >= 0` for u64/usize.
+ * Unsuffixed lits in 2^63..2^64-1 wrap to negative i64 two's-complement but
+ * remain valid u64/usize bit patterns; accept any EXPR_LIT for u64/usize
+ * (mirrors u32 full-bit accept). Unary `-N` is EXPR_NEG, not bare LIT.
+ */
 export function typeck_coerce_init_lit_to_decl(arena: *ASTArena, init_ref: i32, decl_ty_ref: i32,
 decl_kind: i32, init_kind: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    let int_val: i32 = 0;
+    let int_val: i64 = 0;
     let ord_expr_lit: i32 = 0;
     let ord_u8: i32 = 2;
     let ord_u32: i32 = 3;
@@ -3862,7 +3879,8 @@ decl_kind: i32, init_kind: i32): i32 {
     if (init_kind != ord_expr_lit) {
       return 0;
     }
-    int_val = pipeline_expr_int_val_at(arena, init_ref);
+    /* Full i64: u64max/i64max must not pass through i32 truncation. */
+    int_val = pipeline_expr_int64_val_at(arena, init_ref);
     if (decl_kind == ord_ptr && int_val == 0) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
@@ -3883,16 +3901,20 @@ decl_kind: i32, init_kind: i32): i32 {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
     }
-    /* See implementation. */
+    /* u32: accept full bit pattern of the i64-stored lit (low 32 used at emit). */
     if (decl_kind == ord_u32) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
     }
-    if (int_val >= 0 && (decl_kind == ord_usize || decl_kind == ord_u64)) {
+    /*
+     * wave307: u64/usize accept any bare EXPR_LIT bit pattern.
+     * Decimal/hex digits past i64max wrap in lexer to negative i64 (two's
+     * complement) but are valid unsigned values (e.g. u64max → -1 bits).
+     */
+    if (decl_kind == ord_usize || decl_kind == ord_u64) {
       pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
       return 1;
     }
-    /* See implementation. */
     if (decl_kind == ord_named) {
       let nm16: u8[64] = [];
       let nlen16: i32 = pipeline_type_named_name_into(arena, decl_ty_ref, &nm16[0]);

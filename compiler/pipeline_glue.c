@@ -28933,12 +28933,15 @@ static int32_t pipeline_typeck_bytes_equal_c(uint8_t *a, int32_t a_len, uint8_t 
 }
 
 /**
- * typeck.x::typeck_coerce_init_lit_to_decl 的 C 委托（整型字面量分支）。
+ * typeck.x::typeck_coerce_init_lit_to_decl C delegate (integer literal branch).
+ * PLATFORM: SHARED — wave307 Cap residual pure: use full i64 EXPR_LIT bits.
+ * Prior i32 truncation + `int_val >= 0` rejected u64max (stored as -1) and
+ * i64max (low32 all-ones → -1 as i32) for u64/usize targets.
  */
 int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
                                                   int32_t decl_kind, int32_t init_kind) {
   struct ast_Expr *init_ex;
-  int32_t int_val;
+  int64_t int_val;
 
   if (!arena || init_ref <= 0 || init_ref > arena->num_exprs || decl_ty_ref <= 0)
     return 0;
@@ -28947,7 +28950,7 @@ int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, in
   init_ex = pipeline_arena_expr_ptr(arena, init_ref);
   if (!init_ex)
     return 0;
-  int_val = pipeline_expr_int_val_at(arena, init_ref);
+  int_val = pipeline_expr_int64_val_at(arena, init_ref);
   if (decl_kind == (int32_t)ast_TypeKind_TYPE_PTR && int_val == 0) {
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
@@ -28964,20 +28967,25 @@ int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, in
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
   }
-  /* 【Why 根源】int_val 存 i32；>INT_MAX 的 u32 十进制以位型落入负 i32。
-   * u32 接受全 i32 位型；u64/usize/isize 仍要求 int_val>=0（避免符号扩展）。 */
+  if (decl_kind == (int32_t)ast_TypeKind_TYPE_ISIZE) {
+    init_ex->resolved_type_ref = decl_ty_ref;
+    return 1;
+  }
+  /* u32: accept full lit bit pattern (emit uses low 32). */
   if (decl_kind == (int32_t)ast_TypeKind_TYPE_U32) {
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
   }
-  if (int_val >= 0 &&
-      (decl_kind == (int32_t)ast_TypeKind_TYPE_USIZE || decl_kind == (int32_t)ast_TypeKind_TYPE_ISIZE ||
-       decl_kind == (int32_t)ast_TypeKind_TYPE_U64)) {
+  /*
+   * wave307: u64/usize accept any bare EXPR_LIT bit pattern.
+   * Digits in 2^63..2^64-1 wrap to negative i64 two's-complement but remain
+   * valid unsigned values (u64max → -1 bits). Unary `-N` is EXPR_NEG.
+   */
+  if (decl_kind == (int32_t)ast_TypeKind_TYPE_USIZE || decl_kind == (int32_t)ast_TypeKind_TYPE_U64) {
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
   }
-  if (int_val == 0 &&
-      (decl_kind == (int32_t)ast_TypeKind_TYPE_F32 || decl_kind == (int32_t)ast_TypeKind_TYPE_F64)) {
+  if (decl_kind == (int32_t)ast_TypeKind_TYPE_F32 || decl_kind == (int32_t)ast_TypeKind_TYPE_F64) {
     init_ex->resolved_type_ref = decl_ty_ref;
     return 1;
   }

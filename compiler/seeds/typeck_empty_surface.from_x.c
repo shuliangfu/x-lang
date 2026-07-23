@@ -785,6 +785,8 @@ extern int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *
 extern void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx * ctx, int32_t saved_block_ref);
 extern void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx * ctx, int32_t block_ref);
 extern int32_t pipeline_expr_int_val_at(struct ast_ASTArena * arena, int32_t expr_ref);
+/* wave307 Cap residual: full i64 EXPR_LIT for u64/usize coerce. */
+extern int64_t pipeline_expr_int64_val_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena * arena, int32_t expr_ref);
 extern void pipeline_expr_set_field_access_enum_variant(struct ast_ASTArena * arena, int32_t expr_ref, int32_t tag);
 extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
@@ -3334,8 +3336,9 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
   }
   return 0;
 }
+/* wave307 Cap residual pure: full i64 lit coerce for u64/usize. */
 int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
-  int32_t int_val = 0;
+  int64_t int_val = 0;
   int32_t ord_expr_lit = 0;
   int32_t ord_u8 = 2;
   int32_t ord_u32 = 3;
@@ -3352,7 +3355,7 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
   if ((init_kind !=ord_expr_lit)) {
     return 0;
   }
-  (void)((int_val = pipeline_expr_int_val_at(arena, init_ref)));
+  (void)((int_val = pipeline_expr_int64_val_at(arena, init_ref)));
   if (((decl_kind ==ord_ptr) && (int_val ==0))) {
     (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
     return 1;
@@ -3377,7 +3380,8 @@ int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init
     (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
     return 1;
   }
-  if (((int_val >=0) && ((decl_kind ==ord_usize) || (decl_kind ==ord_u64)))) {
+  /* wave307: any bare EXPR_LIT bit pattern for u64/usize. */
+  if (((decl_kind ==ord_usize) || (decl_kind ==ord_u64))) {
     (void)(pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref));
     return 1;
   }
