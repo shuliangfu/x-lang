@@ -718,17 +718,17 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
   (void)(0);
   return;
 }
-/* wave285 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_ptr_binop */
+/* wave285/wave289 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_ptr_binop */
 void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,
-      ((uint8_t *)"invalid pointer arithmetic (ptr+ptr / non-offset ops not allowed; use integer offset, std.string, or adjacent string literals)")));
+      ((uint8_t *)"invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)")));
   (void)(0);
   return;
 }
-/* wave286 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_float_binop */
+/* wave286/wave289 Cap residual: G.7 ≡ thin.x driver_diagnostic_typeck_invalid_float_binop */
 void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col) {
   (void)(lsp_diag_report_typeck(line, col,
-      ((uint8_t *)"invalid float operation (bitwise / mod / shift not allowed on f32/f64; use + - * / only)")));
+      ((uint8_t *)"invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)")));
   (void)(0);
   return;
 }

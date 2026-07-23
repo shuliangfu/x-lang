@@ -5976,17 +5976,36 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 }
 
 /**
- * See implementation.
+ * Type-check unary NEG / BITNOT / LOGNOT.
+ * @param module *Module — module under check
+ * @param arena *ASTArena — AST arena
+ * @param expr_ref i32 — unary expr ref
+ * @param return_type_ref i32 — enclosing function return type (passed to operand)
+ * @param ctx *PipelineDepCtx — dep/typeck context
+ * @return i32 — 0 ok, -1 hard fail
+ * wave289 Cap residual: hard-fail illegal unary ~ on float/ptr and unary - on ptr.
+ * Root cause: this path copied operand type for NEG/BITNOT without host-cc validity
+ * checks → soft residual BLD001 (`~double`, `~uint8_t*`, `-uint8_t*`).
+ * Allowed: ~int, -int, -float, !any (LOGNOT→bool). Rejected: ~f32/f64, ~ptr, -ptr.
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    let ord_neg: i32 = 22;
+    let ord_bitnot: i32 = 23;
     let ord_lognot: i32 = 24;
+    let ord_ptr: i32 = 9;
+    let ord_f32: i32 = 14;
+    let ord_f64: i32 = 15;
     let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     let expr_kind: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
     let op_tr: i32 = 0;
     let bt: i32 = 0;
+    let op_ko: i32 = 0;
+    let line_u: i32 = 0;
+    let col_u: i32 = 0;
     if (check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
       return - 1;
     }
@@ -5999,6 +6018,28 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     }
     op_tr = expr_type_ref(arena, op_ref);
     if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
+      op_ko = pipeline_type_kind_ord_at(arena, op_tr);
+      /* wave289: reject ~float, ~ptr, -ptr at typeck (reuse wave285/286 diags — G.7). */
+      if (expr_kind == ord_bitnot) {
+        if (op_ko == ord_f32 || op_ko == ord_f64) {
+          line_u = pipeline_expr_line_at(arena, expr_ref);
+          col_u = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_invalid_float_binop(line_u, col_u);
+          return -1;
+        }
+        if (op_ko == ord_ptr) {
+          line_u = pipeline_expr_line_at(arena, expr_ref);
+          col_u = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_invalid_ptr_binop(line_u, col_u);
+          return -1;
+        }
+      }
+      if (expr_kind == ord_neg && op_ko == ord_ptr) {
+        line_u = pipeline_expr_line_at(arena, expr_ref);
+        col_u = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_ptr_binop(line_u, col_u);
+        return -1;
+      }
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, op_tr);
     }
     return 0;

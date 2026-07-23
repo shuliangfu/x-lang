@@ -616,24 +616,24 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
 }
 #endif
 
-/* wave285 Cap residual: pure 权威 thin.x driver_diagnostic_typeck_invalid_ptr_binop；
- * 冷启动全 C；FROM_X 无 pure-dup _impl。PLATFORM: SHARED. */
+/* wave285/wave289 Cap residual: pure 权威 thin.x driver_diagnostic_typeck_invalid_ptr_binop；
+ * 冷启动全 C；FROM_X 无 pure-dup _impl。wave289 also unary -~ on ptr. PLATFORM: SHARED. */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_invalid_ptr_binop(int32_t line, int32_t col)
 {
   (void)(lsp_diag_report_typeck(line, col,
-      "invalid pointer arithmetic (ptr+ptr / non-offset ops not allowed; use integer offset, std.string, or adjacent string literals)"));
+      "invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)"));
   return;
 }
 #endif
 
-/* wave286 Cap residual: pure 权威 thin.x driver_diagnostic_typeck_invalid_float_binop；
- * 冷启动全 C；FROM_X 无 pure-dup _impl。PLATFORM: SHARED. */
+/* wave286/wave289 Cap residual: pure 权威 thin.x driver_diagnostic_typeck_invalid_float_binop；
+ * 冷启动全 C；FROM_X 无 pure-dup _impl。wave289 also unary ~ on f32/f64. PLATFORM: SHARED. */
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_invalid_float_binop(int32_t line, int32_t col)
 {
   (void)(lsp_diag_report_typeck(line, col,
-      "invalid float operation (bitwise / mod / shift not allowed on f32/f64; use + - * / only)"));
+      "invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)"));
   return;
 }
 #endif

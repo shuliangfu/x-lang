@@ -4995,12 +4995,21 @@ int32_t typeck_check_expr_binop(struct ast_Module * module, struct ast_ASTArena 
 int32_t typeck_check_expr_field_access(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   return pipeline_typeck_check_expr_field_access_c(module, arena, expr_ref, return_type_ref, ctx);
 }
+/* wave289 Cap residual: G.7 ≡ typeck.x typeck_check_expr_unary — hard-fail ~float/~ptr/-ptr. */
 int32_t typeck_check_expr_unary(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+  int32_t ord_neg = 22;
+  int32_t ord_bitnot = 23;
   int32_t ord_lognot = 24;
+  int32_t ord_ptr = 9;
+  int32_t ord_f32 = 14;
+  int32_t ord_f64 = 15;
   int32_t op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   int32_t expr_kind = pipeline_expr_kind_ord_at(arena, expr_ref);
   int32_t op_tr = 0;
   int32_t bt = 0;
+  int32_t op_ko = 0;
+  int32_t line_u = 0;
+  int32_t col_u = 0;
   if ((check_expr(module, arena, op_ref, return_type_ref, ctx) !=0)) {
     return -(1);
   }
@@ -5013,6 +5022,27 @@ int32_t typeck_check_expr_unary(struct ast_Module * module, struct ast_ASTArena 
   }
   (void)((op_tr = expr_type_ref(arena, op_ref)));
   if (((!(ast_ref_is_null(op_tr)) && (op_tr > 0)) && (op_tr <=(arena->num_types)))) {
+    (void)((op_ko = pipeline_type_kind_ord_at(arena, op_tr)));
+    if ((expr_kind ==ord_bitnot)) {
+      if (((op_ko ==ord_f32) || (op_ko ==ord_f64))) {
+        (void)((line_u = pipeline_expr_line_at(arena, expr_ref)));
+        (void)((col_u = pipeline_expr_col_at(arena, expr_ref)));
+        (void)(driver_diagnostic_typeck_invalid_float_binop(line_u, col_u));
+        return -(1);
+      }
+      if ((op_ko ==ord_ptr)) {
+        (void)((line_u = pipeline_expr_line_at(arena, expr_ref)));
+        (void)((col_u = pipeline_expr_col_at(arena, expr_ref)));
+        (void)(driver_diagnostic_typeck_invalid_ptr_binop(line_u, col_u));
+        return -(1);
+      }
+    }
+    if (((expr_kind ==ord_neg) && (op_ko ==ord_ptr))) {
+      (void)((line_u = pipeline_expr_line_at(arena, expr_ref)));
+      (void)((col_u = pipeline_expr_col_at(arena, expr_ref)));
+      (void)(driver_diagnostic_typeck_invalid_ptr_binop(line_u, col_u));
+      return -(1);
+    }
     (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, op_tr));
   }
   return 0;

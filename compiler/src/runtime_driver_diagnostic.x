@@ -162,32 +162,32 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
 }
 
 /**
- * Report illegal pointer arithmetic (wave285 Cap residual; G.7 ≡ thin.x).
- * @param line i32 — 1-based source line of the binop
- * @param col i32 — 1-based source column of the binop
+ * Report illegal pointer arithmetic / illegal unary on pointer (wave285/wave289; G.7 ≡ thin.x).
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
  * @return void
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — also used for unary -/~ on ptr (wave289 Cap residual).
  */
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid pointer arithmetic (ptr+ptr / non-offset ops not allowed; use integer offset, std.string, or adjacent string literals)");
+      "invalid pointer arithmetic (ptr+ptr / non-offset ops / unary -~ not allowed; use integer offset, std.string, or adjacent string literals)");
   }
 }
 
 /**
- * Report illegal float bitwise/mod/shift (wave286 Cap residual; G.7 ≡ thin.x).
- * @param line i32 — 1-based source line of the binop
- * @param col i32 — 1-based source column of the binop
+ * Report illegal float bitwise/mod/shift/unary~ (wave286/wave289; G.7 ≡ thin.x).
+ * @param line i32 — 1-based source line of the op
+ * @param col i32 — 1-based source column of the op
  * @return void
- * PLATFORM: SHARED
+ * PLATFORM: SHARED — also used for unary ~ on f32/f64 (wave289 Cap residual).
  */
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void {
   unsafe {
     lsp_diag_report_typeck(line, col,
-      "invalid float operation (bitwise / mod / shift not allowed on f32/f64; use + - * / only)");
+      "invalid float operation (bitwise / mod / shift / unary ~ not allowed on f32/f64; use + - * / and unary - only)");
   }
 }
 
