@@ -2489,7 +2489,20 @@ export function xlang_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, dr
   return 0 - 1;
 }
 
-export extern "C" function xlang_invoke_cc_impl(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32;
+/* wave264: multi-line form — product lexer/parser hard-fails a single source line of
+ * length >= 512 (P001 / silent skip of following exports). labi_gates.x already uses
+ * this capacity-safe layout for the same 56-param face. PLATFORM: SHARED. */
+export extern "C" function xlang_invoke_cc_impl(
+  c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
+  io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
+  runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8,
+  sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8,
+  channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8,
+  db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8,
+  dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8,
+  uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8,
+  trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8
+): i32;
 export extern "C" function xlang_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
 
 /* See implementation. */
@@ -2632,8 +2645,33 @@ export function ensure_std_net_o_auto_tls(repo_root: *u8): void {
 
 /* See implementation. */
 
+/**
+ * Thin public face for host cc invoke (56 std/runtime .o path slots + include_root).
+ * wave264: multi-line signature/call — single-line form was >=512 bytes and tripped the
+ * product line-length hard fail (cascade silent-skip of later mega exports).
+ * @param c_paths *u8 — C path table (host layout; null rejected)
+ * @param n i32 — path count
+ * @param out_path *u8 — output object/exe path; null rejected
+ * @param target *u8 — target triple / arch token (may be null per Cap residual host)
+ * @param opt_level *u8 — -O level string
+ * @param use_lto i32 — non-zero enables LTO path in host impl
+ * @param io_o..async_scheduler_o *u8 — std/runtime companion .o paths (may be null)
+ * @param include_root *u8 — -I root for host cc
+ * @return i32 — host status; -1 on null gates
+ * PLATFORM: SHARED orch face; body is Cap residual host via xlang_invoke_cc_impl
+ */
 #[no_mangle]
-export function xlang_invoke_cc(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32 {
+export function xlang_invoke_cc(
+  c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32,
+  io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8,
+  runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8,
+  sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8,
+  channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8,
+  db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8,
+  dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8,
+  uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8,
+  trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8
+): i32 {
   if (c_paths == 0 as *u8) {
     return 0 - 1;
   }
@@ -2641,7 +2679,17 @@ export function xlang_invoke_cc(c_paths: *u8, n: i32, out_path: *u8, target: *u8
     return 0 - 1;
   }
   unsafe {
-    return xlang_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
+    return xlang_invoke_cc_impl(
+      c_paths, n, out_path, target, opt_level, use_lto,
+      io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o,
+      runtime_panic_o, net_o, thread_o, time_o, random_o, env_o,
+      sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o,
+      channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o,
+      db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o,
+      dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o,
+      uuid_o, url_o, cli_o, security_o, config_o, cache_o,
+      trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o
+    );
   }
   return 0 - 1;
 }
