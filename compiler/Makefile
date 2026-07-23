@@ -1033,7 +1033,7 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c se
 	  ./$(XLANG_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
 	  || rm -f src/lexer/cfg_eval_x.o; \
 	fi; \
-	if [ -s src/lexer/cfg_eval_x.o ]; then \
+	if false && [ -s src/lexer/cfg_eval_x.o ]; then \
 	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
