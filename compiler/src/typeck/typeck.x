@@ -2800,12 +2800,12 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
       let ak: i32 = pipeline_type_kind_ord_at(caller_arena, arg_ty);
       let pk: i32 = pipeline_type_kind_ord_at(caller_arena, param_ty);
       /*
-       * Integer widen (same rules as typeck_integer_widen_ok): i32→usize for
-       * heap.alloc(al, capacity) so 2-arg Allocator+usize is not eliminated → first *u64.
+       * Integer widen (typeck_integer_widen_ok_refs): first-class + NAMED i8/i16/u16.
+       * i32→usize for heap.alloc(al, capacity) so 2-arg Allocator+usize is not eliminated.
        * Score 100 < exact 1000; expected-return is a separate tie-break (not in arg score).
-       * PLATFORM: SHARED — keep strict_minimal arg score aligned.
+       * PLATFORM: SHARED — keep strict_minimal arg score aligned (wave313).
        */
-      if (typeck_integer_widen_ok(pk, ak)) {
+      if (typeck_integer_widen_ok_refs(caller_arena, param_ty, arg_ty)) {
         return 100;
       }
       /* See implementation. */
@@ -3755,7 +3755,8 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
 * See implementation.
 */
 /**
- * Integer implicit widen gate (let-init, assign, call arg, return).
+ * Integer implicit widen gate for first-class TypeKind ordinals only
+ * (let-init, assign, call arg, return when both sides are non-NAMED ints).
  * @param dest_kind i32 — TypeKind ordinal of the expected/declared type
  * @param src_kind i32 — TypeKind ordinal of the found/rhs type
  * @return bool — true if same integer kind or a documented widen is allowed
@@ -3768,7 +3769,7 @@ export function type_refs_equal(arena: *ASTArena, a: i32, b: i32): bool {
  * wave312 Cap residual: complete first-class integer family —
  *   u8→i64/isize; u32→i64/usize/isize (plus prior u32→u64);
  *   isize↔i64 and usize↔u64 (LP64 same-width store / true widen on ILP32).
- * NAMED i8/i16/u16 still leave-off (no TypeKind; need name-based ref path).
+ * wave313: NAMED i8/i16/u16 use typeck_integer_widen_ok_refs (name-based).
  * PLATFORM: SHARED — seed typeck_gen + empty_surface + glue + strict_minimal same commit.
  */
 export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
@@ -3828,6 +3829,140 @@ export function typeck_integer_widen_ok(dest_kind: i32, src_kind: i32): bool {
 }
 
 /**
+ * Map a type_ref to an integer family tag for widen decisions.
+ * @param arena *ASTArena — type pool
+ * @param type_ref i32 — type ref (first-class int or TYPE_NAMED i8/i16/u16)
+ * @return i32 — family id: TypeKind ord for first-class ints (0/2/3/4/5/6/7);
+ *   10=i8, 11=i16, 12=u16 for TYPE_NAMED spellings; -1 if not an integer
+ * wave313 Cap residual: i8/i16/u16 have no TypeKind — name-based path only.
+ * PLATFORM: SHARED — seed/glue/empty_surface same commit.
+ */
+export function typeck_int_family_id(arena: *ASTArena, type_ref: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let k: i32 = 0;
+    let nlen: i32 = 0;
+    let buf: *u8 = typeck_scratch64_slot(15);
+    if (ast.ref_is_null(type_ref) || type_ref <= 0) {
+      return -1;
+    }
+    k = pipeline_type_kind_ord_at(arena, type_ref);
+    /* First-class integer TypeKinds (match typeck_integer_widen_ok). */
+    if (k == 0 || k == 2 || k == 3 || k == 4 || k == 5 || k == 6 || k == 7) {
+      return k;
+    }
+    /* TYPE_NAMED=8: only i8 / i16 / u16 participate in integer widen. */
+    if (k != 8) {
+      return -1;
+    }
+    nlen = pipeline_type_named_name_into(arena, type_ref, buf);
+    /* "i8" */
+    if (nlen == 2 && buf[0] == 105 && buf[1] == 56) {
+      return 10;
+    }
+    /* "i16" */
+    if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54) {
+      return 11;
+    }
+    /* "u16" */
+    if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54) {
+      return 12;
+    }
+    return -1;
+  }
+}
+
+/**
+ * Integer widen gate with TYPE_NAMED i8/i16/u16 (wave313).
+ * Prefer this over typeck_integer_widen_ok whenever both type_refs are available.
+ * @param arena *ASTArena — type pool
+ * @param dest_ref i32 — expected/declared type ref
+ * @param src_ref i32 — found/rhs type ref
+ * @return bool — true if same integer family or documented widen/narrow store
+ * Rules (G.7 single authority; mirrors first-class matrix + NAMED leaf):
+ *   - first-class pairs via typeck_integer_widen_ok
+ *   - i8 → i16/u16/u8/i32/u32/i64/u64/usize/isize
+ *   - i16 → u16/u8/i32/u32/i64/u64/usize/isize
+ *   - u16 → u8/i32/u32/i64/u64/usize/isize
+ *   - u8/i32 → i8/i16/u16 (narrow store, same spirit as i32→u8)
+ *   - u32 → i16/u16 (narrow store residual)
+ * PLATFORM: SHARED — seed typeck_gen + empty_surface + glue + strict_minimal same commit.
+ */
+export function typeck_integer_widen_ok_refs(arena: *ASTArena, dest_ref: i32, src_ref: i32): bool {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let dest_f: i32 = 0;
+    let src_f: i32 = 0;
+    if (ast.ref_is_null(dest_ref) || ast.ref_is_null(src_ref)) {
+      return false;
+    }
+    dest_f = typeck_int_family_id(arena, dest_ref);
+    src_f = typeck_int_family_id(arena, src_ref);
+    if (dest_f < 0 || src_f < 0) {
+      return false;
+    }
+    /* Same family (includes NAMED i8/i16/u16 identity across distinct type_refs). */
+    if (dest_f == src_f) {
+      return true;
+    }
+    /* First-class TypeKind matrix (tags 0/2/3/4/5/6/7 only). */
+    if (dest_f <= 7 && src_f <= 7) {
+      if (typeck_integer_widen_ok(dest_f, src_f)) {
+        return true;
+      }
+    }
+    /* NAMED src → wider first-class / peer NAMED. */
+    if (src_f == 10) {
+      /* i8 → i16/u16/u8 + all wider first-class ints. */
+      if (dest_f == 11 || dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 ||
+      dest_f == 4 || dest_f == 5 || dest_f == 6 || dest_f == 7) {
+        return true;
+      }
+      return false;
+    }
+    if (src_f == 11) {
+      /* i16 → u16/u8 + wider first-class. */
+      if (dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 ||
+      dest_f == 5 || dest_f == 6 || dest_f == 7) {
+        return true;
+      }
+      return false;
+    }
+    if (src_f == 12) {
+      /* u16 → u8 + wider first-class (u8 is low-byte narrow like i32→u8). */
+      if (dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 ||
+      dest_f == 6 || dest_f == 7) {
+        return true;
+      }
+      return false;
+    }
+    /* First-class src → NAMED dest (narrow / peer store). */
+    if (dest_f == 10) {
+      /* → i8 from u8/i32/i16/u16 (low-byte / narrow). */
+      if (src_f == 2 || src_f == 0 || src_f == 11 || src_f == 12) {
+        return true;
+      }
+      return false;
+    }
+    if (dest_f == 11) {
+      /* → i16 from u8/i32/u16/u32. */
+      if (src_f == 2 || src_f == 0 || src_f == 12 || src_f == 3) {
+        return true;
+      }
+      return false;
+    }
+    if (dest_f == 12) {
+      /* → u16 from u8/i32/i16/u32. */
+      if (src_f == 2 || src_f == 0 || src_f == 11 || src_f == 3) {
+        return true;
+      }
+      return false;
+    }
+    return false;
+  }
+}
+
+/**
 * See implementation.
 * See implementation.
 */
@@ -3857,7 +3992,8 @@ export function typeck_return_operand_matches(arena: *ASTArena, op_ref: i32, exp
     }
     expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
     got_kind = pipeline_type_kind_ord_at(arena, got);
-    if (typeck_integer_widen_ok(expect_kind, got_kind)) {
+    /* wave313: name-based refs so NAMED i8/i16/u16 widen participates on return. */
+    if (typeck_integer_widen_ok_refs(arena, expect_ref, got)) {
       return true;
     }
     /* See implementation. */
@@ -4139,9 +4275,8 @@ decl_ty_ref: i32): i32 {
         typeck_coerce_init_lit_to_decl(arena, elem_ref, elem_decl_ref, elem_decl_kind, elem_kind);
         elem_ty = expr_type_ref(arena, elem_ref);
         if (!ast.ref_is_null(elem_ty)) {
-          let got_kind: i32 = pipeline_type_kind_ord_at(arena, elem_ty);
           if (type_refs_equal(arena, elem_ty, elem_decl_ref)
-          || typeck_integer_widen_ok(elem_decl_kind, got_kind)) {
+          || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty)) {
             pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref);
           }
         }
@@ -4723,7 +4858,8 @@ export function typeck_ret_coerce_integral_widen(arena: *ASTArena, op_ref: i32, 
     }
     expect_kind = pipeline_type_kind_ord_at(arena, expect_ref);
     got_kind = pipeline_type_kind_ord_at(arena, got_ref);
-    if (!typeck_integer_widen_ok(expect_kind, got_kind)) {
+    /* wave313: refs path covers NAMED i8/i16/u16 as well as first-class. */
+    if (!typeck_integer_widen_ok_refs(arena, expect_ref, got_ref)) {
       return;
     }
     pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref);
@@ -5069,7 +5205,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (!ast.ref_is_null(return_type_ref) && return_type_ref > 0 && return_type_ref <= arena.num_types) {
         expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
         got_kind = pipeline_type_kind_ord_at(arena, ty_t);
-        if (typeck_integer_widen_ok(expect_kind, got_kind)) {
+        if (typeck_integer_widen_ok_refs(arena, return_type_ref, ty_t)) {
           resolved = return_type_ref;
         } else if (expect_kind == ord_u8 && got_kind == ord_i32) {
           /* See implementation. */
@@ -5110,7 +5246,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (!ast.ref_is_null(return_type_ref) && return_type_ref > 0 && return_type_ref <= arena.num_types) {
         expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
         got_kind = pipeline_type_kind_ord_at(arena, resolved);
-        if (typeck_integer_widen_ok(expect_kind, got_kind)) {
+        if (typeck_integer_widen_ok_refs(arena, return_type_ref, resolved)) {
           resolved = return_type_ref;
         }
       }
@@ -5325,8 +5461,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(lt) && !ast.ref_is_null(rt) && !type_refs_equal(arena, lt, rt)) {
       lt_kind = pipeline_type_kind_ord_at(arena, lt);
       let rt_kind_assign: i32 = pipeline_type_kind_ord_at(arena, rt);
-      /* See implementation. */
-      if (typeck_integer_widen_ok(lt_kind, rt_kind_assign)) {
+      /* wave313: refs path so NAMED i8/i16/u16 assign widen is accepted. */
+      if (typeck_integer_widen_ok_refs(arena, lt, rt)) {
         pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         rt = lt;
       }
@@ -5558,7 +5694,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         if (!ast.ref_is_null(got) && got > 0 && !ast.ref_is_null(return_type_ref)) {
           expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref);
           got_kind = pipeline_type_kind_ord_at(arena, got);
-          if (typeck_integer_widen_ok(expect_kind, got_kind)) {
+          if (typeck_integer_widen_ok_refs(arena, return_type_ref, got)) {
             pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref);
             if (pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) != 0) {
               return - 1;
@@ -5957,9 +6093,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f32);
         } else if (type_refs_equal(arena, lt_ar, rt_ar)) {
           out_ar = lt_ar;
-        } else if (typeck_integer_widen_ok(lko, rko)) {
+        } else if (typeck_integer_widen_ok_refs(arena, lt_ar, rt_ar)) {
           out_ar = lt_ar;
-        } else if (typeck_integer_widen_ok(rko, lko)) {
+        } else if (typeck_integer_widen_ok_refs(arena, rt_ar, lt_ar)) {
           out_ar = rt_ar;
         } else if (lk_expr == ord_lit && rk_expr != ord_lit) {
           out_ar = rt_ar;
@@ -7021,9 +7157,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx, idx: i32): i32 {
       init_ty = expr_type_ref(arena, ld_ir);
       /* See implementation. */
       if (!ast.ref_is_null(init_ty) && !type_refs_equal(arena, ld_tr, init_ty)) {
-        let decl_k: i32 = pipeline_type_kind_ord_at(arena, ld_tr);
-        let init_k: i32 = pipeline_type_kind_ord_at(arena, init_ty);
-        if (typeck_integer_widen_ok(decl_k, init_k)) {
+        /* wave313: refs path closes NAMED i8/i16/u16 let-init widen (e.g. i16→i32). */
+        if (typeck_integer_widen_ok_refs(arena, ld_tr, init_ty)) {
           pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr);
           init_ty = ld_tr;
         }
@@ -7193,7 +7328,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
       if (!ast.ref_is_null(fin_got) && fin_got > 0) {
         ek_fin = pipeline_type_kind_ord_at(arena, return_type_ref);
         gk_fin = pipeline_type_kind_ord_at(arena, fin_got);
-        if (typeck_integer_widen_ok(ek_fin, gk_fin)) {
+        if (typeck_integer_widen_ok_refs(arena, return_type_ref, fin_got)) {
           pipeline_expr_set_resolved_type_ref(arena, fin_op, return_type_ref);
           return 0;
         }

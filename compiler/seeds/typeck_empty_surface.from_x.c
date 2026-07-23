@@ -576,7 +576,10 @@ extern int type_refs_equal_same_kind(struct ast_ASTArena * arena, int32_t a, int
 extern int type_refs_equal_impl(struct ast_ASTArena * arena, int32_t a, int32_t b);
 extern int type_refs_equal(struct ast_ASTArena * arena, int32_t a, int32_t b);
 extern int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind);
-extern int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
+extern int typeck_int_family_id(struct ast_ASTArena * arena, int32_t type_ref);
+extern int typeck_integer_widen_ok_refs(struct ast_ASTArena * arena, int32_t dest_ref, int32_t src_ref);
+
+int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref);
 extern int32_t typeck_coerce_init_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_float_lit_to_decl(struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
 extern int32_t typeck_coerce_init_enum_field_to_decl(struct ast_Module * module, struct ast_ASTArena * arena, int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind);
@@ -3315,6 +3318,100 @@ int typeck_integer_widen_ok(int32_t dest_kind, int32_t src_kind) {
   }
   return 0;
 }
+
+/* wave313: family id for first-class ints + NAMED i8/i16/u16. G.7 ≡ typeck.x. */
+int typeck_int_family_id(struct ast_ASTArena * arena, int32_t type_ref) {
+  int32_t k;
+  int32_t nlen;
+  uint8_t * buf;
+  if (ast_ref_is_null(type_ref) || type_ref <= 0) {
+    return -1;
+  }
+  k = pipeline_type_kind_ord_at(arena, type_ref);
+  if (k == 0 || k == 2 || k == 3 || k == 4 || k == 5 || k == 6 || k == 7) {
+    return k;
+  }
+  if (k != 8) {
+    return -1;
+  }
+  buf = typeck_scratch64_slot(15);
+  nlen = pipeline_type_named_name_into(arena, type_ref, buf);
+  /* "i8" */
+  if (nlen == 2 && buf[0] == 105 && buf[1] == 56) {
+    return 10;
+  }
+  /* "i16" */
+  if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54) {
+    return 11;
+  }
+  /* "u16" */
+  if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54) {
+    return 12;
+  }
+  return -1;
+}
+/* wave313: refs-based integer widen (first-class + NAMED i8/i16/u16). G.7 ≡ typeck.x. */
+int typeck_integer_widen_ok_refs(struct ast_ASTArena * arena, int32_t dest_ref, int32_t src_ref) {
+  int32_t dest_f;
+  int32_t src_f;
+  if (ast_ref_is_null(dest_ref) || ast_ref_is_null(src_ref)) {
+    return 0;
+  }
+  dest_f = typeck_int_family_id(arena, dest_ref);
+  src_f = typeck_int_family_id(arena, src_ref);
+  if (dest_f < 0 || src_f < 0) {
+    return 0;
+  }
+  if (dest_f == src_f) {
+    return 1;
+  }
+  if (dest_f <= 7 && src_f <= 7) {
+    if (typeck_integer_widen_ok(dest_f, src_f)) {
+      return 1;
+    }
+  }
+  if (src_f == 10) {
+    if (dest_f == 11 || dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 ||
+        dest_f == 4 || dest_f == 5 || dest_f == 6 || dest_f == 7) {
+      return 1;
+    }
+    return 0;
+  }
+  if (src_f == 11) {
+    if (dest_f == 12 || dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 ||
+        dest_f == 5 || dest_f == 6 || dest_f == 7) {
+      return 1;
+    }
+    return 0;
+  }
+  if (src_f == 12) {
+    if (dest_f == 2 || dest_f == 0 || dest_f == 3 || dest_f == 4 || dest_f == 5 ||
+        dest_f == 6 || dest_f == 7) {
+      return 1;
+    }
+    return 0;
+  }
+  if (dest_f == 10) {
+    if (src_f == 2 || src_f == 0 || src_f == 11 || src_f == 12) {
+      return 1;
+    }
+    return 0;
+  }
+  if (dest_f == 11) {
+    if (src_f == 2 || src_f == 0 || src_f == 12 || src_f == 3) {
+      return 1;
+    }
+    return 0;
+  }
+  if (dest_f == 12) {
+    if (src_f == 2 || src_f == 0 || src_f == 11 || src_f == 3) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
 int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, int32_t expect_ref) {
   int32_t got = expr_type_ref(arena, op_ref);
   int32_t ord_i32 = 0;
@@ -3339,8 +3436,8 @@ int typeck_return_operand_matches(struct ast_ASTArena * arena, int32_t op_ref, i
   }
   (void)((expect_kind = pipeline_type_kind_ord_at(arena, expect_ref)));
   (void)((got_kind = pipeline_type_kind_ord_at(arena, got)));
-  if (typeck_integer_widen_ok(expect_kind, got_kind)) {
-    return 1;
+  if (typeck_integer_widen_ok_refs(arena, expect_ref, got)) {
+      return 1;
   }
   int32_t ord_linear = 12;
   if ((pipeline_type_kind_ord_at(arena, got) ==ord_linear)) {
@@ -3551,7 +3648,7 @@ int32_t typeck_coerce_array_lit_elem_types_to_decl(struct ast_ASTArena * arena, 
       (void)((elem_ty = expr_type_ref(arena, elem_ref)));
       if (!(ast_ref_is_null(elem_ty))) {
         int32_t got_kind = pipeline_type_kind_ord_at(arena, elem_ty);
-        if ((type_refs_equal(arena, elem_ty, elem_decl_ref) || typeck_integer_widen_ok(elem_decl_kind, got_kind))) {
+        if ((type_refs_equal(arena, elem_ty, elem_decl_ref) || typeck_integer_widen_ok_refs(arena, elem_decl_ref, elem_ty))) {
           (void)(pipeline_expr_set_resolved_type_ref(arena, elem_ref, elem_decl_ref));
         }
       }
@@ -3950,7 +4047,7 @@ void typeck_ret_coerce_integral_widen(struct ast_ASTArena * arena, int32_t op_re
   }
   (void)((expect_kind = pipeline_type_kind_ord_at(arena, expect_ref)));
   (void)((got_kind = pipeline_type_kind_ord_at(arena, got_ref)));
-  if (!(typeck_integer_widen_ok(expect_kind, got_kind))) {
+  if (!(typeck_integer_widen_ok_refs(arena, expect_ref, got_ref))) {
     return;
   }
   (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, expect_ref));
@@ -4192,7 +4289,7 @@ int32_t typeck_check_expr_if_ternary(struct ast_Module * module, struct ast_ASTA
     if (((!(ast_ref_is_null(return_type_ref)) && (return_type_ref > 0)) && (return_type_ref <=(arena->num_types)))) {
       (void)((expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref)));
       (void)((got_kind = pipeline_type_kind_ord_at(arena, ty_t)));
-      if (typeck_integer_widen_ok(expect_kind, got_kind)) {
+      if (typeck_integer_widen_ok_refs(arena, return_type_ref, ty_t)) {
         (void)((resolved = return_type_ref));
       } else {
         if (((expect_kind ==ord_u8) && (got_kind ==ord_i32))) {
@@ -4237,7 +4334,7 @@ int32_t typeck_check_expr_if_ternary(struct ast_Module * module, struct ast_ASTA
     if (((!(ast_ref_is_null(return_type_ref)) && (return_type_ref > 0)) && (return_type_ref <=(arena->num_types)))) {
       (void)((expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref)));
       (void)((got_kind = pipeline_type_kind_ord_at(arena, resolved)));
-      if (typeck_integer_widen_ok(expect_kind, got_kind)) {
+      if (typeck_integer_widen_ok_refs(arena, return_type_ref, resolved)) {
         (void)((resolved = return_type_ref));
       }
     }
@@ -4419,7 +4516,7 @@ int32_t typeck_check_expr_assign(struct ast_Module * module, struct ast_ASTArena
   if (((!(ast_ref_is_null(lt)) && !(ast_ref_is_null(rt))) && !(type_refs_equal(arena, lt, rt)))) {
     int32_t rt_kind_assign = pipeline_type_kind_ord_at(arena, rt);
     (void)((lt_kind = pipeline_type_kind_ord_at(arena, lt)));
-    if (typeck_integer_widen_ok(lt_kind, rt_kind_assign)) {
+    if (typeck_integer_widen_ok_refs(arena, lt, rt)) {
       (void)(pipeline_expr_set_resolved_type_ref(arena, right_ref, lt));
       (void)((rt = lt));
     }
@@ -4635,7 +4732,7 @@ int32_t typeck_check_expr_return(struct ast_Module * module, struct ast_ASTArena
       if (((!(ast_ref_is_null(got)) && (got > 0)) && !(ast_ref_is_null(return_type_ref)))) {
         (void)((expect_kind = pipeline_type_kind_ord_at(arena, return_type_ref)));
         (void)((got_kind = pipeline_type_kind_ord_at(arena, got)));
-        if (typeck_integer_widen_ok(expect_kind, got_kind)) {
+        if (typeck_integer_widen_ok_refs(arena, return_type_ref, got)) {
           (void)(pipeline_expr_set_resolved_type_ref(arena, op_ref, return_type_ref));
           if ((pipeline_typeck_check_return_slice_region_c(arena, expr_ref, op_ref, return_type_ref) !=0)) {
             return -(1);
@@ -4932,10 +5029,10 @@ int32_t typeck_check_expr_binop_arith(struct ast_Module * module, struct ast_AST
               if (type_refs_equal(arena, lt_ar, rt_ar)) {
                 (void)((out_ar = lt_ar));
               } else {
-                if (typeck_integer_widen_ok(lko, rko)) {
+                if (typeck_integer_widen_ok_refs(arena, lt_ar, rt_ar)) {
                   (void)((out_ar = lt_ar));
                 } else {
-                  if (typeck_integer_widen_ok(rko, lko)) {
+                  if (typeck_integer_widen_ok_refs(arena, rt_ar, lt_ar)) {
                     (void)((out_ar = rt_ar));
                   } else {
                     if (((lk_expr ==ord_lit) && (rk_expr !=ord_lit))) {
@@ -5633,7 +5730,7 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
     if ((!(ast_ref_is_null(init_ty)) && !(type_refs_equal(arena, ld_tr, init_ty)))) {
       int32_t decl_k = pipeline_type_kind_ord_at(arena, ld_tr);
       int32_t init_k = pipeline_type_kind_ord_at(arena, init_ty);
-      if (typeck_integer_widen_ok(decl_k, init_k)) {
+      if (typeck_integer_widen_ok_refs(arena, ld_tr, init_ty)) {
         (void)(pipeline_expr_set_resolved_type_ref(arena, ld_ir, ld_tr));
         (void)((init_ty = ld_tr));
       }
@@ -5761,7 +5858,7 @@ int32_t typeck_check_block_final(struct ast_Module * module, struct ast_ASTArena
     if ((!(ast_ref_is_null(fin_got)) && (fin_got > 0))) {
       (void)((ek_fin = pipeline_type_kind_ord_at(arena, return_type_ref)));
       (void)((gk_fin = pipeline_type_kind_ord_at(arena, fin_got)));
-      if (typeck_integer_widen_ok(ek_fin, gk_fin)) {
+      if (typeck_integer_widen_ok_refs(arena, return_type_ref, fin_got)) {
         (void)(pipeline_expr_set_resolved_type_ref(arena, fin_op, return_type_ref));
         return 0;
       }

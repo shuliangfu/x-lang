@@ -8004,14 +8004,84 @@ extern int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *a, int32_t type_re
 extern int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 extern int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_ord);
 
+/* first-class only; binop twin prefers refs path below for NAMED (wave313). */
 static int32_t typeck_integer_widen_ok_ord_c(int32_t dest_kind, int32_t src_kind) {
   if (dest_kind == src_kind)
-    return dest_kind == 0 || dest_kind == 2 || dest_kind == 3 || dest_kind == 4 || dest_kind == 5 || dest_kind == 6;
+    return dest_kind == 0 || dest_kind == 2 || dest_kind == 3 || dest_kind == 4 || dest_kind == 5 ||
+           dest_kind == 6 || dest_kind == 7;
   if (src_kind == 2)
-    return dest_kind == 0 || dest_kind == 3 || dest_kind == 4 || dest_kind == 6;
+    return dest_kind == 0 || dest_kind == 3 || dest_kind == 4 || dest_kind == 5 || dest_kind == 6 ||
+           dest_kind == 7;
   if (src_kind == 0)
-    return dest_kind == 3 || dest_kind == 5 || dest_kind == 6;
-  return src_kind == 3 && dest_kind == 4;
+    return dest_kind == 3 || dest_kind == 4 || dest_kind == 5 || dest_kind == 6 || dest_kind == 7 ||
+           dest_kind == 2;
+  if (src_kind == 3)
+    return dest_kind == 4 || dest_kind == 5 || dest_kind == 6 || dest_kind == 7;
+  if ((src_kind == 6 && dest_kind == 4) || (src_kind == 4 && dest_kind == 6) ||
+      (src_kind == 7 && dest_kind == 5) || (src_kind == 5 && dest_kind == 7))
+    return 1;
+  return 0;
+}
+
+extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *a, int32_t type_ref, uint8_t *out);
+
+/** wave313: G.7 ≡ typeck_integer_widen_ok_refs for binop twin (NAMED i8/i16/u16). */
+static int32_t typeck_integer_widen_ok_refs_c(struct ast_ASTArena *arena, int32_t dest_ref, int32_t src_ref) {
+  int32_t dk;
+  int32_t sk;
+  int32_t df;
+  int32_t sf;
+  uint8_t *buf;
+  int32_t nlen;
+  if (!arena || dest_ref <= 0 || src_ref <= 0)
+    return 0;
+  dk = pipeline_type_kind_ord_at(arena, dest_ref);
+  sk = pipeline_type_kind_ord_at(arena, src_ref);
+  df = -1;
+  sf = -1;
+  if (dk == 0 || dk == 2 || dk == 3 || dk == 4 || dk == 5 || dk == 6 || dk == 7)
+    df = dk;
+  else if (dk == 8) {
+    buf = typeck_scratch64_slot(15);
+    nlen = pipeline_type_named_name_into(arena, dest_ref, buf);
+    if (nlen == 2 && buf[0] == 105 && buf[1] == 56)
+      df = 10;
+    else if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54)
+      df = 11;
+    else if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54)
+      df = 12;
+  }
+  if (sk == 0 || sk == 2 || sk == 3 || sk == 4 || sk == 5 || sk == 6 || sk == 7)
+    sf = sk;
+  else if (sk == 8) {
+    buf = typeck_scratch64_slot(15);
+    nlen = pipeline_type_named_name_into(arena, src_ref, buf);
+    if (nlen == 2 && buf[0] == 105 && buf[1] == 56)
+      sf = 10;
+    else if (nlen == 3 && buf[0] == 105 && buf[1] == 49 && buf[2] == 54)
+      sf = 11;
+    else if (nlen == 3 && buf[0] == 117 && buf[1] == 49 && buf[2] == 54)
+      sf = 12;
+  }
+  if (df < 0 || sf < 0)
+    return 0;
+  if (df == sf)
+    return 1;
+  if (df <= 7 && sf <= 7)
+    return typeck_integer_widen_ok_ord_c(df, sf);
+  if (sf == 10)
+    return df == 11 || df == 12 || df == 2 || df == 0 || df == 3 || df == 4 || df == 5 || df == 6 || df == 7;
+  if (sf == 11)
+    return df == 12 || df == 2 || df == 0 || df == 3 || df == 4 || df == 5 || df == 6 || df == 7;
+  if (sf == 12)
+    return df == 2 || df == 0 || df == 3 || df == 4 || df == 5 || df == 6 || df == 7;
+  if (df == 10)
+    return sf == 2 || sf == 0 || sf == 11 || sf == 12;
+  if (df == 11)
+    return sf == 2 || sf == 0 || sf == 12 || sf == 3;
+  if (df == 12)
+    return sf == 2 || sf == 0 || sf == 11 || sf == 3;
+  return 0;
 }
 
 /**
@@ -8094,9 +8164,9 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
     out_ar = pipeline_type_ensure_by_kind_ord(arena, 14);
   } else if (out_ar == 0 && pipeline_typeck_type_refs_equal_c(arena, lt_ar, rt_ar) != 0) {
     out_ar = lt_ar;
-  } else if (out_ar == 0 && typeck_integer_widen_ok_ord_c(lko, rko)) {
+  } else if (out_ar == 0 && typeck_integer_widen_ok_refs_c(arena, lt_ar, rt_ar)) {
     out_ar = lt_ar;
-  } else if (out_ar == 0 && typeck_integer_widen_ok_ord_c(rko, lko)) {
+  } else if (out_ar == 0 && typeck_integer_widen_ok_refs_c(arena, rt_ar, lt_ar)) {
     out_ar = rt_ar;
   } else if (out_ar == 0 && lk_expr == 0 && rk_expr != 0) {
     out_ar = rt_ar;

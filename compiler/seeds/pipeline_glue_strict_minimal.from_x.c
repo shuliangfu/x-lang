@@ -1004,6 +1004,63 @@ static int32_t pipeline_typeck_overload_arg_score_strict_minimal(struct ast_ASTA
       if ((ak == 6 && pk == 4) || (ak == 4 && pk == 6) || (ak == 7 && pk == 5) || (ak == 5 && pk == 7))
         return 100;
     }
+    /*
+     * wave313 Cap residual: TYPE_NAMED=8 i8/i16/u16 integer widen score.
+     * Mirror typeck_integer_widen_ok_refs (name-based family tags 10/11/12).
+     * PLATFORM: SHARED — G.7 align typeck.x + typeck_gen seed.
+     */
+    if (pk == 8 || ak == 8) {
+      uint8_t pnm[8];
+      uint8_t anm[8];
+      int32_t pnl = 0;
+      int32_t anl = 0;
+      int32_t pf = -1;
+      int32_t af = -1;
+      if (pk == 0 || pk == 2 || pk == 3 || pk == 4 || pk == 5 || pk == 6 || pk == 7)
+        pf = pk;
+      else if (pk == 8) {
+        pnl = pipeline_type_named_name_into(caller_arena, param_ty, pnm);
+        if (pnl == 2 && pnm[0] == 105 && pnm[1] == 56)
+          pf = 10; /* i8 */
+        else if (pnl == 3 && pnm[0] == 105 && pnm[1] == 49 && pnm[2] == 54)
+          pf = 11; /* i16 */
+        else if (pnl == 3 && pnm[0] == 117 && pnm[1] == 49 && pnm[2] == 54)
+          pf = 12; /* u16 */
+      }
+      if (ak == 0 || ak == 2 || ak == 3 || ak == 4 || ak == 5 || ak == 6 || ak == 7)
+        af = ak;
+      else if (ak == 8) {
+        anl = pipeline_type_named_name_into(caller_arena, arg_ty, anm);
+        if (anl == 2 && anm[0] == 105 && anm[1] == 56)
+          af = 10;
+        else if (anl == 3 && anm[0] == 105 && anm[1] == 49 && anm[2] == 54)
+          af = 11;
+        else if (anl == 3 && anm[0] == 117 && anm[1] == 49 && anm[2] == 54)
+          af = 12;
+      }
+      if (pf >= 0 && af >= 0) {
+        if (pf == af)
+          return 100;
+        /* i8 → i16/u16/u8 + first-class wider */
+        if (af == 10 && (pf == 11 || pf == 12 || pf == 2 || pf == 0 || pf == 3 || pf == 4 || pf == 5 ||
+                         pf == 6 || pf == 7))
+          return 100;
+        /* i16 → u16/u8 + first-class wider */
+        if (af == 11 && (pf == 12 || pf == 2 || pf == 0 || pf == 3 || pf == 4 || pf == 5 || pf == 6 ||
+                         pf == 7))
+          return 100;
+        /* u16 → u8 + first-class wider */
+        if (af == 12 && (pf == 2 || pf == 0 || pf == 3 || pf == 4 || pf == 5 || pf == 6 || pf == 7))
+          return 100;
+        /* first-class / peer → NAMED dest (narrow store) */
+        if (pf == 10 && (af == 2 || af == 0 || af == 11 || af == 12))
+          return 100;
+        if (pf == 11 && (af == 2 || af == 0 || af == 12 || af == 3))
+          return 100;
+        if (pf == 12 && (af == 2 || af == 0 || af == 11 || af == 3))
+          return 100;
+      }
+    }
     /* TYPE_ARRAY=10 → TYPE_PTR=9：buf:u8[N] 传 *u8 时须计为可赋，否则全部 overload 评分失败回退首同名(i32)。 */
     if (ak == 10 && pk == 9) {
       int32_t ae = pipeline_type_elem_ref_at(caller_arena, arg_ty);
