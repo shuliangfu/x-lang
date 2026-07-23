@@ -5,13 +5,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+/* wave245 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only gen seed pin (CRASH_EVIDENCE inline) — not user program template
+ * (runtime.from_x.c fprintf CRASH_EVIDENCE templates stay raw getenv for user C). */
+extern char *link_abi_getenv(const char *name);
 extern int getpid(void);
 static inline void xlang_crash_evidence_collect_inline(int has_msg, int msg_val) {
-  const char *_ev = getenv("XLANG_CRASH_EVIDENCE");
+  const char *_ev = link_abi_getenv("XLANG_CRASH_EVIDENCE");
   if (!_ev || _ev[0] != '1') return;
   int _pid = (int)getpid();
   fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val, _pid);
-  const char *_dir = getenv("XLANG_CRASH_EVIDENCE_DIR");
+  const char *_dir = link_abi_getenv("XLANG_CRASH_EVIDENCE_DIR");
   if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, "%s/xlang-crash-%d.txt", _dir, _pid);
     FILE *_f = fopen(_p, "w"); if (_f) { fprintf(_f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, _pid); fclose(_f);
       fprintf(stderr, "xlang: [XLANG_CRASH_EVIDENCE] bundle=%s\n", _p); } } }

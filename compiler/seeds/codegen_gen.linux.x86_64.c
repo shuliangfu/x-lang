@@ -1420,6 +1420,12 @@ struct codegen_CodegenOutBuf {
   int32_t len;
 };
 
+/* wave245 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
+ * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
+ * PLATFORM: SHARED orch / host getenv residual via single face.
+ * Compiler-only seed pin (codegen_gen) — DEBUG_* probes; not in user STD_AND_PANIC bag. */
+extern char *link_abi_getenv(const char *name);
+
 extern int32_t codegen_path_is_std_io_driver_bytes(uint8_t * path);
 extern int32_t codegen_path_is_std_io_core_bytes(uint8_t * path);
 extern void codegen_import_path_to_c_prefix_into(uint8_t * path, uint8_t * buf, int32_t buf_cap);
@@ -1764,7 +1770,7 @@ int32_t codegen_find_dep_index_by_path(struct ast_PipelineDepCtx * ctx, uint8_t 
     if ((((ctx ==((struct ast_PipelineDepCtx *)(0))) || (path ==((uint8_t *)(0)))) || (path_len <=0))) {
       return -(1);
     }
-    if (getenv("XLANG_DEBUG_DEP_LIST")) {
+    if (link_abi_getenv("XLANG_DEBUG_DEP_LIST")) {
       fprintf(stderr, "xlang: [DBG_DEP_LIST] find_dep_index_by_path lookup='%.*s' len=%d nd=%d\n",
               (int)path_len, (char*)path, (int)path_len, (int)nd);
       for (di = 0; di < nd; di++) {
@@ -9944,7 +9950,7 @@ int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct a
                       (void)((nb = codegen_type_ref_to_suffix(search_arena, param_ty, &((sb)[0]), 64)));
                     }
                   }
-                  { extern char *getenv(const char *); if (getenv("XLANG_CGFCN")) fprintf(stderr, "XLANG_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
+                  { if (link_abi_getenv("XLANG_CGFCN")) fprintf(stderr, "XLANG_CGFCN: fi_s=%d pi=%d arg_ty=%d param_ty=%d na=%d nb=%d\n", (int)fi_s, (int)pi, (int)arg_ty, (int)param_ty, (int)na, (int)nb); }
                   if ((na !=nb)) {
                     (void)((types_match = 0));
                   } else {
@@ -11084,13 +11090,13 @@ int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module
           struct ast_Module * dep_mod = ((struct ast_Module *)(0));
           struct ast_ASTArena * dep_arena = ((struct ast_ASTArena *)(0));
           int32_t dep_ctx_ix = dep_ix;
-          if (getenv("XLANG_DEBUG_PREFIX"))
+          if (link_abi_getenv("XLANG_DEBUG_PREFIX"))
             fprintf(stderr, "xlang: [DBG_PREFIX] emit_import_dep_decl module=%p n_imp=%d imp_i=%d dep_path=%.*s dep_ix=%d\n",
                     (void*)module, (int)n_imp, (int)imp_i, (int)dep_path_len, (char*)dep_path, (int)dep_ix);
           if (((dep_ix >=0) && (dep_ix < pipeline_dep_ctx_ndep(ctx)))) {
             (void)((dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix)));
             (void)((dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix)));
-            if (getenv("XLANG_DEBUG_PREFIX"))
+            if (link_abi_getenv("XLANG_DEBUG_PREFIX"))
               fprintf(stderr, "xlang: [DBG_PREFIX]   -> dep_ix=%d dep_mod=%p num_funcs=%d\n",
                       (int)dep_ix, (void*)dep_mod, dep_mod ? (int)dep_mod->num_funcs : -1);
           }
