@@ -16,8 +16,10 @@
  *   invoke_cc_append_heap_f06_ondemand (wave204 pure heap F-06 on-demand + page_mmap)
  *   invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205 pure fork-exec shell + strip)
  *   invoke_cc_append_argv_head_flags (wave206 pure argv head quiet/O/native/NDEBUG/flto/harden/gc/-I)
+ *   invoke_cc_append_argv_tail_flags (wave207 pure argv tail -pthread/-lc/allow-multiple/user_extra+NULL)
  * Cap residual：getenv 🔒；host_is_*；needs/ensure/path/push peers；
- *   shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status。
+ *   shux_spawn_sync / setenv / invoke_cc_strip_out_x / link_diag_tool_status；
+ *   asm_link_obj_skip_missing；link_abi_user_extra_o_{count,at}。
  * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
  * 冷启动/无 PREFER 时仍编译完整 C 体（可与 mega 并存）。
  *
@@ -135,6 +137,10 @@ int link_abi_generated_c_provides_std_heap(const char *c_path);
 int shux_spawn_sync(const char *prog, const char *const *argv);
 void link_diag_tool_status(const char *tool, int status);
 void invoke_cc_strip_out_x(const char *out_path);
+/* wave207 argv tail peers */
+const char *asm_link_obj_skip_missing(const char *path);
+int link_abi_user_extra_o_count(void);
+const char *link_abi_user_extra_o_at(int i);
 
 int labi_linux_harden_flag_count(void) {
   return 5;
@@ -1563,6 +1569,64 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
   }
 }
 
+/* wave207: invoke_cc_append_argv_tail_flags pure orch (cold twin ≡ .x). */
+void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
+    const char *thread_o, const char *sync_o, const char *channel_o) {
+  int is_linux;
+  int is_apple;
+  int is_win;
+  int need_pth;
+  int n_extra;
+  int ui;
+  int cur;
+  const char *ht;
+  const char *hs;
+  const char *hc;
+  const char *flc;
+  const char *p;
+  if (!argv || !ia || *ia < 0)
+    return;
+  is_linux = shux_host_is_linux();
+  is_apple = link_abi_host_is_apple();
+  is_win = link_abi_host_is_windows();
+  /* PLATFORM: POSIX (linux|apple) — optional -pthread + always -lc. */
+  if (is_linux || is_apple) {
+    need_pth = 0;
+    ht = asm_link_obj_skip_missing(thread_o);
+    hs = asm_link_obj_skip_missing(sync_o);
+    hc = asm_link_obj_skip_missing(channel_o);
+    if (ht)
+      need_pth = 1;
+    if (hs)
+      need_pth = 1;
+    if (hc)
+      need_pth = 1;
+    if (need_pth)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-pthread");
+    flc = labi_ld_flag_lc();
+    if (flc)
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
+    else
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-lc");
+  }
+  /* PLATFORM: WINDOWS — PE multi-def (weak alias) alignment flag. */
+  if (is_win)
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-Wl,--allow-multiple-definition");
+  /* User extra .o after std/core + flags (single authority count/at). */
+  n_extra = link_abi_user_extra_o_count();
+  for (ui = 0; ui < n_extra; ui++) {
+    p = link_abi_user_extra_o_at(ui);
+    if (p)
+      (void)invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
+  }
+  /* NULL-terminate for spawn. */
+  cur = *ia;
+  if (cur < argv_cap) {
+    argv[cur] = NULL;
+    *ia = cur + 1;
+  }
+}
+
 /* wave205: invoke_cc_run_cc_argv pure orch (cold twin ≡ .x). */
 int invoke_cc_run_cc_argv(char **argv) {
   int is_win;
@@ -1682,6 +1746,8 @@ int invoke_cc_run_cc_argv(char **argv);
 void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
 void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root);
+void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
+    const char *thread_o, const char *sync_o, const char *channel_o);
 #endif
 
 int labi_invoke_cc_list_slice_marker(void) {

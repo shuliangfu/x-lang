@@ -17,8 +17,10 @@
 //   - invoke_cc_append_heap_f06_ondemand (wave204; pure heap F-06 on-demand + page_mmap companions)
 //   - invoke_cc_run_cc_argv + invoke_cc_maybe_strip_out (wave205; pure fork-exec shell + strip)
 //   - invoke_cc_append_argv_head_flags (wave206; pure argv head: quiet/O/native/NDEBUG/flto/harden/gc/-I)
+//   - invoke_cc_append_argv_tail_flags (wave207; pure argv tail: -pthread/-lc/allow-multiple/user_extra+NULL)
 // Cap residual: getenv (libc); host_is_* #if probes; ensure/path/needs peers;
-//   contains_substr(_use_line) peers for scan; shux_spawn_sync / setenv / strip_out_x / tool_status.
+//   contains_substr(_use_line) peers for scan; shux_spawn_sync / setenv / strip_out_x / tool_status;
+//   asm_link_obj_skip_missing; link_abi_user_extra_o_{count,at}.
 // PLATFORM: SHARED tables/orch; LINUX consumers for harden -pie/-z flags.
 
 // wave206: durable -O{level} argv slot (≡ mega static char oopt_buf[8]; durable pointer into argv).
@@ -139,6 +141,13 @@ export extern "C" function invoke_cc_strip_out_x(out_path: *u8): void;
 
 /* ===== wave206 Cap residual / peer pure for argv head flags ===== */
 /* getenv already exported at file top (SHUX_RUN_QUIET); host_is_linux / host_is_apple / skip_native / harden_impl are pure peers. */
+
+/* ===== wave207 Cap residual / peer pure for argv tail flags ===== */
+/* Return path if .o exists (non-null → linkable); used for optional -pthread gate. */
+export extern "C" function asm_link_obj_skip_missing(path: *u8): *u8;
+/* CLI user .o table authority (mega g_shux_user_extra_o_files via count/at). */
+export extern "C" function link_abi_user_extra_o_count(): i32;
+export extern "C" function link_abi_user_extra_o_at(i: i32): *u8;
 
 /** Exported function `labi_linux_harden_flag_count`.
  * Implements `labi_linux_harden_flag_count`.
@@ -3632,6 +3641,118 @@ export function invoke_cc_append_argv_head_flags(argv: **u8, ia: *i32, argv_cap:
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, "-I");
       labi_icc_argv_try_push_flag(argv, ia, argv_cap, include_root);
     }
+  }
+}
+
+/**
+ * Append invoke_cc argv tail: POSIX -pthread/-lc, WINDOWS allow-multiple, user_extra .o, NULL terminator.
+ * @param argv **u8 — cc argv table; null → no-op
+ * @param ia *i32 — in/out argv length; null or *ia < 0 → no-op
+ * @param argv_cap i32 — argv capacity; leave one slot for NULL; try_push_flag guards flags
+ * @param thread_o *u8 — product thread.o path (nullable; existence gates -pthread)
+ * @param sync_o *u8 — product sync.o path (nullable; existence gates -pthread)
+ * @param channel_o *u8 — product channel.o path (nullable; existence gates -pthread)
+ * @return void — mutates *ia and argv slots; ends with argv[*ia-1] = NULL when room
+ * Pure orch: ≡ mega post-ensure tail inside shux_invoke_cc_impl (before spawn/strip).
+ * Cap residual: asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at} + push_existing + host_is_*.
+ * G.7: reuses labi_icc_argv_try_push_flag + invoke_cc_argv_push_existing + user_extra count/at (no second table).
+ * Why (wave207): hybrid still had -pthread/-lc/allow-multiple/user_extra+NULL always-mega after wave206 head pure.
+ * PLATFORM: SHARED orch / POSIX (linux|apple) -pthread when thread|sync|channel .o present + always -lc /
+ *   WINDOWS -Wl,--allow-multiple-definition (PE weak alias multi-def; ELF/Mach-O native weak).
+ * Track-L: #[no_mangle] surface short name for mega call sites.
+ * Note: export signature must stay single-line.
+ */
+#[no_mangle]
+export function invoke_cc_append_argv_tail_flags(argv: **u8, ia: *i32, argv_cap: i32, thread_o: *u8, sync_o: *u8, channel_o: *u8): void {
+  let ab: *u8 = argv as *u8;
+  if (ab == 0 as *u8) {
+    return;
+  }
+  if (ia == 0 as *i32) {
+    return;
+  }
+  if (ia[0] < 0) {
+    return;
+  }
+
+  let is_linux: i32 = 0;
+  let is_apple: i32 = 0;
+  let is_win: i32 = 0;
+  unsafe {
+    is_linux = shux_host_is_linux();
+    is_apple = link_abi_host_is_apple();
+    is_win = link_abi_host_is_windows();
+  }
+
+  // PLATFORM: POSIX (linux|apple) — -pthread when any pthread-using std .o is present on disk;
+  // always -lc so freestanding-ish links still resolve libc (≡ mega #if linux||apple).
+  if (is_linux != 0 || is_apple != 0) {
+    let need_pth: i32 = 0;
+    let ht: *u8 = 0 as *u8;
+    let hs: *u8 = 0 as *u8;
+    let hc: *u8 = 0 as *u8;
+    unsafe {
+      ht = asm_link_obj_skip_missing(thread_o);
+      hs = asm_link_obj_skip_missing(sync_o);
+      hc = asm_link_obj_skip_missing(channel_o);
+    }
+    // thread.o uses CPU_ZERO/CPU_SET (sched.h); sync/channel pull pthread via glue.
+    if (ht != 0 as *u8) {
+      need_pth = 1;
+    }
+    if (hs != 0 as *u8) {
+      need_pth = 1;
+    }
+    if (hc != 0 as *u8) {
+      need_pth = 1;
+    }
+    if (need_pth != 0) {
+      let fpth: *u8 = "-pthread";
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, fpth);
+    }
+    // Prefer pure -lc flag peer when available (G.7); fall back literal if null.
+    let flc: *u8 = 0 as *u8;
+    unsafe {
+      flc = labi_ld_flag_lc();
+    }
+    if (flc != 0 as *u8) {
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc);
+    } else {
+      let flc2: *u8 = "-lc";
+      labi_icc_argv_try_push_flag(argv, ia, argv_cap, flc2);
+    }
+  }
+
+  // PLATFORM: WINDOWS — PE/COFF lacks ELF weak; SHUX_WEAK + codegen weak aliases multi-def.
+  // --allow-multiple-definition picks first def (≡ mega Windows-only flag).
+  if (is_win != 0) {
+    let fam: *u8 = "-Wl,--allow-multiple-definition";
+    labi_icc_argv_try_push_flag(argv, ia, argv_cap, fam);
+  }
+
+  // CLI user .o after all std/core .o + link flags so user glue resolves last
+  // (e.g. runtime_atomic_glue.o provides atomic_load_i32_c for context.o).
+  // Authority table: link_abi_user_extra_o_{count,at} (mega g_shux_user_extra_o_files).
+  let n_extra: i32 = 0;
+  unsafe {
+    n_extra = link_abi_user_extra_o_count();
+  }
+  let ui: i32 = 0;
+  while (ui < n_extra) {
+    unsafe {
+      let p: *u8 = link_abi_user_extra_o_at(ui);
+      if (p != 0 as *u8) {
+        let _pu: i32 = invoke_cc_argv_push_existing(argv, ia, argv_cap, p);
+      }
+    }
+    ui = ui + 1;
+  }
+
+  // NULL-terminate argv for spawn (try_push_flag leaves room; direct write of null pointer).
+  let cur: i32 = ia[0];
+  if (cur < argv_cap) {
+    argv[cur] = 0 as *u8;
+    ia[0] = cur + 1;
   }
 }
 

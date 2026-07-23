@@ -2217,6 +2217,8 @@ int invoke_cc_run_cc_argv(char **argv);
 void invoke_cc_maybe_strip_out(const char *out_path, const char *opt_level);
 void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
     const char *out_path, const char *opt_level, int use_lto, const char *include_root);
+void invoke_cc_append_argv_tail_flags(char **argv, int *ia, int argv_cap,
+    const char *thread_o, const char *sync_o, const char *channel_o);
 #endif
 
 /* wave155: shux_append_linux_link_harden_impl pure orch lives in labi_invoke_cc_list
@@ -2287,6 +2289,14 @@ void invoke_cc_append_argv_head_flags(char **argv, int *ia, int argv_cap,
  * Cap residual: getenv(SHUX_RUN_QUIET) + pure skip_native + pure harden_impl + host_is_*.
  * Why: hybrid still had argv head flags always-mega after wave205 fork-exec pure.
  * PLATFORM: SHARED orch / LINUX -B + harden + --gc-sections / APPLE -dead_strip.
+ */
+
+/* wave207: invoke_cc_append_argv_tail_flags pure orch lives in labi_invoke_cc_list
+ * (-pthread/-lc/allow-multiple/user_extra+NULL inside shux_invoke_cc_impl).
+ * Cold twin via #include labi_invoke_cc_list.from_x.c above; hybrid FROM_X → L5 pure .x.
+ * Cap residual: asm_link_obj_skip_missing + link_abi_user_extra_o_{count,at} + push_existing + host_is_*.
+ * Why: hybrid still had argv tail always-mega after wave206 head pure.
+ * PLATFORM: SHARED orch / POSIX -pthread+-lc / WINDOWS allow-multiple.
  */
 
 
@@ -3190,7 +3200,8 @@ void shux_invoke_cc_clear_user_o_files(void);
  * 返回值：0 成功，-1 失败。
  * wave205: fork/exec/wait/strip 壳迁 pure（invoke_cc_run_cc_argv + maybe_strip_out）；
  * wave206: argv 头 flags 迁 pure（invoke_cc_append_argv_head_flags）；
- *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x / getenv quiet。无 fork-first 在子进程建 argv。
+ * wave207: argv 尾 flags 迁 pure（invoke_cc_append_argv_tail_flags：pthread/-lc/allow-multiple/user_extra+NULL）；
+ *   Cap residual shux_spawn_sync / invoke_cc_strip_out_x / getenv quiet / skip_missing / user_extra count·at。
  */
 int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
@@ -3214,6 +3225,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
      * wave205: build argv in parent, then pure invoke_cc_run_cc_argv (spawn_sync
      * candidates) + invoke_cc_maybe_strip_out. No fork-first child argv build.
      * wave206: argv head flags pure (quiet/O/native/NDEBUG/flto/harden/gc/-I).
+     * wave207: argv tail pure (-pthread/-lc/allow-multiple/user_extra+NULL).
      */
     /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
     char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
@@ -3291,39 +3303,9 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
     }
     /* wave204 pure: heap F-06 on-demand (nm argv + use_line + provides + page_mmap companions). */
     invoke_cc_append_heap_f06_ondemand(argv, &i, argv_cap, c_paths, n, include_root);
-#if defined(__linux__) || defined(__APPLE__)
-    /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
-    if ((asm_link_obj_skip_missing(thread_o) || asm_link_obj_skip_missing(sync_o) ||
-         asm_link_obj_skip_missing(channel_o)) &&
-        i < argv_cap - 1)
-        argv[i++] = (char *)"-pthread";
-    if (i < argv_cap - 1)
-        argv[i++] = (char *)"-lc";
-#endif
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    /* 【Why 根源】PE/COFF 格式不支持 weak 符号：SHUX_WEAK 函数被 MinGW 当
-       普通强符号定义。shux codegen 对 std/*.o 中函数生成 weak 别名（如 log_write_c、
-       core_crypto_mem_eq_c），多份 .o 链入时产生 multiple definition error。
-       --allow-multiple-definition 让 ld 选第一个定义，与 ELF weak 语义对齐。
-       【Invariant】仅 PE 格式（Windows/Cygwin）需此 flag；ELF/Mach-O weak 原生支持。
-       【Asm/Perf】链接期选第一个定义，无运行时开销。 */
-    if (i < argv_cap - 1)
-        argv[i++] = (char *)"-Wl,--allow-multiple-definition";
-#endif
-    /* User-specified .o files from command line (single authority:
-     * g_shux_user_extra_o_files, set by shux_invoke_cc_set_user_o_files_from_argv).
-     * Pushed AFTER all std/core .o and link flags so user glue resolves last
-     * (resolves UNDEF symbols from std .o that user glue provides, e.g.
-     * runtime_atomic_glue.o provides atomic_load_i32_c referenced by context.o). */
-    {
-        int ui;
-        for (ui = 0; ui < g_shux_n_user_extra_o_files; ui++) {
-            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                                                g_shux_user_extra_o_files[ui]);
-        }
-    }
-    if (i < argv_cap)
-        argv[i++] = NULL;
+    /* wave207 pure: argv tail (-pthread when thread|sync|channel .o present, -lc on POSIX,
+     * WINDOWS allow-multiple, user_extra .o, NULL terminator). Cap residual peers below. */
+    invoke_cc_append_argv_tail_flags(argv, &i, argv_cap, thread_o, sync_o, channel_o);
     /* wave205 pure: parent-side spawn cc candidates + strip -x when opt != 0. */
     /* #region debug-point C:invoke-cc-spawn */
     shux_debug_hello_stage1_report("C", "runtime_link_abi.c:invoke_cc_spawn", "invoke_cc_spawn", n, use_lto, i);
